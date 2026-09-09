@@ -375,7 +375,7 @@ func TestThereIsNoWayToClaimAVerifiedBasis(t *testing.T) {
 	registerLensOnce(t, runDir)
 	_, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "G1", "--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
-		"--likelihood", "medium", "--impact", "medium", "--fix-basis", "verified")
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--fix-basis", "verified")
 	if err == nil {
 		t.Fatal("--fix-basis was accepted — the basis must be derived, never asserted")
 	}
@@ -398,7 +398,7 @@ func TestAProposalAgainstTextThatIsNotThereIsRefused(t *testing.T) {
 	registerLensOnce(t, runDir)
 	_, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "G1", "--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
-		"--likelihood", "medium", "--impact", "medium",
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium",
 		"--quote", "a sentence the report never contained", "--new", "anything")
 	if err == nil {
 		t.Fatal("a proposal against absent text was accepted, so nothing forced red to read the report")
@@ -420,7 +420,7 @@ func mintWithProposal(t *testing.T, runDir, key, fixOld, fixNew string) string {
 	out, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", key, "--class", "overclaim", "--problem", "the defect",
 		"--fix", "drop the independence claim", "--check-kind", "document", "--check", "the section no longer claims it",
-		"--likelihood", "medium", "--impact", "medium",
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium",
 		"--quote", fixOld, "--new", fixNew)
 	if err != nil {
 		t.Fatalf("mint with proposal: %v", err)
@@ -486,7 +486,7 @@ func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
 	_, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "G2", "--class", "overclaim", "--quote", prescribedText,
 		"--problem", "this sentence overclaims", "--check-kind", "document", "--check", "c",
-		"--likelihood", "medium", "--impact", "medium")
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium")
 	if err == nil {
 		t.Fatal("red opened a fresh gap against text it prescribed itself")
 	}
@@ -513,7 +513,7 @@ func TestEstoppelLetsAnAmendmentThroughWhenLineageIsDeclared(t *testing.T) {
 	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "G2", "--class", "overclaim", "--quote", prescribedText,
 		"--problem", "my own fix turned out to contradict §3", "--check-kind", "document", "--check", "c",
-		"--likelihood", "medium", "--impact", "medium",
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium",
 		"--supersedes", prior); err != nil {
 		t.Fatalf("red was blocked from AMENDING its own prescription, which the guard must allow: %v", err)
 	}
@@ -529,7 +529,7 @@ func TestEstoppelDoesNotBlockAGapAgainstUnrelatedText(t *testing.T) {
 		// so "text the guard should not cover" can no longer mean "text that does not exist".
 		"--key", "G2", "--class", "overclaim", "--quote", "Sieve costs grow with the bound.",
 		"--problem", "unsupported", "--check-kind", "document", "--check", "c",
-		"--likelihood", "medium", "--impact", "medium"); err != nil {
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err != nil {
 		t.Fatalf("an unrelated finding was estopped — the guard is over-broad: %v", err)
 	}
 }

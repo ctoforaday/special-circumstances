@@ -41,6 +41,24 @@ func (b *stage) mint(evLens, gap, severity string) *stage {
 		AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Severity: &sev, Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 }
+
+// mintSuperseding mints gap as the successor of ancestor — lineage the record keeps and the PASS
+// gate reads: an open ancestor is a stranded gap.
+func (b *stage) mintSuperseding(evLens, gap, severity, ancestor string) *stage {
+	sev, _ := GradeOf(severity)
+	return b.add(evLens, &recordpb.Mint{GapId: proto.String(gap), Class: proto.String("x"), Problem: proto.String("p"),
+		AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+		Severity: &sev, Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		Supersedes: []string{ancestor}})
+}
+
+// docketMotion is a party escalating gap to the bench by hand — the route `motion docket file`
+// keeps open beside the dispatch's own docketing at impasse.
+func (b *stage) docketMotion(seat, id, gap string) *stage {
+	return b.add(seat, &recordpb.Motion{MotionId: proto.String(id), Subject: recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+		Basis: proto.String("escalated by hand"), Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}}})
+}
+
 func (b *stage) dispatch(pin int64, seat string, gaps ...string) *stage {
 	return b.add("red-chair", &recordpb.Dispatch{Pin: proto.Int64(pin), SeatId: proto.String(seat), GapIds: gaps})
 }
@@ -160,6 +178,73 @@ func TestASubMaterialGapDoesNotReadyBlue(t *testing.T) {
 	}
 	if plan.PassPermitted {
 		t.Error("PASS is not permitted while a cast lens has not sat against the head")
+	}
+}
+
+// A HAND-FILED DOCKET MOTION READIES THE BENCH BEFORE IMPASSE, and on a trifle. The escalation
+// route is a party's, not only the dispatch's; the motion stands until ruled, and PASS is refused
+// while it stands — so a docket nobody is dispatched to rule would strand the run.
+func TestAHandFiledDocketReadiesTheBenchWithoutImpasse(t *testing.T) {
+	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest(). // head = 2
+											register("red-chair").dispatch(2, evLens).register(evLens).
+											mint(evLens, "G1", "high").mint(evLens, "G2", "low").
+											register("blue-respond").docketMotion("blue-respond", "M1", "G1").docketMotion("blue-respond", "M2", "G2").
+											register("red-chair")
+	plan, err := PlanDispatch(b.seed())
+	if err != nil {
+		t.Fatal(err)
+	}
+	engaged := map[string][]string{}
+	for _, p := range plan.Parties {
+		engaged[p.SeatID] = p.GapIDs
+	}
+	if got := engaged["judge"]; len(got) != 2 || got[0] != "G1" || got[1] != "G2" {
+		t.Errorf("the bench is engaged on %v, want G1 and G2 — both escalated by hand, the trifle included", got)
+	}
+	if _, ready := engaged[evLens]; ready {
+		t.Error("the lens is engaged on a gap that is the bench's now")
+	}
+	if len(plan.Docket) != 0 {
+		t.Errorf("the plan dockets %v again — a motion already stands on each", plan.Docket)
+	}
+	if plan.PassPermitted {
+		t.Error("PASS is not permitted while a docket motion stands unruled")
+	}
+	why := strings.Join(plan.Why, "\n")
+	if !strings.Contains(why, "G1: docketed and unruled — the bench is ready") || !strings.Contains(why, "G2: docketed and unruled — the bench is ready") {
+		t.Errorf("the plan must say the bench is ready for each:\n%s", why)
+	}
+}
+
+// A STRANDED ANCESTOR READIES ITS MINTER WHATEVER ITS GRADE. The PASS gate refuses a verdict while
+// a superseded gap is open, so a sub-material ancestor that readied nobody left the plan saying
+// "pass permitted" and the gate saying no — the run ended UNVERIFIED with nobody ready (found by
+// the release sweep). Held as material: its minter and blue are engaged on it.
+func TestAStrandedAncestorIsReadyWorkWhateverItsGrade(t *testing.T) {
+	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest(). // head = 2
+											register("red-chair").dispatch(2, evLens).register(evLens).
+											mint(evLens, "G1", "low").mintSuperseding(evLens, "G2", "low", "G1").
+											register("red-chair")
+	plan, err := PlanDispatch(b.seed())
+	if err != nil {
+		t.Fatal(err)
+	}
+	engaged := map[string][]string{}
+	for _, p := range plan.Parties {
+		engaged[p.SeatID] = p.GapIDs
+	}
+	if got := engaged[evLens]; len(got) != 1 || got[0] != "G1" {
+		t.Errorf("the minter is engaged on %v, want G1 alone — the stranded ancestor, not the trifle that supersedes it", got)
+	}
+	if got := engaged["blue-respond"]; len(got) != 1 || got[0] != "G1" {
+		t.Errorf("blue is engaged on %v, want G1 — the exchange must count toward impasse or the ancestor can never reach the bench", got)
+	}
+	if plan.PassPermitted {
+		t.Error("PASS is not permitted over a stranded ancestor")
+	}
+	why := strings.Join(plan.Why, "\n")
+	if !strings.Contains(why, "G1: open and superseded by G2") || !strings.Contains(why, "G2: open but below material") {
+		t.Errorf("the plan must say the ancestor is held as material and the successor readies nobody:\n%s", why)
 	}
 }
 

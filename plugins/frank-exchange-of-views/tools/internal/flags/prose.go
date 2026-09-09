@@ -23,8 +23,8 @@ import (
 //	                         a missing field the seat had supplied. A blue seat wrote a paragraph
 //	                         into a heredoc, was refused three times, and filed friction.
 //	spot-check               registered --reason by hand. No file form, no stdin form.
-//	outcome                  the same — on the field its own help calls "the only evidence the
-//	                         determination ever had" on a judged deadlock.
+//	outcome                  the same — on the field its own help calls "the only evidence of
+//	                         why the run stopped" on an UNVERIFIED run.
 //
 // Every one of those is a verb forgetting a convention. A convention that has to be remembered
 // at fifty call sites is not a mechanism, and the helper's own doc comment claimed it was one:

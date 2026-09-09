@@ -39,6 +39,9 @@ const material = 2.0
 type openGap struct {
 	id, mintedBy, severity string
 	dockets, rulings       int
+	// supersededBy is the successor that names this gap as an ancestor, when one does and this gap
+	// is still open — the gap view's `stranded`. The PASS gate refuses a verdict over one.
+	supersededBy string
 }
 
 // PlanDispatch computes readiness from three sources — the report head against each lens's pin,
@@ -114,9 +117,39 @@ func PlanDispatch(run Run) (Plan, error) {
 	materialOpen, materialSettled := 0, 0
 	unruledDocket := false
 	for _, g := range gaps {
-		if MASS[g.severity] < material {
+		// A STRANDED GAP IS READY WORK WHATEVER ITS GRADE. Superseding is a promise to replace, and
+		// the PASS gate refuses a verdict while the ancestor is open (refs.go) — so a sub-material
+		// ancestor nobody is dispatched to close would leave the plan saying "pass permitted" and
+		// the gate saying no, forever, and the run ends UNVERIFIED with nobody ready. Found by the
+		// release sweep. Held as material here: its minter and blue are engaged, its exchanges
+		// count, and at impasse it reaches the bench like any other.
+		stranded := g.supersededBy != ""
+		trifle := MASS[g.severity] < material && !stranded
+		// A DOCKET MOTION IS THE ESCALATION ROUTE, and it readies the bench whether the gap is at
+		// impasse or not. The dispatch files one at impasse; a party may file one earlier (`motion
+		// docket file` is a red and blue verb, kept so the route to the bench is not the record's
+		// discretion alone), and a trifle may be escalated too. Either way the motion stands until
+		// the bench rules it, PASS is refused while it stands, and a bench that sat for it and
+		// ruled nothing is not re-readied — the run cannot end in a verdict while it stands.
+		if g.rulings < g.dockets {
+			unruledDocket = true
+			if !trifle {
+				materialOpen++
+			}
+			if benchSatFor(evs, ids, g.id, satIDs) {
+				plan.Why = append(plan.Why, fmt.Sprintf("%s: docketed, the bench sat and ruled nothing — one bench sitting per docketing, so this gap is not re-readied; the run cannot end in a verdict while it stands", g.id))
+				continue
+			}
+			engage("judge", g.id)
+			plan.Why = append(plan.Why, fmt.Sprintf("%s: docketed and unruled — the bench is ready", g.id))
+			continue
+		}
+		if trifle {
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: open but below material (%s) — readies nobody", g.id, g.severity))
 			continue
+		}
+		if stranded {
+			plan.Why = append(plan.Why, fmt.Sprintf("%s: open and superseded by %s — held as material until its minter closes it", g.id, g.supersededBy))
 		}
 		materialOpen++
 		x := exch[g.id]
@@ -131,23 +164,14 @@ func PlanDispatch(run Run) (Plan, error) {
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: open, material, %d exchange(s) (%d stalled) — below its limits", g.id, x.Exchanges, x.Stalled))
 			continue
 		}
-		switch {
-		case g.dockets == 0:
+		if g.dockets == 0 {
 			plan.Docket = append(plan.Docket, g.id)
 			engage("judge", g.id)
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse (%d exchange(s), %d stalled) — docketed for the bench", g.id, x.Exchanges, x.Stalled))
-		case g.rulings < g.dockets:
-			unruledDocket = true
-			if benchSatFor(evs, ids, g.id, satIDs) {
-				plan.Why = append(plan.Why, fmt.Sprintf("%s: docketed, the bench sat and ruled nothing — one bench sitting per docketing, so this gap is not re-readied; the run cannot end in a verdict while it stands", g.id))
-				continue
-			}
-			engage("judge", g.id)
-			plan.Why = append(plan.Why, fmt.Sprintf("%s: docketed and unruled — the bench is ready", g.id))
-		default:
-			materialSettled++ // ruled and still open: carried
-			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse, ruled carried — at its limit", g.id))
+			continue
 		}
+		materialSettled++ // ruled and still open: carried
+		plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse, ruled carried — at its limit", g.id))
 	}
 	for _, s := range order {
 		plan.Parties = append(plan.Parties, Party{SeatID: s, GapIDs: parties[s]})
@@ -218,6 +242,7 @@ func benchSatFor(evs []*Event, ids []int64, gapID string, sat map[string][]int64
 // tables — the same fold every reader uses.
 func openGaps(db *sql.DB) ([]openGap, error) {
 	rows, err := db.Query(`SELECT g."gap_id", COALESCE(g."minted_by", ''), COALESCE(g."current_severity", ''),
+	    CASE WHEN g."stranded" THEN COALESCE(g."superseded_by", '') ELSE '' END,
 	    (SELECT count(*) FROM "motion_docket" md WHERE md."gap_id" = g."gap_id"),
 	    (SELECT count(*) FROM "motion_rule" mr JOIN "motion" m ON m."motion_id" = mr."motion_id"
 	       JOIN "motion_docket" md ON md."event_id" = m."event_id" WHERE md."gap_id" = g."gap_id")
@@ -229,7 +254,7 @@ func openGaps(db *sql.DB) ([]openGap, error) {
 	var out []openGap
 	for rows.Next() {
 		var g openGap
-		if err := rows.Scan(&g.id, &g.mintedBy, &g.severity, &g.dockets, &g.rulings); err != nil {
+		if err := rows.Scan(&g.id, &g.mintedBy, &g.severity, &g.supersededBy, &g.dockets, &g.rulings); err != nil {
 			return nil, err
 		}
 		out = append(out, g)

@@ -278,7 +278,6 @@ CREATE TABLE "outcome" (
   "prose" TEXT NOT NULL,
   "verdict_why" TEXT,
   "verdict_basis" TEXT,
-  "ended" TEXT,
   FOREIGN KEY ("verdict") REFERENCES "enum_run_outcome"("value")
 ) STRICT;
 
@@ -398,7 +397,7 @@ CREATE TABLE "mint" (
   "fix_basis" TEXT,
   "acceptance_check" TEXT NOT NULL,
   "check_kind" TEXT NOT NULL,
-  "severity" TEXT,
+  "severity" TEXT NOT NULL,
   "likelihood" TEXT NOT NULL,
   "impact" TEXT NOT NULL,
   "complexity_cost" TEXT,

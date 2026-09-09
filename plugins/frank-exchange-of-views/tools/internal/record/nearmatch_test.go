@@ -23,7 +23,7 @@ func mintBoard(t *testing.T, runDir string, specs ...gapSpec) {
 	var evs []*Event
 	seq := 0
 	for _, s := range specs {
-		evs = append(evs, recordtest.At(t, seat, seat+":mint:"+s.id, &recordpb.Mint{
+		evs = append(evs, recordtest.At(t, seat, seat+":mint:"+s.id, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_HIGH),
 			GapId: proto.String(s.id), Class: proto.String("overclaim"),
 			Problem: proto.String(s.problem), Location: proto.String(s.location),
 			AcceptanceCheck: proto.String("check"),

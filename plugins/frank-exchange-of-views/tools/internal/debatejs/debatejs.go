@@ -99,15 +99,8 @@ type Outcome struct {
 	Verdict string
 	// Epochs is the number of chair sittings at exit — the loop counter (plans/roundless.md §III.B.1).
 	Epochs int
-	// Deadlocked and Halted are the two non-ceiling terminators; both can be false at a
-	// VERIFIED or CEILING exit.
+	// Halted is the judicial-halt terminator; false at every other exit.
 	Halted bool
-	// BenchClearedBoard is what became of a board the bench cleared to zero on a deadlock
-	// ruling: "" (it never did), "relief_granted" (red was given a further round to verdict
-	// against the empty docket), or "ceiling_owed_red_a_sitting" (it cleared on the last round,
-	// so there was no round to grant). A boolean here would answer two questions with one
-	// false — never cleared, and cleared with nothing left to grant — and those are different
-	// terminal facts: the second owes red a sitting.
 	// GapsOutstanding is the board's open count as debate.js reports it — the assemble
 	// seat's open_gaps where that seat returned an integer, red's docket length otherwise.
 	// It is the field the historic UNVERIFIED-with-nothing-open defect was visible in.

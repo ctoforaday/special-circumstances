@@ -22,7 +22,7 @@ func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 	db := store(t)
 
 	mint := func(id string, supersedes ...string) *recordpb.Mint {
-		return &recordpb.Mint{
+		return &recordpb.Mint{Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 			GapId:           proto.String(id),
 			Class:           proto.String("scope-creep"),
 			Problem:         proto.String("a problem for " + id),
@@ -135,7 +135,7 @@ func BenchmarkEvents(b *testing.B) {
 	for i := 0; i < 400; i++ {
 		gap := fmt.Sprintf("R1-%d", i+1)
 		bodies := []proto.Message{
-			&recordpb.Mint{
+			&recordpb.Mint{Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 				GapId:           proto.String(gap),
 				Class:           proto.String("scope-creep"),
 				Problem:         proto.String("a problem"),

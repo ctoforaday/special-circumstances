@@ -12,39 +12,39 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
-// A JUDGED DEADLOCK IS THE ONE TERMINAL VERDICT THE RECORD CANNOT DERIVE.
+// UNVERIFIED IS THE ONE TERMINAL VERDICT THE RECORD CANNOT DERIVE, AND THE ONLY ONE THE BENCH
+// MAY ASSERT.
 //
-// DeriveVerdict says so itself: no pass, no halt, ceiling not reached means the run ended early,
-// which only a judged deadlock does, "and that determination is not on the record (#289)". So at
-// the single moment the bench is exercising unforced judgement, the tool had nowhere to put it —
-// a bare boolean, and nothing else, forever.
+// DeriveVerdict says so itself: no pass, no halt, no board at its ceiling means the record holds
+// no terminal state — the run is in flight, or it ended before reaching one — and the record
+// cannot tell those apart from inside. So the bench's word stands there, and ONLY there: any other
+// word over such a record is a claim the tool would refuse if it could decide, arriving through
+// the one gap where it cannot, and it is refused by name.
 //
-// A bench seat found this from the other side and filed it as friction (#375), reaching for
-// --reason and reporting the asymmetry with `opinion`. These tests pin the contract that answers
-// it: required where the judgement is real, refused where it would argue someone else's
-// conclusion, and — the arm I got wrong first — a refusal that does not itself misdescribe the
-// record.
-func TestOutcomeRequiresAnAccountOfAJudgedDeadlock(t *testing.T) {
+// A bench seat found the account channel missing from the other side and filed it as friction
+// (#375). These tests pin the contract: the account is required, the asserted word is UNVERIFIED,
+// and the refusals do not misdescribe the record.
+func TestOutcomeAssertsOnlyUnverifiedAndAlwaysWithAnAccount(t *testing.T) {
 	for _, tc := range []struct {
 		name             string
-		deadlocked       bool
-		reason           string
+		as, reason       string
 		wantErr, wantSay string
 	}{
 		{
-			name: "a deadlock with no account is refused", deadlocked: true, reason: "",
+			name: "an ended-early run with no account is refused", as: "UNVERIFIED", reason: "",
 			wantErr: "yes", wantSay: "reason",
 		},
 		{
-			name: "a deadlock with its account is recorded", deadlocked: true,
-			reason: "blue and red read the same table oppositely and neither moved",
+			name: "an ended-early run with its account is recorded, asserted", as: "UNVERIFIED",
+			reason: "the workflow stopped with nobody ready and neither PASS nor the ceiling held",
 		},
 		{
-			name: "an ordinary stamp carries its account too", reason: "red passed on the second round and no gap survived it",
+			name: "a verdict the record cannot derive is refused when it is not UNVERIFIED", as: "VERIFIED",
+			reason: "the bench says it passed", wantErr: "yes", wantSay: "Only UNVERIFIED may be asserted",
 		},
 		{
-			name:    "no account at all is refused, deadlock or not",
-			wantErr: "yes", wantSay: "reason",
+			name: "CEILING cannot be asserted either — it is the board's to derive", as: "CEILING",
+			reason: "the bench says the terms ran out", wantErr: "yes", wantSay: "Only UNVERIFIED may be asserted",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -58,10 +58,7 @@ func TestOutcomeRequiresAnAccountOfAJudgedDeadlock(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Setenv(seatenv.Var, runDir)
-			args := []string{"outcome", "--as", "UNVERIFIED"}
-			if tc.deadlocked {
-				args = append(args, "--ended", "deadlock")
-			}
+			args := []string{"outcome", "--as", tc.as}
 			if tc.reason != "" {
 				args = append(args, "--reason", tc.reason)
 			}
@@ -70,10 +67,18 @@ func TestOutcomeRequiresAnAccountOfAJudgedDeadlock(t *testing.T) {
 			c.SetOut(&strings.Builder{})
 			c.SetErr(&strings.Builder{})
 			err := c.Execute()
-
 			if tc.wantErr == "" {
 				if err != nil {
 					t.Fatalf("refused a valid outcome: %v", err)
+				}
+				b, err := record.FamilyOf(runtest.Open(t, runDir))
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, e := range b.Events {
+					if o, ok := recordpb.BodyAs[*recordpb.Outcome](e); ok && o.GetVerdictBasis() != record.VerdictAsserted {
+						t.Errorf("verdict_basis = %q, want %q — the record could not derive this word, and the outcome must say so", o.GetVerdictBasis(), record.VerdictAsserted)
+					}
 				}
 				return
 			}
@@ -81,7 +86,7 @@ func TestOutcomeRequiresAnAccountOfAJudgedDeadlock(t *testing.T) {
 				t.Fatal("accepted an outcome the contract forbids")
 			}
 			if !strings.Contains(err.Error(), tc.wantSay) {
-				t.Errorf("the refusal does not name the missing flag %q: %v", tc.wantSay, err)
+				t.Errorf("the refusal does not say %q: %v", tc.wantSay, err)
 			}
 			// AND THE REFUSAL MUST NOT MISDESCRIBE THE RECORD. The first version told a seat its
 			// verdict was "DERIVED from the record ()" on a run where derivation had failed —

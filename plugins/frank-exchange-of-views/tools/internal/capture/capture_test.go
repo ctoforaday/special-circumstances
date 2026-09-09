@@ -41,7 +41,7 @@ func recordWithEpochs(t *testing.T, n int) string {
 		evs = append(evs, chairRegister(t, r))
 		// Every field the record REQUIRES, because it now refuses a mint that omits one. The
 		// fixture used to name four; the other three were absent and nothing said so.
-		evs = append(evs, recordtest.At(t, seat, seat+":mint:G"+itoa(r), &recordpb.Mint{
+		evs = append(evs, recordtest.At(t, seat, seat+":mint:G"+itoa(r), &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId:           proto.String("G" + itoa(r)),
 			Class:           proto.String("scope-creep"),
 			Problem:         proto.String("p"),

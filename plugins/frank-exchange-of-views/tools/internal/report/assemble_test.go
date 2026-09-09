@@ -104,13 +104,14 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 	if g := verdictGloss(nil); !strings.Contains(g, "no terminal outcome recorded") {
 		t.Errorf("a missing outcome must still be answerable from the gloss: %q", g)
 	}
-	deadlock := &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED), Ended: proto.String("deadlock")}
-	if s := verdictStamp(deadlock); !strings.Contains(s, "UNVERIFIED by judged deadlock") {
-		t.Errorf("deadlock reason not stamped: %q", s)
+	// UNVERIFIED is the word alone: the retired `ended` modifier restated a fact the verdict
+	// already carries, and the bench's account of why travels in the gloss, not the stamp.
+	unverified := &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED), Prose: proto.String("the workflow stopped with nobody ready")}
+	if s := verdictStamp(unverified); s != "**Verdict:** UNVERIFIED" {
+		t.Errorf("the verdict field must be the word alone: %q", s)
 	}
-	exhausted := &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED), Ended: proto.String("ceiling")}
-	if s := verdictStamp(exhausted); !strings.Contains(s, "UNVERIFIED by safety ceiling") {
-		t.Errorf("exhausted reason not stamped: %q", s)
+	if g := verdictGloss(unverified); !strings.Contains(g, "How the run ended, in the bench's words") || !strings.Contains(g, "nobody ready") {
+		t.Errorf("the bench's account must reach the gloss: %q", g)
 	}
 }
 

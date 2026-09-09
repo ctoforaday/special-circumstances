@@ -126,7 +126,6 @@ const (
 	// not serve. It sits on `setup` and NOT on any seat verb, because a seat carrying it would be
 	// the party under test excusing itself; the decision is made once and recorded on the run.
 	AllowSubstitution = "allow-substitution"
-	Ended             = "ended"
 
 	// Confidence is how sure a seat is of a determination it just made — orthogonal to WHAT
 	// the determination was (--as). One word, one question, and the question is "how sure are
@@ -290,7 +289,7 @@ func All() []string {
 		Reason, ReasonFile,
 		ID, IDs, Key, Quote, New, Answers, Accept, URL, Title, Format, Window,
 		Sitting, Trajectory,
-		As, None, Ended, Confidence,
+		As, None, Confidence,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class, Definition, Neighbor, Distinguisher,
 		Problem, Fix, Check, CheckKind, Type, SourceText, Via, At, About, AboutKind, Hypothesis, Script, Cites, ExpectError,

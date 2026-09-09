@@ -26,9 +26,8 @@ import (
 // be the one fact in the report that nothing recorded, and an unrecorded fact is one a
 // future reader cannot audit. This verb writes it; `bench assemble` reads it back.
 //
-// --ended says HOW a non-pass ended (a judged deadlock, or the safety ceiling). It decorates the
-// stamp and is recorded alongside the verdict, never inferred later. It was two booleans that
-// every reader took apart in a switch, which is an enum with a fourth state nobody defined.
+// HOW the run ended is the verdict's to say: CEILING is derived from the board, a halt is on the
+// record, and deadlock is per gap. The `--ended` modifier that restated it is retired.
 func newOutcome() *cobra.Command {
 	c := seat.New("outcome", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
@@ -48,16 +47,23 @@ func newOutcome() *cobra.Command {
 		// posture as seatenv's --run: where the tool can decide, a flag that disagrees is
 		// REFUSED naming both, rather than obeyed.
 		basis, basisWhy := record.VerdictAsserted, ""
-		if derived, why, ok := record.DeriveVerdict(run); ok {
-			basisWhy = why
-			if verdict != derived {
-				return nil, feov.Errorf(feov.Conflict,
-					"outcome: --as %s contradicts the record, which says %s (%s). The verdict is DERIVED, not claimed — if the record is wrong the fix is on the record, not in this flag",
-					verdict, derived, why)
-			}
-			basis = record.VerdictDerived
+		derived, why, ok := record.DeriveVerdict(run)
+		switch {
+		case ok && verdict != derived:
+			return nil, feov.Errorf(feov.Conflict,
+				"outcome: --as %s contradicts the record, which says %s (%s). The verdict is DERIVED, not claimed — if the record is wrong the fix is on the record, not in this flag",
+				verdict, derived, why)
+		case ok:
+			basis, basisWhy = record.VerdictDerived, why
+		case !strings.EqualFold(verdict, "UNVERIFIED"):
+			// THE ONLY WORD THE BENCH MAY ASSERT. When the record holds no terminal state — no
+			// halt, no PASS, no board at its ceiling — the run ended before it reached one, and
+			// UNVERIFIED is the name of that. Any other word here is a claim the record would
+			// refuse if it could decide, arriving through the one gap where it cannot.
+			return nil, feov.Errorf(feov.Conflict,
+				"outcome: --as %s, but the record holds no terminal state to derive it from (%s). Only UNVERIFIED may be asserted over such a record — a run that ended before a halt, a PASS or the ceiling",
+				verdict, why)
 		}
-		ended := seat.Str(cmd, flags.Ended)
 
 		// --reason IS THE RULE, NOT AN EXCEPTION, and the rule is enforced in `validate`
 		// rather than here — one write path, one enforcer. The 2026-07-20 vocabulary
@@ -73,7 +79,7 @@ func newOutcome() *cobra.Command {
 		// VERDICT while saying nothing about how the sitting ended.
 		// THE CHANNEL, NOT THE FLAG. This read --reason directly and registered its own copy of
 		// it, so the run's terminal account — which this flag's own help calls "the only evidence
-		// the determination ever had" on a judged deadlock — had no file form and no stdin form.
+		// of why the run stopped" on an UNVERIFIED run — had no file form and no stdin form.
 		// A bench with a paragraph had to fight the shell for the most consequential prose field
 		// in the run.
 		prose, err := seat.Reason(cmd)
@@ -91,9 +97,6 @@ func newOutcome() *cobra.Command {
 				"bench outcome: %q is not a verdict this record can carry", verdict)
 		}
 		body := &recordpb.Outcome{Verdict: &v, VerdictBasis: proto.String(basis)}
-		if e := seat.Str(cmd, flags.Ended); e != "" {
-			body.Ended = proto.String(e)
-		}
 		if reason != "" {
 			body.Prose = proto.String(reason)
 		}
@@ -106,28 +109,20 @@ func newOutcome() *cobra.Command {
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		return outcomeResult{Verdict: verdict, Ended: ended}, nil
+		return outcomeResult{Verdict: verdict, Basis: basis}, nil
 	})
 
 	seat.Prose(c)
-	c.Flags().Lookup(flags.Reason).Usage = "how this run ended, in your words. The verdict itself is derived from the record; this is the bench's account of the sitting, and on a judged deadlock it is the only evidence the determination ever had"
+	c.Flags().Lookup(flags.Reason).Usage = "how this run ended, in your words. The verdict itself is derived from the record; this is the bench's account of the sitting, and on an UNVERIFIED run — the one verdict the record cannot derive — it is the only evidence of why the run stopped"
 	enumhelp.Flag(c, flags.As, record.MustEnum("outcome", "verdict"), ("the run's terminal verdict"))
-	enumhelp.Flag(c, flags.Ended, record.MustEnum("outcome", "ended"), "what STOPPED the run, when it was not a pass — a judgement or a ceiling")
 	return c
 }
 
 type outcomeResult struct {
 	Verdict string `json:"verdict"`
-	Ended   string `json:"ended,omitempty"`
+	Basis   string `json:"verdict_basis"`
 }
 
 func (r outcomeResult) Human() string {
-	by := ""
-	switch r.Ended {
-	case "deadlock":
-		by = " (by judged deadlock)"
-	case "ceiling":
-		by = " (by safety ceiling)"
-	}
-	return fmt.Sprintf("outcome recorded: %s%s", r.Verdict, by)
+	return fmt.Sprintf("outcome recorded: %s (%s)", r.Verdict, r.Basis)
 }

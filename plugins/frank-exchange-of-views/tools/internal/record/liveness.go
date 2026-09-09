@@ -241,8 +241,8 @@ func TerminalVerdict(run Run) string {
 	if v := RecordedOutcome(run); v != "" {
 		return v
 	}
-	// Or what the record decides for itself. ok is false only where the record genuinely
-	// cannot — a judged deadlock — and that is a real answer, not a gap to paper over.
+	// Or what the record decides for itself. ok is false only where the record holds no
+	// terminal state — in flight, or ended early — and that is a real answer, not a gap to paper over.
 	if v, _, ok := DeriveVerdict(run); ok {
 		return v
 	}

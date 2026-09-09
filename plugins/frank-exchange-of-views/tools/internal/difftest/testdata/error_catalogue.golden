@@ -1,6 +1,6 @@
 ── mint without acceptance check
 exit 2
-feov-record: required flag(s) "check", "check-kind", "impact", "likelihood" not set
+feov-record: required flag(s) "check", "check-kind", "impact", "likelihood", "severity" not set
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
@@ -38,7 +38,7 @@ Flags:
       --quote string                     the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs
       --reason string                    your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -                    read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade                   how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --severity grade                   REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                  comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -60,7 +60,7 @@ Global Flags:
 
 ── mint without class
 exit 2
-feov-record: required flag(s) "class", "impact", "likelihood" not set
+feov-record: required flag(s) "class", "impact", "likelihood", "severity" not set
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
@@ -98,7 +98,7 @@ Flags:
       --quote string                     the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs
       --reason string                    your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -                    read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade                   how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --severity grade                   REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                  comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -120,7 +120,7 @@ Global Flags:
 
 ── mint with unknown class
 exit 2
-feov-record: required flag(s) "impact", "likelihood" not set
+feov-record: required flag(s) "impact", "likelihood", "severity" not set
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
@@ -158,7 +158,7 @@ Flags:
       --quote string                     the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs
       --reason string                    your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -                    read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade                   how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --severity grade                   REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                  comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -180,7 +180,7 @@ Global Flags:
 
 ── class-new missing definition
 exit 2
-feov-record: required flag(s) "impact", "likelihood" not set
+feov-record: required flag(s) "impact", "likelihood", "severity" not set
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
@@ -218,7 +218,7 @@ Flags:
       --quote string                     the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs
       --reason string                    your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -                    read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade                   how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --severity grade                   REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                  comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -240,7 +240,7 @@ Global Flags:
 
 ── class-new unknown neighbor
 exit 2
-feov-record: required flag(s) "impact", "likelihood" not set
+feov-record: required flag(s) "impact", "likelihood", "severity" not set
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
@@ -278,7 +278,7 @@ Flags:
       --quote string                     the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs
       --reason string                    your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -                    read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade                   how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --severity grade                   REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                  comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -338,7 +338,7 @@ Flags:
       --quote string                     the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs
       --reason string                    your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -                    read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade                   how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --severity grade                   REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                  comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -360,7 +360,7 @@ Global Flags:
 
 ── mint with dangling supersedes
 exit 2
-feov-record: required flag(s) "impact", "likelihood" not set
+feov-record: required flag(s) "impact", "likelihood", "severity" not set
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
@@ -398,7 +398,7 @@ Flags:
       --quote string                     the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs
       --reason string                    your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -                    read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade                   how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --severity grade                   REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                  comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -719,7 +719,7 @@ stamp how the run ENDED, as a fact — a different question from red's PASS or F
 
 The run's terminal determination, and a different question from red's PASS or FAIL.
 
-The verdict is derived from the record. Your reason is the bench's account of the sitting — and on a judged deadlock it is the only evidence that determination will ever have.
+The verdict is derived from the record — a halt, the chair's PASS, or a board at its ceiling — and the word you give is checked against it. The one word you may assert is UNVERIFIED, for a run that stopped before the record reached a terminal state; your reason is the bench's account of the sitting, and on such a run it is the only evidence of why it stopped.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -730,11 +730,10 @@ Usage:
   feov-record outcome [flags]
 
 Flags:
-      --as as-value              REQUIRED — the run's terminal verdict
-      --ended deadlock|ceiling   what STOPPED the run, when it was not a pass — a judgement or a ceiling
-  -h, --help                     help for outcome
-      --reason string            REQUIRED — how this run ended, in your words. The verdict itself is derived from the record; this is the bench's account of the sitting, and on a judged deadlock it is the only evidence the determination ever had
-      --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --as as-value     REQUIRED — the run's terminal verdict
+  -h, --help            help for outcome
+      --reason string   REQUIRED — how this run ended, in your words. The verdict itself is derived from the record; this is the bench's account of the sitting, and on an UNVERIFIED run — the one verdict the record cannot derive — it is the only evidence of why the run stopped
+      --reason-file -   read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
 
 Enumerated values:
   --as
@@ -742,10 +741,6 @@ Enumerated values:
     CEILING     every open material gap reached its limit — ruled by the bench and carried — with work still open: NOT a judged failure to verify, and the stamp says so
     HALTED      the bench ended the run on a safety, ethics, consent or integrity boundary
     UNVERIFIED  the run ended without the question being answered, and no ceiling or halt explains it
-
-  --ended
-    deadlock  the bench JUDGED the exchange deadlocked — the one terminal state the record cannot derive, so --reason is the only account of it there will ever be
-    ceiling   the run stopped against its terms — every open material gap at its limit — rather than against a judgement
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text

@@ -64,15 +64,15 @@ var referenceChecks = []struct {
 	{verb: []string{"close"}, flag: "--superseded-by", against: "the board", bogus: "G2",
 		extra: []string{"--id", "G1", "--as", "repaired_with_regression", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "r"}},
 	{verb: []string{"mint"}, flag: "--supersedes", against: "the board", bogus: "G2",
-		extra: []string{"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
+		extra: []string{"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 	{verb: []string{"mint"}, flag: "--found-by", against: "the findings on the record", bogus: "L9-F9",
-		extra: []string{"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
+		extra: []string{"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 	// NEEDS A REGISTRY STAGED. `validateClass` is ADVISORY when none is present, so this case
 	// silently passed over an unchecked class until the fixture seeded one — which is how the
 	// whole internal/cli suite had been running with class validation off.
 	{verb: []string{"mint"}, flag: "--class", against: "the class registry", bogus: "no-such-class-slug",
 		needsRegistry: true,
-		extra:         []string{"--check-kind", "document", "--check", "c", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
+		extra:         []string{"--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 	// THE ONE THIS TABLE WAS WRITTEN FOR.
 	{verb: []string{"mint"}, flag: "--quote", against: "blue/report.md", bogus: "a sentence that is nowhere in the report",
 		extra: []string{"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
@@ -155,7 +155,7 @@ func TestAnUnreadableClassRegistryIsRefusedRatherThanIgnored(t *testing.T) {
 	}
 	_, err = run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--class", "anything-at-all", "--check-kind", "document", "--check", "c",
-		"--likelihood", "low", "--impact", "low", "--problem", "p")
+		"--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p")
 	if err == nil {
 		t.Fatal("a mint was accepted against an unreadable class registry — every --class passes while it stays that way, and nothing says so")
 	}

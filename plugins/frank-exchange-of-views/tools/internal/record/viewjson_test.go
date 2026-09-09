@@ -26,7 +26,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 		recordtest.At(t, merge, merge+":position", &recordpb.Position{Text: proto.String("red r1")}),
 		// The gap must exist before anything speaks about it: `closing.gap_id` and the bench's
 		// opinion are both foreign keys onto the mint.
-		recordtest.At(t, merge, merge+":mint:G1", &recordpb.Mint{
+		recordtest.At(t, merge, merge+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId: proto.String("G1"), Class: proto.String("overclaim"), Problem: proto.String("p"),
 			AcceptanceCheck: proto.String("the check runs"),
 			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
@@ -156,7 +156,7 @@ func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 			Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			FoundBy:    []string{"L1-F1"},
 		}),
-		recordtest.At(t, m, m+":mint:G2", &recordpb.Mint{
+		recordtest.At(t, m, m+":mint:G2", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId: proto.String("G2"), Class: proto.String("citation"),
 			Problem: proto.String("a closed problem"), Location: proto.String("§closed"),
 			RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("chk"),
@@ -222,7 +222,7 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 	runDir := newRun(t)
 	m := "red-chair"
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, m, m+":mint:G2", &recordpb.Mint{
+		recordtest.At(t, m, m+":mint:G2", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId: proto.String("G2"), Class: proto.String("overclaim"),
 			Problem: proto.String("an open problem"), Location: proto.String("§1"),
 			AcceptanceCheck: proto.String("run the check"),
@@ -271,7 +271,7 @@ func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 		recordtest.At(t, s, s+":finding:L1-F2", &recordpb.Finding{Label: proto.String("L1-F2"), Text: proto.String("never credited")}),
 	})
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, m, m+":mint:k", &recordpb.Mint{
+		recordtest.At(t, m, m+":mint:k", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId: proto.String("k"), Class: proto.String("overclaim"), Problem: proto.String("p"),
 			AcceptanceCheck: proto.String("the check runs"),
 			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
@@ -308,7 +308,7 @@ func TestRedsArgumentReachesTheBoard(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	seat := "red-chair"
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, seat, seat+":mint:G1", &recordpb.Mint{
+		recordtest.At(t, seat, seat+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId: proto.String("G1"), Class: proto.String("overclaim"),
 			Problem:         proto.String("the section claims independence"),
 			MintReason:      proto.String("all five approaches share one definition of primality"),

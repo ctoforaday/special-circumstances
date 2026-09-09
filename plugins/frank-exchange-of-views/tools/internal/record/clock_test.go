@@ -17,7 +17,7 @@ func TestClockAgreesWithEventsW(t *testing.T) {
 	runDir := newRun(t)
 	run := mustRun(t, runDir)
 	mint := func(id string) *recordpb.Mint {
-		return &recordpb.Mint{GapId: proto.String(id), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}
+		return &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}
 	}
 	for _, seat := range []string{"red-lens-evidence", "red-lens-logic", "red-chair"} {
 		if _, _, err := RegisterSeat(Identity{Run: run, SeatID: seat}, ""); err != nil {

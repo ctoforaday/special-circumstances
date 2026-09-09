@@ -5,14 +5,14 @@ export const meta = {
     { title: 'Frontier', detail: 'hypotheses before searches' },
     { title: 'Blue', detail: 'best-of-N lanes + additive synthesis' },
     { title: 'Red', detail: 'per-lens audits + merged verdict' },
-    { title: 'Debate', detail: 'revision rounds until red-PASS or judged deadlock' },
+    { title: 'Debate', detail: 'sittings dispatched from the record until nobody is ready — PASS permitted, or every open gap at its limit' },
     { title: 'Assemble', detail: 'final report by union' },
   ],
 }
 
 // TESTING & MODEL-SELECTION STRATEGY (learned from runs 1-3, ~5M tokens of tuition):
 //   Logic bugs are unit-testable for zero tokens: a Node harness stubs agent() with canned
-//   envelopes and drives every branch (args parsing, round loop, contested docket, deadlock,
+//   envelopes and drives every branch (args parsing, dispatch loop, contested docket, impasse,
 //   ceiling, null returns). Founding regressions: stringified args -> undefined paths (run 1);
 //   missing null-guard on agent() returns (run 2); lineage-blind docket + degenerate
 //   FAIL-with-empty-gaps + friction lost on throw (run 3 retrospective, report §3 rows 20-24).
@@ -784,7 +784,7 @@ await hearPetitions(blueEnv, 'blue-synthesize')
 // sitting followed by a blue-party sitting, and the record counts them (impasse.go). Empty is the
 // termination signal: pass_permitted (the chair issues PASS → VERIFIED), ceiling (every open
 // material gap at its limit, ruled and carried → CEILING), or neither (UNVERIFIED, with the plan's
-// reasons on the record). The disputes, the docket, deadlock and the ceiling all live on the record
+// reasons on the record). The disputes, the docket, impasse and the ceiling all live on the record
 // now; nothing here keeps a second copy of them.
 let epoch = 0
 let chairEnv = null

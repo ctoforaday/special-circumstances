@@ -205,8 +205,8 @@ func TestAnEnumColumnStillRefusesAnUnknownWord(t *testing.T) {
 	mintGap := func(t *testing.T, gapID string) {
 		t.Helper()
 		mid := mk(t, "mint")
-		if _, err := db.Exec(`INSERT INTO mint (event_id, gap_id, class, problem, acceptance_check, check_kind, likelihood, impact)
-			VALUES (?, ?, 'c', 'p', 'a', 'document', 'medium', 'medium')`, mid, gapID); err != nil {
+		if _, err := db.Exec(`INSERT INTO mint (event_id, gap_id, class, problem, acceptance_check, check_kind, severity, likelihood, impact)
+			VALUES (?, ?, 'c', 'p', 'a', 'document', 'medium', 'medium', 'medium')`, mid, gapID); err != nil {
 			t.Fatal(err)
 		}
 	}

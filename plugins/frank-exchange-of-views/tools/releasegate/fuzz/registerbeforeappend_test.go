@@ -57,19 +57,20 @@ func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 	}
 
 	// ONLY RED'S SEATS. blue-respond is deliberately left unregistered: the whole point is that
-	// closeGap appends as it, so closeGap is what must register it. The chair is registered for
-	// the `carry` arm closeGap gives it (inert here — nothing was closed in a prior round); the
-	// lens that mints is registered by r.lens() itself.
+	// closeGap appends as it, so closeGap is what must register it. The chair is registered as
+	// the sitting seat closeGap is handed; the lens that mints is registered here, by name, as
+	// the dispatch loop would register it before it sat.
 	r.register("merge", "red-chair")
 
 	// `mint` draws the gap KIND at random, so take gaps until a computation one appears. Bounded
-	// so a change that stops producing them fails here rather than hanging. r.lens() rotates the
-	// minter across the dispatched lenses, so 40 mints stay under the per-lens budget (4 × 5 = 20
-	// landed mints is the ceiling; the loop stops at the first computation gap, typically within
-	// a handful).
+	// so a change that stops producing them fails here rather than hanging. The minter rotates
+	// across the cast's lenses so the mints stay under each lens's budget (the record refuses a
+	// mint past it); the loop stops at the first computation gap, typically within a handful.
 	var gapID string
 	for i := 0; i < 40 && gapID == ""; i++ {
-		id := r.mint(r.lens())
+		lens := fuzzLensSeats[i%len(fuzzLensSeats)]
+		r.register("lens", lens)
+		id := r.mint(lens)
 		if id != "" && r.computationGaps[id] {
 			gapID = id
 		}

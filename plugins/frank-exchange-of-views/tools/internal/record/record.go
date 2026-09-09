@@ -1223,8 +1223,8 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 		// requirement the CLI holds and the record does not is one every other caller skips.
 		//
 		// The verdict itself is derived and needs no defence. How the SITTING ended is not, and
-		// where a run ended by judged deadlock nothing else records it — DeriveVerdict says so
-		// itself, that the determination "is not on the record (#289)".
+		// where a run ended UNVERIFIED — before the record reached a terminal state — nothing
+		// else records why; DeriveVerdict says so itself.
 	case *recordpb.Verify:
 		// A VERIFICATION OF NOTHING WAS RECORDABLE. The bare verb — no flags at all — printed
 		// "source verified:" and appended an event that counted as red's audit volume. Enforced
