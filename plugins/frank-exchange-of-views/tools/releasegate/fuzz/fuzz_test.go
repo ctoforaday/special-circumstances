@@ -1219,7 +1219,11 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 			return
 		}
 	}
-	as := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere"})
+	// EVERY CLOSING WORD, including `moot`. The vocabulary is shared between the closing verbs
+	// (#342), so a word added for the bench's docket ruling reaches this verb too — and the enum
+	// coverage gate says so by name the moment one is added without a drive, which is how `moot`
+	// arrived here in the same change that put it in the schema (#847).
+	as := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "moot"})
 	_, _ = r.exec("close", "--seat-id", closer, "--id", id, "--as", as, "--reason", "fuzz close as "+as,
 		"--verified-by", closer, "--verified-with", "fuzz", "--verified-against", "rec")
 }

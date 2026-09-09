@@ -322,6 +322,20 @@ enum Disposition {
   // "I repaired it by carrying it" is not a sentence. The subset is enforced, not documented —
   // see Close.closure_class, whose `subset: "closes"` generates the CHECK from this annotation.
   DISPOSITION_CARRIED = 7 [(means) = "NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes", (closes) = false];
+  // MOOT IS NOT not_a_defect, AND THAT DISTINCTION IS WHY IT EXISTS (#847).
+  //
+  // `not_a_defect` asserts that blue argued the finding was wrong and the argument HELD — a
+  // claim about an exchange that happened. `repaired` asserts a repair verified at the leaf.
+  // Moot asserts neither: nobody won an argument and nobody verified a fix, the text the finding
+  // attached to simply is not in the report any more.
+  //
+  // It was an ENGINE word with no record word. The debate script offered the bench `moot` in its
+  // envelope and the record refused it, so a bench reaching for it had to substitute a closing
+  // disposition that asserts something that did not occur. Measured on 2026-08-23: a bench filed
+  // friction saying it "had to substitute defect_owed_elsewhere for what the constitution calls
+  // grade_adjusted, since no closer enum value exists" — the same forced-substitution shape, one
+  // word over.
+  DISPOSITION_MOOT = 8 [(means) = "the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about. NOT not_a_defect, which asserts blue's argument held, and NOT repaired, which asserts a verified fix", (closes) = true];
 }
 
 // SourceOutcome is WHAT THE SOURCE DID for a claim — a different question from how sure the

@@ -168,6 +168,7 @@ INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('amends_prio
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('carried', 'NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes', 0);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('defect_accepted', 'the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('defect_owed_elsewhere', 'a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped', 1);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('moot', 'the gap''s predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about. NOT not_a_defect, which asserts blue''s argument held, and NOT repaired, which asserts a verified fix', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('not_a_defect', 'blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired', 'the repair was verified at the leaf and nothing regressed', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired_with_regression', 'repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward', 1);
@@ -444,7 +445,7 @@ CREATE TABLE "close" (
   "carried_from" TEXT,
   "successor" TEXT,
   "prose" TEXT,
-  CHECK ("closure_class" IS NULL OR "closure_class" IN ('amends_prior', 'defect_accepted', 'defect_owed_elsewhere', 'not_a_defect', 'repaired', 'repaired_with_regression')),
+  CHECK ("closure_class" IS NULL OR "closure_class" IN ('amends_prior', 'defect_accepted', 'defect_owed_elsewhere', 'moot', 'not_a_defect', 'repaired', 'repaired_with_regression')),
   CHECK ("closure_class" <> 'repaired_with_regression' OR "successor" IS NOT NULL),
   CHECK ("carried_from" IS NOT NULL OR "prose" IS NOT NULL),
   FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id"),

@@ -72,35 +72,23 @@ var envelopeEnumBinding = map[string]enumBind{
 	"PETITION_RULING.binds":    {typ: "motion:petition", key: "binds"},
 	"DISPUTE_DIMENSION.<self>": {typ: "motion:grade", key: "dimension"},
 
-	// THE BENCH'S DISPOSITION, BOUND WITH BOTH ASYMMETRIES NAMED (#847).
+	// THE BENCH'S DISPOSITION, AND THE TWO VOCABULARIES ARE ONE AGAIN (#847).
 	//
-	// This was exempt — "engine vocabulary, the recorded form is checked at its own write path" —
-	// which is TRUE and is why nobody looked. Exempting the whole field meant nothing checked
-	// what the exemption was protecting, and the two vocabularies drifted to five words of ten
-	// disagreeing with no signal.
+	// This was EXEMPT, on a reason that was true — the engine's vocabulary is its own, the
+	// recorded form is checked at its own write path — and that is why nobody looked. Exempting
+	// the FIELD meant nothing checked what the exemption protected, and the two drifted to five
+	// words of ten disagreeing.
 	//
-	// Bound now, with each direction declared:
+	// Bound with no declared asymmetry in either direction, which is the strongest form this
+	// entry can take: every word the envelope offers is a word the record accepts, and every word
+	// the record accepts has an envelope word and therefore a stated duty for the other party.
+	// A value added to either side now fails this gate until it is added to both or declared.
 	//
-	//   engineOnly — deliberate, documented at debate.js:499-507, each carrying a
-	//   BLUE_DUTY_BY_RESOLUTION instruction that reaches a seat. They are NOT drift and must not
-	//   be "fixed" by deleting them.
-	//
-	//   recordOnly — a KNOWN GAP and not a blessing. A bench recording one of these has no
-	//   envelope word for it, so blue gets another fate's duty or the UNMAPPED FATE default.
-	//   Listed so it is visible and so a THIRD one cannot appear silently; the mapping itself is
-	//   an adjudication decision and is not made here.
-	"JUDGE_ENVELOPE.resolution": {
-		typ: "motion:docket", key: "ruling",
-		engineOnly: []string{
-			"unresolved",     // the bench could not settle it on this record
-			"grade_adjusted", // run-4 §3.3: gap real, grade wrong; the next chair applies the delta
-			"moot",           // the gap's predicate expired — the claim it attached to is gone
-		},
-		recordOnly: []string{
-			"repaired_with_regression", // REQUIRES a successor naming the regression
-			"amends_prior",             // REQUIRES supersedes, so the lineage is explicit
-		},
-	},
+	// Getting here took three changes rather than a mapping: `moot` became a record disposition
+	// (it asserts neither the argument not_a_defect claims nor the verification repaired claims);
+	// `grade_adjusted` left, because it is a GRADE MOTION's outcome and this envelope already
+	// carries grade_disputes for that; `unresolved` left as a duplicate of `carried`.
+	"JUDGE_ENVELOPE.resolution": {typ: "motion:docket", key: "ruling"},
 }
 
 // envelopeEnumExempt are envelope enums with no record counterpart, each with its reason. These

@@ -467,6 +467,20 @@ const (
 	// "I repaired it by carrying it" is not a sentence. The subset is enforced, not documented —
 	// see Close.closure_class, whose `subset: "closes"` generates the CHECK from this annotation.
 	Disposition_DISPOSITION_CARRIED Disposition = 7
+	// MOOT IS NOT not_a_defect, AND THAT DISTINCTION IS WHY IT EXISTS (#847).
+	//
+	// `not_a_defect` asserts that blue argued the finding was wrong and the argument HELD — a
+	// claim about an exchange that happened. `repaired` asserts a repair verified at the leaf.
+	// Moot asserts neither: nobody won an argument and nobody verified a fix, the text the finding
+	// attached to simply is not in the report any more.
+	//
+	// It was an ENGINE word with no record word. The debate script offered the bench `moot` in its
+	// envelope and the record refused it, so a bench reaching for it had to substitute a closing
+	// disposition that asserts something that did not occur. Measured on 2026-08-23: a bench filed
+	// friction saying it "had to substitute defect_owed_elsewhere for what the constitution calls
+	// grade_adjusted, since no closer enum value exists" — the same forced-substitution shape, one
+	// word over.
+	Disposition_DISPOSITION_MOOT Disposition = 8
 )
 
 // Enum value maps for Disposition.
@@ -480,6 +494,7 @@ var (
 		5: "DISPOSITION_DEFECT_ACCEPTED",
 		6: "DISPOSITION_DEFECT_OWED_ELSEWHERE",
 		7: "DISPOSITION_CARRIED",
+		8: "DISPOSITION_MOOT",
 	}
 	Disposition_value = map[string]int32{
 		"DISPOSITION_UNSPECIFIED":              0,
@@ -490,6 +505,7 @@ var (
 		"DISPOSITION_DEFECT_ACCEPTED":          5,
 		"DISPOSITION_DEFECT_OWED_ELSEWHERE":    6,
 		"DISPOSITION_CARRIED":                  7,
+		"DISPOSITION_MOOT":                     8,
 	}
 )
 
@@ -6889,7 +6905,8 @@ const file_record_proto_rawDesc = "" +
 	"\x16CHECK_KIND_UNSPECIFIED\x10\x00\x12\x7f\n" +
 	"\x13CHECK_KIND_DOCUMENT\x10\x01\x1af\x8a\xb5\x18breading a shipped artifact settles it — the check is answered by prose that quotes what is there\x12\x9a\x03\n" +
 	"\x16CHECK_KIND_COMPUTATION\x10\x02\x1a\xfd\x02\x8a\xb5\x18\xf8\x02RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation are common cases and not the whole of it; if you can imagine a script that would end the argument, this is the kind\x12\x89\x01\n" +
-	"\x11CHECK_KIND_SOURCE\x10\x03\x1ar\x8a\xb5\x18nverifying an external source settles it — the claim stands or falls on what the cited material actually says*\xaf\b\n" +
+	"\x11CHECK_KIND_SOURCE\x10\x03\x1ar\x8a\xb5\x18nverifying an external source settles it — the claim stands or falls on what the cited material actually says*\xca\n" +
+	"\n" +
 	"\vDisposition\x12\x1b\n" +
 	"\x17DISPOSITION_UNSPECIFIED\x10\x00\x12[\n" +
 	"\x14DISPOSITION_REPAIRED\x10\x01\x1aA\x8a\xb5\x189the repair was verified at the leaf and nothing regressed\x98\xb5\x18\x01\x12\xa0\x01\n" +
@@ -6898,7 +6915,8 @@ const file_record_proto_rawDesc = "" +
 	"\x18DISPOSITION_NOT_A_DEFECT\x10\x04\x1ar\x8a\xb5\x18jblue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be\x98\xb5\x18\x01\x12\xb5\x01\n" +
 	"\x1bDISPOSITION_DEFECT_ACCEPTED\x10\x05\x1a\x93\x01\x8a\xb5\x18\x8a\x01the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record\x98\xb5\x18\x01\x12\x8f\x01\n" +
 	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\x88\x01\n" +
-	"\x13DISPOSITION_CARRIED\x10\a\x1ao\x8a\xb5\x18gNOT a closure: the gap survives to the next round with a stated research direction the coming seat owes\x98\xb5\x18\x00*\xec\a\n" +
+	"\x13DISPOSITION_CARRIED\x10\a\x1ao\x8a\xb5\x18gNOT a closure: the gap survives to the next round with a stated research direction the coming seat owes\x98\xb5\x18\x00\x12\x98\x02\n" +
+	"\x10DISPOSITION_MOOT\x10\b\x1a\x81\x02\x8a\xb5\x18\xf8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about. NOT not_a_defect, which asserts blue's argument held, and NOT repaired, which asserts a verified fix\x98\xb5\x18\x01*\xec\a\n" +
 	"\rSourceOutcome\x12\x1e\n" +
 	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12`\n" +
 	"\x17SOURCE_OUTCOME_SUPPORTS\x10\x01\x1aC\x8a\xb5\x18?you read the source at the leaf and it says what the claim says\x12\x9a\x01\n" +
