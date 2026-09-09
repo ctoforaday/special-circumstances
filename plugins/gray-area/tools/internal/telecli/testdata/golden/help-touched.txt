@@ -1,0 +1,17 @@
+Answers "is anyone else editing this file".
+
+Matching is on a suffix, so a repo-relative path finds the act whatever absolute
+path the other agent used. A path nothing names produces a SENTENCE, not an empty
+table: silence here would be a claim about the file, when it is only a claim about
+what has been ingested.
+
+Usage:
+  telepathy touched <path> [flags]
+
+Flags:
+  -h, --help   help for touched
+
+Global Flags:
+      --projects string   the transcript root, which this reads and never writes (default "<CORPUS>")
+      --sessions string   where the client advertises live sessions, which is the only source of liveness (default "<SESSIONS>")
+      --store string      the catalogue database the hooks write and every read verb queries (default "<STORE>")

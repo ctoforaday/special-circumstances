@@ -1,0 +1,11 @@
+session aaaaaaaa  (open)
+  <CORPUS>/-work-alpha
+
+  TOOL               CALLS  ERRORS
+  Bash                   2       1
+  Read                   2       0
+  Edit                   1       0
+  Grep                   1       0
+  Write                  1       0
+
+  5 words, 1 thoughts

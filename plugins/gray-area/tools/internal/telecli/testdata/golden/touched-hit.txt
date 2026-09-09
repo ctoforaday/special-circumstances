@@ -1,0 +1,4 @@
+SESSION    AGENT              TOOL     OUTCOME        N  WHEN
+aaaaaaaa   review-02          Read     ok             1  1h ago
+aaaaaaaa   (main)             Edit     ok             1  3h ago
+aaaaaaaa   (main)             Read     ok             1  3h ago
