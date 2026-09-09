@@ -168,14 +168,23 @@ So the rule is:
 4. **CLOSURE INGESTS BEFORE IT DECIDES**, and an earlier draft that omitted this had promotion
    backwards. It said a provisional promotes to "a final block that never reached the transcript" —
    but §II:89 says such a turn is *never hook-ingested*, **not** never written, and the file does get
-   it: measured, **150 of 150 completed transcripts (untouched >30 min) contain assistant text for
-   their final turn.** A closing sweep comparing only against already-*ingested* text would therefore
+   it: measured over **all** completed transcripts (>30 min untouched) — **406 of 409, 99.3%** (3 have
+   assistant records for the final turn and no text block; 5 more have no resolvable final key). An
+   earlier draft said "150 of 150" because its scan took the first 150 files, the narrow-sample class
+   this plan names elsewhere — and the direction matters: a true 100% would make §V.3's second addend
+   always zero, the condition §V.3 itself treats as the failing case. A closing sweep comparing only against already-*ingested* text would therefore
    promote a row whose text sits in the file unread, on the routine path, and §V.3's arithmetic would
    be wrong in both halves — passing only when its second addend is 0, i.e. only when R11 has no
    evidence. That is the inverse of round seventeen's error, not its repair.
 
-   So the sweep **runs incremental ingest of that session's transcript from its stored offset first**,
-   and only then decides. **That is transcript I/O for another session inside `SessionStart`, so it
+   So the sweep **runs incremental ingest from the stored offset first**, and only then decides.
+   **Which file, precisely — an earlier draft said "that session's transcript", which is wrong for a
+   subagent.** A session maps to many files (measured: 324 of 420 transcripts here are
+   `agent-*.jsonl`), offsets are recorded **per file**, and a provisional's `agent_id` selects the
+   one: `agent_id = ""` reads the session's own `transcript_path`, and a non-empty `agent_id` reads
+   that seat's `agent_transcript_path` — the value the payload already carries and the manifest
+   already records. Reading the main transcript for an `agent_id`-keyed provisional would find the
+   text in the wrong file, never satisfy it, and promote every subagent turn. **That is transcript I/O for another session inside `SessionStart`, so it
    was measured against that hook's budget rather than assumed into it:** a tail read beyond a stored
    offset costs **2.4 ms**, and even a cold full parse of the largest transcript on this box (36.2 MB)
    is **108 ms** — against the 500 ms rollover budget, with 6 sessions live. The stored offset is what
@@ -190,9 +199,22 @@ So the rule is:
 
    **Closure is a database WRITE, so triggers 3 and 4 need a writer named, and an earlier draft's
    "no hook has to fire for it to resolve" was false.** The query path is read-only by design
-   (§V.9 asserts writes are refused there), so nothing resolves without some hook running. Both are
-   performed by **`gray-area-capture` at `SessionStart`**, in the same sweep that already ages the
-   window: it promotes or deletes any provisional whose session is no longer live, and any older
+   (§V.9 asserts writes are refused there), so nothing resolves without some hook running. **There are TWO sweeps and an earlier draft conflated them**, which made the resolution claim and
+   the retention claim contradict: the **retention** sweep (the 325 ms `DELETE`) is a no-op except on
+   the first `SessionStart` of a new UTC day, while **closure runs on EVERY `SessionStart`** — that is
+   what makes "the next `SessionStart` on the box resolves it" true. Closure is cheap enough to
+   belong there: **2.4 ms** for a tail read beyond a stored offset, so even every live session
+   outstanding at once sits inside the 50 ms steady-state budget, and the 500 ms rollover budget
+   covers the day the two coincide.
+
+   **And closure ingests for any session that is no longer live, whether or not a provisional is
+   outstanding.** Without that, §V.3's equality is one-sided by construction: the 4.1% of fires
+   carrying no `last_assistant_message` and the 0.12% duplicate-tail residue both leave final-turn
+   text in the file that the catalogue never reads, so the equality would go red on real data for a
+   correct implementation. Ingesting unconditionally makes it exact.
+
+   Both closers are
+   performed by **`gray-area-capture` at `SessionStart`**: it promotes or deletes any provisional whose session is no longer live, and any older
    than 24 hours regardless. The true property is narrower than the draft claimed and still enough:
    **no hook of the *originating* session has to fire** — the next `SessionStart` on the box
    resolves it, and on a machine running agents that is the next session to start. "Older than the
@@ -281,9 +303,12 @@ So the rule is:
    - **A promoted row stays replaceable**, the dedup the flag transition would otherwise lose: if a
      transcript-sourced block equal to it later arrives — a `backfill` re-read, say — it **replaces**
      the row rather than inserting beside it (`source` → `'transcript'`, `attribution` → `NULL`), and
-     **the replaced row adopts the transcript block's `block_seq`**, because a payload-side row has
-     no natural ordinal and a mismatched one would make the next `backfill` insert beside it instead
-     of finding it. Without both halves the same text double-stores.
+     **a provisional or promoted row carries `block_seq = NULL`** — it has no ordinal until a
+     transcript block gives it one — so the replacement cannot match on the 4-tuple and instead
+     matches on **`(session, agent_id, prompt_id)` with `source='payload'` and the text equal**, then
+     **adopts the transcript block's `block_seq`**. Stating both halves is what gives §V.15's
+     promoted-then-replaced assertion a defined pre-state; without them a mismatched ordinal makes
+     the next `backfill` insert beside the row instead of finding it. Without both halves the same text double-stores.
    - **Skips get a carrier**: `provisional_skip(session, agent_id, prompt_id, reason, at)`, `reason`
      from a closed set — `no-prompt-id`, `no-last-assistant-message`. It sits behind a **`skip`
      view**, so the skip population is on the §V.6 contract rather than off it: a turn that was
@@ -298,7 +323,9 @@ So the rule is:
    that key", so its turn's provisional is always promoted and the final text is stored **twice**.
    So a NULL-keyed block is attributed to the **open provisional for its `(session, agent_id)`**
    when exactly one is outstanding, and is then eligible to satisfy that provisional by the fire-time
-   comparison above. With **several** outstanding it stays NULL-keyed, those provisionals are
+   comparison above. **In a `backfill` pass no provisionals exist** — nothing was skipped and nothing
+   is outstanding — so this attribution step is a no-op there and every NULL-keyed block is simply
+   stored, which is why a from-zero `backfill` is reproducible while a live ingest is order-dependent. With **several** outstanding it stays NULL-keyed, those provisionals are
    promoted, and the rows are marked `attribution='ambiguous'` so the duplicate reads as deliberate.
    With **zero** outstanding there is nothing to promote and the block is simply stored NULL-keyed —
    an earlier draft's "its turn's provisional is promoted" was a no-op in that case.
@@ -672,8 +699,9 @@ stays green. This was checked because two new directories would have turned it r
   line, making the sentence false about the post-change tree. `f6795bac` (the correction) is already
   an ancestor of this branch, so moving gray-area into the pinned group is *this* change's job.
   Separately, **`.qlty/qlty.toml:88-99` was STALE** — it said feov carried 39 accepted findings when
-  feov reports clean — and is corrected in a companion change (`claude/qlty-directive-comment`),
-  kept separate because it describes every module's directive, not this one's. All four `go.mod`
+  feov reports clean — and **was corrected in #850, already merged and an ancestor of this branch** —
+  so the in-tree comment is right about today and the roster line above is what this change still
+  owes. An earlier draft described the correction as pending. All four `go.mod`
   files were scanned before rewriting it: 0 findings each.
 - [MODIFY] `.github/workflows/hooks.yml` — `cache-dependency-path` names
   `plugins/gray-area/tools/go.mod` at **:95, :828, :1469**; with a `go.sum` present the key must
@@ -796,7 +824,10 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
    `go test -run TestIngestBudget ./internal/catalogue/` — **execs the BUILT
    `gray-area-capture` binary** rather than benchmarking library work in-process, because the
    budget is stated as spawn floor plus ingest and an in-process benchmark cannot measure a spawn.
-   The day-rollover case is forced by seeding a row dated outside the window, not waited for. —
+   Three cases are forced rather than waited for: the day-rollover (seed a row dated outside the
+   window), a **closure with an outstanding provisional and a nonempty unread tail** (the new work
+   goal 2 previously had no case that could see — assert against the 50 ms steady-state budget), and
+   the two coinciding (assert against 500 ms). —
    **goal 2, measured**: the `Stop` path stays under **20 ms per turn** (4.33 ms spawn floor +
    ingest); `SessionStart` under **50 ms** steady-state and under **500 ms** on the forced
    day-rollover run that performs the 325 ms sweep; **`SessionEnd` under 500 ms**, a third of the
@@ -869,8 +900,9 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
     no cross-turn consumption); a turn whose blocks are `[X, X]` with the tail lagged (asserts the
     **measured residue** — the rule under-writes here, so the fixture pins the known-wrong outcome
     rather than a fiction, at 0.12% of turns); a **subagent** record sharing the parent's
-    `sessionId` and `promptId` (asserts it does not touch the parent's provisional, and that
-    `SubagentStop` writes its own); a `Stop` payload with **no `prompt_id`** (asserts
+    `sessionId` and `promptId` (asserts it does not touch the parent's provisional, that
+    `SubagentStop` writes its own, and that closure reads the **agent's** transcript rather than the
+    session's — the file-set error that would otherwise promote every subagent turn); a `Stop` payload with **no `prompt_id`** (asserts
     `provisional_skipped`, not a `""` key); a payload with **no `last_assistant_message`** (asserts
     `provisional_skipped` with reason `no-last-assistant-message`, 4.1% of real rows); a **zero-text turn whose payload DOES carry text** (asserts the
     provisional is promoted and marked `attribution='unverified'`, 5.4% of turns — not "no row",
