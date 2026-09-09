@@ -490,8 +490,13 @@ from `sessions/`. They are different questions with different sources.
 | **`word`** | assistant text and user prompts | 9,837 texts, 9.0 MB |
 | **`thought`** | thinking summaries | 248, 0.06 MB *(capture was off until 2026-09-08)* |
 
-**11.8 MB — 4.2% of the 280 MB corpus.** The other 96% is tool *results*: file contents, command
-output, base64 images. Bulky, reproducible, and not what you mine for behaviour or intent. So the
+**11.8 MB of extracted text — 4.2% of the 280 MB corpus.** The other 96% is tool *results*: file
+contents, command output, base64 images.
+
+**On disk the store is 28.2 MB, 9.3%** — measured after building it, against 4.2% for the text
+alone. The gap is SQLite: row overhead, three indexes and the WAL. Still small enough that the
+retention argument is unchanged, but the 4.2% figure describes the signal and **not** what holding
+it costs, and an earlier draft used it as though it described both. Bulky, reproducible, and not what you mine for behaviour or intent. So the
 discipline is not "index, not copy" — it is **keep the signal, drop the bulk**, and the bulk was
 always the expensive part.
 
@@ -670,10 +675,12 @@ stays green. This was checked because two new directories would have turned it r
   `Stop`-hook-only store contains nothing until it has run for a month, so §V's checks over a
   month window would have had nothing to read. Backfill projects the existing corpus once, is
   triggered by the `gray-area backfill` verb — **the fifth new verb, counted in §III's dispatch-table and README carriers** — explicit, never from a hook, and is **exempt from goal 2's
-  budgets because it is not on any agent's turn** — basis: a scan-and-classify pass over the 280 MB corpus
-  measured **545 MB/s** (`python3` line-scan over `~/.claude/projects/**/*.jsonl`, 2026-09-08) — an
-  **upper bound on throughput, not a measurement of this component**, which does not exist yet. A
-  cold seed should be around a second; the number is marked as the estimate it is. It is idempotent by
+  budgets because it is not on any agent's turn** — **MEASURED, now that the component exists, and the estimate was 7x optimistic.** The
+  estimate said "a cold seed should be around a second", from a 545 MB/s `python3` line-scan marked
+  as an upper bound. The real backfill — full JSON parse plus SQLite writes — runs the whole
+  422-file corpus at **44 MB/s: 304 MB in 6.8 s**. A second pass over unchanged bytes is **14 ms**
+  and adds zero rows, so the cost is paid once. The scan rate was measuring the wrong thing: it
+  bounded reading, and the work is parsing and writing. It is idempotent by
   `(session, seq)` so a re-run cannot double-count.
 - [MODIFY] `cmd/gray-area-capture/main.go` — handles `Stop` (ingest) and sweeps rows past the window
   at `SessionStart`. **`Stop` is an explicit new branch, NOT a fall-through.** Today
