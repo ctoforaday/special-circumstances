@@ -496,16 +496,24 @@ const JUDGE_ENVELOPE = {
           // stays distinguishable from a skipped field.
           reopens_on: { type: 'string' },
           final: { type: 'boolean' },
-          // grade_adjusted (run-4 §3.3): "gap real, grade wrong" — the dispute-resolution
-          // value the enum could not previously express. The rationale MUST state the new
-          // grade; the next chair applies it and lists the delta.
-          // moot: the gap's predicate expired — the claim or artifact it attached to is no
-          // longer in the report. Moot adjudicates the gap out.
-          // defect_owed_elsewhere (W1.9, run-5 judge-r2 friction): "valid finding, fix
-          // owned outside the debate" — R1-7 had to wear defect_accepted as the least-wrong
-          // fit. Leaves red's verdict pool like defect_accepted; collected as an infra debt
-          // the final envelope and assembly surface to the lead.
-          resolution: { type: 'string', enum: ['repaired', 'not_a_defect', 'defect_accepted', 'carried', 'unresolved', 'grade_adjusted', 'moot', 'defect_owed_elsewhere'] },
+          // THIS LIST IS THE RECORD'S DISPOSITION VOCABULARY, EXACTLY, and the envelope/record
+          // gate holds it there: every word offered here is a word `motion docket rule --as`
+          // accepts, and every word that verb accepts appears here with a duty in
+          // BLUE_DUTY_BY_RESOLUTION. A value added to one side fails the gate until it is on both.
+          //
+          // A GRADE OUTCOME IS NOT A DISPOSITION. "Gap real, grade wrong" is a GRADE MOTION —
+          // carried by `grade_disputes` on this envelope and by `motion grade rule --as accepted`
+          // plus a `regrade` on the record, which is the richer path because it can be appealed.
+          // Ruling one here would put a grade outcome in the docket's field.
+          //
+          // `moot` asserts neither of the things its neighbours assert: nobody won an argument
+          // (that is not_a_defect) and nobody verified a fix (that is repaired). The text the
+          // finding attached to is gone. It closes the gap and leaves the merits unreached.
+          //
+          // `carried` is the word for "I could not settle this on the record I have" — it says
+          // the gap survives and names what the coming seat owes, which is the same act as
+          // asking for evidence.
+          resolution: { type: 'string', enum: ['repaired', 'repaired_with_regression', 'amends_prior', 'not_a_defect', 'defect_accepted', 'carried', 'moot', 'defect_owed_elsewhere'] },
           rationale: { type: 'string' },
         },
       },
@@ -653,9 +661,9 @@ const BLUE_DUTY_BY_RESOLUTION = {
   repaired: 'Your fix was accepted. Stop working this one.',
   carried: 'The gap stays OPEN and you owe the research direction the ruling states — it is what CEILING is made of, so a sitting that ignores it is a null turn.',
   defect_owed_elsewhere: 'The finding was UPHELD and the fix is owned outside this debate. Stop trying to fix it in the report; expect the debt to be named rather than closed here.',
-  grade_adjusted: 'The bench moved the grade; the minting lens owes the regrade. Answer the gap at the grade the ruling states.',
-  unresolved: 'The bench could not settle it on this record. Bring the evidence the ruling says was missing.',
-  moot: 'Adjudicated out of existence. Drop it.',
+  moot: 'Adjudicated out of existence — the text it attached to is gone, so there is nothing left to repair. Drop it; this is NOT a finding that was argued down.',
+  repaired_with_regression: 'Your fix was accepted AND something else broke. Stop working this one and expect a successor gap naming the regression — answer that one, not this.',
+  amends_prior: 'A defect found between two repairs that each closed clean. The ruling names what it supersedes; work the lineage it states rather than re-opening the ancestor.',
 }
 // rulingsInEffect holds the bench's latest ruling per gap — settled, reopens_on, final and the
 // fate — and travels to BOTH parties, because debate.js reads no record: a ruling reaches a seat's
@@ -898,10 +906,22 @@ while (!halted) {
   }
 }
 
-const verdict = halted ? 'HALTED'
-  : (chairEnv && chairEnv.verdict === 'PASS') ? 'VERIFIED'
-  : (lastPlan && lastPlan.ceiling) ? 'CEILING'
-  : 'UNVERIFIED'
+// THE RUN'S TERMINAL WORD IS A RECORD VOCABULARY, so it is declared as an enum rather than spelled
+// inline. The word travels into the assembly seat's prompt ("Record it as the run's outcome —
+// ${verdict}") and is typed straight at `bench outcome --as`, so a word the record refuses arrives
+// as an INSTRUCTION and the engine carries on as though it had been written. The declaration is
+// what the envelope-enum gate binds — that gate scans `enum: [...]`, and a vocabulary spelled as
+// bare literals is out of its reach entirely — and outcomeWord makes a misspelling throw here.
+const RUN_OUTCOME = { type: 'string', enum: ['VERIFIED', 'CEILING', 'HALTED', 'UNVERIFIED'] }
+const outcomeWord = (w) => {
+  if (!RUN_OUTCOME.enum.includes(w)) throw new Error(`not a run outcome: ${w} (have ${RUN_OUTCOME.enum.join('|')})`)
+  return w
+}
+
+const verdict = halted ? outcomeWord('HALTED')
+  : (chairEnv && chairEnv.verdict === 'PASS') ? outcomeWord('VERIFIED')
+  : (lastPlan && lastPlan.ceiling) ? outcomeWord('CEILING')
+  : outcomeWord('UNVERIFIED')
 const terminationWhy = halted ? 'judicial halt'
   : verdict === 'VERIFIED' ? 'the chair recorded PASS with the board permitting it'
   : verdict === 'CEILING' ? 'every open material gap is at its limit, ruled by the bench and carried'

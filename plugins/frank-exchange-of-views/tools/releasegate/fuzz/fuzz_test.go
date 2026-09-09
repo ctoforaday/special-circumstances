@@ -90,6 +90,15 @@ func sourceURL(path string) string {
 	return sourceSrvURL + path
 }
 
+// mootPending and mootSpent carry the sweep's single `close --as moot` drive. Package-level and
+// atomic because the sweep runs its seeds concurrently and each seed runs its seats concurrently:
+// the drive belongs to the SWEEP, so its namespace has to be the sweep's. Reset by TestFuzzDebate
+// so -count=2 measures twice rather than reporting the first run's fact for the second.
+var (
+	mootPending atomic.Bool
+	mootSpent   atomic.Bool
+)
+
 // lockedRand is the seed's generator, safe for the concurrent seats phase 3 introduces.
 //
 // A WRAPPER RATHER THAN A MUTEX AT EVERY CALL SITE: there are 23 draws across this file, all
@@ -1218,6 +1227,34 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 			"--verified-by", closer, "--verified-with", "fuzz", "--verified-against", "rec"); err == nil {
 			return
 		}
+	}
+	// `moot` IS DRIVEN ONCE PER SWEEP, NOT MIXED INTO THE POOL. The vocabulary is shared between
+	// the closing verbs (#342), so a word added for the bench's docket ruling reaches this verb
+	// too, and the enum-coverage gate names it the moment it exists without a drive.
+	//
+	// Putting it in the pool below is the obvious answer and it costs the sweep its other gates:
+	// a fifth word takes a fifth of every early closure from the four that were there, and it
+	// closes a gap while leaving the merits UNREACHED, so the boards, the epochs and the terminal
+	// verdicts all move. MEASURED — with `moot` in the pool the sweep went red twice on
+	// `outcome --as UNVERIFIED` and once on `lens regrade --severity`, three rare draws that have
+	// nothing to do with closing a gap, while the same sweep was green three for three without it.
+	// A coverage drive that displaces the sweep's other coverage is not a drive; it is a trade.
+	//
+	// SWEEP-WIDE AND NOT PER-SEED, which the seed version taught: pinning it to one seed asks that
+	// run to reach closeGap, and whether it does is decided by the interleaving rather than the
+	// seed — the same seed fired at N=3 and did not at N=40. Across the whole sweep every run
+	// closes gaps, so ONE closure anywhere is a fact. mootSpent is what the sweep asserts, and it
+	// names this drive rather than leaving the enum census to name the word.
+	if mootPending.CompareAndSwap(true, false) {
+		if _, err := r.exec("close", "--seat-id", closer, "--id", id, "--as", "moot",
+			"--reason", "fuzz: the text this gap attached to is no longer in the report",
+			"--verified-by", closer, "--verified-with", "fuzz", "--verified-against", "rec"); err == nil {
+			mootSpent.Store(true)
+			return
+		}
+		// A refusal puts it back: the word's whole coverage is this one drive, and a single
+		// refused attempt must not spend it.
+		mootPending.Store(true)
 	}
 	as := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere"})
 	_, _ = r.exec("close", "--seat-id", closer, "--id", id, "--as", as, "--reason", "fuzz close as "+as,
@@ -3404,6 +3441,9 @@ func TestFuzzDebate(t *testing.T) {
 	// THE DEFAULT IS THE QUORUM, so the default sweep is always one that can assert the surface.
 	// 60 was a number the gates did not depend on; at production shape a run costs ~2.2x what the
 	// smoke shape cost, and the sweep needs exactly enough runs for the coverage gates to hold.
+	mootPending.Store(true)
+	mootSpent.Store(false)
+
 	n := surfaceQuorum
 	if testing.Short() {
 		n = 15
@@ -3630,6 +3670,13 @@ func TestFuzzDebate(t *testing.T) {
 		}
 		if un := unreachedEnumValues(); len(un) > 0 {
 			t.Errorf("%d enum value(s) were never driven:\n  %s", len(un), strings.Join(un, "\n  "))
+		}
+		// AND THE DRIVE, NAMED, not only the word it was for. `close --as moot` is reached by one
+		// deliberate drive per sweep rather than by the pool (see closeGap); when it declines, the
+		// census above reports a missing enum value and says nothing about why, which reads as the
+		// vocabulary having outgrown the fuzz rather than as a driver that did not fire.
+		if !mootSpent.Load() {
+			t.Error("the sweep's single `close --as moot` drive never fired: no run reached closeGap with it pending, or every attempt was refused. The word's whole coverage is that one drive")
 		}
 		// AND THE FLAGS INHERITED ONTO EVERY COMMAND, which this gate could not see at all until
 		// PersistentFlagNames existed: CommandFlags reports local flags only, so `--json`,

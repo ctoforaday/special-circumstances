@@ -182,6 +182,15 @@ var artifactByClass = map[string]ArtifactState{
 	"defect_accepted":          ArtifactDefectLive,
 	"defect_owed_elsewhere":    ArtifactDefectLive,
 	DispositionCarried:         ArtifactUnexamined, // still live; the question is open, not answered
+	// MOOT CLOSES THE GAP AND LEAVES THE MERITS UNANSWERED, which is why it is unexamined
+	// alongside `carried` despite ending the gap rather than deferring it. Closure and artifact
+	// state are orthogonal here and this is the pair that shows it.
+	//
+	// It is not `repaired` — nobody verified a fix. It is not `no_defect` — that asserts red was
+	// WRONG, and a mooted finding may have been entirely right about text that has since gone. It
+	// is not `defect_live` — the text it attached to is not in the report to ship. What is true is
+	// that the question was never reached: the predicate expired underneath it.
+	"moot": ArtifactUnexamined,
 }
 
 // ArtifactStateOf answers what a closure class says about the ARTIFACT.

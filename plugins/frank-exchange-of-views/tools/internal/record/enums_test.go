@@ -311,9 +311,13 @@ func TestArtifactStateSeparatesTheDisputeFromTheDefect(t *testing.T) {
 
 	// A WORD OUTSIDE THE VOCABULARY REPORTS ITSELF. No record can carry one — the schema's CHECK
 	// is generated from the same enum artifactByClass is checked against below — so this pins the
-	// behaviour for input that reached the function without passing the schema. `moot` is the
-	// live example: the engine still offers it as a bench resolution and the record refuses it.
-	if got, ok := ArtifactStateOf("moot"); !ok || got != ArtifactUnknown {
+	// behaviour for input that reached the function without passing the schema.
+	//
+	// THE EXAMPLE USED TO BE `moot`, which the engine offered and the record refused. It is a
+	// record word now (#847), so the example had to become one that is genuinely outside — and
+	// this is the reason the example must be invented rather than borrowed from a real surface:
+	// borrowed, it stops testing what it claims the moment the surfaces agree.
+	if got, ok := ArtifactStateOf("adjudicated_sideways"); !ok || got != ArtifactUnknown {
 		t.Errorf("a word the schema does not carry read as %q/%v, want unknown — it must not "+
 			"fold into a healthy value", got, ok)
 	}

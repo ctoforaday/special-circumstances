@@ -455,6 +455,7 @@ Enumerated values:
     not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    moot                      the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about. NOT not_a_defect, which asserts blue's argument held, and NOT repaired, which asserts a verified fix
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
@@ -499,6 +500,7 @@ Enumerated values:
     not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    moot                      the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about. NOT not_a_defect, which asserts blue's argument held, and NOT repaired, which asserts a verified fix
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
@@ -543,6 +545,7 @@ Enumerated values:
     not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    moot                      the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about. NOT not_a_defect, which asserts blue's argument held, and NOT repaired, which asserts a verified fix
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
@@ -587,6 +590,7 @@ Enumerated values:
     not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    moot                      the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about. NOT not_a_defect, which asserts blue's argument held, and NOT repaired, which asserts a verified fix
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
@@ -788,7 +792,7 @@ Global Flags:
 
 ── closure class near-miss
 exit 2
-feov-record: invalid argument "closed-with-regression" for "--as" flag: --as must be one of repaired|repaired_with_regression|amends_prior|not_a_defect|defect_accepted|defect_owed_elsewhere (got "closed-with-regression") — the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on repaired_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason
+feov-record: invalid argument "closed-with-regression" for "--as" flag: --as must be one of repaired|repaired_with_regression|amends_prior|not_a_defect|defect_accepted|defect_owed_elsewhere|moot (got "closed-with-regression") — the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on repaired_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason
 
     repaired                  the repair was verified at the leaf and nothing regressed
     repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
@@ -796,6 +800,7 @@ feov-record: invalid argument "closed-with-regression" for "--as" flag: --as mus
     not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    moot                      the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about. NOT not_a_defect, which asserts blue's argument held, and NOT repaired, which asserts a verified fix
 
 close a gap with the verification you did THIS sitting, naming what you checked it against
 
@@ -830,6 +835,7 @@ Enumerated values:
     not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    moot                      the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about. NOT not_a_defect, which asserts blue's argument held, and NOT repaired, which asserts a verified fix
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
