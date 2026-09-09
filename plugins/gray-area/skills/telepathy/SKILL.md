@@ -33,9 +33,14 @@ telepathy sql '<SELECT …>'       anything else
 telepathy backfill               read the existing corpus into the store (explicit, safe to repeat)
 ```
 
+Every verb takes `--help`, and each one's help states what that verb cannot tell you. `sql` takes
+`--limit` (default 200) and prints a line when it truncates, so a capped result is never mistaken
+for a complete one.
+
 `sql` is read-only and the views are the published contract: **`v_session`, `v_action`, `v_word`,
 `v_thought`, `v_skip`**. Write your own query rather than asking for a verb — the questions worth
-asking are not knowable in advance, which is why the surface is SQL and not a menu.
+asking are not knowable in advance, which is why the surface is SQL and not a menu. `sql --help`
+prints the columns of each view, generated from the schema rather than retyped beside it.
 
 ```sh
 # which agents failed most, across the whole box
@@ -56,6 +61,15 @@ telepathy sql "SELECT tool, target FROM v_action WHERE session_id LIKE '5627%' A
   zero read as "it did not think".
 - **A session that predates capture contributes nothing** until `backfill` has read it. Absence of
   rows is not absence of work.
+- **`touched` sees a path only where the record NAMES it.** For `Read`/`Edit`/`Write` that is the
+  `file_path`, and the answer is exact. For `Bash` it is the command string, truncated at 200
+  characters — so an edit made by a long shell command, or a heredoc that names the file past that
+  point, does not appear. AFTER a `touched` that returns nothing on a file you expect contention
+  on, YOU MUST fall back to `telepathy find <basename>`, which reads the transcripts themselves.
+- **`unresolved` is not `error`.** A tool call whose result never arrived — an interrupted session
+  — is recorded as `unresolved`. YOU MUST NOT fold it into a failure count; doing so overstates
+  every error rate on the box, and the sessions it overstates are exactly the ones that were cut
+  short rather than the ones that went wrong.
 
 ## The rule this exists to serve
 

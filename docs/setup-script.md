@@ -42,6 +42,7 @@ for d in "$C"/*/*/; do
   [ -d "$d/tools/cmd" ] || continue
   mkdir -p "$d/bin"
   for c in "$d"tools/cmd/*/; do
+    [ -f "$c/DEV-ONLY" ] && continue          # a dev harness, not a shipped binary
     n=$(basename "$c"); go build -C "$d/tools" -o "$d/bin/$n" "./cmd/$n" || echo "SC: build failed: $n" &
   done
 done

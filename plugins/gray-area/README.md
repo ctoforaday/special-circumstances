@@ -56,6 +56,11 @@ telepathy sql '<SELECT …>'    read-only, over v_session / v_action / v_word / 
 telepathy backfill            read the existing corpus in; safe to repeat
 ```
 
+Every verb takes `--help`, and the help is where each one states what it *cannot* tell you.
+`--store`, `--projects` and `--sessions` point the tool at somewhere other than this box's own
+state — which is how the tests drive it, and how you read a colleague's exported transcripts.
+`sql` takes `--limit` (default 200) and says so when it truncates.
+
 It exists because `SendMessage` asks an agent what it *believes* and needs it alive to answer,
 while this asks the record what *happened*. On 2026-09-06 two sessions argued to a standstill over
 a census one had drawn from a single project directory; on 2026-09-08 three claims relayed between
@@ -65,6 +70,22 @@ sessions were wrong. Every one was a query.
 user text; reasoning summaries where they were captured — never tool *results*, which are 96% of a
 transcript's bytes. It lives at `~/.local/state/special-circumstances/catalogue/`, outside any
 repository, and keeps a month.
+
+**It fills itself from the hooks.** `Stop` and `SessionEnd` read the ending session's own
+transcript; `SessionStart` closes out whatever other sessions have stopped since, under a
+per-invocation cap, and prunes past the retention window once a UTC day. Those two hooks write
+**no manifest row** — they are there for the catalogue, and a turn boundary is not a seat.
+`backfill` is the one explicit cold read, for a corpus that predates all of this.
+
+A tool call is recorded with one of three outcomes: `ok`, `error`, or `unresolved` — the last
+meaning its result never arrived, which is what an interrupted session leaves behind. It is not a
+failure, and counting it as one would overstate every error rate on the box.
+
+`touched` matches a path anywhere in an act's target, not just at the end of it, because a file
+edited through the shell is named in the *middle* of a `Bash` command — under a suffix match every
+such edit reported nothing, which is the plausible zero this plugin exists to refuse. The residue
+is stated rather than papered over: targets are truncated at 200 characters, so a path buried past
+that in a long command is still invisible, and `find` is the fallback that reads the transcripts.
 
 **Absence is always worded.** No store, no rows for a path, no sessions running and no reasoning
 captured are four different facts, and each says which it is. `find` refuses outright when ripgrep

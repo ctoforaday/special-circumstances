@@ -81,7 +81,7 @@ const readDSN = "?mode=ro&_pragma=query_only(1)&_defensive=1&_pragma=busy_timeou
 func OpenRead(path string) (*sql.DB, error) {
 	if _, err := os.Stat(path); err != nil {
 		return nil, fmt.Errorf("catalogue: no store at %s — nothing has been captured yet, "+
-			"which is not the same as a store that is empty: run `gray-area backfill` or let a session run", path)
+			"which is not the same as a store that is empty: run `telepathy backfill` or let a session run", path)
 	}
 	db, err := sql.Open("sqlite", path+readDSN)
 	if err != nil {
