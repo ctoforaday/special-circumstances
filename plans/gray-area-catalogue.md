@@ -213,6 +213,22 @@ So the rule is:
    text in the file that the catalogue never reads, so the equality would go red on real data for a
    correct implementation. Ingesting unconditionally makes it exact.
 
+   **But "any session no longer live" is UNBOUNDED as written, and measuring it says so:** on this
+   box 415 of 421 transcripts belong to non-live sessions, totalling **202 MB** — one `SessionStart`
+   would face ~**1,053 ms** at the measured 192 MB/s parse rate, twenty times the 50 ms budget. So
+   three bounds, and each is load-bearing:
+
+   - **Only sessions the catalogue already has an offset record for.** A session it never ingested is
+     `backfill`'s job, not closure's; that is the cold 202 MB, and it belongs to the verb built for it.
+   - **Closed once.** A session is marked closed and never revisited, so the queue drains rather than
+     being re-walked every hook.
+   - **At most 8 sessions per run**, the remainder deferred to the next `SessionStart`. That caps a
+     single invocation regardless of how many ended at once — 8 × 2.4 ms tail reads sits inside 50 ms
+     — and with once-only marking the backlog is finite and shrinking.
+
+   The steady-state population is sessions that ended since the last `SessionStart`, normally zero or
+   one; the cap exists for the day it is not.
+
    Both closers are
    performed by **`gray-area-capture` at `SessionStart`**: it promotes or deletes any provisional whose session is no longer live, and any older
    than 24 hours regardless. The true property is narrower than the draft claimed and still enough:
@@ -826,8 +842,9 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
    budget is stated as spawn floor plus ingest and an in-process benchmark cannot measure a spawn.
    Three cases are forced rather than waited for: the day-rollover (seed a row dated outside the
    window), a **closure with an outstanding provisional and a nonempty unread tail** (the new work
-   goal 2 previously had no case that could see — assert against the 50 ms steady-state budget), and
-   the two coinciding (assert against 500 ms). —
+   goal 2 previously had no case that could see — assert against the 50 ms steady-state budget), a
+   **backlog of 20 non-live sessions** (asserts the 8-per-run cap holds the invocation inside 50 ms
+   and that the remainder is deferred, not dropped), and the two coinciding (assert against 500 ms). —
    **goal 2, measured**: the `Stop` path stays under **20 ms per turn** (4.33 ms spawn floor +
    ingest); `SessionStart` under **50 ms** steady-state and under **500 ms** on the forced
    day-rollover run that performs the 325 ms sweep; **`SessionEnd` under 500 ms**, a third of the
