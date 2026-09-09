@@ -61,17 +61,17 @@ func Build(run record.Run, b Board, exec Exec) error {
 	if err := os.WriteFile(filepath.Join(run.Dir(), "blue", "report.md"), []byte(b.Report), 0o644); err != nil {
 		return err
 	}
-	// INGEST THE ROUND-0 REPORT, THEN THERE IS NO FILE (#709). blue-synthesize is the one seat
+	// INGEST THE SYNTHESIZED REPORT, THEN THERE IS NO FILE (#709). blue-synthesize is the one seat
 	// allowed to ingest: it records the base and deletes the file, and every later verb reads and
 	// mutates the report THROUGH THE RECORD. This mirrors production, where the engine ingests right
-	// after synthesis and before the rounds — so the base exists when the first render-reading verb
+	// after synthesis and before any sitting — so the base exists when the first render-reading verb
 	// (mint's --quote check, cite, prove) runs. Its register is the FIRST, which is what triggers the
 	// probe's record separation before StageForRun resolves the root below.
 	if _, err := exec("register", "--run", run.Dir(), "--seat-id", "blue-synthesize"); err != nil {
 		return fmt.Errorf("register blue-synthesize: %w", err)
 	}
 	if _, err := exec("ingest", "--run", run.Dir(), "--seat-id", "blue-synthesize"); err != nil {
-		return fmt.Errorf("ingest the round-0 report: %w", err)
+		return fmt.Errorf("ingest the synthesized report: %w", err)
 	}
 	// THE BUILD REGISTERS THESE SEATS AS THE HARNESS, NOT AS THE AGENT THAT WILL HOLD THEM.
 	//
@@ -164,8 +164,8 @@ func Build(run record.Run, b Board, exec Exec) error {
 		}
 	}
 
-	// RED'S ROUND-1 NARRATIVE, so the transcript blue is sent to read exists. Filed AFTER the gaps
-	// it accounts for and BEFORE anything that answers it, which is the order a real round has.
+	// RED'S FIRST NARRATIVE, so the transcript blue is sent to read exists. Filed AFTER the gaps
+	// it accounts for and BEFORE anything that answers it, which is the order a real epoch has.
 	if b.RedNarrative != "" {
 		if _, err := exec("position", "--run", run.Dir(), "--seat-id", "red-chair",
 			"--reason", b.RedNarrative); err != nil {

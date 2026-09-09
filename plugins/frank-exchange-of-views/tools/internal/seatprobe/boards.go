@@ -457,7 +457,7 @@ Figures were read from the deployed configuration.
 			{Seat: "red-chair", Verb: "dispatch", Because: "The chair's sitting BEGINS here, and this board has an open gap the chair cannot close: the record says who sits — the lens that minted it, the blue seat answering — and the chair relays it. A chair that names parties from its own reading, or reaches for a `close` it no longer has, has reopened the self-assertion channel the verb closes."},
 			{Seat: "red-chair", Verb: "carry", Because: "The archive already holds the lens's closure of the settled gap. The chair has no `close` at all now, so the temptation is not a fresh triple but silence — and a settled gap nobody restates reads as one nobody checked. A carry restates the earlier act and says so, without re-attesting work this seat did not do; re-attesting it would double-count closure history and corrupt the repair_regression denominator."},
 			{Seat: "red-chair", Verb: "spot-check", Because: "The archive is NOT empty, so the duty has something to sample and `--none` would be a false attestation. The floor is computed from the board, so skipping it is visible."},
-			{Seat: "red-chair", Verb: "position", Because: "The round's RED narrative renders from the record; hand-writing the transcript is the routing-around this migration removed."},
+			{Seat: "red-chair", Verb: "position", Because: "The sitting's RED narrative renders from the record; hand-writing the transcript is the routing-around this migration removed."},
 			{Seat: "red-chair", Verb: "log", Because: "The contradiction gap needs a grade on an axis the four dimensions do not carry — `existence` is asserted by red and disputable by nobody (#359). A chair that notices and says nothing leaves the gap in the tooling invisible."},
 		},
 	}
@@ -847,7 +847,7 @@ var NoSituation = map[string]string{
 // STATED RATHER THAN SILENTLY EXCLUDED. A coverage gate whose exemptions are invisible reports
 // full coverage of whatever it happened to check, which is the shape this suite keeps finding.
 var AlwaysTaken = map[string]string{
-	"ingest":   "the round-0 report's ONE-TIME freeze into the record, run once by its author at synthesis (#709). It is not a response to board state — it happens before the chair ever sits, exactly once, so no board bakes for it any more than one bakes for register",
+	"ingest":   "the synthesized report's ONE-TIME freeze into the record, run once by its author at synthesis (#709). It is not a response to board state — it happens before the chair ever sits, exactly once, so no board bakes for it any more than one bakes for register",
 	"assemble": "the LAST step of the workflow runs it, so whether a bench reaches for it is not a choice the probe can observe — the engine invokes it either way. Testing it here would measure the engine, and the engine has its own gates",
 	"register": "every seat's FIRST act, in every prompt and every constitution — a seat that skips it cannot write at all, so no board has to make it attractive",
 	"show":     "the read path. Every board demands it implicitly because a seat that acts without reading the board is not choosing, and the probe measures reading separately (the first haiku seat read five projections before acting)",

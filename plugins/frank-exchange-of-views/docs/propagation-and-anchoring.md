@@ -75,7 +75,7 @@ that is *before* red cites anything.
 Markers are not the whole answer, and it would be over-selling to say they are:
 
 - **Cite-markers** anchor the claims red **actually cited** — the audit trail — and hand read-only
-  red its re-location for free (`locate(c17)` next round instead of re-reading the report).
+  red its re-location for free (`locate(c17)` next sitting instead of re-reading the report).
 - **Shared footnote labels** anchor **blue's co-referent authoring**: when blue asserts one claim at
   several prose sites, the sites share **one** `[^label]` (today footnotes are per-sentence-unique;
   the trick is reusing the label). Propagating that claim is then `grep [^label]` — T3 converted to
@@ -109,8 +109,8 @@ Propagation is a repair *loop*, not a per-correction sweep:
      step that needs a mind, and it is where the budget should go.
 4. Loop until blue's own review is clean.
 
-The inner loop is best-effort convergence; it does not have to be perfect. **Red's next-round
-re-audit is the guarantee**, and the round cap terminates. Blue's self-review exists to drive
+The inner loop is best-effort convergence; it does not have to be perfect. **Red's next-sitting
+re-audit is the guarantee**, and the run's terms terminate (exchanges per gap, mints per lens). Blue's self-review exists to drive
 residue *down* so red is not the one discovering all five regressions.
 
 Note the read economy: the "~1 read per cycle" target counts the **working-set context ingest**, not

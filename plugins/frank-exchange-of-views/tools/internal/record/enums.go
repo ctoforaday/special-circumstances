@@ -51,7 +51,7 @@ import (
 // concept, four spellings, and no mechanism could see them disagree because every set was
 // open.
 // DispositionCarried is the ONE bench disposition that does not end a gap: it defers the
-// question to a later round with a stated research direction.
+// question to the parties' later sittings with a stated research direction.
 //
 // It stays a named constant because it is the word the CLI defaults to and the seat-facing help
 // reaches for, but it is no longer the DEFINITION of anything. "Does this end the gap" is
@@ -231,7 +231,7 @@ var EnumFields = map[string][]EnumField{
 	"outcome": {{
 		Key: "verdict", Flag: flags.As, Values: []EnumValue{
 			ev("VERIFIED", "red passed the board and the bench agrees the question was answered"),
-			ev("CEILING", "the round ceiling was reached with work still open — NOT a judged failure to verify, and the stamp says so"),
+			ev("CEILING", "every open material gap reached its limit — ruled by the bench and carried — with work still open: NOT a judged failure to verify, and the stamp says so"),
 			ev("HALTED", "the bench ended the run on a safety, ethics, consent or integrity boundary"),
 			ev("UNVERIFIED", "the run ended without the question being answered, and no ceiling or halt explains it"),
 		},
@@ -239,7 +239,7 @@ var EnumFields = map[string][]EnumField{
 	}, {
 		Key: "ended", Flag: flags.Ended, Optional: true, Values: []EnumValue{
 			ev("deadlock", "the bench JUDGED the exchange deadlocked — the one terminal state the record cannot derive, so --reason is the only account of it there will ever be"),
-			ev("ceiling", "the run stopped against its safety or round ceiling rather than against a judgement"),
+			ev("ceiling", "the run stopped against its terms — every open material gap at its limit — rather than against a judgement"),
 		},
 		// A SWITCH OVER TWO BOOLEANS IS AN ENUM WITH A SILENT FOURTH STATE. `--deadlocked` and
 		// `--exhausted` were separate flags stored as separate fields and read back in a

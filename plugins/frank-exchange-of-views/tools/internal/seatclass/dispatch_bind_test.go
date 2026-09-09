@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
 
 // TestDebateDispatchBindsToSeatClass binds the ONE seat->class map (SeatClass) to debate.js's
@@ -18,7 +20,11 @@ import (
 // This REPLACES the deleted tests/simulator/debate-dispatch.test.mjs (the JS SEAT_CLASS oracle
 // was a second copy of this map; the copy is gone, the bind now runs from the owning side).
 func TestDebateDispatchBindsToSeatClass(t *testing.T) {
-	src, err := os.ReadFile("../../../skills/research-protocol/scripts/debate.js")
+	path, err := repotree.DebateJS()
+	if err != nil {
+		t.Fatal(err)
+	}
+	src, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("cannot read debate.js — the dispatch source this binds against: %v", err)
 	}
@@ -41,13 +47,28 @@ func TestDebateDispatchBindsToSeatClass(t *testing.T) {
 	}
 
 	// Each dispatch opts object opens `{ ...bulk, label: ` + "`…`" + ` }` or `{ ...judgment, … }`.
+	// The label is either a template literal whose head names the seat, or `labelFor(<seat>)` —
+	// the dispatch loop's per-seat sitting counter, whose argument is the seat id. The one
+	// COMPUTED argument is the lens party's (`labelFor(p.seat_id)`), and that site is recognisable
+	// by the dispatch table it spreads (`...LENS_DISPATCH[p.seat_id]`): every lens is `red-lens`.
 	bt := "`"
-	re := regexp.MustCompile(`\{\s*\.\.\.(bulk|judgment),\s*label:\s*` + bt + `([^` + bt + `]+)` + bt)
+	re := regexp.MustCompile(`\{\s*\.\.\.(bulk|judgment),\s*label:\s*(?:` + bt + `([^` + bt + `]+)` + bt + `|labelFor\(([^)]*)\)([^}]*))`)
 	ms := re.FindAllStringSubmatch(string(src), -1)
 
 	seen := map[string]bool{}
 	for _, m := range ms {
 		spread, labelTemplate := m[1], m[2]
+		if labelTemplate == "" {
+			arg := strings.Trim(strings.TrimSpace(m[3]), "'\"")
+			if arg == "p.seat_id" {
+				if !strings.Contains(m[4], "LENS_DISPATCH") {
+					t.Errorf("dispatch labelFor(p.seat_id) at %q spreads no LENS_DISPATCH row — a computed seat id this test cannot read", m[0])
+					continue
+				}
+				arg = "red-lens"
+			}
+			labelTemplate = arg
+		}
 		stem := stemOf(labelTemplate)
 		if stem == "" {
 			t.Errorf("dispatch label %q matched no known seat", labelTemplate)

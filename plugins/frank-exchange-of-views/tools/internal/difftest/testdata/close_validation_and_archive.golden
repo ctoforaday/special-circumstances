@@ -32,11 +32,11 @@ exit 2
 stderr:
 feov-record: required flag(s) "verified-by" not set
 
-close a gap with the verification you did THIS round, naming what you checked it against
+close a gap with the verification you did THIS sitting, naming what you checked it against
 
-THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS ROUND, by you — who verified it, with what, and against which exact file or ref.
+THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS SITTING, by you — who verified it, with what, and against which exact file or ref.
 
-For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
+For a closure the record already holds — work an earlier sitting did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -77,11 +77,11 @@ exit 2
 stderr:
 feov-record: at least one of the flags in the group [reason reason-file] is required
 
-close a gap with the verification you did THIS round, naming what you checked it against
+close a gap with the verification you did THIS sitting, naming what you checked it against
 
-THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS ROUND, by you — who verified it, with what, and against which exact file or ref.
+THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS SITTING, by you — who verified it, with what, and against which exact file or ref.
 
-For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
+For a closure the record already holds — work an earlier sitting did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -122,11 +122,11 @@ exit 2
 stderr:
 feov-record: at least one of the flags in the group [reason reason-file] is required
 
-close a gap with the verification you did THIS round, naming what you checked it against
+close a gap with the verification you did THIS sitting, naming what you checked it against
 
-THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS ROUND, by you — who verified it, with what, and against which exact file or ref.
+THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS SITTING, by you — who verified it, with what, and against which exact file or ref.
 
-For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
+For a closure the record already holds — work an earlier sitting did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you

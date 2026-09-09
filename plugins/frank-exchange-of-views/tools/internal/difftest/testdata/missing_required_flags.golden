@@ -99,18 +99,18 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
+  carry           restate an earlier sitting's closure, when the work is done and you are not re-attesting it
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
   dispatch        `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help            Help about any command
-  inquiry-support your per-round vote on whether the report still carries a direction blue proposed
+  inquiry-support your per-sitting vote on whether the report still carries a direction blue proposed
   log             an entry for the operator who can retool you — what it asserts, said in the positive
-  position        your round narrative — the argument the other side answers, rendered as this round's RED section
+  position        your sitting's narrative — the argument the other side answers, rendered as this sitting's RED section
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
-  spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
+  spot-check      sample the closure archive — a duty every chair sitting owes, including the sittings with nothing to sample
   verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
 Command groups — each holds commands THIS page does not list:

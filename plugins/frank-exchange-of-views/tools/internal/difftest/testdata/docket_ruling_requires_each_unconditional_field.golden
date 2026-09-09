@@ -87,7 +87,7 @@ Global Flags:
 $ motion docket rule --run {RUN} --seat-id judge --id M1 --as repaired --reason r --principle p --tension t
 exit 2
 stderr:
-feov-record: record: motion docket rule requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted round
+feov-record: record: motion docket rule requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted sitting
 
 rule on a docket motion — this verb is the bench seat's, and it appears only on that surface.
 

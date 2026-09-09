@@ -2,8 +2,8 @@
 // enumerates where each footnoted claim appears (the claim-index).
 //
 // THE PROBLEM THIS SOLVES. claim_count — "the number of FOOTNOTED declarative
-// claims" — sizes red's per-round citation dispatch (round 1 ceil(claims/40),
-// later rounds on the delta) and arms the capture-side retire-vs-drop detector,
+// claims" — sizes red's per-sitting citation dispatch (the first sitting ceil(claims/40),
+// later sittings on the delta) and arms the capture-side retire-vs-drop detector,
 // where an unaccounted FALL in the count against the retire events is the whole
 // enforcement. Until now it was hand-counted by the blue LLM against a prose rule
 // in two prompts and typed into the envelope; two honest merges diverged 2x on the

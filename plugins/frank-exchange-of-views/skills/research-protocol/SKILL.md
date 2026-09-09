@@ -9,7 +9,7 @@ Research that survives an adversary.
 
 ## Protocol
 
-- BEFORE searching, YOU MUST formulate 3–5 frontier hypotheses — what would be true if each candidate answer were right — and record each one as a LINE OF INQUIRY on the record — the approach, and what would be true if it paid off; searches then test hypotheses instead of wandering. On the record rather than in a file, because a hypothesis red cannot rule `too-thin` or `out-of-scope` is one nobody can contest — and the round-0 hypotheses are the ones that shape the entire run.
+- BEFORE searching, YOU MUST formulate 3–5 frontier hypotheses — what would be true if each candidate answer were right — and record each one as a LINE OF INQUIRY on the record — the approach, and what would be true if it paid off; searches then test hypotheses instead of wandering. On the record rather than in a file, because a hypothesis red cannot rule `too-thin` or `out-of-scope` is one nobody can contest — and the opening hypotheses are the ones that shape the entire run.
 - During research, YOU MUST search to **saturation**: stop only when new searches return already-seen sources (typically 20–30 searches for a deep topic).
 - During research, YOU MUST spend at least one search in five hunting **disconfirming** evidence against your current position. This is a drafting floor, not the verification: it keeps confirmation bias out of the draft; systematic disconfirmation is red's entire job.
 - During writing, YOU MUST add every citation with the TOOL, against the exact sentence it backs — never by hand. The tool fetches the source once into the run cache, then splices an INVISIBLE, IMMORTAL `<!--cite:c-…-->` anchor at that sentence; assembly weaves the anchors into the visible `[^N]` footnotes and composes the `## Bibliography`. A hand-typed `[^label]` is not a citation: nothing backs it, the claim counter does not see it, and the unbacked-citations detector flags it. An unreachable source is unusable — the cite is rejected and logged on the operator channel.
@@ -59,7 +59,7 @@ research/<date>_<slug>/
 ├── README.md          # the run's front door: verdict, gaps, and what each document holds
 ├── report.md          # THE RESEARCH — verdict, Catechism, foundations, analysis, risks, open questions
 ├── docket.md          # the board: every gap and how it closed, blue's manifest, red's spot-checks
-├── debate.md          # the adversarial record, round by round, and the bench's terminal disposition
+├── debate.md          # the adversarial record, epoch by epoch, and the bench's terminal disposition
 ├── judgments.md       # motions — every contested question and how it was ruled
 ├── evidence.md        # the computations, with script, output and sha256
 ├── run.md             # friction, the record's invariant check, and cost
@@ -68,16 +68,16 @@ research/<date>_<slug>/
 │                      # (ALL of the above are assembled LAST, from the record, by `assemble`. The
 │                      #  set exists because 70–76% of the single file was process record and the
 │                      #  research it was commissioned for was a quarter of its own deliverable.)
-├── inputs/PINNED.md   # the evidence base, pinned: repo HEAD at launch + cited corpora's commit/round
+├── inputs/PINNED.md   # the evidence base, pinned: repo HEAD at launch + cited corpora's commit/revision
 ├── blue/
 │                      # (the opening hypotheses are LINES OF INQUIRY on the record, not a file — read
 │                      #  read them as the `lines-of-inquiry` projection. A hypothesis in a file is one red
-│                      #  cannot rule too-thin or out-of-scope, and the round-0 ones shape the
+│                      #  cannot rule too-thin or out-of-scope, and the opening ones shape the
 │                      #  whole run)
-│   ├── report.md      # blue's LIVING report — grows every round, never summarized away.
-│   │                  #   Authored prose, but every EDIT after round 0 goes through the `edit` verb
+│   ├── report.md      # blue's LIVING report — grows every sitting, never summarized away.
+│   │                  #   Authored prose, but every EDIT after synthesis goes through the `edit` verb
 │   └── candidates/    # best-of-N method-lens lane drafts, preserved (authored)
-└── cost.md            # measured tokens + dollars per seat-round (feov-record cost)
+└── cost.md            # measured tokens + dollars per seat-sitting (feov-record cost)
 
 RECORD — no file at all; read through the tool. Every projection, what each is for, and the
 verb that WRITES each one are in your role's `--help`, which is generated from the command tree
@@ -98,7 +98,7 @@ than an absent file: it reads as an empty artifact rather than a missing one. Me
 while the record held 122 events; both are projections now, with no writer and no stub. Anything
 under RECORD above has no file at all — read it with `show <name>`.
 
-`blue/report.md` is a stub the round-0 synthesizer fills and then FREEZES: the freeze records its
+`blue/report.md` is a stub the synthesizer fills and then FREEZES: the freeze records its
 text as the base of the record and DELETES the file (#709). From then it too is a projection —
 there is no `blue/report.md` to open; read the living report through the tool and change it only
 through the tool's edit path, each change an event the report is replayed from. It cannot be
@@ -127,7 +127,7 @@ All artifacts are git-tracked; nothing is summarized away. The payload is the fi
 There is no search index, and there are two access modes:
 
 1. **Full read for the document under audit** — red reads blue's living report whole, in
-   context, every round. A snippet NEVER substitutes: a decontextualized quote is how audits
+   context, every sitting. A snippet NEVER substitutes: a decontextualized quote is how audits
    go blind. This clause outranks any token saving.
 2. **Leaf-node fetch for verification** — a citation is checked against its source, never against a
    summary. For a source BLUE CITED, read the exact bytes blue read from the run cache

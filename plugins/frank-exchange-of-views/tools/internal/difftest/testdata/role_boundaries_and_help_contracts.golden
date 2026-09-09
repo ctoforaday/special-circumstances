@@ -84,14 +84,14 @@ Available Commands:
   edit            change the report — the only path into report.md, and how every repair lands
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help            Help about any command
-  ingest          freeze the round-0 report into the record and remove the file — done once, by its author
+  ingest          freeze the synthesized report into the record and remove the file — done once, by its author
   log             an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
-  position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
+  position        your sitting's narrative — the argument the other side answers, rendered as this sitting's BLUE section
   prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   retire          take a claim out of the report, when it cannot stand and no edit will save it
-  revision        the round record — what changed this round, once, after your edits have landed
+  revision        the sitting record — what changed this sitting, once, after your edits have landed
 
 Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
@@ -133,14 +133,14 @@ Available Commands:
   edit            change the report — the only path into report.md, and how every repair lands
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help            Help about any command
-  ingest          freeze the round-0 report into the record and remove the file — done once, by its author
+  ingest          freeze the synthesized report into the record and remove the file — done once, by its author
   log             an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
-  position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
+  position        your sitting's narrative — the argument the other side answers, rendered as this sitting's BLUE section
   prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   retire          take a claim out of the report, when it cannot stand and no edit will save it
-  revision        the round record — what changed this round, once, after your edits have landed
+  revision        the sitting record — what changed this sitting, once, after your edits have landed
 
 Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed

@@ -167,7 +167,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "run-setup: RECORD BINARY PREFLIGHT FAILED — refusing to create the run:")
 		fmt.Fprintf(stderr, "  %s\n", pre.Reason)
 		fmt.Fprintf(stderr, "  remedy: %s\n", pre.Remedy)
-		fmt.Fprintln(stderr, "  (failing here costs a re-run; failing mid-round costs a seat its whole record)")
+		fmt.Fprintln(stderr, "  (failing here costs a re-run; failing mid-run costs a seat its whole record)")
 		return 2
 	}
 

@@ -422,11 +422,11 @@ Global Flags:
 exit 2
 feov-record: at least one of the flags in the group [reason reason-file] is required
 
-close a gap with the verification you did THIS round, naming what you checked it against
+close a gap with the verification you did THIS sitting, naming what you checked it against
 
-THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS ROUND, by you — who verified it, with what, and against which exact file or ref.
+THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS SITTING, by you — who verified it, with what, and against which exact file or ref.
 
-For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
+For a closure the record already holds — work an earlier sitting did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -466,11 +466,11 @@ Global Flags:
 exit 2
 feov-record: required flag(s) "id" not set
 
-close a gap with the verification you did THIS round, naming what you checked it against
+close a gap with the verification you did THIS sitting, naming what you checked it against
 
-THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS ROUND, by you — who verified it, with what, and against which exact file or ref.
+THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS SITTING, by you — who verified it, with what, and against which exact file or ref.
 
-For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
+For a closure the record already holds — work an earlier sitting did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -510,11 +510,11 @@ Global Flags:
 exit 2
 feov-record: required flag(s) "verified-by" not set
 
-close a gap with the verification you did THIS round, naming what you checked it against
+close a gap with the verification you did THIS sitting, naming what you checked it against
 
-THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS ROUND, by you — who verified it, with what, and against which exact file or ref.
+THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS SITTING, by you — who verified it, with what, and against which exact file or ref.
 
-For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
+For a closure the record already holds — work an earlier sitting did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -554,11 +554,11 @@ Global Flags:
 exit 2
 feov-record: at least one of the flags in the group [reason reason-file] is required
 
-close a gap with the verification you did THIS round, naming what you checked it against
+close a gap with the verification you did THIS sitting, naming what you checked it against
 
-THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS ROUND, by you — who verified it, with what, and against which exact file or ref.
+THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS SITTING, by you — who verified it, with what, and against which exact file or ref.
 
-For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
+For a closure the record already holds — work an earlier sitting did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -604,7 +604,7 @@ Same-id grade movement, recorded with the reason it moved: the gap keeps its ide
 
 Likelihood grades the CONSEQUENCE — how likely the harm is to land, never how likely the defect is to BE there.
 
-The regrade and its reason render in the report beside the gap, so a grade argued down over three rounds shows the argument rather than only the final number.
+The regrade and its reason render in the report beside the gap, so a grade argued down over three sittings shows the argument rather than only the final number.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -645,7 +645,7 @@ the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
 The seat's terminal act, and the checkpoint that follows it: the record is mirrored to the recovery copy.
 
-A PASS is REFUSED while anything still blocks it — an open gap, an unruled motion, a line of inquiry unvoted this round. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
+A PASS is REFUSED while anything still blocks it — an open gap, an unruled motion, a line of inquiry unvoted this sitting. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -681,7 +681,7 @@ the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
 The seat's terminal act, and the checkpoint that follows it: the record is mirrored to the recovery copy.
 
-A PASS is REFUSED while anything still blocks it — an open gap, an unruled motion, a line of inquiry unvoted this round. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
+A PASS is REFUSED while anything still blocks it — an open gap, an unruled motion, a line of inquiry unvoted this sitting. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -711,7 +711,7 @@ exit 2
 feov-record: invalid argument "ceiling" for "--as" flag: --as must be one of VERIFIED|CEILING|HALTED|UNVERIFIED (got "ceiling") — "ceiling" differs from "CEILING" only in case, and the report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses the "this is NOT a judged failure to verify" caveat the stamp exists to carry
 
     VERIFIED    red passed the board and the bench agrees the question was answered
-    CEILING     the round ceiling was reached with work still open — NOT a judged failure to verify, and the stamp says so
+    CEILING     every open material gap reached its limit — ruled by the bench and carried — with work still open: NOT a judged failure to verify, and the stamp says so
     HALTED      the bench ended the run on a safety, ethics, consent or integrity boundary
     UNVERIFIED  the run ended without the question being answered, and no ceiling or halt explains it
 
@@ -739,13 +739,13 @@ Flags:
 Enumerated values:
   --as
     VERIFIED    red passed the board and the bench agrees the question was answered
-    CEILING     the round ceiling was reached with work still open — NOT a judged failure to verify, and the stamp says so
+    CEILING     every open material gap reached its limit — ruled by the bench and carried — with work still open: NOT a judged failure to verify, and the stamp says so
     HALTED      the bench ended the run on a safety, ethics, consent or integrity boundary
     UNVERIFIED  the run ended without the question being answered, and no ceiling or halt explains it
 
   --ended
     deadlock  the bench JUDGED the exchange deadlocked — the one terminal state the record cannot derive, so --reason is the only account of it there will ever be
-    ceiling   the run stopped against its safety or round ceiling rather than against a judgement
+    ceiling   the run stopped against its terms — every open material gap at its limit — rather than against a judgement
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
@@ -802,11 +802,11 @@ feov-record: invalid argument "closed-with-regression" for "--as" flag: --as mus
     defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
-close a gap with the verification you did THIS round, naming what you checked it against
+close a gap with the verification you did THIS sitting, naming what you checked it against
 
-THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS ROUND, by you — who verified it, with what, and against which exact file or ref.
+THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS SITTING, by you — who verified it, with what, and against which exact file or ref.
 
-For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
+For a closure the record already holds — work an earlier sitting did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -1099,14 +1099,14 @@ Available Commands:
   edit            change the report — the only path into report.md, and how every repair lands
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help            Help about any command
-  ingest          freeze the round-0 report into the record and remove the file — done once, by its author
+  ingest          freeze the synthesized report into the record and remove the file — done once, by its author
   log             an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
-  position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
+  position        your sitting's narrative — the argument the other side answers, rendered as this sitting's BLUE section
   prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   retire          take a claim out of the report, when it cannot stand and no edit will save it
-  revision        the round record — what changed this round, once, after your edits have landed
+  revision        the sitting record — what changed this sitting, once, after your edits have landed
 
 Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
@@ -1147,14 +1147,14 @@ Available Commands:
   edit            change the report — the only path into report.md, and how every repair lands
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help            Help about any command
-  ingest          freeze the round-0 report into the record and remove the file — done once, by its author
+  ingest          freeze the synthesized report into the record and remove the file — done once, by its author
   log             an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
-  position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
+  position        your sitting's narrative — the argument the other side answers, rendered as this sitting's BLUE section
   prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   retire          take a claim out of the report, when it cannot stand and no edit will save it
-  revision        the round record — what changed this round, once, after your edits have landed
+  revision        the sitting record — what changed this sitting, once, after your edits have landed
 
 Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
@@ -1209,7 +1209,7 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  close        close a gap with the verification you did THIS round, naming what you checked it against
+  close        close a gap with the verification you did THIS sitting, naming what you checked it against
   completion   Generate the autocompletion script for the specified shell
   corroborate  go and find a source blue never cited, when the claim has no anchor but the source is obtainable
   count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
@@ -1263,14 +1263,14 @@ Available Commands:
   edit            change the report — the only path into report.md, and how every repair lands
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help            Help about any command
-  ingest          freeze the round-0 report into the record and remove the file — done once, by its author
+  ingest          freeze the synthesized report into the record and remove the file — done once, by its author
   log             an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
-  position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
+  position        your sitting's narrative — the argument the other side answers, rendered as this sitting's BLUE section
   prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   retire          take a claim out of the report, when it cannot stand and no edit will save it
-  revision        the round record — what changed this round, once, after your edits have landed
+  revision        the sitting record — what changed this sitting, once, after your edits have landed
 
 Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
@@ -1345,18 +1345,18 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
+  carry           restate an earlier sitting's closure, when the work is done and you are not re-attesting it
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
   dispatch        `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help            Help about any command
-  inquiry-support your per-round vote on whether the report still carries a direction blue proposed
+  inquiry-support your per-sitting vote on whether the report still carries a direction blue proposed
   log             an entry for the operator who can retool you — what it asserts, said in the positive
-  position        your round narrative — the argument the other side answers, rendered as this round's RED section
+  position        your sitting's narrative — the argument the other side answers, rendered as this sitting's RED section
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
-  spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
+  spot-check      sample the closure archive — a duty every chair sitting owes, including the sittings with nothing to sample
   verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
 Command groups — each holds commands THIS page does not list:
@@ -1389,18 +1389,18 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
+  carry           restate an earlier sitting's closure, when the work is done and you are not re-attesting it
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
   dispatch        `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help            Help about any command
-  inquiry-support your per-round vote on whether the report still carries a direction blue proposed
+  inquiry-support your per-sitting vote on whether the report still carries a direction blue proposed
   log             an entry for the operator who can retool you — what it asserts, said in the positive
-  position        your round narrative — the argument the other side answers, rendered as this round's RED section
+  position        your sitting's narrative — the argument the other side answers, rendered as this sitting's RED section
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
-  spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
+  spot-check      sample the closure archive — a duty every chair sitting owes, including the sittings with nothing to sample
   verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
 Command groups — each holds commands THIS page does not list:

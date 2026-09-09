@@ -16,7 +16,7 @@ import (
 
 // A RUN THAT LOST A LANE LOOKS EXACTLY LIKE A RUN THAT ASKED FOR FEWER.
 //
-// `lanes` is the breadth of round 0 — how many independent slices of the frontier get drafted
+// `lanes` is the breadth of synthesis — how many independent slices of the frontier get drafted
 // before anything is merged. It is declared in inputs/run-config.json and, until this audit, read
 // by nothing that could check it: outside `setup`, `dashboard` and `debatejs`, which render or
 // pass the value, no capture audit, no verify invariant and nothing in `record` ever compared it
@@ -81,7 +81,7 @@ func declaredLanes(run record.Run) (n int, declared bool) {
 // registeredLanes returns the lane INDEXES that registered, deduplicated and sorted.
 //
 // Indexes rather than a count, because which lane is missing is the actionable half: "lane 3 never
-// registered" sends a reader to that dispatch, where "2 of 3" sends them to the whole round.
+// registered" sends a reader to that dispatch, where "2 of 3" sends them to the whole opening.
 func registeredLanes(evs []*record.Event) []int {
 	seen := map[int]bool{}
 	for i := range evs {
@@ -136,11 +136,11 @@ func LaneCoverageAudit(run record.Run) Audit {
 	case len(extra) > 0:
 		// Unambiguous: no legitimate dispatch produces a lane the config never asked for.
 		return Audit{Check: "lane-coverage", Verdict: "FAIL",
-			Detail: detail + fmt.Sprintf("; %s registered beyond the declared count, which no dispatch of this config could have produced — the engine and the run's own config disagree about how wide round 0 was",
+			Detail: detail + fmt.Sprintf("; %s registered beyond the declared count, which no dispatch of this config could have produced — the engine and the run's own config disagree about how wide synthesis was",
 				strings.Join(extra, ", "))}
 	case len(missing) > 0:
 		return Audit{Check: "lane-coverage", Verdict: "WARN",
-			Detail: detail + fmt.Sprintf("; %s never registered. TWO READINGS, and this record cannot separate them: a lane that died before its first act, or an operator narrowing deliberately on a resume (laneFloorOverride), which is a debate.js argument run-config does not carry. Round 0's breadth was %d slices, not the %d the report will describe",
+			Detail: detail + fmt.Sprintf("; %s never registered. TWO READINGS, and this record cannot separate them: a lane that died before its first act, or an operator narrowing deliberately on a resume (laneFloorOverride), which is a debate.js argument run-config does not carry. Synthesis was %d slices wide, not the %d the report will describe",
 				strings.Join(missing, ", "), len(got), want)}
 	default:
 		return Audit{Check: "lane-coverage", Verdict: "PASS", Detail: detail + "; every declared lane took its seat"}

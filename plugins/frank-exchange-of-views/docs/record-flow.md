@@ -35,7 +35,7 @@ flowchart TB
   ME --> BD
   FV -->|coalesce, do not transcribe| merge
   merge -->|mint gap, found_by = finding LABELS| ME
-  FV -->|per-role/round yield| score
+  FV -->|per-role/epoch yield| score
   BD --> bench
   ME --> DBT
 

@@ -10,73 +10,69 @@
 // from the side that owns it. The drift hole the old free-floating JS oracle left is closed.
 package seatclass
 
-import (
-	"regexp"
-	"strings"
-)
+import "strings"
 
 // Classification is the seat a transcript head resolves to.
 type Classification struct {
 	Seat string
-	// THERE IS NO ROUND HERE ANY MORE (plans/roundless.md §III.A.2). The head still carries one
-	// while debate.js still says "round N", and the needles below still match on it, but the
-	// number was read by nothing once cost and the dashboard took a seat's epoch and sitting from
-	// the record's registers — and a fact recovered from prompt wording that the record already
-	// holds is the shape this migration exists to remove.
+	// THERE IS NO ROUND HERE (plans/roundless.md §III.A.2). A seat's epoch and sitting are the
+	// record's — read from the chair's registers — and a fact recovered from prompt wording that
+	// the record already holds is the shape that migration removed. The head names the SEAT only.
 }
 
 // A seat is identified by the opening text of its prompt, so this table is coupled to
-// debate.js's prompt wording. ROUNDED needles carry the round; matched FIRST because a
-// round-0 marker can appear in a round-bearing prompt's preamble.
-var rounded = []struct {
-	re   *regexp.Regexp
-	seat string
-}{
-	{regexp.MustCompile(`Red audit, round (\d+)`), "red-lens"},
-	{regexp.MustCompile(`Red chair, round (\d+)`), "red-chair"},
-	// The heading an ARCHIVED transcript carries. A class read is a read of history as often as
-	// of a live run, and the two headings cannot collide.
-	{regexp.MustCompile(`Blue response, round (\d+)`), "blue-respond"},
-	{regexp.MustCompile(`Adjudication, round (\d+)`), "judge"},
-}
-
-var unrounded = []struct {
+// debate.js's prompt wording — and bound to it: heads_bind_test.go classifies every rendered
+// prompt golden the simulator keeps and demands the seat in the golden's name. The needles are
+// tried in order, so a more specific head is listed before one that could sit in its preamble.
+//
+// ARCHIVED heads stay. A class read is a read of history as often as of a live run — cost and
+// the dashboard read transcripts from run-archive/ — and an archived transcript carries the
+// heading the engine wrote when it ran. The two generations cannot collide.
+var needles = []struct {
 	needle string
 	seat   string
 }{
-	{"Terminal dispute disposition", "judge-terminal"},
+	// The live heads (debate.js: lensPrompt, chairPrompt, bluePrompt, benchPrompt, the petition,
+	// terminal and assembly sittings, synthesis, the lanes, the frontier).
+	{"Red lens sitting, area", "red-lens"},
+	{"Red chair, topic", "red-chair"},
+	{"Blue response, topic", "blue-respond"},
+	{"Adjudication, topic", "judge"},
+	{"Terminal disposition", "judge-terminal"},
 	{"Petition sitting", "judge-petition"},
 	{"Blue synthesis", "blue-synthesize"},
 	{"Blue lane", "blue-lane"},
 	{"frontier hypotheses", "frontier"},
 	{"Final assembly", "assemble"},
+	// The heads the round-shaped engine wrote, kept for the archive.
+	{"Red audit, round", "red-lens"},
+	{"Red chair, round", "red-chair"},
+	{"Blue response, round", "blue-respond"},
+	{"Adjudication, round", "judge"},
+	{"Terminal dispute disposition", "judge-terminal"},
 }
 
 // ClassifySeat resolves a prompt head to its seat. An unrecognized head is `other` —
 // a visible bucket, never folded away, so a prompt-wording drift is spottable.
 func ClassifySeat(head string) Classification {
-	for _, r := range rounded {
-		if m := r.re.FindStringSubmatch(head); m != nil {
-			return Classification{Seat: r.seat}
-		}
-	}
-	for _, u := range unrounded {
-		if strings.Contains(head, u.needle) {
-			return Classification{Seat: u.seat}
+	for _, n := range needles {
+		if strings.Contains(head, n.needle) {
+			return Classification{Seat: n.seat}
 		}
 	}
 	return Classification{Seat: "other"}
 }
 
-// KnownSeats is every seat this table can name (rounded + unrounded + "other") — so a test
-// can assert the consumers agree on the full set, not only the cases someone checked.
+// KnownSeats is every seat this table can name (each once, plus "other") — so a test can assert
+// the consumers agree on the full set, not only the cases someone checked.
 func KnownSeats() []string {
-	out := make([]string, 0, len(rounded)+len(unrounded)+1)
-	for _, r := range rounded {
-		out = append(out, r.seat)
-	}
-	for _, u := range unrounded {
-		out = append(out, u.seat)
+	seen := map[string]bool{}
+	out := make([]string, 0, len(needles)+1)
+	for _, n := range needles {
+		if !seen[n.seat] {
+			seen[n.seat] = true
+			out = append(out, n.seat)
+		}
 	}
 	return append(out, "other")
 }

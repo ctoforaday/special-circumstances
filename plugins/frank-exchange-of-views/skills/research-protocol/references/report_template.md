@@ -2,8 +2,8 @@
   THE DELIVERABLE IS A SET OF DOCUMENTS, ASSEMBLED FROM THE RECORD by the bench seat's assemble
   verb. Nothing is authored at assembly. Two ownership classes, marked per section below:
 
-    [BLUE] — authored by blue INSIDE blue/report.md, audited by red every round (red
-             re-reads the full report each round), and LIFTED VERBATIM here. A synthesis
+    [BLUE] — authored by blue INSIDE blue/report.md, audited by red every sitting (red
+             re-reads the full report each sitting), and LIFTED VERBATIM here. A synthesis
              surface authored at assembly would be authored after red's last audit, so it
              lives in the audited document instead. A missing one is flagged, never filled.
 
@@ -23,7 +23,7 @@
   This file is the map, not a form to fill in.
 -->
 
-# README.md — the run's front door                <!-- [RECORD] verdict, rounds, gaps, and what each document holds -->
+# README.md — the run's front door                <!-- [RECORD] verdict, epochs, gaps, and what each document holds -->
 
 # report.md — THE RESEARCH
 
@@ -92,7 +92,7 @@
 
 # debate.md — the adversarial record
 
-## The debate                            <!-- [RECORD] ONE transcript: per round the parties' positions, closings and grade
+## The debate                            <!-- [RECORD] ONE transcript: per epoch the parties' positions, closings and grade
                                               disputes, and the bench's opinions; then the terminal bench disposition
                                               (halt / certification), which also states plainly if any petition went unruled. -->
 
@@ -118,7 +118,7 @@
 
 # CHANGELOG.md — this report's own provenance
 
-## Report revision history               <!-- [RECORD] every recorded edit to blue's report, in round order -->
+## Report revision history               <!-- [RECORD] every recorded edit to blue's report, in record order -->
 
 ## Claims withdrawn                      <!-- [RECORD] from the retire events: the claim as it stood, why it went, and what
                                               replaced it. A claim argued and then withdrawn is part of what the debate
