@@ -1,9 +1,9 @@
 ---
-name: ask-the-record
-description: Before asking a peer agent what happened, or assuming nobody else is working on a file, query the host-wide trajectory catalogue — it answers from what agents DID rather than from what they remember.
+name: telepathy
+description: Before asking a peer agent what happened, or assuming nobody else is working on a file, use `telepathy` to query the host-wide trajectory catalogue — it answers from what agents DID rather than from what they remember.
 ---
 
-# ask-the-record
+# telepathy
 
 `SendMessage` asks an agent what it **believes**, and needs it alive and willing. The catalogue
 asks the record what **happened**.
@@ -11,7 +11,7 @@ asks the record what **happened**.
 - BEFORE messaging a peer to ask what it did, what it found, or whether something is done, YOU
   MUST query the catalogue first. A peer's answer is a self-report composed from a context window
   that may have been compacted; the catalogue is the acts themselves.
-- BEFORE editing a file you did not create, YOU MUST run `gray-area touched <path>`. Two agents
+- BEFORE editing a file you did not create, YOU MUST run `telepathy touched <path>`. Two agents
   editing one file is the cheapest coordination failure to prevent and the most expensive to
   discover at merge.
 - BEFORE relaying a claim you did not verify — "the peer says X merged", "that was fixed in #N" —
@@ -25,12 +25,12 @@ asks the record what **happened**.
 ## The verbs
 
 ```
-gray-area agents                 who is running, in which worktree, doing what
-gray-area session <id>           one session's shape: calls and errors by tool
-gray-area touched <path>         which sessions acted on a path, and when
-gray-area find <term>            ripgrep across every local transcript, joined to who
-gray-area sql '<SELECT …>'       anything else
-gray-area backfill               read the existing corpus into the store (explicit, safe to repeat)
+telepathy agents                 who is running, in which worktree, doing what
+telepathy session <id>           one session's shape: calls and errors by tool
+telepathy touched <path>         which sessions acted on a path, and when
+telepathy find <term>            ripgrep across every local transcript, joined to who
+telepathy sql '<SELECT …>'       anything else
+telepathy backfill               read the existing corpus into the store (explicit, safe to repeat)
 ```
 
 `sql` is read-only and the views are the published contract: **`v_session`, `v_action`, `v_word`,
@@ -39,10 +39,10 @@ asking are not knowable in advance, which is why the surface is SQL and not a me
 
 ```sh
 # which agents failed most, across the whole box
-gray-area sql "SELECT session_id, count(*) n FROM v_action WHERE outcome='error' GROUP BY 1 ORDER BY 2 DESC"
+telepathy sql "SELECT session_id, count(*) n FROM v_action WHERE outcome='error' GROUP BY 1 ORDER BY 2 DESC"
 
 # what did that agent actually do in the last hour
-gray-area sql "SELECT tool, target FROM v_action WHERE session_id LIKE '5627%' AND ts > strftime('%s','now','-1 hour')"
+telepathy sql "SELECT tool, target FROM v_action WHERE session_id LIKE '5627%' AND ts > strftime('%s','now','-1 hour')"
 ```
 
 ## What it cannot tell you

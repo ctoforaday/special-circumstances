@@ -42,18 +42,18 @@ Lists every tool invocation as `file:line uuid seat tool target` — so a reader
 
 **And every row names the binary that wrote it.** `schema` says what *contract* a row was written to; `capture_build` says which *build* wrote it, and the two came apart the moment more than one hook binary was installed at once. Three were, on the same machine, all writing the same schema — and two readers then drew opposite conclusions about when the row population changed, from rows that recorded the contract and not the producer. Both were wrong, and the manifest could not settle it. `coverage` now says so up front when one manifest has several writers, because a count drawn across that boundary describes a population that changed producers midway.
 
-## The switchboard: `agents`, `touched`, `session`, `find`, `sql`
+## The switchboard: `telepathy`
 
-The manifest answers *where is this session's trajectory*. The **catalogue** answers questions
-across every agent on the box:
+The manifest answers *where is this session's trajectory*. **`telepathy`** answers questions across
+every agent on the box — Gray Area is the ship, and telepathy is what it does:
 
 ```
-gray-area agents              who is running, in which worktree, doing what
-gray-area touched <path>      is anyone else acting on this file
-gray-area session <id>        one session's calls and errors, by tool
-gray-area find <term>         search every local transcript (ripgrep, no index)
-gray-area sql '<SELECT …>'    read-only, over v_session / v_action / v_word / v_thought / v_skip
-gray-area backfill            read the existing corpus in; safe to repeat
+telepathy agents              who is running, in which worktree, doing what
+telepathy touched <path>      is anyone else acting on this file
+telepathy session <id>        one session's calls and errors, by tool
+telepathy find <term>         search every local transcript (ripgrep, no index)
+telepathy sql '<SELECT …>'    read-only, over v_session / v_action / v_word / v_thought / v_skip
+telepathy backfill            read the existing corpus in; safe to repeat
 ```
 
 It exists because `SendMessage` asks an agent what it *believes* and needs it alive to answer,

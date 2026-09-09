@@ -348,7 +348,7 @@ stays green. This was checked because two new directories would have turned it r
 - [NEW] `internal/catalogue/backfill.go` — **the component an earlier draft omitted entirely.** A
   `Stop`-hook-only store contains nothing until it has run for a month, so §V's checks over a
   month window would have had nothing to read. Backfill projects the existing corpus once, is
-  triggered by the `gray-area backfill` verb — **the fifth new verb, counted in §III's dispatch-table and README carriers** — explicit, never from a hook, and is **exempt from goal 2's
+  triggered by the `telepathy backfill` verb — **a verb on the new `telepathy` binary, not on `gray-area`** — explicit, never from a hook, and is **exempt from goal 2's
   budgets because it is not on any agent's turn** — **MEASURED, now that the component exists, and the estimate was 7x optimistic.** The
   estimate said "a cold seed should be around a second", from a 545 MB/s `python3` line-scan marked
   as an upper bound. The real backfill — full JSON parse plus SQLite writes — runs the whole
@@ -365,7 +365,7 @@ stays green. This was checked because two new directories would have turned it r
   `SessionEnd` to the same fall-through it had just named. The existing `SessionStart` and
   `SubagentStop` manifest writes are unchanged. The `-event` flag help at `main.go:488`
   (`SubagentStop | SessionStart`) gains both events.
-- [MODIFY] `cmd/gray-area/main.go`, `inspect.go` — five verbs (`agents`, `session`, `touched`, `find`, `backfill`) plus `sql`. The existing six are
+- [NEW] `cmd/telepathy/` — the switchboard binary. Gray Area is the plugin; telepathy is the act, so the verbs do not hang off a binary named for the ship. `gray-area`'s own six verbs are UNCHANGED, which also means its dispatch table and both command docs stay correct. [MODIFY] `cmd/gray-area/main.go`, `inspect.go` — a NEW `telepathy` binary carrying the switchboard verbs — `agents`, `session`, `touched`, `find`, `sql`, `backfill`. The existing six are
   untouched.
 - [MODIFY] `plugins/gray-area/hooks/hooks.json` — two new bindings, `Stop` and `SessionEnd`.
 - [MODIFY] `plugins/gray-area/requirements.json` — **three** changes, the third a carrier an earlier
@@ -650,9 +650,9 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
     of the identity claim in §II. Across a real session.
     **Expected: a number, reported either way** — "0 of N turns lagged" is a result; an absent
     measurement is not. This is the check the plan could not run before the hook existed.
-18. **[LOCAL] End-to-end, observed.** Against the real corpus: `gray-area agents` names this session and
-    the other five live ones; `gray-area touched <a path this session edited>` returns it;
-    `gray-area sql 'SELECT tool, count(*) FROM action GROUP BY tool'` returns a distribution
+18. **[LOCAL] End-to-end, observed.** Against the real corpus: `telepathy agents` names this session and
+    the other five live ones; `telepathy touched <a path this session edited>` returns it;
+    `telepathy sql 'SELECT tool, count(*) FROM action GROUP BY tool'` returns a distribution
     matching item 3's independent count **over the whole month window** — asserted against rows
     older than 11 days, because that is the bound a partitioned store would have imposed and the
     single-database design exists to remove.

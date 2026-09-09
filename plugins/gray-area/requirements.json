@@ -37,6 +37,11 @@
         "name": "gray-area",
         "event": "(command-line, not a hook)",
         "purpose": "the miner: lists tool invocations with provenance and resolves shell-aliased calls; refuses to emit a row it cannot cite"
+      },
+      {
+        "name": "telepathy",
+        "event": "(command-line, not a hook)",
+        "purpose": "the switchboard: what every agent on this box did, said and thought, queryable by any other session. Gray Area is the plugin; telepathy is the act, which is why it is its own binary rather than more verbs on `gray-area` — that one adjudicates ONE trajectory against a document, this one reads across the host. Every absence it prints is worded, because no store, no rows, no sessions and no captured reasoning are four different facts"
       }
     ]
   }

@@ -114,11 +114,11 @@ What it can do today:
 | `/gray-area:audit-repetition` | What was done more than once, and what was repeated three times back to back? |
 | `/gray-area:audit-seat-coverage` | Does the record name every subagent transcript that exists? |
 | `gray-area tools` | What did a given agent actually invoke? (command line) |
-| `gray-area agents` | Which agents are running on this box, and what is each doing? |
-| `gray-area touched` | Is anyone else acting on this file? |
-| `gray-area session` | One session's shape: calls and errors by tool |
-| `gray-area find` | Search every local transcript, joined back to who and when |
-| `gray-area sql` | Read-only SQL over the catalogue's published views |
+| `telepathy agents` | Which agents are running on this box, and what is each doing? |
+| `telepathy touched` | Is anyone else acting on this file? |
+| `telepathy session` | One session's shape: calls and errors by tool |
+| `telepathy find` | Search every local transcript, joined back to who and when |
+| `telepathy sql` | Read-only SQL over the catalogue's published views |
 
 Each row cites both documents — the claim and the evidence — so a reader can check it rather than trust it. Verdicts are deliberately weak where the record is weak: `NO-EVIDENCE` means *nothing matched*, printed with the tokens searched, never *it did not happen*.
 

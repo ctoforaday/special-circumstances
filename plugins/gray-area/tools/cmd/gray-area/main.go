@@ -177,8 +177,7 @@ func run(args []string, stdout, stderr io.Writer, open func(string) (io.ReadClos
 		return 2
 	}
 	switch cmd {
-	case "tools", "checkpoint", "rework", "stalls", "pr", "coverage",
-		"agents", "session", "touched", "find", "sql", "backfill":
+	case "tools", "checkpoint", "rework", "stalls", "pr", "coverage":
 	default:
 		fmt.Fprintf(stderr, "gray-area: unknown command %q\n", cmd)
 		fs.Usage()
@@ -188,41 +187,6 @@ func run(args []string, stdout, stderr io.Writer, open func(string) (io.ReadClos
 
 	if cmd == "coverage" {
 		return coverageVerb(stdout, stderr, *projectDir)
-	}
-
-	// The catalogue verbs: the switchboard. These read the host-wide store rather than this
-	// session's manifest, which is what lets one session ask what the others have been doing.
-	switch cmd {
-	case "agents":
-		return agentsVerb(stdout, stderr)
-	case "backfill":
-		return backfillVerb(stdout, stderr)
-	case "session":
-		if len(rest) < 1 {
-			fmt.Fprintln(stderr, "gray-area session: a session id is required (see `gray-area agents`)")
-			return 2
-		}
-		return sessionVerb(stdout, stderr, rest[0])
-	case "touched":
-		if len(rest) < 1 {
-			fmt.Fprintln(stderr, "gray-area touched: a path is required")
-			return 2
-		}
-		return touchedVerb(stdout, stderr, rest[0])
-	case "find":
-		if len(rest) < 1 {
-			fmt.Fprintln(stderr, "gray-area find: a search term is required")
-			return 2
-		}
-		return findVerb(stdout, stderr, rest[0])
-	case "sql":
-		if len(rest) < 1 {
-			fmt.Fprintln(stderr, "gray-area sql: a query is required, e.g.\n"+
-				"  gray-area sql 'SELECT tool, count(*) FROM v_action GROUP BY tool ORDER BY 2 DESC'\n"+
-				"Views: v_session, v_action, v_word, v_thought, v_skip. Read-only.")
-			return 2
-		}
-		return sqlVerb(stdout, stderr, rest[0], 200)
 	}
 
 	if cmd == "pr" {
