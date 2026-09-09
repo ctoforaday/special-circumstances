@@ -175,7 +175,11 @@ So the rule is:
    evidence. That is the inverse of round seventeen's error, not its repair.
 
    So the sweep **runs incremental ingest of that session's transcript from its stored offset first**,
-   and only then decides. Promotion is thereby restricted to text genuinely absent from the file, and
+   and only then decides. **That is transcript I/O for another session inside `SessionStart`, so it
+   was measured against that hook's budget rather than assumed into it:** a tail read beyond a stored
+   offset costs **2.4 ms**, and even a cold full parse of the largest transcript on this box (36.2 MB)
+   is **108 ms** — against the 500 ms rollover budget, with 6 sessions live. The stored offset is what
+   keeps the steady state in the low milliseconds; the cold case is the bound, and it fits. Promotion is thereby restricted to text genuinely absent from the file, and
    rule 4's justification becomes true rather than assumed. **A provisional is deleted the moment it
    is SATISFIED** — an ingested block equal to it arrives for its key — not on first sight of any
    sibling text. If it is still unsatisfied *after* that ingest, it is retained until its
@@ -267,7 +271,10 @@ So the rule is:
    - **At promotion `provisional` flips 1 → 0 while `source` stays `'payload'`.** That pair is what
      identifies a permanent row with no transcript counterpart, which §V.3's arithmetic needs.
    - **The `word` row's identity is `(session, agent_id, prompt_id, block_seq)`** — `block_seq` the
-     block's ordinal within its turn. This had to be stated: `(session, seq)` is the `action` tier's
+     block's ordinal within its turn, derived at ingest by counting text blocks already stored for
+     that key, which makes it **stable across a `backfill` that starts from zero**: the same
+     transcript replayed in the same order yields the same ordinals. It is a position within a turn,
+     not a byte offset, so it does not move when a file is re-read. This had to be stated: `(session, seq)` is the `action` tier's
      key and backfill's, and `(session, agent_id, prompt_id)` is **not** unique per word row, since
      66.2% of turns carry more than one block. Without an identity the replacement below has nothing
      to replace on.
