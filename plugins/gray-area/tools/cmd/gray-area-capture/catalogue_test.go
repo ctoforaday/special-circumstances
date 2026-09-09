@@ -11,15 +11,19 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/catalogue"
 )
 
-// fixtureHome builds a fake ~/.claude with one session's transcript in it, and points both HOME
-// and XDG_STATE_HOME at temporary directories.
+// fixtureHome builds a fake ~/.claude with one session's transcript in it, and redirects every
+// variable the code under test resolves a home directory through.
 //
-// Both, and that matters: HOME alone would leave the store being written to the DEVELOPER's real
-// catalogue, and a test that quietly writes to the machine's own state is worse than no test.
+// EVERY variable, and USERPROFILE is the one that matters: os.UserHomeDir reads $HOME on Unix and
+// %USERPROFILE% on Windows, so setting HOME alone leaves this test reading the real profile and
+// writing the store into the developer's actual state directory. It failed loudly in CI, which was
+// lucky — on a developer's own Windows box it would have passed while quietly ingesting their real
+// transcripts. A test that writes to the machine's own state is worse than no test.
 func fixtureHome(t *testing.T, sessionID string, tools ...string) (home string, storePath string) {
 	t.Helper()
 	home = t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	t.Setenv("XDG_STATE_HOME", filepath.Join(home, "state"))
 	storePath = filepath.Join(home, "state", "special-circumstances", "catalogue", "catalogue.db")
 

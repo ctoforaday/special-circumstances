@@ -3,6 +3,7 @@ package main
 import (
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -17,7 +18,14 @@ func TestTheBuiltBinary(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds a binary; skipped under -short")
 	}
-	bin := filepath.Join(t.TempDir(), "telepathy")
+	// .exe on Windows, or exec refuses to run a file it built a moment earlier — "executable file
+	// not found in %PATH%" for an absolute path that exists, which reads like anything but a
+	// missing suffix.
+	name := "telepathy"
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	bin := filepath.Join(t.TempDir(), name)
 	build := exec.Command("go", "build", "-o", bin, ".")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("go build: %v\n%s", err, out)

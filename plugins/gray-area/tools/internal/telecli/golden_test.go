@@ -69,20 +69,32 @@ func (h *harness) run(t *testing.T, args ...string) (stdout, stderr string, code
 	return h.scrub(o.String()), h.scrub(e.String()), exitCode(err)
 }
 
-// scrub replaces this run's temporary paths with stable placeholders. Without it every golden
-// would hold a t.TempDir() path and fail on the next run — and a golden nobody can keep passing
-// gets deleted, which is how a suite loses the assertions it was written for.
+// scrub replaces this run's temporary paths with stable placeholders, and normalises the
+// separator. Without the first every golden would hold a t.TempDir() path and fail on the next
+// run — and a golden nobody can keep passing gets deleted, which is how a suite loses the
+// assertions it was written for.
+//
+// The separator matters for the same reason and is easier to miss: a path this tool PRINTS comes
+// from filepath, so `<CORPUS>/-work-alpha` on Linux is `<CORPUS>\-work-alpha` on Windows, and one
+// golden cannot hold both. Normalising to forward slashes is safe here because no fixture content
+// contains a backslash of its own — if that stops being true, this line starts corrupting the
+// comparison rather than stabilising it.
 func (h *harness) scrub(s string) string {
 	s = strings.ReplaceAll(s, h.projects, "<CORPUS>")
 	s = strings.ReplaceAll(s, h.sessions, "<SESSIONS>")
 	s = strings.ReplaceAll(s, h.store, "<STORE>")
-	return s
+	return strings.ReplaceAll(s, "\\", "/")
 }
 
 // assertGolden compares against testdata/golden/<name>.txt.
 func assertGolden(t *testing.T, name, got string) {
 	t.Helper()
-	path := filepath.Join("testdata", "golden", name+".txt")
+	// `.golden`, not `.txt`, and deliberately: .gitattributes already pins `*.golden` to LF for
+	// exactly this reason, and .txt is outside that list. A Windows checkout converted every one
+	// of these to CRLF while the code emits LF, so all 21 differed from themselves on one
+	// platform. Using the covered extension keeps a hand-kept roster from having to grow — the
+	// roster going stale is the same defect one level up.
+	path := filepath.Join("testdata", "golden", name+".golden")
 	if *update {
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			t.Fatal(err)
@@ -97,6 +109,14 @@ func assertGolden(t *testing.T, name, got string) {
 		t.Fatalf("no golden for %s: %v\n--- this run produced ---\n%s\nrun `go test ./internal/telecli -update` if that is correct", name, err, got)
 	}
 	if string(want) != got {
+		// NAME THE LINE-ENDING CASE OUT LOUD. Its diff renders identically on both sides, so a
+		// reader compares two blocks of text that look the same and concludes the harness is
+		// broken. One line of diagnosis is worth more than the diff here.
+		if strings.ReplaceAll(string(want), "\r\n", "\n") == got {
+			t.Errorf("%s differs only in LINE ENDINGS — the checkout converted it to CRLF. "+
+				"Check that .gitattributes still pins *.golden to eol=lf.", name)
+			return
+		}
 		t.Errorf("%s does not match its golden.\n--- want ---\n%s\n--- got ---\n%s", name, want, got)
 	}
 }
