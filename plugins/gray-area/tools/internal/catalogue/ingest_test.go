@@ -244,3 +244,35 @@ func TestSameLengthRewriteIsDetectedByTheFingerprint(t *testing.T) {
 		t.Errorf("acts after reprojection = %q, want only the rewritten content", tools)
 	}
 }
+
+// The session row's project_dir must name the SESSION's directory, not whichever file was
+// ingested last. A session with subagents has most of its files under <sid>/subagents/, so
+// taking the last one made the row report the subagents directory — a false field that reads
+// as plausible, which is the shape this plugin exists to refuse.
+func TestProjectDirComesFromTheSessionTranscript(t *testing.T) {
+	root := corpus(t)
+	db, err := Open(filepath.Join(t.TempDir(), "c.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	files, _ := TranscriptFiles(root)
+	// Ingest the session's own transcript FIRST, then the agent files, so a naive
+	// last-write-wins would overwrite the correct value with the subagents directory.
+	sess := sessionFile(t, root)
+	if _, err := IngestFile(db, sess); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range files {
+		if f.AgentID != "" {
+			if _, err := IngestFile(db, f); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	var dir string
+	db.QueryRow(`SELECT project_dir FROM session WHERE session_id='S'`).Scan(&dir)
+	if want := filepath.Dir(sess.Path); dir != want {
+		t.Errorf("project_dir = %q, want %q — an agent file overwrote it", dir, want)
+	}
+}

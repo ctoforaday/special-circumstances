@@ -196,10 +196,19 @@ func IngestFile(db *sql.DB, tf TranscriptFile) (IngestResult, error) {
 		return res, fmt.Errorf("catalogue: offset: %w", err)
 	}
 	now := time.Now().Unix()
+	// PROJECT DIR COMES FROM THE SESSION'S OWN TRANSCRIPT, never from whichever file happened to
+	// be ingested last. A session with subagents has most of its files under <sid>/subagents/, so
+	// taking the last one made the row report the subagents directory as the project — a field
+	// that was simply false, and false in a way that reads as plausible.
+	dir := ""
+	if tf.AgentID == "" {
+		dir = filepath.Dir(tf.Path)
+	}
 	if _, err := tx.Exec(
 		`INSERT INTO session(session_id,project_dir,first_seen,last_seen) VALUES(?,?,?,?)
-		 ON CONFLICT(session_id) DO UPDATE SET last_seen=excluded.last_seen`,
-		tf.SessionID, filepath.Dir(tf.Path), now, now); err != nil {
+		 ON CONFLICT(session_id) DO UPDATE SET last_seen=excluded.last_seen,
+		     project_dir=CASE WHEN excluded.project_dir != '' THEN excluded.project_dir ELSE session.project_dir END`,
+		tf.SessionID, dir, now, now); err != nil {
 		return res, fmt.Errorf("catalogue: session: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
