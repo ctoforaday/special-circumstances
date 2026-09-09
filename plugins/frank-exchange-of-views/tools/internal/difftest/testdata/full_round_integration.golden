@@ -90,7 +90,7 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
-$ mint --run {RUN} --seat-id red-chair --class citation-drift --check-kind document --check refetch and diff --severity high --likelihood high --impact high --complexity medium --quote ## S2 --found-by evidence-F1,logic-F1 --problem the cited source does not say this
+$ mint --run {RUN} --seat-id red-lens-evidence --class citation-drift --check-kind document --check refetch and diff --severity high --likelihood high --impact high --complexity medium --quote ## S2 --found-by evidence-F1,logic-F1 --problem the cited source does not say this
 exit 0
 stdout:
 minted G1
@@ -117,7 +117,7 @@ verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}
 {"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_HIGH","label":"logic-F1","likelihood":"GRADE_HIGH","location":"## S4","severity":"GRADE_HIGH","text":"a leap of faith"},"key":"red-lens-logic:finding:logic-F1","seat_id":"red-lens-logic","ts":6,"type":"EVENT_TYPE_FINDING"}
 {"anchor":{"id":"FINDING001","location":"## S4"},"key":"red-lens-logic:anchor:FINDING001","seat_id":"red-lens-logic","ts":7,"type":"EVENT_TYPE_ANCHOR"}
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":8,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair:mint:G1","mint":{"acceptance_check":"refetch and diff","check_kind":"CHECK_KIND_DOCUMENT","class":"citation-drift","class_new":false,"complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","found_by":["evidence-F1","logic-F1"],"gap_id":"G1","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"## S2","mint_key":"","problem":"the cited source does not say this","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-chair","ts":9,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:mint:G1","mint":{"acceptance_check":"refetch and diff","check_kind":"CHECK_KIND_DOCUMENT","class":"citation-drift","class_new":false,"complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","found_by":["evidence-F1","logic-F1"],"gap_id":"G1","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"## S2","mint_key":"","problem":"the cited source does not say this","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":9,"type":"EVENT_TYPE_MINT"}
 {"key":"red-chair:position:#1","position":{"text":"round one: FAIL"},"seat_id":"red-chair","ts":10,"type":"EVENT_TYPE_POSITION"}
 {"key":"red-chair:verdict:#1","seat_id":"red-chair","ts":11,"type":"EVENT_TYPE_VERDICT","verdict":{"verdict":"VERDICT_FAIL"}}
 

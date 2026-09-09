@@ -26,7 +26,6 @@ type Config struct {
 	Model         string
 	JudgmentModel string
 	Cites         []string
-	MaxRounds     string
 	Lanes         string
 	// The run's terms (plans/roundless.md §III.B.2, §III.B.2.2): K, KMax, MintBudget and the
 	// convergence fraction. Zero means "setup's default", which is written out so the file always
@@ -92,25 +91,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		}
 		fmt.Fprintln(stderr, "  the engine does not guess a tier or inherit the session model. Pass both, e.g.")
 		fmt.Fprintln(stderr, "  --model sonnet --judgment-model sonnet   (a smoke run passes --model haiku --judgment-model haiku)")
-		return 2
-	}
-
-	// Gate: the ROUND CEILING is required, for the reason the model tiers are (#308).
-	//
-	// It was optional, and debate.js defaults it to 12 in JS — so a run launched without it had
-	// a ceiling nobody recorded, and CEILING became underivable from the record: the verdict
-	// fell back to the seat's word. Found by the fuzz tripwire, which flagged 24 of 60 runs as
-	// carrying an ASSERTED verdict purely because no ceiling was on file.
-	//
-	// The operator resolves this value anyway to hand the Workflow, and /research already says
-	// to pass setup the SAME config. The engine does not guess a tier; it should not guess a
-	// bound either.
-	if cfg.MaxRounds == "" {
-		fmt.Fprintln(stderr, "run-setup: --max-rounds REQUIRED — refusing to create the run:")
-		fmt.Fprintln(stderr, "  the round ceiling is the bound the terminal CEILING verdict is derived against, and a")
-		fmt.Fprintln(stderr, "  run that does not record it leaves its own outcome underivable — the verdict falls back")
-		fmt.Fprintln(stderr, "  to whatever a seat says it was. Pass the same value you will hand the workflow, e.g.")
-		fmt.Fprintln(stderr, "  --max-rounds 12   (a smoke run passes --max-rounds 2)")
 		return 2
 	}
 
@@ -187,7 +167,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "run-setup: RECORD BINARY PREFLIGHT FAILED — refusing to create the run:")
 		fmt.Fprintf(stderr, "  %s\n", pre.Reason)
 		fmt.Fprintf(stderr, "  remedy: %s\n", pre.Remedy)
-		fmt.Fprintln(stderr, "  (failing here costs a re-run; failing mid-round costs a seat its whole record)")
+		fmt.Fprintln(stderr, "  (failing here costs a re-run; failing mid-run costs a seat its whole record)")
 		return 2
 	}
 
@@ -348,7 +328,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	if cfg.ConvergenceFraction > 0 {
 		terms.ConvergenceFraction = cfg.ConvergenceFraction
 	}
-	rc := runConfig{Topic: topic, RunDir: run.Dir(), Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, MaxRounds: ptrOrNil(cfg.MaxRounds), Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect, AllowModelSubstitution: cfg.AllowSubstitution,
+	rc := runConfig{Topic: topic, RunDir: run.Dir(), Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect, AllowModelSubstitution: cfg.AllowSubstitution,
 		K: terms.K, KMax: terms.KMax, MintBudget: terms.MintBudget, ConvergenceFraction: terms.ConvergenceFraction,
 		Hooks: hookProvenanceAt(homeDir(), "frank-exchange-of-views")}
 	if b, err := marshalJSON(rc); err == nil {
@@ -495,7 +475,6 @@ type runConfig struct {
 	RunDir        string  `json:"runDir"`
 	Model         string  `json:"model"`
 	JudgmentModel string  `json:"judgmentModel"`
-	MaxRounds     *string `json:"maxRounds"`
 	Lanes         *string `json:"lanes"`
 	// The run's terms, always written (record.Params reads them; see that type for what each bounds).
 	K                   int     `json:"k"`

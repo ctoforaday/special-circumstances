@@ -1,8 +1,10 @@
-// Package merge is the red merge seat's contract: the board's only writer.
+// Package merge is the red chair's contract: the seat that RUNS the debate.
 //
-// mint, close, dispose and regrade live here and nowhere else. No other role has
-// them, which is what makes "the board has one writer" a property of the tool
-// rather than a rule someone has to follow.
+// The chair reads the board through `dispatch next` and the record says who sits; it issues the
+// verdict when the board permits one, files closing arguments on docketed gaps, spot-checks the
+// archive and carries closures the archive already holds. It mints nothing and closes nothing:
+// a gap is its lens's from mint to close (plans/roundless.md §III.B.3), and the chair is party to
+// no exchange — which is what makes per-dispute dispatch save chair sittings rather than add them.
 package merge
 
 import (
@@ -17,14 +19,9 @@ const role = "merge"
 func Verbs() []*cobra.Command {
 	return seat.RoleVerbs(role,
 		seat.Register(),
-		newMint(),
-		newClass(),
-		newClose(),
 		newCarry(),
-		newRegrade(),
 		newSpotCheck(),
 		newInquirySupport(),
-		newNearMatch(),
 		seat.Position("position-red"),
 		seat.Closing("closing-red"),
 		newVerdict(),

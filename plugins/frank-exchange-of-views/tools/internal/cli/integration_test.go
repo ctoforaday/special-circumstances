@@ -51,7 +51,11 @@ func seatRunReport(t *testing.T, body string) string {
 	return runDir
 }
 
-// mintGap mints through the merge seat and returns the tool-assigned id.
+// mintGap mints through the LENS seat and returns the tool-assigned id.
+//
+// Mint is a lens verb (plans/roundless.md §III.B.3): the chair coalesces nothing and puts nothing
+// on the board itself. Every fixture here mints from ONE lens, `lensSeat`, so that the same seat
+// can close or regrade the gap later — the originator closes, and any other seat is refused.
 //
 // It passes NO --location. Since 0.63.0 a mint's location is matched against blue/report.md, and
 // callers here seed different reports — a helper carrying one sentence would only work for the
@@ -59,10 +63,12 @@ func seatRunReport(t *testing.T, body string) string {
 // exercise it passes its own quote.
 func mintGap(t *testing.T, runDir, key, class string) string {
 	t.Helper()
-	// The chair sits before it mints. Gap ids are R<epoch>-<n> and the epoch is the count of chair
-	// registers, so a mint with no chair on the record is R0-<n> — every caller here names R1-<n>.
+	// The chair sits before anyone mints: the epoch is the count of chair registers, and a gap's
+	// minted_epoch is read by the convergence checks. Then the lens sits, because it is the seat
+	// that mints.
 	registerChairOnce(t, runDir)
-	out, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
+	registerLensOnce(t, runDir)
+	out, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", key, "--class", class, "--problem", "the defect", "--fix", "the fix",
 		"--check-kind", "document", "--check", "the acceptance check red runs at re-audit",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low")
@@ -159,8 +165,8 @@ func TestGradeDisputeIsVisibleToBothSides(t *testing.T) {
 	}
 }
 
-// Red closes a gap with its verification anchor; the closure and its anchor must both be
-// readable afterwards. An anchored closure whose anchor is not recoverable is exactly the
+// The lens that minted a gap closes it with its verification anchor; the closure and its anchor
+// must both be readable afterwards. An anchored closure whose anchor is not recoverable is exactly the
 // attestation-format defect the scorecard measures — and this run scored 0% anchored.
 func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 	runDir := seatRun(t)
@@ -170,7 +176,7 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 	if err := os.WriteFile(prose, []byte("re-read the cited source; the digits match the arm the claim names"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", id, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "git show", "--verified-against", "7bc501e:report.md",
 		"--reason-file", prose); err != nil {
@@ -218,23 +224,40 @@ func TestAllFourSeatsWriteIntoOneReadableRecord(t *testing.T) {
 	}
 }
 
+// lensSeat is the ONE lens every fixture in this package mints from. A gap belongs to the lens
+// that minted it for its whole life — close and regrade are refused to any other seat — so a
+// fixture that mints here and disposes there has to be the same seat at both ends.
+const lensSeat = "red-lens-evidence"
+
 // registerChairOnce makes sure red-chair has registered on this run — ONCE, whatever path did it.
-// Gap ids are R<epoch>-<n> and the epoch is the count of chair registers, so a helper that minted
-// with no chair on the record produced R0-<n>, and one that registered blindly on a run whose staged
-// board had already seated the chair opened epoch 2 and produced R2-<n>. Both are wrong, and every
-// caller here names R1-<n>. The record is asked, not a Go map: the map cannot see a register the
-// board builder wrote.
+// The epoch is the count of chair registers, so a fixture with no chair on the record writes every
+// gap into epoch 0, and one that registered blindly on a run whose staged board had already seated
+// the chair opened epoch 2. Both are wrong. The record is asked, not a Go map: the map cannot see a
+// register the board builder wrote.
 func registerChairOnce(t *testing.T, runDir string) {
+	t.Helper()
+	registerSeatOnce(t, runDir, "red-chair")
+}
+
+// registerLensOnce seats `lensSeat` — ONCE, whatever path did it. A seat registers before it acts,
+// and a lens's mints are counted against its budget by seat id, so every mint helper here sits the
+// same lens rather than a fresh one per call.
+func registerLensOnce(t *testing.T, runDir string) {
+	t.Helper()
+	registerSeatOnce(t, runDir, lensSeat)
+}
+
+func registerSeatOnce(t *testing.T, runDir, seatID string) {
 	t.Helper()
 	m, err := record.MergedEvents(runtest.Open(t, runDir))
 	if err == nil {
 		for _, e := range m.Events {
-			if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER && e.GetSeatId() == "red-chair" {
+			if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER && e.GetSeatId() == seatID {
 				return
 			}
 		}
 	}
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair"); err != nil {
-		t.Fatalf("register red-chair: %v", err)
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", seatID); err != nil {
+		t.Fatalf("register %s: %v", seatID, err)
 	}
 }

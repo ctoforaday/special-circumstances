@@ -31,7 +31,8 @@ func TestAGapCarriesRedsArgumentAndNotOnlyItsProblem(t *testing.T) {
 	}
 
 	const why = "blue may well have done the work; what is missing is the record of it"
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
+	registerLensOnce(t, runDir)
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "argued", "--class", "metric-conflation",
 		"--quote", "The access log retains for 45 days.",
 		"--problem", "the figure conflicts with the universal",
@@ -55,7 +56,7 @@ func TestAGapCarriesRedsArgumentAndNotOnlyItsProblem(t *testing.T) {
 	// AND IT IS NOT DUPLICATED when the problem arrived THROUGH --reason, which is the documented
 	// alternative form (`--problem "..."|--reason`). Storing it twice would make a reader think red
 	// argued something beyond the problem statement when it did not.
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "viareason", "--class", "metric-conflation",
 		"--quote", "The audit log retains for 30 days.",
 		"--fix", "f", "--check", "c", "--check-kind", "document",

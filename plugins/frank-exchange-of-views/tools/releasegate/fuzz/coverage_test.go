@@ -41,7 +41,6 @@ var flagExemptions = map[string]string{
 	"memory-dir":     "setup's flag, as above",
 	"topic":          "setup's flag, as above",
 	"cite":           "setup's flag, as above",
-	"max-rounds":     "setup's flag, as above",
 	"lanes":          "setup's flag, as above",
 	"chair":          "scorecard's chair selector; the harness drives scorecard unscoped, which reads every chair",
 	"format":         "graph's renderer selector; both values are driven by the format oracle, not the random sweep",
@@ -60,7 +59,7 @@ var enumExemptions = map[string]string{
 	// fuzz bench returned a literal `deadlock: false` — dressed as a claim about debate.js, and
 	// a real run falsified it on 2026-08-22. Both are driven now; if either stops being
 	// reachable the sweep should say so rather than an exemption explaining why it never was.
-	"log --type estoppel": "the TOOL writes this one, never a seat: merge/mint.go records it when it refuses a mint " +
+	"log --type estoppel": "the TOOL writes this one, never a seat: lens/mint.go records it when it refuses a mint " +
 		"against text blue applied verbatim from red's own --fix-new. This gate measures VALUES PASSED AS FLAGS, and " +
 		"there is no honest flag call that produces it — driving `log --type estoppel` from a seat would manufacture a " +
 		"refusal that never happened and teach the sweep an act the enum's own text forbids. " +

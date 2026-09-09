@@ -26,7 +26,7 @@ import (
 func TestShowPrintsExactlyTheSharedProjection(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "shown-gap", "read-surface")
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", id, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/x",
 		"--reason", "the check passes at the named site"); err != nil {

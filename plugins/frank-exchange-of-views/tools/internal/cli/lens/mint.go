@@ -1,4 +1,4 @@
-package merge
+package lens
 
 import (
 	"errors"
@@ -106,7 +106,7 @@ func newMint() *cobra.Command {
 		// it is about, and the record CHECKS the reference. Leaving the instruction here
 		// would have made a seat spell one act two ways across the two verbs of one act, and
 		// the gap minted from such a finding would re-acquire the handle the finding shed.
-		about, aboutRefP, aerr := record.ResolveAbout("merge mint", run, seat.Str(cmd, flags.AboutKind), seat.Str(cmd, flags.About))
+		about, aboutRefP, aerr := record.ResolveAbout("lens mint", run, seat.Str(cmd, flags.AboutKind), seat.Str(cmd, flags.About))
 		if aerr != nil {
 			return nil, aerr
 		}
@@ -114,14 +114,14 @@ func newMint() *cobra.Command {
 		// ONE SUBJECT. An anchor is OPTIONAL on a gap — that is this verb's pre-existing shape and
 		// is not changed here — but a gap that claims both is claiming two.
 		if strings.TrimSpace(loc) != "" && about != nil {
-			return nil, fmt.Errorf("merge mint takes --quote OR --about, not both: a gap has one subject")
+			return nil, fmt.Errorf("lens mint takes --quote OR --about, not both: a gap has one subject")
 		}
 		if strings.TrimSpace(loc) != "" {
 			report, err := reportproj.RenderFromRecord(run)
 			if err != nil {
 				return nil, err
 			}
-			if _, _, lerr := bluedoc.LocateUnique("merge mint --quote", report, loc); lerr != nil {
+			if _, _, lerr := bluedoc.LocateUnique("lens mint --quote", report, loc); lerr != nil {
 				return nil, fmt.Errorf("%w\n\nQuote the exact sentence the defect lives at, from blue/report.md and nothing else — a section heading plus a sentence will not match. For a gap about something that is NOT in the report, do not borrow a nearby sentence: name it with --about-kind/--about, the same pair `lens finding` takes", lerr)
 			}
 		}
@@ -149,7 +149,7 @@ func newMint() *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
-			if err := bluedoc.ValidateProposal("merge mint", report, seat.Str(cmd, flags.Quote), fixNew); err != nil {
+			if err := bluedoc.ValidateProposal("lens mint", report, seat.Str(cmd, flags.Quote), fixNew); err != nil {
 				return nil, err
 			}
 			p.FixNew = proto.String(fixNew)
@@ -160,7 +160,7 @@ func newMint() *cobra.Command {
 		if w := seat.Str(cmd, flags.CheckKind); w != "" {
 			ck, ok := record.CheckKindOf(w)
 			if !ok {
-				return nil, feov.Errorf(feov.Validation, "merge mint: %q is not a check kind — it says WHAT WOULD SETTLE the acceptance check", w)
+				return nil, feov.Errorf(feov.Validation, "lens mint: %q is not a check kind — it says WHAT WOULD SETTLE the acceptance check", w)
 			}
 			p.CheckKind = &ck
 		}
@@ -191,7 +191,7 @@ func newMint() *cobra.Command {
 		if fam, berr := record.FamilyOf(run); berr == nil {
 			if prior, prescribed := record.EstoppelConflict(fam, seat.Str(cmd, flags.Quote)); prior != "" &&
 				!contains(supersedes.Value(), prior) {
-				msg := fmt.Sprintf("merge mint: estoppel — this gap's location is text YOU prescribed for %s and blue applied verbatim. The prescription is red's; raise it as an amendment to %s (argue it there, or mint with --supersedes %s so the lineage is explicit) rather than as a fresh gap against your own words. Prescribed text: %q",
+				msg := fmt.Sprintf("lens mint: estoppel — this gap's location is text YOU prescribed for %s and blue applied verbatim. The prescription is red's; raise it as an amendment to %s (argue it there, or mint with --supersedes %s so the lineage is explicit) rather than as a fresh gap against your own words. Prescribed text: %q",
 					prior, prior, prior, prescribed)
 				// The KIND is a field, not something a reader infers from the wording. The
 				// prose above is aimed at a seat and must stay editable; the count an
@@ -235,7 +235,7 @@ func newMint() *cobra.Command {
 	c.Flags().String(flags.Key, "", flags.DescKey)
 	// THE BACKTICKS ARE COBRA'S PLACEHOLDER SYNTAX, not emphasis — it takes the first backquoted
 	// word as the flag's value shape. They sat around a COMMAND, so `--class` advertised its value
-	// as "merge class new": a phrase from the prose offered to a seat as the thing to type. The
+	// as "lens class new": a phrase from the prose offered to a seat as the thing to type. The
 	// command is named without them, and the placeholder is the shape actually wanted.
 	c.Flags().String(flags.Class, "", "the gap's `slug` — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb")
 	c.Flags().String(flags.Quote, "", flags.DescQuote)

@@ -14,7 +14,7 @@
 // commit (see scripts/golden.mjs).
 import { test, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { loadDebateScript, makeWorld, makeResponder, blueEnv, redEnv, gap, judgeEnv } from './harness.mjs'
+import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, party, judgeEnv } from './harness.mjs'
 import { assertGolden, orphanGoldens, goldenReport } from './golden.mjs'
 import { createHash } from 'node:crypto'
 
@@ -83,40 +83,36 @@ const ARGS = { topic: 'the seat prompt contract', runDir: 'research/2026-01-01_g
 // binDir is REQUIRED now and the ternaries are collapsed, so there is one prompt set and it is
 // the one that ships. What used to be the `.bindir` variant is simply the golden.
 
+// One run that seats every class the engine dispatches (plans/roundless.md §III.B.1): the chair's
+// first plan engages three lenses whose pin the head moved past, blue on G1, and the bench on G1
+// (docketed); the second engages the evidence lens ON its gap — the other lens shape — and the
+// third permits PASS. The chair reports an unruled motion so the terminal sitting fires too.
 async function fullRun(args = ARGS) {
   const world = makeWorld(makeResponder({
     blueSynth: [blueEnv({ claim_count: 200 })],
-    // A grade dispute is what puts a judge on the record in this shape: judge-rN
-    // needs a CONTESTED docket (raised, rebutted, re-raised) and judge-terminal
-    // needs undisposed disputes at the exit boundary. Without one, no bench seat
-    // dispatches at all — which the roster golden would faithfully record, but
-    // would leave the engine's most consequential prompt uncovered.
-    blueRespond: [blueEnv({
-      claim_count: 210,
-      grade_disputes: [{ gap_id: 'G1', dimension: 'likelihood', proposed: 'low', evidence: 'the harm needs two independent failures' }],
-    })],
-    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ verdict: 'PASS' })],
+    blueRespond: [blueEnv({ claim_count: 210 })],
+    chair: [
+      chairEnv({ plan: plan([party('red-lens-evidence'), party('red-lens-logic'), party('red-lens-dark-side'), party('blue-respond', 'G1'), party('judge', 'G1')], { head: 2, docket: ['G1'] }) }),
+      chairEnv({ plan: plan([party('red-lens-evidence', 'G1'), party('red-lens-logic')], { head: 9 }) }),
+      passChair({ unruled_motions: 1 }),
+    ],
     judge: [judgeEnv({ resolutions: [{ gap_id: 'G1', resolution: 'carried', rationale: 'the figure is still unrecomputed' }] })],
   }))
   await world.run(script, args)
   return world
 }
-
-// One golden per seat CLASS. Round-2 lenses are captured separately from round-1
-// lenses because that is precisely where W2i's dispatch graduation lives, and a
-// single-round capture would have proved nothing about it.
 const SEATS = [
   ['frontier', (l) => l.startsWith('frontier')],
   ['blue-lane-1', (l) => l.startsWith('blue-lane-1')],
   ['blue-lane-3', (l) => l.startsWith('blue-lane-3')],
   ['blue-synthesize', (l) => l.startsWith('blue-synthesize')],
-  ['red-lens-evidence-r1', (l) => l.startsWith('red-lens-evidence-r1')],
-  ['red-lens-logic-r1', (l) => l.startsWith('red-lens-logic-r1')],
-  ['red-lens-dark-side-r1', (l) => l.startsWith('red-lens-dark-side-r1')],
-  ['red-lens-evidence-r2-consolidated', (l) => l.startsWith('red-lens-evidence-r2')],
-  ['red-lens-logic-r2', (l) => l.startsWith('red-lens-logic-r2')],
-  ['red-chair-r1', (l) => l.startsWith('red-chair-r1')],
-  ['blue-respond-r1', (l) => l.startsWith('blue-respond-r1')],
+  ['red-lens-evidence', (l) => l.startsWith('red-lens-evidence #1')],
+  ['red-lens-logic', (l) => l.startsWith('red-lens-logic #1')],
+  ['red-lens-dark-side', (l) => l.startsWith('red-lens-dark-side #1')],
+  ['red-lens-evidence-engaged', (l) => l.startsWith('red-lens-evidence #2')],
+  ['red-chair', (l) => l.startsWith('red-chair #1')],
+  ['blue-respond', (l) => l.startsWith('blue-respond #1')],
+  ['judge', (l) => l.startsWith('judge #1')],
   ['judge-terminal', (l) => l.startsWith('judge-terminal')],
   ['assemble', (l) => l.startsWith('assemble')],
 ]

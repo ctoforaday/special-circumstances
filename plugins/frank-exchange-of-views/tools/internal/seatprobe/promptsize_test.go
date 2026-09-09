@@ -31,12 +31,15 @@ import (
 // the situation this round is in.
 //
 // Recorded 2026-08-21, immediately after the subtraction, with ~10% headroom over the measured
-// size. The numbers before it: blue-respond 24,356 · red-merge 24,193 · red-lens 13,931 ·
+// size. Re-pinned 2026-09-08 for roundless (plans/roundless.md §III.B.3): minting, screening,
+// closing and the originator rule moved from the chair's prompt to the lens's with the verbs,
+// so the chair fell to 8,627 and the lens rose to 10,658 — the same paragraphs, read by the
+// seat that now performs them. Both ceilings moved to measured +10%; the pair's total shrank. The numbers before it: blue-respond 24,356 · red-merge 24,193 · red-lens 13,931 ·
 // judge 11,861.
 var ceilings = map[string]int{
 	"blue-respond":      15200,
-	"red-chair":         13000,
-	"red-lens-evidence": 8700,
+	"red-chair":         9500,
+	"red-lens-evidence": 11700,
 	"judge":             7800,
 }
 

@@ -53,7 +53,13 @@ export const meta = {
 // object destructures to undefined and every agent gets literal 'undefined' paths —
 // the exact harness defect red graded high/high/low in run 1. Parse, then guard.
 const a = typeof args === 'string' ? JSON.parse(args) : args
-const { topic, runDir, lanes = 3, maxRounds = 12, lensAreas = null, model = null, judgmentModel = null, laneFloorOverride = null, binDir = null, scorecards = null, gapPatterns = null, transcriptDir = null } = a
+const { topic, runDir, lanes = 3, lensAreas = null, model = null, judgmentModel = null, laneFloorOverride = null, binDir = null, scorecards = null, gapPatterns = null, transcriptDir = null } = a
+if (args && Object.prototype.hasOwnProperty.call(args, 'maxRounds')) {
+  throw new Error(`debate: refusing dispatch — maxRounds is not a term of this engine any more (plans/roundless.md). The debate has no rounds:
+the chair's \`dispatch next\` says who sits, and the run ends when nobody is ready — PASS permitted, or every open material
+gap at its limit (CEILING). The bounds are the run's TERMS, recorded by setup in inputs/run-config.json: the exchanges a gap
+gets before impasse (k-max) and the gaps a lens may mint (mint-budget); setup's help names the words. Drop maxRounds from args.`)
+}
 if (!topic || !runDir || String(runDir).includes('undefined') || String(topic) === 'undefined') {
   throw new Error(`debate: refusing dispatch — topic/runDir unbound (topic=${JSON.stringify(topic)}, runDir=${JSON.stringify(runDir)})`)
 }
@@ -155,7 +161,7 @@ const inquiryClause = binDir
 // against goes unaudited while the case for is contested every round. Blue's
 // recorded lines of inquiry are that surface made concrete: what was declined,
 // and whether the stated reason survives contact.
-const steelmanClause = ` STEELMAN DUTY: read the exploration space via the \`lines-of-inquiry\` projection (the tool renders it fresh from the line of inquiry events on the record). Blue's DECLINED and ABANDONED lines of inquiry are the case AGAINST its own design, and the measured blind spot is that nobody audits them — a weak reason for declining a strong alternative survives untouched because it reads as humility. Attack the reasons, not just the conclusions: a declined line of inquiry whose stated reason does not hold is a finding, and so is an abandoned one whose obituary is wrong. RECONCILE THE RECORD AGAINST THE DOCUMENT: the directions the report actually took must be the ones on the line of inquiry record. A section built on a line of inquiry that was never proposed is undeclared scope; a line of inquiry still at \`proposed\`, or at \`pursued\` and NOT moved this round, is a decision nobody made. Both are findings. Re-recording \`pursued\` WITH what it learned is a legitimate reaffirmation and settles the line for that round — do not read it as neglect; \`deferred\` is likewise a decision (kept for a later run), not an omission. Measured over six runs: 83 of 86 lines of inquiry were declared in round 0 and NONE was ever revisited, so 'pursued' meant 'I intend to' and nothing could falsify it.`
+const steelmanClause = ` STEELMAN DUTY: read the exploration space via the \`lines-of-inquiry\` projection (the tool renders it fresh from the line of inquiry events on the record). Blue's DECLINED and ABANDONED lines of inquiry are the case AGAINST its own design, and the measured blind spot is that nobody audits them — a weak reason for declining a strong alternative survives untouched because it reads as humility. Attack the reasons, not just the conclusions: a declined line of inquiry whose stated reason does not hold is a finding, and so is an abandoned one whose obituary is wrong. RECONCILE THE RECORD AGAINST THE DOCUMENT: the directions the report actually took must be the ones on the line of inquiry record. A section built on a line of inquiry that was never proposed is undeclared scope; a line of inquiry still at \`proposed\`, or at \`pursued\` and NOT moved this sitting, is a decision nobody made. Both are findings. Re-recording \`pursued\` WITH what it learned is a legitimate reaffirmation and settles the line for that sitting — do not read it as neglect; \`deferred\` is likewise a decision (kept for a later run), not an omission. Measured over six runs: 83 of 86 lines of inquiry were declared in round 0 and NONE was ever revisited, so 'pursued' meant 'I intend to' and nothing could falsify it.`
 
 const patternsForGaps = (gaps) => {
   if (!gapPatterns || !gaps || !gaps.length) return []
@@ -233,7 +239,7 @@ THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND READING IT IS REQUIRED — not a s
 
 MEASURED, WHICH IS WHY STEP 2 IS SHAPED THAT WAY. Across nine sittings seats opened 6 of 51 group pages — twelve per cent — and 90% of the commands they ran were run without ever reading that command's own page. The rule they were following said to open a group "before using any command in it", so a seat that obeyed it perfectly still only ever opened the page for a verb it had already chosen: eighteen of the twenty-three pages opened were for verbs the seat went on to run. That is not surveying a surface, it is confirming a decision — and a decision made before reading is made from memory and from this prompt's vocabulary, which is not authoritative.
 
-A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS. Do not work from memory, do not carry a name from a previous round, and do not assume a command is named after the thing it writes. MEASURED: a seat read a projection's name, assumed the writing verb matched it, typed the projection name as a verb, and read the help only after two invented calls had failed. The projection names, this prompt's words for a concept, and the command that writes it are three different vocabularies and they do not always agree. The help is the only authoritative one, and this prompt names the JOB, never the flags.
+A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS. Do not work from memory, do not carry a name from a previous sitting, and do not assume a command is named after the thing it writes. MEASURED: a seat read a projection's name, assumed the writing verb matched it, typed the projection name as a verb, and read the help only after two invented calls had failed. The projection names, this prompt's words for a concept, and the command that writes it are three different vocabularies and they do not always agree. The help is the only authoritative one, and this prompt names the JOB, never the flags.
 
 EVERY READ IS A PROJECTION OF THE RECORD, never a file you open. The .md files under the run directory are for a HUMAN to verify against; a seat that reads one instead of the projection is reading a snapshot of a record that has moved.
 
@@ -272,8 +278,6 @@ const gapMass = (g) => (MASS[g.likelihood] ?? 0) * (MASS[g.impact] ?? 0)
 // per-round dispute cap with overflow batch-docketed as ONE judge item, and the
 // script-computed cumulative accepted-delta magnitude (in mapping units) that
 // batch-dockets accepted deflation/inflation for judge review before it stands.
-const DISPUTE_CAP = 5
-const ACCEPTED_DELTA_DOCKET_THRESHOLD = 2
 
 const DISPUTE_DIMENSION = { type: 'string', enum: ['severity', 'likelihood', 'impact', 'complexity'] }
 
@@ -380,7 +384,7 @@ const BLUE_ENVELOPE = {
   // not round-tripped here. `path` was a constant the script already knows. Dropped: the report is
   // the source, the envelope carries only what the engine threads (claim_count, the attestations,
   // the manifest, the routing refs).
-  required: ['claim_count', 'saturation_reached', 'round_record_appended'],
+  required: ['claim_count', 'saturation_reached', 'sitting_record_appended'],
   properties: {
     claim_count: { type: 'number' },
     saturation_reached: { type: 'boolean' },
@@ -391,7 +395,7 @@ const BLUE_ENVELOPE = {
     // record until the record carries it. On false the script RE-PROMPTS once and, failing that,
     // logs friction and CONTINUES. Attestation tier: shape in-run; capture's record-parity audit
     // recounts post-hoc, so an unresolved gap is still scored.
-    round_record_appended: { type: 'boolean' },
+    sitting_record_appended: { type: 'boolean' },
     // W2b correctness manifest (repair-quality program A.2): one row per repaired gap —
     // the self-audit's receipt.
     //
@@ -423,94 +427,50 @@ const BLUE_ENVELOPE = {
   },
 }
 
-const RED_ENVELOPE = {
+// The chair's envelope RELAYS the record (plans/roundless.md §III.B.1): `plan` is the JSON `dispatch next`
+// printed, verbatim — the verb computed it from the board and recorded it; the chair could drop or add a
+// party on the way, which is why capture's dispatch-parity audit checks the relay against the record. The
+// verdict is what the chair RECORDED this sitting, if it recorded one. Nothing else the old envelope carried
+// (gaps, closures, dispute responses, citation counts) is here: the record holds them and every seat reads
+// them through the tool.
+const PLAN = {
   type: 'object',
-  required: ['verdict', 'gaps', 'citations_checked'],
+  required: ['head', 'parties', 'pass_permitted', 'ceiling'],
   properties: {
-    verdict: { type: 'string', enum: ['PASS', 'FAIL'], description: 'the verdict you RECORDED this round, restated — the record is the original' },
+    head: { type: 'integer', minimum: 0, description: 'events.id of the report head the parties audit' },
+    parties: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['seat_id', 'gap_ids'],
+        properties: {
+          seat_id: { type: 'string' },
+          gap_ids: { type: 'array', items: { type: 'string' }, description: 'the gaps this party is engaged on; empty for a lens whose pin the head moved past' },
+        },
+      },
+    },
+    docket: { type: 'array', items: { type: 'string' }, description: 'gaps the verb docketed for the bench at this sitting' },
+    pass_permitted: { type: 'boolean' },
+    ceiling: { type: 'boolean' },
+    why: { type: 'array', items: { type: 'string' } },
+  },
+}
+const CHAIR_ENVELOPE = {
+  type: 'object',
+  required: ['plan', 'unruled_motions'],
+  properties: {
+    plan: PLAN,
+    verdict: { type: 'string', enum: ['PASS', 'FAIL'], description: 'the verdict you RECORDED this sitting, restated — the record is the original; absent if you recorded none' },
+    unruled_motions: { type: 'integer', minimum: 0, description: 'motions on the record with no ruling, read back from the motions projection of the record — what the terminal bench sitting exists to dispose of' },
     petitions: PETITIONS,
-    // ENVELOPE → REFS (envelope-refs move (a)): the gap's PROSE — location, problem, required_fix,
-    // acceptance_check, found_by — is written to the BOARD by the `mint` verb and read back from the
-    // record (assembly re-derives it via g.Mint; the ledger/board views render it for blue and the
-    // judge). It is NOT round-tripped here: the envelope carries REFS ONLY — the id, its grades, its
-    // lineage. debate.js threads these into the next round's prompts as a
-    // LOSSY summary, and the prompts already send blue/judge to the board for the prose. Corroboration
-    // and judge rationale stay in their envelopes (the sandboxed engine threads them between rounds);
-    // gap prose does not, because every consumer of it is a tool step or a record-reading seat.
-    gaps: {
-      type: 'array',
-      items: {
-        type: 'object',
-        // `supersedes` is REQUIRED (2026-08-04): it was optional, so red reported lineage on the
-        // RECORD (mint --supersedes) and omitted it from the envelope — and the engine's lineage
-        // guard, which can only see the envelope, killed a 12-agent run whose lineage was intact.
-        // Required with an EMPTY array for a fresh gap; the ancestor ids for a successor. Making
-        // the field mandatory is what stops the channel being lossy about it.
-        required: ['id', 'severity', 'likelihood', 'impact', 'complexity_cost', 'supersedes'],
-        properties: {
-          id: { type: 'string', description: 'the id the tool assigned at the mint' },
-          severity: GRADE, likelihood: GRADE, impact: GRADE, complexity_cost: GRADE,
-          // Lineage (retrospective §3 row 23): a successor gap MUST name the prior-round
-          // gap id(s) it descends from, so the contested docket can follow regression chains.
-          // A ref (ids), not prose — stays.
-          supersedes: { type: 'array', items: { type: 'string' }, description: 'the ancestor ids this gap replaces — an EMPTY array for a gap minted fresh this round. Required on every gap, never omitted: recording lineage on the record and leaving it out here is the desync that once killed a whole run whose record was correct' }, // [] for a fresh gap — REQUIRED, never omitted
-        },
-      },
-    },
-    // Closure record (row 23 enforcement, per red's own R5-5 critique): self-declared
-    // lineage is unenforced good faith unless the script cross-checks it structurally.
-    closures: {
-      type: 'array',
-      items: {
-        type: 'object',
-        required: ['id', 'class'],
-        properties: {
-          id: { type: 'string' },
-          class: { type: 'string', enum: ['repaired', 'repaired_with_regression', 'amends_prior', 'not_a_defect', 'defect_accepted', 'defect_owed_elsewhere'] },
-        },
-      },
-    },
-    // archive_spot_checks IS GONE (#317). It was the envelope half of the W1.8 duty, and its
-    // gate was deleted 2026-07-19 for comparing numbers the merge made up — leaving the field
-    // declared here, demanded by red's constitution, and read by nothing for a year. The duty
-    // now lives entirely in `merge spot-check`, and its floor is COMPUTED from the board at
-    // verify time (record.SpotCheckAudit): the archive's size at round start is replayed state
-    // no seat can author, and a round that claims an empty archive the board contradicts fails.
-    // One channel, with a reader. The self-reported COUNTS (ledger_closure_lines,
-    // archive_blocks) went the same way and for the same reason.
-    // Grade-dispute responses (run-4 §3.3): every disputed gap_id×dimension from blue's last
-    // envelope MUST be addressed; an unaddressed dispute is treated as REJECTED and
-    // auto-docketed (default-to-docket punishes silence, not disagreement).
-    // #62 Stage 2: a ROUTING REF — red's rationale is emitted as a `dispute-respond` event on
-    // the record; the envelope carries only the accept/reject decision the docket routes on.
-    dispute_responses: {
-      type: 'array',
-      items: {
-        type: 'object',
-        required: ['gap_id', 'dimension', 'response'],
-        properties: { gap_id: { type: 'string' }, dimension: DISPUTE_DIMENSION, response: { type: 'string', enum: ['accepted', 'rejected'] } },
-      },
-    },
-    // corroboration[] IS GONE (#326). It re-typed claim/reference/confidence — the three fields
-    // a `lens verify` event already carries — so two channels reached one act and could disagree
-    // with nothing to reconcile them. The trigger map resolved this collapse (cite events are
-    // canonical; blue reads `show evidence`) and it was never executed: the array stayed
-    // declared here, and its ONLY consumer was a JSON blob pasted into blue's prompt.
-    //
-    // Blue now reads the ledger the tool renders from the cite events, which is the same
-    // information from the source red actually recorded rather than a hand-copied summary
-    // of it — and it stays current for the whole run instead of being a snapshot of one round.
-    citations_checked: { type: 'number', description: "the board's count of cite events, read back from the record — never hand-counted or estimated" },
     notes: { type: 'string' },
     log: { type: 'array', items: { type: 'string' } },
   },
 }
-
 const JUDGE_ENVELOPE = {
   type: 'object',
-  required: ['deadlock', 'resolutions'],
+  required: ['resolutions'],
   properties: {
-    deadlock: { type: 'boolean' },
     // HOLDINGS THE BENCH LAID DOWN THIS SITTING, carried so the engine can route them. debate.js
     // reads no record, so a holding recorded through `bench declare` reaches the other seats only
     // if it travels here — the same reason `relief` is on the petition envelope (#503).
@@ -563,6 +523,21 @@ const JUDGE_ENVELOPE = {
 // seat id and the dispatch label from it. record.LensAreas and the agent files are held against
 // this list in every direction by TestTheLensAreasMatchWhatTheEngineDeclares.
 const RED_AREAS = ['evidence', 'logic', 'dark-side', 'voice', 'computation', 'adversary', 'architecture']
+// EVERY LENS AREA NAMES ITS AGENT TYPE AS A LITERAL, one per line. The record's role attestation
+// (agentTypeRoles) is bound to this script by READING these literals; a type composed from the
+// seat id at the dispatch site would dispatch correctly and be attested by nothing. The two lists
+// are checked against each other at load, below, so an area cannot be declared and undispatchable.
+const LENS_DISPATCH = {
+  'red-lens-evidence': { agentType: 'frank-exchange-of-views:red-lens-evidence' },
+  'red-lens-logic': { agentType: 'frank-exchange-of-views:red-lens-logic' },
+  'red-lens-dark-side': { agentType: 'frank-exchange-of-views:red-lens-dark-side' },
+  'red-lens-voice': { agentType: 'frank-exchange-of-views:red-lens-voice' },
+  'red-lens-computation': { agentType: 'frank-exchange-of-views:red-lens-computation' },
+  'red-lens-adversary': { agentType: 'frank-exchange-of-views:red-lens-adversary' },
+  'red-lens-architecture': { agentType: 'frank-exchange-of-views:red-lens-architecture' },
+}
+for (const area of RED_AREAS) if (!LENS_DISPATCH[`red-lens-${area}`]) throw new Error(`debate: lens area ${area} is declared and has no dispatch row — LENS_DISPATCH must name its agent type`)
+for (const seat of Object.keys(LENS_DISPATCH)) if (!RED_AREAS.includes(seat.replace(/^red-lens-/, ''))) throw new Error(`debate: LENS_DISPATCH names ${seat}, which RED_AREAS does not declare`)
 
 // The areas a run dispatches. Default is the four that have always sat; the rest are opt-in per
 // run, because every area costs a full dispatch every round against a concurrency cap measured at
@@ -622,29 +597,29 @@ const takeFriction = (who, env) => { if (env && env.log) for (const f of env.log
 // recounts it post-hoc) instead of a fatal error. Only a genuine unrecoverable integrity violation
 // aborts. #251 dissolves this entirely by making a revision a recorded op rather than an
 // attestation; until then this is the recovery, not a second rule.
-const ROUND_RECORD = {
+const SITTING_RECORD = {
   type: 'object',
-  required: ['round_record_appended'],
+  required: ['sitting_record_appended'],
   properties: {
-    round_record_appended: { type: 'boolean' },
+    sitting_record_appended: { type: 'boolean' },
     note: { type: 'string' },
   },
   additionalProperties: true,
 }
 
-async function ensureRoundRecord(env, who, owed, opts) {
-  if (env && env.round_record_appended === true) return true
-  log(`round-parity (W1.7): ${who} did not attest ${owed} — re-prompting once before continuing (#249 recovery)`)
+async function ensureSittingRecord(env, who, owed, opts) {
+  if (env && env.sitting_record_appended === true) return true
+  log(`sitting-record (W1.7): ${who} did not attest ${owed} — re-prompting once before continuing (#249 recovery)`)
   const retry = await agent(
-    `Round-record repair for ${who}. Your last turn did not attest the round record, so the run cannot yet show ${owed}. Put it on the record NOW — nothing else. ${owed}. Do NOT re-do your substantive work and do NOT edit ${runDir}/blue/report.md again; this turn exists only to close the parity gap. If you genuinely cannot (the duty does not apply, or a tool refuses you), record on the operator channel saying exactly why, and return round_record_appended false with a one-line note. Return the attestation.`,
-    { ...(opts || {}), label: `${who}-round-record · ${slug}`, phase: 'Debate', schema: ROUND_RECORD })
-  if (retry && retry.round_record_appended === true) {
-    log(`round-parity: ${who} attested on the retry — continuing`)
+    `Sitting-record repair for ${who}. Your last turn did not attest the sitting record, so the run cannot yet show ${owed}. Put it on the record NOW — nothing else. ${owed}. Do NOT re-do your substantive work and do NOT edit ${runDir}/blue/report.md again; this turn exists only to close the parity gap. If you genuinely cannot (the duty does not apply, or a tool refuses you), record on the operator channel saying exactly why, and return sitting_record_appended false with a one-line note. Return the attestation.`,
+    { ...(opts || {}), label: `${who}-sitting-record · ${slug}`, phase: 'Debate', schema: SITTING_RECORD })
+  if (retry && retry.sitting_record_appended === true) {
+    log(`sitting-record: ${who} attested on the retry — continuing`)
     return true
   }
   const why = (retry && retry.note) ? ` — ${retry.note}` : ''
-  friction.push(`${who}: round-parity (W1.7) UNRESOLVED — ${owed} was never attested${why}. The run continued; capture's record-parity audit scores the gap.`)
-  log(`round-parity: ${who} still unattested — logged as friction, continuing (the run is no longer discarded for this)`)
+  friction.push(`${who}: sitting-record (W1.7) UNRESOLVED — ${owed} was never attested${why}. The run continued; capture's record-parity audit scores the gap.`)
+  log(`sitting-record: ${who} still unattested — logged as friction, continuing (the run is no longer discarded for this)`)
   return false
 }
 const petitionLog = []
@@ -663,6 +638,39 @@ const petitionLog = []
 // ACCUMULATING, NOT ROUND-SCOPED. Relief is granted on a petition and operative for a sitting;
 // a construction of a term holds until the run ends, so this list only grows.
 const holdingsInEffect = []
+// WHAT A RULING OBLIGES BLUE TO DO, derived from the fate rather than restated in prose.
+//
+// Red's duty is "do not re-raise this proposition" and the settled line carries it. Blue's is "do
+// not re-argue this claim in the report", which no id can enforce — blue's artifact IS the report,
+// and that is where a settled proposition gets restated. And blue needs the inverse red never
+// does: what it may now ASSERT. Two of these fates are blue WINS, and under a bare subtraction
+// they look exactly like the ones that are not: the gap simply stops being dispatched. Keyed on
+// the resolution so a new fate cannot quietly inherit another's instruction; an unmapped one
+// falls through to a LOUD default rather than an empty string.
+const BLUE_DUTY_BY_RESOLUTION = {
+  not_a_defect: 'THE BENCH FOUND NO DEFECT — your position was vindicated. Keep the text as it stands; do not "repair" what the bench has just blessed. You may rely on this ruling as established for the rest of the run.',
+  defect_accepted: 'YOUR RISK-ACCEPTANCE ARGUMENT WAS ACCEPTED. Record the acceptance where the report discusses the risk; do not spend a sitting fixing what the bench agreed may stand.',
+  repaired: 'Your fix was accepted. Stop working this one.',
+  carried: 'The gap stays OPEN and you owe the research direction the ruling states — it is what CEILING is made of, so a sitting that ignores it is a null turn.',
+  defect_owed_elsewhere: 'The finding was UPHELD and the fix is owned outside this debate. Stop trying to fix it in the report; expect the debt to be named rather than closed here.',
+  grade_adjusted: 'The bench moved the grade; the minting lens owes the regrade. Answer the gap at the grade the ruling states.',
+  unresolved: 'The bench could not settle it on this record. Bring the evidence the ruling says was missing.',
+  moot: 'Adjudicated out of existence. Drop it.',
+}
+// rulingsInEffect holds the bench's latest ruling per gap — settled, reopens_on, final and the
+// fate — and travels to BOTH parties, because debate.js reads no record: a ruling reaches a seat's
+// prompt here or not at all (#517, #524). The reasoning stays on the record, deliberately.
+const rulingsInEffect = new Map()
+const rulingsClause = (party) => {
+  if (!rulingsInEffect.size) return ''
+  const rows = [...rulingsInEffect.values()].map((r) => party === 'blue'
+    ? { ...r, your_duty: BLUE_DUTY_BY_RESOLUTION[r.resolution] || `UNMAPPED FATE ${r.resolution} — read the opinion on the record before acting on it` }
+    : r)
+  const duty = party === 'blue'
+    ? ' You were once handed these as a bare SUBTRACTION — a ruled gap simply stopped appearing — and a vindication and an upheld finding were the same absence. THE BAR IS ON THE PROPOSITION, NOT THE GAP: what you may no longer re-argue in the report is the sentence under settled, not everything the finding touched. WHERE A RULING WENT YOUR WAY IT IS YOURS TO INVOKE — say so on the record and rely on it, rather than quietly re-fixing text the bench has already blessed.'
+    : ' YOU ARE ESTOPPED on each settled proposition: do not re-raise it as a fresh gap or a successor; a defect that survives the ruling arrives as the reopens_on condition or not at all.'
+  return ` GAPS THE BENCH HAS RULED, AND WHAT EACH RULING OBLIGES OF YOU: ${JSON.stringify(rows)}.${duty} A ruling marked final does not reopen; one carrying a reopens_on condition reopens only on that condition and not on a re-reading. THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT — read the bench's opinion for any fate you are about to rely on or work around, because a fate you never read is one you can neither honour nor invoke.`
+}
 const reliefInEffect = []
 
 // reliefFor renders the relief that binds ONE party, for that party's prompt.
@@ -682,13 +690,13 @@ const reliefInEffect = []
 // where the seat is sent for it.
 const holdingsClause = () => {
   if (!holdingsInEffect.length) return ''
-  return ` BENCH HOLDINGS IN EFFECT, BINDING ON EVERY SEAT FOR THE REST OF THE RUN: ${JSON.stringify(holdingsInEffect)}. A holding construes how the record is READ; it disposes of nothing and it does not expire with the round. Read the bench's reasoning for any holding you rely on or work around.`
+  return ` BENCH HOLDINGS IN EFFECT, BINDING ON EVERY SEAT FOR THE REST OF THE RUN: ${JSON.stringify(holdingsInEffect)}. A holding construes how the record is READ; it disposes of nothing and it does not expire with the sitting. Read the bench's reasoning for any holding you rely on or work around.`
 }
 
 const reliefFor = (party) => {
   const mine = reliefInEffect.filter((r) => r.binds === party || r.binds === 'both')
   if (!mine.length) return ''
-  return ` BENCH RELIEF IN EFFECT, BINDING ON YOU (granted on a petition and operative this round — it is an order, not advice): ${JSON.stringify(mine.map((r) => r.relief))}.`
+  return ` BENCH RELIEF IN EFFECT, BINDING ON YOU (granted on a petition and operative this sitting — it is an order, not advice): ${JSON.stringify(mine.map((r) => r.relief))}.`
 }
 let halted = false
 let haltOpinion = null
@@ -752,542 +760,163 @@ await parallel(Array.from({ length: lanes }, (_, i) => () => agent(
 let blueEnv = await agent(
   `Blue synthesis for topic: "${topic}". PRE-FLIGHT: if ${runDir}/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns. Read every draft in ${runDir}/blue/candidates/ and synthesize ${runDir}/blue/report.md by UNION: deduplicate overlapping claims, reorganize freely, and let no CLAIM leave without a record. Compacting and reorganizing prose is not subtraction — rewriting for density is encouraged; losing a claim in the rewrite is the failure, and substance leaves only by being retired on the record, which names the claim, why it goes, and what replaces it. CLAIM PROVENANCE: while merging, tag every claim appearing in exactly ONE lane's draft with its lane marker (e.g. "[minority: lane-2/practitioner]") — single-lane claims are minority reports red must weigh differently from convergent ones, and that set-difference exists transiently in this merge and must not be discarded.
 
-THE CATECHISM IS YOURS (W2g — the run-5 assembly audit found the judge-authored catechism DEFECTIVE, 6/7 answers carrying defects from synthesis-by-recall; synthesis surfaces belong inside the audited document): write "## The Catechism" INTO ${runDir}/blue/report.md at round 0 per references/catechism_template.md — the seven answers, the case against at FULL strength (include every risk-accepted residual; the audit found against-cases silently drop their strongest items), all figures copied from your own sourced sections never recomputed inline. THE FRAMING, THE TL;DR AND THE OPEN QUESTIONS ARE YOURS FOR THE SAME REASON — a synthesis surface authored at assembly is authored AFTER red's final audit, so nothing checks it and it ships unaudited. report.md OPENS with the H1 title \`# ${topic} — research report\`, then \`## TL;DR\` (3-6 sentences — the answer, the confidence, the sharpest caveat), and carries \`## Open questions\` (what the debate could not resolve, one per line; a question nobody could answer inside the debate is a finding, not noise). Assembly LIFTS these verbatim, so you write them once, HERE, inside the document red audits every round.
+THE CATECHISM IS YOURS (W2g — the run-5 assembly audit found the judge-authored catechism DEFECTIVE, 6/7 answers carrying defects from synthesis-by-recall; synthesis surfaces belong inside the audited document): write "## The Catechism" INTO ${runDir}/blue/report.md at round 0 per references/catechism_template.md — the seven answers, the case against at FULL strength (include every risk-accepted residual; the audit found against-cases silently drop their strongest items), all figures copied from your own sourced sections never recomputed inline. THE FRAMING, THE TL;DR AND THE OPEN QUESTIONS ARE YOURS FOR THE SAME REASON — a synthesis surface authored at assembly is authored AFTER red's final audit, so nothing checks it and it ships unaudited. report.md OPENS with the H1 title \`# ${topic} — research report\`, then \`## TL;DR\` (3-6 sentences — the answer, the confidence, the sharpest caveat), and carries \`## Open questions\` (what the debate could not resolve, one per line; a question nobody could answer inside the debate is a finding, not noise). Assembly LIFTS these verbatim, so you write them once, HERE, inside the document red audits every sitting.
 
 YOUR REPORT CONTAINS ONLY WHAT YOU CAN AUTHOR: the title, TL;DR, Catechism, technical foundations, analysis, open questions, and your citations — and NOTHING assembly composes from the record. Do NOT write "## Risk matrix", "## The board", "## The debate", or a "## Blue team report" wrapper: a "## The board" section you author is FABRICATION, because you cannot know red's findings, blue's audited manifest or the bench's dispositions, and a whole final-report-shaped document makes every tool-owned section appear twice. Do NOT write a \`**Verdict:**\` line ANYWHERE either — the outcome is decided after your last audit, so a verdict you author only lands stale beside the real one and gets stripped.
 
 CITATION HYGIENE, because red must be able to VERIFY every source at the leaf: the url you cite carries the FULL coordinate — owner/repo#N or a full URL, never a bare #N red cannot resolve without the repo — and every QUOTED span records a locating anchor (its section heading, or a nearby unique phrase) so red can grep it verbatim in the source. An unlocatable quote is graded LOW through no fault of the source. Two claims resting on the same url are one source and two anchors, not two sources.
 
-REPORT WRITE PATH: report.md hits a filename-keyed Write-guard — draft to your scratchpad under a NEUTRAL name and copy it into place with bash cp; a direct Write of the report path fails and wastes a round-trip. Recompute claim_count with the tool once report.md is written and relay the integer into the envelope; never hand-count it (two honest merges differed 2x before it was pinned). RECORD THE ROUND, with what this synthesis did and its claim_count as the reason; round_record_appended is TRUE only after that event exists. FREEZE THE REPORT, LAST — after report.md is written, the count recorded and the round recorded, run the act your seat's help lists as freezing the round-0 report into the record as its base. Do this ONCE, at the very end. If it refuses, record friction with the exact refusal and return round_record_appended honestly.${inquiryClause} ${petitionClause('blue-synthesize')}${frictionClause('blue-synthesize', 'blue')}${speedClause}${recordClause('blue-synthesize')} Return the blue envelope.`,
+REPORT WRITE PATH: report.md hits a filename-keyed Write-guard — draft to your scratchpad under a NEUTRAL name and copy it into place with bash cp; a direct Write of the report path fails and wastes a round-trip. Recompute claim_count with the tool once report.md is written and relay the integer into the envelope; never hand-count it (two honest merges differed 2x before it was pinned). RECORD THE ROUND, with what this synthesis did and its claim_count as the reason; sitting_record_appended is TRUE only after that event exists. FREEZE THE REPORT, LAST — after report.md is written, the count recorded and the sitting recorded, run the act your seat's help lists as freezing the round-0 report into the record as its base. Do this ONCE, at the very end. If it refuses, record friction with the exact refusal and return sitting_record_appended honestly.${inquiryClause} ${petitionClause('blue-synthesize')}${frictionClause('blue-synthesize', 'blue')}${speedClause}${recordClause('blue-synthesize')} Return the blue envelope.`,
   { ...judgment, label: `blue-synthesize · ${slug}`, phase: 'Blue', agentType: 'frank-exchange-of-views:blue-synthesizer', schema: BLUE_ENVELOPE })
 
 if (!blueEnv) throw new Error('blue synthesis returned null (agent failed) — aborting cleanly')
-await ensureRoundRecord(blueEnv, 'blue-synthesize', `your round-record event (the revision verb) stating the synthesis and its claim_count`,
+takeFriction('blue-synthesize', blueEnv)
+await ensureSittingRecord(blueEnv, 'blue-synthesize', `your sitting-record event (the revision verb) stating the synthesis and its claim_count`,
   { ...judgment, agentType: 'frank-exchange-of-views:blue-synthesizer' })
 await hearPetitions(blueEnv, 'blue-synthesize')
 // ---- Debate loop: red audits gate; termination is judged, never counted ----
-let round = 0
-let redEnv = null
-let deadlocked = false
-// WHAT HAPPENED TO A BOARD THE BENCH CLEARED TO ZERO, as ONE field with three values.
+// ─── THE DEBATE: chair sits → the record says who sits → they sit → the chair sits again ───────────
 //
-// It carries the one-shot relief (see the deadlock arm below): a cleared docket is not a
-// deadlock, but granting red its sitting must not be repeatable, or the bench can extend the run
-// indefinitely one clearance at a time. `benchClearedBoard === 'relief_granted'` IS "the relief
-// is spent", so the guard reads the same variable the terminal report does rather than a second
-// boolean beside it that could disagree with it.
-//
-// Three values because a boolean answered two questions with one false: a run where the bench
-// never cleared the board, and a run where it cleared it on the LAST round with no further round
-// to grant. Those are different terminal facts — the second OWES red a sitting.
-//
-//   null                       the bench never cleared the board on a deadlock ruling
-//   'relief_granted'           red was given a further round to verdict against the empty docket
-//   'ceiling_owed_red_a_sitting'  it cleared on the last round; red's sitting is what is owed
-let benchClearedBoard = null
-const allPriorGapIds = new Set() // every gap id from every prior round — the docket window is the whole debate, not one round
-const adjudicated = [] // judge-ruled gaps (closed / not_a_defect / defect_accepted / routed) — out of red's verdict
-// WHAT A RULING OBLIGES BLUE TO DO, derived from the fate rather than restated in prose.
-//
-// Red's duty is "do not re-raise this gap" and an id enforces it. Blue's is "do not re-argue this
-// claim in the report", which no id can enforce — blue's artifact IS the report, and that is where
-// a settled proposition gets restated. And blue needs the inverse red never does: what it may now
-// ASSERT. Two of these five fates are blue WINS, and under the bare subtraction blue was handed
-// they looked exactly like the three that are not: the gap simply stopped appearing. A run in
-// 2026-08-23 ruled twice in blue's favour on one gap, the second time final, and blue-respond saw
-// an absence both times.
-//
-// Keyed on the resolution so a new fate cannot quietly inherit another's instruction; an unmapped
-// one falls through to a LOUD default rather than an empty string.
-const BLUE_DUTY_BY_RESOLUTION = {
-  not_a_defect: 'THE BENCH FOUND NO DEFECT — your position was vindicated. Keep the text as it stands; do not "repair" what the bench has just blessed. You may rely on this ruling as established for the rest of the run.',
-  defect_accepted: 'YOUR RISK-ACCEPTANCE ARGUMENT WAS ACCEPTED. Record the acceptance where the report discusses the risk; do not spend a round fixing what the bench agreed may stand.',
-  repaired: 'Your fix was accepted. Stop working this one.',
-  defect_owed_elsewhere: 'The finding was UPHELD and the fix is owned outside this debate. Stop trying to fix it in the report; expect the debt to be named rather than closed here.',
-  moot: 'Adjudicated out of existence. Drop it.',
+// There are no rounds (plans/roundless.md §III.B.1). Each chair sitting opens an epoch: the chair
+// runs `dispatch next`, which computes readiness FROM THE BOARD and records one dispatch per party;
+// the chair relays the verb's JSON as `plan`; this loop dispatches what the plan says and nothing
+// else. Red parties sit first (in parallel), then blue, then the bench — an exchange is a red-party
+// sitting followed by a blue-party sitting, and the record counts them (impasse.go). Empty is the
+// termination signal: pass_permitted (the chair issues PASS → VERIFIED), ceiling (every open
+// material gap at its limit, ruled and carried → CEILING), or neither (UNVERIFIED, with the plan's
+// reasons on the record). The disputes, the docket, deadlock and the ceiling all live on the record
+// now; nothing here keeps a second copy of them.
+let epoch = 0
+let chairEnv = null
+let lastPlan = null
+let blueEnv2 = null // the latest blue response, for claim_count in the result
+const infraDebts = [] // defect_owed_elsewhere rulings (W1.9) — the bench's named debts, surfaced at assembly and in the final envelope
+
+const ledgerClause = ` THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at. Read it FIRST. A claim blue backed with a source resolves to the url, title and sha256 of the bytes blue actually read, and THAT is what you re-fetch to audit the same artifact rather than a page that may have drifted since. A claim blue COMPUTED resolves to its script, and to whether anyone has re-run it — an unaudited proof looks exactly like a clean one until you check. Your own verifications come back ATTACHED TO THE SOURCE you checked: an empty one is a citation NOBODY has checked yet, and that is where your next pass is worth most. WHAT NOT TO RE-CHECK, because it is the sitting's whole economy: a claim verified at HIGH confidence in a prior sitting STAYS verified — do not re-fetch it UNLESS its section changed since (read that off the recorded edits, not off blue's account of them), OR more than 2 epochs have elapsed since it was last verified, OR its access date and the source's volatility suggest drift (living documents, issue trackers, README stats). RECORD every claim you verify, naming the anchor you looked up and quoting the claim from the report. A SOURCE YOU FOUND YOURSELF IS A DIFFERENT ACT — blue never cited it, so there is no anchor to name — and it answers a different question: whether the claim is true in the WORLD, where verification asks only what blue's source did for it. VERBATIM READS ONLY — you have no WebFetch, by design: it returns a small model's SUMMARY, not the source. Read blue's cached bytes through the tool; for a source YOU discover, pull it verbatim yourself (\`curl -sL <url>\`, \`gh issue view <n> --comments\`, \`pdftotext\`/pandoc) and read it. WebSearch is for DISCOVERY — finding the url — never for the read that grades a citation. If a source is too large for your context, read it in SECTIONS and name the sections you read: A TRUNCATED READ IS NOT A READ, so state the truncation and never grade a body you could not fully read.`
+const areaOf = (seatID) => seatID.replace(/^red-lens-/, '')
+// THE LENS: it audits its area and puts what it finds on the board ITSELF (plans/roundless.md
+// §III.B.3). The duties of the seat that mints — asking for the answer to be PRODUCED, classing
+// the probe, reading the script, keeping lineage — sit here, with the minter.
+const lensPrompt = (seatID, gaps, plan) => {
+  const area = areaOf(seatID)
+  const extra = area === 'evidence' ? ledgerClause : (area === 'logic' || area === 'dark-side') ? steelmanClause : ''
+  const engaged = gaps.length
+    ? ` YOU ARE ENGAGED ON: ${gaps.join(', ')} — gaps you minted that are still open and below their limits. Re-read the report where each is anchored and DID BLUE ACTUALLY DO WHAT YOU ASKED? Put your required fix and blue's edits side by side (the record's changes projection names the recorded edits, not blue's account of them) rather than inferring the answer. Then act: regrade on what you now see, or close with the verification triple where the repair holds. A gap you neither move nor close this sitting is a NULL TURN on it, and null turns count toward its impasse — silence is a turn taken.`
+    : ` THE REPORT HEAD MOVED PAST YOUR LAST SITTING (head ${plan.head}): audit the report as it now stands, in full.`
+  return `Red lens sitting, area ${area}, topic "${topic}".${extra}${engaged} RE-READ THE FULL LIVING REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows. ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in ${runDir}/blue/report.md is REJECTED. The labels on your findings are the tool's to assign, and so are the gap ids you mint. HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g. '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).
+YOU MINT YOUR OWN GAPS. What you find that is real and belongs on the board goes there as YOUR gap: screen every candidate against the board first for a near match — a defect already closed is a REOPEN and arrives carrying that history or arrives lying; a duplicate minted fresh forks the lineage — then mint, one considered gap at a time, graded on every axis, registering a new class first where the registry lacks one. Nobody coalesces for you and nobody transcribes for you: a finding is your graded observation; a gap is your claim on the board. Your budget is the run's (mintBudget in run-config.json): spend it on defects a reader would pay to have fixed, not on nitpicks — a trifle costs you a mint and holds nothing open, because a gap below material does not hold the gate.
+ASK FOR THE ANSWER TO BE PRODUCED, NOT ASSERTED. Where a claim is arithmetic, an enumeration, or a reproducible measurement, your acceptance check demands that it be computed, and says so in the check's kind; where it turns on what the document states or what a source says, say so plainly — there is no credit for inflating it. Say WHEN your demand can be discharged, in the two classes blue answers in: a DOCUMENT-PROBE is executable now against shipped artifacts; a LIVE-PROBE needs built artifacts and is DEFERRABLE in a design-phase debate, discharged by naming it as a deferred acceptance test with its pass condition. PRESCRIBE TEXT ONLY WHERE THE DEFECT IS TEXTUAL: the required fix is prose — what must become true — and stays the channel for substantive work.
+BELIEVE NO BYTES YOU DID NOT WATCH BEING PRODUCED. Where blue backed a sentence with a computation, RE-RUN IT, then READ THE SCRIPT and say what it ACTUALLY COMPUTES: a script that re-runs clean and establishes nothing is the dangerous case, because it looks maximally credible.
+THE ORIGINATOR CLOSES, AND LINEAGE IS NEVER DROPPED. A gap you minted is yours for its whole life: only you regrade it, only you close it — with the triple (who verified, with what, against what) — and a successor you mint names the gaps it supersedes, a closure that regressed says so, and the docket follows those chains. The chair carries archived closures and dispatches you when your gap needs acting on; the bench disposes of a docketed gap through its ruling.${rulingsClause('red')}${reliefFor('red')}${speedClause}${frictionClause(seatID, 'lens')}${recordClause(`red-lens-${area}`)}${petitionClause(seatID)} Return a 3-line synopsis.`
 }
-const infraDebts = [] // defect_owed_elsewhere rulings (W1.9) — the lead's named debts, surfaced at assembly and in the final envelope
+// THE CHAIR RUNS THE DEBATE. It mints nothing and closes nothing; the record says who sits and the
+// chair relays it; the verdict, the closings, the spot-check, the rulings on blue's motions and
+// directions and the vote on the lines of inquiry are what only the chair does.
+const chairPrompt = () => `Red chair, topic "${topic}". You RUN the debate: you mint nothing and you close nothing — a gap belongs to the lens that minted it from mint to close — and you are the seat that decides whether this report has been verified.${recordClause('red-chair')}${speedClause}${scorecardClause()}${holdingsClause()}${reliefFor('red')}${lawClause}
+FIRST, EVERY SITTING, ASK THE RECORD WHO SITS — the dispatch. It reads the board and RECORDS who sits — the lenses whose pin the report head moved past, the lens and blue of every open material gap below its limits, the bench for every gap at impasse (it dockets those itself). Relay its JSON VERBATIM as \`plan\` in your envelope; the workflow dispatches what the record says and capture audits your relay against it, so a party you drop or add is a finding against you. Empty is the record's word that the debate is over: with pass_permitted the board permits a PASS; with ceiling every open material gap is at its limit, ruled and carried.
+THE STOPPING JUDGMENT IS YOURS, AND IT IS NOT CEREMONY. When the plan says pass_permitted, decide: record a PASS verdict if you agree the report is verified — the tool refuses a PASS the board does not permit, so you cannot pass early — or a FAIL with the material defect that stops you, raised as a finding for its lens to mint; a FAIL over a converged board is refused (raise something material, or pass). Otherwise record no verdict this sitting. Your recorded verdict is the ONE fact the run's outcome is derived from.
+YOUR NARRATIVE IS YOUR ARGUMENT and the other side answers it: one position per sitting. CLOSING ARGUMENTS on every gap the plan docketed — each is docket-bound and owes ~120 words, your strongest evidence and your answer to blue's — the bench rules on the closings and the artifacts, not on prose in your envelope.
+A CLOSURE IS A CLAIM, AND CLAIMS DECAY. Re-sample the archive every sitting it is not empty (the spot-check; its assertable empty form only when the archive was empty when you sat) and log what the sample FOUND; a lens reopens a drifted closure of its own, and a closure resting on a volatile living source inherits that source's drift triggers.
+VOTE EVERY LINE OF INQUIRY THIS SITTING, ON ONE READ: read the report ONCE and answer every line against that pass, the way anyone checks a document against a list — not once per line, and from THIS read, because the report is rewritten between sittings. RULE ON BLUE'S DIRECTIONS: a ruling is an ARGUMENT, not a command — it needs a reason, and blue may appeal it. RULE THE GRADE MOTIONS blue filed: accept and the minting lens owes the regrade; reject and blue may re-dispute. Report what still stands unruled as unruled_motions, read from the record's motions projection and never counted by hand.
+NEVER RE-DERIVE THE BOARD IN YOUR HEAD: the board, work and motions projections are the reads, and the plan is the record's, not yours.${frictionClause('red-chair', 'merge')}${petitionClause('red-chair')}`
+const bluePrompt = (gaps, docket) => `Blue response, topic "${topic}". You are engaged on: ${gaps.join(', ')}.${reliefFor('blue')} YOUR FIRST READ COMES AFTER THE TREE WALK BELOW, NOT BEFORE IT: pull your working set — the board and work projections, the transcript, and ${runDir}/inputs/red-gap-patterns.md — in one pass rather than three, concatenating them into a single file under your session scratchpad (an ABSOLUTE path, never under ${runDir}) and reading that.${recordClause('blue-respond')}${speedClause}${holdingsClause()}${rulingsClause('blue')}${lawClause}
+READ THE BOARD FOR YOUR GAPS: each carries its lens's problem, required fix and acceptance check, and the transcript's RED section carries red's argument; the bench's latest resolutions are on the record too, and any gap the bench CARRIED comes with a stated research direction you owe. The gap list you were handed is a lossy summary of the record, and the record is authoritative. PRE-FLIGHT: re-check your planned repairs against red's gap patterns — the staged inventory names, per gap class, how this class of repair goes wrong — and say in each manifest row which patterns you checked.
+YOU MAY COMPUTE AN ANSWER, NOT ONLY COLLATE SOURCES. You have Bash, Write and Edit, and for a whole class of questions running something settles it faster and harder than arguing about it. WORKING IT OUT IN YOUR HEAD IS NOT THE EXCEPTION — IT IS THE CASE THIS EXISTS FOR: a correct figure with no derivation is indistinguishable from a confident guess. A gap can be WAITING ON A PROGRAM FROM YOU — it says so (a computation check), and where it does, no amount of prose will close it. DOCUMENT-PROBE checks you discharge now; a LIVE-PROBE you discharge by naming the deferred acceptance test and its pass condition.
+YOUR LINES OF INQUIRY ARE A LIVING RECORD, NOT AN OPENING PLAN. Every sitting, revisit what is still open and say what became of it. The hypothesis is what makes that honest — a line abandoned against its own stated claim is evidence of choosing; one abandoned on a shrug is not. Red rules on your proposals and you may APPEAL a ruling — appeal whether or not you go on to pursue the line, because the appeal is where your ARGUMENT is recorded.
+WHERE RED PROPOSED EXACT TEXT you have THREE paths and you are not obliged to take the first: apply it verbatim, counter-edit with your own fix, or dispute it. Say plainly which path you took and why. A sitting in which you never decline is not agreement, it is capitulation. Applying red's exact text ESTOPS red from re-raising that text as a fresh gap, so verbatim application is a real settlement, not a surrender.
+OWNERSHIP BINDS, AS IT DID AT SYNTHESIS: you write ONLY your own surfaces — TL;DR, Catechism, technical foundations, analysis, open questions, your citations. You MUST NOT introduce a \`**Verdict:**\` line or any tool-owned section (\`## Risk matrix\`, \`## The board\`, \`## The debate\`, \`## How this run was conducted\`, a \`## Blue team report\` wrapper): assembly composes those from the record. AND WHICH MODEL IS ANSWERING THIS RUN IS NOT A FACT YOU HOLD: you can see what was REQUESTED, never what replied; if your argument turns on the models used, say that the record's measurement decides it. GRADING SEMANTICS (mapping ${MASS_MAPPING_VERSION}): likelihood and impact are CONSEQUENCE axes — how likely the harm lands and how much it costs when it does — and severity is red's overall grade; they multiply into mass, and material begins at medium.
+ANSWER EVERY GAP YOU ARE ENGAGED ON, ADDITIVELY, in ${runDir}/blue/report.md — expand and repair where red is right (each edit naming the gap it answers, so the repair joins to it), REBUT IN WRITING WITH EVIDENCE where red is wrong, and argue risk-acceptance where the fix's complexity exceeds its likelihood x impact. DISPUTE RED'S GRADING WHERE YOU DISAGREE WITH IT (a grade motion on the axis, with the grade you say it should be and your evidence). Compact and reorganize prose as clarity demands — but a CLAIM leaves only by being retired on the record, which names it, why it goes, and what replaces it. PROPAGATE EVERY CORRECTION TO ALL SITES that state the corrected claim, not only the flagged sentence — a bare corrected FIGURE needs a report-wide sweep of its own — and log the sites you checked in your sitting record. A sitting in which you record nothing on a gap you were engaged on is a NULL TURN on it, and null turns count toward its impasse: silence is a turn taken.${docket.length ? ` CLOSING ARGUMENTS: the following are DOCKETED for adjudication AFTER your response this sitting: ${docket.join(', ')}. For EACH, after your repairs, argue in ~120 words why your response resolves it, or why red's grade or claim is wrong, citing the exact section and evidence, as your recorded closing. This is your case; material not in the record cannot help you.` : ''}
+AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP (W2b; your constitution carries the full standard): figures recomputed, universals enumerated, consistency sites swept report-wide — one manifest row per gap you touched, and the manifest array in your envelope names them. Record the sitting's revision with the tool's claim_count; never hand-count it — the tool computes claim_count with the tool's own read.${frictionClause('blue-respond', 'blue')}${petitionClause('blue-respond')}`
+const benchPrompt = (gaps) => `Adjudication, topic "${topic}". Docketed for you: ${gaps.join(', ')} — each reached impasse under the run's terms and the record docketed it. THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE. It carries ids; a gap's problem text and its acceptance check live on the board, and you read them FRESH before ruling. Re-run each document-probe acceptance check against the artifact AS IT NOW STANDS, and rule on what you find rather than on what any snapshot asserts.
+YOUR RULING BASIS IS CONFINED TO THREE THINGS: the two sides' recorded closings, the full transcript, and the final state of the artifacts — the board and ${runDir}/blue/report.md as they now stand. Weigh each closing as that side's best case, and a claim in a closing that the record does not support counts AGAINST the side that made it. For every ruling on a gap with a lineage chain, READ THE NAMED ANCESTORS' RECORDS first and NAME what you read in your rationale.${holdingsClause()}${lawClause}${declareClause}${inspectionClause}
+Every docketed gap gets a written ruling — the docket ruling: its fate, the principle you applied, the values in tension, whether a human should look at it, your reasoning, and TWO THINGS THE FATE CANNOT SAY — the proposition you are barring as settled, and what would reopen it or that nothing would (final). Two fates route work OUT of the debate rather than ending it: a gap you CARRY stays open, owes blue a stated research direction, and is that gap's deadlock — what CEILING is made of; and a valid finding whose FIX is owned outside the debate — run tooling, the harness, the lead — leaves the board and ships as a NAMED infrastructure debt (defect_owed_elsewhere), recorded and never dropped. Rule the grade motions and directions the parties left for you. A bench sitting that rules nothing is a workflow error: the run cannot end in a verdict while a docketed gap stands unruled.${frictionClause('judge', 'bench')}${speedClause}${recordClause('judge')}${petitionClause('judge')} Return the judge envelope.`
 
-// Carried-ruling persistence (run-4 §6.4 item 6 — the re-docket loop): a carried gap does
-// NOT re-docket every round it stays open. It re-dockets only when red's GRADE for it
-// changed (script-visible in redEnv) or a lineage successor names it — new evidence routes
-// through red re-raising under a successor id, the existing lineage path. This also closes
-// the carried->defect_accepted gate-erosion path (each re-docket was a fresh chance the
-// ruling drifted; a gap red keeps re-raising must not exit the gate by judge attrition).
-const carriedRulings = new Map() // gap_id -> { severity, likelihood, impact } snapshot at ruling
-const gradeSnapshot = (g) => ({ severity: g.severity, likelihood: g.likelihood, impact: g.impact })
-const gradesEqual = (s, g) => s.severity === g.severity && s.likelihood === g.likelihood && s.impact === g.impact
-// Grade-dispute state (run-4 §3.3): pending = raised by blue, awaiting red's response next
-// round; held = explicitly rejected once, dockets only if blue re-disputes.
-let pendingDisputes = []
-let overflowDisputes = [] // clause (vii): beyond the cap, batch-docketed as ONE judge item
-const heldDisputes = new Map() // `${gap_id}|${dimension}` -> dispute
-let gradeAdjustments = [] // judge grade_adjusted rulings for red to apply next round
-takeFriction('blue-synthesize', blueEnv)
+phase('Red')
+const sittings = {} // seat -> how many times this loop has dispatched it, for the labels
+const labelFor = (seat) => { sittings[seat] = (sittings[seat] || 0) + 1; return `${seat} #${sittings[seat]} · ${slug}` }
+while (!halted) {
+  epoch++
+  chairEnv = await agent(chairPrompt(), { ...judgment, label: labelFor('red-chair'), phase: 'Red', agentType: 'frank-exchange-of-views:red-chair', schema: CHAIR_ENVELOPE })
+  takeFriction('red-chair', chairEnv)
+  if (!chairEnv) throw new Error(`red-chair sitting ${epoch} returned null (agent failed) — aborting cleanly`)
+  const plan = chairEnv.plan
+  if (!plan || !Array.isArray(plan.parties)) throw new Error(`red-chair sitting ${epoch} relayed no plan — the envelope carries \`dispatch next\`'s JSON verbatim, or the workflow has nothing to dispatch`)
+  lastPlan = plan
+  log(`epoch ${epoch}: head ${plan.head} — ${plan.parties.length} party(ies) ready${plan.docket && plan.docket.length ? `, docketed ${plan.docket.join(', ')}` : ''}${chairEnv.verdict ? `, chair recorded ${chairEnv.verdict}` : ''}${plan.pass_permitted ? ' — PASS permitted' : ''}${plan.ceiling ? ' — at the ceiling' : ''}`)
+  if (await hearPetitions(chairEnv, 'red-chair')) break
+  if (chairEnv.verdict === 'PASS') break
+  if (plan.parties.length === 0) break
 
-while (!halted && round < maxRounds) {
-  round++
-  const prevGaps = redEnv ? redEnv.gaps : []
+  // Classified by seat id, never by object identity: a plan relayed through a host runtime may
+  // hand out a fresh wrapper on every read, so two looks at one party need not be === equal.
+  const roleOfParty = (p) => String(p.seat_id).startsWith('red-lens-') ? 'lens' : p.seat_id === 'blue-respond' ? 'blue' : p.seat_id === 'judge' ? 'bench' : 'stray'
+  const lenses = plan.parties.filter((p) => roleOfParty(p) === 'lens')
+  const blues = plan.parties.filter((p) => roleOfParty(p) === 'blue')
+  const benches = plan.parties.filter((p) => roleOfParty(p) === 'bench')
+  const strays = plan.parties.filter((p) => roleOfParty(p) === 'stray')
+  if (strays.length) throw new Error(`epoch ${epoch}: the plan names ${strays.map((p) => p.seat_id).join(', ')}, which this workflow has no sitting for — the cast and the workflow disagree`)
+  for (const p of lenses) if (!LENS_DISPATCH[p.seat_id]) throw new Error(`epoch ${epoch}: the plan names ${p.seat_id}, a lens area this workflow does not declare — the cast and the workflow disagree`)
 
-  // ONE SEAT PER STRATEGIC AREA (#771). Each area is a distinct kind of attack on the report —
-  // evidence, logic, dark-side, voice — and each gets exactly one seat. The roster is a property
-  // of the areas, not of the corpus: a report twenty times larger dispatches the same lenses.
-  //
-  // NO SLICE, AND THAT IS THE DESIGN. Dividing a corpus between citation seats buys one thing,
-  // duplicate-avoidance, and costs the findings that justify the seat. Two of the three findings
-  // the evidence lens has on record are unreachable from a slice: a conceptual overclaim about
-  // what Little's Law can yield, and a fabricated verbatim quote presented under a leaf-verified
-  // attestation. A seat accountable for one section has no reason to notice that the evidence is
-  // weakest in another, and "three claims lean on one shaky source" is nobody's finding when the
-  // corpus is split.
-  //
-  // THE LOAD FITS ONE SEAT. The heaviest consolidated round in either archived run is 14
-  // verify+reproduce acts, which is what a single round-1 evidence seat carries in both. Bound
-  // worth stating: those runs hold 14 and 11 citations, so a corpus past ~40 claims is the
-  // untested case for a single seat.
-  //
-  // VOLUME IS AN INSTRUCTION, NOT A SEAT COUNT: consolidatedClause tells the seat that rounds 2+
-  // sweep the new and stale surface rather than the corpus again, which is where the citation
-  // economics live.
-  const lensPasses = []
-  // Citation ledger: verified citations don't un-verify. The evidence seat reads the
-  // ledger first and skips claims already graded high-confidence in a prior round — but the
-  // skip-trigger covers SOURCE drift as well as prose drift (retrospective §3 row 10: the
-  // prose-only trigger suppressed exactly the re-check that catches a source moving).
-  const ledgerClause = ` THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at. Read it FIRST. A claim blue backed with a source resolves to the url, title and sha256 of the bytes blue actually read, and THAT is what you re-fetch to audit the same artifact rather than a page that may have drifted since. A claim blue COMPUTED resolves to its script, and to whether anyone has re-run it — an unaudited proof looks exactly like a clean one until you check. Your own verifications come back ATTACHED TO THE SOURCE you checked: an empty one is a citation NOBODY has checked yet, and that is where your next pass is worth most. WHAT NOT TO RE-CHECK, because it is the round's whole economy: a claim verified at HIGH confidence in a prior round STAYS verified — do not re-fetch it UNLESS its section changed this round (read that off the recorded edits, not off blue's account of them), OR more than 2 rounds have elapsed since it was last verified, OR its access date and the source's volatility suggest drift (living documents, issue trackers, README stats). RECORD every claim you verify, naming the anchor you looked up and quoting the claim from the report. A SOURCE YOU FOUND YOURSELF IS A DIFFERENT ACT — blue never cited it, so there is no anchor to name — and it answers a different question: whether the claim is true in the WORLD, where verification asks only what blue's source did for it. VERBATIM READS ONLY — you have no WebFetch, by design: it returns a small model's SUMMARY, not the source. Read blue's cached bytes through the tool; for a source YOU discover, pull it verbatim yourself (\`curl -sL <url>\`, \`gh issue view <n> --comments\`, \`pdftotext\`/pandoc) and read it. WebSearch is for DISCOVERY — finding the url — never for the read that grades a citation. If a source is too large for your context, read it in SECTIONS and name the sections you read: A TRUNCATED READ IS NOT A READ, so state the truncation and never grade a body you could not fully read.`
-  // The consolidated citation duty (W2i, rounds 2+): ONE seat must not silently become
-  // less coverage. E0.5c's honest limit is that a finding-rate metric cannot price
-  // VERIFICATION COVERAGE — the 65-86 pair/round ledger IS the PASS bar's evidence grade, and
-  // it is most of what the evidence seat does. So the saving is bought from re-verification
-  // the ledger already says is unnecessary, never from the sweep itself, and what went
-  // unexamined is stated rather than assumed.
-  const consolidatedClause = round === 1 ? '' : ` YOUR ROUND'S SURFACE IS THE NEW AND THE STALE, NOT THE CORPUS AGAIN (W2i): the ledger means a claim verified HIGH does not un-verify. Your duty is three things, in order: (1) verify every claim that is NEW or whose section CHANGED this round (the \`changes\` projection names them — the recorded edits, not blue's account of them); (2) re-fetch everything the ledger's staleness triggers fire on (>2 rounds since verification, volatile source, access-date drift); (3) SPOT-CHECK a sample of the already-verified pairs — your discretion which, and reopen any that has drifted. COVERAGE IS AN OBSERVABLE, NOT AN ASSUMPTION: end your pass with a COVERAGE line stating what you verified, what you sampled, and what you left unexamined this round — an unstated gap in coverage is indistinguishable from a clean sweep. YOU OWN THE WHOLE EVIDENCE PICTURE, and that is the point of there being one of you: a defect like "three claims lean on one shaky source" or "the evidence is weakest exactly where the argument is strongest" is invisible to a seat holding a slice.`
-
-  // ROLE-STABLE LENS IDENTITY: a lens is identified by its AREA, and the area is what it
-  // audits — so its identity cannot depend on how many lenses a round dispatches. That is the
-  // property the found_by role map needs: every cross-round lens-economics measurement joins
-  // on it, and a credit chain reading `adversary-F1` says what found the gap without a lookup.
-  // Selecting fewer areas for a round therefore changes WHO SITS and nothing about what the
-  // seats that do sit are called. record.LensAreas holds the same list on the Go side, bound
-  // to this one in both directions by TestTheLensAreasMatchWhatTheEngineDeclares.
-  for (const area of RED_AREAS) {
-    if (!selectedAreas.includes(area)) continue
-    // ROUND-DEPENDENT ONLY. A seat's standing instructions are its configuration; what is
-    // composed here is what the configuration cannot know — which round this is, and what the
-    // ledger says about re-verification in it.
-    const extra = area === 'evidence' ? `${ledgerClause}${consolidatedClause}`
-      : (area === 'logic' || area === 'dark-side') ? steelmanClause : ''
-    lensPasses.push({ area, extra })
-  }
-
-  // The round-start heartbeat. It counts AREAS now rather than instances, which is the whole
-  // change in one line: the number is a property of the roster, not of the corpus size.
-  log(`round ${round}: dispatching ${lensPasses.length} red lenses (one per strategic area)`)
-
-  await parallel(lensPasses.map(({ area, extra }) => () => agent(
-    `Red audit, round ${round}.${extra} RE-READ THE FULL LIVING REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows${round > 1 ? `. For a navigation HINT use the record of what blue actually edited and the gap each edit answers — never a hand-written file, and never in place of the full re-read above` : ''}. ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in ${runDir}/blue/report.md is REJECTED. The labels on your findings are the tool's to assign, and the stable R${round}-N gap ids are the chair's. HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g. '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).${reliefFor('red')}${speedClause}${frictionClause(`red-lens-${area}`, 'lens')}${recordClause(`red-lens-${area}`)} Return a 3-line synopsis.`,
-    // ONE CONFIGURATION PER AREA, and this is the line that makes identity derivable: agent_type
-    // now carries WHICH lens, not merely that it is a lens, so a seat's area is a fact the harness
-    // attests rather than a substring of a name the seat typed.
-    { ...bulk, label: `red-lens-${area}-r${round} · ${slug}`, phase: 'Red', agentType: `frank-exchange-of-views:red-lens-${area}` })))
-
-  redEnv = await agent(
-    `Red chair, round ${round}. You are the board's only writer, and the seat that decides whether this report has been verified. The lenses brought findings; nothing is on the board until you put it there.
-
-COALESCE — DO NOT TRANSCRIBE. Collapse this round's findings into the DISTINCT PROBLEM-CLASSES they represent. Several findings that are the same defect at different sites are ONE gap. Separate genuine incidents; fold duplicates and near-duplicates together; raise gaps SPARINGLY and deliberately, one considered gap at a time. A merge that raises a gap per finding has not merged — it has transcribed, and it floods the docket with noise. Screen every candidate against the board first: a defect you already closed is a REOPEN, and it arrives carrying that history or it arrives lying.
-
-ASK FOR THE ANSWER TO BE PRODUCED, NOT ASSERTED. Across six recorded runs no seat ever wrote a program to settle anything, and the 2026-08-05 smoke shows the cause was not blue's reluctance but yours: all TEN of your acceptance checks asked only whether the report SAYS something. Where a claim is arithmetic, an enumeration, or a reproducible measurement, demand that it be computed. Where it turns on what the document states or what a source says, say so plainly — there is no credit for inflating it. And say WHEN your demand can be discharged, in the two classes blue answers in: a DOCUMENT-PROBE is executable now against shipped artifacts, while a LIVE-PROBE needs built artifacts and is DEFERRABLE in a design-phase debate, discharged by naming it as an acceptance test with its pass condition. An unclassed demand invites blue to overclaim a file read as a probe, or to stall on an impossible obligation.
-
-BELIEVE NO BYTES YOU DID NOT WATCH BEING PRODUCED. Where blue backed a sentence with a computation, RE-RUN IT — this is the one audit that does not end in you believing bytes someone else chose. Then READ THE SCRIPT and say what it ACTUALLY COMPUTES. It does not have to be pretty or idiomatic; it has to compute the thing it claims, readably enough that you can see that it does. A script that re-runs clean and establishes nothing is the dangerous case, because it looks maximally credible.
-
-A CLOSURE IS A CLAIM, AND CLAIMS DECAY. Verify any lineage or closure claim you assert against the record BEFORE you assert it, and re-sample the archive every round it is not empty. Reopen any sampled closure whose evidence has drifted; a closure resting on a volatile living source inherits that source's drift triggers. Nothing FAILS the run over a skipped sample — the cost is a report that shows a reader you skipped it, beside the rounds that looked. That is deliberate: this duty exists because a round-2 spot-check once degraded into the seat attesting blocks it was about to write itself.
-
-VOTE EVERY LINE OF INQUIRY THIS ROUND, ON ONE READ. A line reaches the report as a generated row carrying no citation anchor, so "we pursued X", "we abandoned Y" is the one class of claim in the document your side otherwise has no channel to answer. Read the report ONCE and answer every line against that pass, the way anyone checks a document against a list — NOT once per line: a dozen lines over four rounds would be forty-eight reads of the same artifact, and a duty that costs that much is one you will route around, which is worse than no duty because the record then says checked. Answer from THIS READ, not from what you remember voting. PER ROUND, because the report is rewritten every round and a vote cast before this round's edits answers a question about a document that has since changed.
-
-RULE ON BLUE'S DIRECTIONS. Blue proposes lines of inquiry with a hypothesis; you say which are worth this run's time. A ruling is an ARGUMENT, not a command: it needs a reason, and blue may appeal it — which puts the disagreement on the record whether or not blue also pursues the line, so arguing and then yielding is visible instead of vanishing. Measured: blue rejected 18 of its own 86 lines across six runs and red rejected NONE, because red had no way to. You do not propose directions yourself — when you want research done, that is a gap, graded and tracked and closed.
-
-PRESCRIBE TEXT ONLY WHERE THE DEFECT IS TEXTUAL. The required fix is prose — what must become true — and stays the channel for substantive work: research it, enumerate it, qualify it. For an overclaim, a wrong figure, a contradiction, you may also state exactly what the span should become, and you cannot state one without having read the text you are prescribing against — which is the check whose absence caused all three of the 2026-08-04 smoke's round-2 gaps. Anything larger than a correction is a substantive ADDITION and it is BLUE'S to author, not yours.
-
-DID BLUE ACTUALLY DO WHAT YOU ASKED? Put your prescription and blue's edits side by side rather than inferring the answer — and note that this does not replace re-reading the report, because a span out of context misleads on research prose. Two shapes are worth naming: NOTHING recorded against an open gap, and a change that does not meet your own acceptance check. Where blue applied your exact text, your prescription has been satisfied at that site by construction: close the gap unless you can state what your own check still fails. 3 of 3 round-2 gaps in the 2026-08-04 smoke were text blue added in round 1 because red asked for it.
-
-LINEAGE IS NEVER DROPPED. A gap keeps its id across rounds; a successor names its ancestors; a closure that regressed says so, and the docket follows those chains. Where a defect turns up BETWEEN two repairs that each closed clean in an earlier round, it AMENDS both rather than arriving as this round's fresh closure — a late-discovered composition defect and a this-round closure are different events and the record must be able to tell them apart.
-
-THE STOPPING JUDGMENT IS YOURS, AND IT IS NOT CEREMONY. PASS only when every remaining unadjudicated gap is repaired, not_a_defect, or defect_accepted. Your recorded verdict is the ONE fact distinguishing "red passed" from "the bench closed the last gaps at the terminal sitting" — without it the run cannot say, from its own record, that it was ever verified.${adjudicated.length ? ` GAPS THE BENCH HAS ALREADY RULED, WITH THEIR FATES AND WHAT EACH ONE SETTLED — excluded from your verdict, and the exclusion is ESTOPPEL, not amnesia: ${JSON.stringify(adjudicated.map(x => ({ gap_id: x.gap_id, resolution: x.resolution, settled: x.settled, reopens_on: x.reopens_on, final: x.final })))}. THE BARRED PROPOSITION IS NARROWER THAN THE GAP: what you may no longer assert is that sentence, not everything the finding contained. You were previously handed these as bare ids, so the bar was enforced by making them invisible — you could not tell a ruling you should respect from one you had simply lost track of, and you could not tell relitigating from a legitimate successor. The ruling STANDS and you do not re-raise it. If you hold genuinely new evidence the bench did not have, that is a lineage successor: mint it under a new id naming the ruled gap in supersedes, and say what the ruling did not account for. THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT — read the bench's opinion for any fate you are about to rely on or work around, rather than inferring it from the word. A fate you never read is one you cannot honour or contest.` : ''}${gradeAdjustments.length ? ` GRADE ADJUSTMENTS RULED BY THE JUDGE last round — apply each, and list the delta in your round narrative: ${JSON.stringify(gradeAdjustments)}.` : ''}${pendingDisputes.length ? ` BLUE'S GRADE DISPUTES from last round (ROUTING REFS — blue's evidence is on the record, not here: read each dispute's argument before answering): ${JSON.stringify(pendingDisputes)}. You MUST answer EVERY one; an unaddressed dispute is treated as rejected and auto-docketed to the judge. Answer on the MOTION's own id, because blue may contest more than one grade on the same gap and an answer naming only the gap cannot be matched to the one it refuses. ACCEPTING A DISPUTE DOES NOT MOVE THE GRADE — SAYING SO IS NOT DOING IT: move it, on the axis that moved, with what changed your mind. A grade that moves with no recorded reason reads as though blue's dispute was answered by silence. AND list each in the envelope's dispute_responses as a ROUTING REF ONLY (gap_id, dimension, response — no prose: the rationale is on the record) so the docket routes it, and list each accepted delta (gap id, dimension, old -> new) in your round narrative, where blue, the judge and the operator watch for it.` : ''}
-
-YOUR NARRATIVE IS YOUR ARGUMENT and the other side answers it. Where a gap is docket-bound — one you RE-RAISE from a prior round, a successor you mint, a dispute you REJECT — argue it in ~120 words: your strongest evidence the gap is real and graded correctly, and your answer to blue's best rebuttal so far. The judge rules after blue responds, and overstatement the record does not support counts against you.${petitionClause(`red-chair`)}${reliefFor('red')}${frictionClause(`red-chair`, 'chair')}${speedClause}${recordClause(`red-chair`)} Return the red envelope.`,
-    { ...judgment, label: `red-chair-r${round} · ${slug}`, phase: 'Red', agentType: 'frank-exchange-of-views:red-chair', schema: RED_ENVELOPE })
-
-  takeFriction(`red-chair`, redEnv)
-  if (!redEnv) throw new Error(`red-chair round ${round} returned null (agent failed) — aborting cleanly`)
-  log(`round ${round}: red ${redEnv.verdict} — ${redEnv.gaps.length} gaps open, mass ${redEnv.gaps.reduce((s, g) => s + gapMass(g), 0).toFixed(1)}, ${redEnv.citations_checked} citations checked`)
-  // Degenerate-shape guard (retrospective §3 row 20, decided R4-2: throw, never soft-convert):
-  // FAIL with zero gaps is evidence of a broken merge, not a clean report — looping on it
-  // burns maxRounds silently and returns a self-contradictory UNVERIFIED/0-gaps verdict.
-  //
-  // A PETITION IS THE ONE HONEST WAY TO FAIL WITH A CLEAN BOARD, and this guard predates the
-  // tool gate that made it reachable. `verdict --as PASS` is refused while any motion is
-  // unruled; a PETITION is the BENCH's to rule, not the merge's, and the merge files one in the
-  // same envelope that carries its verdict — so the bench has not sat yet. The seat cannot pass
-  // (the tool refuses) and could not fail either (this threw), which is no legal verdict at all.
-  // Measured: 4 of 60 fuzz runs died here, and the merge was behaving correctly in every one.
-  //
-  // Scoped to the envelope's own petitions deliberately. A petition BLUE filed dispatches a
-  // bench sitting before the next scheduled seat, so it is already ruled by the time red sits;
-  // what this exempts is the case red itself created, which is the case red cannot resolve.
-  const petitioned = Array.isArray(redEnv.petitions) && redEnv.petitions.length > 0
-  if (redEnv.verdict === 'FAIL' && redEnv.gaps.length === 0 && !petitioned) {
-    throw new Error(`red-chair round ${round} returned FAIL with an empty gaps array — degenerate merge, refusing to loop silently`)
-  }
-  if (redEnv.verdict === 'FAIL' && redEnv.gaps.length === 0) {
-    log(`round ${round}: red FAILed on a clean board — ${redEnv.petitions.length} petition(s) outstanding for the bench, which is not a defect on the board`)
-  }
-  // Lineage enforcement (row 23 step 4, per red's own R5-5 critique: self-declared lineage
-  // is hollow unless structurally checked): every repaired_with_regression closure must have
-  // a successor gap naming it in supersedes — otherwise the chain is silently dropped and
-  // the docket goes blind again.
-  // THIS GUARD READS THE ENVELOPE, WHICH IS A LOSSY SUMMARY OF THE RECORD — so it may NOT kill
-  // the run. Measured 2026-08-04: red closed R1-1 with regression and correctly minted R2-1 with
-  // `--supersedes R1-1` ON THE RECORD (the board shows `R2-1 supersedes -> [R1-1]`), then omitted
-  // the optional `supersedes` field from its envelope self-report. The old hard throw killed a
-  // 12-agent, 723k-token run whose lineage was entirely intact. That is the
-  // lossy-channel-substitution class: a consumer handed a summary when it needed the source, unable
-  // to tell the difference.
-  //
-  // CONTINUING IS STILL RIGHT — the 2026-08-04 measurement above is what justifies it, and this
-  // clause only stops the engine trusting the summary over the source. But the REASON written
-  // here was wrong three times over (#415), and a false reason reads as diligence:
-  //
-  //   1. "`verify`'s supersedes-resolve runs over the board at capture" — it does not run at
-  //      capture, or anywhere. `internal/verify` has exactly one importer in the tree, the CLI
-  //      verb, and nothing invokes that verb: not CI, not a suite, not a command.
-  //   2. Even if it ran, it answers a DIFFERENT QUESTION. supersedes-resolve asks "does every
-  //      named ancestor exist"; this asks "does anything name this closure at all". A closure
-  //      with no successor names no ancestor, so there is nothing for it to find dangling.
-  //   3. "capture will score it" — capture has no lineage audit. FrictionAudit reconciles
-  //      envelope friction against on-record friction; it says nothing about supersedes.
-  //
-  // WHAT IS ACTUALLY ENFORCED, so this does not overcorrect into claiming nothing is: the WRITE
-  // refuses a mint whose `supersedes` names an ancestor no mint created ("dangling lineage
-  // refused"), in the operator's face, and `supersedes` is required in the envelope schema —
-  // which is the thing that genuinely reduces the lossiness.
-  //
-  // WHAT IS NOT: "closed with regression and nothing names it as superseded" is checked by
-  // NOTHING. Not the write, not capture, not any check that runs. Stated rather than papered
-  // over — the friction line below is the only trace it leaves, and friction is a report to a
-  // human, not a gate.
-  for (const c of redEnv.closures || []) {
-    if (c.class === 'repaired_with_regression' && !redEnv.gaps.some(g => (g.supersedes || []).includes(c.id))) {
-      const msg = `red-chair round ${round}: closed ${c.id} WITH REGRESSION and no successor in the ENVELOPE names it in supersedes. The envelope is a lossy summary, so this does not kill the run — but NOTHING downstream checks it either (#415), so if the record's lineage is genuinely absent it will not be caught: read the board.`
-      friction.push(`red-chair (epoch ${round}): ${msg}`)
-      log(msg)
+  if (lenses.length) {
+    log(`epoch ${epoch}: dispatching ${lenses.length} red lens(es): ${lenses.map((p) => `${areaOf(p.seat_id)}${p.gap_ids.length ? `[${p.gap_ids.join(' ')}]` : ''}`).join(', ')}`)
+    const envs = await parallel(lenses.map((p) => () => agent(lensPrompt(p.seat_id, p.gap_ids, plan),
+      { ...bulk, label: labelFor(p.seat_id), phase: 'Red', ...LENS_DISPATCH[p.seat_id] })))
+    for (const [k, env] of envs.entries()) {
+      takeFriction(lenses[k].seat_id, env)
+      if (env && await hearPetitions(env, lenses[k].seat_id)) break
     }
+    if (halted) break
   }
-  // The two self-report count gates (archive_blocks vs ledger_closure_lines, and the
-  // round-2 spot-check floor keyed on prevArchiveBlocks) are REMOVED 2026-07-19 — they
-  // compared numbers the merge made up (a haiku smoke self-reported archive_blocks:22 in a
-  // round where the true archived count was 0). The tool board is the count authority;
-  // capture audits the truth from disk. See plans/tool-is-the-contract.md and
-  // plans/pre-dry-run-batch.md.
-
-  // W2b script-side scorecard computation (independent of the merge's self-reported
-  // telemetry line — the script recomputes from envelopes it holds, so a wrong line is
-  // visible as divergence). repair_regression_ratio is blue's headline number.
-  if (round >= 2) {
-    const curIds = new Set(redEnv.gaps.map((g) => g.id))
-    const closedIds = new Set(prevGaps.map((g) => g.id).filter((id) => !curIds.has(id)))
-    const lineageMints = redEnv.gaps.filter((g) => (g.supersedes || []).some((a) => closedIds.has(a))).length
-    let down = 0, up = 0
-    for (const g of redEnv.gaps) for (const a of g.supersedes || []) {
-      const anc = prevGaps.find((p) => p.id === a)
-      if (!anc) continue
-      const d = gapMass(g) - gapMass(anc)
-      if (d < 0) down += -d; else up += d
+  for (const p of blues) {
+    phase('Debate')
+    blueEnv2 = await agent(bluePrompt(p.gap_ids, plan.docket || []), { ...bulk, label: labelFor('blue-respond'), phase: 'Debate', agentType: 'frank-exchange-of-views:blue-researcher', schema: BLUE_ENVELOPE })
+    takeFriction('blue-respond', blueEnv2)
+    if (!blueEnv2) throw new Error(`blue response (epoch ${epoch}) returned null (agent failed) — aborting cleanly`)
+    await ensureSittingRecord(blueEnv2, 'blue-respond', `your position event for this sitting (it renders as the "### BLUE" section) AND your revision event`,
+      { ...bulk, agentType: 'frank-exchange-of-views:blue-researcher' })
+    if (p.gap_ids.length > 0 && (!Array.isArray(blueEnv2.manifest) || blueEnv2.manifest.length === 0)) {
+      throw new Error(`manifest (W2b): blue-respond was engaged on ${p.gap_ids.length} gap(s) and returned an EMPTY correctness manifest — an unmanifested repair is unaudited by its own author`)
     }
-    const ratio = closedIds.size ? (lineageMints / closedIds.size).toFixed(2) : 'n/a'
-    log(`round ${round} scorecard: repair_regression ${lineageMints}/${closedIds.size} = ${ratio} · edge deltas down ${down.toFixed(1)} / up ${up.toFixed(1)} mass`)
-    // Never-hard-fail DETECTOR (visibility only — the verdict stays red's): converged
-    // board + fallout-only discovery + still FAIL is the divergence the reformed telos
-    // says should not persist for long.
-    const mass = redEnv.gaps.reduce((s, g) => s + gapMass(g), 0)
-    const maxSevMass = Math.max(0, ...redEnv.gaps.map((g) => MASS[g.severity] ?? 0))
-    const freshMints = redEnv.gaps.filter((g) => !prevGaps.some((p) => p.id === g.id) && !(g.supersedes || []).length).length
-    if (redEnv.verdict === 'FAIL' && mass < 35 && maxSevMass <= MASS['medium'] && freshMints === 0) {
-      log(`round ${round} DETECTOR: convergence-vs-verdict divergence — mass ${mass.toFixed(1)}, nothing above medium, zero fresh (non-lineage) mints, verdict FAIL. Visibility only; certification stays red's call.`)
-    }
+    const covered = new Set(blueEnv2.manifest || [])
+    const uncovered = p.gap_ids.filter((g) => !covered.has(g))
+    if (uncovered.length) log(`epoch ${epoch}: manifest coverage ${covered.size}/${p.gap_ids.length} — unmanifested: ${uncovered.join(', ')} (scored at capture)`)
+    log(`epoch ${epoch}: blue responded on ${p.gap_ids.join(', ')} — corpus at ${blueEnv2.claim_count} claims`)
+    if (await hearPetitions(blueEnv2, 'blue-respond')) break
   }
-
-  if (await hearPetitions(redEnv, `red-chair`)) break
-
-  // Grade-dispute processing (run-4 §3.3): every pending dispute gets red's answer or the
-  // docket. Explicit rejection is HELD one round (dockets only on blue's re-dispute);
-  // silence auto-dockets — default-to-docket punishes silence, not disagreement.
-  const disputeDocket = []
-  let acceptedDeltaMagnitude = 0
-  const acceptedDeltas = []
-  for (const d of pendingDisputes) {
-    const resp = (redEnv.dispute_responses || []).find(r => r.gap_id === d.gap_id && r.dimension === d.dimension)
-    if (!resp) {
-      disputeDocket.push({ ...d, traffic_class: 'grade_dispute_unaddressed' })
-    } else if (resp.response === 'rejected') {
-      heldDisputes.set(`${d.gap_id}|${d.dimension}`, d)
-    } else {
-      const g = redEnv.gaps.find(x => x.id === d.gap_id)
-      const current = g ? g[d.dimension] : null
-      const delta = current != null ? Math.abs((MASS[d.proposed] ?? 0) - (MASS[current] ?? 0)) : 0
-      acceptedDeltaMagnitude += delta
-      acceptedDeltas.push({ gap_id: d.gap_id, dimension: d.dimension, proposed: d.proposed })
-    }
-  }
-  if (overflowDisputes.length) {
-    disputeDocket.push({ traffic_class: 'grade_dispute_overflow_batch', disputes: overflowDisputes })
-    overflowDisputes = []
-  }
-  // Clause (v) second guard: cumulative accepted-delta magnitude per round crossing the
-  // threshold batch-dockets to the judge BEFORE the deltas stand — computed by the script
-  // (the one seat that sees every envelope), cumulative not per-delta (salami-slicing is
-  // out-of-spec by construction).
-  if (acceptedDeltaMagnitude > ACCEPTED_DELTA_DOCKET_THRESHOLD) {
-    disputeDocket.push({ traffic_class: 'accepted_delta_overflow', cumulative_magnitude: acceptedDeltaMagnitude, deltas: acceptedDeltas })
-  }
-  gradeAdjustments = []
-
-  if (redEnv.verdict === 'PASS') break
-
-  // Contested docket: a dispute that persists — same id re-raised from ANY prior round
-  // (window is the whole debate, not just last round), or a successor gap whose supersedes
-  // chain descends from a prior-round gap (retrospective §3 row 23: regression chains ran
-  // four generations in run 3 and the id-equality detector never armed; the judge was
-  // dispatched ZERO times in the entire corpus). Detection is set arithmetic in the script;
-  // the judgment belongs to the lead-judge. TRAFFIC CLASSES (run-4 friction, judge-r2): a
-  // re-raised id has a blue response on record; a regression successor is FIRST-RAISE
-  // traffic — closed/not_a_defect are structurally dead for it and the judge is told
-  // so instead of being handed a dead decision space.
-  const contested = []
-  for (const g of redEnv.gaps) {
-    const reRaised = allPriorGapIds.has(g.id)
-    const descends = (g.supersedes || []).some(id => allPriorGapIds.has(id))
-    if (!reRaised && !descends) continue
-    // Carried persistence: a standing carried ruling absorbs re-raises until red's grade
-    // moves or a successor descends — otherwise the judge re-rules the same question at
-    // ~$10-13 a sitting and each sitting is a fresh drift chance.
-    if (reRaised && carriedRulings.has(g.id) && gradesEqual(carriedRulings.get(g.id), g)) continue
-    contested.push({ ...g, traffic_class: reRaised ? 're_raised' : 'first_raise_successor' })
-  }
-  contested.push(...disputeDocket)
-  // WITHHELD, WITH A REASON. The docket carries gaps that PERSIST (re-raised from a prior
-  // round, or descending from one by supersedes). A gap minted fresh this round is not
-  // docket-bound by that rule — but red and blue file CLOSING ARGUMENTS by their own
-  // reading of the prose contract, and in the 2026-07-18 run both sides argued R3-2 to
-  // closing while the engine never docketed it. It reached no ruling and returned to
-  // red's verdict pool unadjudicated, and the bench had no way to know it existed.
-  //
-  // Two computations of one fact, disagreeing — the defect class this codebase keeps
-  // finding. The engine cannot pre-compute the docket (it depends on red's own output,
-  // produced in the same turn as the closings), so instead nothing is withheld SILENTLY:
-  // the bench is handed every open gap the docket excluded, with the reason, and may
-  // rule on one it judges was wrongly withheld.
-  const withheld = (redEnv.gaps || [])
-    .filter((g) => !contested.some((c) => c.id === g.id))
-    .map((g) => ({
-      id: g.id,
-      severity: g.severity,
-      reason: allPriorGapIds.has(g.id) || (g.supersedes || []).some((id) => allPriorGapIds.has(id))
-        ? 'persistent but not carried onto the docket — report this as a docket defect'
-        : 'minted fresh this round, so not a persisting dispute',
-    }))
-
-  const hasNew = redEnv.gaps.some(g => !allPriorGapIds.has(g.id) && !(g.supersedes || []).some(id => allPriorGapIds.has(id)))
-  for (const g of redEnv.gaps) allPriorGapIds.add(g.id)
-
-  const adjudicatedIds = new Set(adjudicated.map(x => x.gap_id))
-  const openGaps = redEnv.gaps.filter(g => !adjudicatedIds.has(g.id))
-  // NOTHING IS WITHHELD FROM BLUE SILENTLY EITHER — the same rule the bench's withheld list
-  // follows below, applied to the seat that was still getting the subtraction.
-  const blueRulings = adjudicated.map(x => ({
-    gap_id: x.gap_id,
-    resolution: x.resolution,
-    settled: x.settled,
-    reopens_on: x.reopens_on,
-    final: x.final,
-    your_duty: BLUE_DUTY_BY_RESOLUTION[x.resolution]
-      || `this fate has no standing instruction in the protocol — read the bench's opinion on the record and report the omission as friction rather than guessing at it`,
-  }))
-  blueEnv = await agent(
-    `Blue response, round ${round}, topic "${topic}". Red's verdict: FAIL.${reliefFor('blue')} YOUR FIRST READ COMES AFTER THE TREE WALK BELOW, NOT BEFORE IT: pull your working set — the board, the transcript, and ${runDir}/inputs/red-gap-patterns.md — in one pass rather than three, concatenating them into a single file under your session scratchpad (an ABSOLUTE path, never under ${runDir}) and reading that.
-
-YOU MAY COMPUTE AN ANSWER, NOT ONLY COLLATE SOURCES. You have Bash, Write and Edit, and for a whole class of questions running something settles it faster and harder than arguing about it. WORKING IT OUT IN YOUR HEAD IS NOT THE EXCEPTION — IT IS THE CASE THIS EXISTS FOR. Measured: a seat facing a gap that said the stated total did not match the per-source rows summed twelve integers inside its own reasoning, wrote the answer into the report, and moved on. The answer was RIGHT, which is exactly why nothing caught it: a correct figure with no derivation is indistinguishable from a confident guess, and a reader cannot vary the rate, re-check the sum, or locate the error on the day there is one. A gap on the board can be WAITING ON A PROGRAM FROM YOU — it says so, and where it does, no amount of prose will close it. THIS IS THE CITATION MODEL WITH THE LAST MILE WALKED, not a new kind of evidence: cite the METHOD (trial division, Miller-Rabin, the formula, the standard) and then prove the INSTANCE by running it. Several methods on one claim is several anchors on one sentence, which is how a mathematician argues. Measured, so you know why this clause exists: red once asked for the protocol to be tested on a false claim, blue answered in PROSE that the test had happened, and red correctly refused it for showing no evidence — a whole round for something three lines settle.
-
-YOUR LINES OF INQUIRY ARE A LIVING RECORD, NOT A ROUND-0 PLAN. Every round, revisit what is still open and say what became of it. The hypothesis is what makes that honest — a line abandoned against its own stated claim is evidence of choosing; one abandoned on a shrug is not. Measured over six runs: 83 of 86 lines were declared in round 0 and NOT ONE was ever revisited, so the record showed a plan and never showed you choosing. Red rules on your proposals and you may APPEAL a ruling — appeal whether or not you go on to pursue the line, because the appeal is where your ARGUMENT is recorded and the fate is only what you decided to do about it.
-
-WHERE RED PROPOSED EXACT TEXT you have THREE paths and you are not obliged to take the first: apply it verbatim, counter-edit with your own fix, or dispute it. Applying is the cheapest — a counter-edit costs a round and invites re-audit, a dispute needs red's agreement — so say plainly which path you took and why. A round in which you never decline is not agreement, it is capitulation, and it IS measured: offered/applied/declined is printed every round, and a zero decline rate is read as a question about red's proposals, not as evidence they were all right. Applying red's exact text also ESTOPS red from re-raising that text as a fresh gap, so verbatim application is a real settlement, not a surrender.
-
-OWNERSHIP BINDS, AS IT DID IN ROUND 0: you write ONLY your own surfaces — TL;DR, Catechism, technical foundations, analysis, open questions, your citations. You MUST NOT introduce a \`**Verdict:**\` line or any tool-owned section (\`## Risk matrix\`, \`## The board\`, \`## The debate\`, \`## How this run was conducted\`, a \`## Blue team report\` wrapper) while repairing: assembly composes those from the record, you cannot know the outcome or red's findings, and anything you add there only lands stale and gets stripped. AND WHICH MODEL IS ANSWERING THIS RUN IS NOT A FACT YOU HOLD: you can see what was REQUESTED, never what replied, and a run configured for one tier is routinely served by another — 44 of 63 seats across two runs, whose certified report reasoned two paragraphs about vendor diversity from the pairing it had asked for. If your argument turns on the models used, say that the record's measurement decides it; assembly composes that section from what actually answered.
-
-PRE-FLIGHT: re-check your planned repairs against red's gap patterns. Open gaps (adjudicated ones excluded): ${JSON.stringify(openGaps)}.${blueRulings.length ? ` GAPS THE BENCH HAS RULED, AND WHAT EACH RULING OBLIGES OF YOU: ${JSON.stringify(blueRulings)}. These are excluded from the open list above, and the exclusion is a RULING, not an oversight. You were previously handed it as a bare SUBTRACTION — a ruled gap simply stopped appearing — and a vindication and an upheld finding are the same absence, so you could not tell a fate you had WON from one you had merely lost sight of. THE BAR IS ON THE PROPOSITION, NOT THE GAP: what you may no longer re-argue in the report is the sentence under settled, not everything the finding touched. WHERE A RULING WENT YOUR WAY IT IS YOURS TO INVOKE — say so on the record and rely on it, rather than quietly re-fixing text the bench has already blessed. A ruling marked final does not reopen; one carrying a reopens_on condition reopens only on that condition and not on a re-reading. THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT — read the bench's opinion for any fate you are about to rely on or work around, because a fate you never read is one you can neither honour nor invoke.` : ''} GRADING SEMANTICS (mapping ${MASS_MAPPING_VERSION}, and NOT inferable from the JSON above — the map is self-describing as structure and silent on meaning): likelihood grades the CONSEQUENCE ONLY — how likely the harm is to land, never how likely the defect is to BE there. A typo you have confirmed, whose harm is trivial, is a LOW likelihood; reading likelihood as confidence-that-it-exists is the v1 semantics this mapping replaced. A claim red graded LOW is where your evidence is thinnest, and it is worth strengthening before red returns to it. Red's corroborations are on the RECORD, not in this prompt: read what red actually verified and at what confidence, rather than a hand-copied snapshot of one round.
-
-BEFORE drafting, read the transcript — the gap JSON above is a lossy summary of it, and it carries any accepted grade-dispute deltas pending their contest window, red's latest narrative, and the bench's latest resolutions. Any gap the judge CARRIED comes with a stated research direction you owe.
-
-ANSWER EVERY OPEN GAP ADDITIVELY in ${runDir}/blue/report.md — expand and repair where red is right, REBUT IN WRITING WITH EVIDENCE where red is wrong, and argue risk-acceptance where the fix's complexity exceeds its likelihood x impact. Compact and reorganize prose as clarity demands — but a CLAIM leaves only by being retired on the record, which names it, why it goes, and what replaces it. Losing one in a rewrite is the failure the additive rule exists to prevent. PROPAGATE EVERY CORRECTION TO ALL SITES that state the corrected claim, not only the flagged sentence — incomplete propagation was run 3's dominant blue failure class, 5 regressions in 5 rounds — and remember that an index of footnoted claims cannot see an unfootnoted restatement of one, so a bare corrected FIGURE needs a report-wide sweep of its own. Log the sites you checked in your round record.${contested.length ? ` CLOSING ARGUMENTS: the following are DOCKETED for adjudication AFTER your response this round: ${JSON.stringify(contested)}. For EACH, after your repairs, argue in ~120 words why your response resolves it, or why red's grade or claim is wrong, citing the exact section and evidence. This is your case; material not in the record cannot help you.` : ''}
-
-DISPUTE RED'S GRADING WHERE YOU DISAGREE WITH IT — on the axis, with the grade you say it should be, and with your evidence. If red rejects it and you still disagree, press it to the bench. List each in the envelope's grade_disputes as a ROUTING REF ONLY (gap_id, dimension, proposed — no prose: the evidence lives on the record, not a second copy in the envelope) so the docket routes it — max ${DISPUTE_CAP} per round, and overflow is batch-docketed to the judge as one item${heldDisputes.size ? `; disputes red REJECTED last round (re-dispute any of these to send it to the judge): ${JSON.stringify([...heldDisputes.values()])}` : ''}. Where a fix demands a probe, discharge a DOCUMENT-PROBE now against shipped artifacts, or for a LIVE-PROBE needing built artifacts name it as a deferred acceptance test with its pass condition — never call a file read a live probe.
-
-AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP (W2b; your constitution carries the full standard): figures recomputed, universals enumerated, consistency sites swept report-wide, the repair's own boundary case asked, compositions noted where edits share text, sibling sweep done or the enumeration declared open, the gap's acceptance check RUN with its result, new claims tagged verified-at-leaf/derived/asserted. Compress what you checked and what it showed into each receipt, and list just those gap IDS in the envelope's manifest array as a routing ref. An unmanifested repair is unaudited by your own standard; the script rejects an EMPTY manifest array on a round with open gaps. Recompute claim_count with the tool after your edits land and relay the integer into the envelope; never hand-count it. ROUND RECORD (W1.7): round_record_appended = TRUE only after BOTH your round narrative AND your round-${round} revision exist. RECORD THE ROUND. On false the script re-prompts you once and, failing that, logs friction and continues — the run is not discarded, but the parity gap is scored against you at capture; a revision is not on the record until the transcript carries it (the round-2 desync misled a lens and blinded the judge, run 5).${patternDutyClause(openGaps)}${inquiryClause}${petitionClause(`blue-respond`)}${frictionClause(`blue-respond`, 'blue')}${speedClause}${recordClause(`blue-respond`)} Return the blue envelope.`,
-    { ...bulk, label: `blue-respond-r${round} · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:blue-researcher', schema: BLUE_ENVELOPE })
-  takeFriction(`blue-respond`, blueEnv)
-  if (!blueEnv) throw new Error(`blue response round ${round} returned null (agent failed) — aborting cleanly`)
-  await ensureRoundRecord(blueEnv, `blue-respond`, `your round-${round} position event (it renders as the "### BLUE" section) AND your round-${round} revision event`,
-    { ...bulk, agentType: 'frank-exchange-of-views:blue-researcher' })
-  if (openGaps.length > 0 && (!Array.isArray(blueEnv.manifest) || blueEnv.manifest.length === 0)) {
-    throw new Error(`manifest (W2b): blue-respond round ${round} repaired ${openGaps.length} gap(s) with an EMPTY correctness manifest — an unmanifested repair is unaudited by blue's own standard`)
-  }
-  if (openGaps.length > 0) {
-    // #318: the array is gap IDS now — the rows themselves are on the record (`blue
-    // manifest-row`). No object fallback: the schema rejects a non-string before this runs, and
-    // accepting both shapes would be the alias that lets the old channel quietly keep working —
-    // which is the exact mechanism that kept this migration half-done for a year.
-    const covered = new Set(blueEnv.manifest || [])
-    const uncovered = openGaps.filter((g) => !covered.has(g.id)).map((g) => g.id)
-    if (uncovered.length) log(`round ${round}: manifest coverage ${covered.size}/${openGaps.length} — unmanifested: ${uncovered.join(', ')} (scored at capture)`)
-  }
-  log(`round ${round}: blue responded — ${openGaps.length} gaps addressed, corpus at ${blueEnv.claim_count} claims${(blueEnv.grade_disputes || []).length ? `, ${(blueEnv.grade_disputes || []).length} grade dispute(s) raised` : ''}`)
-  if (await hearPetitions(blueEnv, `blue-respond`)) break
-
-  // Adjudication sits LAST in the round (closing-arguments redesign, 2026-07-17): the judge
-  // never rules on material blue has not answered — which structurally dissolves the
-  // first-raise-successor dead-options problem the traffic-class patch worked around. The
-  // ruling basis is confined to the two closings, the transcript, and the final state.
-  if (contested.length > 0) {
-    log(`round ${round}: docket — ${contested.length} contested item(s) to the judge (closings filed)`)
-    const judge = await agent(
-      `Adjudication, round ${round}, topic "${topic}". Contested docket: ${JSON.stringify(contested)}.${withheld.length ? ` OPEN GAPS WITHHELD FROM THE DOCKET (with the reason each was withheld): ${JSON.stringify(withheld)}. These are NOT docketed, and you are not obliged to rule on them — but a gap BOTH SIDES argued to closing that reached no ruling is a docket defect, not a decision. If you find one, say so and rule on it: an unadjudicated gap returns to red's verdict pool as though nobody had considered it.` : ''} THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE. It carries ids and grades; a gap's problem text and its acceptance check live on the board, and you read them FRESH before ruling. In the 2026-07-18 run the bench mis-ruled on snapshotted premises that were false by the time it sat. Re-run each document-probe acceptance check against the artifact AS IT NOW STANDS, and rule on what you find rather than on what any snapshot asserts.
-
-YOUR RULING BASIS IS CONFINED TO THREE THINGS: the two sides' closings, the full transcript, and the final state of the artifacts — the board and ${runDir}/blue/report.md as they now stand. Weigh each closing as that side's best case, and a claim in a closing that the record does not support counts AGAINST the side that made it. For every ruling on a gap with a lineage chain, READ THE NAMED ANCESTORS' RECORDS first and NAME what you read in your rationale.${lawClause}${declareClause}
-
-Every docketed gap gets a written ruling: its fate, the principle you applied, the values in tension, whether a human should look at it, your reasoning, and TWO THINGS THE FATE CANNOT SAY — the proposition you are barring, and what would reopen it. Only you know either; the verb's help says what each is for. A bare fate teaches the next round nothing. Two fates are worth naming because they route work OUT of the debate rather than ending it: a gap you CARRY stays live and owes blue a stated research direction, and a valid finding whose FIX is owned outside the debate — run tooling, the harness, the lead — leaves red's verdict pool and ships as a NAMED infrastructure debt, recorded and never dropped. deadlock is true only if no gap is carried AND ${hasNew ? 'false (new gaps were raised this round)' : 'no new gaps were raised this round (none were)'}. AND DEADLOCK IS A FACT ABOUT THE PARTIES, NOT ABOUT YOUR OWN PRODUCTIVITY: if disposing this docket leaves NOTHING open they did not deadlock, they converged in your hands, and red — who owns PASS/FAIL — has not yet passed an empty docket. Are the parties stuck, or did you just finish the work? Say deadlock only for the first.${frictionClause(`judge`, 'bench')}${speedClause}${recordClause(`judge`)} Return the judge envelope.`,
-      { ...judgment, label: `judge-r${round} · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:lead-judge', schema: JUDGE_ENVELOPE })
-    if (!judge) throw new Error(`judge round ${round} returned null (agent failed) — aborting cleanly`)
+  if (halted) break
+  for (const p of benches) {
+    log(`epoch ${epoch}: the bench sits on ${p.gap_ids.join(', ')}`)
+    const judge = await agent(benchPrompt(p.gap_ids), { ...judgment, label: labelFor('judge'), phase: 'Debate', agentType: 'frank-exchange-of-views:lead-judge', schema: JUDGE_ENVELOPE })
+    if (!judge) throw new Error(`bench sitting (epoch ${epoch}) returned null (agent failed) — aborting cleanly`)
     for (const h of judge.holdings || []) holdingsInEffect.push(h)
-    for (const r of judge.resolutions) {
-      if (r.resolution === 'repaired' || r.resolution === 'not_a_defect' || r.resolution === 'defect_accepted' || r.resolution === 'moot' || r.resolution === 'defect_owed_elsewhere') adjudicated.push(r)
-      if (r.resolution === 'defect_owed_elsewhere') infraDebts.push({ gap_id: r.gap_id, owed_fix: r.rationale, round })
-      if (r.resolution === 'carried') {
-        const g = redEnv.gaps.find(x => x.id === r.gap_id)
-        if (g) carriedRulings.set(r.gap_id, gradeSnapshot(g))
-      }
-      if (r.resolution === 'grade_adjusted') gradeAdjustments.push({ gap_id: r.gap_id, rationale: r.rationale })
+    for (const r of judge.resolutions || []) {
+      rulingsInEffect.set(r.gap_id, { gap_id: r.gap_id, resolution: r.resolution, settled: r.settled, reopens_on: r.reopens_on, final: !!r.final, epoch })
+      if (r.resolution === 'defect_owed_elsewhere') infraDebts.push({ gap_id: r.gap_id, owed_fix: r.rationale, epoch })
     }
-    takeFriction(`judge`, judge)
-
-    // DEADLOCK AND A CLEARED BOARD ARE DIFFERENT STATES, and they shared a stamp.
-    //
-    // MEASURED 2026-08-22, in the run that found it: red's round-2 merge refused PASS with two
-    // gaps open ("Two gaps remain open; PASS is refused this round"); the bench then ruled BOTH
-    // in the same sitting (one closed, one defect_owed_elsewhere), clearing the board to
-    // zero; `break` fired here; the run stamped UNVERIFIED with ZERO gaps outstanding. The bench
-    // wrote the defect into its own `certify` rather than banking the stamp: "'red owns
-    // PASS/FAIL' is a stated tiebreaker this run's sequencing arguably sidesteps by letting the
-    // bench's own docket-clearing act substitute for red's affirmative call."
-    //
-    // Deadlock means THE TWO SIDES CANNOT CONVERGE. What happened is the opposite — everything
-    // converged, in the bench's own hands. UNVERIFIED-with-nothing-open is the same
-    // self-contradictory shape the guard above already refuses when red reports FAIL with an
-    // empty gap list; it just arrived by the other road.
-    //
-    // So: ask the board. Gaps still open => the bench found genuine deadlock, terminate. Board
-    // cleared => red is owed one sitting to verdict against it, because red owns PASS/FAIL.
-    //
-    // BOUNDED TWICE, because "one more round" is exactly the shape that runs forever: maxRounds
-    // still caps the loop, and the relief is ONE-SHOT. If red refuses PASS again against a board
-    // the bench cleared again, that IS irreducible disagreement and deadlock stands. The bench
-    // cannot buy unlimited rounds by clearing the docket each time.
-    if (judge.deadlock) {
-      const ruled = new Set(adjudicated.map(x => x.gap_id))
-      const stillOpen = redEnv.gaps.filter(g => !ruled.has(g.id))
-      if (stillOpen.length === 0 && benchClearedBoard === null && round < maxRounds) {
-        benchClearedBoard = 'relief_granted'
-        log(`round ${round}: the bench cleared the board to zero — NOT deadlock. Red owns PASS/FAIL and has not verdicted against an empty docket; granting one further round so it can. This relief fires once.`)
-      } else if (stillOpen.length === 0 && benchClearedBoard === null) {
-        // THE CEILING CANNOT MAKE CONVERGENCE INTO DEADLOCK (#535 step 4, found by the
-        // exhaustive schedule enumeration in integration/fuzz/termination_test.go).
-        //
-        // The relief above was bounded twice on purpose, and one of the two bounds was doing
-        // something it was never meant to do. `round < maxRounds` exists because there is no
-        // further round to grant on the last one — but falling through to the `else` re-stamped
-        // that budget fact as DEADLOCK, and the run ended UNVERIFIED with ZERO gaps outstanding.
-        // That is the same self-contradictory stamp the relief was written to prevent, arriving
-        // by the third road: 15 of 343 enumerated schedules reached it.
-        //
-        // The parties did not fail to converge here. They converged in the bench's hands and the
-        // budget ran out before red could verdict against the board — which is exactly the class
-        // CEILING was created for, and what is owed is nameable: red's sitting against a cleared
-        // docket. So leave `deadlocked` false and break; `exhausted` is already true at this
-        // round and the terminal taxonomy stamps CEILING.
-        benchClearedBoard = 'ceiling_owed_red_a_sitting'
-        log(`round ${round}: the bench cleared the board to zero on the LAST round — not deadlock and not relief, the run ran out of budget before red could verdict against an empty docket. Stamping the ceiling; red's sitting is what is owed.`)
-        break
-      } else {
-        deadlocked = true
-        break
-      }
-    }
+    takeFriction('judge', judge)
+    if (await hearPetitions(judge, 'judge')) break
   }
-
-  // Dispute intake (run-4 §3.3): re-disputed held items go straight to next round's docket;
-  // fresh disputes await red's response; beyond the cap, overflow batch-dockets as ONE item.
-  const raised = blueEnv.grade_disputes || []
-  pendingDisputes = []
-  for (const d of raised.slice(0, DISPUTE_CAP)) {
-    const key = `${d.gap_id}|${d.dimension}`
-    if (heldDisputes.has(key)) {
-      heldDisputes.delete(key)
-      overflowDisputes.push({ ...d, traffic_class: 'grade_dispute_re_raised' })
-    } else {
-      pendingDisputes.push(d)
-    }
-  }
-  if (raised.length > DISPUTE_CAP) overflowDisputes.push(...raised.slice(DISPUTE_CAP).map(d => ({ ...d, traffic_class: 'grade_dispute_over_cap' })))
 }
 
-const exhausted = round >= maxRounds && redEnv && redEnv.verdict !== 'PASS' && !deadlocked
-// Terminal-state taxonomy (rulebook audit item 7). The protocol named two
-// terminators — red-PASS and confirmed deadlock — and runs 3, 5 and the smoke all
-// ended by a THIRD: the round ceiling. Run 5's ceiling fired while the bench had
-// ruled deadlock FALSE and blue had shipped a revision no red pass ever audited,
-// and the template had no verdict class for "converging, ceiling-terminated,
-// final revision unaudited". It was handled by an assembly-owned risk row and an
-// obligation carried out of the run by hand. CEILING is that class, and it says
-// what UNVERIFIED cannot: the run did not fail to converge, it ran out of budget
-// mid-flight, and something specific is owed.
-const ceilingUnaudited = exhausted && !halted && !deadlocked && redEnv && redEnv.verdict !== 'PASS'
-const verdict = halted ? 'HALTED' : redEnv && redEnv.verdict === 'PASS' ? 'VERIFIED' : ceilingUnaudited ? 'CEILING' : 'UNVERIFIED'
-log(`debate ended: ${verdict} after ${round} round(s)${halted ? ' (JUDICIAL HALT)' : deadlocked ? ' (judged deadlock)' : exhausted ? ' (safety ceiling hit)' : ''}`)
+const verdict = halted ? 'HALTED'
+  : (chairEnv && chairEnv.verdict === 'PASS') ? 'VERIFIED'
+  : (lastPlan && lastPlan.ceiling) ? 'CEILING'
+  : 'UNVERIFIED'
+const terminationWhy = halted ? 'judicial halt'
+  : verdict === 'VERIFIED' ? 'the chair recorded PASS with the board permitting it'
+  : verdict === 'CEILING' ? 'every open material gap is at its limit, ruled by the bench and carried'
+  : (lastPlan ? `nobody was ready and neither PASS nor CEILING held: ${(lastPlan.why || []).join('; ')}` : 'the debate ended before any dispatch')
+log(`debate ended: ${verdict} after ${epoch} chair sitting(s)${halted ? ' (JUDICIAL HALT)' : ''} — ${terminationWhy}`)
 
-// Terminal dispute disposition (run-4 §3.3 clause (vi) — exit-agnostic: PASS, deadlock, or
-// ceiling): pending or held disputes at ANY exit auto-docket for judge disposition BEFORE
-// assembly; `carried` is excluded at a terminal exit (there is no next round to carry into) —
-// a carried-at-exit dispute would exit looking disposed while the contested grade ships.
-const terminalDisputes = [
-  ...pendingDisputes.map(d => ({ ...d, traffic_class: 'grade_dispute_terminal_pending' })),
-  ...[...heldDisputes.values()].map(d => ({ ...d, traffic_class: 'grade_dispute_terminal_held' })),
-  ...overflowDisputes,
-]
-if (terminalDisputes.length > 0) {
+// Terminal bench sitting: whatever the record still holds unruled at the exit boundary (grade
+// motions, directions, a petition) is disposed of before assembly — the chair reported the count.
+if (!halted && chairEnv && chairEnv.unruled_motions > 0) {
   const terminalJudge = await agent(
-    `Terminal dispute disposition for topic "${topic}" (debate ended ${verdict} after round ${round}; this docket fires at the exit boundary). Undisposed grade disputes: ${JSON.stringify(terminalDisputes)}. Read the transcript in full, and read the board back, before you rule. ${lawClause}${declareClause}${inspectionClause} NOTHING CAN BE CARRIED AT A TERMINAL EXIT — there is no next round to carry it into. Each dispute either moves to a corrected grade, which you state, or it ships CONTESTED and the report records it as contested. deadlock: false.${frictionClause('judge-terminal', 'bench')}${speedClause}${recordClause('judge-terminal')} Return the judge envelope.`,
+    `Terminal disposition for topic "${topic}" (debate ended ${verdict} after ${epoch} chair sitting(s); this sitting fires at the exit boundary). ${chairEnv.unruled_motions} motion(s) stand unruled on the record — read them back from the record's motions projection, read the transcript in full and the board back, and rule each with a reason. NOTHING CAN BE CARRIED AT A TERMINAL EXIT — there is no next sitting to carry it into. Each grade motion either moves to a corrected grade, which you state, or ships CONTESTED and the report records it as contested.${holdingsClause()}${lawClause}${declareClause}${inspectionClause}${frictionClause('judge-terminal', 'bench')}${speedClause}${recordClause('judge-terminal')} Return the judge envelope.`,
     { ...judgment, label: `judge-terminal · ${slug}`, phase: 'Assemble', agentType: 'frank-exchange-of-views:lead-judge', schema: JUDGE_ENVELOPE })
-  if (terminalJudge) {
-    takeFriction('judge-terminal', terminalJudge)
-    for (const r of terminalJudge.resolutions) {
-      if (r.resolution === 'grade_adjusted') gradeAdjustments.push({ gap_id: r.gap_id, rationale: r.rationale })
-    }
-  }
+  if (terminalJudge) takeFriction('judge-terminal', terminalJudge)
 }
 
-// ---- Assemble: the tool composes from the record; the seat authors nothing ----
-// The assemble seat reads the board last, so it is where the authoritative open-gap
-// count leaves the run. debate.js is sandboxed (no tool, no fs), so this number can
-// only reach the result envelope through a seat — and reporting red's docket length
-// instead (the old gaps_outstanding) misread 10 resolved as 10 outstanding (#83).
 const ASSEMBLE_ENVELOPE = {
   type: 'object',
   additionalProperties: false,
@@ -1300,34 +929,22 @@ const ASSEMBLE_ENVELOPE = {
 }
 phase('Assemble')
 const assembleEnv = await agent(
-  `Final assembly for topic "${topic}", run directory ${runDir}. Debate outcome: ${verdict} after ${round} round(s)${deadlocked ? ' by judged deadlock' : ''}${exhausted ? ' by safety ceiling' : ''}. THE REPORT IS ASSEMBLED FROM THE RECORD — you author NOTHING, you copy NOTHING, you fill in NO inputs. There are no <FILL> fields and no sections for you to write; do not hand-write report.md and do not copy anything into it yourself.
+  `Final assembly for topic "${topic}", run directory ${runDir}. Debate outcome: ${verdict} after ${epoch} chair sitting(s) — ${terminationWhy}. THE REPORT IS ASSEMBLED FROM THE RECORD — you author NOTHING, you copy NOTHING, you fill in NO inputs. There are no <FILL> fields and no sections for you to write; do not hand-write report.md and do not copy anything into it yourself.
 
-FIRST, STAMP HOW THIS RUN ENDED: it is ${verdict}${deadlocked ? ', ended by judged DEADLOCK' : exhausted ? ', ended against the CEILING' : ''}${benchClearedBoard === 'ceiling_owed_red_a_sitting' ? ', and WHAT IT OWES IS NAMEABLE: the bench cleared the board to zero on the final round, so the parties converged in the bench\'s hands and the run ran out of budget before red — who owns PASS/FAIL — could verdict against the empty docket. Record that sitting as what is owed; do NOT report this as a failure to converge' : ''}, and your account of the sitting goes with it — where a run ended by judged deadlock that account is the only evidence the determination will ever have.
+FIRST, STAMP HOW THIS RUN ENDED: it is ${verdict}${halted ? `, ended by JUDICIAL HALT — carry the opinion verbatim: ${haltOpinion}` : ''}${verdict === 'CEILING' ? ', ended at the CEILING: every open material gap reached its limit, the bench ruled on each and carried it — NOT a judged failure to verify' : ''}${verdict === 'UNVERIFIED' ? `, ended UNVERIFIED — nobody was ready and neither PASS nor CEILING held; the plan's reasons are the account: ${terminationWhy}` : ''}. Record it as the run's outcome — ${verdict}${verdict === 'CEILING' ? ', ended at the ceiling' : ''} — with your account of the sitting as the reason; the verdict is derived from the record and the stamp must agree with it.
 
 THEN, TWO THINGS YOU MAY HOLD AND THIS IS YOUR LAST CHANCE TO RECORD EITHER. If you hold something that binds how the RECORD IS READ but moves no gap — a construction of a term, a correction of what the record MEANS rather than what it says, a holding worth offering as precedent — state it, and state it in its own right rather than folding it into an unrelated rationale. And if anything in this run needs A HUMAN to re-examine it — an unresolved tension, a claim that held only because nobody could reach the source, a boundary you ruled close to — say so. You keep no memory between runs, so this is the whole of your continuity.
 
-THEN ASSEMBLE. It writes a SET — ${runDir}/report.md (the research), docket.md, debate.md, judgments.md, evidence.md, run.md, CHANGELOG.md, a README.md index and a tabbed report.html — and a document with nothing in it is not written at all, so a missing judgments.md means no motions were filed rather than a failure. Verify ${runDir}/report.md exists and reads correctly at the top: the verdict stamp is the outcome's, the sections are blue's and the record's. A tool cannot mis-author a synthesis surface — the run-5 catechism defect, where 6/7 answers regressed once assembly authored the catechism, is structurally impossible now, and the TL;DR is blue's, inside the audited report, rather than written after red's final audit where nothing checks it. THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: read it back and report it as open_gaps in your envelope. Collated friction so far (report any of your own as well): ${JSON.stringify(friction)}.${frictionClause('assemble', 'bench')}${speedClause}${recordClause('assemble')} Return your envelope: a 5-line synopsis, open_gaps from the board, and your own friction if any.`,
+THEN ASSEMBLE. It writes a SET — ${runDir}/report.md (the research), docket.md, debate.md, judgments.md, evidence.md, run.md, CHANGELOG.md, a README.md index and a tabbed report.html — and a document with nothing in it is not written at all, so a missing judgments.md means no motions were filed rather than a failure. Verify ${runDir}/report.md exists and reads correctly at the top: the verdict stamp is the outcome's, the sections are blue's and the record's. A tool cannot mis-author a synthesis surface — the TL;DR and the catechism are blue's, inside the audited report. Open gaps below material are listed as open, below material, not certified against. THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: read it back and report it as open_gaps in your envelope. Infra debts the bench named: ${JSON.stringify(infraDebts)}. Collated friction so far (report any of your own as well): ${JSON.stringify(friction)}.${holdingsClause()}${lawClause}${frictionClause('assemble', 'bench')}${speedClause}${recordClause('assemble')} Return your envelope: a 5-line synopsis, open_gaps from the board, and your own friction if any.`,
   { ...judgment, label: `assemble · ${slug}`, agentType: 'frank-exchange-of-views:lead-judge', schema: ASSEMBLE_ENVELOPE })
-
 return {
   runDir,
   verdict,
-  rounds: round,
+  epochs: epoch,
   lanes,
-  deadlocked,
-  // What became of a board the bench cleared to zero on a deadlock ruling: null (it never did),
-  // 'relief_granted' (red was given a further round to verdict against the empty docket), or
-  // 'ceiling_owed_red_a_sitting' (it cleared on the last round, so there was no round to grant and
-  // red's sitting is what the run ran out of budget before buying). Without it, an empty board
-  // under UNVERIFIED reads as a contradiction and a CEILING cannot say what is owed.
-  bench_cleared_board: benchClearedBoard,
-  // The board's open count (via the assemble seat) is authoritative — it reflects every
-  // closure and judge ruling. Fall back to red's docket length only if the seat could not
-  // report it (no binDir / structured return), which is the old, over-counting behaviour.
-  gaps_outstanding: assembleEnv && Number.isInteger(assembleEnv.open_gaps)
-    ? assembleEnv.open_gaps
-    : (redEnv && redEnv.verdict !== 'PASS' ? redEnv.gaps.length : 0),
-  blue_claims: blueEnv ? blueEnv.claim_count : null,
+  termination: lastPlan ? { pass_permitted: !!lastPlan.pass_permitted, ceiling: !!lastPlan.ceiling, why: lastPlan.why || [] } : null,
+  gaps_outstanding: assembleEnv && Number.isInteger(assembleEnv.open_gaps) ? assembleEnv.open_gaps : null,
+  blue_claims: blueEnv2 ? blueEnv2.claim_count : (blueEnv ? blueEnv.claim_count : null),
   infra_debts: infraDebts,
   petitions: petitionLog,
   halted,

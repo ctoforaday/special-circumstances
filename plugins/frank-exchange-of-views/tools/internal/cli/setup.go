@@ -21,7 +21,7 @@ import (
 func newSetup() *cobra.Command {
 	var (
 		topic, model, judgmentModel string
-		maxRounds, lanes            string
+		lanes                       string
 		k, kMax, mintBudget         int
 		convergenceFraction         float64
 		lensAreas                   []string
@@ -50,7 +50,6 @@ func newSetup() *cobra.Command {
 				Model:               model,
 				JudgmentModel:       judgmentModel,
 				Cites:               cites,
-				MaxRounds:           maxRounds,
 				Lanes:               lanes,
 				K:                   k,
 				KMax:                kMax,
@@ -77,7 +76,6 @@ func newSetup() *cobra.Command {
 	f.StringVar(&model, flags.Model, "", "the bulk tier (frontier, blue lanes, red lenses, blue responses)")
 	f.StringVar(&judgmentModel, flags.JudgmentModel, "", "the judgment tier (blue-synthesize, red-chair, judge, assemble)")
 	f.StringArrayVar(&cites, flags.Cite, nil, "a cited path, optionally pinned: <path>[@<commit>] (repeatable)")
-	f.StringVar(&maxRounds, flags.MaxRounds, "", "the round ceiling (recorded in run-config.json for post-hoc readers)")
 	f.StringVar(&lanes, flags.Lanes, "", "the frontier lane count (recorded in run-config.json)")
 	f.IntVar(&k, flags.K, 0, "consecutive exchanges on one gap with no movement before it is at impasse (default 2; recorded in run-config.json)")
 	f.IntVar(&kMax, flags.KMax, 0, "total exchanges on one gap before it is at impasse regardless of movement (default 6; a smoke run passes 2)")

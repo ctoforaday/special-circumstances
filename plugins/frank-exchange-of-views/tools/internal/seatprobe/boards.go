@@ -102,7 +102,12 @@ type Board struct {
 	Name string
 	// Seat is who the board is FOR. A board is built for one seat's sitting; the others are
 	// present only as the authors of the state it inherits.
-	Seat      string
+	Seat string
+	// Lens is the lens seat that mints the board's gaps — and, because the originator closes
+	// (plans/roundless.md §III.B.3), the seat that closes the ones staged Closed. Empty means
+	// `red-lens-evidence`; see Minter. The chair mints nothing: a board staged through it would
+	// record a state no seat can reach, which is what Build exists to refuse.
+	Lens      string
 	Report    string
 	Gaps      []Gap
 	Inquiries []Inquiry
@@ -138,6 +143,18 @@ type Board struct {
 	// production prompt has ever contained that sentence. Withholding the tool makes the block
 	// REAL: the seat discovers it by reaching, which is the sitting the board is for.
 	Deny []string
+}
+
+// DefaultLens is the lens that stages a board's gaps when the board names none.
+const DefaultLens = "red-lens-evidence"
+
+// Minter is the lens seat whose mints the board carries — and whose closes, since a gap belongs
+// to the lens that minted it for its whole life.
+func (b Board) Minter() string {
+	if b.Lens != "" {
+		return b.Lens
+	}
+	return DefaultLens
 }
 
 // arithmetic: the sharpest case for code-not-prose. Every gap turns on a number, and the numbers
@@ -376,8 +393,14 @@ Reversibility under load was not tested.
 	}
 }
 
-// audit: the merge's sitting. A board with an archive, near-duplicate candidates, and grades worth
-// moving.
+// audit: the chair's sitting over the board. An archive to sample, a settled closure to restate,
+// and an open gap that is NOT the chair's to close.
+//
+// THE CHAIR MINTS NOTHING AND CLOSES NOTHING (plans/roundless.md §III.B.3). This board used to
+// demand `mint`, `near-match`, `class new` and `close` of the chair; those are the lens's verbs
+// now and `lens-gaps` demands them of the lens that holds them. What is left here is the chair's
+// own job — running the debate: dispatch the parties, sample the archive, carry what an earlier
+// sitting settled, file the narrative.
 func audit() Board {
 	return Board{
 		Name: "audit", Seat: "red-chair",
@@ -407,9 +430,11 @@ Figures were read from the deployed configuration.
 				Fix:      "Reconcile the universal with the per-class figures.",
 				Check:    "No two sections state incompatible retention figures.", CheckKind: "document",
 				Severity: "high", Likelihood: "certain", Impact: "high", Complexity: "low",
-				Baits: "close",
-				Why: "The ordinary disposal, and the control: a repaired gap is closed WITH its anchor, and " +
-					"a closure with no anchor is the attestation defect the scorecard measures.",
+				Baits: "dispatch",
+				Why: "An OPEN gap on the chair's board, and it is not the chair's: it belongs to the lens " +
+					"that minted it, and only that lens can close it (the originator closes, §III.B.3). " +
+					"The chair's accounted move is to engage that lens through `dispatch next` — closing it " +
+					"itself is refused at the record, and leaving it unmentioned is a board nobody moved.",
 			},
 			{
 				Key: "settled", Class: "figure-recount-fails",
@@ -424,42 +449,28 @@ Figures were read from the deployed configuration.
 					"a non-empty archive is the self-attestation the duty exists to prevent, and the floor is " +
 					"computed from the board rather than taken on the seat's word.",
 			},
-			{
-				Key: "overgraded", Class: "metric-conflation",
-				Location: `Retention is 30 days across every class, and the figures below agree.`,
-				Problem:  "Two different measurements are presented as one figure.",
-				Fix:      "Separate the two measurements.",
-				Check:    "Each figure names what it measures.", CheckKind: "document",
-				Severity: "certain", Likelihood: "certain", Impact: "high", Complexity: "low",
-				Baits: "regrade",
-				Why: "Graded at the top of the scale for a presentational defect. When blue contests it and " +
-					"the merge ACCEPTS, the grade must actually move — accepting a motion and leaving the " +
-					"number is a channel with no consequence, which is what the regrade verb exists to close.",
-			},
 		},
 		Inquiries: []Inquiry{
 			{Line: "re-read the deployed configuration at the pin", Hypothesis: "the 45-day figure is the correct one"},
 		},
 		Expect: []Expectation{
-			{Seat: "red-chair", Verb: "mint", Because: "The control: red's core act, and a board where minting is never right would not be an audit."},
-			{Seat: "red-chair", Verb: "near-match", Because: "Before minting, the candidate is screened against the board. A duplicate minted as fresh forks a gap's lineage, and the screen is cheaper than the reconciliation."},
-			{Seat: "red-chair", Verb: "class new", Because: "The contradiction is between a stated UNIVERSAL and the per-class figures under it, and no slug in the registry names that kind. Minting under the nearest slug that is not it makes the class a bucket rather than a discriminator — the registry is what a later run reads to know what has gone wrong before, so a coined class with its definition, neighbour and tie-break question is worth more than a comfortable near-match."},
-			{Seat: "red-chair", Verb: "close", Because: "The ordinary disposal, with its verification triple. A closure whose evidence is not recoverable is exactly the attestation-format defect the scorecard measures."},
-			{Seat: "red-chair", Verb: "carry", Because: "The archive already holds a closure of the settled gap. Re-attesting it as a FRESH close double-counts closure history and corrupts the repair_regression denominator; a carry restates the earlier act and says so. The seat that cannot produce a verification triple for work it did not do this sitting has exactly one honest move, and it is this one."},
+			{Seat: "red-chair", Verb: "dispatch", Because: "The chair's sitting BEGINS here, and this board has an open gap the chair cannot close: the record says who sits — the lens that minted it, the blue seat answering — and the chair relays it. A chair that names parties from its own reading, or reaches for a `close` it no longer has, has reopened the self-assertion channel the verb closes."},
+			{Seat: "red-chair", Verb: "carry", Because: "The archive already holds the lens's closure of the settled gap. The chair has no `close` at all now, so the temptation is not a fresh triple but silence — and a settled gap nobody restates reads as one nobody checked. A carry restates the earlier act and says so, without re-attesting work this seat did not do; re-attesting it would double-count closure history and corrupt the repair_regression denominator."},
 			{Seat: "red-chair", Verb: "spot-check", Because: "The archive is NOT empty, so the duty has something to sample and `--none` would be a false attestation. The floor is computed from the board, so skipping it is visible."},
-			{Seat: "red-chair", Verb: "position", Because: "The round's RED narrative renders from the record; hand-writing the transcript is the routing-around this migration removed."},
-			{Seat: "red-chair", Verb: "log", Because: "The contradiction gap needs a grade on an axis the four dimensions do not carry — `existence` is asserted by red and disputable by nobody (#359). A merge that notices and says nothing leaves the gap in the tooling invisible."},
+			{Seat: "red-chair", Verb: "position", Because: "The sitting's RED narrative renders from the record; hand-writing the transcript is the routing-around this migration removed."},
+			{Seat: "red-chair", Verb: "log", Because: "The contradiction gap needs a grade on an axis the four dimensions do not carry — `existence` is asserted by red and disputable by nobody (#359). A chair that notices and says nothing leaves the gap in the tooling invisible."},
 		},
 	}
 }
 
-// adjudicate: the merge's OTHER sitting. Blue has answered, contested a grade and proposed a
+// adjudicate: the chair's OTHER sitting. Blue has answered, contested a grade and proposed a
 // line; this board is about responding, not sweeping.
 //
 // SPLIT OUT OF `audit`, and the coherence gate is what forced it: one board demanding eleven verbs
 // is a checklist, and a seat working through a checklist is not choosing. The split is the honest
-// shape anyway — sweeping the artifact and answering blue are two different sittings in a real
-// epoch.
+// shape anyway — the archive and blue's motions are two different sittings in a real epoch. The
+// `regrade` this board once demanded after an accepted grade motion is the ORIGINATING LENS's act
+// now (§III.B.3) and `lens-gaps` demands it there; the chair's half of that exchange is the ruling.
 func adjudicate() Board {
 	return Board{
 		Name: "adjudicate", Seat: "red-chair",
@@ -514,7 +525,6 @@ Figures were read from the deployed configuration at the pinned revision.
 		}},
 		Expect: []Expectation{
 			{Seat: "red-chair", Verb: "motion grade rule", Because: "Blue's contest is answered on the motion's id. An unanswered motion refuses a PASS, so ignoring it stops the run rather than passing quietly."},
-			{Seat: "red-chair", Verb: "regrade", Because: "Accepting a grade motion does not move the grade — saying so is not doing it. The regrade verb is the only channel; re-minting forks the gap's identity and editing prose changes a number nobody reads. THIS EXPECTATION PRESUMES A RULING AND THAT IS DELIBERATE: blue's basis is that both figures are correct and only their framing conflates them, which is either true of the report or it is not, and it IS true of this one — so accepting is the right call and the regrade must follow it. A seat that REJECTS the motion has answered honestly and owes no regrade; read an unmet expectation here against the ruling the seat actually made, not as a missing verb."},
 			{Seat: "red-chair", Verb: "motion inquiry rule", Because: "Blue proposed a line and it is unruled. Red had no verb to reject a direction for six runs and rejected none; the projection blue reads shows an unruled line as one nobody has sat on."},
 			{Seat: "red-chair", Verb: "inquiry-support", Because: "The report's own account of what this run investigated is part of the report, and it is the one part `lens verify` cannot reach — assemble GENERATES those rows, so they carry no citation anchor. The vote is per-epoch and `verdict --as PASS` is refused while any line is unvoted, so skipping it stops the run rather than passing quietly. The bait is answering from the record instead of the document: the grade is a conclusion, and --reason must quote what the report SAYS at that line."},
 			{Seat: "red-chair", Verb: "closing", Because: "Every gap red re-raises and every grade motion it rules `rejected` is docket-bound, and the closing is red's case to the bench."},
@@ -551,6 +561,9 @@ The working group's standard has been withdrawn since the benchmark was run.
 			Script:   "print('improvement: 40%')",
 		}},
 		Expect: []Expectation{
+			{Seat: "red-lens-evidence", Verb: "mint", Because: "The lens's core act since the chair stopped transcribing (roundless §III.B.3): a defect it can anchor to a sentence goes on the board as ITS gap, graded on every axis, against its own budget. The withdrawn standard is exactly that — a methodology claim whose foundation is gone."},
+			{Seat: "red-lens-evidence", Verb: "near-match", Because: "Before minting, the candidate is screened against the board, open and archived. A duplicate minted as fresh forks the lineage; the screen is a tool op and the lens runs it — the chair's eye is not in the loop any more."},
+			{Seat: "red-lens-evidence", Verb: "class new", Because: "A defect whose class the registry does not carry gets a class coined for it, by the seat that found it, rather than filed under the nearest wrong name."},
 			{Seat: "red-lens-evidence", Verb: "finding", Because: "The lens's whole act. A finding anchors into the report at a quoted sentence and is refused if the quote is not there, so it cannot be filed against text nobody wrote."},
 			{Seat: "red-lens-evidence", Verb: "verify", Because: "A cited claim is checked against what the source actually says, and the confidence is the whole content of that check. Reading the source and saying so in prose leaves the citation ledger empty."},
 			{Seat: "red-lens-evidence", Verb: "corroborate", Because: "The methodology claim rests on a standard BLUE NEVER CITED, so there is no anchor to verify against — and `verify` requires one. The source red goes and finds is its own act with its own verb, and the alternative is a lens that reads the standard, learns it was withdrawn, and has nowhere to put that but prose."},
@@ -562,6 +575,59 @@ The working group's standard has been withdrawn since the benchmark was run.
 }
 
 // sitting: the bench. A docket to dispose of, a run to end, and a boundary to hold.
+// lensDispose is the lens sitting AFTER its gap was answered: the report now carries the
+// derivation G1 asked for and blue's grade motion on G1 was accepted by the chair. Two moves are
+// right and both are the originator's alone — regrade to the accepted grade, close with the
+// verification triple — because a gap belongs to the lens that minted it (plans/roundless.md
+// §III.B.3). Split from lens-audit so neither board is a checklist.
+func lensDispose() Board {
+	return Board{
+		Name: "lens-dispose", Seat: "red-lens-evidence",
+		Report: `# What does the benchmark actually measure? — research report
+
+## TL;DR
+
+The benchmark measures end-to-end latency and shows a 40% improvement.
+
+## Findings
+
+The benchmark measures end-to-end latency.
+
+The improvement is 40% against the prior release.
+
+Baseline: median latency 250 ms over 1,000 requests on release 1.4; measured: 150 ms over the same 1,000 requests on release 1.5; (250 − 150) / 250 = 40%.
+
+The methodology follows the standard published by the working group.
+`,
+		// THE LENS'S OWN GAP (plans/roundless.md §III.B.3): minted by this seat at staging, so its
+		// regrade and its close are this seat's to make. Blue contested the severity and the chair
+		// accepted the motion — an accepted grade motion is a grade the ORIGINATOR now owes a regrade
+		// for; and the report states the derivation the check asked for, so the close is legal.
+		Gaps: []Gap{{
+			Key: "improvement", Class: "derivation-status-overclaim",
+			Location: `The improvement is 40% against the prior release.`,
+			Problem:  "A headline figure with no derivation a reader can re-run.",
+			Fix:      "State the baseline, the measurement and the arithmetic, or drop the percentage.",
+			Check:    "The report states the baseline, the measurement and the arithmetic behind the 40%.", CheckKind: "document",
+			Severity: "high", Likelihood: "high", Impact: "medium", Complexity: "low",
+			Baits: "close",
+			Why: "The report now states the derivation the gap asked for, so the acceptance check is met on the " +
+				"page — and the lens that minted this gap is the one seat that may close it; the chair has no close verb.",
+		}},
+		Motions: []Motion{{
+			Subject: "grade", Filer: "blue-respond", GapID: "G1",
+			Dimension: "severity", Proposed: "medium",
+			Basis:    "the figure is reproducible from the proof now on the board; what remains is presentation, not correctness",
+			Ruled:    "accepted",
+			RuledWhy: "the proof answers the check; the residual defect is that the derivation is not IN the report, which is material but not serious",
+		}},
+		Expect: []Expectation{
+			{Seat: "red-lens-evidence", Verb: "regrade", Because: "Blue's grade motion on G1 was accepted by the chair, and accepting a motion does not move the grade — saying so is not doing it. The regrade is the ORIGINATOR's act; nobody else's regrade lands on this gap."},
+			{Seat: "red-lens-evidence", Verb: "close", Because: "The ordinary disposal, with its verification triple, by the one seat allowed to make it. The report states the derivation G1 asked for; a closure whose evidence is not recoverable is the attestation-format defect the scorecard measures."},
+		},
+	}
+}
+
 func sitting() Board {
 	return Board{
 		Name: "sitting", Seat: "judge",
@@ -740,7 +806,7 @@ The comparison rests on the operator's own cost model, which is not published.
 // Boards is every named starting position, keyed by name.
 func Boards() map[string]Board {
 	out := map[string]Board{}
-	for _, b := range []Board{arithmetic(), sources(), docket(), audit(), adjudicate(), lensAudit(), sitting(), boundary(), blocked()} {
+	for _, b := range []Board{arithmetic(), sources(), docket(), audit(), adjudicate(), lensAudit(), lensDispose(), sitting(), boundary(), blocked()} {
 		out[b.Name] = b
 	}
 	return out
@@ -781,7 +847,7 @@ var NoSituation = map[string]string{
 // STATED RATHER THAN SILENTLY EXCLUDED. A coverage gate whose exemptions are invisible reports
 // full coverage of whatever it happened to check, which is the shape this suite keeps finding.
 var AlwaysTaken = map[string]string{
-	"ingest":   "the round-0 report's ONE-TIME freeze into the record, run once by its author at synthesis (#709). It is not a response to board state — it happens before the chair ever sits, exactly once, so no board bakes for it any more than one bakes for register",
+	"ingest":   "the synthesized report's ONE-TIME freeze into the record, run once by its author at synthesis (#709). It is not a response to board state — it happens before the chair ever sits, exactly once, so no board bakes for it any more than one bakes for register",
 	"assemble": "the LAST step of the workflow runs it, so whether a bench reaches for it is not a choice the probe can observe — the engine invokes it either way. Testing it here would measure the engine, and the engine has its own gates",
 	"register": "every seat's FIRST act, in every prompt and every constitution — a seat that skips it cannot write at all, so no board has to make it attractive",
 	"show":     "the read path. Every board demands it implicitly because a seat that acts without reading the board is not choosing, and the probe measures reading separately (the first haiku seat read five projections before acting)",

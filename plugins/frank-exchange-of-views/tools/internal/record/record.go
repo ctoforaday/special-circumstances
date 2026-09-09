@@ -776,6 +776,11 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 			}
 		}
 	case *recordpb.Close:
+		if b.CarriedFrom == nil {
+			if err := requireOriginator(run, b.GetGapId(), seatID, "close"); err != nil {
+				return err
+			}
+		}
 		ids, err := allGapIDs(run)
 		if err != nil {
 			return err
@@ -789,7 +794,7 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 		// `p.Has` asked exactly that and the check below is what stops it laundering an
 		// unverified closure past the anchor requirement.
 		if !anchored && b.CarriedFrom == nil {
-			return fmt.Errorf("record: close requires the verification triple (--verified-by --verified-with --verified-against) — an unverified closure is unauditable (E0.5a). To restate a closure an earlier round already made, use `merge carry --carried-from <round>` instead")
+			return fmt.Errorf("record: close requires the verification triple (--verified-by --verified-with --verified-against) — an unverified closure is unauditable (E0.5a). To restate a closure an earlier sitting already made, use `merge carry --carried-from <epund>` instead")
 		}
 		// --carried-from IS A LINEAGE CLAIM, so it is checked like one.
 		//
@@ -813,7 +818,7 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 				return err
 			}
 			if len(prior) == 0 {
-				return fmt.Errorf("record: carry claims gap %s was closed in an earlier round, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through `merge close` with --verified-by/--verified-with/--verified-against", b.GetGapId())
+				return fmt.Errorf("record: carry claims gap %s was closed in an earlier sitting, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through `merge close` with --verified-by/--verified-with/--verified-against", b.GetGapId())
 			}
 		}
 		if err := requireGap(run, b.GetSuccessor(), "close", "--superseded-by"); err != nil {
@@ -831,7 +836,7 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 		// is separately checked against a real prior closure below.
 		if b.CarriedFrom == nil {
 			if err := requireOpenGap(run, b.GetGapId(), "close", "--id",
-				"closing it twice double-counts closure history and corrupts the repair_regression denominator; use `merge carry --carried-from <round>` to RESTATE an earlier closure"); err != nil {
+				"closing it twice double-counts closure history and corrupts the repair_regression denominator; use `merge carry --carried-from <epoch>` to RESTATE an earlier closure"); err != nil {
 				return err
 			}
 		}
@@ -945,6 +950,9 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 			return fmt.Errorf("record: a finding must carry a label — the tool assigns L{role}-F{N}; an unlabelled finding can never be credited in a gap's found_by and its work is lost")
 		}
 	case *recordpb.Regrade:
+		if err := requireOriginator(run, b.GetGapId(), seatID, "regrade"); err != nil {
+			return err
+		}
 		if err := requireGap(run, b.GetGapId(), "regrade", "--id"); err != nil {
 			return err
 		}
@@ -1040,7 +1048,7 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 		// have no reopening to answer for, so the check is on the arm rather than the event.
 		if d, ok := b.GetRuling().(*recordpb.MotionRule_Docket); ok {
 			if d.Docket.ReopensOn == nil && d.Docket.Final == nil {
-				return fmt.Errorf("record: motion docket rule requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted round")
+				return fmt.Errorf("record: motion docket rule requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted sitting")
 			}
 			if d.Docket.ReopensOn != nil && d.Docket.Final != nil {
 				return fmt.Errorf("record: --final says nothing would reopen this and --reopens-on names what would. They are opposite answers to one question; pass exactly one")
@@ -1384,4 +1392,27 @@ func requireMintWithinBudget(run Run, seatID string) error {
 			"The budget is where a trifle's cost lands: with %d mints for a report, none of them is spent on a nitpick. "+
 			"You can still verify, record findings, and regrade or close the gaps you minted; what you found now goes in a finding, not a gap",
 		seatID, n, p.MintBudget)
+}
+
+// requireOriginator is "the originator closes" (plans/roundless.md §III.B.3): a gap belongs to the
+// lens that minted it for its whole life, so its regrade and its close are that lens's acts and
+// nobody else's — the chair dispatches the lens when the gap needs acting on, and the bench
+// disposes of a docketed gap through its ruling, not through a close. A carry is exempt at the
+// call site: it restates a closure the archive already holds and is the chair's account.
+//
+// Migration is not exempt and needs no exemption: an archived run's closes were the merge's on
+// the merge's own mints, and both translate to the chair.
+func requireOriginator(run Run, gapID, seatID, verb string) error {
+	if gapID == "" {
+		return nil // the missing-id refusal is the verb's own
+	}
+	var mintedBy string
+	found, err := queryRow(run, []any{&mintedBy}, `SELECT COALESCE("minted_by", '') FROM "gap" WHERE "gap_id" = ?`, gapID)
+	if err != nil || !found || mintedBy == "" || mintedBy == seatID {
+		return err // an unknown gap is requireGap's refusal, not this one's
+	}
+	return feov.Errorf(feov.Validation,
+		"record: %s refused — %s was minted by %s, and the originator %ss its own gap; %s cannot. "+
+			"If the gap needs acting on, the chair's `dispatch next` engages its lens; if it needs the bench, it is docketed at impasse",
+		verb, gapID, mintedBy, verb, seatID)
 }

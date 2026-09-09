@@ -79,7 +79,7 @@ func TestBenchCarriedLeavesTheGapOpenWhileClosedDoesNot(t *testing.T) {
 	}
 }
 
-// The full grade dispute: blue contests, red accepts, red regrades. The regrade is a
+// The full grade dispute: blue contests, the chair accepts, the originating lens regrades. The regrade is a
 // SEPARATE act from the acceptance, and the board must end up showing the moved grade —
 // an accepted dispute that never moves the grade is agreement with no consequence.
 func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
@@ -95,10 +95,10 @@ func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
 		"--id", "M1", "--as", "accepted", "--reason", "the bound holds; regrading"); err != nil {
 		t.Fatalf("motion grade rule: %v", err)
 	}
-	if _, err := run(t, "regrade", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := run(t, "regrade", "--run", runDir, "--seat-id", lensSeat,
 		"--id", id, "--severity", "low",
 		"--reason", "blue's dispute is accepted — the caller validates, so the blast radius is one call"); err != nil {
-		t.Fatalf("red regrade: %v", err)
+		t.Fatalf("lens regrade: %v", err)
 	}
 
 	ev := lastBody(t, runDir, &recordpb.Regrade{})
@@ -232,7 +232,7 @@ func TestClosureWithSuccessorNamesWhereTheResidueWent(t *testing.T) {
 	first := mintGap(t, runDir, "partial-repair", "residue-carrying")
 	next := mintGap(t, runDir, "the-residue", "residue-carrying")
 
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", first, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/parser",
 		"--superseded-by", next,
@@ -292,16 +292,16 @@ func TestAnAbsentFlagIsNotWrittenAsEmpty(t *testing.T) {
 	runDir := seatRun(t)
 	// The gap has to exist: `close --id` is a reference the record checks, and G1 is what the
 	// first mint of the round is assigned.
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--class", "x", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
-		t.Fatalf("merge mint: %v", err)
+		t.Fatalf("lens mint: %v", err)
 	}
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", "G1", "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x",
 		"--reason", "the repair was verified at the leaf"); err != nil {
-		t.Fatalf("merge close: %v", err)
+		t.Fatalf("lens close: %v", err)
 	}
 
 	c := lastBody(t, runDir, &recordpb.Close{})

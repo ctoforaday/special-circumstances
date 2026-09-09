@@ -9,7 +9,7 @@
 //
 //	.claude/run-live.json   present
 //	dashboard header        "Seats live now"
-//	progress bar            "round 1: live"
+//	progress bar            "epoch 1: live"
 //	ETA                     "projected 3-3 min remaining"
 //	cost                    unchanged, which reads as a quiet moment
 //

@@ -360,12 +360,12 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 			Value: manifested, Note: "manifest-row events counted; envelopes do not report a repaired-gap denominator, so this is a COUNT not a ratio"})
 	}
 
-	// round_parity_failures
+	// sitting_record_failures
 	attested, claimed := 0, 0
 	for _, r := range results {
-		if _, present := r["round_record_appended"]; present {
+		if _, present := r["sitting_record_appended"]; present {
 			claimed++
-			if b, ok := r["round_record_appended"].(bool); ok && b {
+			if b, ok := r["sitting_record_appended"].(bool); ok && b {
 				attested++
 			}
 		}
@@ -374,7 +374,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	if claimed == 0 {
 		note = "no envelope carried the attestation field"
 	}
-	rows = append(rows, Row{Clause: "Round on the record", Metric: "round_parity_failures", Cls: "detector",
+	rows = append(rows, Row{Clause: "Sitting on the record", Metric: "sitting_record_failures", Cls: "detector",
 		Value: claimed - attested, Note: note})
 
 	// unrecorded_claim_loss

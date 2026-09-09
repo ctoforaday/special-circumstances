@@ -37,50 +37,49 @@ import (
 //	               ONLY thing that seats a judge at all. The first epoch cannot have one (nothing
 //	               persists yet, and no dispute is pending), which is why no board may name `judge`.
 func backendFor(b Board) debatejs.Backend {
-	gaps := make([]any, 0, len(b.Gaps))
+	ids := make([]any, 0, len(b.Gaps))
 	manifest := make([]any, 0, len(b.Gaps))
-	for i, g := range b.Gaps {
-		// THE ID IS THE RECORD'S. `mint` assigns G<n> in board order (record.MintGapID, one
-		// run-global sequence), which is what the staged board carries (build.go) — so the JSON
-		// debate.js threads into blue's prompt names the same gaps the seat will find under `show
-		// board`. A separate id space here would put the seat in front of a docket that does not
-		// exist.
+	for i := range b.Gaps {
 		id := fmt.Sprintf("G%d", i+1)
-		// REFS ONLY, BECAUSE THAT IS THE SCHEMA. RED_ENVELOPE's gap items declare exactly
-		// id/severity/likelihood/impact/complexity_cost/supersedes and debate.js says why in its
-		// own comment: the prose — location, problem, required_fix, acceptance_check — is written
-		// to the BOARD by `mint` and read back from the record, never round-tripped through the
-		// envelope. Enriching this map would render a prompt fuller than the contract guarantees,
-		// which is the same class of flattery the whole fidelity pass removed.
-		gaps = append(gaps, map[string]any{
-			"id": id, "severity": g.Severity, "likelihood": g.Likelihood,
-			"impact": g.Impact, "complexity_cost": g.Complexity, "supersedes": []any{},
-		})
+		ids = append(ids, id)
 		manifest = append(manifest, id)
 	}
-	disputes := make([]any, 0)
-	for _, m := range b.Motions {
-		if m.Subject == "grade" && m.GapID != "" {
-			disputes = append(disputes, map[string]any{
-				"gap_id": m.GapID, "dimension": m.Dimension, "proposed": m.Proposed,
-			})
-		}
+	// THE CHAIR RELAYS A PLAN (plans/roundless.md §III.B.1), and the plan is what dispatches the
+	// seat under probe: its first sitting engages the board's seat on the board's gaps — a lens,
+	// blue, or the bench (docketed) — and its second sitting permits PASS and records it, which
+	// ends the run. A chair board is captured at the first sitting either way.
+	engaged := []any{}
+	docket := []any{}
+	switch {
+	case strings.HasPrefix(b.Seat, "red-lens-"), b.Seat == "blue-respond":
+		engaged = append(engaged, map[string]any{"seat_id": b.Seat, "gap_ids": ids})
+	case b.Seat == "judge":
+		engaged = append(engaged, map[string]any{"seat_id": "judge", "gap_ids": ids})
+		docket = ids
+	}
+	plan := func(parties []any, pass bool, dk []any) map[string]any {
+		return map[string]any{"head": 2, "parties": parties, "docket": dk, "pass_permitted": pass, "ceiling": false, "why": []any{"seatprobe capture"}}
 	}
 	return func(seatID, label, prompt string) debatejs.Envelope {
 		e := debatejs.Envelope{
-			"synopsis": "seatprobe capture", "verdict": "FAIL", "citations_checked": 0,
-			"gaps": []any{}, "petitions": []any{}, "log": []any{}, "rulings": []any{},
-			"closures": []any{}, "dispute_responses": []any{}, "deadlock": false,
-			"resolutions": []any{}, "grade_disputes": []any{},
+			"synopsis": "seatprobe capture", "petitions": []any{}, "log": []any{}, "rulings": []any{},
+			"resolutions": []any{}, "holdings": []any{},
 			"manifest": manifest, "claim_count": len(b.Claims),
-			"saturation_reached": false, "round_record_appended": true,
-			"open_gaps": []any{},
+			"saturation_reached": false, "sitting_record_appended": true,
+			"open_gaps": 0, "unruled_motions": 0,
 		}
 		switch {
 		case strings.HasPrefix(seatID, "red-chair"):
-			e["gaps"] = gaps
-		case strings.HasPrefix(seatID, "blue-respond"):
-			e["grade_disputes"] = disputes
+			if strings.Contains(label, "#1 ") || strings.HasSuffix(label, "#1") {
+				e["plan"] = plan(engaged, false, docket)
+				if len(engaged) == 0 {
+					e["plan"] = plan([]any{}, true, []any{})
+					e["verdict"] = "PASS"
+				}
+			} else {
+				e["plan"] = plan([]any{}, true, []any{})
+				e["verdict"] = "PASS"
+			}
 		}
 		return e
 	}
@@ -93,7 +92,7 @@ func backendFor(b Board) debatejs.Backend {
 // seat production does not seat.
 func ProductionPrompt(scriptPath string, b Board, runDir, binDir, model, judgmentModel string) (debatejs.Dispatch, error) {
 	ds, err := debatejs.Capture(scriptPath, debatejs.Config{
-		Topic: b.Name, RunDir: runDir, BinDir: binDir, Lanes: 1, MaxRounds: 3,
+		Topic: b.Name, RunDir: runDir, BinDir: binDir, Lanes: 1,
 		Model: model, JudgmentModel: judgmentModel, Backend: backendFor(b),
 	})
 	if err != nil {

@@ -57,7 +57,7 @@ func baseModel(t *testing.T, runDir string) Model {
 			{Epoch: i32p(2), Opened: 1, Closed: 2, Open: i32p(2), CloseRate: 50},
 		},
 		Judiciary: judFixture(),
-		Config:    Config{Topic: "does the widget converge", Model: "sonnet", JudgmentModel: "opus", MaxRounds: "8", Lanes: "3"},
+		Config:    Config{Topic: "does the widget converge", Model: "sonnet", JudgmentModel: "opus", Lanes: "3"},
 		Generated: "2025-01-16T00:00:00.000Z",
 	}
 }
@@ -155,7 +155,7 @@ func TestBuildModelConfigAndCost(t *testing.T) {
 		[]byte(`{"agentId":"a","result":{"verdict":"FAIL","gaps":[]}}`+"\n"), 0o644)
 
 	m := BuildModel(runtest.Open(t, runDir), tr, Config{Lanes: "9"}, 1737000000000)
-	if m.Config.Model != "haiku" || m.Config.MaxRounds != "6" {
+	if m.Config.Model != "haiku" {
 		t.Errorf("file config not merged: %+v", m.Config)
 	}
 	if m.Config.Lanes != "9" {

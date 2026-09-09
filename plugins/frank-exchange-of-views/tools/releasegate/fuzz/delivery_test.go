@@ -87,10 +87,11 @@ func TestEveryEnvelopeFieldThatMustTravelReachesAReader(t *testing.T) {
 			"closures": []any{}, "dispute_responses": []any{}, "deadlock": false,
 			"resolutions": []any{}, "grade_disputes": []any{}, "holdings": []any{},
 			"manifest": []any{"G1", "G2"}, "claim_count": 3,
-			"saturation_reached": false, "round_record_appended": true, "open_gaps": []any{},
+			"saturation_reached": false, "sitting_record_appended": true, "open_gaps": []any{},
 		}
 		switch {
 		case strings.HasPrefix(seatID, "red-chair"):
+			relayScriptedPlan(e, label, benchThenBlue)
 			e["gaps"] = gaps
 			e["notes"] = redNotes
 			e["log"] = []any{redFriction}
@@ -111,7 +112,7 @@ func TestEveryEnvelopeFieldThatMustTravelReachesAReader(t *testing.T) {
 		t.Fatalf("locating the shipped debate.js: %v", err)
 	}
 	ds, err := debatejs.Capture(script, debatejs.Config{
-		Topic: "delivery", RunDir: t.TempDir(), BinDir: t.TempDir(), Lanes: 1, MaxRounds: 3,
+		Topic: "delivery", RunDir: t.TempDir(), BinDir: t.TempDir(), Lanes: 1,
 		Model: "haiku", JudgmentModel: "haiku", Backend: backend, Timeout: 2 * time.Minute,
 	})
 	if err != nil {

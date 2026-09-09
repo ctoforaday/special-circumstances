@@ -50,6 +50,10 @@ var Seats = []struct{ Role, ID string }{
 }
 
 // Build materialises a board into runDir.
+// stagingLenses are the lens seats the builder mints a board through, in rotation. Four, like the
+// default cast, so a board of up to twenty gaps stays within each lens's default budget of five.
+var stagingLenses = []string{"red-lens-evidence", "red-lens-logic", "red-lens-dark-side", "red-lens-voice"}
+
 func Build(run record.Run, b Board, exec Exec) error {
 	if err := os.MkdirAll(filepath.Join(run.Dir(), "blue"), 0o755); err != nil {
 		return err
@@ -57,17 +61,17 @@ func Build(run record.Run, b Board, exec Exec) error {
 	if err := os.WriteFile(filepath.Join(run.Dir(), "blue", "report.md"), []byte(b.Report), 0o644); err != nil {
 		return err
 	}
-	// INGEST THE ROUND-0 REPORT, THEN THERE IS NO FILE (#709). blue-synthesize is the one seat
+	// INGEST THE SYNTHESIZED REPORT, THEN THERE IS NO FILE (#709). blue-synthesize is the one seat
 	// allowed to ingest: it records the base and deletes the file, and every later verb reads and
 	// mutates the report THROUGH THE RECORD. This mirrors production, where the engine ingests right
-	// after synthesis and before the rounds — so the base exists when the first render-reading verb
+	// after synthesis and before any sitting — so the base exists when the first render-reading verb
 	// (mint's --quote check, cite, prove) runs. Its register is the FIRST, which is what triggers the
 	// probe's record separation before StageForRun resolves the root below.
 	if _, err := exec("register", "--run", run.Dir(), "--seat-id", "blue-synthesize"); err != nil {
 		return fmt.Errorf("register blue-synthesize: %w", err)
 	}
 	if _, err := exec("ingest", "--run", run.Dir(), "--seat-id", "blue-synthesize"); err != nil {
-		return fmt.Errorf("ingest the round-0 report: %w", err)
+		return fmt.Errorf("ingest the synthesized report: %w", err)
 	}
 	// THE BUILD REGISTERS THESE SEATS AS THE HARNESS, NOT AS THE AGENT THAT WILL HOLD THEM.
 	//
@@ -112,8 +116,17 @@ func Build(run record.Run, b Board, exec Exec) error {
 		return fmt.Errorf("stage the class registry: %w", err)
 	}
 
+	// LENSES MINT (plans/roundless.md §III.B.3). The staged gaps are minted by lens seats — rotated
+	// over the default areas so no lens spends more than its budget on a large board — and each
+	// gap is closed by the lens that minted it, because the originator closes.
+	for _, lensSeat := range stagingLenses {
+		if _, err := exec("register", "--run", run.Dir(), "--seat-id", lensSeat); err != nil {
+			return fmt.Errorf("register %s: %w", lensSeat, err)
+		}
+	}
 	for i, g := range b.Gaps {
-		if _, err := exec("mint", "--run", run.Dir(), "--seat-id", "red-chair",
+		minter := stagingLenses[i%len(stagingLenses)]
+		if _, err := exec("mint", "--run", run.Dir(), "--seat-id", minter,
 			"--key", g.Key, "--class", g.Class,
 			"--quote", g.Location, "--problem", g.Problem, "--fix", g.Fix,
 			"--check", g.Check, "--check-kind", g.CheckKind,
@@ -144,15 +157,15 @@ func Build(run record.Run, b Board, exec Exec) error {
 		}
 		// A CLOSED gap so the archive is not empty: `spot-check` against an empty one has nothing
 		// to sample, so a board that wants the duty exercised has to give it something.
-		if _, err := exec("close", "--run", run.Dir(), "--seat-id", "red-chair",
+		if _, err := exec("close", "--run", run.Dir(), "--seat-id", minter,
 			"--id", gapID, "--as", "repaired", "--verified-by", "L1", "--verified-with", "git show",
 			"--verified-against", "HEAD:config", "--reason", "verified at the leaf against the pinned config"); err != nil {
 			return fmt.Errorf("close %s: %w", gapID, err)
 		}
 	}
 
-	// RED'S ROUND-1 NARRATIVE, so the transcript blue is sent to read exists. Filed AFTER the gaps
-	// it accounts for and BEFORE anything that answers it, which is the order a real round has.
+	// RED'S FIRST NARRATIVE, so the transcript blue is sent to read exists. Filed AFTER the gaps
+	// it accounts for and BEFORE anything that answers it, which is the order a real epoch has.
 	if b.RedNarrative != "" {
 		if _, err := exec("position", "--run", run.Dir(), "--seat-id", "red-chair",
 			"--reason", b.RedNarrative); err != nil {

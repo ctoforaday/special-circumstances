@@ -1,4 +1,4 @@
-package merge
+package lens
 
 import (
 	"github.com/spf13/cobra"

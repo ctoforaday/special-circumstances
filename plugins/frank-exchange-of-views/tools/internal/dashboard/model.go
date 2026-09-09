@@ -22,7 +22,6 @@ type Config struct {
 	Topic         string `json:"topic"`
 	Model         string `json:"model"`
 	JudgmentModel string `json:"judgmentModel"`
-	MaxRounds     string `json:"maxRounds"`
 	Lanes         string `json:"lanes"`
 }
 
@@ -148,9 +147,6 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 	}
 	if cfg.JudgmentModel != "" {
 		merged.JudgmentModel = cfg.JudgmentModel
-	}
-	if cfg.MaxRounds != "" {
-		merged.MaxRounds = cfg.MaxRounds
 	}
 	if cfg.Lanes != "" {
 		merged.Lanes = cfg.Lanes
@@ -354,7 +350,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		return *a < *b
 	})
 
-	steps := buildSteps(seats, merged.MaxRounds)
+	steps := buildSteps(seats)
 	rates := buildRates(telemetry)
 
 	var latest *recordpb.TelemetryLine
@@ -558,12 +554,19 @@ func buildJudiciary(journal []map[string]any) Judiciary {
 	return j
 }
 
-func buildSteps(seats []Seat, maxRoundsStr string) []Step {
-	maxRounds := 8
-	if maxRoundsStr != "" {
-		if n := atoiOr(maxRoundsStr, 8); n > 0 {
-			maxRounds = n
+// buildSteps segments the progress bar by the EPOCHS THE RECORD HAS SEEN — one step per chair
+// sitting so far, plus the one in progress. There is no ceiling to count toward
+// (plans/roundless.md §III.B.2): the run ends when nobody is ready, and how many sittings that
+// takes is the record's to say, not a launch argument's.
+func buildSteps(seats []Seat) []Step {
+	maxEpoch := 0
+	for _, s := range seats {
+		if s.Epoch > maxEpoch {
+			maxEpoch = s.Epoch
 		}
+	}
+	if maxEpoch == 0 {
+		maxEpoch = 1
 	}
 	// A step is one EPOCH — one dispatch cycle of the chair — so a seat belongs to step r when the
 	// record put its register in epoch r. Under the round loop a seat's r-th sitting and epoch r
@@ -611,7 +614,7 @@ func buildSteps(seats []Seat, maxRoundsStr string) []Step {
 		{"blue lanes", state(allDone("blue-lane"), seen("blue-lane", 0))},
 		{"synthesis", state(doneSeat("blue-synthesize", 0), seen("blue-synthesize", 0))},
 	}
-	for r := 1; r <= maxRounds; r++ {
+	for r := 1; r <= maxEpoch; r++ {
 		epochDone := doneSeat("blue-respond", r)
 		anySeen := seen("red-lens", r) || seen("red-chair", r) || seen("blue-respond", r) || seen("judge", r)
 		steps = append(steps, Step{"epoch " + itoa(r), state(epochDone, anySeen)})

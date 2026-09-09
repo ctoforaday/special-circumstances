@@ -13,16 +13,17 @@ import (
 // A SEAT REGISTERS BEFORE IT APPENDS — pinned deterministically, because the sweep only hit this
 // about once in two hundred runs and a rate that low is indistinguishable from a flake (#664).
 //
-// closeGap is driven from the RED-MERGE branch and proves as `blue-respond`. `blue prove`
-// RECORDS a `prove` event, so that is an append — and in round 1 red-chair runs before
+// closeGap is driven from the CHAIR's branch and proves as `blue-respond`. `blue prove`
+// RECORDS a `prove` event, so that is an append — and in round 1 red's seats run before
 // blue-respond has ever registered. Nothing on that path called register() at all, which is
 // why the #656 waiter did not help: it ordered a seat against ITSELF for callers that went
 // through register, and this caller never did.
 //
-// The reproduction removes the rarity rather than chasing it: mint a computation gap, close it
-// with ONLY the red seat registered, and ask `verify` — the same invariant the sweep's oracle
-// runs. Before the fix this fails every time; the sweep needed a computation gap to become
-// closable in round 1, which is what made it rare.
+// The reproduction removes the rarity rather than chasing it: a lens mints a computation gap and
+// closes it (the originator closes — roundless §III.B.3) with ONLY red's seats registered, and
+// `verify` is asked — the same invariant the sweep's oracle runs. Before the fix this fails every
+// time; the sweep needed a computation gap to become closable in round 1, which is what made it
+// rare.
 func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 	bin := buildBinary(t)
 	// recordtest.TmpRun, NOT t.TempDir. This test opens a record, and the record layer caches a
@@ -55,15 +56,20 @@ func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 		t.Fatalf("ingest the round-0 report: %v", err)
 	}
 
-	// ONLY THE ACTING SEAT. blue-respond is deliberately left unregistered: the whole point is
-	// that closeGap appends as it, so closeGap is what must register it.
+	// ONLY RED'S SEATS. blue-respond is deliberately left unregistered: the whole point is that
+	// closeGap appends as it, so closeGap is what must register it. The chair is registered for
+	// the `carry` arm closeGap gives it (inert here — nothing was closed in a prior round); the
+	// lens that mints is registered by r.lens() itself.
 	r.register("merge", "red-chair")
 
 	// `mint` draws the gap KIND at random, so take gaps until a computation one appears. Bounded
-	// so a change that stops producing them fails here rather than hanging.
+	// so a change that stops producing them fails here rather than hanging. r.lens() rotates the
+	// minter across the dispatched lenses, so 40 mints stay under the per-lens budget (4 × 5 = 20
+	// landed mints is the ceiling; the loop stops at the first computation gap, typically within
+	// a handful).
 	var gapID string
 	for i := 0; i < 40 && gapID == ""; i++ {
-		id := r.mint("red-chair")
+		id := r.mint(r.lens())
 		if id != "" && r.computationGaps[id] {
 			gapID = id
 		}

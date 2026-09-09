@@ -27,9 +27,12 @@ func seedReferents(t *testing.T, runDir string) {
 	// case was refused for quoting a sentence that existed nowhere, which reads as the verb being
 	// broken rather than as the fixture being a placeholder.
 	seedBlueReport(t, runDir)
+	// THE LENS MINTS (plans/roundless.md §III.B.3). The chair sits first so the epoch is 1, then
+	// `lensSeat` mints — and is the seat that closes G2 below, because the originator closes.
 	for i := 0; i < 2; i++ {
 		registerChairOnce(t, runDir)
-		if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
+		registerLensOnce(t, runDir)
+		if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 			"--key", fmt.Sprintf("seed-%d", i), "--class", "x", "--check-kind", "document", "--check", "c",
 			"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 			t.Fatal(err)
@@ -52,25 +55,18 @@ func seedReferents(t *testing.T, runDir string) {
 		"--reason", "the seeded petition this fixture answers"); err != nil {
 		t.Fatal(err)
 	}
-	registerChairOnce(t, runDir)
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "seed-archived", "--class", "x", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", "G2", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test",
 		"--verified-against", "./x", "--reason", "closed so the archive is not empty"); err != nil {
 		t.Fatal(err)
 	}
-	// THE LENS SEAT MUST HAVE SAT. `petition-rule --petitioner` refuses a seat that recorded
-	// nothing in the run, and the lens's presence used to come from a seeded `observe` — retired
-	// with #327. `friction` is the lens verb with no referents of its own, so it seeds presence
-	// without seeding state any case then has to work around.
-	if _, err := run(t, "log", "--run", runDir, "--seat-id", "red-lens-evidence",
-		"--reason", "seeded so the lens seat has sat", "--type", "defect"); err != nil {
-		t.Fatal(err)
-	}
+	// The lens seat has sat: it registered and minted above, so `petition-rule --petitioner`
+	// finds a seat that recorded something in the run without a seeded `log` for presence.
 }
 
 func TestVerbPayloads(t *testing.T) {
@@ -358,8 +354,10 @@ func TestSpotCheckIsASingleton(t *testing.T) {
 // regrade moves only the grades it carries, and refuses without its basis.
 func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "red-chair"
+	// The lens that minted the gap is the one that regrades it — the originator closes.
+	seatID := lensSeat
 	registerChairOnce(t, runDir)
+	registerLensOnce(t, runDir)
 	if _, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
 		"--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {

@@ -30,7 +30,7 @@ exit 2
 stderr:
 feov-record: no command named "lens" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
 
-feov-record — red lens seats — findings, source verification and corroboration, proof re-runs. Cannot mint or close a gap: that is the merge's.
+feov-record — red lens seats — findings, source verification and corroboration, proof re-runs; mints its own gaps against its budget and, as the originator, regrades and closes them.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -42,6 +42,7 @@ Usage:
   feov-record [command]
 
 Available Commands:
+  close        close a gap with the verification you did THIS sitting, naming what you checked it against
   completion   Generate the autocompletion script for the specified shell
   corroborate  go and find a source blue never cited, when the claim has no anchor but the source is obtainable
   count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
@@ -49,11 +50,15 @@ Available Commands:
   finding      a defect in the TEXT, when the problem is the writing itself or there is nothing to go and fetch
   help         Help about any command
   log          an entry for the operator who can retool you — what it asserts, said in the positive
+  mint         turn lens findings into a graded gap on the board, when a defect is real and belongs there
+  near-match   screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
   register     your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+  regrade      move a grade on a gap that already exists, with the reason it moved
   reproduce    re-run a recorded computation and judge whether it proves the sentence it is attached to
   verify       judge a citation blue authored, when the anchor exists and you have read what it points at
 
 Command groups — each holds commands THIS page does not list:
+  class        the gap-class registry: what KINDS of defect this run recognises
   motion       file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 

@@ -1,11 +1,9 @@
-prompt sha256: f434f11aca97a8ead8e8085f8827d13c2955cf9317611773627e4c81e294c4c7
+prompt sha256: 3113c2a521413c9dd0c92b1c2ef2751a7a2246967954107e3174b98a3057b868
 
-Terminal dispute disposition for topic "the seat prompt contract" (debate ended VERIFIED after round 2; this docket fires at the exit boundary).
-Undisposed grade disputes: [{"gap_id":"G1","dimension":"likelihood","proposed":"low","evidence":"the harm needs two independent failures","traffic_class":"grade_dispute_terminal_pending"}].
-Read the transcript in full, and read the board back, before you rule.
+Terminal disposition for topic "the seat prompt contract" (debate ended VERIFIED after 3 chair sitting(s); this sitting fires at the exit boundary). 1 motion(s) stand unruled on the record — read them back from the record's motions projection, read the transcript in full and the board back, and rule each with a reason.
+NOTHING CAN BE CARRIED AT A TERMINAL EXIT — there is no next sitting to carry it into.
+Each grade motion either moves to a corrected grade, which you state, or ships CONTESTED and the report records it as contested.
 LAW: if research/2026-01-01_golden/inputs/law/ exists, read it before ruling — statute > precedent > case-local argument; PRECEDENT IS ARGUMENT, NOT EVIDENCE (the artifact and the leaf are the only evidence; where a precedent conflicts with the leaf, the leaf wins and you flag the conflict for human review); a precedent either party cites MUST be addressed in your opinion; PERSUASIVE holdings persuade, only AFFIRMED ones bind; your rulings this run are harvested as PERSUASIVE proposals for human review — you propose law, you never enact it.
-NOTHING CAN BE CARRIED AT A TERMINAL EXIT — there is no next round to carry it into.
-Each dispute either moves to a corrected grade, which you state, or it ships CONTESTED and the report records it as contested. deadlock: false.
 LOG (judge-terminal) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's log field.
 YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU, not the other seats: what you reached for, what it did, and what you wanted instead.
 Where you set an act aside as a JUDGEMENT rather than for want of occasion, give that one sentence — the record shows what you ran, never what you weighed and declined.
@@ -37,7 +35,7 @@ Across nine sittings seats opened 6 of 51 group pages — twelve per cent — an
 The rule they were following said to open a group "before using any command in it", so a seat that obeyed it perfectly still only ever opened the page for a verb it had already chosen: eighteen of the twenty-three pages opened were for verbs the seat went on to run.
 That is not surveying a surface, it is confirming a decision — and a decision made before reading is made from memory and from this prompt's vocabulary, which is not authoritative.
 A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS.
-Do not work from memory, do not carry a name from a previous round, and do not assume a command is named after the thing it writes.
+Do not work from memory, do not carry a name from a previous sitting, and do not assume a command is named after the thing it writes.
 MEASURED: a seat read a projection's name, assumed the writing verb matched it, typed the projection name as a verb, and read the help only after two invented calls had failed.
 The projection names, this prompt's words for a concept, and the command that writes it are three different vocabularies and they do not always agree.
 The help is the only authoritative one, and this prompt names the JOB, never the flags.

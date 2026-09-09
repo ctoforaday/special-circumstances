@@ -1,10 +1,10 @@
 ## menu
 
-freeze the round-0 report into the record and remove the file — done once, by its author
+freeze the synthesized report into the record and remove the file — done once, by its author
 
 ## detail
 
-The one-time act that turns the report from a file into a record. You author the round-0 report as a markdown file; `ingest` reads it verbatim into the record, PROVES the record reproduces it byte-for-byte, and then removes the file. After it there is no file: the report is the frozen base plus its append-only diff-stack, read with `show report` and changed only through `blue edit`.
+The one-time act that turns the report from a file into a record. You author the opening report as a markdown file; `ingest` reads it verbatim into the record, PROVES the record reproduces it byte-for-byte, and then removes the file. After it there is no file: the report is the frozen base plus its append-only diff-stack, read with `show report` and changed only through `blue edit`.
 
 WRITE-ONCE. A report is ingested exactly once. A second ingest is refused and points you at `blue edit` — the base is frozen on the record and cannot be overwritten.
 

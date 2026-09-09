@@ -153,7 +153,7 @@ func TestAnUnreadableClassRegistryIsRefusedRatherThanIgnored(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(recDir, "class-registry.json"), []byte("{not json"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	_, err = run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
+	_, err = run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--class", "anything-at-all", "--check-kind", "document", "--check", "c",
 		"--likelihood", "low", "--impact", "low", "--problem", "p")
 	if err == nil {

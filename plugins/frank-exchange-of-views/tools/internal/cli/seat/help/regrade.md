@@ -8,4 +8,4 @@ Same-id grade movement, recorded with the reason it moved: the gap keeps its ide
 
 Likelihood grades the CONSEQUENCE — how likely the harm is to land, never how likely the defect is to BE there.
 
-The regrade and its reason render in the report beside the gap, so a grade argued down over three rounds shows the argument rather than only the final number.
+The regrade and its reason render in the report beside the gap, so a grade argued down over three sittings shows the argument rather than only the final number.

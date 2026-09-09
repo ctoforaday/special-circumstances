@@ -35,7 +35,8 @@ func openRunDB(t *testing.T, runDir string) *sql.DB {
 func TestAScorecardRefusesARecordItCannotRead(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
+	registerLensOnce(t, runDir)
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "G1", "--class", "scope-creep", "--quote", "Seven is prime.",
 		"--problem", "p", "--check-kind", "document", "--check", "c",
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {

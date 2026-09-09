@@ -1,10 +1,11 @@
-prompt sha256: 0a62cf187fd3bf891d999efe0fc2f207830e020f6b92dd8471da09e73975a29e
+prompt sha256: c81869c7f762d6a367980c58c6049ae6d4a88b1eae074bb6ad486e64c441906b
 
 Final assembly for topic "the seat prompt contract", run directory research/2026-01-01_golden.
-Debate outcome: VERIFIED after 2 round(s).
+Debate outcome: VERIFIED after 3 chair sitting(s) — the chair recorded PASS with the board permitting it.
 THE REPORT IS ASSEMBLED FROM THE RECORD — you author NOTHING, you copy NOTHING, you fill in NO inputs.
 There are no <FILL> fields and no sections for you to write; do not hand-write report.md and do not copy anything into it yourself.
-FIRST, STAMP HOW THIS RUN ENDED: it is VERIFIED, and your account of the sitting goes with it — where a run ended by judged deadlock that account is the only evidence the determination will ever have.
+FIRST, STAMP HOW THIS RUN ENDED: it is VERIFIED.
+Record it as the run's outcome — VERIFIED — with your account of the sitting as the reason; the verdict is derived from the record and the stamp must agree with it.
 THEN, TWO THINGS YOU MAY HOLD AND THIS IS YOUR LAST CHANCE TO RECORD EITHER.
 If you hold something that binds how the RECORD IS READ but moves no gap — a construction of a term, a correction of what the record MEANS rather than what it says, a holding worth offering as precedent — state it, and state it in its own right rather than folding it into an unrelated rationale.
 And if anything in this run needs A HUMAN to re-examine it — an unresolved tension, a claim that held only because nobody could reach the source, a boundary you ruled close to — say so.
@@ -12,9 +13,12 @@ You keep no memory between runs, so this is the whole of your continuity.
 THEN ASSEMBLE.
 It writes a SET — research/2026-01-01_golden/report.md (the research), docket.md, debate.md, judgments.md, evidence.md, run.md, CHANGELOG.md, a README.md index and a tabbed report.html — and a document with nothing in it is not written at all, so a missing judgments.md means no motions were filed rather than a failure.
 Verify research/2026-01-01_golden/report.md exists and reads correctly at the top: the verdict stamp is the outcome's, the sections are blue's and the record's.
-A tool cannot mis-author a synthesis surface — the run-5 catechism defect, where 6/7 answers regressed once assembly authored the catechism, is structurally impossible now, and the TL;DR is blue's, inside the audited report, rather than written after red's final audit where nothing checks it.
+A tool cannot mis-author a synthesis surface — the TL;DR and the catechism are blue's, inside the audited report.
+Open gaps below material are listed as open, below material, not certified against.
 THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: read it back and report it as open_gaps in your envelope.
+Infra debts the bench named: [].
 Collated friction so far (report any of your own as well): [].
+LAW: if research/2026-01-01_golden/inputs/law/ exists, read it before ruling — statute > precedent > case-local argument; PRECEDENT IS ARGUMENT, NOT EVIDENCE (the artifact and the leaf are the only evidence; where a precedent conflicts with the leaf, the leaf wins and you flag the conflict for human review); a precedent either party cites MUST be addressed in your opinion; PERSUASIVE holdings persuade, only AFFIRMED ones bind; your rulings this run are harvested as PERSUASIVE proposals for human review — you propose law, you never enact it.
 LOG (assemble) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's log field.
 YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU, not the other seats: what you reached for, what it did, and what you wanted instead.
 Where you set an act aside as a JUDGEMENT rather than for want of occasion, give that one sentence — the record shows what you ran, never what you weighed and declined.
@@ -46,7 +50,7 @@ Across nine sittings seats opened 6 of 51 group pages — twelve per cent — an
 The rule they were following said to open a group "before using any command in it", so a seat that obeyed it perfectly still only ever opened the page for a verb it had already chosen: eighteen of the twenty-three pages opened were for verbs the seat went on to run.
 That is not surveying a surface, it is confirming a decision — and a decision made before reading is made from memory and from this prompt's vocabulary, which is not authoritative.
 A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS.
-Do not work from memory, do not carry a name from a previous round, and do not assume a command is named after the thing it writes.
+Do not work from memory, do not carry a name from a previous sitting, and do not assume a command is named after the thing it writes.
 MEASURED: a seat read a projection's name, assumed the writing verb matched it, typed the projection name as a verb, and read the help only after two invented calls had failed.
 The projection names, this prompt's words for a concept, and the command that writes it are three different vocabularies and they do not always agree.
 The help is the only authoritative one, and this prompt names the JOB, never the flags.

@@ -1,4 +1,4 @@
-prompt sha256: 881bc32c429a8b36d7451a93be247d7a6731db602c53529fcfae6eba0e22c23e
+prompt sha256: 6ea71bc9effeece8b75b653ad14db350d74f11f1fc931de614aeb29e8d571792
 
 Blue synthesis for topic: "the seat prompt contract".
 PRE-FLIGHT: if research/2026-01-01_golden/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns.
@@ -8,7 +8,7 @@ CLAIM PROVENANCE: while merging, tag every claim appearing in exactly ONE lane's
 "[minority: lane-2/practitioner]") — single-lane claims are minority reports red must weigh differently from convergent ones, and that set-difference exists transiently in this merge and must not be discarded.
 THE CATECHISM IS YOURS (W2g — the run-5 assembly audit found the judge-authored catechism DEFECTIVE, 6/7 answers carrying defects from synthesis-by-recall; synthesis surfaces belong inside the audited document): write "## The Catechism" INTO research/2026-01-01_golden/blue/report.md at round 0 per references/catechism_template.md — the seven answers, the case against at FULL strength (include every risk-accepted residual; the audit found against-cases silently drop their strongest items), all figures copied from your own sourced sections never recomputed inline.
 THE FRAMING, THE TL;DR AND THE OPEN QUESTIONS ARE YOURS FOR THE SAME REASON — a synthesis surface authored at assembly is authored AFTER red's final audit, so nothing checks it and it ships unaudited. report.md OPENS with the H1 title `# the seat prompt contract — research report`, then `## TL;DR` (3-6 sentences — the answer, the confidence, the sharpest caveat), and carries `## Open questions` (what the debate could not resolve, one per line; a question nobody could answer inside the debate is a finding, not noise).
-Assembly LIFTS these verbatim, so you write them once, HERE, inside the document red audits every round.
+Assembly LIFTS these verbatim, so you write them once, HERE, inside the document red audits every sitting.
 YOUR REPORT CONTAINS ONLY WHAT YOU CAN AUTHOR: the title, TL;DR, Catechism, technical foundations, analysis, open questions, and your citations — and NOTHING assembly composes from the record.
 Do NOT write "## Risk matrix", "## The board", "## The debate", or a "## Blue team report" wrapper: a "## The board" section you author is FABRICATION, because you cannot know red's findings, blue's audited manifest or the bench's dispositions, and a whole final-report-shaped document makes every tool-owned section appear twice.
 Do NOT write a `**Verdict:**` line ANYWHERE either — the outcome is decided after your last audit, so a verdict you author only lands stale beside the real one and gets stripped.
@@ -17,10 +17,10 @@ An unlocatable quote is graded LOW through no fault of the source.
 Two claims resting on the same url are one source and two anchors, not two sources.
 REPORT WRITE PATH: report.md hits a filename-keyed Write-guard — draft to your scratchpad under a NEUTRAL name and copy it into place with bash cp; a direct Write of the report path fails and wastes a round-trip.
 Recompute claim_count with the tool once report.md is written and relay the integer into the envelope; never hand-count it (two honest merges differed 2x before it was pinned).
-RECORD THE ROUND, with what this synthesis did and its claim_count as the reason; round_record_appended is TRUE only after that event exists.
-FREEZE THE REPORT, LAST — after report.md is written, the count recorded and the round recorded, run the act your seat's help lists as freezing the round-0 report into the record as its base.
+RECORD THE ROUND, with what this synthesis did and its claim_count as the reason; sitting_record_appended is TRUE only after that event exists.
+FREEZE THE REPORT, LAST — after report.md is written, the count recorded and the sitting recorded, run the act your seat's help lists as freezing the round-0 report into the record as its base.
 Do this ONCE, at the very end.
-If it refuses, record friction with the exact refusal and return round_record_appended honestly.
+If it refuses, record friction with the exact refusal and return sitting_record_appended honestly.
 LINES OF INQUIRY: record every genuinely distinct approach you CONSIDERED, not only the one you took — with the hypothesis that would be true if it paid off, and later with what became of it and what changed your mind.
 The hypothesis is what makes the account honest, and the dead ends matter most: one you record is one the next run does not re-walk, and it is worth more than the tidy conclusion that survived.
 Alternatives reach the reader under their own headings — what you pursued, what you left for a later run, and what you weighed and rejected are three things a reader needs, not one list of winners.
@@ -57,7 +57,7 @@ Across nine sittings seats opened 6 of 51 group pages — twelve per cent — an
 The rule they were following said to open a group "before using any command in it", so a seat that obeyed it perfectly still only ever opened the page for a verb it had already chosen: eighteen of the twenty-three pages opened were for verbs the seat went on to run.
 That is not surveying a surface, it is confirming a decision — and a decision made before reading is made from memory and from this prompt's vocabulary, which is not authoritative.
 A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS.
-Do not work from memory, do not carry a name from a previous round, and do not assume a command is named after the thing it writes.
+Do not work from memory, do not carry a name from a previous sitting, and do not assume a command is named after the thing it writes.
 MEASURED: a seat read a projection's name, assumed the writing verb matched it, typed the projection name as a verb, and read the help only after two invented calls had failed.
 The projection names, this prompt's words for a concept, and the command that writes it are three different vocabularies and they do not always agree.
 The help is the only authoritative one, and this prompt names the JOB, never the flags.

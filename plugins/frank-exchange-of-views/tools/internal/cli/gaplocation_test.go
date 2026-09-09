@@ -7,7 +7,7 @@ import (
 
 // A GAP'S LOCATION FOLLOWS THE TEXT, and the rewrite that moved it is on the record.
 //
-// `merge mint --quote` is validated against the report AT MINT and never again; `blue edit` then
+// `lens mint --quote` is validated against the report AT MINT and never again; `blue edit` then
 // explicitly permits rewriting an anchored sentence ("that is transit, not authorship"). So from
 // round 2 the board showed a sentence that is no longer in the document, by the sanctioned path,
 // and red re-auditing had to guess what blue had changed underneath it (#453).
@@ -17,9 +17,10 @@ import (
 func TestAGapsLocationFollowsBluesRewrite(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nThe cost is rising over time.\n\nA second sentence stands still.\n")
+	registerLensOnce(t, runDir)
 	mint := func(key, quote string) {
 		t.Helper()
-		if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
+		if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 			"--key", key, "--class", "scope-creep", "--quote", quote,
 			"--problem", "unsupported", "--check-kind", "document", "--check", "c",
 			"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
@@ -63,7 +64,8 @@ func TestAGapsLocationFollowsBluesRewrite(t *testing.T) {
 func TestRedsWorkListShowsWhatBlueChangedUnderTheGap(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nThe cost is rising over time.\n")
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
+	registerLensOnce(t, runDir)
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "G1", "--class", "scope-creep", "--quote", "The cost is rising over time.",
 		"--problem", "unsupported", "--check-kind", "document", "--check", "c",
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
