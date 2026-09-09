@@ -50,10 +50,16 @@ or query v_session for the ones that have ended.`,
 			}
 			fmt.Fprintf(out, "\n  %d words, %d thoughts\n", s.Words, s.Thoughts)
 			if s.Thoughts == 0 && s.Words > 0 {
-				// The distinction the doctor's warning exists for: reasoning absent because it was
-				// never captured is not reasoning absent because there was none.
-				fmt.Fprintln(out, "  ^ no reasoning captured for this session. If `showThinkingSummaries` was off "+
-					"when it ran, that is why — see /prosthetic-conscience:doctor.")
+				// NAME THE CAUSE THAT IS ACTUALLY LIKELY. This used to send the reader to check
+				// `showThinkingSummaries`, and then measurement said otherwise: on this box the
+				// setting is ON and reasoning text still arrives EMPTY — 911 thinking blocks in
+				// one transcript, 0 carrying text, and none anywhere since 2026-09-08. Pointing a
+				// reader at a setting that is already correct costs them the trip and teaches them
+				// the wrong model of why the column is empty.
+				fmt.Fprintln(out, "  ^ no reasoning stored for this session, which does NOT mean it did not reason. "+
+					"The client emits thinking blocks whose text is empty in most cases and, since 2026-09-08, "+
+					"in all of them — so this column is currently near-dead for every session. Check "+
+					"`showThinkingSummaries` by all means, but do not read a zero here as a fact about the agent.")
 			}
 			return nil
 		},
