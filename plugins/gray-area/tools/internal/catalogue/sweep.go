@@ -117,7 +117,7 @@ func Retain(db *sql.DB, lim SweepLimits, now time.Time) (int64, error) {
 		`DELETE FROM act WHERE ts < ?`,
 		`DELETE FROM word WHERE ts < ?`,
 		`DELETE FROM thought WHERE ts < ?`,
-		`DELETE FROM provisional_skip WHERE at < ?`,
+		`DELETE FROM skip WHERE at < ?`,
 	} {
 		res, err := db.Exec(q, cut)
 		if err != nil {
@@ -128,7 +128,7 @@ func Retain(db *sql.DB, lim SweepLimits, now time.Time) (int64, error) {
 	}
 	// A session with nothing left is itself expired: keeping the row would report a session that
 	// the store can say nothing about, which is worse than not listing it.
-	if _, err := db.Exec(`DELETE FROM session WHERE last_seen < ?`, cut); err != nil {
+	if _, err := db.Exec(`DELETE FROM session WHERE ingested_last < ?`, cut); err != nil {
 		return total, fmt.Errorf("catalogue: retention (session): %w", err)
 	}
 	return total, nil

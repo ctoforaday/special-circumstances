@@ -5,4 +5,4 @@ session bbbbbbbb  (open)
   Edit                   1       0
 
   2 words, 0 thoughts
-  ^ no reasoning stored for this session, which does NOT mean it did not reason. The client emits thinking blocks whose text is empty in most cases and, since 2026-09-08, in all of them — so this column is currently near-dead for every session. Check `showThinkingSummaries` by all means, but do not read a zero here as a fact about the agent.
+  ^ no thinking blocks at all in this session's transcript — not even empty ones, which is a different state from reasoning that was withheld. Check `showThinkingSummaries`; and do not read this zero as a fact about the agent.
