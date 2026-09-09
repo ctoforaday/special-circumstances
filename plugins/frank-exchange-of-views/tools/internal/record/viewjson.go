@@ -1158,7 +1158,15 @@ func LogJSONOf(evs []*Event) LogJSON {
 
 // LogJSONBytes renders the log view as indented JSON.
 func LogJSONBytes(run Run) ([]byte, error) {
-	evs, err := EventsOf(run, recordpb.EventType_EVENT_TYPE_LOG)
+	// REGISTER TOO, because LogJSONOf stamps each entry's epoch off a Clock and the Clock only
+	// advances on a register. Without them every entry reported epoch 0 — the operator triage
+	// channel, whose whole job is to be filtered and read in order, saying every entry belongs to
+	// the run's first sitting. Found by TestEveryProjectionThatReportsAnEpochCanSeeMoreThanOne on
+	// its first run; the same omission had already been fixed in the findings view (#852) and the
+	// board fold (#856), which is why the guard exists rather than a third individual patch.
+	evs, err := EventsOf(run,
+		recordpb.EventType_EVENT_TYPE_LOG,
+		recordpb.EventType_EVENT_TYPE_REGISTER)
 	if err != nil {
 		return nil, err
 	}
