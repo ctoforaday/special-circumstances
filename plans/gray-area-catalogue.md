@@ -83,361 +83,35 @@ Post-**turn** is a different frequency entirely — 8.8 tool calls per turn, ~13
 so **0.57 s per session**. The `Stop` hook ingests incrementally from a per-file byte offset, so
 steady-state work is proportional to new bytes, not corpus size.
 
-**The transcript may not yet hold the turn that just ended — and that is UNMEASURED here, by
-necessity.** The vendor's hooks reference states that at `Stop`/`SubagentStop` the transcript file
-can lag, and that a hook needing the final assistant text should read `last_assistant_message` from
-the payload instead. Byte-offset ingest recovers a lagged turn on the *next* `Stop` — but a
-session's final turn has no next `Stop`, so its `word` row would never be hook-ingested. This
-cannot be measured from anything on this box: gray-area has never bound `Stop`, and an attempt to
-infer it from `SubagentStop` rows produced "24 of 41 sessions" with deltas up to 46 hours — which
-is sessions *continuing* after their last subagent, not a transcript trailing a hook. That number
-is recorded here so nobody re-derives it as lag. The design therefore assumes the lag is real and
-closes the final-turn hole two ways: **(a)** `Stop` ingests `last_assistant_message` from its own payload as a **provisional** `word`
-row keyed `(session, prompt_id)`, where `prompt_id` comes from the payload.
+**The final turn's text is NOT recovered from the payload, and that is a ruling, not an
+oversight** (gblock, 2026-09-09).
 
-**And the two ids are the same namespace — verified, not assumed.** The payload's `prompt_id` and
-the transcript's `promptId` sharing a name is not evidence they share a value ([[facts-are-fields]]
-clause 4: a carrier is a site that speaks the same CONCEPT, not one that shares a STRING). Measured
-across the 13 sessions where gray-area's manifest recorded a `prompt_id` and the transcript
-survives: **434 of 434 hook-recorded values appear in that same session's transcript, 0 missing.**
-The join is on a real key.
+The vendor documents that at `Stop`/`SubagentStop` the transcript may lag, and recommends reading
+`last_assistant_message` from the payload instead. A design to do that — a *provisional* `word`
+row, keyed and superseded once the transcript caught up — occupied rounds 12 through 21 of this
+plan's audit and was rewritten five times, each time correctly: the supersession rule was
+undecidable at close, then unexecutable, then lost data on the majority path, then duplicated on
+it, before landing on a fire-time comparison with a measured 0.12% residue.
 
-**One leg of that remains untested and is named rather than assumed.** Every one of those 434 rows
-is a `SubagentStop` — gray-area has never bound `Stop`, so *that a `Stop` payload's `prompt_id`
-names the turn which just ENDED, rather than the next one, is not established here.* If it named
-the next turn the provisional would be filed against the wrong key. §V.17 asserts it at fire time,
-alongside the lag measurement, because both need the hook to exist first.
+**Building the store settled it.** Ingest is transcript-sourced end to end, and on the real
+corpus it stores 24,617 acts, 10,601 words and 248 thoughts — **not one row of which needed the
+provisional path.** The machinery was never load-bearing for the tiers; it was a separate feature
+recovering a final turn on the **4.1% of fires** that carry no usable payload text, at the cost of
+the most defect-dense section of the design.
 
-**Supersession is by id, and an earlier draft's claim that it could not be was a fourth unmeasured
-negative.** That draft said transcript assistant records "carry `uuid`, `requestId` and
-`parentUuid` and **no `prompt_id`**", and built a byte-positional rule on it. True of an assistant
-record read alone; false of the transcript as a graph. Re-measured over the 40 most recently
-modified transcripts: `promptId` is carried by **`user`** records — 8,837 in that 40-file sample, **26,934 across the whole corpus** — and
-**46,043 of 46,046 assistant records — 99.9935% — reach one by walking `parentUuid` to the nearest
-ancestor that has it**, measured over the whole corpus (414 files). The 3 that do not are handled by
-rule 6; an earlier draft said "15,675 of 15,675, 100.000%" from a 40-file sample that happened to
-contain none of them. So the transcript side yields the same key the payload
-carries, and the positional rule is withdrawn.
+So it is **not built**, and the residue is stated instead of engineered around:
 
-The rule. **An earlier draft called this "a total function" and it was not** — three measured
-facts break the simple version, and each is stated here because each removed an option:
+- A session's **final** turn may be absent from the catalogue when the transcript lagged and no
+  later `Stop` or closure pass read it. Closure narrows this — it ingests before marking a session
+  shut, so the bytes are read whenever the session ends while the box is still running hooks.
+- The `word` table keeps `source`, `provisional` and `attribution` columns, always `'transcript'`,
+  `0` and `NULL` today. They cost nothing, they are already on the published view, and they leave
+  the door open if the residue is ever measured to matter.
+- **What would reopen this:** a measurement showing final-turn loss above the residue rate, which
+  §V.17 is the check for. Not an argument — a number.
 
-- **66.2% of turns carry MORE than one assistant text block** under a single `promptId` — 1,091 of
-  1,648, whole corpus (416 files), up to 138. An earlier draft gave 492 of 709 from a 40-file sample
-  with no scope named, the class round fourteen failed on. So "delete the provisional when any text for that key arrives" loses
-  the final text on the majority case: the documented lag shape is *earlier blocks flushed, final
-  block not yet*, so that ingest writes texts 1..k, deletes the provisional, and the tail is never
-  stored. **That is loss, not over-keeping**, and it reopens the hole (a) exists to close.
-- **Subagent transcripts share the parent's `sessionId`** — 60 of 60 measured, 263 on this box —
-  and the parent's `promptId`. So `(session, prompt_id)` is not unique per agent, and a subagent's
-  text would delete the parent turn's provisional.
-- **The payload key can be absent — but the rate an earlier draft gave was mostly my own test
-  noise.** It said "51 of 672 `SubagentStop` rows carry no `prompt_id`". Of those 51, **50 arrive in
-  two consecutive seconds with `session_id` empty as well, every one written by a `+dirty` build** —
-  synthetic payloads from this plan's own experiments, not a vendor shape. Sharper still, on the
-  auditor's own scoping: **all 51 come from two scratch manifests** under `~/scratch/`, and of **583
-  rows from real manifests, 0 lack `prompt_id`**. So the rate is not evidence of anything about the
-  payload.
-
-  **The rule therefore rests on the vendor's documentation, not on this rate:** `prompt_id` is
-  *"absent until the first user input"*. That is a stated shape rather than a local frequency, and it
-  is enough to need the rule — which is why the rule is unchanged while the number that appeared to
-  justify it is withdrawn.
-
-  Worth recording as a side-effect: the only reason those 50 are separable from real data is
-  `capture_build` (#818). Without it they would be 50 indistinguishable rows inflating a rate by
-  50×, which is the defect that field was added to prevent, catching a case it was not designed
-  for.
-
-So the rule is:
-
-1. **Key is `(session, agent_id, prompt_id)`** — the agent dimension is required, not optional,
-   because sessionId and promptId are both shared with subagents. `agent_id` is `""` for the main
-   agent, which is itself a distinct key.
-2. **Whether a provisional is written is decided by the fire-time comparison in rule 5** — not
-   unconditionally. An earlier draft said "written at every `Stop` that carries a `prompt_id`",
-   a universal rule 5 contradicts. When the payload has
-   none, **no provisional is written and the omission is recorded** as `provisional_skip` with
-   the reason — never keyed on `""`, which would collide every such turn onto one row.
-3. **An unclosed provisional IS READABLE, and that is what keeps the hole shut.** It appears in the
-   `word` view with `source='payload'` and `provisional=1`, so a lagged final turn is visible from
-   the moment its `Stop` fires. Closure decides whether that row is deleted or made permanent —
-   never whether it can be read. An earlier draft left this unstated, which is exactly what made
-   "(a) is sufficient alone" look unsupported: it argued the write and not the visibility.
-
-4. **CLOSURE INGESTS BEFORE IT DECIDES**, and an earlier draft that omitted this had promotion
-   backwards. It said a provisional promotes to "a final block that never reached the transcript" —
-   but §II:89 says such a turn is *never hook-ingested*, **not** never written, and the file does get
-   it: measured over **all** completed transcripts (>30 min untouched) — **406 of 409, 99.3%** (3 have
-   assistant records for the final turn and no text block; 5 more have no resolvable final key). An
-   earlier draft said "150 of 150" because its scan took the first 150 files, the narrow-sample class
-   this plan names elsewhere — and the direction matters: a true 100% would make §V.3's second addend
-   always zero, the condition §V.3 itself treats as the failing case. A closing sweep comparing only against already-*ingested* text would therefore
-   promote a row whose text sits in the file unread, on the routine path, and §V.3's arithmetic would
-   be wrong in both halves — passing only when its second addend is 0, i.e. only when R11 has no
-   evidence. That is the inverse of round seventeen's error, not its repair.
-
-   So the sweep **runs incremental ingest from the stored offset first**, and only then decides.
-   **Which file, precisely — an earlier draft said "that session's transcript", which is wrong for a
-   subagent.** A session maps to many files (measured: 324 of 420 transcripts here are
-   `agent-*.jsonl`), offsets are recorded **per file**, and a provisional's `agent_id` selects the
-   one: `agent_id = ""` reads the session's own `transcript_path`, and a non-empty `agent_id` reads
-   that seat's `agent_transcript_path` — the value the payload already carries and the manifest
-   already records. Reading the main transcript for an `agent_id`-keyed provisional would find the
-   text in the wrong file, never satisfy it, and promote every subagent turn. **That is transcript I/O for another session inside `SessionStart`, so it
-   was measured against that hook's budget rather than assumed into it:** a tail read beyond a stored
-   offset costs **2.4 ms**, and even a cold full parse of the largest transcript on this box (36.2 MB)
-   is **108 ms** — against the 500 ms rollover budget, with 6 sessions live. The stored offset is what
-   keeps the steady state in the low milliseconds; the cold case is the bound, and it fits. Promotion is thereby restricted to text genuinely absent from the file, and
-   rule 4's justification becomes true rather than assumed. **A provisional is deleted the moment it
-   is SATISFIED** — an ingested block equal to it arrives for its key — not on first sight of any
-   sibling text. If it is still unsatisfied *after* that ingest, it is retained until its
-   turn is known closed, by any of **four** triggers: a later `prompt_id` ingested for that same
-   `(session, agent_id)`; `SessionEnd`; or — the one that cannot be missed — **the session no
-   longer being live**, per the `~/.claude/sessions/<pid>.json` check §II already specifies for
-   liveness; and a **fourth, age — any provisional older than 24 hours**.
-
-   **Closure is a database WRITE, so triggers 3 and 4 need a writer named, and an earlier draft's
-   "no hook has to fire for it to resolve" was false.** The query path is read-only by design
-   (§V.9 asserts writes are refused there), so nothing resolves without some hook running. **There are TWO sweeps and an earlier draft conflated them**, which made the resolution claim and
-   the retention claim contradict: the **retention** sweep (the 325 ms `DELETE`) is a no-op except on
-   the first `SessionStart` of a new UTC day, while **closure runs on EVERY `SessionStart`** — that is
-   what makes "the next `SessionStart` on the box resolves it" true. Closure is cheap enough to
-   belong there: **2.4 ms** for a tail read beyond a stored offset, so even every live session
-   outstanding at once sits inside the 50 ms steady-state budget, and the 500 ms rollover budget
-   covers the day the two coincide.
-
-   **And closure ingests for any session that is no longer live, whether or not a provisional is
-   outstanding.** Without that, §V.3's equality is one-sided by construction: the 4.1% of fires
-   carrying no `last_assistant_message` and the 0.12% duplicate-tail residue both leave final-turn
-   text in the file that the catalogue never reads, so the equality would go red on real data for a
-   correct implementation. Ingesting unconditionally makes it exact.
-
-   **But "any session no longer live" is unbounded, and my first attempt to bound it capped the
-   wrong unit with wrong numbers.** That attempt said "415 of 421 transcripts / 202 MB are non-live"
-   and capped **8 sessions per run** at "8 × 2.4 ms". Both halves were wrong:
-
-   - The population counted every `agent-*.jsonl` as non-live, because an agent file's basename never
-     equals a live `sessionId` — **the parent/subagent conflation rule 1 exists to prevent, for the
-     third time in this plan.** Attributing files by the vendor's layout, which has **three** tiers and not two —
-     `<project>/<sid>.jsonl`, `<project>/<sid>/subagents/agent-*.jsonl`, **and
-     `<project>/<sid>/subagents/workflows/<wf_id>/agent-*.jsonl`**: live = **245 files / 217.7 MB**,
-     non-live = **177 files / 85.5 MB**, across 94 sessions.
-
-     **The third tier is a fourth instance of the same conflation, and it hid inside a correct
-     total.** An earlier draft's rule named only the first two patterns while its *measurement* used
-     a `**` glob that swept all three, so the number looked right and the rule an implementer would
-     write does not: measured, the two-pattern rule attributes 189 files / 181.8 MB and leaves **56
-     files unattributed**, every one of them presently under live session `5627f39a`. When that
-     session ends those 56 enter the non-live population, an implementation built to the stated rule
-     never enumerates them, their final turns go uncatalogued, and the pending queue reads empty —
-     the plausible zero, produced by a rule that disagreed with the glob that validated it. The
-     pending-queue enumeration walks all three tiers.
-   - A session is not the unit that costs. Offsets are per **file** (line 182), and the largest
-     non-live session here holds **25 files**; the 8 largest hold **94 files / 57.0 MB ≈ 226 ms**,
-     4.5× the 50 ms budget. Capping sessions bounds nothing.
-
-   So the cap is on **the unit that costs: at most 12 file-tails or 4 MB read per invocation,
-   whichever binds first**, remainder deferred. **Derived, on one named model, and marked as the
-   estimate it is:** the per-tail figure (2.4 ms, §II:189) is dominated by open/seek/parse rather
-   than bytes, so the worst invocation is 12 × 2.4 ms ≈ **29 ms**, plus 4 MB at the 335 MB/s
-   partial-parse rate ≈ 12 ms only if the tails are large — the two halves are alternatives, not
-   addends, so the bound is ~29 ms against the 50 ms budget, leaving ~21 ms for the promotion writes
-   and the queue query. An earlier draft said 16 tails, which is 38.4 ms and leaves 11.6 ms — too
-   little for the writes it does not price. **ESTIMATED**: the combined worst case has not been run,
-   and §V.2 is the check that runs it. Plus the two bounds that keep the queue finite: only
-   sessions the catalogue already holds an offset record for (one it never ingested is `backfill`'s
-   job — the pre-hook sessions), and each session closed once and never revisited.
-
-   The steady-state population is sessions that ended since the last `SessionStart`, normally zero or
-   one; the cap exists for the day it is not.
-
-   Both closers are
-   performed by **`gray-area-capture` at `SessionStart`**: it promotes or deletes any provisional whose session is no longer live, and any older
-   than 24 hours regardless. The true property is narrower than the draft claimed and still enough:
-   **no hook of the *originating* session has to fire** — the next `SessionStart` on the box
-   resolves it, and on a machine running agents that is the next session to start. "Older than the
-   window's granularity" was also residue of the day-partitioned store §II rejects; 24 hours is a
-   value, not a granularity.
-
-   The third and fourth exist because the first two both fail on the same case: a session whose
-   **last** turn is the lagged one and which ends with live background work, where `SessionEnd` was
-   measured firing 0 of 2 times. (Liveness is *observed* rather than delivered, which is why it
-   resolves without the originating session's cooperation — but a hook must still run the write, as
-   stated above.) At close: if the provisional's text is already among the ingested texts for that
-   key, delete it; otherwise **promote it to a real `word` row**, because it is a final block that
-   never reached the transcript.
-5. That comparison is an **exact string equality** against `last_assistant_message`, scoped to one
-   turn's blocks. An earlier draft claimed "no content matching anywhere" as a virtue; that claim
-   is withdrawn rather than defended — there is no id for an individual text block.
-
-   **THE DECISION MOVES TO FIRE TIME, because at close it is undecidable.** Two earlier drafts tried
-   to decide it afterwards and each broke a different case, exhaustively:
-
-   - *multiset multiplicity* needed "the blocks that turn should hold" — a quantity with **no
-     source**: no assistant record carries more than one text block (measured: 39,206 carry zero,
-     7,004 exactly one, none more), so a turn's blocks arrive one record at a time and its total is
-     unknowable until the last one lands.
-   - *offset ≥ `offset_at_fire`* fixed `[X, X]` and broke the majority path: on a turn that did not
-     lag, the final block is already in the file at `Stop` time and is ingested at a position
-     *before* the offset, so it never satisfies and **every non-lagged turn promotes a duplicate**.
-
-   The discriminator is a **future** event — whether another identical block arrives — and no
-   recorded position can encode it. But the hook does not need the future: **at the moment `Stop`
-   fires it holds the payload's `last_assistant_message` and the transcript as it then stands,
-   simultaneously.** So:
-
-   **At fire, compare `last_assistant_message` to the last text block present in the transcript for
-   that `(session, agent_id, prompt_id)`.** Equal ⇒ the text has landed and **no provisional is
-   written**. Unequal, or absent on the transcript side ⇒ write the provisional, satisfied later by
-   any ingested block equal to it for that key.
-
-   **Two inputs can be missing, both measured, both given a rule rather than left to fall through:**
-
-   - **The payload carries no `last_assistant_message` at all — 24 of 585 real rows, 4.1%.** There
-     is nothing to compare and nothing to preserve, so **no provisional is written** and the
-     omission is recorded as `provisional_skip` with reason `no-last-assistant-message`, the same
-     channel as the absent-`prompt_id` case. Note this is **not** "the turn produced none": for 18
-     of the 24 the seat's own transcript does contain assistant text. So on those fires closure (a)
-     has no source at all, which is stated again at R11 rather than left here.
-   - **The transcript side is empty — 95 of 1,745 turns, 5.4%** (75 subagent, 20 main-agent): a turn
-     with assistant records and no text block. Nothing equal can ever land, so a provisional written
-     here is promoted at close, and **whether that is correct depends on something not yet
-     measured**: if the payload's text belongs to this `prompt_id` the promotion recovers a real
-     final turn; if it belongs to an earlier one, it misattributes. §V.17 measures exactly that leg.
-     Until it has, such a promotion is marked **`attribution='unverified'`** rather than asserted
-     correct — the honest state, and visible to a reader.
-
-     **An earlier draft put this at 1.6% (20 of 1,238) and was wrong** for a reason this plan should
-     have caught: it keyed turns by `promptId` **alone**, which merges a parent turn with its
-     subagents' — the very collision rule 1 exists to prevent. Keyed by `(file, prompt_id)` it is
-     5.4%, and three quarters of the population is subagent turns the wrong key had hidden. The id alone suffices; `offset_at_fire` is **not** needed for supersession
-   and remains only for incremental ingest (§V.8).
-
-   **The residue, measured rather than argued away.** The rule is wrong exactly when a turn's final
-   block **verbatim repeats an earlier block in the same turn** *and* lags: at fire the transcript
-   shows `X`, the payload says `X`, so it concludes the text landed and the true tail is lost. Whole
-   corpus, 416 files, 1,648 turns carrying text: **2 turns have that shape — 0.12%**; 7 (0.42%)
-   contain any duplicate pair at all, and only the lagged subset of the 2 loses anything. The trade
-   is 0.12% under-write against the offset rule's ~100% duplication and the multiset rule's
-   non-executability, and is chosen on those numbers.
-
-6. **The state this introduces is bound to the schema, and the promotion transition is stated** —
-   an earlier draft invented `provisional_skipped` and `attribution` with no table and no column,
-   and never said what promotion does to the flag, which left rules 3–5 undecidable:
-
-   - The `word` view's column set — the published contract §V.6 pins — carries **`source`**
-     (`'payload'` | `'transcript'`), **`provisional`** (1 = outstanding, 0 = settled) and
-     **`attribution`** (`NULL` | `'unverified'` | `'ambiguous'`).
-   - **At promotion `provisional` flips 1 → 0 while `source` stays `'payload'`.** That pair is what
-     identifies a permanent row with no transcript counterpart, which §V.3's arithmetic needs.
-   - **The `word` row's identity is `(session, agent_id, prompt_id, block_seq)`** — `block_seq` the
-     block's ordinal within its turn, derived at ingest by counting text blocks already stored for
-     that key, which makes it **stable across a `backfill` that starts from zero**: the same
-     transcript replayed in the same order yields the same ordinals. It is a position within a turn,
-     not a byte offset, so it does not move when a file is re-read. This had to be stated: `(session, seq)` is the `action` tier's
-     key and backfill's, and `(session, agent_id, prompt_id)` is **not** unique per word row, since
-     66.2% of turns carry more than one block. Without an identity the replacement below has nothing
-     to replace on.
-   - **A promoted row stays replaceable**, the dedup the flag transition would otherwise lose: if a
-     transcript-sourced block equal to it later arrives — a `backfill` re-read, say — it **replaces**
-     the row rather than inserting beside it (`source` → `'transcript'`, `attribution` → `NULL`), and
-     **a provisional or promoted row carries `block_seq = NULL`** — it has no ordinal until a
-     transcript block gives it one — so the replacement cannot match on the 4-tuple and instead
-     matches on **`(session, agent_id, prompt_id)` with `source='payload'` and the text equal**, then
-     **adopts the transcript block's `block_seq`**. Stating both halves is what gives §V.15's
-     promoted-then-replaced assertion a defined pre-state; without them a mismatched ordinal makes
-     the next `backfill` insert beside the row instead of finding it. Without both halves the same text double-stores.
-   - **`backfill` writes an offset record and leaves `closed_at` NULL** — stating this is what makes
-     §V.3 and §V.18 consistent, and an earlier draft left it out so both readings broke something.
-     Because it writes the offset, a backfilled session becomes eligible for closure and is drained
-     by the queue at the capped rate (177 non-live file-tails ≈ 15 invocations at 12 per run), so
-     §V.3's pre-hook exclusion applies only *until* that drain completes and §V.18's month window has
-     rows to read. And because `closed_at` stays NULL, backfill never asserts a session is settled
-     when it has only been read once — the settling is closure's judgement, made against liveness.
-     §II's "steady state is normally zero or one" is therefore true only **after** the initial drain,
-     which is stated here rather than implied.
-   - **Closure's own state is bound too, rather than invented as the last two were:**
-     `session.closed_at` (`NULL` = not closed) is the marker, and **the pending queue is a query, not
-     a table** — non-live sessions holding an offset record with `closed_at IS NULL`, oldest first. So
-     "deferred, not dropped" is observable without new storage, and a missing marker reads as *not yet
-     closed*, the safe direction: it gets revisited. `closed_at` sits on the `session` view, so it is
-     on §V.6's contract.
-   - **Skips get a carrier**: `provisional_skip(session, agent_id, prompt_id, reason, at)`, `reason`
-     from a closed set — `no-prompt-id`, `no-last-assistant-message`. It sits behind a **`skip`
-     view**, so the skip population is on the §V.6 contract rather than off it: a turn that was
-     skipped is a fact a reader needs as much as a stored one. Prose elsewhere says
-     `provisional_skipped`; **the table is `provisional_skip` and the prose follows it.** A promotion
-     reached from the **unequal** path carries `attribution = NULL` — nothing about it is ambiguous
-     or unverified; it is a final turn the transcript never received. **When both are absent the
-     reason is `no-prompt-id`**, checked first, since without a key nothing could be written at all.
-
-7. **A transcript record whose ancestry yields no `promptId` is ingested with a NULL key** — and an
-   earlier draft stopped there, which double-stores: a NULL-keyed block can never be counted "for
-   that key", so its turn's provisional is always promoted and the final text is stored **twice**.
-   So a NULL-keyed block is attributed to the **open provisional for its `(session, agent_id)`**
-   when exactly one is outstanding, and is then eligible to satisfy that provisional by the fire-time
-   comparison above. **In a `backfill` pass no provisionals exist** — nothing was skipped and nothing
-   is outstanding — so this attribution step is a no-op there and every NULL-keyed block is simply
-   stored, which is why a from-zero `backfill` is reproducible while a live ingest is order-dependent. With **several** outstanding it stays NULL-keyed, those provisionals are
-   promoted, and the rows are marked `attribution='ambiguous'` so the duplicate reads as deliberate.
-   With **zero** outstanding there is nothing to promote and the block is simply stored NULL-keyed —
-   an earlier draft's "its turn's provisional is promoted" was a no-op in that case.
-
-   **The rate, corrected — an earlier draft claimed "100.000%, zero unresolved" from too narrow a
-   sample.** Over the **whole** corpus (414 files, 46,046 assistant records): **3 unresolved,
-   99.9935%.** Two are record 0 of a resumed/forked file whose `parentUuid` points outside it; one is
-   a subagent record with no `parentUuid` at all. The 40-file scan that produced "zero" contained
-   none of them — narrow evidence, universal claim.
-
-**Provisionals are written at `SubagentStop` as well as `Stop`.** The vendor caveat names both —
-*"Hooks that need the final assistant text of the current turn should use `last_assistant_message`
-on Stop and SubagentStop"* — gray-area already binds `SubagentStop`, and 263 subagent transcripts
-exist on this box. A subagent's final text has no other closure: there is no later `SubagentStop`
-for that agent, so byte-offset ingest can never recover it. Rule 1's `agent_id` dimension already
-keys it correctly. An earlier draft answered a README sentence specifically about the
-**`SubagentStop`** payload with a `Stop`-only mechanism.
-
-**(b)** gray-area binds **`SessionEnd`** (new;
-prosthetic-conscience binds it, gray-area does not) for one final sweep after the last `Stop` —
-**best-effort, and this repo has already measured why.** `plans/hook-surface-spike.md:1066`:
-*"`SessionEnd` did not fire in either run that ended with live background work"* — 14 of 15
-sessions overall, **0 of 2** with background tasks still live. A session ending with a `Monitor` or
-a backgrounded command outstanding is exactly the shape this one has had all day, so (b) cannot be
-the primary closure and is not treated as one: **(a) alone is sufficient**, because the provisional
-is written at the `Stop` that precedes the end rather than at the end. (b) narrows the residue —
-a turn whose `Stop` never fired at all — and an earlier draft presented it as a co-equal closure
-without citing the measurement sitting in this repository.
-
-§V.17 measures the lag once a `Stop` hook exists, and decides whether either half is
-redundant.
-
-**A retention claim in an earlier draft of this section was WRONG, and it is withdrawn.** It said
-transcripts are cleaned up at ~2 weeks, citing "428 rows name a vanished transcript against 373
-live". The correct measurement, over all 51 manifests / 1,240 rows:
-
-    resolved rows                                     365
-      of which the path is missing NOW                  0     <- nothing has been deleted
-    unresolved rows                                   875
-      no capture_category (predates schema 2)         447
-      event-names-no-seat            (#189 turn ends) 378
-      hook-input-carried-no-path                       50
-      typed-seat-transcript-missing                     0     <- the alarming population is EMPTY
-
-**Zero transcripts have been deleted since capture.** Every unresolved row was unresolved *at
-capture*, and says so in `capture_category` — the field #398 added precisely so these populations
-could not be confused. A second draft of this paragraph then got the split wrong in the other
-direction, reporting 447 as "the rows that do not resolve" when 447 is only the uncategorized
-subset, and double-counting the 378. Written out in full above so the third attempt is checkable.
-
-The corpus is intact back to 2026-08-16 and no `cleanupPeriodDays` is set.
-
-**So the daemon is rejected on the grounds that survive, which are not correctness.** A polling
-daemon must be running, must be started, and must be version-matched to the hooks that feed it —
-this repository has already been bitten by three capture binaries installed at once whose rows were
-indistinguishable (#818), and a resident daemon is that failure with a longer fuse. The `Stop` hook
-is event-driven, has no lifecycle, starts nothing on a consumer's machine, and costs 0.57 s per
-session. That is sufficient without the urgency argument, and the urgency argument was false.
+The alternative to a stated residue was a state machine with four closers, a positional key, a
+multiset comparison and an unverified-attribution flag, to recover one turn in twenty-five.
 
 ### Liveness is observed, not inferred
 
@@ -714,12 +388,11 @@ stays green. This was checked because two new directories would have turned it r
   `~/.local/state/special-circumstances/catalogue/catalogue.db` copies **tool names and targets,
   assistant text, user prompts and thinking summaries** — never tool results — for **one month**,
   on this machine only, never in the repository.
-- [MODIFY] `plugins/gray-area/README.md:37` — *"`SubagentStop` also carries
-  `last_assistant_message`, and that is deliberately not recorded… duplicating it into a second
-  file buys no evidentiary value."* The direct negation of the design above. Rewritten: the
-  **manifest row** still refuses it, for the reason stated; the **catalogue** ingests it at `Stop`
-  as a provisional `word` row, because it is the only source of a final turn the transcript has not
-  yet written.
+- `plugins/gray-area/README.md:37` — *"`SubagentStop` also carries `last_assistant_message`, and
+  that is deliberately not recorded."* **UNCHANGED, and now true of the catalogue as well as the
+  manifest**: with the provisional path not built, nothing in this plugin reads that field. An
+  earlier draft listed this line as a carrier needing rewriting, which it would have been had the
+  machinery shipped.
 - [MODIFY] `plugins/gray-area/README.md:124` — *"the manifest is gitignored; nothing leaves the
   box."* Gitignore is no longer the privacy mechanism once the store lives under
   `~/.local/state/`, outside any repository. Rewritten to the same scoping statement: nothing
@@ -841,7 +514,7 @@ raw SQL is a complete concept without it.
 | R6 | **A malicious or clumsy query wedges the box.** | medium × medium × closed | §V.9 — writes refused; cross join cancelled at a deadline; `ATTACH` and `writable_schema` refused on the pinned connection |
 | R7 | **Liveness reports a dead agent as live** via pid reuse. | low × high × closed | §V.10 — a stale `procStart` must resolve to `ended`, asserted with a fabricated mismatch |
 | R8 | **First dependency in a zero-dependency plugin**, and its consumer-side install cost — `scripts/bootstrap-plugins.sh:83-99` builds hook binaries **on the consumer's machine**, and its own comment names dependency download as the part most likely to overrun the ~5 minute budget. Measured cold against an empty module cache: **3.7 s download + 23.0 s build, 348 MB cache.** Inside the budget, stated rather than assumed. | certain × low × **low to mitigate** — one-time and measured; nothing to do unless that budget tightens | named as a decision at §III's `go.mod` bullet (pin, cgo rejection, 1+9 requires), not absorbed |
-| R11 | **The transcript lags the `Stop` hook and a session's final turn is never ingested.** Documented by the vendor, **not measured on this box** — it cannot be, until a `Stop` hook exists here; the one inference attempted was confounded and is recorded in §II so it is not repeated. | likely × medium × **one closure plus a best-effort narrowing, with two measured residues** — (a) covers the lagged final turn except: the 0.12% duplicate-tail under-write (rule 5), and the **4.1% of fires carrying no `last_assistant_message`, where (a) has no source at all**. "Sufficient alone" is claimed against those two rates, not absolutely; (b) `SessionEnd` did not fire in 2 of 2 runs ending with live background work | §V.3's `catalogue = transcript + promoted` arithmetic, whose second addend IS the R11 population, plus §V.17 at fire time. An earlier draft named §V.3 while §V.3 excluded exactly those rows |
+| R11 | **A session's final turn can be missing** when the transcript lagged its last `Stop` and no closure pass read it. **ACCEPTED, not engineered around** (gblock, 2026-09-09): the payload recovery this would need was designed across ten audit rounds and is not built, because ingest needs none of it — see §II. Closure narrows it by ingesting before it marks a session shut. | likely × low × **accepted** | §V.3 compares word counts, so the residue's SIZE is measured rather than assumed; §V.17 measures the lag itself once the hook exists. A number reopens this, not an argument |
 | R10 | **Promoting ripgrep to `required` BLOCKS consumers** who lack the binary. The mechanism is `toolchain.MergeStrictest` + `doctor.verdict` — a missing `required` tool returns BLOCKED — **not** a manifest key: `_tier_comment` is documentation on the entry, and an earlier draft cited it as though it were the enforcement. Deliberate: from the moment `find` ships, a missing `rg` returns zero hits indistinguishable from an honest zero, and a wrong answer is worse than a blocked install. | certain × medium × accepted | §V.14 — asserts the verb and the tier move in the same change, so neither can ship alone |
 | R9 | **The board reads as complete when reasoning capture was off.** | medium × medium × mitigated | §V.11 — a session with zero non-empty thoughts is distinguishable from one never asked |
 
@@ -886,8 +559,8 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
    `gray-area-capture` binary** rather than benchmarking library work in-process, because the
    budget is stated as spawn floor plus ingest and an in-process benchmark cannot measure a spawn.
    Four cases are forced rather than waited for: the day-rollover (seed a row dated outside the
-   window), a **closure with an outstanding provisional and a nonempty unread tail** (the new work
-   goal 2 previously had no case that could see — assert against the 50 ms steady-state budget), a
+   window), a **closure with a nonempty unread tail** (the new work goal 2 previously had no case
+   that could see — assert against the 50 ms steady-state budget), a
    **backlog exceeding both halves of the cap** — ≥40 non-live file-tails totalling ≥10 MB unread —
    asserting exactly **≤12 tails and ≤4 MB read per invocation**, the invocation inside 50 ms, and the
    remainder still queued rather than dropped; and **closure coinciding with the day-rollover sweep**
@@ -908,24 +581,18 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
    turn's text never reaches the file. So:
 
        FOR sessions closure has actually closed (session.closed_at IS NOT NULL):
-         catalogue words  ==  transcript words  +  count(source='payload' AND provisional=0)
+         catalogue words  ==  transcript words
 
-   **The scope is not the corpus; an unscoped `==` would be guaranteed red** for a correct
-   implementation, three ways: live sessions have bytes past their last `Stop` that closure by
-   definition has not read (the majority of the corpus here — 245 files / 217.7 MB); sessions
-   predating the hook have transcript words and zero catalogue words by design, since closure only
-   touches sessions it holds an offset for; and the deferred remainder has unread tail bytes at
-   measurement time on purpose. So the test enumerates `session.closed_at IS NOT NULL` and compares
-   over that set alone. Round nineteen fixed this equality on one side; leaving it unscoped reopened
-   it on the other.
+   **The equality is now exact rather than approximate**, because the provisional path is not
+   built: every `word` row is transcript-sourced, so there is no residue term to carry. An earlier
+   draft needed `+ count(source='payload' AND provisional=0)` and three stated exclusions; two of
+   those exclusions remain as SCOPE — live sessions have bytes closure has not read, and sessions
+   predating capture have transcript words and no catalogue words — which is why the comparison is
+   over closed sessions and not the corpus.
 
-   Each addend is asserted rather than only the total: every `source='payload' AND
-   provisional=0` row has its text asserted **absent** from the transcript for its key — that is
-   what makes it a genuine residue rather than a duplicate — and `provisional=1` rows are counted
-   and reported as **outstanding** rather than silently dropped. An earlier draft excluded them and
-   called that "asserted separately" while naming no assertion, which is not executable, and could
-   not see R11 either way since the excluded rows are exactly where R11's evidence lives. Words are compared because a final turn lost to transcript lag
-   (R11) changes the word count and leaves the act count untouched.
+   Words are compared, not only acts, because a final turn lost to transcript lag changes the word
+   count and leaves the act count untouched — the residue §II states is the thing this check
+   measures the size of.
 4. **[FIXTURE]** `go test -run TestCorruptLineIsUnparsedNotZero ./internal/catalogue/`
 5. **[FIXTURE]** for the model, **[LOCAL]** for the ratio: `go test -run 'TestAbsentIsErrorIsSuccess|TestBashAlwaysStatesTheFlag' ./internal/catalogue/` —
    the first pins the corrected model (absent ⇒ `ok`, only a missing `tool_result` ⇒ `unresolved`);
@@ -966,32 +633,11 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
     the `find` verb and `requirements.json`'s `required` tier move together (R10), so neither can
     ship without the other.
 15. **[FIXTURE]** `go test -run 'TestBackfillIsIdempotent|TestBackfillVerbDispatches|TestProvisionalWordIsSupersededOnce' ./internal/catalogue/` —
-    the third is a **multi-turn, multi-block** fixture, because a one-block-per-turn fixture cannot
-    exercise the rule at all — 66.2% of real turns carry more than one block. Each case names one
-    outcome, an earlier draft having asserted two contradictory ones for the no-lag path. It
-    carries: a **no-lag** turn (asserts **no provisional is written**, the fire-time comparison
-    finding the text already present — the case an offset rule duplicated on nearly every turn); a
-    lagged turn with **three blocks of which only the tail is missing** (asserts a provisional IS
-    written and is satisfied when the tail lands, deleting it); two turns lagging at once (asserts
-    no cross-turn consumption); a turn whose blocks are `[X, X]` with the tail lagged (asserts the
-    **measured residue** — the rule under-writes here, so the fixture pins the known-wrong outcome
-    rather than a fiction, at 0.12% of turns); a **subagent** record sharing the parent's
-    `sessionId` and `promptId` (asserts it does not touch the parent's provisional, that
-    `SubagentStop` writes its own, and that closure reads the **agent's** transcript rather than the
-    session's — the file-set error that would otherwise promote every subagent turn); a `Stop` payload with **no `prompt_id`** (asserts
-    `provisional_skip`, not a `""` key); a payload with **no `last_assistant_message`** (asserts
-    `provisional_skip` with reason `no-last-assistant-message`, 4.1% of real rows); a **zero-text turn whose payload DOES carry text** (asserts the
-    provisional is promoted and marked `attribution='unverified'`, 5.4% of turns — not "no row",
-    which an earlier draft asserted from a wrongly-keyed 1.6%);
-    a **final** lagged turn with no `SessionEnd` (asserts the provisional is readable while
-    outstanding, and that the **next `SessionStart` sweep** promotes it — naming the closer that
-    fires, since the fixture controls which); and a
-    record with unresolvable ancestry (asserts single-outstanding attribution, and
-    `attribution='ambiguous'` when not). §V.3
-    cannot see any of this: it counts a live corpus where a +1 is invisible. Also —
-    a second `backfill` over the same corpus leaves **both act and `word`** counts unchanged — word
-    counts over a corpus containing a **promoted-then-replaced** row, since that is the case rule 6's
-    `block_seq` adoption exists to make idempotent and an act-only assertion cannot see, and the verb reaches its handler.
+    the third asserts `backfill` idempotence over BOTH act and `word` counts: a second pass over
+    the same corpus adds nothing. Measured on the real corpus at 14 ms and zero new rows. The
+    provisional cases an earlier draft enumerated here — two outstanding at once, the `[X, X]`
+    tail, the unverified attribution — are gone with the machinery they tested.
+
 16. **[PROCESS]** `qlty check --no-progress --no-fix --filter=osv-scanner
     plugins/gray-area/tools/go.mod` — **expected: 0 findings.** Run on the branch before review,
     because the directive `go mod tidy` writes (`go 1.25.0`) scans at 46 findings and the one this
