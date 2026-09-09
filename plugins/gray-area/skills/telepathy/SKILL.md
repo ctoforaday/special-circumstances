@@ -33,6 +33,11 @@ telepathy sql '<SELECT …>'       anything else
 telepathy backfill               read the existing corpus into the store (explicit, safe to repeat)
 ```
 
+`find` takes a **literal** by default; pass `--regex` for a pattern. Use it for word boundaries —
+searching `roving` rather than `\broving\b` returns every occurrence of "p*roving*", which is how
+this rule was earned. A substring match is the default failure mode of every search here,
+including `touched` and `sql`'s `LIKE`.
+
 Every verb takes `--help`, and each one's help states what that verb cannot tell you. `sql` takes
 `--limit` (default 200) and prints a line when it truncates, so a capped result is never mistaken
 for a complete one.
@@ -56,9 +61,12 @@ telepathy sql "SELECT tool, target FROM v_action WHERE session_id LIKE '5627%' A
   another pid namespace is not ours to judge. YOU MUST NOT read `unknown` as "gone".
 - **A session's final turn may be missing** when its transcript lagged the last hook and no
   closure pass read it. Measured residue, deliberately not engineered around.
-- **Reasoning is only there if it was captured.** `showThinkingSummaries` defaults OFF; a session
-  that ran without it has acts and words and no thoughts. `session` says so rather than letting
-  zero read as "it did not think".
+- **`v_thought` is near-dead, and that is a fact about the CLIENT, not the agents.** Measured on
+  this box 2026-09-09: one transcript carried 911 thinking blocks and 79 with any text, all of
+  those before 2026-09-08; since then, zero. Across 106 sessions only 8 hold a single thought.
+  `showThinkingSummaries` was ON throughout. YOU MUST NOT read an empty `v_thought` as evidence
+  an agent did not reason, and YOU MUST NOT cite thought counts as a measure of anything until
+  this changes.
 - **A session that predates capture contributes nothing** until `backfill` has read it. Absence of
   rows is not absence of work.
 - **`touched` sees a path only where the record NAMES it.** For `Read`/`Edit`/`Write` that is the

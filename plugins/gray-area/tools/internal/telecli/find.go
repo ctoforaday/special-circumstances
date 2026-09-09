@@ -1,6 +1,7 @@
 package telecli
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -20,7 +21,8 @@ var errNoRipgrep = errors.New(
 		"gray-area's requirements.json) or use `telepathy sql`")
 
 func newFindCmd(env *Env) *cobra.Command {
-	return &cobra.Command{
+	var asRegex bool
+	c := &cobra.Command{
 		Use:   "find <term>",
 		Short: "search every local transcript (ripgrep, no index)",
 		Long: `Searches the raw transcripts the store names, and joins each hit back to whose
@@ -31,10 +33,15 @@ against a corpus of hundreds of megabytes, where an index would cost gigabytes a
 need invalidating on every append — the filesystem is already the index, and it
 cannot go stale.
 
-The term is passed to ripgrep as a single argument and never reaches a shell.
+The term is a LITERAL by default, and is passed to ripgrep as a single argument
+that never reaches a shell. Pass --regex to treat it as a pattern — which is what
+you want for a word boundary, and searching for 'roving' rather than '\broving\b'
+is how you get every occurrence of "proving" instead.
 
-If ripgrep is missing this REFUSES rather than printing "no matches": a search that
-could not run must never be reported as a search that found nothing.`,
+Anything that stops this from being a completed search REFUSES rather than
+printing "no matches": ripgrep absent, a pattern that does not compile, or a
+corpus it could not finish reading. A search that could not run must never be
+reported as a search that found nothing.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			db, err := env.openRead()
@@ -63,14 +70,53 @@ could not run must never be reported as a search that found nothing.`,
 				names = append(names, p)
 			}
 			sort.Strings(names)
-			rgArgs := append([]string{"--count-matches", "--no-messages", "--", args[0]}, names...)
+			// LITERAL UNLESS ASKED. `find 'Mint('` is a reasonable thing to type and is not a
+			// valid regex; as a pattern it made ripgrep exit 2, and the branch below used to read
+			// that as "no matches". -F removes the whole class for the common case, and a caller
+			// who wants a pattern says so.
+			rgArgs := []string{"--count-matches"}
+			if !asRegex {
+				rgArgs = append(rgArgs, "--fixed-strings")
+			}
+			rgArgs = append(rgArgs, "--", args[0])
+			rgArgs = append(rgArgs, names...)
 			out := cmd.OutOrStdout()
-			// Exit 1 from ripgrep means "no matches" and is not an error here; exit 2 means it
-			// could not read something, and --no-messages already means we are not relaying why.
-			raw, runErr := exec.CommandContext(cmd.Context(), rg, rgArgs...).Output()
-			if runErr != nil && len(raw) == 0 {
-				fmt.Fprintf(out, "no transcript contains %q\n", args[0])
-				return nil
+			// RIPGREP'S THREE EXIT CODES ARE THREE DIFFERENT ANSWERS, and collapsing them is how
+			// this verb produced the exact zero it was written to refuse:
+			//
+			//	0  matched
+			//	1  ran to completion, matched nothing        <- the honest zero
+			//	2  did not run, or did not finish            <- NOT a zero
+			//
+			// `find 'Mint('` took the third path, printed "no transcript contains", and exited 0.
+			// --no-messages used to hide the reason as well, so nothing anywhere said the search
+			// had failed. It is gone: a refusal that cannot say why is barely better than silence.
+			var stderr bytes.Buffer
+			run := exec.CommandContext(cmd.Context(), rg, rgArgs...)
+			run.Stderr = &stderr
+			raw, runErr := run.Output()
+			code := 0
+			var ee *exec.ExitError
+			if errors.As(runErr, &ee) {
+				code = ee.ExitCode()
+			} else if runErr != nil {
+				return fmt.Errorf("could not run ripgrep: %w", runErr)
+			}
+			if code >= 2 {
+				why := strings.TrimSpace(stderr.String())
+				if why == "" {
+					why = "ripgrep exited " + fmt.Sprint(code) + " without saying why"
+				}
+				// PARTIAL RESULTS ARE STILL REPORTED, because exit 2 also covers one transcript
+				// vanishing mid-walk, and throwing away a good answer over a file that was
+				// deleted while we read it would be its own kind of wrong. What must not happen
+				// is printing them as if the search were complete.
+				if len(raw) == 0 {
+					return fmt.Errorf("the search did not run: %s", why)
+				}
+				fmt.Fprintf(cmd.ErrOrStderr(),
+					"telepathy find: INCOMPLETE — ripgrep could not finish, so these hits are a "+
+						"floor and not the answer: %s\n", why)
 			}
 			type hit struct {
 				f catalogue.TranscriptFile
@@ -105,4 +151,7 @@ could not run must never be reported as a search that found nothing.`,
 			return nil
 		},
 	}
+	c.Flags().BoolVar(&asRegex, "regex", false,
+		"treat the term as a regular expression rather than a literal (needed for \\b word boundaries)")
+	return c
 }

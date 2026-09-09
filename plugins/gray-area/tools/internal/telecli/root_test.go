@@ -3,6 +3,7 @@ package telecli
 import (
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -298,5 +299,54 @@ func TestTheDefaultShownIsNotTheDefaultUsed(t *testing.T) {
 	}
 	if !filepath.IsAbs(env.Store) {
 		t.Errorf("the resolved store path is not absolute: %q", env.Store)
+	}
+}
+
+// A PATTERN THAT DOES NOT COMPILE IS NOT AN EMPTY RESULT.
+//
+// ripgrep has three exit codes and this verb used to collapse them into two: 0 matched, 1 matched
+// nothing, 2 DID NOT RUN. `find 'Mint('` took the third path — unclosed group — and printed "no
+// transcript contains", exit 0. That is the same plausible zero the missing-ripgrep branch ten
+// lines above was written to refuse, reached by a different road.
+func TestFindRefusesAPatternThatDoesNotCompile(t *testing.T) {
+	if _, err := exec.LookPath("rg"); err != nil {
+		t.Skip("ripgrep is not installed, so `find` cannot be exercised here — a skipped assertion, not a passing one")
+	}
+	h := newHarness(t)
+	out, errOut, code := h.run(t, "find", "--regex", "Mint(")
+	if code == 0 {
+		t.Fatalf("an uncompilable pattern was reported as a completed search:\n%s", out)
+	}
+	if strings.Contains(out, "no transcript contains") {
+		t.Error("a search that never ran was reported as a search that found nothing")
+	}
+	// The reason reaches the caller. --no-messages used to swallow it, so even the refusal
+	// could not say what was wrong with the pattern.
+	if !strings.Contains(errOut, "unclosed group") {
+		t.Errorf("the refusal does not relay ripgrep's reason: %q", errOut)
+	}
+}
+
+// THE TERM IS A LITERAL BY DEFAULT, which is what removes the class above for the common case:
+// `Mint(` is a reasonable thing to search a Go corpus for and is not a valid regex. The fixture
+// contains it as a Grep pattern precisely so this can be asserted.
+func TestFindTreatsTheTermAsALiteralUnlessAsked(t *testing.T) {
+	if _, err := exec.LookPath("rg"); err != nil {
+		t.Skip("ripgrep is not installed, so `find` cannot be exercised here — a skipped assertion, not a passing one")
+	}
+	h := newHarness(t)
+	out, errOut, code := h.run(t, "find", "Mint(")
+	if code != 0 {
+		t.Fatalf("a literal containing a regex metacharacter was refused: exit %d, %s", code, errOut)
+	}
+	if strings.Contains(out, "no transcript contains") {
+		t.Errorf("the literal was not found, so it was compiled as a pattern after all:\n%s", out)
+	}
+	// And --regex genuinely changes the meaning, rather than being a flag that does nothing.
+	// A dot matches any character as a pattern and only itself as a literal.
+	asPattern, _, _ := h.run(t, "find", "--regex", "Mint.")
+	asLiteral, _, _ := h.run(t, "find", "Mint.")
+	if asPattern == asLiteral {
+		t.Errorf("--regex did not change how the term is interpreted:\n%s", asPattern)
 	}
 }
