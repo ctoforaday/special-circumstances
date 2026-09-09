@@ -22,7 +22,7 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 
 	mint := func(id string, kind recordpb.CheckKind, extra func(*recordpb.Mint)) {
 		t.Helper()
-		m := &recordpb.Mint{
+		m := &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId:           proto.String(id),
 			Class:           proto.String("self-attestation"),
 			Problem:         proto.String("p"),

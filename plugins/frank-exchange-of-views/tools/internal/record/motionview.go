@@ -56,6 +56,12 @@ type MotionJSON struct {
 	// a petition's class. Kept as the record holds them rather than flattened into named columns
 	// that would differ per subject.
 	Fields map[string]string `json:"fields"`
+	// GapID is the gap the motion is ABOUT — a docket or grade motion's — or absent for a subject
+	// about no gap. The projection carried it only inside Fields for grade motions; a docket
+	// motion, the one the bench is dispatched to rule, showed no gap at all, so a bench reading
+	// this page could not tell which docketed gap a motion was for (found by the release sweep:
+	// its bench filed fresh motions and ruled those, and the dispatch's stood unruled).
+	GapID string `json:"gap_id,omitempty"`
 }
 
 // MotionsJSON is the whole docket, with the outstanding count a blocked seat needs.
@@ -82,6 +88,7 @@ func motionsJSONOf(evs []*Event) MotionsJSON {
 			RulingEpoch: m.RulingEpoch, Opinion: m.Opinion,
 			Appealed: m.Appealed, AppealReason: m.AppealReason,
 		}
+		mj.GapID = m.GapID
 		if len(m.Fields) > 0 {
 			mj.Fields = m.Fields
 		}

@@ -87,7 +87,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 	// Red mints a gap; the parties take positions; blue records one pursued line of inquiry (an
 	// expansion) and one abandoned line of inquiry (an alternative considered); the bench opines;
 	// the run's terminal verdict is recorded.
-	add("red-chair", &recordpb.Mint{
+	add("red-chair", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		GapId: proto.String("G1"), Problem: proto.String("eviction races the reader"),
 		Location: proto.String("cache.go:88"), Class: proto.String("correctness"),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
@@ -302,7 +302,7 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 		ProofBasis: proto.String("reproducible"), Script: proto.String("interleave.js"),
 		Text: proto.String("the model check settles the race"),
 	})
-	add("red-chair", &recordpb.Mint{
+	add("red-chair", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		GapId: proto.String("G1"), Problem: proto.String("eviction races the reader<!--cite:c-2-->"),
 		Location: proto.String("cache.go:88"), Class: proto.String("correctness"),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),

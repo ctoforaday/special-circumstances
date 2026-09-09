@@ -94,13 +94,13 @@ func TestHaltOutranksAPass(t *testing.T) {
 }
 
 // THE ONE CASE THE RECORD CANNOT DECIDE, and it must say so rather than guess. A run that
-// ends early with no pass and no halt ended on a judged deadlock — a determination that lives
-// only in the bench's envelope and leaves no independent trace (#289).
+// ends early with no pass, no halt and no board at its ceiling ended UNVERIFIED — and the
+// record cannot tell that from a run still in flight, so it refuses to derive rather than guess.
 func TestARunThatEndedEarlyIsNotDerivable(t *testing.T) {
 	dir := runWith(t, "5", []*Event{vev(t, "red-chair", 1, &recordpb.Position{Text: proto.String("x")})})
 	got, why, ok := DeriveVerdict(mustRun(t, dir))
 	if ok {
-		t.Errorf("derived %q from a record that cannot decide — the deadlock case must stay honest", got)
+		t.Errorf("derived %q from a record that cannot decide — the ended-early case must stay honest", got)
 	}
 	if why == "" {
 		t.Error("the refusal must explain WHY it cannot decide, or the gap is invisible")

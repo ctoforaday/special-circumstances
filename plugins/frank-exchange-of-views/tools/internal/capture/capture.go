@@ -154,8 +154,8 @@ func jsString(v any) string {
 
 // LivenessAudit records whether the run reached capture UNDER ITS OWN POWER or was terminated.
 //
-// THE TWO ARE OPPOSITE FACTS AND WERE THE SAME OUTPUT. "UNVERIFIED by judged deadlock" means the
-// debate ran its course; "UNVERIFIED because the process was killed at round 1" means it never
+// THE TWO ARE OPPOSITE FACTS AND WERE THE SAME OUTPUT. "UNVERIFIED — nobody was ready" means the
+// debate ran its course; "UNVERIFIED because the process was killed in epoch 1" means it never
 // got to. Both rendered as an ordinary capture, so the run record could not tell a reader which
 // one it was holding — and neither could a later run reading the corpus.
 //

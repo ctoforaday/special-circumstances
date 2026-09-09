@@ -294,7 +294,7 @@ func TestAnAbsentFlagIsNotWrittenAsEmpty(t *testing.T) {
 	// first mint of the round is assigned.
 	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--class", "x", "--check-kind", "document", "--check", "c",
-		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatalf("lens mint: %v", err)
 	}
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,

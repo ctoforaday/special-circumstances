@@ -17,7 +17,7 @@ import (
 
 func mintRow(t *testing.T, db *sql.DB, ord int32, id string, kind recordpb.CheckKind, supersedes ...string) {
 	t.Helper()
-	m := &recordpb.Mint{
+	m := &recordpb.Mint{Severity: recordpb.Grade_GRADE_MEDIUM.Enum(),
 		GapId:           proto.String(id),
 		Class:           proto.String("scope-creep"),
 		Problem:         proto.String("p"),

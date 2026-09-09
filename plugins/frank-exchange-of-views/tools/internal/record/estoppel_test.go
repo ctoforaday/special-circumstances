@@ -20,7 +20,7 @@ func board(t *testing.T, gapFix map[string]string, evs []*Event) Family {
 	sort.Strings(order)
 	gaps := map[string]*Gap{}
 	for id, fixNew := range gapFix {
-		m := &recordpb.Mint{Class: proto.String("overclaim"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), FixBasis: proto.String("proposed")}
+		m := &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("overclaim"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), FixBasis: proto.String("proposed")}
 		if fixNew != "" {
 			// `fix_old` HAS NO FIELD: the span is the gap's own `location`, and the second copy
 			// was retired with the second matcher that read it.

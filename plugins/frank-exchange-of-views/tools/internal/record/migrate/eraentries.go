@@ -41,7 +41,10 @@ func eraEntries() Registry {
 		"reproduce": mapped("reproduce", ren{"reason": "note"}, nil, nil),
 		"certify":   mapped("certify", ren{"reason": "statement"}, nil, nil),
 		"regrade":   mapped("regrade", ren{"reason": "basis"}, nil, nil),
-		"outcome":   mapped("outcome", ren{"reason": "prose"}, nil, nil),
+		// `ended` restated a fact the verdict carries (ceiling) or a judgement the record now
+		// makes per gap (deadlock); the field is reserved and the word is dropped on replay.
+		"outcome": mapped("outcome", ren{"reason": "prose"},
+			drops{"ended": "how a run ended is the verdict's to say — CEILING is derived from the board and deadlock is per gap (plans/roundless.md §III.B); Outcome.ended (7) is reserved"}, nil),
 		"close": mapped("close", ren{"reason": "prose"}, nil,
 			vals{"closure_class": dispositionRename}),
 		// The era's proof carried its output INLINE beside its sha; the current record keeps

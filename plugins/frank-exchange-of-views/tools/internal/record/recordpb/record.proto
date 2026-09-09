@@ -682,13 +682,19 @@ message Mint {
     why: "document | computation | source — what would SETTLE your acceptance check. A run where every check is a document probe can never ask for a computation, and measured across six runs no seat ever wrote one"
   }];
 
-  // LIKELIHOOD AND IMPACT ARE REQUIRED; severity and complexity_cost are not. The rule is not
+  // LIKELIHOOD, IMPACT AND SEVERITY ARE REQUIRED; complexity_cost is not. The rule is not
   // "grade everything" — it is that a field whose ABSENCE IS INDISTINGUISHABLE FROM A LEGITIMATE
   // VALUE cannot be optional. GapMass multiplies likelihood by impact and an absent grade
   // contributes ZERO, so an ungraded gap reads exactly like a harmless one and sinks to the
-  // bottom of every ranking. Severity and cost are reported rather than multiplied, so their
-  // absence is visible to a reader.
-  optional Grade severity = 16;
+  // bottom of every ranking. Severity joined them with the roundless record (plans/roundless.md
+  // §III.B.2): the MATERIAL threshold reads MASS[current severity], so an absent severity reads
+  // as mass zero — below material, readying nobody and never holding the gate — which is
+  // exactly "trivial". The release sweep found it: gaps minted without one ended runs VERIFIED
+  // over open work with the plan saying "below material ()". Cost is still reported, not read.
+  optional Grade severity = 16 [(sql) = {
+    required: true
+    why: "the material threshold reads it (MASS[severity] < 2.0 readies nobody and never holds the gate), so an absent grade is scored as TRIVIAL and the gap reads as harmless rather than ungraded"
+  }];
   optional Grade likelihood = 17 [(sql) = {
     required: true
     why: "it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded"
@@ -1688,9 +1694,11 @@ message Gate {
   optional Verdict verdict = 1;
 }
 
-// Outcome is the run's TERMINAL act. The verdict is derived from the record; how the sitting
-// ENDED is not, and on a judged deadlock this prose is the only evidence that determination
-// will ever have.
+// Outcome is the run's TERMINAL act. The verdict is DERIVED from the record — a halt, a recorded
+// PASS, or a board at its ceiling — and the bench's --as is a cross-check the tool refuses when it
+// disagrees. The one verdict the record cannot derive is UNVERIFIED: the run ended before the
+// record reached a terminal state, which the record cannot know from inside, so that word alone
+// may be ASSERTED, and the prose is the bench's account of how the sitting ended.
 message Outcome {
   optional RunOutcome verdict = 1 [(sql) = {
     required: true
@@ -1700,24 +1708,25 @@ message Outcome {
   optional string prose = 2 [(sql) = {
     required: true
     flag: "reason"
-    why: "how this run ended, in your words — the verdict is derived from the record, but your account of the sitting is not, and on a judged deadlock it is the only evidence that determination will ever have"
+    why: "how this run ended, in your words — the verdict is derived from the record, but your account of the sitting is not, and on an UNVERIFIED run it is the only evidence of why the run stopped will ever have"
   }];
   optional string verdict_why = 3;
 
   // A HAND CENSUS DOES NOT FIND THESE: a grep requiring `.Set(` on one line cannot see a chained
   // builder, where the dot sits at the end of the PREVIOUS line. They come from the frozen key
   // census (testdata/payload-keys.txt), which is why it exists. verdict_basis is read by
-  // report/assemble.go; `ended` records HOW the sitting ended, which DeriveVerdict says is
-  // otherwise not on the record at all.
+  // report/assemble.go.
   //
-  // IT WAS TWO BOOLEANS, `deadlocked` and `exhausted`, and every reader took them apart in a
-  // switch — which is an enum written as two fields, with a fourth state (both true) that meant
-  // nothing and a first-match rule deciding it silently.
+  // HOW THE RUN ENDED IS THE VERDICT'S TO SAY. `ended` (7) carried `deadlock | ceiling` beside the
+  // verdict; before it, two booleans `deadlocked` and `exhausted` (5, 6) that every reader took
+  // apart in a first-match switch. Under the roundless record (plans/roundless.md §III.B) both
+  // words are facts the record already holds — CEILING is derived from the board, and deadlock is
+  // per GAP (impasse, on the dispatch plan) rather than a run-level judgement — so a field
+  // restating them was the two-copies shape. Retired; the report reads the verdict.
   optional string verdict_basis = 4;
-  optional string ended = 7;
 
-  reserved 5, 6;
-  reserved "deadlocked", "exhausted";
+  reserved 5, 6, 7;
+  reserved "deadlocked", "exhausted", "ended";
 }
 
 message Position {

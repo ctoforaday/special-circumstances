@@ -41,7 +41,7 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	red := Identity{Run: run, SeatID: "red-chair"}
 	blue := Identity{Run: run, SeatID: "blue-respond"}
 
-	if _, err := Append(red, &recordpb.Mint{
+	if _, err := Append(red, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		GapId:           proto.String("G1"),
 		Class:           proto.String("self-attestation"),
 		Problem:         proto.String("p"),

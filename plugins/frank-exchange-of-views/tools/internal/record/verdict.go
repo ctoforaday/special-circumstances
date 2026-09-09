@@ -25,22 +25,23 @@ import (
 const (
 	// VerdictDerived: the tool computed it from the record and the seat's claim agreed.
 	VerdictDerived = "derived"
-	// VerdictAsserted: the record cannot decide it, so the seat's word stands. Today that is
-	// exactly one case — a judged deadlock — and it is unfalsifiable for a nameable reason:
-	// the bench's determination lives only in its envelope and leaves no independent trace.
-	// See #289; when the bench's terminal call becomes a recorded act, this constant loses its
-	// last user.
+	// VerdictAsserted: the record cannot decide it, so the seat's word stands. That is exactly
+	// one case — UNVERIFIED, a run that stopped before the record reached a terminal state — and
+	// it is underivable for a nameable reason: a workflow that ends leaves no event saying it
+	// ended, so the record cannot tell a finished-early run from one still in flight. `bench
+	// outcome` refuses any OTHER word over such a record.
 	VerdictAsserted = "asserted"
 )
 
 // DeriveVerdict computes a run's terminal verdict from the record alone.
 //
-// ok is false ONLY when the record genuinely cannot decide — which is the deadlock case, and
-// is a finding rather than a defect in this function. Everything else is already recorded:
+// ok is false ONLY when the record holds no terminal state — the run is still in flight, or it
+// ended before reaching one (UNVERIFIED) — which is a finding rather than a defect in this
+// function. Everything else is already recorded:
 //
 //	HALTED    a halt event exists — the bench ended the run on its own authority
-//	VERIFIED  the merge recorded a PASS verdict
-//	CEILING   the rounds on the record reached the ceiling in inputs/run-config.json
+//	VERIFIED  the chair recorded a PASS verdict
+//	CEILING   every open material gap is at its limit and ruled — the dispatch plan's ceiling
 //
 // The order matters: a halt outranks a pass, because a run stopped on safety or integrity
 // grounds did not end by passing however clean the board looked when it stopped.

@@ -2677,12 +2677,15 @@ type Mint struct {
 	FixBasis        *string    `protobuf:"bytes,13,opt,name=fix_basis,json=fixBasis,proto3,oneof" json:"fix_basis,omitempty"`
 	AcceptanceCheck *string    `protobuf:"bytes,14,opt,name=acceptance_check,json=acceptanceCheck,proto3,oneof" json:"acceptance_check,omitempty"`
 	CheckKind       *CheckKind `protobuf:"varint,15,opt,name=check_kind,json=checkKind,proto3,enum=feov.record.v1.CheckKind,oneof" json:"check_kind,omitempty"`
-	// LIKELIHOOD AND IMPACT ARE REQUIRED; severity and complexity_cost are not. The rule is not
+	// LIKELIHOOD, IMPACT AND SEVERITY ARE REQUIRED; complexity_cost is not. The rule is not
 	// "grade everything" — it is that a field whose ABSENCE IS INDISTINGUISHABLE FROM A LEGITIMATE
 	// VALUE cannot be optional. GapMass multiplies likelihood by impact and an absent grade
 	// contributes ZERO, so an ungraded gap reads exactly like a harmless one and sinks to the
-	// bottom of every ranking. Severity and cost are reported rather than multiplied, so their
-	// absence is visible to a reader.
+	// bottom of every ranking. Severity joined them with the roundless record (plans/roundless.md
+	// §III.B.2): the MATERIAL threshold reads MASS[current severity], so an absent severity reads
+	// as mass zero — below material, readying nobody and never holding the gate — which is
+	// exactly "trivial". The release sweep found it: gaps minted without one ended runs VERIFIED
+	// over open work with the plan saying "below material ()". Cost is still reported, not read.
 	Severity       *Grade `protobuf:"varint,16,opt,name=severity,proto3,enum=feov.record.v1.Grade,oneof" json:"severity,omitempty"`
 	Likelihood     *Grade `protobuf:"varint,17,opt,name=likelihood,proto3,enum=feov.record.v1.Grade,oneof" json:"likelihood,omitempty"`
 	Impact         *Grade `protobuf:"varint,18,opt,name=impact,proto3,enum=feov.record.v1.Grade,oneof" json:"impact,omitempty"`
@@ -5776,9 +5779,11 @@ func (x *Gate) GetVerdict() Verdict {
 	return Verdict_VERDICT_UNSPECIFIED
 }
 
-// Outcome is the run's TERMINAL act. The verdict is derived from the record; how the sitting
-// ENDED is not, and on a judged deadlock this prose is the only evidence that determination
-// will ever have.
+// Outcome is the run's TERMINAL act. The verdict is DERIVED from the record — a halt, a recorded
+// PASS, or a board at its ceiling — and the bench's --as is a cross-check the tool refuses when it
+// disagrees. The one verdict the record cannot derive is UNVERIFIED: the run ended before the
+// record reached a terminal state, which the record cannot know from inside, so that word alone
+// may be ASSERTED, and the prose is the bench's account of how the sitting ended.
 type Outcome struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	Verdict    *RunOutcome            `protobuf:"varint,1,opt,name=verdict,proto3,enum=feov.record.v1.RunOutcome,oneof" json:"verdict,omitempty"`
@@ -5787,14 +5792,15 @@ type Outcome struct {
 	// A HAND CENSUS DOES NOT FIND THESE: a grep requiring `.Set(` on one line cannot see a chained
 	// builder, where the dot sits at the end of the PREVIOUS line. They come from the frozen key
 	// census (testdata/payload-keys.txt), which is why it exists. verdict_basis is read by
-	// report/assemble.go; `ended` records HOW the sitting ended, which DeriveVerdict says is
-	// otherwise not on the record at all.
+	// report/assemble.go.
 	//
-	// IT WAS TWO BOOLEANS, `deadlocked` and `exhausted`, and every reader took them apart in a
-	// switch — which is an enum written as two fields, with a fourth state (both true) that meant
-	// nothing and a first-match rule deciding it silently.
+	// HOW THE RUN ENDED IS THE VERDICT'S TO SAY. `ended` (7) carried `deadlock | ceiling` beside the
+	// verdict; before it, two booleans `deadlocked` and `exhausted` (5, 6) that every reader took
+	// apart in a first-match switch. Under the roundless record (plans/roundless.md §III.B) both
+	// words are facts the record already holds — CEILING is derived from the board, and deadlock is
+	// per GAP (impasse, on the dispatch plan) rather than a run-level judgement — so a field
+	// restating them was the two-copies shape. Retired; the report reads the verdict.
 	VerdictBasis  *string `protobuf:"bytes,4,opt,name=verdict_basis,json=verdictBasis,proto3,oneof" json:"verdict_basis,omitempty"`
-	Ended         *string `protobuf:"bytes,7,opt,name=ended,proto3,oneof" json:"ended,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5853,13 +5859,6 @@ func (x *Outcome) GetVerdictWhy() string {
 func (x *Outcome) GetVerdictBasis() string {
 	if x != nil && x.VerdictBasis != nil {
 		return *x.VerdictBasis
-	}
-	return ""
-}
-
-func (x *Outcome) GetEnded() string {
-	if x != nil && x.Ended != nil {
-		return *x.Ended
 	}
 	return ""
 }
@@ -6315,7 +6314,7 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"_down_massB\n" +
 	"\n" +
-	"\b_up_mass\"\x8e\x12\n" +
+	"\b_up_mass\"\xd6\x13\n" +
 	"\x04Mint\x12\x96\x01\n" +
 	"\x06gap_id\x18\x01 \x01(\tBz\x82\xb5\x18v\b\x01\x1apthe gap id is what every later act refers to; a mint without one is a finding nothing can cite, close or rule on(\x01H\x00R\x05gapId\x88\x01\x01\x12\x1e\n" +
 	"\bmint_key\x18\x02 \x01(\tH\x01R\amintKey\x88\x01\x01\x12\xf7\x01\n" +
@@ -6339,8 +6338,8 @@ const file_record_proto_rawDesc = "" +
 	"\x10acceptance_check\x18\x0e \x01(\tBX\x82\xb5\x18T\b\x01\x12\x05check\x1aIthe acceptance check red will run at re-audit — the pre-agreed contractH\x0eR\x0facceptanceCheck\x88\x01\x01\x12\xa3\x02\n" +
 	"\n" +
 	"check_kind\x18\x0f \x01(\x0e2\x19.feov.record.v1.CheckKindB\xe3\x01\x82\xb5\x18\xde\x01\b\x01\x12\n" +
-	"check-kind\x1a\xcd\x01document | computation | source — what would SETTLE your acceptance check. A run where every check is a document probe can never ask for a computation, and measured across six runs no seat ever wrote oneH\x0fR\tcheckKind\x88\x01\x01\x126\n" +
-	"\bseverity\x18\x10 \x01(\x0e2\x15.feov.record.v1.GradeH\x10R\bseverity\x88\x01\x01\x12\xbf\x01\n" +
+	"check-kind\x1a\xcd\x01document | computation | source — what would SETTLE your acceptance check. A run where every check is a document probe can never ask for a computation, and measured across six runs no seat ever wrote oneH\x0fR\tcheckKind\x88\x01\x01\x12\xfd\x01\n" +
+	"\bseverity\x18\x10 \x01(\x0e2\x15.feov.record.v1.GradeB\xc4\x01\x82\xb5\x18\xbf\x01\b\x01\x1a\xba\x01the material threshold reads it (MASS[severity] < 2.0 readies nobody and never holds the gate), so an absent grade is scored as TRIVIAL and the gap reads as harmless rather than ungradedH\x10R\bseverity\x88\x01\x01\x12\xbf\x01\n" +
 	"\n" +
 	"likelihood\x18\x11 \x01(\x0e2\x15.feov.record.v1.GradeB\x82\x01\x82\xb5\x18~\b\x01\x1azit multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungradedH\x11R\n" +
 	"likelihood\x88\x01\x01\x12\xb7\x01\n" +
@@ -6770,21 +6769,19 @@ const file_record_proto_rawDesc = "" +
 	"\x04Gate\x126\n" +
 	"\averdict\x18\x01 \x01(\x0e2\x17.feov.record.v1.VerdictH\x00R\averdict\x88\x01\x01B\n" +
 	"\n" +
-	"\b_verdict\"\xc6\x05\n" +
+	"\b_verdict\"\xb2\x05\n" +
 	"\aOutcome\x12\xf1\x01\n" +
-	"\averdict\x18\x01 \x01(\x0e2\x1a.feov.record.v1.RunOutcomeB\xb5\x01\x82\xb5\x18\xb0\x01\b\x01\x12\x02as\x1a\xa7\x01the run's terminal verdict — an outcome event without one records that the run ENDED and not how, and every reader downstream sees a run that never reached a verdictH\x00R\averdict\x88\x01\x01\x12\xf6\x01\n" +
-	"\x05prose\x18\x02 \x01(\tB\xda\x01\x82\xb5\x18\xd5\x01\b\x01\x12\x06reason\x1a\xc8\x01how this run ended, in your words — the verdict is derived from the record, but your account of the sitting is not, and on a judged deadlock it is the only evidence that determination will ever haveH\x01R\x05prose\x88\x01\x01\x12$\n" +
+	"\averdict\x18\x01 \x01(\x0e2\x1a.feov.record.v1.RunOutcomeB\xb5\x01\x82\xb5\x18\xb0\x01\b\x01\x12\x02as\x1a\xa7\x01the run's terminal verdict — an outcome event without one records that the run ENDED and not how, and every reader downstream sees a run that never reached a verdictH\x00R\averdict\x88\x01\x01\x12\xfa\x01\n" +
+	"\x05prose\x18\x02 \x01(\tB\xde\x01\x82\xb5\x18\xd9\x01\b\x01\x12\x06reason\x1a\xcc\x01how this run ended, in your words — the verdict is derived from the record, but your account of the sitting is not, and on an UNVERIFIED run it is the only evidence of why the run stopped will ever haveH\x01R\x05prose\x88\x01\x01\x12$\n" +
 	"\vverdict_why\x18\x03 \x01(\tH\x02R\n" +
 	"verdictWhy\x88\x01\x01\x12(\n" +
-	"\rverdict_basis\x18\x04 \x01(\tH\x03R\fverdictBasis\x88\x01\x01\x12\x19\n" +
-	"\x05ended\x18\a \x01(\tH\x04R\x05ended\x88\x01\x01B\n" +
+	"\rverdict_basis\x18\x04 \x01(\tH\x03R\fverdictBasis\x88\x01\x01B\n" +
 	"\n" +
 	"\b_verdictB\b\n" +
 	"\x06_proseB\x0e\n" +
 	"\f_verdict_whyB\x10\n" +
-	"\x0e_verdict_basisB\b\n" +
-	"\x06_endedJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\n" +
-	"deadlockedR\texhausted\",\n" +
+	"\x0e_verdict_basisJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aJ\x04\b\a\x10\bR\n" +
+	"deadlockedR\texhaustedR\x05ended\",\n" +
 	"\bPosition\x12\x17\n" +
 	"\x04text\x18\x01 \x01(\tH\x00R\x04text\x88\x01\x01B\a\n" +
 	"\x05_text\"\xa9\x01\n" +

@@ -149,8 +149,8 @@ func TestDetailsDoNotRestateTheFlagsCobraPrints(t *testing.T) {
 // COMMAND PATHS ("show lines-of-inquiry", "merge class new"), and --new took a verb name.
 //
 // The gate is on the rendered placeholder rather than on backticks, because backticks are also used
-// DELIBERATELY here and correctly: --anchor renders `<!--cite:c-…-->`, --ended renders
-// `deadlock|ceiling`. Banning them would remove the good ones with the accidents.
+// DELIBERATELY here and correctly: --anchor renders `<!--cite:c-…-->`, and an enum flag renders
+// its closed set. Banning them would remove the good ones with the accidents.
 func TestAFlagPlaceholderIsNeverProseThatLeakedIntoIt(t *testing.T) {
 	checked := 0
 	for role, root := range AllRoots() {

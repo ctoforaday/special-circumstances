@@ -236,16 +236,6 @@ var EnumFields = map[string][]EnumField{
 			ev("UNVERIFIED", "the run ended without the question being answered, and no ceiling or halt explains it"),
 		},
 		Why: "the report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses the \"this is NOT a judged failure to verify\" caveat the stamp exists to carry",
-	}, {
-		Key: "ended", Flag: flags.Ended, Optional: true, Values: []EnumValue{
-			ev("deadlock", "the bench JUDGED the exchange deadlocked — the one terminal state the record cannot derive, so --reason is the only account of it there will ever be"),
-			ev("ceiling", "the run stopped against its terms — every open material gap at its limit — rather than against a judgement"),
-		},
-		// A SWITCH OVER TWO BOOLEANS IS AN ENUM WITH A SILENT FOURTH STATE. `--deadlocked` and
-		// `--exhausted` were separate flags stored as separate fields and read back in a
-		// first-match switch by every consumer, so setting both recorded a contradiction the
-		// tool accepted and the reader resolved by argument order.
-		Why: "the verdict stamp reads this to say HOW a non-pass ended; an unrecognized word decorates the stamp with nothing, which reads exactly like a run that ended for no stated reason",
 	}},
 	// `log`, and the TYPE is the whole reason the channel is worth reading. Measured on
 	// 2026-09-02_quadratic-formula the channel ran 142,891 characters with no types on it, so an
@@ -446,13 +436,10 @@ func sameWord(a, b string) bool {
 // failure that was actually measured (`--as pass`, `--as Pass`) and "PASS | FAIL" alone does not
 // tell a seat that its lowercase spelling was the whole problem.
 func checkOpenSets(body proto.Message) error {
-	switch b := body.(type) {
-	case *recordpb.Outcome:
-		if b.Ended == nil {
-			return nil // absent is legal; `ended` is optional
-		}
-		return checkWord("ended", flags.Ended, b.GetEnded(), endedValues())
-	}
+	// No open set remains: Outcome.ended, the one string field validated against a declared word
+	// list, was retired with the roundless record — how a run ended is the verdict's to say. The
+	// hook stays so the next open set lands here rather than in a verb.
+	_ = body
 	return nil
 }
 
@@ -478,14 +465,4 @@ func checkWord(key, flag, got string, allowed []EnumValue) error {
 	}
 	return fmt.Errorf("record: --%s must be one of %s (got %s) — %sthe word is what every later reader switches on",
 		flag, strings.Join(names, "|"), jsonish(got), detail)
-}
-
-// endedValues is the `ended` set, read off the one declaration of it rather than re-typed.
-func endedValues() []EnumValue {
-	for _, ef := range EnumFields["outcome"] {
-		if ef.Key == "ended" {
-			return ef.Values
-		}
-	}
-	return nil
 }

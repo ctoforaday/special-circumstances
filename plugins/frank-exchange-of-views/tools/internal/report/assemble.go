@@ -337,24 +337,16 @@ func verdictWord(o *recordpb.Outcome) string {
 	case recordpb.RunOutcome_RUN_OUTCOME_HALTED:
 		return "HALTED"
 	default:
-		by := ""
-		// `ended` stays a STRING in the schema — it is not one of the enums — so this compare is
-		// unchanged, hyphenless words and all.
-		switch o.GetEnded() {
-		case "deadlock":
-			by = " by judged deadlock"
-		case "ceiling":
-			by = " by safety ceiling"
-		}
 		// An UNSET verdict spells "" (recordpb.Word maps the zero back to the empty string), so
 		// this renders the same blank the absent payload key produced rather than the word
-		// `unspecified`, which no seat ever chose.
-		return strings.ToUpper(recordpb.Word(o.GetVerdict())) + by
+		// `unspecified`, which no seat ever chose. Nothing trails the word: how the run ended IS
+		// the verdict (CEILING, HALTED), and the retired `ended` modifier only ever restated it.
+		return strings.ToUpper(recordpb.Word(o.GetVerdict()))
 	}
 }
 
 // verdictGloss is everything the stamp used to carry INLINE: what the verdict means, the basis
-// it rests on, the derivation's reasoning, and — on a judged deadlock — the bench's own words.
+// it rests on, the derivation's reasoning, and the bench's own account of how the run ended.
 //
 // IT IS THE SAME TEXT, MOVED, and the move is the point. A field a reader can skim, badge or
 // grep has to be one token; the CEILING arm alone put four hundred characters of argument into
@@ -368,7 +360,7 @@ func verdictGloss(o *recordpb.Outcome) string {
 	var lead string
 	switch o.GetVerdict() {
 	case recordpb.RunOutcome_RUN_OUTCOME_CEILING:
-		lead = "**CEILING-TERMINATED** — the run hit its epoch ceiling — the configured limit on chair sittings — while still converging. This is NOT a judged failure to verify and must not be read as one: gaps remain open, the final blue revision was never audited by a red pass, and that re-audit debt travels OUT of the run."
+		lead = "**CEILING-TERMINATED** — every open material gap reached its limit under the run's terms, the bench ruled on each and carried it, and nobody was left to dispatch. This is NOT a judged failure to verify and must not be read as one: gaps remain open at impasse, the final blue revision was never audited by a red pass, and that re-audit debt travels OUT of the run."
 	case recordpb.RunOutcome_RUN_OUTCOME_HALTED:
 		lead = "**HALTED** — the bench ended this run. The halt opinion is on the record ([the debate](" + FileDebate + "), under Bench disposition) and is relayed to the human verbatim, never smoothed."
 	default:
@@ -376,30 +368,30 @@ func verdictGloss(o *recordpb.Outcome) string {
 	}
 	// EVERY branch carries the basis. The first cut appended it only to the default arm, so
 	// CEILING and HALTED — which returned early — dropped it; the fuzz failed 35 of 60 runs on
-	// exactly that, because a ceiling termination IS derived (epochs against the configured
-	// ceiling) and is the most common way a run ends.
+	// exactly that, because a ceiling termination IS derived (the board at its limits) and is
+	// the most common way a run ends.
 	return strings.TrimSpace(lead + basisNote(o.GetVerdictBasis()) + verdictWhy(o))
 }
 
-// verdictWhy carries the DERIVATION'S OWN REASONING and, on a deadlock, the bench's.
+// verdictWhy carries the DERIVATION'S OWN REASONING and the bench's account of the sitting.
 //
-// The derivation computed a `why` on every call — "the merge recorded a PASS verdict", "the
-// record reaches epoch 3 against a ceiling of 3" — and used it only to phrase an error, so the
-// report could stamp a verdict and never say why it was that one. A judged deadlock is the
-// opposite case and had no account at all: it is the ONE terminal verdict the record cannot
-// derive (#289), so the bench's --reason is the only evidence it will ever have.
+// The derivation computed a `why` on every call — "the chair recorded a PASS verdict", "every
+// open material gap is at its limit" — and used it only to phrase an error, so the report could
+// stamp a verdict and never say why it was that one. UNVERIFIED is the opposite case: the ONE
+// terminal verdict the record cannot derive, because a run that stopped before reaching a
+// terminal state leaves no event saying so — the bench's --reason is the only evidence of why.
 //
 // `--reason` LANDS ON `prose`, and recordpb/required.go declares that split in as many words:
 // the flag a seat types and the field the record keeps are two vocabularies. Outcome.prose is
-// this message's only prose channel, and its own requirement message ("on a judged deadlock it
-// is the only evidence that determination will ever have") is this paragraph's other half.
+// this message's only prose channel, and its own requirement message ("on an UNVERIFIED run it
+// is the only evidence of why the run stopped") is this paragraph's other half.
 func verdictWhy(o *recordpb.Outcome) string {
 	out := ""
 	if why := strings.TrimSpace(o.GetVerdictWhy()); why != "" {
 		out += " (" + why + ")"
 	}
 	if r := strings.TrimSpace(o.GetProse()); r != "" {
-		out += "\n\n> **The deadlock, in the bench's words:** " + r
+		out += "\n\n> **How the run ended, in the bench's words:** " + r
 	}
 	return out
 }
@@ -417,7 +409,7 @@ func basisNote(basis string) string {
 	case record.VerdictDerived:
 		return " — **derived from the record**, not claimed: the events themselves decide this verdict, and `bench outcome` refuses an `--as` that contradicts them."
 	case record.VerdictAsserted:
-		return " — **asserted by the bench.** The record could not derive this verdict, so it rests on the bench's judgement rather than on the events; read it as an opinion with authority, not as a mechanical result."
+		return " — **asserted by the bench.** The record holds no terminal state — no halt, no PASS, no board at its ceiling — so the run ended before it reached one, and this word rests on the bench's account rather than on the events; read it as an opinion with authority, not as a mechanical result."
 	default:
 		return ""
 	}

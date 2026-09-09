@@ -53,7 +53,7 @@ func event(t *testing.T, ord int32, typ recordpb.EventType, body proto.Message) 
 // joins, constraints and aggregates — which is the trade this test exists to refuse.
 func TestABodyIsWrittenAsColumns(t *testing.T) {
 	db := store(t)
-	id, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{
+	id, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 		GapId:           proto.String("G3"),
 		Class:           proto.String("scope-creep"),
 		Problem:         proto.String("an absence of findings is reported as an absence of risk"),
@@ -111,7 +111,7 @@ func TestABodyIsWrittenAsColumns(t *testing.T) {
 // to keep, and the one a plain Go struct could not have expressed.
 func TestAnAbsentFieldIsNull(t *testing.T) {
 	db := store(t)
-	id, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{
+	id, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Severity: recordpb.Grade_GRADE_MEDIUM.Enum(),
 		GapId:           proto.String("G1"),
 		Class:           proto.String("c"),
 		Problem:         proto.String("p"),
@@ -123,12 +123,14 @@ func TestAnAbsentFieldIsNull(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var severity *string
-	if err := db.QueryRow(`SELECT severity FROM mint WHERE event_id = ?`, id).Scan(&severity); err != nil {
+	// complexity_cost is the one grade a mint may leave ungraded (severity, likelihood and impact
+	// are required — each is read by a threshold where an absent grade would fold into the zero).
+	var cost *string
+	if err := db.QueryRow(`SELECT complexity_cost FROM mint WHERE event_id = ?`, id).Scan(&cost); err != nil {
 		t.Fatal(err)
 	}
-	if severity != nil {
-		t.Errorf("severity = %q for a mint that never graded it — an ungraded axis reads as graded", *severity)
+	if cost != nil {
+		t.Errorf("complexity_cost = %q for a mint that never graded it — an ungraded axis reads as graded", *cost)
 	}
 }
 
@@ -206,7 +208,7 @@ func TestARegressionClosureMustNameItsSuccessor(t *testing.T) {
 // remove, reintroduced at the last step.
 func TestAnEventSurvivesTheRoundTripWithItsAbsencesIntact(t *testing.T) {
 	db := store(t)
-	original := &recordpb.Mint{
+	original := &recordpb.Mint{Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 		GapId:           proto.String("G3"),
 		Class:           proto.String("scope-creep"),
 		Problem:         proto.String("an absence of findings is reported as an absence of risk"),
@@ -237,9 +239,10 @@ func TestAnEventSurvivesTheRoundTripWithItsAbsencesIntact(t *testing.T) {
 		t.Errorf("the mint did not survive the round trip:\n before %v\n after  %v", original, got)
 	}
 	// Stated separately, because proto.Equal treats unset and zero as equal for scalars and would
-	// not catch a severity that came home as GRADE_UNSPECIFIED.
-	if got.Severity != nil {
-		t.Errorf("severity came back set (%v) for an axis the seat never graded", got.GetSeverity())
+	// not catch a cost that came home as GRADE_UNSPECIFIED. complexity_cost is the one grade a
+	// mint may leave ungraded.
+	if got.ComplexityCost != nil {
+		t.Errorf("complexity_cost came back set (%v) for an axis the seat never graded", got.GetComplexityCost())
 	}
 	if evs[0].GetType() != recordpb.EventType_EVENT_TYPE_MINT {
 		t.Errorf("type = %v", evs[0].GetType())
@@ -290,7 +293,7 @@ func TestTheBoardIsAQuery(t *testing.T) {
 	db := store(t)
 	mint := func(seq int32, id string) {
 		t.Helper()
-		if _, err := Insert(db, event(t, seq, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{
+		if _, err := Insert(db, event(t, seq, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 			GapId:           proto.String(id),
 			Class:           proto.String("c"),
 			Problem:         proto.String("p"),
@@ -403,7 +406,7 @@ func TestABenchDispositionClosesTheGapOnlyIfTheVocabularySaysSo(t *testing.T) {
 	} {
 		t.Run(recordpb.Word(c.as), func(t *testing.T) {
 			db := store(t)
-			if _, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{
+			if _, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 				GapId:           proto.String("G1"),
 				Class:           proto.String("c"),
 				Problem:         proto.String("p"),
@@ -535,7 +538,7 @@ func TestTheVocabularySaysWhichWordsEndAGap(t *testing.T) {
 // nobody displayed. The fixtures could be written that way because nothing refused them.
 func mintGap(t *testing.T, db *sql.DB, seq int32, gapID string) {
 	t.Helper()
-	if _, err := Insert(db, event(t, seq, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{
+	if _, err := Insert(db, event(t, seq, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 		GapId:           proto.String(gapID),
 		Class:           proto.String("c"),
 		Problem:         proto.String("p"),
@@ -738,7 +741,7 @@ func TestTheSqliteDriverIsRegistered(t *testing.T) {
 func TestAGapsListsAreCountedByTheView(t *testing.T) {
 	db := store(t)
 	mintGap(t, db, 0, "G1")
-	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{
+	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Severity: recordpb.Grade_GRADE_MEDIUM.Enum(),
 		GapId:           proto.String("G2"),
 		Class:           proto.String("overclaim"),
 		Problem:         proto.String("p"),

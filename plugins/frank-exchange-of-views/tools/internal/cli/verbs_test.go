@@ -34,7 +34,7 @@ func seedReferents(t *testing.T, runDir string) {
 		registerLensOnce(t, runDir)
 		if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 			"--key", fmt.Sprintf("seed-%d", i), "--class", "x", "--check-kind", "document", "--check", "c",
-			"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+			"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -57,7 +57,7 @@ func seedReferents(t *testing.T, runDir string) {
 	}
 	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "seed-archived", "--class", "x", "--check-kind", "document", "--check", "c",
-		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,

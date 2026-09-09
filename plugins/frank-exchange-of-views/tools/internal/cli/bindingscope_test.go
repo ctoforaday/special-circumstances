@@ -43,7 +43,7 @@ func TestTheBindingGuardCoversWritesAndNotReads(t *testing.T) {
 		argv []string
 	}{
 		{"red-chair", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "c",
-			"--likelihood", "low", "--impact", "low", "--problem", "p"}},
+			"--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 		{"red-lens-evidence", []string{"friction", "--reason", "the tool has no path for X"}},
 		{"blue-respond", []string{"revision", "--reason", "round record"}},
 	} {

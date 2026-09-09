@@ -45,7 +45,7 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("MintGapID on an unminted round = (%q, %v)", id, err)
 	}
 	for _, gid := range []string{"G1", "G2"} {
-		if _, err := Append(red, &recordpb.Mint{
+		if _, err := Append(red, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId:           proto.String(gid),
 			MintKey:         proto.String("k-" + gid),
 			Class:           proto.String("self-attestation"),
