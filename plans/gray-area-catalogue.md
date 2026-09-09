@@ -157,7 +157,7 @@ So the rule is:
 2. **Whether a provisional is written is decided by the fire-time comparison in rule 5** — not
    unconditionally. An earlier draft said "written at every `Stop` that carries a `prompt_id`",
    a universal rule 5 contradicts. When the payload has
-   none, **no provisional is written and the omission is recorded** as `provisional_skipped` with
+   none, **no provisional is written and the omission is recorded** as `provisional_skip` with
    the reason — never keyed on `""`, which would collide every such turn onto one row.
 3. **An unclosed provisional IS READABLE, and that is what keeps the hole shut.** It appears in the
    `word` view with `source='payload'` and `provisional=1`, so a lagged final turn is visible from
@@ -213,18 +213,23 @@ So the rule is:
    text in the file that the catalogue never reads, so the equality would go red on real data for a
    correct implementation. Ingesting unconditionally makes it exact.
 
-   **But "any session no longer live" is UNBOUNDED as written, and measuring it says so:** on this
-   box 415 of 421 transcripts belong to non-live sessions, totalling **202 MB** — one `SessionStart`
-   would face ~**1,053 ms** at the measured 192 MB/s parse rate, twenty times the 50 ms budget. So
-   three bounds, and each is load-bearing:
+   **But "any session no longer live" is unbounded, and my first attempt to bound it capped the
+   wrong unit with wrong numbers.** That attempt said "415 of 421 transcripts / 202 MB are non-live"
+   and capped **8 sessions per run** at "8 × 2.4 ms". Both halves were wrong:
 
-   - **Only sessions the catalogue already has an offset record for.** A session it never ingested is
-     `backfill`'s job, not closure's; that is the cold 202 MB, and it belongs to the verb built for it.
-   - **Closed once.** A session is marked closed and never revisited, so the queue drains rather than
-     being re-walked every hook.
-   - **At most 8 sessions per run**, the remainder deferred to the next `SessionStart`. That caps a
-     single invocation regardless of how many ended at once — 8 × 2.4 ms tail reads sits inside 50 ms
-     — and with once-only marking the backlog is finite and shrinking.
+   - The population counted every `agent-*.jsonl` as non-live, because an agent file's basename never
+     equals a live `sessionId` — **the parent/subagent conflation rule 1 exists to prevent, for the
+     third time in this plan.** Attributing files by the vendor's layout (`<project>/<sid>.jsonl`
+     plus `<project>/<sid>/subagents/`): **live = 244 files / 217.3 MB, non-live = 177 files /
+     85.5 MB**, across 94 sessions.
+   - A session is not the unit that costs. Offsets are per **file** (line 182), and the largest
+     non-live session here holds **25 files**; the 8 largest hold **94 files / 57.0 MB ≈ 226 ms**,
+     4.5× the 50 ms budget. Capping sessions bounds nothing.
+
+   So the cap is on **the unit that costs: at most 16 file-tails or 4 MB read per invocation,
+   whichever binds first**, remainder deferred. Plus the two bounds that keep the queue finite: only
+   sessions the catalogue already holds an offset record for (one it never ingested is `backfill`'s
+   job — the pre-hook sessions), and each session closed once and never revisited.
 
    The steady-state population is sessions that ended since the last `SessionStart`, normally zero or
    one; the cap exists for the day it is not.
@@ -273,7 +278,7 @@ So the rule is:
 
    - **The payload carries no `last_assistant_message` at all — 24 of 585 real rows, 4.1%.** There
      is nothing to compare and nothing to preserve, so **no provisional is written** and the
-     omission is recorded as `provisional_skipped` with reason `no-last-assistant-message`, the same
+     omission is recorded as `provisional_skip` with reason `no-last-assistant-message`, the same
      channel as the absent-`prompt_id` case. Note this is **not** "the turn produced none": for 18
      of the 24 the seat's own transcript does contain assistant text. So on those fires closure (a)
      has no source at all, which is stated again at R11 rather than left here.
@@ -325,6 +330,12 @@ So the rule is:
      **adopts the transcript block's `block_seq`**. Stating both halves is what gives §V.15's
      promoted-then-replaced assertion a defined pre-state; without them a mismatched ordinal makes
      the next `backfill` insert beside the row instead of finding it. Without both halves the same text double-stores.
+   - **Closure's own state is bound too, rather than invented as the last two were:**
+     `session.closed_at` (`NULL` = not closed) is the marker, and **the pending queue is a query, not
+     a table** — non-live sessions holding an offset record with `closed_at IS NULL`, oldest first. So
+     "deferred, not dropped" is observable without new storage, and a missing marker reads as *not yet
+     closed*, the safe direction: it gets revisited. `closed_at` sits on the `session` view, so it is
+     on §V.6's contract.
    - **Skips get a carrier**: `provisional_skip(session, agent_id, prompt_id, reason, at)`, `reason`
      from a closed set — `no-prompt-id`, `no-last-assistant-message`. It sits behind a **`skip`
      view**, so the skip population is on the §V.6 contract rather than off it: a turn that was
@@ -595,7 +606,7 @@ Two honest qualifications:
 **The schema is a contract, so callers query VIEWS.** If agents write their own SQL, a renamed
 column breaks work that is not in this repo and cannot be swept. #819 is the warning — 0 of 7 run
 archives are readable by any current binary, because words were retired and an epoch moved. So:
-stable views named `action`, `word`, `thought` and `session`; base tables free to evolve beneath
+stable views named `action`, `word`, `thought`, `session` and `skip`; base tables free to evolve beneath
 them; views evolve **additively only**; and `capture_build` on every row (#818's pattern) so a
 reader can tell which binary wrote it.
 
@@ -858,9 +869,19 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
    byte-offset ingest *does* recover a lagged turn on the next `Stop`, so only a **final** lagged
    turn's text never reaches the file. So:
 
-       catalogue words  ==  transcript words  +  count(source='payload' AND provisional=0)
+       FOR sessions closure has actually closed (session.closed_at IS NOT NULL):
+         catalogue words  ==  transcript words  +  count(source='payload' AND provisional=0)
 
-   and each addend is asserted rather than only the total: every `source='payload' AND
+   **The scope is not the corpus; an unscoped `==` would be guaranteed red** for a correct
+   implementation, three ways: live sessions have bytes past their last `Stop` that closure by
+   definition has not read (the majority of the corpus here — 244 files / 217.3 MB); sessions
+   predating the hook have transcript words and zero catalogue words by design, since closure only
+   touches sessions it holds an offset for; and the deferred remainder has unread tail bytes at
+   measurement time on purpose. So the test enumerates `session.closed_at IS NOT NULL` and compares
+   over that set alone. Round nineteen fixed this equality on one side; leaving it unscoped reopened
+   it on the other.
+
+   Each addend is asserted rather than only the total: every `source='payload' AND
    provisional=0` row has its text asserted **absent** from the transcript for its key — that is
    what makes it a genuine residue rather than a duplicate — and `provisional=1` rows are counted
    and reported as **outstanding** rather than silently dropped. An earlier draft excluded them and
@@ -920,8 +941,8 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
     `sessionId` and `promptId` (asserts it does not touch the parent's provisional, that
     `SubagentStop` writes its own, and that closure reads the **agent's** transcript rather than the
     session's — the file-set error that would otherwise promote every subagent turn); a `Stop` payload with **no `prompt_id`** (asserts
-    `provisional_skipped`, not a `""` key); a payload with **no `last_assistant_message`** (asserts
-    `provisional_skipped` with reason `no-last-assistant-message`, 4.1% of real rows); a **zero-text turn whose payload DOES carry text** (asserts the
+    `provisional_skip`, not a `""` key); a payload with **no `last_assistant_message`** (asserts
+    `provisional_skip` with reason `no-last-assistant-message`, 4.1% of real rows); a **zero-text turn whose payload DOES carry text** (asserts the
     provisional is promoted and marked `attribution='unverified'`, 5.4% of turns — not "no row",
     which an earlier draft asserted from a wrongly-keyed 1.6%);
     a **final** lagged turn with no `SessionEnd` (asserts the provisional is readable while
