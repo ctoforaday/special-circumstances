@@ -4,7 +4,7 @@ The questions worth asking of a trajectory corpus are not knowable in advance, s
 the schema is published and callers write their own. These views are the contract:
 
   v_action   session_id, agent_id, seq, ts, tool, target, outcome
-  v_session  session_id, project_dir, cwd, first_seen, last_seen, closed_at, capture_build
+  v_session  session_id, project_dir, cwd, first_act, last_act, ingested_first, ingested_last, closed_at, capture_build
   v_skip     session_id, agent_id, prompt_id, reason, at
   v_thought  session_id, agent_id, prompt_id, block_seq, ts, text
   v_word     session_id, agent_id, prompt_id, block_seq, ts, role, text, source, provisional, attribution

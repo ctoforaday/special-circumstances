@@ -36,7 +36,7 @@ a file that was REWRITTEN is detected and re-read from the beginning.`,
 				return err
 			}
 			start := env.Now()
-			var acts, words, thoughts, unparsed int
+			var acts, words, thoughts, skipped, unparsed int
 			var read int64
 			for _, f := range files {
 				r, err := catalogue.IngestFile(db, f)
@@ -46,12 +46,22 @@ a file that was REWRITTEN is detected and re-read from the beginning.`,
 				acts += r.Acts
 				words += r.Words
 				thoughts += r.Thoughts
+				skipped += r.Skipped
 				unparsed += r.Unparsed
 				read += r.BytesRead
 			}
 			out := cmd.OutOrStdout()
 			fmt.Fprintf(out, "backfilled %d transcripts, %.0f MB in %.1fs\n  %d acts, %d words, %d thoughts\n",
 				len(files), float64(read)/1e6, env.Now().Sub(start).Seconds(), acts, words, thoughts)
+			if skipped > 0 {
+				// SAID AT THE POINT OF INGEST, not left to whoever queries v_skip later. This is
+				// the single largest population the projection drops, and on the measured corpus
+				// it is two orders of magnitude larger than what it keeps: 15,503 withheld against
+				// 248 stored. A backfill that reported only the 248 would be describing a corpus
+				// nobody has.
+				fmt.Fprintf(out, "  %d thinking block(s) carried no text and are recorded as skips, not thoughts — "+
+					"reasoning withheld by the client is not reasoning the agent did not do\n", skipped)
+			}
 			if unparsed > 0 {
 				// Reported, never swallowed: a torn line and an absent line leave the same missing
 				// row, and only one of them is anybody's fault.
