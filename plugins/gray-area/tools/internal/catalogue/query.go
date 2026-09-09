@@ -50,15 +50,25 @@ type Touch struct {
 	N         int
 }
 
-// Touched answers "is anyone else editing this file". Matching is on a suffix so a caller can
-// pass a repo-relative path without knowing the absolute one every agent used.
+// Touched answers "is anyone else editing this file".
+//
+// Matching is on a SUBSTRING, not a suffix, and the difference is the whole usefulness of the
+// verb. A tool target is `file_path` for Read/Edit/Write — where a suffix match is exactly right —
+// but for Bash it is the COMMAND, and an edit made with `sed -i … path` or a python heredoc names
+// the path in the middle of that string. Under a suffix match every such edit reported nothing,
+// which is the plausible zero this plugin exists to refuse: a caller asking "is anyone in this
+// file" got silence from a shell rewriting it.
+//
+// The residue is stated rather than engineered around: targets are truncated at 200 characters, so
+// a path buried past that in a long command is still invisible here. `find` is the fallback that
+// reads the transcripts themselves.
 func Touched(ctx context.Context, db *sql.DB, path string) ([]Touch, error) {
 	rows, err := db.QueryContext(ctx, `
 		SELECT session_id, agent_id, tool, outcome, max(ts) AS ts, count(*) AS n
 		FROM v_action
-		WHERE target = ? OR target LIKE ?
+		WHERE target = ? OR instr(target, ?) > 0
 		GROUP BY session_id, agent_id, tool, outcome
-		ORDER BY ts DESC`, path, "%"+path)
+		ORDER BY ts DESC, session_id, agent_id, tool`, path, path)
 	if err != nil {
 		return nil, fmt.Errorf("catalogue: touched: %w", err)
 	}

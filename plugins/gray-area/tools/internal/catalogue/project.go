@@ -119,6 +119,13 @@ func Project(r io.Reader, startSeq int) Projection {
 		ts           int64
 	}
 	uses := map[string]useInfo{}
+	// THE ORDER THE CALLS WERE MADE IN, kept alongside the map because a Go map does not have
+	// one. Ranging the map to assign `seq` gave every projection of the same file a DIFFERENT
+	// ordering — the column that exists to say what an agent did first held a fresh shuffle on
+	// every run, and reprojecting a file produced a store that disagreed with the last one. It
+	// read as fine: the values were dense, unique and plausible, and every count over them was
+	// right. Caught by a golden test whose two runs disagreed, never by a count.
+	useOrder := []string{}
 	results := map[string]*bool{}
 	seen := map[string]bool{}
 
@@ -136,6 +143,9 @@ func Project(r io.Reader, startSeq int) Projection {
 		for _, b := range blocks {
 			switch b.Type {
 			case "tool_use":
+				if _, dup := uses[b.ID]; !dup {
+					useOrder = append(useOrder, b.ID)
+				}
 				uses[b.ID] = useInfo{tool: b.Name, target: targetOf(b.Name, b.Input), ts: ts}
 			case "tool_result":
 				results[b.ToolUseID] = b.IsError
@@ -156,7 +166,8 @@ func Project(r io.Reader, startSeq int) Projection {
 		}
 	}
 
-	for id, u := range uses {
+	for _, id := range useOrder {
+		u := uses[id]
 		out := OutcomeUnresolved
 		if seen[id] {
 			p.ResultCount[u.tool]++
