@@ -905,7 +905,7 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
 
    **The scope is not the corpus; an unscoped `==` would be guaranteed red** for a correct
    implementation, three ways: live sessions have bytes past their last `Stop` that closure by
-   definition has not read (the majority of the corpus here — 244 files / 217.3 MB); sessions
+   definition has not read (the majority of the corpus here — 245 files / 217.7 MB); sessions
    predating the hook have transcript words and zero catalogue words by design, since closure only
    touches sessions it holds an offset for; and the deferred remainder has unread tail bytes at
    measurement time on purpose. So the test enumerates `session.closed_at IS NOT NULL` and compares
