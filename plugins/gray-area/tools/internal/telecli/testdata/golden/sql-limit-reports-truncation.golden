@@ -1,0 +1,5 @@
+session_id	agent_id	seq	tool
+aaaaaaaa-1111-4111-8111-111111111111		0	Read
+aaaaaaaa-1111-4111-8111-111111111111		1	Edit
+
+(2 rows shown — the limit, so there may be more)

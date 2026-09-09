@@ -1,0 +1,4 @@
+backfilled 4 transcripts, 0 MB in 0.0s
+  8 acts, 7 words, 1 thoughts
+  1 line(s) did not parse — those records are ABSENT from the store, which is a different fault from a session that did less
+  re-running is safe: unchanged files are skipped by their stored offset

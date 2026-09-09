@@ -98,13 +98,20 @@ name = "yamllint"
 #                                                     written; it grows as CVEs land)
 #   go 1.25.13  a CURRENT patch release            ->  0 findings
 #
-# So the rule is: a module with no dependencies keeps the short form (gray-area,
-# prosthetic-conscience); a module WITH dependencies pins a current patch release
-# (frank-exchange-of-views, scripts), and bumps it when this scanner starts reporting
+# So the rule is: a module with no dependencies keeps the short form
+# (prosthetic-conscience); a module WITH dependencies pins a current patch release
+# (frank-exchange-of-views, gray-area, scripts), and bumps it when this scanner starts reporting
 # against it. NOT a suppression — an earlier version of this comment described 39
 # findings on frank-exchange-of-views as "accepted", and a suppression was nearly added on
 # that basis before running the scanner showed the pinned form reports clean. A
 # suppression would have hidden real findings on that file forever to avoid a one-line
 # directive change. When this comment and the scanner disagree, the scanner is right.
+#
+# gray-area moved groups when it took modernc.org/sqlite for the catalogue store: the short form
+# it had held stopped BUILDING, not merely stopped scanning clean, so the pin was forced by the
+# toolchain before this file noticed. A roster in a comment is not a record — nothing refuses an
+# entry that has gone stale — and this line is here because the alternative, generating it, would
+# mean generating a comment nobody reads mechanically. Re-read it when a module gains its first
+# dependency.
 [[plugin]]
 name = "osv-scanner"

@@ -323,3 +323,29 @@ func TestARepeatCaptureOfOneSeatIsRecordedNotSuppressed(t *testing.T) {
 			"which is the only thing that would justify dropping it", rows[0].SizeBytes)
 	}
 }
+
+// A TURN BOUNDARY IS NOT A SEAT.
+//
+// Stop and SessionEnd were added for the catalogue, and the binary's last line writes a seat row
+// for every event it does not recognise. Binding them without an explicit branch would therefore
+// have added one bogus seat row per TURN to every manifest — inflating the population the seat
+// audit measures, and doing it in rows that look exactly like real ones. This test is the guard on
+// that: it asserts the absence of a file, which is the whole point.
+func TestStopAndSessionEndWriteNoManifestRow(t *testing.T) {
+	for _, ev := range []string{"Stop", "SessionEnd"} {
+		t.Run(ev, func(t *testing.T) {
+			home := t.TempDir()
+			t.Setenv("HOME", home)           // keep ingest off the developer's real transcripts
+			t.Setenv("XDG_STATE_HOME", home) // ...and its store out of the real one
+			dir := t.TempDir()
+			in := `{"session_id":"S1","transcript_path":"/t/s.jsonl","agent_transcript_path":"/t/a.jsonl","agent_type":"red","cwd":` + strconv.Quote(dir) + `}`
+			_, _, code := call(t, in, dir, okStat(9), "-event", ev)
+			if code != 0 {
+				t.Fatalf("%s must never cost the session its turn: exit %d", ev, code)
+			}
+			if rows := readManifest(t, dir, "S1"); len(rows) != 0 {
+				t.Fatalf("%s wrote %d manifest row(s); it must write none: %+v", ev, len(rows), rows)
+			}
+		})
+	}
+}

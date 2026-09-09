@@ -1,0 +1,3 @@
+SESSION    AGENT              TOOL     OUTCOME        N  WHEN
+aaaaaaaa   (main)             Write    unresolved     1  3h ago
+aaaaaaaa   (main)             Bash     ok             1  3h ago

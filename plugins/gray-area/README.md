@@ -42,6 +42,56 @@ Lists every tool invocation as `file:line uuid seat tool target` — so a reader
 
 **And every row names the binary that wrote it.** `schema` says what *contract* a row was written to; `capture_build` says which *build* wrote it, and the two came apart the moment more than one hook binary was installed at once. Three were, on the same machine, all writing the same schema — and two readers then drew opposite conclusions about when the row population changed, from rows that recorded the contract and not the producer. Both were wrong, and the manifest could not settle it. `coverage` now says so up front when one manifest has several writers, because a count drawn across that boundary describes a population that changed producers midway.
 
+## The switchboard: `telepathy`
+
+The manifest answers *where is this session's trajectory*. **`telepathy`** answers questions across
+every agent on the box — Gray Area is the ship, and telepathy is what it does:
+
+```
+telepathy agents              who is running, in which worktree, doing what
+telepathy touched <path>      is anyone else acting on this file
+telepathy session <id>        one session's calls and errors, by tool
+telepathy find <term>         search every local transcript (ripgrep, no index)
+telepathy sql '<SELECT …>'    read-only, over v_session / v_action / v_word / v_thought / v_skip
+telepathy backfill            read the existing corpus in; safe to repeat
+```
+
+Every verb takes `--help`, and the help is where each one states what it *cannot* tell you.
+`--store`, `--projects` and `--sessions` point the tool at somewhere other than this box's own
+state — which is how the tests drive it, and how you read a colleague's exported transcripts.
+`sql` takes `--limit` (default 200) and says so when it truncates.
+
+It exists because `SendMessage` asks an agent what it *believes* and needs it alive to answer,
+while this asks the record what *happened*. On 2026-09-06 two sessions argued to a standstill over
+a census one had drawn from a single project directory; on 2026-09-08 three claims relayed between
+sessions were wrong. Every one was a query.
+
+**The store copies the signal, not the bulk.** Tool names, targets and outcomes; assistant and
+user text; reasoning summaries where they were captured — never tool *results*, which are 96% of a
+transcript's bytes. It lives at `~/.local/state/special-circumstances/catalogue/`, outside any
+repository, and keeps a month.
+
+**It fills itself from the hooks.** `Stop` and `SessionEnd` read the ending session's own
+transcript; `SessionStart` closes out whatever other sessions have stopped since, under a
+per-invocation cap, and prunes past the retention window once a UTC day. Those two hooks write
+**no manifest row** — they are there for the catalogue, and a turn boundary is not a seat.
+`backfill` is the one explicit cold read, for a corpus that predates all of this.
+
+A tool call is recorded with one of three outcomes: `ok`, `error`, or `unresolved` — the last
+meaning its result never arrived, which is what an interrupted session leaves behind. It is not a
+failure, and counting it as one would overstate every error rate on the box.
+
+`touched` matches a path anywhere in an act's target, not just at the end of it, because a file
+edited through the shell is named in the *middle* of a `Bash` command — under a suffix match every
+such edit reported nothing, which is the plausible zero this plugin exists to refuse. The residue
+is stated rather than papered over: targets are truncated at 200 characters, so a path buried past
+that in a long command is still invisible, and `find` is the fallback that reads the transcripts.
+
+**Absence is always worded.** No store, no rows for a path, no sessions running and no reasoning
+captured are four different facts, and each says which it is. `find` refuses outright when ripgrep
+is missing rather than reporting zero matches, because a search that cannot run and a search that
+found nothing must not print the same thing.
+
 ## Seat coverage: `coverage`
 
 ```

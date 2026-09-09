@@ -4,8 +4,8 @@
     {
       "name": "ripgrep",
       "purpose": "full-text search across every local trajectory. Measured on this repository's own corpus (282 MB, 385 transcripts): 33-54 ms for a whole-corpus search, against an estimated 1-2 GB for an FTS5 index that would also need invalidating on every append and rebuilding whenever the vendor deletes a session. The filesystem is already the index and cannot go stale, so gray-area shells out rather than building one. NOTE for anyone testing this by hand inside Claude Code: `rg` there is a shell FUNCTION the client injects (`exec -a rg $CLAUDE_CODE_EXECPATH`), not a binary — `bash -c 'command -v rg'` fails while an interactive `rg` appears to work, so a hand-run measurement can be taken through a path no Go program can use. toolchain.Probe uses exec.LookPath on the first token and so correctly refuses the function, which is why this entry is needed even on a box where `rg` seems present.",
-      "tier": "recommended",
-      "_tier_comment": "RECOMMENDED, AND DELIBERATELY AHEAD OF ITS CONSUMER. Nothing shells out to rg yet — the search verb is still a draft plan — and `required` returns BLOCKED, which would stop every consumer's install for a capability that does not exist. `recommended` reports DEGRADED instead: a nudge to have the binary before the verb arrives, not a door. PROMOTE TO `required` in the same change that ships the verb, because from that moment its absence stops being an inconvenience and starts returning a zero indistinguishable from a real one — a search that cannot run reports the same 'no matches' as one that ran and found none (facts-are-fields clause 3).",
+      "tier": "required",
+      "_tier_comment": "REQUIRED AS OF THE `telepathy find` VERB. This entry was deliberately ahead of its consumer while the search verb was a draft plan: `required` returns BLOCKED, and blocking an install for a capability nothing used would have been a door where a nudge was wanted, so it sat at `recommended` (DEGRADED). The verb now ships, and from that moment ripgrep's absence stops being an inconvenience: `telepathy find` shells out to it, and a search that cannot run reports the same empty result as one that ran and matched nothing (facts-are-fields clause 3 — the miss must not fold into the honest zero). The binary refuses the search out loud rather than returning that zero, and this tier is what stops a consumer reaching that refusal at all.",
       "check_cmd": "rg --version",
       "install": {
         "windows": "winget install --id BurntSushi.ripgrep.MSVC -e",
@@ -30,13 +30,18 @@
     "binaries": [
       {
         "name": "gray-area-capture",
-        "event": "SubagentStop",
-        "purpose": "records one manifest row per seat naming that seat's own agent_transcript_path — an index, never a copy of conversation content; never blocks the subagent"
+        "event": "SubagentStop, SessionStart, Stop, SessionEnd",
+        "purpose": "two jobs on four events. SubagentStop and SessionStart write the MANIFEST — one row per seat naming that seat's own agent_transcript_path, an index and never a copy of conversation content. Stop and SessionEnd write NO manifest row at all: they exist for the CATALOGUE, reading the ending session's own transcript into the host-wide store telepathy queries, and SessionStart additionally closes out sessions that have stopped since and prunes past the retention window. A turn boundary is not a seat, which is why those two are explicit branches rather than additions to the seat-row path. Never blocks a session: every catalogue failure is reported on stderr and swallowed."
       },
       {
         "name": "gray-area",
         "event": "(command-line, not a hook)",
         "purpose": "the miner: lists tool invocations with provenance and resolves shell-aliased calls; refuses to emit a row it cannot cite"
+      },
+      {
+        "name": "telepathy",
+        "event": "(command-line, not a hook)",
+        "purpose": "the switchboard: what every agent on this box did, said and thought, queryable by any other session. Gray Area is the plugin; telepathy is the act, which is why it is its own binary rather than more verbs on `gray-area` — that one adjudicates ONE trajectory against a document, this one reads across the host. Every absence it prints is worded, because no store, no rows, no sessions and no captured reasoning are four different facts"
       }
     ]
   }

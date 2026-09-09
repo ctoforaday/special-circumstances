@@ -1,0 +1,32 @@
+Runs a query against the store and prints the result as tab-separated columns.
+
+The questions worth asking of a trajectory corpus are not knowable in advance, so
+the schema is published and callers write their own. These views are the contract:
+
+  v_action   session_id, agent_id, seq, ts, tool, target, outcome
+  v_session  session_id, project_dir, cwd, first_seen, last_seen, closed_at, capture_build
+  v_skip     session_id, agent_id, prompt_id, reason, at
+  v_thought  session_id, agent_id, prompt_id, block_seq, ts, text
+  v_word     session_id, agent_id, prompt_id, block_seq, ts, role, text, source, provisional, attribution
+
+The connection is opened read-only, with query_only and ATTACH both refused, so a
+query cannot write and cannot reach a second database. Underlying tables are not
+the contract: query the views.
+
+NULL prints as the word NULL, because "" and NULL are different answers.
+
+Usage:
+  telepathy sql <query> [flags]
+
+Examples:
+  telepathy sql "SELECT tool, count(*) n FROM v_action GROUP BY 1 ORDER BY 2 DESC"
+  telepathy sql "SELECT text FROM v_thought WHERE session_id = 'abc' ORDER BY block_seq"
+
+Flags:
+  -h, --help        help for sql
+      --limit int   stop after this many rows (0 for no limit); truncation is reported (default 200)
+
+Global Flags:
+      --projects string   the transcript root, which this reads and never writes (default "~/.claude/projects")
+      --sessions string   where the client advertises live sessions, which is the only source of liveness (default "~/.claude/sessions")
+      --store string      the catalogue database the hooks write and every read verb queries (default "$XDG_STATE_HOME/special-circumstances/catalogue/catalogue.db")

@@ -1,0 +1,44 @@
+telepathy — what every agent on this box did, said and thought
+
+Gray Area is the ship; telepathy is what it does. This reads ACROSS every agent on
+the host and answers questions of fact about what ran, from a store built by the
+capture hooks out of transcripts the harness already writes.
+
+WHY IT EXISTS. SendMessage asks an agent what it BELIEVES, and needs it alive and
+willing to answer. This asks the record what HAPPENED.
+
+WHAT IT CANNOT TELL YOU. An 'unknown' liveness is not 'ended' — liveness is exact
+on Linux only, and a session in another pid namespace is not ours to judge. A
+session's final turn may be missing if its transcript lagged the last hook. And
+reasoning is present only where it was captured: showThinkingSummaries defaults
+off, so a session with no thoughts may have had them and not recorded them.
+
+The five views ARE the contract, and telepathy sql reads them directly:
+v_session, v_action, v_word, v_thought, v_skip.
+
+Usage:
+  telepathy [command]
+
+Examples:
+  telepathy agents
+  telepathy touched internal/catalogue/schema.go
+  telepathy sql "SELECT tool, count(*) n FROM v_action GROUP BY 1 ORDER BY 2 DESC"
+
+Available Commands:
+  agents      who is running, in which worktree, doing what
+  backfill    read the existing corpus into the store
+  completion  Generate the autocompletion script for the specified shell
+  find        search every local transcript (ripgrep, no index)
+  help        Help about any command
+  session     one session's shape: calls and errors by tool
+  sql         read-only SQL over the published views
+  touched     which sessions acted on a path, and when
+
+Flags:
+  -h, --help              help for telepathy
+      --projects string   the transcript root, which this reads and never writes (default "~/.claude/projects")
+      --sessions string   where the client advertises live sessions, which is the only source of liveness (default "~/.claude/sessions")
+      --store string      the catalogue database the hooks write and every read verb queries (default "$XDG_STATE_HOME/special-circumstances/catalogue/catalogue.db")
+  -v, --version           version for telepathy
+
+Use "telepathy [command] --help" for more information about a command.

@@ -1,0 +1,7 @@
+tool	outcome	n
+Bash	error	1
+Bash	ok	1
+Edit	ok	2
+Grep	ok	1
+Read	ok	2
+Write	unresolved	1

@@ -1,0 +1,15 @@
+Summarises what one session did, by tool, with its error count beside each.
+
+The id may be the full session id. Run 'telepathy agents' for the ones running now,
+or query v_session for the ones that have ended.
+
+Usage:
+  telepathy session <id> [flags]
+
+Flags:
+  -h, --help   help for session
+
+Global Flags:
+      --projects string   the transcript root, which this reads and never writes (default "~/.claude/projects")
+      --sessions string   where the client advertises live sessions, which is the only source of liveness (default "~/.claude/sessions")
+      --store string      the catalogue database the hooks write and every read verb queries (default "$XDG_STATE_HOME/special-circumstances/catalogue/catalogue.db")

@@ -1,0 +1,5 @@
+SESSION    STATE       ACTS  LAST           CWD
+bbbbbbbb   unknown        1  Edit 29m ago   /work/beta
+aaaaaaaa   unknown        7  Read 1h ago    /work/alpha
+
+  `unknown` means liveness could not be established — a foreign pid namespace, or a platform where this is not implemented. It is not `ended`.
