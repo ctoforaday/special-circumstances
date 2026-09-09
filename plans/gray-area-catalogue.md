@@ -165,9 +165,20 @@ So the rule is:
    never whether it can be read. An earlier draft left this unstated, which is exactly what made
    "(a) is sufficient alone" look unsupported: it argued the write and not the visibility.
 
-4. **A provisional is deleted the moment it is SATISFIED** (an ingested block equal to it arrives
-   for its key) — not on first sight of any sibling text. If it is never satisfied it is retained
-   until its
+4. **CLOSURE INGESTS BEFORE IT DECIDES**, and an earlier draft that omitted this had promotion
+   backwards. It said a provisional promotes to "a final block that never reached the transcript" —
+   but §II:89 says such a turn is *never hook-ingested*, **not** never written, and the file does get
+   it: measured, **150 of 150 completed transcripts (untouched >30 min) contain assistant text for
+   their final turn.** A closing sweep comparing only against already-*ingested* text would therefore
+   promote a row whose text sits in the file unread, on the routine path, and §V.3's arithmetic would
+   be wrong in both halves — passing only when its second addend is 0, i.e. only when R11 has no
+   evidence. That is the inverse of round seventeen's error, not its repair.
+
+   So the sweep **runs incremental ingest of that session's transcript from its stored offset first**,
+   and only then decides. Promotion is thereby restricted to text genuinely absent from the file, and
+   rule 4's justification becomes true rather than assumed. **A provisional is deleted the moment it
+   is SATISFIED** — an ingested block equal to it arrives for its key — not on first sight of any
+   sibling text. If it is still unsatisfied *after* that ingest, it is retained until its
    turn is known closed, by any of **four** triggers: a later `prompt_id` ingested for that same
    `(session, agent_id)`; `SessionEnd`; or — the one that cannot be missed — **the session no
    longer being live**, per the `~/.claude/sessions/<pid>.json` check §II already specifies for
@@ -255,13 +266,24 @@ So the rule is:
      **`attribution`** (`NULL` | `'unverified'` | `'ambiguous'`).
    - **At promotion `provisional` flips 1 → 0 while `source` stays `'payload'`.** That pair is what
      identifies a permanent row with no transcript counterpart, which §V.3's arithmetic needs.
-   - **A promoted row stays replaceable**, which is the dedup the flag transition would otherwise
-     lose: if a transcript-sourced block equal to it later arrives for the same key — a `backfill`
-     re-read, say — it **replaces** the row (`source` → `'transcript'`, `attribution` → `NULL`)
-     rather than inserting beside it. Without this the row becomes unsatisfiable and the same text
-     double-stores.
+   - **The `word` row's identity is `(session, agent_id, prompt_id, block_seq)`** — `block_seq` the
+     block's ordinal within its turn. This had to be stated: `(session, seq)` is the `action` tier's
+     key and backfill's, and `(session, agent_id, prompt_id)` is **not** unique per word row, since
+     66.2% of turns carry more than one block. Without an identity the replacement below has nothing
+     to replace on.
+   - **A promoted row stays replaceable**, the dedup the flag transition would otherwise lose: if a
+     transcript-sourced block equal to it later arrives — a `backfill` re-read, say — it **replaces**
+     the row rather than inserting beside it (`source` → `'transcript'`, `attribution` → `NULL`), and
+     **the replaced row adopts the transcript block's `block_seq`**, because a payload-side row has
+     no natural ordinal and a mismatched one would make the next `backfill` insert beside it instead
+     of finding it. Without both halves the same text double-stores.
    - **Skips get a carrier**: `provisional_skip(session, agent_id, prompt_id, reason, at)`, `reason`
-     from a closed set — `no-prompt-id`, `no-last-assistant-message`. **When both are absent the
+     from a closed set — `no-prompt-id`, `no-last-assistant-message`. It sits behind a **`skip`
+     view**, so the skip population is on the §V.6 contract rather than off it: a turn that was
+     skipped is a fact a reader needs as much as a stored one. Prose elsewhere says
+     `provisional_skipped`; **the table is `provisional_skip` and the prose follows it.** A promotion
+     reached from the **unequal** path carries `attribution = NULL` — nothing about it is ambiguous
+     or unverified; it is a final turn the transcript never received. **When both are absent the
      reason is `no-prompt-id`**, checked first, since without a key nothing could be written at all.
 
 7. **A transcript record whose ancestry yields no `promptId` is ingested with a NULL key** — and an
@@ -852,8 +874,9 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
     record with unresolvable ancestry (asserts single-outstanding attribution, and
     `attribution='ambiguous'` when not). §V.3
     cannot see any of this: it counts a live corpus where a +1 is invisible. Also —
-    a second `backfill` over the same corpus leaves act counts unchanged (the `(session, seq)`
-    idempotence §III asserts and nothing previously checked), and the verb reaches its handler.
+    a second `backfill` over the same corpus leaves **both act and `word`** counts unchanged — word
+    counts over a corpus containing a **promoted-then-replaced** row, since that is the case rule 6's
+    `block_seq` adoption exists to make idempotent and an act-only assertion cannot see, and the verb reaches its handler.
 16. **[PROCESS]** `qlty check --no-progress --no-fix --filter=osv-scanner
     plugins/gray-area/tools/go.mod` — **expected: 0 findings.** Run on the branch before review,
     because the directive `go mod tidy` writes (`go 1.25.0`) scans at 46 findings and the one this
