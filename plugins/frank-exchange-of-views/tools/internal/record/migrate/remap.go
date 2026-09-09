@@ -14,9 +14,9 @@ import (
 // translates one event at a time and cannot know what the run has already minted; this can, and
 // it is what turns an archived run's identifiers into the ones a live reader speaks:
 //
-//   - a seat id loses its round and a numbered lens becomes its area: `red-merge-r2` is
+//   - a seat id loses its epoch and a numbered lens becomes its area: `red-merge-r2` is
 //     `red-chair` (its second register is its second sitting, which opens epoch 2);
-//     `red-lens-r1-L5` is `red-lens-logic`. Two citation instances in one round (`-L1`, `-L2`)
+//     `red-lens-r1-L5` is `red-lens-logic`. Two citation instances in one epoch (`-L1`, `-L2`)
 //     were two sittings of the evidence lens, and that is what they become.
 //   - a gap id `R<r>-<n>` becomes `G<k>`, k its position in the run's mint order, and every
 //     later reference to it — close, closing, regrade, motion, answers, successor, supersedes,

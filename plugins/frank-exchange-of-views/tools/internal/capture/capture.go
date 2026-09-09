@@ -227,7 +227,7 @@ func TelemetryAudit(run record.Run, redEpochs int) Audit {
 // It read red/ledger.md and red/archive.md and compared their line counts against the merge's
 // self-reported ledger_closure_lines / archive_blocks. BOTH SIDES OF THAT COMPARISON ARE GONE —
 // the envelope counts were removed 2026-07-19 for comparing numbers the merge made up (a haiku
-// smoke self-reported archive_blocks: 22 in a round whose true archived count was 0), and the
+// smoke self-reported archive_blocks: 22 in an epoch whose true archived count was 0), and the
 // files stopped being written when the ledger and archive became rendered projections.
 //
 // It never said so. With no files it returned SKIP, "no ledger/archive (pre-sharding run)" — a
@@ -242,7 +242,7 @@ func TelemetryAudit(run record.Run, redEpochs int) Audit {
 // that proved the audit could read them.
 //
 // The duty it was reaching for is not lost, and is not restored here. It lives where the numbers
-// cannot be authored: record.SpotCheckAudit computes the archive's size at round start by replay,
+// cannot be authored: record.SpotCheckAudit computes the archive's size at epoch start by replay,
 // and AttestationAudit reconciles each anchored closure against real tool calls. Both read the
 // board. A self-report has no place on either side of that comparison.
 
@@ -1241,7 +1241,7 @@ func closeRunLiveMarker(cwd, runDir string) string {
 	// close and said so in the words it uses for a run that was already clean.
 	//
 	// NEARLY DONE, 2026-08-22: a discarded run was about to be captured for its evidence while
-	// the next run was eleven minutes into its first round. Caught by reading this function
+	// the next run was eleven minutes into its first epoch. Caught by reading this function
 	// rather than by anything in it.
 	//
 	// A path comparison guarded that. Per-run rows REMOVE it: the row this capture owns is the
@@ -1728,7 +1728,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	} else {
 		costF.Close()
 		lines = append(lines, "cost.md: written (telemetry join included)")
-		// Fold the per-seat-round cost table into run.md as a ## Cost section — what the run
+		// Fold the per-seat-epoch cost table into run.md as a ## Cost section — what the run
 		// cost is a fact about the RUN, and run.md is the document whose subject that is. The
 		// set is assembled mid-run WITHOUT transcript access (the transcript dir reaches only
 		// capture), so this is the one stage that can. Slices the already-rendered cost.md
@@ -1784,7 +1784,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		// the run's own proofs, re-run and compared. See proofrerun.go for why a seat's spot-check
 		// could not be the thing that does this.
 		ProofRerunAudit(run, proofRerunSample),
-		// Round 0's declared breadth against the lane seats that actually took theirs — the one
+		// Synthesis's declared breadth against the lane seats that actually took theirs — the one
 		// run-config field nothing reconciled. See lanecoverage.go.
 		LaneCoverageAudit(run),
 	}
@@ -1985,7 +1985,7 @@ func ArchiveRecord(run record.Run, repoRoot string) (string, error) {
 // durable copy does not exist yet. Dropping the mirror here would remove the recovery path
 // exactly when its replacement is most exposed to the add -A / checkout / stash classes the
 // mirror was built to survive. So the reap is by AGE, and this run's mirror was rewritten at
-// its last round: it is the freshest thing in the directory and cannot be the oldest.
+// its last epoch: it is the freshest thing in the directory and cannot be the oldest.
 //
 // It belongs here because run-setup was the only caller, and nobody runs run-setup between
 // research runs — a crashed run's mirror sat until someone happened to start a new one.
@@ -2006,7 +2006,7 @@ func reapOrphanMirrors(now time.Time) string {
 }
 
 // mirrorOrphanDays is longer than any run, which is the only property it needs: a live run
-// refreshes its mirror every round, so what crosses this line stopped writing weeks ago.
+// refreshes its mirror every epoch, so what crosses this line stopped writing weeks ago.
 const mirrorOrphanDays = 30
 
 // ---- gap-class harvest ----

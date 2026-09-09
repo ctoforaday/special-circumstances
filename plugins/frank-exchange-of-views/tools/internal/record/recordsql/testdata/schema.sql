@@ -698,7 +698,7 @@ CREATE INDEX "gate_verdict" ON "gate" ("verdict");
 -- to carry as -r<N>, computed from the record instead of typed by the seat.
 --
 -- "epoch" is GLOBAL: the count of red-chair's register events at or before the row, whoever wrote
--- the row. It is what the bucket readers were using the round for — which dispatch cycle was this
+-- the row. It is what the bucket readers were using the epoch for — which dispatch cycle was this
 -- in — and it is defined for a bench close or a lane's draft because it asks about the chair's
 -- registers, not the row's seat's. Everything before the first chair register is epoch 0, which is
 -- the base phase (frontier, lanes, synthesis) and is a real answer rather than a missing one.
@@ -707,7 +707,7 @@ CREATE INDEX "gate_verdict" ON "gate" ("verdict");
 -- it does not sit.
 --
 -- BOTH ARE WINDOWS, NOT STORED, so neither can be stamped wrong by the seat writing the row. A
--- round used to be inferred from a regex over the seat id at register time and stamped forever; a
+-- epoch used to be inferred from a regex over the seat id at register time and stamped forever; a
 -- reader of this view gets the count the events themselves make, and a re-dispatched seat's third
 -- sitting is 3 because it registered three times, not because something told it to say so.
 CREATE VIEW "events_w" AS
@@ -913,7 +913,7 @@ SELECT
   -- THE BENCH HEARD IT AND KEPT IT ALIVE, and this is the column that lets a seat be told so.
   --
   -- carried is 76 of 77 bench rulings in the measured base rate, and it ANSWERS its motion: the
-  -- gap comes back by being docketed again next round. Without this the merge seat was told only
+  -- gap comes back by being docketed again next epoch. Without this the merge seat was told only
   -- "gap G1 is open — PASS is refused while it is", which is true of a gap nobody has ever put
   -- before the bench and of one the bench has considered twice and deliberately deferred. Same
   -- sentence, two very different situations, and the seat cannot act differently on them.
@@ -921,7 +921,7 @@ SELECT
   -- ORDER-FREE, ON PURPOSE (#759). The tempting predicate is "the LATEST docket ruling is
   -- carried", and there is no key to say which that is at the level this was first specified:
   -- motion ids are Sprintf M%d so lexicographic order breaks at M10, and two docket motions in
-  -- one round have no defined latest. Stated as set membership the question does not need an
+  -- one epoch have no defined latest. Stated as set membership the question does not need an
   -- order at all: the gap is OPEN, at least one docket ruling on it carried, and nothing is
   -- pending. A closing ruling cannot coexist with open — bc is in the openness test above — so
   -- that arm is implied rather than repeated.
@@ -949,7 +949,7 @@ SELECT
   -- HERE AN ORDER IS BOTH AVAILABLE AND MEANINGFUL, which is why this one takes a LIMIT where the
   -- flag above refuses to. motion_rule.event_id is the events primary key: monotonic, unique,
   -- and nothing to do with the motion-id spelling that has no usable order. The LATEST carry is
-  -- the live one — an earlier round's condition has already been answered by the re-filing.
+  -- the live one — an earlier epoch's condition has already been answered by the re-filing.
   (SELECT rd4."reopens_on" FROM "motion_docket" md4
      JOIN "motion" mo4 ON mo4."event_id" = md4."event_id"
      JOIN "motion_rule" mr4 ON mr4."motion_id" = mo4."motion_id"
@@ -969,7 +969,7 @@ SELECT
   m."event_id"                                                                        AS "minted_event"
 FROM "mint" m
 JOIN "events_w" e ON e."id" = m."event_id"
--- A gap can be closed more than once — red re-adjudicates across rounds (defect_accepted in
+-- A gap can be closed more than once — red re-adjudicates across epochs (defect_accepted in
 -- one, repaired in a later one). Take the EARLIEST close, exactly as the bench-close arm below
 -- takes its earliest closing ruling: a plain LEFT JOIN "close" fans out one row per close event,
 -- and a gap with two closes then counts twice in board_counts while the raw event walk counts it
@@ -983,7 +983,7 @@ LEFT JOIN (
 LEFT JOIN "close" c ON c."event_id" = cx."event_id"
 LEFT JOIN "events" ce ON ce."id" = cx."event_id"
 -- The bench's closing ruling, if it made one. A gap can be ruled on many times — carried in one
--- round and disposed of in the next — so this is the EARLIEST ruling whose disposition closes,
+-- epoch and disposed of in the next — so this is the EARLIEST ruling whose disposition closes,
 -- and whether it closes is read off the vocabulary rather than decided here.
 --
 -- TWO HOPS NOW, BECAUSE THE GAP RIDES THE FILING. The bench's disposition was its own event
@@ -1013,7 +1013,7 @@ LEFT JOIN "events" be ON be."id" = bc."event_id";
 -- rather than folding the stream again with its own idea of what closed means.
 -- THE NEVER-HARD-FAIL DETECTOR, ASKED OF THE RECORD RATHER THAN ASSERTED BY THE ENGINE.
 --
--- debate.js computes this every round and writes it to a LOG LINE. The scorecard tried to read
+-- debate.js computes this every epoch and writes it to a LOG LINE. The scorecard tried to read
 -- it from a telemetry key nothing ever wrote, so the detector reported 0 on every run for seven
 -- runs — "no soft fails" in the words it would use for "never measured". The fact existed; its
 -- only carrier was prose.
@@ -1049,7 +1049,7 @@ FROM "events_w" ve
 JOIN "gate" rv ON rv."event_id" = ve."id"
 LEFT JOIN (
   -- Open AT the verdict: minted at or before it in the sequence, and not closed before it. The
-  -- axis is the record's own ("id"), not a round — a closure two rows after the gate did not
+  -- axis is the record's own ("id"), not an epoch — a closure two rows after the gate did not
   -- happen before it, however the sittings fell.
   SELECT
     v2."id"                                                    AS "verdict_id",

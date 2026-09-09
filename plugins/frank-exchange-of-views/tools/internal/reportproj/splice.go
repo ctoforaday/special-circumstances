@@ -6,13 +6,13 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 )
 
-// SPLICE HYGIENE — the punctuation a tool should own, not a debate round.
+// SPLICE HYGIENE — the punctuation a tool should own, not a debate epoch.
 //
 // Measured on the 2026-08-04 smoke: of blue-respond's 17 edits, SIX were pure punctuation
 // repair ("remove double colon", "remove double period", "remove double semicolon", "remove
 // double period and extra period"). None answered a red finding. They were repairing SPLICE
 // DAMAGE from blue's own earlier edits — a --new ending in "." landing against text that already
-// began with one. A third of a paid round spent on artifacts a deterministic pass can remove,
+// began with one. A third of a paid epoch spent on artifacts a deterministic pass can remove,
 // the same argument that ended indentation debates in code review once gofmt existed.
 //
 // The normalization is deliberately NARROW, applied ONLY at the two seams an edit creates and

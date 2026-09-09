@@ -90,7 +90,7 @@ func ProseOf(c *cobra.Command) *Prose {
 // Read resolves the channel to one string.
 //
 // Both spellings given is refused rather than ranked: a seat that passes both should be told
-// which one this verb would have dropped, not discover it in a projection three rounds later.
+// which one this verb would have dropped, not discover it in a projection three epochs later.
 //
 // The trailing newline a shell heredoc leaves behind is trimmed, because `<< 'EOF'` always adds
 // one and a seat should not have to think about it.

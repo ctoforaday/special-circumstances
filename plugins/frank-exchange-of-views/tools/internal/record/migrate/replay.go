@@ -115,7 +115,7 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 		}
 		record.Now = func() time.Time { return ts }
 		for _, body := range bodies {
-			// NO ROUND IS CARRIED. The old row's round was recovered from its seat id by regex at
+			// NO EPOCH IS CARRIED. The old row's epoch was recovered from its seat id by regex at
 			// the time; the re-driven write computes the EPOCH from the chair registers already
 			// replayed (events_w."epoch"), which is the same fact from the record rather than from
 			// the name — plans/roundless.md §III.A.2. A migrated record's round therefore means

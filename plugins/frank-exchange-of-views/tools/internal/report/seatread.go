@@ -24,7 +24,7 @@ import (
 // REFUSES any edit that drops, duplicates or invents one: an anchor is born only from `lens
 // finding` or `blue cite` and removed only by the tool. A seat that read a resolved rendering
 // would not know an anchor lived inside the span it is about to replace, would omit it from
-// --new, and would have the edit refused — a wasted round, on a document it had every reason to
+// --new, and would have the edit refused — a wasted epoch, on a document it had every reason to
 // think it had read correctly.
 //
 // So the anchors stay. They are not noise to be cleaned up before blue sees them; they are the

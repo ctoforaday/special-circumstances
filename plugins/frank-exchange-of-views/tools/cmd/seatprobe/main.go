@@ -588,9 +588,9 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, model, debatePath string
 	cmd.Env = append(os.Environ(),
 		seatenv.Var+"="+runDir,
 		seatenv.AgentVar+"="+seatprobe.ProbeAgentID(b.Seat),
-		// THE ROUND IS NO LONGER INJECTED, because it is no longer a guess. Every probe seat id
+		// THE EPOCH IS NO LONGER INJECTED, because it is no longer a guess. Every probe seat id
 		// carries its round (see seatprobe.Seats — three sit round 1, and the bench sits round 2,
-		// which is the first round a judge can sit at all), so the derivation answers it. FEOV_ROUND
+		// which is the first epoch a judge can sit at all), so the derivation answers it. FEOV_ROUND
 		// existed because the old derivation could not tell "round 0" from "no round in this name";
 		// it can now, and the variable is gone rather than left set to a value the tool would
 		// compute anyway.

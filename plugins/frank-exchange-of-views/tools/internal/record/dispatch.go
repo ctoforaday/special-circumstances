@@ -262,7 +262,7 @@ func openGaps(db *sql.DB) ([]openGap, error) {
 	return out, rows.Err()
 }
 
-// requireEveryCastLensSatAgainstHead is the direct replacement for the round loop's "every lens
+// requireEveryCastLensSatAgainstHead is the direct replacement for the dispatch loop's "every lens
 // sits every round" (plans/roundless.md §III.B.1): PASS is refused until every cast lens has SAT
 // against the current report head — its register FOLLOWING the dispatch pinned at the head, not
 // the dispatch row. A record with no cast has no lenses to wait for; that is the fixtures' world

@@ -25,7 +25,7 @@ import (
 //
 // Measured cost of that: the 2026-08-04 smoke's R1-2 asked blue to test the protocol on a
 // false claim ("is 9 prime"). Blue answered in PROSE, asserting the test had happened. R2-2
-// refused it — "no evidence shown" — and the round was spent. Three lines of trial division
+// refused it — "no evidence shown" — and the epoch was spent. Three lines of trial division
 // settle it and leave an artifact red can re-run.
 //
 // IT IS THE CITATION MODEL WITH THE LAST MILE WALKED, not a new kind of evidence. Cite the

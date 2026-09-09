@@ -189,7 +189,7 @@ func CheckSeatRole(role, seatID string) error {
 // and the surface walk. Derived from roleSeats so a new role or a renamed prefix cannot leave a
 // hand-written sample pointing at a namespace that no longer exists.
 func SampleSeatOf(role string) string {
-	// From the roster's own example column, not prefix+"r1": a seat id carries no round, so the
+	// From the roster's own example column, not prefix+"r1": a seat id carries no epoch, so the
 	// composition no longer produces an id any dispatch creates.
 	for _, s := range seatShapes {
 		if s.role == role {

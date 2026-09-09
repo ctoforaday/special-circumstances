@@ -202,7 +202,7 @@ func (s *SQLiteSource) tables() ([]string, error) {
 // prefixes the name wins, so `motion_rule_docket` is an arm of the WORD `motion_rule`, not
 // of `motion` — the same both-directions care the legacy shard regex documents.
 // renamedBodyTables maps a body table an ARCHIVED record may carry to the word it recorded, for
-// the messages renamed since. `round_verdict` was message RoundVerdict; the round left the record
+// the messages renamed since. `round_verdict` was message RoundVerdict; the epoch left the record
 // (plans/roundless.md §III.A.2) and the message is Gate, so a live record's table is `gate` and
 // tableForWord already says so — this is only the old spelling, read at migration and nowhere else.
 var renamedBodyTables = map[string]string{

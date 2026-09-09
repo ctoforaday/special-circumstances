@@ -1,4 +1,4 @@
-// Package seatturn reads a seat's transcript into per-turn rows: what each API round cost and
+// Package seatturn reads a seat's transcript into per-turn rows: what each API round trip cost and
 // what kind of turn it was.
 //
 // # What this is for
@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-// Turn is one API round: the usage it reported and the shape of what came back.
+// Turn is one API round trip: the usage it reported and the shape of what came back.
 type Turn struct {
 	Index         int   // position among the usage-bearing lines, from 0
 	TSMillis      int64 // the line's own timestamp; 0 when it carried none
@@ -44,7 +44,7 @@ type Turn struct {
 // copied file) is silent and produces rows filed against nothing. The field is free.
 //
 // A line that does not parse, or carries no usage, is skipped: transcripts interleave user
-// records, tool results and meta lines, and only the assistant's API rounds report usage.
+// records, tool results and meta lines, and only the assistant's API round trips report usage.
 func Parse(transcript string) (agentID string, turns []Turn) {
 	for _, line := range strings.Split(transcript, "\n") {
 		if strings.TrimSpace(line) == "" {

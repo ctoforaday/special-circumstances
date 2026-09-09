@@ -378,7 +378,7 @@ func allGapIDs(run Run) (map[string]bool, error) {
 	return out, rows.Err()
 }
 
-// priorClosureRounds returns the rounds in which this gap was already closed.
+// priorClosureRounds returns the epochs in which this gap was already closed.
 //
 // A `--carried-from` closure claims to restate an earlier one, and a claim about the
 // record is checked against the record — the same rule mint applies to `supersedes`,
@@ -409,9 +409,9 @@ func priorClosureEpochs(run Run, gapID string) ([]int, error) {
 }
 
 // MintGapID assigns ids tool-side, sequentially over the run — the collision class that once
-// made four different ids for one gap in one round simply cannot occur.
+// made four different ids for one gap in one epoch simply cannot occur.
 func MintGapID(run Run) (string, error) {
-	// RUN-GLOBAL. The id used to be R<round>-<n>, a per-round counter, and the round in it was the
+	// RUN-GLOBAL. The id used to be R<epoch>-<n>, a per-epoch counter, and the epoch in it was the
 	// last fact a public identifier recovered from a clock (plans/roundless.md §III.A.3). G<n> is
 	// the position in the run's mint order: one counter, one namespace, and `G` is the prefix
 	// letter nothing else mints. The two schemes cannot collide — one has a hyphen, the other

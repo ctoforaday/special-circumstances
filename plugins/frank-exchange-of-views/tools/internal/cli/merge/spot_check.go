@@ -52,7 +52,7 @@ func newSpotCheck() *cobra.Command {
 	// AN HONESTLY-EMPTY SITTING IS A DISCHARGE, NOT A SKIP.
 	//
 	// This run's red-merge-r1 reported in friction that spot-check "cannot record an
-	// honestly-empty round" because --ids requires a list. That is NOT what the tool
+	// honestly-empty epoch" because --ids requires a list. That is NOT what the tool
 	// did: a bare spot-check was always accepted and recorded ids as an empty array —
 	// TestSpotCheckIdsAreAlwaysAnArray pins exactly that, and caught the attempt to
 	// make the bare form an error. The friction was self-report that did not survive

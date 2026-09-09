@@ -18,7 +18,7 @@ import (
 // changed underneath it. The flag is a measurement of the defect, not a fix for it.
 //
 // WHY THE HISTORY IS KEPT AND NOT JUST THE ANSWER. A relocated pointer alone would let blue move
-// red's gap silently: red returns in the next round, sees a sentence it never audited, and cannot
+// red's gap silently: red returns in the next epoch, sees a sentence it never audited, and cannot
 // tell whether the text drifted or was rewritten under it. The edits ARE the answer to that, and
 // they are already on the record — see the gap_edit view, which states the join rule once where
 // every reader can see it.

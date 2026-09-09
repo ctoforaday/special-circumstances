@@ -48,12 +48,12 @@ func newClose() *cobra.Command {
 		// prose for the one class of check it declared prose cannot settle — which is
 		// exactly the round the 2026-08-05 smoke spent: R1-2 asked blue to "test it on a
 		// false claim", blue answered by ASSERTING the test had happened, and red's R2-2
-		// correctly refused it as "no evidence shown". A full round, for something three
+		// correctly refused it as "no evidence shown". A full epoch, for something three
 		// lines of trial division settle while leaving an artifact red can re-run.
 		//
 		// The guard reads the board, like the estoppel guard above it. A run whose board
 		// cannot be read does not block the closure: refusing on infrastructure would
-		// strand a round, and the check is a demand, not a safety property.
+		// strand an epoch, and the check is a demand, not a safety property.
 		if kind, gerr := computationGapKind(run, seat.Str(cmd, flags.ID)); gerr == nil && kind {
 			if !record.ProofAnswers(run, seat.Str(cmd, flags.ID)) {
 				return nil, fmt.Errorf("lens close: %s was minted --check-kind computation, and no proof answers it. Its acceptance check is settled by RUNNING something, not by reading the report — so closing it on prose would accept the one kind of evidence you declared insufficient. Blue settles it with `blue prove --location \"<the sentence>\" --script <path> --answers %s`; if the demand was wrong, regrade or supersede the gap rather than closing it unproved",

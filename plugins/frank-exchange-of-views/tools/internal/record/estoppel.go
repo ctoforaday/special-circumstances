@@ -10,7 +10,7 @@ import (
 // ESTOPPEL — red is bound by the fix it prescribed.
 //
 // THE PATHOLOGY, MEASURED. In the 2026-08-04 smoke blue made 26 edits; round 1 was nine
-// edits, every one additive, +2,856 characters, each answering a gap red had raised. Round
+// edits, every one additive, +2,856 characters, each answering a gap red had raised. Epoch
 // 2's gaps then targeted that new text: 3 of 3 were about text blue added in round 1 AT
 // RED'S INSTRUCTION. Blue's discipline was not the problem — 19 of 26 edits named the gap
 // they answered. It did what it was told, carefully, and was penalised for it.
@@ -245,7 +245,7 @@ func ClaimAppearsInAnEdit(run Run, claim string) bool {
 // in board order.
 //
 // It is the same join the close gate and the board projection use, exposed as a debt a seat can
-// be handed at the moment it matters. The gate is at the MERGE's close, one seat and one round
+// be handed at the moment it matters. The gate is at the MERGE's close, one seat and one epoch
 // after blue — the only seat that can discharge it — has finished its sitting.
 //
 // Measured: projecting check_kind moved `prove` from 0 uses across eighteen sittings to 1 across

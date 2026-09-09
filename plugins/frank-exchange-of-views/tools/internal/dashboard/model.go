@@ -170,7 +170,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		}
 	}
 	// agentId → (seat, epoch, sitting), off the register events. The label used to be the seat
-	// class plus a round PARSED OUT OF THE TRANSCRIPT HEAD; the record already holds the binding
+	// class plus an epoch PARSED OUT OF THE TRANSCRIPT HEAD; the record already holds the binding
 	// as a field on `register` and counts both windows off the stream, so the head no longer says
 	// which sitting this is — only which CLASS of seat, which is seatclass's job and stays so.
 	bindings := cost.SeatBindingsOf(fam.Events)
@@ -399,7 +399,7 @@ func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
 // assumed:
 //
 //	2  carry an `outcome` event — the record answers
-//	1  carries a round `verdict` event and no terminal act
+//	1  carries an epoch `verdict` event and no terminal act
 //	5  carry NO terminal act at all, and their reports say "UNVERIFIED"
 //	1  has no verdict in the report either
 //
@@ -569,7 +569,7 @@ func buildSteps(seats []Seat) []Step {
 		maxEpoch = 1
 	}
 	// A step is one EPOCH — one dispatch cycle of the chair — so a seat belongs to step r when the
-	// record put its register in epoch r. Under the round loop a seat's r-th sitting and epoch r
+	// record put its register in epoch r. Under the dispatch loop a seat's r-th sitting and epoch r
 	// were the same number; under dispatch a lens may sit in epoch 5 for the third time, and the
 	// segment it lights up is the fifth. epoch 0 means "any", for the bookends outside the cycle.
 	seen := func(seat string, epoch int) bool {

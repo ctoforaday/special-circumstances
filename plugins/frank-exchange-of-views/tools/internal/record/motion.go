@@ -24,7 +24,7 @@ import (
 // unrendered while the line of inquiry RULING was found unrendered SEPARATELY in the same sweep, because
 // nothing said they were the same mechanism. #312 is the same root — `petition-rule` joins on
 // `(petitioner, class)` with no id, which is why the report renders filings and rulings side by
-// side rather than joined: pairing two filings by one seat in one round would be a guess.
+// side rather than joined: pairing two filings by one seat in one epoch would be a guess.
 //
 // A motion has an ID. The ask and its answer join on it, once, and one renderer serves all three.
 
@@ -96,7 +96,7 @@ var MotionFields = map[string]map[string][]EnumValue{
 		// for and what the bench orders are different facts, and only the second binds anyone.
 		//
 		// Measured (#360): a bench granted a petition in part, issued operative relief for the
-		// coming round, and recorded in its own friction that it had "issued a direction to red
+		// coming epoch, and recorded in its own friction that it had "issued a direction to red
 		// knowing it has no carrier". The engine threaded relief into exactly ONE prompt — blue's
 		// — so relief addressed to red reached nothing. Routing needs an addressee, and there was
 		// no field for one.
@@ -229,7 +229,7 @@ func enumWord(v protoreflect.Enum) string {
 
 // MintMotionID assigns the next run-unique motion id (M1, M2 …).
 //
-// Run-unique rather than round-scoped, for the reason a line of inquiry's is: a motion OUTLIVES the round
+// Run-unique rather than epoch-scoped, for the reason a line of inquiry's is: a motion OUTLIVES the epoch
 // that filed it — a grade dispute rejected in round 2 is re-disputed in round 3 and appealed to
 // the bench in round 4 — so a round-scoped id would have to be re-minted to survive, and the
 // re-mint is where the thread breaks.
@@ -314,7 +314,7 @@ func MotionsOf(evs []*Event) []*Motion {
 	// A PASS OF ITS OWN, for the same interleaving reason: blue proposes the line of inquiry and the merge
 	// rules it, so the two live in different shards and the ruling can replay first. Gathered
 	// inside pass 1 this map was read before it was filled, and a direction motion came out with
-	// no filer, no round and no ask — rendering as an answer to a question nobody asked.
+	// no filer, no epoch and no ask — rendering as an answer to a question nobody asked.
 	var clk Clock
 	for _, e := range evs {
 		w := clk.Advance(e)
@@ -594,7 +594,7 @@ func RequireUnruledMotion(run Run, id string) error {
 // where your ARGUMENT is recorded", so the thing quietly dropped is the argument itself.
 //
 // A SECOND APPEAL IS NOT THE MOVE FOR NEW GROUNDS, and the refusal says what is: a grade dispute
-// pressed again belongs in a NEW motion for the new round, which is the path the engine already
+// pressed again belongs in a NEW motion for the new epoch, which is the path the engine already
 // drives (`grade_dispute_re_raised`). That keeps both arguments, which is the whole point of an
 // appeal being an event rather than a field.
 func RequireUnappealedMotion(run Run, id string) error {

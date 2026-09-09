@@ -186,7 +186,7 @@ type EvidenceJSON struct {
 	//
 	// STATED HERE BECAUSE THIS IS WHERE RED LOOKS. The duty is enforced at the merge's PASS gate,
 	// which is the right place to REFUSE — but a duty that only surfaces when someone else is
-	// blocked at the end of the round is one the seat that owes it never sees. An empty array is
+	// blocked at the end of the epoch is one the seat that owes it never sees. An empty array is
 	// the honest "nothing outstanding"; without the field, nothing outstanding and nothing
 	// checked are the same absence.
 	UnansweredContradictions []string `json:"unanswered_contradictions"`

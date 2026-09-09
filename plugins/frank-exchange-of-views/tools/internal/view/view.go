@@ -414,19 +414,19 @@ func archiveMD(in Input) []byte {
 // that was inline in render.go), the shared source Telemetry decodes.
 func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 	// THE SERIES IS DENSE OVER THE RUN'S EPOCHS (chair sittings, plans/roundless.md §III.A.0),
-	// and it was keyed on MINT rounds alone.
+	// and it was keyed on MINT epochs alone.
 	//
 	// MEASURED 2026-08-22 on research/2026-08-22_is-7-prime. All five gaps were minted at round 1
 	// and THREE OF THEM CLOSED AT ROUND 2 — "zero new gaps were raised in R2", which is what
-	// convergence looks like. Round 2 never entered this list, so the closed-at-round-r arm below
-	// computed its three closures and emitted nothing. The series lost the round that did most of
-	// the disposing, and the loss was silent: a round missing from "board mass by round" reads
-	// exactly like a round that did not happen.
+	// convergence looks like. Epoch 2 never entered this list, so the closed-at-epoch-r arm below
+	// computed its three closures and emitted nothing. The series lost the epoch that did most of
+	// the disposing, and the loss was silent: an epoch missing from "board mass by epoch" reads
+	// exactly like an epoch that did not happen.
 	//
-	// It cost more than a chart. TelemetryAudit asks whether the series covers every RED round, so
-	// a converged round made capture FAIL — the gate firing on the healthy outcome, which is the
+	// It cost more than a chart. TelemetryAudit asks whether the series covers every RED epoch, so
+	// a converged epoch made capture FAIL — the gate firing on the healthy outcome, which is the
 	// expensive direction because it teaches a reader to discount the audit. And
-	// scorecard.go's repair_regression_ratio reported "no telemetry rounds with closures", which is
+	// scorecard.go's repair_regression_ratio reported "no telemetry epochs with closures", which is
 	// this defect wearing the name of a metric.
 	//
 	// Dense rather than mint-∪-close, because an epoch where red sat and the board did NOT move is
@@ -599,7 +599,7 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 // debateMD — the epoch-by-epoch transcript. Trailing newline (render.go parity).
 //
 // The bucket is the EPOCH (red-chair registers at or before the event), counted here with the
-// Clock rather than read off the envelope — the record carries no round column. The twin in
+// Clock rather than read off the envelope — the record carries no epoch column. The twin in
 // record/viewjson.go (DebateJSONOf) buckets the same way, one `## Epoch N` per chair sitting.
 func debateMD(in Input) []byte {
 	var epochOrder []int

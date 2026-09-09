@@ -49,7 +49,7 @@ type Dispatch struct {
 	AgentType string
 	Model     string
 	Prompt    string
-	// Phase is the progress group, kept because a seat id alone does not say which round it sat.
+	// Phase is the progress group, kept because a seat id alone does not say which epoch it sat.
 	Phase string
 }
 
@@ -59,7 +59,7 @@ type Dispatch struct {
 var seatRe = regexp.MustCompile(`SEAT_ID:\s*([A-Za-z0-9-]+)`)
 
 // Envelope is what a stubbed seat returns. debate.js branches on these fields — the verdict, the
-// gap list, the round record flags — so the backend supplying them decides which dispatch sites the
+// gap list, the sitting record flags — so the backend supplying them decides which dispatch sites the
 // capture run reaches at all.
 type Envelope map[string]any
 
@@ -88,7 +88,7 @@ type Config struct {
 // list.
 //
 // THE TERMINATION MODEL IS NOT WRITTEN DOWN ANYWHERE, and that is deliberate (#535 step 4).
-// A hand-authored state machine of the round loop would be a second carrier of the loop's
+// A hand-authored state machine of the dispatch loop would be a second carrier of the loop's
 // semantics, drifting from the loop the moment either moved — the defect class this repository
 // names at every other altitude. So the model is the script: a caller enumerates the seat
 // behaviours it wants to check, drives the real loop under each, and reads what it actually

@@ -18,7 +18,7 @@ import (
 // chair registers to count and reads every row as epoch 0 — the same bytes as a run in which no
 // chair ever sat. A loader that narrows by type includes EVENT_TYPE_REGISTER for this reason.
 //
-// NOTHING IS STAMPED. The envelope carried this number as `round` and the record paid for it at
+// NOTHING IS STAMPED. The envelope carried this number as `epoch` and the record paid for it at
 // every write; the number is a count over rows already written, so it is counted when wanted.
 type Clock struct {
 	epoch    int

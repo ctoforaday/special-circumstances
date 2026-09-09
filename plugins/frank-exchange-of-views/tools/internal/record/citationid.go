@@ -413,7 +413,7 @@ func ExistingCorroborationLabel(run Run, seatID, url, claim string) (string, err
 // InquiryReviewDue reports a read that has not happened rather than pretending it did.
 //
 // The match is deliberately loose — any finding by any lens quoting the same claim answers it.
-// A stricter join (same seat, same round) would refuse a contradiction one lens found and
+// A stricter join (same seat, same epoch) would refuse a contradiction one lens found and
 // another raised, which is the collaboration the lens roles exist for.
 func unansweredContradictions(evs []*Event) []string {
 	answered := map[string]bool{}

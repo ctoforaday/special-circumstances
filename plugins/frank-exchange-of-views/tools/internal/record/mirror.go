@@ -51,7 +51,7 @@ func MirrorDir(runDir string) (string, error) {
 // PurgeStaleMirrors removes mirrors untouched for maxAgeDays and reports how many went.
 //
 // AGE IS MODIFICATION TIME, which is what makes this safe to call while other runs are live: a
-// mirror is rewritten every round, so an active run's is minutes old however long the run has
+// mirror is rewritten every epoch, so an active run's is minutes old however long the run has
 // been going. What ages out is a mirror whose run stopped — the orphan of a crashed or
 // abandoned run, which is the only thing here that can never be copied back.
 //

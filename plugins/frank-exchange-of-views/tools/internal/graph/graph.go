@@ -107,7 +107,7 @@ func Mermaid(f record.Family) string {
 }
 
 // seatFlowMermaid groups seats into epoch subgraphs (one per chair sitting, counted with the
-// Clock — the record carries no round column), each seat labelled with its event tally — so an
+// Clock — the record carries no epoch column), each seat labelled with its event tally — so an
 // epoch where a seat emitted nothing it should have (an empty debate, a skipped ruling) shows as
 // a thin node.
 func seatFlowMermaid(f record.Family) string {

@@ -681,7 +681,7 @@ func scorecardFiles(dir string) []string {
 //
 // AND A FAILURE HERE NOW STOPS THE RUN RATHER THAN LOOSENING IT. The advisory branch is gone
 // (record.knownClasses), so an unstaged registry no longer means "--class accepts any string"
-// — it means every mint is REFUSED. That is the right way round: a run that cannot name its
+// — it means every mint is REFUSED. That is the right way epoch: a run that cannot name its
 // own vocabulary produces a board nobody can interpret afterwards, and the reasons below say
 // which of the two failures the operator is looking at.
 func StageClassRegistry(repoMemoryDir string, run record.Run) MirrorResult {
