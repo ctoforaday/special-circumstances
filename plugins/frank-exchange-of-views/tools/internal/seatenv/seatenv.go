@@ -55,6 +55,22 @@ const Var = "FEOV_RUN"
 // It is absent from every --help surface for the same reason Var is: a seat never types it.
 const VarWrapper = "FEOV_RUN_FROM_WRAPPER"
 
+// VarHookVersion is the hook's OWN build, exported when it fires (#751).
+//
+// `run_via` already separates "the hook injected" from "the wrapper did", so hook PRESENCE is
+// answerable. Its VERSION was not, and the two halves of a run come from different places: setup
+// bakes the record binary from the working tree while hooks are served from the version-gated
+// install cache. Measured 2026-08-23 — tool_version 0.72.0, a version no release carried until
+// three days later, under hooks from a release tagged six days earlier that did not contain
+// feov-pretooluse at all.
+//
+// THE HOOK IS THE ONLY PARTY THAT KNOWS THIS, which is why it is exported here rather than
+// observed from outside. A hook that is absent exports nothing — and that absence is already
+// legible, because the wrapper's variable wins and `run_via` reads "wrapper".
+//
+// Absent from every --help surface, like the other two: a seat never types it.
+const VarHookVersion = "FEOV_HOOK_VERSION"
+
 // Resolve returns the run directory for a seat verb.
 //
 // Order: FEOV_RUN → --run → inference → empty (the caller's own "--run is required").
@@ -165,3 +181,8 @@ func trimSep(p string) string {
 	}
 	return p
 }
+
+// HookVersion is the build of the hook that injected this seat's environment, or "" when no hook
+// did. Read like AgentID and AgentType: whatever the hook exported, never anything this process
+// can infer about itself.
+func HookVersion() string { return os.Getenv(VarHookVersion) }

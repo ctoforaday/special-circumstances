@@ -5369,6 +5369,25 @@ type Register struct {
 	// tool_version is stamped on the seat's first act, so a run that somehow mixes binaries says
 	// so in its own record instead of producing events whose difference nobody can explain.
 	ToolVersion *string `protobuf:"bytes,1,opt,name=tool_version,json=toolVersion,proto3,oneof" json:"tool_version,omitempty"`
+	// hook_version is the build of the HOOK that served this seat, exported by the hook itself
+	// when it fires (#751).
+	//
+	// tool_version says which RECORD BINARY served the run. The two come from different places —
+	// setup bakes the record binary from the working tree, hooks arrive through the version-gated
+	// install cache — so they can be days apart, and nothing said so. Measured 2026-08-23:
+	// tool_version 0.72.0, a version no release carried until three days later, under hooks from a
+	// release tagged six days earlier that did not contain feov-pretooluse at all. A run whose
+	// hooks were stale was byte-identical on the record to one whose hooks were current, and two
+	// issues (#512, #555) read that difference as evidence about the identity design.
+	//
+	// ENGINE-OBSERVED, never typed by a seat — like run_via and agent_id beside it, and refusing
+	// the same thing: a seat cannot honestly report which binary injected its environment.
+	//
+	// ABSENT MEANS NO HOOK STAMPED IT, and that is a real answer rather than a missing one. The
+	// hook exports buildid.Revision(), which is `unknown` outside a git tree rather than "", so a
+	// firing hook always carries a value; an absent field means a hook that predates this or no
+	// hook at all — and `run_via` already says which of those two it was.
+	HookVersion *string `protobuf:"bytes,7,opt,name=hook_version,json=hookVersion,proto3,oneof" json:"hook_version,omitempty"`
 	// THE BINDING BETWEEN A HARNESS AGENT AND A SEAT, WRITTEN HERE AND NOWHERE ELSE.
 	//
 	// register is every seat's stated first action, which makes it the one moment the mapping is
@@ -5444,6 +5463,13 @@ func (*Register) Descriptor() ([]byte, []int) {
 func (x *Register) GetToolVersion() string {
 	if x != nil && x.ToolVersion != nil {
 		return *x.ToolVersion
+	}
+	return ""
+}
+
+func (x *Register) GetHookVersion() string {
+	if x != nil && x.HookVersion != nil {
+		return *x.HookVersion
 	}
 	return ""
 }
@@ -6733,14 +6759,16 @@ const file_record_proto_rawDesc = "" +
 	"_motion_idB\n" +
 	"\n" +
 	"\b_subjectB\t\n" +
-	"\a_reason\"\xf8\x01\n" +
+	"\a_reason\"\xb1\x02\n" +
 	"\bRegister\x12&\n" +
-	"\ftool_version\x18\x01 \x01(\tH\x00R\vtoolVersion\x88\x01\x01\x12\x1e\n" +
-	"\bagent_id\x18\x02 \x01(\tH\x01R\aagentId\x88\x01\x01\x12\x1c\n" +
-	"\arun_via\x18\x03 \x01(\tH\x02R\x06runVia\x88\x01\x01\x12\"\n" +
+	"\ftool_version\x18\x01 \x01(\tH\x00R\vtoolVersion\x88\x01\x01\x12&\n" +
+	"\fhook_version\x18\a \x01(\tH\x01R\vhookVersion\x88\x01\x01\x12\x1e\n" +
+	"\bagent_id\x18\x02 \x01(\tH\x02R\aagentId\x88\x01\x01\x12\x1c\n" +
+	"\arun_via\x18\x03 \x01(\tH\x03R\x06runVia\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"agent_type\x18\x06 \x01(\tH\x03R\tagentType\x88\x01\x01B\x0f\n" +
-	"\r_tool_versionB\v\n" +
+	"agent_type\x18\x06 \x01(\tH\x04R\tagentType\x88\x01\x01B\x0f\n" +
+	"\r_tool_versionB\x0f\n" +
+	"\r_hook_versionB\v\n" +
 	"\t_agent_idB\n" +
 	"\n" +
 	"\b_run_viaB\r\n" +

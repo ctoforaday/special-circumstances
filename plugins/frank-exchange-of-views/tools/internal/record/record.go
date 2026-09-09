@@ -269,6 +269,14 @@ func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err e
 	if runVia != "" {
 		reg.RunVia = proto.String(runVia)
 	}
+	// WHICH HOOK SERVED THIS SEAT (#751). run_via already says WHETHER a hook injected; this says
+	// which BUILD did. The hook exports it when it fires, so an absent field means no hook stamped
+	// this register — and run_via distinguishes "no hook fired" from "a hook that predates the
+	// variable". Engine-observed like the two above: a seat cannot honestly report which binary
+	// injected its own environment.
+	if hv := seatenv.HookVersion(); hv != "" {
+		reg.HookVersion = proto.String(hv)
+	}
 	if _, err := recordpb.SetBody(ev, reg); err != nil {
 		return 0, "", err
 	}

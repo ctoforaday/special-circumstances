@@ -261,6 +261,7 @@ INSERT INTO "enum_log_source" ("value", "means") VALUES ('tool', 'the tool emitt
 CREATE TABLE "register" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "tool_version" TEXT,
+  "hook_version" TEXT,
   "agent_id" TEXT,
   "run_via" TEXT,
   "agent_type" TEXT
