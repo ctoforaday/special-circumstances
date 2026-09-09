@@ -13,6 +13,7 @@ package hookgate
 
 import (
 	"encoding/json"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/buildid"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
@@ -101,6 +102,13 @@ func PreOutcome(in Input, runDir string) (Outcome, string) {
 	}
 	rewritten, ok := injectEnv(ti.Command, [][2]string{
 		{seatenv.Var, runDir},
+		// AND WHICH HOOK SAID SO (#751). The record already distinguishes a hook-injected run
+		// from a wrapper fallback; it could not say which BUILD of the hook fired, so a run
+		// served by six-day-stale hooks was byte-identical on the record to one served by
+		// current ones. buildid.Revision answers `unknown` outside a git tree rather than "",
+		// so a firing hook always carries a value and an absent key means a hook that predates
+		// this — never a stamping hook with nothing to say.
+		{seatenv.VarHookVersion, buildid.Revision()},
 		// THE IDENTITY, WHICH IS THE HALF THAT WAS MISSING. FEOV_SEAT had readers and no
 		// writer, because nothing in the system could produce a seat id: only `register`
 		// knows which agent holds which seat, and that is downstream of the first call. What

@@ -54,6 +54,10 @@ var notVersions = map[string]string{
 		"constant answers only where that graph is empty (a `go test` binary carries deps=0). " +
 		"It is checked against go.mod itself by TestExtractorFallbackMatchesGoMod, so it cannot " +
 		"drift from the module it names",
+	"VarHookVersion": "the NAME of an environment variable (FEOV_HOOK_VERSION), not a version. " +
+		"The value it carries is buildid.Revision() read at runtime from the hook's own build, so " +
+		"there is no number here for a release to move and nothing for a second carrier to " +
+		"disagree with — the string is version-SHAPED because it names the fact it transports",
 }
 
 // THE PER-BINARY `const version` CLASS IS GONE, AND THAT IS WHY THERE IS NO ALLOWLIST HERE.

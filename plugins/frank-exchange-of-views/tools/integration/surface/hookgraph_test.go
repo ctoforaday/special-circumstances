@@ -58,14 +58,31 @@ var hookBinaries = []string{
 var hookLocalPackages = map[string][]string{
 	"./cmd/feov-pretooluse": {
 		"internal/feov", "internal/seatenv", "internal/hookgate", "internal/runlive", "internal/hookcmd",
+		// buildid, so the hook can stamp its OWN build into the injected environment (#751).
+		//
+		// THE REASON IT IS WORTH A LINE HERE: a run's record said which record binary served it
+		// and nothing about which HOOK did, and the two come from different places — setup bakes
+		// the record binary from the working tree, hooks arrive through the version-gated install
+		// cache. Measured 2026-08-23: tool_version 0.72.0 under hooks from a release six days
+		// older that did not contain this binary at all. The hook is the only party that knows
+		// its own version, so it has to carry the package that reads it.
+		//
+		// THE COST, STATED: buildid imports `fmt` and `runtime/debug`, declares no package-level
+		// state and has no init(), so what this line buys is one debug.ReadBuildInfo() per firing
+		// — a read of metadata already embedded in the binary, beside a process spawn and a JSON
+		// parse this hook was already paying.
+		"internal/buildid",
 	},
+	// The sitting hooks link buildid TRANSITIVELY, through hookgate — they do not stamp anything
+	// themselves. Listed because this allowlist is per-binary and states each graph as its own
+	// claim, so an inherited dependency is still a dependency that binary pays for.
 	"./cmd/feov-subagentstart": {
 		"internal/feov", "internal/seatenv", "internal/hookgate", "internal/runlive", "internal/hookcmd",
-		"internal/sittinghook",
+		"internal/sittinghook", "internal/buildid",
 	},
 	"./cmd/feov-subagentstop": {
 		"internal/feov", "internal/seatenv", "internal/hookgate", "internal/runlive", "internal/hookcmd",
-		"internal/sittinghook",
+		"internal/sittinghook", "internal/buildid",
 	},
 }
 

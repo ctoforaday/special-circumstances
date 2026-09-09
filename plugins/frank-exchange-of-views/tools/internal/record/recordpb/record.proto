@@ -1538,6 +1538,26 @@ message Register {
   // so in its own record instead of producing events whose difference nobody can explain.
   optional string tool_version = 1;
 
+  // hook_version is the build of the HOOK that served this seat, exported by the hook itself
+  // when it fires (#751).
+  //
+  // tool_version says which RECORD BINARY served the run. The two come from different places —
+  // setup bakes the record binary from the working tree, hooks arrive through the version-gated
+  // install cache — so they can be days apart, and nothing said so. Measured 2026-08-23:
+  // tool_version 0.72.0, a version no release carried until three days later, under hooks from a
+  // release tagged six days earlier that did not contain feov-pretooluse at all. A run whose
+  // hooks were stale was byte-identical on the record to one whose hooks were current, and two
+  // issues (#512, #555) read that difference as evidence about the identity design.
+  //
+  // ENGINE-OBSERVED, never typed by a seat — like run_via and agent_id beside it, and refusing
+  // the same thing: a seat cannot honestly report which binary injected its environment.
+  //
+  // ABSENT MEANS NO HOOK STAMPED IT, and that is a real answer rather than a missing one. The
+  // hook exports buildid.Revision(), which is `unknown` outside a git tree rather than "", so a
+  // firing hook always carries a value; an absent field means a hook that predates this or no
+  // hook at all — and `run_via` already says which of those two it was.
+  optional string hook_version = 7;
+
   // THE BINDING BETWEEN A HARNESS AGENT AND A SEAT, WRITTEN HERE AND NOWHERE ELSE.
   //
   // register is every seat's stated first action, which makes it the one moment the mapping is
