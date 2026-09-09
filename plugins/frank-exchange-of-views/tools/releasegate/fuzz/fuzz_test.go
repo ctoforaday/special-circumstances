@@ -2435,9 +2435,17 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		return res
 	}
 	res.verdict = verdict
-	if n, ok := result["epochs"].(int64); ok {
-		res.epochs = int(n)
+	// A SETTLED DEBATE HAS A CHAIR-SITTING COUNT (#649). This read used to be permissive — a
+	// missing or differently-typed `epochs` left the count at 0 and went into the histogram as a
+	// debate that ran no epochs — one field over from the verdict, which #639 made a refusal.
+	// Same rule now: the result names the keys it did carry, so a renamed field reads as a
+	// renamed field and not as a run that never sat.
+	n, ok := result["epochs"].(int64)
+	if !ok {
+		res.err = fmt.Sprintf("the settled result carries no integer epochs (got %T) — a settled debate has a chair-sitting count; keys carried: %v", result["epochs"], sortedKeys(result))
+		return res
 	}
+	res.epochs = int(n)
 	if term, ok := result["termination"].(map[string]any); ok {
 		if why, ok := term["why"].([]any); ok && len(why) > 0 {
 			res.why = fmt.Sprint(why[0])
