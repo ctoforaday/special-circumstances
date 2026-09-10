@@ -733,11 +733,25 @@ func TestClassNewCoinsTheSlugInClass(t *testing.T) {
 	runDir := newRun(t)
 	seatID := lensSeat
 	registerLensOnce(t, runDir)
-	if _, err := run(t, "class", "new", "--run", runDir, "--seat-id", seatID,
-		"--class", "brand-new", "--definition", "d", "--neighbor", "x", "--distinguisher", "q"); err != nil {
+	coined, err := run(t, "class", "new", "--run", runDir, "--seat-id", seatID,
+		"--class", "brand-new", "--definition", "d", "--neighbor", "x", "--distinguisher", "q")
+	if err != nil {
 		t.Fatal(err)
 	}
-	_, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
+	// THE CONFIRMATION NAMES THE VERB THE NEXT LINE RUNS. It said `merge mint --class …` for as
+	// long as the role level has been gone: a lens seat in #861's rerun trusted it, typed
+	// `feov-record merge --help`, was told no such command exists, and logged the defect. The
+	// mint below IS the instruction, run through the real tree, so the two cannot part again
+	// without this test seeing a message that names something the tree refused.
+	if want := "`mint --class brand-new`"; !strings.Contains(coined, want) {
+		t.Errorf("class new must tell the seat the verb it can actually type (%s):\n%s", want, coined)
+	}
+	// Coining the same slug twice is refused with the SAME instruction, from the record layer.
+	if _, err := run(t, "class", "new", "--run", runDir, "--seat-id", seatID,
+		"--class", "brand-new", "--definition", "d", "--neighbor", "x", "--distinguisher", "q"); err == nil || !strings.Contains(err.Error(), "`mint --class brand-new`") {
+		t.Errorf("a duplicate coin must be refused pointing at the real mint verb, got: %v", err)
+	}
+	_, err = run(t, "mint", "--run", runDir, "--seat-id", seatID,
 		"--class", "brand-new", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	if err != nil {
 		t.Fatal(err)

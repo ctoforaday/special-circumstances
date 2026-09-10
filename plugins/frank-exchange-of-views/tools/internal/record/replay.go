@@ -640,7 +640,7 @@ func validateClassNew(run Run, coined *recordpb.ClassNew) error {
 		return nil
 	}
 	if known[coined.GetSlug()] {
-		return fmt.Errorf("record: class %s already exists — mint against it with `merge mint --class %s` rather than coining it twice", coined.GetSlug(), coined.GetSlug())
+		return fmt.Errorf("record: class %s already exists — mint against it with `mint --class %s` rather than coining it twice", coined.GetSlug(), coined.GetSlug())
 	}
 	if !known[coined.GetNeighbor()] {
 		return fmt.Errorf("record: --neighbor %s is not a known class", coined.GetNeighbor())
