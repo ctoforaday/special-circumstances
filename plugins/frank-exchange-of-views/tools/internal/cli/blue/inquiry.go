@@ -3,6 +3,7 @@ package blue
 import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
+	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -96,10 +97,18 @@ func newInquiryPropose() *cobra.Command {
 		// resolves --reason, --reason-file and `--reason-file -` alike.
 		body.Line = proto.String(why)
 		body.Reason = proto.String(why)
+		// THE ADVISORY, over exactly what `inquiries()` composes into report.md from this act: the
+		// line (which is also the reason — propose writes the same resolved prose to both) and the
+		// method, rendered there as _(method)_. Not the hypothesis: report.md never shows it, so
+		// advising on it would be noise about text no reader of the report sees.
+		//
+		// Measured before this existed: arm A of the #861 smoke carried a process-voice tell in
+		// Alternatives considered that came from a blue lane's line, through a verb no advisory saw.
+		tells := spanVoiceTells(why, seat.Str(cmd, flags.Method))
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		return inquiryResult{ID: id, Status: "proposed", Line: body.GetLine()}, nil
+		return inquiryResult{ID: id, Status: "proposed", Line: body.GetLine(), VoiceTells: tells}, nil
 	}), "avenue"))
 
 	seat.Supplies(c, "status", "a proposal starts at `proposed` — the state the field exists to express, and the one a seat would not think to type. A MOVE requires it")
@@ -146,10 +155,13 @@ func newInquiryMove() *cobra.Command {
 			return nil, err
 		}
 		body.Reason = proto.String(why)
+		// A move's reason is composed into the same report.md row as the line it moves, so it
+		// meets the same advisory.
+		tells := spanVoiceTells(why)
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		return inquiryResult{ID: id, Status: recordpb.Word(body.GetStatus()), Moved: true}, nil
+		return inquiryResult{ID: id, Status: recordpb.Word(body.GetStatus()), Moved: true, VoiceTells: tells}, nil
 	}), "avenue"))
 
 	c.Flags().Var(flags.InquiryID().WithCheck(record.InquiryExists), flags.ID, "`inquiry-id` — the line of inquiry whose fate you are moving (A1, A2 …); the lines-of-inquiry projection lists every one")
@@ -167,11 +179,26 @@ type inquiryResult struct {
 	Status string `json:"status"`
 	Line   string `json:"line,omitempty"`
 	Moved  bool   `json:"moved,omitempty"`
+	// VoiceTells is ADVICE, and the act is already recorded by the time it renders. A line of
+	// inquiry is composed into report.md, which is written for a reader of the SUBJECT; this names
+	// where the text sounds like the run talking about itself. It refuses nothing — a pattern cannot
+	// tell a line narrating its own process from a line naming a source that does.
+	VoiceTells []string `json:"voice_tells,omitempty"`
 }
 
 func (r inquiryResult) Human() string {
+	head := "line of inquiry " + r.ID + " recorded (" + r.Status + "): " + r.Line
 	if r.Moved {
-		return "line of inquiry " + r.ID + " moved to " + r.Status
+		head = "line of inquiry " + r.ID + " moved to " + r.Status
 	}
-	return "line of inquiry " + r.ID + " recorded (" + r.Status + "): " + r.Line
+	if len(r.VoiceTells) == 0 {
+		return head
+	}
+	return head + "\n\nNOTE — this text is composed into report.md (Research areas, Future research\n" +
+		"directions, Alternatives considered) and in places sounds like the run rather than\n" +
+		"the subject. It is recorded; this is not a refusal, and it may be wrong:\n  - " +
+		strings.Join(r.VoiceTells, "\n  - ") +
+		"\n\nSEPARATION, NEVER DELETION: a real limit on the CONCLUSION stays, re-voiced as a\n" +
+		"limit on the subject; only the fact about the run goes. Red's voice lens holds that\n" +
+		"judgement — these are only the literal tells."
 }
