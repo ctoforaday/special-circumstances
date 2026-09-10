@@ -35,7 +35,7 @@ import (
 func ViewNames() []string { return seat.ViewNames() }
 
 // JSONByNameViews returns the projections whose native form is already JSON — the set on which
-// `--json` is refused. Re-exported for the same reason ViewNames is: the fuzz sweep and the
+// `--json` is a no-op on success. Re-exported for the same reason ViewNames is: the fuzz sweep and the
 // contract test each carried their own copy, and both had drifted (see the callers).
 func JSONByNameViews() []string { return seat.JSONByNameViews() }
 
