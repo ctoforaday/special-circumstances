@@ -30,7 +30,7 @@
 # <Topic>                                <!-- [BLUE] blue's H1, cut at the author's own punctuation boundary -->
 **Question:** <the full brief>           <!-- [RECORD] the rest of blue's H1, as a field rather than a heading -->
 
-**Verdict:** VERIFIED | UNVERIFIED | CEILING | HALTED (derived from the record | asserted by the bench)
+**Verdict:** VERIFIED | UNVERIFIED | CEILING | HALTED | NONE (derived from the record | asserted by the bench | no terminal outcome on the record)
                                               <!-- [RECORD] the terminal `outcome` event. THE WORD, then its basis as
                                               STATE in parentheses, and nothing else: a field a reader can skim, badge
                                               or grep, whose first token is still the word. Everything that EXPLAINS it
@@ -121,7 +121,7 @@
 
 ## How this run was conducted            <!-- [RECORD] what ANSWERED each seat, measured; never the configuration -->
 
-## The verdict's basis                   <!-- [RECORD] every verdict's gloss, and the ONLY place any of it lives — report.md keeps the stamp and its basis as state -->
+## The verdict's basis                   <!-- [RECORD] every verdict's gloss, and the ONLY place any of it lives — report.md keeps the stamp and its basis as state; with no outcome, it says the bench never recorded its terminal outcome -->
 
 ## Log (what the run told the operator)   <!-- [RECORD] the log entries, each with what it asserts; nominal entries render apart -->
 

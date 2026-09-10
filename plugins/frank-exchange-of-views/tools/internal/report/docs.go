@@ -157,9 +157,9 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	runsec.add(conduct(run, fam))
 	// THE VERDICT'S BASIS, for every outcome, and the ONLY place any verdict's gloss lives: report.md
 	// carries the stamp and its basis as state, and every sentence explaining either is here.
-	if outcome != nil {
-		runsec.add("## The verdict's basis\n\n" + verdictGloss(outcome))
-	}
+	// For EVERY run, including one with no outcome — verdictGloss(nil) is where "the bench never ran
+	// `bench outcome`" is said, now that report.md's stamp carries only the state NONE.
+	runsec.add("## The verdict's basis\n\n" + verdictGloss(outcome))
 	runsec.add(logSection(evs))
 	// The record's own invariant check, rendered for the human the report is for. See
 	// recordVerification: a section, never a gate.

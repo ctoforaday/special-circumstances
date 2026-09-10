@@ -78,8 +78,10 @@ func TestRiskMatrixFromBoard(t *testing.T) {
 
 func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 	// A missing outcome is flagged, never invented.
-	if s := verdictStamp(nil); !strings.Contains(s, "no terminal outcome recorded") {
-		t.Errorf("missing outcome must be flagged: %q", s)
+	// A missing outcome is STATE, in the same stamp shape as the others (gblock: "State only") —
+	// never invented, and never narrated here: the missing act is run.md's to say.
+	if s := verdictStamp(nil); s != "**Verdict:** NONE (no terminal outcome on the record)" {
+		t.Errorf("a missing outcome must be the state NONE, in the stamp's shape: %q", s)
 	}
 	// THE STAMP IS A FIELD. It carries the word and the clause naming how the run ended, then — since
 	// gblock's 2026-09-10 ruling — its basis as state in parentheses. The word stays the FIRST token, so
