@@ -81,9 +81,9 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 
 	_, question := heading(blue)
 
-	// report.md — THE RESEARCH. What the run was asked for, and nothing about how it was run
-	// except the two facts that bear on trusting it (the verdict's basis, and what actually
-	// answered the seats).
+	// report.md — THE RESEARCH. What the run was asked for, and nothing about how it was run except
+	// the one fact that bears on trusting it: the verdict's basis. What ANSWERED the seats used to
+	// be the second such fact; it is envelope, and lives in run.md.
 	var r sections
 	r.add(verdictStamp(outcome))
 	// The stamp is the WORD; its argument follows it immediately — what the verdict MEANS for the
@@ -95,10 +95,11 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	if question != "" {
 		r.add(question)
 	}
-	// WHAT ANSWERED, before what was found. A reader deciding how much weight this document
-	// carries needs the verdict and the adversary's actual strength in the same breath: a PASS
-	// from a tier nobody configured is not the PASS the run was set up to produce.
-	r.add(conduct(run, fam))
+	// WHAT ANSWERED THE SEATS IS ENVELOPE, NOT RESEARCH (gblock, 2026-09-10), so it is composed into
+	// run.md below rather than here. It sat in this document "in the same breath" as the verdict;
+	// but the measured-model table is a fact about the run, report.md holds research prose and tool
+	// markers only, and its tool-authored heading was the one voice tell no run could remove from
+	// this document (#792, §V item 3).
 	// "READ THIS FIRST" IS GONE, and it was a mistake rather than a section that drifted.
 	//
 	// It never knew whose voice it was in. It opened the research document with the bench's
@@ -140,6 +141,10 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	jud.add(motions(fam))
 
 	var runsec sections
+	// FIRST, because it is the fact about the run a reader of the verdict most needs: what actually
+	// answered each seat, measured from each seat's own trajectory. A PASS from a tier nobody
+	// configured is not the PASS the run was set up to produce (#589).
+	runsec.add(conduct(run, fam))
 	runsec.add(logSection(evs))
 	// The record's own invariant check, rendered for the human the report is for. See
 	// recordVerification: a section, never a gate.

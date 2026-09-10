@@ -8,7 +8,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
-// WHAT ANSWERED THIS RUN, IN THE RUN'S OWN REPORT.
+// WHAT ANSWERED THIS RUN, IN THE RUN'S OWN ENVELOPE (run.md).
 //
 // The last unclosed half of #589. Every bulk seat in both 2026-08-23 runs requested
 // claude-fable-5 and was answered by claude-opus-4-8 on every turn, and run B's CERTIFIED report
@@ -18,7 +18,8 @@ import (
 // reads the run's CONFIGURATION and cannot see what replied to it.
 //
 // record.SeatModels resolves it from each seat's trajectory, named by the agent id `register`
-// recorded. This is the surface that puts it in front of the human the report is for.
+// recorded. This is the surface that puts it in front of the human the run is for — in run.md,
+// not report.md, since gblock ruled on 2026-09-10 that it is envelope rather than research.
 //
 // IT IS TOOL-OWNED, and that is the whole point. Blue is already forbidden from authoring
 // tool-owned sections, so the one fact a seat provably cannot know about itself is composed from
