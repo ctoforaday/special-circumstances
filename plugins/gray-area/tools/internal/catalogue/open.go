@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"math/rand/v2"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -285,33 +286,80 @@ func Open(path string, notice io.Writer) (*sql.DB, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, fmt.Errorf("catalogue: %w", err)
 	}
+	// BUSY IS RETRIED HERE, BECAUSE busy_timeout DOES NOT COVER THE CASE THAT HITS.
+	//
+	// SQLite deliberately does not apply busy_timeout to a lock UPGRADE — two connections each
+	// holding a read lock and waiting to write would deadlock — and returns SQLITE_BUSY at once
+	// instead (frank-exchange-of-views' recordsql.openUncached documents the same rule). Opening
+	// the write URI is such an upgrade on a file not yet in WAL mode: the `journal_mode(WAL)`
+	// pragma reads the header under a shared lock, then needs an exclusive one to convert. N
+	// independent openers of a fresh store — N hook processes at a session start — do exactly
+	// that at once. MEASURED on the Windows CI leg: TestConcurrentOpenersRebuildOnce/fresh failed
+	// in 0.17s with `database is locked (5) (SQLITE_BUSY)`, the 5-second busy_timeout never
+	// engaged. recordsql escapes it by caching one connection per path in-process; hooks are
+	// separate processes, so here the whole classify-and-write phase is retried instead. Once one
+	// opener has converted the file, the others' pragma is a no-op and their IMMEDIATE BEGIN
+	// queues normally. The budget matches busy_timeout; the backoff is jittered so contending
+	// openers do not wake and collide in lockstep.
+	deadline := time.Now().Add(openBusyBudget)
+	for attempt := 0; ; attempt++ {
+		db, from, rebuilt, err := openOnce(path)
+		if err == nil {
+			if rebuilt {
+				fmt.Fprintf(notice, "catalogue: %s was stamped %d, rebuilt empty at shape %d — run `telepathy backfill` to re-read the corpus\n",
+					path, from, UserVersion)
+			}
+			return db, nil
+		}
+		if !isBusy(err) || !time.Now().Before(deadline) {
+			return nil, err
+		}
+		time.Sleep(busyBackoff(attempt))
+	}
+}
+
+// openBusyBudget is how long Open keeps retrying SQLITE_BUSY: the same 5s as the write DSN's
+// busy_timeout. A variable so a test can shorten it.
+var openBusyBudget = 5 * time.Second
+
+// openOnce is one attempt at Open's classify-and-write phase. It closes whatever it opened on
+// failure, so a retry starts clean.
+func openOnce(path string) (*sql.DB, int, bool, error) {
 	switch _, err := os.Stat(path); {
 	case err == nil:
 		if err := preclassify(path); err != nil {
-			return nil, err
+			return nil, 0, false, err
 		}
 	case !errors.Is(err, fs.ErrNotExist):
-		return nil, fmt.Errorf("catalogue: %w", err)
+		return nil, 0, false, fmt.Errorf("catalogue: %w", err)
 	}
-
 	uri, err := writeURI(path)
 	if err != nil {
-		return nil, err
+		return nil, 0, false, err
 	}
 	db, err := sql.Open("sqlite", uri)
 	if err != nil {
-		return nil, fmt.Errorf("catalogue: open %s: %w", path, err)
+		return nil, 0, false, fmt.Errorf("catalogue: open %s: %w", path, err)
 	}
 	from, rebuilt, err := settle(db, path)
 	if err != nil {
 		db.Close()
-		return nil, err
+		return nil, 0, false, err
 	}
-	if rebuilt {
-		fmt.Fprintf(notice, "catalogue: %s was stamped %d, rebuilt empty at shape %d — run `telepathy backfill` to re-read the corpus\n",
-			path, from, UserVersion)
-	}
-	return db, nil
+	return db, from, rebuilt, nil
+}
+
+// isBusy reports whether err is SQLite's SQLITE_BUSY, including its extended forms
+// (BUSY_RECOVERY, BUSY_SNAPSHOT, …), whose low byte is the primary code.
+func isBusy(err error) bool {
+	var se *sqlite.Error
+	return errors.As(err, &se) && se.Code()&0xff == sqlite3.SQLITE_BUSY
+}
+
+// busyBackoff is 5ms doubling to a 160ms ceiling, plus up to as much again at random.
+func busyBackoff(attempt int) time.Duration {
+	base := 5 * time.Millisecond << min(attempt, 5)
+	return base + rand.N(base)
 }
 
 // preclassify is Open's read-only look at an existing file. It returns nil only for a class Open
