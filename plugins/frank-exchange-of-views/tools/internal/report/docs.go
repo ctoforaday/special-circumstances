@@ -86,12 +86,12 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	// be the second such fact; it is envelope, and lives in run.md.
 	var r sections
 	r.add(verdictStamp(outcome))
-	// The stamp is the WORD; its argument follows it immediately — what the verdict MEANS for the
-	// answer, which is the one thing about the run a reader of the subject genuinely needs, and
-	// which is the tool's own reasoning rather than any seat's prose.
-	if outcome != nil {
-		r.add(verdictGloss(outcome))
-	}
+	// THE STAMP IS THE WHOLE VERDICT HERE: the word, and its basis as state — "(derived from the
+	// record)" or "(asserted by the bench)". Every sentence that explains it is ENVELOPE and lives in
+	// run.md's verdict-basis section. gblock, 2026-09-10: a halted run's gloss, "Move it out of
+	// report.md"; CEILING's, "Move it out like HALTED"; the basis, "State on the stamp, prose to
+	// run.md". The gloss used to follow the stamp as "the one thing about the run a reader of the
+	// subject genuinely needs", but every word of it narrated the run.
 	if question != "" {
 		r.add(question)
 	}
@@ -145,6 +145,11 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	// answered each seat, measured from each seat's own trajectory. A PASS from a tier nobody
 	// configured is not the PASS the run was set up to produce (#589).
 	runsec.add(conduct(run, fam))
+	// THE VERDICT'S BASIS, for every outcome, and the ONLY place any verdict's gloss lives: report.md
+	// carries the stamp and its basis as state, and every sentence explaining either is here.
+	if outcome != nil {
+		runsec.add("## The verdict's basis\n\n" + verdictGloss(outcome))
+	}
 	runsec.add(logSection(evs))
 	// The record's own invariant check, rendered for the human the report is for. See
 	// recordVerification: a section, never a gate.
