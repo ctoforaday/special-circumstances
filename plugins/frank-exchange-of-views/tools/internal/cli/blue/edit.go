@@ -16,7 +16,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportvoice"
 )
 
 // edit: the ONLY write path to blue/report.md for a response seat.
@@ -100,10 +99,7 @@ func newEdit() *cobra.Command {
 		// ADVISORY, COMPUTED BEFORE ANY RETURN so an idempotent retry carries it too — a seat
 		// re-running a crashed edit should hear the same note, not lose it to the fast path.
 		// Nothing here can refuse: the tells are collected and ride back on the result.
-		var tells []string
-		for _, f := range reportvoice.Find(newStr) {
-			tells = append(tells, fmt.Sprintf("%q reads as %s — %s", f.Match, f.Class, f.Redirect))
-		}
+		tells := spanVoiceTells(newStr)
 
 		// Crash-retry: a committed blue_edit for this key means the op is already on the
 		// stack — reconcile the write idempotently, do NOT append a second op.
