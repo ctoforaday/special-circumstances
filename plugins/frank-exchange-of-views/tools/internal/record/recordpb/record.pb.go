@@ -4477,11 +4477,15 @@ type Retire struct {
 	// bibliography entry in the assembled report, an empty `- ?` bullet, and a segment the claim
 	// counter still counted, which let a retire credit a claim that had never left the count.
 	//
-	// Filled only when the retired claim appears in the old span of a recorded edit whose new text
-	// was anchors alone, and only with anchors that are present AND bare in the report at the write
-	// — so an anchor carried on into surviving prose can never be named. Replay removes each named
-	// anchor at this event's position (the report_op view's `remove` rows). A record written before
-	// this field carries none, and replays exactly as it did.
+	// Filled only when the retired claim IS the whole of a recorded edit's old span (across the
+	// anchor layer, modulo surrounding whitespace, emphasis and trailing punctuation — a fragment
+	// names nothing) and that edit's new text was anchors alone, and only with anchors that are
+	// present AND bare in the report at the write — so an anchor carried on into surviving prose can
+	// never be named. A finding marker is red's: it is named only once every gap crediting its
+	// finding is closed (and at least one does); until then it stays, and the verb says why. Each
+	// named c- anchor is one unit of claim_count's fall, which is what the scorecard credits. Replay
+	// removes each named anchor at this event's position (the report_op view's `remove` rows). A
+	// record written before this field carries none, and replays exactly as it did.
 	Anchors       []string `protobuf:"bytes,5,rep,name=anchors,proto3" json:"anchors,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

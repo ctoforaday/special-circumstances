@@ -14,20 +14,33 @@
 // count-claims root command. The point is a RELIABLE count: a subtly wrong
 // deterministic one is no better than the divergent human one, so the rule is
 // stated precisely and pinned by tests, including MONOTONICITY — removing one
-// footnoted claim lowers the count by exactly one, the property the retire-vs-drop
-// detector rests on.
+// cited claim lowers the count by exactly the citations that left with it, the
+// property the retire-vs-drop detector rests on.
 //
-// THE RULE. A claim is a sentence carrying at least one tool-inserted citation
-// anchor ("<!--cite:c-<hex>-->") ATTACHED to prose — some prose before it in the
+// THE RULE. The count is the number of tool-inserted citation anchors
+// ("<!--cite:c-<hex>-->") ATTACHED to prose — some prose before them in their
 // segment, since every inserter places the anchor after the sentence it backs. An
 // anchor with nothing before it — what an edit leaves when it cuts a cited sentence
 // away, because an edit may carry an anchor but never drop one — is BARE, not a
 // claim: counting it would let the sentence leave while the count stood still, so
 // a gutted claim read as no loss and a retire of it cancelled some other, real one
-// (see BareAnchorIDs for why "bare" cannot mean "alone in its segment"). The citation axis replaced the hand-typed
-// "[^label]" footnote as the claim unit: citations are tool-managed, so what a
-// report CITES is exactly what it ANCHORS, and counting the anchor counts the
-// backed claim. A finding anchor ("<!--fx:f-<hex>-->") is NOT a claim and never
+// (see BareAnchorIDs for why "bare" cannot mean "alone in its segment", and
+// segmentAnchors for markdown around the terminator). The citation axis replaced the
+// hand-typed "[^label]" footnote as the claim unit: citations are tool-managed, so
+// what a report CITES is exactly what it ANCHORS, and counting the anchor counts the
+// backed claim.
+//
+// PER CITATION, NOT PER SENTENCE. The count used to be the number of SEGMENTS carrying
+// an anchor, so a sentence citing two sources counted once. That made the unit the
+// detector compares against retires the wrong one twice over: merging two cited
+// sentences into one — carrying both anchors, which an edit must — lowered the count
+// and read as unrecorded loss that nothing could clear, though no citation left and
+// retire exists so prose may be merged freely; and a retire that took two cited
+// sentences out at once named two citation anchors against a drop that might be one
+// or two. Counted per attached citation, a merge moves nothing, and every citation
+// anchor a retire takes out is exactly one unit of the fall it explains.
+//
+// A finding anchor ("<!--fx:f-<hex>-->") is NOT a claim and never
 // counts (the regex is cite-prefix-specific). The claim unit is bounded by
 // sentence punctuation (. ! ?) OR a line break, so a cited list emits one claim
 // per line and a claim spanning two lines counts once. Excluded, because none is a
@@ -39,14 +52,10 @@
 // ONE SCANNER, TWO READINGS. Scan walks the report once and yields the KEPT
 // segments (exclusions applied) with their position, heading context, and the
 // distinct footnote labels each carries. Count and Index both build on Scan, so
-// their exclusion set cannot drift. Count = the number of segments with a marker;
-// Index groups the markers into per-label occurrences (the claim-index, used by
-// blue to locate every site of a claim it is correcting without re-reading the
-// whole report). NOTE the reconciliation: Count counts per SEGMENT (a segment with
-// >=1 marker = 1), while Index enumerates per DISTINCT LABEL per segment — so
-// sum(occurrences) == Count only under per-sentence-unique authoring (one label per
-// segment); a segment carrying two distinct labels makes the index exceed Count by
-// design, because that one site states two claims.
+// their exclusion set cannot drift. Count = the number of attached labels across
+// segments; Index groups the same labels into per-label occurrences (the claim-index,
+// used by blue to locate every site of a claim it is correcting without re-reading the
+// whole report). The two reconcile exactly: sum(occurrences) == Count.
 package claimcount
 
 import (
@@ -108,6 +117,9 @@ type Segment struct {
 	Line    int      // 1-based line number in the original report where the segment sits
 	Heading string   // nearest preceding markdown heading (stripped of leading # and space)
 	Labels  []string // distinct citation labels (c-<hex>) ATTACHED in this segment — after some prose — first-seen order
+
+	lead       bool // the first segment on its line: a list marker ahead of it is structure, not prose
+	afterProse bool // a terminator run, preceded by prose on the same line, sits right before it
 }
 
 // Scan walks report markdown once and returns the kept segments in reading order.
@@ -135,22 +147,24 @@ func Scan(md string) []Segment {
 		if footnoteDef.MatchString(ln) { // the bibliography: a definition, not a claim
 			continue
 		}
-		for _, seg := range splitClaims(ln) {
-			segs = append(segs, Segment{Text: seg, Line: i + 1, Heading: heading, Labels: segmentLabels(seg)})
+		parts := splitClaims(ln)
+		for k, seg := range parts {
+			s := Segment{Text: seg, Line: i + 1, Heading: heading, lead: k == 0, afterProse: k > 0 && HasProse(parts[k-1])}
+			s.Labels = segmentLabels(s)
+			segs = append(segs, s)
 		}
 	}
 	return segs
 }
 
-// Count returns the number of footnoted declarative claims in a blue report's
-// markdown. Reproducible and monotonic over perfect — see the package doc. It is
-// exactly the number of Scan segments that carry a marker.
+// Count returns the number of cited claims in a blue report's markdown: the citation
+// anchors attached to prose. Reproducible and monotonic over perfect — see the package
+// doc. It is exactly the total of every Scan segment's Labels, which is also the total
+// of Index's occurrences.
 func Count(md string) int {
 	n := 0
 	for _, s := range Scan(md) {
-		if len(s.Labels) > 0 {
-			n++
-		}
+		n += len(s.Labels)
 	}
 	return n
 }
@@ -182,21 +196,49 @@ func StripAnchors(s string) string {
 // its segment: the splice tidy removes the cut sentence's orphaned terminator, so "X<c>. Y." cut
 // down to its anchor renders "<c> Y." — the bare anchor now sits at the head of the NEXT
 // sentence. Reading "the segment has prose" would count Y as cited by the claim that just left.
+//
+// MARKDOWN AROUND THE TERMINATOR IS NOT A GAP IN THE PROSE. The segment splitter cuts at . ! ?,
+// so a sentence whose terminator sits INSIDE closing markup — "**Water is wet.**<c>",
+// "_wet._<c>", "(p. 3.)<c>" — leaves its anchor in a segment that begins with the closer: "**",
+// "_", ")". That anchor is attached to the sentence the closer ends, not bare, and reading it as
+// bare made live cited prose a removal candidate. The rule: an anchor is attached when prose
+// precedes it in its segment, OR when all that precedes it is closing markup flush against a
+// terminator that ended prose on the same line. Whitespace breaks the join — "One. <c>" is the
+// gutted shape, bare — and so does nothing at all: "One.<c>" is no inserter's shape (every one
+// places its token BEFORE trailing punctuation), but it is what an edit leaves when it cuts
+// " B<c>." down to "<c>". A list marker at a line's head is structure, not prose: "1) <c>" is an
+// emptied numbered item, bare, though its "1" is a digit.
 
 // anyMarkerRe matches a token of any of the three classes, capturing its id.
 var anyMarkerRe = regexp.MustCompile(`<!--(?:fx:(f-[0-9a-f]+)|cite:(c-[0-9a-f]+)|proof:(p-[0-9a-f]+))-->`)
 
+// listMarkerRe matches a markdown list marker at a line's head — a bullet (- * +) or an ordered
+// marker (1. or 1)) — with the space after it.
+var listMarkerRe = regexp.MustCompile(`^\s*(?:[-*+]|\d+[.)])\s+`)
+
 // segmentAnchors walks a segment's anchor tokens in order, reporting each id and whether it is
-// ATTACHED — some prose precedes it in the segment.
-func segmentAnchors(seg string, visit func(id string, attached bool)) {
-	for _, loc := range anyMarkerRe.FindAllStringSubmatchIndex(seg, -1) {
+// ATTACHED to prose (see above for what that means across markdown).
+func segmentAnchors(s Segment, visit func(id string, attached bool)) {
+	for _, loc := range anyMarkerRe.FindAllStringSubmatchIndex(s.Text, -1) {
 		for g := 1; g <= 3; g++ {
 			if loc[2*g] >= 0 {
-				visit(seg[loc[2*g]:loc[2*g+1]], HasProse(seg[:loc[0]]))
+				visit(s.Text[loc[2*g]:loc[2*g+1]], attached(s, s.Text[:loc[0]]))
 				break
 			}
 		}
 	}
+}
+
+// attached decides whether an anchor preceded, within its segment, by prefix backs prose.
+func attached(s Segment, prefix string) bool {
+	p := StripAnchors(prefix)
+	if s.lead {
+		p = listMarkerRe.ReplaceAllString(p, "")
+	}
+	if HasProse(p) {
+		return true
+	}
+	return s.afterProse && p != "" && !strings.ContainsAny(p, " \t")
 }
 
 // BareAnchorIDs returns the distinct anchor ids, of all three classes, that back NO prose
@@ -208,7 +250,7 @@ func BareAnchorIDs(md string) []string {
 	bare := map[string]bool{}
 	var order []string
 	for _, s := range Scan(md) {
-		segmentAnchors(s.Text, func(id string, attached bool) {
+		segmentAnchors(s, func(id string, attached bool) {
 			was, seen := bare[id]
 			if !seen {
 				order = append(order, id)
@@ -278,10 +320,10 @@ func Index(md string) []LabelOccurrences {
 // label comes straight from citationMarkerRe's capture, so Index yields the real c-<hex>
 // ids, never a mangled "--cite:c-ab--". A label repeated in one segment is one site. A BARE
 // label — no prose before it in the segment — backs nothing and is not returned.
-func segmentLabels(seg string) []string {
+func segmentLabels(s Segment) []string {
 	seen := map[string]bool{}
 	var out []string
-	segmentAnchors(seg, func(id string, attached bool) {
+	segmentAnchors(s, func(id string, attached bool) {
 		if attached && strings.HasPrefix(id, "c-") && !seen[id] {
 			seen[id] = true
 			out = append(out, id)

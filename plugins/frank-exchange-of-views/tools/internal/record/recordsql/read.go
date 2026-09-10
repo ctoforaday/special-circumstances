@@ -416,7 +416,7 @@ func scanTable(db *sql.DB, table string, cols []string) (map[int64][]any, error)
 	q := `SELECT "event_id", ` + join(cols, ", ") + fmt.Sprintf(" FROM %q", table)
 	rows, err := db.Query(q)
 	if err != nil {
-		return nil, fmt.Errorf("recordsql: reading %s: %w", table, err)
+		return nil, olderSchema(db, table, fmt.Errorf("recordsql: reading %s: %w", table, err))
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -441,7 +441,7 @@ func scanTable(db *sql.DB, table string, cols []string) (map[int64][]any, error)
 func scanLists(db *sql.DB, table string) (map[int64][]string, error) {
 	rows, err := db.Query(fmt.Sprintf("SELECT \"event_id\", \"value\" FROM %q ORDER BY \"event_id\", \"ord\"", table))
 	if err != nil {
-		return nil, err
+		return nil, olderSchema(db, table, err)
 	}
 	defer rows.Close()
 	out := map[int64][]string{}
@@ -454,6 +454,30 @@ func scanLists(db *sql.DB, table string) (map[int64][]string, error) {
 		out[id] = append(out[id], v)
 	}
 	return out, rows.Err()
+}
+
+// queryRower is what both a *sql.DB and a *sql.Tx offer for a one-row question.
+type queryRower interface {
+	QueryRow(query string, args ...any) *sql.Row
+}
+
+// olderSchema names the fact behind a failure on a table this binary's schema has and the
+// database does not: the run was created by an older binary.
+//
+// A run's schema is fixed when its database is created — ensureSchema applies it once, and there
+// is no migration, on purpose — so every table added since is missing from an older run, and the
+// generic body walk reads and writes every list table of a message. Without this the reader got
+// SQLite's "no such table: retire_anchors", which names neither the cause nor the way out. Asked
+// of sqlite_master only on the error path, so a current database pays nothing. A column added to
+// an existing table fails the same way and is NOT caught here: the table exists.
+func olderSchema(q queryRower, table string, err error) error {
+	var n int
+	if qerr := q.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&n); qerr == nil && n == 0 {
+		return fmt.Errorf("recordsql: this run's record has no %q table — it was created by an older binary than this one, "+
+			"and a run's schema is fixed when its database is created (there is no migration, by design). "+
+			"Read and finish this run with the binary that started it: %w", table, err)
+	}
+	return err
 }
 
 // wordAt is a discriminator column read back: TEXT, or NULL when the oneof was never filed.

@@ -67,6 +67,10 @@ never leave stood forever as an orphan footnote or an empty bullet. `blue retire
 anchors that exit with the retired claim — computed by the verb, validated present-and-bare at the
 write — and replay removes them at that event. The question "did this leave legitimately?" is still
 never asked of the marker: it leaves only on a retire event that carries the claim and its reason.
+A finding marker is red's, not blue's, so blue's retire takes one out only once red's lifecycle has
+closed on it — the finding is credited by at least one gap and every gap crediting it is closed. While
+a crediting gap is open, or no gap credits the finding yet, the marker stays bare and the retire says
+why. `show report --anchor` on an anchor that left this way names the retire event, not a stale id.
 
 ## The handshake — layered onto the existing finding → gap → closure lifecycle
 

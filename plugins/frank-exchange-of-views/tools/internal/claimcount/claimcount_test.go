@@ -16,9 +16,11 @@ func TestCount(t *testing.T) {
 		{"one cited sentence", "The sky is blue<!--cite:c-a-->.", 1},
 		{"two cited sentences", "The sky is blue<!--cite:c-a-->. Water is wet<!--cite:c-b-->.", 2},
 		{
-			"a multi-anchor sentence still counts once",
+			// Per citation: a merge of two cited sentences into one carries both anchors and
+			// must not read as a claim lost.
+			"a multi-anchor sentence counts each citation",
 			"Both hold<!--cite:c-a--><!--cite:c-b--> together.",
-			1,
+			2,
 		},
 		{
 			"a finding anchor is not a claim and never counts",

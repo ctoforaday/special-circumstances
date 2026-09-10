@@ -9,6 +9,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
 )
@@ -110,24 +111,63 @@ func TestRetireTakesABareCiteAnchorOutOfTheReport(t *testing.T) {
 	}
 }
 
-func TestRetireTakesABareFindingMarkerAndItsEmptiedBullet(t *testing.T) {
+// A FINDING MARKER IS RED'S: blue's retire takes it out only once red's lifecycle has closed on
+// it. While no gap credits the finding, or a crediting gap is open, the marker stays bare and the
+// retire says why; after the gap closes, the retire takes it and its emptied bullet, and reading
+// the report at that anchor names the retire rather than calling the id stale.
+func TestRetireTakesARedMarkerOnlyOnceItsGapIsClosed(t *testing.T) {
 	runDir := citedRun(t)
+	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
 	if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "F1", "--quote", "Water is wet.", "--reason", "overclaim",
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 		t.Fatalf("finding: %v", err)
 	}
-	m := regexp.MustCompile(`Water is wet(<!--fx:f-[0-9a-f]+-->)`).FindStringSubmatch(readReport(t, runDir))
-	if m == nil {
+	f := lastBody(t, runDir, &recordpb.Finding{})
+	id, label := f.GetFindingId(), f.GetLabel()
+	tok := "<!--fx:" + id + "-->"
+	if !strings.Contains(readReport(t, runDir), "Water is wet"+tok) {
 		t.Fatalf("no finding marker on the bullet:\n%s", readReport(t, runDir))
 	}
-	tok := m[1]
 	gutToAnchor(t, runDir, "Water is wet.", tok)
 
+	retireHeld := func(stage, why string) {
+		t.Helper()
+		out, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", "Water is wet.", "--reason", "refuted")
+		if err != nil {
+			t.Fatalf("%s: retire: %v", stage, err)
+		}
+		if ev := lastBody(t, runDir, &recordpb.Retire{}); len(ev.GetAnchors()) != 0 {
+			t.Errorf("%s: blue's retire took red's marker out: named %v", stage, ev.GetAnchors())
+		}
+		if !strings.Contains(readReport(t, runDir), tok) {
+			t.Errorf("%s: the finding marker left the report", stage)
+		}
+		if !strings.Contains(out, id) || !strings.Contains(out, why) {
+			t.Errorf("%s: the retire does not say it kept %s and why (%q):\n%s", stage, id, why, out)
+		}
+	}
+	retireHeld("no gap credits the finding", "no gap credits")
+
+	out, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+		"--key", "water", "--class", "overclaim", "--problem", "the defect", "--fix", "the fix",
+		"--check-kind", "document", "--check", "the acceptance check", "--severity", "medium",
+		"--likelihood", "medium", "--impact", "medium", "--complexity", "low", "--found-by", label)
+	if err != nil {
+		t.Fatalf("mint crediting %s: %v", label, err)
+	}
+	gap := gapID(out)
+	retireHeld("an open gap credits the finding", "gap "+gap+" is open")
+
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
+		"--id", gap, "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test",
+		"--verified-against", "./internal/x", "--reason", "the check passes"); err != nil {
+		t.Fatalf("close: %v", err)
+	}
 	ev := retireClaim(t, runDir, "Water is wet.")
-	if len(ev.GetAnchors()) != 1 {
-		t.Errorf("retire named %v, want the one bare finding marker", ev.GetAnchors())
+	if !slices.Equal(ev.GetAnchors(), []string{id}) {
+		t.Fatalf("with its gap closed, retire named %v, want [%s]", ev.GetAnchors(), id)
 	}
 	rep := readReport(t, runDir)
 	if strings.Contains(rep, tok) {
@@ -138,6 +178,14 @@ func TestRetireTakesABareFindingMarkerAndItsEmptiedBullet(t *testing.T) {
 	}
 	if !strings.Contains(rep, "- Fire is hot.\n") {
 		t.Errorf("the neighbouring bullet was disturbed:\n%s", rep)
+	}
+
+	_, err = run(t, "show", "report", "--seat-id", "blue-respond", "--run", runDir, "--anchor", id)
+	if err == nil {
+		t.Fatal("a window was read around an anchor that left the report")
+	}
+	if msg := err.Error(); !strings.Contains(msg, "RETIRED") || !regexp.MustCompile(`at event \d+`).MatchString(msg) || strings.Contains(msg, "stale reference or belongs") {
+		t.Errorf("reading at a retired anchor must name the retire event, not call it stale:\n%s", msg)
 	}
 }
 
@@ -218,21 +266,25 @@ func claimLoss(t *testing.T, runDir string, counts ...int) int {
 	return 0
 }
 
-// THE MEASURED OVER-CREDIT: two retires of gutted cited claims plus one unrelated merge that
-// lowers the count with no retire behind it. The retires each took a claim out of the count, so
-// they account for two of the three; the merge is the one unaccounted loss. Before, the gutted
-// anchors stayed counted, the drop read 1, and the two retires cancelled it to 0.
+// THE MEASURED OVER-CREDIT: two retires of gutted cited claims, a retire of uncited prose, one
+// cited sentence gutted with no retire, and a merge of two cited sentences into one. The retires
+// each took a citation out of the count, so they account for two of the three that left; the
+// unretired gut is the one unaccounted loss. The merge carries both anchors and moves nothing —
+// claim_count counts attached citations, not sentences — and the uncited retire credits nothing.
 func TestRetireCreditsOnlyTheClaimsItTookOut(t *testing.T) {
 	runDir := newRun(t)
-	writeReport(t, runDir, "# Findings\n\nAlpha holds. Beta holds. Gamma holds. Delta holds. Plain prose here.\n")
+	writeReport(t, runDir, "# Findings\n\nAlpha holds. Beta holds. Gamma holds. Delta holds. Epsilon holds. Plain prose here.\n")
 	registerBlue(t, runDir)
 	withFetcher(t, &fakeFetcher{resp: map[string][]byte{
-		"https://a/1": []byte("a"), "https://b/1": []byte("b"), "https://g/1": []byte("g"), "https://d/1": []byte("d")}})
+		"https://a/1": []byte("a"), "https://b/1": []byte("b"), "https://g/1": []byte("g"), "https://d/1": []byte("d"),
+		"https://e/1": []byte("e")}})
 	a := citeSentence(t, runDir, "Alpha holds.", "https://a/1")
 	b := citeSentence(t, runDir, "Beta holds.", "https://b/1")
 	g := citeSentence(t, runDir, "Gamma holds.", "https://g/1")
 	d := citeSentence(t, runDir, "Delta holds.", "https://d/1")
+	e := citeSentence(t, runDir, "Epsilon holds.", "https://e/1")
 	start := claimcount.Count(readReport(t, runDir))
+	gutToAnchor(t, runDir, "Epsilon holds.", "<!--cite:"+e+"-->") // the real loss: no retire follows
 
 	gutToAnchor(t, runDir, "Alpha holds.", "<!--cite:"+a+"-->")
 	retireClaim(t, runDir, "Alpha holds.")
@@ -251,11 +303,137 @@ func TestRetireCreditsOnlyTheClaimsItTookOut(t *testing.T) {
 		t.Fatalf("merge edit: %v", err)
 	}
 	end := claimcount.Count(readReport(t, runDir))
-	if start != 4 || end != 1 {
-		t.Fatalf("claim_count %d → %d, want 4 → 1 (report %q)", start, end, readReport(t, runDir))
+	if start != 5 || end != 2 {
+		t.Fatalf("claim_count %d → %d, want 5 → 2 — the merge keeps both citations (report %q)", start, end, readReport(t, runDir))
 	}
 	if got := claimLoss(t, runDir, start, end); got != 1 {
-		t.Errorf("unrecorded_claim_loss = %d, want 1 — two retires took two claims out, the merge is the one unaccounted", got)
+		t.Errorf("unrecorded_claim_loss = %d, want 1 — two retires took two claims out, the unretired gut is the one unaccounted", got)
+	}
+}
+
+// SEVERAL ANCHORS EXIT ON ONE RETIRE, and the quote must be the whole of what left. Two cited
+// sentences are cut down to their anchors in one edit — whose replacement carries them in
+// DESCENDING id order, so the retire names them in an order replay must not depend on. A fragment
+// of what left sweeps nothing; the whole quote takes both, the count falls by both, the retire
+// credits both, and the report_op view hands replay the two removes in its documented order.
+func TestRetireTakesTwoCitedSentencesOutAtOnce(t *testing.T) {
+	runDir := newRun(t)
+	writeReport(t, runDir, "# Findings\n\nAlpha holds. Beta holds. Plain prose here.\n")
+	registerBlue(t, runDir)
+	withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://a/1": []byte("a"), "https://b/1": []byte("b")}})
+	a := citeSentence(t, runDir, "Alpha holds.", "https://a/1")
+	b := citeSentence(t, runDir, "Beta holds.", "https://b/1")
+	start := claimcount.Count(readReport(t, runDir))
+	hi, lo := a, b
+	if hi < lo {
+		hi, lo = lo, hi
+	}
+	tok := func(id string) string { return "<!--cite:" + id + "-->" }
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--quote", "Alpha holds"+tok(a)+". Beta holds"+tok(b)+".", "--new", tok(hi)+tok(lo), "--reason", "both refuted"); err != nil {
+		t.Fatalf("edit both down to their anchors: %v", err)
+	}
+
+	for _, fragment := range []string{"Alpha holds.", "holds"} {
+		if ev := retireClaim(t, runDir, fragment); len(ev.GetAnchors()) != 0 {
+			t.Errorf("retiring the fragment %q swept %v — the quote must be the whole of what left", fragment, ev.GetAnchors())
+		}
+	}
+	if rep := readReport(t, runDir); !strings.Contains(rep, tok(a)) || !strings.Contains(rep, tok(b)) {
+		t.Fatalf("a fragment retire took an anchor out:\n%s", rep)
+	}
+
+	ev := retireClaim(t, runDir, "Alpha holds. Beta holds.")
+	if !slices.Equal(ev.GetAnchors(), []string{hi, lo}) {
+		t.Fatalf("retire named %v, want [%s %s] — both, in the order the edit left them", ev.GetAnchors(), hi, lo)
+	}
+	rep := readReport(t, runDir)
+	if rep != "# Findings\n\nPlain prose here.\n" {
+		t.Errorf("rendered report after retiring both:\n got %q", rep)
+	}
+	end := claimcount.Count(rep)
+	if start != 2 || end != 0 {
+		t.Errorf("claim_count %d → %d, want 2 → 0", start, end)
+	}
+	if got := claimLoss(t, runDir, start, end); got != 0 {
+		t.Errorf("unrecorded_claim_loss = %d, want 0 — one retire took both citations out and credits both", got)
+	}
+
+	_, _, ops, err := record.ReportProjection(runtest.Open(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var removes []string
+	for _, op := range ops {
+		if op.Kind == "remove" {
+			removes = append(removes, op.A)
+		}
+	}
+	if !slices.Equal(removes, []string{lo, hi}) {
+		t.Errorf("report_op removes = %v, want [%s %s] — one event's rows are ordered by the anchor id, not by whatever SQLite returns", removes, lo, hi)
+	}
+}
+
+// AN EMPHASIZED SENTENCE STAYS A CLAIM WHEN CITED. `blue cite` on "**Water is wet.**" places the
+// anchor after the closing "**" — a "*" is not trailing punctuation — and the claim counter read
+// the "**" segment as no prose: the cited claim stopped counting and was reported bare, so live
+// cited prose became a removal candidate.
+func TestACitedEmphasizedSentenceStaysACountedClaim(t *testing.T) {
+	runDir := newRun(t)
+	writeReport(t, runDir, "# Findings\n\n- **Water is wet.**\n- Fire is hot.\n")
+	registerBlue(t, runDir)
+	withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://w/1": []byte("w")}})
+	if _, err := run(t, "cite", "--run", runDir, "--seat-id", blueSeat,
+		"--quote", `# Findings: "**Water is wet.**"`, "--url", "https://w/1", "--title", "Source w"); err != nil {
+		t.Fatalf("cite: %v", err)
+	}
+	rep := readReport(t, runDir)
+	if !regexp.MustCompile(`\*\*Water is wet\.\*\*<!--cite:c-[0-9a-f]+-->`).MatchString(rep) {
+		t.Fatalf("precondition: the anchor is not after the closing emphasis:\n%s", rep)
+	}
+	if got := claimcount.Count(rep); got != 1 {
+		t.Errorf("claim_count = %d, want 1 — the cited emphasized sentence is a claim", got)
+	}
+	if bare := claimcount.BareAnchorIDs(rep); len(bare) != 0 {
+		t.Errorf("the anchor on live cited prose was reported bare: %v", bare)
+	}
+}
+
+// A RUN OLDER THAN THE TABLE IS REFUSED WITH ITS CAUSE. The schema is fixed at a run's creation
+// with no migration, so a database made before retires carried anchors has neither the
+// retire_anchors table nor the report_op branch that replays it — and the generic body walk reads
+// every Retire list table, so no retire recorded there could be read back by this binary. The
+// write must say that and record nothing, not fail on SQLite's bare "no such table".
+func TestRetireOnARunOlderThanRetireAnchorsIsRefusedWithTheCause(t *testing.T) {
+	runDir := citedRun(t, "https://sky/1")
+	label := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
+	tok := "<!--cite:" + label + "-->"
+	gutToAnchor(t, runDir, "The sky is blue.", tok)
+
+	i := strings.Index(recordsql.ViewsDDL, `CREATE VIEW "report_op" AS`)
+	j := strings.Index(recordsql.ViewsDDL[i:], "\n  UNION ALL\n  SELECT e.\"id\", 'remove'")
+	if i < 0 || j < 0 {
+		t.Fatal("cannot find the report_op view's remove branch to rebuild the pre-change view")
+	}
+	db := openRunDB(t, runDir)
+	for _, q := range []string{`DROP VIEW "report_op"`, `DROP TABLE "retire_anchors"`, recordsql.ViewsDDL[i:i+j] + ";"} {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatalf("building the pre-change schema: %v", err)
+		}
+	}
+
+	_, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", "The sky is blue.", "--reason", "refuted")
+	if err == nil {
+		t.Fatal("a retire naming an anchor was recorded on a record with no table to hold it")
+	}
+	if msg := err.Error(); !strings.Contains(msg, "older binary") || !strings.Contains(msg, "retire_anchors") {
+		t.Errorf("the refusal does not name the cause:\n%s", msg)
+	}
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_RETIRE); n != 0 {
+		t.Errorf("%d retire event(s) recorded — the refused write must leave nothing behind", n)
+	}
+	if !strings.Contains(readReport(t, runDir), tok) {
+		t.Error("the anchor left the report on a record with no way to replay its exit")
 	}
 }
 

@@ -169,25 +169,27 @@ func TestUnrecordedClaimLossCountsRetireEventsNotEnvelope(t *testing.T) {
 	// flagged every legitimate retirement as a violation.
 	results := []map[string]any{
 		{"claim_count": float64(10)},
-		{"claim_count": float64(7)},
+		{"claim_count": float64(5)},
 	}
-	// Three retire events, ONE credited: only a retire that took a cited claim out (named a c-
-	// anchor among those exiting with it) lowered claim_count. A retire of uncited prose, or one
-	// taking out only a finding marker, removed nothing the count held — crediting it would cancel
-	// an unrelated real loss.
+	// Four retire events, THREE units credited: claim_count counts attached citation anchors, so
+	// each c- anchor a retire took out is one unit of the fall — the retire that took two cited
+	// sentences out at once credits two. A retire of uncited prose, or one taking out only a
+	// finding marker, removed nothing the count held — crediting it would cancel an unrelated
+	// real loss.
 	board := famOfEventsT([]*record.Event{
 		recordtest.Event(t, "", &recordpb.Retire{Anchors: []string{"f-1", "c-1"}}),
 		recordtest.Event(t, "", &recordpb.Retire{}),
 		recordtest.Event(t, "", &recordpb.Retire{Anchors: []string{"f-2"}}),
+		recordtest.Event(t, "", &recordpb.Retire{Anchors: []string{"c-2", "c-3"}}),
 	})
 	r := rowByMetric(blueRows(record.Run{}, results, nil, board), "unrecorded_claim_loss")
 	if r == nil || r.Value == nil {
 		t.Fatalf("row not computed: %+v", r)
 	}
-	if v, _ := r.Value.(int); v != 2 { // drop 3, 1 retire event → max(0, 3-1)=2
-		t.Errorf("unrecorded_claim_loss = %v, want 2 (drop 3 − 1 retire event on the record)", r.Value)
+	if v, _ := r.Value.(int); v != 2 { // drop 5, 3 citation anchors retired → max(0, 5-3)=2
+		t.Errorf("unrecorded_claim_loss = %v, want 2 (drop 5 − 3 citation anchors retired on the record)", r.Value)
 	}
-	if !strings.Contains(r.Note, "3 claim(s) lost across envelopes, 1 retired") {
+	if !strings.Contains(r.Note, "5 claim(s) lost across envelopes, 3 retired on the record (4 retire event(s)") {
 		t.Errorf("note = %q", r.Note)
 	}
 
