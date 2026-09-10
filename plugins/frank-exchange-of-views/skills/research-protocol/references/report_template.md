@@ -36,8 +36,6 @@
                                               answer, which is the tool's own reasoning — follows the word directly. The
                                               BENCH's words are the judicial record's, never this document's. -->
 
-## How this run was conducted            <!-- [RECORD] what ANSWERED each seat, measured; never the configuration -->
-
 
 ## TL;DR                                 <!-- [BLUE] 3–6 sentences: the answer, the confidence, the sharpest caveat -->
 
@@ -107,6 +105,8 @@
                                               said to be unreferenced. -->
 
 # run.md — how the machinery behaved
+
+## How this run was conducted            <!-- [RECORD] what ANSWERED each seat, measured; never the configuration -->
 
 ## Log (what the run told the operator)   <!-- [RECORD] the log entries, each with what it asserts; nominal entries render apart -->
 
