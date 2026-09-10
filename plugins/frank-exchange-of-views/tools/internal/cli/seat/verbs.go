@@ -181,8 +181,8 @@ func Closing(key string) *cobra.Command {
 //
 // THREE VIEWS ALSO CLAIMED "merge" AND THE LAST ONE SILENTLY WON, because the resolution loop
 // keeps overwriting. A default decided by slice order is a default nobody chose.
-// jsonByName marks a projection whose NATIVE form is already JSON, so `--json` on it is
-// refused ([[one-way-no-aliases]]: one canonical way to each form).
+// jsonByName marks a projection whose NATIVE form is already JSON, so `--json` on it is a
+// no-op — the same bytes, not a second form (Show says why it stopped being refused).
 //
 // IT IS A FIELD BECAUSE IT WAS TWO HAND-KEPT LISTS. The fact lived in the `long` prose (each
 // such view opens "STRUCTURED JSON:") and again in a switch case naming six views by hand, and
@@ -197,8 +197,8 @@ func Closing(key string) *cobra.Command {
 // a description shouting STRUCTURED JSON, reached for the tool's --json flag, and got a REFUSAL
 // whose envelope ({ok,code,error}) parses as cleanly as the projection does. The refusal's whole
 // justification is that "a wrong guess fails loudly"; delivered to a pipeline it failed silently,
-// as a missing key. So the warning now travels where the guess is formed, generated from this
-// field rather than remembered in prose.
+// as a missing key. So the refusal was dropped (--json on these views is the same bytes), and the
+// note generated from this field says where the envelope can still arrive: on an error.
 // shape is the ZERO VALUE OF THE TYPE THE PROJECTION MARSHALS, and it is a field for the same
 // reason jsonByName is one. The key names a seat needs are a fact about that struct; written
 // into `long` as prose they become a second copy with no writer who can refuse it, stale on the
@@ -307,15 +307,16 @@ func viewIsJSONByName(name string) bool {
 }
 
 // jsonByNameWarning is appended to every JSON-by-name view's help, at the point a seat forms the
-// guess rather than after it has already piped the answer somewhere.
+// guess about which flag gets it JSON.
 //
-// It names the CONSEQUENCE, not just the rule. "Do not pass --json" alone is what the refusal
-// already said, and six seats never saw it: they had piped stdout into python, where an
-// {ok,code,error} envelope parses exactly as well as the projection and surfaces as a missing
-// key. A seat that reads this knows the refusal is shaped like data before it writes the pipe.
-const jsonByNameWarning = " THIS PROJECTION IS ALREADY THE JSON — do not pass --json, which is REFUSED (there is one way to each form). " +
-	"The refusal is itself a JSON envelope ({\"ok\":false,…}), so a pipeline that reads stdout without checking `ok` " +
-	"sees a well-formed object missing every key it wanted: measured as six seats crashing on KeyError: 'sitting' across two runs."
+// It used to warn that --json was REFUSED and that the refusal parsed like data, because six seats
+// had piped that refusal into python and crashed on a missing key. The refusal is gone (Show says
+// why), but the trap it described is not: under --json ANY error on this view is a JSON envelope on
+// stdout, which a pipeline reads as data unless it checks `ok`. So the note says both halves — the
+// flag is harmless on success, and the error it can still get parses — rather than "changes
+// nothing", which an independent review measured false on the error path.
+const jsonByNameWarning = " THIS PROJECTION IS ALREADY THE JSON — --json is accepted, and on success its output is byte-for-byte the same. " +
+	"On an ERROR, --json prints a JSON envelope ({\"ok\":false,…}) on stdout, so a pipeline must check `ok` before reading keys."
 
 func ViewNames() []string {
 	out := make([]string, 0, len(views))
@@ -497,12 +498,20 @@ func renderView(cmd *cobra.Command, want string) error {
 	// selects the structured debate — the sole view with both a markdown transcript (for
 	// the human) and a JSON form (for the audits that used to regex the sections).
 	//
-	// One canonical way to each form ([[one-way-no-aliases]]): --json is an ERROR on the
-	// views already JSON by name (board/findings/friction — `--view board` is the single
-	// way to board JSON, no alias) and on markdown views with no JSON form. It is checked
-	// BEFORE the board/findings/friction branches so `--view board --json` refuses rather
-	// than falling through to the flagless JSON. A wrong guess fails loudly.
-	if asJSON, _ := cmd.Flags().GetBool(flags.JSON); asJSON {
+	// --json ON A VIEW THAT IS ALREADY JSON IS ACCEPTED AND CHANGES NOTHING. It used to be refused
+	// under [[one-way-no-aliases]], and the refusal was the harm: six seats piped `show work
+	// --json` into python and crashed on KeyError: 'sitting', because the refusal's own envelope
+	// parsed as cleanly as the data (#593). The rule forbids a second way to reach a DIFFERENT
+	// form; a flag that yields the identical bytes is not a second form, it is the same one, and
+	// refusing it cost a turn every time a seat reached for the obvious flag — six in #861's B3.
+	// What stays refused is --json where no JSON form exists (a markdown view), because there the
+	// seat asked for something the tool cannot give, and --json beside `--format markdown`, where
+	// it asked for two forms at once.
+	if asJSON, _ := cmd.Flags().GetBool(flags.JSON); asJSON && viewIsJSONByName(want) {
+		if f, _ := cmd.Flags().GetString(flags.Format); f == "markdown" || f == "md" {
+			return feov.Errorf(feov.Validation, "%s show: show %s --json asks for the JSON this view already is, and --format %s asks for its markdown — pass one", role, want, f)
+		}
+	} else if asJSON {
 		switch want {
 		case "debate":
 			b, err := record.DebateJSONBytes(run)
@@ -521,10 +530,6 @@ func renderView(cmd *cobra.Command, want string) error {
 		case "":
 			return RefuseAndTeach(showGroup(cmd), fmt.Sprintf("%s show: name a projection. Each below names the verb that fills it", role))
 		default:
-			if viewIsJSONByName(want) {
-				return fmt.Errorf("%s show: show %s is already JSON by name — drop --json (it is the single way to that projection's JSON). "+
-					"This refusal is a JSON envelope, so a pipeline reading stdout without checking `ok` sees an object missing every key it wanted", role, want)
-			}
 			return fmt.Errorf("%s show: show %s has no --json form (only 'debate' does; %s are JSON by name)",
 				role, want, strings.Join(JSONByNameViews(), "/"))
 		}

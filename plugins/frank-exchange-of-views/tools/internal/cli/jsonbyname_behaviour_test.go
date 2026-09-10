@@ -50,38 +50,30 @@ func TestJSONByNameMarkMatchesWhatTheBareViewEmits(t *testing.T) {
 		switch {
 		case emitsJSON && !marked[view]:
 			t.Errorf("show %s emits JSON with no flag and is NOT marked jsonByName — a seat passing --json "+
-				"gets the wrong refusal, and nothing warns it that the refusal parses as data", view)
+				"is refused for a view that was JSON all along", view)
 		case !emitsJSON && marked[view]:
 			t.Errorf("show %s is marked jsonByName and its bare form is not JSON — the warning it carries is false", view)
 		}
 	}
 }
 
-// AND THE REFUSAL ITSELF PARSES AS DATA, which is the fact the whole repair turns on. Pinned so
-// nobody has to rediscover it from six crashed seats: a pipeline reading stdout without checking
-// `ok` gets a well-formed object carrying none of the projection's keys.
-func TestTheJSONByNameRefusalIsShapedLikeTheDataItIsNot(t *testing.T) {
+// THE PIPELINE THAT CRASHED NOW GETS ITS DATA. Six seats piped `show work --json` into python and
+// died on KeyError: 'sitting', because the refusal's envelope parsed as cleanly as the projection
+// (#593). The flag is accepted now, so the exact pipeline those seats wrote must receive the key it
+// wanted — pinned against the key, not merely against the absence of an error.
+func TestTheJSONPipelineThatCrashedGetsTheProjection(t *testing.T) {
 	runDir := seatRun(t)
 	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "work", "--json")
-	if err == nil {
-		t.Fatal("show work --json must refuse ([[one-way-no-aliases]])")
+	if err != nil {
+		t.Fatalf("show work --json must be accepted — it is the same JSON as show work: %v", err)
 	}
-	// The refusal travels in the structured envelope, which is correct for --json and is exactly
-	// what makes it dangerous to a pipeline: it decodes.
-	var envelope map[string]any
-	if json.Unmarshal([]byte(err.Error()), &envelope) == nil {
-		if _, hasSitting := envelope["sitting"]; hasSitting {
-			t.Error("the refusal envelope carries a sitting key; this test no longer describes the trap")
-		}
+	var doc map[string]any
+	if e := json.Unmarshal([]byte(out), &doc); e != nil {
+		t.Fatalf("show work --json is not the projection's JSON (%v):\n%s", e, out)
 	}
-	if !strings.Contains(err.Error(), "already JSON by name") {
-		t.Errorf("the refusal must still teach the fix; got: %v", err)
+	if _, ok := doc["sitting"]; !ok {
+		t.Errorf("show work --json has no `sitting` key — the pipeline that crashed would crash again:\n%s", out)
 	}
-	// And it must now also name the consequence, which is what did not reach the six seats.
-	if !strings.Contains(err.Error(), "checking `ok`") {
-		t.Errorf("the refusal must say why a pipeline never sees it; got: %v", err)
-	}
-	_ = out
 }
 
 // WHOLE DOCUMENT FIRST, THEN PER LINE — in that order, because each check is wrong about the

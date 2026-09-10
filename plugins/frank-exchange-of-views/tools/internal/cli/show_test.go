@@ -126,9 +126,9 @@ func TestShowRecordsNothing(t *testing.T) {
 
 // --json on a read opts into a view's STRUCTURED form where one exists. `debate` is the one
 // view with both a markdown transcript and a JSON form; the audits count its sections from
-// the JSON instead of regexing the prose. The contract is one-way: --json is an error on a
-// view that is already JSON by name, and on a markdown view with no JSON form — so there is
-// exactly one way to reach each form, and a wrong guess fails loudly.
+// the JSON instead of regexing the prose. On a view that is already JSON by name --json is
+// accepted and changes nothing — the same bytes are one form, not two — and on a markdown view
+// with no JSON form it is an error, because the tool cannot give what was asked for.
 func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 	runDir := seatRun(t)
 	mintGap(t, runDir, "debate-json", "read-surface")
@@ -162,28 +162,40 @@ func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 		t.Errorf("debate --json did not carry the red position text:\n%s", out)
 	}
 
-	// --json on a JSON-by-name view is refused (no alias to that JSON).
+	// --json on a JSON-by-name view is the SAME BYTES as the bare view. It used to be refused,
+	// and the refusal's envelope parsed as cleanly as the data: six seats crashed on a missing
+	// key (#593), and #861's B3 spent six turns on the refusal. Asserted as byte-identity, not
+	// as "no error" — an accepted flag that quietly changed the output would be a second form.
 	//
-	// NAMES FROM seat.JSONByNameViews(), not a hand-kept list: `friction` sat here after it
-	// stopped being a view, and the assertion went on passing — it demands an error, and an
-	// unknown view is an error too. A stale name in a list like this checks nothing while
-	// reading as coverage.
-	//
-	// AND THE HAND-KEPT REPLACEMENT DID IT AGAIN, in the same six slots, under that very
-	// comment: `reason` is not a view either (it never was), and `evidence` — which IS JSON by
-	// name — was missing outright. So five of six names were checking the refusal and the
-	// sixth was checking that an unknown view errors, with `evidence`'s refusal unheld by
-	// anything. The list is derived now; a name cannot be here unless the table says so, and
-	// no marked view can be absent.
+	// NAMES FROM seat.JSONByNameViews(), not a hand-kept list: two hand-kept lists here checked
+	// stale names (`friction`, `reason`) while `evidence` went unheld. A name cannot be here
+	// unless the table says so, and no marked view can be absent.
 	for _, v := range seat.JSONByNameViews() {
-		if _, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", v, "--json"); err == nil {
-			t.Errorf("--view %s --json was accepted; it must refuse (that view is already JSON by name)", v)
+		bare, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", v)
+		if err != nil {
+			t.Fatalf("show %s: %v", v, err)
+		}
+		flagged, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", v, "--json")
+		if err != nil {
+			t.Errorf("show %s --json was refused; that view is already JSON, so the flag must change nothing: %v", v, err)
+			continue
+		}
+		if flagged != bare {
+			t.Errorf("show %s --json differs from show %s — an accepted flag that changes the bytes is a second form", v, v)
 		}
 	}
-	// --json with no projection named is refused: the bare form answers with pending work, and
-	// there is no second way to ask for it.
-	if _, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "--json"); err == nil {
-		t.Error("a bare `show --json` was accepted; it must refuse and name the projections")
+	// Asking for two forms at once is still refused: the board's markdown AND its JSON.
+	if _, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "board", "--json", "--format", "markdown"); err == nil {
+		t.Error("show board --json --format markdown was accepted; it asks for two forms and must refuse")
+	}
+	// A bare `show` answers with pending work, which is JSON by name — so a bare `show --json` is
+	// the same bytes too, by the same rule, and not a second way to ask for anything.
+	bareShow, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair")
+	if err != nil {
+		t.Fatalf("bare show: %v", err)
+	}
+	if got, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "--json"); err != nil || got != bareShow {
+		t.Errorf("a bare `show --json` must be the same bytes as a bare `show` (err=%v)", err)
 	}
 	// --json on a markdown view with no JSON form is refused.
 	if _, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "lines-of-inquiry", "--json"); err == nil {

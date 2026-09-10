@@ -66,13 +66,21 @@ func TestEveryJSONByNameViewWarnsWhereTheGuessIsFormed(t *testing.T) {
 	}
 }
 
-// THE WARNING NAMES THE CONSEQUENCE, not just the rule. "Do not pass --json" is what the refusal
-// already said, and six seats never saw it — they had already piped stdout somewhere. What a seat
-// needs BEFORE writing that pipe is that the refusal is shaped like data.
-func TestTheWarningSaysTheRefusalParsesAsData(t *testing.T) {
-	for _, want := range []string{"REFUSED", "JSON envelope", "checking `ok`", "missing every key"} {
+// THE NOTE SAYS THE FLAG IS HARMLESS, and never that it is refused. It used to warn of a refusal
+// that parsed as data; the refusal is gone, and a note still threatening one would teach a seat
+// to avoid the flag that now works — a stale warning is a wrong instruction.
+func TestTheNoteSaysSuccessIsIdenticalAndErrorsAreEnvelopes(t *testing.T) {
+	// BOTH HALVES, because "changes nothing" was measured false on the error path: under --json an
+	// error on this view is an {ok:false} envelope on stdout — the same shape that crashed six
+	// pipelines as a missing key (#593). The note may call the flag harmless on success only.
+	for _, want := range []string{"ALREADY THE JSON", "accepted", "byte-for-byte the same", "ERROR", "check `ok`"} {
 		if !strings.Contains(jsonByNameWarning, want) {
-			t.Errorf("the warning must carry %q — without it this is the same advice that did not arrive", want)
+			t.Errorf("the note must carry %q", want)
+		}
+	}
+	for _, never := range []string{"REFUSED", "changes nothing"} {
+		if strings.Contains(jsonByNameWarning, never) {
+			t.Errorf("the note says %q, which is false", never)
 		}
 	}
 }
