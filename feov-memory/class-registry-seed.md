@@ -59,3 +59,25 @@ measurement-methodology-drift, cross-corpus-id-collision, negative-definition.
    entry for each names its neighbor and the distinguishing question.
 4. The registry seed doubles as blue's manifest-line source and red's lens-duty
    source: top classes are exactly what the correctness manifest's rows check.
+
+## Promoted after the seed
+
+### `report-voice` — promoted 2026-09-10 (gblock)
+
+Report prose that speaks about the run that made it rather than the subject the report is for.
+Four kinds, one class: **process voice** ("this run", "the debate"), **claims wearing the seat that
+produced them** (inline `[minority: lane-N]` tags, seat ids), **narration of the report's own draft
+history**, and **descriptions of the machinery that checked it** (fetch paths, containers, tool
+internals). One class because the four share a cause and a fix: each is a sentence addressed to the
+wrong reader, and the fix re-voices it for a reader of the subject — keeping any real limit on the
+conclusion and moving only the fact about the run (#710's separation rule). The four kinds are the
+ones `internal/reportvoice` detects literally; the voice lens reads for the rest.
+
+- **Neighbour:** `claim-contradicts-own-record`.
+- **Distinguishing question:** does the fix correct a FACT the report gets wrong about what happened,
+  or correct the AUDIENCE the sentence is written for, independent of whether the fact is even true?
+  Audience is this class.
+- **Provenance:** coined as `process-voice-leak` by red-lens-voice in the arm-B rerun of the #861 smoke
+  (2026-09-10, gap G3, bench-ruled repaired). Registered as one broad class rather than that narrower
+  slug, so every run's voice lens mints against one name instead of coining a synonym the harvest
+  (#647) would then have to reconcile.
