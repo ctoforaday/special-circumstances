@@ -231,6 +231,18 @@ func validateEdit(report, old, new string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// AN EDIT THAT CHANGES NOTHING IS REFUSED, for the reason identical --old and --new already are
+	// — but this one gets past that check. Measured in #861's arm-B rerun: blue quoted
+	// `on their own.).` to drop the stray period, the trim left that period OUTSIDE the span, the span
+	// was replaced with itself, and the verb said "blue edit recorded". Blue learned otherwise only
+	// by reading the report again, and spent a second edit finding the route. A repair that is
+	// structurally a no-op must say so at the one moment the seat can still act on it.
+	if planned == report {
+		return "", fmt.Errorf("blue edit: this edit changes nothing — the report would read exactly as it does now. " +
+			"A quote's TRAILING punctuation is trimmed before the span is located and stays standing after it, so an edit " +
+			"whose only change is to that punctuation replaces the span with itself. To remove or change a terminator, " +
+			"quote THROUGH it into the text that follows, so the punctuation is inside the span rather than at its end")
+	}
 	if run := doubledTerminator(report, planned); run != "" {
 		return "", fmt.Errorf("blue edit: this replacement would leave %q in the report — a punctuation run the document did not have. "+
 			"A quote's TRAILING punctuation is trimmed before the span is located, so the span your --old names stops SHORT of the "+
