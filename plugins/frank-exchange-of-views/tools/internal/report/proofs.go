@@ -24,7 +24,7 @@ var proofAnchor = regexp.MustCompile(`<!--proof:(p-[0-9a-f]+)-->`)
 
 // proofNumbers assigns each recorded proof its RUN-WIDE number, in record order.
 //
-// The number is not per-document, and it is not first-appearance. Across a seven-file set,
+// The number is not per-document, and it is not first-appearance. Across a multi-file set,
 // first-appearance numbering makes "P3" mean a different computation in the report than in the
 // debate, which is worse than no number at all. Record order is the one ordering every document
 // agrees on because none of them produced it.

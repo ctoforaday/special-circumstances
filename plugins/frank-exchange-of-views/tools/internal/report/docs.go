@@ -11,8 +11,8 @@ package report
 //
 // Splitting costs nothing in provenance, and that is not an opinion about markdown: the run
 // archive carries records/ and proofs/ ONLY, and Assemble re-derives the document from the
-// event log. The report was always a projection. This file makes it seven projections instead
-// of one, from the same composers, in the same pass.
+// event log. The report was always a projection. This file makes it one projection per audience
+// instead of one for all of them, from the same composers, in the same pass.
 //
 // WHAT IS NOT DONE HERE: nothing is authored, nothing is summarized, and nothing is dropped.
 // Every section that shipped in the single file still ships, in exactly one document, with a
@@ -28,6 +28,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
 // Doc is one document in a run's report set: the file it lands in, how the link bar and the
@@ -48,6 +49,7 @@ const (
 	FileDocket    = "docket.md"
 	FileDebate    = "debate.md"
 	FileJudgments = "judgments.md"
+	FileInquiry   = "lines-of-inquiry.md"
 	FileEvidence  = "evidence.md"
 	FileRun       = "run.md"
 	FileChangelog = "CHANGELOG.md"
@@ -55,11 +57,11 @@ const (
 )
 
 // docOrder is the reading order, and the link bar's order. Research first, process behind it.
-var docOrder = []string{FileReport, FileDocket, FileDebate, FileJudgments, FileEvidence, FileRun, FileChangelog}
+var docOrder = []string{FileReport, FileDocket, FileDebate, FileJudgments, FileInquiry, FileEvidence, FileRun, FileChangelog}
 
 // Files is the document set's names, for the readers OUTSIDE this package — the capture
 // screens, the audits, the archive. They exist because a check that reads report.md alone now
-// measures a seventh of the deliverable and reports the other six as clean.
+// measures one document of the deliverable and reports the others as clean.
 func Files() []string { return append([]string(nil), docOrder...) }
 
 // AssembleAll composes the run's whole report set from the record and blue's audited report.
@@ -140,6 +142,14 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	var jud sections
 	jud.add(motions(fam))
 
+	// lines-of-inquiry.md — THE DIRECTIONS, and the one home of each line's PATH. report.md files a
+	// line by its final fate (the fate word is subject content: `abandoned` means it was tried and
+	// died), and stopped carrying who moved it, the epoch-by-epoch path, and the ruling beside it,
+	// because those are the debate. Shipping only the query view would have left the path in no
+	// document a reader of the archived set can open, so it ships here — the SAME rendering
+	// `show lines-of-inquiry` prints (view.InquiryBody), not a second account of it.
+	inq := view.InquiryBody(evs)
+
 	var runsec sections
 	// FIRST, because it is the fact about the run a reader of the verdict most needs: what actually
 	// answered each seat, measured from each seat's own trajectory. A PASS from a tier nobody
@@ -174,6 +184,8 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 			Blurb: "the adversarial record epoch by epoch — red's audits, blue's answers, the closings, and the bench's terminal disposition", Body: deb.String()},
 		{File: FileJudgments, Nav: "Judgments", Title: "judgments",
 			Blurb: "every contested question and how it was answered: grade disputes, petitions, and the bench's opinions", Body: jud.String()},
+		{File: FileInquiry, Nav: "Directions", Title: "lines of inquiry",
+			Blurb: "every direction the research proposed, took, deferred, declined or abandoned: the path each one took, the seat that last moved it, red's ruling and any appeal", Body: inq},
 		{File: FileEvidence, Nav: "Evidence", Title: "evidence",
 			Blurb: "the computations this run ran, with the exact script, the output, the sha256, and red's independent re-run", Body: ""},
 		{File: FileRun, Nav: "Run", Title: "the run",
@@ -186,7 +198,7 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	//
 	// A footnote definition cannot cross a file boundary — that is a fact about markdown, not a
 	// preference — so weaving globally and splitting afterwards would ship dangling references
-	// in six of the seven documents. Each document therefore numbers and defines the citations
+	// in every document but one. Each document therefore numbers and defines the citations
 	// it actually contains, and the proof layer is numbered ONCE for the whole run (record
 	// order) so that a P3 in the debate and a P3 in the report are the same computation.
 	sources, err := record.CitedSources(run)

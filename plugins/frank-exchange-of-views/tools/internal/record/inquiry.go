@@ -83,23 +83,29 @@ type Inquiry struct {
 	Reason     string   // the reason attached to the CURRENT status
 	Epoch      int      // the epoch the current status was set in
 	History    []string // "r0 pursued", "r2 abandoned" …
-	SeatID     string   // who last moved it — attribution the one-line row has always carried
-	Ruling     string   // red's fate, if ruled
-	RulingWhy  string
-	RuledEpoch int
+	// EverPursued is whether any event on the line recorded `pursued`. The fate word alone implies a
+	// history it does not carry: `abandoned` reads as "tried, then died", and nothing in `move`
+	// refuses abandoning a line straight from `proposed` — measured once each in #861's B and B3,
+	// both genuine attempts whose seat skipped the `pursued` move. Derived here, from the events,
+	// so the report can say exactly what the record holds (`[abandoned before pursuit]`).
+	EverPursued bool
+	SeatID      string // who last moved it — attribution the one-line row has always carried
+	Ruling      string // red's fate, if ruled
+	RulingWhy   string
+	RuledEpoch  int
 	// Contests was the ruling blue moved AGAINST, recorded by `blue line-of-inquiry` at the moment
 	// of the move. Read from the field rather than re-derived from (status, ruling): the write
 	// path already decided what counts as contesting, and a second derivation downstream is a
 	// second definition that can disagree with it.
 	//
-	// IT IS NOW ALWAYS EMPTY, AND SAYING SO HERE IS THE POINT. Its carrier was the payload key
-	// `contests_ruling`, which the schema deliberately does not have — recordpb's key census calls
-	// it "the legacy spelling of an appeal … the one legacy field with no counterpart at all", and
-	// #344 replaced the mechanism with `motion inquiry appeal`. Nothing has written it since;
-	// blue/inquiry.go:109 records why. The field stays because report/assemble.go still renders
-	// it, and because the CONCEPT is live: its post-#344 carrier is a `motion-appeal` event
-	// (MotionAppeal, subject DIRECTION) on this line's id, which this projection has never read.
-	// Wiring that is new behaviour rather than a conversion, so it is reported, not done here.
+	// ITS CARRIER IS THE APPEAL, NOT A FIELD ON THE LINE. The payload key `contests_ruling` is gone
+	// — recordpb's key census calls it "the legacy spelling of an appeal", and #344 replaced the
+	// mechanism with `motion inquiry appeal`. So this is set by the MotionAppeal arm of InquiriesOf
+	// below, from the ruling already on the line: an appeal against an unruled line cannot be
+	// written (RequireRuledMotion). Its reader is the lines-of-inquiry projection
+	// (view.InquiryBody), which ships as lines-of-inquiry.md; judgments.md carries the same appeal
+	// with the filer's reason. report.md does not render it — the debate over a direction is not
+	// research prose.
 	Contests string
 	// THERE IS NO PER-LINE SUPPORT VERDICT, AND ITS ABSENCE IS A RULING RATHER THAN AN OMISSION.
 	// Three fields here — Support, SupportWhy, SupportRound — carried red's per-epoch answer to
@@ -165,16 +171,18 @@ func InquiriesOf(evs []*Event) []*Inquiry {
 			// AvenueStatus needs no hyphen join: none of proposed/pursued/deferred/declined/
 			// abandoned carries an underscore. DirectionRuling below is the opposite case.
 			a.Status = recordpb.Word(t.GetStatus())
+			if t.GetStatus() == recordpb.AvenueStatus_AVENUE_STATUS_PURSUED {
+				a.EverPursued = true
+			}
 			a.Reason, a.Epoch, a.SeatID = t.GetReason(), w.Epoch, e.GetSeatId()
 			// `contests_ruling` HAS NO FIELD, AND THAT IS THE SCHEMA'S DECISION, NOT THIS
 			// CONVERSION'S. It was set as a side effect of moving a line to `pursued` against an
 			// adverse ruling; #344 replaced it with `motion inquiry appeal`, blue/inquiry.go:109
 			// records that nothing has written it since, and recordpb's key census calls it "the
 			// legacy spelling of an appeal … the one legacy field with no counterpart at all".
-			// So the read is dropped rather than converted, and Inquiry.Contests is now always
-			// empty. THE CONCEPT IS NOT DEAD: its post-#344 carrier is a `motion-appeal` event on
-			// this line's id, which this projection has never read. Wiring that is new behaviour,
-			// not a conversion, so it is reported rather than done here.
+			// So the read is dropped rather than converted. THE CONCEPT IS NOT DEAD: its post-#344
+			// carrier is a `motion-appeal` event on this line's id, read by the MotionAppeal arm
+			// below, which is what sets Inquiry.Contests now.
 			a.History = append(a.History, fmt.Sprintf("e%d %s", w.Epoch, a.Status))
 		case *recordpb.MotionRule:
 			// THE CURRENT SPELLING, and reading it here is not optional.

@@ -217,6 +217,43 @@ func TestAssembleEndToEnd(t *testing.T) {
 		}
 	}
 
+	// THE DIRECTIONS SHIP. report.md files each line by its fate and nothing about how it got
+	// there; the path, the seat that last moved it and red's ruling were removed from it as debate,
+	// so they must land in a document a reader of the archived set can open — or they are data dead
+	// in the record. Q2 was recorded straight as `abandoned`, with no `pursued` step, and the
+	// report's tag must not claim a pursuit the record does not hold.
+	inquiryDoc := read(FileInquiry)
+	for _, want := range []string{"## pursued (1)", "## abandoned (1)", "Q1 model-check the two-writer interleaving", "(blue-respond)"} {
+		if !strings.Contains(inquiryDoc, want) {
+			t.Errorf("lines-of-inquiry.md missing %q\n---\n%s", want, inquiryDoc)
+		}
+	}
+	if !strings.Contains(got, "rewrite the cache lock-free** [abandoned before pursuit]") {
+		t.Errorf("a line abandoned with no pursued step must say so in report.md, not claim a pursuit:\n%s", got)
+	}
+	if !strings.Contains(index, "[Directions](lines-of-inquiry.md)") {
+		t.Errorf("README.md does not name lines-of-inquiry.md — a document the index omits is one nobody opens\n---\n%s", index)
+	}
+	// The link bar is built over the documents actually written, so it reaches the new one.
+	if !strings.Contains(got, "[Directions](lines-of-inquiry.md)") {
+		t.Errorf("report.md's link bar does not reach lines-of-inquiry.md\n---\n%s", got)
+	}
+	// EVERY DOCUMENT WRITTEN IS IN THE SET THE OUTSIDE READERS ASK FOR. Files() — docOrder — is what
+	// the capture screens, the archive and the fuzz oracle read, and what Write sweeps for stale
+	// copies. A document composed but missing from it ships, is never cleaned up when a later
+	// assembly has nothing for it, and is invisible to every check outside this package. Asked of
+	// the directory, so the next document added is held too, not only this one.
+	inSet := map[string]bool{}
+	for _, f := range Files() {
+		inSet[f] = true
+	}
+	written, _ := filepath.Glob(filepath.Join(runDir, "*.md"))
+	for _, p := range written {
+		if name := filepath.Base(p); name != FileIndex && !inSet[name] {
+			t.Errorf("%s was written but is not in Files() — outside readers never see it and a stale copy is never removed", name)
+		}
+	}
+
 	// A document with no content is still not written at all — this run ran no computations, so
 	// the evidence document has no body. The property this pins has not moved; only the document
 	// that demonstrates it, because judgments.md is no longer empty.

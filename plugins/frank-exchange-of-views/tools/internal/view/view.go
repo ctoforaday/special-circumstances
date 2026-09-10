@@ -740,19 +740,34 @@ func debateMD(in Input) []byte {
 
 // inquiryMD — the exploration space grouped by fate. Trailing newline (render.go parity).
 func inquiryMD(in Input) []byte {
-	// THE CHOOSING, NOT JUST THE PLAN (#246). This used to group one-shot line of inquiry entries by
-	// status. A line of inquiry now has an id, a hypothesis, a status that MOVES with a stated
-	// reason, and red's ruling — so the projection renders the DECISION: what was proposed,
-	// what became of it, why, and what red said about it. That sequence is the evidence of
-	// choosing; a flat list by final status records only the outcome.
 	inquiry := []string{"# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)", ""}
-	avs := record.InquiriesOf(in.Events)
-	if len(avs) == 0 {
+	body := InquiryBody(in.Events)
+	if body == "" {
 		inquiry = append(inquiry, "_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration",
 			"either did not happen or was not written down, and a report with no roads-not-taken is",
 			"indistinguishable from one that never looked._", "")
 		return []byte(strings.Join(inquiry, "\n"))
 	}
+	return []byte(strings.Join(inquiry, "\n") + "\n" + body)
+}
+
+// InquiryBody is the lines-of-inquiry projection WITHOUT its heading, or "" when the run recorded no
+// line of inquiry — the ONE rendering behind both `show lines-of-inquiry` and the shipped
+// lines-of-inquiry.md (report.AssembleAll), so the view a seat reads and the document a human reads
+// cannot drift into two accounts of the same directions.
+//
+// THE CHOOSING, NOT JUST THE PLAN (#246). This used to group one-shot line of inquiry entries by
+// status. A line of inquiry now has an id, a hypothesis, a status that MOVES with a stated reason,
+// and red's ruling — so the projection renders the DECISION: what was proposed, what became of it,
+// why, and what red said about it. That sequence is the evidence of choosing; a flat list by final
+// status records only the outcome — which is exactly what report.md now carries, and why the path
+// has to ship somewhere.
+func InquiryBody(evs []*record.Event) string {
+	avs := record.InquiriesOf(evs)
+	if len(avs) == 0 {
+		return ""
+	}
+	var inquiry []string
 	byStatus := map[string][]*record.Inquiry{}
 	for _, a := range avs {
 		byStatus[a.Status] = append(byStatus[a.Status], a)
@@ -786,13 +801,20 @@ func inquiryMD(in Input) []byte {
 			if a.Ruling != "" {
 				inquiry = append(inquiry, fmt.Sprintf("  - RED RULED **%s** (epoch %d): %s", a.Ruling, a.RuledEpoch, a.RulingWhy))
 			}
+			// The appeal sits beside the ruling it answers, in the document about the directions.
+			// judgments.md carries it too, with the filer's reason, among every other motion; this
+			// is where a reader following one line meets it. (It left report.md with the ruling:
+			// the debate over a direction is not research prose.)
+			if a.Contests != "" {
+				inquiry = append(inquiry, fmt.Sprintf("  - BLUE APPEALED the `%s` ruling", a.Contests))
+			}
 		}
 		inquiry = append(inquiry, "")
 	}
 	// The revisit duty, made visible: a line of inquiry still open late in a run is one nobody has
 	// decided. The measured failure was not bad choosing, it was that nothing ever asked
 	// blue to choose again after epoch 0.
-	if stale := record.StaleInquiriesOf(in.Events); len(stale) > 0 {
+	if stale := record.StaleInquiriesOf(evs); len(stale) > 0 {
 		ids := make([]string, len(stale))
 		for i, a := range stale {
 			ids[i] = a.ID
@@ -803,7 +825,7 @@ func inquiryMD(in Input) []byte {
 			"as a fate does; a line of inquiry declared once and never revisited records an intention, not a",
 			"choice. `declined`, `abandoned` and `deferred` are settled and never appear here._", "")
 	}
-	return []byte(strings.Join(inquiry, "\n") + "\n")
+	return strings.Join(inquiry, "\n") + "\n"
 }
 
 // ---- the telemetry wire shape ----

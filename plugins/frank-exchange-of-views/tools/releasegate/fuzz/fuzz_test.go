@@ -3328,8 +3328,8 @@ func gapIsOpen(board record.Family, id string) bool {
 //
 // The deliverable is a set, and "did this prose reach the reader" is a question about the set:
 // a friction line lands in run.md, a motion in judgments.md, a withdrawn claim in CHANGELOG.md.
-// An oracle that reads report.md alone measures a seventh of the artifact and reports the other
-// six as clean — which is the exact failure shape these gates exist to catch, one level up.
+// An oracle that reads report.md alone measures one document of the artifact and reports the
+// others as clean — which is the exact failure shape these gates exist to catch, one level up.
 func assembledSet(runDir string) (string, error) {
 	var b strings.Builder
 	for _, name := range reportdoc.Files() {
