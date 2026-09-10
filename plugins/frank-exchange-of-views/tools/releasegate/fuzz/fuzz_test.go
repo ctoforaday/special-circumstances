@@ -3495,6 +3495,7 @@ func TestFuzzDebate(t *testing.T) {
 	dcov := map[string]int{}
 	citeAnchors, cacheFiles := 0, 0    // dialectic-event coverage across all runs (proves the fuzz emits them)
 	editAnswers := 0                   // #267: blue_edit events that carried the provenance key
+	forcedVerdict, forcedWhy := "", "" // what the FORCED-UNVERIFIED seed actually ended as
 	verifiedBasis := 0                 // #267 stage 3: gaps whose fix_basis was EARNED by a validated pair
 	verbatimApplied := 0               // #267 stage 4: edits that applied red's proposal exactly (the estoppel precondition)
 	estoppels := 0                     // the TOOL's own refusals of a mint against text blue applied verbatim
@@ -3535,6 +3536,12 @@ func TestFuzzDebate(t *testing.T) {
 			mu.Lock()
 			completed++
 			verdicts[o.verdict]++
+			// THE FORCED RUN'S OWN VERDICT, kept rather than folded into the histogram. A
+			// declining drive has to be reported as itself, and "the forced run ended CEILING"
+			// is the whole diagnosis; a count says only that nothing reached the word.
+			if o.seed == unverifiedSeed {
+				forcedVerdict, forcedWhy = o.verdict, o.why
+			}
 			epochHist[o.epochs]++
 			if o.why != "" {
 				whyHist[o.verdict+" ← "+regexp.MustCompile(`G\d+`).ReplaceAllString(o.why, "G<n>")]++
@@ -3697,6 +3704,27 @@ func TestFuzzDebate(t *testing.T) {
 		// deliberate drive per sweep rather than by the pool (see closeGap); when it declines, the
 		// census above reports a missing enum value and says nothing about why, which reads as the
 		// vocabulary having outgrown the fuzz rather than as a driver that did not fire.
+		// AND THE FORCED-UNVERIFIED DRIVE, for the same reason. `outcome --as UNVERIFIED` is
+		// reachable about once in sixty by the draw, so the sweep pins it to unverifiedSeed and
+		// the census above is the only thing that notices when that run does not deliver — as a
+		// line naming the WORD, which reads as the vocabulary having outgrown the fuzz and sends
+		// the next reader to the schema. It is a DRIVER that declined.
+		//
+		// MEASURED (#870, #847): with `moot` in closeGap's random pool the forced run ended
+		// CEILING or VERIFIED on 2 of 2 sweeps; with the pool restored it ended UNVERIFIED on 5
+		// of 5, always exactly once, which is the forced seed and not a draw. The drive is not
+		// chronically flaky — it breaks when something else perturbs the run, and every enum
+		// value added to a pool is such a perturbation. This says so in one line when it happens.
+		//
+		// It asks the VERDICT rather than the census because the two answer different questions:
+		// the census says the word was never written by anything, this says the run that exists
+		// to write it went somewhere else, and names where.
+		if forcedVerdict != "UNVERIFIED" {
+			t.Errorf("the forced-UNVERIFIED run on seed %d ended %q, not UNVERIFIED — the drive that makes "+
+				"`outcome --as UNVERIFIED` a fact rather than a 1-in-60 draw did not deliver, and the enum census "+
+				"reports that as a missing WORD rather than as this declining DRIVER.%s",
+				unverifiedSeed, forcedVerdict, forcedWhyClause(forcedWhy))
+		}
 		if !mootSpent.Load() {
 			t.Error("the sweep's single `close --as moot` drive never fired: no run reached closeGap with it pending, or every attempt was refused. The word's whole coverage is that one drive")
 		}
@@ -4669,4 +4697,14 @@ func (r *runner) benchDisposes(seatID, gapID, disposition string, extra ...strin
 		"--as", disposition, "--principle", "correctness", "--tension", "cost",
 		"--review-flag", "false", "--settled", "the proposition this ruling bars"}, extra...)
 	_, _ = r.exec(args...)
+}
+
+// forcedWhyClause renders the forced run's exit reason when it has one. Split out because the
+// reason is the diagnosis — "PASS refused: … 3 motion(s) filed and never ruled" is what the shape
+// is made of — and an empty one must read as absent rather than as an empty pair of quotes.
+func forcedWhyClause(why string) string {
+	if why == "" {
+		return " The run stated no exit reason."
+	}
+	return " It exited on: " + why
 }
