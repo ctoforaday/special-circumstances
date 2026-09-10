@@ -318,6 +318,22 @@ func LogAudit(run record.Run, envelope []EnvelopeLog, onRecord []record.LogEntry
 			judged, plural(judged, "y", "ies"), len(onRecord), plural(len(onRecord), "y", "ies"), note)}
 }
 
+// logParity is LogAudit when there is an envelope side to compare, and SKIP when there is not.
+//
+// LogAudit compares what seats REPORTED in their envelopes against what they RECORDED. With no
+// journal there are no envelopes, the reported list is empty, nothing is "silent", and the audit
+// would PASS — a clean verdict produced by the absence of one of its two inputs. The decision is
+// made here, where the journal's presence is known, rather than by overloading an empty slice
+// to mean "absent" inside LogAudit.
+func logParity(run record.Run, envelope []EnvelopeLog, onRecord []record.LogEntryJSON, journalPresent bool) Audit {
+	if !journalPresent {
+		return Audit{Check: "log-parity", Verdict: "SKIP",
+			Detail: fmt.Sprintf("no workflow journal, so there is no envelope side to compare against the %d log entr%s on the record — NOT MEASURED, not clean",
+				len(onRecord), plural(len(onRecord), "y", "ies"))}
+	}
+	return LogAudit(run, envelope, onRecord)
+}
+
 func plural(n int, one, many string) string {
 	if n == 1 {
 		return one
@@ -1665,7 +1681,23 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	var lines []string
 
 	// Mechanics: journal copy, transcript tarball, cost.md.
-	if err = copyFile(filepath.Join(transcriptDir, "journal.jsonl"), filepath.Join(run.Dir(), "trajectories", "journal.jsonl")); err != nil {
+	//
+	// A MISSING JOURNAL IS A FACT ABOUT HOW THE RUN WAS DRIVEN, NOT A REASON TO LEAVE IT OPEN.
+	// This copy used to be the first thing capture did and a hard error when the file was absent,
+	// while ReadJournal below already treated the same absence as an empty journal. Capture is the
+	// only code that clears a run's live marker, so a run driven outside the Workflow tool — a
+	// headless harness, or a workflow killed before it wrote its journal — could never be closed:
+	// three such runs sat "live" in .claude/run-live.json on 2026-09-10, blocking plugin updates.
+	//
+	// Absent is not the same as empty, and the difference is carried rather than inferred: every
+	// audit that reads the envelope side reports SKIP below instead of reading an empty list as a
+	// clean pass.
+	journalPresent := true
+	src := filepath.Join(transcriptDir, "journal.jsonl")
+	if _, serr := os.Stat(src); os.IsNotExist(serr) {
+		journalPresent = false
+		lines = append(lines, "journal: none at "+src+" — this run was not driven by the Workflow tool, or its journal was never written; the envelope-side audits are NOT MEASURED")
+	} else if err = copyFile(src, filepath.Join(run.Dir(), "trajectories", "journal.jsonl")); err != nil {
 		return nil, "", false, err
 	}
 	agentFiles, err := listAgentFiles(transcriptDir)
@@ -1770,7 +1802,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	audits = []Audit{
 		LivenessAudit(run, now),
 		TelemetryAudit(run, redEpochs),
-		LogAudit(run, friction, onRecord),
+		logParity(run, friction, onRecord, journalPresent),
 		ContextUse(transcriptDir, agentFiles),
 		AssemblyScreen(run),
 		FootnoteIntegrity(run),

@@ -3,6 +3,7 @@ package capture
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -63,5 +64,45 @@ func TestTheExitCodeAgreesWithTheAuditsItReports(t *testing.T) {
 	}
 	if report == "" {
 		t.Error("capture returned an empty report")
+	}
+}
+
+// A RUN WITH NO WORKFLOW JOURNAL CAN BE CLOSED, AND IS NOT CALLED CLEAN FOR IT.
+//
+// Capture is the only code that clears a run's live marker, and it used to fail at its first
+// line when journal.jsonl was absent. So a run driven outside the Workflow tool — a headless
+// harness, or a workflow killed before it wrote its journal — could never be captured, and its
+// marker blocked plugin updates indefinitely: three such runs did exactly that on 2026-09-10.
+//
+// The other half is what the fix must NOT do. Without a journal the envelope side of log-parity
+// is empty, nothing is "silent", and LogAudit would PASS — a clean verdict produced by the
+// absence of one of its inputs. It must say SKIP, and the report must say why.
+func TestARunWithNoJournalIsCapturedAndItsEnvelopeAuditsAreNotMeasured(t *testing.T) {
+	run := runtest.New(t, t.TempDir())
+	if err := os.MkdirAll(filepath.Join(run.Dir(), "trajectories"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	transcripts := t.TempDir() // deliberately empty: no journal.jsonl
+	audits, report, _, err := Run(run, transcripts, time.Date(2026, 9, 10, 12, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("capture refused a run with no journal: %v — so its live marker can never be cleared", err)
+	}
+	var parity *Audit
+	for i := range audits {
+		if audits[i].Check == "log-parity" {
+			parity = &audits[i]
+		}
+	}
+	if parity == nil {
+		t.Fatal("no log-parity audit in the result")
+	}
+	if parity.Verdict != "SKIP" {
+		t.Errorf("log-parity = %s with no envelopes to compare — an absent input read as a clean pass: %s", parity.Verdict, parity.Detail)
+	}
+	if !strings.Contains(report, "journal: none") {
+		t.Error("the capture report does not say the journal was absent, so a reader cannot tell a run with no envelopes from one whose envelopes all agreed")
+	}
+	if _, serr := os.Stat(filepath.Join(run.Dir(), "trajectories", "journal.jsonl")); serr == nil {
+		t.Error("capture wrote a journal.jsonl into the run although none existed")
 	}
 }
