@@ -322,7 +322,10 @@ func outcomeOf(evs []*record.Event) *recordpb.Outcome {
 // migration exists to remove — so the enum is never matched on a shouted word.
 func verdictStamp(o *recordpb.Outcome) string {
 	if o == nil {
-		return "**Verdict:** _(no terminal outcome recorded — `bench outcome` was not run before assembly)_"
+		// STATE ONLY (gblock, 2026-09-10), in the same shape as every other stamp: a word, then its
+		// basis in parentheses. The act that was missing — `bench outcome` never ran — is a fact about
+		// the run, and run.md's verdict-basis section says it.
+		return "**Verdict:** NONE (no terminal outcome on the record)"
 	}
 	return "**Verdict:** " + verdictWord(o) + basisState(o.GetVerdictBasis())
 }

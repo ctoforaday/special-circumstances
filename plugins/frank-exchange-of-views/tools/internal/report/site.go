@@ -143,7 +143,7 @@ func slugFile(f string) string {
 func verdictBadge(fam record.Family) (string, string) {
 	o := outcomeOf(fam.Events)
 	if o == nil {
-		return "no terminal outcome recorded", "unknown"
+		return "NONE", "unknown"
 	}
 	word := verdictWord(o)
 	cls := "neutral"
