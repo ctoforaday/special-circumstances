@@ -81,7 +81,7 @@ func newMint() *cobra.Command {
 			p.MintReason = proto.String(text)
 		}
 		p.MintKey = proto.String(seat.Str(cmd, flags.Key))
-		// COINING A CLASS IS `merge class new`, a verb of its own. This one names a slug
+		// COINING A CLASS IS `lens class new`, a verb of its own. This one names a slug
 		// the registry already has; class_new records whether THIS run coined it, which
 		// the registry knows and a seat no longer has to assert.
 		p.Class = proto.String(seat.Str(cmd, flags.Class))

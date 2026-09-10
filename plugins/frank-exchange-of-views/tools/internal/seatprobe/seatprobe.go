@@ -81,7 +81,7 @@ func NewSurface(paths []string) Surface {
 		switch {
 		case len(parts) >= 2 && isRole(parts[0]):
 			// A ROLE VERB IS NOT ALWAYS ONE WORD. The verbs that carried two contracts are
-			// subgroups now — `blue line-of-inquiry propose`, `merge class new` — and a case
+			// subgroups now — `blue line-of-inquiry propose`, `lens class new` — and a case
 			// matching exactly two fields dropped them from the surface entirely. The coverage
 			// gate then reported full coverage of a surface it could not see, and its inverse
 			// called a real verb one the role does not offer.
