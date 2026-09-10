@@ -76,7 +76,7 @@ reported as a search that found nothing.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			term := args[0]
-			db, err := env.openRead()
+			db, err := env.openRead(cmd.ErrOrStderr())
 			if err != nil {
 				return err
 			}

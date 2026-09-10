@@ -1,0 +1,4 @@
+exit: 1
+--- stdout
+--- stderr
+telepathy: catalogue: <STORE> is not a gray-area catalogue (tables: ledger) — refusing to touch it; check `--store`

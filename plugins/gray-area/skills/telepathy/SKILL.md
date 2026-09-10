@@ -78,6 +78,12 @@ telepathy sql "SELECT tool, target FROM v_action WHERE session_id LIKE '5627%' A
   evidence of nothing but the client's settings.
 - **A session that predates capture contributes nothing** until `backfill` has read it. Absence of
   rows is not absence of work.
+- **An upgrade can rebuild the store EMPTY.** When a gray-area update changes the store's shape,
+  the next open rebuilds it rather than migrating it, and it holds only what the hooks have read
+  since. Every read verb then prints `telepathy: the store was rebuilt at … and has not been
+  backfilled since` on stderr. AFTER seeing that warning, YOU MUST NOT read an empty or thin result
+  as evidence — run `telepathy backfill` (it clears the warning) and ask again. A backfill re-reads
+  only the transcripts still on disk, so a session the client has already cleaned up stays absent.
 - **`touched` sees a path only where the record NAMES it.** For `Read`/`Edit`/`Write` that is the
   `file_path`, and the answer is exact. For `Bash` it is the command string, truncated at 200
   characters — so an edit made by a long shell command, or a heredoc that names the file past that

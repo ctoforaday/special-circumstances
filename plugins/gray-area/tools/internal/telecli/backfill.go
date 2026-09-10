@@ -2,6 +2,7 @@ package telecli
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -20,13 +21,18 @@ is the cold read that cap exists to avoid facing at the start of a session.
 
 Re-running is safe and cheap. Each file's consumed prefix is fingerprinted, so an
 unchanged file is skipped and a file that GREW is resumed from where it stopped —
-a file that was REWRITTEN is detected and re-read from the beginning.`,
+a file that was REWRITTEN is detected and re-read from the beginning.
+
+It is also the remedy after an upgrade. A gray-area update that changes the
+store's shape rebuilds it EMPTY on the next open, and every read verb warns until
+a backfill has completed; this re-reads the transcripts that still exist and
+clears the warning. Sessions whose transcripts are gone do not come back.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if env.Store == "" {
 				return fmt.Errorf("no catalogue path: neither --store nor a home directory could be resolved")
 			}
-			db, err := catalogue.Open(env.Store)
+			db, err := catalogue.Open(env.Store, cmd.ErrOrStderr())
 			if err != nil {
 				return err
 			}
@@ -49,6 +55,12 @@ a file that was REWRITTEN is detected and re-read from the beginning.`,
 				skipped += r.Skipped
 				unparsed += r.Unparsed
 				read += r.BytesRead
+			}
+			// THE WALL CLOCK, NOT env.Now: this is compared with rebuilt_at, which Open writes from
+			// the wall clock, and a frozen clock on one side makes the comparison meaningless.
+			if err := catalogue.MarkBackfilled(db, time.Now()); err != nil {
+				return fmt.Errorf("the backfill completed but its marker could not be written, "+
+					"so a rebuild warning will not clear: %w", err)
 			}
 			out := cmd.OutOrStdout()
 			fmt.Fprintf(out, "backfilled %d transcripts, %.0f MB in %.1fs\n  %d acts, %d words, %d thoughts\n",

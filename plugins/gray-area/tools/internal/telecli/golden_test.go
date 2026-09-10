@@ -2,14 +2,19 @@ package telecli
 
 import (
 	"bytes"
+	"database/sql"
 	"flag"
 	"fmt"
+	"io"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/catalogue"
 )
 
 // -update rewrites the golden files. It is a flag rather than an environment variable so
@@ -51,6 +56,90 @@ func newHarness(t *testing.T) *harness {
 		t.Fatalf("fixture backfill failed with exit %d", code)
 	}
 	return h
+}
+
+// storeVariant names a store in a state the capture hooks do not produce on their own.
+type storeVariant int
+
+const (
+	// olderShape: the pre-#867 DDL (testdata/shape1.sql) applied to an empty file, stamped 1.
+	olderShape storeVariant = iota
+	// foreign: an SQLite file holding one table no catalogue has ever had.
+	foreign
+	// rebuiltPending: a store built as newHarness builds one, then made to read as rebuilt at
+	// rebuiltAt and never backfilled since.
+	rebuiltPending
+)
+
+// rebuiltAt is the rebuild instant the rebuiltPending store carries. A FIXED instant, in the past,
+// so the warning's timestamp is stable in a golden and any real backfill's wall clock is later.
+var rebuiltAt = time.Date(2026, 9, 1, 8, 30, 0, 0, time.UTC)
+
+// fixtureDB opens path read-write for a fixture, through a `file:` URI for the same reason the
+// catalogue's own connections use one: a bare path is cut at its first `?` by the driver.
+func fixtureDB(t *testing.T, path string) *sql.DB {
+	t.Helper()
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.ToSlash(abs)
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	db, err := sql.Open("sqlite", (&url.URL{Scheme: "file", Path: p}).String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return db
+}
+
+func mustExec(t *testing.T, db *sql.DB, stmts ...string) {
+	t.Helper()
+	for _, s := range stmts {
+		if _, err := db.Exec(s); err != nil {
+			t.Fatalf("%.60s: %v", s, err)
+		}
+	}
+}
+
+// newStoreHarness is the fixture world with a store in one of the states above.
+func newStoreHarness(t *testing.T, v storeVariant) *harness {
+	t.Helper()
+	switch v {
+	case olderShape:
+		h := newColdHarness(t)
+		ddl, err := os.ReadFile(filepath.Join("testdata", "shape1.sql"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		db := fixtureDB(t, h.store)
+		defer db.Close()
+		mustExec(t, db, string(ddl), `PRAGMA user_version = 1`)
+		return h
+	case foreign:
+		h := newColdHarness(t)
+		db := fixtureDB(t, h.store)
+		defer db.Close()
+		mustExec(t, db, `CREATE TABLE ledger(id INTEGER PRIMARY KEY, amount INTEGER)`)
+		return h
+	case rebuiltPending:
+		h := newHarness(t) // its backfill wrote backfilled_at...
+		db, err := catalogue.Open(h.store, io.Discard)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer db.Close()
+		// ...which is deleted, and the rebuild markers written, so the store reads exactly as one
+		// an upgrade rebuilt and nobody has backfilled since.
+		mustExec(t, db, `DELETE FROM meta WHERE key = '`+catalogue.MetaBackfilledAt+`'`)
+		if err := catalogue.MarkRebuilt(db, 2, rebuiltAt); err != nil {
+			t.Fatal(err)
+		}
+		return h
+	}
+	t.Fatalf("unknown store variant %d", v)
+	return nil
 }
 
 // run drives the command tree exactly as main does — argv in, bytes and an exit code out.
@@ -127,6 +216,14 @@ func assertGolden(t *testing.T, name, got string) {
 		}
 		t.Errorf("%s does not match its golden.\n--- want ---\n%s\n--- got ---\n%s", name, want, got)
 	}
+}
+
+// assertGoldenFull pins the WHOLE outcome in one file — exit code, stdout and stderr — for the
+// cases where stderr is the point: a refusal, or a warning printed beside a normal answer. A
+// stdout-only golden of a refusal is an empty file, and would pass against any refusal at all.
+func assertGoldenFull(t *testing.T, name string, code int, stdout, stderr string) {
+	t.Helper()
+	assertGolden(t, name, fmt.Sprintf("exit: %d\n--- stdout\n%s--- stderr\n%s", code, stdout, stderr))
 }
 
 // THE OUTPUT IS A CONTRACT, so it is pinned byte for byte.
@@ -278,4 +375,74 @@ func TestGoldenBackfill(t *testing.T) {
 	if !strings.Contains(second, "0 acts, 0 words, 0 thoughts") {
 		t.Errorf("re-running re-ingested rows, so the stored offsets are not being honoured:\n%s", second)
 	}
+}
+
+// A STORE IN THE WRONG STATE IS SAID IN WORDS, on stderr, with the exit code a script reads.
+//
+// An older store used to reach `sql` and fail inside SQLite ("no such column: s.ingested_first");
+// a foreign file used to be queried as though it were a catalogue. Both are now refused before a
+// query runs. A rebuilt store answers — its rows are true — and says beside the answer that rows
+// from before the rebuild are missing.
+func TestGoldenStoreStates(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		variant storeVariant
+		args    []string
+		code    int
+	}{
+		{"sql-older-shape", olderShape, []string{"sql", "SELECT count(*) FROM v_session"}, 1},
+		{"sql-not-a-catalogue", foreign, []string{"sql", "SELECT count(*) FROM v_session"}, 1},
+		{"agents-rebuilt-warning", rebuiltPending, []string{"agents"}, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newStoreHarness(t, tc.variant)
+			out, errOut, code := h.run(t, tc.args...)
+			if code != tc.code {
+				t.Errorf("exit %d, want %d; stderr:\n%s", code, tc.code, errOut)
+			}
+			assertGoldenFull(t, tc.name, code, out, errOut)
+		})
+	}
+}
+
+// rebuildWarning is the one fragment of the warning this test counts by. The golden above pins
+// the whole line; this only needs to find it once per verb, and zero times after a backfill.
+const rebuildWarning = "has not been backfilled since"
+
+// EVERY READ VERB CARRIES THE WARNING, because each reaches the store through openRead and a verb
+// that skipped it would answer from a gutted store with no word said. After a backfill, none does.
+func TestTheRebuildWarningReachesEveryReadVerb(t *testing.T) {
+	h := newStoreHarness(t, rebuiltPending)
+	_, noRipgrep := exec.LookPath("rg")
+	verbs := [][]string{
+		{"agents"},
+		{"touched", "mint.go"},
+		{"sql", "SELECT 1"},
+		{"find", "mint.go"},
+		{"session", alphaID},
+	}
+	check := func(wantWarnings int) {
+		t.Helper()
+		for _, args := range verbs {
+			_, errOut, code := h.run(t, args...)
+			if got := strings.Count(errOut, rebuildWarning); got != wantWarnings {
+				t.Errorf("%v printed the rebuild warning %d times, want %d; stderr:\n%s", args, got, wantWarnings, errOut)
+			}
+			switch {
+			case args[0] == "find" && noRipgrep != nil:
+				// openRead runs before the ripgrep lookup, so the warning is still owed; the verb
+				// then refuses in its own words rather than reporting zero matches.
+				if code == 0 || !strings.Contains(errOut, errNoRipgrep.Error()) {
+					t.Errorf("find without ripgrep: exit %d, stderr:\n%s", code, errOut)
+				}
+			case code != 0:
+				t.Errorf("%v exited %d; stderr:\n%s", args, code, errOut)
+			}
+		}
+	}
+	check(1)
+	if _, errOut, code := h.run(t, "backfill"); code != 0 {
+		t.Fatalf("backfill exited %d:\n%s", code, errOut)
+	}
+	check(0)
 }

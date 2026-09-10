@@ -3,6 +3,7 @@ package catalogue
 import (
 	"context"
 	"database/sql"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,7 +12,7 @@ import (
 
 func store(t *testing.T) *sql.DB {
 	t.Helper()
-	db, err := Open(filepath.Join(t.TempDir(), "c.db"))
+	db, err := Open(filepath.Join(t.TempDir(), "c.db"), io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,7 +180,7 @@ func TestTouchedFindsBySuffix(t *testing.T) {
 func TestRawQueryRendersNullDistinctly(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "c.db")
-	db, err := Open(p)
+	db, err := Open(p, io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}

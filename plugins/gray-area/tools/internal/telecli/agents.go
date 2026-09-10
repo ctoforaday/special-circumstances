@@ -21,7 +21,7 @@ transcript cannot say whether the process that wrote it is still there. 'unknown
 is a third answer and not a synonym for 'ended'.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			db, err := env.openRead()
+			db, err := env.openRead(cmd.ErrOrStderr())
 			if err != nil {
 				return err
 			}

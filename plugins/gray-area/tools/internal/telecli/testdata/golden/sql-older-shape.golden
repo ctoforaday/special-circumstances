@@ -1,0 +1,4 @@
+exit: 1
+--- stdout
+--- stderr
+telepathy: catalogue: <STORE> is stamped 1; this binary reads shape 3. The next session start or turn end (gray-area's `SessionStart`, `Stop` and `SessionEnd` hooks) rebuilds it, or run `telepathy backfill`.

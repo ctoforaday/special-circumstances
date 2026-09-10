@@ -57,7 +57,7 @@ NULL prints as the word NULL, because "" and NULL are different answers.`,
 			if limit < 0 {
 				return usagef("--limit cannot be negative (0 means no limit)")
 			}
-			db, err := env.openRead()
+			db, err := env.openRead(cmd.ErrOrStderr())
 			if err != nil {
 				return err
 			}
