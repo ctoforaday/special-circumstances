@@ -4463,11 +4463,26 @@ func (x *Revision) GetText() string {
 
 // Retire removes substance from the report. Substance leaves ONLY with its reason recorded.
 type Retire struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Claim         *string                `protobuf:"bytes,1,opt,name=claim,proto3,oneof" json:"claim,omitempty"`
-	Reason        *string                `protobuf:"bytes,2,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
-	SupersededBy  *string                `protobuf:"bytes,3,opt,name=superseded_by,json=supersededBy,proto3,oneof" json:"superseded_by,omitempty"`
-	RemovalBasis  *string                `protobuf:"bytes,4,opt,name=removal_basis,json=removalBasis,proto3,oneof" json:"removal_basis,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Claim        *string                `protobuf:"bytes,1,opt,name=claim,proto3,oneof" json:"claim,omitempty"`
+	Reason       *string                `protobuf:"bytes,2,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
+	SupersededBy *string                `protobuf:"bytes,3,opt,name=superseded_by,json=supersededBy,proto3,oneof" json:"superseded_by,omitempty"`
+	RemovalBasis *string                `protobuf:"bytes,4,opt,name=removal_basis,json=removalBasis,proto3,oneof" json:"removal_basis,omitempty"`
+	// anchors are the anchor ids that EXIT THE REPORT WITH THIS CLAIM — computed by the verb, never
+	// typed by a seat.
+	//
+	// An edit may carry an anchor but never drop one, so a claim whose sentence is edited away
+	// leaves its anchor BARE: the anchor alone in its segment, backing no prose. Before this field
+	// nothing could take that anchor out, so it stood forever — a `[^N]` orphan with a live
+	// bibliography entry in the assembled report, an empty `- ?` bullet, and a segment the claim
+	// counter still counted, which let a retire credit a claim that had never left the count.
+	//
+	// Filled only when the retired claim appears in the old span of a recorded edit whose new text
+	// was anchors alone, and only with anchors that are present AND bare in the report at the write
+	// — so an anchor carried on into surviving prose can never be named. Replay removes each named
+	// anchor at this event's position (the report_op view's `remove` rows). A record written before
+	// this field carries none, and replays exactly as it did.
+	Anchors       []string `protobuf:"bytes,5,rep,name=anchors,proto3" json:"anchors,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4528,6 +4543,13 @@ func (x *Retire) GetRemovalBasis() string {
 		return *x.RemovalBasis
 	}
 	return ""
+}
+
+func (x *Retire) GetAnchors() []string {
+	if x != nil {
+		return x.Anchors
+	}
+	return nil
 }
 
 type ManifestRow struct {
@@ -6665,12 +6687,13 @@ const file_record_proto_rawDesc = "" +
 	"\t_accepted\",\n" +
 	"\bRevision\x12\x17\n" +
 	"\x04text\x18\x01 \x01(\tH\x00R\x04text\x88\x01\x01B\a\n" +
-	"\x05_text\"\xa2\x03\n" +
+	"\x05_text\"\xbc\x03\n" +
 	"\x06Retire\x12|\n" +
 	"\x05claim\x18\x01 \x01(\tBa\x82\xb5\x18]\b\x01\x12\x05quote\x1aRquote the claim as it stood — a removal nobody can identify is not on the recordH\x00R\x05claim\x88\x01\x01\x12\x8c\x01\n" +
 	"\x06reason\x18\x02 \x01(\tBo\x82\xb5\x18k\b\x01\x1agrefuted, superseded, merged, out of scope — substance leaves the report ONLY with its reason recordedH\x01R\x06reason\x88\x01\x01\x12(\n" +
 	"\rsuperseded_by\x18\x03 \x01(\tH\x02R\fsupersededBy\x88\x01\x01\x12(\n" +
-	"\rremoval_basis\x18\x04 \x01(\tH\x03R\fremovalBasis\x88\x01\x01B\b\n" +
+	"\rremoval_basis\x18\x04 \x01(\tH\x03R\fremovalBasis\x88\x01\x01\x12\x18\n" +
+	"\aanchors\x18\x05 \x03(\tR\aanchorsB\b\n" +
 	"\x06_claimB\t\n" +
 	"\a_reasonB\x10\n" +
 	"\x0e_superseded_byB\x10\n" +

@@ -449,11 +449,26 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	// carries no `retired`, so this detector would count zero and flag every LEGITIMATE
 	// retirement as an unrecorded loss — blind in both directions. A claim leaves the report
 	// ONLY through the retire verb, which is on the record.
-	retires := 0
+	//
+	// BUT ONLY A RETIRE THAT TOOK A COUNTED CLAIM OUT IS CREDITED. Every retire event used to
+	// count, and most do not lower claim_count: retiring uncited prose removes nothing the count
+	// ever held, and a retire's credit then cancelled an unrelated real loss. A retire that takes
+	// a cited claim out names its citation anchor among the anchors that exit with it (the verb
+	// computes that, at the write, from the report), so the credit is read from that field rather
+	// than from the event's existence. A record written before the field credits no retire.
+	retires, events := 0, 0
 	if fam != nil {
 		for _, e := range fam.Events {
-			if e.GetType() == recordpb.EventType_EVENT_TYPE_RETIRE {
-				retires++
+			r, ok := recordpb.BodyAs[*recordpb.Retire](e)
+			if !ok {
+				continue
+			}
+			events++
+			for _, id := range r.GetAnchors() {
+				if strings.HasPrefix(id, "c-") {
+					retires++
+					break
+				}
 			}
 		}
 	}
@@ -467,7 +482,8 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 		lost := int(math.Max(0, drop-float64(retires)))
 		rows = append(rows, Row{Clause: "LOSS: additive violations", Metric: "unrecorded_claim_loss", Cls: "detector",
 			Value: lost,
-			Note:  strconv.Itoa(int(drop)) + " claim(s) lost across envelopes, " + strconv.Itoa(retires) + " retired on the record",
+			Note: strconv.Itoa(int(drop)) + " claim(s) lost across envelopes, " + strconv.Itoa(retires) + " retired on the record (" +
+				strconv.Itoa(events) + " retire event(s); only one that took a cited claim out is credited)",
 			Joint: "a fall the retire events do not account for is substance leaving silently — the failure the old prose-level rule was written to stop"})
 	} else {
 		rows = append(rows, Row{Clause: "LOSS: additive violations", Metric: "unrecorded_claim_loss", Cls: "detector",

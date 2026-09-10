@@ -221,7 +221,9 @@ func ReportProjection(run Run) (base string, haveBase bool, ops []ReportOp, err 
 	if !haveBase {
 		return "", false, nil, nil
 	}
-	opRows, err := db.Query(`SELECT "kind", "a", "b" FROM "report_op" ORDER BY "event_id"`)
+	// The second key orders the one case where an event yields several rows — a retire naming
+	// more than one anchor — so replay is deterministic rather than whatever SQLite returns.
+	opRows, err := db.Query(`SELECT "kind", "a", "b" FROM "report_op" ORDER BY "event_id", "a"`)
 	if err != nil {
 		return "", false, nil, fmt.Errorf("record: reading the report ops: %w", err)
 	}

@@ -171,7 +171,15 @@ func TestUnrecordedClaimLossCountsRetireEventsNotEnvelope(t *testing.T) {
 		{"claim_count": float64(10)},
 		{"claim_count": float64(7)},
 	}
-	board := famOfEventsT([]*record.Event{recordtest.Event(t, "", &recordpb.Retire{})}) // one recorded retirement
+	// Three retire events, ONE credited: only a retire that took a cited claim out (named a c-
+	// anchor among those exiting with it) lowered claim_count. A retire of uncited prose, or one
+	// taking out only a finding marker, removed nothing the count held — crediting it would cancel
+	// an unrelated real loss.
+	board := famOfEventsT([]*record.Event{
+		recordtest.Event(t, "", &recordpb.Retire{Anchors: []string{"f-1", "c-1"}}),
+		recordtest.Event(t, "", &recordpb.Retire{}),
+		recordtest.Event(t, "", &recordpb.Retire{Anchors: []string{"f-2"}}),
+	})
 	r := rowByMetric(blueRows(record.Run{}, results, nil, board), "unrecorded_claim_loss")
 	if r == nil || r.Value == nil {
 		t.Fatalf("row not computed: %+v", r)

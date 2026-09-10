@@ -524,6 +524,9 @@ LEFT JOIN "events" lre ON lre."id" = lr."event_id";
 -- not re-derived by walking every event in Go. Each row is (event_id, kind, a, b):
 --   edit   → a=old span, b=new span (blue edit's splice, located and replaced at replay).
 --   insert → a=the anchoring quote, b=the marker id (Token(b) is spliced at that quote).
+--   remove → a=an anchor id a retire took out with its claim (Token(a) and the husk it leaves
+--            are removed). One row per named anchor; a retire recorded before the field names
+--            none, so an old record replays exactly as it did.
 -- The marker inserters are blue cite, blue prove, the finding's anchor event, and a red
 -- corroboration (a labelled verify). A marker event with no anchor location placed no marker in
 -- THIS report (a board/docket-only citation), so it is excluded rather than replayed as an empty
@@ -547,5 +550,8 @@ CREATE VIEW "report_op" AS
   UNION ALL
   SELECT e."id", 'insert', v."claim", v."label"
     FROM "verify" v JOIN "events" e ON e."id" = v."event_id"
-    WHERE COALESCE(v."label", '') != '' AND COALESCE(v."claim", '') != '';
+    WHERE COALESCE(v."label", '') != '' AND COALESCE(v."claim", '') != ''
+  UNION ALL
+  SELECT e."id", 'remove', ra."value", NULL
+    FROM "retire_anchors" ra JOIN "events" e ON e."id" = ra."event_id";
 `

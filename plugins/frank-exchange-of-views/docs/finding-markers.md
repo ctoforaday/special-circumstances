@@ -61,6 +61,13 @@ every *content* transition under a marker. (This is the property that dissolves 
 collision an id-plus-retire model runs into: markers don't leave, so "did this leave legitimately?" is
 never asked of the marker.)
 
+**Amended — one recorded exit.** An edit still cannot drop a marker. But a claim whose sentence is
+edited away leaves its marker BARE (no prose before it in its segment), and a bare marker that can
+never leave stood forever as an orphan footnote or an empty bullet. `blue retire` now names the bare
+anchors that exit with the retired claim — computed by the verb, validated present-and-bare at the
+write — and replay removes them at that event. The question "did this leave legitimately?" is still
+never asked of the marker: it leaves only on a retire event that carries the claim and its reason.
+
 ## The handshake — layered onto the existing finding → gap → closure lifecycle
 
 The fix-then-approve rhythm is **not new machinery**; it is the debate's existing lifecycle (red flags

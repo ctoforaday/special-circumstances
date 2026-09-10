@@ -1202,6 +1202,22 @@ message Retire {
   }];
   optional string superseded_by = 3;
   optional string removal_basis = 4;
+
+  // anchors are the anchor ids that EXIT THE REPORT WITH THIS CLAIM — computed by the verb, never
+  // typed by a seat.
+  //
+  // An edit may carry an anchor but never drop one, so a claim whose sentence is edited away
+  // leaves its anchor BARE: the anchor alone in its segment, backing no prose. Before this field
+  // nothing could take that anchor out, so it stood forever — a `[^N]` orphan with a live
+  // bibliography entry in the assembled report, an empty `- ?` bullet, and a segment the claim
+  // counter still counted, which let a retire credit a claim that had never left the count.
+  //
+  // Filled only when the retired claim appears in the old span of a recorded edit whose new text
+  // was anchors alone, and only with anchors that are present AND bare in the report at the write
+  // — so an anchor carried on into surviving prose can never be named. Replay removes each named
+  // anchor at this event's position (the report_op view's `remove` rows). A record written before
+  // this field carries none, and replays exactly as it did.
+  repeated string anchors = 5;
 }
 
 message ManifestRow {

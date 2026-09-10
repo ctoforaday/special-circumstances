@@ -18,7 +18,13 @@
 // detector rests on.
 //
 // THE RULE. A claim is a sentence carrying at least one tool-inserted citation
-// anchor ("<!--cite:c-<hex>-->"). The citation axis replaced the hand-typed
+// anchor ("<!--cite:c-<hex>-->") ATTACHED to prose — some prose before it in the
+// segment, since every inserter places the anchor after the sentence it backs. An
+// anchor with nothing before it — what an edit leaves when it cuts a cited sentence
+// away, because an edit may carry an anchor but never drop one — is BARE, not a
+// claim: counting it would let the sentence leave while the count stood still, so
+// a gutted claim read as no loss and a retire of it cancelled some other, real one
+// (see BareAnchorIDs for why "bare" cannot mean "alone in its segment"). The citation axis replaced the hand-typed
 // "[^label]" footnote as the claim unit: citations are tool-managed, so what a
 // report CITES is exactly what it ANCHORS, and counting the anchor counts the
 // backed claim. A finding anchor ("<!--fx:f-<hex>-->") is NOT a claim and never
@@ -46,6 +52,7 @@ package claimcount
 import (
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 var (
@@ -100,7 +107,7 @@ type Segment struct {
 	Text    string   // the segment's raw text
 	Line    int      // 1-based line number in the original report where the segment sits
 	Heading string   // nearest preceding markdown heading (stripped of leading # and space)
-	Labels  []string // distinct citation labels (c-<hex>) anchored inline in this segment, first-seen order
+	Labels  []string // distinct citation labels (c-<hex>) ATTACHED in this segment — after some prose — first-seen order
 }
 
 // Scan walks report markdown once and returns the kept segments in reading order.
@@ -146,6 +153,77 @@ func Count(md string) int {
 		}
 	}
 	return n
+}
+
+// HasProse reports whether a segment says anything besides its anchors: a letter or a digit
+// once every anchor token of the three classes is removed. Whitespace, list markers and
+// punctuation are not prose — "- <!--fx:f-1-->?" is an emptied bullet, not a sentence.
+func HasProse(seg string) bool {
+	for _, r := range StripAnchors(seg) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return true
+		}
+	}
+	return false
+}
+
+// StripAnchors removes every anchor token of the three classes, leaving the prose around them.
+func StripAnchors(s string) string {
+	for _, re := range []*regexp.Regexp{findingMarkerRe, citationMarkerRe, proofMarkerRe} {
+		s = re.ReplaceAllString(s, "")
+	}
+	return s
+}
+
+// AN ANCHOR BACKS THE PROSE BEFORE IT. Every inserter places its token flush after the last
+// content character of the sentence it anchors, so an anchor with no prose ahead of it in its
+// segment backs nothing — it is BARE. That is the shape an edit leaves when it cuts an anchored
+// sentence away (an edit may carry an anchor but never drop one), and it is NOT always alone in
+// its segment: the splice tidy removes the cut sentence's orphaned terminator, so "X<c>. Y." cut
+// down to its anchor renders "<c> Y." — the bare anchor now sits at the head of the NEXT
+// sentence. Reading "the segment has prose" would count Y as cited by the claim that just left.
+
+// anyMarkerRe matches a token of any of the three classes, capturing its id.
+var anyMarkerRe = regexp.MustCompile(`<!--(?:fx:(f-[0-9a-f]+)|cite:(c-[0-9a-f]+)|proof:(p-[0-9a-f]+))-->`)
+
+// segmentAnchors walks a segment's anchor tokens in order, reporting each id and whether it is
+// ATTACHED — some prose precedes it in the segment.
+func segmentAnchors(seg string, visit func(id string, attached bool)) {
+	for _, loc := range anyMarkerRe.FindAllStringSubmatchIndex(seg, -1) {
+		for g := 1; g <= 3; g++ {
+			if loc[2*g] >= 0 {
+				visit(seg[loc[2*g]:loc[2*g+1]], HasProse(seg[:loc[0]]))
+				break
+			}
+		}
+	}
+}
+
+// BareAnchorIDs returns the distinct anchor ids, of all three classes, that back NO prose
+// anywhere they stand: no occurrence has prose before it in its segment. These are what
+// `blue retire` may take out with a claim — an anchor still attached to any prose is never
+// bare, and an anchor outside the claim stream (a heading, a fence) is never reported, so the
+// answer errs toward keeping an anchor rather than removing one.
+func BareAnchorIDs(md string) []string {
+	bare := map[string]bool{}
+	var order []string
+	for _, s := range Scan(md) {
+		segmentAnchors(s.Text, func(id string, attached bool) {
+			was, seen := bare[id]
+			if !seen {
+				order = append(order, id)
+				was = true
+			}
+			bare[id] = was && !attached
+		})
+	}
+	var out []string
+	for _, id := range order {
+		if bare[id] {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // Occurrence is one site a footnoted claim appears: which section, which line, and a
@@ -198,21 +276,17 @@ func Index(md string) []LabelOccurrences {
 // anchor (the citation axis replaced the hand-typed "[^label]" footnote as the claim unit —
 // citations are tool-managed, so what a report cites is exactly what it anchors). The
 // label comes straight from citationMarkerRe's capture, so Index yields the real c-<hex>
-// ids, never a mangled "--cite:c-ab--". A label repeated in one segment is one site.
+// ids, never a mangled "--cite:c-ab--". A label repeated in one segment is one site. A BARE
+// label — no prose before it in the segment — backs nothing and is not returned.
 func segmentLabels(seg string) []string {
-	ms := citationMarkerRe.FindAllStringSubmatch(seg, -1)
-	if len(ms) == 0 {
-		return nil
-	}
 	seen := map[string]bool{}
 	var out []string
-	for _, m := range ms {
-		label := m[1] // the c-<hex> id captured by citationMarkerRe
-		if !seen[label] {
-			seen[label] = true
-			out = append(out, label)
+	segmentAnchors(seg, func(id string, attached bool) {
+		if attached && strings.HasPrefix(id, "c-") && !seen[id] {
+			seen[id] = true
+			out = append(out, id)
 		}
-	}
+	})
 	return out
 }
 

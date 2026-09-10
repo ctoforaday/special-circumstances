@@ -2,6 +2,7 @@ package record
 
 import (
 	"database/sql"
+	"fmt"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -239,6 +240,32 @@ func ClaimAppearsInAnEdit(run Run, claim string) bool {
 	found, err := recordHas(run,
 		`SELECT 1 FROM "blue_edit" WHERE instr("old", ?) > 0 LIMIT 1`, claim)
 	return err == nil && found
+}
+
+// EditSpan is one recorded blue_edit's (old, new) pair, in record order.
+type EditSpan struct{ Old, New string }
+
+// EditSpans returns every recorded blue_edit's (old, new), in record order — what `blue retire`
+// reads to learn which edit took a claim out and what that edit left behind in its place.
+func EditSpans(run Run) ([]EditSpan, error) {
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		return nil, err
+	}
+	rows, err := db.Query(`SELECT "old", "new" FROM "blue_edit" ORDER BY "event_id"`)
+	if err != nil {
+		return nil, fmt.Errorf("record: reading the recorded edits: %w", err)
+	}
+	defer rows.Close()
+	var out []EditSpan
+	for rows.Next() {
+		var o, n sql.NullString
+		if err := rows.Scan(&o, &n); err != nil {
+			return nil, err
+		}
+		out = append(out, EditSpan{Old: o.String, New: n.String})
+	}
+	return out, rows.Err()
 }
 
 // GapsAwaitingProof lists the OPEN gaps minted --check-kind computation that no proof answers,
