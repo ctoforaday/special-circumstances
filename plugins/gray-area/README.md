@@ -75,7 +75,12 @@ repository, and keeps a month.
 transcript; `SessionStart` closes out whatever other sessions have stopped since, under a
 per-invocation cap, and prunes past the retention window once a UTC day. Those two hooks write
 **no manifest row** — they are there for the catalogue, and a turn boundary is not a seat.
-`backfill` is the one explicit cold read, for a corpus that predates all of this.
+`backfill` is the one explicit cold read, for a corpus that predates all of this — and the remedy
+after an upgrade. A gray-area update that changes the store's shape **rebuilds it empty** on the
+next open rather than migrating it (the store is derived), so an empty or thin answer right after
+an upgrade is not evidence of anything; every `telepathy` read verb warns on stderr until
+`telepathy backfill` has run, and sessions whose transcripts are gone do not come back. A file
+that is not recognised as a catalogue — a mistyped `--store` — is refused and never written.
 
 A tool call is recorded with one of three outcomes: `ok`, `error`, or `unresolved` — the last
 meaning its result never arrived, which is what an interrupted session leaves behind. It is not a

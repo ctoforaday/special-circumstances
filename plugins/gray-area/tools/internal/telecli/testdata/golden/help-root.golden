@@ -11,7 +11,9 @@ WHAT IT CANNOT TELL YOU. An 'unknown' liveness is not 'ended' — liveness is ex
 on Linux only, and a session in another pid namespace is not ours to judge. A
 session's final turn may be missing if its transcript lagged the last hook. And
 reasoning is present only where it was captured: showThinkingSummaries defaults
-off, so a session with no thoughts may have had them and not recorded them.
+off, so a session with no thoughts may have had them and not recorded them. After
+a gray-area upgrade the store may have been rebuilt empty: an empty or thin answer
+then is not evidence, and telepathy warns until telepathy backfill has run.
 
 The five views ARE the contract, and telepathy sql reads them directly:
 v_session, v_action, v_word, v_thought, v_skip.

@@ -19,7 +19,7 @@ The id may be the full session id. Run 'telepathy agents' for the ones running n
 or query v_session for the ones that have ended.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			db, err := env.openRead()
+			db, err := env.openRead(cmd.ErrOrStderr())
 			if err != nil {
 				return err
 			}

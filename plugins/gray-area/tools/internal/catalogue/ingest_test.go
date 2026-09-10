@@ -2,6 +2,7 @@ package catalogue
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -78,7 +79,7 @@ func sessionFile(t *testing.T, root string) TranscriptFile {
 // re-run and what a crash mid-sweep relies on.
 func TestIngestIsIdempotent(t *testing.T) {
 	root := corpus(t)
-	db, err := Open(filepath.Join(t.TempDir(), "catalogue.db"))
+	db, err := Open(filepath.Join(t.TempDir(), "catalogue.db"), io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +118,7 @@ func TestIngestIsIdempotent(t *testing.T) {
 // APPENDING is resumed from the offset, not re-read.
 func TestAppendIsResumedNotReread(t *testing.T) {
 	root := corpus(t)
-	db, err := Open(filepath.Join(t.TempDir(), "c.db"))
+	db, err := Open(filepath.Join(t.TempDir(), "c.db"), io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +154,7 @@ func TestAppendIsResumedNotReread(t *testing.T) {
 // same length.
 func TestRewrittenFileIsReprojectedFromZero(t *testing.T) {
 	root := corpus(t)
-	db, err := Open(filepath.Join(t.TempDir(), "c.db"))
+	db, err := Open(filepath.Join(t.TempDir(), "c.db"), io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -189,7 +190,7 @@ func TestRewrittenFileIsReprojectedFromZero(t *testing.T) {
 // A transcript that vanishes mid-sweep is DATA, not a failure: it must not cost the hook its
 // exit code, because a manifest that cannot be written must never cost a session its turn.
 func TestAVanishedTranscriptIsNotAnError(t *testing.T) {
-	db, err := Open(filepath.Join(t.TempDir(), "c.db"))
+	db, err := Open(filepath.Join(t.TempDir(), "c.db"), io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -205,7 +206,7 @@ func TestAVanishedTranscriptIsNotAnError(t *testing.T) {
 // mutation disabling the sha comparison survived that test and is killed by this one.
 func TestSameLengthRewriteIsDetectedByTheFingerprint(t *testing.T) {
 	root := corpus(t)
-	db, err := Open(filepath.Join(t.TempDir(), "c.db"))
+	db, err := Open(filepath.Join(t.TempDir(), "c.db"), io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,7 +252,7 @@ func TestSameLengthRewriteIsDetectedByTheFingerprint(t *testing.T) {
 // as plausible, which is the shape this plugin exists to refuse.
 func TestProjectDirComesFromTheSessionTranscript(t *testing.T) {
 	root := corpus(t)
-	db, err := Open(filepath.Join(t.TempDir(), "c.db"))
+	db, err := Open(filepath.Join(t.TempDir(), "c.db"), io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}

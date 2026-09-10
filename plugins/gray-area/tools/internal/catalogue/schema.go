@@ -14,9 +14,25 @@
 package catalogue
 
 // Schema is the whole DDL. It is one string rather than a migration chain because the store is
-// DERIVED: nothing here is authoritative, so a shape change is answered by deleting the file and
-// reprojecting rather than by migrating it. `PRAGMA user_version` records which shape wrote it,
-// and Open refuses a database from a newer one rather than reading it wrongly.
+// DERIVED: nothing here is authoritative, so a shape change is answered by REBUILDING rather than
+// migrating. `PRAGMA user_version` records which shape wrote it, and Open acts on what it finds:
+//
+//   - an OLDER catalogue is rebuilt — every table, view and index dropped, this DDL applied,
+//     meta.rebuilt_at/rebuilt_from written — and must then be backfilled; every read verb warns
+//     until it has been (RebuildPending);
+//   - a file that is NOT RECOGNISED as a catalogue is never written, by Open or by OpenRead;
+//   - a NEWER stamp is refused, never read as this shape.
+//
+// `CREATE TABLE IF NOT EXISTS` cannot carry a shape change on its own: it skips an existing table,
+// which is how #867's column rename landed on disk as a stamp 2 over shape-1 columns.
+//
+// THE RECOGNITION CONTRACT (recognise, open.go). Every future shape MUST keep tables named
+// `session` and `file_offset`: a stamp newer than this binary's is recognised as a catalogue by
+// those two names ALONE, because a future shape may add tables or rename `session`'s columns, and
+// a newer catalogue mistaken for a foreign file would be refused with the wrong words during every
+// version skew. A stamp of UserVersion or below is recognised by `session`'s columns including
+// session_id, project_dir, cwd, closed_at and capture_build — the five every shape has carried —
+// and by every table name being one a catalogue has used.
 const Schema = `
 CREATE TABLE IF NOT EXISTS session (
     session_id    TEXT PRIMARY KEY,
@@ -143,9 +159,14 @@ CREATE VIEW IF NOT EXISTS v_skip AS
 
 // UserVersion is the shape this binary writes. Open refuses a database written by a NEWER one:
 // reading an unknown shape as though it were this one is how a store starts answering questions
-// it cannot actually answer, and the store is derived, so refusing costs a reprojection and
-// nothing else.
-const UserVersion = 2
+// it cannot actually answer. An OLDER one is rebuilt.
+//
+// WHY 3, WITH NO DDL CHANGE SINCE 2. The stamp 2 cannot be trusted: before the rebuild existed,
+// Open stamped the current version onto any older store after a `CREATE TABLE IF NOT EXISTS` that
+// skipped its existing tables, so every store created before #867 carries a 2 over shape-1
+// columns (first_seen/last_seen), and its v_session fails on the first query. Bumping past it is
+// what lets every such store be recognised as older and rebuilt once.
+const UserVersion = 3
 
 // ViewColumns is the contract §V.6 pins, restated here so a test can compare against a
 // declaration rather than against the DDL it is testing.

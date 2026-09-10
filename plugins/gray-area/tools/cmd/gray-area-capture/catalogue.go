@@ -28,7 +28,7 @@ func openCatalogue(stderr io.Writer) *sql.DB {
 	if err != nil {
 		return nil
 	}
-	db, err := catalogue.Open(filepath.Join(dir, "catalogue.db"))
+	db, err := catalogue.Open(filepath.Join(dir, "catalogue.db"), stderr)
 	if err != nil {
 		fmt.Fprintf(stderr, "gray-area-capture: catalogue unavailable: %v (capture unaffected)\n", err)
 		return nil

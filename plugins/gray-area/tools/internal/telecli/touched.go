@@ -20,7 +20,7 @@ table: silence here would be a claim about the file, when it is only a claim abo
 what has been ingested.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			db, err := env.openRead()
+			db, err := env.openRead(cmd.ErrOrStderr())
 			if err != nil {
 				return err
 			}
