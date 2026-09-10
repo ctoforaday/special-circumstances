@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
@@ -28,6 +29,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportvoice"
 )
 
 // authorSeat is the ONE seat allowed to ingest — the round-0 report's author.
@@ -61,6 +63,21 @@ func newIngest() *cobra.Command {
 		}
 		report := string(content)
 
+		// THE VOICE CENSUS, over the WHOLE BASE. This is the largest authored artifact in a run —
+		// 16,874 characters on the measured one — and until #873 it was the only report text that
+		// reached the record without ever meeting the advisory. Every inline lane tag in that
+		// run's finished report came in through here.
+		//
+		// FindAll, not Find: `blue edit` advises on one span, where knowing a tell is PRESENT is
+		// the whole signal. A document needs the count and the places, or an author is told once
+		// that a lane tag exists and cannot reach the other five.
+		//
+		// It refuses nothing, and must not start. A pattern cannot tell a report narrating its own
+		// construction from a report quoting a source that narrates something, and a gate that
+		// cannot tell those apart would silently cost the second one. Red's voice lens holds the
+		// judgement; this says where to look.
+		census := voiceCensus(report)
+
 		// Record the base, then PROVE the record reproduces it before touching the file.
 		if _, err := record.Append(s.Identity(), &recordpb.BaseIngest{Text: proto.String(report)}); err != nil {
 			return nil, err
@@ -80,6 +97,74 @@ func newIngest() *cobra.Command {
 			return nil, fmt.Errorf("blue ingest: the base is recorded and verified, but removing the file failed: %w — remove blue/report.md by hand; the record is authoritative", err)
 		}
 
-		return seat.Msg{Message: fmt.Sprintf("blue ingest: report frozen into the record (%d bytes), verified byte-for-byte, and the file removed. The report is now the base plus its diff-stack; read it with `show report`, change it with `blue edit`.", len(report))}, nil
+		return ingestResult{
+			Bytes:      len(report),
+			VoiceTells: census,
+		}, nil
 	}))
+}
+
+// voiceCensus renders the whole-document census as lines an author can act on.
+//
+// Grouped by class with the lines named, because that is how the work is done: an author fixing
+// six lane tags wants one item naming six places, not six items. The cap exists so a badly-voiced
+// base cannot bury the rest of the result, and it STATES that it capped — a truncated list
+// presented as a whole one is the defect this package is about.
+func voiceCensus(report string) []string {
+	occ := reportvoice.FindAll(report)
+	if len(occ) == 0 {
+		return nil
+	}
+	byClass := map[reportvoice.Class][]reportvoice.Occurrence{}
+	var order []reportvoice.Class
+	for _, o := range occ {
+		if _, seen := byClass[o.Class]; !seen {
+			order = append(order, o.Class)
+		}
+		byClass[o.Class] = append(byClass[o.Class], o)
+	}
+	const showPerClass = 8
+	var out []string
+	for _, c := range order {
+		os := byClass[c]
+		lines := make([]string, 0, len(os))
+		shown := os
+		if len(shown) > showPerClass {
+			shown = shown[:showPerClass]
+		}
+		for _, o := range shown {
+			lines = append(lines, fmt.Sprintf("%d", o.Line))
+		}
+		tail := ""
+		if len(os) > len(shown) {
+			tail = fmt.Sprintf(" (+%d more)", len(os)-len(shown))
+		}
+		out = append(out, fmt.Sprintf("%s ×%d at line %s%s — %s: %s",
+			c, len(os), strings.Join(lines, ", "), tail, quoteFirst(os), os[0].Redirect))
+	}
+	return out
+}
+
+func quoteFirst(os []reportvoice.Occurrence) string {
+	return fmt.Sprintf("first is %q", os[0].Match)
+}
+
+// ingestResult carries the census back with the confirmation.
+type ingestResult struct {
+	Bytes int `json:"bytes"`
+	// VoiceTells is ADVICE and the base is already frozen by the time it renders. Ingest is
+	// WRITE-ONCE and has just deleted the file, so unlike `blue edit` the author cannot re-do the
+	// act it advises on — the route from here is `blue edit`, and the message says so rather than
+	// implying a re-ingest that the record would refuse.
+	VoiceTells []string `json:"voice_tells,omitempty"`
+}
+
+func (r ingestResult) Human() string {
+	head := fmt.Sprintf("blue ingest: report frozen into the record (%d bytes), verified byte-for-byte, and the file removed. The report is now the base plus its diff-stack; read it with `show report`, change it with `blue edit`.", r.Bytes)
+	if len(r.VoiceTells) == 0 {
+		return head
+	}
+	return head + "\n\nNOTE — the base sounds in places like the run rather than the subject. It is\nrecorded and this is not a refusal; it may be wrong. Change any of it with\n`blue edit` — the base itself is frozen and cannot be re-ingested:\n  - " +
+		strings.Join(r.VoiceTells, "\n  - ") +
+		"\n\nSEPARATION, NEVER DELETION: where a tell carries a real limit on the CONCLUSION,\nit stays and is re-voiced as a limit on the subject — only the fact about the run\ngoes. Red's voice lens holds that judgement; these are the literal tells, and the\nleaks that matter most are the ones no pattern catches."
 }
