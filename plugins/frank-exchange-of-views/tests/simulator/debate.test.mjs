@@ -203,7 +203,7 @@ test('blue is engaged on named gaps, told the board is authoritative, and files 
   await world.run(script, ARGS)
   const [first, second] = labelsOf(world, 'blue-respond').map((c) => c.prompt)
   assert.ok(/You are engaged on: G1, G2/.test(first))
-  for (const want of ['YOUR FIRST READ COMES AFTER THE TREE WALK', 'red-gap-patterns.md', 'in one pass rather than three', 'lossy summary', "bench's latest resolutions",
+  for (const want of ['YOUR FIRST READ COMES AFTER THE MANUAL', 'red-gap-patterns.md', 'in one pass rather than three', 'lossy summary', "bench's latest resolutions",
     'CARRIED comes with a stated research direction you owe', 'which patterns you checked', 'YOU MAY COMPUTE AN ANSWER', 'DOCUMENT-PROBE', 'deferred acceptance test',
     'LINES OF INQUIRY ARE A LIVING RECORD', 'THREE paths', 'ESTOPS', 'OWNERSHIP BINDS, AS IT DID AT SYNTHESIS', 'each edit naming the gap it answers', 'a grade motion on the axis', 'Compact and reorganize prose', 'retired on the record',
     'PROPAGATE EVERY CORRECTION TO ALL SITES', 'NULL TURN', 'AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP', 'manifest array', 'claim_count', 'never hand-count']) {
@@ -364,7 +364,9 @@ test('every seat prompt carries the log clause, the speed clause and the record 
     assert.ok(!/DECLARE:/.test(p), `${seat} re-teaches declare beside its help page`)
   }
   const lens = firstPrompt(world, 'red-lens-evidence')
-  assert.ok(/--help — your whole surface/.test(lens) && lens.includes('<group> --help') && lens.includes('<group> <command> --help') && /for EVERY group that page listed/.test(lens))
+  // ONE CALL READS THE SURFACE: `manual` prints every command's own --help, and a single page is the re-check.
+  assert.ok(/--seat-id red-lens-evidence manual — every command on your surface/.test(lens) && lens.includes('<command> --help') && /IMMEDIATELY AFTER `register`/.test(lens), 'the lens lost the manual directive')
+  assert.ok(!/for EVERY group that page listed/.test(lens) && !lens.includes('<group> --help'), 'the lens still carries the page-by-page walk the manual replaced')
   assert.ok(/KNOWN HARNESS LIMIT/.test(lens) && /SANCTIONED fallback/.test(lens), 'the Glob/Grep fallback is sanctioned everywhere via the speed clause')
 })
 

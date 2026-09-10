@@ -37,7 +37,7 @@ func trajectoryFor(t *testing.T, runDir, body string) string {
 // entire surface as having seen nothing. Measured, on the first real trajectory.
 func TestTheDenominatorIsWhatTheSeatsTreeActuallyOffers(t *testing.T) {
 	acts := actsOf("lens")
-	for _, want := range []string{"motion", "fetch", "count-claims", "finding"} {
+	for _, want := range []string{"motion", "fetch", "count-claims", "manual", "finding"} {
 		found := false
 		for _, a := range acts {
 			if a == want {

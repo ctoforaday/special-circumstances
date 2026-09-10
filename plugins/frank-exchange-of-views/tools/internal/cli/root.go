@@ -224,8 +224,9 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		root.Long = InvokedAs() + " — " + short + "\n" + seat.FrictionFooter
 		root.AddCommand(verbs...)
 		root.AddCommand(motion.NewCommandFor(role))
-		root.AddCommand(newFetch())       // a lens reads the EXACT bytes blue read, from the run cache
-		root.AddCommand(newCountClaims()) // blue's claim_count is defined as what this prints
+		root.AddCommand(newFetch())        // a lens reads the EXACT bytes blue read, from the run cache
+		root.AddCommand(newCountClaims())  // blue's claim_count is defined as what this prints
+		root.AddCommand(newManual(seatID)) // every command's own help on THIS surface, in one call
 		// AFTER every AddCommand: the split reads HasSubCommands, so a group registered before
 		// its children were attached would file itself under the leaves.
 		seat.SplitGroups(root)
@@ -243,6 +244,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 			newDashboard(),       // operator: the live run dashboard.html
 			newCapture(),         // operator: the post-hoc capture auditor
 			newMigrate(),         // operator: replay an old record through this binary into a fresh run
+			newManual(seatID),    // every surface: every command's own help, in one call
 		)
 	}
 

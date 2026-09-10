@@ -24,12 +24,19 @@ import (
 func BinFields(command, binName string) []string {
 	fields := strings.Fields(strings.NewReplacer("\"", " ", "'", " ").Replace(command))
 	for i, f := range fields {
-		base := strings.TrimSuffix(strings.ToLower(filepath.Base(f)), ".exe")
-		if base == strings.TrimSuffix(strings.ToLower(binName), ".exe") {
+		if isBin(f, binName) {
 			return fields[i+1:]
 		}
 	}
 	return nil
+}
+
+// isBin reports whether a token names the tool — by basename, case-folded, `.exe` ignored. One
+// definition, because the manual's page headers name the tool too and have to be recognised the
+// same way an invocation is.
+func isBin(tok, binName string) bool {
+	return strings.TrimSuffix(strings.ToLower(filepath.Base(tok)), ".exe") ==
+		strings.TrimSuffix(strings.ToLower(binName), ".exe")
 }
 
 // CommandWords reduces the tokens after the binary to the ones that can name a command.

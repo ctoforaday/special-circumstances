@@ -80,6 +80,11 @@ type Survey struct {
 	// never return" shape run 5 measured.
 	LastHelpCall int `json:"lastHelpCall"`
 	TotalCalls   int `json:"totalCalls"`
+	// ManualUnread counts `manual` calls whose output carried no page the survey could read — an
+	// errored call, a truncated result, or a header this reader no longer recognises. Those calls
+	// contributed no pages, so the depths above undercount for this sitting, and this is what says
+	// so rather than letting "read nothing" pass for "was shown nothing".
+	ManualUnread int `json:"manualUnread"`
 	// Traversal is how the seat MOVED across the top level of its own tree — the measurement
 	// behind "are the groupings leaky".
 	Traversal Traversal `json:"traversal"`
@@ -171,6 +176,9 @@ func (s Survey) RefusedBlind() (blind, read int) {
 type call struct {
 	command string
 	isHelp  bool
+	// manual marks a `manual` call: one help read per page it printed, rather than one page named
+	// by the call's own words.
+	manual  bool
 	path    []string
 	result  string
 	errored bool
@@ -237,6 +245,12 @@ func ReadSurvey(trajectoryPath, binName string, known map[string]bool) (Survey, 
 						break
 					}
 				}
+				// A MANUAL IS A HELP READ OF EVERY PAGE IT PRINTS. Counted as a command, it would
+				// file every later first use as run blind — the seat that read its whole surface in
+				// one call scored exactly like the seat that read nothing.
+				if len(c.path) == 1 && c.path[0] == ManualCommand {
+					c.isHelp, c.manual = true, true
+				}
 				byID[blk.ID] = pending{idx: len(calls)}
 				calls = append(calls, c)
 			case "tool_result":
@@ -257,18 +271,33 @@ func ReadSurvey(trajectoryPath, binName string, known map[string]bool) (Survey, 
 	seenPage := map[string]bool{} // help pages opened, by command path
 	namesSeen := map[string]bool{}
 	firstSeen := map[string]bool{}
+	// readPage records one help page the seat was shown: the command it names, and the names its
+	// listing revealed — known-to-exist, not known-how-to-run.
+	readPage := func(path []string, text string) {
+		key := strings.Join(path, " ")
+		if !seenPage[key] {
+			seenPage[key] = true
+			out.HelpPages = append(out.HelpPages, key)
+		}
+		for _, n := range listedNames(text) {
+			namesSeen[strings.TrimSpace(strings.Join(append(append([]string{}, path...), n), " "))] = true
+			namesSeen[n] = true
+		}
+	}
 	for i, c := range calls {
 		key := strings.Join(c.path, " ")
 		if c.isHelp {
-			if !seenPage[key] {
-				seenPage[key] = true
-				out.HelpPages = append(out.HelpPages, key)
-			}
 			out.LastHelpCall = i + 1
-			// Names revealed by this listing are known-to-exist, not known-how-to-run.
-			for _, n := range listedNames(c.result) {
-				namesSeen[strings.TrimSpace(strings.Join(append(append([]string{}, c.path...), n), " "))] = true
-				namesSeen[n] = true
+			if !c.manual {
+				readPage(c.path, c.result)
+				continue
+			}
+			pages := ManualPages(c.result, binName)
+			if len(pages) == 0 {
+				out.ManualUnread++
+			}
+			for _, p := range pages {
+				readPage(p.Path, p.Body)
 			}
 			continue
 		}

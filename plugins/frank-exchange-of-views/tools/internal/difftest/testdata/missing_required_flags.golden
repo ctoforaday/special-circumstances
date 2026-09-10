@@ -108,6 +108,7 @@ Available Commands:
   help            Help about any command
   inquiry-support your per-sitting vote on whether the report still carries a direction blue proposed
   log             an entry for the operator who can retool you — what it asserts, said in the positive
+  manual          every command on your surface, each with its own help, run live — read it once, first thing in a sitting
   position        your sitting's narrative — the argument the other side answers, rendered as this sitting's RED section
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   spot-check      sample the closure archive — a duty every chair sitting owes, including the sittings with nothing to sample

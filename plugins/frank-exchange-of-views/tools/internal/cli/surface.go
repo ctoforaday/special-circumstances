@@ -78,35 +78,85 @@ func CommandFlags() map[string][]string {
 // contract however many seats can reach them.
 func commandsByPath() map[string]*cobra.Command {
 	out := map[string]*cobra.Command{}
-	var walk func(c *cobra.Command, prefix string, key func(string) string)
-	walk = func(c *cobra.Command, prefix string, key func(string) string) {
+	// A PATH IS A LEAF, OR A GROUP WHOSE BARE FORM IS A CAPABILITY. `show` became a group answering
+	// with the seat's pending work, and a leaves-only walk reported `merge show` — which every
+	// constitution names and every seat runs — as a verb that "does not exist in the command tree".
+	//
+	// RUNNABLE ALONE IS THE WRONG TEST, and the coverage gate said so within a minute: the role
+	// groups and the motion subjects are runnable too, and all they do is REFUSE — "a verb is
+	// required, pick one below". Counting those as paths demands the sweep drive a teaching message
+	// as though it were a capability. `manual` lists groups as well, because a seat reading the
+	// surface needs the page that says what a group holds; that is a different question from this
+	// one, which is "what can be RUN".
+	keep := func(c *cobra.Command) bool {
+		return !c.HasSubCommands() || (c.Runnable() && c.Annotations[BareIsACapability] == "yes")
+	}
+	// EVERY SEAT'S TREE, PLUS THE OPERATOR'S. No single root holds the whole surface any more:
+	// the tree is scoped to the dispatched role.
+	//
+	// The role is re-composed into the key HERE and nowhere a seat can see it. `blue edit` is not
+	// something anyone types — a blue seat types `edit` — but the identity of a command IS
+	// (role, verb), because `closing`, `position`, `friction`, `register` and `show` each exist
+	// under several roles with different contracts. The key is a JOIN KEY for the trigger map and
+	// the gates, not an invocation.
+	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+		walkSurface(NewRootFor(dispatchedSeatFor(role)), func(path []string, c *cobra.Command) {
+			if !keep(c) {
+				return
+			}
+			p := strings.Join(path, " ")
+			if sharedAcrossSeats(p) {
+				out[p] = c
+				return
+			}
+			out[role+" "+p] = c
+		})
+	}
+	walkSurface(NewRootFor(""), func(path []string, c *cobra.Command) {
+		if keep(c) {
+			out[strings.Join(path, " ")] = c
+		}
+	})
+	return out
+}
+
+// sharedAcrossSeats reports whether a typed path is ONE contract however many seats' trees mount
+// it, and so keeps one join key rather than one per role.
+//
+// `motion` is one object however many seats can reach it; `fetch`/`count-claims` are the operator
+// commands seats genuinely run — a lens reads blue's cached bytes, blue's claim_count is defined as
+// what count-claims prints; and `manual` is mounted on every surface and does the same thing on
+// each — prints that surface's help. Keying them per role would turn one contract into four rows
+// nobody can keep in step.
+func sharedAcrossSeats(path string) bool {
+	return strings.HasPrefix(path, "motion") || path == "fetch" || path == "count-claims" || path == manualName
+}
+
+// walkSurface is THE walk of one surface: every command on it, groups and leaves alike, in TREE
+// ORDER — a group before the commands it holds, siblings in the order cobra lists them — with
+// cobra's own `help` and `completion` left out, because they are not part of the contract a seat
+// learns.
+//
+// The path handed to fn is what a seat TYPES on that surface (`line-of-inquiry propose`,
+// `motion grade file`, `show`), never a join key. Everything that asks "what is on this surface"
+// walks here — the gates through commandsByPath, and `manual` directly — so the two cannot come to
+// disagree about what a surface holds.
+func walkSurface(root *cobra.Command, fn func(path []string, c *cobra.Command)) {
+	var rec func(c *cobra.Command, prefix []string)
+	rec = func(c *cobra.Command, prefix []string) {
 		for _, sub := range c.Commands() {
 			name := sub.Name()
 			if name == "help" || name == "completion" {
 				continue
 			}
-			path := strings.TrimSpace(prefix + " " + name)
+			path := append(append([]string{}, prefix...), name)
+			fn(path, sub)
 			if sub.HasSubCommands() {
-				walk(sub, path, key)
-				if sub.Runnable() && sub.Annotations[BareIsACapability] == "yes" {
-					out[key(path)] = sub
-				}
-				continue
+				rec(sub, path)
 			}
-			out[key(path)] = sub
 		}
 	}
-	for _, role := range []string{"lens", "merge", "blue", "bench"} {
-		r := role
-		walk(NewRootFor(dispatchedSeatFor(r)), "", func(p string) string {
-			if strings.HasPrefix(p, "motion") || p == "fetch" || p == "count-claims" {
-				return p
-			}
-			return r + " " + p
-		})
-	}
-	walk(NewRootFor(""), "", func(p string) string { return p })
-	return out
+	rec(root, nil)
 }
 
 // CommandReferences returns, per command path, each flag that carries an EXISTENCE CHECK and the
@@ -172,73 +222,14 @@ func CommandRecords() map[string]string {
 // answer "a verb is required". Only the first is a command path.
 const BareIsACapability = "bare-is-a-capability"
 
+// CommandPaths IS THE KEY SET OF commandsByPath, sorted, and nothing else. It used to carry a walk
+// of its own — the same traversal, the same role composition, the same shared-key rule, restated —
+// which is two definitions of "the surface" that agree only while nobody edits one of them.
 func CommandPaths() []string {
-	var out []string
-	var walk func(c *cobra.Command, prefix string)
-	walk = func(c *cobra.Command, prefix string) {
-		for _, sub := range c.Commands() {
-			name := sub.Name()
-			// cobra's own, not ours — they are not part of the contract a seat learns.
-			if name == "help" || name == "completion" {
-				continue
-			}
-			path := strings.TrimSpace(prefix + " " + name)
-			if sub.HasSubCommands() {
-				walk(sub, path)
-				// A GROUP WHOSE BARE FORM IS A CAPABILITY IS ALSO A PATH. `show` became a
-				// group answering with the seat's pending work, and this walk collected only
-				// leaves — so the prompt gate reported `merge show`, which every constitution
-				// names and every seat runs, as a verb that "does not exist in the command tree".
-				//
-				// RUNNABLE ALONE IS THE WRONG TEST, and the coverage gate said so within a
-				// minute: the role groups and the motion subjects are runnable too, and all they
-				// do is REFUSE — "a verb is required, pick one below". Counting those as paths
-				// demands the sweep drive a teaching message as though it were a capability.
-				if sub.Runnable() && sub.Annotations[BareIsACapability] == "yes" {
-					out = append(out, path)
-				}
-				continue
-			}
-			out = append(out, path)
-		}
-	}
-	// EVERY SEAT'S TREE, PLUS THE OPERATOR'S. No single root holds the whole surface any more:
-	// the tree is scoped to the dispatched role, so `newRoot()` with no seat is the operator's.
-	//
-	// The role is re-composed into the key HERE and nowhere a seat can see it. `blue edit` is not
-	// something anyone types — a blue seat types `edit` — but the identity of a command IS
-	// (role, verb), because `closing`, `position`, `friction`, `register` and `show` each exist
-	// under several roles with different contracts. This function's output is a JOIN KEY for the
-	// trigger map and the gates, not an invocation. The motion subtree keeps its bare path: one
-	// motion is one object however many seats' trees it appears in.
-	seen := map[string]bool{}
-	for _, role := range []string{"lens", "merge", "blue", "bench"} {
-		var roleOut []string
-		out = nil
-		walk(NewRootFor(dispatchedSeatFor(role)), "")
-		roleOut, out = out, nil
-		for _, p := range roleOut {
-			key := role + " " + p
-			// ONE COMMAND MOUNTED IN SEVERAL TREES KEEPS ONE KEY. `motion` is one object however
-			// many seats can reach it, and `fetch`/`count-claims` are the operator commands seats
-			// genuinely run — a lens reads blue's cached bytes, blue's claim_count is defined as
-			// what count-claims prints. Keying them per role would turn one contract into four
-			// rows nobody can keep in step.
-			if strings.HasPrefix(p, "motion") || p == "fetch" || p == "count-claims" {
-				key = p
-			}
-			if !seen[key] {
-				seen[key] = true
-			}
-		}
-	}
-	walk(NewRootFor(""), "")
-	for _, p := range out {
-		seen[p] = true
-	}
-	out = out[:0]
-	for k := range seen {
-		out = append(out, k)
+	byPath := commandsByPath()
+	out := make([]string, 0, len(byPath))
+	for p := range byPath {
+		out = append(out, p)
 	}
 	sort.Strings(out)
 	return out

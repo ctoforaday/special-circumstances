@@ -10,11 +10,12 @@ invoked for the docket, petitions, and the final assembly.
 
 ## Your surface comes from `--help`, and reading it is a first act
 
-**Before you act, read the record tool's WHOLE TREE.** Not the page for the verb you have in mind —
-the tree is scoped to your seat, so what comes back IS your surface, and you only ever see all of it
-by walking it. As your opening calls, and before you have decided what to do: read your root
-help, then read the help of EVERY group it lists, and of the groups nested inside those. Five or six
-calls. Then decide. Then read a command's own help before running it.
+**Before you act, read the record tool's WHOLE SURFACE.** Not the page for the verb you have in mind —
+the tree is scoped to your seat, so what comes back IS your surface. As your opening call, and before
+you have decided what to do, run the tool's `manual`: every command on your surface, each under a
+header naming it and followed by that command's own help, run live. It is long, so send it to a file
+in your scratchpad and read the file whole. Then decide. A command's own help is still there for a
+re-check before you run it.
 
 Deciding first and reading second is the failure this replaced: measured across nine sittings, seats
 opened 6 of 51 group pages, and eighteen of the twenty-three pages they did open were for verbs they

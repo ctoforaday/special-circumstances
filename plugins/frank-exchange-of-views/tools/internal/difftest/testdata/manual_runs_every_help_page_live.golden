@@ -1,0 +1,905 @@
+$ manual --seat-id judge
+exit 0
+stdout:
+feov-record manual — the bench surface, seat judge: 34 commands, each under a header naming it and followed by the help it prints, run live just now. The surface's own page comes first.
+==============================================================================
+$ feov-record --help
+feov-record — the bench — rulings, halt, certification. Never originates.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with your role's 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  feov-record [flags]
+  feov-record [command]
+
+Available Commands:
+  assemble     assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the event log; no inputs
+  certify      what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
+  completion   Generate the autocompletion script for the specified shell
+  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
+  declare      a holding that binds how the whole record is READ, when the dispute is over what a term MEANS and no gap moves
+  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  halt         stop the run at a safety or consent boundary, when continuing would itself be the harm
+  help         Help about any command
+  log          an entry for the operator who can retool you — what it asserts, said in the positive
+  manual       every command on your surface, each with its own help, run live — read it once, first thing in a sitting
+  outcome      stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
+  register     your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+
+Command groups — each holds commands THIS page does not list:
+  motion       file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
+  show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
+
+Flags:
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
+
+Use "feov-record [command] --help" for more information about a command.
+==============================================================================
+$ feov-record assemble --help
+assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the event log; no inputs
+
+Usage:
+  feov-record assemble [flags]
+
+Flags:
+  -h, --help   help for assemble
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record certify --help
+what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
+
+The bench keeps no memory between runs, so what a human should re-examine exists only if it is recorded. This is not a ruling and it moves no gap: it is the bench's own voice, and it lands in the judicial record rather than the research report. A reader who came for the subject is not the audience for what the bench wants re-examined; the human reviewing the run is, and that is the document they open.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with your role's 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  feov-record certify [flags]
+
+Flags:
+  -h, --help            help for certify
+      --reason string   REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
+      --reason-file -   read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record count-claims --help
+count-claims reads <run>/blue/report.md and prints its claim_count — the number of footnoted declarative claims, computed deterministically (see the rule in internal/claimcount). It writes nothing. Used live by blue to size its envelope figure and by capture to recompute it independently.
+
+Usage:
+  feov-record count-claims [flags]
+
+Flags:
+  -h, --help   help for count-claims
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record declare --help
+a holding that binds how the whole record is READ, when the dispute is over what a term MEANS and no gap moves
+
+A holding binds how the whole record is READ and moves no gap, which is why a docket ruling cannot carry it: `motion docket rule` needs a motion to answer and a disposition that decides one gap's fate.
+
+Reach for it when the dispute is over what a term MEANS. Measured: a bench with exactly this holding put it in a petition ruling's opinion text, the channel least likely to be read.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with your role's 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  feov-record declare [flags]
+
+Flags:
+  -h, --help            help for declare
+      --reason string   your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
+      --reason-file -   read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record fetch --help
+fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself, for any content type. Open what you need with Read, which can take an offset and a limit; a 67-page paper pasted into your context is the same waste whether it is legible or not. Where the source is a PDF, its text is extracted to <run>/cache/<sha256>.txt and named in the summary, so you need no PDF tooling to read it. WHERE THAT PDF HAS NO TEXT LAYER — a scan, roughly one cited PDF in four — its pages are rendered to grayscale at 300 DPI and read by the LOCAL OCR ENGINE compiled into this binary (tesseract + leptonica, statically linked): deterministic, reproducible, no model, no credentials, no network, seconds per document. The reading is named in the summary as ocr_derived text, keyed to the engine identity so an audit can re-derive it byte for byte; ruled-table pages are detected and reconstructed into |-separated rows with confidence stats on the record, and a reconstruction that cannot place its marks falls back to plain text WITH the failure stated. `--ocr=false` caches the document unread, and a document over the render disk budget is refused rather than partly read. Pages already read are never derived twice on a fetch: each carries a receipt validated against its image hash, so a retry or a crash resumes cleanly. A later fetch of the same URL is served from cache so every seat reads identical content. It writes no record event. A fetch failure is a non-zero error (pick another source); it does not itself log friction. AN UNREACHED SOURCE IS NOT EVIDENCE OF ABSENCE. Where this session runs behind an egress proxy, a host outside its allowlist answers 403 — the same status an origin uses to refuse a client — so a failure can be a fact about THIS CONTAINER or a fact about the SOURCE, and the two are different findings. The refusal says so where it can. Measured 2026-08-23: openai.com 403s through the proxy, and a research question shipped `open rather than resolved` on that basis. Where you cannot tell which it was, record that the source was UNREACHABLE FROM HERE rather than that the question is unresolved.
+
+Usage:
+  feov-record fetch [flags]
+
+Flags:
+      --at string     with --via archive: bound the capture to YYYYMMDD and take the latest at or before it. A priority question needs the FIRST time something was visible, which the newest capture cannot answer
+  -h, --help          help for fetch
+      --ocr           read a PDF that has no text layer with the local OCR engine; --ocr=false caches it unread (default true)
+      --url string    the http/https URL to read (fetched once, then served from the run cache)
+      --via archive   reach the source through a named backend instead of the live URL: live | archive | oa | metadata | arxiv | eric | auto. They answer DIFFERENT questions — archive what the page said on a date (right for web pages, usually the landing page for a subscription article), `oa` whether a legal open copy exists, `metadata` only that the source exists and where (no text, and the honest answer when there is none to get), `arxiv` the preprint's PDF or LaTeX source. Omitted, a refusal falls back through them in that order
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record halt --help
+stop the run at a safety or consent boundary, when continuing would itself be the harm
+
+The bench's own act on its own channel, and the one terminal state that is not a finding about the artifact. Capture relays the written opinion to the human VERBATIM, like a FAIL and never smoothed.
+
+Reach for it when continuing would itself be the harm — a safety or consent boundary, not a defect however severe. A bench that disposes of such a gap and lets the run continue has treated a boundary as a finding.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with your role's 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  feov-record halt [flags]
+
+Flags:
+  -h, --help            help for halt
+      --reason string   REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
+      --reason-file -   read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record log --help
+an entry for the operator who can retool you — what it asserts, said in the positive
+
+An event that survives aborts, so something you hit is on the record even if the sitting does not finish.
+
+CLOSE THIS CHANNEL EVERY SITTING, including the ones that went well. A clean sitting is NOMINAL — said in the positive, because an entry that says nothing is still an entry, and silence cannot say it: an absent log reads the same whether the sitting was clean or the channel went unused.
+
+SAY WHAT THE ENTRY ASSERTS. The reader triages this channel by FILTERING on that, instead of reading every entry to find out which it was — so the assertion is the field that makes the channel worth reading at all. An impediment you are merely NOTING has its own word, and is not a request for change: it does not have to be actionable, or advisable.
+
+MOST REFUSALS ARE YOURS and belong in no entry: a wrong verb, a wrong flag, a bad quote — take the correction and move on. A refusal naming a verb you cannot find, or a fact the record holds and no view will show you, IS the finding: report it instead of engineering around it, because a workaround leaves no trace and a missing capability then looks exactly like one nobody wanted.
+
+THE LEDGER HOLDS WHAT YOU DID, so an entry that recounts it says nothing the record cannot reconstruct. The acts are events, in order, with their own fields — which verbs you ran, which help pages you read, what you ran first. An entry retelling that is a diary, and the operator triaging this channel has to read all of it to find the one sentence that was for them. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a sitting. A clean sitting says so in one line and stops.
+
+YOUR AUDIENCE IS THE OPERATOR, not the other seats. This channel is read by whoever can retool you; it is not material for the debate, and nothing here is answered by the other side.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with your role's 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  feov-record log [flags]
+
+Flags:
+  -h, --help            help for log
+      --reason string   your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
+      --reason-file -   read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --type nominal    REQUIRED — REQUIRED — what this entry asserts. nominal is the clean sitting said in the positive; `friction` is an impediment you are NOTING and which may be neither actionable nor advisable to change
+
+Enumerated values:
+  --type
+    nominal   the surface met the work — the clean sitting, said in the POSITIVE, because an entry saying nothing is still an entry and silence cannot say it
+    defect    something is broken: it did the wrong thing, or failed where it should have worked
+    request   a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong
+    friction  the work was impeded and you are NOTING it; NOT necessarily actionable and not necessarily advisable to change, which is why it has its own word rather than posing as a defect
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record manual --help
+manual prints every command on this surface — the groups, and every command they hold, in tree order — each under a header naming the command exactly, followed by the help that command prints. The help is produced now, by running this binary with that command and --help, so it cannot disagree with the tool you are running. It records nothing.
+
+Read it ONCE, at the start of a sitting and before you decide what to do: it is your whole surface in one call. A command's own --help is still there when you want to re-check one page.
+
+The surface is your seat's — the seat you registered as, or the one this call names. A page whose help fails to run is printed with its error, never left out, and the command then exits non-zero.
+
+Usage:
+  feov-record manual [flags]
+
+Flags:
+  -h, --help   help for manual
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record motion --help
+file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
+
+Usage:
+  feov-record motion [command]
+
+Available Commands:
+  docket      put a GAP before the bench: any seat files, the BENCH rules, and its disposition decides the gap's fate
+  grade       contest a gap's grade: the merge rules, and a rejected dispute may be appealed — an appeal records the argument, not a second ruling
+  inquiry     rule on a line blue proposed: the merge rules. There is NO file verb — the proposal is the filing (`blue line of inquiry`)
+  petition    an ethical | safety | integrity | constitutional objection: the BENCH rules, before the debate continues
+
+Flags:
+  -h, --help   help for motion
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+
+Use "feov-record motion [command] --help" for more information about a command.
+==============================================================================
+$ feov-record motion docket --help
+put a GAP before the bench: any seat files, the BENCH rules, and its disposition decides the gap's fate
+
+Usage:
+  feov-record motion docket [flags]
+  feov-record motion docket [command]
+
+Available Commands:
+  file        file a docket motion — the tool assigns its id
+  rule        rule on a docket motion (the bench seat's)
+
+Flags:
+  -h, --help   help for docket
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+
+Use "feov-record motion docket [command] --help" for more information about a command.
+==============================================================================
+$ feov-record motion docket file --help
+file a docket motion — the tool assigns its id.
+
+ONE EVENT, DIFFERENT CONTRACTS: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules).
+
+`motion grade file` disputes a gap's grade; `motion petition file` raises an ethical, safety, integrity or constitutional objection, heard BEFORE the debate continues; `motion docket file` puts a GAP before the bench, which is the channel for a gap the filing seat cannot settle itself; an inquiry needs no file verb at all — proposing the line of inquiry IS the filing, and only its ruling is a motion.
+
+Any seat may file. Exactly one rules, and `rule` appears only on that seat's surface.
+
+Usage:
+  feov-record motion docket file [flags]
+
+Flags:
+  -h, --help            help for file
+      --id string       REQUIRED for a docket motion
+      --reason string   your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
+      --reason-file -   read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record motion docket rule --help
+rule on a docket motion — this verb is the bench seat's, and it appears only on that surface.
+
+EVERY SUBJECT AND ITS GAVEL: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues. A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle, and it is why `rule` is missing from the surfaces that do not hold the gavel.
+
+Usage:
+  feov-record motion docket rule [flags]
+
+Flags:
+      --as as-value          your ruling
+      --final                nothing would reopen this. The assertable empty case for --reopens-on: pass exactly one of the two
+  -h, --help                 help for rule
+      --id string            REQUIRED — the motion id (M1, M2 …)
+      --principle string     the rule you applied, stated so a later sitting can apply the same one
+      --reason string        REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
+      --reason-file -        read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --reopens-on string    the evidence or condition that would make this worth raising again — or pass --final to say nothing would
+      --review-flag string   what a human should look at again — empty when nothing needs it
+      --settled string       what the losing party may no longer assert, in one sentence
+      --tension string       the values that pulled against each other — empty is a real answer when none did
+
+Enumerated values:
+  --as
+    repaired                  the repair was verified at the leaf and nothing regressed
+    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
+    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    carried                   NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes
+    moot                      the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about. NOT not_a_defect, which asserts blue's argument held, and NOT repaired, which asserts a verified fix
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record motion grade --help
+contest a gap's grade: the merge rules, and a rejected dispute may be appealed — an appeal records the argument, not a second ruling
+
+Usage:
+  feov-record motion grade [flags]
+  feov-record motion grade [command]
+
+Available Commands:
+  appeal      press a grade motion after a ruling — a ruling is an argument, not a command
+  file        file a grade motion — the tool assigns its id
+
+Flags:
+  -h, --help   help for grade
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+
+Use "feov-record motion grade [command] --help" for more information about a command.
+==============================================================================
+$ feov-record motion grade appeal --help
+press a grade motion after a ruling — a ruling is an ARGUMENT, not a command, so the losing side may answer it on the record.
+
+TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade dispute the merge rejected; `motion inquiry appeal` presses a line of inquiry red ruled out-of-scope or too-thin, and it is filed whether or not blue also pursues the line — separating the argument from the act is the whole point of the verb.
+
+A PETITION HAS NO APPEAL, and that absence is the design rather than an omission: it is heard by the bench BEFORE the debate continues, so there is nothing to escalate to.
+
+Usage:
+  feov-record motion grade appeal [flags]
+
+Flags:
+  -h, --help            help for appeal
+      --id string       the motion id (M1, M2 …) — the motion being appealed, which must already have been ruled
+      --reason string   your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
+      --reason-file -   read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record motion grade file --help
+file a grade motion — the tool assigns its id.
+
+ONE EVENT, DIFFERENT CONTRACTS: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules).
+
+`motion grade file` disputes a gap's grade; `motion petition file` raises an ethical, safety, integrity or constitutional objection, heard BEFORE the debate continues; `motion docket file` puts a GAP before the bench, which is the channel for a gap the filing seat cannot settle itself; an inquiry needs no file verb at all — proposing the line of inquiry IS the filing, and only its ruling is a motion.
+
+Any seat may file. Exactly one rules, and `rule` appears only on that seat's surface.
+
+Usage:
+  feov-record motion grade file [flags]
+
+Flags:
+      --dimension dimension-value   REQUIRED for a grade motion
+  -h, --help                        help for file
+      --id string                   REQUIRED for a grade motion
+      --proposed grade              the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --reason string               your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
+      --reason-file -               read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+
+Enumerated values:
+  --dimension
+    severity    how bad the defect is in itself
+    likelihood  how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what one grade meant before v2 split them
+    impact      how bad the consequence is if it lands
+    complexity  what fixing it costs — the axis to contest when the fix is worth more than the defect
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record motion inquiry --help
+rule on a line blue proposed: the merge rules. There is NO file verb — the proposal is the filing (`blue line of inquiry`)
+
+Usage:
+  feov-record motion inquiry [flags]
+  feov-record motion inquiry [command]
+
+Available Commands:
+  appeal      press a inquiry motion after a ruling — a ruling is an argument, not a command
+
+Flags:
+  -h, --help   help for inquiry
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+
+Use "feov-record motion inquiry [command] --help" for more information about a command.
+==============================================================================
+$ feov-record motion inquiry appeal --help
+press a inquiry motion after a ruling — a ruling is an ARGUMENT, not a command, so the losing side may answer it on the record.
+
+TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade dispute the merge rejected; `motion inquiry appeal` presses a line of inquiry red ruled out-of-scope or too-thin, and it is filed whether or not blue also pursues the line — separating the argument from the act is the whole point of the verb.
+
+A PETITION HAS NO APPEAL, and that absence is the design rather than an omission: it is heard by the bench BEFORE the debate continues, so there is nothing to escalate to.
+
+Usage:
+  feov-record motion inquiry appeal [flags]
+
+Flags:
+  -h, --help            help for appeal
+      --id string       the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number — the motion being appealed, which must already have been ruled
+      --reason string   your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
+      --reason-file -   read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record motion petition --help
+an ethical | safety | integrity | constitutional objection: the BENCH rules, before the debate continues
+
+Usage:
+  feov-record motion petition [flags]
+  feov-record motion petition [command]
+
+Available Commands:
+  file        file a petition motion — the tool assigns its id
+  rule        rule on a petition motion (the bench seat's)
+
+Flags:
+  -h, --help   help for petition
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+
+Use "feov-record motion petition [command] --help" for more information about a command.
+==============================================================================
+$ feov-record motion petition file --help
+file a petition motion — the tool assigns its id.
+
+ONE EVENT, DIFFERENT CONTRACTS: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules).
+
+`motion grade file` disputes a gap's grade; `motion petition file` raises an ethical, safety, integrity or constitutional objection, heard BEFORE the debate continues; `motion docket file` puts a GAP before the bench, which is the channel for a gap the filing seat cannot settle itself; an inquiry needs no file verb at all — proposing the line of inquiry IS the filing, and only its ruling is a motion.
+
+Any seat may file. Exactly one rules, and `rule` appears only on that seat's surface.
+
+Usage:
+  feov-record motion petition file [flags]
+
+Flags:
+      --class class-value   REQUIRED for a petition motion
+  -h, --help                help for file
+      --reason string       your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
+      --reason-file -       read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --relief string       REQUIRED for a petition motion
+
+Enumerated values:
+  --class
+    integrity       proceeding would require asserting what you believe false, or burying a real finding
+    safety          proceeding would create or conceal a hazard
+    ethical         proceeding would require acting against the interests of someone the run affects
+    constitutional  the instruction itself conflicts with the rules the run is bound by
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record motion petition rule --help
+rule on a petition motion — this verb is the bench seat's, and it appears only on that surface.
+
+EVERY SUBJECT AND ITS GAVEL: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues. A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle, and it is why `rule` is missing from the surfaces that do not hold the gavel.
+
+Usage:
+  feov-record motion petition rule [flags]
+
+Flags:
+      --as granted|denied     your ruling
+      --binds blue|red|both   who granted relief BINDS — set it when you grant, or the relief reaches no prompt and nothing reports that it did not
+  -h, --help                  help for rule
+      --id string             REQUIRED — the motion id (M1, M2 …)
+      --reason string         REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
+      --reason-file -         read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+
+Enumerated values:
+  --as
+    granted  the objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow
+    denied   the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest
+
+  --binds
+    blue  the relief binds the response seat — what blue must do, or must not, in the coming round
+    red   it binds the audit seats: the lenses and the merge
+    both  it binds the whole exchange, and every dispatched seat carries it
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record outcome --help
+stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
+
+The run's terminal determination, and a different question from red's PASS or FAIL.
+
+The verdict is derived from the record — a halt, the chair's PASS, or a board at its ceiling — and the word you give is checked against it. The one word you may assert is UNVERIFIED, for a run that stopped before the record reached a terminal state; your reason is the bench's account of the sitting, and on such a run it is the only evidence of why it stopped.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with your role's 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  feov-record outcome [flags]
+
+Flags:
+      --as as-value     REQUIRED — the run's terminal verdict
+  -h, --help            help for outcome
+      --reason string   REQUIRED — how this run ended, in your words. The verdict itself is derived from the record; this is the bench's account of the sitting, and on an UNVERIFIED run — the one verdict the record cannot derive — it is the only evidence of why the run stopped
+      --reason-file -   read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+
+Enumerated values:
+  --as
+    VERIFIED    red passed the board and the bench agrees the question was answered
+    CEILING     every open material gap reached its limit — ruled by the bench and carried — with work still open: NOT a judged failure to verify, and the stamp says so
+    HALTED      the bench ended the run on a safety, ethics, consent or integrity boundary
+    UNVERIFIED  the run ended without the question being answered, and no ceiling or halt explains it
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record register --help
+your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+
+It binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does.
+
+Your run is injected on every call the tool receives, which is why you never pass it.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with your role's 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  feov-record register [flags]
+
+Flags:
+  -h, --help   help for register
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record show --help
+read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK.
+
+A PROJECTION IS JSON ON STDOUT — PIPE IT, DO NOT SPOOL IT. `jq` is a REQUIRED tool of this suite, so it is here; a projection piped into it answers your question in ONE call. Writing the projection to a scratch file and re-reading it in python is THREE — the dump, a key-dump to learn the field names, then the extract — and each one is a process spawn and a full round-trip for a single question. MEASURED across one run: 251 `json.load` re-parses and 25 `list(d.keys())` key-dumps against three uses of jq.
+
+YOU DO NOT NEED TO DISCOVER THE FIELD NAMES. Every projection's own page ends with its OUTPUT field tree — the key names, in the nesting they arrive in, generated from the type the tool actually marshals. Read that page before you run the verb and the dump-then-inspect round-trip never happens.
+
+Usage:
+  feov-record show [flags]
+  feov-record show [command]
+
+Available Commands:
+  board            EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by `mint`, `close`, `regrade` and `retire`
+  changes          HOW THE REPORT GOT THAT WAY — every edit in record order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by `edit`
+  debate           WHAT EACH SIDE ARGUED, epoch by epoch — the transcript, in order. Written by `position`, `closing` and the bench's `motion docket rule`
+  evidence         WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading. Written by `cite`, `prove`, `verify` and `reproduce`
+  findings         THE RAW LENS FINDINGS, BEFORE the merge coalesces them into gaps — several findings can become one gap, and this is where you see which. Written by `finding`
+  lines-of-inquiry WHICH DIRECTIONS WERE TAKEN AND WHICH WERE NOT — pursued, deferred, declined, abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule`
+  motions          WHAT HAS BEEN CONTESTED AND HOW IT WAS RULED — the ask in the filer's words, and the ruling if it has one. `debate` is what each side ARGUED; this is what was formally disputed. Written by `motion`, `rule` and `appeal`
+  report           THE DOCUMENT UNDER AUDIT, as it stands now — read it through the tool, not off disk. `changes` says how it got that way. Written by the round-0 synthesis and every `edit`, with anchors from `cite`, `finding` and `prove`
+  scorecard        HOW YOUR CHAIR IS DOING ON THIS QUESTION — your own side's performance, this run only. No selector: your chair is the seat you registered as. Computed from the record, so no verb fills it
+  telemetry        HOW THE NUMBERS MOVED ACROSS EPOCHS — a trend, not a snapshot: one line per epoch (chair sitting), and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it
+  work             WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Run it first and again before you finish. Written by `mint`, `close` and the bench's `motion docket rule`
+
+Flags:
+  -h, --help              help for show
+      --id show changes   scope show changes to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+
+Use "feov-record show [command] --help" for more information about a command.
+==============================================================================
+$ feov-record show board --help
+THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. STRUCTURED JSON by default (the form a seat acts on); `--format markdown` gives the human-verification rendering, open gaps then the closure archive with its prose. Written by `mint`, `close`, `regrade` and `retire` THIS PROJECTION IS ALREADY THE JSON — do not pass --json, which is REFUSED (there is one way to each form). The refusal is itself a JSON envelope ({"ok":false,…}), so a pipeline that reads stdout without checking `ok` sees a well-formed object missing every key it wanted: measured as six seats crashing on KeyError: 'sitting' across two runs.
+
+OUTPUT (JSON): {open:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,minted_location,location_edits:[{epoch,edited_by,old,new}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],closed:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,minted_location,location_edits:[{epoch,edited_by,old,new}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],observations:[{id,seat_id,key,kind,label,text,credited}],counts:{open,closed,closed_by_bench,uncredited_findings,anomalies,total_observations,citations,citations_authored},anomalies:[string]}
+
+Usage:
+  feov-record show board [flags]
+
+Flags:
+      --format string   json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose) (default "json")
+  -h, --help            help for board
+
+Global Flags:
+      --id show changes    scope show changes to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record show changes --help
+every recorded edit to blue/report.md (the blue_edit diff stack), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`
+
+Usage:
+  feov-record show changes [flags]
+
+Flags:
+  -h, --help   help for changes
+
+Global Flags:
+      --id show changes    scope show changes to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record show debate --help
+the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order (add --json for the STRUCTURED form: epochs with red/blue/lead sections as data, for the audits). Written by `position`, `closing` and the bench's `motion docket rule`
+
+OUTPUT (JSON, with --json — the bare call is the markdown form): {epochs:[{epoch,verdict,red:[string],blue:[string],lead:[{gap_id,disposition,principle,tension,review_flag,rationale}],red_closings:[{gap_id,text}],blue_closings:[{gap_id,text}]}]}
+
+Usage:
+  feov-record show debate [flags]
+
+Flags:
+  -h, --help   help for debate
+
+Global Flags:
+      --id show changes    scope show changes to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record show evidence --help
+STRUCTURED JSON: WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs), every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their trust grades. THIS IS HOW YOU RESOLVE AN ANCHOR you are reading in the report. Written by `cite`, `prove`, `verify` and `reproduce` THIS PROJECTION IS ALREADY THE JSON — do not pass --json, which is REFUSED (there is one way to each form). The refusal is itself a JSON envelope ({"ok":false,…}), so a pipeline that reads stdout without checking `ok` sees a well-formed object missing every key it wanted: measured as six seats crashing on KeyError: 'sitting' across two runs.
+
+OUTPUT (JSON): {sources:[{anchor,url,title,sha256,access_date,location,seat_id,epoch,verified:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch}]}],proofs:[{anchor,sha256,basis,cites,drift,seat_id,epoch,verified:{reproduced,sound,note,seat_id,epoch}}],independent:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch}],reopened:[string],unanswered_contradictions:[string],counts:{sources,proofs,proofs_unverified,sources_unverified,sources_refuted,verifications}}
+
+Usage:
+  feov-record show evidence [flags]
+
+Flags:
+  -h, --help   help for evidence
+
+Global Flags:
+      --id show changes    scope show changes to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record show findings --help
+STRUCTURED JSON: every lens finding on the record (label, seat, epoch, role, grades, location, text) — the merge coalesces these into gaps; replaces the red/candidates/*.md files THIS PROJECTION IS ALREADY THE JSON — do not pass --json, which is REFUSED (there is one way to each form). The refusal is itself a JSON envelope ({"ok":false,…}), so a pipeline that reads stdout without checking `ok` sees a well-formed object missing every key it wanted: measured as six seats crashing on KeyError: 'sitting' across two runs.
+
+OUTPUT (JSON): {findings:[{label,anchor,seat_id,epoch,role,severity,likelihood,impact,location,about_kind,about_ref,text,minted_as:[string]}],counts:{total}}
+
+Usage:
+  feov-record show findings [flags]
+
+Flags:
+  -h, --help   help for findings
+
+Global Flags:
+      --id show changes    scope show changes to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record show lines-of-inquiry --help
+the exploration space: lines taken, deferred, declined and abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule` (red's ruling)
+
+Usage:
+  feov-record show lines-of-inquiry [flags]
+
+Flags:
+  -h, --help   help for lines-of-inquiry
+
+Global Flags:
+      --id show changes    scope show changes to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record show motions --help
+STRUCTURED JSON: every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks `merge verdict --as PASS`, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal` THIS PROJECTION IS ALREADY THE JSON — do not pass --json, which is REFUSED (there is one way to each form). The refusal is itself a JSON envelope ({"ok":false,…}), so a pipeline that reads stdout without checking `ok` sees a well-formed object missing every key it wanted: measured as six seats crashing on KeyError: 'sitting' across two runs.
+
+OUTPUT (JSON): {motions:[{id,subject,filer,epoch,basis,relief,ruled,ruling,ruling_by,ruling_epoch,opinion,appealed,appeal_reason,fields:{<key>:string},gap_id}],counts:{total,ruled,outstanding}}
+
+Usage:
+  feov-record show motions [flags]
+
+Flags:
+  -h, --help   help for motions
+
+Global Flags:
+      --id show changes    scope show changes to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record show report --help
+THE ARTIFACT UNDER AUDIT — blue's living report, read THROUGH the tool instead of off disk; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `blue edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the round-0 synthesis and every `blue edit`
+
+Usage:
+  feov-record show report [flags]
+
+Flags:
+      --anchor f-…   read the report AT one anchor id (f-…, `c-…`, `p-…`) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back. `show findings` resolves finding anchors; `show evidence` resolves citation and proof anchors
+  -h, --help           help for report
+      --window int     with --anchor: how many paragraphs of content either side of it (blank lines are carried, not counted) (default 3)
+
+Global Flags:
+      --id show changes    scope show changes to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record show scorecard --help
+YOUR CHAIR'S IN-RUN SCORECARD — how the side you sit on is doing on THIS question, computed live from this run's record. Your own performance, not another party's: there is no selector, because your chair is the seat you registered as. A number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures, because a diagnostic gamed is itself a defect and a detector firing is a finding. Rows reading "not computed" are HONEST, not gaps to fill: the envelope-derived rows fill in at capture. Computed from the record, so no verb fills it
+
+Usage:
+  feov-record show scorecard [flags]
+
+Flags:
+  -h, --help   help for scorecard
+
+Global Flags:
+      --id show changes    scope show changes to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record show telemetry --help
+STRUCTURED JSONL, one line per epoch (chair sitting): open count, max severity, mass under the pinned mapping, new mints BY SEVERITY AND BY CLASS with the class repeat rate, repair-regression ratio, and edge deltas — the trend the STOPPING judgment reads. The bench's signal for whether the findings are still changing character or merely recurring THIS PROJECTION IS ALREADY THE JSON — do not pass --json, which is REFUSED (there is one way to each form). The refusal is itself a JSON envelope ({"ok":false,…}), so a pipeline that reads stdout without checking `ok` sees a well-formed object missing every key it wanted: measured as six seats crashing on KeyError: 'sitting' across two runs.
+
+OUTPUT (JSONL — one such line PER ROUND, not one document): {epoch,mapping_version,open_count,max_severity,new_mint:{count,by_severity:[{grade,count}],by_class:{<key>:number},class_repeat_rate},mass,realized_open,repair_regression:{closures,lineage_mints,ratio},edge_deltas:{down_mass,up_mass}}
+
+Usage:
+  feov-record show telemetry [flags]
+
+Flags:
+  -h, --help   help for telemetry
+
+Global Flags:
+      --id show changes    scope show changes to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+==============================================================================
+$ feov-record show work --help
+**RUN THIS FIRST AND RUN IT AGAIN BEFORE YOU STOP.** STRUCTURED JSON: EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item — each with `blocks`, saying whether it is what is stopping you closing — and `sitting.complete` is true exactly when nothing blocking is left. An item with `blocks: false` is work this board affords you that nobody will refuse you for skipping: a citation nobody verified, a source blue never cited, a proof nobody re-ran, a line of inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK. `complete: true` with items open means the gates are satisfied, NOT that there is nothing to do. Carries the shrinking working set too — OPEN gaps only (grades, class, location, a problem synopsis, found_by). An open gap with `awaiting_docket` is one the BENCH CARRIED: the motion was answered, so nothing is pending and it returns only if you docket it again — `docket_reopens_on` is the ruling's own statement of what would bring it back. AND `closed_index`, WHICH IS NOT DEBRIS: it is the ESTOPPEL REGISTER, and this description used to call it a shrinking working set, which reads as `done, ignore it` and is the opposite of what it is for. Each entry carries id, location, class, the `fate` that ended it, and `closed_by` — `bench` or `red`. THAT DISTINCTION IS LOAD-BEARING: red may reopen its OWN closure on new evidence, but a bench ruling is ESTOPPED and re-raising it is relitigation, not diligence. If you hold new evidence against a bench-ruled gap, it is a lineage successor — mint it under a new id naming the ruled gap in `supersedes`, and say what the ruling did not account for. A `fate` of defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. The reasoning behind any fate is on the record, not here: `show debate` carries the bench's opinions, `show board --format markdown` the closure archive with its prose. Read the one you are about to rely on or work around. Bare `show` defaults here for every role. Written by `mint`, `close` and the bench's `motion docket rule` THIS PROJECTION IS ALREADY THE JSON — do not pass --json, which is REFUSED (there is one way to each form). The refusal is itself a JSON envelope ({"ok":false,…}), so a pipeline that reads stdout without checking `ok` sees a well-formed object missing every key it wanted: measured as six seats crashing on KeyError: 'sitting' across two runs.
+
+OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}]},open:[{id,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,edited_since:[{epoch,edited_by,old,new}],problem_synopsis,check_kind,awaiting_proof,awaiting_docket,docket_reopens_on,found_by:[string]}],closed_index:[{id,location,about_kind,about_ref,class,fate,closed_by,artifact_state}],counts:{open,closed},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
+
+Usage:
+  feov-record show work [flags]
+
+Flags:
+  -h, --help   help for work
+
+Global Flags:
+      --id show changes    scope show changes to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+
+═══ EVENTS ═══
+{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
+
+═══ RENDERS ═══
+-- debate
+# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+-- lines-of-inquiry
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+
+_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
+either did not happen or was not written down, and a report with no roads-not-taken is
+indistinguishable from one that never looked._
+
+
+═══ REPORT ═══
+# _(blue/report.md has no title — not authored here)_
+
+**Report** · [Board](docket.md) · [Debate](debate.md) · [Run](run.md)
+
+---
+
+**Verdict:** _(no terminal outcome recorded — `bench outcome` was not run before assembly)_
+
+## TL;DR
+
+_(blue/report.md has no "## TL;DR" section — not authored here; blue owns this surface and red audits it.)_
+
+## The Catechism
+
+_(blue/report.md has no "## The Catechism" section — not authored here; blue owns this surface and red audits it.)_
+
+## Technical foundations
+
+_(blue/report.md has no "## Technical foundations" section — not authored here; blue owns this surface and red audits it.)_
+
+## Analysis
+
+_(blue/report.md has no "## Analysis" section — not authored here; blue owns this surface and red audits it.)_
+
+## Risk matrix
+
+| Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
+|---|---|---|---|---|
+| _(no open gaps)_ |  |  |  |  |
+
+The matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in [the board](docket.md).
+
+## Research areas
+
+_(none on the record)_
+
+## Future research directions
+
+_(none on the record)_
+
+## Alternatives considered
+
+_(none on the record)_
+
+## Open questions
+
+_(blue/report.md has no "## Open questions" section — not authored here; blue owns this surface and red audits it.)_
+
+## Additional findings
+
+## S2
+
+A claim sits under S2.
+
+## S4
+
+A claim sits under S4.
