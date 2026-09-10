@@ -9,7 +9,7 @@ import (
 
 // NEAR-MATCH: a lexical screen, not a decision.
 //
-// Before the merge mints a fresh gap it must ask "is this already on the board?" — a
+// Before a lens mints a fresh gap it must ask "is this already on the board?" — a
 // near-duplicate should reopen (mint --supersedes) the prior gap, not fork a second one.
 // That screen used to be the merge reading the whole board and eyeballing it. Here it is a
 // tool op: score the candidate's text against every gap's problem+location by token
