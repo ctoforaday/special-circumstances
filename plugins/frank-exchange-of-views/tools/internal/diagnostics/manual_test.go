@@ -1,6 +1,7 @@
 package diagnostics
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -42,6 +43,49 @@ func TestManualPagesRoundTripTheHeader(t *testing.T) {
 	}
 }
 
+// EVERY MARKER PUTS ITS BLOCK BACK, and a marker naming a block SHARED does not hold is an error —
+// that page has lost a line.
+func TestExpandManualPutsEveryMarkerBack(t *testing.T) {
+	global := "Global Flags:\n      --json   emit JSON\n      --run string   the run"
+	reason := "your THINKING for this act"
+	// The same --reason description at two paddings: one lifted description, each page keeping
+	// its own padded flag name.
+	text := "feov-record manual — lean\n\n" + ManualSharedHeading + "\n" +
+		ManualSharedLabel(1, 2) + "\n" + global + "\n\n" +
+		ManualSharedLabel(2, 2) + "\n" + reason + "\n\n" +
+		ManualRule + "\n" + ManualHeader("feov-record", []string{"a"}) + "\nabout a\n\nFlags:\n" + ManualMarker("      --reason string   ", 2) + "\n\n" + ManualMarker("(Global Flags:) ", 1) + "\n" +
+		ManualRule + "\n" + ManualHeader("feov-record", []string{"b"}) + "\nabout b\n\nFlags:\n" + ManualMarker("      --reason string        ", 2) + "\n\n" + ManualMarker("(Global Flags:) ", 1) + "\n"
+	pages, err := ExpandManual(text, "feov-record")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pad := map[string]string{"a": "   ", "b": "        "}
+	for _, p := range pages {
+		want := "about " + p.Path[0] + "\n\nFlags:\n      --reason string" + pad[p.Path[0]] + reason + "\n\n" + global + "\n"
+		if p.Body != want {
+			t.Errorf("page %s expands to %q, want %q", p.Path[0], p.Body, want)
+		}
+	}
+	if _, err := ExpandManual(strings.Replace(text, "§1 (on", "§9 (on", 1), "feov-record"); err == nil {
+		t.Error("a marker naming no SHARED block expanded without complaint")
+	}
+}
+
+func TestRedirectTarget(t *testing.T) {
+	for cmd, want := range map[string]string{
+		`"/b/feov-record" manual > /s/m.txt`:       "/s/m.txt",
+		`"/b/feov-record" manual >/s/m.txt 2>&1`:   "/s/m.txt",
+		`/b/feov-record manual 2>&1 >> "$S/m.txt"`: "$S/m.txt",
+		`/b/feov-record manual 2> /s/err.txt`:      "",
+		`/b/feov-record manual | head -50`:         "",
+		`/b/feov-record manual &> /s/both.txt`:     "/s/both.txt",
+	} {
+		if got := redirectTarget(cmd); got != want {
+			t.Errorf("redirectTarget(%q) = %q, want %q", cmd, got, want)
+		}
+	}
+}
+
 // A SEAT THAT READ ITS MANUAL HAD EVERY COMMAND'S OWN PAGE, and the survey says so.
 func TestAManualIsAHelpReadOfEveryPage(t *testing.T) {
 	p := traj(t,
@@ -64,6 +108,52 @@ func TestAManualIsAHelpReadOfEveryPage(t *testing.T) {
 	}
 	if s.Traversal.Unclassified != 0 || len(s.Traversal.Sequence) != 1 {
 		t.Errorf("traversal = %+v — reading the manual is not an operation on the surface", s.Traversal)
+	}
+}
+
+func readUse(id, path string) any {
+	return map[string]any{"message": map[string]any{"content": []any{
+		map[string]any{"type": "tool_use", "name": "Read", "id": id, "input": map[string]any{"file_path": path}}}}}
+}
+
+func numbered(text string) string {
+	var b strings.Builder
+	for i, l := range strings.Split(strings.TrimSuffix(text, "\n"), "\n") {
+		fmt.Fprintf(&b, "%6d\t%s\n", i+1, l)
+	}
+	return b.String()
+}
+
+// A REDIRECTED MANUAL IS CREDITED WHERE IT IS READ — its Bash result is empty, the pages arrive at
+// the Read, and a target the shell had to expand is settled by the pages themselves.
+func TestARedirectedManualIsCreditedAtItsRead(t *testing.T) {
+	manual := manualText("feov-record", nil, []string{"finding"})
+	for _, target := range []string{"/s/manual.txt", "$S/manual.txt"} {
+		p := traj(t,
+			use("a", `"/tmp/x/feov-record" manual > `+target), res("a", "", false),
+			readUse("r", "/s/manual.txt"), res("r", numbered(manual), false),
+			use("b", `"/tmp/x/feov-record" finding`), res("b", "ok", false),
+		)
+		s, err := ReadSurvey(p, "feov-record", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if s.ManualUnread != 0 || s.FirstUses[0].Depth != DepthCommand || s.TotalCalls != 2 {
+			t.Errorf("target %s: unread=%d depth=%q calls=%d, want 0, command, 2", target, s.ManualUnread, s.FirstUses[0].Depth, s.TotalCalls)
+		}
+	}
+	// A Read of some OTHER file does not settle a literal target.
+	p := traj(t,
+		use("a", `"/tmp/x/feov-record" manual > /s/manual.txt`), res("a", "", false),
+		readUse("r", "/s/notes.md"), res("r", numbered("just notes\n"), false),
+		use("b", `"/tmp/x/feov-record" finding`), res("b", "ok", false),
+	)
+	s, err := ReadSurvey(p, "feov-record", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.ManualUnread != 1 {
+		t.Errorf("unread = %d, want 1 — the manual's file was never read", s.ManualUnread)
 	}
 }
 

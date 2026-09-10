@@ -323,8 +323,13 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   // shipped in a VERIFIED report before this was found. The fact is real and the record
   // already holds it: the lane drafts, the frozen base and every recorded edit.
   assert.ok(!/minority|lane marker|exactly ONE lane/.test(synth), 'the synthesis prompt orders provenance into prose again')
-  assert.ok(/EXTRACTED from the record/.test(synth) && /RESEARCH PROSE AND THE TOOL'S OWN MARKERS/.test(synth),
-    'the synthesis prompt must state where provenance comes from and what the report may carry')
+  // THE CONTENT RULE IS THE VERBS', and the prompt points at it rather than restating it: the rule is
+  // on every verb whose text the report prints (edit, ingest, and line-of-inquiry's propose and move),
+  // so a copy here is a second statement of a contract nothing keeps in step.
+  assert.ok(/THE REPORT'S CONTENT RULE .* is on the verbs that write report text/.test(synth),
+    'the synthesis prompt must point at where the report content rule lives')
+  assert.ok(!/RESEARCH PROSE AND THE TOOL'S OWN MARKERS/.test(synth) && !/EXTRACTED from the record/.test(synth),
+    'the synthesis prompt restates the verbs\' report content rule instead of pointing at it')
   assert.ok(synth.includes('## Open questions') && synth.includes('THE CATECHISM IS YOURS') && synth.includes('## The Catechism') && synth.includes('every risk-accepted residual'))
   assert.ok(synth.includes('## The board') && synth.includes('is FABRICATION') && synth.includes('ONLY WHAT YOU CAN AUTHOR'))
   assert.ok(/reorganize freely/i.test(synth) && /retired on the record/.test(synth))

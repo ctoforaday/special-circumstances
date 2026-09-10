@@ -1,4 +1,4 @@
-prompt sha256: e767598df512f1d3489e2a8ad3ef91ee9f3c8232c09960fc1563b05fde591772
+prompt sha256: 360c9a4a4bff072070ba332a84f7dbdf5cf8740d7be1fcff5bb283e090066ba9
 
 Adjudication, topic "the seat prompt contract".
 Docketed for you: G1 — each reached impasse under the run's terms and the record docketed it.
@@ -30,7 +30,7 @@ READ YOUR WHOLE SURFACE BEFORE YOU CHOOSE, NOT THE ONE PAGE FOR THE VERB YOU ALR
 Do it ONCE, IMMEDIATELY AFTER `register` — before you have decided what to do, because deciding first is what makes the reading pointless:
 
   "/opt/feov/bin/feov-record" --seat-id judge manual — every command on your surface, each under a header naming it and followed by that command's own help, run live.
-It is long: send it to a file under your session scratchpad (an ABSOLUTE path, never under the run directory) and read that file whole.
+It is long: send it to a file under your session scratchpad (an ABSOLUTE path, never under the run directory) and read that file whole — in consecutive windows if Read refuses it at once.
 A single command's own page is still there when you want to re-check one: "/opt/feov/bin/feov-record" --seat-id judge <command> --help.
 MEASURED, WHICH IS WHY IT IS ONE CALL, FIRST.
 Across nine sittings seats opened 6 of 51 group pages — twelve per cent — and 90% of the commands they ran were run without ever reading that command's own page.

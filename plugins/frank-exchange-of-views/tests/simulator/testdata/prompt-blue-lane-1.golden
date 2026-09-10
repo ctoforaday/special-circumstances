@@ -1,4 +1,4 @@
-prompt sha256: f4a5c9037b4e060b746280abdd8a05d9fa16d5d2a25fd0cf0c608279858c0741
+prompt sha256: edec20192a056ba6e08422cc5b17730f9bd51274a76cb42730d92ab7b7b3264c
 
 Blue lane 1 of 3 for topic: "the seat prompt contract".
 Read the frontier hypotheses from the RECORD — the `lines-of-inquiry` projection — where each carries an id and its hypothesis, and if research/2026-01-01_golden/inputs/red-gap-patterns.md exists (red's accumulated gap-pattern inventory, staged at run setup), read it too — yesterday's expensive red discovery is today's free checklist line.
@@ -24,7 +24,7 @@ READ YOUR WHOLE SURFACE BEFORE YOU CHOOSE, NOT THE ONE PAGE FOR THE VERB YOU ALR
 Do it ONCE, IMMEDIATELY AFTER `register` — before you have decided what to do, because deciding first is what makes the reading pointless:
 
   "/opt/feov/bin/feov-record" --seat-id blue-lane-1 manual — every command on your surface, each under a header naming it and followed by that command's own help, run live.
-It is long: send it to a file under your session scratchpad (an ABSOLUTE path, never under the run directory) and read that file whole.
+It is long: send it to a file under your session scratchpad (an ABSOLUTE path, never under the run directory) and read that file whole — in consecutive windows if Read refuses it at once.
 A single command's own page is still there when you want to re-check one: "/opt/feov/bin/feov-record" --seat-id blue-lane-1 <command> --help.
 MEASURED, WHICH IS WHY IT IS ONE CALL, FIRST.
 Across nine sittings seats opened 6 of 51 group pages — twelve per cent — and 90% of the commands they ran were run without ever reading that command's own page.

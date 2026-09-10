@@ -74,7 +74,7 @@ func TestTheSeatPromptsNameNoVerb(t *testing.T) {
 			"vocabulary — `<verb> --help` is, generated from the command that enforces it, so it "+
 			"cannot offer a flag the write path refuses. A prompt naming a slice of the surface "+
 			"SATISFIES a seat rather than under-informing it (58%% exposure against 95%%, measured "+
-			"2026-08-15). Name the ACT; let the tree walk and the help page name the verb.",
+			"2026-08-15). Name the ACT; let the manual — every command's own help page — name the verb.",
 			filepath.Base(g), len(named), strings.Join(left, ", "))
 	}
 }

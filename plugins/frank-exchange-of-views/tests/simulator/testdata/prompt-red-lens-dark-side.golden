@@ -1,4 +1,4 @@
-prompt sha256: 1b9d03790feaf0ed5e838495a4772828e97337351b9a26c5f4f7c57f1ba6dc53
+prompt sha256: 57479ed200b6085a4071efac6ffbba64c93467875d12ea1bab1dc281c41b2b08
 
 Red lens sitting, area dark-side, topic "the seat prompt contract".
 STEELMAN DUTY: read the exploration space via the `lines-of-inquiry` projection (the tool renders it fresh from the line of inquiry events on the record).
@@ -45,7 +45,7 @@ READ YOUR WHOLE SURFACE BEFORE YOU CHOOSE, NOT THE ONE PAGE FOR THE VERB YOU ALR
 Do it ONCE, IMMEDIATELY AFTER `register` — before you have decided what to do, because deciding first is what makes the reading pointless:
 
   "/opt/feov/bin/feov-record" --seat-id red-lens-dark-side manual — every command on your surface, each under a header naming it and followed by that command's own help, run live.
-It is long: send it to a file under your session scratchpad (an ABSOLUTE path, never under the run directory) and read that file whole.
+It is long: send it to a file under your session scratchpad (an ABSOLUTE path, never under the run directory) and read that file whole — in consecutive windows if Read refuses it at once.
 A single command's own page is still there when you want to re-check one: "/opt/feov/bin/feov-record" --seat-id red-lens-dark-side <command> --help.
 MEASURED, WHICH IS WHY IT IS ONE CALL, FIRST.
 Across nine sittings seats opened 6 of 51 group pages — twelve per cent — and 90% of the commands they ran were run without ever reading that command's own page.

@@ -1,4 +1,4 @@
-prompt sha256: add9084e8526e6526ba7bbff2f4997b7a20294d561f83ce0e9d1605c35b6ce06
+prompt sha256: 84784e02d504b901c5f7a0ea65328998e6058828a5a163afce84ff1c5b6ea872
 
 Research debate opening for topic: "the seat prompt contract".
 Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS A LINE OF INQUIRY — the verb is under a group of its own in your role's help, and it takes the approach you would follow and the hypothesis that would be true if it paid off.
@@ -19,7 +19,7 @@ READ YOUR WHOLE SURFACE BEFORE YOU CHOOSE, NOT THE ONE PAGE FOR THE VERB YOU ALR
 Do it ONCE, IMMEDIATELY AFTER `register` — before you have decided what to do, because deciding first is what makes the reading pointless:
 
   "/opt/feov/bin/feov-record" --seat-id frontier manual — every command on your surface, each under a header naming it and followed by that command's own help, run live.
-It is long: send it to a file under your session scratchpad (an ABSOLUTE path, never under the run directory) and read that file whole.
+It is long: send it to a file under your session scratchpad (an ABSOLUTE path, never under the run directory) and read that file whole — in consecutive windows if Read refuses it at once.
 A single command's own page is still there when you want to re-check one: "/opt/feov/bin/feov-record" --seat-id frontier <command> --help.
 MEASURED, WHICH IS WHY IT IS ONE CALL, FIRST.
 Across nine sittings seats opened 6 of 51 group pages — twelve per cent — and 90% of the commands they ran were run without ever reading that command's own page.

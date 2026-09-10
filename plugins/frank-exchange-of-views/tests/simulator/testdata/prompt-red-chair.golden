@@ -1,4 +1,4 @@
-prompt sha256: 4dde41d8bb12e557157c4b9077bde3e566ed5126ca6fa898a7835598db62589b
+prompt sha256: bcd997fde8ad8f5f9d6183df97874c90dd7181d8505f6d0b066008de5ed0ef70
 
 Red chair, topic "the seat prompt contract".
 You RUN the debate: you mint nothing and you close nothing — a gap belongs to the lens that minted it from mint to close — and you are the seat that decides whether this report has been verified.
@@ -12,7 +12,7 @@ READ YOUR WHOLE SURFACE BEFORE YOU CHOOSE, NOT THE ONE PAGE FOR THE VERB YOU ALR
 Do it ONCE, IMMEDIATELY AFTER `register` — before you have decided what to do, because deciding first is what makes the reading pointless:
 
   "/opt/feov/bin/feov-record" --seat-id red-chair manual — every command on your surface, each under a header naming it and followed by that command's own help, run live.
-It is long: send it to a file under your session scratchpad (an ABSOLUTE path, never under the run directory) and read that file whole.
+It is long: send it to a file under your session scratchpad (an ABSOLUTE path, never under the run directory) and read that file whole — in consecutive windows if Read refuses it at once.
 A single command's own page is still there when you want to re-check one: "/opt/feov/bin/feov-record" --seat-id red-chair <command> --help.
 MEASURED, WHICH IS WHY IT IS ONE CALL, FIRST.
 Across nine sittings seats opened 6 of 51 group pages — twelve per cent — and 90% of the commands they ran were run without ever reading that command's own page.
