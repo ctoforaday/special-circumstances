@@ -128,6 +128,25 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 	}
 }
 
+// THE FATE WORD MUST NOT CLAIM A HISTORY THE RECORD DOES NOT HOLD. `abandoned` reads as "tried,
+// then died", and `move` accepts abandoning straight from `proposed` — once each in #861's B and
+// B3, both real attempts whose seat skipped the `pursued` move. The row says which it was.
+func TestAnAbandonmentWithNoPursuitSaysSo(t *testing.T) {
+	board := record.NewFamily(nil, []*record.Event{
+		recordtest.Event(t, "blue-r0", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("sieve to the square root")}),
+		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Reason: proto.String("the bound is 9, so the sieve adds nothing")}),
+		recordtest.Event(t, "blue-r0", &recordpb.Avenue{AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Line: proto.String("check a computer-algebra system")}),
+		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Reason: proto.String("no such system is available here")}),
+	})
+	alt := inquiries(board, "Alternatives considered", rejected)
+	if !strings.Contains(alt, "**sieve to the square root** [abandoned] —") {
+		t.Errorf("a line pursued and then abandoned keeps the plain tag:\n%s", alt)
+	}
+	if !strings.Contains(alt, "**check a computer-algebra system** [abandoned before pursuit] —") {
+		t.Errorf("a line abandoned with no pursued step must say so:\n%s", alt)
+	}
+}
+
 func TestInquiriesSplitByFate(t *testing.T) {
 	board := record.NewFamily(nil, []*record.Event{
 		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("profile the hot path"), Method: proto.String("bench")}),
@@ -250,16 +269,18 @@ func TestAMovedInquiryIsRenderedOnce(t *testing.T) {
 	if !strings.Contains(alt, "rewrite the parser") || !strings.Contains(alt, "the grammar moved under it") {
 		t.Errorf("the abandoned line of inquiry must carry its current reason:\n%s", alt)
 	}
-	// The substance came from the CREATION event and the reason from the MOVE — the history is
-	// the evidence of choosing, which is the whole point of giving a line of inquiry a lifecycle.
-	if !strings.Contains(alt, "e0 pursued → e2 abandoned") {
-		t.Errorf("the history that produced the status must be rendered:\n%s", alt)
+	// The substance came from the CREATION event and the reason from the MOVE. The PATH between
+	// them is the debate, not the subject: it renders in lines-of-inquiry.md, never in the report.
+	if strings.Contains(alt, "e0 pursued") || strings.Contains(alt, "history:") {
+		t.Errorf("the status history is reconstructable from the ledger and is not report text:\n%s", alt)
 	}
 }
 
-// RED'S RULING AND BLUE'S DEFIANCE OF IT ARE THE SUBSTANCE. Blue pursuing a line red ruled
-// out-of-scope looked identical to blue pursuing one red endorsed.
-func TestInquiryRulingAndContestReachTheReader(t *testing.T) {
+// RED'S RULING AND BLUE'S APPEAL ARE THE DEBATE, NOT THE SUBJECT. The report used to print both
+// under the line, with the proposing seat's id after it; the report is research prose and tool
+// markers, and all three are on the ledger. The ruling's opinion renders in judgments.md, and the
+// ruling and the appeal together in lines-of-inquiry.md (view.TestAnAppealRendersBesideItsRuling).
+func TestInquiryRulingAppealAndSeatStayOutOfTheReport(t *testing.T) {
 	board := record.NewFamily(nil, []*record.Event{
 		recordtest.Event(t, "blue-r0", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Line: proto.String("survey the adjacent literature")}),
 		// The LIVE vocabulary: red rules a direction through `motion inquiry rule`, whose motion_id
@@ -282,13 +303,12 @@ func TestInquiryRulingAndContestReachTheReader(t *testing.T) {
 		}),
 	})
 	exp := inquiries(board, "Research areas", accepted)
-	// `out_of_scope`, WITH THE UNDERSCORE. An older comment in inquiry.go claims the hyphen is the
-	// live spelling and the underscore "a word no surface recognizes"; the vocabulary says
-	// otherwise — DirectionRuling spells it with an underscore and InquiryRulings agrees, so the
-	// hyphen is what no surface recognizes now.
-	for _, want := range []string{"out_of_scope", "a real question, not THIS run's", "against red's"} {
-		if !strings.Contains(exp, want) {
-			t.Errorf("the reader must see the ruling AND that blue moved against it; missing %q:\n%s", want, exp)
+	if !strings.Contains(exp, "- **survey the adjacent literature**") {
+		t.Fatalf("the line itself must still reach the report:\n%s", exp)
+	}
+	for _, leak := range []string{"out_of_scope", "a real question, not THIS run's", "against red's", "ruled", "(blue-r"} {
+		if strings.Contains(exp, leak) {
+			t.Errorf("the debate over a direction leaked into the report as %q:\n%s", leak, exp)
 		}
 	}
 }

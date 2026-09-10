@@ -61,6 +61,7 @@ research/<date>_<slug>/
 ├── docket.md          # the board: every gap and how it closed, blue's manifest, red's spot-checks
 ├── debate.md          # the adversarial record, epoch by epoch, and the bench's terminal disposition
 ├── judgments.md       # motions — every contested question and how it was ruled
+├── lines-of-inquiry.md # the directions: each line's fate, the path it took, its ruling and appeal
 ├── evidence.md        # the computations, with script, output and sha256
 ├── run.md             # friction, the record's invariant check, and cost
 ├── CHANGELOG.md       # this report's own provenance: revisions, withdrawn claims, repairs
@@ -162,8 +163,8 @@ inquiry areas → **open questions carried past this run** (blue's final envelop
 footnotes (with access dates; volatility noted for living sources).
 
 The process record is beside it, one document per audience: `docket.md` (the board in
-full), `debate.md` (the transcript), `judgments.md` (motions and rulings), `evidence.md` (the
-computations), `run.md` (friction, record verification, cost), `CHANGELOG.md` (the report's own
+full), `debate.md` (the transcript), `judgments.md` (motions and rulings), `lines-of-inquiry.md`
+(the directions and the path each took), `evidence.md` (the computations), `run.md` (friction, record verification, cost), `CHANGELOG.md` (the report's own
 revisions and withdrawn claims). Nothing is summarized away by the split — the union is the
 directory, indexed by `README.md`.
 

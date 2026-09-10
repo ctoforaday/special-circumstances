@@ -440,7 +440,7 @@ func inline(s string) string {
 var reHardBreak = regexp.MustCompile(`  +\n`)
 
 // linkIDs turns every mention of a record id into a link to the element that defines it —
-// the join a seven-document set can express and a markdown file cannot.
+// the join a multi-document set can express and a markdown file cannot.
 //
 // IT WALKS TAGS, not text. A blind replace over rendered HTML would rewrite ids inside an
 // href, inside a heading's own id attribute, and inside the anchor that defines them, which

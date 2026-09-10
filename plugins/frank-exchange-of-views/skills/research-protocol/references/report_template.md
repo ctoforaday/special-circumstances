@@ -63,10 +63,11 @@
                                               opposite of its fate. -->
 
 ## Alternatives considered               <!-- [RECORD] lines of inquiry DECLINED (weighed, not taken) and ABANDONED (tried, died) —
-                                              each with its reason (the counter), the history that produced its status,
-                                              RED'S RULING on the direction, and, where blue took a line red ruled
-                                              out-of-scope or too-thin, the fact that it did so against that ruling. A
-                                              ruling is an argument, not a command; the disagreement is the substance. -->
+                                              each with its reason (the counter), in the subject's terms. A line abandoned
+                                              with no `pursued` step on the record is tagged [abandoned before pursuit], so
+                                              the tag never claims a pursuit the record does not hold. Who proposed a
+                                              line, the path its status took, red's ruling and any appeal are the debate,
+                                              not the subject: they render in lines-of-inquiry.md and judgments.md. -->
 
 ## Open questions                        <!-- [BLUE] what the debate could not resolve; a question nobody could answer is a finding -->
 
@@ -99,6 +100,15 @@
 
 ## Motions                               <!-- [RECORD] every adjudicated exchange, joined on its id: the FILING (class, basis,
                                               relief sought) and its ruling, never the ruling alone. -->
+
+# lines-of-inquiry.md — the directions
+
+## (by fate)                             <!-- [RECORD] every line of inquiry grouped by its current fate, each with its hypothesis,
+                                              the PATH its status took epoch by epoch, the seat that last moved it, red's
+                                              ruling and any appeal; then the lines still awaiting a decision. The same
+                                              rendering a seat reads through the tool. report.md carries only each line's
+                                              fate and reason; this is where how it got there lives. Omitted when the run
+                                              recorded no line of inquiry. -->
 
 # evidence.md — the computations
 

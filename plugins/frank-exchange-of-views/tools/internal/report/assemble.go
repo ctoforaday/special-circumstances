@@ -532,11 +532,15 @@ func rejected(status string) bool { return !accepted(status) && !deferred(status
 // line pursued at r0 and abandoned at r2 rendered under both headings at once, as an expansion
 // and as an alternative to itself.
 //
-// Each row now carries what the reader needed to judge the choice and could not see: the
-// history that produced the status, RED'S RULING on the direction, and — when blue moved a line
-// red ruled out-of-scope or too-thin — the fact that it did so against that ruling. Red's ruling
-// is an argument, not a command, so blue may pursue anyway; the disagreement is the substance,
-// and until now the report showed the line with no trace that anyone had contested it.
+// A ROW IS THE LINE AND ITS FATE, IN THE SUBJECT'S TERMS — and nothing about who or how. It used
+// to append the id of the seat that last moved the line, the epoch-by-epoch status history, red's
+// ruling with its opinion, and a sentence that blue had moved against that ruling. All four are
+// the DEBATE, not the subject, and all four are reconstructable from the ledger, so none of them is
+// report text: lines-of-inquiry.md (view.InquiryBody) ships the seat, path, ruling and appeal, and
+// judgments.md the ruling's opinion and the appeal's reason with the other motions. The fate word
+// itself stays, because it is subject content: `abandoned` means the line was tried and died. What a reader of the report
+// needs is which lines the research followed, which it kept for later, and which it weighed and
+// set down, each with the reason in its own words.
 func inquiries(fam record.Family, heading string, want func(string) bool) string {
 	var rows []string
 	for _, a := range record.InquiriesOf(fam.Events) {
@@ -558,10 +562,15 @@ func inquiries(fam record.Family, heading string, want func(string) bool) string
 		if a.Status != "pursued" {
 			status = fmt.Sprintf(" [%s]", a.Status) // abandoned vs declined vs deferred is the shape of the counter
 		}
-		row := fmt.Sprintf("- **%s**%s%s%s (%s)", a.Line, method, status, reason, a.SeatID)
-		if len(a.History) > 1 {
-			row += fmt.Sprintf("\n  - history: %s", strings.Join(a.History, " → "))
+		// `abandoned` READS AS "TRIED, THEN DIED", and the tag must not claim a pursuit the record
+		// does not hold. `move` accepts abandoning a line straight from `proposed`, and a seat that
+		// skips the `pursued` step leaves a line that was attempted but never marked taken (#861: once
+		// each in B and B3). The row says exactly that, rather than relabelling a real negative result
+		// as `declined` or refusing the move.
+		if a.Status == "abandoned" && !a.EverPursued {
+			status = " [abandoned before pursuit]"
 		}
+		row := fmt.Sprintf("- **%s**%s%s%s", a.Line, method, status, reason)
 		// THERE IS NO PER-LINE SUPPORT ROW, AND THE ABSENCE IS A RULING RATHER THAN A DROPPED
 		// FEATURE. This rendered red's per-epoch `supported`/`weakened`/`unsupported`/`absent`
 		// verdict on each line — a vocabulary that made PRESENCE the question. Presence is not a
@@ -573,17 +582,6 @@ func inquiries(fam record.Family, heading string, want func(string) bool) string
 		// What replaced it is ONE per-epoch `InquiryReview`, read by record.InquiryReviewDue.
 		// Whether the report should carry a line saying that read happened — and where — is a
 		// composition decision, not a conversion, so nothing is invented here.
-		if a.Ruling != "" {
-			// No sitting beside a party name, so no ordinal: the seat that ruled is not named here.
-			ruled := fmt.Sprintf("\n  - red ruled **%s**", a.Ruling)
-			if a.RulingWhy != "" {
-				ruled += " — " + a.RulingWhy
-			}
-			row += ruled
-		}
-		if a.Contests != "" {
-			row += fmt.Sprintf("\n  - **blue took this line against red's `%s` ruling.** A ruling is an argument, not a command; the disagreement stands on the record.", a.Contests)
-		}
 		rows = append(rows, row)
 	}
 	body := "_(none on the record)_"
