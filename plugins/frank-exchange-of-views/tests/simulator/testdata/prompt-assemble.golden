@@ -1,11 +1,11 @@
-prompt sha256: c81869c7f762d6a367980c58c6049ae6d4a88b1eae074bb6ad486e64c441906b
+prompt sha256: 11ef0283696ea86cf01b502cf66e138092dd2343006398cdb1431662fe8fbf0e
 
 Final assembly for topic "the seat prompt contract", run directory research/2026-01-01_golden.
 Debate outcome: VERIFIED after 3 chair sitting(s) — the chair recorded PASS with the board permitting it.
 THE REPORT IS ASSEMBLED FROM THE RECORD — you author NOTHING, you copy NOTHING, you fill in NO inputs.
 There are no <FILL> fields and no sections for you to write; do not hand-write report.md and do not copy anything into it yourself.
 FIRST, STAMP HOW THIS RUN ENDED: it is VERIFIED.
-Record it as the run's outcome — VERIFIED — with your account of the sitting as the reason; the verdict is derived from the record and the stamp must agree with it.
+Record it as the run's outcome — VERIFIED — with WHY this outcome is the right read of the board as the reason — the judgement, never a recap of the sitting; the verdict is derived from the record and the stamp must agree with it.
 THEN, TWO THINGS YOU MAY HOLD AND THIS IS YOUR LAST CHANCE TO RECORD EITHER.
 If you hold something that binds how the RECORD IS READ but moves no gap — a construction of a term, a correction of what the record MEANS rather than what it says, a holding worth offering as precedent — state it, and state it in its own right rather than folding it into an unrelated rationale.
 And if anything in this run needs A HUMAN to re-examine it — an unresolved tension, a claim that held only because nobody could reach the source, a boundary you ruled close to — say so.
@@ -56,6 +56,8 @@ The projection names, this prompt's words for a concept, and the command that wr
 The help is the only authoritative one, and this prompt names the JOB, never the flags.
 EVERY READ IS A PROJECTION OF THE RECORD, never a file you open.
 The .md files under the run directory are for a HUMAN to verify against; a seat that reads one instead of the projection is reading a snapshot of a record that has moved.
-YOUR REASONING IS PART OF EVERY ACT, and the report renders it: it is your argument to the other seats, on the record where they can answer it.
-Write it for them, not as a label for what you did.
+YOUR REASONING IS PART OF EVERY ACT, and the RECORD renders it — your position and closings in the transcript, your reasons beside the acts on the board.
+It is your argument to the other seats, where they can answer it.
+NEVER the research report: that document is addressed to a reader of the subject and carries no argument about the run.
+And write your THINKING, not a label for what you did — the ledger already holds every act of this sitting, in order, so an account of the verbs you ran narrates what the record reconstructs.
 Return your envelope: a 5-line synopsis, open_gaps from the board, and your own friction if any.

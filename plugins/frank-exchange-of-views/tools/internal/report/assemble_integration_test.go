@@ -163,14 +163,21 @@ func TestAssembleEndToEnd(t *testing.T) {
 		"## Alternatives considered",
 		"rewrite the cache lock-free",
 		"cost exceeds the benefit at this scale",
-		// The reviewer-facing orientation, composed from the board.
-		"## Read this first",
-		"(G1)",
 		// The link bar: the current document named, its siblings linked.
 		"**Report** · [Board](docket.md)",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("report.md missing %q\n---\n%s", want, got)
+		}
+	}
+
+	// AND THE BOARD'S OWN VOCABULARY STAYS OFF IT. "Read this first" used to open the research
+	// document with ranked board rows and the bench's certification prose — process, in front of
+	// a reader who came for the subject. The section is gone; a gap id appearing here again would
+	// mean it came back by another route.
+	for _, never := range []string{"## Read this first", "(G1)"} {
+		if strings.Contains(got, never) {
+			t.Errorf("report.md carries %q — the board's vocabulary is docket.md's, not the research document's", never)
 		}
 	}
 

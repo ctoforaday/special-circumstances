@@ -27,7 +27,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -390,9 +389,10 @@ func verdictWhy(o *recordpb.Outcome) string {
 	if why := strings.TrimSpace(o.GetVerdictWhy()); why != "" {
 		out += " (" + why + ")"
 	}
-	if r := strings.TrimSpace(o.GetProse()); r != "" {
-		out += "\n\n> **How the run ended, in the bench's words:** " + r
-	}
+	// `outcome --reason` is the bench's account, written at assembly, after red's last sitting.
+	// It is envelope: the derivation's reasoning above is the TOOL's and stays, the bench's own
+	// words are on the record and render in the judicial documents.
+	_ = o.GetProse()
 	return out
 }
 
@@ -413,103 +413,6 @@ func basisNote(basis string) string {
 	default:
 		return ""
 	}
-}
-
-// orientation is the reviewer-facing "read this first": the open gaps a human should
-// re-examine, most severe first, preceded by the bench's terminal ask if it evented one. It
-// authors no new judgement — it ORDERS the board (severity, then impact, then likelihood) and
-// PROMOTES the bench's already-evented voice (certify/halt), which otherwise sits buried in
-// the debate's Bench-disposition line. When the bench never certified/halted (as in a
-// ceiling-terminated run), only the ranked gaps show; nothing is invented to fill the space.
-func orientation(fam record.Family, evs []*record.Event, gloss string) string {
-	type ranked struct {
-		g    *record.Gap
-		rank int
-	}
-	var open []ranked
-	for _, g := range fam.Gaps {
-		if g == nil || !g.Open {
-			continue
-		}
-		open = append(open, ranked{g, sevRank(g.Severity)*100 + sevRank(g.Impact)*10 + sevRank(g.Likelihood)})
-	}
-	sort.SliceStable(open, func(i, j int) bool { return open[i].rank > open[j].rank })
-
-	var b strings.Builder
-	b.WriteString("## Read this first\n\n")
-	// What the verdict MEANS, before what is outstanding under it. The stamp above is the field;
-	// this is its argument, and it opens the document because it is what the reader came for.
-	if gloss != "" {
-		b.WriteString(gloss + "\n\n")
-	}
-	voice := benchVoice(evs)
-	if voice.halt != "" {
-		b.WriteString("**The bench HALTED this run:** " + voice.halt + "\n\n")
-	}
-	if voice.ask != "" {
-		b.WriteString("**The bench asks a human to re-examine:** " + voice.ask + "\n\n")
-	}
-	// SUPERSEDED ASKS ARE NOT PARALLEL ASKS. The first cut printed one block per certify event,
-	// so a bench that certified twice — the ordinary shape of a re-certification — shipped two
-	// near-identical paragraphs under one heading, and the reader had no way to tell a second
-	// ask from a restatement of the first. The earlier acts are history, and history has a
-	// document: CHANGELOG.md carries them in order.
-	if voice.superseded > 0 {
-		fmt.Fprintf(&b, "_(the bench certified %d time(s) before this; the earlier statements are in the run's CHANGELOG.)_\n\n", voice.superseded)
-	}
-	if len(open) == 0 {
-		// AND IT MUST NOT CONTRADICT THE PARAGRAPH ABOVE IT. This line shipped verbatim under
-		// two blocks headed "asks a human to re-examine", telling the reader in the same breath
-		// that there was nothing to re-examine. An empty BOARD is not an empty docket when the
-		// bench has spoken.
-		if voice.ask != "" || voice.halt != "" {
-			b.WriteString("_(no open gaps remain on the board — what the bench asked for above is what is outstanding.)_")
-		} else {
-			b.WriteString("_(no open gaps remain — nothing outstanding to re-examine)_")
-		}
-		return b.String()
-	}
-	fmt.Fprintf(&b, "%d open gap(s) remain, most severe first — full statements in [the board](%s).\n\n", len(open), FileDocket)
-	for i, r := range open {
-		fmt.Fprintf(&b, "%d. **[%s]** %s (%s) — %s\n", i+1, gradeWord(r.g.Severity), concise(r.g.Mint.GetProblem()), r.g.ID, concise(r.g.Mint.GetRequiredFix()))
-	}
-	return strings.TrimRight(b.String(), "\n")
-}
-
-// benchAsk is the bench's terminal voice: the LAST certify statement and the LAST halt opinion
-// on the record, with a count of the certifies they replaced.
-//
-// ONE FLAG, TWO FIELDS. The seat types `--reason` for both acts and the schema keeps each on
-// the message's own prose channel: a certify's is `statement`, a halt's is `opinion`
-// (recordpb/required.go declares both). Neither is a `reason` field, and inventing one would
-// have been the migration's easiest silent defect.
-type benchAsk struct {
-	ask        string
-	halt       string
-	superseded int
-}
-
-// benchVoice reduces the certify/halt events to the terminal one of each. A bench that
-// certifies again has CHANGED ITS STATEMENT, not added a second one.
-func benchVoice(evs []*record.Event) benchAsk {
-	var v benchAsk
-	for _, e := range evs {
-		if c, ok := recordpb.BodyAs[*recordpb.Certify](e); ok {
-			if s := c.GetStatement(); s != "" {
-				if v.ask != "" {
-					v.superseded++
-				}
-				v.ask = s
-			}
-			continue
-		}
-		if h, ok := recordpb.BodyAs[*recordpb.Halt](e); ok {
-			if s := h.GetOpinion(); s != "" {
-				v.halt = s
-			}
-		}
-	}
-	return v
 }
 
 // sevRank orders a gap by one grade, using the canonical MASS weight (record.MASS) scaled to an
@@ -1266,6 +1169,17 @@ func debate(fam record.Family, evs []*record.Event) string {
 		// why the bench that needed one had nowhere to put it (#361).
 		if d, ok := recordpb.BodyAs[*recordpb.Declare](e); ok {
 			disp = append(disp, "**Declared** — "+d.GetHolding())
+			continue
+		}
+		// AND THE OUTCOME'S OWN ACCOUNT, which used to open the RESEARCH document and now lands
+		// with its siblings. `outcome --reason` is the bench's account of how the sitting ended:
+		// the same seat, the same terminal moment, the same kind of prose as a halt opinion or a
+		// certification. It is envelope — it belongs where a reader looking for the bench's words
+		// goes to find them, not in front of a reader who came for the subject.
+		if o, ok := recordpb.BodyAs[*recordpb.Outcome](e); ok {
+			if r := strings.TrimSpace(o.GetProse()); r != "" {
+				disp = append(disp, "**How the run ended** — "+r)
+			}
 		}
 	}
 	// A PETITION IS A MOTION NOW, AND THAT MAKES THIS COUNT BETTER THAN IT WAS. It read the

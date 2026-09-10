@@ -22,6 +22,7 @@
 package scorecard
 
 import (
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -376,6 +377,66 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	}
 	rows = append(rows, Row{Clause: "Sitting on the record", Metric: "sitting_record_failures", Cls: "detector",
 		Value: claimed - attested, Note: note})
+
+	// THE OPERATOR CHANNEL, MEASURED — the duty that was created BY a measurement and never got one.
+	//
+	// Every constitution carrying it says "AFTER every sitting — not only the ones that went
+	// wrong — YOU MUST close the operator channel", and cites the failure that produced the rule:
+	// across eighteen recorded sittings the channel went unclosed every single time. Nothing has
+	// counted it since. Measured 2026-09-09 on two live runs: 10 of 11 seats closed it in one and
+	// 8 of 9 in the other, so one seat in each run never did and nothing noticed.
+	//
+	// A SITTING is the unit, because the duty is per sitting: a seat that sat four times and filed
+	// one entry discharged it once. The sitting ordinal is the record's (events_w), so this counts
+	// registers as the denominator and the distinct (seat, sitting) pairs that carry a log entry
+	// as the numerator — never the raw entry count, which two entries in one sitting would inflate.
+	if fam != nil {
+		sat := map[string]bool{}
+		closed := map[string]bool{}
+		seen := map[string]int{}
+		for _, e := range fam.Events {
+			seat := e.GetSeatId()
+			switch e.GetType() {
+			case recordpb.EventType_EVENT_TYPE_REGISTER:
+				seen[seat]++
+				sat[fmt.Sprintf("%s#%d", seat, seen[seat])] = true
+			case recordpb.EventType_EVENT_TYPE_LOG:
+				closed[fmt.Sprintf("%s#%d", seat, seen[seat])] = true
+			}
+		}
+		if len(sat) > 0 {
+			rows = append(rows, Row{Clause: "Operator channel", Metric: "channel_closure", Cls: "benchmark",
+				Value: float64(len(closed)) / float64(len(sat)),
+				Joint: "sittings that filed at least one log entry over sittings dispatched; the unit is the SITTING because the duty is per sitting, so a seat that sat four times and logged once discharged it once"})
+			rows = append(rows, Row{Clause: "Operator channel", Metric: "sittings_never_closed", Cls: "detector",
+				Value: len(sat) - len(closed),
+				Note:  "a sitting that recorded acts and closed no operator entry — the shape the duty exists to prevent, and the one nothing counted until now"})
+		}
+		// TYPE COVERAGE, because the channel's worth is what a reader can FILTER on. An untyped
+		// distribution is the reading the type field exists to replace, and a channel that only
+		// ever says `nominal` is not proof the system worked — it is proof nobody reported.
+		byType := map[string]int{}
+		for _, e := range fam.Events {
+			if l, ok := recordpb.BodyAs[*recordpb.Log](e); ok {
+				byType[recordpb.Word(l.GetType())]++
+			}
+		}
+		if len(byType) > 0 {
+			nonNominal := 0
+			for w, n := range byType {
+				if w != "nominal" {
+					nonNominal += n
+				}
+			}
+			total := 0
+			for _, n := range byType {
+				total += n
+			}
+			rows = append(rows, Row{Clause: "Operator channel", Metric: "channel_signal_share", Cls: "diagnostic",
+				Value: float64(nonNominal) / float64(total),
+				Note:  fmt.Sprintf("%d entr(ies) by type %v — %d carry something to act on; a channel of nothing but nominal reported no defect, no request and no friction all run", total, byType, nonNominal)})
+		}
+	}
 
 	// unrecorded_claim_loss
 	var counts []float64

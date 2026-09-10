@@ -11,3 +11,5 @@ WRITE-ONCE. A report is ingested exactly once. A second ingest is refused and po
 AUTHOR-ONLY. Only the seat that wrote the report freezes it. A response or red seat has no ingest.
 
 VERIFY-BEFORE-DELETE. The file is removed only after the record is proven to render back to exactly its bytes. If it is not, the file is KEPT and you are told to STOP and report it as friction — it is a tooling failure, not something an edit can fix, and there is no diff for you to apply.
+
+WHAT MAY BE IN THE REPORT AT ALL: research prose written for a reader of the SUBJECT, and the markers this tool places. Nothing else — no provenance or attribution tags, no notes to another seat, no argument about the run, no narration of how the report was made. A fact that LIMITS THE CONCLUSION stays, re-voiced as a limit on the answer rather than a story about the attempt. Operational facts go to `log`, arguments to `position` or `closing`. This verb and `ingest` are the only two ways authored text enters the report, so the rule is stated on both.

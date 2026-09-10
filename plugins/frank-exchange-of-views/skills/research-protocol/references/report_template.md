@@ -32,14 +32,12 @@
 
 **Verdict:** VERIFIED | UNVERIFIED | CEILING | HALTED   <!-- [RECORD] the terminal `outcome` event. THE WORD ALONE:
                                               a field a reader can skim, badge or grep is one token. Its argument —
-                                              what the verdict means, the basis it rests on, the bench's words on a
-                                              deadlock — opens "Read this first" instead. -->
+                                              what the verdict means, the basis it rests on, and what it means for the
+                                              answer, which is the tool's own reasoning — follows the word directly. The
+                                              BENCH's words are the judicial record's, never this document's. -->
 
 ## How this run was conducted            <!-- [RECORD] what ANSWERED each seat, measured; never the configuration -->
 
-## Read this first                       <!-- [RECORD] the verdict's argument, then the bench's TERMINAL ask (one, never
-                                              one per certify event — the superseded ones are in CHANGELOG.md), then the
-                                              open gaps ranked most-severe first -->
 
 ## TL;DR                                 <!-- [BLUE] 3–6 sentences: the answer, the confidence, the sharpest caveat -->
 
@@ -71,7 +69,7 @@
 
 ## Open questions                        <!-- [BLUE] what the debate could not resolve; a question nobody could answer is a finding -->
 
-## Blue team report (sections not composed above)
+## Additional findings
                                          <!-- [BLUE] whatever blue authored that is genuinely ADDITIONAL — union, not summary.
                                               Its lifted surfaces and any tool-owned section it wrongly authored are dropped,
                                               and the section is omitted entirely when nothing survives. -->

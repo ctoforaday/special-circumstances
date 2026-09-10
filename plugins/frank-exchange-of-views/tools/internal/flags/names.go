@@ -375,7 +375,7 @@ var payloadFlag = map[string]string{
 // audit that produced this file found --file described two ways and --id three ways, which
 // teaches a seat that they might be different things.
 const (
-	DescReason     = "your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -"
+	DescReason     = "your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -"
 	DescReasonFile = "read --reason from a file, or from stdin with `-` — the same field as --reason, for anything long or that would fight shell quoting"
 
 	// DescQuote is the whole contract of --quote, and it is stated once because it was the

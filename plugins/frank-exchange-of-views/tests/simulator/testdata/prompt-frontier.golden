@@ -1,4 +1,4 @@
-prompt sha256: c3315a3e33f134a51336350159a8658eb06c42272319a95b2d3f1083a53c0407
+prompt sha256: ff86e671a3875da6d12cce426613d2cfa8c7c346d8aac850c6f52ff8ed383a13
 
 Research debate opening for topic: "the seat prompt contract".
 Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS A LINE OF INQUIRY — the verb is under a group of its own in your role's help, and it takes the approach you would follow and the hypothesis that would be true if it paid off.
@@ -39,6 +39,8 @@ The projection names, this prompt's words for a concept, and the command that wr
 The help is the only authoritative one, and this prompt names the JOB, never the flags.
 EVERY READ IS A PROJECTION OF THE RECORD, never a file you open.
 The .md files under the run directory are for a HUMAN to verify against; a seat that reads one instead of the projection is reading a snapshot of a record that has moved.
-YOUR REASONING IS PART OF EVERY ACT, and the report renders it: it is your argument to the other seats, on the record where they can answer it.
-Write it for them, not as a label for what you did.
+YOUR REASONING IS PART OF EVERY ACT, and the RECORD renders it — your position and closings in the transcript, your reasons beside the acts on the board.
+It is your argument to the other seats, where they can answer it.
+NEVER the research report: that document is addressed to a reader of the subject and carries no argument about the run.
+And write your THINKING, not a label for what you did — the ledger already holds every act of this sitting, in order, so an account of the verbs you ran narrates what the record reconstructs.
 Return one line per hypothesis.

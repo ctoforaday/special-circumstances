@@ -86,6 +86,12 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	// answered the seats).
 	var r sections
 	r.add(verdictStamp(outcome))
+	// The stamp is the WORD; its argument follows it immediately — what the verdict MEANS for the
+	// answer, which is the one thing about the run a reader of the subject genuinely needs, and
+	// which is the tool's own reasoning rather than any seat's prose.
+	if outcome != nil {
+		r.add(verdictGloss(outcome))
+	}
 	if question != "" {
 		r.add(question)
 	}
@@ -93,13 +99,18 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	// carries needs the verdict and the adversary's actual strength in the same breath: a PASS
 	// from a tier nobody configured is not the PASS the run was set up to produce.
 	r.add(conduct(run, fam))
-	// The gloss opens "Read this first" — EXCEPT when there is no outcome, where the stamp
-	// already says exactly that and repeating it is the duplication this whole pass removes.
-	gloss := ""
-	if outcome != nil {
-		gloss = verdictGloss(outcome)
-	}
-	r.add(orientation(fam, evs, gloss))
+	// "READ THIS FIRST" IS GONE, and it was a mistake rather than a section that drifted.
+	//
+	// It never knew whose voice it was in. It opened the research document with the bench's
+	// certification prose, a ranked dump of board rows and the run's disputes — process and
+	// procedure — where a reader who came for the answer needed the opposite thing: a warning, in
+	// the REPORT's own voice, that some fact is disputed or some assumption is load-bearing and
+	// thin. Those belong in the prose that makes the claim, written by its author, where the
+	// sentence they qualify actually is.
+	//
+	// Everything it carried has a truer home. The verdict's meaning rides the stamp. The open
+	// board is docket.md, which is the board in full. The bench's terminal statement is the
+	// judicial record. None of it needed a preamble, and a preamble is what made it unreadable.
 	r.add(sectionOr(blue, "TL;DR"))
 	r.add(sectionOr(blue, "The Catechism"))
 	r.add(sectionOr(blue, "Technical foundations"))
@@ -114,7 +125,9 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	// surfaces and any tool-owned sections it wrongly authored are dropped (see blueEmbed).
 	// If nothing genuinely additional survives, the section is omitted rather than left empty.
 	if extra := blueEmbed(blue); extra != "" {
-		r.add("## Blue team report (sections not composed above)\n\n" + extra)
+		// THE HEADING NAMED THE AUTHOR, in the one document where attribution is forbidden. What
+		// survives here is content, and the reader wants to know what it IS, not which seat wrote it.
+		r.add("## Additional findings\n\n" + extra)
 	}
 
 	var docket sections

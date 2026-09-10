@@ -10,7 +10,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
-	"google.golang.org/protobuf/proto"
 )
 
 // A 240-CHARACTER H1 IS A PARAGRAPH IN A FONT SIZE. Blue writes the whole research brief into
@@ -54,52 +53,6 @@ func TestATitleWithNoBoundaryIsTruncatedVisibly(t *testing.T) {
 	}
 	if question == "" {
 		t.Errorf("the full subject must survive the truncation")
-	}
-}
-
-// THE BENCH CERTIFYING TWICE IS ONE STATEMENT REVISED, NOT TWO ASKS.
-//
-// The first cut rendered one block per certify event, so a re-certified run shipped two
-// near-identical "The bench asks a human to re-examine" paragraphs under one heading — the
-// exact shape that makes an assembled document read as two documents pasted together.
-func TestOnlyTheTerminalBenchStatementIsPromoted(t *testing.T) {
-	evs := []*record.Event{
-		recordtest.Event(t, "", &recordpb.Certify{Statement: proto.String("the FIRST ask, later revised")}),
-		recordtest.Event(t, "", &recordpb.Certify{Statement: proto.String("the TERMINAL ask")}),
-	}
-	o := orientation((record.NewFamily(nil, nil)), evs, "")
-	if !strings.Contains(o, "the TERMINAL ask") {
-		t.Errorf("the bench's terminal statement must be promoted:\n%s", o)
-	}
-	if strings.Contains(o, "the FIRST ask") {
-		t.Errorf("a superseded statement was rendered as a parallel ask:\n%s", o)
-	}
-	if !strings.Contains(o, "certified 1 time(s) before this") {
-		t.Errorf("the superseded statements must be accounted for, not silently dropped:\n%s", o)
-	}
-	// And they are kept — in the document whose subject is this report's own history.
-	if c := supersededAsks(evs); !strings.Contains(c, "the FIRST ask") {
-		t.Errorf("the changelog must carry the superseded statement:\n%s", c)
-	}
-}
-
-// A LINE THAT CONTRADICTS THE PARAGRAPH ABOVE IT. The boilerplate shipped verbatim under two
-// blocks headed "asks a human to re-examine", telling the reader in the same breath that there
-// was nothing to re-examine. An empty BOARD is not an empty docket when the bench has spoken.
-func TestTheNoOpenGapsLineDoesNotContradictTheBenchsAsk(t *testing.T) {
-	evs := []*record.Event{
-		recordtest.Event(t, "", &recordpb.Certify{Statement: proto.String("re-examine the cost model")}),
-	}
-	o := orientation((record.NewFamily(nil, nil)), evs, "")
-	if strings.Contains(o, "nothing outstanding to re-examine") {
-		t.Errorf("the report tells the reader to re-examine something and that there is nothing to re-examine:\n%s", o)
-	}
-	if !strings.Contains(o, "what the bench asked for above is what is outstanding") {
-		t.Errorf("a clean board with a standing ask must say which is which:\n%s", o)
-	}
-	// With no ask at all the original line is exactly right, and is kept.
-	if q := orientation((record.NewFamily(nil, nil)), nil, ""); !strings.Contains(q, "nothing outstanding to re-examine") {
-		t.Errorf("a clean board with no ask should say so plainly:\n%s", q)
 	}
 }
 

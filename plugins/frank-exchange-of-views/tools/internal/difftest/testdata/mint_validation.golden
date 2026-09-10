@@ -59,7 +59,7 @@ Flags:
       --new string                       OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. Bounded — a replacement more than 120 characters longer than the span is refused as AUTHORING, because a substantive addition is blue's to write and you say so in --fix. Its presence is what DERIVES fix_basis: verified
       --problem string                   REQUIRED — what is wrong (or pass it via --reason)
       --quote string                     the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs
-      --reason string                    your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason string                    your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
       --reason-file -                    read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
       --severity grade                   REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                  comma-separated ancestor ids this gap replaces; lineage is never dropped
@@ -120,7 +120,7 @@ Flags:
       --new string                       OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. Bounded — a replacement more than 120 characters longer than the span is refused as AUTHORING, because a substantive addition is blue's to write and you say so in --fix. Its presence is what DERIVES fix_basis: verified
       --problem string                   REQUIRED — what is wrong (or pass it via --reason)
       --quote string                     the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs
-      --reason string                    your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason string                    your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
       --reason-file -                    read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
       --severity grade                   REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                  comma-separated ancestor ids this gap replaces; lineage is never dropped
@@ -181,7 +181,7 @@ Flags:
       --new string                       OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. Bounded — a replacement more than 120 characters longer than the span is refused as AUTHORING, because a substantive addition is blue's to write and you say so in --fix. Its presence is what DERIVES fix_basis: verified
       --problem string                   REQUIRED — what is wrong (or pass it via --reason)
       --quote string                     the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs
-      --reason string                    your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason string                    your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
       --reason-file -                    read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
       --severity grade                   REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                  comma-separated ancestor ids this gap replaces; lineage is never dropped
@@ -242,7 +242,7 @@ Flags:
       --new string                       OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. Bounded — a replacement more than 120 characters longer than the span is refused as AUTHORING, because a substantive addition is blue's to write and you say so in --fix. Its presence is what DERIVES fix_basis: verified
       --problem string                   REQUIRED — what is wrong (or pass it via --reason)
       --quote string                     the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs
-      --reason string                    your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason string                    your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
       --reason-file -                    read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
       --severity grade                   REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                  comma-separated ancestor ids this gap replaces; lineage is never dropped
@@ -308,12 +308,6 @@ _Composed from the record, never from the run's configuration: these are the mod
 | bulk | _NOT MEASURED — nothing observed what replied_ | 1 of 1 |
 | judgment | _NOT MEASURED — nothing observed what replied_ | 2 of 2 |
 
-## Read this first
-
-1 open gap(s) remain, most severe first — full statements in [the board](docket.md).
-
-1. **[high]** a real one (G1) — 
-
 ## TL;DR
 
 _(blue/report.md has no "## TL;DR" section — not authored here; blue owns this surface and red audits it.)_
@@ -354,7 +348,7 @@ _(none on the record)_
 
 _(blue/report.md has no "## Open questions" section — not authored here; blue owns this surface and red audits it.)_
 
-## Blue team report (sections not composed above)
+## Additional findings
 
 ## S2
 
