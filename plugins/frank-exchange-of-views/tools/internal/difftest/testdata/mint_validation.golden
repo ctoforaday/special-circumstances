@@ -40,6 +40,16 @@ do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with your role's 'friction' verb — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
+FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
+your text, and records whatever the command printed — or nothing — in its place. Pass every
+free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
+
+  X=$(cat <<'EOF'
+  your text — backticks, apostrophes and $ signs are all literal here
+  EOF
+  )
+  … "$X"
+
 Usage:
   feov-record mint [flags]
 
@@ -59,8 +69,7 @@ Flags:
       --new string                       OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. Bounded — a replacement more than 120 characters longer than the span is refused as AUTHORING, because a substantive addition is blue's to write and you say so in --fix. Its presence is what DERIVES fix_basis: verified
       --problem string                   REQUIRED — what is wrong (or pass it via --reason)
       --quote string                     the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs
-      --reason string                    your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
-      --reason-file -                    read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --reason string                    your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as "$X" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words
       --severity grade                   REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                  comma-separated ancestor ids this gap replaces; lineage is never dropped
 
@@ -101,6 +110,16 @@ do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with your role's 'friction' verb — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
+FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
+your text, and records whatever the command printed — or nothing — in its place. Pass every
+free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
+
+  X=$(cat <<'EOF'
+  your text — backticks, apostrophes and $ signs are all literal here
+  EOF
+  )
+  … "$X"
+
 Usage:
   feov-record mint [flags]
 
@@ -120,8 +139,7 @@ Flags:
       --new string                       OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. Bounded — a replacement more than 120 characters longer than the span is refused as AUTHORING, because a substantive addition is blue's to write and you say so in --fix. Its presence is what DERIVES fix_basis: verified
       --problem string                   REQUIRED — what is wrong (or pass it via --reason)
       --quote string                     the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs
-      --reason string                    your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
-      --reason-file -                    read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --reason string                    your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as "$X" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words
       --severity grade                   REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                  comma-separated ancestor ids this gap replaces; lineage is never dropped
 
@@ -162,6 +180,16 @@ do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with your role's 'friction' verb — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
+FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
+your text, and records whatever the command printed — or nothing — in its place. Pass every
+free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
+
+  X=$(cat <<'EOF'
+  your text — backticks, apostrophes and $ signs are all literal here
+  EOF
+  )
+  … "$X"
+
 Usage:
   feov-record mint [flags]
 
@@ -181,8 +209,7 @@ Flags:
       --new string                       OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. Bounded — a replacement more than 120 characters longer than the span is refused as AUTHORING, because a substantive addition is blue's to write and you say so in --fix. Its presence is what DERIVES fix_basis: verified
       --problem string                   REQUIRED — what is wrong (or pass it via --reason)
       --quote string                     the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs
-      --reason string                    your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
-      --reason-file -                    read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --reason string                    your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as "$X" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words
       --severity grade                   REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                  comma-separated ancestor ids this gap replaces; lineage is never dropped
 
@@ -223,6 +250,16 @@ do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with your role's 'friction' verb — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
+FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
+your text, and records whatever the command printed — or nothing — in its place. Pass every
+free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
+
+  X=$(cat <<'EOF'
+  your text — backticks, apostrophes and $ signs are all literal here
+  EOF
+  )
+  … "$X"
+
 Usage:
   feov-record mint [flags]
 
@@ -242,8 +279,7 @@ Flags:
       --new string                       OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. Bounded — a replacement more than 120 characters longer than the span is refused as AUTHORING, because a substantive addition is blue's to write and you say so in --fix. Its presence is what DERIVES fix_basis: verified
       --problem string                   REQUIRED — what is wrong (or pass it via --reason)
       --quote string                     the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs
-      --reason string                    your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
-      --reason-file -                    read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --reason string                    your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as "$X" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words
       --severity grade                   REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                  comma-separated ancestor ids this gap replaces; lineage is never dropped
 

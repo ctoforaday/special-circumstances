@@ -20,19 +20,34 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
-$ position --run {RUN} --seat-id red-chair --reason-file {RUN}/prose.md
+$ position --run {RUN} --seat-id red-chair --reason quotes " ' `backtick` $(subshell) ${var}
+newline	tab
+angle <brackets> & ampersand
+unicode — em-dash · ✓ 日本語
+backslash \ and \n literal
+
 exit 0
 stdout:
 position recorded
 
-$ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --reason-file {RUN}/prose.md
+$ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --reason quotes " ' `backtick` $(subshell) ${var}
+newline	tab
+angle <brackets> & ampersand
+unicode — em-dash · ✓ 日本語
+backslash \ and \n literal
+
 exit 0
 stdout:
 minted G1
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
-$ finding --run {RUN} --seat-id red-lens-logic --key F1 --severity low --likelihood low --impact low --quote ## S2 --reason-file {RUN}/prose.md
+$ finding --run {RUN} --seat-id red-lens-logic --key F1 --severity low --likelihood low --impact low --quote ## S2 --reason quotes " ' `backtick` $(subshell) ${var}
+newline	tab
+angle <brackets> & ampersand
+unicode — em-dash · ✓ 日本語
+backslash \ and \n literal
+
 exit 0
 stdout:
 finding recorded: logic-F1 — the run-unique label a gap's found_by names (id FINDING001)

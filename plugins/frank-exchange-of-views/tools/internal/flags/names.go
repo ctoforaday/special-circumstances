@@ -37,11 +37,10 @@ const (
 	// result (and structured errors) for machine consumers; the default is human text.
 	JSON = "json"
 
-	// The prose payload — one word for the reasoning a seat argues from, inline
-	// (--reason) or from a file/stdin (--reason-file). Every prose argument a verb
-	// records lands here: an argument, a ruling's grounds, a spot-check's findings.
-	Reason     = "reason"
-	ReasonFile = "reason-file"
+	// The prose payload — one word, and one spelling, for the reasoning a seat argues from.
+	// Every prose argument a verb records lands here: an argument, a ruling's grounds, a
+	// spot-check's findings. (It had a file/stdin twin; flags.Prose says why it went.)
+	Reason = "reason"
 
 	// Identity and reference.
 	ID  = "id"
@@ -286,7 +285,7 @@ const (
 func All() []string {
 	return []string{
 		Run, SeatID, Schema, JSON,
-		Reason, ReasonFile,
+		Reason,
 		ID, IDs, Key, Quote, New, Answers, Accept, URL, Title, Format, Window,
 		Sitting, Trajectory,
 		As, None, Confidence,
@@ -375,8 +374,25 @@ var payloadFlag = map[string]string{
 // audit that produced this file found --file described two ways and --id three ways, which
 // teaches a seat that they might be different things.
 const (
-	DescReason     = "your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -"
-	DescReasonFile = "read --reason from a file, or from stdin with `-` — the same field as --reason, for anything long or that would fight shell quoting"
+	DescReason = "your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as \"$X\" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words"
+
+	// ProseFooter is the quoting rule, stated ONCE and attached by Prose.Register to the help of
+	// every verb that takes prose — so it is on the page a seat reads before the write, without a
+	// hand-typed copy per page and without naming a flag (a help detail never restates what cobra
+	// prints; this names the shell, not the tool).
+	//
+	// It covers EVERY free-text value, not only the prose channel: --quote, --new, --problem,
+	// --check and the rest pass through the same shell, and a PreToolUse deny refuses a command
+	// carrying a backtick the shell would run (internal/hookgate) with this same instruction.
+	ProseFooter = `FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
+your text, and records whatever the command printed — or nothing — in its place. Pass every
+free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
+
+  X=$(cat <<'EOF'
+  your text — backticks, apostrophes and $ signs are all literal here
+  EOF
+  )
+  … "$X"`
 
 	// DescQuote is the whole contract of --quote, and it is stated once because it was the
 	// contradiction: quote the text and NOTHING else. A section heading, a dash or a pipe

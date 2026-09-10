@@ -153,29 +153,30 @@ func scenarios() []scenario {
 			},
 		},
 		{
-			name: "hostile_prose_via_file", // oracle: the quoting recurrence class
-			seed: map[string]string{"prose.md": hostile},
+			// oracle: the quoting recurrence class. The name is historical — the prose went through
+			// --reason-file when this was written, and the golden is keyed on the name. It now goes
+			// through --reason, the one prose spelling, as argv (no shell between harness and tool).
+			name: "hostile_prose_via_file",
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
-				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason-file", "{RUN}/prose.md"),
+				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", hostile),
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "x",
-					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason-file", "{RUN}/prose.md"),
+					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason", hostile),
 				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-logic", "--key", "F1",
-					"--severity", "low", "--likelihood", "low", "--impact", "low", "--quote", "## S2", "--reason-file", "{RUN}/prose.md"),
+					"--severity", "low", "--likelihood", "low", "--impact", "low", "--quote", "## S2", "--reason", hostile),
 			},
 		},
 		{
 			name: "projections_debate_changelog_citations", // oracle: R2 projections
-			seed: map[string]string{"red.md": "red's round position\n", "blue.md": "blue's round position\n"},
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
-				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason-file", "{RUN}/red.md"),
+				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", "red's round position"),
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "x",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "docketed"),
 				base("closing", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "G1", "--reason", "red's closing"),
-				base("position", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason-file", "{RUN}/blue.md"),
+				base("position", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "blue's round position"),
 				base("closing", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "G1", "--reason", "blue's closing"),
 				base("revision", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "repairs landed"),
 				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "G1", "--reason", "figures recomputed; check run: pass"),

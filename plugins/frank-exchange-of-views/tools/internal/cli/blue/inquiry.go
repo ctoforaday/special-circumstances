@@ -93,8 +93,8 @@ func newInquiryPropose() *cobra.Command {
 		//
 		// BOTH FIELDS TAKE THE RESOLVED PROSE. `Line` read the FLAG while `Reason` took the
 		// channel, so the same act wrote two different values whenever the seat used
-		// --reason-file: the line went in empty and the reason went in whole. seat.Reason
-		// resolves --reason, --reason-file and `--reason-file -` alike.
+		// the file spelling that flag used to have: the line went in empty and the reason went in
+		// whole. Both read seat.Reason, the one resolver.
 		body.Line = proto.String(why)
 		body.Reason = proto.String(why)
 		// THE ADVISORY, over exactly what `inquiries()` composes into report.md from this act: the
@@ -119,7 +119,7 @@ func newInquiryPropose() *cobra.Command {
 	// Marked here so cobra refuses before an event exists and the refusal carries the help, which
 	// is where a seat actually learns the verb. Without it the only refusal was validate's, which
 	// arrives later and teaches less.
-	c.MarkFlagsOneRequired(flags.Reason, flags.ReasonFile)
+	_ = c.MarkFlagRequired(flags.Reason)
 	c.Flags().String(flags.Hypothesis, "", "what would be TRUE if this line pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug")
 	c.Flags().String(flags.Method, "", "the source class or technique it belonged to, when that is what distinguishes it")
 	return c

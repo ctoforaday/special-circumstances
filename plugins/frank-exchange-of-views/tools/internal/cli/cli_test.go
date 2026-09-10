@@ -778,68 +778,27 @@ func TestClassNewCoinsTheSlugInClass(t *testing.T) {
 	}
 }
 
-// --problem and the prose channel are alternatives; --problem wins when both
-// are given, and --file carries anything above trivial size.
+// --problem and the prose channel are alternatives; --problem wins when both are given.
 func TestProseChannelResolution(t *testing.T) {
 	// ONE trailing newline is stripped, and that is deliberate normalization rather than
-	// mangling: a file's final newline is a line TERMINATOR that every editor and every
-	// heredoc appends, not content the seat chose to record. Keeping it meant a payload
-	// passed via --file ended with a stray blank line in every projection while the same
-	// text passed via --text did not — one value recorded two ways depending on which
-	// spelling the seat happened to use.
-	t.Run("--file is read whole, less its terminating newline", func(t *testing.T) {
+	// mangling: a heredoc's final newline is a line TERMINATOR, not content the seat chose to
+	// record. Keeping it would put a stray blank line in every projection of prose captured one
+	// way and not of the same text captured another.
+	t.Run("--reason is recorded whole, less its terminating newline", func(t *testing.T) {
 		runDir := newRun(t)
 		body := "line one\nline two — with unicode ✓ and <angle> brackets"
-		f := filepath.Join(recordtest.TmpRun(t), "prose.md")
-		if err := os.WriteFile(f, []byte(body+"\n"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := run(t, "position", "--run", runDir, "--seat-id", "red-chair", "--reason-file", f); err != nil {
+		if _, err := run(t, "position", "--run", runDir, "--seat-id", "red-chair", "--reason", body+"\n"); err != nil {
 			t.Fatal(err)
 		}
 		if got := lastBody(t, runDir, &recordpb.Position{}).GetText(); got != body {
-			t.Errorf("text = %q, want the file's content without its terminator %q", got, body)
-		}
-	})
-
-	// BOTH SPELLINGS IS NOW AN ERROR, not a precedence rule.
-	//
-	// This used to assert that --file silently wins. Silent precedence means a seat
-	// passing both loses one payload without being told which, and the loss is invisible
-	// until someone reads a projection rounds later and finds the wrong prose recorded.
-	// Refusing costs the seat one turn and tells it exactly what to fix.
-	t.Run("--file and --text together are refused, not ranked", func(t *testing.T) {
-		runDir := newRun(t)
-		f := filepath.Join(recordtest.TmpRun(t), "prose.md")
-		if err := os.WriteFile(f, []byte("from the file"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		_, err := run(t, "position", "--run", runDir, "--seat-id", "red-chair",
-			"--reason-file", f, "--reason", "from the flag")
-		if err == nil {
-			t.Fatal("both spellings were accepted; one payload was silently dropped")
-		}
-		if !strings.Contains(err.Error(), "exactly one") {
-			t.Errorf("the refusal must say which rule was broken, got: %v", err)
-		}
-	})
-
-	t.Run("a missing --file is an error, not an empty payload", func(t *testing.T) {
-		runDir := newRun(t)
-		_, err := run(t, "position", "--run", runDir, "--seat-id", "red-chair",
-			"--reason-file", filepath.Join(recordtest.TmpRun(t), "no-such-file.md"))
-		if err == nil {
-			t.Fatal("a missing prose file was silently treated as empty")
-		}
-		if len(events(t, runDir)) != 0 {
-			t.Errorf("a failed prose read still recorded an event: %+v", events(t, runDir))
+			t.Errorf("text = %q, want the prose without its terminator %q", got, body)
 		}
 	})
 
 	t.Run("neither channel is not a CHANNEL error", func(t *testing.T) {
-		// THE TWO LAYERS ARE SEPARATE, and this is the one that distinguishes them. A missing
-		// --reason-file is a channel failure (the case above); passing NEITHER flag is not —
-		// the channel returns empty and the VERB decides whether empty is acceptable.
+		// THE TWO LAYERS ARE SEPARATE, and this is the one that distinguishes them. Omitting
+		// --reason is not a channel failure — the channel returns empty (or cobra refuses the
+		// missing required flag) and the VERB decides whether empty is acceptable.
 		//
 		// Every prose verb now refuses an empty reason, because a duty discharged by nothing
 		// still counts as discharged. So the refusal must come from the verb's rule and name
@@ -850,14 +809,14 @@ func TestProseChannelResolution(t *testing.T) {
 		if err == nil {
 			t.Fatal("a position with no reason was recorded — an empty position is a duty discharged by nothing")
 		}
-		// Cobra names the pair without dashes ("one of the flags in the group [reason
-		// reason-file]"), which is the framework's phrasing and still names both ways in.
+		// Cobra names the flag without dashes ("required flag(s) \"reason\" not set"), which is
+		// the framework's phrasing and still names the way in.
 		all := out + err.Error()
 		if !strings.Contains(all, "reason") {
 			t.Errorf("the refusal does not name the flag that fixes it:\n%s", all)
 		}
 		if strings.Contains(all, "cannot read") || strings.Contains(all, "prose file") {
-			t.Errorf("omitting both flags was reported as a FILE read failure, sending the seat after a file it never named:\n%s", all)
+			t.Errorf("omitting --reason was reported as a FILE read failure, sending the seat after a file it never named:\n%s", all)
 		}
 		// The seat's own register event is expected; a POSITION event is not.
 		for _, e := range events(t, runDir) {
@@ -986,7 +945,7 @@ func TestCloseWithRegressionRequiresASuccessor(t *testing.T) {
 }
 
 // close --file carries the full closure record; a missing one is an error.
-func TestCloseFile(t *testing.T) {
+func TestCloseRecordsItsProse(t *testing.T) {
 	runDir := newRun(t)
 	seatID := lensSeat // the lens that mints is the one that closes
 	registerChairOnce(t, runDir)
@@ -995,23 +954,12 @@ func TestCloseFile(t *testing.T) {
 		"--class", "x", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
-	f := filepath.Join(recordtest.TmpRun(t), "closure.md")
-	if err := os.WriteFile(f, []byte("the whole closure record"), 0o644); err != nil {
-		t.Fatal(err)
-	}
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", seatID, "--id", "G1",
-		"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x", "--reason-file", f); err != nil {
+		"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x", "--reason", "the whole closure record"); err != nil {
 		t.Fatal(err)
 	}
 	if got := lastBody(t, runDir, &recordpb.Close{}).GetProse(); got != "the whole closure record" {
 		t.Errorf("prose = %q", got)
-	}
-
-	_, err := run(t, "close", "--run", runDir, "--seat-id", seatID, "--id", "G1",
-		"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x",
-		"--reason-file", filepath.Join(recordtest.TmpRun(t), "gone.md"))
-	if err == nil {
-		t.Fatal("a missing --file was ignored")
 	}
 }
 
@@ -1163,8 +1111,8 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 		})
 	}
 	// AND THE RULER'S OWN PROSE, which the docket ruling made `required` on MotionRule for every
-	// subject. It is not in the map above because it is supplied by a different flag pair
-	// (--reason / --reason-file) than the fields the loop omits by name.
+	// subject. It is not in the map above because it is supplied by the prose channel (--reason)
+	// rather than by the fields the loop omits by name.
 	t.Run("missing --reason", func(t *testing.T) {
 		args := []string{"motion", "docket", "rule", "--run", runDir, "--seat-id", seatID}
 		for k, v := range full {
@@ -1179,7 +1127,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	})
 
 	args := []string{"motion", "docket", "rule", "--run", runDir, "--seat-id", seatID,
-		"--reason-file", writeTemp(t, "the rationale"), "--reopens-on", "a reproduction on a clean tree"}
+		"--reason", "the rationale", "--reopens-on", "a reproduction on a clean tree"}
 	for k, v := range full {
 		args = append(args, "--"+k, v)
 	}
@@ -1494,15 +1442,6 @@ func TestTheBuildIsStampedOnTheFirstAct(t *testing.T) {
 	}
 }
 
-func writeTemp(t *testing.T, body string) string {
-	t.Helper()
-	p := filepath.Join(recordtest.TmpRun(t), "prose.md")
-	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	return p
-}
-
 // boardState is the replayed board, for assertions about what the events MEAN
 // rather than what they say.
 func boardState(t *testing.T, runDir string) (record.Family, error) {
@@ -1651,15 +1590,12 @@ func TestBareSpotCheckStillRecordsAnEmptyArray(t *testing.T) {
 }
 
 // `merge close` called its payload --prose-file while every other prose-bearing verb
-// calls it --file. Seats typed --file here and were refused, twice, in one run. Post-
-// collapse the shared word is --reason-file, and this pins that close reads it.
+// calls it --file. Seats typed --file here and were refused, twice, in one run. The shared
+// word is --reason now, the one prose spelling, and this pins that close reads it.
 func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	runDir := newRun(t)
-	prose := filepath.Join(recordtest.TmpRun(t), "closure.md")
-	if err := os.WriteFile(prose, []byte("verified at the leaf; digits match the cited arm"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	const prose = "verified at the leaf; digits match the cited arm"
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", lensSeat); err != nil {
 		t.Fatal(err)
 	}
@@ -1674,18 +1610,18 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 	if id == "" {
 		t.Fatalf("could not read the minted id from %q", minted)
 	}
-	// A REAL ANCHOR, not --carried-from. This test's subject is --file, and it used the
+	// A REAL ANCHOR, not --carried-from. This test's subject is the prose flag, and it used the
 	// carry as a shortcut past the anchor requirement — which is exactly how a seat under
 	// pressure would use it, and why the carry is now checked against a real earlier
 	// closure rather than accepted on its say-so.
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", id, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/x",
-		"--reason-file", prose); err != nil {
-		t.Fatalf("--file must work on close, as it does on every other prose verb: %v", err)
+		"--reason", prose); err != nil {
+		t.Fatalf("--reason must work on close, as it does on every other prose verb: %v", err)
 	}
-	if lastBody(t, runDir, &recordpb.Close{}).GetProse() == "" {
-		t.Error("the prose from --file must reach the event")
+	if got := lastBody(t, runDir, &recordpb.Close{}).GetProse(); got != prose {
+		t.Errorf("the prose from --reason must reach the event: got %q", got)
 	}
 }
 

@@ -2,36 +2,32 @@ package flags
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/spf13/cobra"
 )
 
-// RegisterPayload attaches the prose payload in its inline and file forms.
+// RegisterPayload attaches the prose payload channel.
 //
-// THE CLAIM THIS COMMENT USED TO MAKE WAS FALSE. It said the flags were "attached through this
-// function rather than by hand so no verb can register one form and forget the other" — but
-// nothing stopped a verb calling c.Flags().String(Reason, ...) itself, and `spot-check` and
-// `outcome` both did, shipping without a file form at all. A convention is not a mechanism.
-//
-// The mechanism is the Prose type, which owns the pair. This is the thin adapter for the call
-// sites that register through seat.Prose and read through seat.Reason.
+// A verb that declared c.Flags().String(Reason, ...) by hand used to ship without the channel's
+// other halves — `spot-check` and `outcome` both did. The mechanism is the Prose type, which owns
+// the flag, its wording and the quoting rule in the verb's help. This is the thin adapter for the
+// call sites that register through seat.Prose and read through seat.Reason.
 func RegisterPayload(c *cobra.Command) { new(Prose).Register(c) }
 
 // ReadPayload resolves a command's prose channel to one string.
 //
-// AN UNREGISTERED READ IS AN ERROR, NOT AN EMPTY STRING. This read both flags with GetString and
-// discarded the errors, so a verb that never registered them got "" and no complaint — and the
-// write that followed was then refused for a field the seat believed it had supplied. That is the
-// same defect the comment on Value() below documents for enum flags, in the function beside it.
-func ReadPayload(c *cobra.Command, stdin io.Reader) (string, error) {
+// AN UNREGISTERED READ IS AN ERROR, NOT AN EMPTY STRING. This read the flag with GetString and
+// discarded the error, so a verb that never registered it got "" and no complaint — and the write
+// that followed was then refused for a field the seat believed it had supplied. That is the same
+// defect the comment on Value() below documents for enum flags, in the function beside it.
+func ReadPayload(c *cobra.Command) (string, error) {
 	p := ProseOf(c)
 	if p == nil {
-		return "", fmt.Errorf("%s reads prose but never registered the --%s / --%s channel: "+
+		return "", fmt.Errorf("%s reads prose but never registered the --%s channel: "+
 			"register it with flags.Prose.Register (seat.Prose) rather than declaring a flag by hand",
-			c.CommandPath(), Reason, ReasonFile)
+			c.CommandPath(), Reason)
 	}
-	return p.Read(stdin)
+	return p.Read(), nil
 }
 
 // Set writes a flag's value under a payload key, ONLY when it is non-empty.

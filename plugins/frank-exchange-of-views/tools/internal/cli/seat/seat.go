@@ -405,16 +405,16 @@ func annotate(c *cobra.Command, key, val string) {
 // field and would go stale one field at a time; keyed on the flag it states the rule once, which
 // is what the rule actually is — the prose channel is ONE argument arriving three ways.
 var satisfiedByAnyOf = map[string][]string{
-	// The prose channel is one argument arriving three ways: inline, from a file, or from stdin
-	// via `--reason-file -`. The file forms exist for prose too large to type.
-	"reason": {flags.Reason, flags.ReasonFile},
+	// The prose channel is ONE spelling (flags.Prose says why the file forms went). Listed so a
+	// prose FIELD is required through the flag a seat types rather than the key the schema stores.
+	"reason": {flags.Reason},
 	// mint copies --reason into `problem` when --problem is absent, and its help says so in the
 	// same sentence it calls the field required.
-	"problem": {flags.Problem, flags.Reason, flags.ReasonFile},
+	"problem": {flags.Problem, flags.Reason},
 	// A line of inquiry's own statement and a manifest receipt are the verb's prose, so they
-	// arrive through the same channel every other prose field does — including from a file.
-	"line": {flags.Reason, flags.ReasonFile},
-	"row":  {flags.Reason, flags.ReasonFile},
+	// arrive through the same channel every other prose field does.
+	"line": {flags.Reason},
+	"row":  {flags.Reason},
 }
 
 // markTree annotates every LEAF under a role. Verbs with subgroups are the ordinary shape now,
@@ -702,10 +702,10 @@ func NewKeyed(name, key string, run Handler) *cobra.Command {
 	return c
 }
 
-// Prose adds the shared prose payload channel — --reason / --reason-file — to a verb that
-// reads one. It routes through flags.RegisterPayload rather than registering the flags by
-// hand, so a verb cannot register one form and forget the other; `close` shipped exactly
-// that leak (a private --file, no --text) before the channel was centralized here.
+// Prose adds the shared prose payload channel — --reason, and the quoting rule in the verb's help —
+// to a verb that reads one. It routes through flags.RegisterPayload rather than registering the
+// flag by hand, so a verb cannot take prose without the rule that keeps the shell out of it;
+// `close` once shipped its own private prose flag before the channel was centralized here.
 func Prose(c *cobra.Command) *cobra.Command {
 	flags.RegisterPayload(c)
 	return c
@@ -727,21 +727,19 @@ func ProseRequired(c *cobra.Command) *cobra.Command {
 	if f := c.Flags().Lookup(flags.Reason); f != nil {
 		f.Usage = "REQUIRED — " + f.Usage
 	}
-	c.MarkFlagsOneRequired(flags.Reason, flags.ReasonFile)
+	_ = c.MarkFlagRequired(flags.Reason)
 	return c
 }
 
-// Reason resolves that channel through flags.ReadPayload — the ONE resolver: --reason
-// inline, --reason-file from disk, or `--reason-file -` from stdin, with both-given refused
-// and the trailing newline a shell heredoc leaves behind trimmed off.
+// Reason resolves that channel through flags.ReadPayload — the ONE resolver, which refuses a read
+// of a channel the verb never registered and trims the newline a captured heredoc can leave.
 //
-// Routing every verb through the one resolver is what gives them all stdin support for free.
-// The gap it closed was measured in the 2026-07-18 run: 68 commands carrying escaped quotes,
-// 9 heredocs, and 37 staging a temp file first — two of which failed because the staged file
-// was not there. Prose into markdown costs nothing; prose through the tool meant fighting
-// the shell.
+// Prose into markdown costs nothing; prose through the tool meant fighting the shell. The 2026-07-18
+// run measured 68 commands carrying escaped quotes and 37 staging a temp file, and the answer then
+// was file and stdin spellings of this flag. The fight that mattered was substitution, not quoting,
+// and the answer to it is one rule for every free-text flag — see flags.Prose.
 func Reason(cmd *cobra.Command) (string, error) {
-	return flags.ReadPayload(cmd, cmd.InOrStdin())
+	return flags.ReadPayload(cmd)
 }
 
 // Str reads a string flag.

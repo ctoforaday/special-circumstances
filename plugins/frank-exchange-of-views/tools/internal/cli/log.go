@@ -55,7 +55,7 @@ func newLog() *cobra.Command {
 			// `unknown command`.
 			if seatFlagsUsed(cmd) {
 				return feov.Errorf(feov.Validation,
-					"friction: this is the OPERATOR's read of the channel; it takes no --reason, --reason-file or --none. "+
+					"friction: this is the OPERATOR's read of the channel; it takes no --reason or --none. "+
 						"To WRITE friction, name your role: `<role> friction --reason \"<the capability gap and what it blocked>\"`, "+
 						"or `<role> friction --none --reason \"<what you reached for and found>\"` when nothing blocked you")
 			}
@@ -76,10 +76,8 @@ func newLog() *cobra.Command {
 	}
 	// HIDDEN, because they are not this command's flags — they exist so the seat's mistake
 	// reaches a message instead of the parser. Visible would advertise them as the read's own.
-	for _, f := range []string{flags.Reason, flags.ReasonFile} {
-		c.Flags().String(f, "", "not this command's — see the refusal")
-		_ = c.Flags().MarkHidden(f)
-	}
+	c.Flags().String(flags.Reason, "", "not this command's — see the refusal")
+	_ = c.Flags().MarkHidden(flags.Reason)
 	c.Flags().Bool(flags.None, false, "not this command's — see the refusal")
 	_ = c.Flags().MarkHidden(flags.None)
 	return c
@@ -89,7 +87,7 @@ func newLog() *cobra.Command {
 // verb. Keyed on Changed rather than on emptiness: `--reason ""` is a seat at the wrong address
 // just as much as `--reason "x"` is, and an empty string is indistinguishable from unset.
 func seatFlagsUsed(cmd *cobra.Command) bool {
-	for _, f := range []string{flags.Reason, flags.ReasonFile, flags.None} {
+	for _, f := range []string{flags.Reason, flags.None} {
 		if cmd.Flags().Changed(f) {
 			return true
 		}

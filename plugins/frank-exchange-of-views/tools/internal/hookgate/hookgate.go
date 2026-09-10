@@ -8,7 +8,9 @@
 // blue/report.md and a PostToolUse backstop for a dropped finding-marker. Under report-as-record
 // (#709) there is no blue/report.md file: the report is the record, every change is an appended
 // event, and a raw write cannot reach it. The lockdown protected a file that no longer exists, so it
-// is gone; only the injection — orthogonal to it from the start — remains.
+// is gone. The injection — orthogonal to it from the start — remains, and beside it one refusal: a
+// tool command carrying a backtick the shell would execute (substitution.go), which is the one way
+// a seat's prose is rewritten after the seat writes it and before the tool can see it.
 package hookgate
 
 import (
@@ -63,6 +65,9 @@ const (
 	OutcomeNone Outcome = iota
 	// OutcomeRewrite: let the call proceed with a REPLACED command; the string is that command.
 	OutcomeRewrite
+	// OutcomeDeny: refuse the call before the shell runs it; the string is the reason the seat
+	// reads. Only a tool command carrying a backtick the shell would execute (substitution.go).
+	OutcomeDeny
 )
 
 // THERE IS NO MATCHER, AND THAT IS THE POINT.
@@ -99,6 +104,15 @@ func PreOutcome(in Input, runDir string) (Outcome, string) {
 	var ti toolInput
 	if json.Unmarshal(in.ToolInput, &ti) != nil || ti.Command == "" {
 		return OutcomeNone, ""
+	}
+	// THE DENY COMES FIRST, because a refused command runs nothing and so needs nothing injected.
+	// It is scoped to commands that mention the tool — the alias form `B="…/feov-record"; "$B" …`
+	// carries the path in the same command, since a seat's shell variables do not survive between
+	// Bash calls. A backtick in some unrelated command is the seat's own business.
+	if strings.Contains(ti.Command, "feov-record") {
+		if at, runs := executedBacktick(ti.Command); runs {
+			return OutcomeDeny, substitutionReason(ti.Command, at)
+		}
 	}
 	rewritten, ok := injectEnv(ti.Command, [][2]string{
 		{seatenv.Var, runDir},

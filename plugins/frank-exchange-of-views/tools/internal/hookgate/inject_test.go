@@ -182,16 +182,17 @@ func TestNonBashToolsAreUntouched(t *testing.T) {
 // citations whose anchors are still in the report and now render as
 // "(unresolved citation c-… — no source on the record)".
 //
-// A heredoc is the form the tool's own help teaches for multi-line prose, so this was the
-// recommended path.
+// A heredoc is the form the tool's own help teaches for free text, so this is the recommended path.
+// The measured command used the `--reason-file -` spelling that has since gone; the shapes below are
+// the ones the help teaches now (flags.ProseFooter), carrying the same heredocs the hook once bailed on.
 func TestTheHeredocFormTheToolTeachesKeepsItsIdentity(t *testing.T) {
 	for _, cmd := range []string{
-		// the measured one, leading newline and all
-		"\n/scratch/runbin/feov-record position \\\n  --reason-file - <<'EOF'\nRed raised five gaps.\nEOF",
-		// the same shape a merge seat used, four times
-		"cat > /tmp/p.txt << 'EOF'\nprose\nEOF\n/scratch/feov-record merge close --id G1 --reason-file /tmp/p.txt",
-		// `<<-` and an unquoted delimiter
-		"feov-record blue edit --reason-file - <<-END\n\ttext\n\tEND",
+		// the measured shape, leading newline and all, in the taught capture form
+		"\n/scratch/runbin/feov-record position \\\n  --reason \"$(cat <<'EOF'\nRed raised five gaps.\nEOF\n)\"",
+		// the same shape a merge seat used, four times: stage a file, pass its contents
+		"cat > /tmp/p.txt << 'EOF'\nprose\nEOF\n/scratch/feov-record merge close --id G1 --reason \"$(cat /tmp/p.txt)\"",
+		// `<<-` and an unquoted delimiter, captured into a variable first
+		"X=$(cat <<-END\n\ttext\n\tEND\n)\nfeov-record blue edit --reason \"$X\"",
 	} {
 		out, rewritten := PreOutcome(bash(t, cmd), liveRun)
 		if out != OutcomeRewrite {

@@ -72,8 +72,9 @@ func readInput(stdin io.Reader) (hookgate.Input, []byte, bool) {
 
 // Pre injects the run directory and the calling agent's id into a Bash call made inside a live
 // run, so a seat never mistypes the path and never loses the identity that binds it to its seat on
-// the record. It denies nothing: the blue-report write-lockdown it once carried protected a file
-// that no longer exists (report-as-record, #709), so injection is all that remains.
+// the record — and it refuses one thing: a tool command carrying a backtick the shell would run,
+// which would rewrite the seat's prose before the tool saw it (hookgate/substitution.go). The
+// blue-report write-lockdown it once carried protected a file that no longer exists (#709).
 func Pre(stdin io.Reader, stdout io.Writer) error {
 	in, raw, ok := readInput(stdin)
 	if !ok {
@@ -83,8 +84,11 @@ func Pre(stdin io.Reader, stdout io.Writer) error {
 	// which is wire-supplied and documented, never this hook process's os.Getwd(). Absent or
 	// unusable marker → empty → no rewrite, matching InferRunDir's "say nothing rather than guess".
 	runDir := runlive.InferRunDir(cwdOf(raw))
-	if outcome, payload := hookgate.PreOutcome(in, runDir); outcome == hookgate.OutcomeRewrite {
+	switch outcome, payload := hookgate.PreOutcome(in, runDir); outcome {
+	case hookgate.OutcomeRewrite:
 		emitPreRewrite(stdout, in.ToolInput, payload)
+	case hookgate.OutcomeDeny:
+		emitPreDeny(stdout, payload)
 	}
 	return nil
 }
@@ -146,6 +150,19 @@ func emitPreAsk(stdout io.Writer, reason string) {
 		"hookSpecificOutput": map[string]any{
 			"hookEventName":            "PreToolUse",
 			"permissionDecision":       "ask",
+			"permissionDecisionReason": reason,
+		},
+	})
+}
+
+// emitPreDeny writes the PreToolUse deny document. `permissionDecisionReason` is carried back to
+// the model, so the seat reads what the shell would have run and the form that works, in the same
+// turn — a refusal that teaches rather than one the seat has to reverse-engineer.
+func emitPreDeny(stdout io.Writer, reason string) {
+	emit(stdout, map[string]any{
+		"hookSpecificOutput": map[string]any{
+			"hookEventName":            "PreToolUse",
+			"permissionDecision":       "deny",
 			"permissionDecisionReason": reason,
 		},
 	})

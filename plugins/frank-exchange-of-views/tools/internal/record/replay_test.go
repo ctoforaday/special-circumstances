@@ -942,7 +942,7 @@ func TestNoRecordRefusalNamesAFlagASeatCannotType(t *testing.T) {
 	// no unconditional annotation declares them. Listed rather than pattern-matched, so adding one
 	// is a decision someone makes on purpose.
 	for _, w := range []string{
-		"reason", "reason-file", "run", "seat-id", "json", "help", "id", "as",
+		"reason", "run", "seat-id", "json", "help", "id", "as",
 		"quote", "new", "line", "hypothesis", "method", "problem", "fix", "check",
 		"superseded-by", "supersedes", "ids", "none", "cites", "access-date", "relief", "class",
 	} {

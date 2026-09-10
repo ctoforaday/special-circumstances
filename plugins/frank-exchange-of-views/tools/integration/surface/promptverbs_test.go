@@ -479,9 +479,9 @@ func TestNoRenderedPromptNamesACommand(t *testing.T) {
 // are the help's to state, and enumhelp already renders every closed set with its per-value
 // meanings there.
 //
-// FIVE WORDS ARE EXEMPT, and each is infrastructure rather than vocabulary: --help is the
+// FOUR WORDS ARE EXEMPT, and each is infrastructure rather than vocabulary: --help is the
 // directive itself, --run and --seat-id are engine-injected and named where that is explained,
-// and --reason/--reason-file is the ONE prose channel, stated once in recordClause as the
+// and --reason is the ONE prose channel, stated once in recordClause as the
 // universal contract rather than per act.
 //
 // THE VOCABULARY COMES FROM flags.All(), never a list here: a gate holding its own copy of the
@@ -493,7 +493,7 @@ func TestNoRenderedPromptSpellsAFlag(t *testing.T) {
 		// cobra owns --help; the rest are declared in flags and are infrastructure rather than
 		// vocabulary — engine-injected identity, and the one prose channel.
 		"help": true, flags.Run: true, flags.SeatID: true,
-		flags.Reason: true, flags.ReasonFile: true,
+		flags.Reason: true,
 	}
 	vocabulary := map[string]bool{}
 	for _, f := range flags.All() {

@@ -30,7 +30,7 @@ minted G1
 $ close --run {RUN} --seat-id red-lens-evidence --id G1
 exit 2
 stderr:
-feov-record: required flag(s) "verified-by" not set
+feov-record: required flag(s) "reason", "verified-by" not set
 
 close a gap with the verification you did THIS sitting, naming what you checked it against
 
@@ -43,6 +43,16 @@ do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with your role's 'friction' verb — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
+FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
+your text, and records whatever the command printed — or nothing — in its place. Pass every
+free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
+
+  X=$(cat <<'EOF'
+  your text — backticks, apostrophes and $ signs are all literal here
+  EOF
+  )
+  … "$X"
+
 Usage:
   feov-record close [flags]
 
@@ -50,8 +60,7 @@ Flags:
       --as as-value               HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
-      --reason string             REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
-      --reason-file -             read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --reason string             REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as "$X" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
       --verified-against string   AGAINST WHAT — the exact file, ref or URL read
       --verified-by string        WHO verified it — the seat that read the evidence
@@ -76,7 +85,7 @@ Global Flags:
 $ close --run {RUN} --seat-id red-lens-evidence --id G2 --verified-by L1 --verified-with git show --verified-against 7bc501e:x
 exit 2
 stderr:
-feov-record: at least one of the flags in the group [reason reason-file] is required
+feov-record: required flag(s) "reason" not set
 
 close a gap with the verification you did THIS sitting, naming what you checked it against
 
@@ -89,6 +98,16 @@ do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with your role's 'friction' verb — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
+FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
+your text, and records whatever the command printed — or nothing — in its place. Pass every
+free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
+
+  X=$(cat <<'EOF'
+  your text — backticks, apostrophes and $ signs are all literal here
+  EOF
+  )
+  … "$X"
+
 Usage:
   feov-record close [flags]
 
@@ -96,8 +115,7 @@ Flags:
       --as as-value               HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
-      --reason string             REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
-      --reason-file -             read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --reason string             REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as "$X" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
       --verified-against string   AGAINST WHAT — the exact file, ref or URL read
       --verified-by string        WHO verified it — the seat that read the evidence
@@ -122,7 +140,7 @@ Global Flags:
 $ close --run {RUN} --seat-id red-lens-evidence --id G1 --as repaired_with_regression --verified-by L1 --verified-with git show --verified-against 7bc501e:x
 exit 2
 stderr:
-feov-record: at least one of the flags in the group [reason reason-file] is required
+feov-record: required flag(s) "reason" not set
 
 close a gap with the verification you did THIS sitting, naming what you checked it against
 
@@ -135,6 +153,16 @@ do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with your role's 'friction' verb — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
+FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
+your text, and records whatever the command printed — or nothing — in its place. Pass every
+free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
+
+  X=$(cat <<'EOF'
+  your text — backticks, apostrophes and $ signs are all literal here
+  EOF
+  )
+  … "$X"
+
 Usage:
   feov-record close [flags]
 
@@ -142,8 +170,7 @@ Flags:
       --as as-value               HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
-      --reason string             REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
-      --reason-file -             read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --reason string             REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as "$X" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
       --verified-against string   AGAINST WHAT — the exact file, ref or URL read
       --verified-by string        WHO verified it — the seat that read the evidence
