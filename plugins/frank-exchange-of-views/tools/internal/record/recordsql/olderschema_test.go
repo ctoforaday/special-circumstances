@@ -22,6 +22,10 @@ func TestAMissingTableIsNamedAsAnOlderRun(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "older binary") || !strings.Contains(err.Error(), "retire_anchors") {
 		t.Errorf("reading a list table the run lacks: %v — want the older-binary cause named", err)
 	}
+	// ...and the way out: the repository's migrate command, spelled as the operator types it.
+	if err == nil || !strings.Contains(err.Error(), "`--seat-id operator migrate --from <runDir> --to <freshDir>`") {
+		t.Errorf("the older-run message does not name the migrate invocation: %v", err)
+	}
 	// Unquoted: SQLite reads a double-quoted unknown identifier as a string literal, not an error.
 	if _, err := scanTable(db, "retire", []string{`no_such_column`}); err == nil || strings.Contains(err.Error(), "older binary") {
 		t.Errorf("a failure on a table that exists was blamed on an older run: %v", err)

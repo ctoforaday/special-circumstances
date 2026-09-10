@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
 )
@@ -396,6 +398,42 @@ func TestACitedEmphasizedSentenceStaysACountedClaim(t *testing.T) {
 	}
 	if bare := claimcount.BareAnchorIDs(rep); len(bare) != 0 {
 		t.Errorf("the anchor on live cited prose was reported bare: %v", bare)
+	}
+}
+
+// THE WAY OUT THE OLDER-RUN MESSAGE NAMES MUST WORK ON A ROUNDLESS-ERA RECORD. `migrate` read a
+// `round` column the envelope no longer has and synthesized a cast over a record that already
+// carried one, so migrating any record written since roundless failed. A current record — cast,
+// no round column, a retire that took an anchor out — must migrate with no refusal and render the
+// same report.
+func TestARoundlessEraRecordMigratesClean(t *testing.T) {
+	// A real run's record opens with its cast, before any seat registers — as the 2026-09-10 B3
+	// record does. The migration must replay THAT cast, not synthesize a second one over it.
+	runDir := newRun(t)
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: record.HarnessSeat},
+		&recordpb.Cast{SeatIds: []string{"blue-respond", "blue-synthesize"}}); err != nil {
+		t.Fatalf("cast: %v", err)
+	}
+	writeReport(t, runDir, retireBase)
+	registerBlue(t, runDir)
+	withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://sky/1": []byte("<html>sky</html>")}})
+	label := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
+	gutToAnchor(t, runDir, "The sky is blue.", "<!--cite:"+label+"-->")
+	if ev := retireClaim(t, runDir, "The sky is blue."); len(ev.GetAnchors()) != 1 {
+		t.Fatalf("precondition: the retire named %v, want the one anchor", ev.GetAnchors())
+	}
+	want := readReport(t, runDir)
+
+	dst := filepath.Join(recordtest.TmpRun(t), "migrated") // TmpRun releases the migrated record's handle
+	out, err := run(t, "migrate", "--seat-id", "operator", "--from", runDir, "--to", dst)
+	if err != nil {
+		t.Fatalf("migrating a roundless-era record: %v\n%s", err, out)
+	}
+	if strings.Contains(out, "REFUSAL") {
+		t.Errorf("the migration refused an event:\n%s", out)
+	}
+	if got := readReport(t, dst); got != want {
+		t.Errorf("the migrated report differs:\n got %q\nwant %q", got, want)
 	}
 }
 

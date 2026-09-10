@@ -161,7 +161,21 @@ func (s *SQLiteSource) vocabulary() (map[string]bool, error) {
 }
 
 func (s *SQLiteSource) envelopes() ([]OldEvent, error) {
-	rows, err := s.db.Query(`SELECT "id", "seat_id", "round", "ts", "type", "key" FROM "events" ORDER BY "id"`)
+	// THE ROUND IS READ ONLY WHERE THE RECORD HAS ONE. The envelope lost its round column
+	// (plans/roundless.md §III.A.2), so a roundless-era record that predates a later table has no
+	// such column — and a double-quoted identifier SQLite cannot resolve is read as a STRING
+	// LITERAL, not refused, so the Scan failed on the word "round" instead of naming the cause.
+	// Asked of the schema, not guessed: a roundless record carries round 0, which is what
+	// serializeInstances already reads as "one round".
+	var hasRound int
+	if err := s.db.QueryRow(`SELECT count(*) FROM pragma_table_info('events') WHERE "name" = 'round'`).Scan(&hasRound); err != nil {
+		return nil, fmt.Errorf("migrate: reading the old envelope's columns: %w", err)
+	}
+	round := `0`
+	if hasRound > 0 {
+		round = `"round"`
+	}
+	rows, err := s.db.Query(`SELECT "id", "seat_id", ` + round + `, "ts", "type", "key" FROM "events" ORDER BY "id"`)
 	if err != nil {
 		return nil, fmt.Errorf("migrate: reading the old envelope: %w", err)
 	}

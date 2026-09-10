@@ -474,8 +474,10 @@ func olderSchema(q queryRower, table string, err error) error {
 	var n int
 	if qerr := q.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&n); qerr == nil && n == 0 {
 		return fmt.Errorf("recordsql: this run's record has no %q table — it was created by an older binary than this one, "+
-			"and a run's schema is fixed when its database is created (there is no migration, by design). "+
-			"Read and finish this run with the binary that started it: %w", table, err)
+			"and a run's schema is fixed when its database is created (it is never altered in place). Migrate it: "+
+			"`--seat-id operator migrate --from <runDir> --to <freshDir>` replays every event through this binary's "+
+			"write path into a fresh run, leaves the source untouched, and writes what it translated to "+
+			"<freshDir>/inputs/migration.json; continue in <freshDir>: %w", table, err)
 	}
 	return err
 }
