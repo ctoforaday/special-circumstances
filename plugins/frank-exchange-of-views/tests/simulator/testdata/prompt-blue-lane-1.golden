@@ -1,4 +1,4 @@
-prompt sha256: 92095e31c6a62eab14b39b3a758fcc8331e765cdb7f325ae2ab9b02c49296506
+prompt sha256: 8e6cafe4d913866b3fa363822d854d2366ab468f5b131250aa1efa06ef35a014
 
 Blue lane 1 of 3 for topic: "the seat prompt contract".
 Read the frontier hypotheses from the RECORD — the `lines-of-inquiry` projection — where each carries an id and its hypothesis, and if research/2026-01-01_golden/inputs/red-gap-patterns.md exists (red's accumulated gap-pattern inventory, staged at run setup), read it too — yesterday's expensive red discovery is today's free checklist line.
@@ -44,6 +44,8 @@ The projection names, this prompt's words for a concept, and the command that wr
 The help is the only authoritative one, and this prompt names the JOB, never the flags.
 EVERY READ IS A PROJECTION OF THE RECORD, never a file you open.
 The .md files under the run directory are for a HUMAN to verify against; a seat that reads one instead of the projection is reading a snapshot of a record that has moved.
-YOUR REASONING IS PART OF EVERY ACT, and the report renders it: it is your argument to the other seats, on the record where they can answer it.
-Write it for them, not as a label for what you did.
+YOUR REASONING IS PART OF EVERY ACT, and the RECORD renders it — your position and closings in the transcript, your reasons beside the acts on the board.
+It is your argument to the other seats, where they can answer it.
+NEVER the research report: that document is addressed to a reader of the subject and carries no argument about the run.
+And write your THINKING, not a label for what you did — the ledger already holds every act of this sitting, in order, so an account of the verbs you ran narrates what the record reconstructs.
 Return a 3-line synopsis.

@@ -88,7 +88,7 @@ Flags:
       --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts
   -h, --help                         help for verify
       --quote string                 REQUIRED — the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs (the claim you are checking)
-      --reason string                REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason string                REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
       --reason-file -                read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
 
 Enumerated values:
@@ -202,14 +202,6 @@ _Composed from the record, never from the run's configuration: these are the mod
 |---|---|---|
 | bulk | _NOT MEASURED — nothing observed what replied_ | 1 of 1 |
 | judgment | _NOT MEASURED — nothing observed what replied_ | 3 of 3 |
-
-## Read this first
-
-**The bench asks a human to re-examine:** what a human should re-examine
-
-1 open gap(s) remain, most severe first — full statements in [the board](docket.md).
-
-1. **[medium]** docketed (G1) — 
 
 ## TL;DR
 

@@ -140,8 +140,10 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
   false universals, twice-wrong arithmetic, uncomposed same-line fixes, sibling escapes.)
   RECORD THE ROW, DO NOT MERELY RUN IT: one manifest-row event per repaired gap, naming the gap, whose reason carries
   "<what you checked and what it showed>"` per repaired gap. The row is your receipt and it
-  REACHES THE READER — the report renders your manifest, and a gap YOU repaired carrying no row
-  is named there as a repair nobody audited, including its author. A gap the BENCH disposed of is
+  REACHES A READER — the BOARD renders your manifest (`docket.md`, the board in full), and a gap
+  you repaired carrying no row is named there as a repair nobody audited. It does not go in the
+  report: a receipt is the checking apparatus, and the research document carries what the checking
+  SHOWED, never the checking itself. A gap the BENCH disposed of is
   not on that list: nobody repaired it, so no receipt is owed and none is missing. An unmanifested repair is
   unchecked by your own standard, which is a stronger thing to be able to say than "we think
   it was checked".
@@ -205,3 +207,4 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
   carries into your next sitting. Your sitting's last act reports what is still owed; discharge
   each with a proof naming that gap, or argue in the edit's reasoning that the demand is
   wrong. What you may not do is leave it silent.
+- **A DISPUTED FACT OR A THIN ASSUMPTION IS THE READER'S BUSINESS, AND IT BELONGS IN THE SENTENCE THAT MAKES THE CLAIM.** Not in a preamble, not in a section about the run: where a fact is contested, where an assumption is load-bearing and the evidence for it is thin, say so in the prose making the claim, in the report's own voice, as a limit on the ANSWER. A reader who reaches that sentence is the person who needs the warning, and they need it there rather than in a note about who argued what.

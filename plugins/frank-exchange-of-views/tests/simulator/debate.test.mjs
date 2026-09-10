@@ -274,7 +274,11 @@ test('the assembler authors nothing, stamps the outcome the record derives, and 
   await world.run(script, ARGS)
   const asm = firstPrompt(world, 'assemble')
   assert.ok(/you author NOTHING, you copy NOTHING/.test(asm) && /do not copy anything into it yourself/.test(asm) && /cannot mis-author a synthesis surface/.test(asm))
-  assert.ok(/it is VERIFIED/.test(asm) && /Record it as the run's outcome — VERIFIED — with your account/.test(asm) && !/ended at the ceiling/.test(asm))
+  assert.ok(/it is VERIFIED/.test(asm) && /Record it as the run's outcome — VERIFIED/.test(asm) && !/ended at the ceiling/.test(asm))
+  // THE REASON IS A JUDGEMENT, NOT A RECAP. `--reason` carries why this outcome is the right read
+  // of the board; the ledger already holds what the sitting did, in order.
+  assert.ok(/WHY this outcome is the right read of the board/.test(asm) && !/your account of the sitting/.test(asm),
+    'the assemble prompt asks for a recap of the sitting rather than the judgement')
   assert.ok(/open, below material, not certified against/.test(asm))
   assert.ok(!asm.includes('open_questions'), 'assembly lifts blue\'s audited section, never receives it')
 })
@@ -313,7 +317,14 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   const world = makeWorld(makeResponder({ chair: [passChair()], blueSynth: [blueEnv({ open_questions: ['does the schema guarantee conformance-or-null?'] })] }))
   await world.run(script, ARGS)
   const synth = firstPrompt(world, 'blue-synthesize')
-  assert.ok(synth.includes('exactly ONE lane') && synth.includes('minority'))
+  // PROVENANCE IS NOT WRITTEN INTO PROSE. The synthesis prompt used to order an inline
+  // `[minority: lane-N]` tag on every single-lane claim — which blue's own constitution names
+  // as the measured failure it exists to prevent, and which reportvoice flags. Six of them
+  // shipped in a VERIFIED report before this was found. The fact is real and the record
+  // already holds it: the lane drafts, the frozen base and every recorded edit.
+  assert.ok(!/minority|lane marker|exactly ONE lane/.test(synth), 'the synthesis prompt orders provenance into prose again')
+  assert.ok(/EXTRACTED from the record/.test(synth) && /RESEARCH PROSE AND THE TOOL'S OWN MARKERS/.test(synth),
+    'the synthesis prompt must state where provenance comes from and what the report may carry')
   assert.ok(synth.includes('## Open questions') && synth.includes('THE CATECHISM IS YOURS') && synth.includes('## The Catechism') && synth.includes('every risk-accepted residual'))
   assert.ok(synth.includes('## The board') && synth.includes('is FABRICATION') && synth.includes('ONLY WHAT YOU CAN AUTHOR'))
   assert.ok(/reorganize freely/i.test(synth) && /retired on the record/.test(synth))

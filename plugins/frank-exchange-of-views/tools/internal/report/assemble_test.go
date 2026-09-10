@@ -104,14 +104,16 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 	if g := verdictGloss(nil); !strings.Contains(g, "no terminal outcome recorded") {
 		t.Errorf("a missing outcome must still be answerable from the gloss: %q", g)
 	}
-	// UNVERIFIED is the word alone: the retired `ended` modifier restated a fact the verdict
-	// already carries, and the bench's account of why travels in the gloss, not the stamp.
+	// UNVERIFIED is the word alone, and the bench's ACCOUNT of why is not in the research document
+	// at all. `outcome --reason` is seat-authored prose written after red's last sitting; it is
+	// envelope, and it renders with its siblings under the transcript's Bench disposition. What
+	// stays here is the TOOL's own derivation reasoning, which no seat wrote.
 	unverified := &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED), Prose: proto.String("the workflow stopped with nobody ready")}
 	if s := verdictStamp(unverified); s != "**Verdict:** UNVERIFIED" {
 		t.Errorf("the verdict field must be the word alone: %q", s)
 	}
-	if g := verdictGloss(unverified); !strings.Contains(g, "How the run ended, in the bench's words") || !strings.Contains(g, "nobody ready") {
-		t.Errorf("the bench's account must reach the gloss: %q", g)
+	if g := verdictGloss(unverified); strings.Contains(g, "nobody ready") {
+		t.Errorf("the bench's own prose reached the research document: %q", g)
 	}
 }
 
@@ -505,43 +507,6 @@ func TestBlueEmbedDropsLiftedAndFabricated(t *testing.T) {
 	scoped := "# t\n\n## TL;DR\nx\n\n## Analysis\ny\n"
 	if e := blueEmbed(scoped); e != "" {
 		t.Errorf("a correctly-scoped blue doc should yield an empty embed, got:\n%s", e)
-	}
-}
-
-func TestOrientationRanksAndPromotesBench(t *testing.T) {
-	board := &boardT{
-		GapOrder: []string{"G1", "G2", "G3"},
-		Gaps: map[string]*record.Gap{
-			"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_LOW, Impact: recordpb.Grade_GRADE_LOW, Likelihood: recordpb.Grade_GRADE_LOW,
-				Mint: &recordpb.Mint{Problem: proto.String("a minor nit."), RequiredFix: proto.String("tidy it")}},
-			"G2": {ID: "G2", Open: true, Severity: recordpb.Grade_GRADE_CERTAIN, Impact: recordpb.Grade_GRADE_HIGH, Likelihood: recordpb.Grade_GRADE_HIGH,
-				Mint: &recordpb.Mint{Problem: proto.String("a load-bearing flaw."), RequiredFix: proto.String("fix the core")}},
-			"G3": {ID: "G3", Open: false, Severity: recordpb.Grade_GRADE_HIGH, // closed — must not appear
-				Mint: &recordpb.Mint{Problem: proto.String("already closed.")}},
-		},
-	}
-	evs := []*record.Event{
-		recordtest.Event(t, "", &recordpb.Certify{Statement: proto.String("re-examine the cost model before shipping")}),
-	}
-	o := orientation(board.fam(), evs, "")
-	// The bench's certify is promoted to the top.
-	if !strings.Contains(o, "re-examine the cost model before shipping") {
-		t.Errorf("orientation must promote the bench's certify statement:\n%s", o)
-	}
-	// The load-bearing flaw (severity "certain", a top domain grade the old critical|high|medium|
-	// low table sank to rank 0) ranks above the minor nit, and the closed gap is absent.
-	ci := strings.Index(o, "a load-bearing flaw")
-	ni := strings.Index(o, "a minor nit")
-	if ci < 0 || ni < 0 || ci > ni {
-		t.Errorf("open gaps must be ranked most-severe first:\n%s", o)
-	}
-	if strings.Contains(o, "already closed") {
-		t.Errorf("a closed gap must not appear in Read this first:\n%s", o)
-	}
-	// Empty board says so, invents nothing.
-	empty := orientation((record.NewFamily(nil, nil)), nil, "")
-	if !strings.Contains(empty, "no open gaps remain") {
-		t.Errorf("an empty board should say nothing is outstanding:\n%s", empty)
 	}
 }
 
