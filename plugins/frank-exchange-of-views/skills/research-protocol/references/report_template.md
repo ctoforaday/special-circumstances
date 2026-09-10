@@ -30,11 +30,14 @@
 # <Topic>                                <!-- [BLUE] blue's H1, cut at the author's own punctuation boundary -->
 **Question:** <the full brief>           <!-- [RECORD] the rest of blue's H1, as a field rather than a heading -->
 
-**Verdict:** VERIFIED | UNVERIFIED | CEILING | HALTED   <!-- [RECORD] the terminal `outcome` event. THE WORD ALONE:
-                                              a field a reader can skim, badge or grep is one token. Its argument —
-                                              what the verdict means, the basis it rests on, and what it means for the
-                                              answer, which is the tool's own reasoning — follows the word directly. The
-                                              BENCH's words are the judicial record's, never this document's. -->
+**Verdict:** VERIFIED | UNVERIFIED | CEILING | HALTED (derived from the record | asserted by the bench)
+                                              <!-- [RECORD] the terminal `outcome` event. THE WORD, then its basis as
+                                              STATE in parentheses, and nothing else: a field a reader can skim, badge
+                                              or grep, whose first token is still the word. Everything that EXPLAINS it
+                                              — what the verdict means, the basis it rests on, what it means for the
+                                              answer — is envelope, in run.md's verdict-basis section (gblock,
+                                              2026-09-10). The BENCH's words are the judicial record's, never this
+                                              document's. -->
 
 
 ## TL;DR                                 <!-- [BLUE] 3–6 sentences: the answer, the confidence, the sharpest caveat -->
@@ -107,6 +110,8 @@
 # run.md — how the machinery behaved
 
 ## How this run was conducted            <!-- [RECORD] what ANSWERED each seat, measured; never the configuration -->
+
+## The verdict's basis                   <!-- [RECORD] every verdict's gloss, and the ONLY place any of it lives — report.md keeps the stamp and its basis as state -->
 
 ## Log (what the run told the operator)   <!-- [RECORD] the log entries, each with what it asserts; nominal entries render apart -->
 

@@ -324,7 +324,22 @@ func verdictStamp(o *recordpb.Outcome) string {
 	if o == nil {
 		return "**Verdict:** _(no terminal outcome recorded — `bench outcome` was not run before assembly)_"
 	}
-	return "**Verdict:** " + verdictWord(o)
+	return "**Verdict:** " + verdictWord(o) + basisState(o.GetVerdictBasis())
+}
+
+// basisState is the verdict's basis as STATE — the one fact about how the verdict was reached that
+// sits beside the stamp (gblock, 2026-09-10: "State on the stamp, prose to run.md"). It follows the
+// word in parentheses so the word stays the FIRST token: a reader who skims, badges or greps the
+// stamp still finds one word. What the basis MEANS is basisNote's sentence, and it lives in run.md.
+func basisState(basis string) string {
+	switch basis {
+	case record.VerdictDerived:
+		return " (derived from the record)"
+	case record.VerdictAsserted:
+		return " (asserted by the bench)"
+	default:
+		return ""
+	}
 }
 
 // verdictWord is the verdict as a FIELD — the word, and the clause naming how the run ended,

@@ -81,8 +81,9 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 	if s := verdictStamp(nil); !strings.Contains(s, "no terminal outcome recorded") {
 		t.Errorf("missing outcome must be flagged: %q", s)
 	}
-	// THE STAMP IS A FIELD. It carries the word and the clause naming how the run ended, and
-	// nothing else — a fact a reader can skim, badge or grep has to be one token. The argument
+	// THE STAMP IS A FIELD. It carries the word and the clause naming how the run ended, then — since
+	// gblock's 2026-09-10 ruling — its basis as state in parentheses. The word stays the FIRST token, so
+	// a reader who skims, badges or greps it still finds one. The argument
 	// that used to sit inline is verdictGloss, asserted directly below.
 	ceiling := &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING)}
 	if s := verdictStamp(ceiling); s != "**Verdict:** CEILING-TERMINATED" {
@@ -90,6 +91,16 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 	}
 	if g := verdictGloss(ceiling); !strings.Contains(g, "CEILING-TERMINATED") || !strings.Contains(g, "never audited by a red pass") || !strings.Contains(g, "travels OUT of the run") {
 		t.Errorf("the CEILING gloss must name the re-audit debt and not read as a failure: %q", g)
+	}
+	// THE BASIS RIDES THE STAMP AS STATE ("State on the stamp, prose to run.md"): the word first, the
+	// basis in parentheses, and not one word of what it means — that is basisNote, in run.md.
+	derived := &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_VERIFIED), VerdictBasis: proto.String(record.VerdictDerived)}
+	if s := verdictStamp(derived); s != "**Verdict:** VERIFIED (derived from the record)" {
+		t.Errorf("a derived verdict's stamp must carry its basis as state: %q", s)
+	}
+	asserted := &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED), VerdictBasis: proto.String(record.VerdictAsserted)}
+	if s := verdictStamp(asserted); s != "**Verdict:** UNVERIFIED (asserted by the bench)" {
+		t.Errorf("an asserted verdict's stamp must carry its basis as state: %q", s)
 	}
 	halted := &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_HALTED)}
 	if s := verdictStamp(halted); s != "**Verdict:** HALTED" {
