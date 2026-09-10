@@ -13,7 +13,7 @@ import (
 // takes one.
 //
 // IT LIVES HERE RATHER THAN BESIDE EITHER CALLER BECAUSE THERE ARE TWO. `lens finding` files the
-// finding and `merge mint` files the gap that finding becomes; a seat that anchors an omission at
+// finding and `lens mint` files the gap that finding becomes; a seat that anchors an omission at
 // the first step and then has to anchor it differently at the second is being asked to hold two
 // vocabularies for one act. Two copies of this would also be two copies of the checks, free to
 // drift on which references the record verifies — and the checks are the entire reason the pair

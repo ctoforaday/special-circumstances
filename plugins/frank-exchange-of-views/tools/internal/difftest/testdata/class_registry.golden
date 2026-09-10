@@ -206,12 +206,12 @@ Global Flags:
 $ mint --run {RUN} --seat-id red-lens-evidence --class attestation-inflation --check-kind document --check compare anchors --severity medium --likelihood medium --impact high --problem inflation
 exit 2
 stderr:
-feov-record: lens: record: unknown class attestation-inflation — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or coin this one first with `merge class new --class attestation-inflation --definition ... --neighbor ... --distinguisher ...`
+feov-record: lens: record: unknown class attestation-inflation — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or coin this one first with `class new --class attestation-inflation --definition ... --neighbor ... --distinguisher ...`
 
 $ mint --run {RUN} --seat-id red-lens-evidence --class attestation-inflation --check-kind document --check same class again --severity low --likelihood low --impact low --problem extension accepted
 exit 2
 stderr:
-feov-record: lens: record: unknown class attestation-inflation — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or coin this one first with `merge class new --class attestation-inflation --definition ... --neighbor ... --distinguisher ...`
+feov-record: lens: record: unknown class attestation-inflation — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or coin this one first with `class new --class attestation-inflation --definition ... --neighbor ... --distinguisher ...`
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}

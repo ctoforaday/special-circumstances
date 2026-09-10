@@ -6,7 +6,7 @@ package recordtest
 // registry holds it after sorting.
 //
 // Fixtures stage this rather than restating it. Three test files used to carry their own
-// hand-written copy of all 38 slugs, under a comment pointing at the registry and nothing
+// hand-written copy of all 39 slugs, under a comment pointing at the registry and nothing
 // comparing them to it — so a rename would have left every fixture validating a vocabulary
 // production had stopped accepting, with the suite green throughout.
 var ShippedClasses = []string{
@@ -39,6 +39,7 @@ var ShippedClasses = []string{
 	"reader-channel-mismatch",
 	"recurrence-detector-keying",
 	"reflexivity-blindspot",
+	"report-voice",
 	"risk-coverage-omission",
 	"self-attestation",
 	"spec-underspecification",

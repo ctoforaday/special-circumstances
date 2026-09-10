@@ -63,5 +63,5 @@ type classResult struct {
 }
 
 func (r classResult) Human() string {
-	return "class " + r.Slug + " coined — mint against it with `merge mint --class " + r.Slug + "`"
+	return "class " + r.Slug + " coined — mint against it with `mint --class " + r.Slug + "`"
 }

@@ -13,7 +13,7 @@ import (
 )
 
 // CommandPaths returns every invocable command path in the real tree — "verify",
-// "merge mint", "blue claim-index" — sorted, with cobra's own scaffolding removed.
+// "lens mint", "blue claim-index" — sorted, with cobra's own scaffolding removed.
 //
 // WHY IT IS EXPORTED. The fuzz harness asserts that it drives the whole surface, and the
 // only honest source for "the whole surface" is the tree itself. A hand-maintained list of
@@ -144,7 +144,7 @@ func CommandReferences() map[string]map[string]string {
 }
 
 // CommandRecords returns every command path that RECORDS an event, mapped to the event type it
-// writes — "merge mint" -> "mint", "blue edit" -> "blue_edit".
+// writes — "lens mint" -> "mint", "blue edit" -> "blue_edit".
 //
 // THE THIRD EDGE OF THE SURFACE GRAPH, and the one nothing derived before. CommandPaths answers
 // "what verbs exist" and CommandFlags "what does each accept"; neither says what a verb DOES to

@@ -296,7 +296,7 @@ func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 // and never joined to the projection.
 //
 // `Mint.mint_reason` is what red thinks is WRONG with the text, distinct from `problem`, which
-// says what is wrong — the half a seat answers and a bench weighs. `merge mint` writes it, the
+// says what is wrong — the half a seat answers and a bench weighs. `lens mint` writes it, the
 // schema carries it, and BoardJSON declares the field. Only the assignment between them was
 // missing, and viewjson.go carried a note saying the schema had no such field, which was not true.
 //

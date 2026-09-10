@@ -584,7 +584,7 @@ func StageForRun(run Run, slugs ...string) error {
 // IT WAS A FLAG A SEAT SET. `--class-new` asserted "this class is new", which the registry
 // already knows — so the assertion could be wrong in both directions, and the boolean's real
 // meaning was "I also passed --definition, --neighbor and --distinguisher". Coining is
-// `merge class new` now; this derives the fact from what that verb wrote.
+// `lens class new` now; this derives the fact from what that verb wrote.
 func ClassCoinedInRun(run Run, slug string) bool {
 	// A read error folds into false, as the merged-read error did.
 	found, err := recordHas(run, `SELECT 1 FROM "class_new" WHERE "slug" = ? LIMIT 1`, slug)
@@ -604,7 +604,7 @@ func validateClass(run Run, mint *recordpb.Mint) error {
 	if len(slugs) < hintN {
 		hintN = len(slugs)
 	}
-	return fmt.Errorf("record: unknown class %s — use a registry slug (e.g. %s, ...) or coin this one first with `merge class new --class %s --definition ... --neighbor ... --distinguisher ...`",
+	return fmt.Errorf("record: unknown class %s — use a registry slug (e.g. %s, ...) or coin this one first with `class new --class %s --definition ... --neighbor ... --distinguisher ...`",
 		mint.GetClass(), strings.Join(slugs[:hintN], ", "), mint.GetClass())
 }
 
@@ -640,7 +640,7 @@ func validateClassNew(run Run, coined *recordpb.ClassNew) error {
 		return nil
 	}
 	if known[coined.GetSlug()] {
-		return fmt.Errorf("record: class %s already exists — mint against it with `merge mint --class %s` rather than coining it twice", coined.GetSlug(), coined.GetSlug())
+		return fmt.Errorf("record: class %s already exists — mint against it with `mint --class %s` rather than coining it twice", coined.GetSlug(), coined.GetSlug())
 	}
 	if !known[coined.GetNeighbor()] {
 		return fmt.Errorf("record: --neighbor %s is not a known class", coined.GetNeighbor())

@@ -153,7 +153,7 @@ func newEdit() *cobra.Command {
 		//
 		// If blue applied red's own proposed text EXACTLY, there is nothing left for red to
 		// complain about at this site BY CONSTRUCTION, not by good behaviour. The fact is
-		// computed here — never claimed by either seat — and `merge mint` reads it to refuse
+		// computed here — never claimed by either seat — and `lens mint` reads it to refuse
 		// a fresh gap relitigating text red itself prescribed.
 		//
 		// Blue is not obliged to reach this state: a counter-edit simply does not set the
@@ -193,7 +193,7 @@ func newEdit() *cobra.Command {
 // with `new`.
 //
 // The three LEGALITY checks — present-and-unique, no word split, and anchors transit
-// unchanged — live in internal/bluedoc, because `merge mint` now has to answer the same
+// unchanged — live in internal/bluedoc, because `lens mint` now has to answer the same
 // question about a concrete proposed fix before red may attach one. What stays here is the
 // part only blue does: the SPLICE. Under report-as-record no file is written — the BlueEdit event
 // IS the mutation and reportproj.Render replays this same splice. The validation peek reuses this
