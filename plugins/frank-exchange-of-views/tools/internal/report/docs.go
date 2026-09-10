@@ -89,7 +89,12 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	// The stamp is the WORD; its argument follows it immediately — what the verdict MEANS for the
 	// answer, which is the one thing about the run a reader of the subject genuinely needs, and
 	// which is the tool's own reasoning rather than any seat's prose.
-	if outcome != nil {
+	//
+	// EXCEPT A HALT (gblock, 2026-09-10: "Move it out of report.md"). A halted run's gloss says the
+	// bench ended the run and where its opinion is — a fact about the RUN, and the last tool-authored
+	// process-voice tell that could reach this document. report.md keeps the HALTED stamp; the gloss
+	// is in run.md's verdict-basis section, beside every other outcome's.
+	if outcome != nil && outcome.GetVerdict() != recordpb.RunOutcome_RUN_OUTCOME_HALTED {
 		r.add(verdictGloss(outcome))
 	}
 	if question != "" {
@@ -145,6 +150,12 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	// answered each seat, measured from each seat's own trajectory. A PASS from a tier nobody
 	// configured is not the PASS the run was set up to produce (#589).
 	runsec.add(conduct(run, fam))
+	// THE VERDICT'S BASIS, for every outcome — the same gloss report.md carries beside its stamp,
+	// here in full. It is the one place a halted run's gloss lives, since report.md sheds it, and it
+	// keeps run.md a complete account of the verdict whatever it was.
+	if outcome != nil {
+		runsec.add("## The verdict's basis\n\n" + verdictGloss(outcome))
+	}
 	runsec.add(logSection(evs))
 	// The record's own invariant check, rendered for the human the report is for. See
 	// recordVerification: a section, never a gate.

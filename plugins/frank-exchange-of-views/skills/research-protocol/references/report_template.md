@@ -108,6 +108,8 @@
 
 ## How this run was conducted            <!-- [RECORD] what ANSWERED each seat, measured; never the configuration -->
 
+## The verdict's basis                   <!-- [RECORD] the verdict's gloss for every outcome; a HALTED run's lives ONLY here, since report.md keeps just the stamp -->
+
 ## Log (what the run told the operator)   <!-- [RECORD] the log entries, each with what it asserts; nominal entries render apart -->
 
 ## Record verification                   <!-- [RECORD] the record's own invariant check — a section, never a gate -->
