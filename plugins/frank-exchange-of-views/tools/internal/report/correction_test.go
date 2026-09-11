@@ -64,3 +64,22 @@ func TestTheReportShowsACorrectedActStruck(t *testing.T) {
 		t.Errorf("the terminal outcome read = %q, want the one that stands", got)
 	}
 }
+
+// A CORRECTION TAKES ITS TARGET'S PLACE (F12). The judge records outcome #1, then #2, then corrects
+// #1: the terminal outcome is still #2. Read in raw order, #1's replacement is the last outcome on
+// the record and would be taken for the run's ending.
+func TestACorrectedEarlierOutcomeDoesNotBecomeTheTerminalOne(t *testing.T) {
+	out := func(prose string) *recordpb.Outcome {
+		return &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED.Enum(), Prose: proto.String(prose)}
+	}
+	evs := []*record.Event{
+		recordtest.At(t, "judge", "judge:outcome:#1", out("first account, with a word  lost")),
+		recordtest.At(t, "judge", "judge:outcome:#2", out("the account that ends the run")),
+		recordtest.At(t, "judge", "judge:outcome:#1~1", out("first account, whole")),
+		recordtest.At(t, "judge", "judge:correction:judge:outcome:#1", &recordpb.Correction{
+			Corrects: proto.String("judge:outcome:#1"), Replacement: proto.String("judge:outcome:#1~1"), Why: proto.String("a word was lost")}),
+	}
+	if got := outcomeOf(evs).GetProse(); got != "the account that ends the run" {
+		t.Errorf("the terminal outcome read = %q, want #2 — a correction of #1 stands in #1's place", got)
+	}
+}
