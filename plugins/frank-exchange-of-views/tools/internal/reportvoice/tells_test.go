@@ -27,6 +27,29 @@ func TestEveryMeasuredClassIsStillLookedFor(t *testing.T) {
 	}
 }
 
+// EVERY SPELLING THE 2026-09-11 BASE USED IS LOOKED FOR. Five of its run-narration sentences were
+// "this run"; the others said "this debate", "this sitting" or "more than one research lane", and
+// the advisory named only the five. Each sample must match its own class.
+func TestTheRunNarrationSpellingsAreLookedFor(t *testing.T) {
+	for sample, class := range map[string]Class{
+		"what this debate adds is convergent verification":        ProcessVoice,
+		"could not from this run's position survey other sources": ProcessVoice,
+		"not pursued this sitting":                                ProcessVoice,
+		"the debate settled it":                                   ProcessVoice,
+		"computed independently by more than one research lane":   LaneAttribution,
+		"two research lanes agree on the count":                   LaneAttribution,
+	} {
+		found := Find(sample)
+		if len(found) == 0 {
+			t.Errorf("%q reads clean; it narrates the run", sample)
+			continue
+		}
+		if found[0].Class != class {
+			t.Errorf("%q matched %s, want %s", sample, found[0].Class, class)
+		}
+	}
+}
+
 // SUBJECT PROSE IS NOT A LEAK, and this is the assertion that keeps the list from becoming a
 // censor. The advisory does not block and the lens argues, precisely because a pattern cannot tell
 // a report narrating itself from a report quoting a source that narrates something.

@@ -179,7 +179,7 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
   is the one document in the run nothing checks.
 - AFTER each task, YOU MUST return exactly the envelope the invoker specifies — the payload
   is the file; the envelope is the handle.
-- **THE REPORT IS ADDRESSED TO A READER OF ITS SUBJECT, NEVER TO THE RUN.** Its content rule — what may be in it at all, and where everything else goes — is on the verbs that write report text: edit, ingest, and line-of-inquiry's propose and move.
+- **THE REPORT IS ADDRESSED TO A READER OF ITS SUBJECT, NEVER TO THE RUN.** That holds for every word you draft toward it — a lane draft becomes the report's text. Write every sentence for someone who wants the answer and was not here. The record already holds the run — its debate, sittings, lanes, drafts, and the machinery that checked it — so the report never names them: not "this debate", "this run" or "this sitting", no lane or seat as the source of a claim, no account of how the report was made. SEPARATION, NEVER DELETION: where a fact about the run limits the CONCLUSION, it stays, re-voiced as a limit on the answer ("the search reached only English-language sources"), and the rest of it goes to the record. The full content rule — what may be in the report at all, and where everything else goes — is on the verbs that write report text: edit, ingest, and line-of-inquiry's propose and move.
 
 - AFTER every sitting — not only the ones that went wrong — YOU MUST close the operator
   channel explicitly: your role's log act, saying what it ASSERTS and naming the thing and the

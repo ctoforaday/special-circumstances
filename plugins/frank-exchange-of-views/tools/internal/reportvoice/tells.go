@@ -49,12 +49,14 @@ type Tell struct {
 }
 
 var tells = []Tell{
-	{ProcessVoice, regexp.MustCompile(`(?i)\bthis (run|round|report)\b`),
+	{ProcessVoice, regexp.MustCompile(`(?i)\bthis (run|round|report|sitting)\b`),
 		"the record already holds the run; a sentence about the subject does not need to name it"},
-	{ProcessVoice, regexp.MustCompile(`(?i)\bthe debate\b`),
+	{ProcessVoice, regexp.MustCompile(`(?i)\b(the|this) debate\b`),
 		"the record already holds the debate; say what is true of the subject"},
 	{LaneAttribution, regexp.MustCompile(`\[(minority|lane-\d)[^\]]*\]`),
 		"provenance is the record's; a claim in the report is the report's"},
+	{LaneAttribution, regexp.MustCompile(`(?i)\bresearch lanes?\b`),
+		"which lane found it is the record's; the report says what was found"},
 	{DraftHistory, regexp.MustCompile(`(?i)an earlier version of this (sentence|bullet|paragraph)|corrected here`),
 		"the change stack holds what the report used to say"},
 	{Apparatus, regexp.MustCompile(`(?i)the checking (program|script)|measurement apparatus`),
