@@ -6,6 +6,10 @@
 //
 // Tracked files only, via `git ls-files`: an untracked scratch .json is the author's
 // business, and sweeping the whole tree would fail on a temp file nobody ships.
+//
+// A plugin's hooks/hooks.json is also held to the keys the hooks reference documents
+// (hooks.go): the client ignores any other key with a warning at every session start, which
+// is a second way a manifest says something the loader does not hear.
 package main
 
 import (
@@ -36,7 +40,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	bad := 0
+	bad, hooks := 0, 0
 	for _, f := range files {
 		b, err := os.ReadFile(filepath.Join(root, f))
 		if err != nil {
@@ -48,10 +52,24 @@ func main() {
 		if err := json.Unmarshal(b, &any); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", f, err)
 			bad++
+			continue
 		}
+		if isPluginHooks(f) {
+			hooks++
+			for _, p := range hookKeyProblems(b) {
+				fmt.Fprintf(os.Stderr, "%s: %s\n", f, p)
+				bad++
+			}
+		}
+	}
+	if hooks == 0 {
+		// Every plugin that registers a hook has one of these; none found means the pattern
+		// stopped matching, and a key check that checked nothing must not read as a pass.
+		fmt.Fprintln(os.Stderr, "validate-json: no plugins/*/hooks/hooks.json is tracked — the pattern is wrong, not the tree")
+		bad++
 	}
 	if bad > 0 {
 		os.Exit(1)
 	}
-	fmt.Printf("%d JSON files valid\n", len(files))
+	fmt.Printf("%d JSON files valid, %d plugin hooks.json held to the documented keys\n", len(files), hooks)
 }

@@ -1,0 +1,80 @@
+# prosthetic-conscience hooks — why each entry in `hooks.json` is wired the way it is
+
+`hooks.json` holds the wiring; this file holds the reasons. They used to sit in the file itself as
+`_comment` keys, and the client prints an "unknown key … ignored" warning for every such key at the
+start of every session (#913), so the reasons live here, one section per event.
+`scripts/validatejson` fails any key in a plugin `hooks.json` that the hooks reference does not
+document.
+
+## Every hook
+
+Every command is wrapped in the bootstrap guard: a fresh plugin-cache version ships from git WITHOUT
+binaries (they arrive via doctor --fix), and an unguarded hook crash-storms every tool call in that
+window (measured, 0.7.0 dance). The guard degrades to ONE stderr line pointing at the fix. Guard
+shell is Git Bash on every platform (verified live: the 0.7.0 failures came from /usr/bin/bash).
+
+## PreToolUse
+
+ONE hook for this event (#201 step 3). The secrets gate and the push-freeze guard are still separate
+UNITS with OPPOSITE postures — the gate fails CLOSED and can deny, including on an undecodable
+payload (#211); the freeze guard NEVER blocks, because the freeze is a commitment the human may
+consciously override. The merge keeps both: deny wins and only one permission document is emitted,
+while warnings survive a denial because the operator needs both facts. The matcher is the UNION of
+the units' own (the gate watches WebFetch|WebSearch|Bash, the guard only Bash), and each unit still
+checks its own applicability so merging cannot widen what it acts on.
+
+## PostToolUse
+
+ONE hook for this event (#201 step 3). Units keep their own packages and tests and run in one
+process over one shared context; the recall-index unit was retired with the retrieval layer
+(2026-08-04), so the quality gate is the one unit today and the fan-in stays for the merge policy,
+not for a headcount. Measured (hook-surface-spike.md §4b): the client runs an event's hooks in
+PARALLEL, so this merge runs its units concurrently simply to MATCH that — parity is the floor. What
+it buys is what separate processes could not share: the payload parsed once, the project root
+resolved once, ONE writer for the hook log (two appends on one event were concurrent by design), and
+a place for expensive reads to be memoised as they arrive. The matcher is the UNION of the units'
+own, and each unit still checks its own applicability.
+
+## SessionStart
+
+ONE hook for this event (#201 step 3). The toolchain nudge and the checkpoint restore are still
+separate UNITS; what changed is that ONE response is composed from both. They were emitting on
+DIFFERENT CHANNELS and separate processes hid it — the nudge printed a bare line to stdout, the
+restore emitted a JSON document — and one process cannot do both without corrupting the document.
+Everything now travels as additionalContext, which is the channel hook-surface-spike.md §5 actually
+verified. No matcher: restore must fire on EVERY source, compact included.
+
+## FileChanged
+
+No matcher: watchPaths is registered dynamically by sc-checkpoint-restore from the note's own
+trigger surfaces, so the set is per-session and cannot be written here. The hook narrows what the
+watch cannot — watchPaths takes directories, never patterns (hook-surface-spike.md §6) — by
+matching file_path back to the check that claimed the surface. Changes under .claude/ are ignored
+so the hooks' own writes cannot re-trigger them.
+
+## PreCompact, SessionEnd, SubagentStop
+
+ONE binary per EVENT (#201 step 3). sc-checkpoint-seal served all three seal events from one binary
+behind an -event flag — the inverse of the rule, and the flag existed only to work around it. Each
+binary now knows its event by construction; the seal itself did not fork, so the drift the merged
+binary avoided is prevented by the shared unit instead.
+
+## PostToolUseFailure
+
+No matcher: a spin is a spin whatever tool it runs through, and anti-spinning names none. The
+counter keys on (tool, target) itself, and skips is_interrupt so the rule's other half — honor the
+cancel — does not fight this one (measured: plans/hook-surface-spike.md §2).
+
+## Stop
+
+The checkpoint-freshness nudge. NO MATCHER: Stop takes none. INERT until band thresholds exist — it
+emits nothing and, deliberately, writes no state either, because the seal record derives
+nudge_enabled from whether nudge.json exists; a file created by an inert build would make every
+baseline row claim the nudge was live. Registration is the one carrier NOTHING gates:
+scripts/pluginparity does not read `hooks.json`, and the hooks.json checks in CI test bootstrap-guard
+degradation and (`scripts/validatejson`) that every key is one the client documents — none of them
+checks that a binary which is built, declared and documented is also registered, so such a binary
+passes every command the plan names. Reviewed by hand, deliberately. The command uses the SAME
+degradation wrapper as every other hook here, and that shape is not decoration: a bare path to a
+missing binary made the plugin disable every session it was installed into (1082275). A hook that
+cannot find its binary must say so and exit, not fail the event.
