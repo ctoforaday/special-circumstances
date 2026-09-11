@@ -1,0 +1,90 @@
+# frank-exchange-of-views hooks — why each entry in `hooks.json` is wired the way it is
+
+`hooks.json` holds the wiring; this file holds the reasons. They used to sit in the file itself as
+`_comment` keys, and the client prints an "unknown key … ignored" warning for every such key at the
+start of every session (#913), so the reasons live here, one section per event.
+`scripts/validatejson` fails any key in a plugin `hooks.json` that the hooks reference does not
+document.
+
+## Every hook — run and identity injection
+
+RUN AND IDENTITY INJECTION (#281, #510), one dedicated binary. When a Bash call is made inside a live
+run (the payload cwd resolves a run marker), PreToolUse REWRITES the command, prefixing
+`export FEOV_RUN='<runDir>'; export FEOV_AGENT_ID='<agent>'; export FEOV_AGENT_TYPE='<type>'; ` — so a
+seat stops typing an absolute path it can mistype (measured: one typo cost five manifest receipts
+and produced a false bug report), and never loses the identity that binds it to its seat on the
+record. UNCONDITIONAL, WITH NO MATCHER on command text: injection was once gated on recognising
+`feov-record` in command position, a pattern standing in for a schema whose miss was silent — no
+injection, no error, and a seat's identity simply absent, which reads exactly like a main-session
+call. The shape was widened three times, each after a run had already paid (a heredoc bail cost one
+seat its bibliography, command substitution cost another its identity, and `RB="…/feov-record"; $RB
+…` — a seat aliasing the long path, which no command-text matcher can see — cost 21 of 65 registers
+across six runs their agent_id). The harm the matcher claimed to prevent cannot occur: injection
+PREPENDS, so a documentation write or a friction message carrying the token is byte-identical either
+way. A needless `export` on a command that does not use the tool is inert; a missing one destroys a
+seat's work. THE TYPE IS A DIFFERENT FACT FROM THE HANDLE and refuses a different thing: agent_id
+says WHICH agent, agent_type says which CONFIGURATION it was dispatched as, so `register` can reject
+a seat id from the wrong family — the membership half the roster gate states outright that it
+cannot reach. Under #709 this binary is the ONLY reader of agent_type left, where it used to be the
+lockdown's; it is parsed here and nowhere else. THIS USED TO BE TWO JOBS: it also enforced the
+blue-report write-lockdown (a PreToolUse deny of a non-author raw write to blue/report.md, and a
+PostToolUse backstop for a dropped finding-marker). Under report-as-record (#709) there is no
+blue/report.md file — the report is the record, every change is an appended event, and a raw write
+cannot reach it — so the lockdown and its PostToolUse binary are gone; only this injection remains.
+DEDICATED SINGLE-PURPOSE BINARY rather than a verb on feov-record: as `feov-record hook pretooluse`
+the invocation carried no --seat-id, the identity-scoped surface refused it, and the refusal's exit
+2 denied every mutating tool call in the session. The bootstrap guard mirrors prosthetic-conscience:
+a fresh plugin-cache version ships without binaries (they arrive via doctor --fix), and an unguarded
+hook would crash-storm every tool call in that window; the guard degrades to ONE stderr line. The
+decision ALWAYS travels in the stdout JSON with exit 0, enforced at the process boundary by
+hookcmd.Run rather than documented on a leaf.
+
+## PreToolUse
+
+NO MATCHER: every tool. The run and identity injection above is Bash-only and the binary returns at
+once for any other tool that no seat made. The PER-SITTING TURN LIMIT covers every tool: a seat that
+has made more than the run's maxSittingCalls tool calls (inputs/run-config.json, setup
+--max-sitting-calls, default 150) since its register is refused every further call except a
+register, with the reason `turn limit reached — return your envelope now`, and the first refusal
+writes a sitting_limit event naming the seat, the sitting and the limit. The count lives in
+<runDir>/.sitting-calls, opened by register and keyed by agent id and sitting. An agent that never
+registered as a seat (the main session, an operator) is never counted. Under a headless `claude -p`
+seat the payload carries no agent_id, so the identity and run come from FEOV_AGENT_ID and FEOV_RUN in
+the environment the hook inherits.
+
+## SubagentStart
+
+Opens the span. THE SITTING SPAN (#265). Seat durations read ZERO because both ends came from
+FILESYSTEM MTIMES: on the fallback path StartedMs == EndedMs for every completed seat so the duration
+branch never fired, and a running seat's 'elapsed' measured time since the last WRITE. These two
+events put both ends on the record as facts a hook OBSERVED rather than values derived from file
+metadata. NO MATCHER — these events take none. THE BINARY WRITES NOTHING TO STDOUT, and that is the
+contract rather than a minimal implementation: a SubagentStop hook that emits `additionalContext`
+RE-INVOKES the seat and fires again — nine firings for one seat in the measured case, the returned
+context discarded every time (plans/hook-surface-spike.md §10). A log-only hook fires exactly once.
+Anything added here that talks turns one event into nine. ONLY A SEAT IS RECORDED: SubagentStop also
+fires at the MAIN agent's turn end, with a minted agent id and no agent_type — 19 seats against 50
+turn ends in one measured session, separated by agent_type with zero exceptions either way (§7a). An
+event with no agent_type is not a sitting and is dropped. The bootstrap guard mirrors every other
+hook here: a fresh plugin-cache version ships without binaries and an unguarded hook would
+crash-storm the window before doctor --fix; the guard degrades to ONE stderr line. SubagentStart
+CANNOT NAME THE SEAT — it carries the harness handle and the agent configuration and nothing the
+workflow supplied (#290, measured 2026-08-23), so the seat is recovered later by joining agent_id to
+the register event that names it.
+
+## SubagentStop
+
+Closes the span. THE SITTING SPAN (#265). Seat durations read ZERO because both ends came from
+FILESYSTEM MTIMES: on the fallback path StartedMs == EndedMs for every completed seat so the duration
+branch never fired, and a running seat's 'elapsed' measured time since the last WRITE. These two
+events put both ends on the record as facts a hook OBSERVED rather than values derived from file
+metadata. NO MATCHER — these events take none. THE BINARY WRITES NOTHING TO STDOUT, and that is the
+contract rather than a minimal implementation: a SubagentStop hook that emits `additionalContext`
+RE-INVOKES the seat and fires again — nine firings for one seat in the measured case, the returned
+context discarded every time (plans/hook-surface-spike.md §10). A log-only hook fires exactly once.
+Anything added here that talks turns one event into nine. ONLY A SEAT IS RECORDED: SubagentStop also
+fires at the MAIN agent's turn end, with a minted agent id and no agent_type — 19 seats against 50
+turn ends in one measured session, separated by agent_type with zero exceptions either way (§7a). An
+event with no agent_type is not a sitting and is dropped. The bootstrap guard mirrors every other
+hook here: a fresh plugin-cache version ships without binaries and an unguarded hook would
+crash-storm the window before doctor --fix; the guard degrades to ONE stderr line.
