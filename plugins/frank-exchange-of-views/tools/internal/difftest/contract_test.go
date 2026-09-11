@@ -19,20 +19,26 @@ func command(bin string, argv ...string) *exec.Cmd { return exec.Command(bin, ar
 // documentation, reorders its verbs, or gains a role a seat should not have. A
 // golden asks the stronger question: is this EXACTLY the contract we published?
 
-// TestGoldenHelpContracts pins the full help output of every role plus the
+// TestGoldenHelpContracts pins the full help output of every seat's tree plus the
 // top-level usage.
 //
 // The verb set is the role boundary, so this file is the machine-readable
-// statement of that boundary: a lens gaining a mint verb, or the merge losing
+// statement of that boundary: a lens losing its mint verb, or the chair losing
 // its spot-check, shows up here as a diff in a reviewable artifact rather than
 // as a passing substring assertion. It also protects the boundary across the
 // cobra migration, where the help RENDERER changes and the contract must not.
+//
+// THE TREES ARE SELECTED BY --seat-id. The four middle rows read `lens help`, `merge help`,
+// `blue help`, `bench help` long after the role groups flattened, so they pinned four copies of
+// the `--seat-id IS REQUIRED` refusal and not one seat's verbs — the boundary this test is named
+// for was not in its golden at all.
 func TestGoldenHelpContracts(t *testing.T) {
 	bin := buildBinary(t)
 	var b strings.Builder
 	for _, argv := range [][]string{
 		{}, {"help"}, {"--help"},
-		{"lens", "help"}, {"merge", "help"}, {"blue", "help"}, {"bench", "help"},
+		{"--seat-id", "red-lens-evidence", "--help"}, {"--seat-id", "red-chair", "--help"},
+		{"--seat-id", "blue-respond", "--help"}, {"--seat-id", "judge", "--help"},
 		{"--version"},
 		{"nonsuch", "help"},
 	} {
@@ -146,16 +152,23 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		// The axis I collapsed and had to restore: a determination with no stated confidence.
 		{"verification with no stated confidence", []string{"verify", "--independent", "--quote", "c", "--as", "refutes", "--reason", "the paper says the opposite"}},
 		{"verification of nothing", []string{"verify"}},
-		{"blue confidence outside the set", []string{"blue", "confidence", "--quote", "c", "--confidence", "banana"}},
-		{"petition class outside the set", []string{"blue", "petition", "--class", "banana", "--relief", "x", "--reason", "r"}},
+		// These two were `blue confidence …` and `blue petition …` and pinned `no command named
+		// "blue"` — the role group, not the closed set either row names. Blue's confidence verb is
+		// retired; the closed set it tested lives on `verify --confidence` now. The petition is a
+		// motion, and blue files it like any seat.
+		{"verification confidence outside the set", []string{"verify", "--quote", "c", "--as", "supports", "--confidence", "banana", "--reason", "r"}},
+		{"petition class outside the set", []string{"motion", "petition", "file", "--seat-id", "blue-respond", "--class", "banana", "--relief", "x", "--reason", "r"}},
 		{"invalid seat id", []string{"mint", "--seat-id", "not a seat id", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--problem", "p"}},
 		// mint is the LENS's verb now (roundless §III.B.3); the verdict is the chair's and is what a
 		// lens cannot reach. blue and the bench still cannot mint or close.
 		{"verb outside the lens role", []string{"verdict", "--seat-id", "red-lens-evidence", "--as", "FAIL"}},
 		{"verb outside the blue role", []string{"close", "--seat-id", "blue-respond", "--id", "G1"}},
 		{"verb outside the bench role", []string{"mint", "--seat-id", "judge", "--class", "scope-creep"}},
-		{"unknown verb", []string{"merge", "frobnicate"}},
-		{"unknown role", []string{"nonsuch", "mint"}},
+		// `merge frobnicate` refused the role word and never reached the verb it names.
+		{"unknown verb", []string{"frobnicate"}},
+		// There are no role words left to be unknown; the nearest thing is a well-formed seat id no
+		// role owns. `nonsuch mint` pinned the same refusal as the row above.
+		{"unknown seat", []string{"mint", "--seat-id", "purple-team", "--class", "scope-creep"}},
 	}
 
 	var b strings.Builder
@@ -190,11 +203,9 @@ func hasFlag(argv []string, flag string) bool {
 // names it.
 func defaultSeat(first string) string {
 	switch first {
-	case "lens", "mint", "close", "regrade", "near-match", "class", "finding", "verify", "corroborate", "reproduce":
+	case "mint", "close", "regrade", "near-match", "class", "finding", "verify", "corroborate", "reproduce":
 		return "red-lens-evidence"
-	case "blue":
-		return "blue-respond"
-	case "bench", "outcome", "certify", "declare", "halt":
+	case "outcome", "certify", "declare", "halt":
 		return "judge"
 	default:
 		return "red-chair"

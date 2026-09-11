@@ -48,40 +48,8 @@ func TestGolden(t *testing.T) {
 	for _, sc := range scenarios() {
 		t.Run(sc.name, func(t *testing.T) {
 			runDir := t.TempDir()
-			// EVERY SCENARIO DECLARES ITS CLASS VOCABULARY, as a real run does. These runs are
-			// built by hand, and used to be exempt from the class check by accident: no registry
-			// staged meant `--class` accepted any string, so every mint in every golden here
-			// passed a check that was not running. Staging it is what makes the golden a record
-			// of the shipped behaviour rather than of an unconfigured corner of it.
-			if err := record.StageForRun(runtest.Open(t, runDir), goldenClasses...); err != nil {
-				t.Fatalf("stage the class registry: %v", err)
-			}
-			seed(t, runDir, sc.seed)
-			// A lens finding anchors into blue/report.md (slice 1b) and is rejected
-			// unless its --quote quote is present. Ensure a report carrying the
-			// scenario heading anchors (## S2 / ## S4) exists; a scenario may override.
-			if _, ok := sc.seed["blue/report.md"]; !ok {
-				seed(t, runDir, map[string]string{
-					"blue/report.md": "## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n",
-				})
-			}
 			m := newMapper()
-
-			// INGEST THE ROUND-0 REPORT (#709). The report is the record projection now, so the
-			// seeded blue/report.md must be ingested before any verb reads or mutates it: blue-
-			// synthesize records the base and the file is deleted, exactly as the engine does after
-			// synthesis and before the rounds. Invisible setup, like the class-registry staging and
-			// the report seed above — the scenario's own commands are what the golden is about, but
-			// the BaseIngest and this register DO appear in the EVENTS section, as they must.
-			for _, setup := range []cmd{
-				{role: "register", args: []string{"--run", "{RUN}", "--seat-id", "blue-synthesize"}},
-				{role: "ingest", args: []string{"--run", "{RUN}", "--seat-id", "blue-synthesize"}},
-			} {
-				if inv := runGo(bin, runDir, setup); inv.code != 0 {
-					t.Fatalf("round-0 setup %v: exit %d\nstderr: %s", setup.args, inv.code, inv.stderr)
-				}
-				m.observe(filepath.Join(runDir, "records"))
-			}
+			prepareRun(t, bin, runDir, m, sc.seed)
 
 			var transcript strings.Builder
 
@@ -90,7 +58,7 @@ func TestGolden(t *testing.T) {
 				m.observe(filepath.Join(runDir, "records"))
 				applyMtimes(t, runDir, m, c)
 				got := normalizeOutput(inv, runDir, m)
-				fmt.Fprintf(&transcript, "$ %s %s\nexit %d\n", c.role, strings.Join(c.args, " "), got.code)
+				fmt.Fprintf(&transcript, "$ %s %s\nexit %d\n", c.verb, strings.Join(c.args, " "), got.code)
 				if got.stdout != "" {
 					fmt.Fprintf(&transcript, "stdout:\n%s", got.stdout)
 				}
@@ -151,7 +119,7 @@ func TestGolden(t *testing.T) {
 				// lost its RENDERS and REPORT halves, and regenerating would have recorded that as
 				// the new expected output. 2278 deletions against 323 insertions across 20 files,
 				// and every one of them would have been "the goldens moved with the surface".
-				got := normalizeOutput(runGo(bin, runDir, cmd{role: "show", args: []string{v, "--run", runDir, "--seat-id", "red-chair"}}), runDir, m)
+				got := normalizeOutput(runGo(bin, runDir, cmd{verb: "show", args: []string{v, "--run", runDir, "--seat-id", "red-chair"}}), runDir, m)
 				if got.code == 0 {
 					fmt.Fprintf(&renders, "-- %s\n%s\n", v, got.stdout)
 				}
@@ -176,7 +144,7 @@ func TestGolden(t *testing.T) {
 			// blue/report.md cannot assemble, so it contributes no section — the same
 			// degenerate-run rule RENDERS already follows, and the reason this could be added to
 			// every scenario rather than needing a fixture of its own.
-			if inv := runGo(bin, runDir, cmd{role: "assemble", args: []string{"--run", runDir, "--seat-id", "judge-terminal"}}); inv.code == 0 {
+			if inv := runGo(bin, runDir, cmd{verb: "assemble", args: []string{"--run", runDir, "--seat-id", "judge-terminal"}}); inv.code == 0 {
 				body, err := os.ReadFile(filepath.Join(runDir, "report.md"))
 				if err != nil {
 					t.Fatalf("bench assemble exited 0 but wrote no report.md: %v", err)
@@ -186,6 +154,50 @@ func TestGolden(t *testing.T) {
 			}
 			compareGolden(t, sc.name, transcript.String())
 		})
+	}
+}
+
+// prepareRun gives a run directory the state every scenario and every fuzz sequence starts
+// from: the class vocabulary staged, the seed files written, and the round-0 report ingested.
+//
+// SHARED, because the determinism fuzz used to start from a bare directory. With no report and
+// no registry, every lens verb that anchors into the report and every mint that checks its class
+// could only ever refuse — so the fuzz could not have exercised an acceptance even once its
+// commands were spelled right.
+func prepareRun(t *testing.T, bin, runDir string, m *nonceMapper, files map[string]string) {
+	t.Helper()
+	// EVERY SCENARIO DECLARES ITS CLASS VOCABULARY, as a real run does. These runs are
+	// built by hand, and used to be exempt from the class check by accident: no registry
+	// staged meant `--class` accepted any string, so every mint in every golden here
+	// passed a check that was not running. Staging it is what makes the golden a record
+	// of the shipped behaviour rather than of an unconfigured corner of it.
+	if err := record.StageForRun(runtest.Open(t, runDir), goldenClasses...); err != nil {
+		t.Fatalf("stage the class registry: %v", err)
+	}
+	seed(t, runDir, files)
+	// A lens finding anchors into blue/report.md (slice 1b) and is rejected
+	// unless its --quote quote is present. Ensure a report carrying the
+	// scenario heading anchors (## S2 / ## S4) exists; a scenario may override.
+	if _, ok := files["blue/report.md"]; !ok {
+		seed(t, runDir, map[string]string{
+			"blue/report.md": "## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n",
+		})
+	}
+
+	// INGEST THE ROUND-0 REPORT (#709). The report is the record projection now, so the
+	// seeded blue/report.md must be ingested before any verb reads or mutates it: blue-
+	// synthesize records the base and the file is deleted, exactly as the engine does after
+	// synthesis and before the rounds. Invisible setup, like the class-registry staging and
+	// the report seed above — the scenario's own commands are what the golden is about, but
+	// the BaseIngest and this register DO appear in the EVENTS section, as they must.
+	for _, setup := range []cmd{
+		{verb: "register", args: []string{"--run", "{RUN}", "--seat-id", "blue-synthesize"}},
+		{verb: "ingest", args: []string{"--run", "{RUN}", "--seat-id", "blue-synthesize"}},
+	} {
+		if inv := runGo(bin, runDir, setup); inv.code != 0 {
+			t.Fatalf("round-0 setup %v: exit %d\nstderr: %s", setup.args, inv.code, inv.stderr)
+		}
+		m.observe(filepath.Join(runDir, "records"))
 	}
 }
 

@@ -91,10 +91,10 @@ Flags:
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
   -v, --version          version for feov-record
 
-$ merge not-a-verb --run {RUN} --seat-id red-chair
+$ not-a-verb --run {RUN} --seat-id red-chair
 exit 2
 stderr:
-feov-record: no command named "merge" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
+feov-record: no command named "not-a-verb" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
 
 feov-record — the red chair — runs the debate: dispatches, judges the board, carries, spot-checks.
 

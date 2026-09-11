@@ -37,11 +37,21 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-// cmd is one CLI invocation. Role selects the seat contract; the Go side takes it
-// as a subcommand, the mjs side as a distinct script file.
+// cmd is one CLI invocation: `feov-record <verb> <args…>`, exactly as a seat types it.
+//
+// VERB, NOT ROLE. This field was `role`, from when the tree was grouped by role and the first
+// word was `merge`, `lens`, `blue` or `bench`. The tree went flat and seat-scoped — `--seat-id`
+// selects the surface, and the first word is the verb (or the first word of a group's path,
+// `motion grade file`) — but the field kept its name, and the name kept teaching the old shape:
+// the determinism fuzz went on composing `feov-record merge mint …`, every command it generated
+// exited 2 with `no command named "merge" exists`, and the test passed because both replays
+// failed identically. A scenario row did the same with `lens finding`.
 type cmd struct {
-	role string
+	verb string
 	args []string
+	// arm names the fuzz generator arm that built this command, so the determinism test can
+	// prove every arm LANDS at least once. Empty for hand-written scenarios.
+	arm string
 	// mtimes, when set, are applied to matching shard files after the command —
 	// policy 4, for the winner-selection fallback.
 	mtimes map[string]time.Time
@@ -80,7 +90,7 @@ type invocation struct {
 }
 
 func runGo(bin, runDir string, c cmd) invocation {
-	args := append([]string{c.role}, substitute(c.args, runDir)...)
+	args := append([]string{c.verb}, substitute(c.args, runDir)...)
 	return capture(exec.Command(bin, args...))
 }
 
@@ -295,11 +305,9 @@ func normalizeOutput(inv invocation, runDir string, m *nonceMapper) invocation {
 		s = placeholderPathRe.ReplaceAllStringFunc(s, func(tok string) string {
 			return strings.ReplaceAll(tok, "\\", "/")
 		})
-		// The tool name differs by construction: "feov-record merge" vs "red-merge.mjs".
-		for _, prefix := range []string{"feov-record lens", "feov-record merge", "feov-record blue", "feov-record bench",
-			"red-lens.mjs", "red-merge.mjs", "blue.mjs", "bench.mjs"} {
-			s = strings.ReplaceAll(s, prefix, "{TOOL}")
-		}
+		// A `{TOOL}` rewrite of "feov-record merge" / "red-merge.mjs" lived here while the mjs
+		// oracle ran beside the port. Both halves are gone — the oracle retired, the role groups
+		// flattened — and no golden carried `{TOOL}` when it was removed.
 		return strings.ReplaceAll(s, "\r\n", "\n")
 	}
 	return invocation{stdout: clean(inv.stdout), stderr: clean(inv.stderr), code: inv.code}
