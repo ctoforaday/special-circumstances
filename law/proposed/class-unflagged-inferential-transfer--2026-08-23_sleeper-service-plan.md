@@ -2,7 +2,7 @@
 
 Coined by `red-merge-r3` during `2026-08-23_sleeper-service-plan`. It is NOT staged into any later run:
 an unreviewed class validating a future `--class` is the registry losing the only thing it
-means. Adopting it means adding the slug to `feov-memory/class-registry.json` by hand.
+means. Adopting it means adding the slug to `feov-memory/class-registry.json` by hand, with its `material_default` (`always`, `never` or `by_grade`).
 
 - **definition**: A citation's finding is applied to a materially different context than it was established in, as if it directly supports the report's claim, without the same explicit inference hedge the report attaches to its comparable sibling transfers in the same passage.
 - **neighbour**: `derivation-status-overclaim`

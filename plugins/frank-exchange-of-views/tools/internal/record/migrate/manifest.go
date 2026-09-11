@@ -26,14 +26,19 @@ type Manifest struct {
 	// SourceHash is the LOGICAL hash: sha256 over the event stream as read. The per-file
 	// hashes below are byte hashes of what was on disk, labelled as such — the same record
 	// hashes differently across WAL checkpoint states, which is why both exist.
-	SourceHash  string            `json:"source_hash"`
-	SourceFiles []SourceFile      `json:"source_files"`
-	ToolVersion string            `json:"tool_version"`
-	EventSchema int               `json:"event_schema"`
-	MigratedAt  string            `json:"migrated_at"`
-	In          map[string]int    `json:"events_in"`
-	Out         map[string]int    `json:"events_out"`
-	Refusals    []Refusal         `json:"refusals,omitempty"`
+	SourceHash  string         `json:"source_hash"`
+	SourceFiles []SourceFile   `json:"source_files"`
+	ToolVersion string         `json:"tool_version"`
+	EventSchema int            `json:"event_schema"`
+	MigratedAt  string         `json:"migrated_at"`
+	In          map[string]int `json:"events_in"`
+	Out         map[string]int `json:"events_out"`
+	Refusals    []Refusal      `json:"refusals,omitempty"`
+	// StatedFills are the values the migration SUPPLIED where the source predates a field and no
+	// value can say "never recorded" in its own terms — an enum has no such word. Each names where
+	// it was written, the slug, the value and why, so the fill is on the record rather than posing
+	// as what the archive said.
+	StatedFills []StatedFill      `json:"stated_fills,omitempty"`
 	Accepted    map[string]string `json:"accepted_losses,omitempty"`
 	GapIDs      map[string]string `json:"gap_ids,omitempty"`              // archived gap id -> migrated id (roundless §III.A.5)
 	Labels      map[string]string `json:"labels,omitempty"`               // archived finding label -> migrated label
@@ -44,6 +49,14 @@ type Manifest struct {
 	// Discarded names the shard-era sittings the era's own reader would have dropped
 	// (winner-per-seat), with the count of keys the winner never rewrote — the genuine loss.
 	Discarded []DiscardedSitting `json:"discarded_sittings,omitempty"`
+}
+
+// StatedFill is one value the migration supplied for a field its source predates.
+type StatedFill struct {
+	Where string `json:"where"` // "staged registry", or "class_new event <old id>"
+	Slug  string `json:"slug"`
+	Value string `json:"value"`
+	Why   string `json:"why"`
 }
 
 // NewManifest assembles the manifest for one replay.
@@ -58,6 +71,7 @@ func NewManifest(sourcePath string, files []SourceFile, unclassified []string, r
 		In:           res.In,
 		Out:          res.Out,
 		Refusals:     res.Refusals,
+		StatedFills:  res.StatedFills,
 		Accepted:     res.AcceptedLosses,
 		GapIDs:       res.GapIDs,
 		Labels:       res.Labels,

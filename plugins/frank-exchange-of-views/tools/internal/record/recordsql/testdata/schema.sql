@@ -133,9 +133,9 @@ CREATE TABLE "enum_grade" (
 INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('certain', 'the top of the scale — for LIKELIHOOD, reserve it for a consequence that is itself certain, never for a defect you merely verified exists', 3.5);
 INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('high', 'serious', 3);
 INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('low', 'minor', 1);
-INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('low_medium', 'between minor and material', 1.5);
-INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('medium', 'material', 2);
-INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('medium_high', 'between material and serious', 2.5);
+INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('low_medium', 'below the by-grade material floor', 1.5);
+INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('medium', 'the by-grade material floor', 2);
+INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('medium_high', 'above the by-grade material floor, below serious', 2.5);
 INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('realized', 'it has already happened. Contributes ZERO mass by design: mass forecasts what is still to come, and a realized defect is measured by its damage instead', 0);
 INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('trivial', 'cosmetic; nothing downstream changes if it is wrong', 0.5);
 
@@ -207,6 +207,14 @@ CREATE TABLE "enum_check_kind" (
 INSERT INTO "enum_check_kind" ("value", "means") VALUES ('computation', 'RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind');
 INSERT INTO "enum_check_kind" ("value", "means") VALUES ('document', 'reading a shipped artifact settles it — the check is answered by prose that quotes what is there');
 INSERT INTO "enum_check_kind" ("value", "means") VALUES ('source', 'verifying an external source settles it — the claim stands or falls on what the cited material actually says');
+
+CREATE TABLE "enum_class_material" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_class_material" ("value", "means") VALUES ('always', 'every gap of this class is material, whatever its grade — it changes a conclusion or a figure a reader relies on');
+INSERT INTO "enum_class_material" ("value", "means") VALUES ('by_grade', 'a gap of this class is material when its current severity is medium or above');
+INSERT INTO "enum_class_material" ("value", "means") VALUES ('never', 'no gap of this class is material, whatever its grade — it stays on the board and never holds the gate');
 
 CREATE TABLE "enum_source_text_read" (
   "value" TEXT PRIMARY KEY,
@@ -424,13 +432,15 @@ CREATE TABLE "mint" (
   "impact" TEXT NOT NULL,
   "complexity_cost" TEXT,
   "mint_reason" TEXT,
+  "class_material" TEXT NOT NULL,
   CHECK ("class_new" IS NULL OR "class_new" IN (0, 1)),
   FOREIGN KEY ("about_kind") REFERENCES "enum_about_kind"("value"),
   FOREIGN KEY ("check_kind") REFERENCES "enum_check_kind"("value"),
   FOREIGN KEY ("severity") REFERENCES "enum_grade"("value"),
   FOREIGN KEY ("likelihood") REFERENCES "enum_grade"("value"),
   FOREIGN KEY ("impact") REFERENCES "enum_grade"("value"),
-  FOREIGN KEY ("complexity_cost") REFERENCES "enum_grade"("value")
+  FOREIGN KEY ("complexity_cost") REFERENCES "enum_grade"("value"),
+  FOREIGN KEY ("class_material") REFERENCES "enum_class_material"("value")
 ) STRICT;
 
 CREATE TABLE "mint_supersedes" (
@@ -452,7 +462,9 @@ CREATE TABLE "class_new" (
   "slug" TEXT,
   "definition" TEXT,
   "neighbor" TEXT,
-  "distinguisher" TEXT
+  "distinguisher" TEXT,
+  "material_default" TEXT,
+  FOREIGN KEY ("material_default") REFERENCES "enum_class_material"("value")
 ) STRICT;
 
 CREATE TABLE "close" (
@@ -955,10 +967,21 @@ LEFT JOIN "correction_root" cr ON cr."replacement" = e."key"
 LEFT JOIN "events" re ON re."key" = cr."root"
 WHERE NOT EXISTS (SELECT 1 FROM "correction" c WHERE c."corrects" = e."key");
 
+-- THE GAP, AND WHETHER IT IS MATERIAL. "material" is the one definition in SQL: the class's
+-- default says 'always' or 'never', and a 'by_grade' class is material at a CURRENT severity of
+-- medium (mass 2.0, record.material) and above. The inner select is the gap as the record holds it;
+-- the outer adds the column from the current severity that select already overlays, so the
+-- regrade overlay is written once.
 CREATE VIEW "gap" AS
+SELECT
+  gb.*,
+  (gb."class_material" = 'always'
+     OR (gb."class_material" = 'by_grade' AND COALESCE(gm."mass", 0.0) >= 2.0)) AS "material"
+FROM (
 SELECT
   m."gap_id"                                   AS "gap_id",
   m."class"                                    AS "class",
+  m."class_material"                           AS "class_material",
   m."location"                                 AS "location",
   m."about_kind"                               AS "about_kind",
   m."about_ref"                                AS "about_ref",
@@ -1118,7 +1141,9 @@ LEFT JOIN (
   GROUP BY md."gap_id"
 ) bc ON bc."gap_id" = m."gap_id"
 LEFT JOIN "motion_rule_docket" bo ON bo."event_id" = bc."event_id"
-LEFT JOIN "events" be ON be."id" = bc."event_id";
+LEFT JOIN "events" be ON be."id" = bc."event_id"
+) gb
+LEFT JOIN "enum_grade" gm ON gm."value" = gb."current_severity";
 
 -- The board's own count, asked once. Every consumer that wants "how many gaps are open" reads this
 -- rather than folding the stream again with its own idea of what closed means.

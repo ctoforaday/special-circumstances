@@ -337,7 +337,7 @@ func TestClassRegistryIsStagedIntoTheRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(mem, "class-registry.json"),
-		[]byte(`{"classes":[{"slug":"false-universal"},{"slug":"self-attestation"}]}`), 0o644); err != nil {
+		[]byte(`{"classes":[{"slug":"false-universal","material_default":"by_grade"},{"slug":"self-attestation","material_default":"by_grade"}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	var out, errb bytes.Buffer
@@ -350,6 +350,44 @@ func TestClassRegistryIsStagedIntoTheRun(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "2 class(es) staged") {
 		t.Errorf("the summary must report the registry, since it decides whether --class validates:\n%s", out.String())
+	}
+}
+
+// A CALLER'S REGISTRY WITHOUT THE MATERIAL DEFAULT IS REFUSED BEFORE ANY RUN STATE. Setup stages
+// the caller's copy, which can predate the binary; a row without the field would leave every gap of
+// its class with no materiality to start from. The refusal names the file, the slug and the
+// registry remedy, and never migrate — there is no run yet to migrate.
+func TestSetupRefusesRegistryWithoutMaterialDefault(t *testing.T) {
+	for _, c := range []struct{ name, row, names string }{
+		{"missing", `{"slug":"false-universal"}`, "no material_default"},
+		{"unknown", `{"slug":"false-universal","material_default":"sometimes"}`, `"sometimes"`},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
+			mem := filepath.Join(cfg.Cwd, "feov-memory")
+			if err := os.MkdirAll(mem, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			reg := filepath.Join(mem, "class-registry.json")
+			if err := os.WriteFile(reg, []byte(`{"classes":[`+c.row+`]}`), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			var out, errb bytes.Buffer
+			if code := Run(cfg, &out, &errb); code != 2 {
+				t.Fatalf("exit %d, want 2:\n%s", code, errb.String())
+			}
+			if _, err := os.Stat(filepath.Join(runDir, "records")); err == nil {
+				t.Error("the refusal came after run state was written — records/ exists")
+			}
+			for _, want := range []string{reg, `"false-universal"`, c.names, "re-stage from the plugin's shipped"} {
+				if !strings.Contains(errb.String(), want) {
+					t.Errorf("the refusal must name %q:\n%s", want, errb.String())
+				}
+			}
+			if strings.Contains(errb.String(), "migrate") {
+				t.Errorf("setup's registry refusal must not mention migrate:\n%s", errb.String())
+			}
+		})
 	}
 }
 
@@ -389,7 +427,7 @@ func TestUnjoinablePatternClassesAreNamed(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(mem, "class-registry.json"),
-		[]byte(`{"classes":[{"slug":"false-universal"}]}`), 0o644); err != nil {
+		[]byte(`{"classes":[{"slug":"false-universal","material_default":"by_grade"}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	for name, class := range map[string]string{"ok.md": "false-universal", "orphan.md": "invented-last-run"} {

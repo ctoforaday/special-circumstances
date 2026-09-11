@@ -157,6 +157,8 @@ const (
 	Definition    = "definition"
 	Neighbor      = "neighbor"
 	Distinguisher = "distinguisher"
+	// MaterialDefault is a coined class's materiality default: always, never, or by grade.
+	MaterialDefault = "material-default"
 
 	// Gap substance.
 	Problem = "problem"
@@ -305,7 +307,7 @@ func All() []string {
 		Sitting, Trajectory,
 		As, None, Confidence,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
-		Class, Definition, Neighbor, Distinguisher,
+		Class, Definition, Neighbor, Distinguisher, MaterialDefault,
 		Problem, Fix, Check, CheckKind, Type, SourceText, OCRQuote, Page, Via, At, About, AboutKind, Hypothesis, Script, Cites, ExpectError,
 		Supersedes, SupersededBy, FoundBy, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor,

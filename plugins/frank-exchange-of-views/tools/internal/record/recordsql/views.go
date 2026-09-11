@@ -237,10 +237,21 @@ LEFT JOIN "correction_root" cr ON cr."replacement" = e."key"
 LEFT JOIN "events" re ON re."key" = cr."root"
 WHERE NOT EXISTS (SELECT 1 FROM "correction" c WHERE c."corrects" = e."key");
 
+-- THE GAP, AND WHETHER IT IS MATERIAL. "material" is the one definition in SQL: the class's
+-- default says 'always' or 'never', and a 'by_grade' class is material at a CURRENT severity of
+-- medium (mass 2.0, record.material) and above. The inner select is the gap as the record holds it;
+-- the outer adds the column from the current severity that select already overlays, so the
+-- regrade overlay is written once.
 CREATE VIEW "gap" AS
+SELECT
+  gb.*,
+  (gb."class_material" = 'always'
+     OR (gb."class_material" = 'by_grade' AND COALESCE(gm."mass", 0.0) >= 2.0)) AS "material"
+FROM (
 SELECT
   m."gap_id"                                   AS "gap_id",
   m."class"                                    AS "class",
+  m."class_material"                           AS "class_material",
   m."location"                                 AS "location",
   m."about_kind"                               AS "about_kind",
   m."about_ref"                                AS "about_ref",
@@ -400,7 +411,9 @@ LEFT JOIN (
   GROUP BY md."gap_id"
 ) bc ON bc."gap_id" = m."gap_id"
 LEFT JOIN "motion_rule_docket" bo ON bo."event_id" = bc."event_id"
-LEFT JOIN "events" be ON be."id" = bc."event_id";
+LEFT JOIN "events" be ON be."id" = bc."event_id"
+) gb
+LEFT JOIN "enum_grade" gm ON gm."value" = gb."current_severity";
 
 -- The board's own count, asked once. Every consumer that wants "how many gaps are open" reads this
 -- rather than folding the stream again with its own idea of what closed means.

@@ -247,7 +247,7 @@ func newMint() *cobra.Command {
 	// word as the flag's value shape. They sat around a COMMAND, so `--class` advertised its value
 	// as "lens class new": a phrase from the prose offered to a seat as the thing to type. The
 	// command is named without them, and the placeholder is the shape actually wanted.
-	c.Flags().String(flags.Class, "", "the gap's `slug` — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb")
+	c.Flags().String(flags.Class, "", "the gap's `slug` — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap")
 	flags.Text(c, flags.Quote, flags.DescQuote)
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
 		"anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE")
@@ -269,6 +269,7 @@ func newMint() *cobra.Command {
 	// to: a requirement with no flag behind it is invisible to a seat unless something says the
 	// tool meets it.
 	seat.Supplies(c, "gap_id", "the tool assigns it (MintGapID), sequentially over the run — a seat that chose its own would collide with another seat's")
+	seat.Supplies(c, "class_material", "stamped from the class registry at the write path")
 	return c
 }
 

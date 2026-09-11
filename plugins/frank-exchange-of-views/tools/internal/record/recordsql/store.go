@@ -306,11 +306,120 @@ func openUncached(path string) (*sql.DB, error) {
 	// now load-bearing, not incidental.
 	db.SetMaxOpenConns(1)
 
+	existed := hasEvents(db)
 	if err := ensureSchema(db); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("recordsql: preparing %s: %w", path, err)
 	}
+	// A DATABASE THIS BINARY DID NOT CREATE is held to this binary's columns before anything reads
+	// it. Its tables and views are the creating binary's (ensureSchema applies once), so a view
+	// read naming a column added since fails with SQLite's "no such column", which names neither
+	// the cause nor the way out. Refused here by CONTENT — what the database lacks — never by a
+	// recorded version.
+	if existed {
+		if err := requireDeclaredColumns(db); err != nil {
+			db.Close()
+			return nil, err
+		}
+	}
 	return db, nil
+}
+
+// declared is this binary's own table/column set, built once per process from the schema applied
+// to a scratch in-memory database — the schema itself, not a second copy of it.
+var declared struct {
+	once   sync.Once
+	tables []string
+	cols   map[string][]string
+	err    error
+}
+
+func declaredSchema() ([]string, map[string][]string, error) {
+	declared.once.Do(func() {
+		schema, err := Schema()
+		if err != nil {
+			declared.err = err
+			return
+		}
+		mem, err := sql.Open(driverName(), ":memory:")
+		if err != nil {
+			declared.err = err
+			return
+		}
+		defer mem.Close()
+		mem.SetMaxOpenConns(1) // one connection is one in-memory database
+		if _, err := mem.Exec(schema); err != nil {
+			declared.err = err
+			return
+		}
+		rows, err := mem.Query(`SELECT "name" FROM sqlite_master WHERE type = 'table' AND "name" NOT LIKE 'sqlite_%' ORDER BY "name"`)
+		if err != nil {
+			declared.err = err
+			return
+		}
+		var tables []string
+		for rows.Next() {
+			var n string
+			if err := rows.Scan(&n); err != nil {
+				rows.Close()
+				declared.err = err
+				return
+			}
+			tables = append(tables, n)
+		}
+		rows.Close()
+		cols := map[string][]string{}
+		for _, t := range tables {
+			have, err := columnsOf(mem, t)
+			if err != nil {
+				declared.err = err
+				return
+			}
+			for c := range have {
+				cols[t] = append(cols[t], c)
+			}
+			sort.Strings(cols[t])
+		}
+		declared.tables, declared.cols = tables, cols
+	})
+	return declared.tables, declared.cols, declared.err
+}
+
+// requireDeclaredColumns refuses a database missing a table or a column this binary declares,
+// naming each and the way out (`migrate`). Missing columns are named first: they are what a run
+// written before a field was added lacks, and the seat needs to read which field it was.
+func requireDeclaredColumns(db *sql.DB) error {
+	tables, cols, err := declaredSchema()
+	if err != nil {
+		return fmt.Errorf("recordsql: reading this binary's own schema: %w", err)
+	}
+	var lacks, absent []string
+	for _, t := range tables {
+		have, err := columnsOf(db, t)
+		if err != nil {
+			return err
+		}
+		if len(have) == 0 {
+			absent = append(absent, fmt.Sprintf("%q", t))
+			continue
+		}
+		var missing []string
+		for _, c := range cols[t] {
+			if !have[c] {
+				missing = append(missing, fmt.Sprintf("%q", c))
+			}
+		}
+		if len(missing) > 0 {
+			lacks = append(lacks, fmt.Sprintf("this run's %q table has no %s column", t, strings.Join(missing, ", ")))
+		}
+	}
+	if len(absent) > 0 {
+		lacks = append(lacks, "this run's record has no "+strings.Join(absent, ", ")+" table")
+	}
+	if len(lacks) == 0 {
+		return nil
+	}
+	return fmt.Errorf("recordsql: %s — %s", strings.Join(lacks, "; "), olderRunAdvice)
 }
 
 // ensureSchema applies the schema if this database does not have it, DECIDING INSIDE THE

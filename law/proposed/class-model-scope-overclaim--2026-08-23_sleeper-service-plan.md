@@ -2,7 +2,7 @@
 
 Coined by `red-merge-r2` during `2026-08-23_sleeper-service-plan`. It is NOT staged into any later run:
 an unreviewed class validating a future `--class` is the registry losing the only thing it
-means. Adopting it means adding the slug to `feov-memory/class-registry.json` by hand.
+means. Adopting it means adding the slug to `feov-memory/class-registry.json` by hand, with its `material_default` (`always`, `never` or `by_grade`).
 
 - **definition**: A mathematical or model-based claim asserts a generality (e.g. shape-invariance across parameter regimes) broader than the underlying equation actually establishes once its parameters are varied
 - **neighbour**: `derivation-status-overclaim`

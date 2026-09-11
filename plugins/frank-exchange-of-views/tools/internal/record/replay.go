@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-
+	"sort"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -180,6 +180,10 @@ type Gap struct {
 	// corrupting the repair_regression denominator, so the projection has to record WHO
 	// closed it, not merely that it is closed.
 	ClosedByBench bool
+	// Material is the gap's materiality NOW: its class's default, and for a `by_grade` class its
+	// current severity against the floor. It is the Go carrier of the one definition; the gap
+	// view's "material" column is the other, and a test holds the two level.
+	Material bool
 }
 
 // NeedsComputation reports whether this gap's acceptance check is one PROSE CANNOT SETTLE.
@@ -467,8 +471,11 @@ func ExistingMintByKey(run Run, seatID, key string) (string, error) {
 
 // ---- class registry ----
 
+// registryClass is one staged registry row. MaterialDefault is a pointer so an absent field is
+// distinguishable from an empty one: loadRegistry refuses both, with different words.
 type registryClass struct {
-	Slug string `json:"slug"`
+	Slug            string  `json:"slug"`
+	MaterialDefault *string `json:"material_default"`
 }
 
 type classRegistry struct {
@@ -511,7 +518,84 @@ func loadRegistry(run Run) (*classRegistry, error) {
 	if err := json.Unmarshal(b, &reg); err != nil {
 		return nil, fmt.Errorf("record: the class registry at %s is staged but unreadable (%v) — every --class would be accepted while it stays that way, so this is refused rather than waved through. Fix the file — removing it does NOT loosen the check any more, it refuses every mint instead", p, err)
 	}
+	// EVERY ROW CARRIES ITS MATERIAL DEFAULT, and a row without one is refused rather than read as
+	// `by_grade`: the default decides whether the class's open gaps hold the PASS gate. Setup
+	// refuses such a registry before a run exists, and a run whose database predates the field is
+	// refused at open — so a row reaching here without it was written or altered after setup.
+	for _, c := range reg.Classes {
+		if c.MaterialDefault == nil {
+			return nil, fmt.Errorf("record: the class registry at %s has no material_default on class %q — the registry setup staged has been changed since. Restore that row's `material_default` (always | never | by_grade)", p, c.Slug)
+		}
+		if _, ok := ClassMaterialOf(*c.MaterialDefault); !ok {
+			return nil, fmt.Errorf("record: the class registry at %s gives class %q the material_default %q, which is not always | never | by_grade — the registry setup staged has been changed since. Restore that row's value", p, c.Slug, *c.MaterialDefault)
+		}
+	}
 	return &reg, nil
+}
+
+// classMaterialFor is where a mint of this class starts its materiality: the staged registry's
+// row, else the run's own coining of the class. found is false when neither knows the slug — the
+// class refusal is then the one a seat needs, and the caller gives it.
+func classMaterialFor(run Run, slug string) (cm recordpb.ClassMaterial, found bool, err error) {
+	reg, err := loadRegistry(run)
+	if err != nil {
+		return 0, false, err
+	}
+	if reg != nil {
+		for _, c := range reg.Classes {
+			if c.Slug == slug {
+				v, _ := ClassMaterialOf(*c.MaterialDefault) // loadRegistry refused an unknown word
+				return v, true, nil
+			}
+		}
+	}
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		return 0, false, err
+	}
+	var word sql.NullString
+	var n int
+	if err := db.QueryRow(`SELECT count(*), MAX("material_default") FROM "class_new" WHERE "slug" = ?`, slug).Scan(&n, &word); err != nil {
+		return 0, false, fmt.Errorf("record: asking the record how class %s was coined: %w", slug, err)
+	}
+	if n == 0 {
+		return 0, false, nil
+	}
+	v, ok := ClassMaterialOf(word.String)
+	if !ok {
+		return 0, false, fmt.Errorf("record: class %s was coined in this run with no material default on the record (%q) — every mint of it would have no materiality to start from", slug, word.String)
+	}
+	return v, true, nil
+}
+
+// stampClassMaterial writes the class's default onto a mint, which no seat may do itself.
+//
+// Outside a migration a mint that ARRIVES with the field set is refused: a lens that could choose
+// its gap's materiality could mint every gap harmless. Under a migration the source is the record,
+// not a seat, so a value the archived mint carries is kept as recorded; an archived mint without
+// one (a run written before the field) is stamped from the registry the migration translated.
+func stampClassMaterial(run Run, m *recordpb.Mint) error {
+	if m.ClassMaterial != nil {
+		if !Migrating {
+			return fmt.Errorf("record: a mint's class material is stamped by the tool from the class registry, never supplied by a seat — mint without it")
+		}
+		if m.GetClassMaterial() == recordpb.ClassMaterial_CLASS_MATERIAL_UNSPECIFIED {
+			return fmt.Errorf("record: the archived mint of %s carries a class material that is not always | never | by_grade", m.GetGapId())
+		}
+		return nil
+	}
+	if m.GetClass() == "" {
+		return nil // the required-field refusal names --class, which comes first
+	}
+	cm, found, err := classMaterialFor(run, m.GetClass())
+	if err != nil {
+		return err
+	}
+	if !found {
+		return validateClass(run, m)
+	}
+	m.ClassMaterial = cm.Enum()
+	return nil
 }
 
 // knownClasses is the registry as it stands for this run: the staged corpus plus every slug the
@@ -566,14 +650,41 @@ func knownClasses(run Run) (map[string]bool, []string, error) {
 	return known, slugs, nil
 }
 
-// StageForRun writes a gap-class registry holding exactly these slugs, for a run built by hand.
+// StageForRun writes a gap-class registry holding exactly these slugs, each `by_grade`, for a run
+// built by hand.
 //
 // The fuzz, the seat probe and the tests construct runs without going through run-setup, and a mint
 // names a class. Before this they were exempted from the class check by an absent-registry
 // tolerance, which is how `--class anything-at-all` reached the board with nothing objecting. They
 // declare their vocabulary now, which is both the honest fixture and the thing that makes the check
 // mean something in the runs that matter.
+//
+// `by_grade` keeps every caller's materiality where the grade alone put it; a fixture that needs a
+// class to be `always` or `never` stages it with StageForRunWithDefaults.
 func StageForRun(run Run, slugs ...string) error {
+	defaults := make(map[string]recordpb.ClassMaterial, len(slugs))
+	order := make([]string, 0, len(slugs))
+	for _, s := range slugs {
+		if _, dup := defaults[s]; !dup {
+			order = append(order, s)
+		}
+		defaults[s] = recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE
+	}
+	return stageRegistry(run, order, defaults)
+}
+
+// StageForRunWithDefaults writes a gap-class registry holding these slugs with these material
+// defaults, in slug order.
+func StageForRunWithDefaults(run Run, defaults map[string]recordpb.ClassMaterial) error {
+	order := make([]string, 0, len(defaults))
+	for s := range defaults {
+		order = append(order, s)
+	}
+	sort.Strings(order)
+	return stageRegistry(run, order, defaults)
+}
+
+func stageRegistry(run Run, slugs []string, defaults map[string]recordpb.ClassMaterial) error {
 	// RE-RESOLVED, DELIBERATELY, AND THIS IS THE ONE PLACE THAT DOES.
 	//
 	// A Run caches its record directory, which is sound only while the inputs to that resolution
@@ -594,7 +705,8 @@ func StageForRun(run Run, slugs ...string) error {
 	}
 	var reg classRegistry
 	for _, s := range slugs {
-		reg.Classes = append(reg.Classes, registryClass{Slug: s})
+		w := recordpb.Word(defaults[s])
+		reg.Classes = append(reg.Classes, registryClass{Slug: s, MaterialDefault: &w})
 	}
 	b, err := json.Marshal(reg)
 	if err != nil {
@@ -656,6 +768,11 @@ func validateClassNew(run Run, coined *recordpb.ClassNew) error {
 		if f.value == "" {
 			return fmt.Errorf("record: class new requires --%s — a class coined without one of definition, neighbor and distinguisher is a synonym, and the registry stops discriminating", f.flag)
 		}
+	}
+	// The verb always writes the default, and a migration fills one where the archive predates
+	// it, so a coining without one is refused rather than left for every mint of it to guess.
+	if coined.GetMaterialDefault() == recordpb.ClassMaterial_CLASS_MATERIAL_UNSPECIFIED {
+		return fmt.Errorf("record: class new requires --material-default (always | never | by_grade) — every gap minted under the class starts its materiality from it")
 	}
 	known, _, err := knownClasses(run)
 	if err != nil {

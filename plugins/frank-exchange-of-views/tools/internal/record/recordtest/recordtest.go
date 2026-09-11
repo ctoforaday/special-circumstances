@@ -120,6 +120,17 @@ func Seed(t *testing.T, runDir string, evs ...*recordpb.Event) {
 	// private connection — it poisons the cache, and the next Open hands the same closed handle
 	// back as "sql: database is closed". The cache owns the lifetime; t.Cleanup above releases it.
 	for i, ev := range evs {
+		// A SEEDED MINT CARRIES A CLASS MATERIAL, because the write path that stamps one is the path
+		// Seed bypasses and the column is NOT NULL. `by_grade` is what StageForRun gives every class,
+		// so a fixture that says nothing keeps the materiality its grade alone gives it; a fixture
+		// that is about class materiality sets the field itself.
+		if m := ev.GetMint(); m != nil && m.ClassMaterial == nil {
+			m.ClassMaterial = recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum()
+		}
+		// And a seeded coining carries the default `class new` writes when its coiner says nothing.
+		if cn := ev.GetClassNew(); cn != nil && cn.MaterialDefault == nil {
+			cn.MaterialDefault = recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum()
+		}
 		if ev.Ts == nil {
 			// A STAMP EVERY EVENT, because `ts` is NOT NULL and several audits read it. The
 			// spacing is one second per event so a fixture that does not care about time still

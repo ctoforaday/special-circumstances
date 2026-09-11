@@ -765,7 +765,7 @@ func TestClassNewCoinsTheSlugInClass(t *testing.T) {
 	if !m.GetClassNew() {
 		t.Error("class_new = false, want true — the mint must record that the seat coined the class")
 	}
-	cn := lastBody(t, runDir, &recordpb.ClassNew{})
+	cn := lastBody(t, runDir, &recordpb.ClassNew{MaterialDefault: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum()})
 	if got := cn.GetSlug(); got != "brand-new" {
 		t.Errorf("class-new slug = %q", got)
 	}

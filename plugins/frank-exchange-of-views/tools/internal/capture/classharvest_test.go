@@ -62,6 +62,23 @@ func TestAProposalCarriesTheThreeFieldsAndTheCaseThatMotivatedIt(t *testing.T) {
 	}
 }
 
+// ADOPTION CARRIES THE MATERIAL DEFAULT. A registry row without one is refused by setup, so the
+// proposal tells the reviewer to add the field, and which value this run coined the class with —
+// read off the record's ClassNew, not assumed.
+func TestAdoptionTextNamesMaterialDefault(t *testing.T) {
+	law := t.TempDir()
+	coined := classEvent(t, "red-lens-logic", "shape-drift", "d", "self-attestation", "x")
+	coined.GetClassNew().MaterialDefault = recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS.Enum()
+	HarvestClasses(runtest.New(t, "/runs/run-md"), law, []*record.Event{coined})
+	b, err := os.ReadFile(filepath.Join(law, "proposed", "class-shape-drift--run-md.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), "with its `material_default`; this run coined it as `always`.") {
+		t.Errorf("the adoption text must name the field and the run's coined value:\n%s", b)
+	}
+}
+
 // NO CLASSES IS SAID, NOT IMPLIED — the same discipline the precedent harvest keeps. A capture
 // line reading "no classes coined this run" must come from having looked.
 func TestARunThatCoinedNothingWritesNothingAndSaysSo(t *testing.T) {

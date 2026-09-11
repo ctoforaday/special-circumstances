@@ -58,7 +58,7 @@ Flags:
       --about-kind section|inquiry|gap           anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
-      --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb
+      --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
       --complexity grade                         what fixing it costs, on the same scale
       --fix string                               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list                            comma-separated lens findings that surfaced it (evidence-F3,logic-F2)
@@ -128,7 +128,7 @@ Flags:
       --about-kind section|inquiry|gap           anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
-      --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb
+      --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
       --complexity grade                         what fixing it costs, on the same scale
       --fix string                               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list                            comma-separated lens findings that surfaced it (evidence-F3,logic-F2)
@@ -198,7 +198,7 @@ Flags:
       --about-kind section|inquiry|gap           anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
-      --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb
+      --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
       --complexity grade                         what fixing it costs, on the same scale
       --fix string                               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list                            comma-separated lens findings that surfaced it (evidence-F3,logic-F2)
@@ -268,7 +268,7 @@ Flags:
       --about-kind section|inquiry|gap           anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
-      --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb
+      --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
       --complexity grade                         what fixing it costs, on the same scale
       --fix string                               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list                            comma-separated lens findings that surfaced it (evidence-F3,logic-F2)
@@ -312,7 +312,7 @@ minted G1
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-lens-evidence:mint:G1","mint":{"acceptance_check":"grep the sites","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"complexity_cost":"GRADE_LOW","fix_basis":"proposed","gap_id":"G1","impact":"GRADE_MEDIUM","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"a real one","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:mint:G1","mint":{"acceptance_check":"grep the sites","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"complexity_cost":"GRADE_LOW","fix_basis":"proposed","gap_id":"G1","impact":"GRADE_MEDIUM","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"a real one","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_MINT"}
 
 ═══ RENDERS ═══
 -- debate

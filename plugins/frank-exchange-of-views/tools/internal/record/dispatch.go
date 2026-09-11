@@ -40,10 +40,25 @@ type Plan struct {
 	Why               []string `json:"why"` // the readiness of each source, in words a reader can check against the board
 }
 
-// material is the severity mass at or above which a gap holds the gate and readies its parties:
-// GRADE_MEDIUM and up. Below it a gap is on the board, blue may answer it when engaged for
-// something else, but a trifle alone cannot spin the cycle (gblock, 2026-09-08).
+// material is the severity mass at or above which a `by_grade` gap is material: GRADE_MEDIUM and
+// up. The class decides for `always` and `never`. A gap that is not material stays on the board,
+// and blue may answer it when engaged for something else, but it alone cannot spin the cycle
+// (gblock, 2026-09-08). Read only by the two carriers of the definition: IsMaterial, which the
+// Go family fold calls, and the gap view's "material" column, which spells the same floor in SQL.
 const material = 2.0
+
+// IsMaterial is THE definition of a material gap: its class is `always`, or its class goes
+// `by_grade` and its current severity is medium or above. A `never` class is not material at any
+// grade. Every reader of materiality reads this, or the gap view's column that states it in SQL.
+func IsMaterial(cm recordpb.ClassMaterial, currentSeverity recordpb.Grade) bool {
+	switch cm {
+	case recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS:
+		return true
+	case recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE:
+		return recordpb.GradeMass(currentSeverity) >= material
+	}
+	return false
+}
 
 type openGap struct {
 	id, mintedBy, severity string

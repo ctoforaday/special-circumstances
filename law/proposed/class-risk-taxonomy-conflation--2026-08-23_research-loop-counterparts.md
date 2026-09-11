@@ -2,7 +2,7 @@
 
 Coined by `red-merge-r3` during `2026-08-23_research-loop-counterparts`. It is NOT staged into any later run:
 an unreviewed class validating a future `--class` is the registry losing the only thing it
-means. Adopting it means adding the slug to `feov-memory/class-registry.json` by hand.
+means. Adopting it means adding the slug to `feov-memory/class-registry.json` by hand, with its `material_default` (`always`, `never` or `by_grade`).
 
 - **definition**: Two or more distinct attack/risk categories are folded under one label, producing a single no-control-covers-this conclusion that undercounts how many controls are actually missing.
 - **neighbour**: `risk-coverage-omission`

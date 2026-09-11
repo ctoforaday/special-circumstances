@@ -706,6 +706,16 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 	// its own help documents — was rejected. That annotation is conditional now, like Avenue.line.
 	// The lesson is the ordering: anything an annotation makes UNCONDITIONAL is decided before a
 	// single line here executes, so a `required` marking silently deletes every exemption below.
+	//
+	// WHICH IS WHY A MINT'S CLASS MATERIAL IS STAMPED FIRST. The field is required and the tool is
+	// its only writer, so the required-field walk would otherwise ask the seat for a value it may
+	// not supply; stamped here, every caller of validation gets the same stamp and the same refusals
+	// (an unknown class, an unstaged registry, a seat-supplied value).
+	if m, ok := body.(*recordpb.Mint); ok {
+		if err := stampClassMaterial(run, m); err != nil {
+			return err
+		}
+	}
 	if err := recordpb.CheckRequired(verbOf(typ), body); err != nil {
 		return err
 	}

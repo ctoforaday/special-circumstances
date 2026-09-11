@@ -2,7 +2,7 @@
 
 Coined by `red-merge-r3` during `2026-09-02_quadratic-formula`. It is NOT staged into any later run:
 an unreviewed class validating a future `--class` is the registry losing the only thing it
-means. Adopting it means adding the slug to `feov-memory/class-registry.json` by hand.
+means. Adopting it means adding the slug to `feov-memory/class-registry.json` by hand, with its `material_default` (`always`, `never` or `by_grade`).
 
 - **definition**: A citation anchor is spliced at a span other than the claim it was recorded against, so the assembled footnote backs text it is not about while the claim it was fetched for ships unreferenced.
 - **neighbour**: `unsourced-quotation-or-appeal`

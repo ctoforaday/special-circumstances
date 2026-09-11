@@ -1,12 +1,14 @@
 package migrate
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // Migrate is the whole act: copy the run's channels, replay its record through the current
@@ -23,6 +25,12 @@ func Migrate(fromDir, toDir string, reg Registry, opt Options) (*Manifest, error
 		return nil, fmt.Errorf("migrate: %s is not empty — a migration writes a FRESH sibling, never into an existing run", toDir)
 	}
 	if err := copyChannels(fromDir, toDir); err != nil {
+		return nil, err
+	}
+	// The staged registry is the one channel the replay VALIDATES against, so its translation
+	// lands before the first mint does.
+	registryFills, err := translateStagedRegistry(toDir)
+	if err != nil {
 		return nil, err
 	}
 	// The record's format picks the adapter: a database if one exists, else the era of
@@ -63,6 +71,7 @@ func Migrate(fromDir, toDir string, reg Registry, opt Options) (*Manifest, error
 	}
 	m := NewManifest(fromDir, src.Files(), unclassified, res)
 	m.Discarded = discarded
+	m.StatedFills = append(registryFills, m.StatedFills...)
 	if err := m.Write(toDir); err != nil {
 		return nil, err
 	}
@@ -110,6 +119,62 @@ func copyChannels(fromDir, toDir string) error {
 		}
 		return copyFile(path, dst)
 	})
+}
+
+// translateStagedRegistry gives every row of the copied registry that lacks `material_default`
+// the binary's shipped value for its slug, else `by_grade` as a stated fill. It supplies a value
+// ONLY where the row lacks the field: a row that carries one is kept as recorded, and a registry
+// every row of which already carries it is not rewritten at all.
+//
+// The source of the values is compiled in (record.ShippedMaterialDefaults), not read from the
+// operator's working tree, so one archive migrates the same way on every machine.
+func translateStagedRegistry(toDir string) ([]StatedFill, error) {
+	p := filepath.Join(toDir, "records", "class-registry.json")
+	b, err := os.ReadFile(p)
+	if os.IsNotExist(err) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(b, &top); err != nil {
+		return nil, fmt.Errorf("migrate: the staged class registry %s is unreadable: %w", p, err)
+	}
+	var rows []map[string]json.RawMessage
+	if raw, ok := top["classes"]; ok {
+		if err := json.Unmarshal(raw, &rows); err != nil {
+			return nil, fmt.Errorf("migrate: the staged class registry %s has an unreadable classes list: %w", p, err)
+		}
+	}
+	var fills []StatedFill
+	changed := false
+	for _, row := range rows {
+		if _, has := row["material_default"]; has {
+			continue
+		}
+		var slug string
+		_ = json.Unmarshal(row["slug"], &slug)
+		v, fill := shippedDefault(slug)
+		w, _ := json.Marshal(recordpb.Word(v))
+		row["material_default"] = w
+		changed = true
+		if fill {
+			fills = append(fills, StatedFill{Where: "staged registry", Slug: slug, Value: recordpb.Word(v), Why: byGradeFillWhy})
+		}
+	}
+	if !changed {
+		return nil, nil
+	}
+	raw, err := json.Marshal(rows)
+	if err != nil {
+		return nil, err
+	}
+	top["classes"] = raw
+	out, err := json.MarshalIndent(top, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return fills, os.WriteFile(p, append(out, '\n'), 0o644)
 }
 
 func copyFile(from, to string) error {

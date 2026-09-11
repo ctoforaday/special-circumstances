@@ -2,7 +2,7 @@
 
 Coined by `red-merge-r2` during `2026-08-23_sleeper-service-plan`. It is NOT staged into any later run:
 an unreviewed class validating a future `--class` is the registry losing the only thing it
-means. Adopting it means adding the slug to `feov-memory/class-registry.json` by hand.
+means. Adopting it means adding the slug to `feov-memory/class-registry.json` by hand, with its `material_default` (`always`, `never` or `by_grade`).
 
 - **definition**: A graded claim or risk row is added to the report with no backing line of inquiry, citation, or proof -- asserted into the document rather than researched into it
 - **neighbour**: `structure-noncompliance`

@@ -2,7 +2,7 @@
 
 Coined by `red-merge-r2` during `2026-08-23_sleeper-service-plan`. It is NOT staged into any later run:
 an unreviewed class validating a future `--class` is the registry losing the only thing it
-means. Adopting it means adding the slug to `feov-memory/class-registry.json` by hand.
+means. Adopting it means adding the slug to `feov-memory/class-registry.json` by hand, with its `material_default` (`always`, `never` or `by_grade`).
 
 - **definition**: A real, working mitigation is assigned to a failure mode, but the mitigation's temporal or scope coverage does not match the failure's actual recurrence or extent, so the failure can still land inside the mitigation's blind window
 - **neighbour**: `policy-without-mechanism`

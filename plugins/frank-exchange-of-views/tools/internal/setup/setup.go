@@ -665,6 +665,9 @@ func StageClassRegistry(repoMemoryDir string, run record.Run) MirrorResult {
 	if err != nil {
 		return MirrorResult{Written: false, Reason: "no class-registry.json in " + repoMemoryDir + " — nothing constrains `--class`, so every mint this run will be REFUSED rather than waved through (#299)"}
 	}
+	if err := ValidateClassRegistry(repoMemoryDir); err != nil {
+		return MirrorResult{Written: false, Reason: err.Error()}
+	}
 	var reg struct {
 		Classes []struct {
 			Slug string `json:"slug"`
@@ -688,6 +691,41 @@ func StageClassRegistry(repoMemoryDir string, run record.Run) MirrorResult {
 		return MirrorResult{Written: false, Reason: "cannot stage the registry: " + err.Error()}
 	}
 	return MirrorResult{Written: true, Files: len(reg.Classes), Sources: 1}
+}
+
+// ValidateClassRegistry refuses a caller's registry in which any row lacks `material_default` or
+// carries a word outside always | never | by_grade.
+//
+// SETUP STAGES THE CALLER'S COPY (<cwd>/feov-memory), which can be older than the binary, and a row
+// without the field would leave every gap of its class with no materiality to start from. So it is
+// refused BEFORE any run state exists, naming the file, the slug and the registry remedy. It says
+// nothing about `migrate`: there is no run yet to migrate. An absent or unparseable registry is not
+// this check's: StageClassRegistry reports it, and every mint of such a run is refused.
+func ValidateClassRegistry(repoMemoryDir string) error {
+	src := filepath.Join(repoMemoryDir, "class-registry.json")
+	b, err := os.ReadFile(src)
+	if err != nil {
+		return nil
+	}
+	var reg struct {
+		Classes []struct {
+			Slug            string  `json:"slug"`
+			MaterialDefault *string `json:"material_default"`
+		} `json:"classes"`
+	}
+	if json.Unmarshal(b, &reg) != nil {
+		return nil
+	}
+	const remedy = "add `material_default` (`always` | `never` | `by_grade`) to that row, or re-stage from the plugin's shipped `feov-memory/class-registry.json`"
+	for _, c := range reg.Classes {
+		if c.MaterialDefault == nil {
+			return fmt.Errorf("%s: class %q has no material_default — %s", src, c.Slug, remedy)
+		}
+		if _, ok := record.ClassMaterialOf(*c.MaterialDefault); !ok {
+			return fmt.Errorf("%s: class %q has material_default %q, which is not always | never | by_grade — %s", src, c.Slug, *c.MaterialDefault, remedy)
+		}
+	}
+	return nil
 }
 
 // RegistrySlugs reads the staged registry's slugs, for the memory-join report.

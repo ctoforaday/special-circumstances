@@ -132,7 +132,7 @@ func stageClassRegistry(t *testing.T, runDir string) {
 	if err := os.MkdirAll(recDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	body := `{"classes":[{"slug":"scope-creep"},{"slug":"read-surface"},{"slug":"citation-drift"}]}`
+	body := `{"classes":[{"slug":"scope-creep","material_default":"by_grade"},{"slug":"read-surface","material_default":"by_grade"},{"slug":"citation-drift","material_default":"by_grade"}]}`
 	if err := os.WriteFile(filepath.Join(recDir, "class-registry.json"), []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
