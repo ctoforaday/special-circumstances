@@ -11,7 +11,7 @@ Intent separates from execution; every change is verified. All technical changes
 
 Every implementation plan MUST contain:
 
-1. **I. Summary & Goals** — objective (what problem) and success criteria (quantitative: "builds in < 2 min", "zero critical CVEs").
+1. **I. Summary & Goals** — objective (what problem), success criteria (quantitative: "builds in < 2 min", "zero critical CVEs"), and the **value case**: what the change beats the naive version by, and why that pays for its complexity and its audit.
 2. **II. Technical Context** — language/version, primary dependencies, storage/data model, constraints (security/privacy/network).
 3. **III. Proposed Changes (the spec)** — grouped by component, `[NEW]`/`[MODIFY]`/`[DELETE]` tags, directory tree of the proposed structure. A `[MODIFY]`/`[DELETE]` to a **contract** (a function signature, CLI flag set, arg shape, event schema, or a prompt a seat is told) MUST carry a **Consumer census**: the exact search that enumerates its callers, tests, and sibling scripts — *run, with results pasted* — one line per consumer stating whether it changes. Complete when re-running the command surfaces nothing the list omits. An executable artifact that survives, not a prose promise ([[context-efficiency]]).
 4. **IV. Risk & Mitigation** — risks graded likelihood × impact × complexity-to-mitigate; each implementation step that mitigates one links to it.
@@ -23,6 +23,7 @@ For small tasks (UI tweaks, minor bugs), a single `tinyspec.md` MAY combine plan
 
 ## The auditor gate
 
+- BEFORE the gate, YOU MUST split a plan that bundles independently shippable parts, give each part its value case and rough cost, and ship the cheap, clearly valuable parts first on their own — they MUST NOT wait on the expensive ones. Where machinery dominates the whole plan's value case, that is a fork for the human before the first round, not after the fifth. Measured: one plan bundled six changes, two of them a one-line default and text-only standards, and all six waited through five rounds while the plan doubled in length.
 - BEFORE the gate, any **design fork with a behavioral, semantic, cost, or reversibility implication** MUST be resolved with the human. The gate vets ONE design against the standard; it is not where you discover which design is wanted — a fork reopened after PASS wastes every round spent on the discarded branch.
 - BEFORE an implementation plan is treated as approved, it MUST pass the auditor gate (`/plan-audit`) on **Alignment**, **Completeness**, and **Safety** — defined in the `plan-auditor` agent, which is what applies them (one definition, where it is used).
 - The gate is binary — `VERDICT: PASS` or `FAIL` with actionable gaps. It never soft-passes. A PASS may carry NOTES — findings a named gate will catch loudly, or that change only how the plan reads — and that is not a soft pass: it FAILs on what would reach main silently, and the line is drawn in the `plan-auditor` agent. The plan is approved on the second consecutive PASS — or by the human, when every fork is ruled and every remaining gap is `local` (its fix moves no decision) — and its NOTES travel into the PR (`/plan-audit`).
