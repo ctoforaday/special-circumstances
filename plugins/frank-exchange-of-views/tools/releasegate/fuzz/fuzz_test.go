@@ -174,9 +174,9 @@ type runner struct {
 	// lastRuleRefusal is the last grade-motion ruling the record refused, for the exit tally.
 	lastRuleRefusal string
 	// lensMints: lens seat -> mints that LANDED, for choosing the next minter. A lens's mints are
-	// bounded by the run's mintBudget (default 5), so the driver spreads them over the lenses
-	// debate.js dispatches rather than raising the budget: least-loaded first, which keeps every
-	// lens under the bound until the run has minted 5 × len(fuzzLensSeats) gaps.
+	// bounded by a budget whose floor is the run's mintBudget (the report's size can only raise
+	// it), so the driver spreads them over the lenses debate.js dispatches rather than raising the
+	// floor: least-loaded first, which keeps every lens under the bound for as long as it can.
 	lensMints map[string]int
 	// verbatimGaps: gap id -> the fix_new text blue applied verbatim from red's own mint. The
 	// estoppel drive reads it to build a --quote that red's OWN prescription must refuse.
@@ -739,8 +739,9 @@ func (r *runner) register(role, seatID string) {
 
 // fuzzLensSeats are the lens seats this driver mints from — debate.js's DEFAULT_AREAS, which are
 // the lenses the engine actually dispatches in a fuzz run (the other three areas are opt-in per
-// run). Four lenses × mintBudget 5 is the run's ceiling on gaps, 20, and the sweep sits well under
-// it; a run that reached it would see `mint` refused with the budget text, which noteExec tallies.
+// run). Each lens's budget is at least the run's mintBudget and grows with the report, so the
+// ceiling on gaps is at least four times the floor; a lens that reached its budget would see
+// `mint` refused with the budget text, which noteExec tallies.
 var fuzzLensSeats = []string{"red-lens-evidence", "red-lens-logic", "red-lens-dark-side", "red-lens-voice"}
 
 // minterOf is the seat that may close or regrade gapID: the lens whose mint created it. Every gap

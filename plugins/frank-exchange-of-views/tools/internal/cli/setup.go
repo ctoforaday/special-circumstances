@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/setup"
 )
 
@@ -79,7 +80,7 @@ func newSetup() *cobra.Command {
 	f.StringVar(&lanes, flags.Lanes, "", "the frontier lane count (recorded in run-config.json)")
 	f.IntVar(&k, flags.K, 0, "consecutive exchanges on one gap with no movement before it is at impasse (default 2; recorded in run-config.json)")
 	f.IntVar(&kMax, flags.KMax, 0, "total exchanges on one gap before it is at impasse regardless of movement (default 6; a smoke run passes 2)")
-	f.IntVar(&mintBudget, flags.MintBudget, 0, "gaps one lens may mint in the run, superseding mints included (default 5; a smoke run passes 1)")
+	f.IntVar(&mintBudget, flags.MintBudget, 0, "the FLOOR of the gaps one lens may mint in the run, superseding mints included; each lens's budget is the larger of this and one mint per so many units of what its area audits, read off the record at each mint — "+record.MintScaleSummary()+" (default 5; a smoke run passes 1)")
 	f.StringArrayVar(&lensAreas, flags.LensArea, nil, "a red lens area this run dispatches (repeatable; default evidence, logic, dark-side, voice) — the cast is written from these")
 	f.Float64Var(&convergenceFraction, flags.ConvergenceFraction, 0, "fraction of the run's peak board mass below which a FAIL over a board with nothing material is refused (default 0.25)")
 	f.StringVar(&binDir, flags.BinDir, "", "where the feov-record binary the SEATS will call lives (default: this executable's own directory); the version preflight always runs and always refuses on a miss")

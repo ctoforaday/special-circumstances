@@ -111,7 +111,8 @@ are the same bytes, by construction.
 ceiling. The chair's `dispatch next` says who sits; the run ends when nobody is ready — PASS
 permitted (VERIFIED), or every open material gap at its limit, ruled by the bench and carried
 (CEILING). The bounds are the run's terms, recorded at setup: the exchanges a gap gets before
-impasse (k-max) and the gaps a lens may mint (mint-budget) (plans/roundless.md §III.B.2). Red owns PASS/FAIL — *is it defensible*. **The bench
+impasse (k-max) and the floor of the gaps a lens may mint (mint-budget), which the record raises
+with the report's size in each lens's unit — citations, proofs, claims or prose paragraphs (plans/roundless.md §III.B.2). Red owns PASS/FAIL — *is it defensible*. **The bench
 owns the stopping judgment** — *is it close enough*, the one call that weighs remaining defect
 against remaining cost, and the only terminal value (economy) that otherwise has no organ. It
 reads the telemetry projection — the series, never a snapshot — and files a reasoned,
