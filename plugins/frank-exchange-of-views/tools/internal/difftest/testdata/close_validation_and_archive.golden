@@ -53,11 +53,20 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
   )
   … "$X"
 
+CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong — a lost word, a
+wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
+printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
+struck beside its replacement. You may correct only your own act, only in the sitting that recorded
+it, and only until another seat has acted; after that, say it in a new act. A correction may change
+only your wording (--reason); every other flag must repeat what the act recorded.
+
 Usage:
   feov-record close [flags]
 
 Flags:
       --as as-value               HOW the gap ended — the same words the bench's dispositions use
+      --correction-why string     what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
+      --corrects string           the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
       --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
@@ -108,11 +117,20 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
   )
   … "$X"
 
+CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong — a lost word, a
+wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
+printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
+struck beside its replacement. You may correct only your own act, only in the sitting that recorded
+it, and only until another seat has acted; after that, say it in a new act. A correction may change
+only your wording (--reason); every other flag must repeat what the act recorded.
+
 Usage:
   feov-record close [flags]
 
 Flags:
       --as as-value               HOW the gap ended — the same words the bench's dispositions use
+      --correction-why string     what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
+      --corrects string           the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
       --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
@@ -163,11 +181,20 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
   )
   … "$X"
 
+CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong — a lost word, a
+wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
+printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
+struck beside its replacement. You may correct only your own act, only in the sitting that recorded
+it, and only until another seat has acted; after that, say it in a new act. A correction may change
+only your wording (--reason); every other flag must repeat what the act recorded.
+
 Usage:
   feov-record close [flags]
 
 Flags:
       --as as-value               HOW the gap ended — the same words the bench's dispositions use
+      --correction-why string     what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
+      --corrects string           the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
       --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
@@ -195,7 +222,7 @@ Global Flags:
 $ close --run {RUN} --seat-id red-lens-evidence --id G1 --as repaired --verified-by L1 --verified-with WebFetch --verified-against https://example.invalid/spec#s3 --reason refetched; the source now resolves and supports the claim
 exit 0
 stdout:
-closed G1 (repaired)
+closed G1 (repaired) [key red-lens-evidence:close:#1:G1]
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}

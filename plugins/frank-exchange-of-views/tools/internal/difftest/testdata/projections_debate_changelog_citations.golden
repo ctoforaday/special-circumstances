@@ -23,7 +23,7 @@ TWO CONSEQUENCES:
 $ position --run {RUN} --seat-id red-chair --reason red's round position
 exit 0
 stdout:
-position recorded
+position recorded [key red-chair:position:#1]
 
 $ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem docketed
 exit 0
@@ -35,27 +35,27 @@ minted G1
 $ closing --run {RUN} --seat-id red-chair --id G1 --reason red's closing
 exit 0
 stdout:
-closing filed for G1
+closing filed for G1 [key red-chair:closing:#1:G1]
 
 $ position --run {RUN} --seat-id blue-respond --reason blue's round position
 exit 0
 stdout:
-position recorded
+position recorded [key blue-respond:position:#0]
 
 $ closing --run {RUN} --seat-id blue-respond --id G1 --reason blue's closing
 exit 0
 stdout:
-closing filed for G1
+closing filed for G1 [key blue-respond:closing:#0:G1]
 
 $ revision --run {RUN} --seat-id blue-respond --reason repairs landed
 exit 0
 stdout:
-revision recorded — the round is on the record
+revision recorded — the round is on the record [key blue-respond:revision:#0]
 
 $ manifest-row --run {RUN} --seat-id blue-respond --id G1 --reason figures recomputed; check run: pass
 exit 0
 stdout:
-manifest row recorded for G1
+manifest row recorded for G1 [key blue-respond:manifest_row:#0:G1]
 
 $ motion grade file --run {RUN} --seat-id blue-respond --id G1 --dimension likelihood --proposed low --reason the harm needs two failures
 exit 0
@@ -139,12 +139,12 @@ motion M2 filed (docket)
 $ motion docket rule --run {RUN} --seat-id judge --id M2 --as carried --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --settled the proposition this ruling bars --final --reason the rationale body
 exit 0
 stdout:
-motion M2 ruled carried
+motion M2 ruled carried [key judge:motion_rule:#1]
 
 $ certify --run {RUN} --seat-id judge --reason what a human should re-examine
 exit 0
 stdout:
-certification recorded
+certification recorded [key judge:certify:#1]
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}

@@ -84,7 +84,7 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	}
 
 	// Unruled: filing exists, no answer yet.
-	if err := RequireUnruledMotion(run, "M1"); err != nil {
+	if err := RequireUnruledMotion(run, "M1", "", ""); err != nil {
 		t.Errorf("RequireUnruledMotion before any ruling = %v", err)
 	}
 	if err := RequireRuledMotion(run, recordpb.MotionSubject_MOTION_SUBJECT_GRADE, "M1"); err == nil {
@@ -100,14 +100,14 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Ruled: the second-ruling refusal quotes the FIRST ruling's word and ruler.
-	err := RequireUnruledMotion(run, "M1")
+	err := RequireUnruledMotion(run, "M1", "", "")
 	if err == nil || !strings.Contains(err.Error(), `ruled "rejected" by red-chair`) {
 		t.Errorf("RequireUnruledMotion after a ruling = %v, want the first ruling quoted", err)
 	}
 	if err := RequireRuledMotion(run, recordpb.MotionSubject_MOTION_SUBJECT_GRADE, "M1"); err != nil {
 		t.Errorf("RequireRuledMotion after a ruling = %v", err)
 	}
-	if err := RequireUnappealedMotion(run, "M1"); err != nil {
+	if err := RequireUnappealedMotion(run, "M1", "", ""); err != nil {
 		t.Errorf("RequireUnappealedMotion before any appeal = %v", err)
 	}
 
@@ -118,7 +118,7 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	err = RequireUnappealedMotion(run, "M1")
+	err = RequireUnappealedMotion(run, "M1", "", "")
 	if err == nil || !strings.Contains(err.Error(), "blue-respond") ||
 		!strings.Contains(err.Error(), "the ruling reads past the argument") {
 		t.Errorf("RequireUnappealedMotion after an appeal = %v, want the appeal quoted", err)

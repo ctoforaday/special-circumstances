@@ -35,7 +35,9 @@ func newManifestRow() *cobra.Command {
 	}))
 
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id this receipt covers")
-	return c
+	// The verb's name is not its event's word, so the event is declared.
+	seat.Records(c, "manifest_row")
+	return seat.Correctable(c)
 }
 
 type manifestRowResult struct {

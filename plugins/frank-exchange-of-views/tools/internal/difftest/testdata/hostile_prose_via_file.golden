@@ -28,7 +28,7 @@ backslash \ and \n literal
 
 exit 0
 stdout:
-position recorded
+position recorded [key red-chair:position:#1]
 
 $ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --reason quotes " ' `backtick` $(subshell) ${var}
 newline	tab

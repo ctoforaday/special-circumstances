@@ -62,20 +62,30 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
   )
   … "$X"
 
+CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong — a lost word, a
+wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
+printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
+struck beside its replacement. You may correct only your own act, only in the sitting that recorded
+it, and only until another seat has acted; after that, say it in a new act. A correction may change
+only your wording (--principle, --reason, --reopens-on, --review-flag, --settled, --tension); every
+other flag must repeat what the act recorded.
+
 Usage:
   feov-record motion docket rule [flags]
 
 Flags:
-      --as as-value          your ruling
-      --final                nothing would reopen this. The assertable empty case for --reopens-on: pass exactly one of the two
-  -h, --help                 help for rule
-      --id string            REQUIRED — the motion id (M1, M2 …)
-      --principle string     the rule you applied, stated so a later sitting can apply the same one
-      --reason string        REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
-      --reopens-on string    the evidence or condition that would make this worth raising again — or pass --final to say nothing would
-      --review-flag string   what a human should look at again — empty when nothing needs it
-      --settled string       what the losing party may no longer assert, in one sentence
-      --tension string       the values that pulled against each other — empty is a real answer when none did
+      --as as-value             your ruling
+      --correction-why string   what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
+      --corrects string         the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
+      --final                   nothing would reopen this. The assertable empty case for --reopens-on: pass exactly one of the two
+  -h, --help                    help for rule
+      --id string               REQUIRED — the motion id (M1, M2 …)
+      --principle string        the rule you applied, stated so a later sitting can apply the same one
+      --reason string           REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reopens-on string       the evidence or condition that would make this worth raising again — or pass --final to say nothing would
+      --review-flag string      what a human should look at again — empty when nothing needs it
+      --settled string          what the losing party may no longer assert, in one sentence
+      --tension string          the values that pulled against each other — empty is a real answer when none did
 
 Enumerated values:
   --as
@@ -113,20 +123,30 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
   )
   … "$X"
 
+CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong — a lost word, a
+wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
+printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
+struck beside its replacement. You may correct only your own act, only in the sitting that recorded
+it, and only until another seat has acted; after that, say it in a new act. A correction may change
+only your wording (--principle, --reason, --reopens-on, --review-flag, --settled, --tension); every
+other flag must repeat what the act recorded.
+
 Usage:
   feov-record motion docket rule [flags]
 
 Flags:
-      --as as-value          your ruling
-      --final                nothing would reopen this. The assertable empty case for --reopens-on: pass exactly one of the two
-  -h, --help                 help for rule
-      --id string            REQUIRED — the motion id (M1, M2 …)
-      --principle string     the rule you applied, stated so a later sitting can apply the same one
-      --reason string        REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
-      --reopens-on string    the evidence or condition that would make this worth raising again — or pass --final to say nothing would
-      --review-flag string   what a human should look at again — empty when nothing needs it
-      --settled string       what the losing party may no longer assert, in one sentence
-      --tension string       the values that pulled against each other — empty is a real answer when none did
+      --as as-value             your ruling
+      --correction-why string   what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
+      --corrects string         the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
+      --final                   nothing would reopen this. The assertable empty case for --reopens-on: pass exactly one of the two
+  -h, --help                    help for rule
+      --id string               REQUIRED — the motion id (M1, M2 …)
+      --principle string        the rule you applied, stated so a later sitting can apply the same one
+      --reason string           REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reopens-on string       the evidence or condition that would make this worth raising again — or pass --final to say nothing would
+      --review-flag string      what a human should look at again — empty when nothing needs it
+      --settled string          what the losing party may no longer assert, in one sentence
+      --tension string          the values that pulled against each other — empty is a real answer when none did
 
 Enumerated values:
   --as

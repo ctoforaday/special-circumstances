@@ -144,11 +144,11 @@ func Log() *cobra.Command {
 	// seat reads to choose.
 	enumhelp.Flag(c, flags.Type, record.SeatLogTypeEnum(),
 		"what this entry asserts")
-	return c
+	return Correctable(c)
 }
 
 func Position(key string) *cobra.Command {
-	return Prose(NewKeyed("position", key, func(s Context, cmd *cobra.Command) (Result, error) {
+	return Correctable(Prose(NewKeyed("position", key, func(s Context, cmd *cobra.Command) (Result, error) {
 		text, err := Reason(cmd)
 		if err != nil {
 			return nil, err
@@ -157,7 +157,7 @@ func Position(key string) *cobra.Command {
 			return nil, err
 		}
 		return Msg{Message: "position recorded"}, nil
-	}))
+	})))
 }
 
 func Closing(key string) *cobra.Command {
@@ -175,7 +175,7 @@ func Closing(key string) *cobra.Command {
 		return closingResult{ID: Str(cmd, flags.ID)}, nil
 	}))
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id this closing argues")
-	return c
+	return Correctable(c)
 }
 
 // views are the projections a seat may read. `defaultFor` is the role whose default this view

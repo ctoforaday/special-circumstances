@@ -564,21 +564,52 @@ func motionSubjectOf(run Run, id string) (string, error) {
 // Two writers disagreeing about one fate is the defect the line of inquiry code already guards against by
 // giving moves a single writer; a ruling had no such guard. The escalation path is an APPEAL,
 // which is a new event that preserves both positions, rather than a second ruling that erases one.
-func RequireUnruledMotion(run Run, id string) error {
+//
+// seatID is the seat asking to rule, and correcting is the key its --corrects names ("" for an
+// ordinary ruling). A CORRECTION OF THE RULING THIS FINDS IS NOT A SECOND RULING: it restates the
+// first in its place, so the guard passes when the ruling it finds IS that act. When the ruling is
+// the asker's own and from its current sitting, the refusal also offers the correction — whether
+// one would be admitted (no other seat has acted since) is the write's to decide.
+func RequireUnruledMotion(run Run, id, seatID, correcting string) error {
 	// motion_answers is the one statement of first-wins: the FIRST ruling is the one quoted,
 	// its word whichever arm the rule carried, "" when it carried none. A row whose ruled_by
 	// is NULL is an appeal with no ruling — not a ruling, so it does not refuse.
-	var word, seat sql.NullString
-	found, err := queryRow(run, []any{&word, &seat},
-		`SELECT "ruling", "ruled_by" FROM "motion_answers" WHERE "motion_id" = ? AND "ruled_by" IS NOT NULL`, id)
+	var word, seat, key sql.NullString
+	var seq sql.NullInt64
+	found, err := queryRow(run, []any{&word, &seat, &key, &seq},
+		`SELECT a."ruling", a."ruled_by", e."key", a."ruled_seq" FROM "motion_answers" a
+		   JOIN "events" e ON e."id" = a."ruled_seq"
+		  WHERE a."motion_id" = ? AND a."ruled_by" IS NOT NULL`, id)
 	if err != nil {
 		return err
 	}
+	if found && correcting != "" && key.String == correcting {
+		return nil
+	}
 	if found {
-		return fmt.Errorf("record: motion %s is already ruled %q by %s. A second ruling does not overturn the first — the second is simply the one a later reader sees, and the first stops being the answer. To press it, `appeal` it: an appeal keeps both positions on the record, which is the whole reason a ruling is an argument rather than a command",
-			id, word.String, seat.String)
+		return fmt.Errorf("record: motion %s is already ruled %q by %s. A second ruling does not overturn the first — the second is simply the one a later reader sees, and the first stops being the answer. To press it, `appeal` it: an appeal keeps both positions on the record, which is the whole reason a ruling is an argument rather than a command%s",
+			id, word.String, seat.String, correctionOffer(run, seatID, seat.String, key.String, seq, "ruling"))
 	}
 	return nil
+}
+
+// correctionOffer is the sentence a first-wins refusal adds when the act it found is the asker's
+// own, from its current sitting — the one case where the act may still be corrected rather than
+// only answered. Empty otherwise, so every other refusal reads exactly as before.
+func correctionOffer(run Run, asker, by, key string, seq sql.NullInt64, noun string) string {
+	if asker == "" || by != asker || key == "" || !seq.Valid {
+		return ""
+	}
+	var before, now int
+	found, err := queryRow(run, []any{&before, &now}, `SELECT
+	    (SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = 'register' AND "id" < ?),
+	    (SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = 'register')`,
+		asker, seq.Int64, asker)
+	if err != nil || !found || before != now {
+		return ""
+	}
+	return fmt.Sprintf(". It is your own %s from this sitting: if it came out wrong, correct it instead — run the same command with --corrects %s --correction-why <what was wrong>, and the first stays on the record, struck",
+		noun, key)
 }
 
 // RequireUnappealedMotion refuses a SECOND appeal on a motion already appealed.
@@ -597,17 +628,25 @@ func RequireUnruledMotion(run Run, id string) error {
 // pressed again belongs in a NEW motion for the new epoch, which is the path the engine already
 // drives (`grade_dispute_re_raised`). That keeps both arguments, which is the whole point of an
 // appeal being an event rather than a field.
-func RequireUnappealedMotion(run Run, id string) error {
-	var seat, reason sql.NullString
-	found, err := queryRow(run, []any{&seat, &reason},
-		`SELECT "appealed_by", "appeal_reason" FROM "motion_answers"
-		  WHERE "motion_id" = ? AND "appealed_by" IS NOT NULL`, id)
+//
+// seatID and correcting are RequireUnruledMotion's: a correction of the appeal this finds passes,
+// and the asker's own appeal from this sitting is offered the correction.
+func RequireUnappealedMotion(run Run, id, seatID, correcting string) error {
+	var seat, reason, key sql.NullString
+	var seq sql.NullInt64
+	found, err := queryRow(run, []any{&seat, &reason, &key, &seq},
+		`SELECT a."appealed_by", a."appeal_reason", e."key", a."appealed_seq" FROM "motion_answers" a
+		   JOIN "events" e ON e."id" = a."appealed_seq"
+		  WHERE a."motion_id" = ? AND a."appealed_by" IS NOT NULL`, id)
 	if err != nil {
 		return err
 	}
+	if found && correcting != "" && key.String == correcting {
+		return nil
+	}
 	if found {
-		return fmt.Errorf("record: motion %s is already appealed by %s (%q). A second appeal does not add to the first — it REPLACES it in every reader, and the argument already on the record stops being the one anybody sees. If you are pressing on new grounds, file a NEW motion for this round: two motions keep two arguments, which is what an appeal being an event rather than a field is for",
-			id, seat.String, reason.String)
+		return fmt.Errorf("record: motion %s is already appealed by %s (%q). A second appeal does not add to the first — it REPLACES it in every reader, and the argument already on the record stops being the one anybody sees. If you are pressing on new grounds, file a NEW motion for this round: two motions keep two arguments, which is what an appeal being an event rather than a field is for%s",
+			id, seat.String, reason.String, correctionOffer(run, seatID, seat.String, key.String, seq, "appeal"))
 	}
 	return nil
 }

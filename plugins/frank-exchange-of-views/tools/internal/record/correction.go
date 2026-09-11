@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
@@ -176,7 +177,7 @@ func frozenDiff(a, b proto.Message) []string {
 			if hx == hy && (!hx || x.Get(fd).Equal(y.Get(fd))) {
 				continue
 			}
-			name := "--" + recordpb.FlagFor(fd)
+			name := "--" + flagOf(fd)
 			if fd.Message() != nil && !fd.IsList() {
 				name = string(fd.Name())
 			}
@@ -208,7 +209,7 @@ func proseFlags(md protoreflect.MessageDescriptor) []string {
 				continue
 			}
 			if p, _ := recordpb.IsProse(fd); p {
-				f := "--" + recordpb.FlagFor(fd)
+				f := "--" + flagOf(fd)
 				if !seen[f] {
 					seen[f] = true
 					out = append(out, f)
@@ -228,6 +229,31 @@ func ProseFlags(typ recordpb.EventType) []string {
 		return nil
 	}
 	return proseFlags(md)
+}
+
+// LabelFlag is the flag that fills the field an act of this type is keyed on — what a FULL
+// correction may never change — or "" for a type keyed by number.
+func LabelFlag(typ recordpb.EventType) string {
+	md, ok := bodyDescriptor(recordpb.Word(typ))
+	if !ok {
+		return ""
+	}
+	for _, name := range keyFields {
+		if fd := md.Fields().ByName(name); fd != nil && fd.Kind() == protoreflect.StringKind && !fd.IsList() {
+			return "--" + flagOf(fd)
+		}
+	}
+	return ""
+}
+
+// flagOf is the word a seat types for a field: the field's own `(sql).flag` when it declares one,
+// else the payload-key map, which knows that a gap id is typed --id and a status --as. (FlagFor's
+// fallback is the field name itself, which would name --gap-id — a flag no verb has.)
+func flagOf(fd protoreflect.FieldDescriptor) string {
+	if o, _ := proto.GetExtension(fd.Options(), recordpb.E_Sql).(*recordpb.Sql); o.GetFlag() != "" {
+		return o.GetFlag()
+	}
+	return flags.ForPayloadKey(string(fd.Name()))
 }
 
 // supersedingAct is what a seat does instead when a correction is refused for time — the act that
@@ -268,6 +294,11 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 			"record: a correction requires --correction-why — what was wrong with the act; a reader sees it beside the struck text")
 	}
 	if existing, err := correctionRetry(db, seatID, c.Key, body); existing != nil || err != nil {
+		// THE RETRY IS ANSWERED WITH THE ACT THAT STANDS, and the command that asked is told of it
+		// as it was told of the write, so it prints the key it printed the first time.
+		if existing != nil && id.OnWrite != nil {
+			id.OnWrite(existing)
+		}
 		return existing, err
 	}
 	target, err := readTarget(db, c.Key)
@@ -296,7 +327,11 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 		correctionKey(seatID, c.Key)).Scan(&prior); {
 	case err == nil:
 		_ = tx.Rollback()
-		return correctionRetry(db, seatID, c.Key, body)
+		existing, err := correctionRetry(db, seatID, c.Key, body)
+		if existing != nil && id.OnWrite != nil {
+			id.OnWrite(existing)
+		}
+		return existing, err
 	case !errors.Is(err, sql.ErrNoRows):
 		return nil, err
 	}

@@ -70,7 +70,7 @@ func newInquiryPropose() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		id, err := record.MintInquiryID(run)
+		id, err := proposalID(s, run)
 		if err != nil {
 			return nil, err
 		}
@@ -122,7 +122,21 @@ func newInquiryPropose() *cobra.Command {
 	_ = c.MarkFlagRequired(flags.Reason)
 	flags.Text(c, flags.Hypothesis, "what would be TRUE if this line pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug")
 	flags.Text(c, flags.Method, "the source class or technique it belonged to, when that is what distinguishes it")
-	return c
+	return seat.Correctable(c)
+}
+
+// proposalID is the id a proposal records: a new one, or — when the proposal corrects an earlier
+// one — the corrected proposal's own. A correction re-states the act; a freshly minted id would be a
+// different line, and the correction would be refused for changing it.
+func proposalID(s seat.Context, run record.Run) (string, error) {
+	t, err := s.CorrectionTarget()
+	if err != nil {
+		return "", err
+	}
+	if a, ok := t.(*recordpb.Avenue); ok {
+		return a.GetAvenueId(), nil
+	}
+	return record.MintInquiryID(run)
 }
 
 func newInquiryMove() *cobra.Command {
@@ -171,7 +185,7 @@ func newInquiryMove() *cobra.Command {
 	// glossed the four it did carry differently from the enum. enumhelp renders every value with
 	// its own meaning from the record, so the usage line's job is to say what the FIELD is for.
 	enumhelp.Flag(c, flags.As, record.MustEnum("avenue", "status"), "the fate of this line of inquiry")
-	return c
+	return seat.Correctable(c)
 }
 
 type inquiryResult struct {
