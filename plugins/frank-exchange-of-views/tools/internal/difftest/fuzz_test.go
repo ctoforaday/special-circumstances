@@ -94,9 +94,11 @@ func TestReplayDeterminism(t *testing.T) {
 	drawn, landed := map[string]int{}, map[string]int{}
 	refusal := map[string]string{} // the first refusal each arm met, for the guard's message
 	written := 0
+	ran := 0 // sequences whose body ran in this process; a -run filter skips the rest
 
 	for i := 0; i < fuzzSequences; i++ {
 		t.Run(fmt.Sprintf("seq%02d", i), func(t *testing.T) {
+			ran++
 			cmds := generate(rng, fuzzMaxLen)
 			first := replay(t, bin, cmds)
 			second := replay(t, bin, cmds)
@@ -135,7 +137,15 @@ func TestReplayDeterminism(t *testing.T) {
 	// seed set — exit 0 from the exact command runGo ran — and the accepted commands must have
 	// written a non-trivial number of events. An arm that only ever refuses is a verb on the wrong
 	// seat, a verb path the tree does not have, or a precondition the generator never builds.
+	//
+	// It measures the WHOLE seed set or nothing. Under a -run filter only some sequences run, so
+	// the tallies are partial: judging them would fail every arm the filtered-out sequences would
+	// have drawn (a false failure that teaches people to ignore the guard), and passing them would
+	// claim a measurement that was never taken. It skips instead, and says why.
 	t.Run("every arm lands", func(t *testing.T) {
+		if ran < fuzzSequences {
+			t.Skipf("not measured: %d of %d sequences ran (filtered run)", ran, fuzzSequences)
+		}
 		for _, a := range fuzzArms {
 			t.Logf("%-28s landed %2d/%-2d", a.name, landed[a.name], drawn[a.name])
 			switch {
