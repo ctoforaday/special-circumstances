@@ -17,25 +17,82 @@
 //	go test -tags tessocr -count=1 ./internal/tessocr/
 package tessocr
 
-import "errors"
+import (
+	"bytes"
+	"crypto/sha256"
+	"embed"
+	"encoding/hex"
+	"errors"
+	"io/fs"
+	"sort"
+	"strings"
+)
 
 // The C-stack pins, mirrored from third_party/pins/PINS.txt. These are pins — facts about
 // which upstream tarballs the linked C stack was built from — not a release version of
 // anything this repo ships, which is why they are named Pin and not Version. Two carriers
 // of one fact cannot be generated from each other here (one is Go source, one is the
 // download manifest), so the drift is GATED instead: build-cstack.sh refuses to build a
-// stack whose PINS.txt tarball versions disagree with these constants.
+// stack whose PINS.txt tarball versions disagree with these constants, and the tests
+// refuse a traineddata embed or a PINS.txt that disagrees with engTraineddataPin.
 const (
-	tesseractPin = "5.5.3"
-	leptonicaPin = "1.87.0"
+	tesseractPin      = "5.5.3"
+	leptonicaPin      = "1.87.0"
+	engTraineddataPin = "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
 )
 
+// engineSource is this package's own source, embedded so the identity can hash it. The
+// pattern takes test files too — embed cannot exclude them — and hashEngineSource drops
+// them, since a test changes no byte a reading produces.
+//
+//go:embed *.go shim.cpp shim.h
+var engineSource embed.FS
+
+// engineSourceHash is computed once, from the embedded bytes — never typed, so it cannot
+// go stale against the code it names.
+var engineSourceHash = hashEngineSource(engineSource)
+
+// hashEngineSource hashes every non-test file in fsys, in name order, with CRLF folded to
+// LF: .gitattributes pins *.go to LF but not shim.cpp/shim.h, and a Windows checkout must
+// not name a different engine than a Linux one built from the same commit.
+func hashEngineSource(fsys fs.FS) string {
+	names, err := fs.Glob(fsys, "*")
+	if err != nil {
+		panic("tessocr: listing embedded engine source: " + err.Error())
+	}
+	sort.Strings(names)
+	h := sha256.New()
+	for _, n := range names {
+		if strings.HasSuffix(n, "_test.go") {
+			continue
+		}
+		b, err := fs.ReadFile(fsys, n)
+		if err != nil {
+			panic("tessocr: reading embedded engine source " + n + ": " + err.Error())
+		}
+		h.Write([]byte(n))
+		h.Write([]byte{0})
+		h.Write(bytes.ReplaceAll(b, []byte("\r\n"), []byte("\n")))
+		h.Write([]byte{0})
+	}
+	return hex.EncodeToString(h.Sum(nil))[:12]
+}
+
 // Identity is the engine key a ReadingRecord carries (plan goal 3, the #636 extractor
-// model): the pair of C libraries that deterministically produced the text, derived from
-// the pin constants rather than free-typed. A reading keyed to this string re-derives —
-// same binary, same bytes — which is the property the model reader had to disclaim.
+// model), and it names EVERYTHING that decides a reading's bytes: the two C libraries,
+// the language data, and this package's own code — segmentation modes, grid thresholds,
+// reconstruction, the fallback gate, the shim's calls into tesseract, and the
+// normalisation and assembly of the text. The last is a hash of the package source, so a
+// change to any of them yields a new identity and a stored reading stops matching instead
+// of silently disagreeing with what the current binary would produce (#644: the pins
+// alone left every one of those free to move under an unchanged key).
+//
+// The hash is deliberately coarse: a comment edit here also mints a new identity and costs
+// a re-read. That is the safe direction — a reading re-derived needlessly, never a stale
+// one served as current.
 func Identity() string {
-	return "tesseract@" + tesseractPin + "+leptonica@" + leptonicaPin
+	return "tesseract@" + tesseractPin + "+leptonica@" + leptonicaPin +
+		"+eng@" + engTraineddataPin[:12] + "+tessocr@" + engineSourceHash
 }
 
 // ErrNotCompiledIn is returned by every engine entry point when the binary was built
