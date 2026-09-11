@@ -69,8 +69,10 @@ func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item 
 		for _, a := range StaleInquiriesOf(evs) {
 			add(fmt.Sprintf("line of inquiry %s is at %q and has not moved since epoch %d — a line declared once and never revisited records an intention rather than a choice", a.ID, a.Status, a.Epoch))
 		}
-		// A repair with no receipt is one nobody audited, including its author.
-		for _, id := range gapsEditedWithoutManifest(evs, seatID) {
+		// A repair with no receipt is one nobody audited, including its author. THE PREDICATE IS
+		// ManifestOwed, the one the report and the scorecard read: a gap blue was dispatched onto,
+		// open when it sat, and answered by its edit that sitting.
+		for _, id := range ManifestUnreceipted(evs) {
 			add("gap " + id + " was answered by an edit and carries no manifest row — the report names a gap YOU repaired that carries no row as a repair nobody audited, including its author")
 		}
 	case "merge":
@@ -181,50 +183,6 @@ func anyClosedGap(gaps []WorkGapState) bool {
 		}
 	}
 	return false
-}
-
-// gapsEditedWithoutManifest finds gaps this seat answered with an edit and never receipted.
-//
-// THE `id` FALLBACK ON THE RECEIPT SIDE IS GONE, and it was never a fallback. It read
-// `Payload.Str("id")` beside `gap_id` on a manifest-row event; `blue manifest-row` writes
-// `gap_id` and nothing else joinable (blue/manifest_row.go:27), and ManifestRow carries exactly
-// `gap_id` and `row`. So the second arm matched nothing on any event this tool has ever written.
-// Its removal changes no outcome, which is the point: the live arm is the one that was always
-// doing the work.
-func gapsEditedWithoutManifest(evs []*Event, seatID string) []string {
-	edited, rowed := map[string]bool{}, map[string]bool{}
-	var order []string
-	for i := range evs {
-		e := evs[i]
-		if e.GetSeatId() != seatID {
-			continue
-		}
-		body, ok := recordpb.Body(e)
-		if !ok {
-			// No body at all, so neither an edit's `answers` nor a receipt's `gap_id` can be on
-			// it. The old code reached the same answer by a different route: Payload.Str on an
-			// absent key returned "", which both `!= ""` filters dropped.
-			continue
-		}
-		switch x := body.(type) {
-		case *recordpb.BlueEdit:
-			if id := x.GetAnswers(); id != "" && !edited[id] {
-				edited[id] = true
-				order = append(order, id)
-			}
-		case *recordpb.ManifestRow:
-			if id := x.GetGapId(); id != "" {
-				rowed[id] = true
-			}
-		}
-	}
-	var out []string
-	for _, id := range order {
-		if !rowed[id] {
-			out = append(out, id)
-		}
-	}
-	return out
 }
 
 // gapsWithAcceptedMotionAndNoRegrade finds grades argued down and never actually moved.

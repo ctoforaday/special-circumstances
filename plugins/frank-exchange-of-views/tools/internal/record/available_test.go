@@ -22,6 +22,7 @@ import (
 // `complete` reads the blocking items alone.
 func TestAnAffordanceIsListedAndDoesNotBlock(t *testing.T) {
 	b := NewFamily(nil, []*Event{
+		dispatchBlue(t, "G1"), registers(t, "blue-respond"),
 		recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Answers: proto.String("G1")}),
 		// Both duties a blue seat owes on an empty board, discharged, so nothing blocks.
 		recordtest.Event(t, "blue-respond", &recordpb.Log{}),
@@ -65,11 +66,16 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 
 	t.Run("manifest row missing after an edit", func(t *testing.T) {
 		b := NewFamily(nil, []*Event{
+			dispatchBlue(t, "G2", "G3"), registers(t, "blue-respond"),
 			recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Answers: proto.String("G2")}),
 		})
 		got := availableOf(b.Events, workStatesOfFamilyT(b), "blue", "blue-respond")
 		if !mentions(got, "gap G2 was answered by an edit and carries no manifest row") {
 			t.Fatalf("an edit answering G2 with no manifest row afforded nothing: %v", hows(got))
+		}
+		// G3 was engaged and rebutted, not edited: no repair, so no receipt is offered for it.
+		if mentions(got, "gap G3") {
+			t.Errorf("a rebutted gap was offered a manifest receipt: %v", hows(got))
 		}
 		// And it stops once the receipt exists, or the line is a nag rather than a fact.
 		b.Events = append(b.Events, recordtest.Event(t, "blue-respond", &recordpb.ManifestRow{GapId: proto.String("G2")}))

@@ -803,7 +803,6 @@ func correctnessManifest(fam record.Family) string {
 		sitting           int
 	}
 	var rows []row
-	manifested := map[string]bool{}
 	var clk record.Clock
 	for _, e := range fam.Events {
 		w := clk.Advance(e)
@@ -815,32 +814,20 @@ func correctnessManifest(fam record.Family) string {
 		if text == "" {
 			continue
 		}
-		id := mr.GetGapId()
-		manifested[id] = true
-		rows = append(rows, row{id, text, e.GetSeatId(), w.Sitting})
+		rows = append(rows, row{mr.GetGapId(), text, e.GetSeatId(), w.Sitting})
 	}
-	// Every gap blue actually repaired: one a `close` event settled. A repair with no manifest
-	// row is one nobody audited, including its author.
+	// Every gap blue REPAIRED and owed a receipt for, with none filed: record.ManifestUnreceipted,
+	// over ManifestOwed — dispatched onto the gap, still open when blue sat, and answered by blue's
+	// edit in that sitting. It is the one predicate the scorecard divides by and blue's work list
+	// offers the receipt from.
 	//
-	// THE BENCH'S CLOSURES ARE NOT BLUE'S REPAIRS, and charging blue for them was this section
-	// accusing one party of an audit another party never owed it. A gap the bench disposed of
-	// was never repaired by anybody: there is no receipt to be missing.
-	//
-	// THE PREDICATE IS THE CLOSING BODY, NOT ClosedByBench — and the distinction is the whole
-	// correctness of this loop. ClosedByBench follows the LAST closing event (replay.go, where
-	// it is cleared on a later `close` and set on a later docket ruling), so a gap blue closed with
-	// no receipt that the bench afterwards ruled on carries ClosedByBench=true while still
-	// holding blue's `close` body. Keyed on the flag, that gap silently leaves this list — a
-	// receipt genuinely missing, dropped from the one section whose purpose is to say so, which
-	// is the same shape as the defect being fixed. g.Closure is the `close` body and nothing
-	// clears it, so its absence is the honest question: did any party ever close this by repair?
-	var unmanifested []string
-	for _, g := range fam.Gaps {
-		id := g.ID
-		if g != nil && g.HasClosed && g.Closure != nil && !manifested[id] {
-			unmanifested = append(unmanifested, id)
-		}
-	}
+	// THE REPAIR IS BLUE'S EDIT, NOT A CLOSURE. Keyed on "a `close` settled it", this list needed
+	// an exclusion for every closure that was not blue's repair — the bench's dispositions, and a
+	// gap its lens closed before blue sat (#868) — and still charged blue for none of the repairs
+	// red had not yet closed. Keyed on the edit that answers the gap, neither exclusion is needed,
+	// a bench ruling after blue's repair does not hide the missing receipt, and a rebuttal with no
+	// edit owes no row.
+	unmanifested := record.ManifestUnreceipted(fam.Events)
 	if len(rows) == 0 && len(unmanifested) == 0 {
 		return ""
 	}

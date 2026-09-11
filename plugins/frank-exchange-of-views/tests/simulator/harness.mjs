@@ -63,7 +63,7 @@ export function makeWorld(respond) {
 // Canned envelopes, schema-shaped.
 export const blueEnv = (over = {}) => ({
   path: 'blue/report.md', tldr: 'tldr', claim_count: 40, saturation_reached: true, sitting_record_appended: true,
-  manifest: [{ gap_id: 'G1', row: 'figures recomputed; acceptance check run: pass' }],
+  manifest: ['G1'],
   open_questions: [], log: [], ...over,
 })
 // THE CHAIR RELAYS THE RECORD (plans/roundless.md §III.B.1): its envelope carries the plan `dispatch

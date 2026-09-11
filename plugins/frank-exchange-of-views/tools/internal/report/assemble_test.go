@@ -724,6 +724,9 @@ func TestTheBenchsOwnClosuresAreNotBluesUnauditedRepairs(t *testing.T) {
 			// The bench disposed of this one. Nobody repaired it, so no receipt is owed.
 			"G2": {ID: "G2", HasClosed: true, BenchClosure: &recordpb.DocketRuling{}, ClosedByBench: true},
 		},
+		// Blue sat on both while they were open and edited only G1; the bench's disposition of
+		// G2 is not blue's repair.
+		Events: blueSatOn(t, []string{"G1", "G2"}, "G1"),
 	}
 	got := correctnessManifest(board.fam())
 	if !strings.Contains(got, "G1") {
@@ -746,8 +749,64 @@ func TestABlueRepairTheBenchLaterRuledOnIsStillCharged(t *testing.T) {
 	g.BenchClosure = &recordpb.DocketRuling{}
 	g.ClosedByBench = true
 
-	got := correctnessManifest((&boardT{GapOrder: []string{"G1"}, Gaps: map[string]*record.Gap{"G1": g}}).fam())
+	got := correctnessManifest((&boardT{GapOrder: []string{"G1"}, Gaps: map[string]*record.Gap{"G1": g}, Events: blueSatOn(t, []string{"G1"}, "G1")}).fam())
 	if !strings.Contains(got, "G1") {
 		t.Errorf("a missing receipt disappeared because the bench later ruled on the gap:\n%s", got)
+	}
+}
+
+// blueSatOn is the record of blue-respond dispatched onto `engaged`, registering while they were
+// still open, and editing to answer `repaired` — the sitting in which a manifest row is owed.
+func blueSatOn(t *testing.T, engaged []string, repaired ...string) []*record.Event {
+	evs := []*record.Event{
+		recordtest.Event(t, "red-chair", &recordpb.Dispatch{Pin: proto.Int64(1), SeatId: proto.String("blue-respond"), GapIds: engaged}),
+		recordtest.Event(t, "blue-respond", &recordpb.Register{}),
+	}
+	for _, g := range repaired {
+		evs = append(evs, recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Answers: proto.String(g)}))
+	}
+	return evs
+}
+
+// A GAP BLUE REBUTTED IS NOT AN UNAUDITED REPAIR. The constitutions owe one row per REPAIRED gap;
+// a gap blue argued against without an edit answering it was not repaired, whatever later closed it.
+func TestARebuttedGapIsNotChargedAsAnUnauditedRepair(t *testing.T) {
+	board := &boardT{
+		GapOrder: []string{"G1"},
+		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", HasClosed: true, Closure: &recordpb.Close{}}},
+		Events:   blueSatOn(t, []string{"G1"}),
+	}
+	if got := correctnessManifest(board.fam()); strings.Contains(got, "G1") {
+		t.Errorf("blue is charged a receipt for a gap it rebutted without an edit:\n%s", got)
+	}
+}
+
+// A GAP ITS LENS CLOSED BEFORE BLUE SAT IS NOT BLUE'S UNAUDITED REPAIR (#868). The lenses sit
+// first; one closed G1 as repaired; blue sat, found it closed and filed no row, correctly. The
+// report named G1 as "a repair nobody audited" anyway, charging blue a row it never owed — the
+// same question the engine got wrong when it aborted the run.
+func TestAGapClosedBeforeBlueSatIsNotChargedToBlue(t *testing.T) {
+	board := &boardT{
+		GapOrder: []string{"G1", "G2"},
+		Gaps: map[string]*record.Gap{
+			"G1": {ID: "G1", HasClosed: true, Closure: &recordpb.Close{}},
+			"G2": {ID: "G2", HasClosed: true, Closure: &recordpb.Close{}},
+		},
+		Events: []*record.Event{
+			recordtest.Event(t, "red-chair", &recordpb.Dispatch{Pin: proto.Int64(1), SeatId: proto.String("blue-respond"), GapIds: []string{"G1", "G2"}}),
+			recordtest.Event(t, "red-lens-logic", &recordpb.Close{GapId: proto.String("G1")}),
+			recordtest.Event(t, "blue-respond", &recordpb.Register{}),
+			// An edit naming G1 after its lens closed it is not a repair of an open gap.
+			recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Answers: proto.String("G1")}),
+			recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Answers: proto.String("G2")}),
+			recordtest.Event(t, "red-lens-voice", &recordpb.Close{GapId: proto.String("G2")}),
+		},
+	}
+	got := correctnessManifest(board.fam())
+	if strings.Contains(got, "G1") {
+		t.Errorf("blue is charged a row for a gap its lens closed before blue sat:\n%s", got)
+	}
+	if !strings.Contains(got, "G2") {
+		t.Errorf("G2 was open when blue sat and closed after — its missing row left the list:\n%s", got)
 	}
 }

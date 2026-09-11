@@ -329,8 +329,17 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	//
 	// A metric that reads the transient channel cannot see a receipt on the durable one, which
 	// is the whole reason the migration existed.
-	manifested, repaired := 0, 0
+	//
+	// THE DENOMINATOR IS THE RECORD'S TOO. It was `repaired_gaps` summed from the envelopes, a
+	// field no envelope has ever carried, so the ratio branch never ran and every run scored a
+	// COUNT — which meant the engine's "unmanifested … (scored at capture)" was scored by nothing.
+	// It is now record.ManifestOwed: a gap blue-respond was dispatched onto, still open when blue
+	// registered, and answered by blue's edit in that sitting — "one row per repaired gap", read off
+	// the record. A gap its lens closed before blue sat, or one blue rebutted without an edit, owes
+	// no row and is not counted against blue.
+	manifested := 0
 	manifestedGaps := map[string]bool{}
+	var owed []string
 	if fam != nil {
 		for _, e := range fam.Events {
 			// COUNTED BY EVENT TYPE, not by a readable body. `manifested` is the value this row
@@ -345,20 +354,31 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 				manifestedGaps[mr.GetGapId()] = true
 			}
 		}
-	}
-	for _, r := range results {
-		if rg, ok := r["repaired_gaps"].([]any); ok {
-			repaired += len(rg)
-		}
+		owed = record.ManifestOwed(fam.Events)
 	}
 	switch {
-	case repaired > 0:
+	case fam == nil:
+		// A record that could not be read has no count to fall back to: a 0 here would read as
+		// "blue filed no receipts".
 		rows = append(rows, Row{Clause: "Correctness manifest", Metric: "manifest_coverage", Cls: "benchmark",
-			Value: float64(len(manifestedGaps)) / float64(repaired),
-			Joint: "manifest-row EVENTS over repaired gaps; distinct gaps, so two rows on one gap is not coverage of two"})
+			Note: "the record could not be read — not measured"})
+	case len(owed) > 0:
+		var missing []string
+		for _, g := range owed {
+			if !manifestedGaps[g] {
+				missing = append(missing, g)
+			}
+		}
+		note := ""
+		if len(missing) > 0 {
+			note = fmt.Sprintf("%d of %d owed gap(s) carry no row: %s", len(missing), len(owed), strings.Join(missing, ", "))
+		}
+		rows = append(rows, Row{Clause: "Correctness manifest", Metric: "manifest_coverage", Cls: "benchmark",
+			Value: float64(len(owed)-len(missing)) / float64(len(owed)), Note: note,
+			Joint: "manifest-row EVENTS over OWED gaps — repaired by blue's edit in a sitting that found them open; distinct gaps, so two rows on one gap is not coverage of two"})
 	default:
 		rows = append(rows, Row{Clause: "Correctness manifest", Metric: "manifest_coverage", Cls: "benchmark",
-			Value: manifested, Note: "manifest-row events counted; envelopes do not report a repaired-gap denominator, so this is a COUNT not a ratio"})
+			Value: manifested, Note: "no gap was owed a row — blue repaired no gap it was dispatched onto while that gap was open — so this is a COUNT of manifest-row events, not a ratio"})
 	}
 
 	// sitting_record_failures

@@ -467,13 +467,31 @@ test('the sitting record (W1.7): blue is re-prompted once, continues with fricti
   assert.ok(!out3.friction.some((f) => /sitting-record/.test(f)), 'a recovered attestation logs no friction')
 })
 
-test('W2b: an empty manifest on an engaged blue sitting aborts; partial coverage is logged, never fatal', async () => {
-  const chair = [chairEnv({ plan: plan([party('blue-respond', 'G1', 'G2')]) }), passChair()]
-  await assert.rejects(makeWorld(makeResponder({ chair, blueRespond: [blueEnv({ manifest: [] })] })).run(script, ARGS), /EMPTY correctness manifest/)
-  const partial = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('blue-respond', 'G1', 'G2')]) }), passChair()], blueRespond: [blueEnv({ manifest: ['G1'] })] }))
+// W2b, OWED GAPS ONLY, NEVER AN ABORT (gblock's ruling on #868). The B4 ordering: the plan engaged
+// the lenses and blue on G1 and G2, the lenses sat first and closed both, and blue correctly found
+// nothing to repair. The engine checked blue against the plan and threw, killing the run.
+const engagedOn = (...gaps) => [chairEnv({ plan: plan([party('red-lens-logic', ...gaps), party('blue-respond', ...gaps)]) }), passChair()]
+test('W2b: the B4 ordering — lenses close G1 and G2 first, blue files no row — continues and logs nothing unmanifested', async () => {
+  const world = makeWorld(makeResponder({ chair: engagedOn('G1', 'G2'), blueRespond: [blueEnv({ manifest: [], found_closed: ['G1', 'G2'] })] }))
+  const out = await world.run(script, ARGS)
+  assert.equal(out.verdict, 'VERIFIED')
+  assert.ok(!world.logs.some((l) => /no row for/.test(l)), `a gap closed before blue sat is not owed: ${world.logs.join(' | ')}`)
+  assert.ok(world.logs.some((l) => l.includes('blue found G1, G2 closed before it sat')))
+})
+test('W2b: a gap still open with no row is logged and left to capture; none of N is no longer fatal', async () => {
+  const oneOpen = makeWorld(makeResponder({ chair: engagedOn('G1', 'G2'), blueRespond: [blueEnv({ manifest: [], found_closed: ['G1'] })] }))
+  assert.equal((await oneOpen.run(script, ARGS)).verdict, 'VERIFIED')
+  assert.ok(oneOpen.logs.some((l) => l.includes('0/1 gap(s) open when blue sat — no row for: G2') && l.includes('scored at capture')), oneOpen.logs.join(' | '))
+  const noneOfTwo = makeWorld(makeResponder({ chair: engagedOn('G1', 'G2'), blueRespond: [blueEnv({ manifest: [] })] }))
+  assert.equal((await noneOfTwo.run(script, ARGS)).verdict, 'VERIFIED')
+  assert.ok(noneOfTwo.logs.some((l) => l.includes('0/2 gap(s) open when blue sat — no row for: G1, G2')))
+})
+test('W2b: partial coverage is logged, never fatal; a found_closed id blue was not engaged on is ignored', async () => {
+  const partial = makeWorld(makeResponder({ chair: engagedOn('G1', 'G2'), blueRespond: [blueEnv({ manifest: ['G1'], found_closed: ['G9'] })] }))
   const out = await partial.run(script, ARGS)
   assert.equal(out.verdict, 'VERIFIED')
-  assert.ok(partial.logs.some((l) => l.includes('manifest coverage 1/2') && l.includes('G2')))
+  assert.ok(partial.logs.some((l) => l.includes('1/2 gap(s) open when blue sat') && l.includes('no row for: G2')))
+  assert.ok(!partial.logs.some((l) => l.includes('G9')), 'a claimed closure outside the engagement excuses nothing')
 })
 
 test('the operator channel aggregates from every seat with attribution, and assembly receives it', async () => {
