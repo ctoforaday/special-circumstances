@@ -315,7 +315,7 @@ enum Verdict {
 enum RunOutcome {
   RUN_OUTCOME_UNSPECIFIED = 0;
   RUN_OUTCOME_VERIFIED = 1 [(means) = "red passed the board and the bench agrees the question was answered"];
-  RUN_OUTCOME_CEILING = 2 [(means) = "every open material gap reached its limit — at impasse, ruled by the bench and carried — with nobody ready and PASS not permitted; NOT a judged failure to verify, and the stamp says so"];
+  RUN_OUTCOME_CEILING = 2 [(means) = "every open material gap reached its limit — at impasse, ruled by the bench and remanded — with nobody ready and PASS not permitted; NOT a judged failure to verify, and the stamp says so"];
   RUN_OUTCOME_HALTED = 3 [(means) = "the bench ended the run on a safety, ethics, consent or integrity boundary"];
   RUN_OUTCOME_UNVERIFIED = 4 [(means) = "the run ended without the question being answered, and no ceiling or halt explains it"];
 }
@@ -345,10 +345,10 @@ enum Disposition {
 
   // THE ONE WORD THAT DOES NOT CLOSE, and the reason this enum carries `closes` at all.
   //
-  // `carried` is reachable by the BENCH only: red closing a gap is asserting a repair, and
+  // `remanded` is reachable by the BENCH only: red closing a gap is asserting a repair, and
   // "I repaired it by carrying it" is not a sentence. The subset is enforced, not documented —
   // see Close.closure_class, whose `subset: "closes"` generates the CHECK from this annotation.
-  DISPOSITION_CARRIED = 7 [(means) = "NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes", (closes) = false];
+  DISPOSITION_REMANDED = 7 [(means) = "NOT a closure: the gap stays open into a later sitting with a stated research direction the coming seat owes", (closes) = false];
   // MOOT IS NOT not_a_defect, AND THAT DISTINCTION IS WHY IT EXISTS (#847).
   //
   // `not_a_defect` asserts that blue argued the finding was wrong and the argument HELD — a
@@ -811,7 +811,7 @@ message Close {
   // `closes` annotation, so the admitted words are never typed here.
   optional Disposition closure_class = 2 [(sql) = {
     subset: "closes"
-    why: "a red close asserts a repair; `carried` defers instead of closing and is the bench's word alone"
+    why: "a red close asserts a repair; `remanded` defers instead of closing and is the bench's word alone"
   }];
 
   // The attestation anchor: WHO checked, with WHAT tool, against WHAT target. An unanchored
@@ -1459,13 +1459,13 @@ message DocketRuling {
   // NO `subset` HERE, AND THAT IS THE POINT OF THE FIELD.
   //
   // `subset: "closes"` would admit only the values annotated `(closes) = true` — which is every
-  // disposition EXCEPT `carried`, the one the bench uses 76 times in 77. A ruling that cannot defer
+  // disposition EXCEPT `remanded`, the one the bench uses 76 times in 77. A ruling that cannot defer
   // is not the bench's vocabulary; it is red's. The whole set is legal here, and `closes` is read
   // by the gap view to decide the FATE rather than by the column to decide legality.
   optional Disposition disposition = 1 [(sql) = {
     required: true
     flag: "as"
-    why: "the bench's word, which decides the gap's fate — `carried` defers it to another round, everything else ends it"
+    why: "the bench's word, which decides the gap's fate — `remanded` defers it to a later sitting, everything else ends it"
   }];
 
   optional string principle = 2 [(sql) = {

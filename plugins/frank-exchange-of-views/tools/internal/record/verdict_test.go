@@ -63,7 +63,7 @@ func TestCeilingIsDerivedFromEveryMaterialGapAtItsLimit(t *testing.T) {
 		dispatch(2, "judge", "G1").register("judge").
 		add("judge", &recordpb.MotionRule{MotionId: proto.String("M1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 			Opinion: proto.String("the parties have said what they can"), Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED), Principle: proto.String("p"), Tension: proto.String("t"),
+				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED), Principle: proto.String("p"), Tension: proto.String("t"),
 				ReviewFlag: proto.String("none"), Settled: proto.String("nothing"), Final: proto.Bool(true)}}}).
 		register("red-chair")
 	run := st.seed()

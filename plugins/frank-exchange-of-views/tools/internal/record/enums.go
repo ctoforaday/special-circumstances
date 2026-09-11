@@ -50,15 +50,15 @@ import (
 // other surface used), and the prose in prompts (`evidence-rebutted`, `risk-accepted`). One
 // concept, four spellings, and no mechanism could see them disagree because every set was
 // open.
-// DispositionCarried is the ONE bench disposition that does not end a gap: it defers the
+// DispositionRemanded is the ONE bench disposition that does not end a gap: it defers the
 // question to the parties' later sittings with a stated research direction.
 //
 // It stays a named constant because it is the word the CLI defaults to and the seat-facing help
 // reaches for, but it is no longer the DEFINITION of anything. "Does this end the gap" is
 // recordpb.Closes, read off the value's own annotation. The two were the same statement while
-// `carried` was the only deferring word, and that coincidence is exactly what made the negative
+// `remanded` was the only deferring word, and that coincidence is exactly what made the negative
 // rule "everything except carried" look correct right up until a second deferring word existed.
-const DispositionCarried = "carried"
+const DispositionRemanded = "remanded"
 
 // Dispositions is HOW A GAP ENDED — one vocabulary for both closing verbs (#342).
 //
@@ -83,7 +83,7 @@ var ClosureClasses = dispositionsWhere(func(closes bool) bool { return closes })
 // DeferringDispositions is the complement of ClosureClasses: the words that do NOT end the gap.
 //
 // It exists so that no surface has to SAY which those are. The help text used to read "every value
-// ends the gap except `carried`" — a sentence that was true when it was written, is a copy of an
+// ends the gap except `remanded`" — a sentence that was true when it was written, is a copy of an
 // annotation that now answers the question, and would have gone quietly wrong the moment a second
 // deferring word was added. That is not a hypothetical: it is what happened to the predicate this
 // vocabulary replaced.
@@ -181,9 +181,9 @@ var artifactByClass = map[string]ArtifactState{
 	"not_a_defect":             ArtifactNoDefect,
 	"defect_accepted":          ArtifactDefectLive,
 	"defect_owed_elsewhere":    ArtifactDefectLive,
-	DispositionCarried:         ArtifactUnexamined, // still live; the question is open, not answered
+	DispositionRemanded:        ArtifactUnexamined, // still live; the question is open, not answered
 	// MOOT CLOSES THE GAP AND LEAVES THE MERITS UNANSWERED, which is why it is unexamined
-	// alongside `carried` despite ending the gap rather than deferring it. Closure and artifact
+	// alongside `remanded` despite ending the gap rather than deferring it. Closure and artifact
 	// state are orthogonal here and this is the pair that shows it.
 	//
 	// It is not `repaired` — nobody verified a fix. It is not `no_defect` — that asserts red was
@@ -240,7 +240,7 @@ var EnumFields = map[string][]EnumField{
 	"outcome": {{
 		Key: "verdict", Flag: flags.As, Values: []EnumValue{
 			ev("VERIFIED", "red passed the board and the bench agrees the question was answered"),
-			ev("CEILING", "every open material gap reached its limit — ruled by the bench and carried — with work still open: NOT a judged failure to verify, and the stamp says so"),
+			ev("CEILING", "every open material gap reached its limit — ruled by the bench and remanded — with work still open: NOT a judged failure to verify, and the stamp says so"),
 			ev("HALTED", "the bench ended the run on a safety, ethics, consent or integrity boundary"),
 			ev("UNVERIFIED", "the run ended without the question being answered, and no ceiling or halt explains it"),
 		},
@@ -431,7 +431,7 @@ func sameWord(a, b string) bool {
 // ALREADY DID: the arm below refused any word outside `benchDispositions`, from record.go:1131, on
 // the write path a bench actually uses. The set was closed. Only its DECLARATION was loose, one
 // file from the field, where the schema could not read it — so the DDL could not build a foreign
-// key, the vocabulary table had no row for `carried`, and "does this word close the gap" had to be
+// key, the vocabulary table had no row for `remanded`, and "does this word close the gap" had to be
 // answered by a hand-written predicate that guessed.
 //
 // The drift it was meant to tolerate happened anyway, and could not be seen: the engine and the

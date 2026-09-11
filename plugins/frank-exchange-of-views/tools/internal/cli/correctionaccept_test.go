@@ -193,7 +193,7 @@ func corrRows() map[string]corrRow {
 				return corrVars{"m": docketFile(t, runDir, "red-chair", "G1", "red cannot settle G1")}
 			},
 			act: func(v corrVars, text string) []string {
-				return []string{"motion", "docket", "rule", "--id", v["m"], "--as", "carried",
+				return []string{"motion", "docket", "rule", "--id", v["m"], "--as", "remanded",
 					"--principle", "thoroughness over speed", "--tension", "cost against certainty",
 					"--review-flag", "none", "--settled", "nothing yet", "--reopens-on", "a reproduction", "--reason", text}
 			}},

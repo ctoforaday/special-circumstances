@@ -53,7 +53,7 @@ func TestOpinionBecomesTheDocketPair(t *testing.T) {
 		t.Errorf("a synthesized filing must say it was synthesized, not pose as a filing: %q", motion.GetBasis())
 	}
 	d := rule.GetDocket()
-	if d.GetDisposition() != recordpb.Disposition_DISPOSITION_CARRIED {
+	if d.GetDisposition() != recordpb.Disposition_DISPOSITION_REMANDED {
 		t.Errorf("disposition: %v", d.GetDisposition())
 	}
 	if d.GetPrinciple() != "correctness outranks economy" || d.GetReopensOn() != "blue reports the reproduction" {

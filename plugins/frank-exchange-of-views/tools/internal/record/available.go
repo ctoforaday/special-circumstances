@@ -90,15 +90,15 @@ func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item 
 		// NO FLAGS IN THE TEXT. This file's own contract, and the reason is recorded above: an
 		// affordance once handed a seat a flag the verb does not have, so the only instruction the
 		// duty ever gave could not run.
-		// PENDING, NOT EVER-FILED — and the difference is the whole `carried` design.
+		// PENDING, NOT EVER-FILED — and the difference is the whole `remanded` design.
 		//
 		// A docket motion that has been RULED is answered. If the gap is still open after that
-		// answer, the answer was `carried`: every other disposition closes the gap, so an open gap
+		// answer, the answer was `remanded`: every other disposition closes the gap, so an open gap
 		// with a ruled docket motion is EXACTLY the deferral, and the ruling states what would
 		// bring it back. Keyed on ever-filed, this affordance went silent permanently at the first
 		// filing, so the re-file the deferral asks for was never once offered — the capability the
 		// bench deliberately kept alive, and no surface said so. Measured: after M2 was ruled
-		// `carried` on R1-2, `show work` listed the gap as blocking PASS and offered nothing to do
+		// `remanded` on R1-2, `show work` listed the gap as blocking PASS and offered nothing to do
 		// about it, while a never-docketed R1-3 got the affordance.
 		//
 		// An UNRULED motion still suppresses it, because filing a second time while the first is
@@ -115,18 +115,18 @@ func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item 
 			}
 			// ONE ROW PER GAP, BETTER WORDS WHEN THE BOARD KNOWS MORE (#759).
 			//
-			// A carried gap and a gap nobody has ever docketed both reach this line, and until
+			// A remanded gap and a gap nobody has ever docketed both reach this line, and until
 			// the view could tell them apart they got the same sentence — true of both and
-			// actionable on neither. A SECOND row for the carried case would be the wrong fix:
+			// actionable on neither. A SECOND row for the remanded case would be the wrong fix:
 			// two items naming one gap is a duplicate, and the open-gap row in sitting.go
 			// already blocks PASS over it. So the row is REPLACED, not added.
 			//
-			// The reopens-on condition is the substance. "The bench carried this" tells a seat
-			// the history; "the bench carried it until blue reports what the stated direction
+			// The reopens-on condition is the substance. "The bench remanded this" tells a seat
+			// the history; "the bench remanded it until blue reports what the stated direction
 			// found" tells it what has to happen, and that sentence is the bench's own words off
 			// the record rather than this file's paraphrase of them.
 			if g.AwaitingDocket {
-				what := "gap " + g.ID + " is open because the BENCH CARRIED it — the motion was answered, so nothing is pending and the gap returns only if it is docketed again"
+				what := "gap " + g.ID + " is open because the BENCH REMANDED it — the motion was answered, so nothing is pending and the gap returns only if it is docketed again"
 				if g.DocketReopensOn != "" {
 					what += ". The ruling says what reopens it: " + g.DocketReopensOn
 				}

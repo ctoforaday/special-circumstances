@@ -34,7 +34,7 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 		{"motion docket file --id", "no mint event created", []string{"motion", "docket", "file", "--seat-id", "judge",
 			"--id", "G99", "--reason", "escalating a gap nobody minted"}},
 		{"motion docket rule --id", "which no filing created", []string{"motion", "docket", "rule", "--seat-id", "judge",
-			"--id", "M9", "--as", "carried", "--principle", "p", "--tension", "t",
+			"--id", "M9", "--as", "remanded", "--principle", "p", "--tension", "t",
 			"--review-flag", "no", "--settled", "the proposition this ruling bars", "--final"}},
 		{"motion grade file --id", "no mint event created", []string{"motion", "grade", "file", "--seat-id", "blue-respond",
 			"--id", "G99", "--dimension", "severity", "--proposed", "low", "--reason", "b"}},
@@ -90,7 +90,7 @@ func TestValidReferencesStillResolve(t *testing.T) {
 	// resolve, which is the converse of the two rows above.
 	m := docketFile(t, runDir, "red-chair", first, "put before the bench")
 	for _, c := range [][]string{
-		{"motion", "docket", "rule", "--seat-id", "judge", "--id", m, "--as", "carried",
+		{"motion", "docket", "rule", "--seat-id", "judge", "--id", m, "--as", "remanded",
 			"--principle", "p", "--tension", "t", "--review-flag", "no", "--settled", "the proposition this ruling bars", "--final", "--reason", "the ruling"},
 		{"close", "--seat-id", lensSeat, "--id", first, "--as", "repaired",
 			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x", "--superseded-by", second, "--reason", "verified"},

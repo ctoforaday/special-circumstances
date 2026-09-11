@@ -46,7 +46,7 @@ func TestAwaitingDocketIsSetOnlyByALiveCarry(t *testing.T) {
 			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Opinion: proto.String("not this round"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED),
+				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 				Principle:   proto.String("thoroughness over speed"),
 				Tension:     proto.String("cost against certainty"),
 				ReviewFlag:  proto.String("none"),

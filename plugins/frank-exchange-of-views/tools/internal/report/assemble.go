@@ -378,7 +378,7 @@ func verdictGloss(o *recordpb.Outcome) string {
 	var lead string
 	switch o.GetVerdict() {
 	case recordpb.RunOutcome_RUN_OUTCOME_CEILING:
-		lead = "**CEILING-TERMINATED** — every open material gap reached its limit under the run's terms, the bench ruled on each and carried it, and nobody was left to dispatch. This is NOT a judged failure to verify and must not be read as one: gaps remain open at impasse, the final blue revision was never audited by a red pass, and that re-audit debt travels OUT of the run."
+		lead = "**CEILING-TERMINATED** — every open material gap reached its limit under the run's terms, the bench ruled on each and remanded it, and nobody was left to dispatch. This is NOT a judged failure to verify and must not be read as one: gaps remain open at impasse, the final blue revision was never audited by a red pass, and that re-audit debt travels OUT of the run."
 	case recordpb.RunOutcome_RUN_OUTCOME_HALTED:
 		lead = "**HALTED** — the bench ended this run. The halt opinion is on the record ([the debate](" + FileDebate + "), under Bench disposition) and is relayed to the human verbatim, never smoothed."
 	default:

@@ -684,7 +684,7 @@ No material downside was identified.
 			// through the additive half of #681; a verb the bench role no longer offers reports
 			// UNMET on every probe, and an expectation that cannot be met teaches its reader to
 			// skim the whole board.
-			{Seat: "judge", Verb: "motion docket rule", Because: "The bench's disposition both rules and ends the gap, and `carried` is the one value that defers instead of closing — a gap that reaches the bench and gets no ruling is a docket item nobody disposed of. The disposition joins to the ask that raised it."},
+			{Seat: "judge", Verb: "motion docket rule", Because: "The bench's disposition both rules and ends the gap, and `remanded` is the one value that defers instead of closing — a gap that reaches the bench and gets no ruling is a docket item nobody disposed of. The disposition joins to the ask that raised it."},
 			{Seat: "judge", Verb: "motion petition rule", Because: "A petition is heard BEFORE the debate continues, so an unruled one stops the run rather than waiting. The bench holds this gavel alone."},
 			{Seat: "judge", Verb: "certify", Because: "The bench keeps no memory between runs, so what it would want a human to re-examine exists only if it is recorded. The report promotes it into `Read this first`."},
 			{Seat: "judge", Verb: "declare", Because: "The petition turns on what `required_fix` MEANS — whether it can " +

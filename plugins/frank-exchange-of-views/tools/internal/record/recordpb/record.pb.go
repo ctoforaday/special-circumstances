@@ -522,10 +522,10 @@ const (
 	Disposition_DISPOSITION_DEFECT_OWED_ELSEWHERE    Disposition = 6
 	// THE ONE WORD THAT DOES NOT CLOSE, and the reason this enum carries `closes` at all.
 	//
-	// `carried` is reachable by the BENCH only: red closing a gap is asserting a repair, and
+	// `remanded` is reachable by the BENCH only: red closing a gap is asserting a repair, and
 	// "I repaired it by carrying it" is not a sentence. The subset is enforced, not documented —
 	// see Close.closure_class, whose `subset: "closes"` generates the CHECK from this annotation.
-	Disposition_DISPOSITION_CARRIED Disposition = 7
+	Disposition_DISPOSITION_REMANDED Disposition = 7
 	// MOOT IS NOT not_a_defect, AND THAT DISTINCTION IS WHY IT EXISTS (#847).
 	//
 	// `not_a_defect` asserts that blue argued the finding was wrong and the argument HELD — a
@@ -552,7 +552,7 @@ var (
 		4: "DISPOSITION_NOT_A_DEFECT",
 		5: "DISPOSITION_DEFECT_ACCEPTED",
 		6: "DISPOSITION_DEFECT_OWED_ELSEWHERE",
-		7: "DISPOSITION_CARRIED",
+		7: "DISPOSITION_REMANDED",
 		8: "DISPOSITION_MOOT",
 	}
 	Disposition_value = map[string]int32{
@@ -563,7 +563,7 @@ var (
 		"DISPOSITION_NOT_A_DEFECT":             4,
 		"DISPOSITION_DEFECT_ACCEPTED":          5,
 		"DISPOSITION_DEFECT_OWED_ELSEWHERE":    6,
-		"DISPOSITION_CARRIED":                  7,
+		"DISPOSITION_REMANDED":                 7,
 		"DISPOSITION_MOOT":                     8,
 	}
 )
@@ -5139,7 +5139,7 @@ type DocketRuling struct {
 	// NO `subset` HERE, AND THAT IS THE POINT OF THE FIELD.
 	//
 	// `subset: "closes"` would admit only the values annotated `(closes) = true` — which is every
-	// disposition EXCEPT `carried`, the one the bench uses 76 times in 77. A ruling that cannot defer
+	// disposition EXCEPT `remanded`, the one the bench uses 76 times in 77. A ruling that cannot defer
 	// is not the bench's vocabulary; it is red's. The whole set is legal here, and `closes` is read
 	// by the gap view to decide the FATE rather than by the column to decide legality.
 	Disposition *Disposition `protobuf:"varint,1,opt,name=disposition,proto3,enum=feov.record.v1.Disposition,oneof" json:"disposition,omitempty"`
@@ -6762,10 +6762,10 @@ const file_record_proto_rawDesc = "" +
 	"\x05_slugB\r\n" +
 	"\v_definitionB\v\n" +
 	"\t_neighborB\x10\n" +
-	"\x0e_distinguisher\"\xf9\b\n" +
+	"\x0e_distinguisher\"\xfa\b\n" +
 	"\x05Close\x12J\n" +
-	"\x06gap_id\x18\x01 \x01(\tB.\x82\xb5\x18*\b\x01\x12\x02id\x1a\x15which gap this closes\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12\xb4\x01\n" +
-	"\rclosure_class\x18\x02 \x01(\x0e2\x1b.feov.record.v1.DispositionBm\x82\xb5\x18i\x1a_a red close asserts a repair; `carried` defers instead of closing and is the bench's word alone2\x06closesH\x01R\fclosureClass\x88\x01\x01\x12$\n" +
+	"\x06gap_id\x18\x01 \x01(\tB.\x82\xb5\x18*\b\x01\x12\x02id\x1a\x15which gap this closes\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12\xb5\x01\n" +
+	"\rclosure_class\x18\x02 \x01(\x0e2\x1b.feov.record.v1.DispositionBn\x82\xb5\x18j\x1a`a red close asserts a repair; `remanded` defers instead of closing and is the bench's word alone2\x06closesH\x01R\fclosureClass\x88\x01\x01\x12$\n" +
 	"\vanchor_seat\x18\x03 \x01(\tH\x02R\n" +
 	"anchorSeat\x88\x01\x01\x12=\n" +
 	"\vanchor_tool\x18\x04 \x01(\tB\x17\x82\xb5\x18\x0f\x12\rverified-with\xc0\xb5\x18\x00H\x03R\n" +
@@ -7057,9 +7057,9 @@ const file_record_proto_rawDesc = "" +
 	"\x06_class\"\xbb\x01\n" +
 	"\fDocketMotion\x12\x9f\x01\n" +
 	"\x06gap_id\x18\x01 \x01(\tB\x82\x01\x82\xb5\x18~\b\x01\x12\x02id\x1aiwhich gap is being put before the bench — a docket motion that names no gap is an escalation of nothing\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01B\t\n" +
-	"\a_gap_id\"\xee\v\n" +
-	"\fDocketRuling\x12\xc0\x01\n" +
-	"\vdisposition\x18\x01 \x01(\x0e2\x1b.feov.record.v1.DispositionB|\x82\xb5\x18x\b\x01\x12\x02as\x1apthe bench's word, which decides the gap's fate — `carried` defers it to another round, everything else ends itH\x00R\vdisposition\x88\x01\x01\x12{\n" +
+	"\a_gap_id\"\xf1\v\n" +
+	"\fDocketRuling\x12\xc3\x01\n" +
+	"\vdisposition\x18\x01 \x01(\x0e2\x1b.feov.record.v1.DispositionB\x7f\x82\xb5\x18{\b\x01\x12\x02as\x1asthe bench's word, which decides the gap's fate — `remanded` defers it to a later sitting, everything else ends itH\x00R\vdisposition\x88\x01\x01\x12{\n" +
 	"\tprinciple\x18\x02 \x01(\tBX\x82\xb5\x18P\b\x01\x1aLthe rule the bench applied, stated so a later sitting can apply the same one\xc0\xb5\x18\x01H\x01R\tprinciple\x88\x01\x01\x12\x94\x01\n" +
 	"\atension\x18\x03 \x01(\tBu\x82\xb5\x18m\b\x01\x1agthe values that pulled against each other, or empty when none did — an empty answer here is an answer8\x01\xc0\xb5\x18\x01H\x02R\atension\x88\x01\x01\x12\x82\x01\n" +
 	"\vreview_flag\x18\x04 \x01(\tB\\\x82\xb5\x18T\b\x01\x12\vreview-flag\x1aAwhat a human should look at again, or empty when nothing needs it8\x01\xc0\xb5\x18\x01H\x03R\n" +
@@ -7259,19 +7259,19 @@ const file_record_proto_rawDesc = "" +
 	"\aVerdict\x12\x17\n" +
 	"\x13VERDICT_UNSPECIFIED\x10\x00\x12{\n" +
 	"\fVERDICT_PASS\x10\x01\x1ai\x8a\xb5\x18eevery gap on the board is resolved — this is CHECKED against the open board, not taken on your word\x12^\n" +
-	"\fVERDICT_FAIL\x10\x02\x1aL\x8a\xb5\x18Hat least one gap is still open, or you are not satisfied it was answered*\xc9\x04\n" +
+	"\fVERDICT_FAIL\x10\x02\x1aL\x8a\xb5\x18Hat least one gap is still open, or you are not satisfied it was answered*\xca\x04\n" +
 	"\n" +
 	"RunOutcome\x12\x1b\n" +
 	"\x17RUN_OUTCOME_UNSPECIFIED\x10\x00\x12a\n" +
-	"\x14RUN_OUTCOME_VERIFIED\x10\x01\x1aG\x8a\xb5\x18Cred passed the board and the bench agrees the question was answered\x12\xdb\x01\n" +
-	"\x13RUN_OUTCOME_CEILING\x10\x02\x1a\xc1\x01\x8a\xb5\x18\xbc\x01every open material gap reached its limit — at impasse, ruled by the bench and carried — with nobody ready and PASS not permitted; NOT a judged failure to verify, and the stamp says so\x12f\n" +
+	"\x14RUN_OUTCOME_VERIFIED\x10\x01\x1aG\x8a\xb5\x18Cred passed the board and the bench agrees the question was answered\x12\xdc\x01\n" +
+	"\x13RUN_OUTCOME_CEILING\x10\x02\x1a\xc2\x01\x8a\xb5\x18\xbd\x01every open material gap reached its limit — at impasse, ruled by the bench and remanded — with nobody ready and PASS not permitted; NOT a judged failure to verify, and the stamp says so\x12f\n" +
 	"\x12RUN_OUTCOME_HALTED\x10\x03\x1aN\x8a\xb5\x18Jthe bench ended the run on a safety, ethics, consent or integrity boundary\x12u\n" +
 	"\x16RUN_OUTCOME_UNVERIFIED\x10\x04\x1aY\x8a\xb5\x18Uthe run ended without the question being answered, and no ceiling or halt explains it*\xa1\x05\n" +
 	"\tCheckKind\x12\x1a\n" +
 	"\x16CHECK_KIND_UNSPECIFIED\x10\x00\x12\x7f\n" +
 	"\x13CHECK_KIND_DOCUMENT\x10\x01\x1af\x8a\xb5\x18breading a shipped artifact settles it — the check is answered by prose that quotes what is there\x12\xea\x02\n" +
 	"\x16CHECK_KIND_COMPUTATION\x10\x02\x1a\xcd\x02\x8a\xb5\x18\xc8\x02RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind\x12\x89\x01\n" +
-	"\x11CHECK_KIND_SOURCE\x10\x03\x1ar\x8a\xb5\x18nverifying an external source settles it — the claim stands or falls on what the cited material actually says*\xc8\n" +
+	"\x11CHECK_KIND_SOURCE\x10\x03\x1ar\x8a\xb5\x18nverifying an external source settles it — the claim stands or falls on what the cited material actually says*\xce\n" +
 	"\n" +
 	"\vDisposition\x12\x1b\n" +
 	"\x17DISPOSITION_UNSPECIFIED\x10\x00\x12[\n" +
@@ -7280,8 +7280,8 @@ const file_record_proto_rawDesc = "" +
 	"\x18DISPOSITION_AMENDS_PRIOR\x10\x03\x1a\xb9\x01\x8a\xb5\x18\xb0\x01a defect found BETWEEN two repairs that each closed clean earlier — its lineage is the supersedes the gap was minted with; the close itself carries none and nothing checks it\x98\xb5\x18\x01\x12\x90\x01\n" +
 	"\x18DISPOSITION_NOT_A_DEFECT\x10\x04\x1ar\x8a\xb5\x18jblue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be\x98\xb5\x18\x01\x12\xb5\x01\n" +
 	"\x1bDISPOSITION_DEFECT_ACCEPTED\x10\x05\x1a\x93\x01\x8a\xb5\x18\x8a\x01the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record\x98\xb5\x18\x01\x12\x8f\x01\n" +
-	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\x88\x01\n" +
-	"\x13DISPOSITION_CARRIED\x10\a\x1ao\x8a\xb5\x18gNOT a closure: the gap survives to the next round with a stated research direction the coming seat owes\x98\xb5\x18\x00\x12\xd8\x01\n" +
+	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\x8e\x01\n" +
+	"\x14DISPOSITION_REMANDED\x10\a\x1at\x8a\xb5\x18lNOT a closure: the gap stays open into a later sitting with a stated research direction the coming seat owes\x98\xb5\x18\x00\x12\xd8\x01\n" +
 	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01*\xc0\a\n" +
 	"\rSourceOutcome\x12\x1e\n" +
 	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12`\n" +

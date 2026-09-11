@@ -262,7 +262,7 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 		{"blue revision without --run", []string{"revision", "--seat-id", "blue-lane-1",
 			"--reason", "what changed this round"}, "blue: --run <runDir> is required"},
 		{"opinion with no identity at all", []string{"opinion", "--run", "X",
-			"--id", "G1", "--as", "carried", "--principle", "p", "--tension", "t",
+			"--id", "G1", "--as", "remanded", "--principle", "p", "--tension", "t",
 			"--review-flag", "no", "--settled", "the proposition this ruling bars", "--final", "--reason", "r"}, "--seat-id IS REQUIRED HERE"},
 		{"register is not exempt", []string{"register", "--run", "X"}, "--seat-id IS REQUIRED HERE"},
 	}
@@ -1086,7 +1086,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	// same question the other way), so it is supplied separately for the complete call and is
 	// not a subtest of its own (#502).
 	full := map[string]string{
-		"id": "M1", "as": "carried", "principle": "correctness first",
+		"id": "M1", "as": "remanded", "principle": "correctness first",
 		"tension": "correctness vs economy", "review-flag": "no",
 		"settled": "blue must repair c-65ca0a9e",
 	}
@@ -1137,7 +1137,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	if err != nil {
 		t.Fatalf("a complete docket ruling was refused: %v", err)
 	}
-	if !strings.Contains(out, "motion M1 ruled carried") {
+	if !strings.Contains(out, "motion M1 ruled remanded") {
 		t.Errorf("the docket ruling said %q", out)
 	}
 	// THE RULER'S ARGUMENT IS `MotionRule.opinion` — the prose channel every subject's ruling

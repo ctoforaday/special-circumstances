@@ -490,7 +490,7 @@ func TestHarvestPrecedents(t *testing.T) {
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 			Opinion:  proto.String(longRationale),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-				Disposition: recordpb.Disposition_DISPOSITION_CARRIED.Enum(),
+				Disposition: recordpb.Disposition_DISPOSITION_REMANDED.Enum(),
 				Principle:   proto.String("a deferral still owes a direction"),
 				Tension:     proto.String(""), ReviewFlag: proto.String(""),
 				Settled:   proto.String(""),

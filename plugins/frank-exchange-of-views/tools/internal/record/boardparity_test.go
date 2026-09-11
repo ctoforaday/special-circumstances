@@ -91,7 +91,7 @@ func TestBoardJSONHoldsTheFoldsEdges(t *testing.T) {
 		Settled: proto.String("st"), Final: proto.Bool(true)})
 	// A CARRIED ruling on an open gap closes NOTHING — the vocabulary's own facet decides.
 	docket("M2", "G2", &recordpb.DocketRuling{
-		Disposition: recordpb.Disposition_DISPOSITION_CARRIED.Enum(),
+		Disposition: recordpb.Disposition_DISPOSITION_REMANDED.Enum(),
 		Principle:   proto.String("pr"), Tension: proto.String("tn"), ReviewFlag: proto.String("rf"),
 		Settled: proto.String("st"), ReopensOn: proto.String("new evidence")})
 

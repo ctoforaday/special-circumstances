@@ -16,14 +16,14 @@ package recordsql
 //
 // The first cut of this file could not fold a bench closure and said so: `disposition` was a plain
 // string, the bench's vocabulary was not in the database, and "does this word close the gap" was a
-// Go predicate — `benchClosesGap`, whose rule was "everything except `carried`". A negative rule
+// Go predicate — `benchClosesGap`, whose rule was "everything except `remanded`". A negative rule
 // has no gap to notice, and that is not hypothetical: a deferring disposition added later was
 // classified as closing by default and retired a gap the bench had deliberately kept alive.
 //
 // Making it an enum was the price of this join, and the join is the smaller half of what it bought.
 // `closes` is now an annotation ON each value, so the vocabulary table carries it as a NOT NULL
 // column and a value added without answering the question fails at build. The predicate is a
-// SELECT, the schema refuses a partly-annotated set, and `merge close` may not write `carried`
+// SELECT, the schema refuses a partly-annotated set, and `merge close` may not write `remanded`
 // because the CHECK is expanded from the same annotation.
 //
 // # What a gap being closed by BOTH arms means here

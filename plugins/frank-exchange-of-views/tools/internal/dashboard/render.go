@@ -410,7 +410,7 @@ func RenderHTML(m Model) string {
 		}
 		w("<table>\n")
 		w(fmt.Sprintf(`<tr><td>judge sittings</td><td>%d</td></tr>`+"\n", m.Judiciary.JudgeSittings))
-		w(`<tr><td>rulings by type</td><td>` + rulingsStr + ` <span class="muted">(a carried-dominated bench is routing, not deciding — the closing-arguments ordering predicts this diversifies)</span></td></tr>` + "\n")
+		w(`<tr><td>rulings by type</td><td>` + rulingsStr + ` <span class="muted">(a remand-dominated bench is routing, not deciding — the closing-arguments ordering predicts this diversifies)</span></td></tr>` + "\n")
 		w(fmt.Sprintf(`<tr><td>grade disputes</td><td>raised %d · accepted %d · rejected %d</td></tr>`+"\n", m.Judiciary.Disputes.Raised, m.Judiciary.Disputes.Accepted, m.Judiciary.Disputes.Rejected))
 		w(fmt.Sprintf(`<tr><td>argument chains (supersedes-aware)</td><td>%d chains · by epochs alive: %s</td></tr>`+"\n", m.Judiciary.Chains, strings.Join(spanParts, " · ")))
 		w(fmt.Sprintf(`<tr><td>grade migration on multi-epoch chains</td><td>down %d · up %d · flat %d <span class="muted">(first-vs-last mass along the chain — the downgrade process)</span></td></tr>`+"\n", m.Judiciary.MigDown, m.Judiciary.MigUp, m.Judiciary.MigFlat))

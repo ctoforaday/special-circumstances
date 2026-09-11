@@ -149,7 +149,7 @@ func TestAnUnruledDocketMotionIsAHoleAndARuledOneIsNot(t *testing.T) {
 					// CARRIED, so the gap stays OPEN. Ruled-and-still-open is the case that
 					// separates "the bench answered" from "the gap closed" — a closing
 					// disposition would make this pass for the wrong reason.
-					Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED),
+					Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 					ReopensOn:   proto.String("the stated direction reporting back"),
 				}},
 			}))

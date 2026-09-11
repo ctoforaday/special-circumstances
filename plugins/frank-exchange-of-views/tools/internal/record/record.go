@@ -881,7 +881,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// The residue has to go somewhere STILL LIVE. A successor that is itself closed
 		// is a dead end wearing a forwarding address.
 		if err := requireOpenGap(run, b.GetSuccessor(), "close", "--superseded-by",
-			"the unresolved remainder cannot be carried into a gap that is already finished"); err != nil {
+			"the unresolved remainder cannot move into a gap that is already finished"); err != nil {
 			return err
 		}
 		// A FRESH close of a closed gap double-counts closure history and corrupts the

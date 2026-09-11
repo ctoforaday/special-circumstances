@@ -106,7 +106,7 @@ func lastActivity(run Run, merged Merged) (Activity, error) {
 		}
 	}
 	if newest.At.IsZero() {
-		return Activity{}, fmt.Errorf("record: %d event(s) in %s and not one carried a parseable ts — "+
+		return Activity{}, fmt.Errorf("record: %d event(s) in %s and not one had a parseable ts — "+
 			"the ordering key replay depends on is absent, so nothing here can be aged", len(merged.Events), run.Dir())
 	}
 	return newest, nil

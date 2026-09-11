@@ -272,7 +272,7 @@ func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
 				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 				Opinion:  proto.String("not this round"),
 				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-					Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED),
+					Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 					ReopensOn:   proto.String("blue reporting what the stated direction found"),
 				}},
 			}),
@@ -333,8 +333,8 @@ func TestACarriedGapReadsDifferentlyFromOneNobodyDocketed(t *testing.T) {
 	if carried == fresh {
 		t.Fatalf("a carried gap and a gap nobody has docketed read identically:\n  %q", carried)
 	}
-	if !strings.Contains(carried, "CARRIED it") {
-		t.Errorf("the carried gap's row does not say the bench carried it: %q", carried)
+	if !strings.Contains(carried, "REMANDED it") {
+		t.Errorf("the carried gap's row does not say the bench remanded it: %q", carried)
 	}
 	if !strings.Contains(carried, "blue reporting what the stated direction found") {
 		t.Errorf("the carried gap's row drops the bench's stated condition, which is the substance "+

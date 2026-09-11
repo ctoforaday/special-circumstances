@@ -66,7 +66,7 @@ your uncertainty, do; where you cannot, name what evidence would move it. "Not t
 differently on each — never let them collapse into "unclear".
 
 **BOTH AVENUES, AND DO NOT CLASSIFY THE QUESTION FIRST.** Pursue what can be *read* and what can
-be *computed* on every question, and let the answer decide which carried the weight. Choosing a
+be *computed* on every question, and let the answer decide which bore the weight. Choosing a
 lane up front is a decision taken at the worst possible moment — before the research exists — and
 it is wrong more often than it looks: most questions are mixed, and the ones that look purely
 empirical often have an arithmetic core that settles them faster than any amount of searching.

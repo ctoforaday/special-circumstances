@@ -324,7 +324,7 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 		// The payload keys are the ones the VERBS write: dispute→evidence, dispute-respond→
 		// response+rationale, petition-rule→opinion. The prior fixture set basis/as (what the
 		// buggy reader looked for), which is how A1–A3 hid — the test encoded the bug.
-		// THE BENCH'S DISPOSITION IS A DOCKET MOTION'S RULING, and the transcript's "G1: carried"
+		// THE BENCH'S DISPOSITION IS A DOCKET MOTION'S RULING, and the transcript's "G1: remanded"
 		// line is a JOIN across both events: the gap is on the filing, the word on the ruling.
 		recordtest.Event(t, "red-chair", &recordpb.Motion{
 			MotionId: proto.String("M2"),
@@ -337,7 +337,7 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Opinion:  proto.String("needs a probe"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED),
+				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 				Principle:   proto.String("correctness"), Tension: proto.String("cost"),
 				ReviewFlag: proto.String("false"),
 				Settled:    proto.String("the claim as it stood may not be re-asserted"),
@@ -359,7 +359,7 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 	d := debate((record.NewFamily(nil, evs)), evs)
 	for _, want := range []string{
 		"### Epoch 1", "### RED — NO VERDICT RECORDED THIS EPOCH\ngap A stands", "### BLUE\ngap A repaired",
-		"G1: carried",
+		"G1: remanded",
 		// THE PETITION SECTION IS NOT HERE ANY MORE, and its absence is the point. It rendered
 		// both sides of a petition off the retired `petition`/`petition-rule` types — a second
 		// rendering of a dialectic that `## Motions` already shows with each ruling beside the ask

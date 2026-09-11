@@ -866,7 +866,7 @@ exit 2
 feov-record: invalid argument "ceiling" for "--as" flag: --as must be one of VERIFIED|CEILING|HALTED|UNVERIFIED (got "ceiling") — "ceiling" differs from "CEILING" only in case, and the report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses the "this is NOT a judged failure to verify" caveat the stamp exists to carry
 
     VERIFIED    red passed the board and the bench agrees the question was answered
-    CEILING     every open material gap reached its limit — ruled by the bench and carried — with work still open: NOT a judged failure to verify, and the stamp says so
+    CEILING     every open material gap reached its limit — ruled by the bench and remanded — with work still open: NOT a judged failure to verify, and the stamp says so
     HALTED      the bench ended the run on a safety, ethics, consent or integrity boundary
     UNVERIFIED  the run ended without the question being answered, and no ceiling or halt explains it
 
@@ -909,7 +909,7 @@ Flags:
 Enumerated values:
   --as
     VERIFIED    red passed the board and the bench agrees the question was answered
-    CEILING     every open material gap reached its limit — ruled by the bench and carried — with work still open: NOT a judged failure to verify, and the stamp says so
+    CEILING     every open material gap reached its limit — ruled by the bench and remanded — with work still open: NOT a judged failure to verify, and the stamp says so
     HALTED      the bench ended the run on a safety, ethics, consent or integrity boundary
     UNVERIFIED  the run ended without the question being answered, and no ceiling or halt explains it
 

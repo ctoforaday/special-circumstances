@@ -113,7 +113,7 @@ func opinionEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 			if to, ok := dispositionRename[w]; ok { // the a1e8e260 rename, for shard-era opinions
 				w = to
 			}
-			num, err := enumNumberOf(recordpb.Disposition(0).Descriptor(), w)
+			num, err := enumValue(recordpb.Disposition(0).Descriptor(), w)
 			if err != nil {
 				return nil, fmt.Errorf("migrate: opinion.disposition: %w", err)
 			}

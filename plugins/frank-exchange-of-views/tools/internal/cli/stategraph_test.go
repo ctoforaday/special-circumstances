@@ -267,7 +267,7 @@ func gapProbe(t *testing.T) entityProbe {
 				"--reason", "the consequence is narrower than first graded"}},
 			{"carry", []string{"carry", "--id", "G1", "--carried-from", "0", "--as", "repaired",
 				"--reason", "carried from the prior round"}},
-			{"opinion:carried", opinionArgs("carried")},
+			{"opinion:remanded", opinionArgs("remanded")},
 			{"opinion:not_a_defect", opinionArgs("not_a_defect")},
 			// THE SAME TWO EXITS THROUGH THE NEW VERB, and both are driven because the pair is
 			// the point: `carried` defers and leaves the gap OPEN, anything else ends it. A probe
@@ -275,7 +275,7 @@ func gapProbe(t *testing.T) entityProbe {
 			// record can reach and the graph cannot see.
 			{"motion docket file", []string{"motion", "docket", "file", "--id", "G1",
 				"--reason", "contested and not mine to close"}},
-			{"motion docket rule:carried", docketRuleArgs("carried")},
+			{"motion docket rule:remanded", docketRuleArgs("remanded")},
 			{"motion docket rule:not_a_defect", docketRuleArgs("not_a_defect")},
 		},
 		buildTo: func(t *testing.T, state string) string {

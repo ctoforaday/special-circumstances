@@ -426,7 +426,7 @@ var fuzzArms = []fuzzArm{
 	// Was `bench reason`: the bench's disposition of a gap is its ruling on a docket motion.
 	{name: "bench motion docket rule", weight: 2, seats: []string{"judge"}, verb: []string{"motion", "docket", "rule"},
 		flags: func(rng *rand.Rand) []string {
-			f := []string{"--id", pick(rng, fuzzMotions), "--as", "carried", "--principle", "p", "--tension", "t",
+			f := []string{"--id", pick(rng, fuzzMotions), "--as", "remanded", "--principle", "p", "--tension", "t",
 				"--reason", "the ruling", "--review-flag", "r", "--settled", "the proposition this ruling bars"}
 			if rng.Intn(4) > 0 {
 				f = append(f, "--final") // omitted: neither --final nor --reopens-on, the validation path
@@ -469,7 +469,7 @@ var correctionArms = []fuzzArm{
 		}),
 	corrArm("bench motion docket rule corrected", []string{"judge"}, []string{"motion", "docket", "rule"},
 		func(t string) []string {
-			return []string{"--id", "M1", "--as", "carried", "--principle", "p", "--tension", "t", "--review-flag", "r",
+			return []string{"--id", "M1", "--as", "remanded", "--principle", "p", "--tension", "t", "--review-flag", "r",
 				"--settled", "the proposition this ruling bars", "--final", "--reason", t}
 		}, nil),
 	corrArm("blue line-of-inquiry propose corrected", blueSeats, []string{"line-of-inquiry", "propose"},

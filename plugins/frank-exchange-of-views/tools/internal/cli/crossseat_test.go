@@ -65,14 +65,14 @@ func TestBenchCarriedLeavesTheGapOpenWhileClosedDoesNot(t *testing.T) {
 	closed := mintGap(t, runDir, "bench-closes-that", "carry-vs-close")
 
 	for _, c := range []struct{ id, as, principle string }{
-		{carried, "carried", "the repair is unverified at the leaf; it needs another round"},
+		{carried, "remanded", "the repair is unverified at the leaf; it needs another round"},
 		{closed, "repaired", "the repair discharges the defect and the anchor is checkable"},
 	} {
 		benchDisposes(t, runDir, c.id, c.as, c.principle)
 	}
 
 	if !gapIsOpen(t, runDir, carried) {
-		t.Errorf("gap %s was CARRIED, not closed, and must still be open — a carry that closes turns the judge back into a router and reports the carried_share metric as perfect while the board loses the gap", carried)
+		t.Errorf("gap %s was REMANDED, not closed, and must still be open — a carry that closes turns the judge back into a router and reports the remanded_share metric as perfect while the board loses the gap", carried)
 	}
 	if gapIsOpen(t, runDir, closed) {
 		t.Errorf("gap %s was CLOSED by the bench and is still on the open board", closed)

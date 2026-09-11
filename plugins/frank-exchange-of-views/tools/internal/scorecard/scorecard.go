@@ -177,7 +177,10 @@ func anchoredClosures(fam *record.Family) (anchored, total int, ok bool) {
 	return a, t, true
 }
 
-var citeRe = regexp.MustCompile(`(?i)lead|judge|direction|carried`)
+// citeRe reads blue's POSITION PROSE, which a run writes once and keeps: a run recorded before
+// the deferring disposition was spelled `remanded` says "carried" in the same place. Matching only
+// the current word would score those runs' uptake low and look like a measurement.
+var citeRe = regexp.MustCompile(`(?i)lead|judge|direction|carried|remanded`)
 
 // ComputeDirectionUptake counts LEAD sittings and blue sections referencing the bench direction
 // — the pure kernel over the debate JSON (JS computeDirectionUptake).
@@ -692,19 +695,39 @@ func benchRows(results []map[string]any, fam *record.Family) []Row {
 		}
 	}
 
-	// carried_share
-	carried := 0
+	// remanded_share
+	//
+	// A WORD THIS BINARY DOES NOT KNOW MAKES THE ROW UNMEASURED, NOT SMALLER. A transcript is
+	// not a record and migrate never touches it, so one captured under an older vocabulary holds
+	// the deferring disposition under its old spelling. Counting only the current word would put
+	// every such ruling in the denominator and none in the numerator: a bench that deferred 76 of
+	// 77 would score 0, which reads exactly like a bench that decided everything.
+	remanded := 0
+	var foreign []string
+	seen := map[string]bool{}
 	for _, r := range rulings {
-		if str(r["resolution"]) == "carried" {
-			carried++
+		w := str(r["resolution"])
+		if _, ok := record.DispositionOf(w); !ok {
+			if !seen[w] {
+				seen[w] = true
+				foreign = append(foreign, strconv.Quote(w))
+			}
+			continue
+		}
+		if w == record.DispositionRemanded {
+			remanded++
 		}
 	}
-	if len(rulings) > 0 {
-		rows = append(rows, Row{Clause: "Not a router", Metric: "carried_share", Cls: "benchmark",
-			Value: float64(carried) / float64(len(rulings)),
-			Note:  strconv.Itoa(carried) + "/" + strconv.Itoa(len(rulings)) + "; baseline 76/77"})
-	} else {
-		rows = append(rows, Row{Clause: "Not a router", Metric: "carried_share", Cls: "benchmark", Note: "the bench did not sit this run"})
+	switch {
+	case len(foreign) > 0:
+		rows = append(rows, Row{Clause: "Not a router", Metric: "remanded_share", Cls: "benchmark",
+			Note: "not measured: disposition " + strings.Join(foreign, ", ") + " is not in this binary's vocabulary"})
+	case len(rulings) > 0:
+		rows = append(rows, Row{Clause: "Not a router", Metric: "remanded_share", Cls: "benchmark",
+			Value: float64(remanded) / float64(len(rulings)),
+			Note:  strconv.Itoa(remanded) + "/" + strconv.Itoa(len(rulings)) + "; baseline 76/77"})
+	default:
+		rows = append(rows, Row{Clause: "Not a router", Metric: "remanded_share", Cls: "benchmark", Note: "the bench did not sit this run"})
 	}
 
 	// blue_sections_citing_direction (string value)

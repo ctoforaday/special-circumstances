@@ -227,7 +227,7 @@ test('the terminal bench sitting fires only when the chair reports unruled motio
   const asm = labelsOf(world, 'assemble')[0]
   assert.ok(terminal, 'the terminal sitting fired')
   assert.ok(terminal.n < asm.n, 'disposition precedes assembly')
-  assert.ok(/2 motion\(s\) stand unruled/.test(terminal.prompt) && /NOTHING CAN BE CARRIED AT A TERMINAL EXIT/.test(terminal.prompt))
+  assert.ok(/2 motion\(s\) stand unruled/.test(terminal.prompt) && /NOTHING CAN BE REMANDED AT A TERMINAL EXIT/.test(terminal.prompt))
 })
 
 // ── the seats' contracts ────────────────────────────────────────────────────────────────────
@@ -271,7 +271,7 @@ test('blue is engaged on named gaps, told the board is authoritative, and files 
   const [first, second] = labelsOf(world, 'blue-respond').map((c) => c.prompt)
   assert.ok(/You are engaged on: G1, G2/.test(first))
   for (const want of ['YOUR FIRST READ COMES AFTER THE MANUAL', 'red-gap-patterns.md', 'in one pass rather than three', 'lossy summary', "bench's latest resolutions",
-    'CARRIED comes with a stated research direction you owe', 'which patterns you checked', 'YOU MAY COMPUTE AN ANSWER', 'DOCUMENT-PROBE', 'deferred acceptance test',
+    'REMANDED comes with a stated research direction you owe', 'which patterns you checked', 'YOU MAY COMPUTE AN ANSWER', 'DOCUMENT-PROBE', 'deferred acceptance test',
     'LINES OF INQUIRY ARE A LIVING RECORD', 'THREE paths', 'ESTOPS', 'OWNERSHIP BINDS, AS IT DID AT SYNTHESIS', 'each edit naming the gap it answers', 'a grade motion on the axis', 'Compact and reorganize prose', 'retired on the record',
     'PROPAGATE EVERY CORRECTION TO ALL SITES', 'NULL TURN', 'AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP', 'manifest array', 'claim_count', 'never hand-count']) {
     assert.ok(first.includes(want), `blue lost: ${want}`)
@@ -407,7 +407,7 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
 })
 
 test('priors-are-poison: no cross-run scorecard seed reaches any chair, even when scorecards are supplied', async () => {
-  const scorecards = { 'blue-synthesize': { repair_regression_ratio: 0.63 }, 'red-chair': { anchored_closures_pct: 89 }, assemble: { carried_share: 0.98 } }
+  const scorecards = { 'blue-synthesize': { repair_regression_ratio: 0.63 }, 'red-chair': { anchored_closures_pct: 89 }, assemble: { remanded_share: 0.98 } }
   const world = makeWorld(makeResponder({ chair: [passChair()] }))
   await world.run(script, { ...ARGS, scorecards })
   assert.ok(!firstPrompt(world, 'blue-synthesize').includes('0.63') && !firstPrompt(world, 'red-chair').includes('89') && !firstPrompt(world, 'assemble').includes('0.98'))

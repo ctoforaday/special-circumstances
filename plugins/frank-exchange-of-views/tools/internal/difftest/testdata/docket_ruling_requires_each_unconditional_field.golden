@@ -95,7 +95,7 @@ Enumerated values:
     not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
-    carried                   NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes
+    remanded                  NOT a closure: the gap stays open into a later sitting with a stated research direction the coming seat owes
     moot                      the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired
 
 Global Flags:
@@ -156,7 +156,7 @@ Enumerated values:
     not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
-    carried                   NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes
+    remanded                  NOT a closure: the gap stays open into a later sitting with a stated research direction the coming seat owes
     moot                      the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired
 
 Global Flags:

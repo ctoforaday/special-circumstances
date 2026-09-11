@@ -36,7 +36,7 @@ func telFixture() []*recordpb.TelemetryLine {
 }
 
 func judFixture() Judiciary {
-	j := Judiciary{JudgeSittings: 1, Rulings: map[string]int{"carried": 2, "repaired": 1},
+	j := Judiciary{JudgeSittings: 1, Rulings: map[string]int{"remanded": 2, "repaired": 1},
 		ChainSpans: map[int]int{1: 2, 2: 1}, Chains: 3, MigDown: 1, MigUp: 0, MigFlat: 0, LatestVerdict: "FAIL", VerdictEpoch: 2}
 	j.Disputes.Raised, j.Disputes.Accepted, j.Disputes.Rejected = 2, 1, 1
 	return j

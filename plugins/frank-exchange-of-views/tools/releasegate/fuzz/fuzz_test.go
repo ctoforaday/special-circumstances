@@ -1840,9 +1840,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// re-readied for them.
 		var res []any
 		for _, id := range r.engaged(seatID) {
-			disp := "carried"
+			disp := "remanded"
 			if r.scenarioOf(id) != dirDisputeLost {
-				r.benchDisposes(seatID, id, "carried",
+				r.benchDisposes(seatID, id, "remanded",
 					"--reopens-on", "blue pursuing the stated direction and reporting what it found",
 					"--reason", "fuzz: carried with a stated direction for "+id)
 			}

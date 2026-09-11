@@ -172,7 +172,7 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 				b.ruled["G1"] = true
 				res = append(res, map[string]any{"gap_id": "G1", "resolution": "not_a_defect", "settled": "settled", "reopens_on": "new evidence", "rationale": "ruled"})
 			} else {
-				res = append(res, map[string]any{"gap_id": "G1", "resolution": "carried", "rationale": "owed"})
+				res = append(res, map[string]any{"gap_id": "G1", "resolution": "remanded", "rationale": "owed"})
 			}
 			e["resolutions"] = res
 		case seatID == "assemble":

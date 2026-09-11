@@ -72,7 +72,7 @@ func TestJudgmentsShowACorrectedRulingStruck(t *testing.T) {
 		return &recordpb.MotionRule{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Opinion: proto.String(opinion),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED), Principle: proto.String("p"),
+				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED), Principle: proto.String("p"),
 				Tension: proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s"), ReopensOn: proto.String("r")}}}
 	}
 	evs := []*record.Event{

@@ -96,7 +96,7 @@ var referenceChecks = []struct {
 	{verb: []string{"line-of-inquiry", "move"}, flag: "--id", against: "the inquiries on the record", bogus: "Q9",
 		extra: []string{"--as", "abandoned", "--reason", "r"}},
 	{verb: []string{"opinion"}, flag: "--id", against: "the board", bogus: "G2",
-		extra: []string{"--as", "carried", "--principle", "p", "--tension", "t", "--review-flag", "false", "--settled", "the proposition this ruling bars", "--final", "--reason", "r"}},
+		extra: []string{"--as", "remanded", "--principle", "p", "--tension", "t", "--review-flag", "false", "--settled", "the proposition this ruling bars", "--final", "--reason", "r"}},
 	{verb: []string{"motion", "grade", "file"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--dimension", "severity", "--proposed", "low", "--reason", "r"}},
 	// FOUND BY TestEveryCheckedFlagIsInTheTable. All three carry a check and none was driven —

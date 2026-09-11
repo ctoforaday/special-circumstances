@@ -400,7 +400,7 @@ func TestABenchDispositionClosesTheGapOnlyIfTheVocabularySaysSo(t *testing.T) {
 		wantOpen bool
 		why      string
 	}{
-		{recordpb.Disposition_DISPOSITION_CARRIED, true, "carried defers the question to a later round with a stated direction; the gap survives"},
+		{recordpb.Disposition_DISPOSITION_REMANDED, true, "remanded defers the question to a later epoch with a stated direction; the gap survives"},
 		{recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED, false, "the risk is taken knowingly, with the argument on the record — there is nothing further to adjudicate"},
 		{recordpb.Disposition_DISPOSITION_NOT_A_DEFECT, false, "blue's rebuttal held; nothing was repaired because nothing needed to be"},
 	} {
@@ -471,7 +471,7 @@ func TestAMergeCannotCloseAGapByCarryingIt(t *testing.T) {
 	mintGap(t, db, 10, "G1")
 	if _, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
 		GapId:        proto.String("G1"),
-		ClosureClass: recordpb.Disposition_DISPOSITION_CARRIED.Enum(),
+		ClosureClass: recordpb.Disposition_DISPOSITION_REMANDED.Enum(),
 		Prose:        proto.String("deferring, from the wrong seat"),
 	})); err == nil {
 		t.Fatal("the database accepted `merge close --as carried` — a close asserts a verified repair, and \"I repaired it by carrying it\" is not one. Deferring is the bench's decision, and a chair that can record it produces a gap that reads as closed with no repair behind it")
@@ -511,7 +511,7 @@ func TestTheVocabularySaysWhichWordsEndAGap(t *testing.T) {
 	}
 	want := map[string]bool{
 		"amends_prior":             true,
-		"carried":                  false,
+		"remanded":                 false,
 		"repaired":                 true,
 		"repaired_with_regression": true,
 		"not_a_defect":             true,

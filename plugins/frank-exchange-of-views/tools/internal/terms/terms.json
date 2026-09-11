@@ -321,24 +321,8 @@
         {"variant": "carried (a disposition)", "kind": "GATED", "pattern": "\\bcarried\\b",
          "masks": [
            {"phrase": "--carried-from", "reason": "the carry verb's flag: carry restates an earlier closure, which is its own meaning"},
-           {"phrase": "carried the closure of", "reason": "the carry verb's own result"}
-         ],
-         "allow": [
-           {"path": "plugins/frank-exchange-of-views/agents/blue-researcher.md", "reason": "renamed in phase 2: the disposition carried becomes remanded (enum, migrate alias, epoch 6)"},
-           {"path": "plugins/frank-exchange-of-views/agents/lead-judge.md", "reason": "renamed in phase 2, as above"},
-           {"path": "plugins/frank-exchange-of-views/agents/red-chair.md", "reason": "renamed in phase 2, as above"},
-           {"path": "plugins/frank-exchange-of-views/skills/adversarial-audit/SKILL.md", "reason": "renamed in phase 2, as above (its CARRIED label is reworded with the enum)"},
-           {"path": "plugins/frank-exchange-of-views/skills/research-protocol/SKILL.md", "reason": "renamed in phase 2, as above"},
-           {"path": "plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js", "reason": "renamed in phase 2, as above (the enum list and the duty map carry it)"},
-           {"path": "plugins/frank-exchange-of-views/tools/internal/cli/seat/help/carry.md", "reason": "renamed in phase 2, as above"},
-           {"path": "plugins/frank-exchange-of-views/tools/internal/cli/seat/verbs.go", "reason": "renamed in phase 2, as above"},
-           {"path": "plugins/frank-exchange-of-views/tools/internal/record/available.go", "reason": "renamed in phase 2, as above"},
-           {"path": "plugins/frank-exchange-of-views/tools/internal/record/dispatch.go", "reason": "renamed in phase 2, as above"},
-           {"path": "plugins/frank-exchange-of-views/tools/internal/record/enums.go", "reason": "renamed in phase 2, as above"},
-           {"path": "plugins/frank-exchange-of-views/tools/internal/record/liveness.go", "reason": "renamed in phase 2, as above"},
-           {"path": "plugins/frank-exchange-of-views/tools/internal/record/record.go", "reason": "renamed in phase 2, as above"},
-           {"path": "plugins/frank-exchange-of-views/tools/internal/view/view.go", "reason": "renamed in phase 2, as above (the archive view labels a carried disposition)"},
-           {"path": "plugins/frank-exchange-of-views/tools/internal/record/recordpb/record.proto", "reason": "renamed in phase 2: DISPOSITION_CARRIED and the annotation text that names it"}
+           {"phrase": "carried the closure of", "reason": "the carry verb's own result"},
+           {"phrase": "carried from", "reason": "the carry verb's result as the archive view prints it: a closure carried from an earlier epoch, which is the flag --carried-from in words"}
          ]},
         {"variant": "resolution (a disposition)", "kind": "GATED", "pattern": "\\bresolutions?\\b",
          "allow": [

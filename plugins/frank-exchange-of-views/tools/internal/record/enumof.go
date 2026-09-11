@@ -82,7 +82,7 @@ func VerdictOf(word string) (recordpb.Verdict, bool) {
 }
 
 // DispositionOf resolves HOW A GAP ENDED — one vocabulary for both closing verbs (#342), which
-// since the retyping includes the bench's `carried`. Callers that may only CLOSE (merge close)
+// since the retyping includes the bench's `remanded`. Callers that may only CLOSE (merge close)
 // check recordpb.Closes on the result; the database enforces the same subset from the same
 // annotation, so neither side carries a list of admitted words.
 //

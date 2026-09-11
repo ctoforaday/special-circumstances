@@ -23,7 +23,7 @@ import (
 //
 // The tool's own names are gated elsewhere: a verb, flag, view or enum word a prompt names must
 // exist. Nothing gated the NOUNS — what the document, the record, the time units and the parties
-// are called — and a census found fourteen names for the report and "carried" meaning a gap closed
+// are called — and a census found fourteen names for the report and "remanded" meaning a gap closed
 // on one page and kept open on another. A seat reads a constitution, a prompt and a help page in
 // one sitting and cannot tell a second name from a second thing.
 //

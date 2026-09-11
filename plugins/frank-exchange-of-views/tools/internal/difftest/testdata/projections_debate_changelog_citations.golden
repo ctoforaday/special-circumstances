@@ -136,10 +136,10 @@ exit 0
 stdout:
 motion M2 filed (docket)
 
-$ motion docket rule --run {RUN} --seat-id judge --id M2 --as carried --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --settled the proposition this ruling bars --final --reason the rationale body
+$ motion docket rule --run {RUN} --seat-id judge --id M2 --as remanded --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --settled the proposition this ruling bars --final --reason the rationale body
 exit 0
 stdout:
-motion M2 ruled carried [key judge:motion_rule:#1]
+motion M2 ruled remanded [key judge:motion_rule:#1]
 
 $ certify --run {RUN} --seat-id judge --reason what a human should re-examine
 exit 0
@@ -161,7 +161,7 @@ certification recorded [key judge:certify:#1]
 {"key":"blue-respond:motion:#1","motion":{"basis":"the harm needs two failures","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"G1","proposed":"GRADE_LOW"},"motion_id":"M1","subject":"MOTION_SUBJECT_GRADE"},"seat_id":"blue-respond","ts":11,"type":"EVENT_TYPE_MOTION"}
 {"key":"judge:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":12,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-chair:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"G1"},"motion_id":"M2","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"red-chair","ts":13,"type":"EVENT_TYPE_MOTION"}
-{"key":"judge:motion_rule:#1","motion_rule":{"docket":{"disposition":"DISPOSITION_CARRIED","final":true,"principle":"correctness over economy","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"motion_id":"M2","opinion":"the rationale body","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"judge","ts":14,"type":"EVENT_TYPE_MOTION_RULE"}
+{"key":"judge:motion_rule:#1","motion_rule":{"docket":{"disposition":"DISPOSITION_REMANDED","final":true,"principle":"correctness over economy","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"motion_id":"M2","opinion":"the rationale body","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"judge","ts":14,"type":"EVENT_TYPE_MOTION_RULE"}
 {"certify":{"statement":"what a human should re-examine"},"key":"judge:certify:#1","seat_id":"judge","ts":15,"type":"EVENT_TYPE_CERTIFY"}
 
 ═══ RENDERS ═══
@@ -183,7 +183,7 @@ blue's round position
 blue's closing
 
 ### LEAD
-- G1: carried — principle: correctness over economy; tension: thoroughness vs cost; review: the figure was never recomputed
+- G1: remanded — principle: correctness over economy; tension: thoroughness vs cost; review: the figure was never recomputed
 the rationale body
 
 -- lines-of-inquiry

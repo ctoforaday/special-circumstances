@@ -73,7 +73,7 @@ export const blueEnv = (over = {}) => ({
 export const party = (seat_id, ...gap_ids) => ({ seat_id, gap_ids })
 export const plan = (parties = [], over = {}) => ({ head: 2, parties, docket: [], pass_permitted: false, ceiling: false, why: [], ...over })
 export const passPlan = (over = {}) => plan([], { pass_permitted: true, ...over })
-export const ceilingPlan = (over = {}) => plan([], { ceiling: true, why: ['G1: at impasse, ruled carried — at its limit'], ...over })
+export const ceilingPlan = (over = {}) => plan([], { ceiling: true, why: ['G1: at impasse, ruled remanded — at its limit'], ...over })
 export const chairEnv = (over = {}) => ({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G1')]), unruled_motions: 0, log: [], ...over })
 export const passChair = (over = {}) => chairEnv({ plan: passPlan(), verdict: 'PASS', ...over })
 export const gap = (id, over = {}) => ({
