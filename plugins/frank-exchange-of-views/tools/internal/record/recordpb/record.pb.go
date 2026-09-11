@@ -3674,15 +3674,18 @@ func (x *Anchor) GetText() string {
 }
 
 type Cite struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
-	Label      *string                `protobuf:"bytes,1,opt,name=label,proto3,oneof" json:"label,omitempty"`
-	Url        *string                `protobuf:"bytes,2,opt,name=url,proto3,oneof" json:"url,omitempty"`
-	Sha256     *string                `protobuf:"bytes,3,opt,name=sha256,proto3,oneof" json:"sha256,omitempty"`
-	Title      *string                `protobuf:"bytes,4,opt,name=title,proto3,oneof" json:"title,omitempty"`
-	Location   *string                `protobuf:"bytes,5,opt,name=location,proto3,oneof" json:"location,omitempty"`
-	AccessDate *string                `protobuf:"bytes,6,opt,name=access_date,json=accessDate,proto3,oneof" json:"access_date,omitempty"`
-	CiteKey    *string                `protobuf:"bytes,7,opt,name=cite_key,json=citeKey,proto3,oneof" json:"cite_key,omitempty"`
-	Text       *string                `protobuf:"bytes,9,opt,name=text,proto3,oneof" json:"text,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Label  *string                `protobuf:"bytes,1,opt,name=label,proto3,oneof" json:"label,omitempty"`
+	Url    *string                `protobuf:"bytes,2,opt,name=url,proto3,oneof" json:"url,omitempty"`
+	Sha256 *string                `protobuf:"bytes,3,opt,name=sha256,proto3,oneof" json:"sha256,omitempty"`
+	// title is the Bibliography entry and text the argument for the source — the seat's own wording,
+	// the part a same-sitting correction may change. The label, url, hash, location and access date
+	// identify the source and place its marker; a correction carries them unchanged.
+	Title      *string `protobuf:"bytes,4,opt,name=title,proto3,oneof" json:"title,omitempty"`
+	Location   *string `protobuf:"bytes,5,opt,name=location,proto3,oneof" json:"location,omitempty"`
+	AccessDate *string `protobuf:"bytes,6,opt,name=access_date,json=accessDate,proto3,oneof" json:"access_date,omitempty"`
+	CiteKey    *string `protobuf:"bytes,7,opt,name=cite_key,json=citeKey,proto3,oneof" json:"cite_key,omitempty"`
+	Text       *string `protobuf:"bytes,9,opt,name=text,proto3,oneof" json:"text,omitempty"`
 	// HOW MUCH OF IT WAS READ. Not `required`: the verb defaults it to UNREAD, so the conservative
 	// claim costs a seat nothing and only a stronger one is asserted.
 	SourceTextRead *SourceTextRead `protobuf:"varint,10,opt,name=source_text_read,json=sourceTextRead,proto3,enum=feov.record.v1.SourceTextRead,oneof" json:"source_text_read,omitempty"`
@@ -3941,7 +3944,10 @@ type Proof struct {
 	// that exists to hold it — and the report renders the sentence, so the record was the one
 	// party to the exchange that could not say what happened. Absent means the two runs agreed.
 	Drift *string `protobuf:"bytes,6,opt,name=drift,proto3,oneof" json:"drift,omitempty"`
-	Text  *string `protobuf:"bytes,7,opt,name=text,proto3,oneof" json:"text,omitempty"`
+	// text is the proof's note, printed as its footnote — the seat's own wording, the part a
+	// same-sitting correction may change. What ran, its hash, exit and anchoring site are the
+	// execution's facts, and a correction carries them unchanged.
+	Text *string `protobuf:"bytes,7,opt,name=text,proto3,oneof" json:"text,omitempty"`
 	// script and exit are the execution's own facts, and they belong here for the same reason:
 	// `report/proofs.go` renders both, and a reader of the record should not have to open a
 	// second store to learn how a proof ran. The script BODY and its output stay in the cache as
@@ -6860,17 +6866,17 @@ const file_record_proto_rawDesc = "" +
 	"\v_finding_idB\x0e\n" +
 	"\f_finding_keyB\b\n" +
 	"\x06_labelB\a\n" +
-	"\x05_text\"\xbb\x03\n" +
+	"\x05_text\"\xe4\x03\n" +
 	"\x04Cite\x12\x19\n" +
 	"\x05label\x18\x01 \x01(\tH\x00R\x05label\x88\x01\x01\x12\x15\n" +
 	"\x03url\x18\x02 \x01(\tH\x01R\x03url\x88\x01\x01\x12\x1b\n" +
-	"\x06sha256\x18\x03 \x01(\tH\x02R\x06sha256\x88\x01\x01\x12\x19\n" +
-	"\x05title\x18\x04 \x01(\tH\x03R\x05title\x88\x01\x01\x12\x1f\n" +
-	"\blocation\x18\x05 \x01(\tH\x04R\blocation\x88\x01\x01\x12$\n" +
+	"\x06sha256\x18\x03 \x01(\tH\x02R\x06sha256\x88\x01\x01\x12\x1f\n" +
+	"\x05title\x18\x04 \x01(\tB\x04\xc0\xb5\x18\x01H\x03R\x05title\x88\x01\x01\x120\n" +
+	"\blocation\x18\x05 \x01(\tB\x0f\x82\xb5\x18\a\x12\x05quote\xc0\xb5\x18\x00H\x04R\blocation\x88\x01\x01\x12$\n" +
 	"\vaccess_date\x18\x06 \x01(\tH\x05R\n" +
 	"accessDate\x88\x01\x01\x12\x1e\n" +
-	"\bcite_key\x18\a \x01(\tH\x06R\aciteKey\x88\x01\x01\x12\x17\n" +
-	"\x04text\x18\t \x01(\tH\aR\x04text\x88\x01\x01\x12M\n" +
+	"\bcite_key\x18\a \x01(\tH\x06R\aciteKey\x88\x01\x01\x12)\n" +
+	"\x04text\x18\t \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\aR\x04text\x88\x01\x01\x12M\n" +
 	"\x10source_text_read\x18\n" +
 	" \x01(\x0e2\x1e.feov.record.v1.SourceTextReadH\bR\x0esourceTextRead\x88\x01\x01B\b\n" +
 	"\x06_labelB\x06\n" +
@@ -6907,7 +6913,7 @@ const file_record_proto_rawDesc = "" +
 	"\b_outcomeB\r\n" +
 	"\v_confidenceB\a\n" +
 	"\x05_textB\b\n" +
-	"\x06_labelJ\x04\b\x02\x10\x03R\treference\"\xd9\x03\n" +
+	"\x06_labelJ\x04\b\x02\x10\x03R\treference\"\xfc\x03\n" +
 	"\x05Proof\x12\x1e\n" +
 	"\bproof_id\x18\x01 \x01(\tH\x00R\aproofId\x88\x01\x01\x12 \n" +
 	"\tproof_key\x18\x02 \x01(\tH\x01R\bproofKey\x88\x01\x01\x12 \n" +
@@ -6916,12 +6922,12 @@ const file_record_proto_rawDesc = "" +
 	"proofBasis\x88\x01\x01\x12\x1d\n" +
 	"\aanswers\x18\x04 \x01(\tH\x04R\aanswers\x88\x01\x01\x12\x19\n" +
 	"\x05cites\x18\x05 \x01(\tH\x05R\x05cites\x88\x01\x01\x12\x19\n" +
-	"\x05drift\x18\x06 \x01(\tH\x06R\x05drift\x88\x01\x01\x12\x17\n" +
-	"\x04text\x18\a \x01(\tH\aR\x04text\x88\x01\x01\x12\x1b\n" +
+	"\x05drift\x18\x06 \x01(\tH\x06R\x05drift\x88\x01\x01\x12)\n" +
+	"\x04text\x18\a \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\aR\x04text\x88\x01\x01\x12\x1b\n" +
 	"\x06script\x18\t \x01(\tH\bR\x06script\x88\x01\x01\x12\x17\n" +
 	"\x04exit\x18\n" +
-	" \x01(\x05H\tR\x04exit\x88\x01\x01\x12\x1f\n" +
-	"\blocation\x18\v \x01(\tH\n" +
+	" \x01(\x05H\tR\x04exit\x88\x01\x01\x120\n" +
+	"\blocation\x18\v \x01(\tB\x0f\x82\xb5\x18\a\x12\x05quote\xc0\xb5\x18\x00H\n" +
 	"R\blocation\x88\x01\x01B\v\n" +
 	"\t_proof_idB\f\n" +
 	"\n" +
@@ -7212,7 +7218,7 @@ const file_record_proto_rawDesc = "" +
 	"\x11EVENT_TYPE_AVENUE\x10\x03\x1aY\x8a\xb5\x18Qa line of inquiry, from proposed through pursued, declined, deferred or abandoned\xb8\xb5\x18\x02\x12q\n" +
 	"\x14EVENT_TYPE_BLUE_EDIT\x10\x04\x1aW\x8a\xb5\x18Oa change to the report, recorded as old and new so the edit itself is auditable\xb8\xb5\x18\x01\x12n\n" +
 	"\x12EVENT_TYPE_CERTIFY\x10\x05\x1aV\x8a\xb5\x18Na seat's signed statement about its own work — what it asserts on the record\xb8\xb5\x18\x02\x12v\n" +
-	"\x0fEVENT_TYPE_CITE\x10\x06\x1aa\x8a\xb5\x18Ya source brought into the debate, with the hash and access date that make it re-checkable\xb8\xb5\x18\x01\x12\x83\x01\n" +
+	"\x0fEVENT_TYPE_CITE\x10\x06\x1aa\x8a\xb5\x18Ya source brought into the debate, with the hash and access date that make it re-checkable\xb8\xb5\x18\x02\x12\x83\x01\n" +
 	"\x14EVENT_TYPE_CLASS_NEW\x10\a\x1ai\x8a\xb5\x18aa defect class coined in this run, with its definition and the neighbour it is distinguished from\xb8\xb5\x18\x01\x12m\n" +
 	"\x10EVENT_TYPE_CLOSE\x10\b\x1aW\x8a\xb5\x18Ored closing a gap on a verified repair — red's half of the closing vocabulary\xb8\xb5\x18\x02\x12f\n" +
 	"\x12EVENT_TYPE_CLOSING\x10\t\x1aN\x8a\xb5\x18Fa seat's closing statement on a gap: the argument, not the disposition\xb8\xb5\x18\x03\x12e\n" +
@@ -7229,7 +7235,7 @@ const file_record_proto_rawDesc = "" +
 	"\x12EVENT_TYPE_OBSERVE\x10\x14\x1a>\x8a\xb5\x186an observation recorded without a claim attached to it\xb8\xb5\x18\x01\x12j\n" +
 	"\x12EVENT_TYPE_OUTCOME\x10\x16\x1aR\x8a\xb5\x18Jthe run's terminal act: how it ended and whether the question was answered\xb8\xb5\x18\x02\x12P\n" +
 	"\x13EVENT_TYPE_POSITION\x10\x17\x1a7\x8a\xb5\x18/a seat's stated position going into its sitting\xb8\xb5\x18\x03\x12}\n" +
-	"\x10EVENT_TYPE_PROOF\x10\x18\x1ag\x8a\xb5\x18_a script that was RUN, with its hash and exit status — the answer a computation check demands\xb8\xb5\x18\x01\x12T\n" +
+	"\x10EVENT_TYPE_PROOF\x10\x18\x1ag\x8a\xb5\x18_a script that was RUN, with its hash and exit status — the answer a computation check demands\xb8\xb5\x18\x02\x12T\n" +
 	"\x12EVENT_TYPE_REGRADE\x10\x19\x1a<\x8a\xb5\x184a gap's grade changed, with the basis for the change\xb8\xb5\x18\x03\x12n\n" +
 	"\x14EVENT_TYPE_REPRODUCE\x10\x1a\x1aT\x8a\xb5\x18Lan attempt to re-run a recorded proof, and whether what it computes is sound\xb8\xb5\x18\x02\x12f\n" +
 	"\x11EVENT_TYPE_RETIRE\x10\x1b\x1aO\x8a\xb5\x18Ga claim retired from the report, with the reason and what supersedes it\xb8\xb5\x18\x01\x12H\n" +

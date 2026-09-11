@@ -448,6 +448,16 @@ var fuzzArms = []fuzzArm{
 var correctionArms = []fuzzArm{
 	corrArm("blue manifest-row corrected", blueSeats, []string{"manifest-row"}, func(t string) []string { return []string{"--id", "G1", "--reason", t} }, nil),
 	corrArm("blue revision corrected", blueSeats, []string{"revision"}, reasonOnly, nil),
+	// A corrected cite keeps its label, url and quote — only the title moves, and nothing is fetched
+	// again; a corrected proof does not run again — only its note moves.
+	corrArm("blue cite corrected", []string{"blue-respond"}, []string{"cite"},
+		func(t string) []string {
+			return []string{"--quote", "A claim sits under S2.", "--url", fuzzSourceURL("/corr"), "--title", t}
+		}, nil),
+	corrArm("blue prove corrected", []string{"blue-respond"}, []string{"prove"},
+		func(t string) []string {
+			return []string{"--quote", "A claim sits under S2.", "--script", "{RUN}/fuzz-proof.js", "--reason", t}
+		}, nil),
 	corrArm("blue position corrected", blueSeats, []string{"position"}, reasonOnly, nil),
 	corrArm("chair position corrected", []string{"red-chair"}, []string{"position"}, reasonOnly, nil),
 	corrArm("blue closing corrected", blueSeats, []string{"closing"}, func(t string) []string { return []string{"--id", "G1", "--reason", t} }, nil),
@@ -536,6 +546,12 @@ func correctionTour(rng *rand.Rand) []cmd {
 	return withSentinels(out)
 }
 
+// verbatimFlags are free-text flags whose value LOCATES text rather than writing it: a --quote must
+// match the report as it stands, so a token appended to it names a sentence that is not there and
+// every command carrying it is refused. The field a quote fills (location) declares (prose) =
+// false — a correction may not change it — so there is no prose declaration for a token to test.
+var verbatimFlags = map[string]bool{"quote": true}
+
 // sentinelPrefix opens every sentinel token; no text the fuzz or the tool writes carries it.
 const sentinelPrefix = "⟦S"
 
@@ -553,7 +569,7 @@ func withSentinels(cmds []cmd) []cmd {
 		free := freeTextFlags(c)
 		for j := 0; j+1 < len(c.args); j++ {
 			name := strings.TrimPrefix(c.args[j], "--")
-			if name == c.args[j] || !free[name] {
+			if name == c.args[j] || !free[name] || verbatimFlags[name] {
 				continue
 			}
 			k := seatOf(c) + "|" + c.verb + "|" + name + "|" + c.args[j+1]

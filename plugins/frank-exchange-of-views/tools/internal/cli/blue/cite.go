@@ -41,15 +41,33 @@ func newCite() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		quote := seat.Str(cmd, flags.Quote)
+		// A CORRECTION RE-STATES THE CITE; it does not fetch again or mint a new label. The label,
+		// url, hash, anchoring quote and access date are the corrected act's, and only the title and
+		// the argument — the seat's own wording — may change. A flag left out is the act's own value;
+		// one given that differs is refused by the correction as a change to a frozen field.
+		target, err := s.CorrectionTarget()
+		if err != nil {
+			return nil, err
+		}
+		prior, correcting := target.(*recordpb.Cite)
+		quote, url, title := seat.Str(cmd, flags.Quote), seat.Str(cmd, flags.URL), seat.Str(cmd, flags.Title)
+		if correcting {
+			if !seat.Given(cmd, flags.Quote) {
+				quote = prior.GetLocation()
+			}
+			if !seat.Given(cmd, flags.URL) {
+				url = prior.GetUrl()
+			}
+			if !seat.Given(cmd, flags.Title) {
+				title = prior.GetTitle()
+			}
+		}
 		if strings.TrimSpace(quote) == "" {
 			return nil, fmt.Errorf("blue cite requires --quote: the EXACT sentence to anchor the citation at, verbatim from the report as `show report` serves it, and nothing else")
 		}
-		url := seat.Str(cmd, flags.URL)
 		if strings.TrimSpace(url) == "" {
 			return nil, fmt.Errorf("blue cite requires --url: the source being cited (fetched once and cached; red re-reads the same bytes)")
 		}
-		title := seat.Str(cmd, flags.Title)
 		if strings.TrimSpace(title) == "" {
 			return nil, fmt.Errorf("blue cite requires --title: the source's name as it appears in the composed bibliography")
 		}
@@ -66,6 +84,20 @@ func newCite() *cobra.Command {
 		why, err := seat.Reason(cmd)
 		if err != nil {
 			return nil, err
+		}
+
+		// The replacement's marker is the original's: same label, same quote, and the render skips a
+		// marker the text already holds, so the report carries one anchor wherever edits moved it.
+		if correcting {
+			body := proto.Clone(prior).(*recordpb.Cite)
+			body.Location, body.Url, body.Title = proto.String(quote), proto.String(url), proto.String(title)
+			if seat.Given(cmd, flags.Reason) {
+				body.Text = proto.String(why)
+			}
+			if _, err := record.Append(s.Identity(), body); err != nil {
+				return nil, err
+			}
+			return citeResult{Label: prior.GetLabel(), URL: prior.GetUrl(), Sha256: prior.GetSha256(), VoiceTells: tells}, nil
 		}
 
 		// Crash-retry idempotency: a prior cite under this --key returns its label, no
@@ -153,7 +185,7 @@ func newCite() *cobra.Command {
 	c.Flags().String(flags.URL, "", flags.DescURL)
 	flags.Text(c, flags.Title, flags.DescTitle)
 	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL assigns the c-<hex> label")
-	return c
+	return seat.Correctable(c)
 }
 
 type citeResult struct {

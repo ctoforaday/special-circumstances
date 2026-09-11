@@ -827,26 +827,26 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
   )
   … "$X"
 
-§5 (on 22 pages):
+§5 (on 11 pages):
+what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
+
+§6 (on 11 pages):
+the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
+
+§7 (on 22 pages):
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
       --schema           print the event-schema epoch this binary writes, and exit
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
 
-§6 (on 2 pages):
+§8 (on 2 pages):
 CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong — a lost word, a
 wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
 it, and only until another seat has acted; after that, say it in a new act. A correction may change
 anything the act says except --id, which names what it is about.
-
-§7 (on 9 pages):
-what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
-
-§8 (on 9 pages):
-the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
 
 §9 (on 2 pages):
 WHAT MAY BE IN THE REPORT: research prose for a reader of the SUBJECT, and the markers this tool places — nothing else. No provenance or attribution tags, no notes to another seat, no argument about the run, no narration of how the report was made. A fact that LIMITS THE CONCLUSION stays, re-voiced as a limit on the answer rather than a story about the attempt. Operational facts go to `log`, arguments to `position` or `closing`.
@@ -857,7 +857,7 @@ your own stable handle (C1, F2, P3 …): a repeat under the same handle returns 
 §11 (on 6 pages):
 your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
-§12 (on 3 pages):
+§12 (on 4 pages):
 CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong — a lost word, a
 wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
@@ -957,17 +957,26 @@ THE TITLE IS PRINTED IN THE REPORT, as the source's Bibliography entry. Give the
 
 (X=$(cat <<'EOF') → SHARED §4
 
+CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong — a lost word, a
+wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
+printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
+struck beside its replacement. You may correct only your own act, only in the sitting that recorded
+it, and only until another seat has acted; after that, say it in a new act. A correction may change
+only your wording (--reason, --title); every other flag must repeat what the act recorded.
+
 Usage:
   feov-record cite [flags]
 
 Flags:
-  -h, --help                 help for cite
-      --key string           your own stable handle (C1, F2, P3 …): a repeat under the same handle returns the first result instead of acting twice; the TOOL assigns the c-<hex> label
-      --quote string         the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. A mis-quote is rejected rather than guessed at
-      --reason string        why this source backs the sentence — kept on the record and shown beside the source in the evidence view, never printed in the report
-      --source-text unread   how much of the source you actually READ; omitted records unread
-      --title string         the source's name, as it appears in the composed bibliography
-      --url string           the source's http/https URL — fetched once and cached, so both sides read the same bytes
+      --correction-why string   → SHARED §5
+      --corrects string         → SHARED §6
+  -h, --help                    help for cite
+      --key string              your own stable handle (C1, F2, P3 …): a repeat under the same handle returns the first result instead of acting twice; the TOOL assigns the c-<hex> label
+      --quote string            the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. A mis-quote is rejected rather than guessed at
+      --reason string           why this source backs the sentence — kept on the record and shown beside the source in the evidence view, never printed in the report
+      --source-text unread      how much of the source you actually READ; omitted records unread
+      --title string            the source's name, as it appears in the composed bibliography
+      --url string              the source's http/https URL — fetched once and cached, so both sides read the same bytes
 
 Enumerated values:
   --source-text
@@ -975,7 +984,7 @@ Enumerated values:
     summary_only  someone else's account of it: an abstract, a secondary description, or the summary of an INTERESTED party
     unread        never read — the citation rests on a record that the source EXISTS, not on anything it says
 
-(Global Flags:) → SHARED §5
+(Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record claim-index --help
 claim-index prints, per footnote label, every site that claim appears in the report on the record: {claims:[{label, occurrences:[{heading, line}]}]}. Use it when a correction must reach ALL of a claim's sites — query the label instead of re-reading the whole report. It does NOT replace the report-wide sweep: an unfootnoted restatement (a bare corrected FIGURE) is invisible to a footnote index, so still search `show report` for the corrected strings. It records nothing. JSON only.
@@ -986,7 +995,7 @@ Usage:
 Flags:
   -h, --help   help for claim-index
 
-(Global Flags:) → SHARED §5
+(Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record closing --help
 your closing argument on one docketed gap, when the bench is about to rule on it
@@ -1001,19 +1010,19 @@ The bench rules on the closings, the transcript, and the final state of the arti
 
 (X=$(cat <<'EOF') → SHARED §4
 
-(CORRECTING WHAT YOU RECORDED. If…) → SHARED §6
+(CORRECTING WHAT YOU RECORDED. If…) → SHARED §8
 
 Usage:
   feov-record closing [flags]
 
 Flags:
-      --correction-why string   → SHARED §7
-      --corrects string         → SHARED §8
+      --correction-why string   → SHARED §5
+      --corrects string         → SHARED §6
   -h, --help                    help for closing
       --id gap-id               the gap id this closing argues
       --reason string           REQUIRED — your closing argument on this gap — your THINKING, not your process. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
-(Global Flags:) → SHARED §5
+(Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record count-claims --help
 count-claims prints the report's claim_count — the number of footnoted declarative claims, computed deterministically from the report on the record. It writes nothing. Blue uses it live to size its envelope figure; capture recomputes it independently.
@@ -1024,7 +1033,7 @@ Usage:
 Flags:
   -h, --help   help for count-claims
 
-(Global Flags:) → SHARED §5
+(Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record edit --help
 change the report — the only path into report.md, and how every repair lands
@@ -1071,7 +1080,7 @@ Flags:
       --quote string     the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. A finding anchor or citation anchor typed into it is rejected
       --reason string    → SHARED §11
 
-(Global Flags:) → SHARED §5
+(Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record fetch --help
 fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself. Open what you need with Read, using an offset and a limit: a 67-page paper pasted into your context is waste whether legible or not. A PDF's text is extracted to <run>/cache/<sha256>.txt and named in the summary, so you need no PDF tooling.
@@ -1092,7 +1101,7 @@ Flags:
       --url string    the http/https URL to read
       --via backend   reach the source through a named backend: live | archive | oa | metadata | arxiv | eric | auto. They answer DIFFERENT questions — live the URL itself (the same as omitting this); archive what the page said on a date (right for web pages, usually the landing page for a subscription article); oa whether a legal open copy exists; metadata only that the source exists and where (no text, and the honest answer when there is none to get); arxiv the preprint's PDF or LaTeX source; eric the US education index's record, with its full text where ERIC holds an authorised copy; auto tries arxiv, archive, oa, metadata in that order. A refused live fetch falls back through that same order
 
-(Global Flags:) → SHARED §5
+(Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record ingest --help
 freeze the synthesized report into the record and remove the file — done once, by its author
@@ -1115,7 +1124,7 @@ Usage:
 Flags:
   -h, --help   help for ingest
 
-(Global Flags:) → SHARED §5
+(Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record line-of-inquiry move --help
 say what became of a direction you proposed — every open line owes this before your sitting ends
@@ -1139,8 +1148,8 @@ Usage:
 
 Flags:
       --as as-value             REQUIRED — the fate of this line of inquiry
-      --correction-why string   → SHARED §7
-      --corrects string         → SHARED §8
+      --correction-why string   → SHARED §5
+      --corrects string         → SHARED §6
   -h, --help                    help for move
       --id inquiry-id           the line of inquiry whose fate you are moving (Q1, Q2 …); the lines-of-inquiry projection lists every one
       --reason string           the account of what settled this fate, in the SUBJECT's terms — printed in the report beside the line
@@ -1153,7 +1162,7 @@ Enumerated values:
     abandoned  you TRIED it and it died — the most valuable fate, because it stops a later run re-walking it
     deferred   worth taking, and not by THIS run. --reason says what a later run should pick it up FOR; it reaches the report as a proposal a human selects, never an automatic seed
 
-(Global Flags:) → SHARED §5
+(Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record line-of-inquiry propose --help
 put a direction on the record, when something is worth trying and a later run needs to know you chose it
@@ -1182,14 +1191,14 @@ Usage:
   feov-record line-of-inquiry propose [flags]
 
 Flags:
-      --correction-why string   → SHARED §7
-      --corrects string         → SHARED §8
+      --correction-why string   → SHARED §5
+      --corrects string         → SHARED §6
   -h, --help                    help for propose
       --hypothesis string       what would be TRUE if this line pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug
       --method string           the source class or technique it belonged to, when that is what distinguishes it
       --reason string           the line — research prose for a reader of the SUBJECT, printed in the report word for word
 
-(Global Flags:) → SHARED §5
+(Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record log --help
 an entry for the operator who can retool you — what it asserts, said in the positive
@@ -1216,8 +1225,8 @@ Usage:
   feov-record log [flags]
 
 Flags:
-      --correction-why string   → SHARED §7
-      --corrects string         → SHARED §8
+      --correction-why string   → SHARED §5
+      --corrects string         → SHARED §6
   -h, --help                    help for log
       --reason string           the entry: what you concluded about the tooling
       --type type-value         REQUIRED — what this entry asserts
@@ -1229,7 +1238,7 @@ Enumerated values:
     request   a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong
     friction  the work was impeded and you are NOTING it; NOT necessarily actionable and not necessarily advisable to change, which is why it has its own word rather than posing as a defect
 
-(Global Flags:) → SHARED §5
+(Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record manifest-row --help
 your receipt for one repaired gap: what you checked, and what checking it showed
@@ -1242,19 +1251,19 @@ It goes on the RECORD, not in the envelope: capture scores it from there, and it
 
 (X=$(cat <<'EOF') → SHARED §4
 
-(CORRECTING WHAT YOU RECORDED. If…) → SHARED §6
+(CORRECTING WHAT YOU RECORDED. If…) → SHARED §8
 
 Usage:
   feov-record manifest-row [flags]
 
 Flags:
-      --correction-why string   → SHARED §7
-      --corrects string         → SHARED §8
+      --correction-why string   → SHARED §5
+      --corrects string         → SHARED §6
   -h, --help                    help for manifest-row
       --id gap-id               the gap id this receipt covers
       --reason string           the receipt: what you checked, and what checking it showed
 
-(Global Flags:) → SHARED §5
+(Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record motion docket file --help
 file a docket motion — the tool assigns its id.
@@ -1277,7 +1286,7 @@ Flags:
       --id string       REQUIRED for a docket motion
       --reason string   → SHARED §11
 
-(Global Flags:) → SHARED §5
+(Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record motion grade appeal --help
 press a grade motion after a ruling — a ruling is an ARGUMENT, not a command, so the losing side may answer it on the record.
@@ -1296,13 +1305,13 @@ Usage:
   feov-record motion grade appeal [flags]
 
 Flags:
-      --correction-why string   → SHARED §7
-      --corrects string         → SHARED §8
+      --correction-why string   → SHARED §5
+      --corrects string         → SHARED §6
   -h, --help                    help for appeal
       --id string               the motion id (M1, M2 …) — the motion being appealed, which must already have been ruled
       --reason string           → SHARED §11
 
-(Global Flags:) → SHARED §5
+(Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record motion grade file --help
 file a grade motion — the tool assigns its id.
@@ -1334,7 +1343,7 @@ Enumerated values:
     impact      how bad the consequence is if it lands
     complexity  what fixing it costs — the axis to contest when the fix is worth more than the defect
 
-(Global Flags:) → SHARED §5
+(Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record motion inquiry appeal --help
 press an inquiry motion after a ruling — a ruling is an ARGUMENT, not a command, so the losing side may answer it on the record.
@@ -1353,13 +1362,13 @@ Usage:
   feov-record motion inquiry appeal [flags]
 
 Flags:
-      --correction-why string   → SHARED §7
-      --corrects string         → SHARED §8
+      --correction-why string   → SHARED §5
+      --corrects string         → SHARED §6
   -h, --help                    help for appeal
       --id string               the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number — the motion being appealed, which must already have been ruled
       --reason string           → SHARED §11
 
-(Global Flags:) → SHARED §5
+(Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record motion petition file --help
 file a petition motion — the tool assigns its id.
@@ -1390,7 +1399,7 @@ Enumerated values:
     ethical         proceeding would require acting against the interests of someone the run affects
     constitutional  the instruction itself conflicts with the rules the run is bound by
 
-(Global Flags:) → SHARED §5
+(Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record position --help
 your sitting's position — the argument the other side answers, rendered as this sitting's BLUE section
@@ -1409,12 +1418,12 @@ Usage:
   feov-record position [flags]
 
 Flags:
-      --correction-why string   → SHARED §7
-      --corrects string         → SHARED §8
+      --correction-why string   → SHARED §5
+      --corrects string         → SHARED §6
   -h, --help                    help for position
       --reason string           your sitting's argument — your THINKING, not your process. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
-(Global Flags:) → SHARED §5
+(Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record prove --help
 settle a claim by RUNNING something, when computing the answer beats arguing about it
@@ -1435,12 +1444,16 @@ YOUR NOTE IS PRINTED IN THE REPORT, as this computation's footnote and as its he
 
 (X=$(cat <<'EOF') → SHARED §4
 
+(CORRECTING WHAT YOU RECORDED. If…) → SHARED §12
+
 Usage:
   feov-record prove [flags]
 
 Flags:
       --answers gap-id          the gap id this computation settles (G4) — REQUIRED to close a gap red minted with --check-kind computation, which prose cannot answer
       --cites citation-anchor   the citation label of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed
+      --correction-why string   → SHARED §5
+      --corrects string         → SHARED §6
       --expect-error            this proof's POINT is a failing command (a path that must be absent, a tool that must be missing) — record the environment error as the result instead of refusing it
   -h, --help                    help for prove
       --key string              → SHARED §10
@@ -1448,7 +1461,7 @@ Flags:
       --reason string           the proof note — printed in the report as this computation's footnote, so say what it SHOWS about the subject, not what happened while you ran it
       --script string           REQUIRED — path under the run directory of the program that settles it (.py, .js, .mjs, .sh or .go)
 
-(Global Flags:) → SHARED §5
+(Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record register --help
 your first act at EVERY sitting, and the one call that needs your seat id — nothing else runs until it does
@@ -1465,7 +1478,7 @@ Usage:
 Flags:
   -h, --help   help for register
 
-(Global Flags:) → SHARED §5
+(Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record retire --help
 take a claim out of the report, when it cannot stand and no edit will save it
@@ -1491,7 +1504,7 @@ Flags:
       --quote string    REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs — the claim being removed, as it stood before you edited it out
       --reason string   REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
-(Global Flags:) → SHARED §5
+(Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record revision --help
 your revision — what changed this sitting, once, after your edits have landed
@@ -1512,12 +1525,12 @@ Usage:
   feov-record revision [flags]
 
 Flags:
-      --correction-why string   → SHARED §7
-      --corrects string         → SHARED §8
+      --correction-why string   → SHARED §5
+      --corrects string         → SHARED §6
   -h, --help                    help for revision
       --reason string           what changed this sitting. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
-(Global Flags:) → SHARED §5
+(Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record show --help
 read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK.
@@ -1547,7 +1560,7 @@ Flags:
   -h, --help        help for show
       --id string   scope the changes projection to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
 
-(Global Flags:) → SHARED §5
+(Global Flags:) → SHARED §7
 
 Use "feov-record show [command] --help" for more information about a command.
 ==============================================================================

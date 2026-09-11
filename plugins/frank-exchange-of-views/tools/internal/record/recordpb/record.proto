@@ -241,7 +241,7 @@ enum EventType {
   EVENT_TYPE_AVENUE = 3 [(correct) = CORRECTION_TIER_PROSE, (means) = "a line of inquiry, from proposed through pursued, declined, deferred or abandoned"];
   EVENT_TYPE_BLUE_EDIT = 4 [(correct) = CORRECTION_TIER_NONE, (means) = "a change to the report, recorded as old and new so the edit itself is auditable"];
   EVENT_TYPE_CERTIFY = 5 [(correct) = CORRECTION_TIER_PROSE, (means) = "a seat's signed statement about its own work — what it asserts on the record"];
-  EVENT_TYPE_CITE = 6 [(correct) = CORRECTION_TIER_NONE, (means) = "a source brought into the debate, with the hash and access date that make it re-checkable"];
+  EVENT_TYPE_CITE = 6 [(correct) = CORRECTION_TIER_PROSE, (means) = "a source brought into the debate, with the hash and access date that make it re-checkable"];
   EVENT_TYPE_CLASS_NEW = 7 [(correct) = CORRECTION_TIER_NONE, (means) = "a defect class coined in this run, with its definition and the neighbour it is distinguished from"];
   EVENT_TYPE_CLOSE = 8 [(correct) = CORRECTION_TIER_PROSE, (means) = "red closing a gap on a verified repair — red's half of the closing vocabulary"];
   EVENT_TYPE_CLOSING = 9 [(correct) = CORRECTION_TIER_FULL, (means) = "a seat's closing statement on a gap: the argument, not the disposition"];
@@ -262,7 +262,7 @@ enum EventType {
   reserved "EVENT_TYPE_OPINION";
   EVENT_TYPE_OUTCOME = 22 [(correct) = CORRECTION_TIER_PROSE, (means) = "the run's terminal act: how it ended and whether the question was answered"];
   EVENT_TYPE_POSITION = 23 [(correct) = CORRECTION_TIER_FULL, (means) = "a seat's stated position going into its sitting"];
-  EVENT_TYPE_PROOF = 24 [(correct) = CORRECTION_TIER_NONE, (means) = "a script that was RUN, with its hash and exit status — the answer a computation check demands"];
+  EVENT_TYPE_PROOF = 24 [(correct) = CORRECTION_TIER_PROSE, (means) = "a script that was RUN, with its hash and exit status — the answer a computation check demands"];
   EVENT_TYPE_REGRADE = 25 [(correct) = CORRECTION_TIER_FULL, (means) = "a gap's grade changed, with the basis for the change"];
   EVENT_TYPE_REPRODUCE = 26 [(correct) = CORRECTION_TIER_PROSE, (means) = "an attempt to re-run a recorded proof, and whether what it computes is sound"];
   EVENT_TYPE_RETIRE = 27 [(correct) = CORRECTION_TIER_NONE, (means) = "a claim retired from the report, with the reason and what supersedes it"];
@@ -976,11 +976,14 @@ message Cite {
   optional string label = 1;
   optional string url = 2;
   optional string sha256 = 3;
-  optional string title = 4;
-  optional string location = 5;
+  // title is the Bibliography entry and text the argument for the source — the seat's own wording,
+  // the part a same-sitting correction may change. The label, url, hash, location and access date
+  // identify the source and place its marker; a correction carries them unchanged.
+  optional string title = 4 [(prose) = true];
+  optional string location = 5 [(prose) = false, (sql) = { flag: "quote" }];
   optional string access_date = 6;
   optional string cite_key = 7;
-  optional string text = 9;
+  optional string text = 9 [(prose) = true, (sql) = { flag: "reason" }];
 
   // HOW MUCH OF IT WAS READ. Not `required`: the verb defaults it to UNREAD, so the conservative
   // claim costs a seat nothing and only a stronger one is asserted.
@@ -1070,7 +1073,10 @@ message Proof {
   // party to the exchange that could not say what happened. Absent means the two runs agreed.
   optional string drift = 6;
 
-  optional string text = 7;
+  // text is the proof's note, printed as its footnote — the seat's own wording, the part a
+  // same-sitting correction may change. What ran, its hash, exit and anchoring site are the
+  // execution's facts, and a correction carries them unchanged.
+  optional string text = 7 [(prose) = true, (sql) = { flag: "reason" }];
 
   // script and exit are the execution's own facts, and they belong here for the same reason:
   // `report/proofs.go` renders both, and a reader of the record should not have to open a
@@ -1085,7 +1091,7 @@ message Proof {
   // report is REPLAYED from the record, and the projection re-places the `<!--proof:p-…-->` marker
   // by re-locating this quote. A site recoverable only from a spliced marker is a fact the record
   // could not state; this field is that fact, held where a writer can refuse a wrong value.
-  optional string location = 11;
+  optional string location = 11 [(prose) = false, (sql) = { flag: "quote" }];
 }
 
 // Reproduce is red re-running a proof. REPRODUCING IS NOT PROVING: `reproduced` is COMPUTED by

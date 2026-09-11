@@ -59,7 +59,7 @@ INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('base_ingest
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('blue_edit', 'a change to the report, recorded as old and new so the edit itself is auditable', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('cast', 'the run''s admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('certify', 'a seat''s signed statement about its own work — what it asserts on the record', 'prose');
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('cite', 'a source brought into the debate, with the hash and access date that make it re-checkable', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('cite', 'a source brought into the debate, with the hash and access date that make it re-checkable', 'prose');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('class_new', 'a defect class coined in this run, with its definition and the neighbour it is distinguished from', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('close', 'red closing a gap on a verified repair — red''s half of the closing vocabulary', 'prose');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('closing', 'a seat''s closing statement on a gap: the argument, not the disposition', 'full');
@@ -78,7 +78,7 @@ INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('motion_rule
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('observe', 'an observation recorded without a claim attached to it', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('outcome', 'the run''s terminal act: how it ended and whether the question was answered', 'prose');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('position', 'a seat''s stated position going into its sitting', 'full');
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('proof', 'a script that was RUN, with its hash and exit status — the answer a computation check demands', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('proof', 'a script that was RUN, with its hash and exit status — the answer a computation check demands', 'prose');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('register', 'a seat took its seat — the first act of any seat, stamping the tool version it ran under', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('regrade', 'a gap''s grade changed, with the basis for the change', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('reproduce', 'an attempt to re-run a recorded proof, and whether what it computes is sound', 'prose');
@@ -1276,6 +1276,8 @@ LEFT JOIN "events" lre ON lre."id" = lr."event_id";
 --   edit   → a=old span, b=new span (blue edit's splice, located and replaced at replay);
 --            exact=1 when the edit recorded exact_span, so replay locates a AS WRITTEN.
 --   insert → a=the anchoring quote, b=the marker id (Token(b) is spliced at that quote); exact=0.
+--            A cite or proof corrected in its sitting inserts nothing new: the replacement carries
+--            the original's label, and the render skips a marker the text already holds.
 --   remove → a=an anchor id a retire took out with its claim (Token(a) and the husk it leaves
 --            are removed). One row per named anchor; a retire recorded before the field names
 --            none, so an old record replays exactly as it did. exact=0.

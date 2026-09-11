@@ -104,8 +104,10 @@ func CitedSources(run Run) ([]Source, error) {
 	}
 	seen := map[string]bool{}
 	var out []Source
-	for i := range m.Events {
-		body, ok := recordpb.Body(m.Events[i])
+	// THE ACTS THAT STAND: a cite corrected in its sitting is read as its replacement, in its place,
+	// so the first-seen label carries the corrected title rather than the struck one.
+	for _, e := range Live(m.Events) {
+		body, ok := recordpb.Body(e)
 		if !ok {
 			// No body at all, so nothing to cite. The old code reached the same answer by a
 			// different route: Payload.Str on an absent key returned "", which the label
@@ -355,8 +357,9 @@ func RecordedProofs(run Run) ([]Proof, error) {
 	// subject is whether the computation held — the plausible zero this migration exists to
 	// remove. The schema decision is the lead's; the compile error is the loud miss.
 	var out []Proof
-	for i := range m.Events {
-		e := m.Events[i]
+	// THE ACTS THAT STAND: a proof corrected in its sitting is read as its replacement, in its
+	// place, so the Proofs section prints the corrected note once rather than the struck one.
+	for _, e := range Live(m.Events) {
 		body, ok := recordpb.Body(e)
 		if !ok {
 			continue
