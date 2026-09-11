@@ -65,8 +65,13 @@ func MintInquiryID(run Run) (string, error) {
 	// non-NULL column and is not counted, exactly as the fold's pointer test had it.
 	var n int
 	if _, err := queryRow(run, []any{&n},
-		`SELECT count(*) FROM "avenue" WHERE COALESCE("avenue_id", '') != '' AND "supersedes_status" IS NULL`); err != nil {
-		return "", err
+		`SELECT count(*) FROM "avenue" a JOIN "live_event" l ON l."event_id" = a."event_id"
+		  WHERE COALESCE(a."avenue_id", '') != '' AND a."supersedes_status" IS NULL`); err != nil {
+		// A record older than the live_event view holds no correction to discount.
+		if _, err := queryRow(run, []any{&n},
+			`SELECT count(*) FROM "avenue" WHERE COALESCE("avenue_id", '') != '' AND "supersedes_status" IS NULL`); err != nil {
+			return "", err
+		}
 	}
 	return fmt.Sprintf("Q%d", n+1), nil
 }
@@ -118,6 +123,8 @@ type Inquiry struct {
 
 // InquiriesOf is Inquiries over the events themselves, for the run-shaped readers.
 func InquiriesOf(evs []*Event) []*Inquiry {
+	// The acts that stand: a proposal or move corrected in its sitting is read as its replacement.
+	evs = Live(evs)
 	byID := map[string]*Inquiry{}
 	var order []string
 	var clk Clock
@@ -318,6 +325,7 @@ func InquiryRuling(run Run, inquiryID string) string {
 
 // InquiryReviewDueOf is InquiryReviewDue over the events themselves.
 func InquiryReviewDueOf(evs []*Event) bool {
+	evs = Live(evs)
 	if len(InquiriesOf(evs)) == 0 {
 		return false
 	}

@@ -41,7 +41,7 @@ func tallyByGap(f record.Family) map[string]*perGap {
 		}
 		return m[id]
 	}
-	for _, e := range f.Events {
+	for _, e := range f.Live() {
 		// THE BODY IS THE TYPE. A closing carries its OWN gap_id field, so the id is read off
 		// the message that holds it rather than off a key that might sit on anything — and an
 		// event with no body has no gap to attribute, which is not the same fact as an event
@@ -119,7 +119,7 @@ func seatFlowMermaid(f record.Family) string {
 	byEpoch := map[int]map[string]*seat{}
 	var epochs []int
 	var clk record.Clock
-	for _, e := range f.Events {
+	for _, e := range f.Live() {
 		epoch, seatID := clk.Advance(e).Epoch, e.GetSeatId()
 		if byEpoch[epoch] == nil {
 			byEpoch[epoch] = map[string]*seat{}

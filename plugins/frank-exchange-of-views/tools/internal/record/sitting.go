@@ -241,7 +241,7 @@ func (s SittingJSON) Blocked() bool {
 // `"spot-check"` used to get a silent false — a duty that reads as undischarged forever, or as
 // discharged when it was not, depending on which side of the comparison drifted.
 func seatDid(evs []*Event, seatID string, typ recordpb.EventType) bool {
-	for _, e := range evs {
+	for _, e := range Live(evs) {
 		if e.GetSeatId() == seatID && e.GetType() == typ {
 			return true
 		}

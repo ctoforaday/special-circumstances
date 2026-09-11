@@ -371,7 +371,7 @@ func factBox(fam record.Family, evs []*record.Event) string {
 // belongs in a document rather than stacked under a heading that reads as parallel asks.
 func supersededAsks(evs []*record.Event) string {
 	var all []string
-	for _, e := range evs {
+	for _, e := range record.Live(evs) {
 		if c, ok := recordpb.BodyAs[*recordpb.Certify](e); ok {
 			if s := strings.TrimSpace(c.GetStatement()); s != "" {
 				all = append(all, s)

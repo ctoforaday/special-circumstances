@@ -565,6 +565,15 @@ func (l Listed) Markdown(text string) string {
 	return "~~" + text + "~~ (struck by " + l.Struck.By + ": " + l.Struck.Why + ")"
 }
 
+// Strike is Markdown without the note, for a line rendered in parts: every part of a struck act is
+// struck, and the one part that carries Markdown says who struck it and why.
+func (l Listed) Strike(text string) string {
+	if l.Struck == nil {
+		return text
+	}
+	return "~~" + text + "~~"
+}
+
 // Listing is the stream a LISTING renders — the ONE home of that order, as Live is of a fold's.
 // The acts that stand, in Live's order, each replacement preceded by the acts it struck (oldest
 // first), each of those marked. So a reader sees the struck wording where the act stood, the

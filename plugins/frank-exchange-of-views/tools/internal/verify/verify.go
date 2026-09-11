@@ -305,7 +305,7 @@ const (
 // a contradiction — the record says the run resolved everything, and it did not.
 func passClosesAllGaps(f record.Family) Check {
 	var verdict recordpb.Verdict
-	for _, e := range f.Events {
+	for _, e := range f.Live() {
 		if e.GetType() != passVerdictType {
 			continue
 		}
@@ -417,7 +417,7 @@ type Stats struct {
 // Compute tallies the record. Read-only, one replay.
 func Compute(f record.Family) Stats {
 	s := Stats{Events: map[string]int{}}
-	for _, e := range f.Events {
+	for _, e := range f.Live() {
 		// The tally is keyed on the event type's SCHEMA SPELLING, so `motion-rule` reads
 		// `motion_rule` here and in `feov verify`'s event line. The type is an enum value now
 		// and recordpb.Word is the one place its word is derived.
@@ -442,7 +442,7 @@ func Compute(f record.Family) Stats {
 	}
 	findingLabels := map[string]bool{}
 	withClosing, withDispute, withDisposition := map[string]bool{}, map[string]bool{}, map[string]bool{}
-	for _, e := range f.Events {
+	for _, e := range f.Live() {
 		// COUNTED ON THE TYPE, NOT THE BODY. A verify event with an unreadable body is still a
 		// verification red performed; gating this on the body would let a decode gap silently
 		// shrink red's audit volume. Red's verifications only — blue's authored cites are not

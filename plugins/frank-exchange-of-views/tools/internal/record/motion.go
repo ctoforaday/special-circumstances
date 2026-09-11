@@ -287,6 +287,9 @@ func (m Motion) Ruled() bool { return m.Ruling != "" }
 // MotionsOf is Motions over the events themselves — the stream is all the join ever read, and
 // the run-shaped readers (plans/board-as-views.md wave 1c) fetch events without a fold.
 func MotionsOf(evs []*Event) []*Motion {
+	// The acts that stand: a ruling or appeal corrected in its sitting is read as its replacement,
+	// in its place, so the first-wins answer is the corrected one and never a second ruling.
+	evs = Live(evs)
 	byID := map[string]*Motion{}
 	var order []string
 

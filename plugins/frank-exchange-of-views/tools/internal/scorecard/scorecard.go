@@ -341,7 +341,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	manifestedGaps := map[string]bool{}
 	var owed []string
 	if fam != nil {
-		for _, e := range fam.Events {
+		for _, e := range fam.Live() {
 			// COUNTED BY EVENT TYPE, not by a readable body. `manifested` is the value this row
 			// falls back to when no denominator exists, so an event of this type whose body did
 			// not decode must still be counted — a short count would read as a low one, which is
@@ -414,7 +414,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 		sat := map[string]bool{}
 		closed := map[string]bool{}
 		seen := map[string]int{}
-		for _, e := range fam.Events {
+		for _, e := range fam.Live() {
 			seat := e.GetSeatId()
 			switch e.GetType() {
 			case recordpb.EventType_EVENT_TYPE_REGISTER:
@@ -436,7 +436,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 		// distribution is the reading the type field exists to replace, and a channel that only
 		// ever says `nominal` is not proof the system worked — it is proof nobody reported.
 		byType := map[string]int{}
-		for _, e := range fam.Events {
+		for _, e := range fam.Live() {
 			if l, ok := recordpb.BodyAs[*recordpb.Log](e); ok {
 				byType[recordpb.Word(l.GetType())]++
 			}
@@ -480,7 +480,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	// record written before the field credits no retire.
 	retires, events := 0, 0
 	if fam != nil {
-		for _, e := range fam.Events {
+		for _, e := range fam.Live() {
 			r, ok := recordpb.BodyAs[*recordpb.Retire](e)
 			if !ok {
 				continue

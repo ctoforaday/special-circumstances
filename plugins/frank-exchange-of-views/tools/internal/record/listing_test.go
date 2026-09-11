@@ -71,3 +71,72 @@ func TestEventsOfACorrectableTypeCarriesItsCorrections(t *testing.T) {
 		t.Errorf("the positions standing on a narrowed read = %q, want only the corrected one", texts)
 	}
 }
+
+func correctionOf(t *testing.T, seat, key string) *Event {
+	return recordtest.At(t, seat, seat+":correction:"+key, &recordpb.Correction{
+		Corrects: proto.String(key), Replacement: proto.String(key + "~1"), Why: proto.String("a word was lost")})
+}
+
+// THE JSON LISTINGS CARRY A STRUCK ACT AS A FIELD, not as struck-through prose a reader would have
+// to parse back out: the log entry is listed with its `struck`, and not counted; the debate's
+// arrays hold what stands and the epoch's `struck` holds what was corrected.
+func TestJSONListingsCarryTheStruckActAsAField(t *testing.T) {
+	pos := func(s string) *recordpb.Position { return &recordpb.Position{Text: proto.String(s)} }
+	evs := []*Event{
+		recordtest.At(t, "blue-respond", "blue-respond:log:#1", seatLog("the tool  refused")),
+		recordtest.At(t, "blue-respond", "blue-respond:position:#1", pos("the report is  now")),
+		recordtest.At(t, "blue-respond", "blue-respond:log:#1~1", seatLog("the tool refused the cite")),
+		correctionOf(t, "blue-respond", "blue-respond:log:#1"),
+		recordtest.At(t, "blue-respond", "blue-respond:position:#1~1", pos("the report is sound now")),
+		correctionOf(t, "blue-respond", "blue-respond:position:#1"),
+	}
+	lj := LogJSONOf(evs)
+	if len(lj.Log) != 2 || lj.Log[0].Struck == nil || lj.Log[0].Text != "the tool  refused" ||
+		lj.Log[0].Struck.Replacement != "blue-respond:log:#1~1" || lj.Log[1].Struck != nil {
+		t.Errorf("log listing = %+v, want the struck entry marked with its replacement, then the one that stands", lj.Log)
+	}
+	if lj.Counts.Total != 1 {
+		t.Errorf("log total = %d, want 1 — a corrected entry is one entry", lj.Counts.Total)
+	}
+	dj := DebateJSONOfEvents(evs)
+	if len(dj.Epochs) != 1 {
+		t.Fatalf("%d epochs", len(dj.Epochs))
+	}
+	ep := dj.Epochs[0]
+	if strings.Join(ep.Blue, "|") != "the report is sound now" {
+		t.Errorf("blue = %q, want only the position that stands", ep.Blue)
+	}
+	if len(ep.Struck) != 1 || ep.Struck[0].Text != "the report is  now" || ep.Struck[0].By != "blue-respond" || ep.Struck[0].Type != "position" {
+		t.Errorf("struck = %+v, want the corrected position, with who struck it", ep.Struck)
+	}
+}
+
+// THE FIRST-WINS ANSWER IS THE CORRECTED ONE. A ruling its ruler corrected in the sitting is read as
+// its replacement, in its place — not as the struck ruling first-wins would otherwise quote, and not
+// as a second ruling.
+func TestMotionsReadACorrectedRulingAsTheOneThatStands(t *testing.T) {
+	ruling := func(opinion string) *recordpb.MotionRule {
+		return &recordpb.MotionRule{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+			Opinion: proto.String(opinion),
+			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED), Principle: proto.String("p"),
+				Tension: proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s"), ReopensOn: proto.String("r")}}}
+	}
+	k := "judge:motion_rule:#1"
+	evs := []*Event{
+		recordtest.At(t, "red-chair", "red-chair:motion:#1", &recordpb.Motion{MotionId: proto.String("M1"),
+			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET), Basis: proto.String("red cannot settle G1"),
+			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}),
+		recordtest.At(t, "judge", k, ruling("because  refuses")),
+		recordtest.At(t, "judge", k+"~1", ruling("because the gate refuses")),
+		correctionOf(t, "judge", k),
+	}
+	ms := MotionsOf(evs)
+	if len(ms) != 1 || ms[0].Opinion != "because the gate refuses" {
+		var got []string
+		for _, m := range ms {
+			got = append(got, m.ID+": "+m.Opinion)
+		}
+		t.Errorf("motions = %q, want M1 answered by the corrected ruling", got)
+	}
+}

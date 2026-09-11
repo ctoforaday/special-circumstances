@@ -30,6 +30,8 @@ import "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-vi
 // audit's finding, not the manifest's. A second register inside a sitting (the sitting-record
 // re-prompt) changes nothing.
 func ManifestOwed(evs []*Event) []string {
+	// The acts that stand: a corrected close or row is read as its replacement, in its place.
+	evs = Live(evs)
 	var owed []string
 	seen := map[string]bool{}
 	var engaged []string
@@ -77,6 +79,7 @@ func ManifestOwed(evs []*Event) []string {
 // ManifestUnreceipted is ManifestOwed less every gap a manifest-row event names, in the same order:
 // the repairs nobody audited, including their author.
 func ManifestUnreceipted(evs []*Event) []string {
+	evs = Live(evs)
 	rowed := map[string]bool{}
 	for _, e := range evs {
 		if mr, ok := recordpb.BodyAs[*recordpb.ManifestRow](e); ok && mr.GetGapId() != "" {

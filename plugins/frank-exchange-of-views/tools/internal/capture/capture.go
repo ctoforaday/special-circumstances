@@ -1353,6 +1353,9 @@ type ruling struct {
 // That is a change to WHAT law/proposed contains, not to where the harvest reads; it wants its
 // own decision. Named here so the smaller scope is visible rather than silent.
 func rulingsFromRecord(evs []*record.Event) []ruling {
+	// Struck prose never reaches law: a ruling or declaration corrected in its sitting is harvested
+	// as the act that stands.
+	evs = record.Live(evs)
 	if evs == nil {
 		return nil
 	}

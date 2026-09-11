@@ -223,7 +223,7 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 	// so each source carries its own; the rest are corroboration and stand alone.
 	byAnchor := map[string][]EvidenceVerificationJSON{}
 	var clk Clock
-	for _, e := range evs {
+	for _, e := range Live(evs) {
 		w := clk.Advance(e)
 		// BodyAs returns false for BOTH no body and a body of another type. Neither is a
 		// verification, and neither is rendered as a check with every field blank.
@@ -270,7 +270,7 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 	// Red's re-runs, keyed by the proof sha they checked — the one join the record supports.
 	reruns := map[string]*EvidenceReproductionJSON{}
 	clk = Clock{}
-	for _, e := range evs {
+	for _, e := range Live(evs) {
 		w := clk.Advance(e)
 		r, ok := recordpb.BodyAs[*recordpb.Reproduce](e)
 		if !ok {
@@ -289,7 +289,7 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 	}
 
 	clk = Clock{}
-	for _, e := range evs {
+	for _, e := range Live(evs) {
 		w := clk.Advance(e)
 		// TWO ARMS, so this stays `Body` plus a type switch rather than two `BodyAs` passes:
 		// one walk of the events, and an event is a cite or a proof or neither.

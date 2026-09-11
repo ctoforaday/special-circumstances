@@ -30,6 +30,8 @@ func GapStates(run Run) ([]*Gap, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The acts that stand: a corrected close, regrade or ruling is folded as its replacement.
+	evs = Live(evs)
 	mints := map[string]*recordpb.Mint{}
 	regrades := map[string][]*recordpb.Regrade{}
 	for _, e := range evs {
