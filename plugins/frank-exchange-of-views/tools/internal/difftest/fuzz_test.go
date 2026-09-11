@@ -1,14 +1,17 @@
 package difftest
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
@@ -99,7 +102,10 @@ func TestReplayDeterminism(t *testing.T) {
 	for i := range seqs {
 		seqs[i] = generate(rng, fuzzMaxLen)
 	}
+	// THE CORRECTION TOUR, after the random sequences so they are drawn exactly as before.
+	seqs = append(seqs, correctionTour(rng))
 	drawn, landed := map[string]int{}, map[string]int{}
+	wroteType, correctedType := map[recordpb.EventType]bool{}, map[recordpb.EventType]bool{}
 	refusal := map[string]string{} // the first refusal each arm met, for the guard's message
 	written := 0
 	ran := 0 // sequences whose body ran in this process; a -run filter skips the rest
@@ -122,6 +128,7 @@ func TestReplayDeterminism(t *testing.T) {
 				}
 			}
 			written += first.written
+			tallyCorrectable(first.events[first.setup:], wroteType, correctedType)
 
 			// The log now carries a wall clock, so two identical runs can never be
 			// byte-identical — that is the clock working, not a determinism failure.
@@ -151,10 +158,33 @@ func TestReplayDeterminism(t *testing.T) {
 	// have drawn (a false failure that teaches people to ignore the guard), and passing them would
 	// claim a measurement that was never taken. It skips instead, and says why.
 	t.Run("every arm lands", func(t *testing.T) {
-		if ran < fuzzSequences {
-			t.Skipf("not measured: %d of %d sequences ran (filtered run)", ran, fuzzSequences)
+		if ran < len(seqs) {
+			t.Skipf("not measured: %d of %d sequences ran (filtered run)", ran, len(seqs))
 		}
-		for _, a := range fuzzArms {
+		// EVERY CORRECTABLE TYPE IS WRITTEN AND CORRECTED (plans/same-sitting-correction.md,
+		// criterion 7). The set is read off the schema's tiers, so a type made correctable later
+		// fails here until the generator writes and corrects it.
+		var unwritten, uncorrected []string
+		n := 0
+		vs := recordpb.EventType(0).Descriptor().Values()
+		for i := 0; i < vs.Len(); i++ {
+			typ := recordpb.EventType(vs.Get(i).Number())
+			if recordpb.Word(typ) == "" || recordpb.Tier(typ) == recordpb.CorrectionTier_CORRECTION_TIER_NONE {
+				continue
+			}
+			n++
+			if !wroteType[typ] {
+				unwritten = append(unwritten, recordpb.Word(typ))
+			}
+			if !correctedType[typ] {
+				uncorrected = append(uncorrected, recordpb.Word(typ))
+			}
+		}
+		t.Logf("correctable types: %d; written %d, corrected %d", n, n-len(unwritten), n-len(uncorrected))
+		if len(unwritten) > 0 || len(uncorrected) > 0 {
+			t.Errorf("over the seed set the generator never wrote %v and never corrected %v", unwritten, uncorrected)
+		}
+		for _, a := range append(append([]fuzzArm{}, fuzzArms...), correctionArms...) {
 			t.Logf("%-28s landed %2d/%-2d", a.name, landed[a.name], drawn[a.name])
 			switch {
 			case drawn[a.name] == 0:
@@ -180,6 +210,8 @@ type replayResult struct {
 	stderrs []string // raw stderr per command, in order
 	// written counts the events the generated commands added, the round-0 setup excluded.
 	written int
+	// setup is how many of events the round-0 setup and prologue wrote.
+	setup int
 }
 
 func replay(t *testing.T, bin string, cmds []cmd) replayResult {
@@ -199,22 +231,41 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 			"--check-kind", "document", "--check", "re-read the section", "--severity", "medium",
 			"--likelihood", "medium", "--impact", "medium", "--problem", problem}
 	}
-	for _, pre := range []cmd{
+	prologue := []cmd{
 		{verb: "register", args: []string{"--run", "{RUN}", "--seat-id", "red-lens-evidence"}},
 		{verb: "mint", args: mintArgs("the open gap the fuzz starts from")},
 		{verb: "mint", args: mintArgs("the gap the fuzz starts with before the bench")},
 		{verb: "motion", args: []string{"docket", "file", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "G2",
 			"--reason", "contested, and not red's to close"}},
-	} {
+	}
+	// A RECORDED PROOF, for a sequence with a reproduce in it — and only for one, so the sequences
+	// that name none start from the board they always did. Its sha is read off the record.
+	vars := map[string]string{}
+	if namesVar(cmds, "{PROOF}") {
+		if err := os.WriteFile(filepath.Join(runDir, "fuzz-proof.js"), []byte("console.log('fuzz proof');\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		prologue = append(prologue, cmd{verb: "prove", args: []string{"--run", "{RUN}", "--seat-id", "blue-respond",
+			"--quote", "A claim sits under S2.", "--script", "{RUN}/fuzz-proof.js", "--reason", "the computation a lens re-runs"}})
+	}
+	for _, pre := range prologue {
 		if inv := runGo(bin, runDir, pre); inv.code != 0 {
 			t.Fatalf("fuzz prologue %s %v: exit %d\nstderr: %s", pre.verb, pre.args, inv.code, inv.stderr)
 		}
 		m.observe(filepath.Join(runDir, "records"))
 	}
-	setupEvents := len(collect(t, runDir, m).events)
-	res := replayResult{}
+	setup := collect(t, runDir, m).events
+	setupEvents := len(setup)
+	for _, ev := range setup {
+		if p, ok := ev["proof"].(map[string]any); ok {
+			vars["{PROOF}"], _ = p["proof_sha"].(string)
+		}
+	}
+	res := replayResult{setup: setupEvents}
 	for _, c := range cmds {
+		c.args = fillVars(c.args, vars)
 		inv := runGo(bin, runDir, c)
+		envelopeVars(inv.stdout, vars)
 		m.observe(filepath.Join(runDir, "records"))
 		got := normalizeOutput(inv, runDir, m)
 		res.output = append(res.output, fmt.Sprintf("exit=%d out=%q err=%q", got.code, got.stdout, got.stderr))
@@ -261,6 +312,10 @@ type fuzzArm struct {
 	seats  []string
 	verb   []string // the verb path, first word first: {"motion", "grade", "file"}
 	flags  func(rng *rand.Rand) []string
+	// steps, when set, builds SEVERAL commands for the arm's seat — a correction arm's
+	// prerequisites, its act and the correction. Only the step labelled with the arm's own name is
+	// what "every arm lands" measures.
+	steps func(rng *rand.Rand, seat string) []cmd
 }
 
 // fuzzArms is weighted toward the lens, since that is where validation, lineage, and id minting
@@ -361,6 +416,177 @@ var fuzzArms = []fuzzArm{
 			}
 			return f
 		}},
+}
+
+// correctionArms drive same-sitting correction (plans/same-sitting-correction.md): one per
+// correctable event type, each on a seat whose tree has the verb — the lens's close, regrade and
+// reproduce; blue's and the chair's position and closing; the bench's declare, certify, halt and
+// outcome. Every arm writes its act with --json, so the key the correction names is read off the
+// envelope's field rather than out of the success line.
+//
+// KEPT OUT OF fuzzArms, so the random sequences are drawn exactly as they were measured. They run
+// as ONE extra sequence, the correction tour, in which each arm is drawn once, in this order: the
+// acts on G1 before the closure that ends it, the outcome before the halt that would make it
+// derivable.
+var correctionArms = []fuzzArm{
+	corrArm("blue manifest-row corrected", blueSeats, []string{"manifest-row"}, func(t string) []string { return []string{"--id", "G1", "--reason", t} }, nil),
+	corrArm("blue revision corrected", blueSeats, []string{"revision"}, reasonOnly, nil),
+	corrArm("blue position corrected", blueSeats, []string{"position"}, reasonOnly, nil),
+	corrArm("chair position corrected", []string{"red-chair"}, []string{"position"}, reasonOnly, nil),
+	corrArm("blue closing corrected", blueSeats, []string{"closing"}, func(t string) []string { return []string{"--id", "G1", "--reason", t} }, nil),
+	corrArm("chair closing corrected", []string{"red-chair"}, []string{"closing"}, func(t string) []string { return []string{"--id", "G1", "--reason", t} }, nil),
+	corrArm("log corrected", []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}, []string{"log"},
+		func(t string) []string { return []string{"--type", "defect", "--reason", t} }, nil),
+	corrArm("chair inquiry-support corrected", []string{"red-chair"}, []string{"inquiry-support"}, reasonOnly, nil),
+	corrArm("chair spot-check corrected", []string{"red-chair"}, []string{"spot-check"}, func(t string) []string { return []string{"--none", "--reason", t} }, nil),
+	corrArm("lens regrade corrected", []string{"red-lens-evidence"}, []string{"regrade"},
+		func(t string) []string { return []string{"--id", "G1", "--severity", "high", "--reason", t} }, nil),
+	corrArm("chair motion grade rule corrected", []string{"red-chair"}, []string{"motion", "grade", "rule"},
+		func(t string) []string { return []string{"--id", "{MOTION}", "--as", "rejected", "--reason", t} },
+		func(name string) []cmd { return []cmd{fileGradeMotion(name)} }),
+	corrArm("blue motion grade appeal corrected", []string{"blue-respond"}, []string{"motion", "grade", "appeal"},
+		func(t string) []string { return []string{"--id", "{MOTION}", "--reason", t} },
+		func(name string) []cmd {
+			return []cmd{fileGradeMotion(name), fuzzStep(name+" · setup", []string{"motion", "grade", "rule"}, "red-chair",
+				"--id", "{MOTION}", "--as", "rejected", "--reason", "the evidence does not reach it")}
+		}),
+	corrArm("bench motion docket rule corrected", []string{"judge"}, []string{"motion", "docket", "rule"},
+		func(t string) []string {
+			return []string{"--id", "M1", "--as", "carried", "--principle", "p", "--tension", "t", "--review-flag", "r",
+				"--settled", "the proposition this ruling bars", "--final", "--reason", t}
+		}, nil),
+	corrArm("blue line-of-inquiry propose corrected", blueSeats, []string{"line-of-inquiry", "propose"},
+		func(t string) []string { return []string{"--reason", t, "--hypothesis", "it would settle something"} }, nil),
+	corrArm("lens reproduce corrected", []string{"red-lens-evidence"}, []string{"reproduce"},
+		func(t string) []string { return []string{"--id", "{PROOF}", "--as", "sound", "--reason", t} }, nil),
+	corrArm("bench declare corrected", []string{"judge"}, []string{"declare"}, reasonOnly, nil),
+	corrArm("bench certify corrected", []string{"judge"}, []string{"certify"}, reasonOnly, nil),
+	corrArm("bench outcome corrected", []string{"judge"}, []string{"outcome"},
+		func(t string) []string { return []string{"--as", "UNVERIFIED", "--reason", t} }, nil),
+	corrArm("lens close corrected", []string{"red-lens-evidence"}, []string{"close"},
+		func(t string) []string {
+			return []string{"--id", "G1", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "report.md#S1", "--reason", t}
+		}, nil),
+	corrArm("bench halt corrected", []string{"judge"}, []string{"halt"}, reasonOnly, nil),
+}
+
+func reasonOnly(t string) []string { return []string{"--reason", t} }
+
+func fileGradeMotion(name string) cmd {
+	return fuzzStep(name+" · setup", []string{"motion", "grade", "file"}, "blue-respond",
+		"--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", "the consequence is bounded", "--json")
+}
+
+// fuzzStep is one command, spelled as its seat types it.
+func fuzzStep(arm string, verb []string, seat string, flags ...string) cmd {
+	args := append(append([]string{}, verb[1:]...), "--run", "{RUN}", "--seat-id", seat)
+	return cmd{verb: verb[0], args: append(args, flags...), arm: arm}
+}
+
+// corrArm is a correction arm: `before` builds its prerequisites, then the act — whose only free
+// text differs from the correction's — then the correction naming it by {KEY}.
+func corrArm(name string, seats, verb []string, flagsFor func(text string) []string, before func(name string) []cmd) fuzzArm {
+	return fuzzArm{name: name, weight: 1, seats: seats, verb: verb, steps: func(rng *rand.Rand, seat string) []cmd {
+		const lost, whole = "as first recorded, with a word  lost", "as it was meant, whole"
+		var out []cmd
+		if before != nil {
+			out = before(name)
+		}
+		out = append(out, fuzzStep(name+" · act", verb, seat, append(flagsFor(lost), "--json")...))
+		fix := fuzzStep(name, verb, seat, append(flagsFor(whole), "--corrects", "{KEY}", "--correction-why", "a word was lost")...)
+		switch rng.Intn(6) {
+		case 0:
+			// A RETRY of the same correction answers with the act that stands and writes nothing.
+			retry := fix
+			retry.arm = name + " · retry"
+			return append(out, fix, retry)
+		case 1:
+			// A NO-OP correction — the act's own text — is refused before the real one lands.
+			noop := fuzzStep(name+" · no-op", verb, seat, append(flagsFor(lost), "--corrects", "{KEY}", "--correction-why", "nothing")...)
+			return append(out, noop, fix)
+		}
+		return append(out, fix)
+	}}
+}
+
+// correctionTour is one sequence holding every correction arm once.
+func correctionTour(rng *rand.Rand) []cmd {
+	var out []cmd
+	for _, a := range correctionArms {
+		out = append(out, a.steps(rng, pick(rng, a.seats))...)
+	}
+	return out
+}
+
+// namesVar reports whether any command in a sequence names a placeholder.
+func namesVar(cmds []cmd, v string) bool {
+	for _, c := range cmds {
+		for _, a := range c.args {
+			if strings.Contains(a, v) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// fillVars substitutes the placeholders a correction arm names — {KEY}, {MOTION}, {PROOF} — into a
+// COPY of the arguments, since both replays of a sequence share its commands.
+func fillVars(args []string, vars map[string]string) []string {
+	out := make([]string, len(args))
+	for i, a := range args {
+		for k, v := range vars {
+			a = strings.ReplaceAll(a, k, v)
+		}
+		if strings.Contains(a, "{KEY}") || strings.Contains(a, "{MOTION}") {
+			a = strings.NewReplacer("{KEY}", "", "{MOTION}", "").Replace(a)
+		}
+		out[i] = a
+	}
+	return out
+}
+
+// envelopeVars reads the placeholders off a --json envelope: the act's `key`, and a filing's
+// `motion_id`. A refusal's envelope carries no key, so {KEY} empties and the correction that names
+// it is refused rather than aimed at an older act. Output that is not an envelope changes nothing.
+func envelopeVars(stdout string, vars map[string]string) {
+	var env struct {
+		OK     *bool  `json:"ok"`
+		Key    string `json:"key"`
+		Result struct {
+			MotionID string `json:"motion_id"`
+		} `json:"result"`
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(stdout)), &env) != nil || env.OK == nil {
+		return
+	}
+	vars["{KEY}"] = env.Key
+	if env.Result.MotionID != "" {
+		vars["{MOTION}"] = env.Result.MotionID
+	}
+}
+
+// tallyCorrectable marks the correctable types a replay wrote, and the types whose act it corrected
+// (the type of the event a correction names as its replacement).
+func tallyCorrectable(evs []map[string]any, wrote, corrected map[recordpb.EventType]bool) {
+	typeOf := map[string]recordpb.EventType{}
+	for _, ev := range evs {
+		name, _ := ev["type"].(string)
+		typ := recordpb.EventType(recordpb.EventType_value[name])
+		if k, _ := ev["key"].(string); k != "" {
+			typeOf[k] = typ
+		}
+		if recordpb.Tier(typ) != recordpb.CorrectionTier_CORRECTION_TIER_NONE {
+			wrote[typ] = true
+		}
+	}
+	for _, ev := range evs {
+		if c, ok := ev["correction"].(map[string]any); ok {
+			if r, _ := c["replacement"].(string); typeOf[r] != 0 {
+				corrected[typeOf[r]] = true
+			}
+		}
+	}
 }
 
 // generate builds one sequence from fuzzArms, each command spelled exactly as its seat types it:
