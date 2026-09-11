@@ -1,9 +1,9 @@
 ## menu
 
-your per-sitting vote on whether the report still carries a direction blue proposed
+your one read per sitting of the report's account of its lines of inquiry — required before a PASS
 
 ## detail
 
-Read the report ONCE this sitting and vote every line against that read.
+Read the report ONCE this sitting and record what it says at the lines the record claims this run investigated.
 
-The question is whether the REPORT still carries the line, not whether the line was a good idea.
+Presence is not the question — the lines are generated from the record. The question is whether the BODY delivered the research; a shortfall is an ordinary gap, not a vote.

@@ -245,23 +245,22 @@ func newMint() *cobra.Command {
 	// word as the flag's value shape. They sat around a COMMAND, so `--class` advertised its value
 	// as "lens class new": a phrase from the prose offered to a seat as the thing to type. The
 	// command is named without them, and the placeholder is the shape actually wanted.
-	c.Flags().String(flags.Class, "", "the gap's `slug` — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb")
+	c.Flags().String(flags.Class, "", "the gap's `slug` — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb")
 	flags.Text(c, flags.Quote, flags.DescQuote)
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
-		"anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE. The same pair the lens finding verb takes")
-	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an avenue id, or a gap id. "+
-		"It is CHECKED against the record, which a borrowed quote never was")
+		"anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE")
+	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, a line-of-inquiry id (Q1), or a gap id. It is CHECKED against the record")
 	flags.Text(c, flags.Problem, "what is wrong (or pass it via --reason)")
 	flags.Text(c, flags.Fix, "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
-	flags.Text(c, flags.New, "OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. Bounded — a replacement more than 120 characters longer than the span is refused as AUTHORING, because a substantive addition is blue's to write and you say so in --fix. Its presence is what DERIVES fix_basis: verified")
+	flags.Text(c, flags.New, fmt.Sprintf("concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than %d characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified", bluedoc.MaxProposalGrowth))
 	flags.Text(c, flags.Check, "the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description")
-	enumhelp.Flag(c, flags.CheckKind, record.MustEnum("mint", "check_kind"), ("what would SETTLE that check — read a document, RUN a computation, or verify a source. A `computation` check cannot be closed by prose: it closes only when a proof answers this gap"))
+	enumhelp.Flag(c, flags.CheckKind, record.MustEnum("mint", "check_kind"), ("what would SETTLE that check"))
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage("how bad this is"))
-	c.Flags().Var(&likelihood, flags.Likelihood, "how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what the grade meant before v2 split them")
-	c.Flags().Var(&impact, flags.Impact, "how bad the consequence is if it lands")
-	c.Flags().Var(&cx, flags.Complexity, "what fixing it costs, on the same scale")
+	c.Flags().Var(&likelihood, flags.Likelihood, flags.DescLikelihood)
+	c.Flags().Var(&impact, flags.Impact, flags.DescImpact)
+	c.Flags().Var(&cx, flags.Complexity, flags.DescComplexity+", on the same scale")
 	c.Flags().Var(&supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; lineage is never dropped")
-	c.Flags().Var(&foundBy, flags.FoundBy, "comma-separated lens findings that surfaced it (L5-F3,L6-F2)")
+	c.Flags().Var(&foundBy, flags.FoundBy, "comma-separated lens findings that surfaced it (evidence-F3,logic-F2)")
 	// THE GAP ID IS REQUIRED OF THE RECORD AND SUPPLIED BY THE VERB — declared here, at the code
 	// that does the supplying, so the fact and what makes it true cannot drift apart. Without it
 	// the contract gate reads "mint declares gap_id required and registers no --id" and is right

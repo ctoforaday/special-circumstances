@@ -164,7 +164,7 @@ func newInquiryMove() *cobra.Command {
 		return inquiryResult{ID: id, Status: recordpb.Word(body.GetStatus()), Moved: true, VoiceTells: tells}, nil
 	}), "avenue"))
 
-	c.Flags().Var(flags.InquiryID().WithCheck(record.InquiryExists), flags.ID, "`inquiry-id` — the line of inquiry whose fate you are moving (A1, A2 …); the lines-of-inquiry projection lists every one")
+	c.Flags().Var(flags.InquiryID().WithCheck(record.InquiryExists), flags.ID, "the line of inquiry whose fate you are moving (Q1, Q2 …); the lines-of-inquiry projection lists every one")
 	_ = c.MarkFlagRequired(flags.ID)
 	// THE VALUES ARE NOT RE-LISTED HERE. The hand-written line this replaced carried FOUR of the
 	// five statuses — `deferred` had been added to InquiryStatuses and never to the string — and

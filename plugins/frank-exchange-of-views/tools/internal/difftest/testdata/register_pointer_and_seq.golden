@@ -34,17 +34,17 @@ an entry for the operator who can retool you — what it asserts, said in the po
 
 An event that survives aborts, so something you hit is on the record even if the sitting does not finish.
 
-SAY WHAT THE ENTRY ASSERTS. The reader triages this channel by FILTERING on that, instead of reading every entry to find out which it was — so the assertion is the field that makes the channel worth reading at all. An impediment you are merely NOTING has its own word, and is not a request for change: it does not have to be actionable, or advisable.
+SAY WHAT THE ENTRY ASSERTS: the operator triages this channel by FILTERING on it instead of reading every entry, so it is the field that makes the channel worth reading. An impediment you are merely NOTING has its own word, and is not a request for change.
 
-MOST REFUSALS ARE YOURS and belong in no entry: a wrong verb, a wrong flag, a bad quote — take the correction and move on. A refusal naming a verb you cannot find, or a fact the record holds and no view will show you, IS the finding: report it instead of engineering around it, because a workaround leaves no trace and a missing capability then looks exactly like one nobody wanted.
+MOST REFUSALS ARE YOURS and belong in no entry — a wrong verb, flag or quote: take the correction and move on. A refusal naming a verb you cannot find, or a fact the record holds that no view shows you, IS the finding: report it rather than engineer around it, because a workaround leaves no trace and the missing capability then looks exactly like one nobody wanted.
 
-THE LEDGER HOLDS WHAT YOU DID, so an entry that recounts it says nothing the record cannot reconstruct. The acts are events, in order, with their own fields — which verbs you ran, which help pages you read, what you ran first. An entry retelling that is a diary, and the operator triaging this channel has to read all of it to find the one sentence that was for them. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a sitting. A clean sitting says so in one line and stops.
+THE LEDGER HOLDS WHAT YOU DID — which verbs you ran, which help pages you read, in what order — so an entry retelling it is a diary the operator must read through to find the one sentence meant for them. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a sitting. A clean sitting says so in one line and stops.
 
-YOUR AUDIENCE IS THE OPERATOR, not the other seats. This channel is read by whoever can retool you; it is not material for the debate, and nothing here is answered by the other side.
+YOUR AUDIENCE IS THE OPERATOR who can retool you, not the other seats: nothing here is debate material, and the other side answers none of it.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
+needed and what you would have done with 'log', as a request — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
@@ -61,22 +61,22 @@ Usage:
   feov-record log [flags]
 
 Flags:
-  -h, --help            help for log
-      --reason string   your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as "$X" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words
-      --type nominal    REQUIRED — REQUIRED — what this entry asserts. nominal is the clean sitting said in the positive; `friction` is an impediment you are NOTING and which may be neither actionable nor advisable to change
+  -h, --help              help for log
+      --reason string     the entry: what you concluded about the tooling
+      --type type-value   REQUIRED — what this entry asserts
 
 Enumerated values:
   --type
-    nominal   the surface met the work — the clean sitting, said in the POSITIVE, because an entry saying nothing is still an entry and silence cannot say it
+    nominal   the surface met the work — the clean sitting, said in the POSITIVE: silence cannot say it
     defect    something is broken: it did the wrong thing, or failed where it should have worked
     request   a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong
     friction  the work was impeded and you are NOTING it; NOT necessarily actionable and not necessarily advisable to change, which is why it has its own word rather than posing as a defect
 
 Global Flags:
-      --json               emit a structured JSON result (and structured errors) instead of human text
-      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --schema             print the event-schema epoch this binary writes, and exit
-      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
+      --schema           print the event-schema epoch this binary writes, and exit
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
 
 $ finding --run {RUN} --seat-id red-lens-logic --key F1 --severity medium --likelihood high --impact medium --quote ## S2 --reason unfounded leap
 exit 0

@@ -176,8 +176,10 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	// from --version's prose — the string-shaped hope this repository keeps deleting.
 	root.PersistentFlags().Bool(flags.Schema, false, "print the event-schema epoch this binary writes, and exit")
 
-	root.PersistentFlags().String(flags.Run, "", "the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed")
-	root.PersistentFlags().String(flags.SeatID, "", "your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at `register`, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed")
+	root.PersistentFlags().String(flags.Run, "", "the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused")
+	// NO BACKTICKS AROUND `register`: cobra takes the first backquoted word as the flag's
+	// placeholder, and it rendered `--seat-id register`.
+	root.PersistentFlags().String(flags.SeatID, "", "your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused")
 	// --json makes every mutating verb emit a structured result and every failure a
 	// structured error, so a machine consumer parses fields instead of prose. On READS the
 	// format is primarily view-selected: board/findings/work/motions/telemetry/evidence are JSON

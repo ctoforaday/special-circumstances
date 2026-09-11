@@ -400,7 +400,7 @@ func TestRoleHelpCarriesTheFrictionFooter(t *testing.T) {
 			if !strings.Contains(out, "it does not exist for you") {
 				t.Errorf("%s help lacks the friction footer:\n%s", role, out)
 			}
-			if !strings.Contains(out, "'friction' verb") {
+			if !strings.Contains(out, "with 'log', as a request") {
 				t.Errorf("%s help does not name the friction channel:\n%s", role, out)
 			}
 		})

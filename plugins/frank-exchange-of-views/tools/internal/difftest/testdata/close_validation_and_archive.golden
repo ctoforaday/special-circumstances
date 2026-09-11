@@ -36,11 +36,11 @@ close a gap with the verification you did THIS sitting, naming what you checked 
 
 THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS SITTING, by you — who verified it, with what, and against which exact file or ref.
 
-For a closure the record already holds — work an earlier sitting did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
+A closure the record already holds — work an earlier sitting did — is the chair's to restate with `carry`, which needs no triple because it makes no fresh claim. Re-closing it here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
+needed and what you would have done with 'log', as a request — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
@@ -57,10 +57,10 @@ Usage:
   feov-record close [flags]
 
 Flags:
-      --as as-value               HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word
+      --as as-value               HOW the gap ended — the same words the bench's dispositions use
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
-      --reason string             REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as "$X" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words
+      --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
       --verified-against string   AGAINST WHAT — the exact file, ref or URL read
       --verified-by string        WHO verified it — the seat that read the evidence
@@ -77,10 +77,10 @@ Enumerated values:
     moot                      the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about. NOT not_a_defect, which asserts blue's argument held, and NOT repaired, which asserts a verified fix
 
 Global Flags:
-      --json               emit a structured JSON result (and structured errors) instead of human text
-      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --schema             print the event-schema epoch this binary writes, and exit
-      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
+      --schema           print the event-schema epoch this binary writes, and exit
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
 
 $ close --run {RUN} --seat-id red-lens-evidence --id G2 --verified-by L1 --verified-with git show --verified-against 7bc501e:x
 exit 2
@@ -91,11 +91,11 @@ close a gap with the verification you did THIS sitting, naming what you checked 
 
 THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS SITTING, by you — who verified it, with what, and against which exact file or ref.
 
-For a closure the record already holds — work an earlier sitting did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
+A closure the record already holds — work an earlier sitting did — is the chair's to restate with `carry`, which needs no triple because it makes no fresh claim. Re-closing it here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
+needed and what you would have done with 'log', as a request — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
@@ -112,10 +112,10 @@ Usage:
   feov-record close [flags]
 
 Flags:
-      --as as-value               HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word
+      --as as-value               HOW the gap ended — the same words the bench's dispositions use
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
-      --reason string             REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as "$X" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words
+      --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
       --verified-against string   AGAINST WHAT — the exact file, ref or URL read
       --verified-by string        WHO verified it — the seat that read the evidence
@@ -132,10 +132,10 @@ Enumerated values:
     moot                      the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about. NOT not_a_defect, which asserts blue's argument held, and NOT repaired, which asserts a verified fix
 
 Global Flags:
-      --json               emit a structured JSON result (and structured errors) instead of human text
-      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --schema             print the event-schema epoch this binary writes, and exit
-      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
+      --schema           print the event-schema epoch this binary writes, and exit
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
 
 $ close --run {RUN} --seat-id red-lens-evidence --id G1 --as repaired_with_regression --verified-by L1 --verified-with git show --verified-against 7bc501e:x
 exit 2
@@ -146,11 +146,11 @@ close a gap with the verification you did THIS sitting, naming what you checked 
 
 THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS SITTING, by you — who verified it, with what, and against which exact file or ref.
 
-For a closure the record already holds — work an earlier sitting did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
+A closure the record already holds — work an earlier sitting did — is the chair's to restate with `carry`, which needs no triple because it makes no fresh claim. Re-closing it here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
+needed and what you would have done with 'log', as a request — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
@@ -167,10 +167,10 @@ Usage:
   feov-record close [flags]
 
 Flags:
-      --as as-value               HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word
+      --as as-value               HOW the gap ended — the same words the bench's dispositions use
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
-      --reason string             REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as "$X" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words
+      --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
       --verified-against string   AGAINST WHAT — the exact file, ref or URL read
       --verified-by string        WHO verified it — the seat that read the evidence
@@ -187,10 +187,10 @@ Enumerated values:
     moot                      the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about. NOT not_a_defect, which asserts blue's argument held, and NOT repaired, which asserts a verified fix
 
 Global Flags:
-      --json               emit a structured JSON result (and structured errors) instead of human text
-      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --schema             print the event-schema epoch this binary writes, and exit
-      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
+      --schema           print the event-schema epoch this binary writes, and exit
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
 
 $ close --run {RUN} --seat-id red-lens-evidence --id G1 --as repaired --verified-by L1 --verified-with WebFetch --verified-against https://example.invalid/spec#s3 --reason refetched; the source now resolves and supports the claim
 exit 0

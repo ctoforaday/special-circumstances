@@ -19,7 +19,7 @@ import (
 func ClosureFlags(c *cobra.Command) {
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id")
 	_ = c.MarkFlagRequired(flags.ID)
-	enumhelp.Flag(c, flags.As, record.MustEnum("close", "closure_class"), ("HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word"))
+	enumhelp.Flag(c, flags.As, record.MustEnum("close", "closure_class"), ("HOW the gap ended — the same words the bench's dispositions use"))
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.SupersededBy, "the gap id carrying the unresolved remainder forward")
 }
 

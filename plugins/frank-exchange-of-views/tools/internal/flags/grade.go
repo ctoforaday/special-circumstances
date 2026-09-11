@@ -94,3 +94,16 @@ func (v *GradeValue) Given() bool { return v != nil && v.set }
 func GradeUsage(what string) string {
 	return what + ": " + strings.Join(GradeNames(), " | ")
 }
+
+// WHAT EACH GRADE AXIS MEANS, ONCE. These were hand-kept on every verb that takes the axis —
+// finding, mint, regrade — and on the grade motion's dimension gloss, and the copies had already
+// drifted ("one grade meant" / "the grade meant").
+//
+// DescLikelihood's "never how likely the defect is to BE there" is the clause the v2 split made
+// necessary: before likelihood and impact were separate axes, one grade meant the likelihood of the
+// defect being present, and a seat that learned it then grades the wrong question now.
+const (
+	DescLikelihood = "how likely the CONSEQUENCE is — never how likely the defect is to BE there"
+	DescImpact     = "how bad the consequence is if it lands"
+	DescComplexity = "what fixing it costs"
+)

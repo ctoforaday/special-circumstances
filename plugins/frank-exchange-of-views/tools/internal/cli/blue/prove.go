@@ -147,12 +147,12 @@ func newProve() *cobra.Command {
 		return proveResult{Label: label, SHA: res.SHA, Basis: res.Basis, Exit: res.Exit, Drift: res.Drift}, nil
 	}))
 
-	flags.Text(c, flags.Quote, flags.DescQuote+". The proof anchor is spliced there")
+	flags.Text(c, flags.Quote, flags.DescQuote)
 	c.Flags().String(flags.Script, "", "REQUIRED — path under the run directory of the program that settles it (.py, .js, .mjs, .sh or .go)")
 	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists), flags.Cites, "the citation label of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed")
 	c.Flags().Bool(flags.ExpectError, false, "this proof's POINT is a failing command (a path that must be absent, a tool that must be missing) — record the environment error as the result instead of refusing it")
 	c.Flags().String(flags.Key, "", flags.DescKey)
-	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this computation settles (R1-4) — REQUIRED to close a gap red minted with --check-kind computation, which prose cannot answer")
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this computation settles (G4) — REQUIRED to close a gap red minted with --check-kind computation, which prose cannot answer")
 	return c
 }
 

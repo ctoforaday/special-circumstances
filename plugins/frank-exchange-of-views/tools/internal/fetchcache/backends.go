@@ -43,6 +43,13 @@ func Vias() []string {
 	return []string{ViaLive, ViaArchive, ViaOA, ViaMetadata, ViaArxiv, ViaEric, ViaAuto}
 }
 
+// AutoOrder is the order `auto` — and a refused live fetch — tries the backends in. One list, read
+// by Recover and by fetch's help, so the page cannot state an order the code does not follow (it
+// did: the help said archive, oa, metadata, arxiv while this ran arxiv first).
+func AutoOrder() []string {
+	return []string{ViaArxiv, ViaArchive, ViaOA, ViaMetadata}
+}
+
 // Attempt is one backend's answer: the bytes it got, and what a citation is entitled to say
 // about them. TextRetrieved false means NO TEXT WAS FETCHED — a record that the source exists,
 // which is `source_text_read: unread` and must never be cited as a reading.
@@ -307,7 +314,7 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 	if via != ViaAuto && via != "" {
 		return try(via)
 	}
-	for _, name := range []string{ViaArxiv, ViaArchive, ViaOA, ViaMetadata} {
+	for _, name := range AutoOrder() {
 		if a := try(name); a != nil {
 			return a
 		}

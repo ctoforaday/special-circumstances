@@ -10,4 +10,4 @@ Three things make a party ready. A lens whose last pin is behind the report head
 
 Empty is the termination signal, not an error. With `pass_permitted` true, no material gap is open and every cast lens has sat against the head: issue the verdict. With `ceiling` true, every open material gap is at its limit and the bench has ruled: the run ends CEILING. Neither: the run ends UNVERIFIED with this plan on the record as the reason.
 
-A gap below material readies nobody. It stays on the BOARD as open and below material — a gap's certification status is the board's fact, and the research report carries no gap rows at all.
+A gap below material readies nobody. It stays on the BOARD as open and below material — its certification status is the board's fact; the research report carries no gap rows.
