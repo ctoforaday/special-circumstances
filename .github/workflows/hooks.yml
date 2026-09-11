@@ -1647,9 +1647,13 @@ jobs:
                 t="${os}-${arch}"
                 work="${RUNNER_TEMP}/cstack"
                 [ -d "${work}/${t}/prefix" ] || third_party/pins/build-cstack.sh "$t" "$work"
-                env $(third_party/pins/build-cstack.sh env "$t" "$work") \
+                # build-cstack.sh env prints `export VAR="…"` lines for eval — the contract tessocr.go
+                # and the C-stack CI job use. The subshell keeps one target's env out of the next.
+                (
+                  eval "$(third_party/pins/build-cstack.sh env "$t" "$work")"
                   CGO_ENABLED=1 GOOS="$os" GOARCH="$arch" \
-                  go build -tags tessocr -trimpath -ldflags "-s -w" -o "${DIST}/${name}_${os}_${arch}${ext}" "./cmd/${name}"
+                    go build -tags tessocr -trimpath -ldflags "-s -w" -o "${DIST}/${name}_${os}_${arch}${ext}" "./cmd/${name}"
+                )
                 third_party/pins/build-cstack.sh check "${DIST}/${name}_${os}_${arch}${ext}"
               else
                 GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "-s -w" -o "${DIST}/${name}_${os}_${arch}${ext}" "./cmd/${name}"
