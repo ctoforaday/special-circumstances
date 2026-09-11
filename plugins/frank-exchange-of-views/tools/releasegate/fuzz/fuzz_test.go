@@ -2453,7 +2453,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// through the record — without this, mint/finding/cite/edit all refuse with "no base has been
 	// ingested". Driven at synthesis, so base_ingest is no longer exempt from the coverage gate.
 	r.register("blue", "blue-synthesize")
-	if _, err := r.exec("ingest", "--seat-id", "blue-synthesize", "--reason", "freeze the round-0 synthesis into the record"); err != nil {
+	if _, err := r.exec("ingest", "--seat-id", "blue-synthesize"); err != nil {
 		return outcome{seed: seed, runDir: runDir, err: "ingest the round-0 report: " + err.Error()}
 	}
 
@@ -4415,7 +4415,7 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 		t.Fatalf("staging the class registry: %v", err)
 	}
 	r.register("blue", "blue-synthesize")
-	if _, err := r.exec("ingest", "--seat-id", "blue-synthesize", "--reason", "freeze the round-0 synthesis into the record"); err != nil {
+	if _, err := r.exec("ingest", "--seat-id", "blue-synthesize"); err != nil {
 		t.Fatalf("ingest the round-0 report: %v", err)
 	}
 	r.forceUnverified = true

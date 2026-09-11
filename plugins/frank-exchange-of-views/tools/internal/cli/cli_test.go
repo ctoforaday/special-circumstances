@@ -128,6 +128,8 @@ func run(t *testing.T, args ...string) (stdout string, err error) {
 	// measure a wire shape the binary does not produce.
 	if err != nil {
 		EmitTopLevelError(&out, args, err)
+	} else {
+		refuseAnUnreadReason(t, root, args)
 	}
 	// The error is STILL RETURNED. The binary exits 2 whether or not it rendered an envelope, so
 	// "this call failed" stays true for the tests that assert a refusal; the envelope is an

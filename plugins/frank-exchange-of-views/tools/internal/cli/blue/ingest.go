@@ -35,8 +35,11 @@ import (
 // authorSeat is the ONE seat allowed to ingest — the round-0 report's author.
 const authorSeat = "blue-synthesize"
 
+// NO PROSE CHANNEL. BaseIngest carries the report and nothing else, so a --reason here had nowhere
+// to go: it was registered (seat.Prose), accepted, and recorded nowhere. The report IS the
+// artifact; a verb with no field for an argument does not accept one.
 func newIngest() *cobra.Command {
-	return seat.Prose(seat.New("ingest", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	return seat.New("ingest", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
 			return nil, err
@@ -101,7 +104,7 @@ func newIngest() *cobra.Command {
 			Bytes:      len(report),
 			VoiceTells: census,
 		}, nil
-	}))
+	})
 }
 
 // voiceCensus renders the whole-document census as lines an author can act on.

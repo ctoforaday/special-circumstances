@@ -3,6 +3,7 @@ package flags
 import (
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/spf13/cobra"
 )
@@ -38,6 +39,10 @@ import (
 // rule's own definition of an alias, and it went.
 type Prose struct {
 	inline string
+	// read is set by Read, so a caller can ask whether the verb that registered this channel ever
+	// resolved it. A channel registered and never read ACCEPTS a seat's words and records them
+	// nowhere: `blue cite` and `blue ingest` both did, and nothing said so (see WasRead).
+	read atomic.Bool
 }
 
 // registry maps a command to the prose channel it registered.
@@ -82,8 +87,18 @@ func ProseOf(c *cobra.Command) *Prose {
 // the quoting rule should not have to think about it. `$(…)` already strips it; a variable filled
 // some other way may not.
 func (p *Prose) Read() string {
+	p.read.Store(true)
 	return strings.TrimRight(p.inline, "\n")
 }
+
+// WasRead reports whether Read has been called on this channel.
+//
+// A GIVEN VALUE THAT NOTHING READ IS A SILENT DROP, and it fails the way every such drop fails: the
+// verb succeeds, the seat believes its argument is on the record, and the record holds nothing.
+// Every read of the channel goes through Read (ReadPayload, seat.Reason), so this is the one place
+// that can tell. The cli test harness asks it after every successful invocation that was given
+// --reason.
+func (p *Prose) WasRead() bool { return p.read.Load() }
 
 // String is the resolved representation.
 func (p *Prose) String() string { return p.Read() }

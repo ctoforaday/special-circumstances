@@ -32,6 +32,12 @@ func newMint() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
+		// The argument is resolved BEFORE the retry check, as `edit` and `prove` resolve theirs: a
+		// retry is the same act, judged on the same inputs, and the first call recorded them.
+		text, err := seat.Reason(cmd)
+		if err != nil {
+			return nil, err
+		}
 		// Crash-retry idempotency: --key (the stable local label, e.g. the source
 		// lens finding) makes a retried mint return the EXISTING id.
 		prior, err := record.ExistingMintByKey(run, s.SeatID, seat.Str(cmd, flags.Key))
@@ -48,10 +54,6 @@ func newMint() *cobra.Command {
 		// it is minted from a fact the record holds, never from the shape of a string a seat
 		// typed — and plans/roundless.md §III.A.3 took the clock out of it entirely.
 		gapID, err := record.MintGapID(run)
-		if err != nil {
-			return nil, err
-		}
-		text, err := seat.Reason(cmd)
 		if err != nil {
 			return nil, err
 		}

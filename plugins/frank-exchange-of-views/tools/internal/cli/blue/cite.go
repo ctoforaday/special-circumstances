@@ -61,6 +61,13 @@ func newCite() *cobra.Command {
 		// nothing — a real source's own title can legitimately carry a tell.
 		tells := spanVoiceTells(title)
 
+		// The argument for the citation is resolved BEFORE the retry check, as `edit` and `prove`
+		// resolve theirs: a retry is the same act, judged on the same inputs.
+		why, err := seat.Reason(cmd)
+		if err != nil {
+			return nil, err
+		}
+
 		// Crash-retry idempotency: a prior cite under this --key returns its label, no
 		// second fetch AND no second anchor (BEFORE any effect).
 		key := seat.Str(cmd, flags.Key)
@@ -125,6 +132,15 @@ func newCite() *cobra.Command {
 			read = v
 		}
 		body.SourceTextRead = &read
+		// THE ARGUMENT FOR THE CITATION goes on the record, in Cite.text — why this source backs
+		// this sentence. It is not printed in the report (the Bibliography prints the title, and a
+		// seat's argument there is exactly the run-voice the report refuses); the `evidence` view
+		// shows it beside the source, where red decides what to verify. This flag was registered
+		// and never read: a seat's reason was accepted and recorded nowhere. Set only when given,
+		// so "no argument offered" stays distinct from an empty one.
+		if seat.Given(cmd, flags.Reason) {
+			body.Text = proto.String(why)
+		}
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
