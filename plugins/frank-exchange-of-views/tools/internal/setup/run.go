@@ -36,6 +36,10 @@ type Config struct {
 	// MaxSittingCalls is the tool calls one seat may make in one sitting before the PreToolUse
 	// hook refuses the rest (internal/sittingcap). Zero means sittingcap.DefaultMaxCalls.
 	MaxSittingCalls int
+	// MaxEpochs is the run's epoch limit; zero is setup's default unless MaxEpochsSet says the
+	// operator passed it, and a value the operator passed below 1 is refused.
+	MaxEpochs    int
+	MaxEpochsSet bool
 	// LensAreas are the red lens areas this run dispatches; empty means record.DefaultCastAreas.
 	// They go on the record as the CAST (plans/roundless.md §III.B.1), which register and the
 	// dispatch verb check every seat against.
@@ -95,6 +99,13 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		}
 		fmt.Fprintln(stderr, "  the engine does not guess a tier or inherit the session model. Pass both, e.g.")
 		fmt.Fprintln(stderr, "  --model sonnet --judgment-model sonnet   (a smoke run passes --model haiku --judgment-model haiku)")
+		return 2
+	}
+
+	// Gate: the epoch limit is 1 or more, before the run dir exists. A limit below 1 would end the
+	// run at its first chair sitting with nothing audited, and record.RunParams refuses to read it.
+	if cfg.MaxEpochs < 0 || (cfg.MaxEpochsSet && cfg.MaxEpochs < 1) {
+		fmt.Fprintf(stderr, "run-setup: --max-epochs %d refused — the run's epoch limit is 1 or more (default %d); refusing to create the run\n", cfg.MaxEpochs, record.DefaultParams.MaxEpochs)
 		return 2
 	}
 
@@ -332,12 +343,15 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	if cfg.ConvergenceFraction > 0 {
 		terms.ConvergenceFraction = cfg.ConvergenceFraction
 	}
+	if cfg.MaxEpochs > 0 {
+		terms.MaxEpochs = cfg.MaxEpochs
+	}
 	maxCalls := sittingcap.DefaultMaxCalls
 	if cfg.MaxSittingCalls > 0 {
 		maxCalls = cfg.MaxSittingCalls
 	}
 	rc := runConfig{Topic: topic, RunDir: run.Dir(), Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect, AllowModelSubstitution: cfg.AllowSubstitution,
-		K: terms.K, KMax: terms.KMax, MintBudget: terms.MintBudget, ConvergenceFraction: terms.ConvergenceFraction,
+		K: terms.K, KMax: terms.KMax, MintBudget: terms.MintBudget, ConvergenceFraction: terms.ConvergenceFraction, MaxEpochs: terms.MaxEpochs,
 		MaxSittingCalls: maxCalls,
 		Hooks:           hookProvenanceAt(homeDir(), "frank-exchange-of-views")}
 	if b, err := marshalJSON(rc); err == nil {
@@ -490,6 +504,7 @@ type runConfig struct {
 	KMax                int     `json:"kMax"`
 	MintBudget          int     `json:"mintBudget"`
 	ConvergenceFraction float64 `json:"convergenceFraction"`
+	MaxEpochs           int     `json:"maxEpochs"`
 	// MaxSittingCalls is read by the PreToolUse hook through sittingcap.Limit, not by
 	// record.Params: the hook may not link the record. The key is sittingcap.ConfigKey.
 	MaxSittingCalls int `json:"maxSittingCalls"`

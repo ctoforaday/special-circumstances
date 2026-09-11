@@ -555,9 +555,9 @@ func buildJudiciary(journal []map[string]any) Judiciary {
 }
 
 // buildSteps segments the progress bar by the EPOCHS THE RECORD HAS SEEN — one step per chair
-// sitting so far, plus the one in progress. There is no ceiling to count toward
-// (plans/roundless.md §III.B.2): the run ends when nobody is ready, and how many sittings that
-// takes is the record's to say, not a launch argument's.
+// sitting so far, plus the one in progress. The run ends when nobody is ready or at its epoch
+// limit, a term setup records (plans/roundless.md §III.B.2); the bar counts what the record has
+// seen, not the limit.
 func buildSteps(seats []Seat) []Step {
 	maxEpoch := 0
 	for _, s := range seats {

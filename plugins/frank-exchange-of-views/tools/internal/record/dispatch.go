@@ -27,8 +27,17 @@ type Plan struct {
 	// "at impasse" are one fact and no seat's discretion sits between a stalled gap and the bench.
 	Docket        []string `json:"docket"`
 	PassPermitted bool     `json:"pass_permitted"` // no material gap open, every cast lens sat against the head, every docket ruled
-	Ceiling       bool     `json:"ceiling"`        // every open material gap is at impasse and has had its bench ruling (carried)
-	Why           []string `json:"why"`            // the readiness of each source, in words a reader can check against the board
+	// Ceiling is the run at its limit, for one of two reasons EpochLimitReached tells apart: every
+	// open material gap is at impasse and has had its bench ruling (carried), or the run's epoch
+	// limit is reached with parties still ready.
+	Ceiling bool `json:"ceiling"`
+	// MaxEpochs is the run's epoch limit (Params.MaxEpochs); 0 when the run is held to none.
+	MaxEpochs int `json:"max_epochs"`
+	// EpochLimitReached: this chair sitting opens the run's last epoch with parties the board
+	// readies, and they are not dispatched — the run ends CEILING. A last epoch with nobody ready
+	// is not at the limit: it ends as any empty plan does.
+	EpochLimitReached bool     `json:"epoch_limit_reached"`
+	Why               []string `json:"why"` // the readiness of each source, in words a reader can check against the board
 }
 
 // material is the severity mass at or above which a gap holds the gate and readies its parties:
@@ -73,8 +82,8 @@ func PlanDispatch(run Run) (Plan, error) {
 	}
 
 	// Source 1: a lens is ready when the head is past its last pin. The pin is the dispatch the
-	// lens SAT for — its register follows the dispatch — not the dispatch row: a lens engaged
-	// that never registered has not sat, and stays ready.
+	// lens SAT for — sittingFor: its register follows the dispatch — not the dispatch row: a lens
+	// engaged that never registered has not sat, and stays ready.
 	evs, _, err := recordsql.EventsW(db)
 	if err != nil {
 		return plan, err
@@ -178,37 +187,108 @@ func PlanDispatch(run Run) (Plan, error) {
 	}
 	plan.PassPermitted = materialOpen == 0 && allLensesSat && !unruledDocket && len(plan.Parties) == 0
 	plan.Ceiling = len(plan.Parties) == 0 && materialOpen > 0 && materialSettled == materialOpen
+
+	// THE EPOCH LIMIT IS A TERM OF THE RUN, read like k and kMax. The chair sitting that opens the
+	// last epoch dispatches nobody: the parties the board readies stay undispatched and the run
+	// ends CEILING. A board that permits PASS there readied nobody, so it is not at the limit and
+	// the chair records the PASS as ever. The docket stands — filing a motion dispatches no seat,
+	// and the terminal bench rules what stays unruled at the exit.
+	plan.MaxEpochs = params.MaxEpochs
+	if params.MaxEpochs > 0 && len(plan.Parties) > 0 && epochOf(evs) >= params.MaxEpochs {
+		plan.Why = append(plan.Why, fmt.Sprintf("epoch limit %d reached — this chair sitting opens the run's last epoch, so the %d party(ies) above are not dispatched", params.MaxEpochs, len(plan.Parties)))
+		plan.Parties = nil
+		plan.EpochLimitReached, plan.Ceiling = true, true
+	}
 	return plan, nil
+}
+
+// epochOf is the epoch the record's clock has reached — one per chair register, the clock every
+// reader of "epoch" uses.
+func epochOf(evs []*Event) int {
+	var clk Clock
+	epoch := 0
+	for _, e := range evs {
+		epoch = clk.Advance(e).Epoch
+	}
+	return epoch
+}
+
+// dispatchRow is one dispatch event: where it sits in the stream, the head it pinned, the seat it
+// named and the gaps it engaged that seat on.
+type dispatchRow struct {
+	at, pin int64
+	seat    string
+	gaps    []string
+}
+
+// dispatchLedger reads the stream once for what "did this seat sit" is decided from: every
+// dispatch row, and each seat's registers, in stream order. seq gives each event's place — the
+// events."id" where the reader has them, the position where it holds only the stream. The
+// predicate compares order and nothing else, so either answers it the same.
+func dispatchLedger(evs []*Event, seq []int64) ([]dispatchRow, map[string][]int64) {
+	var ds []dispatchRow
+	registers := map[string][]int64{}
+	for i, e := range evs {
+		switch b := mustBody(e).(type) {
+		case *recordpb.Register:
+			registers[e.GetSeatId()] = append(registers[e.GetSeatId()], seq[i])
+		case *recordpb.Dispatch:
+			ds = append(ds, dispatchRow{at: seq[i], pin: b.GetPin(), seat: b.GetSeatId(), gaps: b.GetGapIds()})
+		}
+	}
+	return ds, registers
+}
+
+// firstAfter is the first of an ascending sequence that follows at.
+func firstAfter(xs []int64, at int64) (int64, bool) {
+	k := sort.Search(len(xs), func(i int) bool { return xs[i] > at })
+	if k == len(xs) {
+		return 0, false
+	}
+	return xs[k], true
+}
+
+// sittingFor IS THE ONE ANSWER TO "HAS THIS SEAT SAT FOR WHAT IT WAS DISPATCHED FOR": its sitting
+// for a dispatch is its first register after the dispatch row, and a seat that has not registered
+// since has not sat. Every reader of the question asks it here — the lens's pin (lensPins), the
+// bench's sitting for a docketing (benchSatFor, off lensPins' sittings), the exchange count
+// (exchangesOf), and the seat's own work list (owedSitting). An unsat dispatch is why dispatch
+// readies the seat again, and it is why the seat's work list is not complete.
+func sittingFor(registers []int64, d dispatchRow) (int64, bool) {
+	return firstAfter(registers, d.at)
+}
+
+// owedSitting is the latest dispatch naming seatID that the seat has not sat for, by sittingFor.
+// The stream's positions stand in for events.id: evs is in id order.
+func owedSitting(evs []*Event, seatID string) (dispatchRow, bool) {
+	seq := make([]int64, len(evs))
+	for i := range seq {
+		seq[i] = int64(i)
+	}
+	ds, registers := dispatchLedger(evs, seq)
+	for i := len(ds) - 1; i >= 0; i-- {
+		if ds[i].seat != seatID {
+			continue
+		}
+		_, sat := sittingFor(registers[seatID], ds[i])
+		return ds[i], !sat
+	}
+	return dispatchRow{}, false
 }
 
 // lensPins is, per seat, the pin of the last dispatch it SAT for (registered after), and the ids
 // of the registers that followed a dispatch naming the seat (its sittings for dispatches).
 func lensPins(evs []*Event, ids []int64) (map[string]int64, map[string][]int64) {
-	registers := map[string][]int64{}
-	type d struct {
-		id, pin int64
-		seat    string
-		gaps    []string
-	}
-	var ds []d
-	for i, e := range evs {
-		switch b := mustBody(e).(type) {
-		case *recordpb.Register:
-			registers[e.GetSeatId()] = append(registers[e.GetSeatId()], ids[i])
-		case *recordpb.Dispatch:
-			ds = append(ds, d{id: ids[i], pin: b.GetPin(), seat: b.GetSeatId(), gaps: b.GetGapIds()})
-		}
-	}
+	ds, registers := dispatchLedger(evs, ids)
 	pins := map[string]int64{}
 	sat := map[string][]int64{}
-	for _, x := range ds {
-		rs := registers[x.seat]
-		k := sort.Search(len(rs), func(i int) bool { return rs[i] > x.id })
-		if k == len(rs) {
+	for _, d := range ds {
+		r, ok := sittingFor(registers[d.seat], d)
+		if !ok {
 			continue
 		}
-		pins[x.seat] = x.pin
-		sat[x.seat] = append(sat[x.seat], rs[k])
+		pins[d.seat] = d.pin
+		sat[d.seat] = append(sat[d.seat], r)
 	}
 	return pins, sat
 }
