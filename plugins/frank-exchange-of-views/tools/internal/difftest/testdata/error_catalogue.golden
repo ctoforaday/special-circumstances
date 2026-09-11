@@ -1252,103 +1252,119 @@ Global Flags:
       --schema           print the event-schema epoch this binary writes, and exit
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
 
-── blue confidence outside the set
+── verification confidence outside the set
 exit 2
-feov-record: no command named "blue" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
+feov-record: invalid argument "banana" for "--confidence" flag: --confidence must be one of high|medium|low (got "banana") — CONFIDENCE IS IN THE DETERMINATION, WHATEVER THE DETERMINATION WAS. It is orthogonal to --outcome and always has been: `refutes` at low confidence (this source may contradict the claim, I am not certain) and `refutes` at high confidence (I read it, it says the opposite) are different facts, and a reader who cannot tell them apart cannot decide what to do about either.
 
-feov-record — blue seats — revisions, manifest rows, directions. No board verbs at all.
+The original plan specified exactly this — "for each statement ↔ reference pair it assigns a confidence that the source actually corroborates the statement (facts are rarely black and white); low confidence → needs more evidence, blue digs further, not an automatic fail" — and this field is what shipped from it.
+
+It spent time called `--trust`, a rename made in #341 to dodge a collision with `blue confidence` (one word carrying two questions). That verb was DELETED in 0.54.0, so the collision has not existed for six releases while the dodge did — and the substitute word invited its own misreading: `trust` sounds like a property of the SOURCE, so its own value descriptions drifted into a support scale ("the source supports the claim but you had to bridge something"), and the axis read as a positive-only outcome. It is not one; it is how sure you are
+
+    high    you read the source at the leaf and would defend this determination as it stands
+    medium  you are reasonably sure, but the reading bridges something — a summary, a secondary source, a near-restatement rather than the exact statement
+    low     your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further
+
+judge a citation blue authored, when the anchor exists and you have read what it points at
+
+THIS VERB JUDGES A CITATION THAT EXISTS: a claim with NO citation is never verified as `absent`.
+
+Nor is an unevidenced claim automatically a finding: if a source exists and you can reach it, `corroborate` goes and gets it and answers whether the claim is true in the WORLD; `finding` is for when there is nothing to fetch, and answers whether the TEXT stands up.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with 'log', as a request — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
+FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
+your text, and records whatever the command printed — or nothing — in its place. Pass every
+free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
+
+  X=$(cat <<'EOF'
+  your text — backticks, apostrophes and $ signs are all literal here
+  EOF
+  )
+  … "$X"
+
 Usage:
-  feov-record [flags]
-  feov-record [command]
-
-Available Commands:
-  cite            attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
-  claim-index     locate every site of each FOOTNOTED claim in your report (read-only)
-  closing         your closing argument on one docketed gap, when the bench is about to rule on it
-  completion      Generate the autocompletion script for the specified shell
-  count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
-  edit            change the report — the only path into report.md, and how every repair lands
-  fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  help            Help about any command
-  ingest          freeze the synthesized report into the record and remove the file — done once, by its author
-  log             an entry for the operator who can retool you — what it asserts, said in the positive
-  manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
-  manual          every command on your surface, each with its own help, run live — read it once, first thing in a sitting
-  position        your sitting's narrative — the argument the other side answers, rendered as this sitting's BLUE section
-  prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
-  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
-  retire          take a claim out of the report, when it cannot stand and no edit will save it
-  revision        the sitting record — what changed this sitting, once, after your edits have landed
-
-Command groups — each holds commands THIS page does not list:
-  line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
-  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
-  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
+  feov-record verify [flags]
 
 Flags:
-  -h, --help             help for feov-record
+      --access-date YYYY-MM-DD       YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger
+      --anchor <!--cite:c-…-->     the c-<hex> of the citation you checked, from the report's <!--cite:c-…--> token — resolve it with `show evidence`
+      --as as-value                  REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade
+      --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts
+  -h, --help                         help for verify
+      --quote string                 REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs (the claim you are checking)
+      --reason string                REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+
+Enumerated values:
+  --as
+    supports              you read the source at the leaf and it says what the claim says
+    supports_with_bridge  it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement
+    weak                  it gestures at the claim, or is itself uncorroborated: thin support, not none
+    refutes               you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry
+    absent                you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was
+    unreachable           you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried "unable to corroborate" is an incomplete audit
+
+  --confidence
+    high    you read the source at the leaf and would defend this determination as it stands
+    medium  you are reasonably sure, but the reading bridges something — a summary, a secondary source, a near-restatement rather than the exact statement
+    low     your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further
+
+Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
       --schema           print the event-schema epoch this binary writes, and exit
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
-  -v, --version          version for feov-record
-
-Use "feov-record [command] --help" for more information about a command.
 
 ── petition class outside the set
 exit 2
-feov-record: no command named "blue" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
+feov-record: invalid argument "banana" for "--class" flag: --class must be one of integrity|safety|ethical|constitutional (got "banana") — the class is what the seat is ASKING the bench to sit on, and the bench is convened per class; a fifth is a petition heard under whichever standard the ruling seat happened to imagine
 
-feov-record — blue seats — revisions, manifest rows, directions. No board verbs at all.
+    integrity       proceeding would require asserting what you believe false, or burying a real finding
+    safety          proceeding would create or conceal a hazard
+    ethical         proceeding would require acting against the interests of someone the run affects
+    constitutional  the instruction itself conflicts with the rules the run is bound by
 
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with 'log', as a request — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
+file a petition motion — the tool assigns its id.
+
+ONE EVENT, DIFFERENT CONTRACTS: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules).
+
+It raises an ethical, safety, integrity or constitutional objection, heard BEFORE the debate continues.
+
+Any seat may file; exactly one rules, and `rule` appears only on that seat's surface.
+
+FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
+your text, and records whatever the command printed — or nothing — in its place. Pass every
+free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
+
+  X=$(cat <<'EOF'
+  your text — backticks, apostrophes and $ signs are all literal here
+  EOF
+  )
+  … "$X"
 
 Usage:
-  feov-record [flags]
-  feov-record [command]
-
-Available Commands:
-  cite            attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
-  claim-index     locate every site of each FOOTNOTED claim in your report (read-only)
-  closing         your closing argument on one docketed gap, when the bench is about to rule on it
-  completion      Generate the autocompletion script for the specified shell
-  count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
-  edit            change the report — the only path into report.md, and how every repair lands
-  fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  help            Help about any command
-  ingest          freeze the synthesized report into the record and remove the file — done once, by its author
-  log             an entry for the operator who can retool you — what it asserts, said in the positive
-  manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
-  manual          every command on your surface, each with its own help, run live — read it once, first thing in a sitting
-  position        your sitting's narrative — the argument the other side answers, rendered as this sitting's BLUE section
-  prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
-  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
-  retire          take a claim out of the report, when it cannot stand and no edit will save it
-  revision        the sitting record — what changed this sitting, once, after your edits have landed
-
-Command groups — each holds commands THIS page does not list:
-  line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
-  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
-  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
+  feov-record motion petition file [flags]
 
 Flags:
-  -h, --help             help for feov-record
+      --class class-value   REQUIRED for a petition motion
+  -h, --help                help for file
+      --reason string       your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --relief string       REQUIRED for a petition motion
+
+Enumerated values:
+  --class
+    integrity       proceeding would require asserting what you believe false, or burying a real finding
+    safety          proceeding would create or conceal a hazard
+    ethical         proceeding would require acting against the interests of someone the run affects
+    constitutional  the instruction itself conflicts with the rules the run is bound by
+
+Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
       --schema           print the event-schema epoch this binary writes, and exit
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
-  -v, --version          version for feov-record
-
-Use "feov-record [command] --help" for more information about a command.
 
 ── invalid seat id
 exit 2
@@ -1513,7 +1529,7 @@ Use "feov-record [command] --help" for more information about a command.
 
 ── unknown verb
 exit 2
-feov-record: no command named "merge" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
+feov-record: no command named "frobnicate" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
 
 feov-record — the red chair — runs the debate: dispatches, judges the board, carries, spot-checks.
 
@@ -1556,40 +1572,19 @@ Flags:
 
 Use "feov-record [command] --help" for more information about a command.
 
-── unknown role
+── unknown seat
 exit 2
-feov-record: no command named "nonsuch" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
+feov-record: a command was named and the surface is scoped to whoever is asking.
 
-feov-record — the red chair — runs the debate: dispatches, judges the board, carries, spot-checks.
+purple-team does not belong to any role namespace, so it selects no surface. The engine assigns seat ids; a hand-invented one identifies nobody, and a record written under it would be attributed to an identity no dispatch created.
 
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with 'log', as a request — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
+feov-record — the seat-side record runtime (the verb set IS the role boundary)
+
+A lens structurally cannot mint or close a board gap: no such verb exists in its
+namespace. Blue has no board verbs at all. The bench rules and never originates.
 
 Usage:
   feov-record [flags]
-  feov-record [command]
-
-Available Commands:
-  carry           restate an earlier sitting's closure, when the work is done and you are not re-attesting it
-  closing         your closing argument on one docketed gap, when the bench is about to rule on it
-  completion      Generate the autocompletion script for the specified shell
-  count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
-  dispatch        `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
-  fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  help            Help about any command
-  inquiry-support your one read per sitting of the report's account of its lines of inquiry — required before a PASS
-  log             an entry for the operator who can retool you — what it asserts, said in the positive
-  manual          every command on your surface, each with its own help, run live — read it once, first thing in a sitting
-  position        your sitting's narrative — the argument the other side answers, rendered as this sitting's RED section
-  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
-  spot-check      sample the closure archive — a duty every chair sitting owes, including the sittings with nothing to sample
-  verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
-
-Command groups — each holds commands THIS page does not list:
-  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
-  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help             help for feov-record
@@ -1598,6 +1593,4 @@ Flags:
       --schema           print the event-schema epoch this binary writes, and exit
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
   -v, --version          version for feov-record
-
-Use "feov-record [command] --help" for more information about a command.
 

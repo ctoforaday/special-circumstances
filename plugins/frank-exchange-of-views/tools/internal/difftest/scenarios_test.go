@@ -14,7 +14,7 @@ const registry = `{"classes":[{"slug":"propagation-incomplete"},{"slug":"citatio
 const hostile = "quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle <brackets> & ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal\n"
 
 func scenarios() []scenario {
-	base := func(role string, args ...string) cmd { return cmd{role: role, args: args} }
+	base := func(verb string, args ...string) cmd { return cmd{verb: verb, args: args} }
 
 	return []scenario{
 		{
@@ -106,8 +106,11 @@ func scenarios() []scenario {
 					"--severity", "low", "--likelihood", "low", "--impact", "low", "--quote", "## S2", "--reason", "older shard"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
 				{
-					role: "lens",
-					args: []string{"finding", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "F2",
+					// `finding`, not `lens` + "finding": the role-prefixed spelling exited 2 with
+					// `no command named "lens"`, and the golden recorded that refusal as this
+					// scenario's second finding — the newer shard this case is named for was never written.
+					verb: "finding",
+					args: []string{"--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "F2",
 						"--severity", "low", "--likelihood", "low", "--impact", "low", "--quote", "## S2", "--reason", "newer shard"},
 					mtimes: map[string]time.Time{
 						"events-red-lens-evidence-NONCE001.jsonl": time.Unix(1_700_000_000, 0),
@@ -242,10 +245,13 @@ func scenarios() []scenario {
 				base("mint", "--run", "{RUN}", "--seat-id", "blue-respond", "--class", "x"),
 				base("close", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "G1"),
 				base("mint", "--run", "{RUN}", "--seat-id", "judge", "--class", "x"),
-				base("lens", "help"),
-				base("merge", "help"),
-				base("blue", "help"),
-				base("bench", "help"),
+				// Each seat's own tree, which is what a boundary IS now. These rows read
+				// `lens help` … `bench help` and pinned four copies of the `--seat-id IS REQUIRED`
+				// refusal: the role groups are gone, so no row here showed any seat's verbs.
+				base("help", "--seat-id", "red-lens-evidence"),
+				base("help", "--seat-id", "red-chair"),
+				base("help", "--seat-id", "blue-respond"),
+				base("help", "--seat-id", "judge"),
 			},
 		},
 		{
@@ -264,7 +270,9 @@ func scenarios() []scenario {
 			cmds: []cmd{
 				base("mint", "--seat-id", "red-lens-evidence"),
 				base("mint", "--run", "{RUN}"),
-				base("merge", "not-a-verb", "--run", "{RUN}", "--seat-id", "red-chair"),
+				// An unknown verb on a real seat's tree. This was `merge not-a-verb`, which refused
+				// the dead role word `merge` and never reached the verb it names.
+				base("not-a-verb", "--run", "{RUN}", "--seat-id", "red-chair"),
 			},
 		},
 		{
