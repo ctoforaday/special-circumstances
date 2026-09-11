@@ -87,6 +87,9 @@ CREATE TABLE IF NOT EXISTS word (
     -- unique because 66.2% of measured turns carry more than one block.
     block_seq   INTEGER,
     ts          INTEGER NOT NULL,
+    -- role is WHO SPOKE (SpeakerOf), not the message role: user | assistant | peer | notification
+    -- | lead | harness | unknown_origin. 'user' is the human plus what no field separates from
+    -- them — programs' prompts to headless sessions, slash-command and local-command text.
     role        TEXT NOT NULL,
     text        TEXT NOT NULL,
     source      TEXT NOT NULL,          -- payload | transcript
@@ -166,7 +169,12 @@ CREATE VIEW IF NOT EXISTS v_skip AS
 // skipped its existing tables, so every store created before #867 carries a 2 over shape-1
 // columns (first_seen/last_seen), and its v_session fails on the first query. Bumping past it is
 // what lets every such store be recognised as older and rebuilt once.
-const UserVersion = 3
+//
+// WHY 4, WITH NO DDL CHANGE SINCE 3. word.role changed VALUES: it stores who spoke (SpeakerOf)
+// where it stored the message role, so a store projected at 3 holds peer messages, notifications
+// and seat prompts labelled `user`. Only a reprojection relabels them, and a stamp below this one
+// is what triggers the rebuild that does it.
+const UserVersion = 4
 
 // ViewColumns is the contract §V.6 pins, restated here so a test can compare against a
 // declaration rather than against the DDL it is testing.

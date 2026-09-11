@@ -496,16 +496,16 @@ func TestRecognition(t *testing.T) {
 		{"older: shape 1 stamped 2 (this box)", shape1Store(t, t.TempDir(), 2), Older},
 		{"older: complete shape 1 at stamp 0", shape1Store(t, t.TempDir(), 0), Older},
 		{"older: stamp 0 holding only the shape-1 session", fixture(t, shape1Session), Older},
-		{"newer: stamp 4, today's tables", currentAt(t, 4), Newer},
-		{"newer: stamp 4 with an unknown table", func() string {
-			p := currentAt(t, 4)
+		{"newer: a stamp above ours, today's tables", currentAt(t, UserVersion+1), Newer},
+		{"newer: a stamp above ours with an unknown table", func() string {
+			p := currentAt(t, UserVersion+1)
 			db := rawOpen(t, p)
 			mustExec(t, db, `CREATE TABLE future_thing(x)`)
 			db.Close()
 			return p
 		}(), Newer},
-		{"newer: stamp 4 with a session column renamed", func() string {
-			p := currentAt(t, 4)
+		{"newer: a stamp above ours with a session column renamed", func() string {
+			p := currentAt(t, UserVersion+1)
 			db := rawOpen(t, p)
 			mustExec(t, db, `DROP VIEW v_session`, `ALTER TABLE session RENAME COLUMN cwd TO working_dir`)
 			db.Close()
@@ -517,7 +517,7 @@ func TestRecognition(t *testing.T) {
 		{"foreign: session lacking capture_build", fixture(t,
 			`CREATE TABLE session (session_id TEXT, project_dir TEXT, cwd TEXT, first_seen INTEGER, last_seen INTEGER, closed_at INTEGER)`,
 			`CREATE TABLE file_offset(path TEXT)`, `PRAGMA user_version = 1`), Foreign},
-		{"foreign: stamp 4 without file_offset", fixture(t, shape1Session, `CREATE TABLE act(id INTEGER)`, `PRAGMA user_version = 4`), Foreign},
+		{"foreign: a stamp above ours without file_offset", fixture(t, shape1Session, `CREATE TABLE act(id INTEGER)`, fmt.Sprintf(`PRAGMA user_version = %d`, UserVersion+1)), Foreign},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			v, got, tables := classify(t, tc.p)
@@ -700,8 +700,8 @@ func TestARefusedFileIsNeverWritten(t *testing.T) {
 		},
 		{
 			name:   "newer",
-			build:  func(t *testing.T) string { return currentAt(t, 4) },
-			refuse: "is stamped 4 by a newer gray-area",
+			build:  func(t *testing.T) string { return currentAt(t, UserVersion+1) },
+			refuse: fmt.Sprintf("is stamped %d by a newer gray-area", UserVersion+1),
 			mayAdd: map[string]bool{"-wal": true, "-shm": true},
 			empty:  map[string]bool{"-wal": true},
 		},
@@ -948,7 +948,7 @@ func TestOpenReadRefusesEachClassInWords(t *testing.T) {
 		name, p, want string
 	}{
 		{"older", shape1Store(t, t.TempDir(), 2), fmt.Sprintf("is stamped 2; this binary reads shape %d. The next session start or turn end", UserVersion)},
-		{"newer", currentAt(t, 4), fmt.Sprintf("is stamped 4 by a newer gray-area (this binary writes %d)", UserVersion)},
+		{"newer", currentAt(t, UserVersion+1), fmt.Sprintf("is stamped %d by a newer gray-area (this binary writes %d)", UserVersion+1, UserVersion)},
 		{"foreign", fixture(t, `CREATE TABLE ledger(id INTEGER)`), "is not a gray-area catalogue (tables: ledger) — refusing to touch it; check `--store`"},
 		{"fresh", empty, "holds no catalogue yet — let a session run or run `telepathy backfill`"},
 	} {

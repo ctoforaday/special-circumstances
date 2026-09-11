@@ -85,6 +85,30 @@ func TestPromptIDIsResolvedThroughAncestry(t *testing.T) {
 	}
 }
 
+// WHO SPOKE TRAVELS WITH THE WORD. Project cannot know a file's tier, so it carries the record's
+// own origin and meta flag for IngestFile to decide the stored role — and Role stays the message
+// role, which is what every reader of Word.Role before this relied on.
+func TestWordsCarryTheRecordsOrigin(t *testing.T) {
+	peer := `{"uuid":"u2","type":"user","isMeta":true,"origin":{"kind":"peer","name":"s-x"},"timestamp":"2026-09-08T10:00:00Z","message":{"role":"user","content":"Another Claude session sent a message: hello"}}`
+	human := `{"uuid":"u3","type":"user","origin":{"kind":"human"},"timestamp":"2026-09-08T10:00:01Z","message":{"role":"user","content":[{"type":"text","text":"do it"}]}}`
+	compact := `{"uuid":"u4","type":"user","isCompactSummary":true,"timestamp":"2026-09-08T10:00:02Z","message":{"role":"user","content":"This session is being continued."}}`
+	p := Project(strings.NewReader(lines(peer, human, compact)), 0)
+	if len(p.Words) != 3 {
+		t.Fatalf("want 3 words, got %d", len(p.Words))
+	}
+	for i, want := range []Word{
+		{Role: "user", OriginKind: "peer", Meta: true},
+		{Role: "user", OriginKind: "human", Meta: false},
+		{Role: "user", OriginKind: "", Meta: true},
+	} {
+		w := p.Words[i]
+		if w.Role != want.Role || w.OriginKind != want.OriginKind || w.Meta != want.Meta {
+			t.Errorf("word %d (%q) = role %q origin %q meta %v, want role %q origin %q meta %v",
+				i, w.Text, w.Role, w.OriginKind, w.Meta, want.Role, want.OriginKind, want.Meta)
+		}
+	}
+}
+
 // A record whose parent lives in ANOTHER file — record 0 of a resumed or forked transcript, 2 of
 // the 3 unresolved in the measured corpus. It is stored with an empty key, never dropped: a
 // dropped row and a row that never existed are the same silence.

@@ -261,6 +261,9 @@ func TestGoldenOutput(t *testing.T) {
 		// likes and the golden would be recording an accident of the scan order.
 		{"sql-limit-reports-truncation", []string{"sql", "--limit", "2",
 			"SELECT session_id, agent_id, seq, tool FROM v_action ORDER BY session_id, agent_id, seq"}},
+		// WHO SPOKE, as the word tier stores it: one row per speaker the fixture holds, and no
+		// `user` row for a peer, a notification, a seat prompt or harness text.
+		{"sql-word-roles", []string{"sql", "SELECT role, count(*) FROM v_word GROUP BY 1 ORDER BY 1"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			out, errOut, code := h.run(t, tc.args...)
@@ -322,16 +325,53 @@ func TestGoldenFind(t *testing.T) {
 	// is untested. The mint.go hits above are all tool arguments; these three reach the others,
 	// and without them a mutation that classified all assistant text as unknown survived the
 	// whole suite.
-	for _, tc := range []struct{ name, term string }{
-		{"find-channel-assistant", "carriers"},  // "Widening the four carriers." — the agent speaking
-		{"find-channel-user", "widen the gap"},  // the human's prompt
-		{"find-channel-thinking", "four sites"}, // the one thought that carried text
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{"find-channel-assistant", []string{"carriers"}},  // "Widening the four carriers." — the agent speaking
+		{"find-channel-user", []string{"widen the gap"}},  // the human's prompt
+		{"find-channel-thinking", []string{"four sites"}}, // the one thought that carried text
+		// A peer's turn (isMeta, top level) and a peer's mid-turn delivery, in two transcripts.
+		{"find-channel-peer", []string{"conduct section", "--in", "peer"}},
+		// A notification turn, and one delivered mid-turn in a seat by commandMode alone — the
+		// 12-character channel under the widened IN header.
+		{"find-channel-notification", []string{"nightly build"}},
+		// LITERAL TERMS, not --regex: a speaker is decided only for a block that CONTAINS the term,
+		// and a pattern is not re-findable as a substring, so a regex search reports `?`.
+		//
+		// A seat's own prompt, and a coordinator's mid-turn message in another seat.
+		{"find-channel-lead", []string{"every caller"}},
+		// isMeta text at both tiers, and a compaction summary (the newer of main's two hits).
+		{"find-channel-harness", []string{"task tools"}},
+		// The human said it first and the agent repeated it: the row stays, showing the human.
+		{"find-in-any-hit", []string{"ledger column", "--in", "user"}},
 	} {
-		out, _, code := h.run(t, "find", tc.term)
+		out, errOut, code := h.run(t, append([]string{"find"}, tc.args...)...)
 		if code != 0 {
-			t.Fatalf("%s exited %d", tc.name, code)
+			t.Fatalf("%s exited %d, stderr:\n%s", tc.name, code, errOut)
 		}
 		assertGolden(t, tc.name, out)
+	}
+
+	// THE #885 REPRO: a peer's message is not the human's. `--in user` must not return either
+	// transcript that holds it, and must say so in the worded empty result.
+	out, _, code = h.run(t, "find", "conduct section", "--in", "user")
+	if code != 0 {
+		t.Fatalf("--in user exited %d", code)
+	}
+	if strings.Contains(out, catalogue.Short(gammaID)) || strings.Contains(out, catalogue.Short(deltaID)) {
+		t.Errorf("a peer's message was reported as the human's:\n%s", out)
+	}
+	if !strings.Contains(out, `2 transcript(s) contain "conduct section"`) {
+		t.Errorf("the empty result did not count the transcripts that matched:\n%s", out)
+	}
+
+	// The any-hit case is only a case if the NEWEST hit is not the human's: unfiltered, the row
+	// must show the agent, or find-in-any-hit would pass under the old most-recent filter too.
+	out, _, _ = h.run(t, "find", "ledger column")
+	if !strings.Contains(out, "Renaming the ledger column now.") {
+		t.Errorf("the fixture's newest 'ledger column' hit is not the agent's, so --in user proves nothing:\n%s", out)
 	}
 
 	// A channel that cannot exist is a typo, and must be refused rather than filtered to nothing.
@@ -348,6 +388,47 @@ func TestGoldenFind(t *testing.T) {
 		t.Fatalf("exit %d", code)
 	}
 	assertGolden(t, "find-miss", out)
+}
+
+// --in IS NEVER CAPPED. Unfiltered, a row reads at most the newest samplesPerFile records; under a
+// filter that cap is the drop this fixes — a human's hit older than 200 agent repetitions vanished
+// and the transcript read as though the human had never said it. Driven through decodeHits and
+// render directly, because the golden corpus is too small for the cap to bite.
+func TestInReadsEveryHitAndStatesNoCap(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "S.jsonl")
+	body := []string{turnLine("h1", "S", "/w", 10*time.Hour, origin("human"), "the sleeper term, first")}
+	for i := 0; i < samplesPerFile+50; i++ {
+		body = append(body, assistantLine(fmt.Sprintf("a%d", i), "h1", "S", "/w", time.Duration(samplesPerFile+50-i)*time.Minute,
+			map[string]any{"type": "text", "text": "repeating the sleeper term"}))
+	}
+	if err := os.WriteFile(path, []byte(strings.Join(body, "\n")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var locs []fileLine
+	for n := 1; n <= len(body); n++ {
+		locs = append(locs, fileLine{path: path, line: n})
+	}
+	paths := map[string]catalogue.TranscriptFile{path: {Path: path, SessionID: "S"}}
+
+	rows, matched := decodeHits(locs, paths, "sleeper term", "")
+	if len(rows) != 1 || matched != 1 || !rows[0].capped || rows[0].best.Channel != catalogue.ChannelAssistant {
+		t.Fatalf("unfiltered: %d rows, %d matched, %+v — want one capped assistant row", len(rows), matched, rows)
+	}
+
+	rows, matched = decodeHits(locs, paths, "sleeper term", catalogue.ChannelUser)
+	if len(rows) != 1 || matched != 1 {
+		t.Fatalf("--in user: %d rows of %d matched, want the one transcript kept", len(rows), matched)
+	}
+	r := rows[0]
+	if r.capped || r.hits != len(body) || r.best.Channel != catalogue.ChannelUser || !strings.Contains(r.best.Snippet, "first") {
+		t.Errorf("--in user: capped=%v hits=%d channel=%q snippet=%q — want uncapped, %d hits, the human's words",
+			r.capped, r.hits, r.best.Channel, r.best.Snippet, len(body))
+	}
+	var out bytes.Buffer
+	render(&out, rows, false)
+	if strings.Contains(out.String(), "were read for WHEN and SNIPPET") {
+		t.Errorf("a filtered search printed the cap footer:\n%s", out.String())
+	}
 }
 
 // BACKFILL HAS TWO OUTPUTS AND BOTH MATTER: what a cold read reports, and what a repeat reports.

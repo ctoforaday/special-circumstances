@@ -46,13 +46,31 @@ ordered by path answers that only after several more queries.
 
   HITS     matching records in that transcript
   WHEN     the timestamp of the most recent one
-  IN       where it landed: assistant, user, thinking, tool_use, result, or ?
+  IN       where it landed: assistant, user, peer, notification, lead, harness,
+           thinking, tool_use, result, unknown_origin, or ?
 
 IN matters more than it looks, and --in filters on it. This searches the WHOLE
 transcript, while the store's word and thought tiers hold only speech and
-reasoning — so a hit can be a tool result, a task notification or a file path. A
-match in a pasted log is not somebody saying something, and on a term that
-appears in a seat prompt most rows will be exactly that:
+reasoning — so a hit can be a tool result or a file path. A match in a pasted
+log is not somebody saying something.
+
+For text, IN is WHO SPOKE, read from fields the client writes and never from
+the text: peer is another session's message, notification a background task's,
+lead the lead or a workflow coordinator prompting a seat, harness text the
+client injects. A message delivered mid-turn reports its sender the same way.
+user is the human — plus what no field separates from them: prompts programs
+send to headless sessions, and slash-command and local-command text.
+
+  ?               the term is in a part of the record nothing here models
+                  (a cwd, a uuid, queue bookkeeping)
+  unknown_origin  a record whose origin, or whose mid-turn delivery mode, this
+                  binary does not know — upgrade gray-area
+
+Neither is the liveness word "unknown" that agents prints.
+
+--in keeps a transcript if ANY of its hits is in that channel, and the row
+shows the most recent of those; on a term that appears in a seat prompt most
+unfiltered rows are exactly that:
 
   telepathy find 'bench rul' --in assistant   what agents SAID about it
 
@@ -153,24 +171,19 @@ reported as a search that found nothing.`,
 					"telepathy find: INCOMPLETE — ripgrep could not finish, so these hits are a "+
 						"floor and not the answer: %s\n", incomplete)
 			}
-			rows := decodeHits(locs, paths, term)
-			if only != "" {
-				// REFUSE A CHANNEL THAT CANNOT EXIST. `--in asistant` would otherwise filter every
-				// row away and report "none in that channel" — a typo returned as a finding about
-				// the corpus, in the same words a real empty result uses.
-				if !catalogue.ValidChannel(catalogue.Channel(only)) {
-					return usagef("--in %q is not a channel; one of: %s", only, channelList())
-				}
-				matched := len(rows)
-				rows = keepChannel(rows, catalogue.Channel(only))
-				if len(rows) == 0 {
-					// COUNTED IN THE UNIT IT NAMES. `locs` counts matching RECORDS, not
-					// transcripts, and printing one as the other is how a row count becomes a
-					// subject count.
-					fmt.Fprintf(out, "%d transcript(s) contain %q, but none with their most recent hit in %q\n",
-						matched, term, only)
-					return nil
-				}
+			// REFUSE A CHANNEL THAT CANNOT EXIST. `--in asistant` would otherwise filter every row
+			// away and report "none in that channel" — a typo returned as a finding about the
+			// corpus, in the same words a real empty result uses.
+			if only != "" && !catalogue.ValidChannel(catalogue.Channel(only)) {
+				return usagef("--in %q is not a channel; one of: %s", only, channelList())
+			}
+			rows, matched := decodeHits(locs, paths, term, catalogue.Channel(only))
+			if only != "" && len(rows) == 0 {
+				// COUNTED IN THE UNIT IT NAMES. `locs` counts matching RECORDS, not transcripts,
+				// and printing one as the other is how a row count becomes a subject count.
+				fmt.Fprintf(out, "%d transcript(s) contain %q, but none has a hit in %q\n",
+					matched, term, only)
+				return nil
 			}
 			render(out, rows, showPaths)
 			return nil
@@ -179,7 +192,7 @@ reported as a search that found nothing.`,
 	c.Flags().BoolVar(&asRegex, "regex", false,
 		"treat the term as a regular expression rather than a literal (needed for \\b word boundaries)")
 	c.Flags().StringVar(&only, "in", "",
-		"keep only rows whose most recent hit is in this channel: assistant, user, thinking, tool_use, result")
+		"keep only transcripts with ANY hit in this channel, showing the most recent of those: "+channelList())
 	c.Flags().BoolVar(&showPaths, "paths", false,
 		"print the transcript path under each row, for citing the record rather than summarising it")
 	return c
@@ -235,20 +248,16 @@ func channelList() string {
 	return strings.Join(names, ", ")
 }
 
-// keepChannel filters on the channel of the row's most recent hit.
-//
-// The row's HITS count is deliberately NOT recomputed: it counts every matching record in that
-// transcript and continues to, so a narrowed view cannot make a session look quieter than it is.
-// The help says so, because a filtered count that silently means something else is the shape of
-// defect this verb has already produced twice.
-func keepChannel(rows []row, want catalogue.Channel) []row {
-	var out []row
-	for _, r := range rows {
-		if r.best.Channel == want {
-			out = append(out, r)
-		}
+// channelWidth is the IN column's width, DERIVED from the longest channel name. `%-9s` pads but
+// never truncates, so a hand-kept width silently ragged-edges SNIPPET the day a longer channel is
+// added — which is what `notification` and `unknown_origin` would have done to a width sized for
+// `tool_use`.
+func channelWidth() int {
+	w := len("IN")
+	for _, c := range catalogue.Channels {
+		w = max(w, len(c))
 	}
-	return out
+	return w
 }
 
 // row is one session/agent's showing for a term.
@@ -260,8 +269,17 @@ type row struct {
 }
 
 // decodeHits reads the matching records back so each row can carry a time, a channel and a
-// snippet. Only the newest sample per file is kept — it is the one the row describes.
-func decodeHits(locs []fileLine, paths map[string]catalogue.TranscriptFile, term string) []row {
+// snippet, and returns the rows with the number of transcripts that matched at all.
+//
+// UNFILTERED (want == ""), a row describes its newest hit, read from at most samplesPerFile of the
+// newest records. FILTERED, every matching record is read and the row describes the newest hit IN
+// want; a transcript with none is dropped. Filtering on the newest hit alone answered "whose most
+// recent mention was in C" — an earlier match in C vanished, and the empty result read as though
+// C had never said it. Nothing is capped under a filter, because a cap there is the same drop.
+//
+// The row's HITS count is deliberately NOT narrowed: it counts every matching record in that
+// transcript either way, so a filtered view cannot make a session look quieter than it is.
+func decodeHits(locs []fileLine, paths map[string]catalogue.TranscriptFile, term string, want catalogue.Channel) ([]row, int) {
 	byFile := map[string][]int{}
 	var order []string
 	for _, l := range locs {
@@ -271,26 +289,34 @@ func decodeHits(locs []fileLine, paths map[string]catalogue.TranscriptFile, term
 		byFile[l.path] = append(byFile[l.path], l.line)
 	}
 	var rows []row
+	matched := 0
 	for _, path := range order {
 		f, ok := paths[path]
 		if !ok {
 			continue // a file ripgrep saw and the store does not name; not ours to report
 		}
-		want := byFile[path]
-		r := row{f: f, hits: len(want)}
-		read := want
-		if len(read) > samplesPerFile {
+		matched++
+		lines := byFile[path]
+		r := row{f: f, hits: len(lines)}
+		read := lines
+		if want == "" && len(read) > samplesPerFile {
 			// The tail of a transcript is its recent end, and this row reports the most recent
 			// hit — so when the cap bites it must bite on the OLD end.
 			read = read[len(read)-samplesPerFile:]
 			r.capped = true
 		}
-		for _, h := range recordsAt(path, read, term) {
-			if h.TS >= r.best.TS {
-				r.best = h
+		found := false
+		for _, h := range recordsAt(path, read, term, f.AgentID != "") {
+			if want != "" && h.Channel != want {
+				continue
+			}
+			if !found || h.TS >= r.best.TS {
+				r.best, found = h, true
 			}
 		}
-		rows = append(rows, r)
+		if found {
+			rows = append(rows, r)
+		}
 	}
 	// NEWEST FIRST — the whole point of the change. Ties break on path so the output is stable
 	// for a golden and diffable against yesterday's.
@@ -300,14 +326,15 @@ func decodeHits(locs []fileLine, paths map[string]catalogue.TranscriptFile, term
 		}
 		return rows[i].f.Path < rows[j].f.Path
 	})
-	return rows
+	return rows, matched
 }
 
-// recordsAt reads the given 1-indexed lines of a file and decodes each.
+// recordsAt reads the given 1-indexed lines of a file and decodes each. inSubagent is whether the
+// file is a subagent or workflow transcript, which decides who a no-origin prompt came from.
 //
 // One sequential pass, never a seek per line: a transcript runs to hundreds of megabytes, the
 // wanted lines are already ascending, and this stops at the last one it needs.
-func recordsAt(path string, lines []int, term string) []catalogue.Hit {
+func recordsAt(path string, lines []int, term string, inSubagent bool) []catalogue.Hit {
 	want := map[int]bool{}
 	last := 0
 	for _, n := range lines {
@@ -326,7 +353,7 @@ func recordsAt(path string, lines []int, term string) []catalogue.Hit {
 	sc.Buffer(make([]byte, 0, 256*1024), 64*1024*1024)
 	for n := 1; sc.Scan(); n++ {
 		if want[n] {
-			h, _ := catalogue.DecodeHit(sc.Text(), term)
+			h, _ := catalogue.DecodeHit(sc.Text(), term, inSubagent)
 			out = append(out, h)
 		}
 		if n >= last {
@@ -337,8 +364,9 @@ func recordsAt(path string, lines []int, term string) []catalogue.Hit {
 }
 
 func render(out io.Writer, rows []row, showPaths bool) {
-	fmt.Fprintf(out, "%-10s %-18s %5s  %-12s %-9s %s\n",
-		"SESSION", "AGENT", "HITS", "WHEN", "IN", "SNIPPET")
+	in := channelWidth()
+	fmt.Fprintf(out, "%-10s %-18s %5s  %-12s %-*s %s\n",
+		"SESSION", "AGENT", "HITS", "WHEN", in, "IN", "SNIPPET")
 	capped := false
 	for _, r := range rows {
 		agent := r.f.AgentID
@@ -351,8 +379,8 @@ func render(out io.Writer, rows []row, showPaths bool) {
 		if r.best.TS > 0 {
 			when = time.Unix(r.best.TS, 0).UTC().Format("01-02 15:04")
 		}
-		fmt.Fprintf(out, "%-10s %-18s %5d  %-12s %-9s %s\n",
-			catalogue.Short(r.f.SessionID), agent, r.hits, when, r.best.Channel, r.best.Snippet)
+		fmt.Fprintf(out, "%-10s %-18s %5d  %-12s %-*s %s\n",
+			catalogue.Short(r.f.SessionID), agent, r.hits, when, in, r.best.Channel, r.best.Snippet)
 		if showPaths {
 			fmt.Fprintf(out, "%-10s %s\n", "", r.f.Path)
 		}
