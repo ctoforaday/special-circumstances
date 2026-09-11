@@ -11,24 +11,26 @@ import (
 //
 // # Why a source scan and not another end-to-end case
 //
-// The behavioural comparison drives both spellings through a verb and compares the record. It is
-// the right shape and it does not scale: 51 commands take prose, most need board state to run at
+// The behavioural check drives a verb and inspects the record. It is the right shape and it does
+// not scale: 51 commands take prose, most need board state to run at
 // all, and the version of it that existed covered eight — with both offenders outside the eight.
 // A case table is a list of verbs someone remembered.
 //
 // The invariant underneath is one line of code, at every site: prose comes from seat.Reason /
-// flags.ReadPayload, which resolves --reason, --reason-file and `--reason-file -` into one string.
-// A site that reads the --reason FLAG instead gets the inline spelling only, and the file and
-// stdin forms silently vanish into a field nobody set.
+// flags.ReadPayload, the one resolver — which refuses a read of a channel the verb never registered
+// and trims the newline a captured heredoc can leave. A site that reads the --reason FLAG instead
+// skips both, and when the channel had file and stdin spellings (retired; flags.Prose says why)
+// those forms silently vanished into a field nobody set.
 //
 // # Both shapes this has taken
 //
-//	line-of-inquiry propose  registered the pair correctly and filled `line` from the raw flag,
-//	                         so --reason worked and --reason-file was refused for a missing field
-//	                         the seat had supplied.
+//	line-of-inquiry propose  registered the channel correctly and filled `line` from the raw flag,
+//	                         so --reason worked and the then-file spelling was refused for a missing
+//	                         field the seat had supplied.
 //	spot-check, outcome      registered --reason by hand, skipping seat.Prose entirely, so neither
-//	                         had a file form at all. `outcome --reason` is, by its own help, "the
-//	                         only evidence the determination ever had" on a judged deadlock.
+//	                         had the channel's other halves at all. `outcome --reason` is, by its
+//	                         own help, "the only evidence the determination ever had" on a judged
+//	                         deadlock.
 //
 // The first was found by a seat filing friction after three refusals. The second was found by
 // grepping for the first. Nothing found either one before that.
@@ -67,10 +69,9 @@ func TestNoVerbReadsTheProseFlagDirectly(t *testing.T) {
 			if strings.Contains(string(b), bad) {
 				hits++
 				t.Errorf("%s reads the prose FLAG directly (%s).\n\n"+
-					"Use seat.Reason(cmd) or seat.SetReason(cmd, p, key), which resolves --reason, "+
-					"--reason-file and `--reason-file -` into one string. Reading the flag gets the inline "+
-					"spelling only: a seat passing a heredoc has its prose silently dropped, and the write "+
-					"is then refused for a field it did supply.", path, bad)
+					"Use seat.Reason(cmd) or seat.SetReason(cmd, p, key), the one resolver. Reading the flag "+
+					"skips it: an unregistered channel reads as empty instead of refusing, and a heredoc's "+
+					"trailing newline reaches the record.", path, bad)
 			}
 		}
 		return nil

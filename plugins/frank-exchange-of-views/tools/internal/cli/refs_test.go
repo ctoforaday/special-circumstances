@@ -66,7 +66,7 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 			args = append(args, c.args[len(cmdPath(c.args)):]...)
 			// SUPPLY THE PROSE, so the refusal under test is the REFERENCE one. Cobra refuses a
 			// missing required flag at parse, before the reference check the case is named for.
-			if !hasFlag(args, "--reason") && !hasFlag(args, "--reason-file") {
+			if !hasFlag(args, "--reason") {
 				args = append(args, "--reason", "supplied so the reference refusal is the one measured")
 			}
 			_, err := run(t, args...)
@@ -148,7 +148,7 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 			args = append(args, c.args[len(cmdPath(c.args)):]...)
 			// SUPPLY THE PROSE, so the refusal under test is the REFERENCE one. Cobra refuses a
 			// missing required flag at parse, before the reference check the case is named for.
-			if !hasFlag(args, "--reason") && !hasFlag(args, "--reason-file") {
+			if !hasFlag(args, "--reason") {
 				args = append(args, "--reason", "supplied so the reference refusal is the one measured")
 			}
 			_, err := run(t, args...)

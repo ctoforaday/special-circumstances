@@ -1,9 +1,6 @@
 package flags
 
 import (
-	"fmt"
-	"io"
-	"os"
 	"strings"
 	"sync"
 
@@ -12,42 +9,35 @@ import (
 
 // Prose is the prose payload channel AS ONE VALUE.
 //
-// # Why a type and not two flags plus a resolver
+// # Why a type and not a flag plus a resolver
 //
-// `--reason` and `--reason-file` are one argument arriving three ways: inline, from a file, or
-// from stdin via `--reason-file -`. Held as two loose string flags and a package-level resolver,
-// that fact was true only for verbs that remembered both halves — and three did not:
+// It used to be one argument arriving three ways — `--reason` inline, `--reason-file <path>`, and
+// `--reason-file -` from stdin — and held as loose flags that fact was true only for verbs that
+// remembered every spelling. Three did not: `line-of-inquiry propose` filled its `line` from the raw
+// inline flag, so the file form was refused for a field the seat had supplied; `spot-check` and
+// `outcome` registered the inline flag by hand and shipped with no file form at all. A convention
+// that has to be remembered at fifty call sites is not a mechanism, so the channel became a value
+// that owns its own registration and its own reading.
 //
-//	line-of-inquiry propose  registered the pair and then filled its `line` key from the raw
-//	                         --reason flag, so --reason worked and --reason-file was refused for
-//	                         a missing field the seat had supplied. A blue seat wrote a paragraph
-//	                         into a heredoc, was refused three times, and filed friction.
-//	spot-check               registered --reason by hand. No file form, no stdin form.
-//	outcome                  the same — on the field its own help calls "the only evidence of
-//	                         why the run stopped" on an UNVERIFIED run.
+// # ONE SPELLING, because the second one was the wrong fix for the right problem
 //
-// Every one of those is a verb forgetting a convention. A convention that has to be remembered
-// at fifty call sites is not a mechanism, and the helper's own doc comment claimed it was one:
-// "so a verb cannot register one form and forget the other". It could, and it did.
+// The file forms existed so long prose did not have to fight the shell. They never said WHICH
+// fight, and the one that mattered was not quoting at all: bash RUNS a backtick inside double
+// quotes, before this tool sees the text, and the command's output — or nothing — is recorded in
+// its place. Measured over #861's smoke runs (2026-09-10): 409 double-quoted --reason values, 8 with
+// backticks, every one of them substituted and stored silently — `prove` ran Perl's test harness,
+// `factor 91` pasted its output into a finding — while the same seats used the file form 7 times.
+// Twenty-five other free-text flags (--quote, --new, --problem, --fix, --check …) have no file form
+// and never did, so a second spelling of ONE flag was never going to close the class.
 //
-// So the pair becomes a value that owns its own registration and its own reading, the way CSV,
-// GradeValue and DateValue already do in this package. Registering one form is not a mistake you
-// can make, because there is nothing to register but the whole thing.
-//
-// # And an unregistered read is LOUD
-//
-// ReadPayload read both flags with GetString and discarded the errors, so a verb that never
-// registered them got "" and no complaint — the resolver returning a plausible zero. That is the
-// same defect the comment on Value() twenty lines away already documents for enum flags, still
-// live in the function beside it.
+// What closes it is one way for EVERY free-text value — capture it with a quoted heredoc, pass the
+// variable — stated once in the help of every verb that takes free text (ProseFooter, attached by
+// Text), and a PreToolUse
+// deny of any tool command carrying a backtick the shell would run (internal/hookgate). With that
+// rule in place the file spelling is a second way to write the same field, which is the one-way
+// rule's own definition of an alias, and it went.
 type Prose struct {
 	inline string
-	file   string
-	// resolved is the string representation once read: what the seat actually supplied, by
-	// whichever spelling. Held here so a caller that has the value does not re-read stdin —
-	// `--reason-file -` is a stream, and the second read of it returns nothing.
-	resolved string
-	read     bool
 }
 
 // registry maps a command to the prose channel it registered.
@@ -61,23 +51,22 @@ var (
 	registry   = map[*cobra.Command]*Prose{}
 )
 
-// Register attaches the channel to a command: both spellings, the canonical wording, and the
-// binding that makes this struct the thing they write to.
+// Register attaches the channel to a command: the flag, its canonical wording, the quoting rule in
+// the verb's help, and the binding that makes this struct the thing the flag writes to.
+//
+// The prose channel is a free-text flag like any other, so it registers through TextVar, which is
+// what attaches the quoting rule.
 func (p *Prose) Register(c *cobra.Command) {
-	c.Flags().StringVar(&p.inline, Reason, "", DescReason)
-	c.Flags().StringVar(&p.file, ReasonFile, "", DescReasonFile)
+	TextVar(c, &p.inline, Reason, DescReason)
 	registryMu.Lock()
 	registry[c] = p
 	registryMu.Unlock()
 }
 
-// RegisterRequired attaches the channel and makes it mandatory THROUGH EITHER SPELLING.
-//
-// MarkFlagRequired names one flag, so a verb that used it refused the file form — which is what
-// `spot-check` did with a hand-registered --reason. One argument, one requirement.
+// RegisterRequired attaches the channel and makes it mandatory.
 func (p *Prose) RegisterRequired(c *cobra.Command) {
 	p.Register(c)
-	c.MarkFlagsOneRequired(Reason, ReasonFile)
+	_ = c.MarkFlagRequired(Reason)
 }
 
 // ProseOf returns the channel a command registered, or nil if it registered none.
@@ -89,48 +78,12 @@ func ProseOf(c *cobra.Command) *Prose {
 
 // Read resolves the channel to one string.
 //
-// Both spellings given is refused rather than ranked: a seat that passes both should be told
-// which one this verb would have dropped, not discover it in a projection three epochs later.
-//
-// The trailing newline a shell heredoc leaves behind is trimmed, because `<< 'EOF'` always adds
-// one and a seat should not have to think about it.
-func (p *Prose) Read(stdin io.Reader) (string, error) {
-	if p.read {
-		return p.resolved, nil
-	}
-	s, err := p.resolve(stdin)
-	if err != nil {
-		return "", err
-	}
-	p.resolved, p.read = s, true
-	return s, nil
+// The trailing newline a captured heredoc can leave behind is trimmed, because a seat following
+// the quoting rule should not have to think about it. `$(…)` already strips it; a variable filled
+// some other way may not.
+func (p *Prose) Read() string {
+	return strings.TrimRight(p.inline, "\n")
 }
 
-func (p *Prose) resolve(stdin io.Reader) (string, error) {
-	if p.inline != "" && p.file != "" {
-		return "", fmt.Errorf("--%s and --%s are two spellings of one payload: pass exactly one", Reason, ReasonFile)
-	}
-	switch {
-	case p.file == "-":
-		b, err := io.ReadAll(stdin)
-		if err != nil {
-			return "", fmt.Errorf("--%s -: %w", ReasonFile, err)
-		}
-		s := strings.TrimRight(string(b), "\n")
-		if s == "" {
-			return "", fmt.Errorf("--%s - was given but stdin was empty", ReasonFile)
-		}
-		return s, nil
-	case p.file != "":
-		b, err := os.ReadFile(p.file)
-		if err != nil {
-			return "", fmt.Errorf("--%s: %w", ReasonFile, err)
-		}
-		return strings.TrimRight(string(b), "\n"), nil
-	default:
-		return p.inline, nil
-	}
-}
-
-// String is the resolved representation, for a caller that already read it. Empty before Read.
-func (p *Prose) String() string { return p.resolved }
+// String is the resolved representation.
+func (p *Prose) String() string { return p.Read() }

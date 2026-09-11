@@ -36,7 +36,6 @@ var flagExemptions = map[string]string{
 	// NOWHERE until 2026-09-08 — invisible because persistent flags were absent from the
 	// coverage denominator entirely.
 	"schema":         "printed by the root before dispatch and shelled by setup's epoch guard, not by a seat; asserted in internal/cli by TestSchemaFlagPrintsTheEpochSetupCompares",
-	"reason-file":    "the file/stdin twin of --reason; the prose channel is driven through --reason and the file path has its own tests in internal/cli",
 	"bin-dir":        "setup's flag, and setup is exempt from the sweep (it CREATES a run; the harness builds its own)",
 	"memory-dir":     "setup's flag, as above",
 	"topic":          "setup's flag, as above",

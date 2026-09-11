@@ -20,7 +20,7 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
-$ position --run {RUN} --seat-id red-chair --reason-file {RUN}/red.md
+$ position --run {RUN} --seat-id red-chair --reason red's round position
 exit 0
 stdout:
 position recorded
@@ -37,7 +37,7 @@ exit 0
 stdout:
 closing filed for G1
 
-$ position --run {RUN} --seat-id blue-respond --reason-file {RUN}/blue.md
+$ position --run {RUN} --seat-id blue-respond --reason blue's round position
 exit 0
 stdout:
 position recorded
@@ -78,6 +78,16 @@ do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with your role's 'friction' verb — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
+FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
+your text, and records whatever the command printed — or nothing — in its place. Pass every
+free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
+
+  X=$(cat <<'EOF'
+  your text — backticks, apostrophes and $ signs are all literal here
+  EOF
+  )
+  … "$X"
+
 Usage:
   feov-record verify [flags]
 
@@ -88,8 +98,7 @@ Flags:
       --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts
   -h, --help                         help for verify
       --quote string                 REQUIRED — the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs (the claim you are checking)
-      --reason string                REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
-      --reason-file -                read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --reason string                REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as "$X" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words
 
 Enumerated values:
   --as

@@ -5,8 +5,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
-	"os"
-	"path/filepath"
 	"regexp"
 	"testing"
 
@@ -172,14 +170,11 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "anchored-closure", "anchor-visibility")
 
-	prose := filepath.Join(recordtest.TmpRun(t), "closure.md")
-	if err := os.WriteFile(prose, []byte("re-read the cited source; the digits match the arm the claim names"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	const prose = "re-read the cited source; the digits match the arm the claim names"
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", id, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "git show", "--verified-against", "7bc501e:report.md",
-		"--reason-file", prose); err != nil {
+		"--reason", prose); err != nil {
 		t.Fatalf("close: %v", err)
 	}
 

@@ -24,10 +24,10 @@ func newSpotCheck() *cobra.Command {
 
 	c := seat.New("spot-check", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		none := seat.Given(cmd, flags.None)
-		// THE CHANNEL, NOT THE FLAG. seat.Reason resolves --reason, --reason-file and
-		// `--reason-file -` into one string; reading the flag gets the inline spelling only, so a
-		// seat passing a heredoc has its prose silently dropped and the write is then refused for
-		// a field it did supply.
+		// THE CHANNEL, NOT THE FLAG. seat.Reason is the one resolver: it refuses a read of a
+		// channel the verb never registered and trims what a captured heredoc leaves behind.
+		// Reading the flag directly skips both — this verb once shipped doing exactly that, with
+		// no file form at all while every other verb had one.
 		why, err := seat.Reason(cmd)
 		if err != nil {
 			return nil, err

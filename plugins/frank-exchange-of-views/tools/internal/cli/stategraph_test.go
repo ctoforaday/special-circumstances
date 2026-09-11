@@ -248,14 +248,14 @@ func gapProbe(t *testing.T) entityProbe {
 			"--principle", "correctness first", "--tension", "correctness vs economy",
 			"--review-flag", "no", "--settled", "the grading stands as recorded",
 			"--reopens-on", "a reproduction on a clean tree",
-			"--reason-file", writeTemp(t, "the rationale")}
+			"--reason", "the rationale"}
 	}
 	docketRuleArgs := func(as string) []string {
 		return []string{"motion", "docket", "rule", "--id", "M1", "--as", as,
 			"--principle", "correctness first", "--tension", "correctness vs economy",
 			"--review-flag", "no", "--settled", "the grading stands as recorded",
 			"--reopens-on", "a reproduction on a clean tree",
-			"--reason-file", writeTemp(t, "the rationale")}
+			"--reason", "the rationale"}
 	}
 	return entityProbe{
 		name: "gap", id: "G1",

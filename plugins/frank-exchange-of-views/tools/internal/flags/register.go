@@ -2,36 +2,60 @@ package flags
 
 import (
 	"fmt"
-	"io"
+	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
-// RegisterPayload attaches the prose payload in its inline and file forms.
+// FreeTextAnnotation marks a flag registered through Text: its value is words a seat composes, so
+// it passes through the shell as text and the quoting rule applies to it.
+const FreeTextAnnotation = "feov_free_text"
+
+// Text registers a FREE-TEXT string flag: the flag, the annotation that says what it is, and the
+// quoting rule in the verb's help.
 //
-// THE CLAIM THIS COMMENT USED TO MAKE WAS FALSE. It said the flags were "attached through this
-// function rather than by hand so no verb can register one form and forget the other" — but
-// nothing stopped a verb calling c.Flags().String(Reason, ...) itself, and `spot-check` and
-// `outcome` both did, shipping without a file form at all. A convention is not a mechanism.
+// THE RULE IS ATTACHED HERE, NOT TYPED ONTO PAGES. Every free-text flag passes through this
+// function (the prose channel included, via Prose.Register), so this is the one place that can say
+// "every verb that takes free text shows it" and be right by construction.
+// TestEveryFreeTextVerbShowsTheQuotingRule holds it, and refuses a string flag registered the plain
+// way unless its name is ClosedForm.
+func Text(c *cobra.Command, name, desc string) { TextVar(c, new(string), name, desc) }
+
+// TextVar is Text bound to a variable.
+func TextVar(c *cobra.Command, p *string, name, desc string) {
+	c.Flags().StringVar(p, name, "", desc)
+	_ = c.Flags().SetAnnotation(name, FreeTextAnnotation, []string{"true"})
+	if !strings.Contains(c.Long, ProseFooter) {
+		c.Long = strings.TrimRight(c.Long, "\n") + "\n\n" + ProseFooter
+	}
+}
+
+// IsFreeText reports whether a flag was registered through Text.
+func IsFreeText(f *pflag.Flag) bool { return len(f.Annotations[FreeTextAnnotation]) > 0 }
+
+// RegisterPayload attaches the prose payload channel.
 //
-// The mechanism is the Prose type, which owns the pair. This is the thin adapter for the call
-// sites that register through seat.Prose and read through seat.Reason.
+// A verb that declared c.Flags().String(Reason, ...) by hand used to ship without the channel's
+// other halves — `spot-check` and `outcome` both did. The mechanism is the Prose type, which owns
+// the flag, its wording and the quoting rule in the verb's help. This is the thin adapter for the
+// call sites that register through seat.Prose and read through seat.Reason.
 func RegisterPayload(c *cobra.Command) { new(Prose).Register(c) }
 
 // ReadPayload resolves a command's prose channel to one string.
 //
-// AN UNREGISTERED READ IS AN ERROR, NOT AN EMPTY STRING. This read both flags with GetString and
-// discarded the errors, so a verb that never registered them got "" and no complaint — and the
-// write that followed was then refused for a field the seat believed it had supplied. That is the
-// same defect the comment on Value() below documents for enum flags, in the function beside it.
-func ReadPayload(c *cobra.Command, stdin io.Reader) (string, error) {
+// AN UNREGISTERED READ IS AN ERROR, NOT AN EMPTY STRING. This read the flag with GetString and
+// discarded the error, so a verb that never registered it got "" and no complaint — and the write
+// that followed was then refused for a field the seat believed it had supplied. That is the same
+// defect the comment on Value() below documents for enum flags, in the function beside it.
+func ReadPayload(c *cobra.Command) (string, error) {
 	p := ProseOf(c)
 	if p == nil {
-		return "", fmt.Errorf("%s reads prose but never registered the --%s / --%s channel: "+
+		return "", fmt.Errorf("%s reads prose but never registered the --%s channel: "+
 			"register it with flags.Prose.Register (seat.Prose) rather than declaring a flag by hand",
-			c.CommandPath(), Reason, ReasonFile)
+			c.CommandPath(), Reason)
 	}
-	return p.Read(stdin)
+	return p.Read(), nil
 }
 
 // Set writes a flag's value under a payload key, ONLY when it is non-empty.

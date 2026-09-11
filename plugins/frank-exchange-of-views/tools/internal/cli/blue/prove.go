@@ -147,7 +147,7 @@ func newProve() *cobra.Command {
 		return proveResult{Label: label, SHA: res.SHA, Basis: res.Basis, Exit: res.Exit, Drift: res.Drift}, nil
 	}))
 
-	c.Flags().String(flags.Quote, "", flags.DescQuote+". The proof anchor is spliced there")
+	flags.Text(c, flags.Quote, flags.DescQuote+". The proof anchor is spliced there")
 	c.Flags().String(flags.Script, "", "REQUIRED — path under the run directory of the program that settles it (.py, .js, .mjs, .sh or .go)")
 	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists), flags.Cites, "the citation label of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed")
 	c.Flags().Bool(flags.ExpectError, false, "this proof's POINT is a failing command (a path that must be absent, a tool that must be missing) — record the environment error as the result instead of refusing it")

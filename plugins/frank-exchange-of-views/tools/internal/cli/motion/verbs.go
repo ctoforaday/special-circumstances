@@ -143,7 +143,12 @@ func newFile(subject string, required []string) *cobra.Command {
 				enumhelp.Flag(c, f, e, "REQUIRED for a "+subject+" motion")
 				continue
 			}
-			c.Flags().String(f, "", "REQUIRED for a "+subject+" motion")
+			// A docket names a gap (--id); a petition asks for relief in words (--relief).
+			if flags.ClosedForm(f) {
+				c.Flags().String(f, "", "REQUIRED for a "+subject+" motion")
+			} else {
+				flags.Text(c, f, "REQUIRED for a "+subject+" motion")
+			}
 		}
 	}
 	// THE RECORD TYPE, DECLARED. These verbs are built as raw cobra commands rather than through
@@ -330,7 +335,7 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 		case flags.Final:
 			c.Flags().Bool(f, false, ruleFlagHelp[f])
 		default:
-			c.Flags().String(f, "", ruleFlagHelp[f])
+			flags.Text(c, f, ruleFlagHelp[f])
 		}
 	}
 	if be, ok := record.MotionFieldEnum(subject, "binds", flags.Binds); ok {

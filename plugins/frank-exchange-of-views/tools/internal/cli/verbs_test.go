@@ -395,9 +395,9 @@ func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
 	}
 }
 
-// The prose channel is available on the verbs that declare it, and --file is the
-// documented path for anything above trivial size.
-func TestProseVerbsAcceptAFile(t *testing.T) {
+// The prose channel is available on the verbs that declare it, and each fills the field the
+// schema spells for it.
+func TestProseVerbsFillTheirProseField(t *testing.T) {
 	// THE FIELD, NOT THE FLAG. Every row said `reason` — the word a seat types — while the schema
 	// spells the prose field per verb: a halt stores `opinion`, a certification `statement`, a
 	// revision and a closing `text`. Read against a payload map the wrong name returned "" and the
@@ -420,7 +420,7 @@ func TestProseVerbsAcceptAFile(t *testing.T) {
 			runDir := newRun(t)
 			seedReferents(t, runDir)
 			args := append([]string{tc.verb, "--run", runDir, "--seat-id", tc.seatID,
-				"--reason-file", writeTemp(t, body)}, tc.extra...)
+				"--reason", body}, tc.extra...)
 			if _, err := run(t, args...); err != nil {
 				t.Fatal(err)
 			}
@@ -431,10 +431,10 @@ func TestProseVerbsAcceptAFile(t *testing.T) {
 			if !ok {
 				t.Fatalf("%s/%s wrote an event with no body", tc.role, tc.verb)
 			}
-			// Less the file's terminating newline: that is a line terminator every editor
-			// appends, not content the seat chose to record.
+			// Less the terminating newline: that is a line terminator a heredoc leaves, not
+			// content the seat chose to record.
 			if got := fieldText(t, lb, tc.field); got != strings.TrimRight(body, "\n") {
-				t.Errorf("%s = %q, want the file's content without its terminator", tc.field, got)
+				t.Errorf("%s = %q, want the prose without its terminator", tc.field, got)
 			}
 		})
 	}
