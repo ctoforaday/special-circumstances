@@ -171,9 +171,9 @@ func blueEmbed(blue string) string {
 			continue
 		}
 		if inPreamble {
-			// Preamble before the first "## ": drop blue's H1 title (lifted) and any Verdict
+			// Preamble before the first "## ": drop blue's H1 title (lifted) and any Outcome or Verdict
 			// line (blue cannot author a verdict — #79), keep any genuine prose.
-			if strings.HasPrefix(t, "# ") || strings.HasPrefix(strings.ToLower(t), "**verdict:") {
+			if strings.HasPrefix(t, "# ") || strings.HasPrefix(strings.ToLower(t), "**verdict:") || strings.HasPrefix(strings.ToLower(t), "**outcome:") {
 				continue
 			}
 			out = append(out, ln)
@@ -299,7 +299,7 @@ func sectionOr(blue, heading string) string {
 //
 // THE TYPE IS THE TEST, NOT THE BODY, and the two differ on exactly one case: an `outcome` event
 // carrying no body at all. That must still land as nil — "the bench ran `outcome` and the record
-// carries nothing readable" is the absence verdictStamp flags, and matching on the body alone
+// carries nothing readable" is the absence outcomeStamp flags, and matching on the body alone
 // would skip such an event and let an EARLIER outcome stand as the terminal one. BodyAs's zero is
 // a nil *Outcome, so the assignment says that in one line.
 func outcomeOf(evs []*record.Event) *recordpb.Outcome {
@@ -314,21 +314,21 @@ func outcomeOf(evs []*record.Event) *recordpb.Outcome {
 	return last
 }
 
-// verdictStamp composes the verdict line from the terminal outcome event. A missing outcome
+// outcomeStamp composes the outcome line from the terminal outcome event. A missing outcome
 // is flagged, never invented — the same invariant as a missing blue section.
 //
 // CASING IS PRESENTATION. The record carries the schema's spelling (`verified`, `ceiling`) and
 // the stamp wants emphasis, so the UPPER-CASING HAPPENS HERE, at display time. A second
 // upper-case vocabulary in the data would be the same fact spelled two ways, which is what this
 // migration exists to remove — so the enum is never matched on a shouted word.
-func verdictStamp(o *recordpb.Outcome) string {
+func outcomeStamp(o *recordpb.Outcome) string {
 	if o == nil {
 		// STATE ONLY (gblock, 2026-09-10), in the same shape as every other stamp: a word, then its
 		// basis in parentheses. The act that was missing — `bench outcome` never ran — is a fact about
 		// the run, and run.md's verdict-basis section says it.
-		return "**Verdict:** NONE (no terminal outcome on the record)"
+		return "**Outcome:** NONE (no terminal outcome on the record)"
 	}
-	return "**Verdict:** " + verdictWord(o) + basisState(o.GetVerdictBasis())
+	return "**Outcome:** " + outcomeWord(o) + basisState(o.GetVerdictBasis())
 }
 
 // basisState is the verdict's basis as STATE — the one fact about how the verdict was reached that
@@ -346,9 +346,9 @@ func basisState(basis string) string {
 	}
 }
 
-// verdictWord is the verdict as a FIELD — the word, and the clause naming how the run ended,
+// outcomeWord is the verdict as a FIELD — the word, and the clause naming how the run ended,
 // and nothing else. Everything that used to trail it inline lives in verdictGloss now.
-func verdictWord(o *recordpb.Outcome) string {
+func outcomeWord(o *recordpb.Outcome) string {
 	switch o.GetVerdict() {
 	case recordpb.RunOutcome_RUN_OUTCOME_CEILING:
 		return "CEILING-TERMINATED"
@@ -382,7 +382,7 @@ func verdictGloss(o *recordpb.Outcome) string {
 	case recordpb.RunOutcome_RUN_OUTCOME_HALTED:
 		lead = "**HALTED** — the bench ended this run. The halt opinion is on the record ([the debate](" + FileDebate + "), under Bench disposition) and is relayed to the human verbatim, never smoothed."
 	default:
-		lead = "**" + verdictWord(o) + "**"
+		lead = "**" + outcomeWord(o) + "**"
 	}
 	// EVERY branch carries the basis. The first cut appended it only to the default arm, so
 	// CEILING and HALTED — which returned early — dropped it; the fuzz failed 35 of 60 runs on

@@ -275,11 +275,7 @@
       "definition": "The verdict is the chair's PASS or FAIL on the board.",
       "seats": ["lens", "merge", "blue", "bench", "operator"],
       "bans": [
-        {"variant": "**Verdict:** (the outcome label)", "kind": "GATED", "pattern": "\\*\\*Verdict:\\*\\*",
-         "allow": [
-           {"path": "plugins/frank-exchange-of-views/skills/research-protocol/references/report_template.md", "reason": "TEMPORARY, outside both phases as scoped: the assembler prints the outcome stamp as **Verdict:** (report/assemble.go verdictStamp) and the template shows what it prints; renaming the stamp changes report.md's output and is the owner's call"},
-           {"path": "plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js", "reason": "TEMPORARY, as above: the prompts forbid blue from writing the stamp the assembler prints, so they name it"}
-         ]},
+        {"variant": "**Verdict:** (the outcome label)", "kind": "GATED", "pattern": "\\*\\*Verdict:\\*\\*"},
         {"variant": "certified report", "kind": "GATED", "pattern": "certified report"}
       ],
       "collisions": []

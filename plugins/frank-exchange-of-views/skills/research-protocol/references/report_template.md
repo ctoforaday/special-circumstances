@@ -31,7 +31,7 @@
 # <Topic>                                <!-- [BLUE] blue's H1, cut at the author's own punctuation boundary -->
 **Question:** <the full brief>           <!-- [RECORD] the rest of blue's H1, as a field rather than a heading -->
 
-**Verdict:** VERIFIED | UNVERIFIED | CEILING | HALTED | NONE (derived from the record | asserted by the bench | no terminal outcome on the record)
+**Outcome:** VERIFIED | UNVERIFIED | CEILING | HALTED | NONE (derived from the record | asserted by the bench | no terminal outcome on the record)
                                               <!-- [RECORD] the terminal `outcome` event. THE WORD, then its basis as
                                               STATE in parentheses, and nothing else: a field a reader can skim, badge
                                               or grep, whose first token is still the word. Everything that EXPLAINS it

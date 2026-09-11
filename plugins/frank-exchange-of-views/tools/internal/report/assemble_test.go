@@ -80,7 +80,7 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 	// A missing outcome is flagged, never invented.
 	// A missing outcome is STATE, in the same stamp shape as the others (gblock: "State only") —
 	// never invented, and never narrated here: the missing act is run.md's to say.
-	if s := verdictStamp(nil); s != "**Verdict:** NONE (no terminal outcome on the record)" {
+	if s := outcomeStamp(nil); s != "**Outcome:** NONE (no terminal outcome on the record)" {
 		t.Errorf("a missing outcome must be the state NONE, in the stamp's shape: %q", s)
 	}
 	// THE STAMP IS A FIELD. It carries the word and the clause naming how the run ended, then — since
@@ -88,7 +88,7 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 	// a reader who skims, badges or greps it still finds one. The argument
 	// that used to sit inline is verdictGloss, asserted directly below.
 	ceiling := &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING)}
-	if s := verdictStamp(ceiling); s != "**Verdict:** CEILING-TERMINATED" {
+	if s := outcomeStamp(ceiling); s != "**Outcome:** CEILING-TERMINATED" {
 		t.Errorf("the verdict field must be the word alone: %q", s)
 	}
 	if g := verdictGloss(ceiling); !strings.Contains(g, "CEILING-TERMINATED") || !strings.Contains(g, "never audited by a red pass") || !strings.Contains(g, "travels OUT of the run") {
@@ -97,15 +97,15 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 	// THE BASIS RIDES THE STAMP AS STATE ("State on the stamp, prose to run.md"): the word first, the
 	// basis in parentheses, and not one word of what it means — that is basisNote, in run.md.
 	derived := &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_VERIFIED), VerdictBasis: proto.String(record.VerdictDerived)}
-	if s := verdictStamp(derived); s != "**Verdict:** VERIFIED (derived from the record)" {
+	if s := outcomeStamp(derived); s != "**Outcome:** VERIFIED (derived from the record)" {
 		t.Errorf("a derived verdict's stamp must carry its basis as state: %q", s)
 	}
 	asserted := &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED), VerdictBasis: proto.String(record.VerdictAsserted)}
-	if s := verdictStamp(asserted); s != "**Verdict:** UNVERIFIED (asserted by the bench)" {
+	if s := outcomeStamp(asserted); s != "**Outcome:** UNVERIFIED (asserted by the bench)" {
 		t.Errorf("an asserted verdict's stamp must carry its basis as state: %q", s)
 	}
 	halted := &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_HALTED)}
-	if s := verdictStamp(halted); s != "**Verdict:** HALTED" {
+	if s := outcomeStamp(halted); s != "**Outcome:** HALTED" {
 		t.Errorf("the verdict field must be the word alone: %q", s)
 	}
 	if g := verdictGloss(halted); !strings.Contains(g, "HALTED") || !strings.Contains(g, "halt opinion") {
@@ -122,7 +122,7 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 	// envelope, and it renders with its siblings under the transcript's Bench disposition. What
 	// stays here is the TOOL's own derivation reasoning, which no seat wrote.
 	unverified := &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED), Prose: proto.String("the workflow stopped with nobody ready")}
-	if s := verdictStamp(unverified); s != "**Verdict:** UNVERIFIED" {
+	if s := outcomeStamp(unverified); s != "**Outcome:** UNVERIFIED" {
 		t.Errorf("the verdict field must be the word alone: %q", s)
 	}
 	if g := verdictGloss(unverified); strings.Contains(g, "nobody ready") {
@@ -514,7 +514,8 @@ func TestWithdrawnClaimsReachTheReader(t *testing.T) {
 func TestBlueEmbedDropsLiftedAndFabricated(t *testing.T) {
 	blue := strings.Join([]string{
 		"# A topic — research report",
-		"**Verdict:** UNVERIFIED (Round 0)", // blue cannot author a verdict — must be stripped
+		"**Verdict:** UNVERIFIED (Round 0)",        // blue cannot author a verdict — must be stripped
+		"**Outcome:** VERIFIED (asserted by blue)", // nor the outcome stamp the tool prints — stripped too
 		"",
 		"## TL;DR", "lifted to the top.", "",
 		"## Analysis", "also lifted.", "",
@@ -531,7 +532,7 @@ func TestBlueEmbedDropsLiftedAndFabricated(t *testing.T) {
 			t.Errorf("blueEmbed dropped content it should keep (%q):\n%s", kept, got)
 		}
 	}
-	for _, dropped := range []string{"lifted to the top", "also lifted", "blue fabricated", "blue cannot know", "[to be filled]", "**Verdict:**", "UNVERIFIED", "## Footnotes", "a citation blue tried to author"} {
+	for _, dropped := range []string{"lifted to the top", "also lifted", "blue fabricated", "blue cannot know", "[to be filled]", "**Verdict:**", "**Outcome:**", "(asserted by blue)", "UNVERIFIED", "## Footnotes", "a citation blue tried to author"} {
 		if strings.Contains(got, dropped) {
 			t.Errorf("blueEmbed kept content it should drop (%q):\n%s", dropped, got)
 		}

@@ -1,4 +1,4 @@
-prompt sha256: df4c8cca1035dd430f4ee5357a32b736ee09e4a09cafb40c353b2e1c4f7b53fa
+prompt sha256: c7af02fcb1517b825fa531402dc80dbc975c47b1091744f4cda98c9a3ae50351
 
 Blue synthesis for topic: "the seat prompt contract".
 PRE-FLIGHT: if research/2026-01-01_golden/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns.
@@ -10,7 +10,7 @@ THE FRAMING, THE TL;DR AND THE OPEN QUESTIONS ARE YOURS FOR THE SAME REASON — 
 Assembly LIFTS these verbatim, so you write them once, HERE, inside the document red audits every sitting.
 YOUR REPORT CONTAINS ONLY WHAT YOU CAN AUTHOR: the title, TL;DR, Catechism, technical foundations, analysis, open questions, and your citations — and NOTHING assembly composes from the record.
 Do NOT write "## Risk matrix", "## The board", "## The debate", or a "## Blue team report" wrapper: a "## The board" section you author is FABRICATION, because you cannot know red's findings, blue's audited manifest or the bench's dispositions, and a whole final-report-shaped document makes every tool-owned section appear twice.
-Do NOT write a `**Verdict:**` line ANYWHERE either — the outcome is decided after your last audit, so a verdict you author only lands stale beside the real one and gets stripped.
+Do NOT write a `**Outcome:**` line ANYWHERE either — the outcome is decided after your last audit, so an outcome you author only lands stale beside the real one and gets stripped.
 CITATION HYGIENE, because red must be able to VERIFY every source at the leaf: the url you cite carries the FULL coordinate — owner/repo#N or a full URL, never a bare #N red cannot resolve without the repo — and every QUOTED span records a locating anchor (its section heading, or a nearby unique phrase) so red can grep it verbatim in the source.
 An unlocatable quote is graded LOW through no fault of the source.
 Two claims resting on the same url are one source and two anchors, not two sources.

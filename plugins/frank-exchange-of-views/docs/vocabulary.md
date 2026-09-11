@@ -343,7 +343,7 @@ The verdict is the chair's PASS or FAIL on the board.
 
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
-| **Verdict:** (the outcome label) | GATED | `\*\*Verdict:\*\*` |  | `plugins/frank-exchange-of-views/skills/research-protocol/references/report_template.md` — TEMPORARY, outside both phases as scoped: the assembler prints the outcome stamp as **Verdict:** (report/assemble.go verdictStamp) and the template shows what it prints; renaming the stamp changes report.md's output and is the owner's call<br>`plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js` — TEMPORARY, as above: the prompts forbid blue from writing the stamp the assembler prints, so they name it |
+| **Verdict:** (the outcome label) | GATED | `\*\*Verdict:\*\*` |  |  |
 | certified report | GATED | `certified report` |  |  |
 
 ## outcome

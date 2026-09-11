@@ -81,8 +81,8 @@ func RenderSite(title string, docs []Doc, fam record.Family) string {
 		CSS:       template.CSS(siteCSS),
 		JS:        template.JS(strings.Replace(siteJS, "MERMAID_CDN_URL", mermaidCDN, 1)),
 	}
-	if verdict, cls := verdictBadge(fam); verdict != "" {
-		page.Badges = template.HTML(fmt.Sprintf("<span class=\"badge %s\">%s</span>%s", cls, escape(verdict), countBadges(fam)))
+	if outcome, cls := outcomeBadge(fam); outcome != "" {
+		page.Badges = template.HTML(fmt.Sprintf("<span class=\"badge %s\">%s</span>%s", cls, escape(outcome), countBadges(fam)))
 	}
 	for i, d := range docs {
 		body := siteLinks(linkIDs(bodies[i], anchor, d.File), files)
@@ -137,15 +137,15 @@ func slugFile(f string) string {
 	return strings.ToLower(strings.ReplaceAll(f, ".", "-"))
 }
 
-// verdictBadge is the one fact the header exists for, and it comes off the RECORD. The colour
+// outcomeBadge is the one fact the header exists for, and it comes off the RECORD. The colour
 // is a rendering of the verdict, never a judgement added to it: a ceiling termination is not a
 // failure, and must not be painted as one.
-func verdictBadge(fam record.Family) (string, string) {
+func outcomeBadge(fam record.Family) (string, string) {
 	o := outcomeOf(fam.Events)
 	if o == nil {
 		return "NONE", "unknown"
 	}
-	word := verdictWord(o)
+	word := outcomeWord(o)
 	cls := "neutral"
 	switch {
 	case strings.HasPrefix(word, "VERIFIED"):

@@ -87,7 +87,7 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	// the one fact that bears on trusting it: the verdict's basis. What ANSWERED the seats used to
 	// be the second such fact; it is envelope, and lives in run.md.
 	var r sections
-	r.add(verdictStamp(outcome))
+	r.add(outcomeStamp(outcome))
 	// THE STAMP IS THE WHOLE VERDICT HERE: the word, and its basis as state — "(derived from the
 	// record)" or "(asserted by the bench)". Every sentence that explains it is ENVELOPE and lives in
 	// run.md's verdict-basis section. gblock, 2026-09-10: a halted run's gloss, "Move it out of
@@ -354,13 +354,13 @@ func factBox(fam record.Family, evs []*record.Event) string {
 			epochs = w.Epoch
 		}
 	}
-	verdict := "_(none recorded)_"
+	outcome := "_(none recorded)_"
 	if o := outcomeOf(evs); o != nil {
-		verdict = verdictWord(o)
+		outcome = outcomeWord(o)
 	}
 	var b strings.Builder
 	b.WriteString("| | |\n|---|---|\n")
-	fmt.Fprintf(&b, "| **Verdict** | %s |\n", verdict)
+	fmt.Fprintf(&b, "| **Outcome** | %s |\n", outcome)
 	fmt.Fprintf(&b, "| **Epochs** | %d |\n", epochs)
 	fmt.Fprintf(&b, "| **Gaps** | %d open · %d closed |\n", open, closed)
 	return b.String()

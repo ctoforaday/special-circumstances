@@ -25,7 +25,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 		"# Whether the cache is coherent — research report",
 		// Blue authors a stale verdict in the preamble — it cannot know the outcome (#79);
 		// the embed must strip it rather than park it beside the tool's authoritative stamp.
-		"**Verdict:** UNVERIFIED (Round 0)",
+		"**Outcome:** UNVERIFIED (Round 0)",
 		"",
 		"## TL;DR",
 		"The cache is coherent under the documented invariants; one edge case is unproven.",
@@ -157,7 +157,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 		"From single-writer it follows that reads never observe a torn value.",
 		"Does the eviction path hold under a clock step?",
 		// Composed from the record.
-		"**Verdict:** CEILING-TERMINATED",
+		"**Outcome:** CEILING-TERMINATED",
 		"## Research areas",
 		"model-check the two-writer interleaving",
 		"## Alternatives considered",
@@ -201,7 +201,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 		}
 	}
 	// The index is the run directory's front door, and names every document it wrote.
-	for _, want := range []string{"**Verdict**", "## The documents", "[Board](docket.md)", "[Debate](debate.md)"} {
+	for _, want := range []string{"**Outcome**", "## The documents", "[Board](docket.md)", "[Debate](debate.md)"} {
 		if !strings.Contains(index, want) {
 			t.Errorf("README.md missing %q\n---\n%s", want, index)
 		}

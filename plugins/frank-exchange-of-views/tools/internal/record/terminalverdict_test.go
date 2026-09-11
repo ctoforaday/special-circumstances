@@ -33,7 +33,7 @@ func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
 	}
 	// The rendered artifact says something else. It is the derived carrier; the event is the fact.
 	if err := os.WriteFile(filepath.Join(runDir, "report.md"),
-		[]byte("# report\n\n**Verdict:** VERIFIED — **derived from the record**, not claimed.\n"), 0o644); err != nil {
+		[]byte("# report\n\n**Outcome:** VERIFIED — **derived from the record**, not claimed.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	// THE SPELLING COMES FROM THE SCHEMA, not from a literal. The point here is that the RECORD
@@ -59,7 +59,7 @@ func TestTerminalVerdictIsEmptyWhenTheRecordCannotSay(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	if err := os.WriteFile(filepath.Join(runDir, "report.md"),
-		[]byte("# report\n\n**Verdict:** UNVERIFIED — the run ended without the question being answered.\n"), 0o644); err != nil {
+		[]byte("# report\n\n**Outcome:** UNVERIFIED — the run ended without the question being answered.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if got := TerminalVerdict(mustRun(t, runDir)); got != "" {
