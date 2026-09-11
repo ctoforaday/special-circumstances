@@ -10,7 +10,11 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/spf13/pflag"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
@@ -129,6 +133,19 @@ func TestReplayDeterminism(t *testing.T) {
 			}
 			written += first.written
 			tallyCorrectable(first.events[first.setup:], wroteType, correctedType)
+			// THE SENTINEL LAYER, on the tour — the one sequence that gives its free text tokens. A
+			// token in a field that declares no (prose) is free text a handler copied where the
+			// correction's frozen compare cannot tell it from a decided field.
+			if i == len(seqs)-1 {
+				found, undeclared := sentinelFields(first.events[first.setup:])
+				for _, u := range undeclared {
+					t.Error(u)
+				}
+				if len(found) < 20 {
+					t.Errorf("only %d sentinel token(s) reached the record — the layer is not seeing the tour's free text", len(found))
+				}
+				t.Logf("sentinel tokens stored: %d", len(found))
+			}
 
 			// The log now carries a wall clock, so two identical runs can never be
 			// byte-identical — that is the clock working, not a determinism failure.
@@ -509,13 +526,151 @@ func corrArm(name string, seats, verb []string, flagsFor func(text string) []str
 	}}
 }
 
-// correctionTour is one sequence holding every correction arm once.
+// correctionTour is one sequence holding every correction arm once — every free-text value in it
+// carrying a sentinel (see withSentinels).
 func correctionTour(rng *rand.Rand) []cmd {
 	var out []cmd
 	for _, a := range correctionArms {
 		out = append(out, a.steps(rng, pick(rng, a.seats))...)
 	}
+	return withSentinels(out)
+}
+
+// sentinelPrefix opens every sentinel token; no text the fuzz or the tool writes carries it.
+const sentinelPrefix = "⟦S"
+
+// withSentinels gives every FREE-TEXT flag value in a sequence a sentinel token (plans/
+// same-sitting-correction.md III.C.1, second layer). Which flags are free text is asked of the
+// command tree itself — flags.IsFreeText on the command the seat's own root resolves — so the set
+// cannot fall behind the verbs. A token is keyed by (seat, verb, flag, value), not issued per
+// argument: an arm's no-op correction repeats its act's exact text, and a fresh token would make
+// it a change. After replay, every stored field holding a token must declare (prose).
+func withSentinels(cmds []cmd) []cmd {
+	tokens := map[string]string{}
+	out := make([]cmd, len(cmds))
+	for i, c := range cmds {
+		c.args = append([]string{}, c.args...)
+		free := freeTextFlags(c)
+		for j := 0; j+1 < len(c.args); j++ {
+			name := strings.TrimPrefix(c.args[j], "--")
+			if name == c.args[j] || !free[name] {
+				continue
+			}
+			k := seatOf(c) + "|" + c.verb + "|" + name + "|" + c.args[j+1]
+			if tokens[k] == "" {
+				tokens[k] = fmt.Sprintf("%s%d⟧", sentinelPrefix, len(tokens)+1)
+			}
+			c.args[j+1] += " " + tokens[k]
+		}
+		out[i] = c
+	}
 	return out
+}
+
+func seatOf(c cmd) string {
+	for j := 0; j+1 < len(c.args); j++ {
+		if c.args[j] == "--seat-id" {
+			return c.args[j+1]
+		}
+	}
+	return ""
+}
+
+// freeTextFlags is the set of flags registered through flags.Text on the command this invocation
+// names, in its seat's own tree.
+func freeTextFlags(c cmd) map[string]bool {
+	root := cli.NewRootFor(seatOf(c))
+	path := []string{c.verb}
+	for _, a := range c.args {
+		if strings.HasPrefix(a, "--") {
+			break
+		}
+		path = append(path, a)
+	}
+	found, _, err := root.Find(path)
+	out := map[string]bool{}
+	if err != nil || found == nil {
+		return out
+	}
+	found.Flags().VisitAll(func(f *pflag.Flag) {
+		if flags.IsFreeText(f) {
+			out[f.Name] = true
+		}
+	})
+	return out
+}
+
+// sentinelFields walks every stored body for sentinel tokens and returns, per token, the fields
+// holding it, and the fields that hold one and do not declare (prose).
+func sentinelFields(evs []map[string]any) (found map[string][]string, undeclared []string) {
+	found = map[string][]string{}
+	oneof := (&recordpb.Event{}).ProtoReflect().Descriptor().Oneofs().ByName("body")
+	var walk func(md protoreflect.MessageDescriptor, m map[string]any, path string)
+	walk = func(md protoreflect.MessageDescriptor, m map[string]any, path string) {
+		for key, v := range m {
+			fd := md.Fields().ByName(protoreflect.Name(key))
+			if fd == nil {
+				continue
+			}
+			check := func(s string) {
+				for _, tok := range sentinelTokens(s) {
+					found[tok] = append(found[tok], path+"."+key)
+					if _, declared := recordpb.IsProse(fd); !declared {
+						undeclared = append(undeclared, fmt.Sprintf("%s.%s holds free text %s and declares no (prose)", path, key, tok))
+					}
+				}
+			}
+			switch x := v.(type) {
+			case string:
+				check(x)
+			case []any:
+				for _, e := range x {
+					if s, ok := e.(string); ok {
+						check(s)
+					}
+				}
+			case map[string]any:
+				if fd.Message() != nil {
+					walk(fd.Message(), x, path+"."+key)
+				}
+			}
+		}
+	}
+	// THE BODIES A CORRECTION CAN TOUCH, and the correction's own. (prose) is declared on the
+	// correctable bodies' free-text fields; a NONE act's free text (a motion's basis) is never
+	// compared by a correction, so it owes no declaration and is not asked for one.
+	correctionWord := recordpb.Word(recordpb.EventType_EVENT_TYPE_CORRECTION)
+	for _, ev := range evs {
+		name, _ := ev["type"].(string)
+		typ := recordpb.EventType(recordpb.EventType_value[name])
+		if recordpb.Tier(typ) == recordpb.CorrectionTier_CORRECTION_TIER_NONE && recordpb.Word(typ) != correctionWord {
+			continue
+		}
+		for key, v := range ev {
+			if fd := oneof.Fields().ByName(protoreflect.Name(key)); fd != nil {
+				if body, ok := v.(map[string]any); ok {
+					walk(fd.Message(), body, key)
+				}
+			}
+		}
+	}
+	return found, undeclared
+}
+
+func sentinelTokens(s string) []string {
+	var out []string
+	for {
+		i := strings.Index(s, sentinelPrefix)
+		if i < 0 {
+			return out
+		}
+		j := strings.Index(s[i:], "⟧")
+		if j < 0 {
+			return out
+		}
+		out = append(out, s[i:i+j+len("⟧")])
+		s = s[i+j+len("⟧"):]
+	}
 }
 
 // namesVar reports whether any command in a sequence names a placeholder.
