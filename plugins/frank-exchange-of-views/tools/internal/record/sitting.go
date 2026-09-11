@@ -83,6 +83,10 @@ type SittingJSON struct {
 	// — which is the difference this exists to make.
 	Complete bool   `json:"complete"`
 	Open     []Item `json:"open"`
+	// LastSitting is a lens's latest sitting strictly before the dispatch it is sitting for, on the
+	// read it already does first. Present for every lens, with an explicit kind — first, behind,
+	// unchanged or undispatched — never inferred from an absent field; absent for every other role.
+	LastSitting *LastSittingJSON `json:"last_sitting,omitempty"`
 }
 
 // SittingOf computes what the given seat still owes on this record — the events carry every
@@ -92,6 +96,10 @@ type SittingJSON struct {
 // and the chair's list states that condition from the same fold the gate refuses from.
 func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID string) SittingJSON {
 	s := SittingJSON{Seat: seatID, Role: role, Open: []Item{}}
+	if role == "lens" {
+		ls := lastSittingBefore(evs, ids, seatID)
+		s.LastSitting = &ls
+	}
 	add := func(what string) { s.Open = append(s.Open, Item{What: what, Blocks: true}) }
 
 	// EVERY SEAT CLOSES THE LOG CHANNEL. Silence is not the empty case: an absent log reads the
@@ -179,7 +187,7 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 		for _, claim := range unansweredContradictions(evs) {
 			add("red read a source that contradicts or does not support the claim " + fmt.Sprintf("%q", claim) + " and no finding raises it — PASS is refused until one does")
 		}
-		for _, st := range lensGateOf(evs, ids).statements() {
+		for _, st := range passLensGateOf(evs, ids, freshMaterialOfStates(gaps)).statements() {
 			add(st)
 		}
 		// THE VIEW NAMES THE GAVEL BECAUSE THE REFUSAL DOES. requirePassClosesAllMaterialGaps refuses

@@ -1202,15 +1202,36 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			if err := requirePassClosesAllMaterialGaps(run); err != nil {
 				return err
 			}
-			{
-				if err := requireEveryCastLensSatAgainstHead(run); err != nil {
-					return err
-				}
+			// THE LENS CONDITION MIRRORS pass_permitted (gblock, round 4): the retirement fold the
+			// dispatch readies from, so a PASS over an active lens or an owed re-arm is refused here
+			// whatever the chair read off the plan. Then the stale areas the chair must have read.
+			if err := requireNoCastLensReady(run); err != nil {
+				return err
+			}
+			if err := requirePassCoversStaleAreas(run); err != nil {
+				return err
 			}
 		}
 	case *recordpb.SpotCheck:
 		if err := requireGaps(run, b.GetIds(), "spot-check", "--ids"); err != nil {
 			return err
+		}
+		// AN AREA IS A CAST LENS SEAT: the plan's stale_areas name seats, and a spot-check that
+		// named anything else could never discharge the stale-area gate.
+		if areas := b.GetAreas(); len(areas) > 0 {
+			cast, err := CastOf(run)
+			if err != nil {
+				return err
+			}
+			inCast := map[string]bool{}
+			for _, s := range cast {
+				inCast[s] = true
+			}
+			for _, a := range areas {
+				if !strings.HasPrefix(a, "red-lens-") || !inCast[a] {
+					return fmt.Errorf("record: spot-check --areas names %q, which is not a lens seat in this run's cast — name the stale areas `dispatch next` lists, by seat", a)
+				}
+			}
 		}
 		if err := requireClosedGaps(run, b.GetIds(), "spot-check", "--ids"); err != nil {
 			return err

@@ -45,7 +45,10 @@ const (
 	// Identity and reference.
 	ID  = "id"
 	IDs = "ids"
-	Key = "key"
+	// Areas names the lens seats whose area a spot-check read the changes against — the plan's
+	// stale areas.
+	Areas = "areas"
+	Key   = "key"
 
 	// A same-sitting correction: --corrects names the seat's own act by the key its success line
 	// printed, and --correction-why says what was wrong with it. Both sit on every correctable
@@ -303,7 +306,7 @@ func All() []string {
 	return []string{
 		Run, SeatID, Schema, JSON,
 		Reason,
-		ID, IDs, Key, Corrects, CorrectionWhy, Quote, New, Answers, Accept, URL, Title, Format, Window,
+		ID, IDs, Areas, Key, Corrects, CorrectionWhy, Quote, New, Answers, Accept, URL, Title, Format, Window,
 		Sitting, Trajectory,
 		As, None, Confidence,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,

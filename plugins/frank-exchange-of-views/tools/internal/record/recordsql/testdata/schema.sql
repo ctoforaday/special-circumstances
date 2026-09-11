@@ -521,6 +521,13 @@ CREATE TABLE "spot_check_ids" (
   PRIMARY KEY ("event_id", "ord")
 ) STRICT;
 
+CREATE TABLE "spot_check_areas" (
+  "event_id" INTEGER NOT NULL REFERENCES "spot_check"("event_id"),
+  "ord"      INTEGER NOT NULL,
+  "value"    TEXT    NOT NULL,
+  PRIMARY KEY ("event_id", "ord")
+) STRICT;
+
 CREATE TABLE "finding" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "finding_id" TEXT,

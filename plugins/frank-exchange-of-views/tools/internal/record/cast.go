@@ -12,9 +12,10 @@ import (
 // from the hooks. It is not a debate seat: nothing dispatches it and it never registers.
 const HarnessSeat = "harness"
 
-// DefaultCastAreas are the lens areas a run dispatches when the operator names none: the four
-// that have always sat (debate.js DEFAULT_AREAS). The rest are opt-in per run.
-var DefaultCastAreas = []string{"evidence", "logic", "dark-side", "voice"}
+// DefaultCastAreas are the lens areas a run dispatches when the operator names none: every area
+// (debate.js DEFAULT_AREAS). An operator narrows the cast only with a reason; retirement bounds
+// what a lens that finds nothing costs.
+var DefaultCastAreas = LensAreas
 
 // CastFor is the run's admissible seats for a lens-area selection and a lane count
 // (plans/roundless.md §III.B.1): a lens per area, the chair, the blue lanes, the synthesizer and

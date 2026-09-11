@@ -38,7 +38,7 @@ func planNames(p Plan, seat string) bool {
 
 // b5Shape is the 2026-09-11 B5 record in miniature: the voice lens registered once, the report
 // head moved, and every later dispatch at the new head found it logging "nothing to do" and
-// leaving without registering — so its pin never moved and dispatch readied it again.
+// leaving without registering — so it never sat, its state never moved, and dispatch readied it again.
 func b5Shape(t *testing.T) *stage {
 	return newStage(t).cast(voiceLens, "red-chair", "blue-respond", "judge").ingest(). // head 2
 												register("red-chair").dispatch(2, voiceLens).register(voiceLens).logNominal(voiceLens). // it sat once

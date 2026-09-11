@@ -10,15 +10,19 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// chairBoard is a board at head 2 whose one cast lens has sat against the head, so the lens
-// condition of the PASS gate holds and each test adds only the condition it is about.
+// chairBoard is a board at head 2 whose one cast lens has sat twice and found nothing, so it is
+// retired at the head, the lens condition of the PASS gate holds, and each test adds only the
+// condition it is about. The gaps are minted by outsideLens — a seat not in the cast — so no mint
+// makes the cast lens active again.
 func chairBoard(t *testing.T, lensSat bool) *stage {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair")
 	if lensSat {
-		b.dispatch(2, evLens).register(evLens)
+		b.dispatch(2, evLens).register(evLens).dispatch(2, evLens).register(evLens)
 	}
 	return b
 }
+
+const outsideLens = "red-lens-logic"
 
 func cmMint(gap string, cm recordpb.ClassMaterial, severity string, supersedes ...string) *recordpb.Mint {
 	sev, _ := GradeOf(severity)
@@ -61,7 +65,7 @@ func itemNaming(s SittingJSON, sub string) (Item, bool) {
 // blocks:false, the PASS appends, and the sitting is complete.
 func TestChairWorkListOverOpenNeverClassGap(t *testing.T) {
 	b := chairBoard(t, true)
-	b.add(evLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_NEVER, "high"))
+	b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_NEVER, "high"))
 	run := openChairSitting(b).seed()
 	if _, err := Append(Identity{Run: run, SeatID: "red-chair"}, passGate); err != nil {
 		t.Fatalf("a PASS over an open never-class gap was refused: %v", err)
@@ -86,13 +90,17 @@ func TestChairWorkListAgreesWithPassGate(t *testing.T) {
 		wantMaterial bool
 		wantAppends  bool
 	}{
-		{"always-low", func(b *stage) { b.add(evLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS, "low")) }, true, false},
-		{"never-high", func(b *stage) { b.add(evLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_NEVER, "high")) }, false, true},
-		{"by_grade-low", func(b *stage) { b.add(evLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low")) }, false, true},
-		{"by_grade-medium", func(b *stage) { b.add(evLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "medium")) }, true, false},
+		{"always-low", func(b *stage) { b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS, "low")) }, true, false},
+		{"never-high", func(b *stage) { b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_NEVER, "high")) }, false, true},
+		{"by_grade-low", func(b *stage) {
+			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
+		}, false, true},
+		{"by_grade-medium", func(b *stage) {
+			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "medium"))
+		}, true, false},
 		{"stranded by_grade-low ancestor", func(b *stage) {
-			b.add(evLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
-			b.add(evLens, cmMint("G2", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low", "G1"))
+			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
+			b.add(outsideLens, cmMint("G2", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low", "G1"))
 		}, false, false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -143,14 +151,14 @@ func TestChairWorkListStatesEveryGateRefusal(t *testing.T) {
 		want    string // "" = no refusal holds
 	}{
 		{"stranded", true, true, func(b *stage) {
-			b.add(evLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
-			b.add(evLens, cmMint("G2", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low", "G1"))
+			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
+			b.add(outsideLens, cmMint("G2", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low", "G1"))
 		}, "superseded by G2"},
 		{"material", true, true, func(b *stage) {
-			b.add(evLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "medium"))
+			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "medium"))
 		}, "gap G1 is open and material"},
 		{"unruled motion", true, true, func(b *stage) {
-			b.add(evLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
+			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
 			b.docketMotion("red-chair", "M1", "G1")
 		}, "motion M1"},
 		{"no inquiry review", true, true, func(b *stage) {
@@ -162,10 +170,17 @@ func TestChairWorkListStatesEveryGateRefusal(t *testing.T) {
 				Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES.Enum(), Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(),
 				Text: proto.String("it says blue")})
 		}, "the sky is green"},
-		{"cast lens not sat", false, true, func(*stage) {}, "has not sat against report head"},
+		{"cast lens ready", false, true, func(*stage) {}, "lens red-lens-evidence is ready (active)"},
+		{"stale area uncovered", true, true, func(b *stage) {
+			// retired at head 2; the head moves; its re-arm sitting is barren (retired for good at
+			// that pin); the head moves again, past it.
+			b.ingest()
+			b.dispatch(int64(b.n), evLens).register(evLens)
+			b.ingest()
+		}, "area red-lens-evidence is behind its pin"},
 		{"no report ingested", false, false, func(*stage) {}, "no report has been ingested"},
 		{"none holds", true, true, func(b *stage) {
-			b.add(evLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
+			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
 		}, ""},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -175,7 +190,7 @@ func TestChairWorkListStatesEveryGateRefusal(t *testing.T) {
 			}
 			b.register("red-chair")
 			if c.lensSat {
-				b.dispatch(2, evLens).register(evLens)
+				b.dispatch(2, evLens).register(evLens).dispatch(2, evLens).register(evLens)
 			}
 			c.build(b)
 			openChairSitting(b)

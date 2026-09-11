@@ -20,7 +20,7 @@ import (
 // from-round-2 rule degraded into a seat attesting blocks it was about to write
 // itself.
 func newSpotCheck() *cobra.Command {
-	var ids flags.CSV
+	var ids, areas flags.CSV
 
 	c := seat.New("spot-check", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		none := seat.Given(cmd, flags.None)
@@ -34,6 +34,7 @@ func newSpotCheck() *cobra.Command {
 		}
 		body := &recordpb.SpotCheck{
 			Ids:    ids.Value(),
+			Areas:  areas.Value(),
 			Reason: proto.String(why),
 		}
 		if none {
@@ -49,6 +50,7 @@ func newSpotCheck() *cobra.Command {
 	})
 
 	c.Flags().Var(&ids, flags.IDs, "comma-separated archived closures you re-verified this sitting")
+	c.Flags().Var(&areas, flags.Areas, "comma-separated lens seats from the plan's stale_areas whose area you read the changes against this sitting — a PASS is refused until a spot-check this sitting names every stale area; what you found goes in --reason")
 	// AN HONESTLY-EMPTY SITTING IS A DISCHARGE, NOT A SKIP.
 	//
 	// This run's red-merge-r1 reported in friction that spot-check "cannot record an

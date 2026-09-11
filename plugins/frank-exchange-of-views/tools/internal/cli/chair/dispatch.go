@@ -110,7 +110,7 @@ func (r dispatchResult) Human() string {
 		fmt.Fprintf(&b, "dispatch against head %d:\n", r.Head)
 		for _, p := range r.Parties {
 			if len(p.GapIDs) == 0 {
-				fmt.Fprintf(&b, "  %s — the head moved past its pin\n", p.SeatID)
+				fmt.Fprintf(&b, "  %s — audits the report (its state is in the reasons below)\n", p.SeatID)
 			} else {
 				fmt.Fprintf(&b, "  %s — %s\n", p.SeatID, strings.Join(p.GapIDs, ", "))
 			}
@@ -118,6 +118,9 @@ func (r dispatchResult) Human() string {
 	}
 	for _, g := range r.Docket {
 		fmt.Fprintf(&b, "  docketed %s for the bench\n", g)
+	}
+	for _, a := range r.StaleAreas {
+		fmt.Fprintf(&b, "  stale area %s — retired for good at pin %d; read the changes since against its duties and name it in this sitting's spot-check before a PASS\n", a.SeatID, a.Pin)
 	}
 	for _, w := range r.Why {
 		fmt.Fprintf(&b, "  · %s\n", w)

@@ -19,8 +19,9 @@ func planJSON(t *testing.T, p Plan) string {
 // verbatim — "parties": null — and the workflow, which refuses a plan without a parties list,
 // aborted the run at the sitting that should have ended it.
 func TestAPlanThatReadiesNobodyPrintsItsListsAsLists(t *testing.T) {
+	// Two barren sittings at the head retire the one lens, so the plan readies nobody and permits PASS.
 	pass := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens).register("red-chair")
+		register("red-chair").sit(2, evLens).sit(2, evLens).register("red-chair")
 	plan, err := PlanDispatch(pass.seed())
 	if err != nil {
 		t.Fatal(err)

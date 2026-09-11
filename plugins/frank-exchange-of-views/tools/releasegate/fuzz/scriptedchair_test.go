@@ -29,7 +29,7 @@ func relayScriptedPlan(e map[string]any, label string, plans []map[string]any) {
 		e["plan"] = plans[n-1]
 		e["verdict"] = "FAIL"
 	} else {
-		e["plan"] = plan([]any{}, true, false, nil, "every lens sat against the head and nothing material is open")
+		e["plan"] = plan([]any{}, true, false, nil, "no lens is ready and nothing material is open")
 		e["verdict"] = "PASS"
 	}
 	e["unruled_motions"] = 0

@@ -50,7 +50,7 @@ func TestTheSittingThatOpensTheLastEpochDispatchesNobodyAndTheRunEndsCeiling(t *
 // and the chair may still record the PASS.
 func TestAPassPermittedAtTheLastEpochIsNotTheEpochLimit(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens).register("red-chair")
+		register("red-chair").dispatch(2, evLens).register(evLens).dispatch(2, evLens).register(evLens).register("red-chair")
 	run := b.seed()
 	writeRunConfig(t, b.runDir, `{"maxEpochs":2}`)
 	plan, err := PlanDispatch(run)

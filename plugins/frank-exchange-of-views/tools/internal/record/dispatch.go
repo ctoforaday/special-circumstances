@@ -10,8 +10,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
-// Party is one seat the chair engages and the gaps it is engaged on. Empty GapIDs is rule 1's
-// dispatch: the head moved past the lens's pin, so it sits to audit the current report.
+// Party is one seat the chair engages and the gaps it is engaged on. A lens engaged with no gaps is
+// ready by its retirement state, and sits to audit the current report.
 type Party struct {
 	SeatID string   `json:"seat_id"`
 	GapIDs []string `json:"gap_ids"`
@@ -26,7 +26,11 @@ type Plan struct {
 	// each under the chair's authorship the moment impasse is first computed, so "docketed" and
 	// "at impasse" are one fact and no seat's discretion sits between a stalled gap and the bench.
 	Docket        []string `json:"docket"`
-	PassPermitted bool     `json:"pass_permitted"` // no material gap open (IsMaterial: by its class, else graded medium or above), every cast lens sat against the head, every docket ruled
+	PassPermitted bool     `json:"pass_permitted"` // a report ingested, no material gap open (IsMaterial: by its class, else graded medium or above), no cast lens ready, every docket ruled, nobody dispatched
+	// StaleAreas is every lens retired for good whose pin the head has moved past. The chair reads
+	// the changes since each pin against that area's duties and names the areas in its spot-check;
+	// a PASS is refused until it has.
+	StaleAreas []StaleArea `json:"stale_areas"`
 	// Ceiling is the run at its limit, for one of two reasons EpochLimitReached tells apart: every
 	// open material gap is at impasse and has had its bench ruling (remanded), or the run's epoch
 	// limit is reached with parties still ready.
@@ -72,14 +76,14 @@ type openGap struct {
 	supersededBy string
 }
 
-// PlanDispatch computes readiness from three sources — the report head against each lens's pin,
-// each open material gap below its limits, and each docketed gap awaiting the bench — and the two
+// PlanDispatch computes readiness from three sources — each cast lens's retirement state, each
+// open material gap below its limits, and each docketed gap awaiting the bench — and the two
 // derived facts the termination turns on. It writes nothing.
 func PlanDispatch(run Run) (Plan, error) {
 	// THE LISTS ARE LISTS FROM THE START. A nil slice prints as null, and the workflow refuses a plan
 	// without a parties list: B9's chair relayed a PASS-permitted plan verbatim, "parties": null,
 	// and the engine aborted the run at the sitting that should have ended it.
-	plan := Plan{Parties: []Party{}, Docket: []string{}}
+	plan := Plan{Parties: []Party{}, Docket: []string{}, StaleAreas: []StaleArea{}}
 	cast, err := CastOf(run)
 	if err != nil {
 		return plan, err
@@ -103,9 +107,9 @@ func PlanDispatch(run Run) (Plan, error) {
 		return plan, err
 	}
 
-	// Source 1: a lens is ready when the head is past its last pin. The pin is the dispatch the
-	// lens SAT for — sittingFor: its register follows the dispatch — not the dispatch row: a lens
-	// engaged that never registered has not sat, and stays ready.
+	// Source 1: each cast lens by its retirement state (retirement.go) — the same fold the PASS
+	// gate refuses from. A lens engaged that never registered has not sat, so its state has not
+	// moved and it stays ready.
 	evs, _, err := recordsql.EventsW(db)
 	if err != nil {
 		return plan, err
@@ -114,13 +118,13 @@ func PlanDispatch(run Run) (Plan, error) {
 	if err != nil {
 		return plan, err
 	}
-	pins, satIDs := lensPins(evs, ids)
-	var lenses []string
-	for _, s := range cast {
-		if strings.HasPrefix(s, "red-lens-") {
-			lenses = append(lenses, s)
-		}
+	_, satIDs := lensPins(evs, ids)
+	fresh, err := freshMaterialOf(db)
+	if err != nil {
+		return plan, err
 	}
+	folds := lensStates(evs, ids, plan.Head, fresh)
+	plan.StaleAreas = staleAreasOf(folds, plan.Head)
 	parties := map[string][]string{}
 	order := []string{}
 	engage := func(seat string, gaps ...string) {
@@ -130,14 +134,15 @@ func PlanDispatch(run Run) (Plan, error) {
 		}
 		parties[seat] = append(parties[seat], gaps...)
 	}
-	allLensesSat := plan.Head > 0
-	for _, l := range lenses {
-		if pins[l] < plan.Head {
-			engage(l)
-			plan.Why = append(plan.Why, fmt.Sprintf("%s: head %d is past its pin %d", l, plan.Head, pins[l]))
-			allLensesSat = false
+	noLensReady := true
+	for _, f := range folds {
+		if f.ready {
+			engage(f.seat)
+			noLensReady = false
 		}
+		plan.Why = append(plan.Why, f.why)
 	}
+	_ = cast // the cast is the fold's roster (castOfEvents): the same Cast event CastOf reads
 
 	// Source 2 and 3: the open gaps, with their materiality, their exchanges and their docket.
 	gaps, err := openGaps(db)
@@ -207,7 +212,7 @@ func PlanDispatch(run Run) (Plan, error) {
 	for _, s := range order {
 		plan.Parties = append(plan.Parties, Party{SeatID: s, GapIDs: parties[s]})
 	}
-	plan.PassPermitted = materialOpen == 0 && allLensesSat && !unruledDocket && len(plan.Parties) == 0
+	plan.PassPermitted = plan.Head > 0 && materialOpen == 0 && noLensReady && !unruledDocket && len(plan.Parties) == 0
 	plan.Ceiling = len(plan.Parties) == 0 && materialOpen > 0 && materialSettled == materialOpen
 
 	// THE EPOCH LIMIT IS A TERM OF THE RUN, read like k and kMax. The chair sitting that opens the
@@ -273,8 +278,9 @@ func firstAfter(xs []int64, at int64) (int64, bool) {
 // sittingFor IS THE ONE ANSWER TO "HAS THIS SEAT SAT FOR WHAT IT WAS DISPATCHED FOR": its sitting
 // for a dispatch is its first register after the dispatch row, and a seat that has not registered
 // since has not sat. Every reader of the question asks it here — the lens's pin (lensPins), the
-// bench's sitting for a docketing (benchSatFor, off lensPins' sittings), the exchange count
-// (exchangesOf), and the seat's own work list (owedSitting). An unsat dispatch is why dispatch
+// lens's retirement fold (lensStates) and its last sitting (lastSittingBefore), the bench's sitting
+// for a docketing (benchSatFor, off lensPins' sittings), the exchange count (exchangesOf), and the
+// seat's own work list (owedSitting). An unsat dispatch is why dispatch
 // readies the seat again, and it is why the seat's work list is not complete.
 func sittingFor(registers []int64, d dispatchRow) (int64, bool) {
 	return firstAfter(registers, d.at)
@@ -553,80 +559,4 @@ func notMaterialBecause(classMaterial, severity string) string {
 		return "ungraded"
 	}
 	return "graded " + severity
-}
-
-// lensGate is the PASS gate's lens condition as ONE fold over the stream, which both halves read:
-// the Gate write path refuses from it, and the chair's work list states each of its items from it,
-// so the list cannot say a PASS is open that the gate refuses, or the reverse. ids are the events'
-// row ids, aligned with evs: pins and the head are row ids.
-type lensGate struct {
-	cast   bool     // the record holds a cast; with none there are no lenses to wait for
-	head   int64    // the report head: the last blue_edit or base_ingest
-	behind []string // each cast lens not sat against the head, as "red-lens-x (pin N)"
-}
-
-func lensGateOf(evs []*Event, ids []int64) lensGate {
-	cast := castOfEvents(evs)
-	g := lensGate{cast: cast != nil}
-	for i, e := range evs {
-		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_BLUE_EDIT, recordpb.EventType_EVENT_TYPE_BASE_INGEST:
-			if ids[i] > g.head {
-				g.head = ids[i]
-			}
-		}
-	}
-	if !g.cast {
-		return g
-	}
-	pins, _ := lensPins(evs, ids)
-	for _, s := range cast {
-		if strings.HasPrefix(s, "red-lens-") && pins[s] < g.head {
-			g.behind = append(g.behind, fmt.Sprintf("%s (pin %d)", s, pins[s]))
-		}
-	}
-	return g
-}
-
-// statements is the gate's refusal, one item per reason, for the chair's work list.
-func (g lensGate) statements() []string {
-	if !g.cast {
-		return nil
-	}
-	if g.head == 0 {
-		return []string{"no report has been ingested — PASS is refused"}
-	}
-	var out []string
-	for _, b := range g.behind {
-		out = append(out, fmt.Sprintf("lens %s has not sat against report head %d — PASS is refused while it is", b, g.head))
-	}
-	return out
-}
-
-// requireEveryCastLensSatAgainstHead is the direct replacement for the dispatch loop's "every lens
-// sits every round" (plans/roundless.md §III.B.1): PASS is refused until every cast lens has SAT
-// against the current report head — its register FOLLOWING the dispatch pinned at the head, not
-// the dispatch row. A record with no cast has no lenses to wait for; that is the fixtures' world
-// and a migrated archive's, where the property held by construction.
-func requireEveryCastLensSatAgainstHead(run Run) error {
-	db, err := openRunForRead(run)
-	if err != nil || db == nil {
-		return err
-	}
-	evs, _, err := recordsql.EventsW(db)
-	if err != nil {
-		return err
-	}
-	ids, err := eventIDs(db)
-	if err != nil {
-		return err
-	}
-	g := lensGateOf(evs, ids)
-	if !g.cast || (g.head > 0 && len(g.behind) == 0) {
-		return nil
-	}
-	if g.head == 0 {
-		return fmt.Errorf("record: verdict PASS refused — no report has been ingested or edited, so there is nothing a lens could have audited")
-	}
-	return fmt.Errorf("record: verdict PASS refused — the report head is %d and %d cast lens(es) have not sat against it: %s. Every lens sits against the text it passes; `dispatch next` readies them", g.head, len(g.behind), strings.Join(g.behind, ", "))
 }

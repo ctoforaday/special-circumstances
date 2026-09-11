@@ -52,8 +52,9 @@ var Seats = []struct{ Role, ID string }{
 }
 
 // Build materialises a board into runDir.
-// stagingLenses are the lens seats the builder mints a board through, in rotation. Four, like the
-// default cast, so a board of up to twenty gaps stays within each lens's default budget of five.
+// stagingLenses are the lens seats the builder mints a board through, in rotation. Four — a budget
+// fixture, not the default cast (which seats every area): a board of up to twenty gaps stays within
+// each lens's default budget of five.
 var stagingLenses = []string{"red-lens-evidence", "red-lens-logic", "red-lens-dark-side", "red-lens-voice"}
 
 func Build(run record.Run, b Board, exec Exec) error {

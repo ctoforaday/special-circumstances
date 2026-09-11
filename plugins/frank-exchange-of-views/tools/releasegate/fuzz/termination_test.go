@@ -23,7 +23,7 @@ import (
 // move is what the chair's plan says at one sitting.
 type move struct {
 	name string
-	// engage: the evidence lens (head moved) and blue on G1 are ready — an exchange.
+	// engage: the evidence lens (active) and blue on G1 are ready — an exchange.
 	engage bool
 	// fresh: the lens is ready and blue is engaged on a NEW gap this sitting mints.
 	fresh bool

@@ -745,12 +745,20 @@ func (r *runner) register(role, seatID string) {
 	close(done)
 }
 
-// fuzzLensSeats are the lens seats this driver mints from — debate.js's DEFAULT_AREAS, which are
-// the lenses the engine actually dispatches in a fuzz run (the other three areas are opt-in per
-// run). Each lens's budget is at least the run's mintBudget and grows with the report, so the
-// ceiling on gaps is at least four times the floor; a lens that reached its budget would see
-// `mint` refused with the budget text, which noteExec tallies.
-var fuzzLensSeats = []string{"red-lens-evidence", "red-lens-logic", "red-lens-dark-side", "red-lens-voice"}
+// fuzzLensSeats are the lens seats this driver mints from — the default cast's lenses, every area,
+// read off record.CastFor so the driver and setup cannot disagree about who sits. Each lens's
+// budget is at least the run's mintBudget and grows with the report, so the ceiling on gaps is at
+// least seven times the floor; a lens that reached its budget would see `mint` refused with the
+// budget text, which noteExec tallies.
+var fuzzLensSeats = func() []string {
+	var out []string
+	for _, s := range record.CastFor(nil, 1) {
+		if strings.HasPrefix(s, "red-lens-") {
+			out = append(out, s)
+		}
+	}
+	return out
+}()
 
 // minterOf is the seat that may close or regrade gapID: the lens whose mint created it. Every gap
 // this driver puts on the board goes through r.mint, which records the minter, so a miss here is
@@ -1906,8 +1914,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	case strings.HasPrefix(seatID, "red-lens"):
 		// A LENS FINDS AND MINTS; THE ORIGINATOR CLOSES (plans/roundless.md §III.B.3). The plan
 		// dispatched this lens either ENGAGED — on gaps it minted that are open and below their
-		// limits, which it now re-evaluates against blue's repair — or FRESH, because the report
-		// head moved past its pin. Either way it audits (the shared lens acts below the
+		// limits, which it now re-evaluates against blue's repair — or by its retirement state
+		// (active, or re-armed once). Either way it audits (the shared lens acts below the
 		// fallthrough) and may put new gaps on the board against its own budget.
 		r.sit("lens", seatID)
 		if r.evaluated == nil {
@@ -2471,9 +2479,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	if err := record.StageForRun(stageRun, fuzzClasses...); err != nil {
 		return outcome{seed: seed, runDir: runDir, err: "stage the class registry: " + err.Error()}
 	}
-	// THE CAST, as setup writes it (plans/roundless.md §III.B.1): the default four areas — the
-	// lenses this driver mints through — the chair, one lane, the bookends. Every register and
-	// every `dispatch next` is checked against it.
+	// THE CAST, as setup writes it (plans/roundless.md §III.B.1): every area — the lenses this
+	// driver mints through — the chair, the lanes, the bookends. Every register and every
+	// `dispatch next` is checked against it.
 	// THREE LANES, because the run dispatches three (args.lanes above): a cast of one lane refused
 	// blue-lane-2 and blue-lane-3 at register on every run — 80 refusals across 40 — and every act
 	// of two of the three lanes ran unregistered behind a green sweep.

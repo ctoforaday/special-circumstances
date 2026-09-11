@@ -3492,7 +3492,12 @@ type SpotCheck struct {
 	None  *bool                  `protobuf:"varint,3,opt,name=none,proto3,oneof" json:"none,omitempty"`
 	// ONE PROSE CHANNEL. `notes` held what the spot-check found and `reason` held why there was
 	// nothing to sample — the same field, split by which branch wrote it.
-	Reason        *string `protobuf:"bytes,4,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
+	Reason *string `protobuf:"bytes,4,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
+	// The lens seats whose area the chair read the changes against this sitting — the plan's
+	// stale_areas, each a lens retired for good whose pin the report head has moved past. A PASS is
+	// refused until a spot-check in the chair's sitting names every stale area. Validated against the
+	// cast at the write.
+	Areas         []string `protobuf:"bytes,5,rep,name=areas,proto3" json:"areas,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3546,6 +3551,13 @@ func (x *SpotCheck) GetReason() string {
 		return *x.Reason
 	}
 	return ""
+}
+
+func (x *SpotCheck) GetAreas() []string {
+	if x != nil {
+		return x.Areas
+	}
+	return nil
 }
 
 type Finding struct {
@@ -7033,11 +7045,12 @@ const file_record_proto_rawDesc = "" +
 	"\v_likelihoodB\t\n" +
 	"\a_impactB\x12\n" +
 	"\x10_complexity_costB\b\n" +
-	"\x06_basis\"z\n" +
+	"\x06_basis\"\x90\x01\n" +
 	"\tSpotCheck\x12\x10\n" +
 	"\x03ids\x18\x01 \x03(\tR\x03ids\x12\x17\n" +
 	"\x04none\x18\x03 \x01(\bH\x00R\x04none\x88\x01\x01\x12!\n" +
-	"\x06reason\x18\x04 \x01(\tB\x04\xc0\xb5\x18\x01H\x01R\x06reason\x88\x01\x01B\a\n" +
+	"\x06reason\x18\x04 \x01(\tB\x04\xc0\xb5\x18\x01H\x01R\x06reason\x88\x01\x01\x12\x14\n" +
+	"\x05areas\x18\x05 \x03(\tR\x05areasB\a\n" +
 	"\x05_noneB\t\n" +
 	"\a_reasonJ\x04\b\x02\x10\x03R\x05notes\"\xb4\x04\n" +
 	"\aFinding\x12\"\n" +
