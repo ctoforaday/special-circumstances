@@ -629,7 +629,7 @@ async function ensureSittingRecord(env, who, owed, opts) {
   if (env && env.sitting_record_appended === true) return true
   log(`sitting-record (W1.7): ${who} did not attest ${owed} — re-prompting once before continuing (#249 recovery)`)
   const retry = await agent(
-    `Sitting-record repair for ${who}. Your last turn did not attest the sitting record, so the run cannot yet show ${owed}. Put it on the record NOW — nothing else. ${owed}. Do NOT re-do your substantive work and do NOT edit the report again; this turn exists only to close the parity gap. If you genuinely cannot (the duty does not apply, or a tool refuses you), record on the operator channel saying exactly why, and return sitting_record_appended false with a one-line note. Return the attestation.`,
+    `Sitting-record repair for ${who}. Your last turn did not attest the sitting record, so the run cannot yet show ${owed}. Put it on the record NOW — nothing else. ${owed}. Do NOT re-do your substantive work and do NOT edit the report again; this turn exists only to close the parity gap. If you genuinely cannot (the duty does not apply, or a tool refuses you), say in the log exactly why, and return sitting_record_appended false with a one-line note. Return the attestation.`,
     { ...(opts || {}), label: `${who}-sitting-record · ${slug}`, phase: 'Debate', schema: SITTING_RECORD })
   if (retry && retry.sitting_record_appended === true) {
     log(`sitting-record: ${who} attested on the retry — continuing`)

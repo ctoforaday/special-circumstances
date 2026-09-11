@@ -2586,9 +2586,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = "show report --anchor f-ffffffff SUCCEEDED on an anchor nobody minted — a window over nothing:\n" + truncate(string(out))
 		return res
 	}
-	// The OPERATOR's friction read — seats write the channel, the human reads it back.
-	if _, err := tracked(bin, "log", "--run", runDir, "--seat-id", "operator"); err != nil {
-		res.err = "operator friction read failed: " + err.Error()
+	// The OPERATOR's read of the log — seats write it, the human reads it back with `show log`.
+	if _, err := tracked(bin, "show", "log", "--run", runDir, "--seat-id", "operator"); err != nil {
+		res.err = "operator log read failed: " + err.Error()
 		return res
 	}
 	// THE WRONG-ADDRESS DRIVE IS GONE, because the address collision is. A seat's `friction

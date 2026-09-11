@@ -300,5 +300,5 @@ func (r editResult) Human() string {
 	}
 	return head + "\n\nNOTE — this text sounds like the run rather than the subject. The edit is\nrecorded; this is not a refusal, and it may be wrong:\n  - " +
 		strings.Join(r.VoiceTells, "\n  - ") +
-		"\nSeparation, never deletion: an operational limit belongs on the operator\nchannel, and the part that limits the CONCLUSION stays here, re-voiced."
+		"\nSeparation, never deletion: an operational limit belongs in the log, and\nthe part that limits the CONCLUSION stays here, re-voiced."
 }

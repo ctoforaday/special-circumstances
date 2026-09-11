@@ -833,12 +833,12 @@ func (r registerResult) Human() string {
 			"from the hook — which injects it on every call when it is working.\n\n" +
 			"YOUR WORK IS NOT AT RISK FROM THIS. The run directory is correct and your events are " +
 			"recorded against it. What is lost is the identity binding, and the fix for that is " +
-			"above. Record the hook's absence ONCE with the friction verb — you are the first party " +
+			"above. Record the hook's absence ONCE in the log — you are the first party " +
 			"that can see it, and the run leaves no other trace of it."
 	}
 	if r.TurnLimitUnarmed != "" {
 		out += "\n\nThis sitting's tool calls are not being counted against the run's limit (" +
-			r.TurnLimitUnarmed + "). Record it once with the friction verb."
+			r.TurnLimitUnarmed + "). Record it once in the log."
 	}
 	return out
 }

@@ -561,7 +561,7 @@ test('W2b: partial coverage is logged, never fatal; a found_closed id blue was n
   assert.ok(!partial.logs.some((l) => l.includes('G9')), 'a claimed closure outside the engagement excuses nothing')
 })
 
-test('the operator channel aggregates from every seat with attribution, and assembly receives it', async () => {
+test('the log aggregates from every seat with attribution, and assembly receives it', async () => {
   const world = makeWorld(makeResponder({
     chair: [chairEnv({ plan: plan([party('blue-respond', 'G1')]), log: ['no PDF extraction'] }), passChair()],
     blueRespond: [blueEnv({ log: ['rate-limited on WebFetch'] })],

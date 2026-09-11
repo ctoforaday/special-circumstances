@@ -18,7 +18,7 @@ func TestReasonIsNamesOnlyProseVerbs(t *testing.T) {
 		walk(root, func(c *cobra.Command, path []string) {
 			want, ok := seat.ReasonIs[c.Name()]
 			if !ok || flags.ProseOf(c) == nil {
-				return // not a prose verb: the operator's `log` read carries a hidden stub
+				return // not a prose verb
 			}
 			f := c.Flags().Lookup(flags.Reason)
 			if f == nil {
