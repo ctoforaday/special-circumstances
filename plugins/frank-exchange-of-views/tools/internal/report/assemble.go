@@ -53,8 +53,9 @@ func StripFindingMarkers(md string) string { return findingMarker.ReplaceAllStri
 var citeAnchor = regexp.MustCompile(`<!--cite:(c-[0-9a-f]+)-->`)
 
 // weaveCitations turns the invisible citation layer into a visible one: each "<!--cite:c-…-->"
-// anchor becomes a footnote reference [^N] (N in first-appearance order; a label used twice
-// shares one N), and a "## Bibliography" of "[^N]: <title>. <url> (accessed <date>)" is
+// anchor becomes a footnote reference [^N] (N in first-appearance order; every label resolving to
+// one source URL shares one N, and a reference repeated beside itself reads once), and a
+// "## Bibliography" of "[^N]: <title>. <url> (accessed <date>)" is
 // appended, composed from the cite events. A dangling anchor — one with no source on the
 // record (bijection-impossible under the lockdown, but defended) — becomes an explicit
 // unresolved-citation line rather than a crash or a silent drop. With no citations the report
@@ -64,14 +65,24 @@ func weaveCitations(md string, sources []record.Source) string {
 	for _, s := range sources {
 		byLabel[s.Label] = s
 	}
-	var order []string
+	// ONE FOOTNOTE PER SOURCE, NOT PER LABEL. A red corroboration and a blue cite of the same URL
+	// are two labels on one source; keyed by label, B9's report wove them into "[^1][^2]" on one
+	// clause, both notes naming the same page. A label with no source on the record keys by itself.
+	keyOf := func(label string) string {
+		if s, ok := byLabel[label]; ok && s.URL != "" {
+			return s.URL
+		}
+		return label
+	}
+	var order []string // the first label seen for each source, in first-appearance order
 	num := map[string]int{}
 	body := citeAnchor.ReplaceAllStringFunc(md, func(tok string) string {
 		label := citeAnchor.FindStringSubmatch(tok)[1]
-		n, seen := num[label]
+		k := keyOf(label)
+		n, seen := num[k]
 		if !seen {
 			n = len(order) + 1
-			num[label] = n
+			num[k] = n
 			order = append(order, label)
 		}
 		return fmt.Sprintf("[^%d]", n)
@@ -79,11 +90,17 @@ func weaveCitations(md string, sources []record.Source) string {
 	if len(order) == 0 {
 		return body
 	}
+	for n := 1; n <= len(order); n++ {
+		ref := fmt.Sprintf("[^%d]", n)
+		for strings.Contains(body, ref+ref) {
+			body = strings.ReplaceAll(body, ref+ref, ref)
+		}
+	}
 	var b strings.Builder
 	b.WriteString(strings.TrimRight(body, "\n"))
 	b.WriteString("\n\n## Bibliography\n\n")
 	for _, label := range order {
-		n := num[label]
+		n := num[keyOf(label)]
 		s, ok := byLabel[label]
 		if !ok {
 			fmt.Fprintf(&b, "[^%d]: _(unresolved citation %s — no source on the record)_\n", n, label)
