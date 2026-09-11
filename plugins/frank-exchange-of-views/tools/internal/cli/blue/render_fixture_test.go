@@ -48,7 +48,7 @@ func TestFixtureRenderReproducesEditPathAndKeepsEveryAnchor(t *testing.T) {
 
 	viaEdit := base
 	for i, s := range steps {
-		next, err := planEdit(viaEdit, s.Old, s.New)
+		next, _, err := planEdit(viaEdit, s.Old, s.New)
 		if err != nil {
 			t.Fatalf("planEdit step %d (%q): %v", i, s.Old, err)
 		}

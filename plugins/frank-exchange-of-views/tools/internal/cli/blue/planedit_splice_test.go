@@ -11,13 +11,13 @@ import (
 // a real report — this is the case where guessing is worst.
 func TestPlanEditRefusesAnAmbiguousSpan(t *testing.T) {
 	const rep = "# H\n\nThe value is stable.\n\nElsewhere, again: The value is stable.\n"
-	if _, err := planEdit(rep, "The value is stable.", "The value is steady."); err == nil {
+	if _, _, err := planEdit(rep, "The value is stable.", "The value is steady."); err == nil {
 		t.Fatal("an --quote span matching twice was accepted — it silently edits the first site")
 	} else if !strings.Contains(err.Error(), "MORE THAN ONCE") {
 		t.Errorf("error = %v, want it to name the ambiguity", err)
 	}
 	// A quote carrying enough context to be unique still applies.
-	out, err := planEdit(rep, "Elsewhere, again: The value is stable.", "Elsewhere, again: The value is steady.")
+	out, _, err := planEdit(rep, "Elsewhere, again: The value is stable.", "Elsewhere, again: The value is steady.")
 	if err != nil {
 		t.Fatalf("a uniquely-quoted span was refused: %v", err)
 	}
@@ -34,7 +34,7 @@ func TestAnchorsMayTransitButNeverChange(t *testing.T) {
 	const rep = "# H\n\nThe methods agree independently<!--fx:f-abc--> here.\n\nOthers agree independently there.\n"
 
 	// The deadlock case: disambiguating context carries the anchor, carried across verbatim.
-	out, err := planEdit(rep,
+	out, _, err := planEdit(rep,
 		"The methods agree independently<!--fx:f-abc--> here.",
 		"The methods agree independent<!--fx:f-abc--> here.")
 	if err != nil {
@@ -51,20 +51,20 @@ func TestAnchorsMayTransitButNeverChange(t *testing.T) {
 	}
 
 	// Dropping it is still refused.
-	if _, err := planEdit(rep,
+	if _, _, err := planEdit(rep,
 		"The methods agree independently<!--fx:f-abc--> here.",
 		"The methods agree independent here."); err == nil {
 		t.Error("an edit that DROPPED its anchor was accepted")
 	}
 	// Duplicating it is still refused.
-	if _, err := planEdit(rep,
+	if _, _, err := planEdit(rep,
 		"The methods agree independently<!--fx:f-abc--> here.",
 		"The methods agree independent<!--fx:f-abc--> and<!--fx:f-abc--> here."); err == nil {
 		t.Error("an edit that DUPLICATED its anchor was accepted")
 	}
 	// Introducing one that was not in the span is still refused. (The id must be valid hex to BE
 	// an anchor — "f-zzz" is inert text the regex correctly ignores, which is why this uses f-dead.)
-	if _, err := planEdit(rep,
+	if _, _, err := planEdit(rep,
 		"Others agree independently there.",
 		"Others agree independent<!--fx:f-dead--> there."); err == nil {
 		t.Error("an edit that INVENTED an anchor was accepted")

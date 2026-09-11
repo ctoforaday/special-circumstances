@@ -178,11 +178,15 @@ func RegisteredSeats(run Run) ([]string, error) {
 }
 
 // ReportOp is one recorded text mutation from the report_op view, in event order. Kind is "edit"
-// (A=old span, B=new span) or "insert" (A=anchoring quote, B=marker id). reportproj folds these
-// over the base; the SELECTION and ordering are the view's, not a Go walk of the event log.
+// (A=old span, B=new span), "insert" (A=anchoring quote, B=marker id) or "remove" (A=anchor id).
+// reportproj folds these over the base; the SELECTION and ordering are the view's, not a Go walk
+// of the event log. Exact is an edit's exact_span: the splice replaces A as written rather than the
+// span the ordinary locate finds. False for every insert and remove, and for every edit recorded
+// without the field.
 type ReportOp struct {
-	Kind string
-	A, B string
+	Kind  string
+	A, B  string
+	Exact bool
 }
 
 // ReportProjection returns the frozen base of blue's report and the ordered stream of text
@@ -223,7 +227,7 @@ func ReportProjection(run Run) (base string, haveBase bool, ops []ReportOp, err 
 	}
 	// The second key orders the one case where an event yields several rows — a retire naming
 	// more than one anchor — so replay is deterministic rather than whatever SQLite returns.
-	opRows, err := db.Query(`SELECT "kind", "a", "b" FROM "report_op" ORDER BY "event_id", "a"`)
+	opRows, err := db.Query(`SELECT "kind", "a", "b", "exact" FROM "report_op" ORDER BY "event_id", "a"`)
 	if err != nil {
 		return "", false, nil, fmt.Errorf("record: reading the report ops: %w", err)
 	}
@@ -231,7 +235,7 @@ func ReportProjection(run Run) (base string, haveBase bool, ops []ReportOp, err 
 	for opRows.Next() {
 		var op ReportOp
 		var a, b sql.NullString
-		if err := opRows.Scan(&op.Kind, &a, &b); err != nil {
+		if err := opRows.Scan(&op.Kind, &a, &b, &op.Exact); err != nil {
 			return "", false, nil, err
 		}
 		op.A, op.B = a.String, b.String

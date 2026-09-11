@@ -1183,6 +1183,17 @@ message BlueEdit {
   // supplied the bytes, so verbatim-ness is structural. On the ordinary path it is the outcome
   // of a comparison that a stray space would have failed.
   optional bool accepted = 8;
+
+  // exact_span — this edit replaced `old` AS WRITTEN, trailing punctuation included, rather than
+  // the span the ordinary locate finds.
+  //
+  // The ordinary locate trims a quote's trailing punctuation, so a repair confined to that
+  // punctuation (`on their own.).` → `on their own.)`) replaces a span with itself, and one that
+  // changes a terminator leaves the old one standing beside the new. When that happens and the
+  // quote occurs byte-for-byte exactly once, the edit takes the literal span instead — and the
+  // choice is RECORDED, because replay cannot re-derive it: an event written before this field
+  // existed, whose trimmed span was a no-op, must still replay as one.
+  optional bool exact_span = 9;
 }
 
 message Revision {
