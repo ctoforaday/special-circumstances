@@ -210,23 +210,32 @@ FROM "correction" c
 JOIN "events" ce ON ce."id" = c."event_id"
 JOIN "events" e  ON e."key" = c."corrects";
 
+-- THE ROOT OF EVERY CORRECTION CHAIN: for each replacement, the key of the act its chain began
+-- with. The walk runs over the correction rows ALONE and never over "events", so it costs the
+-- number of corrections, not the size of the record. (It walked every event once, and the "gap"
+-- view reads live_event in several correlated subqueries per gap: every board read, including the
+-- ones validation makes inside a write, paid for the whole record each time.)
+CREATE VIEW "correction_root" AS
+WITH RECURSIVE "up"("replacement", "root") AS (
+  SELECT c."replacement", c."corrects" FROM "correction" c
+  UNION ALL
+  SELECT u."replacement", c."corrects" FROM "up" u JOIN "correction" c ON c."replacement" = u."root"
+)
+SELECT u."replacement" AS "replacement", u."root" AS "root"
+FROM "up" u
+WHERE NOT EXISTS (SELECT 1 FROM "correction" c WHERE c."replacement" = u."root");
+
 -- THE ACTS THAT STAND, and WHERE each stands. Every event that no correction struck, with its
 -- position "pos": its own id, or — for a replacement — the id of the act at the ROOT of its chain.
 -- A correction takes its target's place in every ordering: a reader picking the FIRST or the LATEST
--- act orders by "pos", so a replacement cannot jump ahead of a later act by the same seat (correcting
--- regrade #1 after regrade #2 must not make #1's replacement the current grade).
+-- act orders by "pos", so a replacement cannot jump ahead of a later act by the same seat (a line of
+-- inquiry's proposal corrected after it was moved must not become the line's latest status).
 CREATE VIEW "live_event" AS
-WITH RECURSIVE "chain"("event_id", "key", "pos") AS (
-  SELECT e."id", e."key", e."id" FROM "events" e
-   WHERE NOT EXISTS (SELECT 1 FROM "correction" c WHERE c."replacement" = e."key")
-  UNION ALL
-  SELECT r."id", r."key", ch."pos" FROM "chain" ch
-    JOIN "correction" c ON c."corrects" = ch."key"
-    JOIN "events" r ON r."key" = c."replacement"
-)
-SELECT ch."event_id" AS "event_id", ch."pos" AS "pos"
-FROM "chain" ch
-WHERE NOT EXISTS (SELECT 1 FROM "correction" c2 WHERE c2."corrects" = ch."key");
+SELECT e."id" AS "event_id", COALESCE(re."id", e."id") AS "pos"
+FROM "events" e
+LEFT JOIN "correction_root" cr ON cr."replacement" = e."key"
+LEFT JOIN "events" re ON re."key" = cr."root"
+WHERE NOT EXISTS (SELECT 1 FROM "correction" c WHERE c."corrects" = e."key");
 
 CREATE VIEW "gap" AS
 SELECT
