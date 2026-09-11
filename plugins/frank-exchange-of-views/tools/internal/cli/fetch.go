@@ -32,8 +32,16 @@ func newFetch() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "fetch",
 		Short: "cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes",
-		Long: "fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself, for any content type. Open what you need with Read, which can take an offset and a limit; a 67-page paper pasted into your context is the same waste whether it is legible or not. Where the source is a PDF, its text is extracted to <run>/cache/<sha256>.txt and named in the summary, so you need no PDF tooling to read it.\n\nWHERE THAT PDF HAS NO TEXT LAYER — a scan, roughly one cited PDF in four — its pages are rendered to grayscale at 300 DPI and read by the LOCAL OCR ENGINE compiled into this binary (tesseract + leptonica, statically linked): deterministic, reproducible, no model, no credentials, no network, seconds per document. The reading is named in the summary as ocr_derived text, keyed to the engine identity so an audit can re-derive it byte for byte; ruled-table pages are detected and reconstructed into |-separated rows with confidence stats on the record, and a reconstruction that cannot place its marks falls back to plain text WITH the failure stated. `--ocr=false` caches the document unread, and a document over the render disk budget is refused rather than partly read.\n\nPages already read are never derived twice on a fetch: each carries a receipt validated against its image hash, so a retry or a crash resumes cleanly. A later fetch of the same URL is served from cache so every seat reads identical content. It writes no record event. A fetch failure is a non-zero error (pick another source); it does not itself log friction.\n\n" +
-			"AN UNREACHED SOURCE IS NOT EVIDENCE OF ABSENCE. Where this session runs behind an egress proxy, a host outside its allowlist answers 403 — the same status an origin uses to refuse a client — so a failure can be a fact about THIS CONTAINER or a fact about the SOURCE, and the two are different findings. The refusal says so where it can. Measured 2026-08-23: openai.com 403s through the proxy, and a research question shipped `open rather than resolved` on that basis. Where you cannot tell which it was, record that the source was UNREACHABLE FROM HERE rather than that the question is unresolved.",
+		// WHAT THE LONG NO LONGER SAYS, AND WHERE IT LIVES. The share of cited PDFs that are scans
+		// (one in four, 2026-08-23 corpus) is at the OCR call below; the engine (tesseract +
+		// leptonica, statically linked) and its 300 DPI grayscale render are in
+		// fetchcache/pageread.go; the openai.com 403 that shipped a question "open rather than
+		// resolved" (#592) is at fetchcache/httpfetcher.go and egress_test.go. None of it changes
+		// what a seat does, so the page carries only the instruction each one produced.
+		Long: "fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself. Open what you need with Read, using an offset and a limit: a 67-page paper pasted into your context is waste whether legible or not. A PDF's text is extracted to <run>/cache/<sha256>.txt and named in the summary, so you need no PDF tooling.\n\n" +
+			"A PDF WITH NO TEXT LAYER (a scan) is read by the LOCAL OCR ENGINE compiled into this binary — deterministic, reproducible, no model, credentials or network, seconds per document — and named in the summary as ocr_derived text keyed to the engine identity, so an audit can re-derive it byte for byte. Ruled tables are reconstructed into |-separated rows with confidence stats on the record; one that cannot place its marks falls back to plain text WITH the failure stated. A document over the render disk budget is refused rather than partly read.\n\n" +
+			"Pages already read are never re-derived: each carries a receipt checked against its image hash, so a retry or a crash resumes cleanly. A later fetch of the same URL is served from cache, so every seat reads identical bytes. It writes no record event. A failure is a non-zero error (pick another source) and logs no friction itself.\n\n" +
+			"AN UNREACHED SOURCE IS NOT EVIDENCE OF ABSENCE: behind an egress proxy, a host outside the allowlist answers 403 — the status an origin uses to refuse a client — so a failure can be a fact about THIS CONTAINER or about the SOURCE, and those are different findings. The refusal says which where it can; where you cannot tell, record the source as UNREACHABLE FROM HERE, not the question as unresolved.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -144,12 +152,16 @@ func newFetch() *cobra.Command {
 			return nil
 		},
 	}
-	c.Flags().String(flags.URL, "", "the http/https URL to read (fetched once, then served from the run cache)")
-	c.Flags().String(flags.Via, "", "reach the source through a named backend instead of the live URL: "+
-		strings.Join(fetchcache.Vias(), " | ")+". They answer DIFFERENT questions — `archive` what the page said on a date "+
-		"(right for web pages, usually the landing page for a subscription article), `oa` whether a legal open copy exists, "+
-		"`metadata` only that the source exists and where (no text, and the honest answer when there is none to get), "+
-		"`arxiv` the preprint's PDF or LaTeX source. Omitted, a refusal falls back through them in that order")
+	c.Flags().String(flags.URL, "", "the http/https URL to read")
+	// THE FIRST BACKQUOTED WORD IS COBRA'S PLACEHOLDER, so it is the shape (`backend`), not a value:
+	// it rendered `--via archive`, which reads like a default.
+	c.Flags().String(flags.Via, "", "reach the source through a named `backend`: "+
+		strings.Join(fetchcache.Vias(), " | ")+". They answer DIFFERENT questions — live the URL itself (the same as omitting this); "+
+		"archive what the page said on a date (right for web pages, usually the landing page for a subscription article); "+
+		"oa whether a legal open copy exists; metadata only that the source exists and where (no text, and the honest answer "+
+		"when there is none to get); arxiv the preprint's PDF or LaTeX source; eric the US education index's record, with its "+
+		"full text where ERIC holds an authorised copy; auto tries "+strings.Join(fetchcache.AutoOrder(), ", ")+
+		" in that order. A refused live fetch falls back through that same order")
 	c.Flags().String(flags.At, "", "with --via archive: bound the capture to YYYYMMDD and take the latest at or before it. "+
 		"A priority question needs the FIRST time something was visible, which the newest capture cannot answer")
 	c.Flags().Bool(flags.OCR, true, "read a PDF that has no text layer with the local OCR engine; --ocr=false caches it unread")

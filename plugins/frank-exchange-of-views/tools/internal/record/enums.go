@@ -252,7 +252,7 @@ var EnumFields = map[string][]EnumField{
 	// mandated ceremony, and nothing on the entry said which was which.
 	"log": {{
 		Key: "type", Flag: flags.Type, Values: []EnumValue{
-			ev("nominal", "the surface met the work — the clean sitting, said in the POSITIVE, because an entry saying nothing is still an entry and silence cannot say it"),
+			ev("nominal", "the surface met the work — the clean sitting, said in the POSITIVE: silence cannot say it"),
 			ev("defect", "something is broken: it did the wrong thing, or failed where it should have worked"),
 			ev("request", "a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong"),
 			ev("friction", "the work was impeded and you are NOTING it; NOT necessarily actionable and not necessarily advisable to change, which is why it has its own word rather than posing as a defect"),
@@ -266,7 +266,7 @@ var EnumFields = map[string][]EnumField{
 	"finding": {{
 		Key: "about_kind", Flag: flags.AboutKind, Optional: true, Values: []EnumValue{
 			ev("section", "a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there"),
-			ev("inquiry", "a line of inquiry, by its avenue id: an argument against the REASON it was declined, deferred or abandoned"),
+			ev("inquiry", "a line of inquiry, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned"),
 			ev("gap", "a gap already on the docket, by its id — a defect in the record rather than in the report"),
 		},
 		Why: "an absence has no sentence to quote, so it used to borrow an innocent one as a handle and the gap list pointed a reader at good prose. These targets are references the record can CHECK: an avenue id either names a line this run proposed or it does not",
@@ -314,7 +314,7 @@ var EnumFields = map[string][]EnumField{
 		{
 			Key: "check_kind", Flag: flags.CheckKind, Values: []EnumValue{
 				ev("document", "reading a shipped artifact settles it — the check is answered by prose that quotes what is there"),
-				ev("computation", "RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation are common cases and not the whole of it; if you can imagine a script that would end the argument, this is the kind"),
+				ev("computation", "RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind"),
 				ev("source", "verifying an external source settles it — the claim stands or falls on what the cited material actually says"),
 			},
 			Why: "the kind says WHAT WOULD SETTLE the acceptance check, and it is the lever the 2026-08-05 smoke measured missing: blue wrote zero programs across the run, not because it ignored the invitation but because NOTHING ASKED — all ten of red's checks were document probes, and R1-1 was literally \"execute the assembly step\". Red could only ever ask whether the report SAYS something. A `computation` check is a demand that cannot be answered in prose",
@@ -326,7 +326,7 @@ var EnumFields = map[string][]EnumField{
 		{
 			Key: "about_kind", Flag: flags.AboutKind, Optional: true, Values: []EnumValue{
 				ev("section", "a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there"),
-				ev("inquiry", "a line of inquiry, by its avenue id: an argument against the REASON it was declined, deferred or abandoned"),
+				ev("inquiry", "a line of inquiry, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned"),
 				ev("gap", "a gap already on the docket, by its id — a defect in the record rather than in the report"),
 			},
 			Why: "a gap about an absence has no sentence to quote either, and the gap list is the surface a reader actually walks: an anchor that points at prose the gap calls fine sends them to the wrong paragraph. These targets are references the record can CHECK",
@@ -348,7 +348,7 @@ var EnumFields = map[string][]EnumField{
 			// in miniature, and it survived because nothing compared the advertised set to the schema's.
 			ev("supports_with_bridge", "it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement"),
 			ev("weak", "it gestures at the claim, or is itself uncorroborated: thin support, not none"),
-			ev("refutes", "you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry, and until 0.60.0 it had no field at all"),
+			ev("refutes", "you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry"),
 			ev("absent", "you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was"),
 			ev("unreachable", "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit"),
 		},

@@ -23,8 +23,8 @@ func TestVerifyReproductionErrorTellsBlueToStopNotEdit(t *testing.T) {
 	}
 	msg := err.Error()
 
-	// MUST carry: stop, file safe, do-not-edit, escalate-as-friction, byte offset.
-	for _, want := range []string{"STOP", "PRESERVED", "Do not edit", "no diff for you to apply", "friction", "byte "} {
+	// MUST carry: stop, file safe, do-not-edit, escalate-as-a-defect, byte offset.
+	for _, want := range []string{"STOP", "PRESERVED", "Do not edit", "no diff for you to apply", "'log' as a defect", "byte "} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("mismatch error is missing the safety directive %q:\n%s", want, msg)
 		}

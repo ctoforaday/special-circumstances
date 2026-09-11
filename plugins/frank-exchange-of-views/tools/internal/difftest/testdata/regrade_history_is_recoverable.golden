@@ -34,15 +34,13 @@ feov-record: required flag(s) "reason" not set
 
 move a grade on a gap that already exists, with the reason it moved
 
-Same-id grade movement, recorded with the reason it moved: the gap keeps its identity and its history rather than being closed and re-minted.
+The gap keeps its identity and its history rather than being closed and re-minted.
 
-Likelihood grades the CONSEQUENCE — how likely the harm is to land, never how likely the defect is to BE there.
-
-The regrade and its reason render on the BOARD beside the gap, so a grade argued down over three sittings shows the argument rather than only the final number. They do not reach the research report: an argument about a grade is the debate's, and the report carries what the debate SETTLED.
+The regrade and its reason render on the BOARD beside the gap, so a grade argued down over three sittings shows the argument, not only the final number. They never reach the research report, which carries what the debate SETTLED.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
+needed and what you would have done with 'log', as a request — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
@@ -63,15 +61,15 @@ Flags:
   -h, --help               help for regrade
       --id gap-id          the gap id
       --impact grade       how bad the consequence is if it lands
-      --likelihood grade   how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what one grade meant before v2 split them
-      --reason string      REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as "$X" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words
+      --likelihood grade   how likely the CONSEQUENCE is — never how likely the defect is to BE there
+      --reason string      REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade     how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
 
 Global Flags:
-      --json               emit a structured JSON result (and structured errors) instead of human text
-      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --schema             print the event-schema epoch this binary writes, and exit
-      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
+      --schema           print the event-schema epoch this binary writes, and exit
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
 
 $ regrade --run {RUN} --seat-id red-lens-evidence --id G1 --severity medium --likelihood low --reason blue narrowed the scope; consequence shrank
 exit 0

@@ -41,7 +41,7 @@ var MotionSubjects = []string{"grade", "petition", "inquiry", "docket"}
 // spellings would have reproduced it inside the new group.
 var MotionVerdicts = map[string][]EnumValue{
 	"grade": {
-		ev("accepted", "the filer is right and the grade moves — say so, then MOVE it with `merge regrade`; accepting without regrading is a channel with no consequence"),
+		ev("accepted", "the filer is right and the grade should move. The ruling moves nothing itself: the gap's originating lens moves it with `regrade`, so say in --reason which grade and to what"),
 		ev("rejected", "the grade stands. Your --reason is what the filer appeals against, so it carries the argument, not the conclusion"),
 	},
 	"petition": {
@@ -76,15 +76,15 @@ var MotionVerdicts = map[string][]EnumValue{
 var MotionFields = map[string]map[string][]EnumValue{
 	"grade": {"dimension": {
 		ev("severity", "how bad the defect is in itself"),
-		ev("likelihood", "how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what one grade meant before v2 split them"),
-		ev("impact", "how bad the consequence is if it lands"),
+		ev("likelihood", flags.DescLikelihood),
+		ev("impact", flags.DescImpact),
 		// ALL FOUR AXES ARE THEIR FLAG NAMES. This value spent releases spelled `complexity_cost`
 		// — the PAYLOAD key — while the flag was `--cx`, and the comment here documented the trap
 		// rather than removing it: three dimensions matched their flags and the fourth matched
 		// neither, which is a trap a seat walks into by learning the pattern from the other three
 		// (measured). The flag is `--complexity` and so is the dimension; the payload key stays
 		// `complexity_cost`, which is a schema name no seat types.
-		ev("complexity", "what fixing it costs — the axis to contest when the fix is worth more than the defect"),
+		ev("complexity", flags.DescComplexity+" — the axis to contest when the fix is worth more than the defect"),
 	}},
 	"petition": {
 		// FROM THE SCHEMA, not typed here. These four words were hand-listed while PetitionClass

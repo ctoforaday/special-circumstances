@@ -163,7 +163,16 @@ func TestAFlagPlaceholderIsNeverProseThatLeakedIntoIt(t *testing.T) {
 					owner[v] = flag
 				}
 			}
-			c.Flags().VisitAll(func(f *pflag.Flag) {
+			// PERSISTENT FLAGS TOO. c.Flags() does not hold a flag registered with PersistentFlags()
+			// until cobra merges them at parse, so the group-level `show --id` rendered the phrase
+			// `show changes` as its placeholder, and the root's --seat-id rendered `register`, with
+			// this gate green. Each flag is checked once, on the command that declares it.
+			seen := map[string]bool{}
+			visit := func(f *pflag.Flag) {
+				if seen[f.Name] {
+					return
+				}
+				seen[f.Name] = true
 				name, _ := pflag.UnquoteUsage(f)
 				checked++
 				if strings.Contains(name, " ") {
@@ -174,7 +183,9 @@ func TestAFlagPlaceholderIsNeverProseThatLeakedIntoIt(t *testing.T) {
 					t.Errorf("%s `%s --%s` renders the placeholder %q, which is a value of --%s. A seat reading it is being taught a value this flag refuses.",
 						role, strings.Join(path, " "), f.Name, name, o)
 				}
-			})
+			}
+			c.Flags().VisitAll(visit)
+			c.PersistentFlags().VisitAll(visit)
 		})
 	}
 	if checked == 0 {

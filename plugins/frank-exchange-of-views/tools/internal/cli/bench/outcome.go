@@ -113,7 +113,7 @@ func newOutcome() *cobra.Command {
 	})
 
 	seat.Prose(c)
-	c.Flags().Lookup(flags.Reason).Usage = "how this run ended, in your words. The verdict itself is derived from the record; this is the bench's account of the sitting, and on an UNVERIFIED run — the one verdict the record cannot derive — it is the only evidence of why the run stopped"
+	c.Flags().Lookup(flags.Reason).Usage = "how this run ended, in your words — the bench's account of the sitting, and on an UNVERIFIED run the only evidence of why it stopped"
 	enumhelp.Flag(c, flags.As, record.MustEnum("outcome", "verdict"), ("the run's terminal verdict"))
 	return c
 }

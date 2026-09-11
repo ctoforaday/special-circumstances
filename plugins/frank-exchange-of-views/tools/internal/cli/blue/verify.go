@@ -32,7 +32,7 @@ func VerifyReproduction(ingested, rendered string) error {
 
 Your report file is PRESERVED, byte-for-byte, exactly as you wrote it. Nothing was deleted and no work is lost. This is a defect in the ingest/render tooling — the record did not reproduce your report — and it is not something an edit can fix: changing the report cannot correct a rendering bug, it can only hide it. There is no diff for you to apply here.
 
-WHAT TO DO: report this as friction (a tooling failure in the ingest step) and stop. A maintainer fixes the tool; you change nothing.
+WHAT TO DO: report this with 'log' as a defect (a tooling failure in the ingest step) and stop. A maintainer fixes the tool; you change nothing.
 
 The divergence below is DIAGNOSTIC FOR THE MAINTAINER — it is NOT an instruction and NOT a target to edit toward. The two versions first differ at byte %d:
 

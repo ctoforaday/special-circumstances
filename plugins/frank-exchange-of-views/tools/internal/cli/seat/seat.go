@@ -37,12 +37,12 @@ import (
 
 // FrictionFooter closes the loop the help opens. A seat that needs something the
 // contract does not offer must not improvise around it — the gap in the tooling
-// is itself a finding, and friction is the channel that carries it to the human
+// is itself a finding, and `log` is the channel that carries it to the human
 // who can retool the seat.
 const FrictionFooter = `
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
+needed and what you would have done with 'log', as a request — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.`
 
 // RoleKey carries the seat's ROLE on the root command.
@@ -708,7 +708,29 @@ func NewKeyed(name, key string, run Handler) *cobra.Command {
 // `close` once shipped its own private prose flag before the channel was centralized here.
 func Prose(c *cobra.Command) *cobra.Command {
 	flags.RegisterPayload(c)
+	if u, ok := ReasonIs[c.Name()]; ok {
+		c.Flags().Lookup(flags.Reason).Usage = u
+	}
 	return c
+}
+
+// ReasonIs is what --reason IS on the verbs whose prose is the artifact itself rather than an
+// argument about an act. flags.DescReason asks "why you graded, closed, ruled or edited", which
+// misdescribes a line of inquiry, a receipt, a log entry or a holding. Keyed by verb name because
+// Prose is where the flag is registered; TestReasonIsNamesOnlyProseVerbs refuses a key no prose
+// verb carries, so a renamed verb cannot silently fall back to the generic text.
+var ReasonIs = map[string]string{
+	"propose":      "the line — research prose for a reader of the SUBJECT, printed in the report word for word",
+	"move":         "the account of what settled this fate, in the SUBJECT's terms — printed in the report beside the line",
+	"manifest-row": "the receipt: what you checked, and what checking it showed",
+	"log":          "the entry: what you concluded about the tooling",
+	"position":     "your sitting's narrative — your THINKING, not your process. " + flags.ReasonNotProcess,
+	"closing":      "your closing argument on this gap — your THINKING, not your process. " + flags.ReasonNotProcess,
+	"revision":     "what changed this sitting. " + flags.ReasonNotProcess,
+	"spot-check":   "what sampling the closure archive found. " + flags.ReasonNotProcess,
+	"certify":      "what a human should re-examine after the run, and why. " + flags.ReasonNotProcess,
+	"declare":      "the holding: how the whole record is to be READ. " + flags.ReasonNotProcess,
+	"halt":         "the opinion: the boundary, and why continuing would itself be the harm. " + flags.ReasonNotProcess,
 }
 
 // ProseRequired registers the prose channel AND says so, for a verb whose argument is

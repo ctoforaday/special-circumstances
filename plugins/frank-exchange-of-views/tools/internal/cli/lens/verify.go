@@ -87,7 +87,7 @@ func newVerify() *cobra.Command {
 		}, adjudates)
 	}))
 
-	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists), flags.Anchor, "the c-<hex> of the citation you checked, from the report's `<!--cite:c-…-->` token — resolve it with `lens show evidence`")
+	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists), flags.Anchor, "the c-<hex> of the citation you checked, from the report's `<!--cite:c-…-->` token — resolve it with `show evidence`")
 	_ = c.MarkFlagRequired(flags.Anchor)
 	verifyAxes(c)
 	return c

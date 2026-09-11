@@ -396,7 +396,14 @@ var payloadFlag = map[string]string{
 // audit that produced this file found --file described two ways and --id three ways, which
 // teaches a seat that they might be different things.
 const (
-	DescReason = "your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as \"$X\" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words"
+	// DescReason says nothing about quoting: every page with this flag also carries ProseFooter,
+	// attached by Text, and a second copy of the heredoc rule on the same page is the repetition it
+	// would be.
+	DescReason = "your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. " + ReasonNotProcess
+
+	// ReasonNotProcess is the half of DescReason every prose field shares, including the verbs whose
+	// prose is an artifact rather than an argument (seat.reasonIs).
+	ReasonNotProcess = "The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran"
 
 	// ProseFooter is the quoting rule, stated ONCE and attached by Text to the help of every verb
 	// that takes a free-text flag — so it is on the page a seat reads before the write, without a
@@ -420,9 +427,9 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
 	// DescQuote is the whole contract of --quote, and it is stated once because it was the
 	// contradiction: quote the text and NOTHING else. A section heading, a dash or a pipe
 	// prepended to it makes the match fail, and the match is what places the anchor.
-	DescQuote  = "the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs"
-	DescAccept = "take red's prescribed fix EXACTLY as recorded on the gap named by --answers, instead of retyping it: the tool supplies --quote and --new from the mint, so you pass neither. Your --reason is still yours and still required — it is the argument for accepting. Refused when red prescribed no concrete text"
-	DescKey    = "a stable local handle of your own (C1, F2, P3 …) making a retried call idempotent — a repeat under the same handle returns the first result instead of acting twice"
+	DescQuote  = "the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs"
+	DescAccept = "take red's prescribed fix EXACTLY as recorded on the gap named by --answers: the tool supplies --quote and --new, so you pass neither. --reason is still required — it is your argument for accepting. Refused when red prescribed no concrete text"
+	DescKey    = "your own stable handle (C1, F2, P3 …): a repeat under the same handle returns the first result instead of acting twice"
 	DescURL    = "the source's http/https URL — fetched once and cached, so both sides read the same bytes"
 	DescTitle  = "the source's name, as it appears in the composed bibliography"
 )

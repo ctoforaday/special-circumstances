@@ -7,15 +7,15 @@ SHARED BY THE COMMANDS BELOW — each block is printed ONCE here, and every page
 §1 (on 7 pages):
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
+needed and what you would have done with 'log', as a request — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 §2 (on 17 pages):
 Global Flags:
-      --json               emit a structured JSON result (and structured errors) instead of human text
-      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --schema             print the event-schema epoch this binary writes, and exit
-      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
+      --schema           print the event-schema epoch this binary writes, and exit
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
 
 §3 (on 12 pages):
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
@@ -29,37 +29,37 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
   )
   … "$X"
 
-§5 (on 4 pages):
-REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as "$X" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words
-
-§6 (on 7 pages):
-your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as "$X" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words
-
-§7 (on 3 pages):
+§5 (on 3 pages):
 ONE EVENT, DIFFERENT CONTRACTS: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules).
 
-§8 (on 3 pages):
-`motion grade file` disputes a gap's grade; `motion petition file` raises an ethical, safety, integrity or constitutional objection, heard BEFORE the debate continues; `motion docket file` puts a GAP before the bench, which is the channel for a gap the filing seat cannot settle itself; an inquiry needs no file verb at all — proposing the line of inquiry IS the filing, and only its ruling is a motion.
+§6 (on 3 pages):
+Any seat may file; exactly one rules, and `rule` appears only on that seat's surface.
 
-§9 (on 3 pages):
-Any seat may file. Exactly one rules, and `rule` appears only on that seat's surface.
+§7 (on 5 pages):
+your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+
+§8 (on 2 pages):
+EVERY SUBJECT AND ITS GAVEL: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
+
+§9 (on 2 pages):
+REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 §10 (on 2 pages):
-EVERY SUBJECT AND ITS GAVEL: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues. A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle, and it is why `rule` is missing from the surfaces that do not hold the gavel.
+TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade dispute the merge rejected; `motion inquiry appeal` presses a line of inquiry red ruled out_of_scope or too_thin, and it is filed whether or not blue also pursues the line — separating the argument from the act is the whole point of the verb.
 
 §11 (on 2 pages):
-TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade dispute the merge rejected; `motion inquiry appeal` presses a line of inquiry red ruled out-of-scope or too-thin, and it is filed whether or not blue also pursues the line — separating the argument from the act is the whole point of the verb.
+A BENCH-RULED MOTION (petition, docket) HAS NO APPEAL, and that absence is the design rather than an omission: the bench hears it BEFORE the debate continues, so there is nothing to escalate to.
 
-§12 (on 2 pages):
-A PETITION HAS NO APPEAL, and that absence is the design rather than an omission: it is heard by the bench BEFORE the debate continues, so there is nothing to escalate to.
+§12 (on 6 pages):
+THIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-for-byte the same. On an ERROR it prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
 
 §13 (on 11 pages):
 Global Flags:
-      --id show changes    scope show changes to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
-      --json               emit a structured JSON result (and structured errors) instead of human text
-      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --schema             print the event-schema epoch this binary writes, and exit
-      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+      --id string        scope the changes projection to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
+      --schema           print the event-schema epoch this binary writes, and exit
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
 
 ==============================================================================
 $ feov-record --help
@@ -90,12 +90,12 @@ Command groups — each holds commands THIS page does not list:
   show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
-  -h, --help               help for feov-record
-      --json               emit a structured JSON result (and structured errors) instead of human text
-      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --schema             print the event-schema epoch this binary writes, and exit
-      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
-  -v, --version            version for feov-record
+  -h, --help             help for feov-record
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
+      --schema           print the event-schema epoch this binary writes, and exit
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
+  -v, --version          version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
 ==============================================================================
@@ -113,7 +113,7 @@ Flags:
 $ feov-record certify --help
 what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
 
-The bench keeps no memory between runs, so what a human should re-examine exists only if it is recorded. This is not a ruling and it moves no gap: it is the bench's own voice, and it lands in the judicial record rather than the research report. A reader who came for the subject is not the audience for what the bench wants re-examined; the human reviewing the run is, and that is the document they open.
+Not a ruling, and it moves no gap: it is the bench's own voice, and it lands in the judicial record — the document the human reviewing the run opens — not the research report, whose reader came for the subject.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -126,12 +126,12 @@ Usage:
 
 Flags:
   -h, --help            help for certify
-      --reason string   → SHARED §5
+      --reason string   REQUIRED — what a human should re-examine after the run, and why. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 (Global Flags:) → SHARED §2
 ==============================================================================
 $ feov-record count-claims --help
-count-claims reads <run>/blue/report.md and prints its claim_count — the number of footnoted declarative claims, computed deterministically (see the rule in internal/claimcount). It writes nothing. Used live by blue to size its envelope figure and by capture to recompute it independently.
+count-claims prints the report's claim_count — the number of footnoted declarative claims, computed deterministically from the report on the record. It writes nothing. Blue uses it live to size its envelope figure; capture recomputes it independently.
 
 Usage:
   feov-record count-claims [flags]
@@ -144,9 +144,9 @@ Flags:
 $ feov-record declare --help
 a holding that binds how the whole record is READ, when the dispute is over what a term MEANS and no gap moves
 
-A holding binds how the whole record is READ and moves no gap, which is why a docket ruling cannot carry it: `motion docket rule` needs a motion to answer and a disposition that decides one gap's fate.
+A docket ruling cannot carry a holding: `motion docket rule` needs a motion to answer and a disposition that decides one gap's fate.
 
-Reach for it when the dispute is over what a term MEANS. Measured: a bench with exactly this holding put it in a petition ruling's opinion text, the channel least likely to be read.
+Do not bury a holding in a ruling's opinion text, the channel least likely to be read.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -159,18 +159,18 @@ Usage:
 
 Flags:
   -h, --help            help for declare
-      --reason string   → SHARED §6
+      --reason string   the holding: how the whole record is to be READ. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 (Global Flags:) → SHARED §2
 ==============================================================================
 $ feov-record fetch --help
-fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself, for any content type. Open what you need with Read, which can take an offset and a limit; a 67-page paper pasted into your context is the same waste whether it is legible or not. Where the source is a PDF, its text is extracted to <run>/cache/<sha256>.txt and named in the summary, so you need no PDF tooling to read it.
+fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself. Open what you need with Read, using an offset and a limit: a 67-page paper pasted into your context is waste whether legible or not. A PDF's text is extracted to <run>/cache/<sha256>.txt and named in the summary, so you need no PDF tooling.
 
-WHERE THAT PDF HAS NO TEXT LAYER — a scan, roughly one cited PDF in four — its pages are rendered to grayscale at 300 DPI and read by the LOCAL OCR ENGINE compiled into this binary (tesseract + leptonica, statically linked): deterministic, reproducible, no model, no credentials, no network, seconds per document. The reading is named in the summary as ocr_derived text, keyed to the engine identity so an audit can re-derive it byte for byte; ruled-table pages are detected and reconstructed into |-separated rows with confidence stats on the record, and a reconstruction that cannot place its marks falls back to plain text WITH the failure stated. `--ocr=false` caches the document unread, and a document over the render disk budget is refused rather than partly read.
+A PDF WITH NO TEXT LAYER (a scan) is read by the LOCAL OCR ENGINE compiled into this binary — deterministic, reproducible, no model, credentials or network, seconds per document — and named in the summary as ocr_derived text keyed to the engine identity, so an audit can re-derive it byte for byte. Ruled tables are reconstructed into |-separated rows with confidence stats on the record; one that cannot place its marks falls back to plain text WITH the failure stated. A document over the render disk budget is refused rather than partly read.
 
-Pages already read are never derived twice on a fetch: each carries a receipt validated against its image hash, so a retry or a crash resumes cleanly. A later fetch of the same URL is served from cache so every seat reads identical content. It writes no record event. A fetch failure is a non-zero error (pick another source); it does not itself log friction.
+Pages already read are never re-derived: each carries a receipt checked against its image hash, so a retry or a crash resumes cleanly. A later fetch of the same URL is served from cache, so every seat reads identical bytes. It writes no record event. A failure is a non-zero error (pick another source) and logs no friction itself.
 
-AN UNREACHED SOURCE IS NOT EVIDENCE OF ABSENCE. Where this session runs behind an egress proxy, a host outside its allowlist answers 403 — the same status an origin uses to refuse a client — so a failure can be a fact about THIS CONTAINER or a fact about the SOURCE, and the two are different findings. The refusal says so where it can. Measured 2026-08-23: openai.com 403s through the proxy, and a research question shipped `open rather than resolved` on that basis. Where you cannot tell which it was, record that the source was UNREACHABLE FROM HERE rather than that the question is unresolved.
+AN UNREACHED SOURCE IS NOT EVIDENCE OF ABSENCE: behind an egress proxy, a host outside the allowlist answers 403 — the status an origin uses to refuse a client — so a failure can be a fact about THIS CONTAINER or about the SOURCE, and those are different findings. The refusal says which where it can; where you cannot tell, record the source as UNREACHABLE FROM HERE, not the question as unresolved.
 
 Usage:
   feov-record fetch [flags]
@@ -179,8 +179,8 @@ Flags:
       --at string     with --via archive: bound the capture to YYYYMMDD and take the latest at or before it. A priority question needs the FIRST time something was visible, which the newest capture cannot answer
   -h, --help          help for fetch
       --ocr           read a PDF that has no text layer with the local OCR engine; --ocr=false caches it unread (default true)
-      --url string    the http/https URL to read (fetched once, then served from the run cache)
-      --via archive   reach the source through a named backend instead of the live URL: live | archive | oa | metadata | arxiv | eric | auto. They answer DIFFERENT questions — archive what the page said on a date (right for web pages, usually the landing page for a subscription article), `oa` whether a legal open copy exists, `metadata` only that the source exists and where (no text, and the honest answer when there is none to get), `arxiv` the preprint's PDF or LaTeX source. Omitted, a refusal falls back through them in that order
+      --url string    the http/https URL to read
+      --via backend   reach the source through a named backend: live | archive | oa | metadata | arxiv | eric | auto. They answer DIFFERENT questions — live the URL itself (the same as omitting this); archive what the page said on a date (right for web pages, usually the landing page for a subscription article); oa whether a legal open copy exists; metadata only that the source exists and where (no text, and the honest answer when there is none to get); arxiv the preprint's PDF or LaTeX source; eric the US education index's record, with its full text where ERIC holds an authorised copy; auto tries arxiv, archive, oa, metadata in that order. A refused live fetch falls back through that same order
 
 (Global Flags:) → SHARED §2
 ==============================================================================
@@ -189,7 +189,7 @@ stop the run at a safety or consent boundary, when continuing would itself be th
 
 The bench's own act on its own channel, and the one terminal state that is not a finding about the artifact. Capture relays the written opinion to the human VERBATIM, like a FAIL and never smoothed.
 
-Reach for it when continuing would itself be the harm — a safety or consent boundary, not a defect however severe. A bench that disposes of such a gap and lets the run continue has treated a boundary as a finding.
+A boundary is not a defect, however severe: a bench that disposes of such a gap and lets the run continue has treated a boundary as a finding.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -202,7 +202,7 @@ Usage:
 
 Flags:
   -h, --help            help for halt
-      --reason string   → SHARED §5
+      --reason string   REQUIRED — the opinion: the boundary, and why continuing would itself be the harm. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 (Global Flags:) → SHARED §2
 ==============================================================================
@@ -211,13 +211,13 @@ an entry for the operator who can retool you — what it asserts, said in the po
 
 An event that survives aborts, so something you hit is on the record even if the sitting does not finish.
 
-SAY WHAT THE ENTRY ASSERTS. The reader triages this channel by FILTERING on that, instead of reading every entry to find out which it was — so the assertion is the field that makes the channel worth reading at all. An impediment you are merely NOTING has its own word, and is not a request for change: it does not have to be actionable, or advisable.
+SAY WHAT THE ENTRY ASSERTS: the operator triages this channel by FILTERING on it instead of reading every entry, so it is the field that makes the channel worth reading. An impediment you are merely NOTING has its own word, and is not a request for change.
 
-MOST REFUSALS ARE YOURS and belong in no entry: a wrong verb, a wrong flag, a bad quote — take the correction and move on. A refusal naming a verb you cannot find, or a fact the record holds and no view will show you, IS the finding: report it instead of engineering around it, because a workaround leaves no trace and a missing capability then looks exactly like one nobody wanted.
+MOST REFUSALS ARE YOURS and belong in no entry — a wrong verb, flag or quote: take the correction and move on. A refusal naming a verb you cannot find, or a fact the record holds that no view shows you, IS the finding: report it rather than engineer around it, because a workaround leaves no trace and the missing capability then looks exactly like one nobody wanted.
 
-THE LEDGER HOLDS WHAT YOU DID, so an entry that recounts it says nothing the record cannot reconstruct. The acts are events, in order, with their own fields — which verbs you ran, which help pages you read, what you ran first. An entry retelling that is a diary, and the operator triaging this channel has to read all of it to find the one sentence that was for them. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a sitting. A clean sitting says so in one line and stops.
+THE LEDGER HOLDS WHAT YOU DID — which verbs you ran, which help pages you read, in what order — so an entry retelling it is a diary the operator must read through to find the one sentence meant for them. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a sitting. A clean sitting says so in one line and stops.
 
-YOUR AUDIENCE IS THE OPERATOR, not the other seats. This channel is read by whoever can retool you; it is not material for the debate, and nothing here is answered by the other side.
+YOUR AUDIENCE IS THE OPERATOR who can retool you, not the other seats: nothing here is debate material, and the other side answers none of it.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -229,13 +229,13 @@ Usage:
   feov-record log [flags]
 
 Flags:
-  -h, --help            help for log
-      --reason string   → SHARED §6
-      --type nominal    REQUIRED — REQUIRED — what this entry asserts. nominal is the clean sitting said in the positive; `friction` is an impediment you are NOTING and which may be neither actionable nor advisable to change
+  -h, --help              help for log
+      --reason string     the entry: what you concluded about the tooling
+      --type type-value   REQUIRED — what this entry asserts
 
 Enumerated values:
   --type
-    nominal   the surface met the work — the clean sitting, said in the POSITIVE, because an entry saying nothing is still an entry and silence cannot say it
+    nominal   the surface met the work — the clean sitting, said in the POSITIVE: silence cannot say it
     defect    something is broken: it did the wrong thing, or failed where it should have worked
     request   a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong
     friction  the work was impeded and you are NOTING it; NOT necessarily actionable and not necessarily advisable to change, which is why it has its own word rather than posing as a defect
@@ -245,11 +245,11 @@ Enumerated values:
 $ feov-record motion docket file --help
 file a docket motion — the tool assigns its id.
 
-(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §7
+(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §5
 
-(`motion grade file` disputes a g…) → SHARED §8
+It puts a GAP before the bench — the channel for a gap the filing seat cannot settle itself.
 
-(Any seat may file. Exactly one r…) → SHARED §9
+(Any seat may file; exactly one r…) → SHARED §6
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -261,14 +261,14 @@ Usage:
 Flags:
   -h, --help            help for file
       --id string       REQUIRED for a docket motion
-      --reason string   → SHARED §6
+      --reason string   → SHARED §7
 
 (Global Flags:) → SHARED §2
 ==============================================================================
 $ feov-record motion docket rule --help
 rule on a docket motion — this verb is the bench seat's, and it appears only on that surface.
 
-(EVERY SUBJECT AND ITS GAVEL: gra…) → SHARED §10
+(EVERY SUBJECT AND ITS GAVEL: gra…) → SHARED §8
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -283,7 +283,7 @@ Flags:
   -h, --help                 help for rule
       --id string            REQUIRED — the motion id (M1, M2 …)
       --principle string     the rule you applied, stated so a later sitting can apply the same one
-      --reason string        → SHARED §5
+      --reason string        → SHARED §9
       --reopens-on string    the evidence or condition that would make this worth raising again — or pass --final to say nothing would
       --review-flag string   what a human should look at again — empty when nothing needs it
       --settled string       what the losing party may no longer assert, in one sentence
@@ -305,9 +305,9 @@ Enumerated values:
 $ feov-record motion grade appeal --help
 press a grade motion after a ruling — a ruling is an ARGUMENT, not a command, so the losing side may answer it on the record.
 
-(TWO SUBJECTS TAKE AN APPEAL. `mo…) → SHARED §11
+(TWO SUBJECTS TAKE AN APPEAL. `mo…) → SHARED §10
 
-(A PETITION HAS NO APPEAL, and th…) → SHARED §12
+(A BENCH-RULED MOTION (petition, …) → SHARED §11
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -319,18 +319,18 @@ Usage:
 Flags:
   -h, --help            help for appeal
       --id string       the motion id (M1, M2 …) — the motion being appealed, which must already have been ruled
-      --reason string   → SHARED §6
+      --reason string   → SHARED §7
 
 (Global Flags:) → SHARED §2
 ==============================================================================
 $ feov-record motion grade file --help
 file a grade motion — the tool assigns its id.
 
-(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §7
+(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §5
 
-(`motion grade file` disputes a g…) → SHARED §8
+It disputes a gap's grade.
 
-(Any seat may file. Exactly one r…) → SHARED §9
+(Any seat may file; exactly one r…) → SHARED §6
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -344,23 +344,23 @@ Flags:
   -h, --help                        help for file
       --id string                   REQUIRED for a grade motion
       --proposed grade              the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
-      --reason string               → SHARED §6
+      --reason string               → SHARED §7
 
 Enumerated values:
   --dimension
     severity    how bad the defect is in itself
-    likelihood  how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what one grade meant before v2 split them
+    likelihood  how likely the CONSEQUENCE is — never how likely the defect is to BE there
     impact      how bad the consequence is if it lands
     complexity  what fixing it costs — the axis to contest when the fix is worth more than the defect
 
 (Global Flags:) → SHARED §2
 ==============================================================================
 $ feov-record motion inquiry appeal --help
-press a inquiry motion after a ruling — a ruling is an ARGUMENT, not a command, so the losing side may answer it on the record.
+press an inquiry motion after a ruling — a ruling is an ARGUMENT, not a command, so the losing side may answer it on the record.
 
-(TWO SUBJECTS TAKE AN APPEAL. `mo…) → SHARED §11
+(TWO SUBJECTS TAKE AN APPEAL. `mo…) → SHARED §10
 
-(A PETITION HAS NO APPEAL, and th…) → SHARED §12
+(A BENCH-RULED MOTION (petition, …) → SHARED §11
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -372,18 +372,18 @@ Usage:
 Flags:
   -h, --help            help for appeal
       --id string       the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number — the motion being appealed, which must already have been ruled
-      --reason string   → SHARED §6
+      --reason string   → SHARED §7
 
 (Global Flags:) → SHARED §2
 ==============================================================================
 $ feov-record motion petition file --help
 file a petition motion — the tool assigns its id.
 
-(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §7
+(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §5
 
-(`motion grade file` disputes a g…) → SHARED §8
+It raises an ethical, safety, integrity or constitutional objection, heard BEFORE the debate continues.
 
-(Any seat may file. Exactly one r…) → SHARED §9
+(Any seat may file; exactly one r…) → SHARED §6
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -395,7 +395,7 @@ Usage:
 Flags:
       --class class-value   REQUIRED for a petition motion
   -h, --help                help for file
-      --reason string       → SHARED §6
+      --reason string       → SHARED §7
       --relief string       REQUIRED for a petition motion
 
 Enumerated values:
@@ -410,7 +410,7 @@ Enumerated values:
 $ feov-record motion petition rule --help
 rule on a petition motion — this verb is the bench seat's, and it appears only on that surface.
 
-(EVERY SUBJECT AND ITS GAVEL: gra…) → SHARED §10
+(EVERY SUBJECT AND ITS GAVEL: gra…) → SHARED §8
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -424,7 +424,7 @@ Flags:
       --binds blue|red|both   who granted relief BINDS — set it when you grant, or the relief reaches no prompt and nothing reports that it did not
   -h, --help                  help for rule
       --id string             REQUIRED — the motion id (M1, M2 …)
-      --reason string         → SHARED §5
+      --reason string         → SHARED §9
 
 Enumerated values:
   --as
@@ -441,9 +441,7 @@ Enumerated values:
 $ feov-record outcome --help
 stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
 
-The run's terminal determination, and a different question from red's PASS or FAIL.
-
-The verdict is derived from the record — a halt, the chair's PASS, or a board at its ceiling — and the word you give is checked against it. The one word you may assert is UNVERIFIED, for a run that stopped before the record reached a terminal state; your reason is the bench's account of the sitting, and on such a run it is the only evidence of why it stopped.
+The verdict is derived from the record — a halt, the chair's PASS, or a board at its ceiling — and the word you give is checked against it. The one word you may assert is UNVERIFIED, for a run that stopped before the record reached a terminal state.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -457,7 +455,7 @@ Usage:
 Flags:
       --as as-value     REQUIRED — the run's terminal verdict
   -h, --help            help for outcome
-      --reason string   REQUIRED — how this run ended, in your words. The verdict itself is derived from the record; this is the bench's account of the sitting, and on an UNVERIFIED run — the one verdict the record cannot derive — it is the only evidence of why the run stopped
+      --reason string   REQUIRED — how this run ended, in your words — the bench's account of the sitting, and on an UNVERIFIED run the only evidence of why it stopped
 
 Enumerated values:
   --as
@@ -471,9 +469,7 @@ Enumerated values:
 $ feov-record register --help
 your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
 
-It binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does.
-
-Your run is injected on every call the tool receives, which is why you never pass it.
+It binds your seat to you on the record: every later call resolves it, and your run is injected on every call, so you type neither again.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -488,9 +484,9 @@ Flags:
 $ feov-record show --help
 read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK.
 
-A PROJECTION IS JSON ON STDOUT — PIPE IT, DO NOT SPOOL IT. `jq` is a REQUIRED tool of this suite, so it is here; a projection piped into it answers your question in ONE call. Writing the projection to a scratch file and re-reading it in python is THREE — the dump, a key-dump to learn the field names, then the extract — and each one is a process spawn and a full round-trip for a single question. MEASURED across one run: 251 `json.load` re-parses and 25 `list(d.keys())` key-dumps against three uses of jq.
+PIPE A PROJECTION, DO NOT SPOOL IT. Most are JSON on stdout (each page says which), and `jq` is a REQUIRED tool of this suite, so it is installed here: piped into it, a projection answers your question in ONE call; spooled to a scratch file and re-read in python it takes THREE — the dump, a key-dump to learn the field names, the extract — each a process spawn and a round-trip.
 
-YOU DO NOT NEED TO DISCOVER THE FIELD NAMES. Every projection's own page ends with its OUTPUT field tree — the key names, in the nesting they arrive in, generated from the type the tool actually marshals. Read that page before you run the verb and the dump-then-inspect round-trip never happens.
+YOU DO NOT NEED TO DISCOVER THE FIELD NAMES. Every JSON projection's page ends with its OUTPUT field tree — the key names in their nesting, generated from the type the tool marshals. Read it before you run the view.
 
 Usage:
   feov-record show [flags]
@@ -501,24 +497,26 @@ Available Commands:
   changes          HOW THE REPORT GOT THAT WAY — every edit in record order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by `edit`
   debate           WHAT EACH SIDE ARGUED, epoch by epoch — the transcript, in order. Written by `position`, `closing` and the bench's `motion docket rule`
   evidence         WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading. Written by `cite`, `prove`, `verify` and `reproduce`
-  findings         THE RAW LENS FINDINGS, BEFORE the merge coalesces them into gaps — several findings can become one gap, and this is where you see which. Written by `finding`
+  findings         THE RAW LENS FINDINGS, BEFORE they are minted into gaps — several findings can become one gap, and this is where you see which. Written by `finding`
   lines-of-inquiry WHICH DIRECTIONS WERE TAKEN AND WHICH WERE NOT — pursued, deferred, declined, abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule`
   motions          WHAT HAS BEEN CONTESTED AND HOW IT WAS RULED — the ask in the filer's words, and the ruling if it has one. `debate` is what each side ARGUED; this is what was formally disputed. Written by `motion`, `rule` and `appeal`
-  report           THE DOCUMENT UNDER AUDIT, as it stands now — read it through the tool, not off disk. `changes` says how it got that way. Written by the round-0 synthesis and every `edit`, with anchors from `cite`, `finding` and `prove`
+  report           THE DOCUMENT UNDER AUDIT, as it stands now. `changes` says how it got that way. Written by the round-0 synthesis and every `edit`, with anchors from `cite`, `finding` and `prove`
   scorecard        HOW YOUR CHAIR IS DOING ON THIS QUESTION — your own side's performance, this run only. No selector: your chair is the seat you registered as. Computed from the record, so no verb fills it
   telemetry        HOW THE NUMBERS MOVED ACROSS EPOCHS — a trend, not a snapshot: one line per epoch (chair sitting), and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it
   work             WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Run it first and again before you finish. Written by `mint`, `close` and the bench's `motion docket rule`
 
 Flags:
-  -h, --help              help for show
-      --id show changes   scope show changes to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
+  -h, --help        help for show
+      --id string   scope the changes projection to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
 
 (Global Flags:) → SHARED §2
 
 Use "feov-record show [command] --help" for more information about a command.
 ==============================================================================
 $ feov-record show board --help
-THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. STRUCTURED JSON by default (the form a seat acts on); `--format markdown` gives the human-verification rendering, open gaps then the closure archive with its prose. Written by `mint`, `close`, `regrade` and `retire` THIS PROJECTION IS ALREADY THE JSON — --json is accepted, and on success its output is byte-for-byte the same. On an ERROR, --json prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
+THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. JSON by default; --format markdown gives the human-verification rendering. Written by `mint`, `close`, `regrade` and `retire`
+
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §12
 
 OUTPUT (JSON): {open:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,minted_location,location_edits:[{epoch,edited_by,old,new}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],closed:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,minted_location,location_edits:[{epoch,edited_by,old,new}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],observations:[{id,seat_id,key,kind,label,text,credited}],counts:{open,closed,closed_by_bench,uncredited_findings,anomalies,total_observations,citations,citations_authored},anomalies:[string]}
 
@@ -543,7 +541,7 @@ Flags:
 (Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show debate --help
-the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order (add --json for the STRUCTURED form: epochs with red/blue/lead sections as data, for the audits). Written by `position`, `closing` and the bench's `motion docket rule`
+the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by `position`, `closing` and the bench's `motion docket rule`
 
 OUTPUT (JSON, with --json — the bare call is the markdown form): {epochs:[{epoch,verdict,red:[string],blue:[string],lead:[{gap_id,disposition,principle,tension,review_flag,rationale}],red_closings:[{gap_id,text}],blue_closings:[{gap_id,text}]}]}
 
@@ -556,7 +554,9 @@ Flags:
 (Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show evidence --help
-STRUCTURED JSON: WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs), every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their trust grades. THIS IS HOW YOU RESOLVE AN ANCHOR you are reading in the report. Written by `cite`, `prove`, `verify` and `reproduce` THIS PROJECTION IS ALREADY THE JSON — --json is accepted, and on success its output is byte-for-byte the same. On an ERROR, --json prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
+WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs), every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their confidence. THIS IS HOW YOU RESOLVE AN ANCHOR you are reading in the report. Written by `cite`, `prove`, `verify` and `reproduce`
+
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §12
 
 OUTPUT (JSON): {sources:[{anchor,url,title,sha256,access_date,location,seat_id,epoch,verified:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch}]}],proofs:[{anchor,sha256,basis,cites,drift,seat_id,epoch,verified:{reproduced,sound,note,seat_id,epoch}}],independent:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch}],reopened:[string],unanswered_contradictions:[string],counts:{sources,proofs,proofs_unverified,sources_unverified,sources_refuted,verifications}}
 
@@ -569,7 +569,9 @@ Flags:
 (Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show findings --help
-STRUCTURED JSON: every lens finding on the record (label, seat, epoch, role, grades, location, text) — the merge coalesces these into gaps; replaces the red/candidates/*.md files THIS PROJECTION IS ALREADY THE JSON — --json is accepted, and on success its output is byte-for-byte the same. On an ERROR, --json prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
+Every lens finding on the record (label, seat, epoch, role, grades, location, text) — the minting lens coalesces these into gaps
+
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §12
 
 OUTPUT (JSON): {findings:[{label,anchor,seat_id,epoch,role,severity,likelihood,impact,location,about_kind,about_ref,text,minted_as:[string]}],counts:{total}}
 
@@ -593,7 +595,9 @@ Flags:
 (Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show motions --help
-STRUCTURED JSON: every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks `merge verdict --as PASS`, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal` THIS PROJECTION IS ALREADY THE JSON — --json is accepted, and on success its output is byte-for-byte the same. On an ERROR, --json prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
+Every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks a PASS verdict, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal`
+
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §12
 
 OUTPUT (JSON): {motions:[{id,subject,filer,epoch,basis,relief,ruled,ruling,ruling_by,ruling_epoch,opinion,appealed,appeal_reason,fields:{<key>:string},gap_id}],counts:{total,ruled,outstanding}}
 
@@ -606,20 +610,20 @@ Flags:
 (Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show report --help
-THE ARTIFACT UNDER AUDIT — blue's living report, read THROUGH the tool instead of off disk; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `blue edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the round-0 synthesis and every `blue edit`
+THE ARTIFACT UNDER AUDIT — blue's living report; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the round-0 synthesis and every `edit`
 
 Usage:
   feov-record show report [flags]
 
 Flags:
-      --anchor f-…   read the report AT one anchor id (f-…, `c-…`, `p-…`) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back. `show findings` resolves finding anchors; `show evidence` resolves citation and proof anchors
-  -h, --help           help for report
-      --window int     with --anchor: how many paragraphs of content either side of it (blank lines are carried, not counted) (default 3)
+      --anchor id    read the report AT one anchor id (f-…, c-…, p-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back
+  -h, --help         help for report
+      --window int   with --anchor: how many paragraphs of content either side of it (blank lines are carried, not counted) (default 3)
 
 (Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show scorecard --help
-YOUR CHAIR'S IN-RUN SCORECARD — how the side you sit on is doing on THIS question, computed live from this run's record. Your own performance, not another party's: there is no selector, because your chair is the seat you registered as. A number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures, because a diagnostic gamed is itself a defect and a detector firing is a finding. Rows reading "not computed" are HONEST, not gaps to fill: the envelope-derived rows fill in at capture. Computed from the record, so no verb fills it
+YOUR CHAIR'S IN-RUN SCORECARD — how your side is doing on THIS question, computed live from this run's record; no selector, because your chair is the seat you registered as. A bad number means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures: a gamed diagnostic is itself a defect, and a detector firing is a finding. Rows reading "not computed" are HONEST, not gaps to fill: envelope-derived rows fill in at capture. No verb fills it
 
 Usage:
   feov-record show scorecard [flags]
@@ -630,9 +634,11 @@ Flags:
 (Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show telemetry --help
-STRUCTURED JSONL, one line per epoch (chair sitting): open count, max severity, mass under the pinned mapping, new mints BY SEVERITY AND BY CLASS with the class repeat rate, repair-regression ratio, and edge deltas — the trend the STOPPING judgment reads. The bench's signal for whether the findings are still changing character or merely recurring THIS PROJECTION IS ALREADY THE JSON — --json is accepted, and on success its output is byte-for-byte the same. On an ERROR, --json prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
+JSONL, one line per epoch (chair sitting): the trend the STOPPING judgment reads — the bench's signal for whether the findings are still changing character or merely recurring
 
-OUTPUT (JSONL — one such line PER ROUND, not one document): {epoch,mapping_version,open_count,max_severity,new_mint:{count,by_severity:[{grade,count}],by_class:{<key>:number},class_repeat_rate},mass,realized_open,repair_regression:{closures,lineage_mints,ratio},edge_deltas:{down_mass,up_mass}}
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §12
+
+OUTPUT (JSONL — one such line PER EPOCH, not one document): {epoch,mapping_version,open_count,max_severity,new_mint:{count,by_severity:[{grade,count}],by_class:{<key>:number},class_repeat_rate},mass,realized_open,repair_regression:{closures,lineage_mints,ratio},edge_deltas:{down_mass,up_mass}}
 
 Usage:
   feov-record show telemetry [flags]
@@ -643,15 +649,17 @@ Flags:
 (Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show work --help
-**RUN THIS FIRST AND RUN IT AGAIN BEFORE YOU STOP.** STRUCTURED JSON: EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item — each with `blocks`, saying whether it is what is stopping you closing — and `sitting.complete` is true exactly when nothing blocking is left.
+**RUN THIS FIRST AND AGAIN BEFORE YOU STOP.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left.
 
-An item with `blocks: false` is work this board affords you that nobody will refuse you for skipping: a citation nobody verified, a source blue never cited, a proof nobody re-ran, a line of inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK. `complete: true` with items open means the gates are satisfied, NOT that there is nothing to do.
+An item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran, a line of inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.
 
-Carries the shrinking working set too — OPEN gaps only (grades, class, location, a problem synopsis, found_by). An open gap with `awaiting_docket` is one the BENCH CARRIED: the motion was answered, so nothing is pending and it returns only if you docket it again — `docket_reopens_on` is the ruling's own statement of what would bring it back.
+`open` holds OPEN gaps only (grades, class, location, a problem synopsis, found_by); one with `awaiting_docket` was CARRIED by the bench — nothing is pending, and it returns only if you docket it again (`docket_reopens_on` says what would bring it back).
 
-AND `closed_index`, WHICH IS NOT DEBRIS: it is the ESTOPPEL REGISTER, and this description used to call it a shrinking working set, which reads as `done, ignore it` and is the opposite of what it is for. Each entry carries id, location, class, the `fate` that ended it, and `closed_by` — `bench` or `red`. THAT DISTINCTION IS LOAD-BEARING: red may reopen its OWN closure on new evidence, but a bench ruling is ESTOPPED and re-raising it is relitigation, not diligence. If you hold new evidence against a bench-ruled gap, it is a lineage successor — mint it under a new id naming the ruled gap in `supersedes`, and say what the ruling did not account for.
+`closed_index` IS THE ESTOPPEL REGISTER, NOT DEBRIS: each entry carries id, location, class, the `fate` that ended it, and `closed_by` (`bench` or `red`). THAT DISTINCTION IS LOAD-BEARING: red may reopen its OWN closure on new evidence, but a bench ruling is ESTOPPED and re-raising it is relitigation, not diligence. New evidence against a bench-ruled gap is a lineage successor — mint it under a new id naming the ruled gap in `supersedes`, and say what the ruling did not account for.
 
-A `fate` of defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. The reasoning behind any fate is on the record, not here: `show debate` carries the bench's opinions, `show board --format markdown` the closure archive with its prose. Read the one you are about to rely on or work around. Bare `show` defaults here for every role. Written by `mint`, `close` and the bench's `motion docket rule` THIS PROJECTION IS ALREADY THE JSON — --json is accepted, and on success its output is byte-for-byte the same. On an ERROR, --json prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
+Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. The reasoning behind a fate is on the record: `show debate` carries the bench's opinions, `show board --format markdown` the closure archive with its prose — read the one you are about to rely on or work around. Bare `show` defaults here for every role. Written by `mint`, `close` and the bench's `motion docket rule`
+
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §12
 
 OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}]},open:[{id,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,edited_since:[{epoch,edited_by,old,new}],problem_synopsis,check_kind,awaiting_proof,awaiting_docket,docket_reopens_on,found_by:[string]}],closed_index:[{id,location,about_kind,about_ref,class,fate,closed_by,artifact_state}],counts:{open,closed},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
 
@@ -672,7 +680,7 @@ SHARED BY THE COMMANDS BELOW — each block is printed ONCE here, and every page
 §1 (on 14 pages):
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
+needed and what you would have done with 'log', as a request — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 §2 (on 17 pages):
@@ -687,44 +695,44 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
   )
   … "$X"
 
-§4 (on 15 pages):
-your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as "$X" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words
+§4 (on 9 pages):
+your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 §5 (on 22 pages):
 Global Flags:
-      --json               emit a structured JSON result (and structured errors) instead of human text
-      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --schema             print the event-schema epoch this binary writes, and exit
-      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
+      --schema           print the event-schema epoch this binary writes, and exit
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
 
 §6 (on 2 pages):
-REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as "$X" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words
+WHAT MAY BE IN THE REPORT: research prose for a reader of the SUBJECT, and the markers this tool places — nothing else. No provenance or attribution tags, no notes to another seat, no argument about the run, no narration of how the report was made. A fact that LIMITS THE CONCLUSION stays, re-voiced as a limit on the answer rather than a story about the attempt. Operational facts go to `log`, arguments to `position` or `closing`.
 
 §7 (on 2 pages):
-a stable local handle of your own (C1, F2, P3 …) making a retried call idempotent — a repeat under the same handle returns the first result instead of acting twice
+your own stable handle (C1, F2, P3 …): a repeat under the same handle returns the first result instead of acting twice
 
 §8 (on 3 pages):
 ONE EVENT, DIFFERENT CONTRACTS: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules).
 
 §9 (on 3 pages):
-`motion grade file` disputes a gap's grade; `motion petition file` raises an ethical, safety, integrity or constitutional objection, heard BEFORE the debate continues; `motion docket file` puts a GAP before the bench, which is the channel for a gap the filing seat cannot settle itself; an inquiry needs no file verb at all — proposing the line of inquiry IS the filing, and only its ruling is a motion.
+Any seat may file; exactly one rules, and `rule` appears only on that seat's surface.
 
-§10 (on 3 pages):
-Any seat may file. Exactly one rules, and `rule` appears only on that seat's surface.
+§10 (on 2 pages):
+TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade dispute the merge rejected; `motion inquiry appeal` presses a line of inquiry red ruled out_of_scope or too_thin, and it is filed whether or not blue also pursues the line — separating the argument from the act is the whole point of the verb.
 
 §11 (on 2 pages):
-TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade dispute the merge rejected; `motion inquiry appeal` presses a line of inquiry red ruled out-of-scope or too-thin, and it is filed whether or not blue also pursues the line — separating the argument from the act is the whole point of the verb.
+A BENCH-RULED MOTION (petition, docket) HAS NO APPEAL, and that absence is the design rather than an omission: the bench hears it BEFORE the debate continues, so there is nothing to escalate to.
 
-§12 (on 2 pages):
-A PETITION HAS NO APPEAL, and that absence is the design rather than an omission: it is heard by the bench BEFORE the debate continues, so there is nothing to escalate to.
+§12 (on 6 pages):
+THIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-for-byte the same. On an ERROR it prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
 
 §13 (on 11 pages):
 Global Flags:
-      --id show changes    scope show changes to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
-      --json               emit a structured JSON result (and structured errors) instead of human text
-      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --schema             print the event-schema epoch this binary writes, and exit
-      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+      --id string        scope the changes projection to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
+      --schema           print the event-schema epoch this binary writes, and exit
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
 
 ==============================================================================
 $ feov-record --help
@@ -761,21 +769,21 @@ Command groups — each holds commands THIS page does not list:
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
-  -h, --help               help for feov-record
-      --json               emit a structured JSON result (and structured errors) instead of human text
-      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --schema             print the event-schema epoch this binary writes, and exit
-      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
-  -v, --version            version for feov-record
+  -h, --help             help for feov-record
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
+      --schema           print the event-schema epoch this binary writes, and exit
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
+  -v, --version          version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
 ==============================================================================
 $ feov-record cite --help
 attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
 
-The tool fetches the source, caches it, and splices an invisible immortal anchor at the sentence — you never type a footnote. The anchor survives every later edit, because `edit` refuses a replacement that drops one.
+The tool fetches and caches the source and splices an invisible anchor at the sentence — you never type a footnote. It survives every later edit: `edit` refuses a replacement that drops one.
 
-To RESOLVE an anchor you meet while reading, rather than create one, read the `evidence` projection: every source is listed there by its anchor id.
+To RESOLVE an anchor you meet while reading (not create one), read the `evidence` projection, which lists every source by anchor id.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -788,10 +796,10 @@ Usage:
 
 Flags:
   -h, --help                 help for cite
-      --key string           a stable local handle of your own (C1, F2, P3 …) making a retried call idempotent — a repeat under the same handle returns the first result instead of acting twice; the TOOL assigns the c-<hex> label
-      --quote string         the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. The invisible citation anchor is spliced here, so a mis-quote is rejected rather than guessed at
+      --key string           your own stable handle (C1, F2, P3 …): a repeat under the same handle returns the first result instead of acting twice; the TOOL assigns the c-<hex> label
+      --quote string         the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. A mis-quote is rejected rather than guessed at
       --reason string        → SHARED §4
-      --source-text unread   how much of the source you actually READ. Omitted records unread — the citation then rests on the source EXISTING, not on anything it says
+      --source-text unread   how much of the source you actually READ; omitted records unread
       --title string         the source's name, as it appears in the composed bibliography
       --url string           the source's http/https URL — fetched once and cached, so both sides read the same bytes
 
@@ -804,7 +812,7 @@ Enumerated values:
 (Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record claim-index --help
-claim-index reads <run>/blue/report.md and prints, per footnote label, every site that claim appears: {label, occurrences:[{heading, line}]}. WHEN to use it: you are correcting a claim and must propagate the fix to ALL its sites — query the label for its occurrences instead of re-reading the whole report to find them. WHAT it is NOT: a replacement for the report-wide string/figure sweep — an unfootnoted restatement (a bare corrected FIGURE) is invisible to a footnote-marker index, so still grep the corrected strings report-wide. It records nothing. JSON only.
+claim-index prints, per footnote label, every site that claim appears in the report on the record: {claims:[{label, occurrences:[{heading, line}]}]}. Use it when a correction must reach ALL of a claim's sites — query the label instead of re-reading the whole report. It does NOT replace the report-wide sweep: an unfootnoted restatement (a bare corrected FIGURE) is invisible to a footnote index, so still search `show report` for the corrected strings. It records nothing. JSON only.
 
 Usage:
   feov-record claim-index [flags]
@@ -833,12 +841,12 @@ Usage:
 Flags:
   -h, --help            help for closing
       --id gap-id       the gap id this closing argues
-      --reason string   → SHARED §6
+      --reason string   REQUIRED — your closing argument on this gap — your THINKING, not your process. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 (Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record count-claims --help
-count-claims reads <run>/blue/report.md and prints its claim_count — the number of footnoted declarative claims, computed deterministically (see the rule in internal/claimcount). It writes nothing. Used live by blue to size its envelope figure and by capture to recompute it independently.
+count-claims prints the report's claim_count — the number of footnoted declarative claims, computed deterministically from the report on the record. It writes nothing. Blue uses it live to size its envelope figure; capture recomputes it independently.
 
 Usage:
   feov-record count-claims [flags]
@@ -851,32 +859,29 @@ Flags:
 $ feov-record edit --help
 change the report — the only path into report.md, and how every repair lands
 
-The ONLY path into blue/report.md — a raw write or a shell edit is denied.
+A raw write or a shell edit of the report is denied.
 
 TAKING RED'S FIX AS IT STANDS. Where red prescribed concrete replacement text on a gap, you can
-apply THAT text rather than retyping it: the tool reads the span and the replacement off the gap
-and edits with them, so you supply neither. Your argument for the change is still required and
-still yours — accepting is a decision, not a transcription.
+apply that text instead of retyping it. Your argument for the change is still required and still
+yours — accepting is a decision, not a transcription.
 
-Why it exists: typing red's text yourself is the same act only if you get every byte right, and a
-stray space or a re-wrapped line means you did what red asked while the record says you did not —
-which costs you the estoppel that stops red re-opening its own words. Taking the text directly
-makes the agreement structural.
+Retyping it is the same act only if every byte matches: a stray space or a re-wrapped line records
+that you did NOT take red's text, and costs you the estoppel that stops red re-opening its own words.
 
 You are never obliged to accept. Writing your own replacement is your right to disagree and is
 recorded as one.
 
 The tool matches your span across the invisible anchor layer and REFUSES a replacement that drops, duplicates or invents an anchor: a finding marker or a citation anchor may travel THROUGH your edit, never disappear in one.
 
-An anchor INSIDE the text you are replacing must be copied verbatim into the replacement. One that merely sits at its edge is not inside it — a quote's trailing punctuation is trimmed before the span is located, so an anchor before a sentence's final period falls outside, is preserved for you, and typing it into the replacement is refused as inventing one. You are not asked to work out which: get it wrong either way and the refusal names the anchor and says which of the two it wants.
+An anchor INSIDE the span you replace must be copied verbatim into the replacement. One at its edge is not inside: a quote's trailing punctuation is trimmed before the span is located, so an anchor before a sentence's final period falls outside, is preserved for you, and typing it into the replacement is refused as inventing one. You need not work out which — get it wrong either way and the refusal names the anchor and says which it wants.
 
 Quote enough context that the span matches exactly ONE place, or the edit is refused as ambiguous rather than applied to the wrong site.
 
-REPAIRING PUNCTUATION. Because a quote's trailing punctuation is trimmed before the span is located, a repair confined to that punctuation — dropping a stray period, changing a terminator — would land on the span without it. When the trimmed span would change nothing, or would leave the old terminator standing beside the new one, the tool uses your quote exactly as written instead, punctuation included — provided it occurs byte-for-byte exactly once in the report. So quote the punctuation as the report prints it, anchors and spacing included; this works at the end of the document too.
+REPAIRING PUNCTUATION. Because of that trim, a repair confined to the trailing punctuation — dropping a stray period, changing a terminator — would land on the span without it. When the trimmed span would change nothing, or would leave the old terminator standing beside the new one, the tool uses your quote exactly as written instead, punctuation included — provided it occurs byte-for-byte exactly once in the report. So quote the punctuation as the report prints it, anchors and spacing included; this works at the end of the document too.
 
 AN EDIT THAT CHANGES NOTHING IS REFUSED, and nothing is recorded: the refusal says whether the punctuation trim was the cause. The same holds when taking red's fix — a prescription that would leave the report as it is is refused as changing nothing, which is different from a prescription the report has moved away from.
 
-WHAT MAY BE IN THE REPORT AT ALL: research prose written for a reader of the SUBJECT, and the markers this tool places. Nothing else — no provenance or attribution tags, no notes to another seat, no argument about the run, no narration of how the report was made. A fact that LIMITS THE CONCLUSION stays, re-voiced as a limit on the answer rather than a story about the attempt. Operational facts go to `log`, arguments to `position` or `closing`. The same rule is stated on every verb whose text the report prints: this one, `ingest`, and `line-of-inquiry propose` and `move`.
+(WHAT MAY BE IN THE REPORT: resea…) → SHARED §6
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -888,24 +893,24 @@ Usage:
   feov-record edit [flags]
 
 Flags:
-      --accept           take red's prescribed fix EXACTLY as recorded on the gap named by --answers, instead of retyping it: the tool supplies --quote and --new from the mint, so you pass neither. Your --reason is still yours and still required — it is the argument for accepting. Refused when red prescribed no concrete text
+      --accept           take red's prescribed fix EXACTLY as recorded on the gap named by --answers: the tool supplies --quote and --new, so you pass neither. --reason is still required — it is your argument for accepting. Refused when red prescribed no concrete text
       --answers gap-id   the gap id this edit responds to (G4) — the provenance join key; omit only for an edit that answers no gap
   -h, --help             help for edit
       --key string       → SHARED §7
       --new string       the text that span should become
-      --quote string     the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. It is matched ACROSS the invisible anchor layer, and rejected if it contains a finding-marker or a citation anchor
+      --quote string     the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. A finding-marker or citation anchor typed into it is rejected
       --reason string    → SHARED §4
 
 (Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record fetch --help
-fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself, for any content type. Open what you need with Read, which can take an offset and a limit; a 67-page paper pasted into your context is the same waste whether it is legible or not. Where the source is a PDF, its text is extracted to <run>/cache/<sha256>.txt and named in the summary, so you need no PDF tooling to read it.
+fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself. Open what you need with Read, using an offset and a limit: a 67-page paper pasted into your context is waste whether legible or not. A PDF's text is extracted to <run>/cache/<sha256>.txt and named in the summary, so you need no PDF tooling.
 
-WHERE THAT PDF HAS NO TEXT LAYER — a scan, roughly one cited PDF in four — its pages are rendered to grayscale at 300 DPI and read by the LOCAL OCR ENGINE compiled into this binary (tesseract + leptonica, statically linked): deterministic, reproducible, no model, no credentials, no network, seconds per document. The reading is named in the summary as ocr_derived text, keyed to the engine identity so an audit can re-derive it byte for byte; ruled-table pages are detected and reconstructed into |-separated rows with confidence stats on the record, and a reconstruction that cannot place its marks falls back to plain text WITH the failure stated. `--ocr=false` caches the document unread, and a document over the render disk budget is refused rather than partly read.
+A PDF WITH NO TEXT LAYER (a scan) is read by the LOCAL OCR ENGINE compiled into this binary — deterministic, reproducible, no model, credentials or network, seconds per document — and named in the summary as ocr_derived text keyed to the engine identity, so an audit can re-derive it byte for byte. Ruled tables are reconstructed into |-separated rows with confidence stats on the record; one that cannot place its marks falls back to plain text WITH the failure stated. A document over the render disk budget is refused rather than partly read.
 
-Pages already read are never derived twice on a fetch: each carries a receipt validated against its image hash, so a retry or a crash resumes cleanly. A later fetch of the same URL is served from cache so every seat reads identical content. It writes no record event. A fetch failure is a non-zero error (pick another source); it does not itself log friction.
+Pages already read are never re-derived: each carries a receipt checked against its image hash, so a retry or a crash resumes cleanly. A later fetch of the same URL is served from cache, so every seat reads identical bytes. It writes no record event. A failure is a non-zero error (pick another source) and logs no friction itself.
 
-AN UNREACHED SOURCE IS NOT EVIDENCE OF ABSENCE. Where this session runs behind an egress proxy, a host outside its allowlist answers 403 — the same status an origin uses to refuse a client — so a failure can be a fact about THIS CONTAINER or a fact about the SOURCE, and the two are different findings. The refusal says so where it can. Measured 2026-08-23: openai.com 403s through the proxy, and a research question shipped `open rather than resolved` on that basis. Where you cannot tell which it was, record that the source was UNREACHABLE FROM HERE rather than that the question is unresolved.
+AN UNREACHED SOURCE IS NOT EVIDENCE OF ABSENCE: behind an egress proxy, a host outside the allowlist answers 403 — the status an origin uses to refuse a client — so a failure can be a fact about THIS CONTAINER or about the SOURCE, and those are different findings. The refusal says which where it can; where you cannot tell, record the source as UNREACHABLE FROM HERE, not the question as unresolved.
 
 Usage:
   feov-record fetch [flags]
@@ -914,23 +919,23 @@ Flags:
       --at string     with --via archive: bound the capture to YYYYMMDD and take the latest at or before it. A priority question needs the FIRST time something was visible, which the newest capture cannot answer
   -h, --help          help for fetch
       --ocr           read a PDF that has no text layer with the local OCR engine; --ocr=false caches it unread (default true)
-      --url string    the http/https URL to read (fetched once, then served from the run cache)
-      --via archive   reach the source through a named backend instead of the live URL: live | archive | oa | metadata | arxiv | eric | auto. They answer DIFFERENT questions — archive what the page said on a date (right for web pages, usually the landing page for a subscription article), `oa` whether a legal open copy exists, `metadata` only that the source exists and where (no text, and the honest answer when there is none to get), `arxiv` the preprint's PDF or LaTeX source. Omitted, a refusal falls back through them in that order
+      --url string    the http/https URL to read
+      --via backend   reach the source through a named backend: live | archive | oa | metadata | arxiv | eric | auto. They answer DIFFERENT questions — live the URL itself (the same as omitting this); archive what the page said on a date (right for web pages, usually the landing page for a subscription article); oa whether a legal open copy exists; metadata only that the source exists and where (no text, and the honest answer when there is none to get); arxiv the preprint's PDF or LaTeX source; eric the US education index's record, with its full text where ERIC holds an authorised copy; auto tries arxiv, archive, oa, metadata in that order. A refused live fetch falls back through that same order
 
 (Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record ingest --help
 freeze the synthesized report into the record and remove the file — done once, by its author
 
-The one-time act that turns the report from a file into a record. You author the opening report as a markdown file; `ingest` reads it verbatim into the record, PROVES the record reproduces it byte-for-byte, and then removes the file. After it there is no file: the report is the frozen base plus its append-only diff-stack, read with `show report` and changed only through `blue edit`.
+Turns the opening report you authored as a markdown file into a record: it reads the file verbatim, PROVES the record reproduces it byte-for-byte, and only then removes it. After that the report is the frozen base plus its append-only diff-stack — read it with `show report`, change it only with `edit`.
 
-WRITE-ONCE. A report is ingested exactly once. A second ingest is refused and points you at `blue edit` — the base is frozen on the record and cannot be overwritten.
+WRITE-ONCE. A second ingest is refused and points you at `edit`; the frozen base cannot be overwritten.
 
-AUTHOR-ONLY. Only the seat that wrote the report freezes it. A response or red seat has no ingest.
+AUTHOR-ONLY. Only the seat that wrote the report freezes it; any other seat is refused.
 
-VERIFY-BEFORE-DELETE. The file is removed only after the record is proven to render back to exactly its bytes. If it is not, the file is KEPT and you are told to STOP and report it as friction — it is a tooling failure, not something an edit can fix, and there is no diff for you to apply.
+IF THE PROOF FAILS, the file is KEPT and you are told to STOP and report it with `log` as a defect — a tooling failure no edit can fix, with no diff for you to apply.
 
-WHAT MAY BE IN THE REPORT AT ALL: research prose written for a reader of the SUBJECT, and the markers this tool places. Nothing else — no provenance or attribution tags, no notes to another seat, no argument about the run, no narration of how the report was made. A fact that LIMITS THE CONCLUSION stays, re-voiced as a limit on the answer rather than a story about the attempt. Operational facts go to `log`, arguments to `position` or `closing`. The same rule is stated on every verb whose text the report prints: this one, `blue edit`, and `line-of-inquiry propose` and `move`.
+(WHAT MAY BE IN THE REPORT: resea…) → SHARED §6
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -950,9 +955,9 @@ Flags:
 $ feov-record line-of-inquiry move --help
 say what became of a direction you proposed — every open line owes this before your sitting ends
 
-Re-recording `pursued` with what you learned is a REAFFIRMATION, and settles the line for this sitting.
+An open line — proposed or pursued — owes this before your sitting ends; re-recording `pursued` with what you learned is a REAFFIRMATION and settles it for this sitting.
 
-Any line sitting at proposed or pursued owes this before your sitting ends. The fate is not the point; the account of what changed it is — a line abandoned against its own stated hypothesis is evidence of choosing, one abandoned on a shrug is not.
+The fate is not the point; the account of what changed it is — a line abandoned against its own stated hypothesis is evidence of choosing, one abandoned on a shrug is not.
 
 THE REASON IS PRINTED IN THE REPORT, beside the line. Give the account in the SUBJECT'S terms — what was found about the question that settled this fate — not the steps you took to find it. No provenance or attribution tags, no notes to another seat, no narration of the run. "The trial-division bound is 9, so no subtler test is needed" is a reason; "fetched and read the sources at the leaf, then grepped the repo" is a diary. What you did, in order, is already on the ledger.
 
@@ -968,8 +973,8 @@ Usage:
 Flags:
       --as as-value     REQUIRED — the fate of this line of inquiry
   -h, --help            help for move
-      --id inquiry-id   inquiry-id — the line of inquiry whose fate you are moving (A1, A2 …); the lines-of-inquiry projection lists every one
-      --reason string   → SHARED §4
+      --id inquiry-id   the line of inquiry whose fate you are moving (Q1, Q2 …); the lines-of-inquiry projection lists every one
+      --reason string   the account of what settled this fate, in the SUBJECT's terms — printed in the report beside the line
 
 Enumerated values:
   --as
@@ -1003,7 +1008,7 @@ Flags:
   -h, --help                help for propose
       --hypothesis string   what would be TRUE if this line pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug
       --method string       the source class or technique it belonged to, when that is what distinguishes it
-      --reason string       → SHARED §4
+      --reason string       the line — research prose for a reader of the SUBJECT, printed in the report word for word
 
 (Global Flags:) → SHARED §5
 ==============================================================================
@@ -1012,13 +1017,13 @@ an entry for the operator who can retool you — what it asserts, said in the po
 
 An event that survives aborts, so something you hit is on the record even if the sitting does not finish.
 
-SAY WHAT THE ENTRY ASSERTS. The reader triages this channel by FILTERING on that, instead of reading every entry to find out which it was — so the assertion is the field that makes the channel worth reading at all. An impediment you are merely NOTING has its own word, and is not a request for change: it does not have to be actionable, or advisable.
+SAY WHAT THE ENTRY ASSERTS: the operator triages this channel by FILTERING on it instead of reading every entry, so it is the field that makes the channel worth reading. An impediment you are merely NOTING has its own word, and is not a request for change.
 
-MOST REFUSALS ARE YOURS and belong in no entry: a wrong verb, a wrong flag, a bad quote — take the correction and move on. A refusal naming a verb you cannot find, or a fact the record holds and no view will show you, IS the finding: report it instead of engineering around it, because a workaround leaves no trace and a missing capability then looks exactly like one nobody wanted.
+MOST REFUSALS ARE YOURS and belong in no entry — a wrong verb, flag or quote: take the correction and move on. A refusal naming a verb you cannot find, or a fact the record holds that no view shows you, IS the finding: report it rather than engineer around it, because a workaround leaves no trace and the missing capability then looks exactly like one nobody wanted.
 
-THE LEDGER HOLDS WHAT YOU DID, so an entry that recounts it says nothing the record cannot reconstruct. The acts are events, in order, with their own fields — which verbs you ran, which help pages you read, what you ran first. An entry retelling that is a diary, and the operator triaging this channel has to read all of it to find the one sentence that was for them. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a sitting. A clean sitting says so in one line and stops.
+THE LEDGER HOLDS WHAT YOU DID — which verbs you ran, which help pages you read, in what order — so an entry retelling it is a diary the operator must read through to find the one sentence meant for them. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a sitting. A clean sitting says so in one line and stops.
 
-YOUR AUDIENCE IS THE OPERATOR, not the other seats. This channel is read by whoever can retool you; it is not material for the debate, and nothing here is answered by the other side.
+YOUR AUDIENCE IS THE OPERATOR who can retool you, not the other seats: nothing here is debate material, and the other side answers none of it.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -1030,13 +1035,13 @@ Usage:
   feov-record log [flags]
 
 Flags:
-  -h, --help            help for log
-      --reason string   → SHARED §4
-      --type nominal    REQUIRED — REQUIRED — what this entry asserts. nominal is the clean sitting said in the positive; `friction` is an impediment you are NOTING and which may be neither actionable nor advisable to change
+  -h, --help              help for log
+      --reason string     the entry: what you concluded about the tooling
+      --type type-value   REQUIRED — what this entry asserts
 
 Enumerated values:
   --type
-    nominal   the surface met the work — the clean sitting, said in the POSITIVE, because an entry saying nothing is still an entry and silence cannot say it
+    nominal   the surface met the work — the clean sitting, said in the POSITIVE: silence cannot say it
     defect    something is broken: it did the wrong thing, or failed where it should have worked
     request   a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong
     friction  the work was impeded and you are NOTING it; NOT necessarily actionable and not necessarily advisable to change, which is why it has its own word rather than posing as a defect
@@ -1046,9 +1051,7 @@ Enumerated values:
 $ feov-record manifest-row --help
 your receipt for one repaired gap: what you checked, and what checking it showed
 
-One receipt per repaired gap: what you checked, and what checking it showed.
-
-It goes on the RECORD, not in the envelope. It is scored from the record at capture and it reaches a reader through the BOARD — `docket.md` carries your manifest, and a gap you repaired that carries no row is named there as a repair nobody audited. It is not in the research report: a receipt is the checking apparatus, and the report carries what the checking showed. A gap the BENCH disposed of is not on that list — nobody repaired it, so no receipt is owed.
+It goes on the RECORD, not in the envelope: capture scores it from there, and it reaches a reader through the BOARD — `docket.md` carries your manifest, and a gap you repaired with no row is named there as a repair nobody audited. It is not in the research report, which carries what the checking showed, not the apparatus. A gap the BENCH disposed of owes no receipt: nobody repaired it.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -1062,7 +1065,7 @@ Usage:
 Flags:
   -h, --help            help for manifest-row
       --id gap-id       the gap id this receipt covers
-      --reason string   → SHARED §4
+      --reason string   the receipt: what you checked, and what checking it showed
 
 (Global Flags:) → SHARED §5
 ==============================================================================
@@ -1071,9 +1074,9 @@ file a docket motion — the tool assigns its id.
 
 (ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §8
 
-(`motion grade file` disputes a g…) → SHARED §9
+It puts a GAP before the bench — the channel for a gap the filing seat cannot settle itself.
 
-(Any seat may file. Exactly one r…) → SHARED §10
+(Any seat may file; exactly one r…) → SHARED §9
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
 
@@ -1092,9 +1095,9 @@ Flags:
 $ feov-record motion grade appeal --help
 press a grade motion after a ruling — a ruling is an ARGUMENT, not a command, so the losing side may answer it on the record.
 
-(TWO SUBJECTS TAKE AN APPEAL. `mo…) → SHARED §11
+(TWO SUBJECTS TAKE AN APPEAL. `mo…) → SHARED §10
 
-(A PETITION HAS NO APPEAL, and th…) → SHARED §12
+(A BENCH-RULED MOTION (petition, …) → SHARED §11
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
 
@@ -1115,9 +1118,9 @@ file a grade motion — the tool assigns its id.
 
 (ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §8
 
-(`motion grade file` disputes a g…) → SHARED §9
+It disputes a gap's grade.
 
-(Any seat may file. Exactly one r…) → SHARED §10
+(Any seat may file; exactly one r…) → SHARED §9
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
 
@@ -1136,18 +1139,18 @@ Flags:
 Enumerated values:
   --dimension
     severity    how bad the defect is in itself
-    likelihood  how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what one grade meant before v2 split them
+    likelihood  how likely the CONSEQUENCE is — never how likely the defect is to BE there
     impact      how bad the consequence is if it lands
     complexity  what fixing it costs — the axis to contest when the fix is worth more than the defect
 
 (Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record motion inquiry appeal --help
-press a inquiry motion after a ruling — a ruling is an ARGUMENT, not a command, so the losing side may answer it on the record.
+press an inquiry motion after a ruling — a ruling is an ARGUMENT, not a command, so the losing side may answer it on the record.
 
-(TWO SUBJECTS TAKE AN APPEAL. `mo…) → SHARED §11
+(TWO SUBJECTS TAKE AN APPEAL. `mo…) → SHARED §10
 
-(A PETITION HAS NO APPEAL, and th…) → SHARED §12
+(A BENCH-RULED MOTION (petition, …) → SHARED §11
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
 
@@ -1168,9 +1171,9 @@ file a petition motion — the tool assigns its id.
 
 (ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §8
 
-(`motion grade file` disputes a g…) → SHARED §9
+It raises an ethical, safety, integrity or constitutional objection, heard BEFORE the debate continues.
 
-(Any seat may file. Exactly one r…) → SHARED §10
+(Any seat may file; exactly one r…) → SHARED §9
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
 
@@ -1197,9 +1200,7 @@ Enumerated values:
 $ feov-record position --help
 your sitting's narrative — the argument the other side answers, rendered as this sitting's BLUE section
 
-It renders as this sitting's ### BLUE section: your narrative, and the argument the other side answers.
-
-It is prose on the record, not a summary of your acts — the acts are already there.
+It renders as this sitting's ### BLUE section. It is prose on the record, not a summary of your acts — the acts are already there.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -1212,7 +1213,7 @@ Usage:
 
 Flags:
   -h, --help            help for position
-      --reason string   → SHARED §4
+      --reason string   your sitting's narrative — your THINKING, not your process. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 (Global Flags:) → SHARED §5
 ==============================================================================
@@ -1221,7 +1222,7 @@ settle a claim by RUNNING something, when computing the answer beats arguing abo
 
 The tool runs the script TWICE, caches it and its output, and splices an invisible proof anchor at the sentence.
 
-Identical output twice is recorded as reproducible; output that moves is recorded as observed — still evidence, of a system in motion, but a MEASUREMENT rather than a proof, and the tool says which you produced.
+Identical output twice is recorded as reproducible; output that moves, as observed — still evidence, of a system in motion, but a MEASUREMENT, not a proof. The tool says which you produced.
 
 A FAILING CHECK IS A RESULT: a non-zero exit is recorded as evidence, not as an error. Disproving your own claim is worth as much as confirming it.
 
@@ -1235,12 +1236,12 @@ Usage:
   feov-record prove [flags]
 
 Flags:
-      --answers gap-id          the gap id this computation settles (R1-4) — REQUIRED to close a gap red minted with --check-kind computation, which prose cannot answer
+      --answers gap-id          the gap id this computation settles (G4) — REQUIRED to close a gap red minted with --check-kind computation, which prose cannot answer
       --cites citation-anchor   the citation label of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed
       --expect-error            this proof's POINT is a failing command (a path that must be absent, a tool that must be missing) — record the environment error as the result instead of refusing it
   -h, --help                    help for prove
       --key string              → SHARED §7
-      --quote string            the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. The proof anchor is spliced there
+      --quote string            the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs
       --reason string           → SHARED §4
       --script string           REQUIRED — path under the run directory of the program that settles it (.py, .js, .mjs, .sh or .go)
 
@@ -1249,9 +1250,7 @@ Flags:
 $ feov-record register --help
 your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
 
-It binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does.
-
-Your run is injected on every call the tool receives, which is why you never pass it.
+It binds your seat to you on the record: every later call resolves it, and your run is injected on every call, so you type neither again.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -1268,7 +1267,7 @@ take a claim out of the report, when it cannot stand and no edit will save it
 
 A claim leaves the report only through this verb — never by quietly not being there any more. Capture compares the fall in the claim count against the retire events, and an unaccounted drop is a detector hit.
 
-An anchored claim leaves in two steps: `blue edit` it down to its bare anchor (an edit may carry an anchor but never drop one), then retire it here, quoting the WHOLE of what the edit cut — a fragment takes nothing out. The retire takes the bare citation or proof anchor out with the claim — no orphan footnote, no empty bullet. A finding marker is red's: it leaves only once every gap crediting that finding is closed, and until then the retire keeps it and says why.
+An anchored claim leaves in two steps: `edit` it down to its bare anchor (an edit may carry an anchor but never drop one), then retire it here, quoting the WHOLE of what the edit cut — a fragment takes nothing out. The retire takes the bare citation or proof anchor out with the claim — no orphan footnote, no empty bullet. A finding marker is red's: it leaves only once every gap crediting that finding is closed, and until then the retire keeps it and says why.
 
 Name what replaces it where something does.
 
@@ -1283,18 +1282,18 @@ Usage:
 
 Flags:
   -h, --help            help for retire
-      --new edit        the claim that replaces it, when one does — the same --quote/--new pair edit and `mint` take
-      --quote string    REQUIRED — the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs — the claim being removed, as it stood before you edited it out
-      --reason string   → SHARED §6
+      --new string      the claim that replaces it, when one does
+      --quote string    REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs — the claim being removed, as it stood before you edited it out
+      --reason string   REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 (Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record revision --help
 the sitting record — what changed this sitting, once, after your edits have landed
 
-Singleton per sitting; emit it AFTER your report edits land. It renders as the run's CHANGELOG — the report itself shows the current prose and never its own edit history, because a document narrating what it used to say has made its drafting a second subject.
+It renders as the run's CHANGELOG — the report itself shows the current prose and never its own edit history, because a document narrating what it used to say has made its drafting a second subject.
 
-The event IS the record and there is no file: one run carried a 6,847-byte hand-written changelog beside exactly ONE revision event across three eligible seats, and the parity gap was scored against the seat for a verb no prompt had ever named.
+The event IS the record and there is no file: a hand-written changelog counts for nothing, and a missing revision is scored against your seat.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -1307,16 +1306,16 @@ Usage:
 
 Flags:
   -h, --help            help for revision
-      --reason string   → SHARED §4
+      --reason string   what changed this sitting. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 (Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record show --help
 read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK.
 
-A PROJECTION IS JSON ON STDOUT — PIPE IT, DO NOT SPOOL IT. `jq` is a REQUIRED tool of this suite, so it is here; a projection piped into it answers your question in ONE call. Writing the projection to a scratch file and re-reading it in python is THREE — the dump, a key-dump to learn the field names, then the extract — and each one is a process spawn and a full round-trip for a single question. MEASURED across one run: 251 `json.load` re-parses and 25 `list(d.keys())` key-dumps against three uses of jq.
+PIPE A PROJECTION, DO NOT SPOOL IT. Most are JSON on stdout (each page says which), and `jq` is a REQUIRED tool of this suite, so it is installed here: piped into it, a projection answers your question in ONE call; spooled to a scratch file and re-read in python it takes THREE — the dump, a key-dump to learn the field names, the extract — each a process spawn and a round-trip.
 
-YOU DO NOT NEED TO DISCOVER THE FIELD NAMES. Every projection's own page ends with its OUTPUT field tree — the key names, in the nesting they arrive in, generated from the type the tool actually marshals. Read that page before you run the verb and the dump-then-inspect round-trip never happens.
+YOU DO NOT NEED TO DISCOVER THE FIELD NAMES. Every JSON projection's page ends with its OUTPUT field tree — the key names in their nesting, generated from the type the tool marshals. Read it before you run the view.
 
 Usage:
   feov-record show [flags]
@@ -1327,24 +1326,26 @@ Available Commands:
   changes          HOW THE REPORT GOT THAT WAY — every edit in record order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by `edit`
   debate           WHAT EACH SIDE ARGUED, epoch by epoch — the transcript, in order. Written by `position`, `closing` and the bench's `motion docket rule`
   evidence         WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading. Written by `cite`, `prove`, `verify` and `reproduce`
-  findings         THE RAW LENS FINDINGS, BEFORE the merge coalesces them into gaps — several findings can become one gap, and this is where you see which. Written by `finding`
+  findings         THE RAW LENS FINDINGS, BEFORE they are minted into gaps — several findings can become one gap, and this is where you see which. Written by `finding`
   lines-of-inquiry WHICH DIRECTIONS WERE TAKEN AND WHICH WERE NOT — pursued, deferred, declined, abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule`
   motions          WHAT HAS BEEN CONTESTED AND HOW IT WAS RULED — the ask in the filer's words, and the ruling if it has one. `debate` is what each side ARGUED; this is what was formally disputed. Written by `motion`, `rule` and `appeal`
-  report           THE DOCUMENT UNDER AUDIT, as it stands now — read it through the tool, not off disk. `changes` says how it got that way. Written by the round-0 synthesis and every `edit`, with anchors from `cite`, `finding` and `prove`
+  report           THE DOCUMENT UNDER AUDIT, as it stands now. `changes` says how it got that way. Written by the round-0 synthesis and every `edit`, with anchors from `cite`, `finding` and `prove`
   scorecard        HOW YOUR CHAIR IS DOING ON THIS QUESTION — your own side's performance, this run only. No selector: your chair is the seat you registered as. Computed from the record, so no verb fills it
   telemetry        HOW THE NUMBERS MOVED ACROSS EPOCHS — a trend, not a snapshot: one line per epoch (chair sitting), and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it
   work             WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Run it first and again before you finish. Written by `mint`, `close` and the bench's `motion docket rule`
 
 Flags:
-  -h, --help              help for show
-      --id show changes   scope show changes to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
+  -h, --help        help for show
+      --id string   scope the changes projection to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
 
 (Global Flags:) → SHARED §5
 
 Use "feov-record show [command] --help" for more information about a command.
 ==============================================================================
 $ feov-record show board --help
-THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. STRUCTURED JSON by default (the form a seat acts on); `--format markdown` gives the human-verification rendering, open gaps then the closure archive with its prose. Written by `mint`, `close`, `regrade` and `retire` THIS PROJECTION IS ALREADY THE JSON — --json is accepted, and on success its output is byte-for-byte the same. On an ERROR, --json prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
+THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. JSON by default; --format markdown gives the human-verification rendering. Written by `mint`, `close`, `regrade` and `retire`
+
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §12
 
 OUTPUT (JSON): {open:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,minted_location,location_edits:[{epoch,edited_by,old,new}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],closed:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,minted_location,location_edits:[{epoch,edited_by,old,new}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],observations:[{id,seat_id,key,kind,label,text,credited}],counts:{open,closed,closed_by_bench,uncredited_findings,anomalies,total_observations,citations,citations_authored},anomalies:[string]}
 
@@ -1369,7 +1370,7 @@ Flags:
 (Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show debate --help
-the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order (add --json for the STRUCTURED form: epochs with red/blue/lead sections as data, for the audits). Written by `position`, `closing` and the bench's `motion docket rule`
+the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by `position`, `closing` and the bench's `motion docket rule`
 
 OUTPUT (JSON, with --json — the bare call is the markdown form): {epochs:[{epoch,verdict,red:[string],blue:[string],lead:[{gap_id,disposition,principle,tension,review_flag,rationale}],red_closings:[{gap_id,text}],blue_closings:[{gap_id,text}]}]}
 
@@ -1382,7 +1383,9 @@ Flags:
 (Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show evidence --help
-STRUCTURED JSON: WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs), every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their trust grades. THIS IS HOW YOU RESOLVE AN ANCHOR you are reading in the report. Written by `cite`, `prove`, `verify` and `reproduce` THIS PROJECTION IS ALREADY THE JSON — --json is accepted, and on success its output is byte-for-byte the same. On an ERROR, --json prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
+WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs), every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their confidence. THIS IS HOW YOU RESOLVE AN ANCHOR you are reading in the report. Written by `cite`, `prove`, `verify` and `reproduce`
+
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §12
 
 OUTPUT (JSON): {sources:[{anchor,url,title,sha256,access_date,location,seat_id,epoch,verified:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch}]}],proofs:[{anchor,sha256,basis,cites,drift,seat_id,epoch,verified:{reproduced,sound,note,seat_id,epoch}}],independent:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch}],reopened:[string],unanswered_contradictions:[string],counts:{sources,proofs,proofs_unverified,sources_unverified,sources_refuted,verifications}}
 
@@ -1395,7 +1398,9 @@ Flags:
 (Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show findings --help
-STRUCTURED JSON: every lens finding on the record (label, seat, epoch, role, grades, location, text) — the merge coalesces these into gaps; replaces the red/candidates/*.md files THIS PROJECTION IS ALREADY THE JSON — --json is accepted, and on success its output is byte-for-byte the same. On an ERROR, --json prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
+Every lens finding on the record (label, seat, epoch, role, grades, location, text) — the minting lens coalesces these into gaps
+
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §12
 
 OUTPUT (JSON): {findings:[{label,anchor,seat_id,epoch,role,severity,likelihood,impact,location,about_kind,about_ref,text,minted_as:[string]}],counts:{total}}
 
@@ -1419,7 +1424,9 @@ Flags:
 (Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show motions --help
-STRUCTURED JSON: every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks `merge verdict --as PASS`, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal` THIS PROJECTION IS ALREADY THE JSON — --json is accepted, and on success its output is byte-for-byte the same. On an ERROR, --json prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
+Every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks a PASS verdict, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal`
+
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §12
 
 OUTPUT (JSON): {motions:[{id,subject,filer,epoch,basis,relief,ruled,ruling,ruling_by,ruling_epoch,opinion,appealed,appeal_reason,fields:{<key>:string},gap_id}],counts:{total,ruled,outstanding}}
 
@@ -1432,20 +1439,20 @@ Flags:
 (Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show report --help
-THE ARTIFACT UNDER AUDIT — blue's living report, read THROUGH the tool instead of off disk; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `blue edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the round-0 synthesis and every `blue edit`
+THE ARTIFACT UNDER AUDIT — blue's living report; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the round-0 synthesis and every `edit`
 
 Usage:
   feov-record show report [flags]
 
 Flags:
-      --anchor f-…   read the report AT one anchor id (f-…, `c-…`, `p-…`) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back. `show findings` resolves finding anchors; `show evidence` resolves citation and proof anchors
-  -h, --help           help for report
-      --window int     with --anchor: how many paragraphs of content either side of it (blank lines are carried, not counted) (default 3)
+      --anchor id    read the report AT one anchor id (f-…, c-…, p-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back
+  -h, --help         help for report
+      --window int   with --anchor: how many paragraphs of content either side of it (blank lines are carried, not counted) (default 3)
 
 (Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show scorecard --help
-YOUR CHAIR'S IN-RUN SCORECARD — how the side you sit on is doing on THIS question, computed live from this run's record. Your own performance, not another party's: there is no selector, because your chair is the seat you registered as. A number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures, because a diagnostic gamed is itself a defect and a detector firing is a finding. Rows reading "not computed" are HONEST, not gaps to fill: the envelope-derived rows fill in at capture. Computed from the record, so no verb fills it
+YOUR CHAIR'S IN-RUN SCORECARD — how your side is doing on THIS question, computed live from this run's record; no selector, because your chair is the seat you registered as. A bad number means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures: a gamed diagnostic is itself a defect, and a detector firing is a finding. Rows reading "not computed" are HONEST, not gaps to fill: envelope-derived rows fill in at capture. No verb fills it
 
 Usage:
   feov-record show scorecard [flags]
@@ -1456,9 +1463,11 @@ Flags:
 (Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show telemetry --help
-STRUCTURED JSONL, one line per epoch (chair sitting): open count, max severity, mass under the pinned mapping, new mints BY SEVERITY AND BY CLASS with the class repeat rate, repair-regression ratio, and edge deltas — the trend the STOPPING judgment reads. The bench's signal for whether the findings are still changing character or merely recurring THIS PROJECTION IS ALREADY THE JSON — --json is accepted, and on success its output is byte-for-byte the same. On an ERROR, --json prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
+JSONL, one line per epoch (chair sitting): the trend the STOPPING judgment reads — the bench's signal for whether the findings are still changing character or merely recurring
 
-OUTPUT (JSONL — one such line PER ROUND, not one document): {epoch,mapping_version,open_count,max_severity,new_mint:{count,by_severity:[{grade,count}],by_class:{<key>:number},class_repeat_rate},mass,realized_open,repair_regression:{closures,lineage_mints,ratio},edge_deltas:{down_mass,up_mass}}
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §12
+
+OUTPUT (JSONL — one such line PER EPOCH, not one document): {epoch,mapping_version,open_count,max_severity,new_mint:{count,by_severity:[{grade,count}],by_class:{<key>:number},class_repeat_rate},mass,realized_open,repair_regression:{closures,lineage_mints,ratio},edge_deltas:{down_mass,up_mass}}
 
 Usage:
   feov-record show telemetry [flags]
@@ -1469,15 +1478,17 @@ Flags:
 (Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show work --help
-**RUN THIS FIRST AND RUN IT AGAIN BEFORE YOU STOP.** STRUCTURED JSON: EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item — each with `blocks`, saying whether it is what is stopping you closing — and `sitting.complete` is true exactly when nothing blocking is left.
+**RUN THIS FIRST AND AGAIN BEFORE YOU STOP.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left.
 
-An item with `blocks: false` is work this board affords you that nobody will refuse you for skipping: a citation nobody verified, a source blue never cited, a proof nobody re-ran, a line of inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK. `complete: true` with items open means the gates are satisfied, NOT that there is nothing to do.
+An item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran, a line of inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.
 
-Carries the shrinking working set too — OPEN gaps only (grades, class, location, a problem synopsis, found_by). An open gap with `awaiting_docket` is one the BENCH CARRIED: the motion was answered, so nothing is pending and it returns only if you docket it again — `docket_reopens_on` is the ruling's own statement of what would bring it back.
+`open` holds OPEN gaps only (grades, class, location, a problem synopsis, found_by); one with `awaiting_docket` was CARRIED by the bench — nothing is pending, and it returns only if you docket it again (`docket_reopens_on` says what would bring it back).
 
-AND `closed_index`, WHICH IS NOT DEBRIS: it is the ESTOPPEL REGISTER, and this description used to call it a shrinking working set, which reads as `done, ignore it` and is the opposite of what it is for. Each entry carries id, location, class, the `fate` that ended it, and `closed_by` — `bench` or `red`. THAT DISTINCTION IS LOAD-BEARING: red may reopen its OWN closure on new evidence, but a bench ruling is ESTOPPED and re-raising it is relitigation, not diligence. If you hold new evidence against a bench-ruled gap, it is a lineage successor — mint it under a new id naming the ruled gap in `supersedes`, and say what the ruling did not account for.
+`closed_index` IS THE ESTOPPEL REGISTER, NOT DEBRIS: each entry carries id, location, class, the `fate` that ended it, and `closed_by` (`bench` or `red`). THAT DISTINCTION IS LOAD-BEARING: red may reopen its OWN closure on new evidence, but a bench ruling is ESTOPPED and re-raising it is relitigation, not diligence. New evidence against a bench-ruled gap is a lineage successor — mint it under a new id naming the ruled gap in `supersedes`, and say what the ruling did not account for.
 
-A `fate` of defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. The reasoning behind any fate is on the record, not here: `show debate` carries the bench's opinions, `show board --format markdown` the closure archive with its prose. Read the one you are about to rely on or work around. Bare `show` defaults here for every role. Written by `mint`, `close` and the bench's `motion docket rule` THIS PROJECTION IS ALREADY THE JSON — --json is accepted, and on success its output is byte-for-byte the same. On an ERROR, --json prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
+Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. The reasoning behind a fate is on the record: `show debate` carries the bench's opinions, `show board --format markdown` the closure archive with its prose — read the one you are about to rely on or work around. Bare `show` defaults here for every role. Written by `mint`, `close` and the bench's `motion docket rule`
+
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §12
 
 OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}]},open:[{id,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,edited_since:[{epoch,edited_by,old,new}],problem_synopsis,check_kind,awaiting_proof,awaiting_docket,docket_reopens_on,found_by:[string]}],closed_index:[{id,location,about_kind,about_ref,class,fate,closed_by,artifact_state}],counts:{open,closed},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
 

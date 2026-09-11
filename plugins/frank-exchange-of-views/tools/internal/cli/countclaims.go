@@ -24,7 +24,7 @@ func newCountClaims() *cobra.Command {
 	c := &cobra.Command{
 		Use:           "count-claims",
 		Short:         "count the FOOTNOTED declarative claims in blue's report (read-only)",
-		Long:          "count-claims reads <run>/blue/report.md and prints its claim_count — the number of footnoted declarative claims, computed deterministically (see the rule in internal/claimcount). It writes nothing. Used live by blue to size its envelope figure and by capture to recompute it independently.",
+		Long:          "count-claims prints the report's claim_count — the number of footnoted declarative claims, computed deterministically from the report on the record. It writes nothing. Blue uses it live to size its envelope figure; capture recomputes it independently.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
