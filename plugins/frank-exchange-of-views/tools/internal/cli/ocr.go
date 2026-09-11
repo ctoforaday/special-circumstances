@@ -223,8 +223,9 @@ func (s ocrReadSummary) render() string {
 //
 // WHAT IT PRODUCES IS REPRODUCIBLE, AND THE RECORD SAYS HOW. #636 keyed an extraction to
 // library@semver so an audit could re-run it and compare hashes; this record keys the
-// reading to the engine identity (tesseract@x+leptonica@y) and the hashes of the exact
-// images read, restoring that check for scans — same binary, same pixels, same bytes.
+// reading to the engine identity (library pins, language data, and a hash of the engine's
+// own source) and the hashes of the exact images read, restoring that check for scans —
+// same engine, same pixels, same bytes.
 func newOCRRead() *cobra.Command {
 	var sha string
 	var force bool

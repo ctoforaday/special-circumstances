@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -154,20 +155,75 @@ func readFixture(t *testing.T, name string) string {
 // staleness gate (build-cstack.sh is the build-time half): neither carrier can move
 // without the other noticing.
 func TestIdentityMatchesPins(t *testing.T) {
-	if got, want := Identity(), "tesseract@5.5.3+leptonica@1.87.0"; got != want {
-		t.Fatalf("Identity() = %q, want %q", got, want)
+	want := "tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@"
+	if got := Identity(); !strings.HasPrefix(got, want) || !isHex(strings.TrimPrefix(got, want), 12) {
+		t.Fatalf("Identity() = %q, want %q followed by the 12-hex engine source hash", got, want)
 	}
 	pins, err := os.ReadFile(filepath.Join("..", "..", "third_party", "pins", "PINS.txt"))
 	if err != nil {
 		t.Fatalf("reading PINS.txt: %v", err)
 	}
-	for _, tarball := range []string{
+	for _, pin := range []string{
 		"tesseract-" + tesseractPin + ".tar.gz",
 		"leptonica-" + leptonicaPin + ".tar.gz",
+		engTraineddataPin,
 	} {
-		if !strings.Contains(string(pins), tarball) {
+		if !strings.Contains(string(pins), pin) {
 			t.Errorf("PINS.txt does not pin %s — the Go pin constants and the download "+
-				"manifest have drifted", tarball)
+				"manifest have drifted", pin)
 		}
 	}
+}
+
+// The source hash is what makes Identity() cover the engine's own code (#644). It must
+// MOVE for any byte a reading depends on and hold still for everything else — a hash that
+// never moved would make the identity decoration again, and one that moved on test edits
+// or line endings would re-read every document for nothing.
+func TestEngineSourceHashTracksTheCode(t *testing.T) {
+	base := fstest.MapFS{
+		"page.go":  {Data: []byte("package tessocr\nconst MinMarkPlacement = 0.8\n")},
+		"shim.cpp": {Data: []byte("api->SetImage(pix);\n")},
+	}
+	h := hashEngineSource(base)
+	if !isHex(h, 12) {
+		t.Fatalf("hash %q is not 12 hex digits", h)
+	}
+	with := func(name, data string) fstest.MapFS {
+		m := fstest.MapFS{}
+		for k, v := range base {
+			m[k] = v
+		}
+		m[name] = &fstest.MapFile{Data: []byte(data)}
+		return m
+	}
+	for _, c := range []struct {
+		name  string
+		fsys  fstest.MapFS
+		moves bool
+	}{
+		{"a threshold changes", with("page.go", "package tessocr\nconst MinMarkPlacement = 0.9\n"), true},
+		{"the shim changes", with("shim.cpp", "api->SetImage(pix);\napi->SetSourceResolution(300);\n"), true},
+		{"a source file is added", with("gate.go", "package tessocr\n"), true},
+		{"a test file is added", with("page_test.go", "package tessocr\n"), false},
+		{"the shim is checked out CRLF", with("shim.cpp", "api->SetImage(pix);\r\n"), false},
+	} {
+		if moved := hashEngineSource(c.fsys) != h; moved != c.moves {
+			t.Errorf("%s: hash moved = %v, want %v", c.name, moved, c.moves)
+		}
+	}
+	if !strings.HasSuffix(Identity(), engineSourceHash) {
+		t.Errorf("Identity() %q does not end in the package's own source hash %q", Identity(), engineSourceHash)
+	}
+}
+
+func isHex(s string, n int) bool {
+	if len(s) != n {
+		return false
+	}
+	for _, r := range s {
+		if !strings.ContainsRune("0123456789abcdef", r) {
+			return false
+		}
+	}
+	return true
 }

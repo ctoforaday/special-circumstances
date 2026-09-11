@@ -15,7 +15,7 @@ import (
 // and an embed that drifted from it would ship an engine whose Identity() attests to
 // language data it does not carry.
 func TestEmbeddedTraineddataPin(t *testing.T) {
-	const pinned = "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
+	pinned := engTraineddataPin
 	sum := sha256.Sum256(engTraineddata)
 	if got := hex.EncodeToString(sum[:]); got != pinned {
 		t.Fatalf("embedded eng.traineddata sha256 = %s, want the PINS.txt pin %s", got, pinned)

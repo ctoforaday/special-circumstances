@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/klippa-app/go-pdfium/requests"
@@ -160,7 +159,7 @@ func renderAndReadPages(run record.Run, sha string, body []byte) (ReadingRecord,
 	}
 
 	out := ReadingRecord{Sha: sha, Engine: DefaultPageEngine.Identity(), ReadAt: time.Now().UTC(), DPI: dpi}
-	var assembled strings.Builder
+	var texts []string
 	for i := 0; i < pc.PageCount; i++ {
 		png, rerr := renderPagePNG(inst, doc.Document, i, dpi)
 		if rerr != nil {
@@ -176,12 +175,10 @@ func renderAndReadPages(run record.Run, sha string, body []byte) (ReadingRecord,
 			return ReadingRecord{}, fmt.Errorf("page %d: %w", i+1, rerr)
 		}
 		out.Pages = append(out.Pages, r.pageReading())
-
-		assembled.WriteString(norm)
-		assembled.WriteString("\n\n")
+		texts = append(texts, norm)
 	}
 
-	text := strings.TrimRight(assembled.String(), "\n")
+	text := tessocr.AssembleReading(texts)
 	if err := writeReplacing(OCRTextPath(run, sha), []byte(text)); err != nil {
 		return ReadingRecord{}, err
 	}

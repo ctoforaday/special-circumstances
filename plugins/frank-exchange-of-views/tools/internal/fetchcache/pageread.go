@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -23,12 +22,13 @@ import (
 // re-reading the same page returned different bytes, so its record could offer only an
 // attestation of provenance — which model, when, against which image hashes — and had to
 // say plainly that nothing corroborated it. A deterministic engine restores #636's
-// extractor model: the record keys the reading to the engine identity
-// (tesseract@x+leptonica@y), and the same binary over the same pixels returns the same
-// bytes, so an audit can re-run the read and compare hashes instead of taking anyone's
-// word. That is strictly stronger than the one-pass/corroboration argument this comment
-// used to carry, and it is why the token fields, the call-count economics and the
-// content-filter machinery are gone from this file rather than merely disused.
+// extractor model: the record keys the reading to the engine identity (tessocr.Identity():
+// library pins, language data and a hash of the engine's own source), and the same engine
+// over the same pixels returns the same bytes, so an audit can re-run the read and compare
+// hashes instead of taking anyone's word. That is strictly stronger than the
+// one-pass/corroboration argument this comment used to carry, and it is why the token
+// fields, the call-count economics and the content-filter machinery are gone from this
+// file rather than merely disused.
 
 // PageEngine turns one page image into a reading — text for prose, a reconstructed table
 // with stats where a ruled grid fires. It is an interface for the reason the extractor
@@ -254,7 +254,7 @@ func readPageStep(run record.Run, sha string, page int, png []byte, dpi int) (pa
 		return pageReceipt{}, "", rerr
 	}
 
-	norm := normalizeReading(res.Text)
+	norm := tessocr.NormalizeReading(res.Text)
 	if err := writeReplacing(PageTextPath(run, sha, page), []byte(norm)); err != nil {
 		return pageReceipt{}, "", err
 	}
@@ -303,9 +303,10 @@ func (r ReadingRecord) TablePages() int {
 // model reader's record had to state it could not offer.
 type ReadingRecord struct {
 	Sha string `json:"sha"`
-	// Engine is the identity key of what did the reading — tesseract@x+leptonica@y, from
-	// tessocr.Identity() (or a test fake's own name). Unlike a model name, it does not
-	// change underneath itself: the pins are the identity.
+	// Engine is the identity key of what did the reading — tessocr.Identity(), naming the
+	// library pins, the language data and a hash of the engine package's source (or a
+	// test fake's own name). Unlike a model name, it does not change underneath itself:
+	// any change to what decides the bytes is a new identity.
 	Engine string `json:"engine"`
 	// ReadAt is when — provenance for a human, not part of the re-derivation key.
 	ReadAt time.Time `json:"read_at"`
@@ -359,7 +360,7 @@ func ReadRenderedPages(run record.Run, sha string, rd RenderRecord) (ReadingReco
 		Sha: sha, Engine: DefaultPageEngine.Identity(), ReadAt: time.Now().UTC(),
 		RenderShas: rd.PageShas, DPI: rd.DPI,
 	}
-	var assembled strings.Builder
+	var texts []string
 
 	for i := 1; i <= rd.Pages(); i++ {
 		png, err := os.ReadFile(PagePath(run, sha, i))
@@ -372,12 +373,10 @@ func ReadRenderedPages(run record.Run, sha string, rd RenderRecord) (ReadingReco
 			return ReadingRecord{}, fmt.Errorf("page %d: %w", i, rerr)
 		}
 		out.Pages = append(out.Pages, r.pageReading())
-
-		assembled.WriteString(norm)
-		assembled.WriteString("\n\n")
+		texts = append(texts, norm)
 	}
 
-	text := strings.TrimRight(assembled.String(), "\n")
+	text := tessocr.AssembleReading(texts)
 	if err := writeReplacing(OCRTextPath(run, sha), []byte(text)); err != nil {
 		return ReadingRecord{}, err
 	}
@@ -444,20 +443,4 @@ func writeReplacing(dst string, b []byte) error {
 		return err
 	}
 	return nil
-}
-
-// normalizeReading settles line endings and strips trailing whitespace.
-//
-// THIS IS HYGIENE ON STORED TEXT, NOT INTERPRETATION OF IT. A reading is about to become
-// a citable artifact, and CRLF or a trailing run of spaces in it is noise a reader would
-// have to look past. Interior line structure is PRESERVED — paragraph breaks are how the
-// page reads, and flattening them would be this function editing the content rather than
-// tidying its edges.
-func normalizeReading(s string) string {
-	s = strings.ReplaceAll(s, "\r\n", "\n")
-	lines := strings.Split(s, "\n")
-	for i, l := range lines {
-		lines[i] = strings.TrimRight(l, " \t")
-	}
-	return strings.TrimSpace(strings.Join(lines, "\n"))
 }
