@@ -1668,8 +1668,14 @@ func (r *runner) extras(role, seatID string, open []string) {
 			// A real retirement names text a recorded edit took out, which is what makes the
 			// removal something the record can SHOW rather than something a seat says.
 			if claim := r.recentlyEditedOut(); claim != "" {
-				r.do("retire", seatID).set("--quote", claim).set("--reason", "fuzz: the claim went with the edit").
-					on(50, "--new", "fuzz replacement claim").run()
+				rt := r.do("retire", seatID).set("--quote", claim).set("--reason", "fuzz: the claim went with the edit").
+					on(50, "--new", "fuzz replacement claim")
+				// A MARKER THE CUT LEFT INSIDE A SENTENCE is named, so --anchor runs through its
+				// validation — accepted when the edit left that marker alone, refused otherwise.
+				if id := r.anchorsLeftFor(claim); id != "" {
+					rt = rt.on(60, "--anchor", id)
+				}
+				rt.run()
 			}
 		})
 		// THE CORRECTNESS MANIFEST: one row per repaired gap, on the record (#318).
@@ -3855,6 +3861,38 @@ func (r *runner) recentlyEditedOut() string {
 		if old != "" && !strings.Contains(string(cur), old) {
 			return old
 		}
+	}
+	return ""
+}
+
+// fuzzAnchorRe matches a tool-inserted marker of any class, capturing its id.
+var fuzzAnchorRe = regexp.MustCompile(`<!--(?:fx|cite|proof):([fcp]-[0-9a-f]+)-->`)
+
+// anchorsLeftFor names a marker for a retire's --anchor: one the edit that took claim out left in
+// its place, when it still stands; else any marker the report holds, so the flag is driven through
+// its validation on every retire the sweep makes — accepted or refused, never unpassed.
+func (r *runner) anchorsLeftFor(claim string) string {
+	b, err := record.FamilyOf(r.run())
+	if err != nil {
+		return ""
+	}
+	cur, err := reportproj.RenderFromRecord(r.run())
+	if err != nil {
+		return ""
+	}
+	for i := len(b.Events) - 1; i >= 0; i-- {
+		be, ok := recordpb.BodyAs[*recordpb.BlueEdit](b.Events[i])
+		if !ok || be.GetOld() != claim {
+			continue
+		}
+		for _, m := range fuzzAnchorRe.FindAllStringSubmatch(be.GetNew(), -1) {
+			if strings.Contains(string(cur), m[0]) {
+				return m[1]
+			}
+		}
+	}
+	if m := fuzzAnchorRe.FindStringSubmatch(string(cur)); m != nil {
+		return m[1]
 	}
 	return ""
 }
