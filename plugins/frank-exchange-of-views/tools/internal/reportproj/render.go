@@ -277,7 +277,7 @@ func RenderFromRecord(run record.Run) (string, error) {
 		return "", err
 	}
 	if !haveBase {
-		return "", fmt.Errorf("render: no base has been ingested for this run — there is nothing to render")
+		return "", fmt.Errorf("render: no base has been ingested for this run — there is nothing to render. Its author freezes the report into the record first; citing, proving, counting claims and editing all read the frozen report")
 	}
 	text := base
 	for i, op := range ops {
