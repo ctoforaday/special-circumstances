@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/catalogue"
 )
 
 // THE ARGV IS A CONTRACT WITH SCRIPTS, and an exit code is the only part of it a script reads
@@ -324,6 +326,48 @@ func TestFindRefusesAPatternThatDoesNotCompile(t *testing.T) {
 	// could not say what was wrong with the pattern.
 	if !strings.Contains(errOut, "unclosed group") {
 		t.Errorf("the refusal does not relay ripgrep's reason: %q", errOut)
+	}
+}
+
+// A PATTERN IS ATTRIBUTED WHERE RIPGREP MATCHED IT, like a literal. `\<` is ripgrep's word start,
+// which Go's regexp misreads — so this also proves no second engine re-finds the match.
+func TestFindRegexReportsWhoSpoke(t *testing.T) {
+	if _, err := exec.LookPath("rg"); err != nil {
+		t.Skip("ripgrep is not installed, so `find` cannot be exercised here — a skipped assertion, not a passing one")
+	}
+	h := newHarness(t)
+	out, errOut, code := h.run(t, "find", "--regex", `\<conduct sect`, "--in", "peer")
+	if code != 0 {
+		t.Fatalf("exit %d, stderr:\n%s", code, errOut)
+	}
+	for _, id := range []string{gammaID, deltaID} {
+		if !strings.Contains(out, catalogue.Short(id)) {
+			t.Errorf("the peer row for %s is missing:\n%s", catalogue.Short(id), out)
+		}
+	}
+	if strings.Contains(out, "none has a hit") {
+		t.Errorf("a pattern found no peer where the literal finds two:\n%s", out)
+	}
+}
+
+// THE CALLER'S RIPGREP CONFIG DOES NOT REACH find. A config holding --ignore-case would make a
+// literal's matches depend on the box it runs on — and any flag there can move the offsets.
+func TestFindIgnoresRipgrepConfig(t *testing.T) {
+	if _, err := exec.LookPath("rg"); err != nil {
+		t.Skip("ripgrep is not installed, so `find` cannot be exercised here — a skipped assertion, not a passing one")
+	}
+	h := newHarness(t)
+	cfg := filepath.Join(t.TempDir(), "ripgreprc")
+	if err := os.WriteFile(cfg, []byte("--ignore-case\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("RIPGREP_CONFIG_PATH", cfg)
+	out, errOut, code := h.run(t, "find", "CONDUCT SECTION")
+	if code != 0 {
+		t.Fatalf("exit %d, stderr:\n%s", code, errOut)
+	}
+	if !strings.Contains(out, "no transcript contains") {
+		t.Errorf("a ripgrep config file changed what find matched:\n%s", out)
 	}
 }
 

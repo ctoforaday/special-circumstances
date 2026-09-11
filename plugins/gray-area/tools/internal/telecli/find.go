@@ -25,6 +25,14 @@ var errNoRipgrep = errors.New(
 		"matches, which would be indistinguishable from a real result. Install it (see " +
 		"gray-area's requirements.json) or use `telepathy sql`")
 
+// errStaleZero refuses a zero it could not measure: no row survived, and some matching records
+// could not be read back as ripgrep matched them. Printing "none has a hit" or an empty table
+// there would report the records find FAILED to read as records that were read and did not match.
+var errStaleZero = errors.New(
+	"no row survives, and some matching records could not be read back as ripgrep matched them, " +
+		"so this is not a completed search. Refusing rather than reporting no hits; run it again " +
+		"once the transcripts stop changing")
+
 // samplesPerFile caps how many matching records are decoded per transcript. A term like "the"
 // matches most of the corpus, and decoding all of it would turn a 100 ms search into a minute.
 // The cap is STATED when it bites, because a truncated answer presented as a whole one is the
@@ -54,6 +62,11 @@ transcript, while the store's word and thought tiers hold only speech and
 reasoning — so a hit can be a tool result or a file path. A match in a pasted
 log is not somebody saying something.
 
+IN is read from the JSON value ripgrep's match lies in, at the byte it
+reported — the same for --regex as for a literal. tool_use is a match anywhere
+inside a call's arguments, result one anywhere inside what a tool returned;
+SNIPPET is centred on the match.
+
 For text, IN is WHO SPOKE, read from fields the client writes and never from
 the text: peer is another session's message, notification a background task's,
 lead the lead or a workflow coordinator prompting a seat, harness text the
@@ -61,8 +74,8 @@ client injects. A message delivered mid-turn reports its sender the same way.
 user is the human — plus what no field separates from them: prompts programs
 send to headless sessions, and slash-command and local-command text.
 
-  ?               the term is in a part of the record nothing here models
-                  (a cwd, a uuid, queue bookkeeping)
+  ?               the match is in a part of the record nothing here models
+                  (a cwd, a uuid, a key name, queue bookkeeping)
   unknown_origin  a record whose origin, or whose mid-turn delivery mode, this
                   binary does not know — upgrade gray-area
 
@@ -87,10 +100,19 @@ that never reaches a shell. Pass --regex to treat it as a pattern — which is w
 you want for a word boundary, and searching for 'roving' rather than '\broving\b'
 is how you get every occurrence of "proving" instead.
 
+The term is matched against the raw JSON of each line, so a term containing "
+or \ does not match text that holds it (the transcript stores \" and \\), and
+ripgrep refuses a term containing a line break. ripgrep configuration files
+are ignored, and transcripts are read as raw bytes: no encoding detection, and
+a byte-order mark is not skipped.
+
 Anything that stops this from being a completed search REFUSES rather than
-printing "no matches": ripgrep absent, a pattern that does not compile, or a
-corpus it could not finish reading. A search that could not run must never be
-reported as a search that found nothing.`,
+printing "no matches": ripgrep absent, a pattern that does not compile, a
+corpus it could not finish reading, or no row surviving while some matching
+records could not be read back as ripgrep matched them (the file changed or
+went away since the search, or the record no longer parses). When rows do
+survive, one line on stderr counts those records. A search that could not run
+must never be reported as a search that found nothing.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			term := args[0]
@@ -121,17 +143,8 @@ reported as a search that found nothing.`,
 			}
 			sort.Strings(names)
 
-			// --line-number, not --count-matches: the line NUMBER is what lets the second pass
-			// read the record back and say when it was and what it was.
-			rgArgs := []string{"--line-number", "--no-heading", "--with-filename", "--only-matching"}
-			if !asRegex {
-				rgArgs = append(rgArgs, "--fixed-strings")
-			}
-			rgArgs = append(rgArgs, "--", term)
-			rgArgs = append(rgArgs, names...)
-
 			var stderr bytes.Buffer
-			run := exec.CommandContext(cmd.Context(), rg, rgArgs...)
+			run := exec.CommandContext(cmd.Context(), rg, ripgrepArgs(term, asRegex, names)...)
 			run.Stderr = &stderr
 			raw, runErr := run.Output()
 			code := 0
@@ -162,8 +175,8 @@ reported as a search that found nothing.`,
 			}
 
 			out := cmd.OutOrStdout()
-			locs := parseRipgrep(string(raw))
-			if len(locs) == 0 {
+			recs := parseRipgrep(string(raw))
+			if len(recs) == 0 {
 				return reportEmpty(out, term, names, asRegex)
 			}
 			if incomplete != "" {
@@ -177,16 +190,8 @@ reported as a search that found nothing.`,
 			if only != "" && !catalogue.ValidChannel(catalogue.Channel(only)) {
 				return usagef("--in %q is not a channel; one of: %s", only, channelList())
 			}
-			rows, matched := decodeHits(locs, paths, term, catalogue.Channel(only))
-			if only != "" && len(rows) == 0 {
-				// COUNTED IN THE UNIT IT NAMES. `locs` counts matching RECORDS, not transcripts,
-				// and printing one as the other is how a row count becomes a subject count.
-				fmt.Fprintf(out, "%d transcript(s) contain %q, but none has a hit in %q\n",
-					matched, term, only)
-				return nil
-			}
-			render(out, rows, showPaths)
-			return nil
+			rows, matched, stale := decodeHits(recs, paths, catalogue.Channel(only))
+			return settle(out, cmd.ErrOrStderr(), rows, matched, stale, term, catalogue.Channel(only), showPaths)
 		},
 	}
 	c.Flags().BoolVar(&asRegex, "regex", false,
@@ -198,44 +203,82 @@ reported as a search that found nothing.`,
 	return c
 }
 
-// fileLine is one ripgrep hit location.
-type fileLine struct {
-	path string
-	line int
+// ripgrepArgs is find's whole ripgrep command line after the binary, extracted so a test runs
+// real ripgrep with exactly these flags.
+//
+//   - --line-number, not --count-matches: the line NUMBER is what lets the second pass read the
+//     record back and say when it was and what it was.
+//   - --byte-offset with --only-matching is the ABSOLUTE file offset of each match itself, which is
+//     how the second pass knows WHERE in the record it matched rather than guessing it back from
+//     the text. --null ends the path with a NUL, so a Windows drive letter's `C:` is not read as
+//     the separator.
+//   - --no-config and --encoding none make those offsets the file's raw bytes on every box: a
+//     caller's config can add --ignore-case or anything else, and ripgrep's encoding sniffing
+//     strips a byte-order mark and reports offsets after it.
+func ripgrepArgs(term string, asRegex bool, names []string) []string {
+	args := []string{"--no-config", "--encoding", "none", "--line-number", "--no-heading",
+		"--with-filename", "--only-matching", "--byte-offset", "--null"}
+	if !asRegex {
+		args = append(args, "--fixed-strings")
+	}
+	args = append(args, "--", term)
+	return append(args, names...)
 }
 
-// parseRipgrep reads `path:lineno:match` and returns each DISTINCT record, in order.
+// rawMatch is one ripgrep match: its absolute byte offset in the file, and the bytes it matched.
+type rawMatch struct {
+	abs  int64
+	text string
+}
+
+// ripRecord is one matching transcript RECORD and every match ripgrep reported inside it.
+type ripRecord struct {
+	path    string
+	line    int
+	matches []rawMatch
+}
+
+// parseRipgrep reads `path\0line:offset:match` and returns each DISTINCT record, in order.
 //
 // Distinct, because --only-matching emits one output line per match and a single transcript record
 // can hold the term many times. Collapsing here is what makes HITS mean "turns that mention this"
 // rather than "times these characters appear", which is the number a reader is actually after: one
-// transcript line is one turn, and three mentions inside it are one moment.
-func parseRipgrep(raw string) []fileLine {
-	var out []fileLine
-	seen := map[fileLine]bool{}
-	sc := bufio.NewScanner(strings.NewReader(raw))
-	sc.Buffer(make([]byte, 0, 64*1024), 8*1024*1024)
-	for sc.Scan() {
-		s := sc.Text()
-		// path:line:match — the path may contain no ':' on the platforms this runs on, and the
-		// match certainly can, so both splits are from the LEFT.
-		i := strings.IndexByte(s, ':')
-		if i < 0 {
+// transcript line is one turn, and three mentions inside it are one moment. The matches are kept
+// on the record, because each one's offset is where the record is attributed.
+//
+// NO LINE CAP. ripgrep's output is already in memory, and a bufio.Scanner over it silently dropped
+// every result after the first match longer than its buffer — which `--regex '.*'` on a
+// megabyte transcript line produces.
+func parseRipgrep(raw string) []ripRecord {
+	type key struct {
+		path string
+		line int
+	}
+	var out []ripRecord
+	at := map[key]int{}
+	for rest := raw; rest != ""; {
+		var s string
+		s, rest, _ = strings.Cut(rest, "\n")
+		path, loc, ok := strings.Cut(s, "\x00")
+		if !ok {
 			continue
 		}
-		j := strings.IndexByte(s[i+1:], ':')
-		if j < 0 {
+		// line:offset:match — the match can hold ':', so both splits are from the LEFT.
+		ln, loc, ok1 := strings.Cut(loc, ":")
+		off, text, ok2 := strings.Cut(loc, ":")
+		n, err1 := strconv.Atoi(ln)
+		abs, err2 := strconv.ParseInt(off, 10, 64)
+		if !ok1 || !ok2 || err1 != nil || err2 != nil {
 			continue
 		}
-		n, err := strconv.Atoi(s[i+1 : i+1+j])
-		if err != nil {
-			continue
+		k := key{path, n}
+		i, seen := at[k]
+		if !seen {
+			i = len(out)
+			at[k] = i
+			out = append(out, ripRecord{path: path, line: n})
 		}
-		fl := fileLine{path: s[:i], line: n}
-		if !seen[fl] {
-			seen[fl] = true
-			out = append(out, fl)
-		}
+		out[i].matches = append(out[i].matches, rawMatch{abs: abs, text: text})
 	}
 	return out
 }
@@ -269,7 +312,8 @@ type row struct {
 }
 
 // decodeHits reads the matching records back so each row can carry a time, a channel and a
-// snippet, and returns the rows with the number of transcripts that matched at all.
+// snippet, and returns the rows with the number of transcripts that matched at all and the number
+// of matching records it could not read back as ripgrep matched them.
 //
 // UNFILTERED (want == ""), a row describes its newest hit, read from at most samplesPerFile of the
 // newest records. FILTERED, every matching record is read and the row describes the newest hit IN
@@ -279,26 +323,28 @@ type row struct {
 //
 // The row's HITS count is deliberately NOT narrowed: it counts every matching record in that
 // transcript either way, so a filtered view cannot make a session look quieter than it is.
-func decodeHits(locs []fileLine, paths map[string]catalogue.TranscriptFile, term string, want catalogue.Channel) ([]row, int) {
-	byFile := map[string][]int{}
+//
+// A STALE HIT IS NEVER A ROW'S BEST. A record that changed, went away or no longer parses cannot
+// say where it matched, and a transcript whose every hit is stale yields no row — it is in the
+// stale count instead, which settle states.
+func decodeHits(recs []ripRecord, paths map[string]catalogue.TranscriptFile, want catalogue.Channel) (rows []row, matched, stale int) {
+	byFile := map[string][]ripRecord{}
 	var order []string
-	for _, l := range locs {
-		if _, ok := byFile[l.path]; !ok {
-			order = append(order, l.path)
+	for _, r := range recs {
+		if _, ok := byFile[r.path]; !ok {
+			order = append(order, r.path)
 		}
-		byFile[l.path] = append(byFile[l.path], l.line)
+		byFile[r.path] = append(byFile[r.path], r)
 	}
-	var rows []row
-	matched := 0
 	for _, path := range order {
 		f, ok := paths[path]
 		if !ok {
 			continue // a file ripgrep saw and the store does not name; not ours to report
 		}
 		matched++
-		lines := byFile[path]
-		r := row{f: f, hits: len(lines)}
-		read := lines
+		mine := byFile[path]
+		r := row{f: f, hits: len(mine)}
+		read := mine
 		if want == "" && len(read) > samplesPerFile {
 			// The tail of a transcript is its recent end, and this row reports the most recent
 			// hit — so when the cap bites it must bite on the OLD end.
@@ -306,8 +352,10 @@ func decodeHits(locs []fileLine, paths map[string]catalogue.TranscriptFile, term
 			r.capped = true
 		}
 		found := false
-		for _, h := range recordsAt(path, read, term, f.AgentID != "") {
-			if want != "" && h.Channel != want {
+		hits, unread := recordsAt(path, read, f.AgentID != "")
+		stale += unread
+		for _, h := range hits {
+			if h.Stale || (want != "" && h.Channel != want) {
 				continue
 			}
 			if !found || h.TS >= r.best.TS {
@@ -326,41 +374,89 @@ func decodeHits(locs []fileLine, paths map[string]catalogue.TranscriptFile, term
 		}
 		return rows[i].f.Path < rows[j].f.Path
 	})
-	return rows, matched
+	return rows, matched, stale
 }
 
-// recordsAt reads the given 1-indexed lines of a file and decodes each. inSubagent is whether the
-// file is a subagent or workflow transcript, which decides who a no-origin prompt came from.
+// recordsAt reads the given records of one file and decodes each at the offsets ripgrep matched.
+// inSubagent is whether the file is a subagent or workflow transcript, which decides who a
+// no-origin prompt came from.
 //
 // One sequential pass, never a seek per line: a transcript runs to hundreds of megabytes, the
-// wanted lines are already ascending, and this stops at the last one it needs.
-func recordsAt(path string, lines []int, term string, inSubagent bool) []catalogue.Hit {
-	want := map[int]bool{}
+// wanted lines are already ascending, and this stops at the last one it needs. ReadBytes keeps
+// each line's delimiter, so every line's starting offset is exact, and ripgrep's absolute offsets
+// become offsets inside the line.
+//
+// stale COUNTS WHAT IT COULD NOT READ BACK AS RIPGREP MATCHED IT: every record when the file does
+// not open, every wanted line past the end of the file, every record whose bytes at a match
+// differ, and every record that no longer parses — a transcript cut after the match but before
+// that line's end is the last of these, and discarding DecodeHit's ok would fold it into a
+// plain `?`. Those that were read are returned with Stale set; the rest are only counted.
+func recordsAt(path string, recs []ripRecord, inSubagent bool) (hits []catalogue.Hit, stale int) {
+	want := map[int]ripRecord{}
 	last := 0
-	for _, n := range lines {
-		want[n] = true
-		if n > last {
-			last = n
-		}
+	for _, r := range recs {
+		want[r.line] = r
+		last = max(last, r.line)
 	}
 	f, err := os.Open(path)
 	if err != nil {
-		return nil // a transcript that vanished between the search and the read
+		return nil, len(want) // a transcript that vanished between the search and the read
 	}
 	defer f.Close()
-	var out []catalogue.Hit
-	sc := bufio.NewScanner(f)
-	sc.Buffer(make([]byte, 0, 256*1024), 64*1024*1024)
-	for n := 1; sc.Scan(); n++ {
-		if want[n] {
-			h, _ := catalogue.DecodeHit(sc.Text(), term, inSubagent)
-			out = append(out, h)
+	rd := bufio.NewReaderSize(f, 256*1024)
+	var start int64
+	for n := 1; n <= last; n++ {
+		b, err := rd.ReadBytes('\n')
+		if len(b) == 0 && err != nil {
+			break
 		}
-		if n >= last {
+		if r, ok := want[n]; ok {
+			delete(want, n)
+			spans := make([]catalogue.Span, len(r.matches))
+			for i, m := range r.matches {
+				s := int(m.abs - start)
+				spans[i] = catalogue.Span{Start: s, End: s + len(m.text), Text: m.text}
+			}
+			h, ok := catalogue.DecodeHit(string(bytes.TrimSuffix(b, []byte("\n"))), spans, inSubagent)
+			if !ok {
+				h.Stale = true
+			}
+			if h.Stale {
+				stale++
+			}
+			hits = append(hits, h)
+		}
+		start += int64(len(b))
+		if err != nil {
 			break
 		}
 	}
-	return out
+	return hits, stale + len(want) // what is left in want lay past the end of the file
+}
+
+// settle is everything after decoding: the rows, the worded empty result, or a refusal.
+//
+// A RECORD NOT READ BACK IS COUNTED OUT LOUD, and a zero that includes one is refused. Under --in,
+// "none has a hit in C" with an unread record is the silent zero this verb exists to refuse: the
+// record might have been C's, and saying none is a guess reported as a finding. Unfiltered, an
+// empty table says the same thing with no words at all.
+func settle(out, errw io.Writer, rows []row, matched, stale int, term string, only catalogue.Channel, showPaths bool) error {
+	if stale > 0 {
+		fmt.Fprintf(errw, "telepathy find: %d matching record(s) could not be read back as ripgrep "+
+			"matched them (the file changed or went away since the search, or the record no longer "+
+			"parses); they are not counted in any row's IN\n", stale)
+	}
+	if len(rows) == 0 && stale > 0 {
+		return errStaleZero
+	}
+	if only != "" && len(rows) == 0 {
+		// COUNTED IN THE UNIT IT NAMES. ripgrep's records are matching RECORDS, not transcripts,
+		// and printing one as the other is how a row count becomes a subject count.
+		fmt.Fprintf(out, "%d transcript(s) contain %q, but none has a hit in %q\n", matched, term, only)
+		return nil
+	}
+	render(out, rows, showPaths)
+	return nil
 }
 
 func render(out io.Writer, rows []row, showPaths bool) {

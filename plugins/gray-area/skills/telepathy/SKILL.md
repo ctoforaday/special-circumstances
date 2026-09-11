@@ -46,7 +46,8 @@ citation.
   `notification` (a background task's), `lead` (the lead or a workflow coordinator prompting a
   seat), `harness` (text the client injects), `assistant`. Quoting a `peer` or `result` row back to
   a session as the human's words is the mistake this column exists to prevent.
-  - `?` means the term is in a part of a record nothing here models (a cwd, a uuid, queue bookkeeping).
+  - `result` means the match is anywhere inside what a tool returned; `tool_use` anywhere inside a call's arguments.
+  - `?` means the match is in a part of a record nothing here models (a cwd, a uuid, a key name, queue bookkeeping).
   - `unknown_origin` means a record whose `origin.kind`, or whose `queued_command` `commandMode`, this binary does not know — upgrade gray-area.
 
   Neither is the liveness word `unknown` that `agents` prints.
@@ -57,7 +58,8 @@ citation.
   `notification`, `lead`, `harness`, `unknown_origin`). Interrupts are `user` at top level and
   `lead` in a seat's transcript. Mid-turn deliveries (`queued_command`) appear in `find` and have
   no `v_word` rows.
-- `find` takes a **literal** by default; pass `--regex` for a pattern. Use it for word boundaries —
+- `find` takes a **literal** by default; pass `--regex` for a pattern. IN is read from where ripgrep
+  matched, so IN, SNIPPET and `--in` mean the same for a pattern as for a literal. Use it for word boundaries —
   searching `roving` rather than `\broving\b` returns every occurrence of "p*roving*", which is how
   this rule was earned. A substring match is the default failure mode of every search here,
   including `touched` and `sql`'s `LIKE`.
