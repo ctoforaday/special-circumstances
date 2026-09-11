@@ -517,7 +517,7 @@ func insertBody(tx *sql.Tx, eventID int64, m protoreflect.Message) error {
 	stmt := fmt.Sprintf("INSERT INTO %q (%s) VALUES (%s)", table,
 		strings.Join(cols, ", "), strings.TrimSuffix(strings.Repeat("?, ", len(vals)), ", "))
 	if _, err := tx.Exec(stmt, vals...); err != nil {
-		return olderSchema(tx, table, fmt.Errorf("recordsql: recording a %s: %w", table, err))
+		return olderRun(tx, table, cols, fmt.Errorf("recordsql: recording a %s: %w", table, err))
 	}
 
 	for _, fd := range lists {
@@ -555,7 +555,7 @@ func insertArm(tx *sql.Tx, eventID int64, table string, m protoreflect.Message) 
 	stmt := fmt.Sprintf("INSERT INTO %q (%s) VALUES (%s)", table,
 		strings.Join(cols, ", "), strings.TrimSuffix(strings.Repeat("?, ", len(vals)), ", "))
 	if _, err := tx.Exec(stmt, vals...); err != nil {
-		return fmt.Errorf("recordsql: recording a %s: %w", table, err)
+		return olderRun(tx, table, cols, fmt.Errorf("recordsql: recording a %s: %w", table, err))
 	}
 	return nil
 }

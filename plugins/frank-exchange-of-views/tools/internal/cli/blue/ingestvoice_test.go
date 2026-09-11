@@ -62,9 +62,9 @@ func TestTheIngestAdvisoryNotifiesAndDoesNotRefuse(t *testing.T) {
 	if !strings.Contains(h, "not a refusal") {
 		t.Errorf("the note does not say it is advice; a seat will read it as a gate:\n%s", h)
 	}
-	// THE ROUTE OUT. `blue edit` is the only way to change a frozen base, and a note that does not
+	// THE ROUTE OUT. `edit` is the only way to change a frozen base, and a note that does not
 	// say so invites a re-ingest the record refuses.
-	if !strings.Contains(h, "blue edit") {
+	if !strings.Contains(h, "`edit`") {
 		t.Errorf("the note does not name the only path that can act on it:\n%s", h)
 	}
 	if !strings.Contains(h, "cannot be re-ingested") {

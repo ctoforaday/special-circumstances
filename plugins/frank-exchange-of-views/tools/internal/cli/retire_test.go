@@ -21,7 +21,7 @@ func TestRetireRefusesAClaimStillInTheReport(t *testing.T) {
 	if err == nil {
 		t.Fatal("a claim still present in the report was retired — the record now says it left while it sits there")
 	}
-	for _, want := range []string{"still in the report", "blue edit"} {
+	for _, want := range []string{"still in the report", "`edit`"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal must say what to do instead, got: %v", err)
 		}

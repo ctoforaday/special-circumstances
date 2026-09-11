@@ -13,7 +13,7 @@ import (
 
 // THE CHANNEL FOR REPORTING THAT A CAPABILITY IS UNREACHABLE WAS ITSELF UNREACHABLE.
 //
-// `friction` at the root is the OPERATOR's read. The seat's write is `<role> friction`. All four
+// The root's channel read is the OPERATOR's; each seat writes the channel with its own `log`. All four
 // constitutions taught the write as `friction --reason "<what blocked you>"` — no role in front —
 // and that form lands on the read, where cobra rejected it at PARSE time: `unknown flag:
 // --reason`, exit 2, before RunE and before the Long text one line up that says seats write

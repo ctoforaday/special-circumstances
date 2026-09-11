@@ -6,7 +6,7 @@
 // plus its append-only diff-stack, reads go through the render, and every change is an event.
 //
 // THREE GUARANTEES, each keyed on the record rather than a marker or a permission bit:
-//   - WRITE-ONCE: a second ingest is refused and redirected to `blue edit`. The base already
+//   - WRITE-ONCE: a second ingest is refused and redirected to `edit`. The base already
 //     exists on the record, so it cannot be overwritten — asked-and-answered by the events.
 //   - AUTHOR-ONLY: only the seat that authored the report (blue-synthesize) may ingest it. A
 //     response or red seat has no business freezing the base. (True surface-invisibility to other
@@ -44,7 +44,7 @@ func newIngest() *cobra.Command {
 
 		// AUTHOR-ONLY.
 		if s.SeatID != authorSeat {
-			return nil, fmt.Errorf("blue ingest is for the report's author (%s) only — a %s seat does not freeze the base. Change the report through `blue edit`", authorSeat, s.SeatID)
+			return nil, fmt.Errorf("blue ingest is for the report's author (%s) only — a %s seat does not freeze the base. Change the report through `edit`", authorSeat, s.SeatID)
 		}
 
 		// WRITE-ONCE — refuse-and-redirect if a base already exists (record-state, not a marker).
@@ -53,7 +53,7 @@ func newIngest() *cobra.Command {
 			return nil, err
 		}
 		if already {
-			return nil, fmt.Errorf("blue ingest: this run's report is already ingested — the base is frozen and cannot be re-ingested or overwritten. Make every change through `blue edit`, which appends to the diff-stack")
+			return nil, fmt.Errorf("blue ingest: this run's report is already ingested — the base is frozen and cannot be re-ingested or overwritten. Make every change through `edit`, which appends to the diff-stack")
 		}
 
 		reportPath := filepath.Join(run.Dir(), "blue", "report.md")
@@ -68,7 +68,7 @@ func newIngest() *cobra.Command {
 		// reached the record without ever meeting the advisory. Every inline lane tag in that
 		// run's finished report came in through here.
 		//
-		// FindAll, not Find: `blue edit` advises on one span, where knowing a tell is PRESENT is
+		// FindAll, not Find: `edit` advises on one span, where knowing a tell is PRESENT is
 		// the whole signal. A document needs the count and the places, or an author is told once
 		// that a lane tag exists and cannot reach the other five.
 		//
@@ -153,18 +153,18 @@ func quoteFirst(os []reportvoice.Occurrence) string {
 type ingestResult struct {
 	Bytes int `json:"bytes"`
 	// VoiceTells is ADVICE and the base is already frozen by the time it renders. Ingest is
-	// WRITE-ONCE and has just deleted the file, so unlike `blue edit` the author cannot re-do the
-	// act it advises on — the route from here is `blue edit`, and the message says so rather than
+	// WRITE-ONCE and has just deleted the file, so unlike `edit` the author cannot re-do the
+	// act it advises on — the route from here is `edit`, and the message says so rather than
 	// implying a re-ingest that the record would refuse.
 	VoiceTells []string `json:"voice_tells,omitempty"`
 }
 
 func (r ingestResult) Human() string {
-	head := fmt.Sprintf("blue ingest: report frozen into the record (%d bytes), verified byte-for-byte, and the file removed. The report is now the base plus its diff-stack; read it with `show report`, change it with `blue edit`.", r.Bytes)
+	head := fmt.Sprintf("blue ingest: report frozen into the record (%d bytes), verified byte-for-byte, and the file removed. The report is now the base plus its diff-stack; read it with `show report`, change it with `edit`.", r.Bytes)
 	if len(r.VoiceTells) == 0 {
 		return head
 	}
-	return head + "\n\nNOTE — the base sounds in places like the run rather than the subject. It is\nrecorded and this is not a refusal; it may be wrong. Change any of it with\n`blue edit` — the base itself is frozen and cannot be re-ingested:\n  - " +
+	return head + "\n\nNOTE — the base sounds in places like the run rather than the subject. It is\nrecorded and this is not a refusal; it may be wrong. Change any of it with\n`edit` — the base itself is frozen and cannot be re-ingested:\n  - " +
 		strings.Join(r.VoiceTells, "\n  - ") +
 		"\n\nSEPARATION, NEVER DELETION: where a tell carries a real limit on the CONCLUSION,\nit stays and is re-voiced as a limit on the subject — only the fact about the run\ngoes. Red's voice lens holds that judgement; these are the literal tells, and the\nleaks that matter most are the ones no pattern catches."
 }
