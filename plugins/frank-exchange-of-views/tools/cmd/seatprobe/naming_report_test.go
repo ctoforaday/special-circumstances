@@ -41,7 +41,7 @@ func TestTheShippedConstitutionsNameNoVerbAtDispatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, role := range []string{"blue", "lens", "merge", "bench"} {
+	for _, role := range []string{"blue", "lens", "chair", "bench"} {
 		src, err := constitutionFor(role, agents)
 		if err != nil {
 			t.Fatalf("no constitution for %s: %v", role, err)

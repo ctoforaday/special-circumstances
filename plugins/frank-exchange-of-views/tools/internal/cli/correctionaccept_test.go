@@ -119,12 +119,12 @@ func corrRows() map[string]corrRow {
 			}},
 		"blue log":       logRow("blue-respond"),
 		"lens log":       logRow(lensSeat),
-		"merge log":      logRow("red-chair"),
+		"chair log":      logRow("red-chair"),
 		"bench log":      logRow("judge"),
 		"blue position":  {seat: "blue-respond", act: prose("position")},
-		"merge position": {seat: "red-chair", act: prose("position")},
+		"chair position": {seat: "red-chair", act: prose("position")},
 		"blue closing":   closingRow("blue-respond"),
-		"merge closing":  closingRow("red-chair"),
+		"chair closing":  closingRow("red-chair"),
 		"lens regrade": {seat: lensSeat, act: func(_ corrVars, text string) []string {
 			return []string{"regrade", "--id", "G1", "--severity", "high", "--reason", text}
 		}},
@@ -148,7 +148,7 @@ func corrRows() map[string]corrRow {
 			return []string{"close", "--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "read",
 				"--verified-against", "blue/report.md", "--reason", text}
 		}},
-		"merge carry": {seat: "red-chair",
+		"chair carry": {seat: "red-chair",
 			setup: func(t *testing.T, runDir string) corrVars {
 				closeG1(t, runDir, "closed in the first sitting")
 				must(t, runDir, "register", "--seat-id", "red-chair")
@@ -157,10 +157,10 @@ func corrRows() map[string]corrRow {
 			act: func(_ corrVars, text string) []string {
 				return []string{"carry", "--id", "G1", "--carried-from", "1", "--as", "repaired", "--reason", text}
 			}},
-		"merge spot-check": {seat: "red-chair", act: func(_ corrVars, text string) []string {
+		"chair spot-check": {seat: "red-chair", act: func(_ corrVars, text string) []string {
 			return []string{"spot-check", "--none", "--reason", text}
 		}},
-		"merge inquiry-support": {seat: "red-chair", act: prose("inquiry-support")},
+		"chair inquiry-support": {seat: "red-chair", act: prose("inquiry-support")},
 		"bench declare":         {seat: "judge", act: prose("declare")},
 		"bench certify":         {seat: "judge", act: prose("certify")},
 		"bench halt":            {seat: "judge", act: prose("halt")},

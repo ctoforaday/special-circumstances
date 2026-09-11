@@ -137,7 +137,7 @@ func TestDebateJSONBytesIsValidJSON(t *testing.T) {
 	}
 }
 
-// TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse pins the merge's shrinking working set:
+// TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse pins the chair's shrinking working set:
 // OPEN gaps only in a lean shape (grades + class + location + a TRUNCATED problem synopsis +
 // found_by, but NOT required_fix/acceptance_check), and closed gaps collapsed to a prose-free
 // {id, location, class} index. This is the once-per-turn read the full board is not.

@@ -120,7 +120,7 @@ func TestVerbPayloads(t *testing.T) {
 			says:   "corroborating source Example B verified: weak",
 		},
 		{
-			name: "motion grade rule records the merge's answer",
+			name: "motion grade rule records the chair's answer",
 			path: []string{"motion", "grade", "rule"}, seatID: "red-chair",
 			args: []string{"--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it"},
 			typ:  recordpb.EventType_EVENT_TYPE_MOTION_RULE,
@@ -411,7 +411,7 @@ func TestProseVerbsFillTheirProseField(t *testing.T) {
 		{"bench", "halt", "judge-terminal", "opinion", recordpb.EventType_EVENT_TYPE_HALT, nil},
 		{"bench", "certify", "assemble", "statement", recordpb.EventType_EVENT_TYPE_CERTIFY, nil},
 		{"blue", "revision", "blue-lane-1", "text", recordpb.EventType_EVENT_TYPE_REVISION, nil},
-		{"merge", "closing", "red-chair", "text", recordpb.EventType_EVENT_TYPE_CLOSING, []string{"--id", "G1"}},
+		{"chair", "closing", "red-chair", "text", recordpb.EventType_EVENT_TYPE_CLOSING, []string{"--id", "G1"}},
 		{"blue", "manifest-row", "blue-lane-1", "row", recordpb.EventType_EVENT_TYPE_MANIFEST_ROW, []string{"--id", "G1"}},
 	}
 	body := "a multi-line payload\nwith unicode — ✓ 日本語\nand <angle> & entities\n"

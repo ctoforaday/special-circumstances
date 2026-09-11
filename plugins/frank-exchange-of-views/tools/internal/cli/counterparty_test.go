@@ -11,7 +11,7 @@ import (
 
 // "NOTHING YET" AND "NOTHING COMING" MUST NOT BE THE SAME READ.
 //
-// MEASURED 2026-08-16 BY ASKING THE MERGE. On a board with two gaps open it reported: "The absence
+// MEASURED 2026-08-16 BY ASKING THE CHAIR. On a board with two gaps open it reported: "The absence
 // of any `blue edit` record suggests blue hasn't even tried. But I should check the work list again
 // — does it say anything about blue's next move?" It then listed the three situations it could not
 // choose between: blue is repairing in sequence and I should wait, blue fixed one and missed two,
@@ -66,7 +66,7 @@ func TestTheWorkListSeparatesNotYetFromNotComing(t *testing.T) {
 	active := read(t, quiet)
 
 	if silent.Reading == active.Reading {
-		t.Fatalf("a silent blue and a working blue produce the SAME reading — the merge cannot tell whether to wait or dispose:\n%q", silent.Reading)
+		t.Fatalf("a silent blue and a working blue produce the SAME reading — the chair cannot tell whether to wait or dispose:\n%q", silent.Reading)
 	}
 	if silent.Acts != 0 {
 		t.Errorf("a blue that recorded nothing shows %d act(s); registering is arriving, not acting", silent.Acts)

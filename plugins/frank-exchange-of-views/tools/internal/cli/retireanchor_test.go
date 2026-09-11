@@ -301,7 +301,7 @@ func TestRetireCreditsOnlyTheClaimsItTookOut(t *testing.T) {
 	// The unrelated merge: two cited sentences become one, both anchors carried, no retire.
 	gt, dt := "<!--cite:"+g+"-->", "<!--cite:"+d+"-->"
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--quote", "Gamma holds"+gt+". Delta holds"+dt, "--new", "Gamma and Delta hold"+gt+dt, "--reason", "merge"); err != nil {
+		"--quote", "Gamma holds"+gt+". Delta holds"+dt, "--new", "Gamma and Delta hold"+gt+dt, "--reason", "chair"); err != nil {
 		t.Fatalf("merge edit: %v", err)
 	}
 	end := claimcount.Count(readReport(t, runDir))

@@ -69,7 +69,7 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	}
 	if InquiryReviewDueOf(b.Events) {
 		t.Error("a bare register from judge made the round-1 merge's review stale.\n\n" +
-			"The merge can never satisfy this — it acts at its own round and the gate has moved past it — " +
+			"The chair can never satisfy this — it acts at its own round and the gate has moved past it — " +
 			"so the round's duty is refused forever while the verb keeps reporting success.")
 	}
 

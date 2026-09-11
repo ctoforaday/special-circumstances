@@ -44,7 +44,7 @@ func ProbeAgentID(seatID string) string { return "probe-" + seatID }
 // unregistered seat is refused before any board state exists.
 var Seats = []struct{ Role, ID string }{
 	{"lens", "red-lens-evidence"},
-	{"merge", "red-chair"},
+	{"chair", "red-chair"},
 	{"blue", "blue-respond"},
 	{"bench", "judge"},
 }

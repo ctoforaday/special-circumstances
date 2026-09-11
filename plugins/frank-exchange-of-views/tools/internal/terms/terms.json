@@ -3,7 +3,7 @@
     {
       "term": "the report",
       "definition": "The report is the research prose written for a reader of the subject: one document from a lane's text to the assembled report.md, named by its stage only where the stage matters (your part of the report, the report as `show report` serves it, the assembled report.md).",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [
         {"variant": "candidate draft", "kind": "GATED", "pattern": "candidate drafts?|drafts? candidates"},
         {"variant": "candidate (the text)", "kind": "REGISTRY-ONLY"},
@@ -39,7 +39,7 @@
     {
       "term": "run directory",
       "definition": "The run directory is the directory that holds one run: its record, its report and the documents assembled beside it.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [
         {"variant": "blackboard", "kind": "GATED", "pattern": "blackboard"}
       ],
@@ -48,7 +48,7 @@
     {
       "term": "the record",
       "definition": "The record is the run's account of every act, held as events in records/record.db, and every read a seat makes is a projection of it.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [
         {"variant": "ledger", "kind": "GATED", "pattern": "\\bledgers?\\b"},
         {"variant": "narrative", "kind": "GATED", "pattern": "\\bnarratives?\\b"},
@@ -65,7 +65,7 @@
     {
       "term": "run",
       "definition": "A run is one research question taken from setup to its outcome.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [
         {"variant": "the debate is over", "kind": "GATED", "pattern": "the debate (is over|ended)"},
         {"variant": "debate (the run)", "kind": "REGISTRY-ONLY"}
@@ -77,7 +77,7 @@
     {
       "term": "epoch",
       "definition": "An epoch runs from one chair sitting to the next: the chair relays who sits, the parties the record names sit, and the chair sits again.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [
         {"variant": "round", "kind": "GATED", "pattern": "\\brounds?\\b|round-0",
          "masks": [
@@ -94,7 +94,7 @@
     {
       "term": "sitting",
       "definition": "A sitting is one seat's dispatch, from the prompt the engine hands it to the envelope it returns.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [
         {"variant": "your last turn, your next turn", "kind": "GATED", "pattern": "your (last|next) turn"},
         {"variant": "this session", "kind": "GATED", "pattern": "this session"},
@@ -107,21 +107,21 @@
     {
       "term": "exchange",
       "definition": "An exchange is a red sitting followed by a blue sitting on one gap, and k-max counts them.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [],
       "collisions": []
     },
     {
       "term": "seat",
       "definition": "A seat is one agent's place in the run, registered under a seat id whose role decides the surface it is given.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [],
       "collisions": []
     },
     {
       "term": "side",
       "definition": "A side is red or blue: red audits the report and passes or fails it, blue researches, writes and repairs it.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [
         {"variant": "red team, blue team", "kind": "GATED", "pattern": "(blue|red) teams?",
          "masks": [
@@ -133,7 +133,7 @@
     {
       "term": "lens",
       "definition": "A lens is a red seat that audits the report for one class of defect, and the only seat that files findings and mints gaps.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [],
       "collisions": [
         {"word": "method", "resolution": "a lane's source method is its method, never a lens"}
@@ -142,15 +142,10 @@
     {
       "term": "chair",
       "definition": "The chair is red's running seat: it relays who sits, rules blue's motions, spot-checks the archive and records red's verdict.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [
         {"variant": "red-merge, merge seat, red merged", "kind": "GATED", "pattern": "red-merge|merge seat|red merged"},
-        {"variant": "merge (the chair's role)", "kind": "GATED", "pattern": "\\bmerge (carry|close|verdict|position|closing|spot-check|show)\\b|lens\\|merge",
-         "allow": [
-           {"path": "plugins/frank-exchange-of-views/tools/internal/cli/merge/verdict.go", "reason": "renamed in phase 2: the role id merge becomes chair, and cli/merge moves to cli/chair"},
-           {"path": "plugins/frank-exchange-of-views/tools/internal/record/record.go", "reason": "renamed in phase 2, as above"},
-           {"path": "plugins/frank-exchange-of-views/tools/internal/record/recordpb/record.proto", "reason": "renamed in phase 2, as above ((ruled_by) = \"merge\" and the annotation text)"}
-         ]}
+        {"variant": "merge (the chair's role)", "kind": "GATED", "pattern": "\\bmerge (carry|close|verdict|position|closing|spot-check|show)\\b|lens\\|merge"}
       ],
       "collisions": [
         {"word": "merge", "resolution": "blue's union of the lane drafts is a merge; the chair is the chair"}
@@ -159,7 +154,7 @@
     {
       "term": "bench",
       "definition": "The bench is the seat that adjudicates the contested docket, rules on motions and stamps how the run ended.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [
         {"variant": "the judge", "kind": "GATED", "pattern": "the judge([^-a-z]|$)"}
       ],
@@ -187,7 +182,7 @@
     {
       "term": "engine",
       "definition": "The engine is the workflow script that dispatches the seats the record says are ready and reads the envelopes they return.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [
         {"variant": "the lead", "kind": "GATED", "pattern": "the lead([^-a-z]|$)"},
         {"variant": "harness (the engine)", "kind": "REGISTRY-ONLY"}
@@ -199,14 +194,14 @@
     {
       "term": "operator",
       "definition": "The operator is the person running the research, and the seat id their own commands run under.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [],
       "collisions": []
     },
     {
       "term": "the log",
       "definition": "The log is the entries a seat files for the operator with the `log` verb — a missing capability, a defect in the tooling, an impediment or a nominal sitting — and none of it is debate material.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [
         {"variant": "operator channel", "kind": "GATED", "pattern": "operator channel"},
         {"variant": "friction verb", "kind": "GATED", "pattern": "friction verb"},
@@ -220,14 +215,14 @@
     {
       "term": "friction",
       "definition": "Friction is one type of log entry: the work was impeded and the seat is noting it.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [],
       "collisions": []
     },
     {
       "term": "missing capability",
       "definition": "A missing capability is an act a seat needed that no surface offers, and it goes in the log, never on the board.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [
         {"variant": "capability gap", "kind": "GATED", "pattern": "capability gaps?"}
       ],
@@ -236,7 +231,7 @@
     {
       "term": "citation",
       "definition": "A citation is a source attached to a sentence of the report with the cite verb, hashed and dated so it can be checked again.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [
         {"variant": "source note", "kind": "GATED", "pattern": "source notes?"},
         {"variant": "reference (a citation)", "kind": "REGISTRY-ONLY"}
@@ -248,21 +243,21 @@
     {
       "term": "anchor",
       "definition": "An anchor is the invisible token a citation, a proof or a finding leaves at its sentence in the report.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [],
       "collisions": []
     },
     {
       "term": "proof",
       "definition": "A proof is a recorded computation: a script that was run, with its hash and exit status.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [],
       "collisions": []
     },
     {
       "term": "finding anchor",
       "definition": "A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [
         {"variant": "finding-marker, marker layer", "kind": "GATED", "pattern": "finding[- ]markers?|marker layer"}
       ],
@@ -273,7 +268,7 @@
     {
       "term": "verdict",
       "definition": "The verdict is the chair's PASS or FAIL on the board.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [
         {"variant": "**Verdict:** (the outcome label)", "kind": "GATED", "pattern": "\\*\\*Verdict:\\*\\*"},
         {"variant": "certified report", "kind": "GATED", "pattern": "certified report"}
@@ -283,14 +278,14 @@
     {
       "term": "outcome",
       "definition": "The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [],
       "collisions": []
     },
     {
       "term": "finding",
       "definition": "A finding is a lens's recorded observation of a defect in the report, graded and not yet minted.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [
         {"variant": "finding (a complaint about the tooling)", "kind": "REGISTRY-ONLY"}
       ],
@@ -299,7 +294,7 @@
     {
       "term": "gap",
       "definition": "A gap is a defect in the report, minted onto the board by a lens.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [],
       "collisions": [
         {"word": "gap", "resolution": "a parity gap between two numbers is ordinary English; a missing tool is a missing capability"}
@@ -308,7 +303,7 @@
     {
       "term": "retire",
       "definition": "To retire a claim is to take it out of the report with the retire verb, on the record.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [
         {"variant": "claims withdrawn", "kind": "GATED", "pattern": "claims? withdrawn",
          "allow": [
@@ -321,7 +316,7 @@
     {
       "term": "disposition",
       "definition": "A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [
         {"variant": "carried (a disposition)", "kind": "GATED", "pattern": "\\bcarried\\b",
          "masks": [
@@ -362,7 +357,7 @@
     {
       "term": "grade motion",
       "definition": "A grade motion is a side's motion contesting a gap's grade, ruled by the bench.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [
         {"variant": "grade dispute", "kind": "GATED", "pattern": "grade disputes?"},
         {"variant": "grade_disputes (the envelope key)", "kind": "GATED", "pattern": "grade_disputes",
@@ -375,7 +370,7 @@
     {
       "term": "scorecard",
       "definition": "A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.",
-      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [
         {"variant": "your chair (a scorecard)", "kind": "GATED", "pattern": "your chair"}
       ],

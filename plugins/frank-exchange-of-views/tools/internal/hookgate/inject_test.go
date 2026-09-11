@@ -189,7 +189,7 @@ func TestTheHeredocFormTheToolTeachesKeepsItsIdentity(t *testing.T) {
 	for _, cmd := range []string{
 		// the measured shape, leading newline and all, in the taught capture form
 		"\n/scratch/runbin/feov-record position \\\n  --reason \"$(cat <<'EOF'\nRed raised five gaps.\nEOF\n)\"",
-		// the same shape a merge seat used, four times: stage a file, pass its contents
+		// the same shape a chair seat used, four times: stage a file, pass its contents
 		"cat > /tmp/p.txt << 'EOF'\nprose\nEOF\n/scratch/feov-record merge close --id G1 --reason \"$(cat /tmp/p.txt)\"",
 		// `<<-` and an unquoted delimiter, captured into a variable first
 		"X=$(cat <<-END\n\ttext\n\tEND\n)\nfeov-record blue edit --reason \"$X\"",

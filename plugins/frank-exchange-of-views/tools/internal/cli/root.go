@@ -30,8 +30,8 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/bench"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/blue"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/chair"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/lens"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/merge"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/motion"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 )
@@ -68,8 +68,8 @@ func seatVerbs(role string) ([]*cobra.Command, string) {
 	switch role {
 	case "lens":
 		return lens.Verbs(), "red lens seats — findings, source verification and corroboration, proof re-runs; mints its own gaps against its budget and, as the originator, regrades and closes them."
-	case "merge":
-		return merge.Verbs(), "the red chair — runs the debate: dispatches, judges the board, carries, spot-checks."
+	case "chair":
+		return chair.Verbs(), "the red chair — runs the debate: dispatches, judges the board, carries, spot-checks."
 	case "blue":
 		return blue.Verbs(), "blue seats — revisions, manifest rows, directions. No board verbs at all."
 	case "bench":
@@ -87,7 +87,7 @@ func RoleOfSeat(seatID string) string {
 	if strings.TrimSpace(seatID) == "" {
 		return ""
 	}
-	for _, r := range []string{"lens", "merge", "blue", "bench", record.OperatorRole} {
+	for _, r := range []string{"lens", "chair", "blue", "bench", record.OperatorRole} {
 		if record.CheckSeatRole(r, seatID) == nil {
 			return r
 		}
@@ -146,10 +146,10 @@ func dispatchedSeat() string {
 
 // NewRootFor builds THIS SEAT'S surface at the root, or the operator's when no seat was dispatched.
 //
-// THE ROLE LEVEL IS GONE. It used to be four groups under the root, so a merge seat typed
+// THE ROLE LEVEL IS GONE. It used to be four groups under the root, so a chair seat typed
 // `feov-record merge mint` — restating a fact the tool could already look up, with CheckSeatRole
 // reconciling the two copies and refusing a disagreement. The tool's own refusal message said the
-// principle it was breaking: you do not retype your identity. A merge seat now runs `mint`; a lens
+// principle it was breaking: you do not retype your identity. A chair seat now runs `mint`; a lens
 // seat running `mint` gets an unknown command, which is the same boundary drawn by the only fact
 // that decides it.
 //
@@ -274,7 +274,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 // rather than only NO.
 //
 // MEASURED 2026-08-17, and it is the sharpest evidence this file has for the slip it already
-// documents. A red-merge seat, holding a work list duty that named `inquiry-support`, typed
+// documents. A red-chair seat, holding a work list duty that named `inquiry-support`, typed
 //
 //	feov-record inquiry-support --help
 //
@@ -283,7 +283,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 // ACT: whether the direction is worth the run's time, not whether the report still carries it. The
 // seat did not lose a turn; it landed on the wrong verb with confidence.
 //
-// The refusal was false in the way that matters. `inquiry-support` exists, on the merge seat, one
+// The refusal was false in the way that matters. `inquiry-support` exists, on the chair, one
 // word away. The role-level refusal already says this well — "it exists, on the blue seat, but not
 // for you. That is a wrong-seat error rather than a missing capability" — and the ROOT level, which
 // is where a seat dropping the prefix actually lands, said the opposite.
@@ -325,7 +325,7 @@ func unknownCommandRefusal(root *cobra.Command, name string) string {
 //
 // Cobra parses flags before it decides a command is unknown, so `show --view board` reported
 // `unknown flag: --view` — naming the one thing the caller had right. The flag is fine; it just
-// belongs to `blue show`, `merge show`, `lens show` or `bench show`. A seat reading that goes
+// belongs to `blue show`, `chair show`, `lens show` or `bench show`. A seat reading that goes
 // hunting through view names and never meets the refusal that would have taught it the role
 // prefix, which inverts the whole point of a teaching refusal.
 //

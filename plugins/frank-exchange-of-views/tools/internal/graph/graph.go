@@ -264,7 +264,7 @@ func Dot(f record.Family) string {
 		reason := ""
 		if !g.Open {
 			fill, state = "#dcefe4", "CLOSED"
-			// The merge's closure_class or the bench's disposition, asked once — see
+			// The chair's closure_class or the bench's disposition, asked once — see
 			// gapFlowMermaid on why the `g.Closure != nil` guard cannot stand in for it.
 			reason = g.ClosureReason()
 		}

@@ -18,9 +18,9 @@ import (
 // near-miss never failed, it took the OTHER branch, silently. Measured on the shipped
 // tree, one case each:
 //
-//	merge verdict --as PASS    -> refused, 1 gap still open   <- the gate working
-//	merge verdict --as pass    -> RECORDED, gate never ran
-//	merge verdict --as banana  -> RECORDED
+//	chair verdict --as PASS    -> refused, 1 gap still open   <- the gate working
+//	chair verdict --as pass    -> RECORDED, gate never ran
+//	chair verdict --as banana  -> RECORDED
 //
 // The first pass at this fixed the five `--as` flags and stopped there, which is the
 // same defect one level up: the class is "a flag whose help spells a set", not "the flag

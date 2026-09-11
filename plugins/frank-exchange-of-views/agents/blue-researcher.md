@@ -200,7 +200,7 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
   no derivation is indistinguishable from a confident guess, and the reader cannot vary the
   rate, check the sum, or find the error when there is one. A gap whose `check_kind` is
   `computation` CANNOT be closed any other way, and the board states the debt directly:
-  `awaiting_proof: true` means that gap is waiting on a program from YOU. The merge is
+  `awaiting_proof: true` means that gap is waiting on a program from YOU. The chair is
   refused if it tries to close one on prose, so an unanswered demand does not settle — it
   carries into your next sitting. Your sitting's last act reports what is still owed; discharge
   each with a proof naming that gap, or argue in the edit's reasoning that the demand is

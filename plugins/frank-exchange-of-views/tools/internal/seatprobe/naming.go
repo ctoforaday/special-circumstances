@@ -87,7 +87,7 @@ func NamesSurviving(text string, sf Surface) map[string]int {
 				continue
 			}
 			seen[v] = true
-			n := len(regexp.MustCompile(`\b(lens|merge|blue|bench)\s+`+regexp.QuoteMeta(v)+`\b`).FindAllString(text, -1))
+			n := len(regexp.MustCompile(`\b(lens|chair|blue|bench)\s+`+regexp.QuoteMeta(v)+`\b`).FindAllString(text, -1))
 			if n > 0 {
 				out[v] = n
 			}

@@ -101,7 +101,7 @@ func TestTheAttestationRefusesASeatFromTheWrongFamily(t *testing.T) {
 	if err == nil {
 		t.Fatal("a lead-judge agent registered as red-chair and nothing refused it")
 	}
-	for _, want := range []string{"red-chair", "merge", "lead-judge", "bench seats"} {
+	for _, want := range []string{"red-chair", "chair", "lead-judge", "bench seats"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal does not name %q — it must name both sides for the seat to act on it:\n%s", want, err)
 		}

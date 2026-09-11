@@ -193,7 +193,7 @@ func seatFacingGo(t *testing.T) []string {
 		}
 		return files
 	}
-	for _, pkg := range []string{"seat", "blue", "lens", "merge", "bench", "motion", "enumhelp"} {
+	for _, pkg := range []string{"seat", "blue", "lens", "chair", "bench", "motion", "enumhelp"} {
 		out = append(out, walk(cli, pkg)...)
 	}
 	// Operator-only root files: their text reaches the person running the research, never a seat.

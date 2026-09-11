@@ -284,7 +284,7 @@ func ledgerMD(in Input) []byte {
 	anomalyFooter := ""
 	// UNCREDITED, not undisposed (#327). `observe` and `dispose` are retired: a finding is
 	// addressed by being named in some gap's found_by, and that is the only way. This footer
-	// is the merge's live work list of lens work it has neither minted nor credited — the same
+	// is the chair's live work list of lens work it has neither minted nor credited — the same
 	// question the old "undisposed" footer asked, against the channel that still exists.
 	credited := map[string]bool{}
 	for _, g := range in.Gaps {
@@ -642,12 +642,12 @@ func debateMD(in Input) []byte {
 		// Neither message has a `reason`. The twin in record/viewjson.go reads them the same way,
 		// which is the point of the note above.
 		parts := []string{fmt.Sprintf("\n## Epoch %d", r)}
-		for _, l := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "merge") {
+		for _, l := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "chair") {
 			if p, ok := recordpb.BodyAs[*recordpb.Position](l.Event); ok {
 				parts = append(parts, "### RED\n"+l.Markdown(p.GetText()))
 			}
 		}
-		for _, l := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "merge") {
+		for _, l := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "chair") {
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](l.Event); ok {
 				parts = append(parts, fmt.Sprintf("### RED CLOSING (epoch %d) — %s\n%s", r, c.GetGapId(), l.Markdown(c.GetText())))
 			}

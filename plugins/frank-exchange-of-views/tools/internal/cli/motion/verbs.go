@@ -261,7 +261,7 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			// ORDER IS THE MESSAGE. The motion's own subject is established FIRST, because every
 			// later refusal is phrased in terms of it: a lens typing `motion grade rule` at a
 			// petition should be told it named the wrong subgroup, not that grade motions belong
-			// to the merge — which is true, irrelevant, and sends it to the wrong fix.
+			// to the chair — which is true, irrelevant, and sends it to the wrong fix.
 			if err := record.RequireMotionSubjectRef(run, mustSubject(subject), id); err != nil {
 				return err
 			}

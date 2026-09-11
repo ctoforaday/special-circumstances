@@ -13,9 +13,9 @@ import (
 
 // near-match: screen a candidate gap against the board BEFORE minting.
 //
-// The NEAR-MATCH RULE is the merge's, not the tool's: on a near-match against a closed gap,
+// The NEAR-MATCH RULE is the chair's, not the tool's: on a near-match against a closed gap,
 // the candidate is a reopen (mint --supersedes), not a fresh gap. This op moves the SCREEN
-// off the seat — instead of re-reading the whole board and eyeballing it, the merge asks the
+// off the seat — instead of re-reading the whole board and eyeballing it, the chair asks the
 // tool for the ranked matches and then decides. It is READ-ONLY (it records nothing) and it
 // never decides: it ranks, the seat reopens-or-mints.
 const nearMatchTopN = 5

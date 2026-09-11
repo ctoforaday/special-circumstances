@@ -101,7 +101,7 @@ func TestEveryDispatchedSeatOwesTheSittingItWasDispatchedFor(t *testing.T) {
 			t.Errorf("%s registered after its dispatch: %d owed item(s), want 0", c.seat, n)
 		}
 	}
-	if n := len(owedItems(sittingOfRunT(t, base().seed(), "merge", "red-chair"))); n != 0 {
+	if n := len(owedItems(sittingOfRunT(t, base().seed(), "chair", "red-chair"))); n != 0 {
 		t.Errorf("the chair is never dispatched and owes no dispatched sitting; got %d", n)
 	}
 }

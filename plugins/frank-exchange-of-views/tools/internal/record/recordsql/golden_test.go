@@ -11,7 +11,7 @@ import (
 // # Why a green suite is not enough here
 //
 // Every other check in this package asks whether the schema BEHAVES: does it refuse a ruling that
-// precedes its filing, does a closure need a successor, does `carried` fail a merge close. Each one
+// precedes its filing, does a closure need a successor, does `carried` fail a chair close. Each one
 // asks about a constraint somebody already thought of — which means the suite is blind in exactly
 // the direction that matters most for GENERATED output. A column silently missing, a NOT NULL that
 // quietly is not, a foreign key never emitted because the field's kind took a different branch:

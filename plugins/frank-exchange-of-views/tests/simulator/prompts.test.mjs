@@ -77,7 +77,7 @@ const ARGS = { topic: 'the seat prompt contract', runDir: 'research/2026-01-01_g
 //
 // Measured when it was found: a change re-pointing the lanes off blue/frontier.md moved NO
 // golden at all, and the lane golden went on recording the retired instruction. This is also
-// why the goldens missed #280 — the merge prompt naming a verb that does not exist — because
+// why the goldens missed #280 — the chair prompt naming a verb that does not exist — because
 // that text lived in the record-mode branch these files did not render.
 //
 // binDir is REQUIRED now and the ternaries are collapsed, so there is one prompt set and it is

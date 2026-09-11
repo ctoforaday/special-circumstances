@@ -12,7 +12,7 @@ import (
 )
 
 // The closure payload is shared by two verbs in two trees: `lens close` — the originator closes
-// its gap (plans/roundless.md §III.B.3) — and `merge carry`, the chair restating a closure the
+// its gap (plans/roundless.md §III.B.3) — and `chair carry`, the chair restating a closure the
 // archive already holds. One payload, one flag set, one result shape, so the two cannot drift.
 
 // ClosureFlags registers --id, --as and --superseded-by.

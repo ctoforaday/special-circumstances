@@ -184,11 +184,11 @@ func Closing(key string) *cobra.Command {
 // EVERY SEAT DEFAULTS TO ITS PENDING WORK. It did not: blue's bare `show` returned `changelog`
 // — a record of what blue had ALREADY done, handed to it before it had done anything — the lens
 // got `citation-ledger` and the bench got `debate`. Asked what would tell them a sitting was
-// finished, only the merge could name a mechanism; blue and the bench answered with another
+// finished, only the chair could name a mechanism; blue and the bench answered with another
 // seat's future act ("red agrees it's sound"), which is not observable at the moment they have
 // to decide to stop.
 //
-// THREE VIEWS ALSO CLAIMED "merge" AND THE LAST ONE SILENTLY WON, because the resolution loop
+// THREE VIEWS ALSO CLAIMED "chair" AND THE LAST ONE SILENTLY WON, because the resolution loop
 // keeps overwriting. A default decided by slice order is a default nobody chose.
 // jsonByName marks a projection whose NATIVE form is already JSON, so `--json` on it is a
 // no-op — the same bytes, not a second form (Show says why it stopped being refused).
@@ -489,7 +489,7 @@ func renderView(cmd *cobra.Command, want string) error {
 	}
 	if want == "" {
 		// FIRST MATCH WINS, not last. The loop used to keep overwriting, so three views
-		// claiming "merge" resolved by slice order — a default nobody chose.
+		// claiming "chair" resolved by slice order — a default nobody chose.
 		for _, v := range views {
 			if v.defaultFor == role || v.defaultFor == "*" {
 				want = v.name
@@ -550,8 +550,8 @@ func renderView(cmd *cobra.Command, want string) error {
 	// baseline because it parsed sentences while the anchors sat in structured
 	// fields). Markdown for the same state stays available behind --view ledger.
 	//
-	// Resolved AFTER the role default, not before: `merge show` with no flags must
-	// reach this branch, and checking the raw flag first sent the merge seat's own
+	// Resolved AFTER the role default, not before: `chair show` with no flags must
+	// reach this branch, and checking the raw flag first sent the chair's own
 	// default view looking for a board.md that no renderer writes.
 	if want == "board" {
 		// The markdown arm is what `ledger` and `archive` rendered: the open board for a human
@@ -601,7 +601,7 @@ func renderView(cmd *cobra.Command, want string) error {
 		cmd.OutOrStdout().Write(b)
 		return nil
 	}
-	// findings is served as JSON too, and for the same reason: the merge ACTS on it
+	// findings is served as JSON too, and for the same reason: the chair ACTS on it
 	// (coalesces findings into gaps), so it reads structured fields, not prose it must
 	// parse. This is the channel that replaced red/candidates/*.md.
 	if want == "findings" {
@@ -744,7 +744,7 @@ func renderView(cmd *cobra.Command, want string) error {
 //
 // It used to build a `<role>` command GROUP and the root mounted all four. The role level is gone:
 // the seat is bound at `register`, the tool derives the role from that binding, and the root IS the
-// seat's surface. A merge seat runs `mint`; a lens seat running `mint` gets an unknown command,
+// seat's surface. A chair seat runs `mint`; a lens seat running `mint` gets an unknown command,
 // which is the same boundary the role group drew and is now drawn by the only fact that decides it.
 //
 // The seat therefore no longer types a word the tool can already look up. ResolveSeat has always

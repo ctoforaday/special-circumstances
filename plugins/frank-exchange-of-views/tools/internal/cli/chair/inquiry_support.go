@@ -1,4 +1,4 @@
-package merge
+package chair
 
 import (
 	"github.com/spf13/cobra"
@@ -29,7 +29,7 @@ import (
 // as STATED — which is red's discipline, not blue's self-report. And it is per-epoch because the
 // report changes every epoch: a verdict cast before this epoch's edits answers a question about a
 // document that no longer exists. The unvoted-inquiry check keys on the epoch for exactly that
-// reason, and the merge's sitting is not complete while any line is unvoted.
+// reason, and the chair's sitting is not complete while any line is unvoted.
 //
 // # ONE READ PER SITTING, NOT ONE READ PER LINE
 //

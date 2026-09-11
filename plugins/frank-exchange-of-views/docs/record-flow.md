@@ -43,7 +43,7 @@ flowchart TB
     BD["board (live JSON)"]
     DBT["debate.md"]
   end
-  merge["red-chair seat"]
+  chair["red-chair seat"]
   score["feov-record scorecard<br/>(reads show findings)"]
   bench["lead-judge"]
 
@@ -52,8 +52,8 @@ flowchart TB
   FE --> FV
   CE --> CL
   ME --> BD
-  FV -->|coalesce, do not transcribe| merge
-  merge -->|mint gap, found_by = finding LABELS| ME
+  FV -->|coalesce, do not transcribe| chair
+  chair -->|mint gap, found_by = finding LABELS| ME
   FV -->|per-role/epoch yield| score
   BD --> bench
   ME --> DBT
@@ -68,7 +68,7 @@ flowchart TB
 - **Findings are events, not files.** A lens records each finding through `feov-record
   finding --key <local F1>`; the tool assigns the run-unique label `L{role}-F{N}` (role from
   the seat id). `red/candidates/*.md` is retired — nothing writes or reads it.
-- **The merge reads the findings VIEW**, structured JSON, and coalesces findings into gaps.
+- **The chair reads the findings VIEW**, structured JSON, and coalesces findings into gaps.
   A gap's `found_by` names finding **labels** (`L1-F1`), which `verify.foundByResolves`
   checks against the recorded findings.
 - **Two readers of one replay never drift.** `viewjson.go` (the live JSON views) and
@@ -99,7 +99,7 @@ flowchart TB
     CEV["cite events<br/>(label c-&lt;hex&gt;, url, sha256, title, access_date)"]
   end
   RPT["blue/report.md<br/>invisible &lt;!--cite:c-…--&gt; anchor at the sentence"]
-  RED["red lens / merge<br/>fetch --url &lt;cited url&gt; (cache HIT = blue's exact bytes)"]
+  RED["red lens / chair<br/>fetch --url &lt;cited url&gt; (cache HIT = blue's exact bytes)"]
   ASM["assembly (the report set)<br/>weave anchor → [^N] + compose ## Bibliography, PER DOCUMENT"]
   DET["scorecard unbacked_citations<br/>(cite labels ⊄ report anchors)"]
   LOCK["blue edit lockdown<br/>(rejects an edit dropping/splitting a &lt;!--cite:--&gt; anchor)"]
@@ -129,4 +129,4 @@ Invariants this encodes:
 ## Out of scope (separate concepts)
 
 `blue/candidates/` (blue best-of-N lane drafts) is unrelated and untouched. `#62 pt2`
-(de-editorialising the merge via `supersedes`/tool-side dedup) is a later change.
+(de-editorialising the chair via `supersedes`/tool-side dedup) is a later change.

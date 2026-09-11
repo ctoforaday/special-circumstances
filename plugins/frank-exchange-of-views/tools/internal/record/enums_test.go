@@ -239,7 +239,7 @@ func schemaCarries(t *testing.T, typ, key, word string) bool {
 	if _, found := recordpb.BySpelling(fd.Enum(), word); found {
 		return true
 	}
-	// A CONVERTER MAY FOLD CASE, and two deliberately do. `merge verdict --as PASS` and `bench
+	// A CONVERTER MAY FOLD CASE, and two deliberately do. `chair verdict --as PASS` and `bench
 	// outcome --as VERIFIED` are the seat's words in capitals — that is the surface, and VerdictOf
 	// and RunOutcomeOf lowercase before resolving. BySpelling is exact by design (its own test
 	// pins that `PASS` does not resolve to `pass`), so the fold is checked here rather than

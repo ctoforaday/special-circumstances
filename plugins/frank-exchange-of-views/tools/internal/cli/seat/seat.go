@@ -370,7 +370,7 @@ type Handler func(Context, *cobra.Command) (Result, error)
 //
 // A verb and an event type stopped being 1:1 the moment the verbs that carried TWO CONTRACTS
 // were split into the two verbs they already were — `lens verify` and `lens corroborate` both
-// write a `verify`, `merge close` and `merge carry` both write a `close`. The record's
+// write a `verify`, `merge close` and `chair carry` both write a `close`. The record's
 // required-field table is keyed by event type, so the lookup needs the event, not the word.
 func Records(c *cobra.Command, eventType string) *cobra.Command {
 	annotate(c, recordsKey, eventType)

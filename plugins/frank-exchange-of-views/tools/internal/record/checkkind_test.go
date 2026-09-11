@@ -11,8 +11,8 @@ import (
 // check_kind IS THE FIELD WITH TEETH, AND IT REACHED NO VIEW.
 //
 // `computation` means the gap cannot be closed on prose at all — only a `blue prove --answers`
-// settles it, and the merge is refused if it tries anything else. That gate works. But it fires
-// at the MERGE, at close time, in the following round, and blue — the only seat that can satisfy
+// settles it, and the chair is refused if it tries anything else. That gate works. But it fires
+// at the CHAIR, at close time, in the following round, and blue — the only seat that can satisfy
 // it — could not see which gaps carried it.
 //
 // Measured: `prove` was invoked zero times across eighteen probed seat dispatches on boards built

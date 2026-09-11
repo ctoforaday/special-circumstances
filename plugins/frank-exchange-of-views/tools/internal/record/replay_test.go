@@ -1014,10 +1014,10 @@ func emptyBodyFor(t *testing.T, md protoreflect.MessageDescriptor) proto.Message
 
 // A CARRY NEEDS NO FRESH ARGUMENT, AND THE EXEMPTION MUST BE REACHABLE.
 //
-// `merge carry` restates a closure an earlier round already argued, so demanding the argument
+// `chair carry` restates a closure an earlier round already argued, so demanding the argument
 // again asks the same thing twice — validate says so and exempts it. `Close.prose` was then
 // annotated `required: true`, which refuses UNCONDITIONALLY and runs BEFORE the switch, so the
-// exemption could not execute: `merge carry --id G1 --carried-from 2`, the invocation the
+// exemption could not execute: `chair carry --id G1 --carried-from 2`, the invocation the
 // verb's own help documents with --reason listed nowhere in it, was refused outright.
 //
 // The code read as live the whole time — present, commented, explaining itself, and unreachable.

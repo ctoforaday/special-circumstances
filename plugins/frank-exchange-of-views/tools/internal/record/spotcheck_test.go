@@ -56,7 +56,7 @@ func TestSpotCheckDebtOnlyWhereTheArchiveWasNonEmpty(t *testing.T) {
 		t.Errorf("a closure made DURING the epoch was not in the archive at its start; no debt is owed: %v", debt)
 	}
 
-	// An epoch the merge never ACTED in owes nothing — the chair's second register opens it, but
+	// An epoch the chair never ACTED in owes nothing — the chair's second register opens it, but
 	// only blue does anything there. Demanding a sample from an absent seat is the round-number
 	// keying W1.8 replaced, in a new spelling.
 	b = spotBoard(map[string]*Gap{"G1": closedIn(1)},
@@ -66,7 +66,7 @@ func TestSpotCheckDebtOnlyWhereTheArchiveWasNonEmpty(t *testing.T) {
 		recordtest.Event(t, "blue-respond", &recordpb.Position{}),
 	)
 	if _, debt, _ := SpotCheckAudit(b); len(debt) != 0 {
-		t.Errorf("the merge did not act in epoch 2; no duty was skipped: %v", debt)
+		t.Errorf("the chair did not act in epoch 2; no duty was skipped: %v", debt)
 	}
 }
 

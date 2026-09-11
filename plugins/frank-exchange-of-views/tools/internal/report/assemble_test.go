@@ -565,7 +565,7 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 	// event — and which is what made a silently dropped finding read as a considered decline
 	// (#747: three dropped in one run, one of them a fabricated-quote allegation).
 	if strings.Contains(got, "weighed but did not mint") {
-		t.Error("the section asserts the merge weighed these findings; no event records deliberation, and a silent drop then reads as a decision")
+		t.Error("the section asserts the chair weighed these findings; no event records deliberation, and a silent drop then reads as a decision")
 	}
 	if !strings.Contains(got, "is NOT recorded") {
 		t.Errorf("the section does not say that whether these were considered is unrecorded:\n%s", got)
@@ -587,10 +587,10 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 //
 // The provenance line used to read `surfaced by: L5-F1, L6-F2` and nothing in the report defined
 // those labels — unmintedFindings renders a finding only when NO gap claims it, so the instant
-// the merge acted on a finding its leaf-level evidence left the document and the citation
+// the chair acted on a finding its leaf-level evidence left the document and the citation
 // dangled. A fuzz run where every finding was minted put red's words nowhere at all.
 //
-// It is the wrong half to drop: `problem` is the merge's RESTATEMENT, and a reader can only see
+// It is the wrong half to drop: `problem` is the chair's RESTATEMENT, and a reader can only see
 // a restatement drift from its evidence with both in front of them.
 func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 	board := &boardT{
@@ -601,7 +601,7 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 			// so a run where every finding was minted and every gap closed printed red's words
 			// nowhere at all. The fuzz found one.
 			"G1": {ID: "G1", Open: true, Mint: &recordpb.Mint{
-				Problem: proto.String("the merge's restatement"),
+				Problem: proto.String("the chair's restatement"),
 				FoundBy: []string{"L5-F1", "L9-F9"},
 			}},
 		},
@@ -637,7 +637,7 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 		GapOrder: []string{"G1"},
 		Gaps: map[string]*record.Gap{
 			"G1": {ID: "G1", Open: false, Mint: &recordpb.Mint{
-				Problem: proto.String("the merge's restatement"),
+				Problem: proto.String("the chair's restatement"),
 				FoundBy: []string{"L5-F1"},
 			}},
 		},

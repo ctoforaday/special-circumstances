@@ -220,7 +220,7 @@ func knownPaths() map[string]bool {
 
 func isRole(s string) bool {
 	switch s {
-	case "lens", "merge", "blue", "bench":
+	case "lens", "chair", "blue", "bench":
 		return true
 	}
 	return false
@@ -403,7 +403,7 @@ var refusalExpected = map[string]string{}
 // neverSucceeded returns the paths the sweep INVOKED and never once got a zero exit from.
 //
 // DRIVING A VERB IS NOT EXERCISING IT, and this repository has now learned that three times by
-// hand. `merge carry` was "20 of 20 refused, and the coverage line read as a driven verb"; then
+// hand. `chair carry` was "20 of 20 refused, and the coverage line read as a driven verb"; then
 // it "fired ONCE across 60 runs — and that one was refused, so the verb's real coverage was zero
 // while the tally read 1" (see the drive's own comment). Both were found by a person reading the
 // tally, and both were fixed as instances. The count and the failure count sat side by side in

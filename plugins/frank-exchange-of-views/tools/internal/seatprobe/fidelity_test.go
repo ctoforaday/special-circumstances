@@ -56,7 +56,7 @@ func TestEveryRoleMapsToItsProductionAgent(t *testing.T) {
 	want := map[string]string{
 		// Any ONE lens area stands for the seven: they share every duty this probe measures, and
 		// they share it through the adversarial-audit skill rather than by restating it sevenfold.
-		"lens": "red-lens-evidence", "merge": "red-chair",
+		"lens": "red-lens-evidence", "chair": "red-chair",
 		"blue": "blue-researcher", "bench": "lead-judge",
 	}
 	src := dispatchSource(t)

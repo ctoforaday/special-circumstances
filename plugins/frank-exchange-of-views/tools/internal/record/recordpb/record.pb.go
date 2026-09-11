@@ -522,7 +522,7 @@ const (
 	Disposition_DISPOSITION_DEFECT_OWED_ELSEWHERE    Disposition = 6
 	// THE ONE WORD THAT DOES NOT CLOSE, and the reason this enum carries `closes` at all.
 	//
-	// `carried` is reachable by the BENCH only: a merge closing a gap is asserting a repair, and
+	// `carried` is reachable by the BENCH only: red closing a gap is asserting a repair, and
 	// "I repaired it by carrying it" is not a sentence. The subset is enforced, not documented —
 	// see Close.closure_class, whose `subset: "closes"` generates the CHECK from this annotation.
 	Disposition_DISPOSITION_CARRIED Disposition = 7
@@ -1701,7 +1701,9 @@ type Event struct {
 	// role is the seat's ROLE as a field. Readers used to recover it with
 	// strings.HasPrefix(seat_id, "red-merge") — including the branch deciding whether a position
 	// renders as RED or BLUE — so a seat id that failed to match its expected prefix rendered as
-	// the wrong party, silently. Stamped once at the write; never re-derived.
+	// the wrong party, silently. Stamped at the write from the seat id, and NOT PERSISTED: the store
+	// keeps (seat_id, ts, type, key) and no role column, so every read re-derives it from seat_id
+	// through PartyOf. That is why a role id can change spelling without a migration.
 	Role *string    `protobuf:"bytes,6,opt,name=role,proto3,oneof" json:"role,omitempty"`
 	Type *EventType `protobuf:"varint,7,opt,name=type,proto3,enum=feov.record.v1.EventType,oneof" json:"type,omitempty"`
 	Key  *string    `protobuf:"bytes,8,opt,name=key,proto3,oneof" json:"key,omitempty"`
@@ -3102,10 +3104,10 @@ type Close struct {
 	// and the re-audit reads it.
 	//
 	// NOT `required` — CONDITIONALLY required, like Avenue.line, and for the same kind of reason.
-	// `merge carry` restates a closure an earlier round already argued, so demanding a fresh
+	// `chair carry` restates a closure an earlier round already argued, so demanding a fresh
 	// argument asks the same thing twice; validate exempts a carry and requires it everywhere else.
 	// Marked unconditional here, the annotation refused a carry BEFORE that exemption could run,
-	// and `merge carry --id R2-3 --carried-from 2` — the invocation the verb's own help documents,
+	// and `chair carry --id R2-3 --carried-from 2` — the invocation the verb's own help documents,
 	// with --reason listed nowhere in it — was refused outright. The exemption still read as live:
 	// the code was there, commented, and could not execute.
 	//
@@ -3524,7 +3526,7 @@ func (x *Finding) GetAboutRef() string {
 	return ""
 }
 
-// Observe is a seat-labelled observation, disposed of by the merge.
+// Observe is a seat-labelled observation, disposed of by the chair.
 type Observe struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Label         *string                `protobuf:"bytes,1,opt,name=label,proto3,oneof" json:"label,omitempty"`
@@ -5573,7 +5575,7 @@ type Register struct {
 	// the type says WHICH lens rather than merely that it is one — but a configuration is seated
 	// once per round, so it still cannot say which round this was. The record keeps the seat id for
 	// that. Measured before the split (#290, 2026-08-23), four types covered thirteen seats and
-	// `red-auditor` covered the lenses and the merge together, which it could not tell apart at all.
+	// `red-auditor` covered the lenses and the chair together, which it could not tell apart at all.
 	//
 	// ABSENT IS NOT "": a run whose hook never fired carries no attestation on any register event,
 	// and that stays legible as NOT MEASURED rather than as an agent configured as nothing.
@@ -6492,8 +6494,8 @@ var (
 	// It was a hand-written string in internal/cli/motion (`subject("petition", …, "bench")`) while
 	// the PASS gate's refusal — in internal/record, which cannot import the CLI — told every
 	// blocked seat to "rule it with `motion <subject> rule`". For a PETITION that instruction is
-	// refused by requireRuler, because the bench holds that gavel and the merge does not. Two
-	// hand-written copies of one fact, one of which did not exist, so the message walked a merge
+	// refused by requireRuler, because the bench holds that gavel and the chair does not. Two
+	// hand-written copies of one fact, one of which did not exist, so the message walked a chair
 	// seat into a role refusal and there was no verdict it could legally give.
 	//
 	// optional string ruled_by = 50004;
@@ -6760,10 +6762,10 @@ const file_record_proto_rawDesc = "" +
 	"\x05_slugB\r\n" +
 	"\v_definitionB\v\n" +
 	"\t_neighborB\x10\n" +
-	"\x0e_distinguisher\"\xfb\b\n" +
+	"\x0e_distinguisher\"\xf9\b\n" +
 	"\x05Close\x12J\n" +
-	"\x06gap_id\x18\x01 \x01(\tB.\x82\xb5\x18*\b\x01\x12\x02id\x1a\x15which gap this closes\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12\xb6\x01\n" +
-	"\rclosure_class\x18\x02 \x01(\x0e2\x1b.feov.record.v1.DispositionBo\x82\xb5\x18k\x1aaa merge close asserts a repair; `carried` defers instead of closing and is the bench's word alone2\x06closesH\x01R\fclosureClass\x88\x01\x01\x12$\n" +
+	"\x06gap_id\x18\x01 \x01(\tB.\x82\xb5\x18*\b\x01\x12\x02id\x1a\x15which gap this closes\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12\xb4\x01\n" +
+	"\rclosure_class\x18\x02 \x01(\x0e2\x1b.feov.record.v1.DispositionBm\x82\xb5\x18i\x1a_a red close asserts a repair; `carried` defers instead of closing and is the bench's word alone2\x06closesH\x01R\fclosureClass\x88\x01\x01\x12$\n" +
 	"\vanchor_seat\x18\x03 \x01(\tH\x02R\n" +
 	"anchorSeat\x88\x01\x01\x12=\n" +
 	"\vanchor_tool\x18\x04 \x01(\tB\x17\x82\xb5\x18\x0f\x12\rverified-with\xc0\xb5\x18\x00H\x03R\n" +
@@ -7202,7 +7204,7 @@ const file_record_proto_rawDesc = "" +
 	"\x1bCORRECTION_TIER_UNSPECIFIED\x10\x00\x12\xb1\x01\n" +
 	"\x14CORRECTION_TIER_NONE\x10\x01\x1a\x96\x01\x8a\xb5\x18\x91\x01not correctable: the act creates an identity, decides a fate no restatement may move, or is written by the tool or the harness rather than a seat\x12\x9c\x01\n" +
 	"\x15CORRECTION_TIER_PROSE\x10\x02\x1a\x80\x01\x8a\xb5\x18|only the seat's own wording may change — the fields that declare (prose); every other field must equal the corrected act's\x12Y\n" +
-	"\x14CORRECTION_TIER_FULL\x10\x03\x1a?\x8a\xb5\x18;every field may change except the label the act is keyed on*\xee\"\n" +
+	"\x14CORRECTION_TIER_FULL\x10\x03\x1a?\x8a\xb5\x18;every field may change except the label the act is keyed on*\xea\"\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12{\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1ab\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\xb8\xb5\x18\x01\x12i\n" +
@@ -7211,8 +7213,8 @@ const file_record_proto_rawDesc = "" +
 	"\x14EVENT_TYPE_BLUE_EDIT\x10\x04\x1a^\x8a\xb5\x18Va change to the living report, recorded as old and new so the edit itself is auditable\xb8\xb5\x18\x01\x12n\n" +
 	"\x12EVENT_TYPE_CERTIFY\x10\x05\x1aV\x8a\xb5\x18Na seat's signed statement about its own work — what it asserts on the record\xb8\xb5\x18\x02\x12v\n" +
 	"\x0fEVENT_TYPE_CITE\x10\x06\x1aa\x8a\xb5\x18Ya source brought into the debate, with the hash and access date that make it re-checkable\xb8\xb5\x18\x01\x12\x83\x01\n" +
-	"\x14EVENT_TYPE_CLASS_NEW\x10\a\x1ai\x8a\xb5\x18aa defect class coined in this run, with its definition and the neighbour it is distinguished from\xb8\xb5\x18\x01\x12q\n" +
-	"\x10EVENT_TYPE_CLOSE\x10\b\x1a[\x8a\xb5\x18Sa merge closing a gap on a verified repair — red's half of the closing vocabulary\xb8\xb5\x18\x02\x12f\n" +
+	"\x14EVENT_TYPE_CLASS_NEW\x10\a\x1ai\x8a\xb5\x18aa defect class coined in this run, with its definition and the neighbour it is distinguished from\xb8\xb5\x18\x01\x12m\n" +
+	"\x10EVENT_TYPE_CLOSE\x10\b\x1aW\x8a\xb5\x18Ored closing a gap on a verified repair — red's half of the closing vocabulary\xb8\xb5\x18\x02\x12f\n" +
 	"\x12EVENT_TYPE_CLOSING\x10\t\x1aN\x8a\xb5\x18Fa seat's closing statement on a gap: the argument, not the disposition\xb8\xb5\x18\x03\x12e\n" +
 	"\x12EVENT_TYPE_DECLARE\x10\n" +
 	"\x1aM\x8a\xb5\x18Ethe bench stating a holding that later sittings are expected to apply\xb8\xb5\x18\x02\x12W\n" +
@@ -7308,9 +7310,9 @@ const file_record_proto_rawDesc = "" +
 	"\x17AVENUE_STATUS_ABANDONED\x10\x05\x1ai\x8a\xb5\x18eyou started and stopped. REQUIRES a reason — what killed it is the part a future run actually needs*\xcd\x04\n" +
 	"\rMotionSubject\x12\x1e\n" +
 	"\x1aMOTION_SUBJECT_UNSPECIFIED\x10\x00\x12Q\n" +
-	"\x14MOTION_SUBJECT_GRADE\x10\x01\x1a7\x8a\xb5\x18*you contest a gap's grade on one dimension\xa2\xb5\x18\x05merge\x12\x89\x01\n" +
+	"\x14MOTION_SUBJECT_GRADE\x10\x01\x1a7\x8a\xb5\x18*you contest a gap's grade on one dimension\xa2\xb5\x18\x05chair\x12\x89\x01\n" +
 	"\x17MOTION_SUBJECT_PETITION\x10\x02\x1al\x8a\xb5\x18_you ask the bench to intervene — the constitutional short-circuit available to any party seat\xa2\xb5\x18\x05bench\x12\x96\x01\n" +
-	"\x18MOTION_SUBJECT_DIRECTION\x10\x03\x1ax\x8a\xb5\x18ka ruling on a line of inquiry blue proposed; the id is the AVENUE's own, because the proposal IS the filing\xa2\xb5\x18\x05merge\x12\xa3\x01\n" +
+	"\x18MOTION_SUBJECT_DIRECTION\x10\x03\x1ax\x8a\xb5\x18ka ruling on a line of inquiry blue proposed; the id is the AVENUE's own, because the proposal IS the filing\xa2\xb5\x18\x05chair\x12\xa3\x01\n" +
 	"\x15MOTION_SUBJECT_DOCKET\x10\x04\x1a\x87\x01\x8a\xb5\x18za gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap's fate\xa2\xb5\x18\x05bench*\xa3\x01\n" +
 	"\vGradeRuling\x12\x1c\n" +
 	"\x18GRADE_RULING_UNSPECIFIED\x10\x00\x128\n" +
@@ -7361,7 +7363,7 @@ const file_record_proto_rawDesc = "" +
 	"\vRulingBinds\x12\x1c\n" +
 	"\x18RULING_BINDS_UNSPECIFIED\x10\x00\x12u\n" +
 	"\x11RULING_BINDS_BLUE\x10\x04\x1a^\x8a\xb5\x18Zthe relief binds the response seat — what blue must do, or must not, in the coming round\x12L\n" +
-	"\x10RULING_BINDS_RED\x10\x05\x1a6\x8a\xb5\x182it binds the audit seats: the lenses and the merge\x12\\\n" +
+	"\x10RULING_BINDS_RED\x10\x05\x1a6\x8a\xb5\x182it binds the audit seats: the lenses and the chair\x12\\\n" +
 	"\x11RULING_BINDS_BOTH\x10\x06\x1aE\x8a\xb5\x18Ait binds the whole exchange, and every dispatched seat carries it\"\x04\b\x01\x10\x01\"\x04\b\x02\x10\x02\"\x04\b\x03\x10\x03*\x10RULING_BINDS_ALL*\x12RULING_BINDS_FILER*\x11RULING_BINDS_NONE:I\n" +
 	"\x03sql\x12\x1d.google.protobuf.FieldOptions\x18І\x03 \x01(\v2\x13.feov.record.v1.SqlR\x03sql\x88\x01\x01:8\n" +
 	"\x05prose\x12\x1d.google.protobuf.FieldOptions\x18؆\x03 \x01(\bR\x05prose\x88\x01\x01:<\n" +

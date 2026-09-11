@@ -162,7 +162,7 @@ func roleOfSeat(seatID string) string {
 //
 // IT USED TO MIRROR IT, and the mirror is what this comment used to say: a switch over
 // `red-lens` / `red-merge` / `blue` / `judge`, described as "close enough for a test fixture".
-// It was not. When the merge seat became `red-chair` the copy went on answering "" for it, so
+// It was not. When the chair became `red-chair` the copy went on answering "" for it, so
 // every board naming that seat reported a role that is not one of lens/merge/blue/bench and the
 // coverage figures underneath went to zero — a fork in a fixture, failing exactly the way the
 // thing it forked from exists to prevent.

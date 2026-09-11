@@ -101,7 +101,7 @@ func TestTheTestBinaryHasItsOwnHome(t *testing.T) {
 	}
 	if realHomeSet && home == realHome {
 		t.Fatalf("os.UserHomeDir() is still the developer's own %q — the sandbox did not take, "+
-			"and every `merge verdict` this binary drives writes a mirror into it", home)
+			"and every `chair verdict` this binary drives writes a mirror into it", home)
 	}
 	// Under TMPDIR, so it goes out with the temp filesystem rather than persisting.
 	if rel, err := filepath.Rel(os.TempDir(), home); err != nil || strings.HasPrefix(rel, "..") {

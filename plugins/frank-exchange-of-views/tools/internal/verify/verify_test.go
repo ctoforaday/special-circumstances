@@ -22,7 +22,7 @@ func find(t *testing.T, checks []Check, name string) Check {
 	return Check{}
 }
 
-// A gap closed by a merge carries closure_class; one closed by a bench opinion carries a
+// A gap closed by a chair carries closure_class; one closed by a bench opinion carries a
 // disposition. BOTH are recorded reasons — the check must accept either. This is the
 // regression that shipped in the first cut (it looked only for closure_class and flagged all
 // eight opinion-closed gaps in the 2026-07-22 run).
@@ -31,7 +31,7 @@ func TestGapsDisposedAcceptsBothClosureFields(t *testing.T) {
 		GapOrder: []string{"C1", "C2", "OPEN", "TORN"},
 		Gaps: map[string]*record.Gap{
 			// The two closures land in DIFFERENT FIELDS now, which is the distinction this test is
-			// about made structural: a merge writes a Close, the bench writes a DocketRuling on a
+			// about made structural: a chair writes a Close, the bench writes a DocketRuling on a
 			// docket motion, and the old map-shaped payload let one field hold either — which is
 			// why every reader spelled the same question twice.
 			"C1": {ID: "C1", Open: false, Closure: &recordpb.Close{
@@ -223,7 +223,7 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 // and the check reported "gate not applicable" on every run ever recorded.
 //
 // The board is built DIRECTLY here rather than through the CLI, and that is the point: the live
-// gate in record.Append refuses `merge verdict --as PASS` while a gap is open, so the
+// gate in record.Append refuses `chair verdict --as PASS` while a gap is open, so the
 // contradiction cannot be produced the normal way. A record assembled some other way — a
 // hand-edited shard, a legacy run, a regressed live gate — is the only thing this check is for,
 // and it is what a test of it has to construct.

@@ -17,7 +17,7 @@ import (
 // That mattered more than a missing guard usually does, because the verb set
 // being the role boundary is the engine's PREMISE, not a convenience: blue is
 // additive-only and never touches the ledger, a lens surfaces observations the
-// merge disposes, and the bench rules without originating. Those are load-bearing
+// chair disposes, and the bench rules without originating. Those are load-bearing
 // claims about who can do what, and the record is the evidence they held. A
 // boundary enforced only by which word a seat happens to type is evidence of
 // nothing.
@@ -26,7 +26,7 @@ import (
 // debate.js's own recordClause dispatch so the two cannot drift silently:
 //
 //	lens   red-lens-r<N>-L<M>
-//	merge  red-chair
+//	chair  red-chair
 //	blue   blue-lane-<N>, blue-respond-r<N>, blue-synthesize, frontier
 //	bench  judge-r<N>, judge-petition-<petitioner>, judge-terminal, assemble
 //
@@ -46,10 +46,10 @@ var roleSeats = map[string][]string{
 	OperatorRole: {OperatorRole},
 	"lens":       {"red-lens-"},
 	// The seat is `red-chair-r<n>`; `red-merge-r<n>` is what archived runs hold, and migrate
-	// maps it. The ROLE is still spelled `merge`. Its rename to `chair` is the next step of the
-	// vocabulary plan: the scorecard is now named for itself (ScorecardOf, `--card`), so "chair"
-	// no longer means a side's scorecard anywhere and can mean only the seat.
-	"merge": {"red-chair"},
+	// maps it. The role and the seat share the word: the scorecard is named for itself
+	// (ScorecardOf, `--card`), so "chair" means the seat and its role and nothing else, and
+	// "merge" means only blue's union of the lane drafts.
+	"chair": {"red-chair"},
 	"blue":  {"blue-", "frontier"},
 	"bench": {"judge", "assemble"},
 }
@@ -57,7 +57,7 @@ var roleSeats = map[string][]string{
 // scorecardOfRole maps a seat's ROLE to the CARD — the scorecard — that measures it.
 //
 // A card is one of three scorecards, red, blue or bench; a role is a seat's verb set. They are
-// not the same axis — `lens` and `merge` are two roles measured on ONE card, because a scorecard
+// not the same axis — `lens` and `chair` are two roles measured on ONE card, because a scorecard
 // grades how RED is doing on this question, not how one of red's two seats is. Only `operator`
 // has no card: it is not a party to the debate, which is why the operator command prints every
 // card (or one, with --card) and a seat's own read takes nothing at all.
@@ -66,7 +66,7 @@ var roleSeats = map[string][]string{
 // answer, since every role but operator has a card, and the seat asks the tool which card is its.
 var scorecardOfRole = map[string]string{
 	"lens":  "red",
-	"merge": "red",
+	"chair": "red",
 	"blue":  "blue",
 	"bench": "bench",
 }

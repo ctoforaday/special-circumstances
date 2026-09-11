@@ -39,7 +39,7 @@ func newRevision() *cobra.Command {
 		}
 		// THE DEBT IS NAMED WHERE THE SITTING ENDS. `revision` is emitted after blue's
 		// edits land, so it is the last moment blue can still act on an unanswered
-		// computation demand — and the merge's refusal, which is excellent, arrives a seat
+		// computation demand — and the chair's refusal, which is excellent, arrives a seat
 		// and an epoch later, when blue has gone.
 		//
 		// It REPORTS and does not refuse. Blue's legitimate answer to a computation demand

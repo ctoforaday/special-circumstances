@@ -123,7 +123,7 @@ var realHome, realHomeSet = os.LookupEnv(homeKey())
 // returns the undo.
 //
 // The command under test writes into the USER CACHE, and a test has no business writing into
-// the developer's. `merge verdict` checkpoints the run's whole records/ tree to
+// the developer's. `chair verdict` checkpoints the run's whole records/ tree to
 // ~/.cache/feov/run-mirror/<sha1(runDir)[:12]> on every epoch, keyed by the run directory —
 // and a test's run directory is a t.TempDir(), so every run mints a mirror under a key nothing
 // will ever look up again. Measured before this: 10,008 orphaned mirrors, 182,665 files,

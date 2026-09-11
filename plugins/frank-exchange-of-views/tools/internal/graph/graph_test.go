@@ -11,7 +11,7 @@ import (
 )
 
 // A hole is a genuine defect: an unanswered dispute, or a torn closure (closed with no reason).
-// A merge close that carries its closure_class is NOT a hole even with no opinion — the false
+// A chair close that carries its closure_class is NOT a hole even with no opinion — the false
 // positive this test pins down (G1 in the 2026-07-22 run flagged amber until this was fixed).
 func TestGapHoleHeuristic(t *testing.T) {
 	b := &boardT{
@@ -43,7 +43,7 @@ func TestGapHoleHeuristic(t *testing.T) {
 	}
 	m := gapFlowMermaid(b.fam())
 
-	// A merge close with a closure_class is closed, NOT a hole.
+	// A chair close with a closure_class is closed, NOT a hole.
 	if lineClass(m, "g_MERGE_CLOSED") != "closed" {
 		t.Errorf("a merge-close with closure_class must be 'closed', not a hole:\n%s", m)
 	}

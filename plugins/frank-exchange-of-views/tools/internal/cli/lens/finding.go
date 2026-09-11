@@ -17,7 +17,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
-// finding: a lens's graded observation, for the merge to dispose.
+// finding: a lens's graded observation, for the chair to dispose.
 //
 // The label is TOOL-assigned — L{role}-F{N}, run-unique per role, the role read
 // from the seat id. A lens no longer invents it: hand-numbered labels collided

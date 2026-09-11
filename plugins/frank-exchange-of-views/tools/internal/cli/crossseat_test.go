@@ -148,7 +148,7 @@ func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 	}
 	// The FILER is on the envelope, not the body — the body is what the seat said.
 	if got := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_MOTION).GetSeatId(); got != "red-chair" {
-		t.Errorf("the motion was filed by %q, want the merge seat — the filer is on the filing, never restated on the answer", got)
+		t.Errorf("the motion was filed by %q, want the chair — the filer is on the filing, never restated on the answer", got)
 	}
 }
 
@@ -221,7 +221,7 @@ func TestConcurrentLensShardsBothReachTheMerge(t *testing.T) {
 		}
 	}
 	if !seen["evidence-F1"] || !seen["adversary-F1"] {
-		t.Errorf("the merge sees %v, want both lenses — findings from every seat are rows in one record", seen)
+		t.Errorf("the chair sees %v, want both lenses — findings from every seat are rows in one record", seen)
 	}
 }
 

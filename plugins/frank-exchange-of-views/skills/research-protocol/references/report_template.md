@@ -86,7 +86,7 @@
 # docket.md — the board
 
 ## The board                             <!-- [RECORD] open gaps with grades + the closure index; then the lens findings
-                                              credited by no gap's found_by — red's leaf audit the merge weighed and did
+                                              credited by no gap's found_by — red's leaf audit the chair weighed and did
                                               not mint. A finding is addressed by COALESCENCE and nothing else since #327
                                               retired observe/dispose. Then red's archive spot-checks and blue's
                                               correctness manifest. -->

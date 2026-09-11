@@ -702,7 +702,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 	//
 	// The dangerous variant is the eleventh, which was NOT a restatement: `close` exempts a carry
 	// from the closure argument, and `prose` was annotated required anyway, so the exemption was
-	// refused before it could run and `merge carry --id R2-3 --carried-from 2` — the invocation
+	// refused before it could run and `chair carry --id R2-3 --carried-from 2` — the invocation
 	// its own help documents — was rejected. That annotation is conditional now, like Avenue.line.
 	// The lesson is the ordering: anything an annotation makes UNCONDITIONAL is decided before a
 	// single line here executes, so a `required` marking silently deletes every exemption below.
@@ -848,7 +848,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// `p.Has` asked exactly that and the check below is what stops it laundering an
 		// unverified closure past the anchor requirement.
 		if !anchored && b.CarriedFrom == nil {
-			return fmt.Errorf("record: close requires the verification triple (--verified-by --verified-with --verified-against) — an unverified closure is unauditable (E0.5a). To restate a closure an earlier sitting already made, use `merge carry --carried-from <epund>` instead")
+			return fmt.Errorf("record: close requires the verification triple (--verified-by --verified-with --verified-against) — an unverified closure is unauditable (E0.5a). To restate a closure an earlier sitting already made, use `chair carry --carried-from <epoch>` instead")
 		}
 		// --carried-from IS A LINEAGE CLAIM, so it is checked like one.
 		//
@@ -872,7 +872,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 				return err
 			}
 			if len(prior) == 0 {
-				return fmt.Errorf("record: carry claims gap %s was closed in an earlier sitting, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through `merge close` with --verified-by/--verified-with/--verified-against", b.GetGapId())
+				return fmt.Errorf("record: carry claims gap %s was closed in an earlier sitting, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through `lens close` with --verified-by/--verified-with/--verified-against", b.GetGapId())
 			}
 		}
 		if err := requireGap(run, b.GetSuccessor(), "close", "--superseded-by"); err != nil {
@@ -890,7 +890,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// is separately checked against a real prior closure below.
 		if b.CarriedFrom == nil && !closedByTarget(run, b.GetGapId(), target) {
 			if err := requireOpenGap(run, b.GetGapId(), "close", "--id",
-				"closing it twice double-counts closure history and corrupts the repair_regression denominator; use `merge carry --carried-from <epoch>` to RESTATE an earlier closure"); err != nil {
+				"closing it twice double-counts closure history and corrupts the repair_regression denominator; use `chair carry --carried-from <epoch>` to RESTATE an earlier closure"); err != nil {
 				return err
 			}
 		}
@@ -996,7 +996,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 	case *recordpb.Finding:
 		// A finding/observation with no label CANNOT BE ADDRESSED, and every one must get
 		// a fate. Measured on the 2026-07-18 run: 8 finding/observe events carried no label
-		// at all, so the merge could not name them even to decline them — they sat in the
+		// at all, so the chair could not name them even to decline them — they sat in the
 		// undisposed set forever. The invariant holds regardless of WHO supplies the label:
 		// `observe` takes --label from the seat; a `finding` label is TOOL-assigned
 		// (L{role}-F{N}), so this refusal is an internal guard for it, not a seat message.

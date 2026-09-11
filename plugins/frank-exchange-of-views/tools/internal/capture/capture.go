@@ -5,7 +5,7 @@
 // removes the run-live marker, and writes run-record-audit.md — exit 2 on any audit FAIL.
 //
 // The three record-backed audits (telemetry, log-parity, record-parity) read the record
-// IN-PROCESS via record.BoardState → DebateJSONOf/FrictionJSONOf, never by spawning `merge show`.
+// IN-PROCESS via record.BoardState → DebateJSONOf/FrictionJSONOf, never by spawning `chair show`.
 // The PRECEDENT HARVEST reads it too, never the envelopes' self-reported ruling arrays: a bench
 // that under-reports would promote less than it ruled, and one that reported nothing would
 // promote nothing, indistinguishably from a run with nothing to promote.
@@ -224,9 +224,9 @@ func TelemetryAudit(run record.Run, redEpochs int) Audit {
 
 // AUDIT 2 IS GONE: "shard self-report vs files".
 //
-// It read red/ledger.md and red/archive.md and compared their line counts against the merge's
+// It read red/ledger.md and red/archive.md and compared their line counts against the chair's
 // self-reported ledger_closure_lines / archive_blocks. BOTH SIDES OF THAT COMPARISON ARE GONE —
-// the envelope counts were removed 2026-07-19 for comparing numbers the merge made up (a haiku
+// the envelope counts were removed 2026-07-19 for comparing numbers the chair made up (a haiku
 // smoke self-reported archive_blocks: 22 in an epoch whose true archived count was 0), and the
 // files stopped being written when the ledger and archive became rendered projections.
 //
@@ -1775,7 +1775,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 
 	results, friction := ReadJournal(filepath.Join(run.Dir(), "trajectories"))
 
-	// Record-backed reads, in-process (the JS spawned `merge show` views).
+	// Record-backed reads, in-process (the JS spawned `chair show` views).
 	// The family off the record; a run whose record cannot be read audits with fam == nil,
 	// exactly as the nil board did.
 	var fam *record.Family

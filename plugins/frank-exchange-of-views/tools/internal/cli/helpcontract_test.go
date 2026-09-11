@@ -199,7 +199,7 @@ func walk(c *cobra.Command, fn func(*cobra.Command, []string)) {
 
 func isSeatRole(s string) bool {
 	switch s {
-	case "lens", "merge", "blue", "bench":
+	case "lens", "chair", "blue", "bench":
 		return true
 	}
 	return false
@@ -212,7 +212,7 @@ func seatHolding(verb string) string {
 	// cross-check, and `fetch`/`count-claims` sit in both too — so ranging a map returned whichever
 	// tree came up first and the answer changed between runs. This asks about SEAT verbs, so the
 	// operator's tree is not a candidate at all.
-	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+	for _, role := range []string{"lens", "chair", "blue", "bench"} {
 		for _, c := range NewRootFor(record.SampleSeatOf(role)).Commands() {
 			if c.Name() == verb {
 				return seatFor(role)
@@ -224,7 +224,7 @@ func seatHolding(verb string) string {
 
 func seatFor(role string) string {
 	return map[string]string{
-		"lens": "red-lens-evidence", "merge": "red-chair",
+		"lens": "red-lens-evidence", "chair": "red-chair",
 		"blue": "blue-respond", "bench": "judge",
 	}[role]
 }
@@ -523,7 +523,7 @@ func knownFlagNames(t *testing.T) map[string]bool {
 		})
 	}
 	collect(newRoot())
-	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+	for _, role := range []string{"lens", "chair", "blue", "bench"} {
 		collect(NewRootFor(seatFor(role)))
 	}
 	if len(known) < 20 {

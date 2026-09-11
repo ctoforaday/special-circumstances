@@ -300,7 +300,7 @@ SELECT
   -- THE BENCH HEARD IT AND KEPT IT ALIVE, and this is the column that lets a seat be told so.
   --
   -- carried is 76 of 77 bench rulings in the measured base rate, and it ANSWERS its motion: the
-  -- gap comes back by being docketed again next epoch. Without this the merge seat was told only
+  -- gap comes back by being docketed again next epoch. Without this the chair was told only
   -- "gap G1 is open — PASS is refused while it is", which is true of a gap nobody has ever put
   -- before the bench and of one the bench has considered twice and deliberately deferred. Same
   -- sentence, two very different situations, and the seat cannot act differently on them.
@@ -315,7 +315,7 @@ SELECT
   --
   -- AND NOTHING PENDING, which is the arm that keeps this from double-counting. A gap already
   -- re-docketed and awaiting an answer is not awaiting a FILING, and reporting it as such would
-  -- ask the merge seat to file the same question at the bench twice.
+  -- ask the chair to file the same question at the bench twice.
   (c."event_id" IS NULL AND bc."event_id" IS NULL
      AND EXISTS(SELECT 1 FROM "motion_docket" md2
                   JOIN "motion" mo2 ON mo2."event_id" = md2."event_id"

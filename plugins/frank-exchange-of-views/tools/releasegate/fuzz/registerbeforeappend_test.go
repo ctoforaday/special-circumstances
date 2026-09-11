@@ -60,7 +60,7 @@ func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 	// closeGap appends as it, so closeGap is what must register it. The chair is registered as
 	// the sitting seat closeGap is handed; the lens that mints is registered here, by name, as
 	// the dispatch loop would register it before it sat.
-	r.register("merge", "red-chair")
+	r.register("chair", "red-chair")
 
 	// `mint` draws the gap KIND at random, so take gaps until a computation one appears. Bounded
 	// so a change that stops producing them fails here rather than hanging. The minter rotates

@@ -75,7 +75,7 @@ func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item 
 		for _, id := range ManifestUnreceipted(evs) {
 			add("gap " + id + " was answered by an edit and carries no manifest row — the report names a gap YOU repaired that carries no row as a repair nobody audited, including its author")
 		}
-	case "merge":
+	case "chair":
 		// AN OPEN GAP IS EITHER CLOSED OR DOCKETED, and until the docket was a motion this could
 		// not be said here at all — the note above used to record that "`closing` wants the
 		// docket, which is not recoverable from board state alone". It is now: a docket motion is

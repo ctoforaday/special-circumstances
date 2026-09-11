@@ -474,7 +474,7 @@ func TestAMergeCannotCloseAGapByCarryingIt(t *testing.T) {
 		ClosureClass: recordpb.Disposition_DISPOSITION_CARRIED.Enum(),
 		Prose:        proto.String("deferring, from the wrong seat"),
 	})); err == nil {
-		t.Fatal("the database accepted `merge close --as carried` — a close asserts a verified repair, and \"I repaired it by carrying it\" is not one. Deferring is the bench's decision, and a merge that can record it produces a gap that reads as closed with no repair behind it")
+		t.Fatal("the database accepted `merge close --as carried` — a close asserts a verified repair, and \"I repaired it by carrying it\" is not one. Deferring is the bench's decision, and a chair that can record it produces a gap that reads as closed with no repair behind it")
 	}
 
 	// The same column still takes a word that DOES close, so the CHECK is not simply refusing
@@ -701,7 +701,7 @@ func TestAnUnsetOptionalFieldIsNullNotEmpty(t *testing.T) {
 //
 // `_ "modernc.org/sqlite"` lived in schema_test.go, so `database/sql` had a registered driver
 // throughout the suite and NONE in the shipped binary: every test passed and the first real
-// `merge register` failed with `unknown driver "sqlite"`. A blank import is invisible to the
+// `chair register` failed with `unknown driver "sqlite"`. A blank import is invisible to the
 // compiler's unused check, which is why the wrong file was good enough.
 //
 // A test cannot catch that by opening a database — the test binary has the import either way. What

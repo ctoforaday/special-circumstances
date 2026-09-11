@@ -91,8 +91,8 @@ extend google.protobuf.EnumValueOptions {
   // It was a hand-written string in internal/cli/motion (`subject("petition", …, "bench")`) while
   // the PASS gate's refusal — in internal/record, which cannot import the CLI — told every
   // blocked seat to "rule it with `motion <subject> rule`". For a PETITION that instruction is
-  // refused by requireRuler, because the bench holds that gavel and the merge does not. Two
-  // hand-written copies of one fact, one of which did not exist, so the message walked a merge
+  // refused by requireRuler, because the bench holds that gavel and the chair does not. Two
+  // hand-written copies of one fact, one of which did not exist, so the message walked a chair
   // seat into a role refusal and there was no verdict it could legally give.
   optional string ruled_by = 50004;
 
@@ -243,7 +243,7 @@ enum EventType {
   EVENT_TYPE_CERTIFY = 5 [(correct) = CORRECTION_TIER_PROSE, (means) = "a seat's signed statement about its own work — what it asserts on the record"];
   EVENT_TYPE_CITE = 6 [(correct) = CORRECTION_TIER_NONE, (means) = "a source brought into the debate, with the hash and access date that make it re-checkable"];
   EVENT_TYPE_CLASS_NEW = 7 [(correct) = CORRECTION_TIER_NONE, (means) = "a defect class coined in this run, with its definition and the neighbour it is distinguished from"];
-  EVENT_TYPE_CLOSE = 8 [(correct) = CORRECTION_TIER_PROSE, (means) = "a merge closing a gap on a verified repair — red's half of the closing vocabulary"];
+  EVENT_TYPE_CLOSE = 8 [(correct) = CORRECTION_TIER_PROSE, (means) = "red closing a gap on a verified repair — red's half of the closing vocabulary"];
   EVENT_TYPE_CLOSING = 9 [(correct) = CORRECTION_TIER_FULL, (means) = "a seat's closing statement on a gap: the argument, not the disposition"];
   EVENT_TYPE_DECLARE = 10 [(correct) = CORRECTION_TIER_PROSE, (means) = "the bench stating a holding that later sittings are expected to apply"];
   EVENT_TYPE_FINDING = 11 [(correct) = CORRECTION_TIER_NONE, (means) = "something red found, graded but not yet minted as a gap"];
@@ -345,7 +345,7 @@ enum Disposition {
 
   // THE ONE WORD THAT DOES NOT CLOSE, and the reason this enum carries `closes` at all.
   //
-  // `carried` is reachable by the BENCH only: a merge closing a gap is asserting a repair, and
+  // `carried` is reachable by the BENCH only: red closing a gap is asserting a repair, and
   // "I repaired it by carrying it" is not a sentence. The subset is enforced, not documented —
   // see Close.closure_class, whose `subset: "closes"` generates the CHECK from this annotation.
   DISPOSITION_CARRIED = 7 [(means) = "NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes", (closes) = false];
@@ -418,9 +418,9 @@ enum AvenueStatus {
 // the rulings are separate enums below rather than one flat set.
 enum MotionSubject {
   MOTION_SUBJECT_UNSPECIFIED = 0;
-  MOTION_SUBJECT_GRADE = 1 [(means) = "you contest a gap's grade on one dimension", (ruled_by) = "merge"];
+  MOTION_SUBJECT_GRADE = 1 [(means) = "you contest a gap's grade on one dimension", (ruled_by) = "chair"];
   MOTION_SUBJECT_PETITION = 2 [(means) = "you ask the bench to intervene — the constitutional short-circuit available to any party seat", (ruled_by) = "bench"];
-  MOTION_SUBJECT_DIRECTION = 3 [(means) = "a ruling on a line of inquiry blue proposed; the id is the AVENUE's own, because the proposal IS the filing", (ruled_by) = "merge"];
+  MOTION_SUBJECT_DIRECTION = 3 [(means) = "a ruling on a line of inquiry blue proposed; the id is the AVENUE's own, because the proposal IS the filing", (ruled_by) = "chair"];
   MOTION_SUBJECT_DOCKET = 4 [(means) = "a gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap's fate", (ruled_by) = "bench"];
 }
 
@@ -508,7 +508,9 @@ message Event {
   // role is the seat's ROLE as a field. Readers used to recover it with
   // strings.HasPrefix(seat_id, "red-merge") — including the branch deciding whether a position
   // renders as RED or BLUE — so a seat id that failed to match its expected prefix rendered as
-  // the wrong party, silently. Stamped once at the write; never re-derived.
+  // the wrong party, silently. Stamped at the write from the seat id, and NOT PERSISTED: the store
+  // keeps (seat_id, ts, type, key) and no role column, so every read re-derives it from seat_id
+  // through PartyOf. That is why a role id can change spelling without a migration.
   optional string role = 6;
 
   optional EventType type = 7;
@@ -809,7 +811,7 @@ message Close {
   // `closes` annotation, so the admitted words are never typed here.
   optional Disposition closure_class = 2 [(sql) = {
     subset: "closes"
-    why: "a merge close asserts a repair; `carried` defers instead of closing and is the bench's word alone"
+    why: "a red close asserts a repair; `carried` defers instead of closing and is the bench's word alone"
   }];
 
   // The attestation anchor: WHO checked, with WHAT tool, against WHAT target. An unanchored
@@ -832,10 +834,10 @@ message Close {
   // and the re-audit reads it.
   //
   // NOT `required` — CONDITIONALLY required, like Avenue.line, and for the same kind of reason.
-  // `merge carry` restates a closure an earlier round already argued, so demanding a fresh
+  // `chair carry` restates a closure an earlier round already argued, so demanding a fresh
   // argument asks the same thing twice; validate exempts a carry and requires it everywhere else.
   // Marked unconditional here, the annotation refused a carry BEFORE that exemption could run,
-  // and `merge carry --id R2-3 --carried-from 2` — the invocation the verb's own help documents,
+  // and `chair carry --id R2-3 --carried-from 2` — the invocation the verb's own help documents,
   // with --reason listed nowhere in it — was refused outright. The exemption still read as live:
   // the code was there, commented, and could not execute.
   //
@@ -934,7 +936,7 @@ message Finding {
   optional string about_ref = 10;
 }
 
-// Observe is a seat-labelled observation, disposed of by the merge.
+// Observe is a seat-labelled observation, disposed of by the chair.
 message Observe {
   optional string label = 1;
   optional string text = 2;
@@ -1590,7 +1592,7 @@ enum RulingBinds {
 
   RULING_BINDS_UNSPECIFIED = 0;
   RULING_BINDS_BLUE = 4 [(means) = "the relief binds the response seat — what blue must do, or must not, in the coming round"];
-  RULING_BINDS_RED = 5 [(means) = "it binds the audit seats: the lenses and the merge"];
+  RULING_BINDS_RED = 5 [(means) = "it binds the audit seats: the lenses and the chair"];
   RULING_BINDS_BOTH = 6 [(means) = "it binds the whole exchange, and every dispatched seat carries it"];
 }
 
@@ -1695,7 +1697,7 @@ message Register {
   // the type says WHICH lens rather than merely that it is one — but a configuration is seated
   // once per round, so it still cannot say which round this was. The record keeps the seat id for
   // that. Measured before the split (#290, 2026-08-23), four types covered thirteen seats and
-  // `red-auditor` covered the lenses and the merge together, which it could not tell apart at all.
+  // `red-auditor` covered the lenses and the chair together, which it could not tell apart at all.
   //
   // ABSENT IS NOT "": a run whose hook never fired carries no attestation on any register event,
   // and that stays legible as NOT MEASURED rather than as an agent configured as nothing.

@@ -226,9 +226,9 @@ func TestRedsCitationAnchorsAreProtectedLikeBlues(t *testing.T) {
 	}
 }
 
-// THE DUTY IS VISIBLE WHERE RED LOOKS, not only where the merge is blocked.
+// THE DUTY IS VISIBLE WHERE RED LOOKS, not only where the chair is blocked.
 //
-// A contradiction with no finding refuses a PASS — but that is the MERGE's refusal, at the end
+// A contradiction with no finding refuses a PASS — but that is the CHAIR's refusal, at the end
 // of the round, and a duty the owing seat never sees is one it cannot discharge. The evidence
 // projection is where a lens reads its own axis, so the outstanding readings are named there
 // too. The empty array is the point as much as the full one: without the field, "nothing

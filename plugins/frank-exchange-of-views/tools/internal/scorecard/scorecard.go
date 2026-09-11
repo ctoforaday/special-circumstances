@@ -1,6 +1,6 @@
 // Package scorecard is the Go port of scorecards.mjs's COMPUTE + RENDER: it turns a run's
 // record (board/findings/debate views, read IN-PROCESS from BoardState — not by self-spawning
-// `merge show`), its journal envelopes, and its board telemetry into the per-card scorecard
+// `chair show`), its journal envelopes, and its board telemetry into the per-card scorecard
 // rows, and renders the markdown section a seat's in-run self-read prints.
 //
 // THE JS MODULE IS GONE, and this paragraph outlived it. It read "the JS module stays for now —
@@ -775,7 +775,7 @@ func Compute(run record.Run, results []map[string]any, fam *record.Family) map[s
 	telemetry := ReadTelemetry(run)
 	return map[string][]Row{
 		"blue":  append(blueRows(run, results, telemetry, fam), correctionsRow(fam, "blue")),
-		"red":   append(redRows(run, results, telemetry, fam), correctionsRow(fam, "merge", "lens")),
+		"red":   append(redRows(run, results, telemetry, fam), correctionsRow(fam, "chair", "lens")),
 		"bench": append(benchRows(results, fam), correctionsRow(fam, "bench")),
 	}
 }

@@ -271,7 +271,7 @@ func agentFor(role string) string {
 		// Any lens: the seven areas share every duty this probe measures, and they share it
 		// through the adversarial-audit skill rather than by each restating it.
 		return "red-lens-evidence"
-	case "merge":
+	case "chair":
 		return "red-chair"
 	case "blue":
 		return "blue-researcher"
@@ -641,7 +641,7 @@ func constitutionFor(role, dir string) (string, error) {
 	}
 	name := map[string]string{
 		"lens":  "red-lens-evidence.md",
-		"merge": "red-chair.md",
+		"chair": "red-chair.md",
 		"blue":  "blue-researcher.md",
 		"bench": "lead-judge.md",
 	}[role]

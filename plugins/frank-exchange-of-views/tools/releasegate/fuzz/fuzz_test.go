@@ -410,7 +410,7 @@ func firstLine(s string) string {
 
 // dialectic emits the round's transcript onto the record the way Stage 1 seats do — a position
 // narrative and a closing per open gap — plus, at random, a regrade issued by the gap's minting
-// lens, a lineage-carrying close-with-regression, and (blue) a grade dispute / (merge) its answer.
+// lens, a lineage-carrying close-with-regression, and (blue) a grade dispute / (chair) its answer.
 // Unique prose per act so the report oracle can prove each one actually rendered.
 func (r *runner) dialectic(role, seatID string, open []string) {
 	_, _ = r.exec("position", "--seat-id", seatID, "--reason", "narrative from "+seatID)
@@ -643,7 +643,7 @@ func (r *runner) chairEnvelope(seatID, verdict string, responses []map[string]an
 	if plan == nil {
 		plan = map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{}}
 	}
-	e := map[string]any{"plan": plan, "unruled_motions": 0, "petitions": r.maybePetition("merge", seatID), "log": arr()}
+	e := map[string]any{"plan": plan, "unruled_motions": 0, "petitions": r.maybePetition("chair", seatID), "log": arr()}
 	if verdict != "" {
 		e["verdict"] = verdict
 	}
@@ -1100,8 +1100,8 @@ func (r *runner) someFinding() string {
 // THE HARNESS ASKING ITSELF A QUESTION IS NOT THE HARNESS TESTING THE BINARY, and conflating the
 // two is what made this sweep expensive. `openGaps`, `someCitation` and `someFinding` exist so the
 // FUZZ can decide what to do next — which gap to act on, which citation to name — and each shelled
-// `feov-record` to find out. Measured at 4 runs: `merge show board` 127 invocations, `lens show
-// evidence` 45, `merge show findings` 19, out of 1039 total. That is ~48 subprocesses per run, at
+// `feov-record` to find out. Measured at 4 runs: `chair show board` 127 invocations, `lens show
+// evidence` 45, `chair show findings` 19, out of 1039 total. That is ~48 subprocesses per run, at
 // ~12ms each, buying nothing the sweep asserts.
 //
 // The COVERAGE those verbs owe is unaffected and is not weakened here: the projection sweep in
@@ -1271,7 +1271,7 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 func (r *runner) carryPrior(seatID string) {
 	// A CARRY restates last round's verification rather than asserting a fresh act, so it is its
 	// own verb and takes --carried-from instead of the verification triple. IT IS THE CHAIR'S —
-	// the one closure verb left in the merge tree, and exempt from the originator check because
+	// the one closure verb left in the chair tree, and exempt from the originator check because
 	// it restates a closure the archive already holds rather than making one.
 	//
 	// AND IT CARRIES A GAP THE RECORD ALREADY CLOSED. Driving it against `id` — the gap this call
@@ -1473,7 +1473,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// cite/friction/show). This called it 183 times per sweep, every one refused, while
 		// the verb gate stayed green on blue's line of inquiry events — a dead drive that read as
 		// coverage. Found by the execution tally (lens line-of-inquiry: 183 of 183 refused).
-	case "merge":
+	case "chair":
 		// THE PER-ROUND REVIEW OF THE REPORT'S ACCOUNT OF ITS OWN RESEARCH. The verb is
 		// `inquiry-support` and the event it writes is `inquiry_review` — the names differ, which
 		// is why deleting the retired per-line VOTE took this verb's only drive with it. It names
@@ -1501,7 +1501,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		//
 		// The rulings live in answerDisputes now, where the ask is, so the id never leaves the
 		// bookkeeping that minted it.
-		// W1.8 archive spot-check — the merge's duty, and now ENFORCED from the board
+		// W1.8 archive spot-check — the chair's duty, and now ENFORCED from the board
 		// (verify.archiveSpotCheckFloor).
 		//
 		// THE OLD DRIVER MODELLED A NON-COMPLIANT SEAT AND NOTHING NOTICED. It fired at 45%, so
@@ -1712,7 +1712,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		return map[string]any{"sitting_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "petitions": r.maybePetition("blue", seatID), "log": arr()}
 
 	case strings.HasPrefix(seatID, "red-chair"):
-		r.sit("merge", seatID)
+		r.sit("chair", seatID)
 		r.planThisSitting = r.dispatchNext(seatID)
 		plan := r.planThisSitting
 		// THE CHAIR RUNS THE DEBATE AND MINTS NOTHING (plans/roundless.md §III.B.3). Every act
@@ -1730,8 +1730,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		if !r.forceUnverified {
 			responses = r.answerDisputes(seatID)
 		}
-		r.extras("merge", seatID, r.openGaps())
-		r.dialectic("merge", seatID, r.docketed())
+		r.extras("chair", seatID, r.openGaps())
+		r.dialectic("chair", seatID, r.docketed())
 		r.carryPrior(seatID)
 		if permitted, _ := plan["pass_permitted"].(bool); permitted {
 			if _, err := r.exec("verdict", "--seat-id", seatID, "--as", "PASS"); err == nil {
@@ -2530,7 +2530,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// the shape variation these oracles are built on is kept in full and the 76 process spawns a
 	// run paid for it are not; `drive`'s own comment carries the accounting.
 	for role, sid := range map[string]string{
-		"blue": "blue-respond", "lens": "red-lens-evidence", "merge": "red-chair", "bench": "judge",
+		"blue": "blue-respond", "lens": "red-lens-evidence", "chair": "red-chair", "bench": "judge",
 	} {
 		for _, v := range viewNamesForFuzz {
 			args := []string{"show", v, "--run", runDir, "--seat-id", sid}
@@ -2555,13 +2555,13 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// off-by-one lives, and a fixture with the anchor comfortably in the middle never asks.
 	if a := someReportAnchor(stageRun); a != "" {
 		// EVERY ROLE, BOTH FLAGS. `show report` is defined once in internal/cli/seat, so a
-		// window that worked on the merge and not on blue would mean the projection had grown
+		// window that worked on the chair and not on blue would mean the projection had grown
 		// a per-role surface — and --window 0 is the degenerate size that must still resolve to
 		// the anchored line rather than to nothing.
 		// A SEAT ID PER ROLE, because the tree is scoped to the dispatched identity: without one
 		// the binary builds the OPERATOR surface, where `show` does not exist at all.
 		for _, sid := range map[string]string{
-			"blue": "blue-respond", "lens": "red-lens-evidence", "merge": "red-chair", "bench": "judge",
+			"blue": "blue-respond", "lens": "red-lens-evidence", "chair": "red-chair", "bench": "judge",
 		} {
 			for _, extra := range [][]string{nil, {"--window", "0"}} {
 				args := append([]string{"show", "report", "--anchor", a, "--run", runDir, "--seat-id", sid}, extra...)
@@ -2626,7 +2626,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// view ships, nobody adds it to the list, and the sweep reports full coverage of a
 	// surface it never drove. The JSON-by-name views take their own dispatch branches above.
 	// EVERY ROLE'S show, not merge's alone. Each role has a different DEFAULT view and its own
-	// role gate, so driving only `merge show --view` left the other three reachable but never
+	// role gate, so driving only `chair show --view` left the other three reachable but never
 	// reached — and --id (the scoped form) never passed at all.
 	for _, role := range []string{"blue", "lens", "bench"} {
 		if out, err := drive(bin, "show", "debate", "--run", runDir, "--seat-id", seatOfRole(role)); err != nil {
@@ -3216,7 +3216,7 @@ var dialecticProseKey = map[string]string{
 	// most readers do not find. `reason` is what red read at that line — the quoted text, not the
 	// grade, which is the half a reader can check.
 
-	// The lens's below-the-bar work and the fate the merge gave it.
+	// The lens's below-the-bar work and the fate the chair gave it.
 	// Substance leaving the report, on the record, with its reason.
 	"retire": "claim",
 	// Run-level voices.
@@ -4229,7 +4229,7 @@ func (r *runner) readOnly(verb, seatID string, extra ...string) {
 // analogue for. Both carry their own package tests. `hook` reads a JSON payload on stdin rather
 // than argv and is covered by internal/cli's hook tests.
 var readOnlySurfaces = [][]string{
-	// Every SEAT's `show` with no view, which resolves that seat's DEFAULT. Only the merge's was
+	// Every SEAT's `show` with no view, which resolves that seat's DEFAULT. Only the chair's was
 	// ever driven, so a regression in any other default was invisible. The seat id is what selects
 	// the tree now, so it is what distinguishes these four rather than a role word in front.
 	{"show", "--seat-id", "blue-respond"},
@@ -4292,7 +4292,7 @@ func seatFor(role string) string {
 	switch role {
 	case "lens":
 		return "red-lens-evidence"
-	case "merge":
+	case "chair":
 		return "red-chair"
 	case "blue":
 		return "blue-respond"
@@ -4356,7 +4356,7 @@ func fieldStr(t *testing.T, e *record.Event, name string) string {
 func seatOfRole(role string) string {
 	return map[string]string{
 		"blue": "blue-respond", "lens": "red-lens-evidence",
-		"merge": "red-chair", "bench": "judge",
+		"chair": "red-chair", "bench": "judge",
 	}[role]
 }
 
@@ -4540,10 +4540,10 @@ func TestSortedKeysIsStableAcrossMapIterationOrder(t *testing.T) {
 	}
 }
 
-// mergeFilerFor names the MERGE seat that escalates a gap to the bench in the sitting the given
-// judge seat is holding. The merge seat for round N acts before the bench does, so it is already
+// mergeFilerFor names the CHAIR seat that escalates a gap to the bench in the sitting the given
+// judge seat is holding. The chair for round N acts before the bench does, so it is already
 // registered by the time this is called; `judge-terminal` follows the last round, so it takes the
-// highest merge seat on the record.
+// highest chair seat on the record.
 //
 // It falls back to the judge's own id rather than skipping the drive: a fallback that returned ""
 // would silently stop exercising both verbs, which is the failure this whole helper was rewritten
@@ -4606,7 +4606,7 @@ func (r *runner) benchDisposes(seatID, gapID, disposition string, extra ...strin
 	// docketing whose motion stands unruled, so a bench that files a fresh motion and rules it
 	// has, on the record, sat and ruled nothing. Five runs in forty ended UNVERIFIED on exactly
 	// that before this read the board. The fallback filing stays for a gap no dispatch docketed,
-	// and it files as the MERGE seat, never the bench (the gavel problem in miniature).
+	// and it files as the CHAIR seat, never the bench (the gavel problem in miniature).
 	motionID := r.unruledDocketMotion(gapID)
 	if motionID == "" {
 		filer := r.mergeFilerFor(seatID)

@@ -357,7 +357,7 @@ func GradeOf(word string) (recordpb.Grade, bool) {
 }
 
 // Observation is a lens FINDING as replayed. The name is historical: it once covered both
-// findings and `observe` notes, and carried the merge's `dispose` fate for each.
+// findings and `observe` notes, and carried the chair's `dispose` fate for each.
 //
 // Both retired (#327). A finding's fate is now COALESCENCE and only coalescence — it is
 // addressed by being credited in some gap's found_by — so there is no Disposition to carry and

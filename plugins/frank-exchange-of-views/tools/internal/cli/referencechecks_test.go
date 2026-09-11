@@ -29,7 +29,7 @@ import (
 //	                        exist, two of them `--existence verified` — a seat claiming it had
 //	                        checked a defect at the leaf, at a place the tool never confirmed was
 //	                        there (#359). `lens finding --location` has always been refused on a
-//	                        mis-quote; the merge's was held to no rule at all.
+//	                        mis-quote; the chair's was held to no rule at all.
 //	blue prove --cites      named the METHOD citation a computation applies, and was written
 //	                        straight into the payload. A proof could cite a citation that does not
 //	                        exist and the report would render the provenance.
@@ -83,7 +83,7 @@ var referenceChecks = []struct {
 	{verb: []string{"spot-check"}, flag: "--ids", against: "the closure archive", bogus: "G2",
 		extra: []string{"--reason", "n"}},
 	// Red's per-round support verdict joins on the LINE's own id, so a dangling one would record a
-	// vote about a line nobody proposed — and the merge's PASS gate counts votes, so it would
+	// vote about a line nobody proposed — and the chair's PASS gate counts votes, so it would
 	// discharge a duty for a line that does not exist.
 	{verb: []string{"inquiry-support"}, flag: "--id", against: "the lines of inquiry on the record", bogus: "Q9",
 		extra: []string{"--as", "supported", "--reason", "r"}},
@@ -107,7 +107,7 @@ var referenceChecks = []struct {
 		extra: []string{"--quote", "the parser accepts an empty body in this line.", "--script", "p.py", "--reason", "r"}},
 	{verb: []string{"verify"}, flag: "--anchor", against: "the citations on the record", bogus: "c-deadbeef",
 		extra: []string{"--quote", "c", "--as", "supports", "--confidence", "high", "--reason", "r"}},
-	// `merge carry` is `close`'s sibling, not a mode of it, so it carries its own copy of the two
+	// `chair carry` is `close`'s sibling, not a mode of it, so it carries its own copy of the two
 	// gap references and needs its own fixture — which is the whole point of deriving this gate
 	// from the tree rather than trusting the table to have kept up.
 	{verb: []string{"carry"}, flag: "--id", against: "the board", bogus: "G2",

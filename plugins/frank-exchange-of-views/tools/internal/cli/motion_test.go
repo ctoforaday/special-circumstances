@@ -71,11 +71,11 @@ func TestOnlyTheRulingSeatMayRule(t *testing.T) {
 		"--reason", "the instruction would require asserting what I believe false"); err != nil {
 		t.Fatal(err)
 	}
-	// A petition is the BENCH's to rule. The merge filing it may not also decide it.
+	// A petition is the BENCH's to rule. The chair filing it may not also decide it.
 	_, err := run(t, "motion", "petition", "rule", "--run", runDir, "--seat-id", "red-chair",
 		"--id", "M1", "--as", "granted", "--reason", "granting my own petition")
 	if err == nil {
-		t.Fatal("the merge seat ruled a petition; a motion is filed by any seat and ruled by ONE, and that asymmetry is the mechanism")
+		t.Fatal("the chair ruled a petition; a motion is filed by any seat and ruled by ONE, and that asymmetry is the mechanism")
 	}
 	for _, want := range []string{"bench", "red-chair"} {
 		if !strings.Contains(err.Error(), want) {

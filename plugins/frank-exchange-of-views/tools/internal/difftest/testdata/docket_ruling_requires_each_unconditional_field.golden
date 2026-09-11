@@ -50,7 +50,7 @@ feov-record: record: motion rule requires --principle to say something (the rule
 
 rule on a docket motion — this verb is the bench seat's, and it appears only on that surface.
 
-EVERY SUBJECT AND ITS GAVEL: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
+EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
 
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
 your text, and records whatever the command printed — or nothing — in its place. Pass every
@@ -111,7 +111,7 @@ feov-record: record: motion docket rule requires --reopens-on (what would change
 
 rule on a docket motion — this verb is the bench seat's, and it appears only on that surface.
 
-EVERY SUBJECT AND ITS GAVEL: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
+EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
 
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
 your text, and records whatever the command printed — or nothing — in its place. Pass every

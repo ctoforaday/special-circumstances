@@ -77,7 +77,7 @@ what was wrong with the act you are correcting, in one sentence; a reader sees i
 the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
 
 §8 (on 3 pages):
-ONE EVENT, DIFFERENT CONTRACTS: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules).
+ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules).
 
 §9 (on 3 pages):
 Any seat may file; exactly one rules, and `rule` appears only on that seat's surface.
@@ -86,7 +86,7 @@ Any seat may file; exactly one rules, and `rule` appears only on that seat's sur
 your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 §11 (on 2 pages):
-EVERY SUBJECT AND ITS GAVEL: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
+EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
 
 §12 (on 2 pages):
 REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
@@ -133,7 +133,7 @@ Available Commands:
   register     your first act at EVERY sitting, and the one call that needs your seat id — nothing else runs until it does
 
 Command groups — each holds commands THIS page does not list:
-  motion       file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
+  motion       file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). One mechanism, one id.
   show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -523,7 +523,7 @@ Enumerated values:
 
   --binds
     blue  the relief binds the response seat — what blue must do, or must not, in the coming round
-    red   it binds the audit seats: the lenses and the merge
+    red   it binds the audit seats: the lenses and the chair
     both  it binds the whole exchange, and every dispatched seat carries it
 
 (Global Flags:) → SHARED §2
@@ -871,7 +871,7 @@ it, and only until another seat has acted; after that, say it in a new act. A co
 anything the act says.
 
 §13 (on 3 pages):
-ONE EVENT, DIFFERENT CONTRACTS: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules).
+ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules).
 
 §14 (on 3 pages):
 Any seat may file; exactly one rules, and `rule` appears only on that seat's surface.
@@ -924,7 +924,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
-  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
+  motion          file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
