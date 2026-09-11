@@ -6947,29 +6947,29 @@ const file_record_proto_rawDesc = "" +
 	"\x14RUN_OUTCOME_VERIFIED\x10\x01\x1aG\x8a\xb5\x18Cred passed the board and the bench agrees the question was answered\x12\xdb\x01\n" +
 	"\x13RUN_OUTCOME_CEILING\x10\x02\x1a\xc1\x01\x8a\xb5\x18\xbc\x01every open material gap reached its limit — at impasse, ruled by the bench and carried — with nobody ready and PASS not permitted; NOT a judged failure to verify, and the stamp says so\x12f\n" +
 	"\x12RUN_OUTCOME_HALTED\x10\x03\x1aN\x8a\xb5\x18Jthe bench ended the run on a safety, ethics, consent or integrity boundary\x12u\n" +
-	"\x16RUN_OUTCOME_UNVERIFIED\x10\x04\x1aY\x8a\xb5\x18Uthe run ended without the question being answered, and no ceiling or halt explains it*\xd1\x05\n" +
+	"\x16RUN_OUTCOME_UNVERIFIED\x10\x04\x1aY\x8a\xb5\x18Uthe run ended without the question being answered, and no ceiling or halt explains it*\xa1\x05\n" +
 	"\tCheckKind\x12\x1a\n" +
 	"\x16CHECK_KIND_UNSPECIFIED\x10\x00\x12\x7f\n" +
-	"\x13CHECK_KIND_DOCUMENT\x10\x01\x1af\x8a\xb5\x18breading a shipped artifact settles it — the check is answered by prose that quotes what is there\x12\x9a\x03\n" +
-	"\x16CHECK_KIND_COMPUTATION\x10\x02\x1a\xfd\x02\x8a\xb5\x18\xf8\x02RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation are common cases and not the whole of it; if you can imagine a script that would end the argument, this is the kind\x12\x89\x01\n" +
-	"\x11CHECK_KIND_SOURCE\x10\x03\x1ar\x8a\xb5\x18nverifying an external source settles it — the claim stands or falls on what the cited material actually says*\xca\n" +
+	"\x13CHECK_KIND_DOCUMENT\x10\x01\x1af\x8a\xb5\x18breading a shipped artifact settles it — the check is answered by prose that quotes what is there\x12\xea\x02\n" +
+	"\x16CHECK_KIND_COMPUTATION\x10\x02\x1a\xcd\x02\x8a\xb5\x18\xc8\x02RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind\x12\x89\x01\n" +
+	"\x11CHECK_KIND_SOURCE\x10\x03\x1ar\x8a\xb5\x18nverifying an external source settles it — the claim stands or falls on what the cited material actually says*\xc8\n" +
 	"\n" +
 	"\vDisposition\x12\x1b\n" +
 	"\x17DISPOSITION_UNSPECIFIED\x10\x00\x12[\n" +
 	"\x14DISPOSITION_REPAIRED\x10\x01\x1aA\x8a\xb5\x189the repair was verified at the leaf and nothing regressed\x98\xb5\x18\x01\x12\xa0\x01\n" +
-	"$DISPOSITION_REPAIRED_WITH_REGRESSION\x10\x02\x1av\x8a\xb5\x18nrepaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward\x98\xb5\x18\x01\x12\x9a\x01\n" +
-	"\x18DISPOSITION_AMENDS_PRIOR\x10\x03\x1a|\x8a\xb5\x18ta defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit\x98\xb5\x18\x01\x12\x90\x01\n" +
+	"$DISPOSITION_REPAIRED_WITH_REGRESSION\x10\x02\x1av\x8a\xb5\x18nrepaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward\x98\xb5\x18\x01\x12\xd8\x01\n" +
+	"\x18DISPOSITION_AMENDS_PRIOR\x10\x03\x1a\xb9\x01\x8a\xb5\x18\xb0\x01a defect found BETWEEN two repairs that each closed clean earlier — its lineage is the supersedes the gap was minted with; the close itself carries none and nothing checks it\x98\xb5\x18\x01\x12\x90\x01\n" +
 	"\x18DISPOSITION_NOT_A_DEFECT\x10\x04\x1ar\x8a\xb5\x18jblue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be\x98\xb5\x18\x01\x12\xb5\x01\n" +
 	"\x1bDISPOSITION_DEFECT_ACCEPTED\x10\x05\x1a\x93\x01\x8a\xb5\x18\x8a\x01the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record\x98\xb5\x18\x01\x12\x8f\x01\n" +
 	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\x88\x01\n" +
-	"\x13DISPOSITION_CARRIED\x10\a\x1ao\x8a\xb5\x18gNOT a closure: the gap survives to the next round with a stated research direction the coming seat owes\x98\xb5\x18\x00\x12\x98\x02\n" +
-	"\x10DISPOSITION_MOOT\x10\b\x1a\x81\x02\x8a\xb5\x18\xf8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about. NOT not_a_defect, which asserts blue's argument held, and NOT repaired, which asserts a verified fix\x98\xb5\x18\x01*\xec\a\n" +
+	"\x13DISPOSITION_CARRIED\x10\a\x1ao\x8a\xb5\x18gNOT a closure: the gap survives to the next round with a stated research direction the coming seat owes\x98\xb5\x18\x00\x12\xd8\x01\n" +
+	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01*\xc0\a\n" +
 	"\rSourceOutcome\x12\x1e\n" +
 	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12`\n" +
 	"\x17SOURCE_OUTCOME_SUPPORTS\x10\x01\x1aC\x8a\xb5\x18?you read the source at the leaf and it says what the claim says\x12\x9a\x01\n" +
 	"#SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE\x10\x02\x1aq\x8a\xb5\x18mit supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement\x12j\n" +
-	"\x13SOURCE_OUTCOME_WEAK\x10\x03\x1aQ\x8a\xb5\x18Mit gestures at the claim, or is itself uncorroborated: thin support, not none\x12\xa9\x01\n" +
-	"\x16SOURCE_OUTCOME_REFUTES\x10\x04\x1a\x8c\x01\x8a\xb5\x18\x87\x01you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry, and until 0.60.0 it had no field at all\x12\xd3\x01\n" +
+	"\x13SOURCE_OUTCOME_WEAK\x10\x03\x1aQ\x8a\xb5\x18Mit gestures at the claim, or is itself uncorroborated: thin support, not none\x12~\n" +
+	"\x16SOURCE_OUTCOME_REFUTES\x10\x04\x1ab\x8a\xb5\x18^you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry\x12\xd3\x01\n" +
 	"\x15SOURCE_OUTCOME_ABSENT\x10\x05\x1a\xb7\x01\x8a\xb5\x18\xb2\x01you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was\x12\xcd\x01\n" +
 	"\x1aSOURCE_OUTCOME_UNREACHABLE\x10\x06\x1a\xac\x01\x8a\xb5\x18\xa7\x01you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit*\x95\x04\n" +
 	"\n" +
@@ -7007,11 +7007,11 @@ const file_record_proto_rawDesc = "" +
 	"\x1cDIRECTION_RULING_UNSPECIFIED\x10\x00\x12F\n" +
 	"\x19DIRECTION_RULING_ENDORSED\x10\x01\x1a'\x8a\xb5\x18#worth this run's time — pursue it\x12M\n" +
 	"\x1dDIRECTION_RULING_OUT_OF_SCOPE\x10\x02\x1a*\x8a\xb5\x18&a real question, but not THIS question\x12Y\n" +
-	"\x19DIRECTION_RULING_TOO_THIN\x10\x03\x1a:\x8a\xb5\x186in scope, but the hypothesis does not carry its budget*\xf7\x03\n" +
+	"\x19DIRECTION_RULING_TOO_THIN\x10\x03\x1a:\x8a\xb5\x186in scope, but the hypothesis does not carry its budget*\xf5\x03\n" +
 	"\tAboutKind\x12\x1a\n" +
 	"\x16ABOUT_KIND_UNSPECIFIED\x10\x00\x12\xad\x01\n" +
-	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x94\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there\x12\xa8\x01\n" +
-	"\x12ABOUT_KIND_INQUIRY\x10\x02\x1a\x8f\x01\x8a\xb5\x18\x8a\x01a line of inquiry, by its avenue id: an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor\x12s\n" +
+	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x94\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there\x12\xa6\x01\n" +
+	"\x12ABOUT_KIND_INQUIRY\x10\x02\x1a\x8d\x01\x8a\xb5\x18\x88\x01a line of inquiry, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor\x12s\n" +
 	"\x0eABOUT_KIND_GAP\x10\x03\x1a_\x8a\xb5\x18[a gap already on the docket, by its id — a defect in the record rather than in the report*\x90\x05\n" +
 	"\x0eSourceTextRead\x12 \n" +
 	"\x1cSOURCE_TEXT_READ_UNSPECIFIED\x10\x00\x12\xb6\x01\n" +
