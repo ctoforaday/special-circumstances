@@ -334,12 +334,13 @@ func TestGoldenFind(t *testing.T) {
 		{"find-channel-thinking", []string{"four sites"}}, // the one thought that carried text
 		// A peer's turn (isMeta, top level) and a peer's mid-turn delivery, in two transcripts.
 		{"find-channel-peer", []string{"conduct section", "--in", "peer"}},
+		// THE SAME TWO ROWS FROM A PATTERN. IN is read from where ripgrep matched, so a regex is
+		// attributed exactly as a literal is — a pattern is not a substring, and re-finding it in
+		// the decoded text found no speaker at all.
+		{"find-regex-in-peer", []string{"--regex", "conduct sect(ion)", "--in", "peer"}},
 		// A notification turn, and one delivered mid-turn in a seat by commandMode alone — the
 		// 12-character channel under the widened IN header.
 		{"find-channel-notification", []string{"nightly build"}},
-		// LITERAL TERMS, not --regex: a speaker is decided only for a block that CONTAINS the term,
-		// and a pattern is not re-findable as a substring, so a regex search reports `?`.
-		//
 		// A seat's own prompt, and a coordinator's mid-turn message in another seat.
 		{"find-channel-lead", []string{"every caller"}},
 		// isMeta text at both tiers, and a compaction summary (the newer of main's two hits).
@@ -404,20 +405,24 @@ func TestInReadsEveryHitAndStatesNoCap(t *testing.T) {
 	if err := os.WriteFile(path, []byte(strings.Join(body, "\n")+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	var locs []fileLine
-	for n := 1; n <= len(body); n++ {
-		locs = append(locs, fileLine{path: path, line: n})
+	// What ripgrep would report: each record's match at its ABSOLUTE offset in the file written.
+	var recs []ripRecord
+	var start int64
+	for n, line := range body {
+		abs := start + int64(strings.Index(line, "sleeper term"))
+		recs = append(recs, ripRecord{path: path, line: n + 1, matches: []rawMatch{{abs: abs, text: "sleeper term"}}})
+		start += int64(len(line) + 1)
 	}
 	paths := map[string]catalogue.TranscriptFile{path: {Path: path, SessionID: "S"}}
 
-	rows, matched := decodeHits(locs, paths, "sleeper term", "")
-	if len(rows) != 1 || matched != 1 || !rows[0].capped || rows[0].best.Channel != catalogue.ChannelAssistant {
-		t.Fatalf("unfiltered: %d rows, %d matched, %+v — want one capped assistant row", len(rows), matched, rows)
+	rows, matched, stale := decodeHits(recs, paths, "")
+	if len(rows) != 1 || matched != 1 || stale != 0 || !rows[0].capped || rows[0].best.Channel != catalogue.ChannelAssistant {
+		t.Fatalf("unfiltered: %d rows, %d matched, %d stale, %+v — want one capped assistant row", len(rows), matched, stale, rows)
 	}
 
-	rows, matched = decodeHits(locs, paths, "sleeper term", catalogue.ChannelUser)
-	if len(rows) != 1 || matched != 1 {
-		t.Fatalf("--in user: %d rows of %d matched, want the one transcript kept", len(rows), matched)
+	rows, matched, stale = decodeHits(recs, paths, catalogue.ChannelUser)
+	if len(rows) != 1 || matched != 1 || stale != 0 {
+		t.Fatalf("--in user: %d rows of %d matched, %d stale, want the one transcript kept", len(rows), matched, stale)
 	}
 	r := rows[0]
 	if r.capped || r.hits != len(body) || r.best.Channel != catalogue.ChannelUser || !strings.Contains(r.best.Snippet, "first") {

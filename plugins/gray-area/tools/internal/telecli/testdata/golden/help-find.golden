@@ -15,6 +15,11 @@ transcript, while the store's word and thought tiers hold only speech and
 reasoning — so a hit can be a tool result or a file path. A match in a pasted
 log is not somebody saying something.
 
+IN is read from the JSON value ripgrep's match lies in, at the byte it
+reported — the same for --regex as for a literal. tool_use is a match anywhere
+inside a call's arguments, result one anywhere inside what a tool returned;
+SNIPPET is centred on the match.
+
 For text, IN is WHO SPOKE, read from fields the client writes and never from
 the text: peer is another session's message, notification a background task's,
 lead the lead or a workflow coordinator prompting a seat, harness text the
@@ -22,8 +27,8 @@ client injects. A message delivered mid-turn reports its sender the same way.
 user is the human — plus what no field separates from them: prompts programs
 send to headless sessions, and slash-command and local-command text.
 
-  ?               the term is in a part of the record nothing here models
-                  (a cwd, a uuid, queue bookkeeping)
+  ?               the match is in a part of the record nothing here models
+                  (a cwd, a uuid, a key name, queue bookkeeping)
   unknown_origin  a record whose origin, or whose mid-turn delivery mode, this
                   binary does not know — upgrade gray-area
 
@@ -48,10 +53,19 @@ that never reaches a shell. Pass --regex to treat it as a pattern — which is w
 you want for a word boundary, and searching for 'roving' rather than '/broving/b'
 is how you get every occurrence of "proving" instead.
 
+The term is matched against the raw JSON of each line, so a term containing "
+or / does not match text that holds it (the transcript stores /" and //), and
+ripgrep refuses a term containing a line break. ripgrep configuration files
+are ignored, and transcripts are read as raw bytes: no encoding detection, and
+a byte-order mark is not skipped.
+
 Anything that stops this from being a completed search REFUSES rather than
-printing "no matches": ripgrep absent, a pattern that does not compile, or a
-corpus it could not finish reading. A search that could not run must never be
-reported as a search that found nothing.
+printing "no matches": ripgrep absent, a pattern that does not compile, a
+corpus it could not finish reading, or no row surviving while some matching
+records could not be read back as ripgrep matched them (the file changed or
+went away since the search, or the record no longer parses). When rows do
+survive, one line on stderr counts those records. A search that could not run
+must never be reported as a search that found nothing.
 
 Usage:
   telepathy find <term> [flags]

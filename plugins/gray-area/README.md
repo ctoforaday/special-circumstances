@@ -109,7 +109,8 @@ prompting a seat), `harness` (text the client injects), `thinking`, `tool_use`, 
 `unknown_origin` and `?`. `v_word.role` stores the same speaker values: `user`, `assistant`,
 `peer`, `notification`, `lead`, `harness`, `unknown_origin`.
 
-- `?` means the term is in a part of a record nothing here models (a cwd, a uuid, queue bookkeeping).
+- `?` means the match is in a part of a record nothing here models (a cwd, a uuid, a key name, queue bookkeeping).
+- `result` means the match is anywhere inside what a tool returned, and `tool_use` anywhere inside a call's arguments. IN is read from the JSON value ripgrep's match lies in, so `--regex` is attributed exactly as a literal is.
 - `unknown_origin` means a record whose `origin.kind`, or whose `queued_command` `commandMode`, this binary does not know — upgrade gray-area.
 
 Neither is the liveness word `unknown` that `agents` prints. `user` is the human plus a remainder
