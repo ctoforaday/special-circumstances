@@ -211,6 +211,17 @@ gray-area stalls [transcript.jsonl]   acts repeated 3+ times BACK-TO-BACK
 
 Rows are still stat'ed even when `agent_type` is empty. The correlation is one session's evidence and what makes a seat untyped is undetermined, so the row reports what it observed rather than what was predicted — a row that cannot contradict the expectation has stopped being a measurement.
 
+## Asking the agent: `fork-elicitation`
+
+The record says what an agent did; it cannot say how the agent read the instructions that led
+there. The **`fork-elicitation`** skill covers that second question in three steps:
+1. Gather the acts with `telepathy`, or have an investigator subagent do it, each act cited.
+2. Interview a headless, tool-less fork of the agent's own session about the cited moments. It uses
+   `--resume <id> --fork-session`, the original's system prompt and model, and no tools, so the
+   original transcript and any live run stay untouched.
+3. Adjudicate the answers against the record. The interview is testimony about how the agent read
+   the situation, never evidence of what happened, per the line below.
+
 ## The line this plugin will not cross
 
 > **Exploration may summarize. Adjudication must cite.**

@@ -122,6 +122,10 @@ telepathy sql "SELECT tool, target FROM v_action WHERE session_id LIKE '5627%' A
   every error rate on the box, and the sessions it overstates are exactly the ones that were cut
   short rather than the ones that went wrong.
 
+- AFTER the catalogue has told you WHAT an agent did, and the open question is WHY — a rule it read and
+  did not apply, a command it ran twice — YOU SHOULD interview a tool-less fork of its session with the
+  [[fork-elicitation]] skill. The catalogue supplies the cited acts that the interview asks about.
+
 ## The rule this exists to serve
 
 Exploration may summarize; **adjudication must cite**. The catalogue is a citing surface: every
