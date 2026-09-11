@@ -1,4 +1,4 @@
-prompt sha256: d173ff92f2ee16cce3ca89558489972eff80c76d7d4af04551d1fbcc90b795b5
+prompt sha256: 1325840cf9f6817e07a4611d9864c2db977eda7442a57f736e7a6b1ef0ab3db1
 
 Blue synthesis for topic: "the seat prompt contract".
 PRE-FLIGHT: if research/2026-01-01_golden/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns.
@@ -14,7 +14,7 @@ Do NOT write a `**Outcome:**` line ANYWHERE either — the outcome is decided af
 CITATION HYGIENE, because red must be able to VERIFY every source at the leaf: the url you cite carries the FULL coordinate — owner/repo#N or a full URL, never a bare #N red cannot resolve without the repo — and every QUOTED span records a locating anchor (its section heading, or a nearby unique phrase) so red can grep it verbatim in the source.
 An unlocatable quote is graded LOW through no fault of the source.
 Two claims resting on the same url are one source and two anchors, not two sources.
-REPORT WRITE PATH: report.md hits a filename-keyed Write-guard — draft to your scratchpad under a NEUTRAL name and copy it into place with bash cp; a direct Write of the report path fails and wastes a round-trip.
+REPORT WRITE PATH: report.md hits a filename-keyed Write-guard — draft to your scratchpad under a NEUTRAL name and bash cp it to research/2026-01-01_golden/blue/report.md, the one path ingest reads (nothing waits there; a report.md anywhere else is not the report); a direct Write of the report path fails and wastes a round-trip.
 Recompute claim_count with the tool once report.md is written and relay the integer into the envelope; never hand-count it (two honest merges differed 2x before it was pinned).
 RECORD THE SITTING, with WHY you organised it as you did — what you compacted, what you kept whole, what you retired and against what — and its claim_count as the reason; sitting_record_appended is TRUE only after that event exists.
 FREEZE THE REPORT, LAST — after report.md is written, the count recorded and the sitting recorded, run the act your seat's help lists as freezing the report into the record as its base.
