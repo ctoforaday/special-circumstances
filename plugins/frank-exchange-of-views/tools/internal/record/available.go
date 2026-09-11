@@ -135,7 +135,7 @@ func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item 
 			}
 			add("gap " + g.ID + " is open and you have not closed it — `motion docket file` puts it before the bench, which is the channel for a gap you cannot settle yourself")
 		}
-		if anyClosedGap(gaps) && !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_SPOT_CHECK) {
+		if anyClosedGap(gaps) && !seatDidThisSitting(evs, seatID, recordpb.EventType_EVENT_TYPE_SPOT_CHECK) {
 			add("the closure archive is not empty and this sitting has sampled none of it")
 		}
 	case "lens":

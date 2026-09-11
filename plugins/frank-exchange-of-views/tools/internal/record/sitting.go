@@ -100,7 +100,7 @@ func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJS
 	// was its own event type. It is now a `nominal` entry — an entry, not an absence — so any log
 	// event discharges the duty and the type says which case it was. The property is unchanged:
 	// an attested-clean sitting is still an EVENT, and still distinguishable from silence.
-	if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_LOG) {
+	if !seatDidThisSitting(evs, seatID, recordpb.EventType_EVENT_TYPE_LOG) {
 		add("the log is open — you have neither reported a missing capability nor said that nothing blocked you")
 	}
 
@@ -147,7 +147,7 @@ func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJS
 		// genuinely failed to deliver a line's research, red MINTS A GAP, and an open gap already
 		// reaches blue through the ordinary route with a grade, a required fix and the PASS gate
 		// behind it. Restoring a second duty here would be the same fact told twice.
-		if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_REVISION) {
+		if revisionOwed(evs, seatID) && !seatDidThisSitting(evs, seatID, recordpb.EventType_EVENT_TYPE_REVISION) {
 			add("this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)")
 		}
 	case "chair":
@@ -260,6 +260,44 @@ func (s SittingJSON) Blocked() bool {
 // discharged when it was not, depending on which side of the comparison drifted.
 func seatDid(evs []*Event, seatID string, typ recordpb.EventType) bool {
 	for _, e := range Live(evs) {
+		if e.GetSeatId() == seatID && e.GetType() == typ {
+			return true
+		}
+	}
+	return false
+}
+
+// revisionOwed says whether this blue sitting owes a revision. Every blue sitting does, except a
+// blue-respond sitting that found every gap it was dispatched on closed before it sat: it has
+// nothing to answer, and its nominal log entry is the whole record of the sitting (gblock's ruling,
+// 2026-09-11). The sitting is record.BlueSittings' — the reading capture's record-parity audit
+// holds it to — so the work list and the audit cannot disagree about it.
+func revisionOwed(evs []*Event, seatID string) bool {
+	if seatID != "blue-respond" {
+		return true
+	}
+	ss := BlueSittings(evs)
+	if len(ss) == 0 {
+		return true
+	}
+	return len(ss[len(ss)-1].Open) > 0
+}
+
+// seatDidThisSitting is seatDid for a duty the seat owes EVERY SITTING: only its acts since its
+// latest register count — the sitting as same-sitting correction counts it (correction.go, F6).
+// seatDid reads the whole record, so the first sitting's act discharged every later one: in B9
+// blue sat in epoch 5 with G4 open, filed no revision, and read `complete` because its epoch-4
+// revision was on the record. A seat that has not registered has no earlier sitting to borrow
+// from, so the whole record is its sitting.
+func seatDidThisSitting(evs []*Event, seatID string, typ recordpb.EventType) bool {
+	live := Live(evs)
+	start := 0
+	for i, e := range live {
+		if e.GetSeatId() == seatID && e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER {
+			start = i
+		}
+	}
+	for _, e := range live[start:] {
 		if e.GetSeatId() == seatID && e.GetType() == typ {
 			return true
 		}
