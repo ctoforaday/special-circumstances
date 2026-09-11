@@ -59,6 +59,14 @@ tessocr_engine *tessocr_new(const unsigned char *traineddata, int len) {
 		delete e;
 		return nullptr;
 	}
+	// Tesseract's own diagnostics ("Estimating resolution as N", "Detected N diacritics",
+	// "Empty page!!") go through tprintf to stderr — the same class of noise the leptonica
+	// silencer above discards, and in a seat's run it lands in the tool output (153 lines per
+	// fetch on #644). /dev/null is tesseract's documented sink; tprintf.cpp maps it to "nul"
+	// on Windows. Only the diagnostics move — no recognition parameter changes, so no reading
+	// changes. (Stating the source resolution instead would silence the first message too, but
+	// it changes the readings: measured on #644/#934, it cost the one reconstruction that held.)
+	e->api.SetVariable("debug_file", "/dev/null");
 	return e;
 }
 
