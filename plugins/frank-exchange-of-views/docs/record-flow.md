@@ -6,6 +6,25 @@ motions, opinions — are events; the markdown files are *projections* of the re
 human reading afterward, never the channel. This diagram is kept current with the code
 ([[fuzzers-and-diagrams-track-code]]); update it in the same PR as any record/protocol change.
 
+## A same-sitting correction
+
+Append-only holds for a correction too. A seat whose act came out wrong re-runs the act's own verb with
+what it meant and `--corrects <key>` (the key its success line printed); the tool writes the
+replacement and a `correction` event in one transaction, and only while the act is the seat's own,
+from this sitting, and no other seat has acted since. Nothing is edited: every view reads the acts
+that stand (`live_event` in SQL, `Live` in Go), and every listing shows the first act struck
+beside its replacement (`struck`, `Listing`).
+
+```mermaid
+flowchart LR
+  A[act K] --> R[replacement K~1]
+  R --- C[correction: K struck by K~1, why]
+  C --> S[struck view]
+  C --> L[live_event: K~1 stands in K's place]
+  S --> V[listings: K shown struck, then K~1]
+  L --> W[winners and folds read K~1]
+```
+
 ## Findings & citations onto the record (#62 pt1, #70/#71)
 
 ```mermaid

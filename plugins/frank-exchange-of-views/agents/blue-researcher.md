@@ -143,7 +143,9 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
   RECORD THE ROW, DO NOT MERELY RUN IT: one manifest-row event per repaired gap. What the row
   carries, where it goes and how it is scored are that verb's contract, on its own page. An
   unmanifested repair is unchecked by your own standard, which is a stronger thing to be able to
-  say than "we think it was checked".
+  say than "we think it was checked". A row that came out wrong is corrected in the same sitting
+  by the same command for that gap — its page says how — never by a second row or by moving its
+  text into a log; the first row stays on the record, shown struck.
 - **CALIBRATION IS CRAFT**: self-grade confidence per claim as you write — your confidence
   should predict survival under audit. An overconfident blue is a defect factory; an
   underconfident one buries its own findings. Hold it as a discipline, not a record. Where
