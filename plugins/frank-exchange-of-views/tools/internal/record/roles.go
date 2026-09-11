@@ -45,43 +45,39 @@ const OperatorRole = "operator"
 var roleSeats = map[string][]string{
 	OperatorRole: {OperatorRole},
 	"lens":       {"red-lens-"},
-	// BOTH NAMES, AND THE ROLE KEEPS THE OLD ONE. The seat is `red-chair-r<n>` as of the
-	// derived-identity change; `red-merge-r<n>` is what every archived run holds and is read
-	// forever. The ROLE stays `merge` deliberately: `chair` is already this package's word for a
-	// SIDE of the debate — ChairOf maps a role to red/blue/bench and the operator command takes
-	// a `--chair` flag over that vocabulary — so a role named `chair` would sit in a chair, and
-	// the two meanings would be told apart only by which map you happened to be reading.
+	// The seat is `red-chair-r<n>`; `red-merge-r<n>` is what archived runs hold, and migrate
+	// maps it. The ROLE is still spelled `merge`. Its rename to `chair` is the next step of the
+	// vocabulary plan: the scorecard is now named for itself (ScorecardOf, `--card`), so "chair"
+	// no longer means a side's scorecard anywhere and can mean only the seat.
 	"merge": {"red-chair"},
 	"blue":  {"blue-", "frontier"},
 	"bench": {"judge", "assemble"},
 }
 
-// chairOfRole maps a seat's ROLE to the CHAIR whose scorecard measures it.
+// scorecardOfRole maps a seat's ROLE to the CARD — the scorecard — that measures it.
 //
-// A chair is a side of the debate; a role is a seat's verb set. They are not the same axis —
-// `lens` and `merge` are two roles sitting in ONE chair, because a scorecard grades how RED is
-// doing on this question, not how one of red's two seats is. Only `operator` has no chair: it is
-// not a party to the debate, which is why the operator command takes an explicit --chair and a
-// seat's own read takes nothing at all.
+// A card is one of three scorecards, red, blue or bench; a role is a seat's verb set. They are
+// not the same axis — `lens` and `merge` are two roles measured on ONE card, because a scorecard
+// grades how RED is doing on this question, not how one of red's two seats is. Only `operator`
+// has no card: it is not a party to the debate, which is why the operator command prints every
+// card (or one, with --card) and a seat's own read takes nothing at all.
 //
-// ONE COPY. debate.js carried a second, keyed on tool name (`{'red-lens':'red','red-merge':'red',
-// blue:'blue', bench:'bench'}`), whose only use was deciding whether to emit the scorecard clause
-// at all — a question that has one answer, since every role but operator has a chair. The engine
-// no longer needs to know: the seat asks the tool.
-var chairOfRole = map[string]string{
+// ONE COPY. The engine does not keep a second: whether a seat gets the scorecard clause has one
+// answer, since every role but operator has a card, and the seat asks the tool which card is its.
+var scorecardOfRole = map[string]string{
 	"lens":  "red",
 	"merge": "red",
 	"blue":  "blue",
 	"bench": "bench",
 }
 
-// ChairOf reports the chair a role sits in, and whether it has one at all.
+// ScorecardOf reports the card a role is measured on, and whether it has one at all.
 //
-// The two answers are kept apart rather than collapsed to "": operator having NO chair is a fact
+// The two answers are kept apart rather than collapsed to "": operator having NO card is a fact
 // about the run's structure, and a caller that cannot tell it from an unrecognised role would
 // print an empty scorecard for both.
-func ChairOf(role string) (string, bool) {
-	c, ok := chairOfRole[role]
+func ScorecardOf(role string) (card string, ok bool) {
+	c, ok := scorecardOfRole[role]
 	return c, ok
 }
 

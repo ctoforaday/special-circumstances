@@ -402,7 +402,7 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   assert.ok(/reorganize freely/i.test(synth) && /retired on the record/.test(synth))
   assert.ok(/LINES OF INQUIRY/.test(synth) && /dead ends matter most/.test(synth) && /CONSIDERED, not only the one you took/.test(synth))
   assert.ok(/what you weighed and rejected are three things a reader needs/.test(synth))
-  assert.ok(/YOUR IN-RUN SCORECARD/.test(synth) && /YOUR CHAIR/.test(synth) && /the seat you registered as/.test(synth) && !synth.includes('scorecards.mjs') && !/--bin\b/.test(synth))
+  assert.ok(/YOUR IN-RUN SCORECARD/.test(synth) && /YOUR SCORECARD for/.test(synth) && /your registered seat/.test(synth) && !synth.includes('scorecards.mjs') && !/--bin\b/.test(synth))
 })
 
 test('priors-are-poison: no cross-run scorecard seed reaches any chair, even when scorecards are supplied', async () => {

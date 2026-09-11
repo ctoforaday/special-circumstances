@@ -1,4 +1,4 @@
-prompt sha256: 848982d1aa9eaa9d8bfed6ea77437f937ed8cb14517411bb07701b6fb22a6f81
+prompt sha256: 4d2c59c6acdbd7680329031f5068d233e7b16a5aa2a6b8da1fed5aa8b1ab7325
 
 Research debate opening for topic: "the seat prompt contract".
 Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS A LINE OF INQUIRY — the verb is under a group of its own in your role's help, and it takes the approach you would follow and the hypothesis that would be true if it paid off.
@@ -9,8 +9,8 @@ The hypotheses opening a run are the ones that shape everything downstream and w
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
-YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, read how YOUR CHAIR is doing on the question in front of you so far.
-It is a projection of this run's record on your own surface, it needs no selector because your chair is the seat you registered as, and its own page says what the rows mean.
+YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, read YOUR SCORECARD for the question in front of you so far.
+It is a projection of this run's record on your own surface, it needs no selector because your scorecard is the one your registered seat is measured on, and its own page says what the rows mean.
 SEAT_ID: frontier.
 THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 Routing around it into markdown is the failure this contract exists to prevent.

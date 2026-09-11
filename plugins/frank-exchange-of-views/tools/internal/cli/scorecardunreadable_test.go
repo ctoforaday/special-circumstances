@@ -56,7 +56,7 @@ func TestAScorecardRefusesARecordItCannotRead(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := run(t, "scorecard", "--run", runDir, "--seat-id", "operator", "--chair", "red")
+	_, err := run(t, "scorecard", "--run", runDir, "--seat-id", "operator", "--card", "red")
 	if err == nil {
 		t.Fatal("a scorecard over an unreadable record was rendered instead of refused — " +
 			"every row reads `not computed` and the command exits 0, which is a page of zeros " +
@@ -72,7 +72,7 @@ func TestAScorecardRefusesARecordItCannotRead(t *testing.T) {
 // exits 0, which is the honest answer and the one the command exists to give.
 func TestAScorecardOverAnEmptyRunIsStillRendered(t *testing.T) {
 	runDir := newRun(t)
-	out, err := run(t, "scorecard", "--run", runDir, "--seat-id", "operator", "--chair", "red")
+	out, err := run(t, "scorecard", "--run", runDir, "--seat-id", "operator", "--card", "red")
 	if err != nil {
 		t.Fatalf("a run that has recorded nothing was refused: %v", err)
 	}

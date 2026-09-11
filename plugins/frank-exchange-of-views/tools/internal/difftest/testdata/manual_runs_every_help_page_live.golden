@@ -562,7 +562,7 @@ Available Commands:
   lines-of-inquiry WHICH DIRECTIONS WERE TAKEN AND WHICH WERE NOT — pursued, deferred, declined, abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule`
   motions          WHAT HAS BEEN CONTESTED AND HOW IT WAS RULED — the ask in the filer's words, and the ruling if it has one. `debate` is what each side ARGUED; this is what was formally disputed. Written by `motion`, `rule` and `appeal`
   report           THE DOCUMENT UNDER AUDIT, as it stands now. `changes` says how it got that way. Written by the round-0 synthesis and every `edit`, with anchors from `cite`, `finding` and `prove`
-  scorecard        HOW YOUR CHAIR IS DOING ON THIS QUESTION — your own side's performance, this run only. No selector: your chair is the seat you registered as. Computed from the record, so no verb fills it
+  scorecard        YOUR SCORECARD ON THIS QUESTION — the numbers your seat is measured on, this run only. No selector: your scorecard follows from the seat you registered as. Computed from the record, so no verb fills it
   telemetry        HOW THE NUMBERS MOVED ACROSS EPOCHS — a trend, not a snapshot: one line per epoch (chair sitting), and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it
   work             WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Run it first and again before you finish. Written by `mint`, `close` and the bench's `motion docket rule`
 
@@ -684,7 +684,7 @@ Flags:
 (Global Flags:) → SHARED §16
 ==============================================================================
 $ feov-record show scorecard --help
-YOUR CHAIR'S IN-RUN SCORECARD — how your side is doing on THIS question, computed live from this run's record; no selector, because your chair is the seat you registered as. A bad number means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures: a gamed diagnostic is itself a defect, and a detector firing is a finding. Rows reading "not computed" are HONEST, not gaps to fill: envelope-derived rows fill in at capture. No verb fills it
+YOUR IN-RUN SCORECARD — the numbers your seat is measured on (red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench), computed live from this run's record; no selector, because your scorecard follows from the seat you registered as. A bad number means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures: a gamed diagnostic is itself a defect, and a detector firing is a finding. Rows reading "not computed" are HONEST, not gaps to fill: envelope-derived rows fill in at capture. No verb fills it
 
 Usage:
   feov-record show scorecard [flags]
@@ -1463,7 +1463,7 @@ Available Commands:
   lines-of-inquiry WHICH DIRECTIONS WERE TAKEN AND WHICH WERE NOT — pursued, deferred, declined, abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule`
   motions          WHAT HAS BEEN CONTESTED AND HOW IT WAS RULED — the ask in the filer's words, and the ruling if it has one. `debate` is what each side ARGUED; this is what was formally disputed. Written by `motion`, `rule` and `appeal`
   report           THE DOCUMENT UNDER AUDIT, as it stands now. `changes` says how it got that way. Written by the round-0 synthesis and every `edit`, with anchors from `cite`, `finding` and `prove`
-  scorecard        HOW YOUR CHAIR IS DOING ON THIS QUESTION — your own side's performance, this run only. No selector: your chair is the seat you registered as. Computed from the record, so no verb fills it
+  scorecard        YOUR SCORECARD ON THIS QUESTION — the numbers your seat is measured on, this run only. No selector: your scorecard follows from the seat you registered as. Computed from the record, so no verb fills it
   telemetry        HOW THE NUMBERS MOVED ACROSS EPOCHS — a trend, not a snapshot: one line per epoch (chair sitting), and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it
   work             WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Run it first and again before you finish. Written by `mint`, `close` and the bench's `motion docket rule`
 
@@ -1585,7 +1585,7 @@ Flags:
 (Global Flags:) → SHARED §18
 ==============================================================================
 $ feov-record show scorecard --help
-YOUR CHAIR'S IN-RUN SCORECARD — how your side is doing on THIS question, computed live from this run's record; no selector, because your chair is the seat you registered as. A bad number means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures: a gamed diagnostic is itself a defect, and a detector firing is a finding. Rows reading "not computed" are HONEST, not gaps to fill: envelope-derived rows fill in at capture. No verb fills it
+YOUR IN-RUN SCORECARD — the numbers your seat is measured on (red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench), computed live from this run's record; no selector, because your scorecard follows from the seat you registered as. A bad number means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures: a gamed diagnostic is itself a defect, and a detector firing is a finding. Rows reading "not computed" are HONEST, not gaps to fill: envelope-derived rows fill in at capture. No verb fills it
 
 Usage:
   feov-record show scorecard [flags]

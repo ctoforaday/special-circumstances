@@ -22,7 +22,7 @@ func newCapture() *cobra.Command {
 	c := &cobra.Command{
 		Use:           "capture <runDir> <transcriptDir>",
 		Short:         "run /research's post-hoc capture auditor (operator; nine audits + cost.md/tarball/scorecards)",
-		Long:          "capture is the mechanical half of /research's run-record step plus the mechanized post-hoc auditor: it copies the journal, packs the agent transcripts, writes cost.md, runs the nine integrity audits (recomputing counts from the git-tracked files and diffing them against the envelopes' self-reports), appends each chair's scorecard, harvests judicial rulings into law/proposed/, and removes the run-live marker — writing run-record-audit.md and exiting 2 on any audit FAIL. The record-backed audits read the record in-process. Ported from capture-research-run.mjs.",
+		Long:          "capture is the mechanical half of /research's run-record step plus the mechanized post-hoc auditor: it copies the journal, packs the agent transcripts, writes cost.md, runs the nine integrity audits (recomputing counts from the git-tracked files and diffing them against the envelopes' self-reports), appends each card's scorecard, harvests judicial rulings into law/proposed/, and removes the run-live marker — writing run-record-audit.md and exiting 2 on any audit FAIL. The record-backed audits read the record in-process. Ported from capture-research-run.mjs.",
 		Args:          cobra.ArbitraryArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,

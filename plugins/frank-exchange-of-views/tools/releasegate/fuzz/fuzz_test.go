@@ -4240,7 +4240,8 @@ var readOnlySurfaces = [][]string{
 	{"graph", "--format", "mermaid"},
 	{"graph", "--format", "dot"},
 	{"count-claims"},
-	{"scorecard", "--chair", "red"},
+	{"scorecard"},
+	{"scorecard", "--card", "red"},
 	// Every command's help on a seat's surface, which it produces by running this binary again
 	// once per page. One seat is enough: it is one contract on every surface, keyed once.
 	{"manual", "--seat-id", "blue-respond"},

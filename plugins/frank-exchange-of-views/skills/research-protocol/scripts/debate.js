@@ -114,8 +114,8 @@ const speedClause = ` SPEED: every message you send costs a ~20s round-trip rega
 // that reaches for another role's verbs is refused. The tool's --help IS the
 // seat's record contract: everything listed is permitted, anything absent does
 // not exist for that seat and is FRICTION rather than something to work around.
-// W2h — the visibility loop's last leg: each chair's headline numbers, IN the
-// prompt of the seats that chair governs.
+// W2h — the visibility loop's last leg: each scorecard's headline numbers, IN
+// the prompt of the seats it measures.
 //
 // A number computed at capture and filed in feov-memory is measured and still
 // invisible; the clause it instruments stays exactly as dead as "confidence
@@ -208,17 +208,17 @@ const inspectionClause = transcriptDir
   : ''
 
 const scorecardClause = () => (
-  // A chair reads its OWN in-run scorecard for THIS question, computed live from this run's
+  // A seat reads its OWN in-run scorecard for THIS question, computed live from this run's
   // record. Never a prior run's numbers: those are Goodhart bait, topic-confounded, cross-model
   // and salience-priming. The `scorecards` arg feeds operator analytics only.
   //
   // THIS CLAUSE NAMES THE ACT, AND THE HELP NAMES THE VERB. promptverbs' catalogue gate pins
   // debate.js at zero named commands, on the standing rule that the help page is the only page
   // that instructs — so a prompt that spells an invocation is a prompt teaching a surface it does
-  // not own. It also names no chair: the tool resolves that from the seat's own registration,
+  // not own. It also names no card: the tool resolves that from the seat's own registration,
   // which is why the read needs no selector and why there is no way to ask for another party's
   // numbers. See #513 for the friction that established both.
-  ` YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, read how YOUR CHAIR is doing on the question in front of you so far. It is a projection of this run's record on your own surface, it needs no selector because your chair is the seat you registered as, and its own page says what the rows mean.`
+  ` YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, read YOUR SCORECARD for the question in front of you so far. It is a projection of this run's record on your own surface, it needs no selector because your scorecard is the one your registered seat is measured on, and its own page says what the rows mean.`
 )
 
 // HOLDINGS RIDE recordClause BECAUSE IT IS THE ONE CLAUSE EVERY SEAT RECEIVES.

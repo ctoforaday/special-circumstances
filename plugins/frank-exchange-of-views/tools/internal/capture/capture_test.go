@@ -615,8 +615,8 @@ func TestWriteScorecardsAppends(t *testing.T) {
 		t.Fatal(err)
 	}
 	a := WriteScorecards(runtest.Open(t, runA), nil, memory, nil)
-	if !a.Written || a.Chairs < 1 {
-		t.Fatalf("every chair gets a card: %+v", a)
+	if !a.Written || a.Cards < 1 {
+		t.Fatalf("every card is written: %+v", a)
 	}
 	card := filepath.Join(memory, "red-scorecard.md")
 	first, _ := os.ReadFile(card)
@@ -1044,7 +1044,7 @@ func TestCapturingOneRunLeavesTheOthersOpen(t *testing.T) {
 
 // AN UNREADABLE SCORECARD IS LEFT ALONE, NOT REPLACED WITH A FRESH HEADER.
 //
-// The read error used to fall through to scorecard.ChairHeader and the write below then
+// The read error used to fall through to scorecard.CardHeader and the write below then
 // replaced the file with it, so one unreadable moment discarded every earlier run's rows.
 // The series IS the cross-run memory — TestWriteScorecardsAppends above asserts it is
 // "appended, never overwritten" — and this is the path that overwrote it while reporting
@@ -1070,7 +1070,7 @@ func TestAnUnreadableScorecardIsNotOverwritten(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Make exactly one chair's card unreadable, then run a later capture over it.
+	// Make exactly one card unreadable, then run a later capture over it.
 	if err := os.Chmod(card, 0o000); err != nil {
 		t.Fatal(err)
 	}
@@ -1082,16 +1082,16 @@ func TestAnUnreadableScorecardIsNotOverwritten(t *testing.T) {
 	got := WriteScorecards(runtest.Open(t, runB), nil, memory, nil)
 
 	if got.Written {
-		t.Error("a chair that could not be written must not report Written — that is the whole defect")
+		t.Error("a card that could not be written must not report Written — that is the whole defect")
 	}
 	for _, want := range []string{"red", "cannot read", "left untouched"} {
 		if !strings.Contains(got.Reason, want) {
 			t.Errorf("the reason must carry %q so the operator knows which card and why: %q", want, got.Reason)
 		}
 	}
-	// The other chairs still got their rows: a partial failure is partial, not total.
-	if got.Chairs < 1 {
-		t.Errorf("the readable chairs must still be written: %+v", got)
+	// The other cards still got their rows: a partial failure is partial, not total.
+	if got.Cards < 1 {
+		t.Errorf("the readable cards must still be written: %+v", got)
 	}
 
 	if err := os.Chmod(card, 0o644); err != nil {
@@ -1112,7 +1112,7 @@ func TestAnUnreadableScorecardIsNotOverwritten(t *testing.T) {
 // A WRITE THAT FAILED MUST NOT REPORT Written: true.
 //
 // The error was discarded and the result asserted the write had landed, so a read-only
-// memory dir or a full disk produced a capture that said the chair memory had been updated
+// memory dir or a full disk produced a capture that said the scorecard memory had been updated
 // while nothing moved — and the next run reads the stale file as the whole history.
 func TestAFailedScorecardWriteIsReported(t *testing.T) {
 	if runtime.GOOS == "windows" {
@@ -1146,7 +1146,7 @@ func TestAFailedScorecardWriteIsReported(t *testing.T) {
 	}
 	for _, want := range []string{"red", "cannot write"} {
 		if !strings.Contains(got.Reason, want) {
-			t.Errorf("the reason must name the chair and the failure: %q (missing %q)", got.Reason, want)
+			t.Errorf("the reason must name the card and the failure: %q (missing %q)", got.Reason, want)
 		}
 	}
 }
@@ -1160,8 +1160,8 @@ func TestAnAbsentScorecardIsStillCreated(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := WriteScorecards(runtest.Open(t, runA), nil, memory, nil)
-	if !got.Written || got.Chairs < 1 || got.Reason != "" {
-		t.Fatalf("a fresh memory dir must write every chair cleanly: %+v", got)
+	if !got.Written || got.Cards < 1 || got.Reason != "" {
+		t.Fatalf("a fresh memory dir must write every card cleanly: %+v", got)
 	}
 	b, err := os.ReadFile(filepath.Join(memory, "red-scorecard.md"))
 	if err != nil {

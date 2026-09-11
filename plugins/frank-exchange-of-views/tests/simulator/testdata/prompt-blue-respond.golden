@@ -1,10 +1,10 @@
-prompt sha256: ba0a09b962cd272820faad0c7a20f8534eaa8ac93e98312eaed79cb03a90a281
+prompt sha256: 27349d5694523d398d7f8233e09d61b29e6a24465d0c8006d43e85a7474f9921
 
 Blue response, topic "the seat prompt contract".
 You are engaged on: G1.
 YOUR FIRST READ COMES AFTER THE MANUAL BELOW, NOT BEFORE IT: pull your working set — the board and work projections, the transcript, and research/2026-01-01_golden/inputs/red-gap-patterns.md — in one pass rather than three, concatenating them into a single file under your session scratchpad (an ABSOLUTE path, never under research/2026-01-01_golden) and reading that.
-YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, read how YOUR CHAIR is doing on the question in front of you so far.
-It is a projection of this run's record on your own surface, it needs no selector because your chair is the seat you registered as, and its own page says what the rows mean.
+YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, read YOUR SCORECARD for the question in front of you so far.
+It is a projection of this run's record on your own surface, it needs no selector because your scorecard is the one your registered seat is measured on, and its own page says what the rows mean.
 SEAT_ID: blue-respond.
 THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 Routing around it into markdown is the failure this contract exists to prevent.

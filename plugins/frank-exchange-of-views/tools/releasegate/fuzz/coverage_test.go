@@ -41,7 +41,6 @@ var flagExemptions = map[string]string{
 	"topic":          "setup's flag, as above",
 	"cite":           "setup's flag, as above",
 	"lanes":          "setup's flag, as above",
-	"chair":          "scorecard's chair selector; the harness drives scorecard unscoped, which reads every chair",
 	"format":         "graph's renderer selector; both values are driven by the format oracle, not the random sweep",
 	"watch":          "dashboard's follow mode blocks until the run-live marker lifts — a sweep driving it would never return",
 	"serve":          "dashboard's HTTP mode binds a port and blocks, as above",

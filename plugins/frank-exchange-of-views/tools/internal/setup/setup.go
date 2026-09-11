@@ -229,15 +229,15 @@ func MirrorGapPatterns(memoryDirs []string, run record.Run) MirrorResult {
 	return MirrorResult{Written: true, Files: len(parts), Sources: len(present)}
 }
 
-// ScorecardResult reports the chairs staged and the per-chair prompt headlines.
+// ScorecardResult reports the cards staged and each card's prompt headline.
 type ScorecardResult struct {
 	Written   bool
 	Reason    string
-	Chairs    []string
+	Cards     []string
 	Headlines map[string][]string
 }
 
-// MirrorScorecards stages each chair's scorecard into inputs/ and extracts the
+// MirrorScorecards stages each card's scorecard into inputs/ and extracts the
 // prompt headline — the emitted HEADLINE line where present, else the parsed rows.
 func MirrorScorecards(memoryDir string, run record.Run) ScorecardResult {
 	runDir := run.Dir()
@@ -247,26 +247,26 @@ func MirrorScorecards(memoryDir string, run record.Run) ScorecardResult {
 	var staged []string
 	headlines := map[string][]string{}
 	for _, f := range scorecardFiles(memoryDir) {
-		chair := strings.TrimSuffix(f, "-scorecard.md")
+		card := strings.TrimSuffix(f, "-scorecard.md")
 		body, err := os.ReadFile(filepath.Join(memoryDir, f))
 		if err != nil {
 			continue
 		}
 		os.WriteFile(filepath.Join(runDir, "inputs", f), body, 0o644)
-		staged = append(staged, chair)
+		staged = append(staged, card)
 		latest := lastSection(string(body))
 		if h := emittedHeadline(latest); h != nil {
-			headlines[chair] = h
+			headlines[card] = h
 			continue
 		}
 		if picks := fallbackHeadline(latest); len(picks) > 0 {
-			headlines[chair] = picks
+			headlines[card] = picks
 		}
 	}
 	if len(staged) == 0 {
-		return ScorecardResult{Written: false, Reason: "no scorecards yet — written at capture, consumed by the next run", Chairs: []string{}, Headlines: map[string][]string{}}
+		return ScorecardResult{Written: false, Reason: "no scorecards yet — written at capture, consumed by the next run", Cards: []string{}, Headlines: map[string][]string{}}
 	}
-	return ScorecardResult{Written: true, Chairs: staged, Headlines: headlines}
+	return ScorecardResult{Written: true, Cards: staged, Headlines: headlines}
 }
 
 var sectionSplit = regexp.MustCompile(`(?m)^## `)
