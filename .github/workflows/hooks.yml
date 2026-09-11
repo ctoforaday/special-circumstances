@@ -875,7 +875,10 @@ jobs:
           (cd "$rel/fixture--v1.2.3" && $sum "$a" "$b" > SHA256SUMS)
           base="file://$rel"
           if [ "$os" = windows ]; then base="file:///$(cygpath -m "$rel")"; fi
+          # cmd is a guard command, so its ${...} must stay unexpanded until the guard's own shell runs it.
+          # shellcheck disable=SC2016
           cmd='B="${CLAUDE_PLUGIN_ROOT}/bin/alpha"; if [ -x "$B" ] || [ -x "$B.exe" ]; then exec "$B"; fi; '
+          # shellcheck disable=SC2016
           cmd="$cmd"'F="${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh"; if [ -f "$F" ]; then exec sh "$F" hook PreToolUse; fi; echo missing >&2'
           start=$(date +%s)
           out=$(CLAUDE_PLUGIN_ROOT="$root" SC_RELEASE_BASE_URL="$base" bash -c "$cmd" </dev/null)
