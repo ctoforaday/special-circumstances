@@ -173,7 +173,7 @@ func TestASubMaterialGapDoesNotReadyBlue(t *testing.T) {
 	if len(plan.Parties) != 1 || plan.Parties[0].SeatID != evLens || len(plan.Parties[0].GapIDs) != 0 {
 		t.Fatalf("parties = %+v, want only the lens, engaged on nothing (rule 1)", plan.Parties)
 	}
-	if !strings.Contains(strings.Join(plan.Why, "\n"), "G1: open but below material") {
+	if !strings.Contains(strings.Join(plan.Why, "\n"), "G1: open and not material (graded low)") {
 		t.Errorf("the plan must say why the trifle readies nobody:\n%s", strings.Join(plan.Why, "\n"))
 	}
 	if plan.PassPermitted {
@@ -243,7 +243,7 @@ func TestAStrandedAncestorIsReadyWorkWhateverItsGrade(t *testing.T) {
 		t.Error("PASS is not permitted over a stranded ancestor")
 	}
 	why := strings.Join(plan.Why, "\n")
-	if !strings.Contains(why, "G1: open and superseded by G2") || !strings.Contains(why, "G2: open but below material") {
+	if !strings.Contains(why, "G1: open and superseded by G2") || !strings.Contains(why, "G2: open and not material (graded low)") {
 		t.Errorf("the plan must say the ancestor is held as material and the successor readies nobody:\n%s", why)
 	}
 }

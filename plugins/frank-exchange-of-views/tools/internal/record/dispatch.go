@@ -26,7 +26,7 @@ type Plan struct {
 	// each under the chair's authorship the moment impasse is first computed, so "docketed" and
 	// "at impasse" are one fact and no seat's discretion sits between a stalled gap and the bench.
 	Docket        []string `json:"docket"`
-	PassPermitted bool     `json:"pass_permitted"` // no material gap open, every cast lens sat against the head, every docket ruled
+	PassPermitted bool     `json:"pass_permitted"` // no material gap open (IsMaterial: by its class, else graded medium or above), every cast lens sat against the head, every docket ruled
 	// Ceiling is the run at its limit, for one of two reasons EpochLimitReached tells apart: every
 	// open material gap is at impasse and has had its bench ruling (remanded), or the run's epoch
 	// limit is reached with parties still ready.
@@ -62,7 +62,11 @@ func IsMaterial(cm recordpb.ClassMaterial, currentSeverity recordpb.Grade) bool 
 
 type openGap struct {
 	id, mintedBy, severity string
-	dockets, rulings       int
+	// material is the gap view's column — the one definition — and classMaterial the class's
+	// default, which the reason names when the class alone makes the gap not material.
+	material         bool
+	classMaterial    string
+	dockets, rulings int
 	// supersededBy is the successor that names this gap as an ancestor, when one does and this gap
 	// is still open — the gap view's `stranded`. The PASS gate refuses a verdict over one.
 	supersededBy string
@@ -144,14 +148,14 @@ func PlanDispatch(run Run) (Plan, error) {
 	materialOpen, materialSettled := 0, 0
 	unruledDocket := false
 	for _, g := range gaps {
-		// A STRANDED GAP IS READY WORK WHATEVER ITS GRADE. Superseding is a promise to replace, and
-		// the PASS gate refuses a verdict while the ancestor is open (refs.go) — so a sub-material
-		// ancestor nobody is dispatched to close would leave the plan saying "pass permitted" and
-		// the gate saying no, forever, and the run ends UNVERIFIED with nobody ready. Found by the
-		// release sweep. Held as material here: its minter and blue are engaged, its exchanges
-		// count, and at impasse it reaches the bench like any other.
+		// A STRANDED GAP IS READY WORK WHATEVER ITS CLASS OR GRADE. Superseding is a promise to
+		// replace, and the PASS gate refuses a verdict while the ancestor is open (refs.go) — so a
+		// non-material ancestor nobody is dispatched to close would leave the plan saying "pass
+		// permitted" and the gate saying no, forever, and the run ends UNVERIFIED with nobody ready.
+		// Found by the release sweep. Held as material here: its minter and blue are engaged, its
+		// exchanges count, and at impasse it reaches the bench like any other.
 		stranded := g.supersededBy != ""
-		trifle := MASS[g.severity] < material && !stranded
+		trifle := !g.material && !stranded
 		// A DOCKET MOTION IS THE ESCALATION ROUTE, and it readies the bench whether the gap is at
 		// impasse or not. The dispatch files one at impasse; a party may file one earlier (`motion
 		// docket file` is a red and blue verb, kept so the route to the bench is not the record's
@@ -172,7 +176,7 @@ func PlanDispatch(run Run) (Plan, error) {
 			continue
 		}
 		if trifle {
-			plan.Why = append(plan.Why, fmt.Sprintf("%s: open but below material (%s) — readies nobody", g.id, g.severity))
+			plan.Why = append(plan.Why, fmt.Sprintf("%s: open and not material (%s) — readies nobody", g.id, notMaterialBecause(g.classMaterial, g.severity)))
 			continue
 		}
 		if stranded {
@@ -517,6 +521,7 @@ func benchSatFor(evs []*Event, ids []int64, gapID string, sat map[string][]int64
 // tables — the same fold every reader uses.
 func openGaps(db *sql.DB) ([]openGap, error) {
 	rows, err := db.Query(`SELECT g."gap_id", COALESCE(g."minted_by", ''), COALESCE(g."current_severity", ''),
+	    g."material", COALESCE(g."class_material", ''),
 	    CASE WHEN g."stranded" THEN COALESCE(g."superseded_by", '') ELSE '' END,
 	    (SELECT count(*) FROM "motion_docket" md WHERE md."gap_id" = g."gap_id"),
 	    (SELECT count(*) FROM "motion_rule" mr JOIN "motion" m ON m."motion_id" = mr."motion_id"
@@ -529,12 +534,73 @@ func openGaps(db *sql.DB) ([]openGap, error) {
 	var out []openGap
 	for rows.Next() {
 		var g openGap
-		if err := rows.Scan(&g.id, &g.mintedBy, &g.severity, &g.supersededBy, &g.dockets, &g.rulings); err != nil {
+		if err := rows.Scan(&g.id, &g.mintedBy, &g.severity, &g.material, &g.classMaterial, &g.supersededBy, &g.dockets, &g.rulings); err != nil {
 			return nil, err
 		}
 		out = append(out, g)
 	}
 	return out, rows.Err()
+}
+
+// notMaterialBecause is the one wording of WHY an open gap is not material: its class says never,
+// or its class goes by grade and its current grade is below the floor. The dispatch's reasons and
+// the chair's work list both say it.
+func notMaterialBecause(classMaterial, severity string) string {
+	if classMaterial == recordpb.Word(recordpb.ClassMaterial_CLASS_MATERIAL_NEVER) {
+		return "its class is never material"
+	}
+	if severity == "" {
+		return "ungraded"
+	}
+	return "graded " + severity
+}
+
+// lensGate is the PASS gate's lens condition as ONE fold over the stream, which both halves read:
+// the Gate write path refuses from it, and the chair's work list states each of its items from it,
+// so the list cannot say a PASS is open that the gate refuses, or the reverse. ids are the events'
+// row ids, aligned with evs: pins and the head are row ids.
+type lensGate struct {
+	cast   bool     // the record holds a cast; with none there are no lenses to wait for
+	head   int64    // the report head: the last blue_edit or base_ingest
+	behind []string // each cast lens not sat against the head, as "red-lens-x (pin N)"
+}
+
+func lensGateOf(evs []*Event, ids []int64) lensGate {
+	cast := castOfEvents(evs)
+	g := lensGate{cast: cast != nil}
+	for i, e := range evs {
+		switch e.GetType() {
+		case recordpb.EventType_EVENT_TYPE_BLUE_EDIT, recordpb.EventType_EVENT_TYPE_BASE_INGEST:
+			if ids[i] > g.head {
+				g.head = ids[i]
+			}
+		}
+	}
+	if !g.cast {
+		return g
+	}
+	pins, _ := lensPins(evs, ids)
+	for _, s := range cast {
+		if strings.HasPrefix(s, "red-lens-") && pins[s] < g.head {
+			g.behind = append(g.behind, fmt.Sprintf("%s (pin %d)", s, pins[s]))
+		}
+	}
+	return g
+}
+
+// statements is the gate's refusal, one item per reason, for the chair's work list.
+func (g lensGate) statements() []string {
+	if !g.cast {
+		return nil
+	}
+	if g.head == 0 {
+		return []string{"no report has been ingested — PASS is refused"}
+	}
+	var out []string
+	for _, b := range g.behind {
+		out = append(out, fmt.Sprintf("lens %s has not sat against report head %d — PASS is refused while it is", b, g.head))
+	}
+	return out
 }
 
 // requireEveryCastLensSatAgainstHead is the direct replacement for the dispatch loop's "every lens
@@ -543,17 +609,8 @@ func openGaps(db *sql.DB) ([]openGap, error) {
 // the dispatch row. A record with no cast has no lenses to wait for; that is the fixtures' world
 // and a migrated archive's, where the property held by construction.
 func requireEveryCastLensSatAgainstHead(run Run) error {
-	cast, err := CastOf(run)
-	if err != nil || cast == nil {
-		return err
-	}
 	db, err := openRunForRead(run)
 	if err != nil || db == nil {
-		return err
-	}
-	var head int64
-	if _, err := queryRow(run, []any{&head},
-		`SELECT COALESCE(MAX("id"), 0) FROM "events" WHERE "type" IN ('blue_edit', 'base_ingest')`); err != nil {
 		return err
 	}
 	evs, _, err := recordsql.EventsW(db)
@@ -564,18 +621,12 @@ func requireEveryCastLensSatAgainstHead(run Run) error {
 	if err != nil {
 		return err
 	}
-	pins, _ := lensPins(evs, ids)
-	var behind []string
-	for _, s := range cast {
-		if strings.HasPrefix(s, "red-lens-") && pins[s] < head {
-			behind = append(behind, fmt.Sprintf("%s (pin %d)", s, pins[s]))
-		}
-	}
-	if len(behind) == 0 && head > 0 {
+	g := lensGateOf(evs, ids)
+	if !g.cast || (g.head > 0 && len(g.behind) == 0) {
 		return nil
 	}
-	if head == 0 {
+	if g.head == 0 {
 		return fmt.Errorf("record: verdict PASS refused — no report has been ingested or edited, so there is nothing a lens could have audited")
 	}
-	return fmt.Errorf("record: verdict PASS refused — the report head is %d and %d cast lens(es) have not sat against it: %s. Every lens sits against the text it passes; `dispatch next` readies them", head, len(behind), strings.Join(behind, ", "))
+	return fmt.Errorf("record: verdict PASS refused — the report head is %d and %d cast lens(es) have not sat against it: %s. Every lens sits against the text it passes; `dispatch next` readies them", g.head, len(g.behind), strings.Join(g.behind, ", "))
 }

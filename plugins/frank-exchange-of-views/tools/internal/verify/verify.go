@@ -363,12 +363,13 @@ func passClosesAllGaps(f record.Family) Check {
 	if verdict != passVerdictWord {
 		return notApplicable("pass-closes-all-gaps", fmt.Sprintf("the verdict is %s, so there is no PASS to contradict", nonEmpty(verdictWord(verdict), "unrecorded")))
 	}
-	// MATERIAL gaps hold the gate (plans/roundless.md §III.B.2.1): a PASS over an open gap graded
-	// below medium is legal, and the report lists that gap as open, below material, not certified
-	// against. A PASS over an open MATERIAL gap is the #67 violation.
+	// MATERIAL gaps hold the gate, by the one definition the family carries (Gap.Material: its
+	// class, else a current severity of medium or above). A PASS over an open gap that is not
+	// material is legal; the gap stays open on the board. A PASS over an open MATERIAL gap is the
+	// #67 violation.
 	var open []string
 	for _, g := range f.Gaps {
-		if g != nil && g.Open && recordpb.GradeMass(g.Severity) >= 2.0 {
+		if g != nil && g.Open && g.Material {
 			open = append(open, g.ID)
 		}
 	}

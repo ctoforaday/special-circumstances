@@ -305,28 +305,30 @@ func requireSupersededAreClosed(run Run) error {
 		len(stranded), strings.Join(stranded, ", "))
 }
 
-// requirePassClosesAllMaterialGaps refuses PASS while any open gap is MATERIAL — current severity
-// at GRADE_MEDIUM or above (plans/roundless.md §III.B.2.1) — at the write path, so no verdict
-// route can bypass it; requireSupersededAreClosed holds the lineage case. A FAIL is always
-// allowed. The chair's work list names exactly these gaps (sitting.go), and dispatch's
-// pass_permitted counts the same ones. Refusing over ANY open gap made "below material does not
-// hold the gate" unreachable: a run minting one trifle per sitting could never pass. An open sub-material gap at PASS stays
-// open on the board and the report lists it as open, below material, not certified against — not
-// auto-disposed, not carried, not accepted; red's finding stays visible and the report says what
-// it was not certified against.
+// requirePassClosesAllMaterialGaps refuses PASS while any open gap is MATERIAL, by the one
+// definition the gap view's "material" column carries: its class is `always`, or its class goes
+// by grade and its current severity is medium or above (IsMaterial). It refuses at the write path,
+// so no verdict route can bypass it; requireSupersededAreClosed holds the lineage case. The
+// chair's work list names exactly these gaps (sitting.go), and dispatch's pass_permitted counts
+// the same ones. An open gap that is not material stays open on the board, not auto-disposed, not
+// carried, not accepted: the chair's PASS lists it by class, on the record, with why it changes no
+// reader decision, and the report lists it as open and not certified against. Refusing over ANY
+// open gap made "not material does not hold the gate" unreachable: a run minting one trifle per
+// sitting could never pass. The 2026-07-20 run recorded PASS with 9 plain open gaps (one HIGH) that
+// no lineage check saw. A FAIL is always allowed here, and unruled motions, the inquiry read and
+// unraised contradictions below hold a PASS whatever is material.
 func requirePassClosesAllMaterialGaps(run Run) error {
 	db, err := openRunForRead(run)
 	if err != nil || db == nil {
 		return err
 	}
-	rows, err := db.Query(`SELECT g."gap_id", COALESCE(gs."mass", 0.0) >= ?
-	  FROM "gap" g LEFT JOIN "enum_grade" gs ON gs."value" = g."current_severity"
-	  WHERE g."open" ORDER BY g."minted_event"`, material)
+	rows, err := db.Query(`SELECT g."gap_id", g."material"
+	  FROM "gap" g WHERE g."open" ORDER BY g."minted_event"`)
 	if err != nil {
 		return fmt.Errorf("record: asking the record for its open gaps: %w", err)
 	}
 	defer rows.Close()
-	var open, trifles []string
+	var open []string
 	for rows.Next() {
 		var id string
 		var isMaterial bool
@@ -335,8 +337,6 @@ func requirePassClosesAllMaterialGaps(run Run) error {
 		}
 		if isMaterial {
 			open = append(open, id)
-		} else {
-			trifles = append(trifles, id)
 		}
 	}
 	if err := rows.Err(); err != nil {
@@ -347,7 +347,6 @@ func requirePassClosesAllMaterialGaps(run Run) error {
 		return fmt.Errorf("record: verdict PASS refused — %d material gap(s) still OPEN: %s. PASS requires every material gap resolved through `close --id <id> --as repaired|defect_accepted|not_a_defect|defect_owed_elsewhere`; close them, or issue `--as FAIL`",
 			len(open), strings.Join(open, ", "))
 	}
-	_ = trifles // below material: on the board, listed by the report, not holding the gate
 
 	m, err := MergedEvents(run)
 	if err != nil {

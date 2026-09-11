@@ -57,7 +57,7 @@ func TestRecordVerificationNamesAViolationAndItsOffender(t *testing.T) {
 			recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
 		},
 		GapOrder: []string{"G1"},
-		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_HIGH}},
+		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_HIGH, Material: true}},
 	}
 	got := recordVerification(b.fam())
 	if !strings.Contains(got, "**FAIL**") {

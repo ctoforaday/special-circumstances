@@ -87,8 +87,10 @@ type SittingJSON struct {
 
 // SittingOf computes what the given seat still owes on this record — the events carry every
 // act, and the gap rows carry the view's answers (openness, the proof debt) so no fold decides
-// them a second time (plans/board-as-views.md wave 1c).
-func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJSON {
+// them a second time (plans/board-as-views.md wave 1c). ids are the events' row ids, aligned with
+// evs: the PASS gate's lens condition compares recorded pins with the report head, both row ids,
+// and the chair's list states that condition from the same fold the gate refuses from.
+func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID string) SittingJSON {
 	s := SittingJSON{Seat: seatID, Role: role, Open: []Item{}}
 	add := func(what string) { s.Open = append(s.Open, Item{What: what, Blocks: true}) }
 
@@ -151,18 +153,34 @@ func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJS
 			add("this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)")
 		}
 	case "chair":
-		// Both of these already REFUSE `verdict --as PASS`. Naming them here is the same list,
-		// arriving when the seat can still act on it rather than at the terminal act — and ONLY the
-		// gaps the gate refuses over. B9's chair was told two below-material gaps refused PASS while
-		// dispatch said pass_permitted and the verdict accepted it; it settled the contradiction by
-		// trying the verdict.
+		// EVERY REFUSAL THE GATE MAKES HAS AN ITEM HERE, AND NOTHING HERE BLOCKS WHAT THE GATE
+		// ADMITS — so `complete` agrees with the gate. Each item is read from what its refusal
+		// reads: the gap view's `stranded` and `material` columns, the motions, the inquiry read,
+		// unansweredContradictions and the lens fold. The FAIL-only convergence refusal has no item:
+		// this list claims nothing about a FAIL. B9's chair was told two gaps that did not hold the
+		// gate refused PASS while dispatch said pass_permitted and the verdict accepted it; it settled
+		// the contradiction by trying the verdict.
 		for _, g := range gaps {
+			if !g.Open {
+				continue
+			}
 			switch {
 			case g.Stranded:
-				add("gap " + g.ID + " is open and superseded — PASS is refused until its minter closes it")
+				// requireSupersededAreClosed refuses EVERY verdict over it, whatever its grade.
+				add("gap " + g.ID + " is open and superseded by " + g.SupersededBy + " — every verdict is refused while it is; close it with `--superseded-by`")
 			case g.Material:
 				add("gap " + g.ID + " is open and material — PASS is refused while it is")
+			default:
+				grade, _ := g.Severity.(string)
+				s.Open = append(s.Open, Item{Blocks: false, What: "gap " + g.ID + " is open and not material (" +
+					notMaterialBecause(g.ClassMaterial, grade) + ") — it does not hold PASS; your PASS lists it by class with why it changes no reader decision"})
 			}
+		}
+		for _, claim := range unansweredContradictions(evs) {
+			add("red read a source that contradicts or does not support the claim " + fmt.Sprintf("%q", claim) + " and no finding raises it — PASS is refused until one does")
+		}
+		for _, st := range lensGateOf(evs, ids).statements() {
+			add(st)
 		}
 		// THE VIEW NAMES THE GAVEL BECAUSE THE REFUSAL DOES. requirePassClosesAllMaterialGaps refuses
 		// PASS over any unruled motion and says who rules each one; this list said only that the

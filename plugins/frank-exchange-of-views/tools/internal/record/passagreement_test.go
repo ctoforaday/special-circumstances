@@ -50,11 +50,12 @@ func TestAPlanThatReadiesNobodyPrintsItsListsAsLists(t *testing.T) {
 	}
 }
 
-// passItems is the chair's blocking items that name a gap refusing PASS.
+// passItems is the chair's blocking items that name a gap refusing PASS: a material gap refuses
+// PASS, a stranded one every verdict.
 func passItems(s SittingJSON) []string {
 	var out []string
 	for _, it := range s.Open {
-		if it.Blocks && strings.Contains(it.What, "PASS is refused") {
+		if it.Blocks && strings.HasPrefix(it.What, "gap ") && strings.Contains(it.What, " is refused") {
 			out = append(out, it.What)
 		}
 	}

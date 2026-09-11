@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // HarnessSeat is the seat the harness itself writes under — the cast at setup, the sitting span
@@ -36,6 +38,19 @@ func CastFor(areas []string, lanes int) []string {
 		out = append(out, fmt.Sprintf("blue-lane-%d", i))
 	}
 	return append(out, "blue-synthesize", "blue-respond", "frontier", "judge", "judge-terminal", "assemble")
+}
+
+// castOfEvents is CastOf read off a stream already in hand: the seats of the LAST cast event, or
+// nil when the stream holds none — the same answer as the cast table, for a fold that holds only
+// the events.
+func castOfEvents(evs []*Event) []string {
+	var out []string
+	for _, e := range evs {
+		if c, ok := recordpb.BodyAs[*recordpb.Cast](e); ok {
+			out = append([]string{}, c.GetSeatIds()...)
+		}
+	}
+	return out
 }
 
 // CastOf is the run's admissible seats — the Cast event setup wrote under `harness` before any

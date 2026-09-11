@@ -757,7 +757,7 @@ Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_wit
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §15
 
-OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}]},open:[{id,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,edited_since:[{epoch,edited_by,old,new}],problem_synopsis,check_kind,awaiting_proof,awaiting_docket,docket_reopens_on,found_by:[string]}],closed_index:[{id,location,about_kind,about_ref,class,fate,closed_by,artifact_state}],counts:{open,closed},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
+OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}]},open:[{id,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,edited_since:[{epoch,edited_by,old,new}],problem_synopsis,check_kind,awaiting_proof,awaiting_docket,docket_reopens_on,found_by:[string],material}],closed_index:[{id,location,about_kind,about_ref,class,fate,closed_by,artifact_state}],counts:{open,closed},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
 
 Usage:
   feov-record show work [flags]
@@ -1717,7 +1717,7 @@ Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_wit
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §18
 
-OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}]},open:[{id,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,edited_since:[{epoch,edited_by,old,new}],problem_synopsis,check_kind,awaiting_proof,awaiting_docket,docket_reopens_on,found_by:[string]}],closed_index:[{id,location,about_kind,about_ref,class,fate,closed_by,artifact_state}],counts:{open,closed},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
+OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}]},open:[{id,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,edited_since:[{epoch,edited_by,old,new}],problem_synopsis,check_kind,awaiting_proof,awaiting_docket,docket_reopens_on,found_by:[string],material}],closed_index:[{id,location,about_kind,about_ref,class,fate,closed_by,artifact_state}],counts:{open,closed},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
 
 Usage:
   feov-record show work [flags]

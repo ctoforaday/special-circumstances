@@ -498,9 +498,10 @@ var Now = func() time.Time { return time.Now().UTC() }
 // Migrating is set by `feov-record migrate` while it re-drives an archived record through this
 // write path (plans/roundless.md §III.A.5). Every STRUCTURAL refusal stays on — a reference to a
 // gap nobody minted, a second cast, a seat outside the cast — because a migrated record must be a
-// record. The refusals that shape LIVE behaviour are gated off: the convergence refusal on a FAIL
-// and the every-lens-sat refusal on a PASS judge what a seat may do NEXT, and an archived gate is
-// what a seat DID. Refusing it would drop a real event and call the loss a translation.
+// record. The refusals that shape LIVE behaviour are gated off: the convergence refusal on a FAIL,
+// and the material-gap and every-lens-sat refusals on a PASS, judge what a seat may do NEXT, and an
+// archived gate is what a seat DID. Refusing it would drop a real event and call the loss a
+// translation.
 var Migrating bool
 
 // stamp formats an event time at NANOSECOND precision.
@@ -1193,11 +1194,15 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 				return err
 			}
 		}
-		if b.GetVerdict() == recordpb.Verdict_VERDICT_PASS {
+		if b.GetVerdict() == recordpb.Verdict_VERDICT_PASS && !Migrating {
+			// NOT UNDER A MIGRATION (gblock, 2026-09-11). Migrate translates history; it does not
+			// re-judge an archived PASS under a materiality rule that did not exist when the PASS
+			// was issued. The archived b9 run's PASS stands over a gap its class now makes material,
+			// and refusing it would drop a real event and call the loss a translation.
 			if err := requirePassClosesAllMaterialGaps(run); err != nil {
 				return err
 			}
-			if !Migrating {
+			{
 				if err := requireEveryCastLensSatAgainstHead(run); err != nil {
 					return err
 				}
