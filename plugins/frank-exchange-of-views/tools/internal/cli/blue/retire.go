@@ -1,11 +1,16 @@
 package blue
 
 import (
+	"fmt"
+	"slices"
+	"sort"
+	"strings"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
-	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -43,6 +48,7 @@ import (
 // record and the report, never typed by a seat), and replay takes them out at this
 // event. Edit still PERFORMS the removal of prose; retire EXPLAINS it and closes it.
 func newRetire() *cobra.Command {
+	var named flags.CSV
 	c := seat.Prose(seat.New("retire", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
@@ -74,7 +80,7 @@ func newRetire() *cobra.Command {
 		// silent deletion.
 		claim := seat.Str(cmd, flags.Quote)
 		basis := record.RemovalAsserted
-		var kept []keptAnchor
+		var kept, stayed []keptAnchor
 		if md, rerr := reportproj.RenderFromRecord(run); rerr == nil {
 			if strings.Contains(md, claim) {
 				return nil, feov.Errorf(feov.Conflict,
@@ -94,24 +100,99 @@ func newRetire() *cobra.Command {
 				return nil, err
 			}
 			exiting := anchorsExiting(md, claim, spans)
+			// A MARKER INSIDE A SENTENCE IS NEVER BARE: when the claim was a clause, the rest of the
+			// sentence still stands before its marker. The seat names it, and the tool checks the name
+			// against the edit that left the marker alone. B9's G4 was two retires that took nothing
+			// and said nothing, over a corroboration marker on a mid-sentence clause.
+			left := leftByTheCut(claim, spans)
+			for _, id := range named.Value() {
+				if err := namedExits(md, id, left, spans); err != nil {
+					return nil, err
+				}
+				if !slices.Contains(exiting, id) {
+					exiting = append(exiting, id)
+				}
+			}
 			if len(exiting) > 0 {
 				basis = record.RemovalVerified // the edit that left them bare shows the claim leaving
 			}
 			if body.Anchors, kept, err = takeable(run, exiting); err != nil {
 				return nil, err
 			}
+			stayed = stayedBehind(md, left, exiting)
 		}
 		body.RemovalBasis = proto.String(basis)
 
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		return retireResult{Claim: seat.Str(cmd, flags.Quote), Anchors: body.Anchors, Kept: kept}, nil
+		return retireResult{Claim: seat.Str(cmd, flags.Quote), Anchors: body.Anchors, Kept: kept, Stayed: stayed}, nil
 	}))
 
 	flags.Text(c, flags.Quote, flags.DescQuote+" — the claim being removed, as it stood before you edited it out")
 	flags.Text(c, flags.New, "the claim that replaces it, when one does")
+	c.Flags().Var(&named, flags.Anchor, "a marker the edit left inside a sentence that backed only this claim (c-…, p-… or f-…; comma-separated) — it leaves with the claim")
 	return c
+}
+
+// leftByTheCut is every marker an edit that took this claim out left behind in an anchors-only
+// span, with the position of the last such edit — the same match anchorsExiting reads.
+func leftByTheCut(claim string, spans []record.EditSpan) map[string]int {
+	out := map[string]int{}
+	want := quoteCore(claim)
+	if want == "" {
+		return out
+	}
+	for i, sp := range spans {
+		ids := claimcount.ProtectedAnchorIDs(sp.New)
+		if len(ids) == 0 || claimcount.HasProse(sp.New) || quoteCore(sp.Old) != want {
+			continue
+		}
+		for _, id := range ids {
+			out[id] = i
+		}
+	}
+	return out
+}
+
+// namedExits checks a marker the seat named against what the cut left: it stands in the report,
+// an edit that took this claim out left it on its own, and no LATER edit put it back into prose —
+// a marker re-attached to text backs that text now, and leaves only with it.
+func namedExits(md, id string, left map[string]int, spans []record.EditSpan) error {
+	if err := flags.AnchorID().Set(id); err != nil {
+		return fmt.Errorf("blue retire --anchor %s: %w", id, err)
+	}
+	tok := anchor.Token(id)
+	if !strings.Contains(md, tok) {
+		return feov.Errorf(feov.Validation, "blue retire --anchor %s: the report holds no %s — name a marker that stands where the claim was", id, tok)
+	}
+	i, ok := left[id]
+	if !ok {
+		return feov.Errorf(feov.Validation, "blue retire --anchor %s: no edit that took this claim out left %s on its own — `edit` the claim down to its markers first, then retire it naming the one that backed only it", id, tok)
+	}
+	for _, sp := range spans[i+1:] {
+		if strings.Contains(sp.New, tok) && claimcount.HasProse(sp.New) {
+			return feov.Errorf(feov.Validation, "blue retire --anchor %s: a later edit put %s back into prose — it backs that text now, and leaves only with it", id, tok)
+		}
+	}
+	return nil
+}
+
+// stayedBehind is every marker the cut left that still stands and is not leaving, said — so a
+// retire that took nothing cannot read the same as one that took everything.
+func stayedBehind(md string, left map[string]int, exiting []string) []keptAnchor {
+	var ids []string
+	for id := range left {
+		if !slices.Contains(exiting, id) && strings.Contains(md, anchor.Token(id)) {
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+	out := make([]keptAnchor, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, keptAnchor{ID: id, Why: "prose stands before it in its sentence, so it is not counted bare — if it backed only the claim that left, name it with --anchor"})
+	}
+	return out
 }
 
 // anchorsExiting names the anchors that leave the report with a retired claim: those an edit
@@ -204,6 +285,7 @@ type retireResult struct {
 	Claim   string       `json:"claim"`
 	Anchors []string     `json:"anchors,omitempty"`
 	Kept    []keptAnchor `json:"kept,omitempty"`
+	Stayed  []keptAnchor `json:"stayed,omitempty"`
 }
 
 func (r retireResult) Human() string {
@@ -213,6 +295,9 @@ func (r retireResult) Human() string {
 	}
 	for _, k := range r.Kept {
 		out += "\nanchor kept: " + k.ID + " — " + k.Why
+	}
+	for _, k := range r.Stayed {
+		out += "\nanchor stayed: " + k.ID + " — " + k.Why
 	}
 	return out
 }
