@@ -65,6 +65,30 @@ func TestTheReportShowsACorrectedActStruck(t *testing.T) {
 	}
 }
 
+// JUDGMENTS SHOW A CORRECTED RULING STRUCK, then the ruling that stands — the answer is the
+// corrected one, and the struck wording is not hidden behind it.
+func TestJudgmentsShowACorrectedRulingStruck(t *testing.T) {
+	ruling := func(opinion string) *recordpb.MotionRule {
+		return &recordpb.MotionRule{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+			Opinion: proto.String(opinion),
+			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED), Principle: proto.String("p"),
+				Tension: proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s"), ReopensOn: proto.String("r")}}}
+	}
+	evs := []*record.Event{
+		recordtest.At(t, "red-chair", "red-chair:motion:#1", &recordpb.Motion{MotionId: proto.String("M1"),
+			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET), Basis: proto.String("red cannot settle G1"),
+			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}),
+	}
+	evs = append(evs, corrected(t, "judge", "judge:motion_rule:#1", ruling("because  refuses"), ruling("because the gate refuses"))...)
+	got := motions((&boardT{Events: evs}).fam())
+	struck := strings.Index(got, "~~ruled by judge — because  refuses~~ (struck by judge: a word was lost)")
+	stands := strings.Index(got, "because the gate refuses")
+	if struck < 0 || stands < 0 || stands < struck {
+		t.Errorf("judgments must show the struck ruling, marked, and then the ruling that stands:\n%s", got)
+	}
+}
+
 // A CORRECTION TAKES ITS TARGET'S PLACE (F12). The judge records outcome #1, then #2, then corrects
 // #1: the terminal outcome is still #2. Read in raw order, #1's replacement is the last outcome on
 // the record and would be taken for the run's ending.

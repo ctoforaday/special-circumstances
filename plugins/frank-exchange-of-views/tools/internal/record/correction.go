@@ -249,9 +249,17 @@ func LabelFlag(typ recordpb.EventType) string {
 // flagOf is the word a seat types for a field: the field's own `(sql).flag` when it declares one,
 // else the payload-key map, which knows that a gap id is typed --id and a status --as. (FlagFor's
 // fallback is the field name itself, which would name --gap-id — a flag no verb has.)
+//
+// AN ENUM ARM OF A ONEOF IS TYPED --as. A ruling's word lands on MotionRule.grade, .petition or
+// .direction — one arm per subject — and every one of them is set through --as; named by its field,
+// a refusal would send the seat to --petition, which no verb has. They are the only enum oneof arms
+// on a correctable body.
 func flagOf(fd protoreflect.FieldDescriptor) string {
 	if o, _ := proto.GetExtension(fd.Options(), recordpb.E_Sql).(*recordpb.Sql); o.GetFlag() != "" {
 		return o.GetFlag()
+	}
+	if fd.ContainingOneof() != nil && fd.Enum() != nil {
+		return flags.As
 	}
 	return flags.ForPayloadKey(string(fd.Name()))
 }

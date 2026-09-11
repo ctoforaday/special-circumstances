@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // ONE SECTION FOR EVERY ADJUDICATED EXCHANGE, joined on the motion id (#344).
@@ -28,8 +29,9 @@ func motions(fam record.Family) string {
 	}
 	var rows []string
 	unruled := 0
+	struckRulings, struckAppeals := struckAnswers(fam)
 	for _, m := range ms {
-		rows = append(rows, motionRow(m, &unruled))
+		rows = append(rows, motionRow(m, &unruled, struckRulings[m.ID], struckAppeals[m.ID]))
 	}
 	out := "## Motions\n\nEvery contested question and how it was answered: grade disputes, petitions, and rulings on proposed directions. One mechanism, one id — an ask and its answer are one row.\n\n" +
 		strings.Join(rows, "\n")
@@ -39,7 +41,28 @@ func motions(fam record.Family) string {
 	return out
 }
 
-func motionRow(m *record.Motion, unruled *int) string {
+// struckAnswers are the rulings and appeals a seat corrected in the sitting that wrote them, per
+// motion, each rendered struck with who struck it and why. record.Motions answers with the act that
+// stands; these are the acts it replaced, which a reader must still see — struck, never hidden.
+func struckAnswers(fam record.Family) (rulings, appeals map[string][]string) {
+	rulings, appeals = map[string][]string{}, map[string][]string{}
+	for _, l := range fam.Listing() {
+		if l.Struck == nil {
+			continue
+		}
+		if r, ok := recordpb.BodyAs[*recordpb.MotionRule](l.Event); ok {
+			rulings[r.GetMotionId()] = append(rulings[r.GetMotionId()],
+				"\n  - "+l.Markdown(fmt.Sprintf("ruled by %s — %s", l.GetSeatId(), r.GetOpinion())))
+		}
+		if a, ok := recordpb.BodyAs[*recordpb.MotionAppeal](l.Event); ok {
+			appeals[a.GetMotionId()] = append(appeals[a.GetMotionId()],
+				"\n  - "+l.Markdown("appealed — "+a.GetReason()))
+		}
+	}
+	return rulings, appeals
+}
+
+func motionRow(m *record.Motion, unruled *int, struckRulings, struckAppeals []string) string {
 	var b strings.Builder
 	filer := m.Filer
 	if filer == "" {
@@ -53,6 +76,9 @@ func motionRow(m *record.Motion, unruled *int) string {
 		// The OPERATIVE half of a granted ruling, distinct from the reasoning (#330).
 		fmt.Fprintf(&b, "\n  - relief sought: %s", m.Relief)
 	}
+	for _, s := range struckRulings {
+		b.WriteString(s)
+	}
 	if m.Ruled() {
 		fmt.Fprintf(&b, "\n  - **ruled %s** by %s #%d", m.Ruling, m.RulingBy, m.RulingSitting)
 		if m.Opinion != "" {
@@ -64,6 +90,9 @@ func motionRow(m *record.Motion, unruled *int) string {
 		// unless it is said.
 		*unruled++
 		b.WriteString("\n  - **NOT RULED.** The ask is on the record and no answer is.")
+	}
+	for _, s := range struckAppeals {
+		b.WriteString(s)
 	}
 	if m.Appealed {
 		fmt.Fprintf(&b, "\n  - **appealed** — the filer pressed on after the ruling: %s", m.AppealReason)

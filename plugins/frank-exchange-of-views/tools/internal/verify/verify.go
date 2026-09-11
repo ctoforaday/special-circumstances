@@ -86,7 +86,50 @@ func Run(f record.Family) []Check {
 		passClosesAllGaps(f),
 		registerBeforeAppend(f),
 		archiveSpotCheckFloor(f),
+		correctionsResolve(f),
 	}
+}
+
+// correctionsResolve: every same-sitting correction names an act this record carries and a
+// replacement this record carries, both of one type and written by the seat that corrected
+// (plans/same-sitting-correction.md). A correction whose halves do not resolve is a strike with
+// nothing in its place, or a replacement nothing marks as one — and every reader would render it
+// wrongly without saying so. Whether the SQL views and the Go overlay agree about the pairs is the
+// consistency oracle's question; this one asks whether the pairs exist at all.
+func correctionsResolve(f record.Family) Check {
+	byKey := map[string]*record.Event{}
+	for _, e := range f.Events {
+		if k := e.GetKey(); k != "" {
+			byKey[k] = e
+		}
+	}
+	var violations []string
+	n := 0
+	for _, e := range f.Events {
+		c, ok := recordpb.BodyAs[*recordpb.Correction](e)
+		if !ok {
+			continue
+		}
+		n++
+		target, replacement := byKey[c.GetCorrects()], byKey[c.GetReplacement()]
+		switch {
+		case target == nil:
+			violations = append(violations, fmt.Sprintf("%s strikes %s, which this record does not carry", e.GetKey(), c.GetCorrects()))
+		case replacement == nil:
+			violations = append(violations, fmt.Sprintf("%s names replacement %s, which this record does not carry", e.GetKey(), c.GetReplacement()))
+		case target.GetType() != replacement.GetType():
+			violations = append(violations, fmt.Sprintf("%s replaces a %s with a %s", e.GetKey(), recordpb.Word(target.GetType()), recordpb.Word(replacement.GetType())))
+		case target.GetSeatId() != e.GetSeatId() || replacement.GetSeatId() != e.GetSeatId():
+			violations = append(violations, fmt.Sprintf("%s was made by %s over an act by %s and a replacement by %s", e.GetKey(), e.GetSeatId(), target.GetSeatId(), replacement.GetSeatId()))
+		}
+	}
+	if n == 0 {
+		return Check{Name: "corrections-resolve", OK: true, NA: true, Detail: "no same-sitting correction on the record"}
+	}
+	return result("corrections-resolve",
+		fmt.Sprintf("every correction (%d) names an act and a replacement this record carries, of one type, by the seat that corrected", n),
+		"a correction does not resolve — a reader would render a strike with nothing in its place, or a replacement nothing marks as one",
+		violations)
 }
 
 // archiveSpotCheckFloor: W1.8, enforced at last from the board rather than reported by the seat.
