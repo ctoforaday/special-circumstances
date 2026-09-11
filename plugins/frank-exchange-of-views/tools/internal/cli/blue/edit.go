@@ -1,6 +1,7 @@
 package blue
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -8,7 +9,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -120,8 +120,16 @@ func newEdit() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		planned, err := validateEdit(peek, oldStr, newStr)
+		planned, exact, err := validateEdit(peek, oldStr, newStr)
 		if err != nil {
+			// A PRESCRIPTION THAT CHANGES NOTHING IS NOT STALE. `lens mint` now refuses to verify one,
+			// but a gap minted before it did can still carry one, and calling it stale would send blue
+			// to hunt for a change in the report that never happened.
+			if accepting && errors.Is(err, reportproj.ErrNoChange) {
+				return nil, fmt.Errorf("blue edit --accept: the fix recorded on %s changes nothing — applied to the report as it stands, "+
+					"it leaves every byte where it is (%w). There is nothing to accept. If the defect red named is still there, write the "+
+					"edit yourself with --quote and --new; if it is not, argue that on the gap", gapID, err)
+			}
 			// THE ORDINARY PATH'S ADVICE IS UNACTIONABLE HERE. Those refusals tell blue to adjust
 			// --quote or to copy an anchor into --new, and an accepting caller passes neither. The
 			// commonest is settleAbuttingAnchor's: blue placed a citation anchor against the span
@@ -148,6 +156,12 @@ func newEdit() *cobra.Command {
 			// Computed from the SNAPSHOT the validation used, not from a re-read: the write
 			// has not happened yet, and a second read could see a different document.
 			Reopened: bluedoc.ReopenedAnchors(peek, planned),
+		}
+		// THE LITERAL SPAN, RECORDED. Replay cannot re-derive this choice — an edit recorded before
+		// the field existed, whose trimmed span was a no-op, must still replay as one — so the event
+		// says which span it replaced. Absent, not false, on every ordinary edit.
+		if exact {
+			body.ExactSpan = proto.Bool(true)
 		}
 		// ESTOPPEL, RECORDED BY THE TOOL COMPARING BYTES (#267 stage 4).
 		//
@@ -198,11 +212,10 @@ func newEdit() *cobra.Command {
 // part only blue does: the SPLICE. Under report-as-record no file is written — the BlueEdit event
 // IS the mutation and reportproj.Render replays this same splice. The validation peek reuses this
 // via validateEdit. Fuzzed directly (edit_fuzz_test.go).
-func planEdit(report, old, new string) (string, error) {
-	start, end, err := bluedoc.LocateUniqueReplacing("blue edit", report, old)
-	if err != nil {
-		return "", err
-	}
+//
+// exact reports that the edit took the quote AS WRITTEN rather than the trimmed span — the
+// decision reportproj.PlanSplice makes, which the caller records as exact_span.
+func planEdit(report, old, new string) (string, bool, error) {
 	// ANCHORS MAY TRANSIT AN EDIT — but never be created, destroyed or duplicated by one.
 	//
 	// This guard used to REJECT any span containing an anchor ("edit around it"). Combined with
@@ -211,71 +224,43 @@ func planEdit(report, old, new string) (string, error) {
 	// ambiguous and the contextual quote is refused as anchor-spanning. The anchored occurrence —
 	// the one red actually flagged — becomes uneditable, while the unanchored one edits fine. And
 	// 71% of anchored quotes in the smoke had their anchor mid-span, so this is the common shape,
-	// not a corner.
-	if err := bluedoc.AnchorsTransitUnchanged("blue edit", report[start:end], new); err != nil {
-		return "", err
+	// not a corner. PlanSplice runs AnchorsTransitUnchanged on whichever span it takes.
+	next, exact, err := reportproj.PlanSplice("blue edit", report, old, new)
+	if err != nil {
+		return "", false, err
 	}
-	next := reportproj.ApplySplice(report, start, end, new)
 	if dropped := droppedMarker(report, next); dropped != "" {
-		return "", fmt.Errorf("blue edit: internal error — this edit would drop %s (report unchanged)", anchor.Label(dropped))
+		return "", false, fmt.Errorf("blue edit: internal error — this edit would drop %s (report unchanged)", anchor.Label(dropped))
 	}
-	return next, nil
+	return next, exact, nil
 }
 
 // validateEdit rejects a mis-quote or a marker-spanning edit against a snapshot, WITHOUT
 // mutating — so no event is recorded for an edit that cannot apply. It RETURNS the planned
 // document so the caller can record what this edit reopens, computed from the same snapshot the
-// validation used rather than from a re-read that may have moved.
-func validateEdit(report, old, new string) (string, error) {
-	planned, err := planEdit(report, old, new)
+// validation used rather than from a re-read that may have moved, and whether the edit took the
+// literal span, which the caller records as exact_span.
+//
+// AN EDIT THAT CHANGES NOTHING IS REFUSED (reportproj.ErrNoChange, raised by PlanSplice), for the
+// reason identical --quote and --new already are — but this one gets past that check. Measured in
+// #861's arm-B rerun: blue quoted `on their own.).` to drop the stray period, the trim left that
+// period OUTSIDE the span, the span was replaced with itself, and the verb said "blue edit
+// recorded". That shape now takes the literal span and applies; what still reaches the refusal is
+// a no-op the literal quote cannot rescue, and the refusal says which kind it is.
+func validateEdit(report, old, new string) (string, bool, error) {
+	planned, exact, err := planEdit(report, old, new)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
-	if run := doubledTerminator(report, planned); run != "" {
-		return "", fmt.Errorf("blue edit: this replacement would leave %q in the report — a punctuation run the document did not have. "+
-			"A quote's TRAILING punctuation is trimmed before the span is located, so the span your --old names stops SHORT of the "+
+	if run := reportproj.DoubledTerminator(report, planned); run != "" {
+		return "", false, fmt.Errorf("blue edit: this replacement would leave %q in the report — a punctuation run the document did not have. "+
+			"A quote's TRAILING punctuation is trimmed before the span is located, so the span your --quote names stops SHORT of the "+
 			"terminator; replacing it with text that carries its own terminator leaves the original one standing after it. This is "+
-			"how a repair makes the document strictly worse while reading as applied. Extend --old through the punctuation you mean "+
-			"to replace, or leave the terminator out of --new", run)
+			"how a repair makes the document strictly worse while reading as applied. The quote as written, punctuation included, "+
+			"is used instead only when it occurs exactly once in the report: quote it exactly as the report prints it, with enough "+
+			"of the text before it to be unique, or leave the terminator out of --new", run)
 	}
-	return planned, nil
-}
-
-// doubledTerminator names a punctuation run the edit would CREATE and the report did not have.
-//
-// MEASURED, and it is the shape this check exists for. In research/2026-09-02_quadratic-formula
-// (blue-respond) red minted a punctuation repair with a `verified` fix basis, blue applied the
-// text verbatim, and the site went from a doubled terminator `."."` to a TRIPLED one `."."."`.
-// The same happened to two of blue's own edits in that sitting. All three were invisible until
-// blue re-ran red's acceptance check against the shipped document — the verb exited 0 every time.
-//
-// It compares RUNS RATHER THAN COUNTS so ordinary prose cannot trip it: a document may legitimately
-// gain a "?!" or an ellipsis. What it refuses is a run LONGER than any the document already had,
-// which is the signature of a terminator landing beside one rather than on top of it.
-func doubledTerminator(before, after string) string {
-	worst := func(s string) string {
-		longest := ""
-		for i := 0; i < len(s); {
-			j := i
-			for j < len(s) && strings.ContainsRune(anchortext.TrailingPunct, rune(s[j])) {
-				j++
-			}
-			if j-i > len(longest) {
-				longest = s[i:j]
-			}
-			if j == i {
-				i++
-			} else {
-				i = j
-			}
-		}
-		return longest
-	}
-	got := worst(after)
-	if len(got) > len(worst(before)) {
-		return got
-	}
-	return ""
+	return planned, exact, nil
 }
 
 // droppedMarker returns an immortal-anchor id (finding OR citation) present in before but

@@ -17,7 +17,8 @@ import (
 // record order. Five verbs mutate the report, and each replays through the SAME transform it
 // applied at write time, located by the SAME rule:
 //
-//   - blue edit       → a splice (old→new), located by bluedoc.LocateUniqueReplacing (spliceMut).
+//   - blue edit       → a splice (old→new), located by bluedoc.LocateUniqueReplacing, or by
+//                       bluedoc.LocateLiteral when the event recorded exact_span (spliceMut).
 //   - blue cite       → a citation marker spliced at the quoted sentence (insertMut).
 //   - blue prove      → a proof marker, likewise.
 //   - lens finding    → a finding marker, recorded as an Anchor event (its Finding sibling is
@@ -50,7 +51,12 @@ func ApplySplice(report string, start, end int, new string) string {
 // Op is one recorded splice from the diff-stack: the (old, new) of a BlueEdit event. Render takes
 // plain strings rather than *recordpb.BlueEdit so callers testing the edit path need not build the
 // record schema — the record-aware path is RenderFromRecord.
-type Op struct{ Old, New string }
+type Op struct {
+	Old, New string
+	// Exact is the edit's exact_span: Old is located as written (bluedoc.LocateLiteral) rather
+	// than by the ordinary trimming locate. False replays exactly as every edit did before it existed.
+	Exact bool
+}
 
 // Render reproduces a report from a base and an ordered splice stack. It is the edit-only surface
 // blue edit's fidelity tests drive against planEdit; RenderFromRecord composes the full event
@@ -58,7 +64,7 @@ type Op struct{ Old, New string }
 func Render(base string, ops []Op) (string, error) {
 	text := base
 	for i, op := range ops {
-		next, err := (spliceMut{old: op.Old, new: op.New}).apply(text)
+		next, err := (spliceMut{old: op.Old, new: op.New, exact: op.Exact}).apply(text)
 		if err != nil {
 			return "", fmt.Errorf("render: replaying edit %d of %d: %w", i+1, len(ops), err)
 		}
@@ -75,9 +81,22 @@ type mutation interface {
 	describe() string
 }
 
-type spliceMut struct{ old, new string }
+type spliceMut struct {
+	old, new string
+	exact    bool
+}
 
 func (m spliceMut) apply(text string) (string, error) {
+	if m.exact {
+		// RECORDED AT WRITE TIME, NEVER RE-DECIDED HERE: the edit took the literal span, so replay
+		// takes it too. Re-running PlanSplice's choice would also choose literal spans for events
+		// written before exact_span existed, and those must replay as they always have.
+		start, end, n, ok := bluedoc.LocateLiteral(text, m.old)
+		if !ok {
+			return "", fmt.Errorf("render: an exact-span edit's quote occurs %d time(s) in the running report, where it was written against exactly one", n)
+		}
+		return ApplySplice(text, start, end, m.new), nil
+	}
 	start, end, err := bluedoc.LocateUniqueReplacing("render", text, m.old)
 	if err != nil {
 		return "", err
@@ -85,7 +104,12 @@ func (m spliceMut) apply(text string) (string, error) {
 	return ApplySplice(text, start, end, m.new), nil
 }
 
-func (m spliceMut) describe() string { return fmt.Sprintf("edit %q→%q", m.old, m.new) }
+func (m spliceMut) describe() string {
+	if m.exact {
+		return fmt.Sprintf("exact-span edit %q→%q", m.old, m.new)
+	}
+	return fmt.Sprintf("edit %q→%q", m.old, m.new)
+}
 
 type insertMut struct{ location, marker string }
 
@@ -276,7 +300,7 @@ func RenderFromRecord(run record.Run) (string, error) {
 func mutationOf(op record.ReportOp) (mutation, error) {
 	switch op.Kind {
 	case "edit":
-		return spliceMut{old: op.A, new: op.B}, nil
+		return spliceMut{old: op.A, new: op.B, exact: op.Exact}, nil
 	case "insert":
 		return insertMut{location: op.A, marker: anchor.Token(op.B)}, nil
 	case "remove":

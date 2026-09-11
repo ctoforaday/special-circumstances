@@ -4326,7 +4326,17 @@ type BlueEdit struct {
 	// The distinction is also a difference in kind, not degree: on the accept path the tool
 	// supplied the bytes, so verbatim-ness is structural. On the ordinary path it is the outcome
 	// of a comparison that a stray space would have failed.
-	Accepted      *bool `protobuf:"varint,8,opt,name=accepted,proto3,oneof" json:"accepted,omitempty"`
+	Accepted *bool `protobuf:"varint,8,opt,name=accepted,proto3,oneof" json:"accepted,omitempty"`
+	// exact_span — this edit replaced `old` AS WRITTEN, trailing punctuation included, rather than
+	// the span the ordinary locate finds.
+	//
+	// The ordinary locate trims a quote's trailing punctuation, so a repair confined to that
+	// punctuation (`on their own.).` → `on their own.)`) replaces a span with itself, and one that
+	// changes a terminator leaves the old one standing beside the new. When that happens and the
+	// quote occurs byte-for-byte exactly once, the edit takes the literal span instead — and the
+	// choice is RECORDED, because replay cannot re-derive it: an event written before this field
+	// existed, whose trimmed span was a no-op, must still replay as one.
+	ExactSpan     *bool `protobuf:"varint,9,opt,name=exact_span,json=exactSpan,proto3,oneof" json:"exact_span,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4413,6 +4423,13 @@ func (x *BlueEdit) GetReopened() []string {
 func (x *BlueEdit) GetAccepted() bool {
 	if x != nil && x.Accepted != nil {
 		return *x.Accepted
+	}
+	return false
+}
+
+func (x *BlueEdit) GetExactSpan() bool {
+	if x != nil && x.ExactSpan != nil {
+		return *x.ExactSpan
 	}
 	return false
 }
@@ -6671,7 +6688,7 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"BaseIngest\x12\x17\n" +
 	"\x04text\x18\x01 \x01(\tH\x00R\x04text\x88\x01\x01B\a\n" +
-	"\x05_text\"\xd1\x02\n" +
+	"\x05_text\"\x84\x03\n" +
 	"\bBlueEdit\x12\x1e\n" +
 	"\bedit_key\x18\x01 \x01(\tH\x00R\aeditKey\x88\x01\x01\x12\x1d\n" +
 	"\aanswers\x18\x02 \x01(\tH\x01R\aanswers\x88\x01\x01\x12\x15\n" +
@@ -6680,7 +6697,9 @@ const file_record_proto_rawDesc = "" +
 	"\x04text\x18\x05 \x01(\tH\x04R\x04text\x88\x01\x01\x12.\n" +
 	"\x10applied_verbatim\x18\x06 \x01(\bH\x05R\x0fappliedVerbatim\x88\x01\x01\x12\x1a\n" +
 	"\breopened\x18\a \x03(\tR\breopened\x12\x1f\n" +
-	"\baccepted\x18\b \x01(\bH\x06R\baccepted\x88\x01\x01B\v\n" +
+	"\baccepted\x18\b \x01(\bH\x06R\baccepted\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"exact_span\x18\t \x01(\bH\aR\texactSpan\x88\x01\x01B\v\n" +
 	"\t_edit_keyB\n" +
 	"\n" +
 	"\b_answersB\x06\n" +
@@ -6688,7 +6707,8 @@ const file_record_proto_rawDesc = "" +
 	"\x04_newB\a\n" +
 	"\x05_textB\x13\n" +
 	"\x11_applied_verbatimB\v\n" +
-	"\t_accepted\",\n" +
+	"\t_acceptedB\r\n" +
+	"\v_exact_span\",\n" +
 	"\bRevision\x12\x17\n" +
 	"\x04text\x18\x01 \x01(\tH\x00R\x04text\x88\x01\x01B\a\n" +
 	"\x05_text\"\xbc\x03\n" +

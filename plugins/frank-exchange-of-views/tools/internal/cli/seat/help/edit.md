@@ -25,4 +25,8 @@ An anchor INSIDE the text you are replacing must be copied verbatim into the rep
 
 Quote enough context that the span matches exactly ONE place, or the edit is refused as ambiguous rather than applied to the wrong site.
 
+REPAIRING PUNCTUATION. Because a quote's trailing punctuation is trimmed before the span is located, a repair confined to that punctuation — dropping a stray period, changing a terminator — would land on the span without it. When the trimmed span would change nothing, or would leave the old terminator standing beside the new one, the tool uses your quote exactly as written instead, punctuation included — provided it occurs byte-for-byte exactly once in the report. So quote the punctuation as the report prints it, anchors and spacing included; this works at the end of the document too.
+
+AN EDIT THAT CHANGES NOTHING IS REFUSED, and nothing is recorded: the refusal says whether the punctuation trim was the cause. The same holds when taking red's fix — a prescription that would leave the report as it is is refused as changing nothing, which is different from a prescription the report has moved away from.
+
 WHAT MAY BE IN THE REPORT AT ALL: research prose written for a reader of the SUBJECT, and the markers this tool places. Nothing else — no provenance or attribution tags, no notes to another seat, no argument about the run, no narration of how the report was made. A fact that LIMITS THE CONCLUSION stays, re-voiced as a limit on the answer rather than a story about the attempt. Operational facts go to `log`, arguments to `position` or `closing`. The same rule is stated on every verb whose text the report prints: this one, `ingest`, and `line-of-inquiry propose` and `move`.

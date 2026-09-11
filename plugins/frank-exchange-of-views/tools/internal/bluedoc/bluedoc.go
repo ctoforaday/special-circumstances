@@ -78,6 +78,36 @@ func LocateUniqueReplacing(verb, report, old string) (int, int, error) {
 	return start, end, nil
 }
 
+// LocateLiteral resolves `old` BYTE FOR BYTE: no whitespace folding, no skipping of the anchor
+// layer, and no trimming of trailing punctuation. It is the locate behind an edit recorded with
+// exact_span, and the one replay uses for it, so the two cannot disagree about where it lands.
+//
+// It answers `found` rather than erroring on a miss or a repeat because its callers use it as a
+// FALLBACK — the ordinary locate has already succeeded, and what they need to say about a
+// literal quote that does not stand in is part of a larger message. count is how many times the
+// literal quote occurs; a span is returned only when that is exactly one and the span splits no
+// word. A replay caller treats anything else as the loud failure it is.
+//
+// The quote's LEADING AND TRAILING WHITESPACE is not part of the span, exactly as in the ordinary
+// locate: a seat that copies a line with its newline means the line, and a literal span that
+// swallowed the newline would join it to the next one.
+func LocateLiteral(report, old string) (start, end, count int, ok bool) {
+	old = strings.TrimSpace(old)
+	if old == "" {
+		return 0, 0, 0, false
+	}
+	count = strings.Count(report, old)
+	if count != 1 {
+		return 0, 0, count, false
+	}
+	start = strings.Index(report, old)
+	end = start + len(old)
+	if !spanBoundaryOK(report, start, end) {
+		return 0, 0, count, false
+	}
+	return start, end, count, true
+}
+
 // requireAbuttingAnchor refuses a quote that stops JUST SHORT of the anchor attached to the text
 // it is replacing.
 //

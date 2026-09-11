@@ -43,7 +43,7 @@ func FuzzPlanEdit(f *testing.F) {
 		ol := int(oldLen) % (len(body) - os + 1)
 		old := body[os : os+ol]
 
-		next, err := planEdit(report, old, "REPLACEMENT")
+		next, _, err := planEdit(report, old, "REPLACEMENT")
 		if err != nil {
 			return // a mis-quote or a marker-spanning span → reject is always acceptable
 		}
