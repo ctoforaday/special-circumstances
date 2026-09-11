@@ -50,7 +50,7 @@ closing filed for G1 [key blue-respond:closing:#0:G1]
 $ revision --run {RUN} --seat-id blue-respond --reason repairs landed
 exit 0
 stdout:
-revision recorded — the round is on the record [key blue-respond:revision:#0]
+revision recorded — this sitting's changes are on the record [key blue-respond:revision:#0]
 
 $ manifest-row --run {RUN} --seat-id blue-respond --id G1 --reason figures recomputed; check run: pass
 exit 0
@@ -98,7 +98,7 @@ Flags:
       --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts
   -h, --help                         help for verify
       --quote string                 REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs (the claim you are checking)
-      --reason string                REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string                REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 Enumerated values:
   --as
@@ -166,7 +166,7 @@ certification recorded [key judge:certify:#1]
 
 ═══ RENDERS ═══
 -- debate
-# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
 ## Epoch 1
 
@@ -187,7 +187,7 @@ blue's closing
 the rationale body
 
 -- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
 _No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
@@ -201,7 +201,7 @@ indistinguishable from one that never looked._
 
 ---
 
-**Verdict:** NONE (no terminal outcome on the record)
+**Outcome:** NONE (no terminal outcome on the record)
 
 ## TL;DR
 

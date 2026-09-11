@@ -223,7 +223,7 @@ var views = []struct {
 	jsonByName                    bool
 	shape                         any
 }{
-	{"report", "THE DOCUMENT UNDER AUDIT, as it stands now. `changes` says how it got that way. Written by the round-0 synthesis and every `edit`, with anchors from `cite`, `finding` and `prove`", "THE ARTIFACT UNDER AUDIT — blue's living report; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the round-0 synthesis and every `edit`", "", false, nil},
+	{"report", "THE REPORT, as it stands now. `changes` says how it got that way. Written by the opening synthesis and every `edit`, with anchors from `cite`, `finding` and `prove`", "THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the opening synthesis and every `edit`", "", false, nil},
 	{"board", "EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by `mint`, `close`, `regrade` and `retire`", "THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. JSON by default; --format markdown gives the human-verification rendering. Written by `mint`, `close`, `regrade` and `retire`", "", true, record.BoardJSON{}},
 	{"findings", "THE RAW LENS FINDINGS, BEFORE they are minted into gaps — several findings can become one gap, and this is where you see which. Written by `finding`", "Every lens finding on the record (label, seat, epoch, role, grades, location, text) — the minting lens coalesces these into gaps", "", true, record.FindingsJSON{}},
 	{"work", "WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Run it first and again before you finish. Written by `mint`, `close` and the bench's `motion docket rule`", "**RUN THIS FIRST AND AGAIN BEFORE YOU STOP.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left.\n\nAn item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran, a line of inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.\n\n`open` holds OPEN gaps only (grades, class, location, a problem synopsis, found_by); one with `awaiting_docket` was CARRIED by the bench — nothing is pending, and it returns only if you docket it again (`docket_reopens_on` says what would bring it back).\n\n`closed_index` IS THE ESTOPPEL REGISTER, NOT DEBRIS: each entry carries id, location, class, the `fate` that ended it, and `closed_by` (`bench` or `red`). THAT DISTINCTION IS LOAD-BEARING: red may reopen its OWN closure on new evidence, but a bench ruling is ESTOPPED and re-raising it is relitigation, not diligence. New evidence against a bench-ruled gap is a lineage successor — mint it under a new id naming the ruled gap in `supersedes`, and say what the ruling did not account for.\n\nFate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. The reasoning behind a fate is on the record: `show debate` carries the bench's opinions, `show board --format markdown` the closure archive with its prose — read the one you are about to rely on or work around. Bare `show` defaults here for every role. Written by `mint`, `close` and the bench's `motion docket rule`", "*", true, record.WorkJSON{}},
@@ -233,7 +233,7 @@ var views = []struct {
 	{"evidence", "WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading. Written by `cite`, `prove`, `verify` and `reproduce`", "WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs), every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their confidence. THIS IS HOW YOU RESOLVE AN ANCHOR you are reading in the report. Written by `cite`, `prove`, `verify` and `reproduce`", "", true, record.EvidenceJSON{}},
 	{"lines-of-inquiry", "WHICH DIRECTIONS WERE TAKEN AND WHICH WERE NOT — pursued, deferred, declined, abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule`", "the exploration space: lines taken, deferred, declined and abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule` (red's ruling)", "", false, nil},
 	{"telemetry", "HOW THE NUMBERS MOVED ACROSS EPOCHS — a trend, not a snapshot: one line per epoch (chair sitting), and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it", "JSONL, one line per epoch (chair sitting): the trend the STOPPING judgment reads — the bench's signal for whether the findings are still changing character or merely recurring", "", true, view.TelemetryLineShape()},
-	{"scorecard", "HOW YOUR CHAIR IS DOING ON THIS QUESTION — your own side's performance, this run only. No selector: your chair is the seat you registered as. Computed from the record, so no verb fills it", "YOUR CHAIR'S IN-RUN SCORECARD — how your side is doing on THIS question, computed live from this run's record; no selector, because your chair is the seat you registered as. A bad number means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures: a gamed diagnostic is itself a defect, and a detector firing is a finding. Rows reading \"not computed\" are HONEST, not gaps to fill: envelope-derived rows fill in at capture. No verb fills it", "", false, nil},
+	{"scorecard", "YOUR SCORECARD ON THIS QUESTION — the numbers your seat is measured on, this run only. No selector: your scorecard follows from the seat you registered as. Computed from the record, so no verb fills it", "YOUR IN-RUN SCORECARD — the numbers your seat is measured on (red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench), computed live from this run's record; no selector, because your scorecard follows from the seat you registered as. A bad number means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures: a gamed diagnostic is itself a defect, and a detector firing is a finding. Rows reading \"not computed\" are HONEST, not gaps to fill: envelope-derived rows fill in at capture. No verb fills it", "", false, nil},
 }
 
 // ViewNames is the projection vocabulary — the single source behind the help text, the
@@ -684,21 +684,21 @@ func renderView(cmd *cobra.Command, want string) error {
 		cmd.OutOrStdout().Write(b)
 		return nil
 	}
-	// The scorecard resolves its chair from the SEAT, so there is nothing to pass and nothing to
-	// get wrong. A role with no chair is refused by name rather than handed an empty card —
-	// operator is not a party to the debate and reads chairs explicitly.
+	// The scorecard follows from the SEAT, so there is nothing to pass and nothing to get wrong.
+	// A role with no scorecard is refused by name rather than handed an empty one — operator is
+	// not a party to the debate and prints every card with its own `scorecard`.
 	if want == "scorecard" {
-		chair, ok := record.ChairOf(role)
+		card, ok := record.ScorecardOf(role)
 		if !ok {
-			return fmt.Errorf("%s show: no chair sits for role %q, so there is no scorecard that is yours — "+
-				"a scorecard grades a side of the debate, and this role is not one", role, role)
+			return fmt.Errorf("%s show: role %q has no scorecard — a scorecard measures red, blue or the bench, "+
+				"and this role is none of them", role, role)
 		}
 		var fam *record.Family
 		if f, err := record.FamilyOf(run); err == nil {
 			fam = &f
 		}
-		rows := scorecard.Compute(run, scorecard.ReadResults(run), fam)[chair]
-		fmt.Fprint(cmd.OutOrStdout(), scorecard.RenderChair(chair, rows, "this run")+"\n")
+		rows := scorecard.Compute(run, scorecard.ReadResults(run), fam)[card]
+		fmt.Fprint(cmd.OutOrStdout(), scorecard.RenderCard(rows, "this run")+"\n")
 		return nil
 	}
 	// telemetry is JSONL by name — one line per epoch, the wire shape the stopping
@@ -833,12 +833,12 @@ func (r registerResult) Human() string {
 			"from the hook — which injects it on every call when it is working.\n\n" +
 			"YOUR WORK IS NOT AT RISK FROM THIS. The run directory is correct and your events are " +
 			"recorded against it. What is lost is the identity binding, and the fix for that is " +
-			"above. Record the hook's absence ONCE with the friction verb — you are the first party " +
+			"above. Record the hook's absence ONCE in the log — you are the first party " +
 			"that can see it, and the run leaves no other trace of it."
 	}
 	if r.TurnLimitUnarmed != "" {
 		out += "\n\nThis sitting's tool calls are not being counted against the run's limit (" +
-			r.TurnLimitUnarmed + "). Record it once with the friction verb."
+			r.TurnLimitUnarmed + "). Record it once in the log."
 	}
 	return out
 }

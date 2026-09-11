@@ -145,7 +145,7 @@ var enforcedElsewhere = map[string]string{
 	// So the pipe-list detector correctly stops seeing it, and the exemption correctly goes. The
 	// set is still policed — an unknown view is refused at runtime against ViewNames(), and
 	// viewnaming_test.go holds the contract that every view names its writing verb.
-	"scorecard --chair": "a read-only operator command that writes no event: the set is checked inline against the same map it renders from, so there is no write path for a bad value to reach",
+	"scorecard --card": "a read-only operator command that writes no event: the set is checked inline against the same map it renders from, so there is no write path for a bad value to reach",
 }
 
 const gradeParseTime = "enforced at PARSE time by flags.GradeValue (a pflag.Value), with help and refusal both generated from flags.GradeNames() — a bad grade never reaches a payload"

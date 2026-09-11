@@ -3,6 +3,39 @@ exit 0
 stdout:
 feov-record manual — the bench surface, seat judge: 28 commands, each under a header naming it and followed by the help it prints, run live just now. LEAN ON PURPOSE: a block that repeats word for word on several pages is printed ONCE under SHARED below, and each page marks where it came out (`→ SHARED §n`); a group whose page would only list commands that have pages of their own is left out, and so is this command's own page. The surface's own page comes first.
 
+WORDS THIS SURFACE USES — one word for each concept, and it is the same word on every page, prompt and constitution you read:
+  - The report is the research prose written for a reader of the subject: one document from a lane's text to the assembled report.md, named by its stage only where the stage matters (your part of the report, the report as `show report` serves it, the assembled report.md).
+  - The run directory is the directory that holds one run: its record, its report and the documents assembled beside it.
+  - The record is the run's account of every act, held as events in records/record.db, and every read a seat makes is a projection of it.
+  - A run is one research question taken from setup to its outcome.
+  - An epoch runs from one chair sitting to the next: the chair relays who sits, the parties the record names sit, and the chair sits again.
+  - A sitting is one seat's dispatch, from the prompt the engine hands it to the envelope it returns.
+  - An exchange is a red sitting followed by a blue sitting on one gap, and k-max counts them.
+  - A seat is one agent's place in the run, registered under a seat id whose role decides the surface it is given.
+  - A side is red or blue: red audits the report and passes or fails it, blue researches, writes and repairs it.
+  - A lens is a red seat that audits the report for one class of defect, and the only seat that files findings and mints gaps.
+  - The chair is red's running seat: it relays who sits, rules blue's motions, spot-checks the archive and records red's verdict.
+  - The bench is the seat that adjudicates the contested docket, rules on motions and stamps how the run ended.
+  - A lane is one of blue's parallel first passes at the report, written by one researcher under one method.
+  - The synthesizer is the blue seat that merges the lane drafts into the report by union and writes the report's authored surfaces.
+  - The engine is the workflow script that dispatches the seats the record says are ready and reads the envelopes they return.
+  - The operator is the person running the research, and the seat id their own commands run under.
+  - The log is the entries a seat files for the operator with the `log` verb — a missing capability, a defect in the tooling, an impediment or a nominal sitting — and none of it is debate material.
+  - Friction is one type of log entry: the work was impeded and the seat is noting it.
+  - A missing capability is an act a seat needed that no surface offers, and it goes in the log, never on the board.
+  - A citation is a source attached to a sentence of the report with the cite verb, hashed and dated so it can be checked again.
+  - An anchor is the invisible token a citation, a proof or a finding leaves at its sentence in the report.
+  - A proof is a recorded computation: a script that was run, with its hash and exit status.
+  - A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
+  - The verdict is the chair's PASS or FAIL on the board.
+  - The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
+  - A finding is a lens's recorded observation of a defect in the report, graded and not yet minted.
+  - A gap is a defect in the report, minted onto the board by a lens.
+  - To retire a claim is to take it out of the report with the retire verb, on the record.
+  - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
+  - A grade motion is a side's motion contesting a gap's grade, ruled by the bench.
+  - A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
+
 SHARED BY THE COMMANDS BELOW — each block is printed ONCE here, and every page it was lifted from carries a marker line ending `→ SHARED §n` exactly where it was:
 §1 (on 7 pages):
 If you need a verb or a flag that is not listed here, it does not exist for you:
@@ -50,16 +83,16 @@ ONE EVENT, DIFFERENT CONTRACTS: grade (the merge rules), petition (the bench rul
 Any seat may file; exactly one rules, and `rule` appears only on that seat's surface.
 
 §10 (on 5 pages):
-your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 §11 (on 2 pages):
 EVERY SUBJECT AND ITS GAVEL: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
 
 §12 (on 2 pages):
-REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 §13 (on 2 pages):
-TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade dispute the merge rejected; `motion inquiry appeal` presses a line of inquiry red ruled out_of_scope or too_thin, and it is filed whether or not blue also pursues the line — separating the argument from the act is the whole point of the verb.
+TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade motion the chair rejected; `motion inquiry appeal` presses a line of inquiry red ruled out_of_scope or too_thin, and it is filed whether or not blue also pursues the line — separating the argument from the act is the whole point of the verb.
 
 §14 (on 2 pages):
 A BENCH-RULED MOTION (petition, docket) HAS NO APPEAL, and that absence is the design rather than an omission: the bench hears it BEFORE the debate continues, so there is nothing to escalate to.
@@ -86,7 +119,7 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  assemble     assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the event log; no inputs
+  assemble     assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the record; no inputs
   certify      what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
   completion   Generate the autocompletion script for the specified shell
   count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
@@ -114,7 +147,7 @@ Flags:
 Use "feov-record [command] --help" for more information about a command.
 ==============================================================================
 $ feov-record assemble --help
-assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the event log; no inputs
+assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the record; no inputs
 
 Usage:
   feov-record assemble [flags]
@@ -127,7 +160,7 @@ Flags:
 $ feov-record certify --help
 what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
 
-Not a ruling, and it moves no gap: it is the bench's own voice, and it lands in the judicial record — the document the human reviewing the run opens — not the research report, whose reader came for the subject.
+Not a ruling, and it moves no gap: it is the bench's own voice, and it lands in judgments.md — the document the human reviewing the run opens — not the research report, whose reader came for the subject.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -144,7 +177,7 @@ Flags:
       --correction-why string   → SHARED §6
       --corrects string         → SHARED §7
   -h, --help                    help for certify
-      --reason string           REQUIRED — what a human should re-examine after the run, and why. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string           REQUIRED — what a human should re-examine after the run, and why. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 (Global Flags:) → SHARED §2
 ==============================================================================
@@ -181,7 +214,7 @@ Flags:
       --correction-why string   → SHARED §6
       --corrects string         → SHARED §7
   -h, --help                    help for declare
-      --reason string           the holding: how the whole record is to be READ. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string           the holding: how the whole record is to be READ. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 (Global Flags:) → SHARED §2
 ==============================================================================
@@ -228,7 +261,7 @@ Flags:
       --correction-why string   → SHARED §6
       --corrects string         → SHARED §7
   -h, --help                    help for halt
-      --reason string           REQUIRED — the opinion: the boundary, and why continuing would itself be the harm. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string           REQUIRED — the opinion: the boundary, and why continuing would itself be the harm. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 (Global Flags:) → SHARED §2
 ==============================================================================
@@ -239,9 +272,9 @@ An event that survives aborts, so something you hit is on the record even if the
 
 SAY WHAT THE ENTRY ASSERTS: the operator triages this channel by FILTERING on it instead of reading every entry, so it is the field that makes the channel worth reading. An impediment you are merely NOTING has its own word, and is not a request for change.
 
-MOST REFUSALS ARE YOURS and belong in no entry — a wrong verb, flag or quote: take the correction and move on. A refusal naming a verb you cannot find, or a fact the record holds that no view shows you, IS the finding: report it rather than engineer around it, because a workaround leaves no trace and the missing capability then looks exactly like one nobody wanted.
+MOST REFUSALS ARE YOURS and belong in no entry — a wrong verb, flag or quote: take the correction and move on. A refusal naming a verb you cannot find, or a fact the record holds that no view shows you, IS what the log is for: report it rather than engineer around it, because a workaround leaves no trace and the missing capability then looks exactly like one nobody wanted.
 
-THE LEDGER HOLDS WHAT YOU DID — which verbs you ran, which help pages you read, in what order — so an entry retelling it is a diary the operator must read through to find the one sentence meant for them. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a sitting. A clean sitting says so in one line and stops.
+THE RECORD HOLDS WHAT YOU DID — which verbs you ran, which help pages you read, in what order — so an entry retelling it is a diary the operator must read through to find the one sentence meant for them. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a sitting. A clean sitting says so in one line and stops.
 
 YOUR AUDIENCE IS THE OPERATOR who can retool you, not the other seats: nothing here is debate material, and the other side answers none of it.
 
@@ -561,8 +594,8 @@ Available Commands:
   findings         THE RAW LENS FINDINGS, BEFORE they are minted into gaps — several findings can become one gap, and this is where you see which. Written by `finding`
   lines-of-inquiry WHICH DIRECTIONS WERE TAKEN AND WHICH WERE NOT — pursued, deferred, declined, abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule`
   motions          WHAT HAS BEEN CONTESTED AND HOW IT WAS RULED — the ask in the filer's words, and the ruling if it has one. `debate` is what each side ARGUED; this is what was formally disputed. Written by `motion`, `rule` and `appeal`
-  report           THE DOCUMENT UNDER AUDIT, as it stands now. `changes` says how it got that way. Written by the round-0 synthesis and every `edit`, with anchors from `cite`, `finding` and `prove`
-  scorecard        HOW YOUR CHAIR IS DOING ON THIS QUESTION — your own side's performance, this run only. No selector: your chair is the seat you registered as. Computed from the record, so no verb fills it
+  report           THE REPORT, as it stands now. `changes` says how it got that way. Written by the opening synthesis and every `edit`, with anchors from `cite`, `finding` and `prove`
+  scorecard        YOUR SCORECARD ON THIS QUESTION — the numbers your seat is measured on, this run only. No selector: your scorecard follows from the seat you registered as. Computed from the record, so no verb fills it
   telemetry        HOW THE NUMBERS MOVED ACROSS EPOCHS — a trend, not a snapshot: one line per epoch (chair sitting), and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it
   work             WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Run it first and again before you finish. Written by `mint`, `close` and the bench's `motion docket rule`
 
@@ -671,7 +704,7 @@ Flags:
 (Global Flags:) → SHARED §16
 ==============================================================================
 $ feov-record show report --help
-THE ARTIFACT UNDER AUDIT — blue's living report; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the round-0 synthesis and every `edit`
+THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the opening synthesis and every `edit`
 
 Usage:
   feov-record show report [flags]
@@ -684,7 +717,7 @@ Flags:
 (Global Flags:) → SHARED §16
 ==============================================================================
 $ feov-record show scorecard --help
-YOUR CHAIR'S IN-RUN SCORECARD — how your side is doing on THIS question, computed live from this run's record; no selector, because your chair is the seat you registered as. A bad number means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures: a gamed diagnostic is itself a defect, and a detector firing is a finding. Rows reading "not computed" are HONEST, not gaps to fill: envelope-derived rows fill in at capture. No verb fills it
+YOUR IN-RUN SCORECARD — the numbers your seat is measured on (red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench), computed live from this run's record; no selector, because your scorecard follows from the seat you registered as. A bad number means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures: a gamed diagnostic is itself a defect, and a detector firing is a finding. Rows reading "not computed" are HONEST, not gaps to fill: envelope-derived rows fill in at capture. No verb fills it
 
 Usage:
   feov-record show scorecard [flags]
@@ -737,6 +770,39 @@ exit 0
 stdout:
 feov-record manual — the blue surface, seat blue-respond: 33 commands, each under a header naming it and followed by the help it prints, run live just now. LEAN ON PURPOSE: a block that repeats word for word on several pages is printed ONCE under SHARED below, and each page marks where it came out (`→ SHARED §n`); a group whose page would only list commands that have pages of their own is left out, and so is this command's own page. The surface's own page comes first.
 
+WORDS THIS SURFACE USES — one word for each concept, and it is the same word on every page, prompt and constitution you read:
+  - The report is the research prose written for a reader of the subject: one document from a lane's text to the assembled report.md, named by its stage only where the stage matters (your part of the report, the report as `show report` serves it, the assembled report.md).
+  - The run directory is the directory that holds one run: its record, its report and the documents assembled beside it.
+  - The record is the run's account of every act, held as events in records/record.db, and every read a seat makes is a projection of it.
+  - A run is one research question taken from setup to its outcome.
+  - An epoch runs from one chair sitting to the next: the chair relays who sits, the parties the record names sit, and the chair sits again.
+  - A sitting is one seat's dispatch, from the prompt the engine hands it to the envelope it returns.
+  - An exchange is a red sitting followed by a blue sitting on one gap, and k-max counts them.
+  - A seat is one agent's place in the run, registered under a seat id whose role decides the surface it is given.
+  - A side is red or blue: red audits the report and passes or fails it, blue researches, writes and repairs it.
+  - A lens is a red seat that audits the report for one class of defect, and the only seat that files findings and mints gaps.
+  - The chair is red's running seat: it relays who sits, rules blue's motions, spot-checks the archive and records red's verdict.
+  - The bench is the seat that adjudicates the contested docket, rules on motions and stamps how the run ended.
+  - A lane is one of blue's parallel first passes at the report, written by one researcher under one method.
+  - The synthesizer is the blue seat that merges the lane drafts into the report by union and writes the report's authored surfaces.
+  - The engine is the workflow script that dispatches the seats the record says are ready and reads the envelopes they return.
+  - The operator is the person running the research, and the seat id their own commands run under.
+  - The log is the entries a seat files for the operator with the `log` verb — a missing capability, a defect in the tooling, an impediment or a nominal sitting — and none of it is debate material.
+  - Friction is one type of log entry: the work was impeded and the seat is noting it.
+  - A missing capability is an act a seat needed that no surface offers, and it goes in the log, never on the board.
+  - A citation is a source attached to a sentence of the report with the cite verb, hashed and dated so it can be checked again.
+  - An anchor is the invisible token a citation, a proof or a finding leaves at its sentence in the report.
+  - A proof is a recorded computation: a script that was run, with its hash and exit status.
+  - A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
+  - The verdict is the chair's PASS or FAIL on the board.
+  - The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
+  - A finding is a lens's recorded observation of a defect in the report, graded and not yet minted.
+  - A gap is a defect in the report, minted onto the board by a lens.
+  - To retire a claim is to take it out of the report with the retire verb, on the record.
+  - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
+  - A grade motion is a side's motion contesting a gap's grade, ruled by the bench.
+  - A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
+
 SHARED BY THE COMMANDS BELOW — each block is printed ONCE here, and every page it was lifted from carries a marker line ending `→ SHARED §n` exactly where it was:
 §1 (on 14 pages):
 If you need a verb or a flag that is not listed here, it does not exist for you:
@@ -757,7 +823,7 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
   … "$X"
 
 §4 (on 9 pages):
-your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 §5 (on 22 pages):
 Global Flags:
@@ -809,7 +875,7 @@ ONE EVENT, DIFFERENT CONTRACTS: grade (the merge rules), petition (the bench rul
 Any seat may file; exactly one rules, and `rule` appears only on that seat's surface.
 
 §15 (on 2 pages):
-TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade dispute the merge rejected; `motion inquiry appeal` presses a line of inquiry red ruled out_of_scope or too_thin, and it is filed whether or not blue also pursues the line — separating the argument from the act is the whole point of the verb.
+TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade motion the chair rejected; `motion inquiry appeal` presses a line of inquiry red ruled out_of_scope or too_thin, and it is filed whether or not blue also pursues the line — separating the argument from the act is the whole point of the verb.
 
 §16 (on 2 pages):
 A BENCH-RULED MOTION (petition, docket) HAS NO APPEAL, and that absence is the design rather than an omission: the bench hears it BEFORE the debate continues, so there is nothing to escalate to.
@@ -848,11 +914,11 @@ Available Commands:
   log             an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
   manual          every command on your surface, each with its own help, run live — read it once, first thing in a sitting
-  position        your sitting's narrative — the argument the other side answers, rendered as this sitting's BLUE section
+  position        your sitting's position — the argument the other side answers, rendered as this sitting's BLUE section
   prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   retire          take a claim out of the report, when it cannot stand and no edit will save it
-  revision        the sitting record — what changed this sitting, once, after your edits have landed
+  revision        your revision — what changed this sitting, once, after your edits have landed
 
 Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
@@ -918,7 +984,7 @@ your closing argument on one docketed gap, when the bench is about to rule on it
 
 It renders as this sitting's ### BLUE CLOSING section, one entry per docketed gap.
 
-The judge rules on the closings, the transcript, and the final state of the artifacts. This is your case, and material the record does not carry cannot help it.
+The bench rules on the closings, the transcript, and the final state of the artifacts. This is your case, and material the record does not carry cannot help it.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -936,7 +1002,7 @@ Flags:
       --corrects string         → SHARED §8
   -h, --help                    help for closing
       --id gap-id               the gap id this closing argues
-      --reason string           REQUIRED — your closing argument on this gap — your THINKING, not your process. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string           REQUIRED — your closing argument on this gap — your THINKING, not your process. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 (Global Flags:) → SHARED §5
 ==============================================================================
@@ -966,7 +1032,7 @@ that you did NOT take red's text, and costs you the estoppel that stops red re-o
 You are never obliged to accept. Writing your own replacement is your right to disagree and is
 recorded as one.
 
-The tool matches your span across the invisible anchor layer and REFUSES a replacement that drops, duplicates or invents an anchor: a finding marker or a citation anchor may travel THROUGH your edit, never disappear in one.
+The tool matches your span across the invisible anchor layer and REFUSES a replacement that drops, duplicates or invents an anchor: a finding anchor or a citation anchor may travel THROUGH your edit, never disappear in one.
 
 An anchor INSIDE the span you replace must be copied verbatim into the replacement. One at its edge is not inside: a quote's trailing punctuation is trimmed before the span is located, so an anchor before a sentence's final period falls outside, is preserved for you, and typing it into the replacement is refused as inventing one. You need not work out which — get it wrong either way and the refusal names the anchor and says which it wants.
 
@@ -993,7 +1059,7 @@ Flags:
   -h, --help             help for edit
       --key string       → SHARED §10
       --new string       the text that span should become
-      --quote string     the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. A finding-marker or citation anchor typed into it is rejected
+      --quote string     the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. A finding anchor or citation anchor typed into it is rejected
       --reason string    → SHARED §4
 
 (Global Flags:) → SHARED §5
@@ -1054,7 +1120,7 @@ An open line — proposed or pursued — owes this before your sitting ends; re-
 
 The fate is not the point; the account of what changed it is — a line abandoned against its own stated hypothesis is evidence of choosing, one abandoned on a shrug is not.
 
-THE REASON IS PRINTED IN THE REPORT, beside the line. Give the account in the SUBJECT'S terms — what was found about the question that settled this fate — not the steps you took to find it. No provenance or attribution tags, no notes to another seat, no narration of the run. "The trial-division bound is 9, so no subtler test is needed" is a reason; "fetched and read the sources at the leaf, then grepped the repo" is a diary. What you did, in order, is already on the ledger.
+THE REASON IS PRINTED IN THE REPORT, beside the line. Give the account in the SUBJECT'S terms — what was found about the question that settled this fate — not the steps you took to find it. No provenance or attribution tags, no notes to another seat, no narration of the run. "The trial-division bound is 9, so no subtler test is needed" is a reason; "fetched and read the sources at the leaf, then grepped the repo" is a diary. What you did, in order, is already on the record.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -1128,9 +1194,9 @@ An event that survives aborts, so something you hit is on the record even if the
 
 SAY WHAT THE ENTRY ASSERTS: the operator triages this channel by FILTERING on it instead of reading every entry, so it is the field that makes the channel worth reading. An impediment you are merely NOTING has its own word, and is not a request for change.
 
-MOST REFUSALS ARE YOURS and belong in no entry — a wrong verb, flag or quote: take the correction and move on. A refusal naming a verb you cannot find, or a fact the record holds that no view shows you, IS the finding: report it rather than engineer around it, because a workaround leaves no trace and the missing capability then looks exactly like one nobody wanted.
+MOST REFUSALS ARE YOURS and belong in no entry — a wrong verb, flag or quote: take the correction and move on. A refusal naming a verb you cannot find, or a fact the record holds that no view shows you, IS what the log is for: report it rather than engineer around it, because a workaround leaves no trace and the missing capability then looks exactly like one nobody wanted.
 
-THE LEDGER HOLDS WHAT YOU DID — which verbs you ran, which help pages you read, in what order — so an entry retelling it is a diary the operator must read through to find the one sentence meant for them. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a sitting. A clean sitting says so in one line and stops.
+THE RECORD HOLDS WHAT YOU DID — which verbs you ran, which help pages you read, in what order — so an entry retelling it is a diary the operator must read through to find the one sentence meant for them. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a sitting. A clean sitting says so in one line and stops.
 
 YOUR AUDIENCE IS THE OPERATOR who can retool you, not the other seats: nothing here is debate material, and the other side answers none of it.
 
@@ -1323,7 +1389,7 @@ Enumerated values:
 (Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record position --help
-your sitting's narrative — the argument the other side answers, rendered as this sitting's BLUE section
+your sitting's position — the argument the other side answers, rendered as this sitting's BLUE section
 
 It renders as this sitting's ### BLUE section. It is prose on the record, not a summary of your acts — the acts are already there.
 
@@ -1342,7 +1408,7 @@ Flags:
       --correction-why string   → SHARED §7
       --corrects string         → SHARED §8
   -h, --help                    help for position
-      --reason string           your sitting's narrative — your THINKING, not your process. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string           your sitting's argument — your THINKING, not your process. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 (Global Flags:) → SHARED §5
 ==============================================================================
@@ -1396,7 +1462,7 @@ take a claim out of the report, when it cannot stand and no edit will save it
 
 A claim leaves the report only through this verb — never by quietly not being there any more. Capture compares the fall in the claim count against the retire events, and an unaccounted drop is a detector hit.
 
-An anchored claim leaves in two steps: `edit` it down to its bare anchor (an edit may carry an anchor but never drop one), then retire it here, quoting the WHOLE of what the edit cut — a fragment takes nothing out. The retire takes the bare citation or proof anchor out with the claim — no orphan footnote, no empty bullet. A finding marker is red's: it leaves only once every gap crediting that finding is closed, and until then the retire keeps it and says why.
+An anchored claim leaves in two steps: `edit` it down to its bare anchor (an edit may carry an anchor but never drop one), then retire it here, quoting the WHOLE of what the edit cut — a fragment takes nothing out. The retire takes the bare citation or proof anchor out with the claim — no orphan footnote, no empty bullet. A finding anchor is red's: it leaves only once every gap crediting that finding is closed, and until then the retire keeps it and says why.
 
 Name what replaces it where something does.
 
@@ -1413,12 +1479,12 @@ Flags:
   -h, --help            help for retire
       --new string      the claim that replaces it, when one does
       --quote string    REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs — the claim being removed, as it stood before you edited it out
-      --reason string   REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string   REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 (Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record revision --help
-the sitting record — what changed this sitting, once, after your edits have landed
+your revision — what changed this sitting, once, after your edits have landed
 
 It renders as the run's CHANGELOG — the report itself shows the current prose and never its own edit history, because a document narrating what it used to say has made its drafting a second subject.
 
@@ -1439,7 +1505,7 @@ Flags:
       --correction-why string   → SHARED §7
       --corrects string         → SHARED §8
   -h, --help                    help for revision
-      --reason string           what changed this sitting. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string           what changed this sitting. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 (Global Flags:) → SHARED §5
 ==============================================================================
@@ -1462,8 +1528,8 @@ Available Commands:
   findings         THE RAW LENS FINDINGS, BEFORE they are minted into gaps — several findings can become one gap, and this is where you see which. Written by `finding`
   lines-of-inquiry WHICH DIRECTIONS WERE TAKEN AND WHICH WERE NOT — pursued, deferred, declined, abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule`
   motions          WHAT HAS BEEN CONTESTED AND HOW IT WAS RULED — the ask in the filer's words, and the ruling if it has one. `debate` is what each side ARGUED; this is what was formally disputed. Written by `motion`, `rule` and `appeal`
-  report           THE DOCUMENT UNDER AUDIT, as it stands now. `changes` says how it got that way. Written by the round-0 synthesis and every `edit`, with anchors from `cite`, `finding` and `prove`
-  scorecard        HOW YOUR CHAIR IS DOING ON THIS QUESTION — your own side's performance, this run only. No selector: your chair is the seat you registered as. Computed from the record, so no verb fills it
+  report           THE REPORT, as it stands now. `changes` says how it got that way. Written by the opening synthesis and every `edit`, with anchors from `cite`, `finding` and `prove`
+  scorecard        YOUR SCORECARD ON THIS QUESTION — the numbers your seat is measured on, this run only. No selector: your scorecard follows from the seat you registered as. Computed from the record, so no verb fills it
   telemetry        HOW THE NUMBERS MOVED ACROSS EPOCHS — a trend, not a snapshot: one line per epoch (chair sitting), and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it
   work             WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Run it first and again before you finish. Written by `mint`, `close` and the bench's `motion docket rule`
 
@@ -1572,7 +1638,7 @@ Flags:
 (Global Flags:) → SHARED §18
 ==============================================================================
 $ feov-record show report --help
-THE ARTIFACT UNDER AUDIT — blue's living report; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the round-0 synthesis and every `edit`
+THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the opening synthesis and every `edit`
 
 Usage:
   feov-record show report [flags]
@@ -1585,7 +1651,7 @@ Flags:
 (Global Flags:) → SHARED §18
 ==============================================================================
 $ feov-record show scorecard --help
-YOUR CHAIR'S IN-RUN SCORECARD — how your side is doing on THIS question, computed live from this run's record; no selector, because your chair is the seat you registered as. A bad number means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures: a gamed diagnostic is itself a defect, and a detector firing is a finding. Rows reading "not computed" are HONEST, not gaps to fill: envelope-derived rows fill in at capture. No verb fills it
+YOUR IN-RUN SCORECARD — the numbers your seat is measured on (red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench), computed live from this run's record; no selector, because your scorecard follows from the seat you registered as. A bad number means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures: a gamed diagnostic is itself a defect, and a detector firing is a finding. Rows reading "not computed" are HONEST, not gaps to fill: envelope-derived rows fill in at capture. No verb fills it
 
 Usage:
   feov-record show scorecard [flags]
@@ -1639,10 +1705,10 @@ Flags:
 
 ═══ RENDERS ═══
 -- debate
-# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
 -- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
 _No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
@@ -1656,7 +1722,7 @@ indistinguishable from one that never looked._
 
 ---
 
-**Verdict:** NONE (no terminal outcome on the record)
+**Outcome:** NONE (no terminal outcome on the record)
 
 ## TL;DR
 

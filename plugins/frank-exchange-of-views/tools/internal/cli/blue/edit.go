@@ -89,7 +89,7 @@ func newEdit() *cobra.Command {
 		}
 
 		if oldStr == "" {
-			return nil, fmt.Errorf("blue edit requires --quote: the EXACT current span to replace (matched across the invisible marker layer, like the Edit tool)")
+			return nil, fmt.Errorf("blue edit requires --quote: the EXACT current span to replace (matched across the invisible anchors, like the Edit tool)")
 		}
 		if oldStr == newStr {
 			return nil, fmt.Errorf("blue edit: --old and --new are identical — no change to make")
@@ -196,7 +196,7 @@ func newEdit() *cobra.Command {
 	}))
 
 	c.Flags().String(flags.Key, "", flags.DescKey)
-	flags.Text(c, flags.Quote, flags.DescQuote+". A finding-marker or citation anchor typed into it is rejected")
+	flags.Text(c, flags.Quote, flags.DescQuote+". A finding anchor or citation anchor typed into it is rejected")
 	flags.Text(c, flags.New, "the text that span should become")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this edit responds to (G4) — the provenance join key; omit only for an edit that answers no gap")
 	c.Flags().Bool(flags.Accept, false, flags.DescAccept)
@@ -291,14 +291,14 @@ type editResult struct {
 }
 
 func (r editResult) Human() string {
-	head := "blue edit recorded — diff-stack op appended, finding-markers preserved, report re-derived on read"
+	head := "blue edit recorded — the edit is appended to the record, finding anchors preserved, the report re-derived on read"
 	if r.Idempotent {
-		head = "blue edit (idempotent retry — the op is already on the diff-stack, no second op)"
+		head = "blue edit (idempotent retry — the edit is already on the record, no second one)"
 	}
 	if len(r.VoiceTells) == 0 {
 		return head
 	}
 	return head + "\n\nNOTE — this text sounds like the run rather than the subject. The edit is\nrecorded; this is not a refusal, and it may be wrong:\n  - " +
 		strings.Join(r.VoiceTells, "\n  - ") +
-		"\nSeparation, never deletion: an operational limit belongs on the operator\nchannel, and the part that limits the CONCLUSION stays here, re-voiced."
+		"\nSeparation, never deletion: an operational limit belongs in the log, and\nthe part that limits the CONCLUSION stays here, re-voiced."
 }

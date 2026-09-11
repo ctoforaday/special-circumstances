@@ -73,7 +73,7 @@ func TestASeatSeesThatTheHookIsMissingFromTheWholeRun(t *testing.T) {
 		"THE ENGINE'S HOOK IS NOT REACHING THIS RUN",
 		"EVERY seat in it is affected",
 		"the tool's own search for the run marker", // WHICH carrier stood in, so the operator can tell the two shapes apart
-		"friction verb", // the one channel that carries it out of the run
+		"ONCE in the log",                          // the one channel that carries it out of the run
 	} {
 		if !strings.Contains(h, want) {
 			t.Errorf("the advisory does not carry %q:\n%s", want, h)
@@ -94,7 +94,7 @@ func TestUnderAWrapperTheHookAbsenceIsStatedWithoutAlarm(t *testing.T) {
 		"THE ENGINE'S HOOK IS NOT REACHING THIS RUN",
 		"this run's own wrapper",
 		"YOUR WORK IS NOT AT RISK",
-		"friction verb",
+		"ONCE in the log",
 	} {
 		if !strings.Contains(h, want) {
 			t.Errorf("the advisory does not carry %q:\n%s", want, h)

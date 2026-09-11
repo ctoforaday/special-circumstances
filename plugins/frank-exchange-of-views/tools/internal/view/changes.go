@@ -39,7 +39,7 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 	}
 
 	out := []string{
-		"# blue changes — RENDERED PROJECTION (source of truth: records/ event log)",
+		"# blue changes — RENDERED PROJECTION (source of truth: the record, records/record.db)",
 		"",
 		"Every recorded edit to the report, in record order, grouped by the sitting that made",
 		"it (`seat #N` is that seat's Nth sitting). This is a navigation hint, not",

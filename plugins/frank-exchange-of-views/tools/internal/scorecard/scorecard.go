@@ -1,6 +1,6 @@
 // Package scorecard is the Go port of scorecards.mjs's COMPUTE + RENDER: it turns a run's
 // record (board/findings/debate views, read IN-PROCESS from BoardState — not by self-spawning
-// `merge show`), its journal envelopes, and its board telemetry into the per-chair scorecard
+// `merge show`), its journal envelopes, and its board telemetry into the per-card scorecard
 // rows, and renders the markdown section a seat's in-run self-read prints.
 //
 // THE JS MODULE IS GONE, and this paragraph outlived it. It read "the JS module stays for now —
@@ -399,11 +399,11 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	rows = append(rows, Row{Clause: "Sitting on the record", Metric: "sitting_record_failures", Cls: "detector",
 		Value: claimed - attested, Note: note})
 
-	// THE OPERATOR CHANNEL, MEASURED — the duty that was created BY a measurement and never got one.
+	// THE LOG, MEASURED — the duty that was created BY a measurement and never got one.
 	//
 	// Every constitution carrying it says "AFTER every sitting — not only the ones that went
-	// wrong — YOU MUST close the operator channel", and cites the failure that produced the rule:
-	// across eighteen recorded sittings the channel went unclosed every single time. Nothing has
+	// wrong — YOU MUST write to the log", and cites the failure that produced the rule: across
+	// eighteen recorded sittings the log went unwritten every single time. Nothing has
 	// counted it since. Measured 2026-09-09 on two live runs: 10 of 11 seats closed it in one and
 	// 8 of 9 in the other, so one seat in each run never did and nothing noticed.
 	//
@@ -426,10 +426,10 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 			}
 		}
 		if len(sat) > 0 {
-			rows = append(rows, Row{Clause: "Operator channel", Metric: "channel_closure", Cls: "benchmark",
+			rows = append(rows, Row{Clause: "The log", Metric: "channel_closure", Cls: "benchmark",
 				Value: float64(len(closed)) / float64(len(sat)),
 				Joint: "sittings that filed at least one log entry over sittings dispatched; the unit is the SITTING because the duty is per sitting, so a seat that sat four times and logged once discharged it once"})
-			rows = append(rows, Row{Clause: "Operator channel", Metric: "sittings_never_closed", Cls: "detector",
+			rows = append(rows, Row{Clause: "The log", Metric: "sittings_never_closed", Cls: "detector",
 				Value: len(sat) - len(closed),
 				Note:  "a sitting that recorded acts and closed no operator entry — the shape the duty exists to prevent, and the one nothing counted until now"})
 		}
@@ -453,7 +453,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 			for _, n := range byType {
 				total += n
 			}
-			rows = append(rows, Row{Clause: "Operator channel", Metric: "channel_signal_share", Cls: "diagnostic",
+			rows = append(rows, Row{Clause: "The log", Metric: "channel_signal_share", Cls: "diagnostic",
 				Value: float64(nonNominal) / float64(total),
 				Note:  fmt.Sprintf("%d entr(ies) by type %v — %d carry something to act on; a channel of nothing but nominal reported no defect, no request and no friction all run", total, byType, nonNominal)})
 		}
@@ -766,7 +766,10 @@ func benchRows(results []map[string]any, fam *record.Family) []Row {
 	return rows
 }
 
-// Compute assembles all three chairs. fam may be nil (the record could not be read → record rows
+// Cards are the three scorecards, in the order the operator's `scorecard` prints them.
+var Cards = []string{"red", "blue", "bench"}
+
+// Compute assembles all three cards. fam may be nil (the record could not be read → record rows
 // "needs the tool"); telemetry is read from runDir; results are the journal envelopes.
 func Compute(run record.Run, results []map[string]any, fam *record.Family) map[string][]Row {
 	telemetry := ReadTelemetry(run)

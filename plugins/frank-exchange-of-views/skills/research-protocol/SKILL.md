@@ -12,8 +12,8 @@ Research that survives an adversary.
 - BEFORE searching, YOU MUST formulate 3–5 frontier hypotheses — what would be true if each candidate answer were right — and record each one as a LINE OF INQUIRY on the record — the approach, and what would be true if it paid off; searches then test hypotheses instead of wandering. On the record rather than in a file, because a hypothesis red cannot rule `too-thin` or `out-of-scope` is one nobody can contest — and the opening hypotheses are the ones that shape the entire run.
 - During research, YOU MUST search to **saturation**: stop only when new searches return already-seen sources (typically 20–30 searches for a deep topic).
 - During research, YOU MUST spend at least one search in five hunting **disconfirming** evidence against your current position. This is a drafting floor, not the verification: it keeps confirmation bias out of the draft; systematic disconfirmation is red's entire job.
-- During writing, YOU MUST add every citation with the TOOL, against the exact sentence it backs — never by hand. The tool fetches the source once into the run cache, then splices an INVISIBLE, IMMORTAL `<!--cite:c-…-->` anchor at that sentence; assembly weaves the anchors into the visible `[^N]` footnotes and composes the `## Bibliography`. A hand-typed `[^label]` is not a citation: nothing backs it, the claim counter does not see it, and the unbacked-citations detector flags it. An unreachable source is unusable — the cite is rejected and logged on the operator channel.
-- **The bibliography is BOTH teams'.** A red CORROBORATION — a source red went and found for a
+- During writing, YOU MUST add every citation with the TOOL, against the exact sentence it backs — never by hand. The tool fetches the source once into the run cache, then splices an INVISIBLE, IMMORTAL `<!--cite:c-…-->` anchor at that sentence; assembly weaves the anchors into the visible `[^N]` footnotes and composes the `## Bibliography`. A hand-typed `[^label]` is not a citation: nothing backs it, the claim counter does not see it, and the unbacked-citations detector flags it. An unreachable source is unusable — the cite is rejected, and the log is where you report it.
+- **The bibliography is BOTH sides'.** A red CORROBORATION — a source red went and found for a
   claim blue made — mints an anchor and joins the footnotes the same way when it SUPPORTS the
   claim. A reader cares that the text has appropriate references, not which seat inserted them.
   A `refutes` or `absent` reading is not a reference backing the sentence and is never spliced: it
@@ -26,7 +26,7 @@ Research that survives an adversary.
   never lost, and an edit that moves the words under one REOPENS it — the reference stands, its
   referent moved, so a verification of it is stale rather than refuted.
 - AFTER drafting, every claim MUST trace to a source a skeptic can follow; unverifiable claims are labeled as such, not laundered into fact.
-- For PDF-only sources, YOU MUST try the document-extraction MCP tools before grading down on a lossy fetch: `arxiv-latex` (exact LaTeX for arXiv figures/tables) and `pdf-reader` (page/table extraction with provenance) — discoverable via ToolSearch when the project's `.mcp.json` servers are approved. Two runs of operator-channel entries ranked lossy PDF fetches the #1 capability gap; a claim capped at "unable to corroborate" without trying these is an incomplete audit.
+- For PDF-only sources, YOU MUST try the document-extraction MCP tools before grading down on a lossy fetch: `arxiv-latex` (exact LaTeX for arXiv figures/tables) and `pdf-reader` (page/table extraction with provenance) — discoverable via ToolSearch when the project's `.mcp.json` servers are approved. Two runs of log entries ranked lossy PDF fetches the #1 missing capability; a claim capped at "unable to corroborate" without trying these is an incomplete audit.
 
 ## The exchange is TOOL-MEDIATED
 
@@ -43,14 +43,14 @@ every point of *argument* in it carries a tool-placed anchor — `cite:` where a
 a claim, `fx:` where red challenged, `proof:` where a computation settles it — and dropping
 one is a hard refusal. Write for the reader; put what the machinery depends on in a field.
 
-## The run directory (the blackboard)
+## The run directory
 
 **The tool is the read path.** Where a line below says RECORD, that artifact has no
 authoritative file — read it with `show <name>` and never from disk — `show` is a GROUP, so `show --help` lists every projection.
 
 ```
 research/<date>_<slug>/
-├── records/           # THE EVENT LOG — the source of truth; one append-only shard per seat
+├── records/           # THE RECORD — the source of truth: records/record.db, the run's one store
 │                      # (MAY live outside the run entirely; a `.records-elsewhere` note appears
 │                      #  here instead. Nothing changes for a seat, because a seat reads the
 │                      #  record with `show <name>` and never from disk — which is the
@@ -59,16 +59,16 @@ research/<date>_<slug>/
 ├── README.md          # the run's front door: verdict, gaps, and what each document holds
 ├── report.md          # THE RESEARCH — verdict, Catechism, foundations, analysis, risks, open questions
 ├── docket.md          # the board: every gap and how it closed, blue's manifest, red's spot-checks
-├── debate.md          # the adversarial record, epoch by epoch, and the bench's terminal disposition
+├── debate.md          # the transcript, epoch by epoch, and the bench's terminal disposition
 ├── judgments.md       # motions — every contested question and how it was ruled
 ├── lines-of-inquiry.md # the directions: each line's fate, the path it took, its ruling and appeal
 ├── evidence.md        # the computations, with script, output and sha256
 ├── run.md             # friction, the record's invariant check, and cost
-├── CHANGELOG.md       # this report's own provenance: revisions, withdrawn claims, repairs
+├── CHANGELOG.md       # this report's own provenance: revisions, retired claims, repairs
 ├── report.html        # the same set with real tabs and cross-document links — one file, no server
 │                      # (ALL of the above are assembled LAST, from the record, by `assemble`. The
-│                      #  set exists because 70–76% of the single file was process record and the
-│                      #  research it was commissioned for was a quarter of its own deliverable.)
+│                      #  set exists because 70–76% of the single file was about the run and the
+│                      #  research it was commissioned for was a quarter of the file.)
 ├── inputs/PINNED.md   # the evidence base, pinned: repo HEAD at launch + cited corpora's commit/revision
 ├── blue/
 │                      # (the opening hypotheses are LINES OF INQUIRY on the record, not a file — read
@@ -76,9 +76,9 @@ research/<date>_<slug>/
 │                      #  cannot rule too-thin or out-of-scope, and the opening ones shape the
 │                      #  whole run)
 │   ├── report.md      # the synthesizer's stub — filled at synthesis, then frozen into the record
-│   │                  #   by `ingest`, which deletes it. From then the living report is read
+│   │                  #   by `ingest`, which deletes it. From then the report is read
 │   │                  #   through the tool, and every change goes through the `edit` verb
-│   └── candidates/    # best-of-N method-lens lane drafts, preserved (authored)
+│   └── candidates/    # best-of-N lane drafts, one method each, preserved (authored)
 └── cost.md            # measured tokens + dollars per seat-sitting (feov-record cost)
 
 RECORD — no file at all; read through the tool. Every projection, what each is for, and the
@@ -97,19 +97,18 @@ trajectories/       journal.jsonl (the HARNESS's lifecycle record, tracked)
 `setup` lays down exactly two stubs — `report.md` and `blue/report.md` — because those are the
 two a later seat actually fills. **A stub is not an artifact**, and a stub nobody fills is worse
 than an absent file: it reads as an empty artifact rather than a missing one. Measured in the
-2026-08-05 run, stubs for the transcript and the citation ledger finished at 36 and 46 bytes
+2026-08-05 run, stubs for the transcript and the citation list finished at 36 and 46 bytes
 while the record held 122 events; both are projections now, with no writer and no stub. Anything
 under RECORD above has no file at all — read it with `show <name>`.
 
 `blue/report.md` is a stub the synthesizer fills and then FREEZES: the freeze records its
 text as the base of the record and DELETES the file (#709). From then it too is a projection —
-there is no `blue/report.md` to open; read the living report through the tool and change it only
+there is no `blue/report.md` to open; read the report through the tool and change it only
 through the tool's edit path, each change an event the report is replayed from. It cannot be
 raw-written or bypassed, which is the point: the report a seat reads and the report the record holds
 are the same bytes, by construction.
 
-**Termination is the record's, and the standing practice is stop-and-resume**: there is no round
-ceiling. The chair's `dispatch next` says who sits; the run ends when nobody is ready — PASS
+**Termination is the record's, and the standing practice is stop-and-resume**: the chair's `dispatch next` says who sits; the run ends when nobody is ready — PASS
 permitted (VERIFIED), or every open material gap at its limit, ruled by the bench and carried
 (CEILING) — or when the run reaches its epoch limit with parties still ready (CEILING, the limit
 named as the reason). The bounds are the run's terms, recorded at setup: the exchanges a gap gets before
@@ -135,7 +134,7 @@ All artifacts are git-tracked; nothing is summarized away. The payload is the fi
 
 There is no search index, and there are two access modes:
 
-1. **Full read for the document under audit** — red reads blue's living report whole, in
+1. **Full read for the report** — red reads blue's report whole, in
    context, every sitting. A snippet NEVER substitutes: a decontextualized quote is how audits
    go blind. This clause outranks any token saving.
 2. **Leaf-node fetch for verification** — a citation is checked against its source, never against a
@@ -151,7 +150,7 @@ already have, and a lexical match over a known file beats a ranked guess over a 
 The Workflow script's `log()` is operator-console-EPHEMERAL: it persists nowhere. The
 transcript directory's `journal.jsonl` is the HARNESS's lifecycle record — `started`/`result`
 events only, never script logs. Per-agent API transcripts are `agent-*.jsonl` (the cost
-audit's input). Durable in-run state lives ONLY on the blackboard (git-tracked run files) or
+audit's input). Durable in-run state lives ONLY in the run directory (git-tracked run files) or
 in envelopes; anything else evaporates with the session. Tool footguns with live recurrences:
 Grep's count mode counts LINES, not occurrences (anchor patterns when counting); quoted
 heredocs can eat backslashes (prefer the Write tool for scripts); the Read tool caps ~25k
@@ -160,7 +159,7 @@ full-re-read MUST without a confidence discount.
 
 ## Report structure
 
-The deliverable is a SET, not a file (see `references/report_template.md`), and every document
+What a run hands over is a SET, not a file (see `references/report_template.md`), and every document
 in it opens with a link bar to the others.
 
 `report.md` is the research: verdict stamp (the word alone — its argument opens *Read this
@@ -170,7 +169,7 @@ likelihood × impact × complexity, including risk-accepted items with rationale
 inquiry areas → **open questions carried past this run** (authored by blue into the report's `## Open questions`, audited by red every sitting, lifted verbatim) →
 footnotes (with access dates; volatility noted for living sources).
 
-The process record is beside it, one document per audience: `docket.md` (the board in
+The debate's own documents are beside it, one per audience: `docket.md` (the board in
 full), `debate.md` (the transcript), `judgments.md` (motions and rulings), `lines-of-inquiry.md`
 (the directions and the path each took), `evidence.md` (the computations), `run.md` (friction, record verification, cost), `CHANGELOG.md` (the report's own
 revisions and withdrawn claims). Nothing is summarized away by the split — the union is the
@@ -180,11 +179,11 @@ THE CITATION AND PROOF LAYERS ARE WOVEN PER DOCUMENT. A footnote definition cann
 boundary, so each document numbers and defines the references it actually carries; proof numbers
 are run-wide, so `P3` is the same computation wherever it is cited.
 
-## Friction (the complaint channel)
+## The log
 
 A subagent's only voice is its return value — so capability complaints travel in the envelope.
 
-- AFTER any task where a missing tool, denied permission, or capability gap impeded you, YOU MUST report it in the envelope's `friction` field: name the capability and what you would have done with it.
+- AFTER any task where a missing tool, denied permission, or missing capability impeded you, YOU MUST report it in the envelope's `log` field: name the capability and what you would have done with it.
 - AFTER any task where the material did not fit the shape you were given — a template section that made no sense for the topic, a protocol step that fought the work, an envelope field you had nothing honest to put in, content with no home — YOU MUST report the misfit as friction: name the template/step/field and what shape the work actually wanted.
-- YOU MUST NOT silently work around a capability gap — the workaround destroys the signal that would get you retooled.
-- Friction is recorded on the RECORD via the friction verb — every seat WRITES it, and the read is the OPERATOR's, on the operator's own surface and not on yours, because a capability gap is a report to the human who can retool the seat, not material for the debate; capture reconciles every envelope's `friction` field against it, and the self-improvement loop consumes it. Complaints are how the system learns what its agents actually need.
+- YOU MUST NOT silently work around a missing capability — the workaround destroys the signal that would get you retooled.
+- The log is on the RECORD through each role's `log` verb — every seat WRITES it, and the read is the OPERATOR's, on the operator's own surface and not on yours, because a missing capability is a report to the human who can retool the seat, not material for the debate; capture reconciles every envelope's `log` field against it, and the self-improvement loop consumes it. Complaints are how the system learns what its agents actually need.

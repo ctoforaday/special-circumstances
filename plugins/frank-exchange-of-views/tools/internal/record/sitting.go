@@ -100,7 +100,7 @@ func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJS
 	// event discharges the duty and the type says which case it was. The property is unchanged:
 	// an attested-clean sitting is still an EVENT, and still distinguishable from silence.
 	if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_LOG) {
-		add("the log channel is open — you have neither reported a capability gap nor said that nothing blocked you")
+		add("the log is open — you have neither reported a missing capability nor said that nothing blocked you")
 	}
 
 	// EVERY DISPATCHED SEAT OWES THE SITTING IT WAS DISPATCHED FOR, and this list says so by the

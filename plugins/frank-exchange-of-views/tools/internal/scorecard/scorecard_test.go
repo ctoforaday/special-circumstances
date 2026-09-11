@@ -232,13 +232,13 @@ func TestHeadlineRanking(t *testing.T) {
 	}
 }
 
-// renderChair reproduces the exact markdown, including a not-computed row and an object value.
-func TestRenderChairFormat(t *testing.T) {
+// RenderCard reproduces the exact markdown, including a not-computed row and an object value.
+func TestRenderCardFormat(t *testing.T) {
 	rows := []Row{
 		{Clause: "Durable repairs", Metric: "repair_regression_ratio", Cls: "benchmark", Value: 0.5, Joint: "reads WITH red rigour"},
 		{Clause: "Alternatives explored", Metric: "lines_of_inquiry", Cls: "diagnostic", Value: objJSON(`{"pursued":2,"abandoned":1}`)},
 	}
-	out := RenderChair("blue", rows, "this run")
+	out := RenderCard(rows, "this run")
 	for _, want := range []string{
 		"## this run",
 		"- `repair_regression_ratio` [benchmark] — Durable repairs: **0.5**",
@@ -247,7 +247,7 @@ func TestRenderChairFormat(t *testing.T) {
 		"HEADLINE: repair_regression_ratio 0.5 [BENCHMARK] · lines_of_inquiry {\"pursued\":2,\"abandoned\":1} [DIAGNOSTIC]",
 	} {
 		if !strings.Contains(out, want) {
-			t.Errorf("renderChair missing %q:\n%s", want, out)
+			t.Errorf("RenderCard missing %q:\n%s", want, out)
 		}
 	}
 }

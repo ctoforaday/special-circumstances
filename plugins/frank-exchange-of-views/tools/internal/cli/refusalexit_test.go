@@ -40,9 +40,9 @@ func TestAnOperatorRefusalIsAnEnvelopeAndNotAnExit(t *testing.T) {
 		code string
 	}{
 		{
-			// A value present but ill-formed: the chair set is closed, and `banana` is not in it.
-			name: "scorecard --chair outside the set",
-			args: []string{"scorecard", "--chair", "banana"},
+			// A value present but ill-formed: the card set is closed, and `banana` is not in it.
+			name: "scorecard --card outside the set",
+			args: []string{"scorecard", "--card", "banana"},
 			code: "validation",
 		},
 		{

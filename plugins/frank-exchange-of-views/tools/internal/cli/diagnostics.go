@@ -113,6 +113,8 @@ func newShowDiagnostics() *cobra.Command {
 	// THE SECOND OPERATOR PROJECTION ON THIS GROUP: what the run asked its models for, beside
 	// what answered. See tiers.go.
 	show.AddCommand(newShowTiers())
+	// THE LOG, which every seat writes and only the operator reads. See log.go.
+	show.AddCommand(newShowLog())
 	return show
 }
 

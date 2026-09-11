@@ -83,16 +83,16 @@ func TestNoVerdictsGlossIsInReportMdAndEveryOnesIsInRunMd(t *testing.T) {
 	}{
 		{"halted", &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_HALTED),
 			Prose: proto.String("the bench halted the run on a safety petition")},
-			"**Verdict:** HALTED", "the bench ended this run"},
+			"**Outcome:** HALTED", "the bench ended this run"},
 		{"ceiling, derived", &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),
 			VerdictBasis: proto.String(record.VerdictDerived), Prose: proto.String("every gap reached its limit")},
-			"**Verdict:** CEILING-TERMINATED (derived from the record)", "never audited by a red pass"},
+			"**Outcome:** CEILING-TERMINATED (derived from the record)", "never audited by a red pass"},
 		{"unverified, asserted", &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED),
 			VerdictBasis: proto.String(record.VerdictAsserted), Prose: proto.String("the run ended before a terminal state")},
-			"**Verdict:** UNVERIFIED (asserted by the bench)", "The record holds no terminal state"},
+			"**Outcome:** UNVERIFIED (asserted by the bench)", "The record holds no terminal state"},
 		// NO OUTCOME AT ALL (gblock: "State only"). The stamp says NONE; what went missing — the bench
 		// never ran `bench outcome` — is a fact about the run, and run.md says it.
-		{"no outcome", nil, "**Verdict:** NONE (no terminal outcome on the record)", "was not run before assembly"},
+		{"no outcome", nil, "**Outcome:** NONE (no terminal outcome on the record)", "was not run before assembly"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			report, runmd := assembleWithOutcome(t, tc.outcome)

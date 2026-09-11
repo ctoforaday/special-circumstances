@@ -76,7 +76,7 @@ func CheckAttestedRole(agentType, seatID string) error {
 		"seat %q is a %s seat, and this agent is dispatched as %s, which seats %s. Your seat id and the "+
 			"configuration you are running under disagree, and the configuration is the half you did not type — "+
 			"so the id is what to check. Copy it exactly as SEAT_ID states it in your prompt. If it IS what your "+
-			"prompt says, the dispatch is wrong rather than your call, and the friction verb is the channel for it",
+			"prompt says, the dispatch is wrong rather than your call, and the log is where it goes",
 		seatID, role, agentType, prose(allowed))
 }
 

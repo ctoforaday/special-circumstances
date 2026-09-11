@@ -155,6 +155,6 @@ func requireDispatchableSeat(seatID string) error {
 		"seat %q is not an id the engine dispatches. Registering binds this id to you for the whole run, so it "+
 			"must be one a dispatch could have created — not a near miss and not one you composed. Your id is "+
 			"stated in your prompt as SEAT_ID; copy it exactly. If it IS what your prompt says, that is a defect "+
-			"in the dispatch rather than in your call, and the friction verb is the channel for it",
+			"in the dispatch rather than in your call, and the log is where it goes",
 		seatID)
 }

@@ -372,7 +372,7 @@ test('lane methods and the redundancy-floor seat at lanes=5', async () => {
   const lanes = labelsOf(world, 'blue-lane').map((c) => c.prompt)
   assert.equal(lanes.length, 3)
   assert.ok(lanes[0].includes('adversarial-disconfirming-first') && lanes[1].includes('primary-literature') && lanes[2].includes('local-repo critical-stance'))
-  for (const [i, p] of lanes.entries()) assert.ok(p.includes('SOURCE NOTES') && p.includes('Do NOT mint footnote labels'), `lane ${i + 1} source-note convention`)
+  for (const [i, p] of lanes.entries()) assert.ok(p.includes('YOUR SOURCES, IN PROSE') && p.includes('Do NOT mint footnote labels'), `lane ${i + 1} source-note convention`)
   const five = makeWorld(makeResponder({ chair: [passChair()] }))
   await five.run(script, { ...ARGS, lanes: 5 })
   const prompts = labelsOf(five, 'blue-lane').map((c) => c.prompt)
@@ -402,7 +402,7 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   assert.ok(/reorganize freely/i.test(synth) && /retired on the record/.test(synth))
   assert.ok(/LINES OF INQUIRY/.test(synth) && /dead ends matter most/.test(synth) && /CONSIDERED, not only the one you took/.test(synth))
   assert.ok(/what you weighed and rejected are three things a reader needs/.test(synth))
-  assert.ok(/YOUR IN-RUN SCORECARD/.test(synth) && /YOUR CHAIR/.test(synth) && /the seat you registered as/.test(synth) && !synth.includes('scorecards.mjs') && !/--bin\b/.test(synth))
+  assert.ok(/YOUR IN-RUN SCORECARD/.test(synth) && /YOUR SCORECARD for/.test(synth) && /your registered seat/.test(synth) && !synth.includes('scorecards.mjs') && !/--bin\b/.test(synth))
 })
 
 test('priors-are-poison: no cross-run scorecard seed reaches any chair, even when scorecards are supplied', async () => {
@@ -561,7 +561,7 @@ test('W2b: partial coverage is logged, never fatal; a found_closed id blue was n
   assert.ok(!partial.logs.some((l) => l.includes('G9')), 'a claimed closure outside the engagement excuses nothing')
 })
 
-test('the operator channel aggregates from every seat with attribution, and assembly receives it', async () => {
+test('the log aggregates from every seat with attribution, and assembly receives it', async () => {
   const world = makeWorld(makeResponder({
     chair: [chairEnv({ plan: plan([party('blue-respond', 'G1')]), log: ['no PDF extraction'] }), passChair()],
     blueRespond: [blueEnv({ log: ['rate-limited on WebFetch'] })],

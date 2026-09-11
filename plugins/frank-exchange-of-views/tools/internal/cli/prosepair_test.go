@@ -30,16 +30,12 @@ import (
 // Its predecessor was eight hand-written cases, and both offenders fell outside them. A list of
 // verbs to check is a list that rots the moment a verb is added; the command tree is the only
 // copy that cannot.
-//
-// A HIDDEN --reason is exempt: the operator `log` read declares one on purpose, hidden, so a seat
-// that passes it reaches a refusal naming its friction verb instead of a parse error. It is not
-// that command's channel and must not become one.
 func TestEveryVerbTakingReasonRegistersTheChannel(t *testing.T) {
 	var checked int
 	for role, root := range AllRoots() {
 		walk(root, func(c *cobra.Command, path []string) {
 			f := c.Flags().Lookup(flags.Reason)
-			if f == nil || f.Hidden {
+			if f == nil {
 				return
 			}
 			checked++

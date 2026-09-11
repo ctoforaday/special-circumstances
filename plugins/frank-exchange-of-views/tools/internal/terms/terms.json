@@ -1,0 +1,387 @@
+{
+  "entries": [
+    {
+      "term": "the report",
+      "definition": "The report is the research prose written for a reader of the subject: one document from a lane's text to the assembled report.md, named by its stage only where the stage matters (your part of the report, the report as `show report` serves it, the assembled report.md).",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [
+        {"variant": "candidate draft", "kind": "GATED", "pattern": "candidate drafts?|drafts? candidates"},
+        {"variant": "candidate (the text)", "kind": "REGISTRY-ONLY"},
+        {"variant": "living report", "kind": "GATED", "pattern": "living report",
+         "allow": [
+           {"path": "plugins/frank-exchange-of-views/tools/internal/record/recordpb/record.proto", "reason": "renamed in phase 2 with the proto's other annotation text (EVENT_TYPE_BLUE_EDIT means), so record.proto changes once"}
+         ]},
+        {"variant": "document or artifact under audit", "kind": "GATED", "pattern": "(document|artifact) under audit"},
+        {"variant": "synthesis (the document)", "kind": "REGISTRY-ONLY"},
+        {"variant": "deliverable", "kind": "GATED", "pattern": "deliverables?"},
+        {"variant": "frozen base, diff-stack", "kind": "GATED", "pattern": "frozen base|diff-stack",
+         "allow": [
+           {"path": "plugins/frank-exchange-of-views/tools/internal/cli/seat/help/ingest.md", "reason": "ingest is the act that freezes the base, and its own help says what it builds"},
+           {"path": "plugins/frank-exchange-of-views/tools/internal/cli/blue/ingest.go", "reason": "ingest's own refusals and result describe the base it builds"},
+           {"path": "plugins/frank-exchange-of-views/tools/internal/record/recordpb/record.proto", "reason": "renamed in phase 2 with the proto's other annotation text (EVENT_TYPE_BASE_INGEST means), so record.proto changes once"}
+         ]},
+        {"variant": "blue/report.md after ingest", "kind": "GATED", "pattern": "blue/report\\.md",
+         "masks": [
+           {"phrase": "synthesize ${runDir}/blue/report.md by UNION", "reason": "the synthesizer's own prompt: blue/report.md is that seat's file until ingest removes it"},
+           {"phrase": "INTO ${runDir}/blue/report.md at synthesis", "reason": "the synthesizer's own prompt, as above"}
+         ],
+         "allow": [
+           {"path": "plugins/frank-exchange-of-views/agents/blue-synthesizer.md", "reason": "the synthesizer writes blue/report.md before ingest; it is that seat's file"},
+           {"path": "plugins/frank-exchange-of-views/skills/research-protocol/SKILL.md", "reason": "the run-directory layout describes the synthesizer's stub and its removal at ingest"},
+           {"path": "plugins/frank-exchange-of-views/tools/internal/cli/blue/ingest.go", "reason": "ingest consumes blue/report.md and removes it; its refusal names the file it could not remove"}
+         ]}
+      ],
+      "collisions": [
+        {"word": "candidate", "resolution": "a gap a lens is about to mint, screened by near-match, keeps the word; lane text is the report"},
+        {"word": "report.md", "resolution": "blue/report.md is the synthesizer's file until ingest removes it; report.md at the run root is the assembled report"}
+      ]
+    },
+    {
+      "term": "run directory",
+      "definition": "The run directory is the directory that holds one run: its record, its report and the documents assembled beside it.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [
+        {"variant": "blackboard", "kind": "GATED", "pattern": "blackboard"}
+      ],
+      "collisions": []
+    },
+    {
+      "term": "the record",
+      "definition": "The record is the run's account of every act, held as events in records/record.db, and every read a seat makes is a projection of it.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [
+        {"variant": "ledger", "kind": "GATED", "pattern": "\\bledgers?\\b"},
+        {"variant": "narrative", "kind": "GATED", "pattern": "\\bnarratives?\\b"},
+        {"variant": "event log", "kind": "GATED", "pattern": "event log"},
+        {"variant": "sitting, round, judicial, adversarial or process record", "kind": "GATED", "pattern": "(sitting|round|judicial|adversarial|process) records?\\b",
+         "allow": [
+           {"path": "plugins/frank-exchange-of-views/tools/internal/record/sitting.go", "reason": "renamed in phase 2: the \"round record\" Go refusal goes with the other round refusals"}
+         ]}
+      ],
+      "collisions": [
+        {"word": "record (verb)", "resolution": "as a verb, say \"put on the record\" or name the verb that does it"}
+      ]
+    },
+    {
+      "term": "run",
+      "definition": "A run is one research question taken from setup to its outcome.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [
+        {"variant": "the debate is over", "kind": "GATED", "pattern": "the debate (is over|ended)"},
+        {"variant": "debate (the run)", "kind": "REGISTRY-ONLY"}
+      ],
+      "collisions": [
+        {"word": "debate", "resolution": "debate.md, the Debate phase, `show debate` and the report's \"The debate\" section keep the word; the whole run is the run"}
+      ]
+    },
+    {
+      "term": "epoch",
+      "definition": "An epoch runs from one chair sitting to the next: the chair relays who sits, the parties the record names sit, and the chair sits again.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [
+        {"variant": "round", "kind": "GATED", "pattern": "\\brounds?\\b|round-0",
+         "masks": [
+           {"phrase": "round-trip", "reason": "a round-trip is a request and its answer, not a unit of the run"}
+         ],
+         "allow": [
+           {"path": "plugins/frank-exchange-of-views/tools/internal/record/sitting.go", "reason": "renamed in phase 2: \"round\" in the Go refusals"},
+           {"path": "plugins/frank-exchange-of-views/tools/internal/record/motion.go", "reason": "renamed in phase 2: \"round\" in the Go refusals"},
+           {"path": "plugins/frank-exchange-of-views/tools/internal/record/recordpb/record.proto", "reason": "renamed in phase 2: \"round\" in the proto annotations"}
+         ]}
+      ],
+      "collisions": []
+    },
+    {
+      "term": "sitting",
+      "definition": "A sitting is one seat's dispatch, from the prompt the engine hands it to the envelope it returns.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [
+        {"variant": "your last turn, your next turn", "kind": "GATED", "pattern": "your (last|next) turn"},
+        {"variant": "this session", "kind": "GATED", "pattern": "this session"},
+        {"variant": "turn (a sitting)", "kind": "REGISTRY-ONLY"}
+      ],
+      "collisions": [
+        {"word": "turn", "resolution": "a NULL TURN (a sitting that moved nothing on a gap) and an API turn (one model call inside a sitting) keep the word"}
+      ]
+    },
+    {
+      "term": "exchange",
+      "definition": "An exchange is a red sitting followed by a blue sitting on one gap, and k-max counts them.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [],
+      "collisions": []
+    },
+    {
+      "term": "seat",
+      "definition": "A seat is one agent's place in the run, registered under a seat id whose role decides the surface it is given.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [],
+      "collisions": []
+    },
+    {
+      "term": "side",
+      "definition": "A side is red or blue: red audits the report and passes or fails it, blue researches, writes and repairs it.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [
+        {"variant": "red team, blue team", "kind": "GATED", "pattern": "(blue|red) teams?",
+         "masks": [
+           {"phrase": "## Blue team report", "reason": "quotes a wrapper heading blue must not write; the prompt names the forbidden form, not a side"}
+         ]}
+      ],
+      "collisions": []
+    },
+    {
+      "term": "lens",
+      "definition": "A lens is a red seat that audits the report for one class of defect, and the only seat that files findings and mints gaps.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [],
+      "collisions": [
+        {"word": "method", "resolution": "a lane's source method is its method, never a lens"}
+      ]
+    },
+    {
+      "term": "chair",
+      "definition": "The chair is red's running seat: it relays who sits, rules blue's motions, spot-checks the archive and records red's verdict.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [
+        {"variant": "red-merge, merge seat, red merged", "kind": "GATED", "pattern": "red-merge|merge seat|red merged"},
+        {"variant": "merge (the chair's role)", "kind": "GATED", "pattern": "\\bmerge (carry|close|verdict|position|closing|spot-check|show)\\b|lens\\|merge",
+         "allow": [
+           {"path": "plugins/frank-exchange-of-views/tools/internal/cli/merge/verdict.go", "reason": "renamed in phase 2: the role id merge becomes chair, and cli/merge moves to cli/chair"},
+           {"path": "plugins/frank-exchange-of-views/tools/internal/record/record.go", "reason": "renamed in phase 2, as above"},
+           {"path": "plugins/frank-exchange-of-views/tools/internal/record/recordpb/record.proto", "reason": "renamed in phase 2, as above ((ruled_by) = \"merge\" and the annotation text)"}
+         ]}
+      ],
+      "collisions": [
+        {"word": "merge", "resolution": "blue's union of the lane drafts is a merge; the chair is the chair"}
+      ]
+    },
+    {
+      "term": "bench",
+      "definition": "The bench is the seat that adjudicates the contested docket, rules on motions and stamps how the run ended.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [
+        {"variant": "the judge", "kind": "GATED", "pattern": "the judge([^-a-z]|$)"}
+      ],
+      "collisions": [
+        {"word": "judge", "resolution": "the seat ids judge, judge-terminal and judge-petition-* and the agent lead-judge keep the word; in prose it is the bench"},
+        {"word": "stopping judgment", "resolution": "the chair's is PASS when the board permits it; the bench's is whether remaining defect is worth remaining cost"}
+      ]
+    },
+    {
+      "term": "lane",
+      "definition": "A lane is one of blue's parallel first passes at the report, written by one researcher under one method.",
+      "seats": ["blue", "bench", "operator"],
+      "bans": [
+        {"variant": "method lens", "kind": "GATED", "pattern": "method[- ]lens"}
+      ],
+      "collisions": []
+    },
+    {
+      "term": "synthesizer",
+      "definition": "The synthesizer is the blue seat that merges the lane drafts into the report by union and writes the report's authored surfaces.",
+      "seats": ["blue", "bench", "operator"],
+      "bans": [],
+      "collisions": []
+    },
+    {
+      "term": "engine",
+      "definition": "The engine is the workflow script that dispatches the seats the record says are ready and reads the envelopes they return.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [
+        {"variant": "the lead", "kind": "GATED", "pattern": "the lead([^-a-z]|$)"},
+        {"variant": "harness (the engine)", "kind": "REGISTRY-ONLY"}
+      ],
+      "collisions": [
+        {"word": "harness", "resolution": "the Claude Code runtime a seat runs inside keeps the word"}
+      ]
+    },
+    {
+      "term": "operator",
+      "definition": "The operator is the person running the research, and the seat id their own commands run under.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [],
+      "collisions": []
+    },
+    {
+      "term": "the log",
+      "definition": "The log is the entries a seat files for the operator with the `log` verb — a missing capability, a defect in the tooling, an impediment or a nominal sitting — and none of it is debate material.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [
+        {"variant": "operator channel", "kind": "GATED", "pattern": "operator channel"},
+        {"variant": "friction verb", "kind": "GATED", "pattern": "friction verb"},
+        {"variant": "complaint channel", "kind": "GATED", "pattern": "complaint channel"},
+        {"variant": "the envelope's friction field", "kind": "GATED", "pattern": "envelope's .friction. field"}
+      ],
+      "collisions": [
+        {"word": "log", "resolution": "`log` only ever writes; the operator reads the log with `show log`"}
+      ]
+    },
+    {
+      "term": "friction",
+      "definition": "Friction is one type of log entry: the work was impeded and the seat is noting it.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [],
+      "collisions": []
+    },
+    {
+      "term": "missing capability",
+      "definition": "A missing capability is an act a seat needed that no surface offers, and it goes in the log, never on the board.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [
+        {"variant": "capability gap", "kind": "GATED", "pattern": "capability gaps?"}
+      ],
+      "collisions": []
+    },
+    {
+      "term": "citation",
+      "definition": "A citation is a source attached to a sentence of the report with the cite verb, hashed and dated so it can be checked again.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [
+        {"variant": "source note", "kind": "GATED", "pattern": "source notes?"},
+        {"variant": "reference (a citation)", "kind": "REGISTRY-ONLY"}
+      ],
+      "collisions": [
+        {"word": "reference", "resolution": "references/*.md and the proto's references option keep the word"}
+      ]
+    },
+    {
+      "term": "anchor",
+      "definition": "An anchor is the invisible token a citation, a proof or a finding leaves at its sentence in the report.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [],
+      "collisions": []
+    },
+    {
+      "term": "proof",
+      "definition": "A proof is a recorded computation: a script that was run, with its hash and exit status.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [],
+      "collisions": []
+    },
+    {
+      "term": "finding anchor",
+      "definition": "A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [
+        {"variant": "finding-marker, marker layer", "kind": "GATED", "pattern": "finding[- ]markers?|marker layer"}
+      ],
+      "collisions": [
+        {"word": "marker", "resolution": "the `.run-live` marker and the manual's `→ SHARED` marker keep the word"}
+      ]
+    },
+    {
+      "term": "verdict",
+      "definition": "The verdict is the chair's PASS or FAIL on the board.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [
+        {"variant": "**Verdict:** (the outcome label)", "kind": "GATED", "pattern": "\\*\\*Verdict:\\*\\*"},
+        {"variant": "certified report", "kind": "GATED", "pattern": "certified report"}
+      ],
+      "collisions": []
+    },
+    {
+      "term": "outcome",
+      "definition": "The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [],
+      "collisions": []
+    },
+    {
+      "term": "finding",
+      "definition": "A finding is a lens's recorded observation of a defect in the report, graded and not yet minted.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [
+        {"variant": "finding (a complaint about the tooling)", "kind": "REGISTRY-ONLY"}
+      ],
+      "collisions": []
+    },
+    {
+      "term": "gap",
+      "definition": "A gap is a defect in the report, minted onto the board by a lens.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [],
+      "collisions": [
+        {"word": "gap", "resolution": "a parity gap between two numbers is ordinary English; a missing tool is a missing capability"}
+      ]
+    },
+    {
+      "term": "retire",
+      "definition": "To retire a claim is to take it out of the report with the retire verb, on the record.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [
+        {"variant": "claims withdrawn", "kind": "GATED", "pattern": "claims? withdrawn",
+         "allow": [
+           {"path": "plugins/frank-exchange-of-views/tools/internal/record/recordpb/record.proto", "reason": "renamed in phase 2 with the proto's other annotation text (EVENT_TYPE_RETIRE means), so record.proto changes once"}
+         ]},
+        {"variant": "withdraw (retire)", "kind": "REGISTRY-ONLY"}
+      ],
+      "collisions": []
+    },
+    {
+      "term": "disposition",
+      "definition": "A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [
+        {"variant": "carried (a disposition)", "kind": "GATED", "pattern": "\\bcarried\\b",
+         "masks": [
+           {"phrase": "--carried-from", "reason": "the carry verb's flag: carry restates an earlier closure, which is its own meaning"},
+           {"phrase": "carried the closure of", "reason": "the carry verb's own result"}
+         ],
+         "allow": [
+           {"path": "plugins/frank-exchange-of-views/agents/blue-researcher.md", "reason": "renamed in phase 2: the disposition carried becomes remanded (enum, migrate alias, epoch 6)"},
+           {"path": "plugins/frank-exchange-of-views/agents/lead-judge.md", "reason": "renamed in phase 2, as above"},
+           {"path": "plugins/frank-exchange-of-views/agents/red-chair.md", "reason": "renamed in phase 2, as above"},
+           {"path": "plugins/frank-exchange-of-views/skills/adversarial-audit/SKILL.md", "reason": "renamed in phase 2, as above (its CARRIED label is reworded with the enum)"},
+           {"path": "plugins/frank-exchange-of-views/skills/research-protocol/SKILL.md", "reason": "renamed in phase 2, as above"},
+           {"path": "plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js", "reason": "renamed in phase 2, as above (the enum list and the duty map carry it)"},
+           {"path": "plugins/frank-exchange-of-views/tools/internal/cli/seat/help/carry.md", "reason": "renamed in phase 2, as above"},
+           {"path": "plugins/frank-exchange-of-views/tools/internal/cli/seat/verbs.go", "reason": "renamed in phase 2, as above"},
+           {"path": "plugins/frank-exchange-of-views/tools/internal/record/available.go", "reason": "renamed in phase 2, as above"},
+           {"path": "plugins/frank-exchange-of-views/tools/internal/record/dispatch.go", "reason": "renamed in phase 2, as above"},
+           {"path": "plugins/frank-exchange-of-views/tools/internal/record/enums.go", "reason": "renamed in phase 2, as above"},
+           {"path": "plugins/frank-exchange-of-views/tools/internal/record/liveness.go", "reason": "renamed in phase 2, as above"},
+           {"path": "plugins/frank-exchange-of-views/tools/internal/record/record.go", "reason": "renamed in phase 2, as above"},
+           {"path": "plugins/frank-exchange-of-views/tools/internal/view/view.go", "reason": "renamed in phase 2, as above (the archive view labels a carried disposition)"},
+           {"path": "plugins/frank-exchange-of-views/tools/internal/record/recordpb/record.proto", "reason": "renamed in phase 2: DISPOSITION_CARRIED and the annotation text that names it"}
+         ]},
+        {"variant": "resolution (a disposition)", "kind": "GATED", "pattern": "\\bresolutions?\\b",
+         "allow": [
+           {"path": "plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js", "reason": "renamed in phase 2: JUDGE_ENVELOPE resolutions[].resolution becomes dispositions[].disposition with its readers"}
+         ]},
+        {"variant": "unmapped fate", "kind": "GATED", "pattern": "unmapped fate",
+         "allow": [
+           {"path": "plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js", "reason": "renamed in phase 2 with the envelope keys (UNMAPPED FATE becomes UNMAPPED DISPOSITION)"}
+         ]},
+        {"variant": "fate (a disposition)", "kind": "REGISTRY-ONLY"}
+      ],
+      "collisions": [
+        {"word": "fate", "resolution": "a line of inquiry's state keeps the word"}
+      ]
+    },
+    {
+      "term": "grade motion",
+      "definition": "A grade motion is a side's motion contesting a gap's grade, ruled by the bench.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [
+        {"variant": "grade dispute", "kind": "GATED", "pattern": "grade disputes?"},
+        {"variant": "grade_disputes (the envelope key)", "kind": "GATED", "pattern": "grade_disputes",
+         "allow": [
+           {"path": "plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js", "reason": "renamed in phase 2: the envelope key becomes grade_motions with its readers"}
+         ]}
+      ],
+      "collisions": []
+    },
+    {
+      "term": "scorecard",
+      "definition": "A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.",
+      "seats": ["lens", "merge", "blue", "bench", "operator"],
+      "bans": [
+        {"variant": "your chair (a scorecard)", "kind": "GATED", "pattern": "your chair"}
+      ],
+      "collisions": [
+        {"word": "card", "resolution": "a card is one of the three scorecards, red, blue or bench, and nothing else"}
+      ]
+    }
+  ]
+}

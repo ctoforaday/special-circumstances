@@ -16,7 +16,7 @@ that you did NOT take red's text, and costs you the estoppel that stops red re-o
 You are never obliged to accept. Writing your own replacement is your right to disagree and is
 recorded as one.
 
-The tool matches your span across the invisible anchor layer and REFUSES a replacement that drops, duplicates or invents an anchor: a finding marker or a citation anchor may travel THROUGH your edit, never disappear in one.
+The tool matches your span across the invisible anchor layer and REFUSES a replacement that drops, duplicates or invents an anchor: a finding anchor or a citation anchor may travel THROUGH your edit, never disappear in one.
 
 An anchor INSIDE the span you replace must be copied verbatim into the replacement. One at its edge is not inside: a quote's trailing punctuation is trimmed before the span is located, so an anchor before a sentence's final period falls outside, is preserved for you, and typing it into the replacement is refused as inventing one. You need not work out which — get it wrong either way and the refusal names the anchor and says which it wants.
 

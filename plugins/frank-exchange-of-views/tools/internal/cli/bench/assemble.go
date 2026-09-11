@@ -21,7 +21,7 @@ import (
 func newAssemble() *cobra.Command {
 	c := &cobra.Command{
 		Use:          "assemble",
-		Short:        "assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the event log; no inputs",
+		Short:        "assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the record; no inputs",
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 	}

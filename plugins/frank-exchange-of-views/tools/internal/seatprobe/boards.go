@@ -569,7 +569,7 @@ The working group's standard has been withdrawn since the benchmark was run.
 			{Seat: "red-lens-evidence", Verb: "corroborate", Because: "The methodology claim rests on a standard BLUE NEVER CITED, so there is no anchor to verify against — and `verify` requires one. The source red goes and finds is its own act with its own verb, and the alternative is a lens that reads the standard, learns it was withdrawn, and has nowhere to put that but prose."},
 			{Seat: "red-lens-evidence", Verb: "reproduce", Because: "A proof is audited by RE-RUNNING it, not by reading it — and then judged for whether it establishes the claim at all. `print(\"7 is prime\")` reproduces perfectly forever."},
 			{Seat: "red-lens-evidence", Verb: "motion petition file", Because: "A lens that believes proceeding would require asserting what it thinks false has one channel, and it is not prose. Every seat may file; the bench rules."},
-			{Seat: "red-lens-evidence", Verb: "log", Because: "The report cites a claim whose source is behind a paywall this seat cannot reach. There is no verb for `I could not read it`, so the accounted move is to say so on the operator channel — and a lens that instead grades the citation on the abstract has produced a verification that never happened."},
+			{Seat: "red-lens-evidence", Verb: "log", Because: "The report cites a claim whose source is behind a paywall this seat cannot reach. There is no verb for `I could not read it`, so the accounted move is to say so in the log — and a lens that instead grades the citation on the abstract has produced a verification that never happened."},
 		},
 	}
 }

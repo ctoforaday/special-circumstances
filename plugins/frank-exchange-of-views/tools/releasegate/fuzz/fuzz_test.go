@@ -2586,9 +2586,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = "show report --anchor f-ffffffff SUCCEEDED on an anchor nobody minted — a window over nothing:\n" + truncate(string(out))
 		return res
 	}
-	// The OPERATOR's friction read — seats write the channel, the human reads it back.
-	if _, err := tracked(bin, "log", "--run", runDir, "--seat-id", "operator"); err != nil {
-		res.err = "operator friction read failed: " + err.Error()
+	// The OPERATOR's read of the log — seats write it, the human reads it back with `show log`.
+	if _, err := tracked(bin, "show", "log", "--run", runDir, "--seat-id", "operator"); err != nil {
+		res.err = "operator log read failed: " + err.Error()
 		return res
 	}
 	// THE WRONG-ADDRESS DRIVE IS GONE, because the address collision is. A seat's `friction
@@ -3270,7 +3270,7 @@ var reportExemptions = map[string]string{
 	// treatment falls short. Named here rather than left silent, because the gate is right that
 	// an unclassified event type is how a report loses a whole exchange.
 	"inquiry_review": "read by record.InquiryReviewDue as a per-round duty gate, not rendered: a shortfall the review finds is minted as an ordinary gap, which is what reaches the reader",
-	"outcome":        "composed into the verdict stamp by verdictStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
+	"outcome":        "composed into the outcome stamp by outcomeStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
 	"verdict":        "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
 }
 
@@ -4240,7 +4240,8 @@ var readOnlySurfaces = [][]string{
 	{"graph", "--format", "mermaid"},
 	{"graph", "--format", "dot"},
 	{"count-claims"},
-	{"scorecard", "--chair", "red"},
+	{"scorecard"},
+	{"scorecard", "--card", "red"},
 	// Every command's help on a seat's surface, which it produces by running this binary again
 	// once per page. One seat is enough: it is one contract on every surface, keyed once.
 	{"manual", "--seat-id", "blue-respond"},

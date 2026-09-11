@@ -13,7 +13,7 @@
     {
       "name": "frank-exchange-of-views",
       "source": "./plugins/frank-exchange-of-views",
-      "description": "The research debate engine: an additive blue team, a subtractive red team that owns the pass/fail gate, and a lead that runs mechanics and the final compromise — best-of-N, a Heilmeier Catechism, and the full adversarial record preserved."
+      "description": "The research debate engine: an additive blue side, a subtractive red side that owns the pass/fail gate, an engine that runs the mechanics and a bench that rules the final compromise — best-of-N, a Heilmeier Catechism, and the full record preserved."
     },
     {
       "name": "sleeper-service",

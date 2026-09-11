@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -12,27 +13,28 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
 )
 
-// newScorecard is the operator command that prints a chair's scorecard for THIS run.
+// newScorecard is the operator command that prints this run's scorecards.
 //
-// It is NOT the seat's work list, and its Short used to call it "the seat's in-run self-read"
-// three lines under a comment saying "Not a seat verb". That contradiction is how a third name
-// for one thing gets built: scorecard measures how the run is GOING, `show` says what is LEFT.
+// It is NOT the seat's work list: scorecard measures how the run is GOING, `show` says what is
+// LEFT. The seat-facing read is `show scorecard`, which prints the one card the seat is measured
+// on and takes no selector.
 //
-// THE SEAT-FACING READ IS NOW `show scorecard`, and this command kept only the job it alone can
-// do: read a chair OTHER than your own. --chair exists here because an operator is not a party
-// and has no chair of its own; a seat has exactly one and passes nothing. The dispatch prompt
-// used to send seats HERE, by telling them to override --seat-id to `operator` and find "the
-// selector that names a chair" — four seats across three runs filed friction saying no such
-// thing was on their surface, and the one that obeyed contradicted the rule that --seat-id
-// selects your surface. Ported from
-// scorecards.mjs's CLI. It reads the record IN-PROCESS (BoardState → board/findings/debate
-// projections) instead of self-spawning `merge show`, plus the journal envelopes + telemetry;
-// mid-run the envelope-derived rows read "not computed". Not a seat verb.
+// ALL THREE BY DEFAULT. An operator is not a party and has no card of its own, so the question
+// it asks is "how is the run going", and the answer is every card. Making it name one before it
+// could see any was a selector with no default the command could not have inferred. --card
+// narrows to one, and an unknown value is refused by name.
+//
+// It reads the record IN-PROCESS (the board, findings and debate projections), plus the journal
+// envelopes and telemetry; mid-run the envelope-derived rows read "not computed". Not a seat verb.
 func newScorecard() *cobra.Command {
 	c := &cobra.Command{
-		Use:           "scorecard --run <dir> --chair blue|red|bench",
-		Short:         "print a chair's scorecard for this run — OPERATOR ANALYTICS ACROSS CHAIRS. A seat reads its OWN chair with `show scorecard`, which takes no --chair because the chair is the seat it registered as",
-		Long:          "scorecard computes the given chair's scorecard rows from the run's record (board/findings/debate, read in-process), its journal envelopes, and its board telemetry, and prints the markdown section — the same numbers the dashboard and the human see. Ported from scorecards.mjs. The envelope-derived rows read \"not computed\" until capture assembles the journal.",
+		Use:   "scorecard --run <dir> [--card red|blue|bench]",
+		Short: "print this run's scorecards — red, blue and bench, or one with --card. OPERATOR ANALYTICS ACROSS CARDS. A seat reads its own with `show scorecard`, which takes no selector",
+		Long: "scorecard prints this run's scorecards — red, blue and bench, in that order, each under its own `# <card> scorecard` heading — or only the one --card names. " +
+			"A card's rows are computed from the run's record (the board, findings and debate projections, read in-process), its journal envelopes and its board telemetry: the same numbers the dashboard and the human see. " +
+			"The envelope-derived rows read \"not computed\" until capture assembles the journal. " +
+			"OPERATOR ANALYTICS ACROSS CARDS: a seat reads its own with `show scorecard`, which takes no selector because the seat it registered as decides its card. " +
+			"A record that cannot be read is refused before any card is printed.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -42,45 +44,52 @@ func newScorecard() *cobra.Command {
 			if rerr != nil {
 				return rerr
 			}
-			chair, _ := cmd.Flags().GetString(flags.Chair)
-			cards := map[string]bool{"blue": true, "red": true, "bench": true}
-			// The run is no longer part of this test: RequireRun refused an unsupplied one
-			// above, so `run.Dir() == ""` could only ever be false by the time it was read.
-			// RETURNED, NOT EXITED. RunE's contract is that a refusal comes back as an error:
-			// Execute renders it through EmitTopLevelError first, so a --json caller gets an
-			// envelope naming the bad flag rather than a usage sentence on a channel whose whole
-			// contract is that it is machine-readable (root.go says this in as many words). An
-			// os.Exit here also skipped the signal guard's release and made this command
-			// undrivable by any in-process test, which is how #716 was found.
-			if !cards[chair] {
-				return feov.Errorf(feov.Validation, "usage: %s scorecard --run <dir> --chair blue|red|bench", InvokedAs())
+			card, _ := cmd.Flags().GetString(flags.Card)
+			cards := scorecard.Cards
+			if cmd.Flags().Changed(flags.Card) {
+				if !isCard(card) {
+					// RETURNED, NOT EXITED: Execute renders a refusal through EmitTopLevelError, so
+					// a --json caller gets an envelope naming the bad flag.
+					return feov.Errorf(feov.Validation, "--%s %q is not a scorecard: the cards are %s (omit --%s to print all three). usage: %s scorecard --run <dir> [--%s red|blue|bench]",
+						flags.Card, card, cardList(), flags.Card, InvokedAs(), flags.Card)
+				}
+				cards = []string{card}
 			}
-			// AN EMPTY RECORD AND AN UNREADABLE ONE ARE NOT THE SAME RUN, and this discarded the
-			// error that told them apart. The comment here read "a run with no readable record
-			// leaves fam nil — the record-derived rows then read 'needs the tool', exactly as
-			// the JS did when the view spawn failed", and it was faithful to the JS and wrong:
-			// every row then renders `_not computed_ — no findings on the record yet`, over a
-			// record holding forty of them, and the command exits 0. Measured against
-			// run-archive/2026-09-02_quadratic-formula, which this binary cannot read at all.
-			//
-			// That is the plausible zero every other read verb on this surface already refuses —
-			// and it is worse here, because a scorecard is HARVESTED into feov-memory (#743), so
-			// the empty answer outlives the run that could not produce it.
-			//
-			// An empty run stays legal: openRunForRead returns a nil handle for a run that has
-			// recorded nothing and the projections read it as zero events with no error, so an
-			// error from FamilyOf is a read FAILURE and nothing else.
-			var fam *record.Family
+			// AN EMPTY RECORD AND AN UNREADABLE ONE ARE NOT THE SAME RUN. Discarding FamilyOf's
+			// error rendered every row `_not computed_ — no findings on the record yet` over a
+			// record holding forty of them, and exited 0 — a plausible zero that is HARVESTED
+			// into feov-memory (#743), so it outlives the run that could not produce it. An empty
+			// run stays legal: its projections read zero events with no error.
 			f, ferr := record.FamilyOf(run)
 			if ferr != nil {
 				return ferr
 			}
-			fam = &f
-			rows := scorecard.Compute(run, scorecard.ReadResults(run), fam)[chair]
-			fmt.Fprint(cmd.OutOrStdout(), scorecard.RenderChair(chair, rows, "this run")+"\n")
+			rows := scorecard.Compute(run, scorecard.ReadResults(run), &f)
+			w := cmd.OutOrStdout()
+			for i, c := range cards {
+				if i > 0 {
+					fmt.Fprintln(w)
+				}
+				fmt.Fprintf(w, "# %s scorecard\n\n%s\n", c, scorecard.RenderCard(rows[c], "this run"))
+			}
 			return nil
 		},
 	}
-	c.Flags().String(flags.Chair, "", "which chair: blue|red|bench")
+	c.Flags().String(flags.Card, "", "which card: red|blue|bench (omit to print all three)")
 	return c
+}
+
+func isCard(s string) bool {
+	for _, c := range scorecard.Cards {
+		if s == c {
+			return true
+		}
+	}
+	return false
+}
+
+// cardList is the three cards as a sentence names them: "red, blue and bench".
+func cardList() string {
+	cs := scorecard.Cards
+	return strings.Join(cs[:len(cs)-1], ", ") + " and " + cs[len(cs)-1]
 }

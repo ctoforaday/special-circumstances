@@ -168,14 +168,14 @@ func scorecardSection(run record.Run) string {
 		fam = &f
 	}
 	cards := scorecard.Compute(run, scorecard.ReadResults(run), fam)
-	chairs := make([]string, 0, len(cards))
+	names := make([]string, 0, len(cards))
 	for c := range cards {
-		chairs = append(chairs, c)
+		names = append(names, c)
 	}
-	sort.Strings(chairs)
+	sort.Strings(names)
 	var blocks []string
-	for _, chair := range chairs {
-		rows := cards[chair]
+	for _, card := range names {
+		rows := cards[card]
 		if len(rows) == 0 {
 			continue
 		}
@@ -202,7 +202,7 @@ func scorecardSection(run record.Run) string {
 			trs.WriteString(fmt.Sprintf(`<tr><td style="%s">%s</td><td>%s</td><td style="%s">%s</td><td>%s</td></tr>`,
 				style, esc(r.Metric), esc(r.Cls), style, esc(shown), esc(strings.TrimSpace(r.Clause))))
 		}
-		blocks = append(blocks, fmt.Sprintf("<h3>%s</h3><table>%s</table>", esc(chair), trs.String()))
+		blocks = append(blocks, fmt.Sprintf("<h3>%s</h3><table>%s</table>", esc(card), trs.String()))
 	}
 	if len(blocks) == 0 {
 		return ""

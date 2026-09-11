@@ -223,12 +223,15 @@ func TestTheManualLiftsEveryVerbatimRepeatAndMarksEachRemoval(t *testing.T) {
 		for _, p := range expanded {
 			whole += len(p.Body)
 		}
-		t.Logf("%s: manual %d chars against %d chars of the pages it stands for (%d%%), %d blocks in SHARED", role, len(out), whole, 100*len(out)/whole, len(claimed))
+		// THE WORDS SECTION IS NOT A PAGE AND STANDS FOR NONE, so it is left out of a measure of
+		// how much the lifting saved. Counted in, it reads as lost economy on the smallest surface.
+		lifted := len(out) - len(wordsSection(out))
+		t.Logf("%s: manual %d chars (%d without the words section) against %d chars of the pages it stands for (%d%%), %d blocks in SHARED", role, len(out), lifted, whole, 100*lifted/whole, len(claimed))
 		// MEASURED 63–72% across the five surfaces (the operator's pages share least). A manual
 		// whose repeats stopped being lifted comes out at or above 100%, markers and all, so 80%
 		// is a bound that fires on the economy failing rather than on a page gaining a sentence.
-		if len(out) > whole*8/10 {
-			t.Errorf("%s: the manual is %d chars against %d for the pages it stands for — the repeats are no longer being lifted", role, len(out), whole)
+		if lifted > whole*8/10 {
+			t.Errorf("%s: the manual is %d chars against %d for the pages it stands for — the repeats are no longer being lifted", role, lifted, whole)
 		}
 	}
 }

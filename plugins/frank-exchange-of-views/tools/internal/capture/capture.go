@@ -1,7 +1,7 @@
 // Package capture is the Go port of capture-research-run.mjs: the mechanical half of
 // /research's run-record step plus the mechanized post-hoc auditor. It recomputes counts from
 // the git-tracked FILES and diffs them against the envelopes' self-reports, writes cost.md and
-// the transcript tarball, appends each chair's scorecard, harvests precedents into law/proposed,
+// the transcript tarball, appends each card's scorecard, harvests precedents into law/proposed,
 // removes the run-live marker, and writes run-record-audit.md — exit 2 on any audit FAIL.
 //
 // The three record-backed audits (telemetry, log-parity, record-parity) read the record
@@ -1529,7 +1529,7 @@ func HarvestPrecedents(run record.Run, results []map[string]any, lawDir string, 
 type ScorecardResult struct {
 	Written bool
 	Rows    int
-	Chairs  int
+	Cards   int
 	Reason  string
 }
 
@@ -1540,21 +1540,21 @@ func WriteScorecards(run record.Run, results []map[string]any, memoryDir string,
 	cards := scorecard.Compute(run, results, fam)
 	label := labelOf(run)
 	rows := 0
-	chairs := 0
+	written := 0
 	var failed []string
 
-	// Sorted, so a partial failure names the same chairs in the same order every run: a
+	// Sorted, so a partial failure names the same cards in the same order every run: a
 	// reason that reshuffles between runs is one a reader cannot diff.
 	names := make([]string, 0, len(cards))
-	for chair := range cards {
-		names = append(names, chair)
+	for card := range cards {
+		names = append(names, card)
 	}
 	sort.Strings(names)
 
-	for _, chair := range names {
-		chairRows := cards[chair]
-		p := filepath.Join(memoryDir, chair+"-scorecard.md")
-		head := scorecard.ChairHeader(chair)
+	for _, card := range names {
+		cardRows := cards[card]
+		p := filepath.Join(memoryDir, card+"-scorecard.md")
+		head := scorecard.CardHeader(card)
 		b, err := os.ReadFile(p)
 		switch {
 		case err == nil:
@@ -1567,23 +1567,23 @@ func WriteScorecards(run record.Run, results []map[string]any, memoryDir string,
 			// of what this file is for: the series is the memory, and TestWriteScorecardsAppends
 			// asserts it is "appended, never overwritten". Absence is the only reason to
 			// start from a header, so absence is the only error handled that way.
-			failed = append(failed, chair+": cannot read "+p+" ("+err.Error()+") — left untouched rather than overwritten with a fresh header")
+			failed = append(failed, card+": cannot read "+p+" ("+err.Error()+") — left untouched rather than overwritten with a fresh header")
 			continue
 		}
-		body := trimTrailingNewlines(head) + "\n" + scorecard.RenderChair(chair, chairRows, label)
+		body := trimTrailingNewlines(head) + "\n" + scorecard.RenderCard(cardRows, label)
 		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
 			// The write's error was discarded while the result reported Written: true —
 			// the same shape the law-harvest write above refuses by name.
-			failed = append(failed, chair+": cannot write "+p+" ("+err.Error()+")")
+			failed = append(failed, card+": cannot write "+p+" ("+err.Error()+")")
 			continue
 		}
-		rows += len(chairRows)
-		chairs++
+		rows += len(cardRows)
+		written++
 	}
 
-	res := ScorecardResult{Written: len(failed) == 0, Rows: rows, Chairs: chairs}
+	res := ScorecardResult{Written: len(failed) == 0, Rows: rows, Cards: written}
 	if len(failed) > 0 {
-		res.Reason = fmt.Sprintf("%d of %d chair(s) NOT written: %s", len(failed), len(cards), strings.Join(failed, "; "))
+		res.Reason = fmt.Sprintf("%d of %d card(s) NOT written: %s", len(failed), len(cards), strings.Join(failed, "; "))
 	}
 	return res
 }
@@ -1829,10 +1829,10 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	cwd, _ := os.Getwd()
 	sc := WriteScorecards(run, results, filepath.Join(cwd, "feov-memory"), fam)
 	// BOTH LINES WHEN BOTH ARE TRUE. The old form printed the counts OR the reason, so a
-	// partial failure — some chairs written, one unwritable — showed the cheerful line and
+	// partial failure — some cards written, one unwritable — showed the cheerful line and
 	// swallowed the reason entirely.
-	if sc.Chairs > 0 || sc.Reason == "" {
-		lines = append(lines, fmt.Sprintf("scorecards: %d row(s) across %d chair(s) -> feov-memory/", sc.Rows, sc.Chairs))
+	if sc.Cards > 0 || sc.Reason == "" {
+		lines = append(lines, fmt.Sprintf("scorecards: %d row(s) across %d card(s) -> feov-memory/", sc.Rows, sc.Cards))
 	}
 	if sc.Reason != "" {
 		lines = append(lines, "scorecards: "+sc.Reason)

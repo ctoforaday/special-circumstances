@@ -93,10 +93,10 @@ motion M1 ruled rejected [key red-chair:motion_rule:#1]
 
 ═══ RENDERS ═══
 -- debate
-# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
 -- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
 _No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
@@ -110,7 +110,7 @@ indistinguishable from one that never looked._
 
 ---
 
-**Verdict:** NONE (no terminal outcome on the record)
+**Outcome:** NONE (no terminal outcome on the record)
 
 ## TL;DR
 

@@ -432,7 +432,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	}
 	fmt.Fprintln(stdout, idxLine)
 	if cards.Written {
-		fmt.Fprintf(stdout, "  scorecards: %s staged into inputs/\n", strings.Join(cards.Chairs, ", "))
+		fmt.Fprintf(stdout, "  scorecards: %s staged into inputs/\n", strings.Join(cards.Cards, ", "))
 	} else {
 		fmt.Fprintf(stdout, "  scorecards: %s\n", cards.Reason)
 	}

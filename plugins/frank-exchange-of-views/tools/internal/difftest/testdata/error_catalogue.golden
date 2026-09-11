@@ -46,7 +46,7 @@ Flags:
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
       --quote string                             the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs
-      --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
@@ -115,7 +115,7 @@ Flags:
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
       --quote string                             the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs
-      --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
@@ -184,7 +184,7 @@ Flags:
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
       --quote string                             the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs
-      --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
@@ -253,7 +253,7 @@ Flags:
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
       --quote string                             the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs
-      --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
@@ -322,7 +322,7 @@ Flags:
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
       --quote string                             the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs
-      --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
@@ -391,7 +391,7 @@ Flags:
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
       --quote string                             the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs
-      --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
@@ -460,7 +460,7 @@ Flags:
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
       --quote string                             the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs
-      --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
@@ -522,7 +522,7 @@ Flags:
       --corrects string           the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
-      --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
       --verified-against string   AGAINST WHAT — the exact file, ref or URL read
       --verified-by string        WHO verified it — the seat that read the evidence
@@ -585,7 +585,7 @@ Flags:
       --corrects string           the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
-      --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
       --verified-against string   AGAINST WHAT — the exact file, ref or URL read
       --verified-by string        WHO verified it — the seat that read the evidence
@@ -648,7 +648,7 @@ Flags:
       --corrects string           the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
-      --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
       --verified-against string   AGAINST WHAT — the exact file, ref or URL read
       --verified-by string        WHO verified it — the seat that read the evidence
@@ -711,7 +711,7 @@ Flags:
       --corrects string           the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
-      --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
       --verified-against string   AGAINST WHAT — the exact file, ref or URL read
       --verified-by string        WHO verified it — the seat that read the evidence
@@ -776,7 +776,7 @@ Flags:
       --id gap-id               the gap id
       --impact grade            how bad the consequence is if it lands
       --likelihood grade        how likely the CONSEQUENCE is — never how likely the defect is to BE there
-      --reason string           REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string           REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade          how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
 
 Global Flags:
@@ -957,7 +957,7 @@ Flags:
       --corrects string         the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
   -h, --help                    help for rule
       --id string               REQUIRED — the motion id (M1, M2 …)
-      --reason string           REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string           REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 Enumerated values:
   --as
@@ -1024,7 +1024,7 @@ Flags:
       --corrects string           the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
-      --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
       --verified-against string   AGAINST WHAT — the exact file, ref or URL read
       --verified-by string        WHO verified it — the seat that read the evidence
@@ -1081,7 +1081,7 @@ Flags:
   -h, --help                        help for file
       --id string                   REQUIRED for a grade motion
       --proposed grade              the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
-      --reason string               your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string               your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 Enumerated values:
   --dimension
@@ -1131,7 +1131,7 @@ Flags:
       --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts
   -h, --help                         help for verify
       --quote string                 REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs (the claim you are checking)
-      --reason string                REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string                REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 Enumerated values:
   --as
@@ -1188,7 +1188,7 @@ Flags:
       --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts
   -h, --help                         help for verify
       --quote string                 REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs (the claim you are checking)
-      --reason string                REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string                REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 Enumerated values:
   --as
@@ -1245,7 +1245,7 @@ Flags:
       --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts
   -h, --help                         help for verify
       --quote string                 REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs (the claim you are checking)
-      --reason string                REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string                REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 Enumerated values:
   --as
@@ -1302,7 +1302,7 @@ Flags:
       --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts
   -h, --help                         help for verify
       --quote string                 REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs (the claim you are checking)
-      --reason string                REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string                REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 Enumerated values:
   --as
@@ -1367,7 +1367,7 @@ Flags:
       --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts
   -h, --help                         help for verify
       --quote string                 REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs (the claim you are checking)
-      --reason string                REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string                REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 Enumerated values:
   --as
@@ -1422,7 +1422,7 @@ Usage:
 Flags:
       --class class-value   REQUIRED for a petition motion
   -h, --help                help for file
-      --reason string       your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string       your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --relief string       REQUIRED for a petition motion
 
 Enumerated values:
@@ -1535,11 +1535,11 @@ Available Commands:
   log             an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
   manual          every command on your surface, each with its own help, run live — read it once, first thing in a sitting
-  position        your sitting's narrative — the argument the other side answers, rendered as this sitting's BLUE section
+  position        your sitting's position — the argument the other side answers, rendered as this sitting's BLUE section
   prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   retire          take a claim out of the report, when it cannot stand and no edit will save it
-  revision        the sitting record — what changed this sitting, once, after your edits have landed
+  revision        your revision — what changed this sitting, once, after your edits have landed
 
 Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
@@ -1572,7 +1572,7 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  assemble     assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the event log; no inputs
+  assemble     assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the record; no inputs
   certify      what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
   completion   Generate the autocompletion script for the specified shell
   count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
@@ -1625,7 +1625,7 @@ Available Commands:
   inquiry-support your one read per sitting of the report's account of its lines of inquiry — required before a PASS
   log             an entry for the operator who can retool you — what it asserts, said in the positive
   manual          every command on your surface, each with its own help, run live — read it once, first thing in a sitting
-  position        your sitting's narrative — the argument the other side answers, rendered as this sitting's RED section
+  position        your sitting's position — the argument the other side answers, rendered as this sitting's RED section
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   spot-check      sample the closure archive — a duty every chair sitting owes, including the sittings with nothing to sample
   verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
@@ -1724,7 +1724,7 @@ Flags:
   -h, --help                        help for file
       --id string                   REQUIRED for a grade motion
       --proposed grade              the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
-      --reason string               your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string               your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 Enumerated values:
   --dimension

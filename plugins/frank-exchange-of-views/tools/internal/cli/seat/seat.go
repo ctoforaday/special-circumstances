@@ -692,9 +692,9 @@ func Emit(cmd *cobra.Command, res Result, err error) error {
 func New(name string, run Handler) *cobra.Command { return NewKeyed(name, name, run) }
 
 // NewKeyed is New for a verb whose help is not keyed by its own name — the shared verbs, where the
-// same command means something different in each chair. `position` is a RED section for the merge
-// and a BLUE one for blue, so those are two documents; `register` and `friction` mean exactly the
-// same thing everywhere and are one.
+// same command means something different on each side. `position` is a RED section for the chair
+// and a BLUE one for blue, so those are two documents; `register` and `log` mean exactly the same
+// thing everywhere and are one.
 //
 // THEY WERE FOUR COPIES. Each role passed its own literal, under a comment saying the guidance
 // differs by role — and register's and friction's were byte-identical at every call site but one,
@@ -756,7 +756,7 @@ var ReasonIs = map[string]string{
 	"move":         "the account of what settled this fate, in the SUBJECT's terms — printed in the report beside the line",
 	"manifest-row": "the receipt: what you checked, and what checking it showed",
 	"log":          "the entry: what you concluded about the tooling",
-	"position":     "your sitting's narrative — your THINKING, not your process. " + flags.ReasonNotProcess,
+	"position":     "your sitting's argument — your THINKING, not your process. " + flags.ReasonNotProcess,
 	"closing":      "your closing argument on this gap — your THINKING, not your process. " + flags.ReasonNotProcess,
 	"revision":     "what changed this sitting. " + flags.ReasonNotProcess,
 	"spot-check":   "what sampling the closure archive found. " + flags.ReasonNotProcess,

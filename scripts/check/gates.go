@@ -225,6 +225,8 @@ var tools = []gate{
 		why: "one authored buildid, copied into modules that cannot import it"},
 	{id: "schemagen", kind: kindTool, dir: "scripts", args: []string{"run", "./schemagen", "-check"}, ciJob: "debate-sim",
 		why: "the binary and the plugin must read the same event-schema epoch"},
+	{id: "vocabdoc", kind: kindTool, dir: "scripts", args: []string{"run", "./vocabdoc", "-check"}, ciJob: "debate-sim",
+		why: "docs/vocabulary.md is generated from the terms registry; a hand-kept copy drifts"},
 	{id: "massgen", kind: kindTool, dir: "scripts", args: []string{"run", "./massgen", "-check"}, ciJob: "debate-sim",
 		why: "the engine's grade weights are generated from the schema; the pair drifted for six releases when both were hand-written"},
 }

@@ -317,7 +317,7 @@ func ledgerMD(in Input) []byte {
 	}
 
 	ledgerParts := []string{
-		"# The board — RENDERED PROJECTION (source of truth: the event log; do not hand-edit)",
+		"# The board — RENDERED PROJECTION (source of truth: the record; do not hand-edit)",
 		"",
 		fmt.Sprintf("## OPEN GAPS (%d)", len(open)),
 		"",
@@ -335,7 +335,7 @@ func ledgerMD(in Input) []byte {
 		if n := len(g.Regrades); n > 0 {
 			// `reason` WAS THE PAYLOAD KEY; the field is `basis` (recordpb/required.go declares
 			// the pair: Regrade.basis is typed as --reason).
-			regraded = fmt.Sprintf("\nregraded x%d (history in the event log; latest basis: %s)", n, g.Regrades[n-1].GetBasis())
+			regraded = fmt.Sprintf("\nregraded x%d (history on the record; latest basis: %s)", n, g.Regrades[n-1].GetBasis())
 		}
 		// The two `undefined`-sentinel fields are read as POINTERS, not getters: absence is what
 		// prints `undefined`, and a field written empty is a different fact.
@@ -381,7 +381,7 @@ func archiveMD(in Input) []byte {
 			closed = append(closed, g)
 		}
 	}
-	archiveParts := []string{"# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)", ""}
+	archiveParts := []string{"# red/archive.md — RENDERED PROJECTION (append-only by construction on the record)", ""}
 	for _, g := range closed {
 		// The same join as the ledger's closure index — see the comment there.
 		cc := g.ClosureReason()
@@ -622,7 +622,7 @@ func debateMD(in Input) []byte {
 	// (DebateJSONOf) builds the same map for the same reason.
 	docketGapOf := record.DocketGapByMotion(in.Events)
 
-	debateParts := []string{"# debate.md — RENDERED PROJECTION (source of truth: records/ event log)"}
+	debateParts := []string{"# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)"}
 	for _, r := range epochOrder {
 		re := byEpoch[r]
 		// Party from the stamped field, not the id's prefix — see the twin in
@@ -741,7 +741,7 @@ func debateMD(in Input) []byte {
 
 // inquiryMD — the exploration space grouped by fate. Trailing newline (render.go parity).
 func inquiryMD(in Input) []byte {
-	inquiry := []string{"# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)", ""}
+	inquiry := []string{"# Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)", ""}
 	body := InquiryBody(in.Events)
 	if body == "" {
 		inquiry = append(inquiry, "_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration",

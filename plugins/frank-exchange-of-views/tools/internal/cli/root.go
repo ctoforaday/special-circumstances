@@ -238,11 +238,10 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 			newGraph(),           // operator: render a run's actual behaviour from the record
 			newShowDiagnostics(), // operator: did the seats find their surface — exposure and use, as fields
 			newCountClaims(),     // operator/blue: deterministic claim_count over blue/report.md
-			newLog(),             // operator: the friction channel — seats write it, the human reads it
 			newFetch(),           // operator: cached, hash-verified web read — feeds the run source cache
 			newOCR(),             // operator: render a scan's pages so a seat can read what has no text layer
 			newSetup(),           // operator: build a research run's blackboard
-			newScorecard(),       // operator: a chair's in-run self-read scorecard
+			newScorecard(),       // operator: this run's scorecards — every card, or one with --card
 			newDashboard(),       // operator: the live run dashboard.html
 			newCapture(),         // operator: the post-hoc capture auditor
 			newMigrate(),         // operator: replay an old record through this binary into a fresh run

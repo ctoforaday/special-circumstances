@@ -266,8 +266,8 @@ const (
 	// operator saying "cache it unread".
 	OCR = "ocr"
 
-	// The operator `scorecard` command: a chair's in-run self-read.
-	Chair = "chair"
+	// The operator `scorecard` command: narrows its print to one card — red, blue or bench.
+	Card = "card"
 
 	// The operator `dashboard` command. --watch regenerates on a timer; --now injects the
 	// clock (test determinism); --serve hosts it over HTTP, rendered fresh per request.
@@ -306,7 +306,7 @@ func All() []string {
 		Settled, ReopensOn, Final,
 		Method, AccessDate,
 		Topic, Model, JudgmentModel, Cite, Lanes, K, KMax, MintBudget, ConvergenceFraction, MaxSittingCalls, MaxEpochs, LensArea, BinDir, MemoryDir, RunID, ScriptPath, AllowSubstitution,
-		Chair, Watch, Now, Serve,
+		Card, Watch, Now, Serve,
 		MigrateFrom, MigrateTo, AcceptLoss,
 		Sha, DPI, Force, OCR,
 	}
@@ -331,7 +331,7 @@ var closedForm = map[string]bool{
 	VerifiedAgainst: true, CarriedFrom: true, Sitting: true, Trajectory: true, Sha: true,
 	Model: true, JudgmentModel: true, Cite: true, Lanes: true, LensArea: true,
 	BinDir: true, MemoryDir: true, RunID: true, ScriptPath: true, MigrateFrom: true, MigrateTo: true,
-	AcceptLoss: true, Chair: true,
+	AcceptLoss: true, Card: true,
 }
 
 // ForPayloadKey maps a stored payload key back to the flag a seat types to set it.
@@ -411,7 +411,7 @@ const (
 
 	// ReasonNotProcess is the half of DescReason every prose field shares, including the verbs whose
 	// prose is an artifact rather than an argument (seat.reasonIs).
-	ReasonNotProcess = "The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran"
+	ReasonNotProcess = "The record already holds WHAT you did, in order, so do not narrate the verbs you ran"
 
 	// DescCorrects and DescCorrectionWhy are the two correction flags, the same on every verb that
 	// carries them.

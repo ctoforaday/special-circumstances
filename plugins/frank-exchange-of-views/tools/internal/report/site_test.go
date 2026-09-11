@@ -80,7 +80,7 @@ func TestTheVerdictBadgeComesOffTheRecord(t *testing.T) {
 	if !strings.Contains(html, "1 open") {
 		t.Errorf("the board's shape is not in the header")
 	}
-	if w, cls := verdictBadge((record.NewFamily(nil, nil))); w != "NONE" || cls != "unknown" {
+	if w, cls := outcomeBadge((record.NewFamily(nil, nil))); w != "NONE" || cls != "unknown" {
 		t.Errorf("a run with no outcome must say so rather than show a verdict: %q %q", w, cls)
 	}
 	_ = board

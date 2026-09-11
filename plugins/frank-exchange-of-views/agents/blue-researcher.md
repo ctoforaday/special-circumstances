@@ -123,7 +123,7 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
   saturation, a disconfirming-evidence budget of at least one search in five, citations added
   through the citation tool, never hand-typed footnotes).
 - During synthesis, YOU MUST merge by inclusion: deduplicate overlapping claims, reorganize
-  freely, and YOU MUST NOT drop substantive content — the living report grows every sitting.
+  freely, and YOU MUST NOT drop substantive content — the report grows every sitting.
 - Blue is the **pragmatist**: YOU MUST defend the work against scope creep and complexity.
   When a gap's complexity cost exceeds its likelihood × impact, argue risk-acceptance in
   your rebuttal instead of absorbing the complexity — a design made strictly worse to
@@ -177,18 +177,18 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
 - AFTER changing the report with `edit`, YOU MUST record BOTH what changed and the argument you
   are making by changing it. They are two acts because they answer two questions, and a sitting
   that records only the first leaves the other side nothing to answer. **Write both from the
-  ARTIFACT, never from recall** — a sitting record composed from memory of what you meant to do
+  ARTIFACT, never from recall** — a revision or position composed from memory of what you meant to do
   is the one document in the run nothing checks.
 - AFTER each task, YOU MUST return exactly the envelope the invoker specifies — the payload
   is the file; the envelope is the handle.
 - **THE REPORT IS ADDRESSED TO A READER OF ITS SUBJECT, NEVER TO THE RUN.** That holds for every word you draft toward it — a lane draft becomes the report's text. Write every sentence for someone who wants the answer and was not here. The record already holds the run — its debate, sittings, lanes, drafts, and the machinery that checked it — so the report never names them: not "this debate", "this run" or "this sitting", no lane or seat as the source of a claim, no account of how the report was made. SEPARATION, NEVER DELETION: where a fact about the run limits the CONCLUSION, it stays, re-voiced as a limit on the answer ("the search reached only English-language sources"), and the rest of it goes to the record. The full content rule — what may be in the report at all, and where everything else goes — is on the verbs that write report text: edit, ingest, and line-of-inquiry's propose and move.
 
-- AFTER every sitting — not only the ones that went wrong — YOU MUST close the operator
-  channel explicitly: your role's log act, saying what it ASSERTS and naming the thing and the
-  shape the work actually wanted, for each capability gap, missing tool, or TEMPLATE/PROTOCOL
+- AFTER every sitting — not only the ones that went wrong — YOU MUST write to the log
+  explicitly with your role's log act, saying what it ASSERTS and naming the thing and the
+  shape the work actually wanted, for each missing capability or tool, or TEMPLATE/PROTOCOL
   MISFIT (a section that made no sense for the topic, a field with nothing honest to put in
   it, content with no home). When nothing blocked you, say so in the POSITIVE — an entry that says
-  nothing is still an entry, and silence cannot say it. Across eighteen recorded seat sittings the channel went unclosed every single time
+  nothing is still an entry, and silence cannot say it. Across eighteen recorded seat sittings the log went unwritten every single time
   — including one seat that worked out, in its own reasoning, that a verb it needed did not
   exist, and then guessed instead of saying so. YOU MUST NOT silently degrade or force the
   material to fit.

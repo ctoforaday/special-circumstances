@@ -111,7 +111,7 @@ func TestFactBoxIsComposedFromTheRecord(t *testing.T) {
 		},
 	}
 	box := factBox(board.fam(), nil)
-	for _, want := range []string{"**Verdict** | _(none recorded)_", "**Epochs** | 3", "**Gaps** | 1 open · 1 closed"} {
+	for _, want := range []string{"**Outcome** | _(none recorded)_", "**Epochs** | 3", "**Gaps** | 1 open · 1 closed"} {
 		if !strings.Contains(box, want) {
 			t.Errorf("fact box missing %q:\n%s", want, box)
 		}

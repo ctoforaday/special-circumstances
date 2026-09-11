@@ -1,19 +1,19 @@
 <!--
-  THE DELIVERABLE IS A SET OF DOCUMENTS, ASSEMBLED FROM THE RECORD by the bench seat's assemble
+  WHAT A RUN HANDS OVER IS A SET OF DOCUMENTS, ASSEMBLED FROM THE RECORD by the bench seat's assemble
   verb. Nothing is authored at assembly. Two ownership classes, marked per section below:
 
-    [BLUE] — authored by blue INSIDE the report (the synthesizer's blue/report.md, then `edit`),
+    [BLUE] — authored by blue INSIDE the report (the synthesizer writes it, then `edit`),
              audited by red every sitting (red
              re-reads the full report each sitting), and LIFTED VERBATIM here. A synthesis
              surface authored at assembly would be authored after red's last audit, so it
              lives in the audited document instead. A missing one is flagged, never filled.
 
-    [RECORD] — composed by the tool from the event log + board. The source of truth is the
-               records/ event log; the views are rendered from it on read, never materialized.
+    [RECORD] — composed by the tool from the record + board. The source of truth is the
+               record, records/record.db; the views are rendered from it on read, never materialized.
 
-  WHY A SET. Measured on the archived runs, 70–76% of the single report.md was process record —
+  WHY A SET. Measured on the archived runs, 70–76% of the single report.md was about the run, not the subject —
   the transcript, the board in full, an operator log LARGER THAN THE ENTIRE RESEARCH
-  ARGUMENT — and the research the run was commissioned for was a quarter of its own deliverable.
+  ARGUMENT — and the research the run was commissioned for was a quarter of the file.
   Six audiences were unioned into one artifact, so none could be addressed, revised or linked
   without the other five. NOTHING IS DROPPED BY THE SPLIT: every section still ships, in exactly
   one document, and the union is the directory. Empty documents are not written at all.
@@ -31,13 +31,13 @@
 # <Topic>                                <!-- [BLUE] blue's H1, cut at the author's own punctuation boundary -->
 **Question:** <the full brief>           <!-- [RECORD] the rest of blue's H1, as a field rather than a heading -->
 
-**Verdict:** VERIFIED | UNVERIFIED | CEILING | HALTED | NONE (derived from the record | asserted by the bench | no terminal outcome on the record)
+**Outcome:** VERIFIED | UNVERIFIED | CEILING | HALTED | NONE (derived from the record | asserted by the bench | no terminal outcome on the record)
                                               <!-- [RECORD] the terminal `outcome` event. THE WORD, then its basis as
                                               STATE in parentheses, and nothing else: a field a reader can skim, badge
                                               or grep, whose first token is still the word. Everything that EXPLAINS it
                                               — what the verdict means, the basis it rests on, what it means for the
                                               answer — is envelope, in run.md's verdict-basis section (gblock,
-                                              2026-09-10). The BENCH's words are the judicial record's, never this
+                                              2026-09-10). The BENCH's words are judgments.md's, never this
                                               document's. -->
 
 
@@ -91,13 +91,13 @@
                                               retired observe/dispose. Then red's archive spot-checks and blue's
                                               correctness manifest. -->
 
-# debate.md — the adversarial record
+# debate.md — the transcript
 
 ## The debate                            <!-- [RECORD] ONE transcript: per epoch the parties' positions, closings and grade
-                                              disputes, and the bench's opinions; then the terminal bench disposition
+                                              motions, and the bench's opinions; then the terminal bench disposition
                                               (halt / certification), which also states plainly if any petition went unruled. -->
 
-# judgments.md — the judicial record
+# judgments.md — the bench's rulings
 
 ## Motions                               <!-- [RECORD] every adjudicated exchange, joined on its id: the FILING (class, basis,
                                               relief sought) and its ruling, never the ruling alone. -->
@@ -134,7 +134,7 @@
 
 ## Report revision history               <!-- [RECORD] every recorded edit to blue's report, in record order -->
 
-## Claims withdrawn                      <!-- [RECORD] from the retire events: the claim as it stood, why it went, and what
+## Claims retired                      <!-- [RECORD] from the retire events: the claim as it stood, why it went, and what
                                               replaced it. A claim argued and then withdrawn is part of what the debate
                                               decided; omitting it makes this report identical to one where the claim was
                                               never made. Omitted entirely when nothing was retired. -->

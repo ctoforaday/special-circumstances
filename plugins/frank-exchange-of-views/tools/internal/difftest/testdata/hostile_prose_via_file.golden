@@ -64,7 +64,7 @@ finding recorded: logic-F1 — the run-unique label a gap's found_by names (id F
 
 ═══ RENDERS ═══
 -- debate
-# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
 ## Epoch 1
 
@@ -76,7 +76,7 @@ unicode — em-dash · ✓ 日本語
 backslash \ and \n literal
 
 -- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
 _No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
@@ -90,7 +90,7 @@ indistinguishable from one that never looked._
 
 ---
 
-**Verdict:** NONE (no terminal outcome on the record)
+**Outcome:** NONE (no terminal outcome on the record)
 
 ## TL;DR
 

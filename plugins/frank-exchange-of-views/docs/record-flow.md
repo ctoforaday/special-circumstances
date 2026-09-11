@@ -43,7 +43,7 @@ flowchart TB
     BD["board (live JSON)"]
     DBT["debate.md"]
   end
-  merge["red-merge seat"]
+  merge["red-chair seat"]
   score["feov-record scorecard<br/>(reads show findings)"]
   bench["lead-judge"]
 

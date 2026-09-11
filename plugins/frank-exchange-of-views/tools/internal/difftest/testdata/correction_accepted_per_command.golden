@@ -182,7 +182,7 @@ outcome recorded: UNVERIFIED (asserted) [key judge:outcome:#1~1]
 
 ═══ RENDERS ═══
 -- debate
-# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
 ## Epoch 1
 
@@ -193,7 +193,7 @@ outcome recorded: UNVERIFIED (asserted) [key judge:outcome:#1~1]
 the gate already exists
 
 -- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
 ## pursued (1)
 
@@ -210,7 +210,7 @@ the gate already exists
 
 ---
 
-**Verdict:** UNVERIFIED (asserted by the bench)
+**Outcome:** UNVERIFIED (asserted by the bench)
 
 ## TL;DR
 

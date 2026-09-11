@@ -32,6 +32,11 @@ const ManualRule = "============================================================
 // the first page.
 const ManualSharedHeading = "SHARED BY THE COMMANDS BELOW — each block is printed ONCE here, and every page it was lifted from carries a marker line ending `→ SHARED §n` exactly where it was:"
 
+// ManualWordsHeading opens the section, printed once after the opening line and before SHARED,
+// that defines each concept word this surface uses. It sits before the first page, so the page
+// parsers above never read it as part of one.
+const ManualWordsHeading = "WORDS THIS SURFACE USES — one word for each concept, and it is the same word on every page, prompt and constitution you read:"
+
 // ManualHeader is the line naming the command a page belongs to: the command as a seat would type
 // it, with `--help`, so the page is unmistakably that command's. An empty path is the surface's own
 // page.
