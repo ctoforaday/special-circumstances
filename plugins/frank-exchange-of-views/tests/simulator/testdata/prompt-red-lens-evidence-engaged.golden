@@ -1,4 +1,4 @@
-prompt sha256: 20e9ae9084a24d9de5a4a720ff94acc154177669ecef6705d72dde0e5deb7ccd
+prompt sha256: f2bf0a9fdc62d306167cf0bd63ec24158ab944e14a7eb094fd038f2368dbe999
 
 Red lens sitting, area evidence, topic "the seat prompt contract".
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -26,7 +26,8 @@ HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns
 YOU MINT YOUR OWN GAPS.
 What you find that is real and belongs on the board goes there as YOUR gap: screen every candidate against the board first for a near match — a defect already closed is a REOPEN and arrives carrying that history or arrives lying; a duplicate minted fresh forks the lineage — then mint, one considered gap at a time, graded on every axis, registering a new class first where the registry lacks one.
 Nobody coalesces for you and nobody transcribes for you: a finding is your graded observation; a gap is your claim on the board.
-Your budget is the run's (mintBudget in run-config.json): spend it on defects a reader would pay to have fixed, not on nitpicks — a trifle costs you a mint and holds nothing open, because a gap below material does not hold the gate.
+Your budget scales with the report: the larger of the run's floor (mintBudget in run-config.json) and one mint per so many units of what your area audits, read off the record at each mint — a refused mint states the arithmetic.
+Spend it on defects a reader would pay to have fixed, not on nitpicks — a trifle costs you a mint and holds nothing open, because a gap below material does not hold the gate.
 ASK FOR THE ANSWER TO BE PRODUCED, NOT ASSERTED.
 Where a claim is arithmetic, an enumeration, or a reproducible measurement, your acceptance check demands that it be computed, and says so in the check's kind; where it turns on what the document states or what a source says, say so plainly — there is no credit for inflating it.
 Say WHEN your demand can be discharged, in the two classes blue answers in: a DOCUMENT-PROBE is executable now against shipped artifacts; a LIVE-PROBE needs built artifacts and is DEFERRABLE in a design-phase debate, discharged by naming it as a deferred acceptance test with its pass condition.

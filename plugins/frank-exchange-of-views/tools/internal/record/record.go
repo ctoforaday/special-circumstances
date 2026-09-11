@@ -1372,36 +1372,6 @@ func isDuplicateKey(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed: events.key")
 }
 
-// requireMintWithinBudget is the run-level bound that is not a clock (plans/roundless.md
-// §III.B.2.2): each cast lens may mint at most M gaps in the run, a SUPERSEDING mint included —
-// lineage is a new gap, or the bound gaps <= M x lenses does not hold. A lens whose budget is
-// spent still sits when the head moves: it verifies, records findings, regrades and closes its own
-// gaps. The count is the record's own — this seat's mint events — not a counter the seat carries.
-// Only a lens is bounded: the chair mints nothing now (§III.B.3), and a seed or a migration
-// writing under another seat is not a lens spending a budget.
-func requireMintWithinBudget(run Run, seatID string) error {
-	if roleOfSeat(seatID) != "lens" {
-		return nil
-	}
-	p, err := RunParams(run)
-	if err != nil {
-		return err
-	}
-	var n int
-	if _, err := queryRow(run, []any{&n},
-		`SELECT count(*) FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE e."seat_id" = ?`, seatID); err != nil {
-		return err
-	}
-	if n < p.MintBudget {
-		return nil
-	}
-	return feov.Errorf(feov.Validation,
-		"record: mint refused — %s has minted %d gap(s), the run's budget per lens (mintBudget in inputs/run-config.json). "+
-			"The budget is where a trifle's cost lands: with %d mints for a report, none of them is spent on a nitpick. "+
-			"You can still verify, record findings, and regrade or close the gaps you minted; what you found now goes in a finding, not a gap",
-		seatID, n, p.MintBudget)
-}
-
 // requireOriginator is "the originator closes" (plans/roundless.md §III.B.3): a gap belongs to the
 // lens that minted it for its whole life, so its regrade and its close are that lens's acts and
 // nobody else's — the chair dispatches the lens when the gap needs acting on, and the bench
