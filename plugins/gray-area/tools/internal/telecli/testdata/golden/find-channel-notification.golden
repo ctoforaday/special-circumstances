@@ -1,0 +1,3 @@
+SESSION    AGENT               HITS  WHEN         IN             SNIPPET
+cccccccc   seat-03                1  09-09 11:00  notification   …ication> <status>completed</status> <summary>Background command "nightly build" completed</summary> </task-notification>
+cccccccc   (main)                 1  09-09 10:30  notification   …ication> <status>completed</status> <summary>Background command "nightly build" completed</summary> </task-notification>

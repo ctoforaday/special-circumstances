@@ -1,5 +1,5 @@
-backfilled 4 transcripts, 0 MB in 0.0s
-  8 acts, 7 words, 1 thoughts
+backfilled 7 transcripts, 0 MB in 0.0s
+  8 acts, 18 words, 1 thoughts
   2 thinking block(s) carried no text and are recorded as skips, not thoughts — reasoning withheld by the client is not reasoning the agent did not do
   1 line(s) did not parse — those records are ABSENT from the store, which is a different fault from a session that did less
   re-running is safe: unchanged files are skipped by their stored offset

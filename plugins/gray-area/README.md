@@ -93,13 +93,32 @@ is stated rather than papered over: targets are truncated at 200 characters, so 
 that in a long command is still invisible, and `find` is the fallback that reads the transcripts.
 
 **Search answers in one query.** `find` returns one row per session and agent, newest first, with
-the hit count, the time of the most recent hit, the **channel** it landed in — assistant, user,
-thinking, tool_use, result — and the text around it. The channel is not decoration: `find` reads
-the whole transcript while the store's word tier holds only speech, so a hit can be a tool result
-or a seat prompt. Searching `bench rul` across this box returned 11 rows of which 9 were prompt
-boilerplate; `--in assistant` cut it to the five sessions that had actually discussed it. A zero
-is reported with the size of the corpus it searched, because a zero you cannot size is not a
-measurement.
+the hit count, the time of the most recent hit, the **channel** it landed in, and the text around
+it. The channel is not decoration: `find` reads the whole transcript while the store's word tier
+holds only speech, so a hit can be a tool result or a seat prompt. Searching `bench rul` across
+this box returned 11 rows of which 9 were prompt boilerplate; `--in assistant` cut it to the five
+sessions that had actually discussed it. `--in C` keeps a transcript if ANY of its hits is in C,
+and the row shows the most recent of those. A zero is reported with the size of the corpus it
+searched, because a zero you cannot size is not a measurement.
+
+**For text, the channel is who spoke**, decided from fields the client writes — `origin.kind`,
+`isMeta`, a compaction summary, a mid-turn delivery's `commandMode`, and whether the file is a
+seat's — never from the text. The channels are `assistant`, `user`, `peer` (another session's
+message), `notification` (a background task's), `lead` (the lead or a workflow coordinator
+prompting a seat), `harness` (text the client injects), `thinking`, `tool_use`, `result`,
+`unknown_origin` and `?`. `v_word.role` stores the same speaker values: `user`, `assistant`,
+`peer`, `notification`, `lead`, `harness`, `unknown_origin`.
+
+- `?` means the term is in a part of a record nothing here models (a cwd, a uuid, queue bookkeeping).
+- `unknown_origin` means a record whose `origin.kind`, or whose `queued_command` `commandMode`, this binary does not know — upgrade gray-area.
+
+Neither is the liveness word `unknown` that `agents` prints. `user` is the human plus a remainder
+no field separates from them: measured on this box, 158 top-level records with no origin and no
+meta flag — 132 prompts that programs send to headless sessions (frank-exchange-of-views seat
+prompts), 15 slash-command records and 11 local-command outputs — beside 605 human-origin prompts.
+Interrupts are `user` at top level and `lead` in a seat's transcript. Messages delivered mid-turn
+(`queued_command` attachments) are reported by `find` under their sender's channel and have no
+`v_word` rows: the word tier stores turns.
 
 **Reasoning is mostly withheld, and the store says so.** The client emits thinking blocks with a
 signature and no text — 15,503 of them across 99 sessions here, against 248 thoughts stored, and

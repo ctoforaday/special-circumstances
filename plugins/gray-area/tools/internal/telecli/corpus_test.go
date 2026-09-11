@@ -22,7 +22,13 @@ import (
 //   - all THREE reasoning states, which must read differently: text stored, a block that arrived
 //     EMPTY (the client withholding it — 15,503 such blocks on the measured corpus against 248
 //     stored), and no thinking block at all,
-//   - a line that is not JSON, which must be counted rather than skipped in silence.
+//   - a line that is not JSON, which must be counted rather than skipped in silence,
+//   - EVERY SPEAKER a user-role record can have — the human with and without an origin, a peer turn
+//     that is also isMeta, a task notification, harness text (isMeta and a compaction summary), a
+//     seat prompt with no origin — and every mid-turn delivery shape: a peer's, the human's, a
+//     notification known only by its commandMode, and a coordinator's inside a seat's file,
+//   - a term the human said FIRST and an agent repeated later, which a filter on the most recent
+//     hit alone drops.
 
 // frozen is the clock every golden is rendered against. All fixture timestamps are relative to it,
 // so `2h ago` means the same thing in 2026 as it will in 2030.
@@ -74,6 +80,39 @@ func toolUse(id, name string, input map[string]any) map[string]any {
 	return map[string]any{"type": "tool_use", "id": id, "name": name, "input": input}
 }
 
+// turnLine is a user-role record carrying the fields SpeakerOf reads. content may be a string —
+// the shape peer turns and notifications arrive in — or a block list.
+func turnLine(uuid, sid, cwd string, ago time.Duration, extra map[string]any, content any) string {
+	rec := map[string]any{
+		"uuid": uuid, "sessionId": sid, "cwd": cwd, "type": "user", "timestamp": at(ago),
+		"message": map[string]any{"role": "user", "content": content},
+	}
+	for k, v := range extra {
+		rec[k] = v
+	}
+	return jsonLine(rec)
+}
+
+// queuedLine is a MID-TURN DELIVERY: an attachment record with no message. kind "" and mode ""
+// are left out of the record, as the client leaves them out.
+func queuedLine(uuid, sid, cwd string, ago time.Duration, kind, mode, prompt string) string {
+	a := map[string]any{"type": "queued_command", "prompt": prompt}
+	if kind != "" {
+		a["origin"] = map[string]any{"kind": kind}
+	}
+	if mode != "" {
+		a["commandMode"] = mode
+	}
+	return jsonLine(map[string]any{
+		"uuid": uuid, "sessionId": sid, "cwd": cwd, "type": "attachment", "timestamp": at(ago),
+		"attachment": a,
+	})
+}
+
+func origin(kind string) map[string]any {
+	return map[string]any{"origin": map[string]any{"kind": kind}}
+}
+
 func jsonLine(v any) string {
 	b, err := json.Marshal(v)
 	if err != nil {
@@ -91,7 +130,18 @@ const (
 	alphaCWD    = "/work/alpha"
 	betaCWD     = "/work/beta"
 	projectSlug = "-work-alpha"
+	// gamma holds a speaker of every kind; delta is the human-first, agent-later transcript.
+	gammaID  = "cccccccc-3333-4333-8333-333333333333"
+	deltaID  = "dddddddd-4444-4444-8444-444444444444"
+	gammaCWD = "/work/gamma"
+	deltaCWD = "/work/delta"
 )
+
+// nightlyBuild is one notification, delivered as a TURN at top level and MID-TURN inside a seat.
+const nightlyBuild = "<task-notification>\n<status>completed</status>\n<summary>Background command \"nightly build\" completed</summary>\n</task-notification>"
+
+// harnessReminder is text the client injects, isMeta and with no origin, at both tiers.
+const harnessReminder = "<system-reminder>The task tools have not been used recently.</system-reminder>"
 
 func corpus() []corpusFile {
 	return []corpusFile{
@@ -169,6 +219,52 @@ func corpus() []corpusFile {
 					toolUse("bt1", "Edit", map[string]any{"file_path": "/work/beta/go.mod"}),
 				),
 				resultLine("br1", "ba1", betaID, 28*time.Minute, "bt1", nil),
+			},
+		},
+		{
+			// EVERY SPEAKER AT TOP LEVEL. The peer turn is isMeta as well, as every measured one is:
+			// a classifier that read isMeta before origin would file it as harness text.
+			rel: filepath.Join("-work-gamma", gammaID+".jsonl"),
+			lines: []string{
+				turnLine("gu1", gammaID, gammaCWD, 100*time.Minute, origin("human"), "start the audit sweep"),
+				assistantLine("ga1", "gu1", gammaID, gammaCWD, 99*time.Minute,
+					map[string]any{"type": "text", "text": "Starting the sweep."}),
+				turnLine("gpeer", gammaID, gammaCWD, 95*time.Minute,
+					map[string]any{"isMeta": true, "origin": map[string]any{"kind": "peer", "name": "session-x"}},
+					"Another Claude session sent a message:\n<cross-session-message from=\"session-x\">is the conduct section settled?</cross-session-message>"),
+				turnLine("gnote", gammaID, gammaCWD, 90*time.Minute, origin("task-notification"), nightlyBuild),
+				turnLine("gmeta", gammaID, gammaCWD, 85*time.Minute, map[string]any{"isMeta": true},
+					[]any{map[string]any{"type": "text", "text": harnessReminder}}),
+				turnLine("gcompact", gammaID, gammaCWD, 80*time.Minute, map[string]any{"isCompactSummary": true},
+					"This session is being continued from a previous conversation. The task tools were idle."),
+			},
+		},
+		{
+			// A SEAT'S FILE: its prompt carries no origin and is the lead's, and a coordinator and a
+			// notification arrive mid-turn — the notification known by its commandMode alone.
+			rel: filepath.Join("-work-gamma", gammaID, "subagents", "agent-seat-03.jsonl"),
+			lines: []string{
+				turnLine("gsu1", gammaID, gammaCWD, 70*time.Minute, nil, "Audit the ledger migration for drift."),
+				assistantLine("gsa1", "gsu1", gammaID, gammaCWD, 69*time.Minute,
+					map[string]any{"type": "text", "text": "No drift found."}),
+				turnLine("gsmeta", gammaID, gammaCWD, 67*time.Minute, map[string]any{"isMeta": true},
+					[]any{map[string]any{"type": "text", "text": harnessReminder}}),
+				queuedLine("gscoord", gammaID, gammaCWD, 65*time.Minute, "coordinator", "",
+					"The coordinator sent a message: list every caller, then stop"),
+				queuedLine("gsnote", gammaID, gammaCWD, 60*time.Minute, "", "task-notification", nightlyBuild),
+			},
+		},
+		{
+			// THE HUMAN FIRST, AN AGENT LATER. `--in user` on "ledger column" must keep this row and
+			// show the human's words, though the newest hit is the assistant's.
+			rel: filepath.Join("-work-delta", deltaID+".jsonl"),
+			lines: []string{
+				turnLine("du1", deltaID, deltaCWD, 50*time.Minute, origin("human"), "rename the ledger column to amount_cents"),
+				assistantLine("da1", "du1", deltaID, deltaCWD, 45*time.Minute,
+					map[string]any{"type": "text", "text": "Renaming the ledger column now."}),
+				queuedLine("dpeer", deltaID, deltaCWD, 40*time.Minute, "peer", "prompt",
+					"<cross-session-message from=\"session-y\">the conduct section needs one more pass</cross-session-message>"),
+				queuedLine("dhuman", deltaID, deltaCWD, 35*time.Minute, "human", "prompt", "and keep it nullable"),
 			},
 		},
 	}

@@ -34,13 +34,29 @@ telepathy backfill               read the existing corpus into the store (explic
 ```
 
 `find` answers in one query: one row per session and agent, **newest first**, with the hit count,
-the time of the most recent hit, the channel it landed in, and the text around it. `--in assistant`
-keeps only what agents *said*; `--paths` adds the transcript path for citation.
+the time of the most recent hit, the channel it landed in, and the text around it. `--in C` keeps
+a transcript if ANY of its hits is in channel C, showing the most recent of those — `--in assistant`
+is what agents *said*, `--in user` what the human said; `--paths` adds the transcript path for
+citation.
 
 - AFTER a `find`, YOU MUST read the **IN** column before quoting anything. `find` searches the
-  whole transcript, so a hit may be a tool result, a task notification or a seat prompt — on
-  `bench rul` across this box, 9 of the first 11 rows were prompt boilerplate. Quoting a `result`
-  row back to a session as its own words is the mistake this column exists to prevent.
+  whole transcript, so a hit may be a tool result or a file path — on `bench rul` across this box,
+  9 of the first 11 rows were prompt boilerplate. For text, IN is who spoke, read from the record's
+  fields and never its text: `user` (the human), `peer` (another session's message),
+  `notification` (a background task's), `lead` (the lead or a workflow coordinator prompting a
+  seat), `harness` (text the client injects), `assistant`. Quoting a `peer` or `result` row back to
+  a session as the human's words is the mistake this column exists to prevent.
+  - `?` means the term is in a part of a record nothing here models (a cwd, a uuid, queue bookkeeping).
+  - `unknown_origin` means a record whose `origin.kind`, or whose `queued_command` `commandMode`, this binary does not know — upgrade gray-area.
+
+  Neither is the liveness word `unknown` that `agents` prints.
+- BEFORE reading `user` as the human, YOU MUST remember its remainder: no field separates the
+  human from prompts that programs send to headless sessions (frank-exchange-of-views seat
+  prompts), slash-command records and local-command output, so `user` holds those too — in `find`
+  and in `v_word.role`, which stores the same speaker values (`user`, `assistant`, `peer`,
+  `notification`, `lead`, `harness`, `unknown_origin`). Interrupts are `user` at top level and
+  `lead` in a seat's transcript. Mid-turn deliveries (`queued_command`) appear in `find` and have
+  no `v_word` rows.
 - `find` takes a **literal** by default; pass `--regex` for a pattern. Use it for word boundaries —
   searching `roving` rather than `\broving\b` returns every occurrence of "p*roving*", which is how
   this rule was earned. A substring match is the default failure mode of every search here,

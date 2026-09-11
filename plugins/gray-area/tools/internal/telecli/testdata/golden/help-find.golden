@@ -7,13 +7,31 @@ ordered by path answers that only after several more queries.
 
   HITS     matching records in that transcript
   WHEN     the timestamp of the most recent one
-  IN       where it landed: assistant, user, thinking, tool_use, result, or ?
+  IN       where it landed: assistant, user, peer, notification, lead, harness,
+           thinking, tool_use, result, unknown_origin, or ?
 
 IN matters more than it looks, and --in filters on it. This searches the WHOLE
 transcript, while the store's word and thought tiers hold only speech and
-reasoning — so a hit can be a tool result, a task notification or a file path. A
-match in a pasted log is not somebody saying something, and on a term that
-appears in a seat prompt most rows will be exactly that:
+reasoning — so a hit can be a tool result or a file path. A match in a pasted
+log is not somebody saying something.
+
+For text, IN is WHO SPOKE, read from fields the client writes and never from
+the text: peer is another session's message, notification a background task's,
+lead the lead or a workflow coordinator prompting a seat, harness text the
+client injects. A message delivered mid-turn reports its sender the same way.
+user is the human — plus what no field separates from them: prompts programs
+send to headless sessions, and slash-command and local-command text.
+
+  ?               the term is in a part of the record nothing here models
+                  (a cwd, a uuid, queue bookkeeping)
+  unknown_origin  a record whose origin, or whose mid-turn delivery mode, this
+                  binary does not know — upgrade gray-area
+
+Neither is the liveness word "unknown" that agents prints.
+
+--in keeps a transcript if ANY of its hits is in that channel, and the row
+shows the most recent of those; on a term that appears in a seat prompt most
+unfiltered rows are exactly that:
 
   telepathy find 'bench rul' --in assistant   what agents SAID about it
 
@@ -40,7 +58,7 @@ Usage:
 
 Flags:
   -h, --help        help for find
-      --in string   keep only rows whose most recent hit is in this channel: assistant, user, thinking, tool_use, result
+      --in string   keep only transcripts with ANY hit in this channel, showing the most recent of those: assistant, user, peer, notification, lead, harness, thinking, tool_use, result, unknown_origin, ?
       --paths       print the transcript path under each row, for citing the record rather than summarising it
       --regex       treat the term as a regular expression rather than a literal (needed for /b word boundaries)
 

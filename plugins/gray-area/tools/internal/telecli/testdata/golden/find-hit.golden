@@ -1,3 +1,3 @@
-SESSION    AGENT               HITS  WHEN         IN        SNIPPET
-aaaaaaaa   review-02              1  09-09 10:05  tool_use  Read {"file_path":"/work/alpha/mint.go"}
-aaaaaaaa   (main)                 2  09-09 08:20  tool_use  Edit {"file_path":"/work/alpha/mint.go"}
+SESSION    AGENT               HITS  WHEN         IN             SNIPPET
+aaaaaaaa   review-02              1  09-09 10:05  tool_use       Read {"file_path":"/work/alpha/mint.go"}
+aaaaaaaa   (main)                 2  09-09 08:20  tool_use       Edit {"file_path":"/work/alpha/mint.go"}

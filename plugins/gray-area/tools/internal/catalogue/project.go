@@ -21,6 +21,49 @@ type record struct {
 	Type       string          `json:"type"`
 	Timestamp  string          `json:"timestamp"`
 	Message    json.RawMessage `json:"message"`
+	// WHO SENT IT, as the client records it. These are what SpeakerOf reads; the message text is
+	// never consulted, because a speaker recovered from prose is a guess about string shape.
+	Origin           *origin     `json:"origin"`
+	IsMeta           bool        `json:"isMeta"`
+	IsCompactSummary bool        `json:"isCompactSummary"`
+	Attachment       *attachment `json:"attachment"`
+}
+
+type origin struct {
+	Kind string `json:"kind"`
+}
+
+// attachment is a record with no message. The only kind read is `queued_command` — a prompt,
+// a peer's message or a notification delivered MID-TURN — which carries its own origin and mode.
+type attachment struct {
+	Type        string          `json:"type"`
+	Prompt      json.RawMessage `json:"prompt"`
+	CommandMode string          `json:"commandMode"`
+	Origin      *origin         `json:"origin"`
+}
+
+func (o *origin) kind() string {
+	if o == nil {
+		return ""
+	}
+	return o.Kind
+}
+
+// promptText is an attachment's prompt as text. Measured as a string on every record seen; a block
+// list is read for its text blocks rather than dropped, so a shape change narrows the snippet
+// instead of losing the channel.
+func (a *attachment) promptText() string {
+	var s string
+	if json.Unmarshal(a.Prompt, &s) == nil {
+		return s
+	}
+	var parts []string
+	for _, b := range decodeBlocks(a.Prompt) {
+		if b.Type == "text" {
+			parts = append(parts, b.Text)
+		}
+	}
+	return strings.Join(parts, "\n")
 }
 
 type message struct {
@@ -74,8 +117,12 @@ type Word struct {
 	PromptID string
 	BlockSeq int
 	TS       int64
-	Role     string
+	Role     string // the MESSAGE role; who spoke is SpeakerOf over this and the two fields below
 	Text     string
+	// OriginKind and Meta are the record's fields, carried so the store's role can be decided
+	// where the file's tier is known (IngestFile) — Project reads a stream and cannot know it.
+	OriginKind string
+	Meta       bool // isMeta, or a compaction summary
 }
 
 type Thought struct {
@@ -163,7 +210,8 @@ func Project(r io.Reader, startSeq int) Projection {
 				if strings.TrimSpace(b.Text) == "" {
 					continue
 				}
-				p.Words = append(p.Words, Word{PromptID: pid, BlockSeq: blockSeq, TS: ts, Role: m.Role, Text: b.Text})
+				p.Words = append(p.Words, Word{PromptID: pid, BlockSeq: blockSeq, TS: ts, Role: m.Role, Text: b.Text,
+					OriginKind: rec.Origin.kind(), Meta: rec.IsMeta || rec.IsCompactSummary})
 				blockSeq++
 			case "thinking":
 				if strings.TrimSpace(b.Thinking) == "" {

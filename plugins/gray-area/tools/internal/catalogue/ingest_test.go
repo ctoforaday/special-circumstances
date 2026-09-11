@@ -246,6 +246,68 @@ func TestSameLengthRewriteIsDetectedByTheFingerprint(t *testing.T) {
 	}
 }
 
+// THE STORED ROLE IS WHO SPOKE. The same no-origin prompt is the human's at top level and the
+// lead's in a seat's transcript, so this is asserted through IngestFile — the one place that knows
+// the tier — and not through Project.
+func TestStoredRoleIsTheSpeaker(t *testing.T) {
+	root := t.TempDir()
+	proj := filepath.Join(root, "-home-u-work")
+	top := lines(
+		`{"uuid":"h1","type":"user","origin":{"kind":"human"},"timestamp":"2026-09-08T10:00:00Z","message":{"role":"user","content":"human prompt"}}`,
+		`{"uuid":"p1","type":"user","isMeta":true,"origin":{"kind":"peer"},"timestamp":"2026-09-08T10:00:01Z","message":{"role":"user","content":"Another Claude session sent a message: peer turn"}}`,
+		`{"uuid":"m1","type":"user","isMeta":true,"timestamp":"2026-09-08T10:00:02Z","message":{"role":"user","content":[{"type":"text","text":"meta record"}]}}`,
+		`{"uuid":"n1","type":"user","origin":{"kind":"task-notification"},"timestamp":"2026-09-08T10:00:03Z","message":{"role":"user","content":"notification turn"}}`,
+		`{"uuid":"q1","type":"attachment","timestamp":"2026-09-08T10:00:04Z","attachment":{"type":"queued_command","prompt":"queued prompt","commandMode":"prompt","origin":{"kind":"human"}}}`,
+		`{"uuid":"a1","parentUuid":"h1","timestamp":"2026-09-08T10:00:05Z","message":{"role":"assistant","content":[{"type":"text","text":"assistant reply"}]}}`)
+	seat := lines(
+		`{"uuid":"s1","type":"user","timestamp":"2026-09-08T10:00:00Z","message":{"role":"user","content":"seat prompt"}}`)
+	for p, body := range map[string]string{
+		filepath.Join(proj, "S.jsonl"):                          top,
+		filepath.Join(proj, "S", "subagents", "agent-a1.jsonl"): seat,
+	} {
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db, err := Open(filepath.Join(t.TempDir(), "c.db"), io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	files, _ := TranscriptFiles(root)
+	for _, f := range files {
+		if _, err := IngestFile(db, f); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for text, want := range map[string]string{
+		"human prompt": "user",
+		"Another Claude session sent a message: peer turn": "peer",
+		"meta record":       "harness",
+		"notification turn": "notification",
+		"seat prompt":       "lead",
+		"assistant reply":   "assistant",
+	} {
+		var got string
+		if err := db.QueryRow(`SELECT role FROM v_word WHERE text = ?`, text).Scan(&got); err != nil {
+			t.Errorf("%q: %v", text, err)
+			continue
+		}
+		if got != want {
+			t.Errorf("%q stored role %q, want %q", text, got, want)
+		}
+	}
+	// The word tier stores turns; a mid-turn delivery is `find`'s to report, never a word row.
+	var n int
+	db.QueryRow(`SELECT count(*) FROM v_word WHERE text = 'queued prompt'`).Scan(&n)
+	if n != 0 {
+		t.Errorf("a queued_command attachment was stored as %d word row(s)", n)
+	}
+}
+
 // The session row's project_dir must name the SESSION's directory, not whichever file was
 // ingested last. A session with subagents has most of its files under <sid>/subagents/, so
 // taking the last one made the row report the subagents directory — a false field that reads

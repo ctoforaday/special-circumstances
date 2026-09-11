@@ -181,10 +181,15 @@ func IngestFile(db *sql.DB, tf TranscriptFile) (IngestResult, error) {
 		}
 	}
 	for _, w := range p.Words {
+		// THE STORED ROLE IS WHO SPOKE, not the message role. Decided here because this is where
+		// the file's tier is known: a subagent or workflow transcript holds no human prompt, and
+		// the same no-origin record is the human's at top level and the lead's in a seat.
+		role := SpeakerOf(RecordFacts{Role: w.Role, OriginKind: w.OriginKind,
+			IsMeta: w.Meta, IsCompact: w.Meta, InSubagent: tf.AgentID != ""})
 		if _, err := tx.Exec(
 			`INSERT INTO word(session_id,agent_id,prompt_id,block_seq,ts,role,text,source,provisional)
 			 VALUES(?,?,?,?,?,?,?,'transcript',0)`,
-			tf.SessionID, tf.AgentID, nullable(w.PromptID), w.BlockSeq, w.TS, w.Role, w.Text); err != nil {
+			tf.SessionID, tf.AgentID, nullable(w.PromptID), w.BlockSeq, w.TS, string(role), w.Text); err != nil {
 			return res, fmt.Errorf("catalogue: word: %w", err)
 		}
 	}
