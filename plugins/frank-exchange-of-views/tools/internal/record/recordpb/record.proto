@@ -300,7 +300,7 @@ enum RunOutcome {
 enum CheckKind {
   CHECK_KIND_UNSPECIFIED = 0;
   CHECK_KIND_DOCUMENT = 1 [(means) = "reading a shipped artifact settles it — the check is answered by prose that quotes what is there"];
-  CHECK_KIND_COMPUTATION = 2 [(means) = "RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation are common cases and not the whole of it; if you can imagine a script that would end the argument, this is the kind"];
+  CHECK_KIND_COMPUTATION = 2 [(means) = "RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind"];
   CHECK_KIND_SOURCE = 3 [(means) = "verifying an external source settles it — the claim stands or falls on what the cited material actually says"];
 }
 
@@ -311,7 +311,7 @@ enum Disposition {
   DISPOSITION_UNSPECIFIED = 0;
   DISPOSITION_REPAIRED = 1 [(means) = "the repair was verified at the leaf and nothing regressed", (closes) = true];
   DISPOSITION_REPAIRED_WITH_REGRESSION = 2 [(means) = "repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward", (closes) = true];
-  DISPOSITION_AMENDS_PRIOR = 3 [(means) = "a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit", (closes) = true];
+  DISPOSITION_AMENDS_PRIOR = 3 [(means) = "a defect found BETWEEN two repairs that each closed clean earlier — its lineage is the supersedes the gap was minted with; the close itself carries none and nothing checks it", (closes) = true];
   DISPOSITION_NOT_A_DEFECT = 4 [(means) = "blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be", (closes) = true];
   DISPOSITION_DEFECT_ACCEPTED = 5 [(means) = "the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record", (closes) = true];
   DISPOSITION_DEFECT_OWED_ELSEWHERE = 6 [(means) = "a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped", (closes) = true];
@@ -335,7 +335,7 @@ enum Disposition {
   // friction saying it "had to substitute defect_owed_elsewhere for what the constitution calls
   // grade_adjusted, since no closer enum value exists" — the same forced-substitution shape, one
   // word over.
-  DISPOSITION_MOOT = 8 [(means) = "the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about. NOT not_a_defect, which asserts blue's argument held, and NOT repaired, which asserts a verified fix", (closes) = true];
+  DISPOSITION_MOOT = 8 [(means) = "the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired", (closes) = true];
 }
 
 // SourceOutcome is WHAT THE SOURCE DID for a claim — a different question from how sure the
@@ -350,7 +350,7 @@ enum SourceOutcome {
   SOURCE_OUTCOME_SUPPORTS = 1 [(means) = "you read the source at the leaf and it says what the claim says"];
   SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE = 2 [(means) = "it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement"];
   SOURCE_OUTCOME_WEAK = 3 [(means) = "it gestures at the claim, or is itself uncorroborated: thin support, not none"];
-  SOURCE_OUTCOME_REFUTES = 4 [(means) = "you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry, and until 0.60.0 it had no field at all"];
+  SOURCE_OUTCOME_REFUTES = 4 [(means) = "you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry"];
   SOURCE_OUTCOME_ABSENT = 5 [(means) = "you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was"];      // silence is not contradiction
   SOURCE_OUTCOME_UNREACHABLE = 6 [(means) = "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit"];
 }
@@ -881,7 +881,7 @@ message SpotCheck {
 enum AboutKind {
   ABOUT_KIND_UNSPECIFIED = 0;
   ABOUT_KIND_SECTION = 1 [(means) = "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there"];
-  ABOUT_KIND_INQUIRY = 2 [(means) = "a line of inquiry, by its avenue id: an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor"];
+  ABOUT_KIND_INQUIRY = 2 [(means) = "a line of inquiry, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor"];
   ABOUT_KIND_GAP = 3 [(means) = "a gap already on the docket, by its id — a defect in the record rather than in the report"];
 }
 
