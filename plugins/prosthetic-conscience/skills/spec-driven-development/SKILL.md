@@ -25,4 +25,4 @@ For small tasks (UI tweaks, minor bugs), a single `tinyspec.md` MAY combine plan
 
 - BEFORE the gate, any **design fork with a behavioral, semantic, cost, or reversibility implication** MUST be resolved with the human. The gate vets ONE design against the standard; it is not where you discover which design is wanted — a fork reopened after PASS wastes every round spent on the discarded branch.
 - BEFORE an implementation plan is treated as approved, it MUST pass the auditor gate (`/plan-audit`) on **Alignment**, **Completeness**, and **Safety** — defined in the `plan-auditor` agent, which is what applies them (one definition, where it is used).
-- The gate is binary — `VERDICT: PASS` or `FAIL` with actionable gaps. It never soft-passes.
+- The gate is binary — `VERDICT: PASS` or `FAIL` with actionable gaps. It never soft-passes. A PASS may carry NOTES — findings a named gate will catch loudly, or that change only how the plan reads — and that is not a soft pass: it FAILs on what would reach main silently, and the line is drawn in the `plan-auditor` agent. The plan is approved on the second consecutive PASS, and its NOTES travel into the PR (`/plan-audit`).
