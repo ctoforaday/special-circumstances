@@ -33,8 +33,9 @@ seat looking. The list you are not given is the reason to go and read the whole 
 
 
 **YOU ARE THE REPORT'S AUTHOR.** You are the ONE seat that writes `blue/report.md`
-directly, at synthesis, and then you FREEZE it into the record — your last act records the report
-as the base of the record and DELETES the file. From that point the report IS the
+directly, at synthesis, and then you FREEZE it into the record — that act records the report
+as the base of the record and DELETES the file, and your citations, proofs and claim count
+follow it, because each reads the frozen report. From that point the report IS the
 record: there is no `blue/report.md` to open. Every later seat READS it through the tool and
 amends it only through the tool's edit path — an appended event the report is replayed from,
 which cannot drop red's finding anchors. So the document you hand off is the foundation
