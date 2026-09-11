@@ -201,6 +201,14 @@ declared claim about what a session was doing, and act-vs-claim applies to it ex
 to a seat's attestation. A checkpoint that says *"validation step 2 failing"* against a trajectory
 showing step 2 never ran is a finding. That is a consumer relationship, and it is the only one.
 
+**Restart recovery is on Gray Area's side of this line** (2026-09-11, `plans/restart-recovery.md`).
+Listing the sessions a restart cut off observes ACROSS sessions — which is what the catalogue does
+and a checkpoint does not — so `telepathy agents` gains the `lost` state and a `restart-recovery`
+skill walks a human through bringing each back. It adds one metadata column to the store (the
+Remote Control cloud id, `session.bridge_session_id`) and copies no conversation content.
+Checkpointing stays in `prosthetic-conscience`: a restarted session still re-grounds on its own
+note; this only finds the session to restart.
+
 ---
 
 ## 5. Architecture of the mining substrate

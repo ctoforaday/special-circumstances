@@ -5,8 +5,9 @@
 //
 // Agents write their own SQL against this (plans/gray-area-catalogue.md §II), so a renamed column
 // breaks work that is not in this repository and cannot be swept. The base tables are therefore
-// free to change and the VIEWS are not: they evolve additively, and `schema_test.go` pins their
-// exact column sets so a rename fails here rather than in somebody's query.
+// free to change and the VIEWS are not: they evolve additively, and TestViewColumnsAreTheContract
+// (open_test.go) pins their exact column sets so a rename fails here rather than in somebody's
+// query.
 //
 // That discipline is owed to #819, which measured 0 of 7 run archives readable by any current
 // binary after words were retired and an epoch moved. An archive that outlives its source and
@@ -37,6 +38,10 @@ const Schema = `
 CREATE TABLE IF NOT EXISTS session (
     session_id    TEXT PRIMARY KEY,
     project_dir   TEXT NOT NULL,
+    -- cwd is WHERE THE SESSION RAN, from its own transcript's records: the latest cwd whose folder
+    -- key is the transcript's folder name, else the first one seen — then only a HINT, which
+    -- telepathy agents --lost labels (unverified). A matching value is never replaced by one that
+    -- does not match, so a session that moved folders keeps the directory it resumes from.
     cwd           TEXT NOT NULL DEFAULT '',
     -- WHEN THE CATALOGUE SAW THIS SESSION, which is not when the session ran. These were called
     -- first_seen/last_seen and read as the session's lifetime; every session backfilled in one
@@ -47,9 +52,18 @@ CREATE TABLE IF NOT EXISTS session (
     ingested_last  INTEGER NOT NULL,
     -- closed_at is closure's marker: NULL means not yet closed, which is the safe reading
     -- because it means the session is still eligible for the pending queue. Nothing else
-    -- records it; the queue itself is a QUERY over this column, not a table.
+    -- records it; the queue itself is a QUERY over this column, not a table. Any SIGN OF LIFE
+    -- after it clears it — new transcript bytes (IngestFile) or a registration at SessionStart or
+    -- Stop (RegisterSession) — so a session resumed after closure reads as unsettled again, which
+    -- is what lets telepathy agents list it when a restart cuts it off.
     closed_at     INTEGER,
-    capture_build TEXT NOT NULL DEFAULT ''
+    capture_build TEXT NOT NULL DEFAULT '',
+    -- THE ONE FACT NO TRANSCRIPT HOLDS: the Remote Control cloud session id (session_<suffix>),
+    -- copied by RegisterSession from the client's own session file, which exists at SessionStart
+    -- and is gone by SessionEnd. Transcripts do not reliably carry it, so once a restart has cut a
+    -- session off this column is the only local record of it. '' means NOT CAPTURED, never "not a
+    -- Remote Control session". A rebuild loses it; the next hook records it again.
+    bridge_session_id TEXT NOT NULL DEFAULT ''
 );
 
 -- One row per transcript FILE, not per session: a session maps to many files across three tiers
@@ -146,7 +160,7 @@ CREATE VIEW IF NOT EXISTS v_session AS
     SELECT s.session_id, s.project_dir, s.cwd,
            (SELECT min(ts) FROM act WHERE act.session_id = s.session_id) AS first_act,
            (SELECT max(ts) FROM act WHERE act.session_id = s.session_id) AS last_act,
-           s.ingested_first, s.ingested_last, s.closed_at, s.capture_build
+           s.ingested_first, s.ingested_last, s.closed_at, s.capture_build, s.bridge_session_id
     FROM session s;
 CREATE VIEW IF NOT EXISTS v_action AS
     SELECT session_id, agent_id, seq, ts, tool, target, outcome FROM act;
@@ -174,12 +188,19 @@ CREATE VIEW IF NOT EXISTS v_skip AS
 // where it stored the message role, so a store projected at 3 holds peer messages, notifications
 // and seat prompts labelled `user`. Only a reprojection relabels them, and a stamp below this one
 // is what triggers the rebuild that does it.
-const UserVersion = 4
+//
+// WHY 5. session gains bridge_session_id, the cloud id RegisterSession captures, and v_session
+// carries it at the end — additive for every query against the views. `CREATE TABLE IF NOT
+// EXISTS` cannot add a column to an existing table, and a stamp below this one is what rebuilds
+// the store with it. The rebuild costs every closed_at marker, so each session closed before the
+// next boot can read as cut off once — candidates a human filters (plans/restart-recovery.md,
+// Accepted costs).
+const UserVersion = 5
 
 // ViewColumns is the contract §V.6 pins, restated here so a test can compare against a
 // declaration rather than against the DDL it is testing.
 var ViewColumns = map[string][]string{
-	"v_session": {"session_id", "project_dir", "cwd", "first_act", "last_act", "ingested_first", "ingested_last", "closed_at", "capture_build"},
+	"v_session": {"session_id", "project_dir", "cwd", "first_act", "last_act", "ingested_first", "ingested_last", "closed_at", "capture_build", "bridge_session_id"},
 	"v_action":  {"session_id", "agent_id", "seq", "ts", "tool", "target", "outcome"},
 	"v_word":    {"session_id", "agent_id", "prompt_id", "block_seq", "ts", "role", "text", "source", "provisional", "attribution"},
 	"v_thought": {"session_id", "agent_id", "prompt_id", "block_seq", "ts", "text"},

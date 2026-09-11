@@ -25,7 +25,8 @@ asks the record what **happened**.
 ## The verbs
 
 ```
-telepathy agents                 who is running, in which worktree, doing what
+telepathy agents                 who is running, in which worktree, doing what — and after a restart, what it cut off
+telepathy agents --lost          after a restart: each session it cut off, with the commands that bring it back
 telepathy session <id>           one session's shape: calls and errors by tool
 telepathy touched <path>         which sessions acted on a path, and when
 telepathy find <term>            ripgrep across every local transcript, joined to who
@@ -85,6 +86,12 @@ telepathy sql "SELECT tool, target FROM v_action WHERE session_id LIKE '5627%' A
 
 - **`unknown` liveness is not `ended`.** Liveness is exact on Linux only, and a session from
   another pid namespace is not ours to judge. YOU MUST NOT read `unknown` as "gone".
+- **`lost` is inferred, not measured.** `agents` lists, below the advertised sessions, each session
+  whose last sign of life precedes the boot and that nothing shows ending — candidates, among which
+  a clean exit after the last closure sweep reads the same. `--lost` prints each with its recovery
+  commands. BEFORE resuming any of them, YOU MUST follow the `restart-recovery` skill: it lets a
+  running Remote Control server bring its own sessions back first, and resumes only what the human
+  chooses.
 - **A session's final turn may be missing** when its transcript lagged the last hook and no
   closure pass read it. Measured residue, deliberately not engineered around.
 - **Reasoning is mostly WITHHELD, and `v_skip` is where that fact lives.** The client emits
@@ -102,6 +109,9 @@ telepathy sql "SELECT tool, target FROM v_action WHERE session_id LIKE '5627%' A
   backfilled since` on stderr. AFTER seeing that warning, YOU MUST NOT read an empty or thin result
   as evidence — run `telepathy backfill` (it clears the warning) and ask again. A backfill re-reads
   only the transcripts still on disk, so a session the client has already cleaned up stays absent.
+  A rebuild also drops every closure marker and every captured cloud id: until the next boot,
+  `agents --lost` can list sessions that ended cleanly, and a session's reattach command returns
+  only once a hook has recorded its cloud id again.
 - **`touched` sees a path only where the record NAMES it.** For `Read`/`Edit`/`Write` that is the
   `file_path`, and the answer is exact. For `Bash` it is the command string, truncated at 200
   characters — so an edit made by a long shell command, or a heredoc that names the file past that

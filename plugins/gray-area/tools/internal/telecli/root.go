@@ -28,7 +28,7 @@ import (
 )
 
 // Env is everything the command tree reads from OUTSIDE its arguments — the two client
-// directories, the store, and the clock.
+// directories, the store, the clock and the boot time.
 //
 // It is a struct rather than four calls to os.UserHomeDir and time.Now scattered through the verbs
 // because those calls are what makes a command-line tool untestable: a golden file cannot be
@@ -39,11 +39,16 @@ type Env struct {
 	ProjectsDir string // ~/.claude/projects — the transcripts, which we read and never write
 	SessionsDir string // ~/.claude/sessions — the client's liveness advertisements
 	Now         func() time.Time
+	// Boot is when the host last booted, in Unix seconds, and whether that could be measured —
+	// injected for the same reason Now is: no golden may depend on when the test host booted, or on
+	// its platform. A NIL Boot reads as "not measurable", never a panic, and it is called only after
+	// the store opened, so an Env built without it keeps every verb's behaviour.
+	Boot func() (int64, bool)
 }
 
 // Defaults resolves the environment a real invocation runs in.
 func Defaults() Env {
-	e := Env{Now: time.Now}
+	e := Env{Now: time.Now, Boot: catalogue.BootTime}
 	if dir, err := catalogue.DefaultDir(); err == nil {
 		e.Store = filepath.Join(dir, "catalogue.db")
 	}
@@ -69,7 +74,9 @@ session's final turn may be missing if its transcript lagged the last hook. And
 reasoning is present only where it was captured: showThinkingSummaries defaults
 off, so a session with no thoughts may have had them and not recorded them. After
 a gray-area upgrade the store may have been rebuilt empty: an empty or thin answer
-then is not evidence, and telepathy warns until telepathy backfill has run.
+then is not evidence, and telepathy warns until telepathy backfill has run. A
+'lost' session is inferred from the store and the boot time, not measured: it is a
+candidate for a human, and the resume attempt is the check.
 
 The five views ARE the contract, and telepathy sql reads them directly:
 v_session, v_action, v_word, v_thought, v_skip.`
@@ -91,6 +98,7 @@ func NewRoot(env Env) *cobra.Command {
 		Short: "what every agent on this box did, said and thought",
 		Long:  longDescription,
 		Example: `  telepathy agents
+  telepathy agents --lost
   telepathy touched internal/catalogue/schema.go
   telepathy sql "SELECT tool, count(*) n FROM v_action GROUP BY 1 ORDER BY 2 DESC"`,
 		Version: buildid.Line("telepathy"),

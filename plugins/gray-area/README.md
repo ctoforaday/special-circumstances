@@ -48,7 +48,7 @@ The manifest answers *where is this session's trajectory*. **`telepathy`** answe
 every agent on the box — Gray Area is the ship, and telepathy is what it does:
 
 ```
-telepathy agents              who is running, in which worktree, doing what
+telepathy agents              who is running, in which worktree, doing what — and after a restart, what it cut off
 telepathy touched <path>      is anyone else acting on this file
 telepathy session <id>        one session's calls and errors, by tool
 telepathy find <term>         search every local transcript: who, when, where, and the text
@@ -81,6 +81,19 @@ next open rather than migrating it (the store is derived), so an empty or thin a
 an upgrade is not evidence of anything; every `telepathy` read verb warns on stderr until
 `telepathy backfill` has run, and sessions whose transcripts are gone do not come back. A file
 that is not recognised as a catalogue — a mistyped `--store` — is refused and never written.
+
+**After a restart, `agents` lists what it cut off.** `SessionStart` and `Stop` also *register* the
+session: its row exists before any transcript is read, a session closure had settled is reopened
+because it is running again, and the Remote Control cloud id is copied from the client's own
+session file — the one fact the store holds that no transcript reliably does, published as
+`v_session.bridge_session_id`. After a reboot, `telepathy agents` lists below the live sessions
+every session whose last sign of life (its newest act, word or thought, in transcript time)
+precedes the boot, that the catalogue did not close before the boot, and that is not `live` —
+state `lost`, which is *inferred*, where `live`/`ended`/`unknown` are measured. `telepathy agents
+--lost` prints each with where to resume from, its cloud id if captured, its last recorded
+permission mode, and the commands that bring it back in that mode; the **`restart-recovery`**
+skill walks a human through choosing and running them. The list is candidates, not a verdict: a
+clean exit after the last closure sweep reads the same, and the resume attempt is the check.
 
 A tool call is recorded with one of three outcomes: `ok`, `error`, or `unresolved` — the last
 meaning its result never arrived, which is what an interrupted session leaves behind. It is not a
@@ -127,7 +140,8 @@ none with text since 2026-09-08. They are recorded as `thinking-empty` skips rat
 so "reasoning withheld" and "did not reason" stop being the same zero. `v_session` likewise now
 separates `first_act`/`last_act`, which is the session's own span, from `ingested_first`/
 `ingested_last`, which is only when this store saw it — the old `first_seen`/`last_seen` invited
-exactly that confusion and got it.
+exactly that confusion and got it. Its `bridge_session_id` is `''` where capture never saw a cloud
+id, which is not the same as a session that had none.
 
 **Absence is always worded.** No store, no rows for a path, no sessions running and no reasoning
 captured are four different facts, and each says which it is. `find` refuses outright when ripgrep

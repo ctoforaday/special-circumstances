@@ -485,7 +485,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	// prosthetic-conscience's sc-checkpoint-seal: the wiring already knows which
 	// event it registered for, and inferring it from which fields happen to be
 	// present is a guess that goes wrong silently when the payload shape moves.
-	event := fs.String("event", "SubagentStop", "SubagentStop | SessionStart — which hook registered this call")
+	event := fs.String("event", "SubagentStop", "SubagentStop | SessionStart | Stop | SessionEnd — which hook registered this call")
 	if err := fs.Parse(args); err != nil {
 		return 0 // a bad flag is never worth costing a subagent its turn
 	}
@@ -522,8 +522,13 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	// Stop and SessionEnd exist for the CATALOGUE and write NO manifest row. They are explicit
 	// branches, not additions to the fall-through below: that line writes a seat row, and a turn
 	// boundary is not a seat. Binding them without returning here would add one row per turn to
-	// every manifest.
-	if *event == "Stop" || *event == "SessionEnd" {
+	// every manifest. Stop also REGISTERS the session (catalogue.RegisterSession) before it
+	// ingests; SessionEnd only ingests, because the session file registration reads is gone by then.
+	if *event == "Stop" {
+		atStop(in, stderr)
+		return 0
+	}
+	if *event == "SessionEnd" {
 		ingestForSession(in.SessionID, stderr)
 		return 0
 	}
@@ -531,8 +536,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	if *event == "SessionStart" {
 		// The sweep is about OTHER sessions' tails and about age, so it runs before the alarm
 		// below — a missing transcript_path is a reason not to write this session's row, not a
-		// reason to stop maintaining the store.
-		sweep(stderr)
+		// reason to stop maintaining the store. It registers this session before closing others.
+		sweep(in, stderr)
 
 		// THE ALARM (plan §11.3). hook-surface-spike.md §3 states every event carries
 		// transcript_path, but that was not re-measured for SessionStart, and a

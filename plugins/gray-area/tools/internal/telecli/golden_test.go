@@ -43,7 +43,7 @@ func newColdHarness(t *testing.T) *harness {
 	sessionFile(t, h.sessions, 4242, alphaID, alphaCWD)
 	sessionFile(t, h.sessions, 4243, betaID, betaCWD)
 	h.env = Env{Store: h.store, ProjectsDir: h.projects, SessionsDir: h.sessions,
-		Now: func() time.Time { return frozen }}
+		Now: func() time.Time { return frozen }, Boot: func() (int64, bool) { return bootAt.Unix(), true }}
 	return h
 }
 
@@ -74,6 +74,15 @@ const (
 // rebuiltAt is the rebuild instant the rebuiltPending store carries. A FIXED instant, in the past,
 // so the warning's timestamp is stable in a golden and any real backfill's wall clock is later.
 var rebuiltAt = time.Date(2026, 9, 1, 8, 30, 0, 0, time.UTC)
+
+// bootAt is the boot every fixture world reports: after all of gamma's and delta's activity and
+// beta's last act, so the two sessions in the store and not advertised read as cut off by it, and
+// alpha and beta — advertised and `unknown` — show that `unknown` is never `lost`. Injected, so no
+// golden depends on when the test host booted or on its platform.
+var bootAt = frozen.Add(-20 * time.Minute)
+
+// bootArg is bootAt as the --boot flag takes it.
+func bootArg() string { return fmt.Sprint(bootAt.Unix()) }
 
 // fixtureDB opens path read-write for a fixture, through a `file:` URI for the same reason the
 // catalogue's own connections use one: a bare path is cut at its first `?` by the driver.
@@ -488,6 +497,104 @@ func TestGoldenStoreStates(t *testing.T) {
 			}
 			assertGoldenFull(t, tc.name, code, out, errOut)
 		})
+	}
+}
+
+// newLostHarness is the fixture world with delta made recoverable: the human prompted it in
+// `default` mode and a tool result followed — so its NEWEST `user` record carries no mode, as a
+// real session killed mid-tool-loop leaves it — and capture recorded its cloud id. Gamma stays as
+// the corpus has it: no mode on any record, and no cloud id.
+func newLostHarness(t *testing.T) *harness {
+	t.Helper()
+	h := newColdHarness(t)
+	p := filepath.Join(h.projects, "-work-delta", deltaID+".jsonl")
+	f, err := os.OpenFile(p, os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range []string{
+		turnLine("du2", deltaID, deltaCWD, 44*time.Minute,
+			map[string]any{"origin": map[string]any{"kind": "human"}, "permissionMode": "default"}, "keep going"),
+		resultLine("dr2", "du2", deltaID, 43*time.Minute, "dt2", nil),
+	} {
+		if _, err := f.WriteString(l + "\n"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f.Close()
+	if _, _, code := h.run(t, "backfill"); code != 0 {
+		t.Fatalf("fixture backfill failed with exit %d", code)
+	}
+	db, err := catalogue.Open(h.store, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := catalogue.RegisterSession(db, deltaID, "", "session_01DELTA", frozen.Add(-50*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	return h
+}
+
+// THE RECOVERY BLOCKS ARE PASTED BY A HUMAN, so they are pinned byte for byte: a cloud id and a
+// recorded `default` (written `manual`) for delta, no cloud id and no mode for gamma, and the
+// boot and its source on the first line. --boot is passed, so the source printed is the real one.
+func TestGoldenLost(t *testing.T) {
+	h := newLostHarness(t)
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{"agents-lost", []string{"agents", "--lost", "--boot", bootArg()}},
+		// A boot before every act in the corpus: nothing precedes it, and that is said.
+		{"agents-lost-nothing-before-boot", []string{"agents", "--lost", "--boot", fmt.Sprint(frozen.Add(-10 * time.Hour).Unix())}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			out, errOut, code := h.run(t, tc.args...)
+			if code != 0 {
+				t.Fatalf("exit %d, stderr:\n%s", code, errOut)
+			}
+			assertGolden(t, tc.name, out)
+		})
+	}
+}
+
+// EVERY ADVERTISED SESSION READS `ended` — what a crash leaves behind — so each moves to `lost`,
+// is shown ONCE, and the sentence says the files are there rather than that nothing is.
+//
+// LINUX ONLY, and loudly: `ended` needs the LOCAL pid domain, which only liveness_linux.go can
+// compose; elsewhere every session is `unknown` and this state cannot arise.
+func TestGoldenAllEnded(t *testing.T) {
+	domain := catalogue.LocalPidDomain()
+	if domain == "" {
+		t.Skip("no local pid domain on this platform, so no session can read `ended` — this is a skipped " +
+			"assertion, not a passing one (liveness is exact on Linux only)")
+	}
+	h := newHarness(t)
+	h.sessions = filepath.Join(t.TempDir(), "sessions")
+	h.env.SessionsDir = h.sessions
+	if err := os.MkdirAll(h.sessions, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// procStart is not a number, so it can match no process even if the pid exists: `ended`, always.
+	for pid, sid := range map[int]string{4242: alphaID, 4243: betaID} {
+		body := jsonLine(map[string]any{"pid": pid, "sessionId": sid, "cwd": "/work", "procStart": "not-a-start-time", "pidDomain": domain})
+		if err := os.WriteFile(filepath.Join(h.sessions, fmt.Sprintf("%d.json", pid)), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	out, errOut, code := h.run(t, "agents")
+	if code != 0 {
+		t.Fatalf("exit %d, stderr:\n%s", code, errOut)
+	}
+	assertGolden(t, "agents-all-ended", out)
+	for _, id := range []string{alphaID, betaID} {
+		if n := strings.Count(out, catalogue.Short(id)+" "); n != 1 {
+			t.Errorf("%s appears %d times, want once — as lost, not also as ended:\n%s", catalogue.Short(id), n, out)
+		}
+	}
+	if strings.Contains(out, " ended ") {
+		t.Errorf("an ended session that is lost was also shown as ended:\n%s", out)
 	}
 }
 

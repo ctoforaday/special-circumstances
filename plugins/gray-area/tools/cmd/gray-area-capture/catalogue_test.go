@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -159,6 +160,133 @@ func TestSessionStartRunsTheSweepAndMarksRetention(t *testing.T) {
 	}
 	if len(marked) != len("2006-01-02") {
 		t.Errorf("the retention marker is %q, which is not a UTC date", marked)
+	}
+}
+
+// registration is one session's row as the registration left it.
+type registration struct {
+	projectDir, bridge string
+	closed             sql.NullInt64
+}
+
+func registeredRow(t *testing.T, storePath, sid string) (registration, bool) {
+	t.Helper()
+	db, err := catalogue.OpenRead(storePath)
+	if err != nil {
+		t.Fatalf("no store: %v", err)
+	}
+	defer db.Close()
+	var r registration
+	if err := db.QueryRow(`SELECT project_dir, bridge_session_id, closed_at FROM v_session WHERE session_id = ?`, sid).
+		Scan(&r.projectDir, &r.bridge, &r.closed); err != nil {
+		return r, false
+	}
+	return r, true
+}
+
+// ownSessionFile writes the client's session file for the process that runs these hooks: the test
+// binary's parent, which is exactly the pid a real hook's `exec` reads.
+func ownSessionFile(t *testing.T, home, sid, bridge string) string {
+	t.Helper()
+	dir := filepath.Join(home, ".claude", "sessions")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(dir, strconv.Itoa(os.Getppid())+".json")
+	body := `{"pid":` + strconv.Itoa(os.Getppid()) + `,"sessionId":"` + sid + `","bridgeSessionId":"` + bridge + `"}`
+	if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+// SESSIONSTART REGISTERS THIS SESSION, AND ITS OWN CLOSURE PASS DOES NOT SETTLE IT AGAIN.
+//
+// The resumed case: closure settled the session while it was gone, and no session file names it
+// (the file is not proof it is running — the payload is). Registration must reopen it and the
+// sweep right after must count it live; either half missing leaves closed_at set.
+func TestSessionStartRegistersAndCountsItselfLive(t *testing.T) {
+	sid := "sess-resumed"
+	home, store := fixtureHome(t, sid, "Read")
+	dir := t.TempDir()
+	tp := filepath.Join(home, ".claude", "projects", "-w", sid+".jsonl")
+	in := `{"session_id":"` + sid + `","transcript_path":` + strconv.Quote(tp) + `,"cwd":` + strconv.Quote(dir) + `}`
+	// A Stop reads the transcript, which is what puts the session in closure's queue at all.
+	if _, stderr, code := call(t, in, dir, okStat(9), "-event", "Stop"); code != 0 {
+		t.Fatalf("Stop exited %d: %s", code, stderr)
+	}
+	db, err := catalogue.Open(store, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`UPDATE session SET closed_at = 1 WHERE session_id = ?`, sid); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+
+	if _, stderr, code := call(t, in, dir, okStat(9), "-event", "SessionStart"); code != 0 {
+		t.Fatalf("SessionStart exited %d: %s", code, stderr)
+	}
+	r, ok := registeredRow(t, store, sid)
+	if !ok {
+		t.Fatal("SessionStart left no row for its own session")
+	}
+	if r.closed.Valid {
+		t.Errorf("closed_at = %d after this session's own SessionStart — it was not reopened, or its own sweep closed it again", r.closed.Int64)
+	}
+	if r.projectDir != filepath.Dir(tp) {
+		t.Errorf("project_dir = %q, want the transcript's folder %q", r.projectDir, filepath.Dir(tp))
+	}
+}
+
+// THE CLOUD ID COMES FROM THIS SESSION'S OWN FILE, and only when that file names this session;
+// once captured, a later hook that cannot read the file does not erase it.
+func TestTheCloudIDIsTakenOnlyFromTheSessionsOwnFile(t *testing.T) {
+	sid := "sess-bridge"
+	home, store := fixtureHome(t, sid, "Read")
+	dir := t.TempDir()
+	tp := filepath.Join(home, ".claude", "projects", "-w", sid+".jsonl")
+	in := `{"session_id":"` + sid + `","transcript_path":` + strconv.Quote(tp) + `,"cwd":` + strconv.Quote(dir) + `}`
+
+	// A file at our parent's pid naming ANOTHER session: a pid is a guess until the file confirms it.
+	ownSessionFile(t, home, "someone-else", "session_01WRONG")
+	call(t, in, dir, okStat(9), "-event", "Stop")
+	if r, _ := registeredRow(t, store, sid); r.bridge != "" {
+		t.Errorf("a session file naming another session supplied the cloud id %q", r.bridge)
+	}
+
+	f := ownSessionFile(t, home, sid, "session_01RIGHT")
+	call(t, in, dir, okStat(9), "-event", "SessionStart")
+	if r, _ := registeredRow(t, store, sid); r.bridge != "session_01RIGHT" {
+		t.Errorf("SessionStart recorded cloud id %q, want session_01RIGHT", r.bridge)
+	}
+
+	// The file is gone by SessionEnd; a Stop that cannot read it keeps what was captured.
+	if err := os.Remove(f); err != nil {
+		t.Fatal(err)
+	}
+	call(t, in, dir, okStat(9), "-event", "Stop")
+	if r, _ := registeredRow(t, store, sid); r.bridge != "session_01RIGHT" {
+		t.Errorf("a Stop with no session file left cloud id %q, want session_01RIGHT kept", r.bridge)
+	}
+}
+
+// A PAYLOAD WITH NO transcript_path REGISTERS NO DIRECTORY — ” and never ".", which is what
+// filepath.Dir makes of an empty path.
+func TestARegistrationWithNoTranscriptPathRecordsNoDirectory(t *testing.T) {
+	sid := "sess-nopath"
+	_, store := fixtureHome(t, "another-session", "Read") // no transcript for sid at all
+	dir := t.TempDir()
+	in := `{"session_id":"` + sid + `","cwd":` + strconv.Quote(dir) + `}`
+	if _, stderr, code := call(t, in, dir, okStat(9), "-event", "Stop"); code != 0 {
+		t.Fatalf("Stop exited %d: %s", code, stderr)
+	}
+	r, ok := registeredRow(t, store, sid)
+	if !ok {
+		t.Fatal("Stop registered nothing for a session with no transcript yet")
+	}
+	if r.projectDir != "" {
+		t.Errorf("project_dir = %q, want ''", r.projectDir)
 	}
 }
 
