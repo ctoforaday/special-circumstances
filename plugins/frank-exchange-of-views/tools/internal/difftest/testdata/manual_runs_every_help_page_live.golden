@@ -3,6 +3,39 @@ exit 0
 stdout:
 feov-record manual — the bench surface, seat judge: 28 commands, each under a header naming it and followed by the help it prints, run live just now. LEAN ON PURPOSE: a block that repeats word for word on several pages is printed ONCE under SHARED below, and each page marks where it came out (`→ SHARED §n`); a group whose page would only list commands that have pages of their own is left out, and so is this command's own page. The surface's own page comes first.
 
+WORDS THIS SURFACE USES — one word for each concept, and it is the same word on every page, prompt and constitution you read:
+  - The report is the research prose written for a reader of the subject: one document from a lane's text to the assembled report.md, named by its stage only where the stage matters (your part of the report, the report as `show report` serves it, the assembled report.md).
+  - The run directory is the directory that holds one run: its record, its report and the documents assembled beside it.
+  - The record is the run's account of every act, held as events in records/record.db, and every read a seat makes is a projection of it.
+  - A run is one research question taken from setup to its outcome.
+  - An epoch runs from one chair sitting to the next: the chair relays who sits, the parties the record names sit, and the chair sits again.
+  - A sitting is one seat's dispatch, from the prompt the engine hands it to the envelope it returns.
+  - An exchange is a red sitting followed by a blue sitting on one gap, and k-max counts them.
+  - A seat is one agent's place in the run, registered under a seat id whose role decides the surface it is given.
+  - A side is red or blue: red audits the report and passes or fails it, blue researches, writes and repairs it.
+  - A lens is a red seat that audits the report for one class of defect, and the only seat that files findings and mints gaps.
+  - The chair is red's running seat: it relays who sits, rules blue's motions, spot-checks the archive and records red's verdict.
+  - The bench is the seat that adjudicates the contested docket, rules on motions and stamps how the run ended.
+  - A lane is one of blue's parallel first passes at the report, written by one researcher under one method.
+  - The synthesizer is the blue seat that merges the lane drafts into the report by union and writes the report's authored surfaces.
+  - The engine is the workflow script that dispatches the seats the record says are ready and reads the envelopes they return.
+  - The operator is the person running the research, and the seat id their own commands run under.
+  - The log is the entries a seat files for the operator with the `log` verb — a missing capability, a defect in the tooling, an impediment or a nominal sitting — and none of it is debate material.
+  - Friction is one type of log entry: the work was impeded and the seat is noting it.
+  - A missing capability is an act a seat needed that no surface offers, and it goes in the log, never on the board.
+  - A citation is a source attached to a sentence of the report with the cite verb, hashed and dated so it can be checked again.
+  - An anchor is the invisible token a citation, a proof or a finding leaves at its sentence in the report.
+  - A proof is a recorded computation: a script that was run, with its hash and exit status.
+  - A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
+  - The verdict is the chair's PASS or FAIL on the board.
+  - The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
+  - A finding is a lens's recorded observation of a defect in the report, graded and not yet minted.
+  - A gap is a defect in the report, minted onto the board by a lens.
+  - To retire a claim is to take it out of the report with the retire verb, on the record.
+  - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
+  - A grade motion is a side's motion contesting a gap's grade, ruled by the bench.
+  - A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
+
 SHARED BY THE COMMANDS BELOW — each block is printed ONCE here, and every page it was lifted from carries a marker line ending `→ SHARED §n` exactly where it was:
 §1 (on 7 pages):
 If you need a verb or a flag that is not listed here, it does not exist for you:
@@ -736,6 +769,39 @@ $ manual --seat-id blue-respond
 exit 0
 stdout:
 feov-record manual — the blue surface, seat blue-respond: 33 commands, each under a header naming it and followed by the help it prints, run live just now. LEAN ON PURPOSE: a block that repeats word for word on several pages is printed ONCE under SHARED below, and each page marks where it came out (`→ SHARED §n`); a group whose page would only list commands that have pages of their own is left out, and so is this command's own page. The surface's own page comes first.
+
+WORDS THIS SURFACE USES — one word for each concept, and it is the same word on every page, prompt and constitution you read:
+  - The report is the research prose written for a reader of the subject: one document from a lane's text to the assembled report.md, named by its stage only where the stage matters (your part of the report, the report as `show report` serves it, the assembled report.md).
+  - The run directory is the directory that holds one run: its record, its report and the documents assembled beside it.
+  - The record is the run's account of every act, held as events in records/record.db, and every read a seat makes is a projection of it.
+  - A run is one research question taken from setup to its outcome.
+  - An epoch runs from one chair sitting to the next: the chair relays who sits, the parties the record names sit, and the chair sits again.
+  - A sitting is one seat's dispatch, from the prompt the engine hands it to the envelope it returns.
+  - An exchange is a red sitting followed by a blue sitting on one gap, and k-max counts them.
+  - A seat is one agent's place in the run, registered under a seat id whose role decides the surface it is given.
+  - A side is red or blue: red audits the report and passes or fails it, blue researches, writes and repairs it.
+  - A lens is a red seat that audits the report for one class of defect, and the only seat that files findings and mints gaps.
+  - The chair is red's running seat: it relays who sits, rules blue's motions, spot-checks the archive and records red's verdict.
+  - The bench is the seat that adjudicates the contested docket, rules on motions and stamps how the run ended.
+  - A lane is one of blue's parallel first passes at the report, written by one researcher under one method.
+  - The synthesizer is the blue seat that merges the lane drafts into the report by union and writes the report's authored surfaces.
+  - The engine is the workflow script that dispatches the seats the record says are ready and reads the envelopes they return.
+  - The operator is the person running the research, and the seat id their own commands run under.
+  - The log is the entries a seat files for the operator with the `log` verb — a missing capability, a defect in the tooling, an impediment or a nominal sitting — and none of it is debate material.
+  - Friction is one type of log entry: the work was impeded and the seat is noting it.
+  - A missing capability is an act a seat needed that no surface offers, and it goes in the log, never on the board.
+  - A citation is a source attached to a sentence of the report with the cite verb, hashed and dated so it can be checked again.
+  - An anchor is the invisible token a citation, a proof or a finding leaves at its sentence in the report.
+  - A proof is a recorded computation: a script that was run, with its hash and exit status.
+  - A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
+  - The verdict is the chair's PASS or FAIL on the board.
+  - The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
+  - A finding is a lens's recorded observation of a defect in the report, graded and not yet minted.
+  - A gap is a defect in the report, minted onto the board by a lens.
+  - To retire a claim is to take it out of the report with the retire verb, on the record.
+  - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
+  - A grade motion is a side's motion contesting a gap's grade, ruled by the bench.
+  - A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
 
 SHARED BY THE COMMANDS BELOW — each block is printed ONCE here, and every page it was lifted from carries a marker line ending `→ SHARED §n` exactly where it was:
 §1 (on 14 pages):

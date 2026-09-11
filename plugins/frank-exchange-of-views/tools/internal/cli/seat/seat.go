@@ -692,9 +692,9 @@ func Emit(cmd *cobra.Command, res Result, err error) error {
 func New(name string, run Handler) *cobra.Command { return NewKeyed(name, name, run) }
 
 // NewKeyed is New for a verb whose help is not keyed by its own name — the shared verbs, where the
-// same command means something different in each chair. `position` is a RED section for the merge
-// and a BLUE one for blue, so those are two documents; `register` and `friction` mean exactly the
-// same thing everywhere and are one.
+// same command means something different on each side. `position` is a RED section for the chair
+// and a BLUE one for blue, so those are two documents; `register` and `log` mean exactly the same
+// thing everywhere and are one.
 //
 // THEY WERE FOUR COPIES. Each role passed its own literal, under a comment saying the guidance
 // differs by role — and register's and friction's were byte-identical at every call site but one,

@@ -16,6 +16,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/terms"
 )
 
 // manualName is the command's name. The survey that reads a manual out of a trajectory owns it,
@@ -48,6 +49,7 @@ func newManual(seatID string) *cobra.Command {
 		Short: "every command on your surface, each with its own help, run live — read it once, first thing in a sitting",
 		Long: manualName + " prints every command on this surface, in tree order, each under a header naming the command exactly, followed by the help that command prints. The help is produced now, by running this binary with that command and --help, so it cannot disagree with the tool you are running. It records nothing.\n\n" +
 			"It is lean on purpose. A block that repeats word for word on several pages — the flags every command inherits, a footer, a flag line several commands share — is printed ONCE, in a SHARED section before the first page, and each page carries a marker line ending `→ SHARED §n` where the block was. A group whose page only lists commands that have pages of their own is left out. Nothing a page said is lost: put each marked block back and you have that command's --help exactly.\n\n" +
+			"Before the pages it prints WORDS THIS SURFACE USES: each concept word your surface uses, defined once — the one word every page, prompt and constitution uses for that concept.\n\n" +
 			"Read it ONCE, at the start of a sitting and before you decide what to do: it is your whole surface in one call. The surface is your seat's — the seat you registered as, or the one this call names. A page whose help fails to run is printed with its error, never left out, and the command then exits non-zero.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
@@ -137,6 +139,24 @@ func printManual(cmd *cobra.Command, seatID string) error {
 	bin := InvokedAs()
 	fmt.Fprintf(w, "%s %s — the %s surface, seat %s: %d commands, each under a header naming it and followed by the help it prints, run live just now. LEAN ON PURPOSE: a block that repeats word for word on several pages is printed ONCE under SHARED below, and each page marks where it came out (`→ SHARED §n`); a group whose page would only list commands that have pages of their own is left out, and so is this command's own page. The surface's own page comes first.\n",
 		bin, manualName, RoleOfSeat(seatID), seatID, len(pages)-1)
+	// THE WORDS, ONCE, BEFORE ANY PAGE. The registry is the single source of the protocol's concept
+	// nouns, and a seat reads a constitution, a prompt and these pages in one sitting: a word it
+	// meets with no definition is one it can take for a second thing. Printed here rather than on
+	// any leaf page, because each command's own --help stays that command's.
+	//
+	// A registry that does not load is refused, not skipped: a manual without its words would read
+	// exactly like a surface that uses none.
+	reg, err := terms.Load()
+	if err != nil {
+		return fmt.Errorf("%s: the terms registry does not load, so this surface's words cannot be printed: %w", manualName, err)
+	}
+	if words := reg.ForSeat(RoleOfSeat(seatID)); len(words) > 0 {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, diagnostics.ManualWordsHeading)
+		for _, e := range words {
+			fmt.Fprintln(w, "  - "+e.Definition)
+		}
+	}
 	if len(shared) > 0 {
 		fmt.Fprintln(w)
 		fmt.Fprintln(w, diagnostics.ManualSharedHeading)

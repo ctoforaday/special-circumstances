@@ -378,7 +378,7 @@
     },
     {
       "term": "scorecard",
-      "definition": "A scorecard is the card a seat is measured on — red for the lenses and the chair, blue for blue's seats, bench for the bench — computed from the record.",
+      "definition": "A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.",
       "seats": ["lens", "merge", "blue", "bench", "operator"],
       "bans": [
         {"variant": "your chair (a scorecard)", "kind": "GATED", "pattern": "your chair"}
