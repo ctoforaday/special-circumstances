@@ -28,9 +28,24 @@ func newDispatch() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
+		// A SITTING IS OPENED BY A REGISTER, the chair's included: refused before anything is
+		// computed or written, so the register lands ahead of every act of the sitting.
+		if err := record.RequireChairSittingOpened(run); err != nil {
+			return nil, err
+		}
 		plan, err := record.PlanDispatch(run)
 		if err != nil {
 			return nil, err
+		}
+		// ASKED AGAIN, NOTHING NEW IS RECORDED. The same plan, with nobody sat since it was
+		// written, is the decision already on the record; writing it again doubles the rows every
+		// reader of "who was dispatched" counts.
+		standing, err := record.DispatchStands(run, plan)
+		if err != nil {
+			return nil, err
+		}
+		if standing {
+			return dispatchResult{Plan: plan, standing: true}, nil
 		}
 		for _, g := range plan.Docket {
 			id, err := record.MintMotionID(run)
@@ -54,7 +69,7 @@ func newDispatch() *cobra.Command {
 				return nil, err
 			}
 		}
-		return dispatchResult(plan), nil
+		return dispatchResult{Plan: plan}, nil
 	})
 	c.Use = "dispatch next"
 	c.Args = func(cmd *cobra.Command, args []string) error {
@@ -68,10 +83,18 @@ func newDispatch() *cobra.Command {
 	return c
 }
 
-type dispatchResult record.Plan
+// dispatchResult is the plan, whose fields ARE the --json body, and whether it was already on the
+// record — said in prose only, so the JSON the chair relays is the same plan either way.
+type dispatchResult struct {
+	record.Plan
+	standing bool
+}
 
 func (r dispatchResult) Human() string {
 	var b strings.Builder
+	if r.standing {
+		b.WriteString("dispatch: this plan is already on the record and nobody has sat since — nothing new is recorded\n")
+	}
 	if len(r.Parties) == 0 {
 		switch {
 		case r.EpochLimitReached:

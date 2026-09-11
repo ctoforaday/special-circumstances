@@ -111,6 +111,63 @@ func TestDispatchNextDocketsAGapAtImpasse(t *testing.T) {
 	}
 }
 
+// THE CHAIR'S SITTING, AS B6's CHAIR RAN IT. Asked for the prose and then for --json, the verb
+// records the plan once. Back after the lens sat, without registering — a warm chair resuming its
+// session — it is refused until the register that opens the sitting lands, and then it records.
+func TestDispatchNextRecordsOncePerSittingAndRefusesAnUnopenedOne(t *testing.T) {
+	runDir := newRun(t)
+	stageEvents(t, runDir)
+	dispatches := func() int {
+		evs, err := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_DISPATCH)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return len(evs)
+	}
+	prose, err := run(t, "dispatch", "next", "--run", runDir, "--seat-id", "red-chair")
+	if err != nil || strings.Contains(prose, "already on the record") {
+		t.Fatalf("first ask: %v\n%s", err, prose)
+	}
+	if n := dispatches(); n != 2 {
+		t.Fatalf("dispatch rows after the first ask = %d, want 2", n)
+	}
+	out, err := run(t, "dispatch", "next", "--run", runDir, "--seat-id", "red-chair", "--json")
+	if err != nil {
+		t.Fatalf("second ask: %v\n%s", err, out)
+	}
+	if plan := planOf(t, out); len(plan.Parties) != 2 || plan.Head != 2 {
+		t.Fatalf("the second ask printed %+v, want the same plan", plan)
+	}
+	if n := dispatches(); n != 2 {
+		t.Fatalf("dispatch rows after asking again with nobody sat = %d, want still 2", n)
+	}
+	again, _ := run(t, "dispatch", "next", "--run", runDir, "--seat-id", "red-chair")
+	if !strings.Contains(again, "already on the record") {
+		t.Errorf("the prose of a standing plan does not say nothing was recorded:\n%s", again)
+	}
+
+	if out, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-evidence"); err != nil {
+		t.Fatalf("lens register: %v\n%s", err, out)
+	}
+	refused, err := run(t, "dispatch", "next", "--run", runDir, "--seat-id", "red-chair")
+	if err == nil || !strings.Contains(err.Error(), "Register for this sitting") {
+		t.Fatalf("a chair back after the lens sat, unregistered, was not refused: %v\n%s", err, refused)
+	}
+	if n := dispatches(); n != 2 {
+		t.Fatalf("the refused ask wrote dispatch rows: %d, want 2", n)
+	}
+
+	if out, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair"); err != nil {
+		t.Fatalf("chair register: %v\n%s", err, out)
+	}
+	if out, err := run(t, "dispatch", "next", "--run", runDir, "--seat-id", "red-chair", "--json"); err != nil {
+		t.Fatalf("dispatch after the chair registered: %v\n%s", err, out)
+	}
+	if n := dispatches(); n != 4 {
+		t.Fatalf("dispatch rows after the chair's second sitting = %d, want 4", n)
+	}
+}
+
 // planOf reads the verb's plan out of the seat envelope every JSON verb answers in.
 func planOf(t *testing.T, out string) record.Plan {
 	t.Helper()
