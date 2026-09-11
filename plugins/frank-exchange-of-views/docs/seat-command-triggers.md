@@ -42,6 +42,7 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 | `lens register` `merge register` `blue register` `bench register` | first action at the seat | — | CLEAN |
 | `lens log` `merge log` `blue log` `bench log` | an entry for the operator, typed: a defect, a request, an impediment worth noting, or `--type nominal` for a clean sitting | — | CLEAN. Every seat WRITES it; the READ is the operator's (`feov-record log`), because a capability gap is a report to the human who can retool the seat, not material for the debate |
 | `lens show` `merge show` `blue show` `bench show` | read a projection | — | CLEAN (read path). The projections are their own vocabulary with their own gate — see `TestEveryViewNamesTheVerbThatFillsIt` — so the `show <view>` subtree is not enumerated here |
+| `manual` | the first act of a sitting, once, before deciding anything: every command's own help on your surface | one command's `--help` | CLEAN (read path). Not a competing trigger: `manual` runs each command's `--help` and prints it, so the two cannot disagree, and a single page remains the re-check. A root command on every surface, keyed once, like `fetch`; not checked by `TestEveryVerbHasATriggerRow`, which covers the role and motion paths |
 
 ## Lens
 

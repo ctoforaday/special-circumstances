@@ -1103,6 +1103,7 @@ Available Commands:
   ingest          freeze the synthesized report into the record and remove the file — done once, by its author
   log             an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
+  manual          every command on your surface, each with its own help, run live — read it once, first thing in a sitting
   position        your sitting's narrative — the argument the other side answers, rendered as this sitting's BLUE section
   prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
@@ -1151,6 +1152,7 @@ Available Commands:
   ingest          freeze the synthesized report into the record and remove the file — done once, by its author
   log             an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
+  manual          every command on your surface, each with its own help, run live — read it once, first thing in a sitting
   position        your sitting's narrative — the argument the other side answers, rendered as this sitting's BLUE section
   prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
@@ -1218,6 +1220,7 @@ Available Commands:
   finding      a defect in the TEXT, when the problem is the writing itself or there is nothing to go and fetch
   help         Help about any command
   log          an entry for the operator who can retool you — what it asserts, said in the positive
+  manual       every command on your surface, each with its own help, run live — read it once, first thing in a sitting
   mint         turn lens findings into a graded gap on the board, when a defect is real and belongs there
   near-match   screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
   register     your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
@@ -1267,6 +1270,7 @@ Available Commands:
   ingest          freeze the synthesized report into the record and remove the file — done once, by its author
   log             an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
+  manual          every command on your surface, each with its own help, run live — read it once, first thing in a sitting
   position        your sitting's narrative — the argument the other side answers, rendered as this sitting's BLUE section
   prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
@@ -1313,6 +1317,7 @@ Available Commands:
   halt         stop the run at a safety or consent boundary, when continuing would itself be the harm
   help         Help about any command
   log          an entry for the operator who can retool you — what it asserts, said in the positive
+  manual       every command on your surface, each with its own help, run live — read it once, first thing in a sitting
   outcome      stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
   register     your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
 
@@ -1355,6 +1360,7 @@ Available Commands:
   help            Help about any command
   inquiry-support your per-sitting vote on whether the report still carries a direction blue proposed
   log             an entry for the operator who can retool you — what it asserts, said in the positive
+  manual          every command on your surface, each with its own help, run live — read it once, first thing in a sitting
   position        your sitting's narrative — the argument the other side answers, rendered as this sitting's RED section
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   spot-check      sample the closure archive — a duty every chair sitting owes, including the sittings with nothing to sample
@@ -1399,6 +1405,7 @@ Available Commands:
   help            Help about any command
   inquiry-support your per-sitting vote on whether the report still carries a direction blue proposed
   log             an entry for the operator who can retool you — what it asserts, said in the positive
+  manual          every command on your surface, each with its own help, run live — read it once, first thing in a sitting
   position        your sitting's narrative — the argument the other side answers, rendered as this sitting's RED section
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   spot-check      sample the closure archive — a duty every chair sitting owes, including the sittings with nothing to sample

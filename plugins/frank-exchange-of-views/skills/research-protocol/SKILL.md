@@ -81,7 +81,8 @@ research/<date>_<slug>/
 └── cost.md            # measured tokens + dollars per seat-sitting (feov-record cost)
 
 RECORD — no file at all; read through the tool. Every projection, what each is for, and the
-verb that WRITES each one are in your role's `--help`, which is generated from the command tree
+verb that WRITES each one are in your role's help — `manual` prints every page of it in one call,
+at the start of a sitting — which is generated from the command tree
 and cannot disagree with it. A catalogue here would be a second copy that can.
 
   run this first, and again before you stop: your work — everything open to you, each item

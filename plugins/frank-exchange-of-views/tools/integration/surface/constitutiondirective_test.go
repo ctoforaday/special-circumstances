@@ -27,6 +27,9 @@ func TestEveryConstitutionCarriesTheSurfaceDiscoveryDuty(t *testing.T) {
 	want := []string{
 		"Your surface comes from `--help`",
 		"what comes back IS your surface",
+		// THE ONE CALL THAT READS IT: `manual` prints every command's `--help`. A constitution still
+		// carrying the page-by-page walk it replaced would pass the two lines above and fail here.
+		"run the tool's `manual`",
 		"A name you did not read in the help this sitting is a guess",
 	}
 	// AND THE CONSEQUENCE OF ABSENCE IS THE TOOL'S TO STATE, on the page where absence is

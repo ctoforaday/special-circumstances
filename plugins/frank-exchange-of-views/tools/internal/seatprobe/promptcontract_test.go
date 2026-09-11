@@ -50,7 +50,12 @@ func TestTheDispatchedPromptTeachesTheBindingContract(t *testing.T) {
 		// THE BOOTSTRAP: a worked call, carrying this seat's own id, that the seat can run before
 		// it has read anything. Without it there is no first call — the surface is scoped to
 		// whoever is asking, and nothing has said who that is.
-		if !strings.Contains(p, "--seat-id "+b.Seat+" --help") {
+		//
+		// That first call is now the manual — every command's own help on the seat's surface, in
+		// one call — which replaced the page-by-page walk that began at the root's `--help`. The
+		// gate follows the call the prompt actually directs first, rather than a call it no longer
+		// tells the seat to make.
+		if !strings.Contains(p, "--seat-id "+b.Seat+" manual") {
 			t.Errorf("%s: the dispatched prompt shows the seat no worked call naming itself — it cannot open its own help without one", name)
 		}
 		if !strings.Contains(p, "register") {

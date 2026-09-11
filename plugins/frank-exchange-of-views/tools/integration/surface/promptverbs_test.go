@@ -460,7 +460,7 @@ func TestNoRenderedPromptNamesACommand(t *testing.T) {
 	sort.Strings(list)
 	if len(list) > pinned {
 		t.Errorf("the rendered prompts name %d distinct commands across %d files, up from the pinned %d:\n  %s\n\n"+
-			"A seat meets the PROMPT, not the template. Name the act and let the three-step --help directive in\n"+
+			"A seat meets the PROMPT, not the template. Name the act and let the manual directive in\n"+
 			"recordClause carry the rest; if this is deliberate, re-pin the constant in this test.",
 			len(list), files, pinned, strings.Join(list, "\n  "))
 	}
@@ -593,7 +593,8 @@ var (
 // is checked above, on the rendering, because that is where a seat meets it).
 var promptCatalogue = map[string]int{
 	// 48 -> 0. Every invocation is out; the prompts name the ACT and the projection, and
-	// recordClause carries the three-step --help directive that replaces the catalogue.
+	// recordClause carries the manual directive — every command's --help, in one call — that
+	// replaces the catalogue.
 	"debate.js":           0,
 	"blue-researcher.md":  0,
 	"blue-synthesizer.md": 0,

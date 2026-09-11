@@ -261,8 +261,8 @@ func diagnose(run record.Run, traj, seatID string) (RunDiagnostic, error) {
 //
 // THE DENOMINATOR OF THE TRAVERSAL, and it is small: two or three per seat, against roots listing
 // 12 to 19 commands. That size is the argument for asking a seat to open all of them rather than
-// the one holding the verb it already picked — the whole tree to leaf depth costs 3-4 calls in a
-// sitting of 16 to 32.
+// the one holding the verb it already picked — the whole tree to leaf depth cost 3-4 calls in a
+// sitting of 16 to 32, and `manual` now prints it in one.
 //
 // `completion` and `help` are cobra's, generated onto every parent, and belong to no role.
 func groupsOf(role string) []string {

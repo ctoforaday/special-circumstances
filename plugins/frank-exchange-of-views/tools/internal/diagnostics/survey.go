@@ -30,6 +30,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -80,6 +81,11 @@ type Survey struct {
 	// never return" shape run 5 measured.
 	LastHelpCall int `json:"lastHelpCall"`
 	TotalCalls   int `json:"totalCalls"`
+	// ManualUnread counts `manual` calls whose output carried no page the survey could read — an
+	// errored call, a truncated result, or a header this reader no longer recognises. Those calls
+	// contributed no pages, so the depths above undercount for this sitting, and this is what says
+	// so rather than letting "read nothing" pass for "was shown nothing".
+	ManualUnread int `json:"manualUnread"`
 	// Traversal is how the seat MOVED across the top level of its own tree — the measurement
 	// behind "are the groupings leaky".
 	Traversal Traversal `json:"traversal"`
@@ -171,9 +177,17 @@ func (s Survey) RefusedBlind() (blind, read int) {
 type call struct {
 	command string
 	isHelp  bool
-	path    []string
-	result  string
-	errored bool
+	// manual marks a `manual` call: one help read per page it printed, rather than one page named
+	// by the call's own words. redirect is the file it sent its output to, if it did.
+	manual   bool
+	redirect string
+	// read marks a Read tool call rather than an invocation of the tool: it counts for nothing
+	// except as the place a redirected manual reaches the seat. readPath is the file it read.
+	read     bool
+	readPath string
+	path     []string
+	result   string
+	errored  bool
 }
 
 // ReadSurvey walks a trajectory in order and answers the survey questions.
@@ -211,7 +225,8 @@ func ReadSurvey(trajectoryPath, binName string, known map[string]bool) (Survey, 
 					IsError   bool   `json:"is_error"`
 					Content   any    `json:"content"`
 					Input     struct {
-						Command string `json:"command"`
+						Command  string `json:"command"`
+						FilePath string `json:"file_path"`
 					} `json:"input"`
 				} `json:"content"`
 			} `json:"message"`
@@ -222,6 +237,15 @@ func ReadSurvey(trajectoryPath, binName string, known map[string]bool) (Survey, 
 		for _, blk := range ev.Message.Content {
 			switch blk.Type {
 			case "tool_use":
+				// A READ IS WHERE A REDIRECTED MANUAL ARRIVES. The prompt tells a seat to send the
+				// manual to a file and read the file, so the Bash call's own result is empty and the
+				// pages reach the seat here. Kept in order with the invocations so the pages are
+				// credited at the moment they were read, and counted as nothing else.
+				if blk.Name == "Read" && blk.Input.FilePath != "" {
+					byID[blk.ID] = pending{idx: len(calls)}
+					calls = append(calls, call{read: true, isHelp: true, readPath: blk.Input.FilePath})
+					continue
+				}
 				if blk.Name != "Bash" {
 					continue
 				}
@@ -236,6 +260,13 @@ func ReadSurvey(trajectoryPath, binName string, known map[string]bool) (Survey, 
 						c.isHelp = true
 						break
 					}
+				}
+				// A MANUAL IS A HELP READ OF EVERY PAGE IT PRINTS. Counted as a command, it would
+				// file every later first use as run blind — the seat that read its whole surface in
+				// one call scored exactly like the seat that read nothing.
+				if len(c.path) == 1 && c.path[0] == ManualCommand {
+					c.isHelp, c.manual = true, true
+					c.redirect = redirectTarget(blk.Input.Command)
 				}
 				byID[blk.ID] = pending{idx: len(calls)}
 				calls = append(calls, c)
@@ -253,22 +284,80 @@ func ReadSurvey(trajectoryPath, binName string, known map[string]bool) (Survey, 
 		return out, err
 	}
 
-	out.TotalCalls = len(calls)
+	for _, c := range calls {
+		if !c.read {
+			out.TotalCalls++
+		}
+	}
 	seenPage := map[string]bool{} // help pages opened, by command path
 	namesSeen := map[string]bool{}
 	firstSeen := map[string]bool{}
-	for i, c := range calls {
+	// readPage records one help page the seat was shown: the command it names, and the names its
+	// listing revealed — known-to-exist, not known-how-to-run.
+	readPage := func(path []string, text string) {
+		key := strings.Join(path, " ")
+		if !seenPage[key] {
+			seenPage[key] = true
+			out.HelpPages = append(out.HelpPages, key)
+		}
+		for _, n := range listedNames(text) {
+			namesSeen[strings.TrimSpace(strings.Join(append(append([]string{}, path...), n), " "))] = true
+			namesSeen[n] = true
+		}
+	}
+	readText := map[string]string{} // what each file's Reads returned, windows in order
+	// pendingManual holds the redirect targets of manual calls whose own result carried no page:
+	// each is owed a Read, and one never read is a manual the seat was not shown.
+	var pendingManual []string
+	n := 0 // 1-based index among the tool's own invocations, the unit Call and LastHelpCall count in
+	for _, c := range calls {
+		if c.read {
+			prev := readText[c.readPath]
+			if prev != "" && !strings.HasSuffix(prev, "\n") {
+				prev += "\n"
+			}
+			// Consecutive windows of one file concatenate back into the file, so a page split
+			// across two Reads is still one page.
+			readText[c.readPath] = prev + readLineNumber.ReplaceAllString(c.result, "")
+			pages := manualPagesOf(readText[c.readPath], binName)
+			if len(pages) == 0 {
+				continue
+			}
+			for _, p := range pages {
+				readPage(p.Path, p.Body)
+			}
+			out.LastHelpCall = n
+			// The Read settles the manual that wrote this file. A target the shell had to expand
+			// (`$S/manual.txt`, a relative path) cannot be matched to a path, and the pages
+			// themselves are the evidence that this is that manual.
+			kept := pendingManual[:0]
+			for _, t := range pendingManual {
+				literal := filepath.IsAbs(t) && !strings.ContainsAny(t, "$~")
+				if literal && t != c.readPath {
+					kept = append(kept, t)
+				}
+			}
+			pendingManual = kept
+			continue
+		}
+		n++
 		key := strings.Join(c.path, " ")
 		if c.isHelp {
-			if !seenPage[key] {
-				seenPage[key] = true
-				out.HelpPages = append(out.HelpPages, key)
+			out.LastHelpCall = n
+			if !c.manual {
+				readPage(c.path, c.result)
+				continue
 			}
-			out.LastHelpCall = i + 1
-			// Names revealed by this listing are known-to-exist, not known-how-to-run.
-			for _, n := range listedNames(c.result) {
-				namesSeen[strings.TrimSpace(strings.Join(append(append([]string{}, c.path...), n), " "))] = true
-				namesSeen[n] = true
+			pages := manualPagesOf(c.result, binName)
+			if len(pages) == 0 {
+				if c.redirect != "" {
+					pendingManual = append(pendingManual, c.redirect)
+				} else {
+					out.ManualUnread++
+				}
+			}
+			for _, p := range pages {
+				readPage(p.Path, p.Body)
 			}
 			continue
 		}
@@ -278,9 +367,10 @@ func ReadSurvey(trajectoryPath, binName string, known map[string]bool) (Survey, 
 		firstSeen[key] = true
 		out.Asked = true
 		out.FirstUses = append(out.FirstUses, FirstUse{
-			Command: key, Depth: depthFor(c.path, seenPage, namesSeen), Call: i + 1, Refused: c.errored,
+			Command: key, Depth: depthFor(c.path, seenPage, namesSeen), Call: n, Refused: c.errored,
 		})
 	}
+	out.ManualUnread += len(pendingManual)
 	for _, p := range out.HelpPages {
 		if p != "" && !firstSeen[p] {
 			out.PagesNeverUsed++
@@ -288,6 +378,16 @@ func ReadSurvey(trajectoryPath, binName string, known map[string]bool) (Survey, 
 	}
 	out.Traversal = traversalOf(calls, known)
 	return out, nil
+}
+
+// manualPagesOf reads a manual's pages with every SHARED block put back, so a listing lifted off a
+// page still counts as shown on it. A manual whose markers do not resolve is still a manual: its
+// pages are read as printed rather than dropped.
+func manualPagesOf(text, binName string) []ManualPage {
+	if pages, err := ExpandManual(text, binName); err == nil {
+		return pages
+	}
+	return ManualPages(text, binName)
 }
 
 // depthFor answers what the seat had for this command path before it ran it.

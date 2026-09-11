@@ -248,6 +248,17 @@ func scenarios() []scenario {
 			},
 		},
 		{
+			// THE SELF-EXEC PATH, through the built binary: every page below is this binary run again
+			// with `<path> --help`. internal/cli's tests cannot reach it — their os.Executable() is the
+			// test binary — so this golden is where the real path is pinned. The bench's surface and
+			// blue's: the smallest seat tree, and the one the prompts send a seat to read first.
+			name: "manual_runs_every_help_page_live",
+			cmds: []cmd{
+				base("manual", "--seat-id", "judge"),
+				base("manual", "--seat-id", "blue-respond"),
+			},
+		},
+		{
 			name: "missing_required_flags", // oracle: --run and --seat-id are refused, not defaulted
 			cmds: []cmd{
 				base("mint", "--seat-id", "red-lens-evidence"),
