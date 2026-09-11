@@ -51,6 +51,14 @@ func TestACleanBaseCarriesNoNote(t *testing.T) {
 	}
 }
 
+// The confirmation names the file it froze. B7's said "the file removed" over a 40-byte stub its
+// author had never written, and the author read it as a tool fault.
+func TestTheConfirmationNamesTheFileItFroze(t *testing.T) {
+	if got := (ingestResult{Path: "/run/blue/report.md", Bytes: 40}).Human(); !strings.Contains(got, "/run/blue/report.md frozen into the record (40 bytes)") {
+		t.Errorf("the confirmation does not name the file and its size:\n%s", got)
+	}
+}
+
 // FLAG, DO NOT BLOCK — and the assertion that matters is that the INGEST LANDS. Ingest is
 // write-once and has already deleted the file by the time this renders, so a refusal here would
 // strand a seat with no file and no base.

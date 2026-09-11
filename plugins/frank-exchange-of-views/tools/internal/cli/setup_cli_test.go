@@ -159,12 +159,17 @@ func TestSetupCLIArgParsing(t *testing.T) {
 	if r.code != 0 {
 		t.Fatalf("expected exit 0, got %d: %s", r.code, r.stderr)
 	}
-	if !strings.Contains(r.stdout, "skeleton: 2 created") {
+	if !strings.Contains(r.stdout, "skeleton: directories only") {
 		t.Errorf("summary wrong: %s", r.stdout)
 	}
-	report, _ := os.ReadFile(filepath.Join(runDir, "blue", "report.md"))
-	if !strings.Contains(string(report), "cli parse topic") {
-		t.Error("topic header missing")
+	for _, p := range []string{"report.md", filepath.Join("blue", "report.md")} {
+		if _, err := os.Stat(filepath.Join(runDir, p)); err == nil {
+			t.Errorf("setup wrote %s — the report's path is its writer's, and a placeholder there reads as the report", p)
+		}
+	}
+	config, _ := os.ReadFile(filepath.Join(runDir, "inputs", "run-config.json"))
+	if !strings.Contains(string(config), "cli parse topic") {
+		t.Error("topic missing from the run config")
 	}
 	pinned, _ := os.ReadFile(filepath.Join(runDir, "inputs", "PINNED.md"))
 	if !strings.Contains(string(pinned), "`abc1234`") || !strings.Contains(string(pinned), "b/path") {

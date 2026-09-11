@@ -19,11 +19,12 @@
         {"variant": "blue/report.md after ingest", "kind": "GATED", "pattern": "blue/report\\.md",
          "masks": [
            {"phrase": "synthesize ${runDir}/blue/report.md by UNION", "reason": "the synthesizer's own prompt: blue/report.md is that seat's file until ingest removes it"},
-           {"phrase": "INTO ${runDir}/blue/report.md at synthesis", "reason": "the synthesizer's own prompt, as above"}
+           {"phrase": "INTO ${runDir}/blue/report.md at synthesis", "reason": "the synthesizer's own prompt, as above"},
+           {"phrase": "bash cp it to ${runDir}/blue/report.md, the one path ingest reads", "reason": "the synthesizer's own prompt, at the write step: the path it copies its draft to before ingest"}
          ],
          "allow": [
            {"path": "plugins/frank-exchange-of-views/agents/blue-synthesizer.md", "reason": "the synthesizer writes blue/report.md before ingest; it is that seat's file"},
-           {"path": "plugins/frank-exchange-of-views/skills/research-protocol/SKILL.md", "reason": "the run-directory layout describes the synthesizer's stub and its removal at ingest"},
+           {"path": "plugins/frank-exchange-of-views/skills/research-protocol/SKILL.md", "reason": "the run-directory layout describes the synthesizer's file and its removal at ingest"},
            {"path": "plugins/frank-exchange-of-views/tools/internal/cli/blue/ingest.go", "reason": "ingest consumes blue/report.md and removes it; its refusal names the file it could not remove"}
          ]}
       ],

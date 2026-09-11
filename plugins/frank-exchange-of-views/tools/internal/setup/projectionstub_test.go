@@ -28,7 +28,7 @@ import (
 // An absent file is honest. A husk is a promise that something will fill it.
 func TestSetupStubsNoFileTheToolRenders(t *testing.T) {
 	runDir := t.TempDir()
-	setup.BuildSkeleton(runOf(t, runDir), "a topic")
+	setup.BuildSkeleton(runOf(t, runDir))
 
 	rendered := map[string]bool{}
 	for _, v := range cli.ViewNames() {
@@ -38,13 +38,6 @@ func TestSetupStubsNoFileTheToolRenders(t *testing.T) {
 		t.Fatal("cli.ViewNames() is empty, so this check would pass by comparing against nothing — " +
 			"the view list moved and took the guard with it")
 	}
-
-	// A STUB WITH A WRITER IS NOT A HUSK. `show report` (0.57.0) made `report` a projection name,
-	// and this guard matches on basename — so report.md and blue/report.md, which `bench assemble`
-	// and every `blue edit` fill, were suddenly reported as files nothing would ever write. The
-	// target of this check is a stub NOTHING fills; TestEveryStubHasAWriter owns the other half,
-	// and the two together are what keep an empty artifact from surviving to capture.
-	written := map[string]bool{"report.md": true, "blue/report.md": true}
 
 	var offenders []string
 	err := filepath.WalkDir(runDir, func(p string, d os.DirEntry, err error) error {
@@ -57,7 +50,7 @@ func TestSetupStubsNoFileTheToolRenders(t *testing.T) {
 		// next artifact to share a name with a projection will need it.
 		rel, _ := filepath.Rel(runDir, p)
 		rel = filepath.ToSlash(rel)
-		if base := filepath.Base(p); rendered[base] && base == strings.ToLower(base) && !written[rel] {
+		if base := filepath.Base(p); rendered[base] && base == strings.ToLower(base) {
 			offenders = append(offenders, rel)
 		}
 		return nil
@@ -69,37 +62,5 @@ func TestSetupStubsNoFileTheToolRenders(t *testing.T) {
 		t.Fatalf("setup stubs %v, which the tool renders on read (`show --view <name>`). Nothing will "+
 			"ever fill them, so every run carries a husk that reads as an empty artifact rather than an "+
 			"absent one — and any audit that reads one reports the empty case forever", offenders)
-	}
-}
-
-// The other half of the same rule: a stub is only legitimate if something fills it. This pins the
-// three that survive, so removing a writer without removing its stub is a failing test rather than
-// a husk nobody notices.
-func TestEveryStubHasAWriter(t *testing.T) {
-	runDir := t.TempDir()
-	res := setup.BuildSkeleton(runOf(t, runDir), "a topic")
-
-	// report.md ← `bench assemble`; blue/report.md ← the synthesizer, then every `blue edit`.
-	//
-	// blue/CHANGELOG.md IS GONE (#251). Its writer was blue, by hand, each round — and the
-	// `revision` event held the same content, rendered as the report's revision history, and was
-	// what capture actually counted. Two channels for one fact, and the audit read the one the
-	// prompts did not demand: a run carried a 6,847-byte CHANGELOG and ONE revision event.
-	want := map[string]bool{"report.md": true, "blue/report.md": true}
-	got := map[string]bool{}
-	for _, c := range res.Created {
-		got[filepath.ToSlash(c)] = true
-	}
-	for w := range want {
-		if !got[w] {
-			t.Errorf("setup no longer creates %s — if its writer went away, say so here; if it is still "+
-				"written, the skeleton stopped preparing it", w)
-		}
-	}
-	for g := range got {
-		if !want[g] {
-			t.Errorf("setup creates %s, which this test does not know a writer for. Name the writer here, "+
-				"or delete the stub: an unwritten stub survives to capture as an empty artifact", g)
-		}
 	}
 }

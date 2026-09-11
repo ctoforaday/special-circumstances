@@ -744,29 +744,63 @@ func StrayRecordsAudit(repoRoot, runDir string) Audit {
 		Detail: "no event shards outside a run directory"}
 }
 
-// RecordParityAudit checks each red epoch has a blue section and a blue REVISION, floor
-// redEpochs-1. redEpochs/blueBlocks come from the debate view, read in-process. An epoch is a
-// chair sitting (record.Clock): the count of red-chair registers at or before the event.
+// RecordParityAudit holds blue's sittings to the record: every sitting blue-respond took for a
+// dispatch that engaged it on a gap still open when it sat carries a blue POSITION and a blue
+// REVISION. record.BlueSittings is the one reading of what a sitting owed, shared with the
+// correctness manifest.
 //
-// THE REVISION IS COUNTED FROM `revision` EVENTS, not from headings in blue/CHANGELOG.md.
-// The file is authored by hand while the event is emitted by the tool, so counting the file
-// audited the seat's typing rather than the record — and the two disagree: the 2026-08-05 run
-// carried a 6,847-byte CHANGELOG and exactly ONE revision event, from one of three eligible
-// blue seats. The old regex pair (`^#+.*Round \d+` then `Round (\d+)`) read the plausible
-// number and passed; the record shows the round records were never filed. See #268.
-func RecordParityAudit(run record.Run, redEpochs, blueBlocks int) Audit {
-	if redEpochs == 0 {
-		return Audit{Check: "record-parity", Verdict: "SKIP", Detail: "no red epochs on record"}
+// A SITTING THAT FOUND EVERY GAP CLOSED OWES NEITHER. The lenses sit before blue, so a lens can
+// close a gap between the dispatch and blue's register, and blue then has nothing to answer.
+//
+// PER SITTING, NOT PER EPOCH. Blue sits only when the chair dispatches it, so an epoch count says
+// nothing about what blue owed: B7 had five chair sittings and three blue sittings, and red had
+// closed the gap before blue sat in two of them. "Blue epochs >= red epochs - 1" failed that run.
+//
+// THE REVISION IS COUNTED FROM `revision` EVENTS, never from a hand-authored file: a run once
+// carried a 6,847-byte CHANGELOG and one revision event, from one of three eligible seats (#268).
+func RecordParityAudit(run record.Run) Audit {
+	fam, err := record.FamilyOf(run)
+	if err != nil {
+		return Audit{Check: "record-parity", Verdict: "FAIL", Detail: "the record could not be read: " + err.Error()}
 	}
-	revised := record.EpochsWithRevision(run)
-	ok := blueBlocks >= redEpochs-1 && revised >= redEpochs-1
-	v := "FAIL"
-	if ok {
-		v = "PASS"
+	sittings := record.BlueSittings(fam.Events)
+	if len(sittings) == 0 {
+		return Audit{Check: "record-parity", Verdict: "SKIP", Detail: "no blue sitting for a dispatch on record"}
 	}
-	return Audit{Check: "record-parity", Verdict: v,
-		Detail: fmt.Sprintf("%d red epoch(s) vs %d blue epoch(s) and %d epoch(s) with a revision (floor: redEpochs-1 — a PASS exit has no final blue response)",
-			redEpochs, blueBlocks, revised)}
+	owed := 0
+	var short []string
+	for k, s := range sittings {
+		if len(s.Open) == 0 {
+			continue
+		}
+		owed++
+		var position, revision bool
+		for _, e := range s.Acts {
+			switch e.GetType() {
+			case recordpb.EventType_EVENT_TYPE_POSITION:
+				position = true
+			case recordpb.EventType_EVENT_TYPE_REVISION:
+				revision = true
+			}
+		}
+		var missing []string
+		if !position {
+			missing = append(missing, "no position")
+		}
+		if !revision {
+			missing = append(missing, "no revision")
+		}
+		if len(missing) > 0 {
+			short = append(short, fmt.Sprintf("blue sitting %d, engaged on %s still open when it sat, filed %s",
+				k+1, strings.Join(s.Open, ", "), strings.Join(missing, " and ")))
+		}
+	}
+	if len(short) > 0 {
+		return Audit{Check: "record-parity", Verdict: "FAIL", Detail: strings.Join(short, "; ")}
+	}
+	return Audit{Check: "record-parity", Verdict: "PASS",
+		Detail: fmt.Sprintf("%d blue sitting(s) for a dispatch: %d owed an answer and each carries a position and a revision; %d found every gap it was engaged on closed first",
+			len(sittings), owed, len(sittings)-owed)}
 }
 
 // ---- AUDIT 7: back-fill ----
@@ -1790,16 +1824,13 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	if f, ferr := record.FamilyOf(run); ferr == nil {
 		fam = &f
 	}
-	redEpochs, blueBlocks := 0, 0
+	redEpochs := 0
 	onRecord := []record.LogEntryJSON{}
 	if fam != nil {
 		dj := record.DebateJSONOfEvents(fam.Events)
 		for _, r := range dj.Epochs {
 			if len(r.Red) > 0 {
 				redEpochs++
-			}
-			if len(r.Blue) > 0 {
-				blueBlocks++
 			}
 		}
 		// ONE ARM NOW, AND IT STILL COUNTS THE ATTESTED EMPTY CASE. The clean sitting used to be a
@@ -1818,7 +1849,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		AssemblyScreen(run),
 		FootnoteIntegrity(run),
 		StrayRecordsAudit(repoRootOf(run), run.Dir()),
-		RecordParityAudit(run, redEpochs, blueBlocks),
+		RecordParityAudit(run),
 		DispatchParityAudit(run),
 		// Which sittings the hook stopped at the per-sitting tool-call limit. See sittinglimit.go.
 		SittingLimitAudit(run),

@@ -280,7 +280,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	// Setup holds no record handle past this write: the seats open their own.
 	_ = recordsql.Close(filepath.Join(run.Dir(), "records", "record.db"))
 
-	skel := BuildSkeleton(run, topic)
+	BuildSkeleton(run)
 	if mirrorRoot, mErr := record.MirrorRoot(); mErr != nil {
 		// LOUD, not folded into the zero: a purge that could not resolve its own directory has
 		// not checked anything, and reporting that as "0 removed" is the same line a clean
@@ -372,7 +372,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	wrapper := WriteRunWrapper(run, recordBin)
 
 	fmt.Fprintf(stdout, "run-setup: %s\n", cfg.RunDir)
-	fmt.Fprintf(stdout, "  skeleton: %d created, %d pre-staged (kept)\n", len(skel.Created), len(skel.Skipped))
+	fmt.Fprintln(stdout, "  skeleton: directories only — blue/report.md is the synthesizer's to write, report.md the assembler's")
 	// "red-merge-born" was true when the chair wrote those files. It stopped being true, and the
 	// line went on implying a writer would arrive — the same promise the husk stubs made.
 	fmt.Fprintln(stdout, "  NOT created (rendered from the record on read, never materialized): the ledger,")

@@ -61,8 +61,18 @@ func newIngest() *cobra.Command {
 
 		reportPath := filepath.Join(run.Dir(), "blue", "report.md")
 		content, err := os.ReadFile(reportPath)
+		if os.IsNotExist(err) {
+			// NOTHING WAITS AT THIS PATH, so a report written anywhere else is a refusal naming where
+			// ingest looked. Setup used to stub it, and B7's synthesizer copied its draft onto the
+			// run-root stub while this froze the other — 40 bytes of heading — as the report's base.
+			stray := ""
+			if _, serr := os.Stat(filepath.Join(run.Dir(), "report.md")); serr == nil {
+				stray = fmt.Sprintf(" A report.md exists at the run root (%s): that is the assembler's path, not this one — move it here.", filepath.Join(run.Dir(), "report.md"))
+			}
+			return nil, fmt.Errorf("blue ingest: there is no report at %s — ingest freezes that one file, so write the synthesized report there first.%s", reportPath, stray)
+		}
 		if err != nil {
-			return nil, fmt.Errorf("blue ingest: reading the report to ingest: %w", err)
+			return nil, fmt.Errorf("blue ingest: reading the report to ingest at %s: %w", reportPath, err)
 		}
 		report := string(content)
 
@@ -101,6 +111,7 @@ func newIngest() *cobra.Command {
 		}
 
 		return ingestResult{
+			Path:       reportPath,
 			Bytes:      len(report),
 			VoiceTells: census,
 		}, nil
@@ -154,7 +165,10 @@ func quoteFirst(os []reportvoice.Occurrence) string {
 
 // ingestResult carries the census back with the confirmation.
 type ingestResult struct {
-	Bytes int `json:"bytes"`
+	// Path is the file that was frozen and removed, named so an author who wrote elsewhere sees
+	// which file the base came from.
+	Path  string `json:"path"`
+	Bytes int    `json:"bytes"`
 	// VoiceTells is ADVICE and the base is already frozen by the time it renders. Ingest is
 	// WRITE-ONCE and has just deleted the file, so unlike `edit` the author cannot re-do the
 	// act it advises on — the route from here is `edit`, and the message says so rather than
@@ -163,7 +177,7 @@ type ingestResult struct {
 }
 
 func (r ingestResult) Human() string {
-	head := fmt.Sprintf("blue ingest: report frozen into the record (%d bytes), verified byte-for-byte, and the file removed. The report is now the base plus its diff-stack; read it with `show report`, change it with `edit`.", r.Bytes)
+	head := fmt.Sprintf("blue ingest: %s frozen into the record (%d bytes), verified byte-for-byte, and removed. The report is now the base plus its diff-stack; read it with `show report`, change it with `edit`.", r.Path, r.Bytes)
 	if len(r.VoiceTells) == 0 {
 		return head
 	}

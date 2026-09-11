@@ -351,52 +351,61 @@ func screenRun(t *testing.T, outcome recordpb.SourceOutcome, url string) string 
 	return dir
 }
 
-// seedRevisions writes one blue revision in each of N epochs as EVENTS — the source
-// record-parity now counts. Each epoch is opened by a chair register; without it every revision
-// would sit in epoch 0 and the audit would count one epoch however many were seeded.
-// It used to count heading matches in blue/CHANGELOG.md, which audits the seat's typing rather
-// than the record; the two disagree (the 2026-08-05 run: a 6,847-byte CHANGELOG and one
-// revision event from one of three eligible seats — see #268).
-func seedRevisions(t *testing.T, runDir string, epochs int) {
+// blueSittingRun seeds one blue-respond sitting for a dispatch on G1, with blue's acts after its
+// register. closedFirst puts the lens's close of G1 between the dispatch and that register.
+func blueSittingRun(t *testing.T, closedFirst bool, acts ...proto.Message) record.Run {
 	t.Helper()
-	var evs []*recordpb.Event
-	for r := 1; r <= epochs; r++ {
-		evs = append(evs, chairRegister(t, r))
-		evs = append(evs, recordtest.At(t, "blue-respond", "blue-respond:revision:#"+itoa(r),
-			&recordpb.Revision{Text: proto.String("epoch " + itoa(r) + " edits")}))
+	n := 0
+	at := func(seat string, body proto.Message) *record.Event {
+		n++
+		return recordtest.At(t, seat, fmt.Sprintf("%s:%d", seat, n), body)
 	}
-	recordtest.Seed(t, runDir, evs...)
+	evs := []*record.Event{
+		at("red-chair", &recordpb.Register{}),
+		at("red-lens-logic", &recordpb.Mint{GapId: proto.String("G1"), Problem: proto.String("p"),
+			RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"),
+			CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
+		at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("blue-respond"), GapIds: []string{"G1"}}),
+	}
+	if closedFirst {
+		evs = append(evs, at("red-lens-logic", &recordpb.Close{GapId: proto.String("G1"),
+			ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Prose: proto.String("verified at the leaf")}))
+	}
+	evs = append(evs, at("blue-respond", &recordpb.Register{}))
+	for _, a := range acts {
+		evs = append(evs, at("blue-respond", a))
+	}
+	dir := t.TempDir()
+	recordtest.Seed(t, dir, evs...)
+	return runtest.Open(t, dir)
 }
 
+// Record-parity is per blue sitting: one that owed an answer carries a position and a revision,
+// and one that found its gap closed owes neither.
 func TestRecordParityAudit(t *testing.T) {
-	dir := fixtureRun(t, 2, 2)
-	seedRevisions(t, dir, 2)
-	if got := RecordParityAudit(runtest.Open(t, dir), 2, 2).Verdict; got != "PASS" {
-		t.Errorf("2 red, 2 blue, 2 epochs with a revision: want PASS, got %s", got)
+	position := &recordpb.Position{Text: proto.String("G1 is repaired")}
+	revision := &recordpb.Revision{Text: proto.String("the G1 edit")}
+
+	if a := RecordParityAudit(blueSittingRun(t, false, position, revision)); a.Verdict != "PASS" {
+		t.Errorf("a sitting that answered with a position and a revision: want PASS, got %s (%s)", a.Verdict, a.Detail)
 	}
-	got := RecordParityAudit(runtest.Open(t, dir), 3, 1)
-	if got.Verdict != "FAIL" {
-		t.Errorf("3 red, 1 blue is below the redEpochs-1 floor: want FAIL, got %s", got.Verdict)
+	a := RecordParityAudit(blueSittingRun(t, false, revision))
+	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "engaged on G1 still open when it sat, filed no position") {
+		t.Errorf("a sitting that owed G1 and filed no position: want a FAIL naming it, got %s (%s)", a.Verdict, a.Detail)
 	}
-	if !strings.Contains(got.Detail, "3 red epoch(s)") {
-		t.Errorf("detail should carry the red-epoch count: %s", got.Detail)
+	a = RecordParityAudit(blueSittingRun(t, false))
+	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "no position and no revision") {
+		t.Errorf("a sitting that owed G1 and filed nothing: want a FAIL naming both, got %s (%s)", a.Verdict, a.Detail)
 	}
-	// PASS exit: 2 red, 1 blue (blue never took the final turn), 1 revised epoch → floored PASS.
-	passExit := fixtureRun(t, 2, 2)
-	seedRevisions(t, passExit, 1)
-	if got := RecordParityAudit(runtest.Open(t, passExit), 2, 1).Verdict; got != "PASS" {
-		t.Errorf("a PASS exit is floored to redEpochs-1: want PASS, got %s", got)
+	// B7's epochs 3 and 4: the lens closed the gap before blue sat, and blue filed only a log.
+	if a := RecordParityAudit(blueSittingRun(t, true)); a.Verdict != "PASS" || !strings.Contains(a.Detail, "1 found every gap") {
+		t.Errorf("a sitting whose gap closed first owes nothing: want PASS, got %s (%s)", a.Verdict, a.Detail)
 	}
-	// THE DEFECT THE OLD SOURCE HID: a hand-written CHANGELOG present, revision events absent.
-	// Counting the file passed this; counting the record fails it, which is the point.
-	unrecorded := fixtureRun(t, 2, 2)
-	write(t, filepath.Join(unrecorded, "blue", "CHANGELOG.md"), "## Round 1"+"\n"+"edits"+"\n"+"## Round 2"+"\n"+"more"+"\n")
-	if got := RecordParityAudit(runtest.Open(t, unrecorded), 2, 2); got.Verdict != "FAIL" {
-		t.Errorf("a CHANGELOG with no revision events must FAIL, got %s (%s)", got.Verdict, got.Detail)
-	}
-	// No red epochs → SKIP.
-	if got := RecordParityAudit(runtest.Open(t, dir), 0, 0).Verdict; got != "SKIP" {
-		t.Errorf("no red rounds: want SKIP, got %s", got)
+	dir := t.TempDir()
+	recordtest.Seed(t, dir, chairRegister(t, 1))
+	if a := RecordParityAudit(runtest.Open(t, dir)); a.Verdict != "SKIP" {
+		t.Errorf("no blue sitting for a dispatch: want SKIP, got %s", a.Verdict)
 	}
 }
 
