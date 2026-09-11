@@ -90,8 +90,35 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 	} else if wrote {
 		res.Out["cast"]++
 	}
+	// A CORRECTION IS REPLAYED AS THE PAIR IT WAS WRITTEN AS (plans/same-sitting-correction.md,
+	// S10). On the source record the replacement sits immediately before its Correction — one
+	// transaction wrote both — and the write path refuses either alone: a replacement re-driven as
+	// an ordinary act lands on its target's key, and a Correction appended on its own is refused.
+	// So the replacement is re-driven AS A CORRECTION of its target's MIGRATED key, which writes
+	// both, and the source Correction is then passed over. Who and when are re-checked against the
+	// replayed record in the original order, which is the order they held in.
+	correctionWord := recordpb.Word(recordpb.EventType_EVENT_TYPE_CORRECTION)
+	fixes := map[string]OldEvent{} // source replacement key -> the correction that names it
+	for _, old := range evs {
+		if old.Word == correctionWord {
+			if r, _ := old.Fields["replacement"].(string); r != "" {
+				fixes[r] = old
+			}
+		}
+	}
+	newKey := map[string]string{} // source key -> the key the migrated event carries
+	paired := map[int64]bool{}    // source corrections already written beside their replacement
 	for _, old := range evs {
 		res.In[old.Word]++
+		if old.Word == correctionWord {
+			if !paired[old.ID] {
+				// LOUD, NOT DROPPED: a correction whose replacement did not land would leave a
+				// replacement nothing marks as one, or a strike with nothing in its place.
+				res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word,
+					Err: fmt.Sprintf("migrate: this correction names replacement %v, which did not land as a correction on the migrated record — it is absent from the source or was itself refused", old.Fields["replacement"])})
+			}
+			continue
+		}
 		seatID, err := rm.seat(old.SeatID)
 		if err != nil {
 			res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
@@ -114,6 +141,23 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 			continue
 		}
 		record.Now = func() time.Time { return ts }
+		id := record.Identity{Run: dst, SeatID: seatID}
+		fix, isReplacement := fixes[old.Key]
+		if isReplacement && old.Key != "" {
+			corrects, _ := fix.Fields["corrects"].(string)
+			target, ok := newKey[corrects]
+			if !ok || len(bodies) != 1 {
+				res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word,
+					Err: fmt.Sprintf("migrate: this act replaced %s by a same-sitting correction, and that act did not land on the migrated record", corrects)})
+				continue
+			}
+			typ, err := recordpb.SetBody(&recordpb.Event{}, bodies[0])
+			if err != nil {
+				return nil, err
+			}
+			why, _ := fix.Fields["why"].(string)
+			id.Correct = &record.Correct{Type: typ, Key: target, Why: why}
+		}
 		for _, body := range bodies {
 			// NO EPOCH IS CARRIED. The old row's epoch was recovered from its seat id by regex at
 			// the time; the re-driven write computes the EPOCH from the chair registers already
@@ -121,12 +165,19 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 			// the name — plans/roundless.md §III.A.2. A migrated record's round therefore means
 			// what a fresh record's does.
 			rm.apply(body, seatID)
-			ev, err := record.Append(record.Identity{Run: dst, SeatID: seatID}, body)
+			ev, err := record.Append(id, body)
 			if err != nil {
 				res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 				continue
 			}
 			res.Out[wordOf(ev)]++
+			if _, seen := newKey[old.Key]; old.Key != "" && !seen {
+				newKey[old.Key] = ev.GetKey()
+			}
+			if id.Correct != nil {
+				paired[fix.ID] = true
+				res.Out[correctionWord]++
+			}
 		}
 	}
 	res.GapIDs, res.Labels = rm.gaps, rm.labels
