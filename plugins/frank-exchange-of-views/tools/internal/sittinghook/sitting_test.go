@@ -145,6 +145,9 @@ func TestThePhaseStringsMatchTheWriters(t *testing.T) {
 	if phaseClose != string(sittingwrite.Close) {
 		t.Errorf("the hook sends phase %q and the writer parses %q — every close end would be refused", phaseClose, sittingwrite.Close)
 	}
+	if phaseLimit != string(sittingwrite.Limit) {
+		t.Errorf("the hook sends phase %q and the writer parses %q — no sitting limit would reach the record", phaseLimit, sittingwrite.Limit)
+	}
 }
 
 // liveRun builds a project whose run-live marker points at a run, so InferRunDir resolves it

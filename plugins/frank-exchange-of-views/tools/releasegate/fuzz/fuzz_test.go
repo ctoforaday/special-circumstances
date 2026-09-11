@@ -3060,6 +3060,9 @@ var verbsWithEvents = []string{
 	// binary directly without a harness to fire hooks. Listed so the census is complete and
 	// exempted below from the random sweep, which cannot reach them.
 	"sitting_open", "sitting_close",
+	// A sitting stopped at the tool-call limit: written by feov-sitting-write when the PreToolUse
+	// hook first refuses a call past the limit. No verb writes it either.
+	"sitting_limit",
 	// The remaining schema types, named so the census below has a complete list to check against.
 	"closing", "inquiry_review", "register",
 	// The cast and the dispatch (plans/roundless.md §III.B.1). `cast` is written by setup, before
@@ -3090,6 +3093,10 @@ var coverExempt = map[string]bool{
 	// than dropped, so "the sweep does not cover this" stays a line somebody reads.
 	"sitting_open":  true,
 	"sitting_close": true,
+	// Written by the hook-spawned writer when a sitting passes the tool-call limit, which no seed
+	// reaches. Driven in internal/hookcmd/limit_test.go (the handoff) and
+	// internal/sittingwrite/write_test.go (the event).
+	"sitting_limit": true,
 	// THE CAST IS SETUP'S, NOT A VERB'S: written once before the first seat sits, so no seed of
 	// the random sweep can produce it. `dispatch` is driven: the chair's first act every sitting.
 	"cast": true,

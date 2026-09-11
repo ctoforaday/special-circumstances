@@ -39,6 +39,9 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingcap"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittinghook"
 )
 
 // Run invokes a hook entry point and guarantees the process exit code is 0.
@@ -72,13 +75,26 @@ func readInput(stdin io.Reader) (hookgate.Input, []byte, bool) {
 
 // Pre injects the run directory and the calling agent's id into a Bash call made inside a live
 // run, so a seat never mistypes the path and never loses the identity that binds it to its seat on
-// the record — and it refuses one thing: a tool command carrying a backtick the shell would run,
-// which would rewrite the seat's prose before the tool saw it (hookgate/substitution.go). The
-// blue-report write-lockdown it once carried protected a file that no longer exists (#709).
+// the record — and it refuses two things: any tool call past the seat's per-sitting call limit
+// (enforceLimit), and a tool command carrying a backtick the shell would run, which would rewrite
+// the seat's prose before the tool saw it (hookgate/substitution.go).
 func Pre(stdin io.Reader, stdout io.Writer) error {
 	in, raw, ok := readInput(stdin)
 	if !ok {
 		return nil // no payload to inject into
+	}
+	// THE TURN LIMIT COMES FIRST, and covers every tool: a refused call runs nothing, so it needs
+	// nothing injected. A counting fault goes to stderr and the call proceeds.
+	denied, err := enforceLimit(in, cwdOf(raw), stdout)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "feov hook: turn limit: %v\n", err)
+	}
+	if denied {
+		return nil
+	}
+	// Injection is for Bash alone, so every other tool stops here, before the marker search.
+	if in.ToolName != "Bash" {
+		return nil
 	}
 	// The run directory is resolved from the payload's `cwd` — the SEAT's working directory,
 	// which is wire-supplied and documented, never this hook process's os.Getwd(). Absent or
@@ -92,6 +108,46 @@ func Pre(stdin io.Reader, stdout io.Writer) error {
 	}
 	return nil
 }
+
+// enforceLimit counts this call against the calling seat's sitting and refuses it when the sitting
+// is past the run's per-sitting tool-call limit (internal/sittingcap).
+//
+// THE SEAT IS FOUND THE SAME WAY UNDER EITHER ENGINE. A Workflow seat is a subagent, and its
+// payload carries agent_id. A seat run as the main session of a headless `claude -p` process has
+// no agent_id on the payload; its identity and run are in the process environment this hook
+// inherits, so those are read when the payload has none. An agent that never registered as a
+// seat has no sitting open and is never counted — the main session, an operator, anything else.
+//
+// The one call a limited sitting lets through is a register (hookgate.OpensASitting), because
+// that is what opens the next sitting's count.
+func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer) (denied bool, err error) {
+	agentID, agentType := in.AgentID, in.AgentType
+	if agentID == "" {
+		agentID, agentType = seatenv.AgentID(), seatenv.AgentType()
+	}
+	if agentID == "" {
+		return false, nil
+	}
+	runDir := runlive.InferRunDir(cwd)
+	if runDir == "" {
+		runDir = os.Getenv(seatenv.Var)
+	}
+	if runDir == "" {
+		runDir = os.Getenv(seatenv.VarWrapper)
+	}
+	d, counted, err := sittingcap.Count(runDir, agentID)
+	if err != nil || !counted || !d.Over || hookgate.OpensASitting(in) {
+		return false, err
+	}
+	if d.First {
+		err = recordLimit(runDir, agentID, agentType, d.Sitting, d.Limit)
+	}
+	emitPreDeny(stdout, hookgate.LimitReason(d.Count, d.Limit))
+	return true, err
+}
+
+// recordLimit is a variable so the hook's handoff can be tested without a built writer on disk.
+var recordLimit = sittinghook.Limit
 
 // cwdOf pulls the seat's working directory out of the raw payload.
 //

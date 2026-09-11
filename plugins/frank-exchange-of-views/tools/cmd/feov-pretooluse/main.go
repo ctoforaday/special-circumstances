@@ -1,5 +1,6 @@
-// Command feov-pretooluse is the PreToolUse hook backend for the blue-report lockdown and the
-// run-directory injection. It reads the hook event on stdin and writes its decision to stdout.
+// Command feov-pretooluse is the PreToolUse hook backend: the run and identity injection into a
+// seat's Bash calls, and the per-sitting tool-call limit on every tool. It reads the hook event on
+// stdin and writes its decision to stdout.
 //
 // A DEDICATED BINARY, NOT A VERB. See internal/hookcmd for why: a hook has no seat identity, and
 // hanging it off an identity-scoped command tree cost an exemption at every layer — identity,

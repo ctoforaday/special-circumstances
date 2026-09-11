@@ -42,6 +42,17 @@ func SeatOfAgent(run Run, agentID string) (string, bool, error) {
 	return seat, found, nil
 }
 
+// SittingsOf is how many sittings a seat has opened: its register count, which is the number
+// Clock and events_w give its latest sitting.
+func SittingsOf(run Run, seatID string) (int, error) {
+	var n int
+	if _, err := queryRow(run, []any{&n},
+		`SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = 'register'`, seatID); err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
 // DiscardedForSeat IS NOT PORTED, and its absence is the honest answer rather than an omission.
 //
 // It reported the event keys a PREVIOUS sitting of this seat wrote and replay had since dropped,
