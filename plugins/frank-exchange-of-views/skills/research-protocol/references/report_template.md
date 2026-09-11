@@ -2,7 +2,8 @@
   THE DELIVERABLE IS A SET OF DOCUMENTS, ASSEMBLED FROM THE RECORD by the bench seat's assemble
   verb. Nothing is authored at assembly. Two ownership classes, marked per section below:
 
-    [BLUE] — authored by blue INSIDE blue/report.md, audited by red every sitting (red
+    [BLUE] — authored by blue INSIDE the report (the synthesizer's blue/report.md, then `edit`),
+             audited by red every sitting (red
              re-reads the full report each sitting), and LIFTED VERBATIM here. A synthesis
              surface authored at assembly would be authored after red's last audit, so it
              lives in the audited document instead. A missing one is flagged, never filled.

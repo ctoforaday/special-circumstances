@@ -122,7 +122,7 @@ func newMint() *cobra.Command {
 				return nil, err
 			}
 			if _, _, lerr := bluedoc.LocateUnique("lens mint --quote", report, loc); lerr != nil {
-				return nil, fmt.Errorf("%w\n\nQuote the exact sentence the defect lives at, from blue/report.md and nothing else — a section heading plus a sentence will not match. For a gap about something that is NOT in the report, do not borrow a nearby sentence: name it with --about-kind/--about, the same pair `lens finding` takes", lerr)
+				return nil, fmt.Errorf("%w\n\nQuote the exact sentence the defect lives at, from the report as `show report` serves it, and nothing else — a section heading plus a sentence will not match. For a gap about something that is NOT in the report, do not borrow a nearby sentence: name it with --about-kind/--about, the same pair `lens finding` takes", lerr)
 			}
 		}
 		p.Location = proto.String(loc)

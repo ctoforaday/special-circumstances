@@ -1,4 +1,4 @@
-prompt sha256: f2bf0a9fdc62d306167cf0bd63ec24158ab944e14a7eb094fd038f2368dbe999
+prompt sha256: a69687f1b09657c7312cac872224be6ea694e05077133f9fec659bcb6a31cc6a
 
 Red lens sitting, area evidence, topic "the seat prompt contract".
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -19,7 +19,7 @@ Put your required fix and blue's edits side by side (the record's changes projec
 Then act: regrade on what you now see, or close with the verification triple where the repair holds.
 A gap you neither move nor close this sitting is a NULL TURN on it, and null turns count toward its impasse — silence is a turn taken.
 RE-READ THE FULL LIVING REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows.
-ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in research/2026-01-01_golden/blue/report.md is REJECTED.
+ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in the report as the record renders it is REJECTED.
 The labels on your findings are the tool's to assign, and so are the gap ids you mint.
 HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g.
 '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).

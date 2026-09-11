@@ -45,7 +45,7 @@ func newProve() *cobra.Command {
 		}
 		location, script := seat.Str(cmd, flags.Quote), seat.Str(cmd, flags.Script)
 		if strings.TrimSpace(location) == "" {
-			return nil, fmt.Errorf("blue prove requires --quote: the EXACT sentence in blue/report.md this computation backs — a proof anchored to nothing is a script nobody can connect to a claim")
+			return nil, fmt.Errorf("blue prove requires --quote: the EXACT sentence in the report (as `show report` serves it) this computation backs — a proof anchored to nothing is a script nobody can connect to a claim")
 		}
 		if strings.TrimSpace(script) == "" {
 			return nil, fmt.Errorf("blue prove requires --script: the path (under the run directory) of the program that settles it")
