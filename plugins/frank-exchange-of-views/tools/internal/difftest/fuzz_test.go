@@ -90,16 +90,24 @@ func TestReplayDeterminism(t *testing.T) {
 	}
 	bin := buildBinary(t)
 
+	// EVERY sequence is generated before any runs. Generating inside the subtest drew from the
+	// shared rng only for the sequences a -run filter let through, so `-run .../seq03` replayed
+	// seq00's commands under seq03's name and a reported failure could not be reproduced by
+	// filtering to it. Up front, seqNN is the same commands however the test is filtered.
 	rng := rand.New(rand.NewSource(fuzzSeed))
+	seqs := make([][]cmd, fuzzSequences)
+	for i := range seqs {
+		seqs[i] = generate(rng, fuzzMaxLen)
+	}
 	drawn, landed := map[string]int{}, map[string]int{}
 	refusal := map[string]string{} // the first refusal each arm met, for the guard's message
 	written := 0
 	ran := 0 // sequences whose body ran in this process; a -run filter skips the rest
 
-	for i := 0; i < fuzzSequences; i++ {
+	for i, cmds := range seqs {
 		t.Run(fmt.Sprintf("seq%02d", i), func(t *testing.T) {
 			ran++
-			cmds := generate(rng, fuzzMaxLen)
+			t.Logf("sequence:%s", dumpSeq(cmds))
 			first := replay(t, bin, cmds)
 			second := replay(t, bin, cmds)
 
