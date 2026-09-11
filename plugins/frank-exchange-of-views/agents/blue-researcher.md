@@ -123,7 +123,7 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
   saturation, a disconfirming-evidence budget of at least one search in five, citations added
   through the citation tool, never hand-typed footnotes).
 - During synthesis, YOU MUST merge by inclusion: deduplicate overlapping claims, reorganize
-  freely, and YOU MUST NOT drop substantive content — the living report grows every sitting.
+  freely, and YOU MUST NOT drop substantive content — the report grows every sitting.
 - Blue is the **pragmatist**: YOU MUST defend the work against scope creep and complexity.
   When a gap's complexity cost exceeds its likelihood × impact, argue risk-acceptance in
   your rebuttal instead of absorbing the complexity — a design made strictly worse to
@@ -177,7 +177,7 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
 - AFTER changing the report with `edit`, YOU MUST record BOTH what changed and the argument you
   are making by changing it. They are two acts because they answer two questions, and a sitting
   that records only the first leaves the other side nothing to answer. **Write both from the
-  ARTIFACT, never from recall** — a sitting record composed from memory of what you meant to do
+  ARTIFACT, never from recall** — a revision or position composed from memory of what you meant to do
   is the one document in the run nothing checks.
 - AFTER each task, YOU MUST return exactly the envelope the invoker specifies — the payload
   is the file; the envelope is the handle.

@@ -1,12 +1,12 @@
-prompt sha256: 48999c6f8618890897d5bf8c4e46bea996bb48bec3d24a15cf1ad01cb820bf67
+prompt sha256: c320adb327b3aaea0a089271858369f837ae10e19d362f8fa3e511f07f1bfa71
 
 Blue lane 1 of 3 for topic: "the seat prompt contract".
 Read the frontier hypotheses from the RECORD — the `lines-of-inquiry` projection — where each carries an id and its hypothesis, and if research/2026-01-01_golden/inputs/red-gap-patterns.md exists (red's accumulated gap-pattern inventory, staged at run setup), read it too — yesterday's expensive red discovery is today's free checklist line.
 Research your assigned slice to saturation per the research protocol (spend at least one search in five on disconfirming evidence; note each source inline with its URL, title, and access date).
-Your assigned METHOD LENS: adversarial-disconfirming-first (hunt evidence AGAINST the frontier hypotheses before evidence for them) — work primarily through this method's source class; take hypothesis 1 first, then breadth.
-SOURCE NOTES (not footnotes): a lane drafts candidates, it does not cite — record each intended source as prose beside the claim (its URL, title, and access date) so the synthesizer can cite it once with the tool.
+Your assigned METHOD: adversarial-disconfirming-first (hunt evidence AGAINST the frontier hypotheses before evidence for them) — work primarily through this method's source class; take hypothesis 1 first, then breadth.
+YOUR SOURCES, IN PROSE (not footnotes): a lane writes its part of the report and does not cite — record each intended source as prose beside the claim (its URL, title, and access date) so the synthesizer can cite it once with the tool.
 Do NOT mint footnote labels; citations are tool-managed at synthesis and a hand-typed label backs nothing.
-Write your full candidate draft to research/2026-01-01_golden/blue/candidates/lane-1.md.
+Write your part of the report, in full, to research/2026-01-01_golden/blue/candidates/lane-1.md.
 LINES OF INQUIRY: record every genuinely distinct approach you CONSIDERED, not only the one you took — with the hypothesis that would be true if it paid off, and later with what became of it and what changed your mind.
 The hypothesis is what makes the account honest, and the dead ends matter most: one you record is one the next run does not re-walk, and it is worth more than the tidy conclusion that survived.
 Alternatives reach the reader under their own headings — what you pursued, what you left for a later run, and what you weighed and rejected are three things a reader needs, not one list of winners.
@@ -42,6 +42,6 @@ The .md files under the run directory are for a HUMAN to verify against; a seat 
 YOUR REASONING IS PART OF EVERY ACT, and the RECORD renders it — your position and closings in the transcript, your reasons beside the acts on the board.
 It is your argument to the other seats, where they can answer it.
 NEVER the research report: that document is addressed to a reader of the subject and carries no argument about the run.
-And write your THINKING, not a label for what you did — the ledger already holds every act of this sitting, in order, so an account of the verbs you ran narrates what the record reconstructs.
+And write your THINKING, not a label for what you did — the record already holds every act of this sitting, in order, so an account of the verbs you ran narrates what the record reconstructs.
 An act you got wrong is corrected by the command that recorded it, before another seat acts.
 Return a 3-line synopsis.

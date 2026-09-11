@@ -372,7 +372,7 @@ test('lane methods and the redundancy-floor seat at lanes=5', async () => {
   const lanes = labelsOf(world, 'blue-lane').map((c) => c.prompt)
   assert.equal(lanes.length, 3)
   assert.ok(lanes[0].includes('adversarial-disconfirming-first') && lanes[1].includes('primary-literature') && lanes[2].includes('local-repo critical-stance'))
-  for (const [i, p] of lanes.entries()) assert.ok(p.includes('SOURCE NOTES') && p.includes('Do NOT mint footnote labels'), `lane ${i + 1} source-note convention`)
+  for (const [i, p] of lanes.entries()) assert.ok(p.includes('YOUR SOURCES, IN PROSE') && p.includes('Do NOT mint footnote labels'), `lane ${i + 1} source-note convention`)
   const five = makeWorld(makeResponder({ chair: [passChair()] }))
   await five.run(script, { ...ARGS, lanes: 5 })
   const prompts = labelsOf(five, 'blue-lane').map((c) => c.prompt)

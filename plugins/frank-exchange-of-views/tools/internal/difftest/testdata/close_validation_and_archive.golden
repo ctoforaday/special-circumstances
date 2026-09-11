@@ -69,7 +69,7 @@ Flags:
       --corrects string           the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
-      --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
       --verified-against string   AGAINST WHAT — the exact file, ref or URL read
       --verified-by string        WHO verified it — the seat that read the evidence
@@ -133,7 +133,7 @@ Flags:
       --corrects string           the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
-      --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
       --verified-against string   AGAINST WHAT — the exact file, ref or URL read
       --verified-by string        WHO verified it — the seat that read the evidence
@@ -197,7 +197,7 @@ Flags:
       --corrects string           the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
-      --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
       --verified-against string   AGAINST WHAT — the exact file, ref or URL read
       --verified-by string        WHO verified it — the seat that read the evidence
@@ -234,10 +234,10 @@ closed G1 (repaired) [key red-lens-evidence:close:#1:G1]
 
 ═══ RENDERS ═══
 -- debate
-# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
 -- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
 _No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is

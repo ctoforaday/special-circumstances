@@ -394,7 +394,7 @@ func newAppeal(subject string) *cobra.Command {
 		// carries one, for the same reason: a seat picks between them by opening one of them.
 		Long: "press " + article(subject) + " " + subject + " motion after a ruling — a ruling is an ARGUMENT, not a " +
 			"command, so the losing side may answer it on the record.\n\n" +
-			"TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade dispute the merge " +
+			"TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade motion the chair " +
 			"rejected; `motion inquiry appeal` presses a line of inquiry red ruled out_of_scope or " +
 			"too_thin, and it is filed whether or not blue also pursues the line — separating the " +
 			"argument from the act is the whole point of the verb.\n\n" +

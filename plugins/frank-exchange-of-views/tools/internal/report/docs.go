@@ -181,7 +181,7 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 		{File: FileDocket, Nav: "Board", Title: "the board",
 			Blurb: "the board all three parties wrote: every gap red minted and how each was closed, blue's correctness manifest for the repairs it made, and red's archive spot-checks", Body: docket.String()},
 		{File: FileDebate, Nav: "Debate", Title: "the debate",
-			Blurb: "the adversarial record epoch by epoch — red's audits, blue's answers, the closings, and the bench's terminal disposition", Body: deb.String()},
+			Blurb: "the transcript, epoch by epoch — red's audits, blue's answers, the closings, and the bench's terminal disposition", Body: deb.String()},
 		{File: FileJudgments, Nav: "Judgments", Title: "judgments",
 			Blurb: "every contested question and how it was answered: grade disputes, petitions, and the bench's opinions", Body: jud.String()},
 		{File: FileInquiry, Nav: "Directions", Title: "lines of inquiry",

@@ -1,6 +1,6 @@
 ## menu
 
-the sitting record — what changed this sitting, once, after your edits have landed
+your revision — what changed this sitting, once, after your edits have landed
 
 ## detail
 

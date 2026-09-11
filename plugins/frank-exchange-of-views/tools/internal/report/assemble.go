@@ -635,7 +635,7 @@ func withdrawnClaims(evs []*record.Event) string {
 	if len(rows) == 0 {
 		return ""
 	}
-	return "## Claims withdrawn\n\n_Substance leaves this report only through the `retire` verb, which records the claim as it stood and why it went. These were argued and then removed; the reasoning is part of what the debate decided._\n\n" + strings.Join(rows, "\n")
+	return "## Claims retired\n\n_Substance leaves this report only through the `retire` verb, which records the claim as it stood and why it went. These were argued and then removed; the reasoning is part of what the debate decided._\n\n" + strings.Join(rows, "\n")
 }
 
 // provenance renders which lens findings surfaced a gap, IN THE FINDING'S OWN WORDS.

@@ -756,7 +756,7 @@ var ReasonIs = map[string]string{
 	"move":         "the account of what settled this fate, in the SUBJECT's terms — printed in the report beside the line",
 	"manifest-row": "the receipt: what you checked, and what checking it showed",
 	"log":          "the entry: what you concluded about the tooling",
-	"position":     "your sitting's narrative — your THINKING, not your process. " + flags.ReasonNotProcess,
+	"position":     "your sitting's argument — your THINKING, not your process. " + flags.ReasonNotProcess,
 	"closing":      "your closing argument on this gap — your THINKING, not your process. " + flags.ReasonNotProcess,
 	"revision":     "what changed this sitting. " + flags.ReasonNotProcess,
 	"spot-check":   "what sampling the closure archive found. " + flags.ReasonNotProcess,

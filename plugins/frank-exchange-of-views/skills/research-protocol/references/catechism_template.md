@@ -22,6 +22,6 @@ happened without it, is a fact about the run, and the run is not the report's su
    why does it beat what it displaces? Half of all questions are interesting; far fewer are of
    interest. If we cannot yet tell, say so and name what we would need to learn first.
 6. **What changes if it works — and what happens if we simply don't do it?** Both sides of the
-   ledger; "nothing bad happens if we skip it" is a verdict.
+   balance; "nothing bad happens if we skip it" is a verdict.
 7. **What does it cost, and where would we stop?** Time, effort, and complexity budget, plus the
    checkpoints at which we would abandon it rather than sunk-cost onward.

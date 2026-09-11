@@ -411,7 +411,7 @@ const (
 
 	// ReasonNotProcess is the half of DescReason every prose field shares, including the verbs whose
 	// prose is an artifact rather than an argument (seat.reasonIs).
-	ReasonNotProcess = "The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran"
+	ReasonNotProcess = "The record already holds WHAT you did, in order, so do not narrate the verbs you ran"
 
 	// DescCorrects and DescCorrectionWhy are the two correction flags, the same on every verb that
 	// carries them.

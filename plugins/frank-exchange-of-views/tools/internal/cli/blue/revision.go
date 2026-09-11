@@ -59,13 +59,13 @@ type revisionResult struct {
 }
 
 func (r revisionResult) Human() string {
-	m := "revision recorded — the round is on the record"
+	m := "revision recorded — this sitting's changes are on the record"
 	if len(r.Owed) == 0 {
 		return m
 	}
 	return m + "\n\nSTILL AWAITING A COMPUTATION: " + strings.Join(r.Owed, ", ") +
-		". These gaps were minted --check-kind computation, which prose cannot close — the merge " +
-		"is REFUSED if it tries, so an unanswered one carries into the next round rather than " +
+		". These gaps were minted --check-kind computation, which prose cannot close — the chair " +
+		"is REFUSED if it tries, so an unanswered one carries into the next epoch rather than " +
 		"settling. Settle each with `blue prove --location \"<the sentence>\" --script <path> " +
 		"--answers <gap>`, or argue in your next edit's --reason why the demand is wrong."
 }

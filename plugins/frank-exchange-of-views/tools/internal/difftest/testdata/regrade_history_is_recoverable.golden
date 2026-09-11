@@ -71,7 +71,7 @@ Flags:
       --id gap-id               the gap id
       --impact grade            how bad the consequence is if it lands
       --likelihood grade        how likely the CONSEQUENCE is — never how likely the defect is to BE there
-      --reason string           REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string           REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade          how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
 
 Global Flags:
@@ -100,10 +100,10 @@ feov-record: lens: record: red-lens-evidence has already recorded a regrade on "
 
 ═══ RENDERS ═══
 -- debate
-# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
 -- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
 _No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is

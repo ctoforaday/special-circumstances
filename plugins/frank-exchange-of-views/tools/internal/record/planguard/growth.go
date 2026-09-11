@@ -87,7 +87,7 @@ func GrowthTables() (map[string]bool, error) {
 	}
 	if !out[EventsTable] {
 		return nil, fmt.Errorf("planguard: the schema declares no %q table — the derivation read "+
-			"something other than the record's DDL, and a growth set without the event log "+
+			"something other than the record's DDL, and a growth set without the events table "+
 			"guards nothing that matters", EventsTable)
 	}
 	if len(out) <= 1 {

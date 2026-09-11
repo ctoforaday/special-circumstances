@@ -1,6 +1,6 @@
 ## menu
 
-your sitting's narrative — the argument the other side answers, rendered as this sitting's RED section
+your sitting's position — the argument the other side answers, rendered as this sitting's RED section
 
 ## detail
 

@@ -1,11 +1,11 @@
-prompt sha256: 61b0e5770daa6228fdde8ca47210c08a94bc86a0d245d8fab6596de6ddd01405
+prompt sha256: df4c8cca1035dd430f4ee5357a32b736ee09e4a09cafb40c353b2e1c4f7b53fa
 
 Blue synthesis for topic: "the seat prompt contract".
 PRE-FLIGHT: if research/2026-01-01_golden/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns.
 Read every draft in research/2026-01-01_golden/blue/candidates/ and synthesize research/2026-01-01_golden/blue/report.md by UNION: deduplicate overlapping claims, reorganize freely, and let no CLAIM leave without a record.
 Compacting and reorganizing prose is not subtraction — rewriting for density is encouraged; losing a claim in the rewrite is the failure, and substance leaves only by being retired on the record, which names the claim, why it goes, and what replaces it.
 THE REPORT'S CONTENT RULE — what may be in it at all, and where everything else goes — is on the verbs that write report text: edit, ingest, and line-of-inquiry's propose and move.
-THE CATECHISM IS YOURS (W2g — the run-5 assembly audit found the judge-authored catechism DEFECTIVE, 6/7 answers carrying defects from synthesis-by-recall; synthesis surfaces belong inside the audited document): write "## The Catechism" INTO research/2026-01-01_golden/blue/report.md at round 0 per references/catechism_template.md — the seven answers, the case against at FULL strength (include every risk-accepted residual; the audit found against-cases silently drop their strongest items), all figures copied from your own sourced sections never recomputed inline.
+THE CATECHISM IS YOURS (W2g — the run-5 assembly audit found the judge-authored catechism DEFECTIVE, 6/7 answers carrying defects from synthesis-by-recall; synthesis surfaces belong inside the audited document): write "## The Catechism" INTO research/2026-01-01_golden/blue/report.md at synthesis per references/catechism_template.md — the seven answers, the case against at FULL strength (include every risk-accepted residual; the audit found against-cases silently drop their strongest items), all figures copied from your own sourced sections never recomputed inline.
 THE FRAMING, THE TL;DR AND THE OPEN QUESTIONS ARE YOURS FOR THE SAME REASON — a synthesis surface authored at assembly is authored AFTER red's final audit, so nothing checks it and it ships unaudited. report.md OPENS with the H1 title `# the seat prompt contract — research report`, then `## TL;DR` (3-6 sentences — the answer, the confidence, the sharpest caveat), and carries `## Open questions` (what the debate could not resolve, one per line; a question nobody could answer inside the debate is a finding, not noise).
 Assembly LIFTS these verbatim, so you write them once, HERE, inside the document red audits every sitting.
 YOUR REPORT CONTAINS ONLY WHAT YOU CAN AUTHOR: the title, TL;DR, Catechism, technical foundations, analysis, open questions, and your citations — and NOTHING assembly composes from the record.
@@ -17,7 +17,7 @@ Two claims resting on the same url are one source and two anchors, not two sourc
 REPORT WRITE PATH: report.md hits a filename-keyed Write-guard — draft to your scratchpad under a NEUTRAL name and copy it into place with bash cp; a direct Write of the report path fails and wastes a round-trip.
 Recompute claim_count with the tool once report.md is written and relay the integer into the envelope; never hand-count it (two honest merges differed 2x before it was pinned).
 RECORD THE SITTING, with WHY you organised it as you did — what you compacted, what you kept whole, what you retired and against what — and its claim_count as the reason; sitting_record_appended is TRUE only after that event exists.
-FREEZE THE REPORT, LAST — after report.md is written, the count recorded and the sitting recorded, run the act your seat's help lists as freezing the round-0 report into the record as its base.
+FREEZE THE REPORT, LAST — after report.md is written, the count recorded and the sitting recorded, run the act your seat's help lists as freezing the report into the record as its base.
 Do this ONCE, at the very end.
 If it refuses, record friction with the exact refusal and return sitting_record_appended honestly.
 LINES OF INQUIRY: record every genuinely distinct approach you CONSIDERED, not only the one you took — with the hypothesis that would be true if it paid off, and later with what became of it and what changed your mind.
@@ -60,6 +60,6 @@ The .md files under the run directory are for a HUMAN to verify against; a seat 
 YOUR REASONING IS PART OF EVERY ACT, and the RECORD renders it — your position and closings in the transcript, your reasons beside the acts on the board.
 It is your argument to the other seats, where they can answer it.
 NEVER the research report: that document is addressed to a reader of the subject and carries no argument about the run.
-And write your THINKING, not a label for what you did — the ledger already holds every act of this sitting, in order, so an account of the verbs you ran narrates what the record reconstructs.
+And write your THINKING, not a label for what you did — the record already holds every act of this sitting, in order, so an account of the verbs you ran narrates what the record reconstructs.
 An act you got wrong is corrected by the command that recorded it, before another seat acts.
 Return the blue envelope.
