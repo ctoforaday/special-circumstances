@@ -79,7 +79,7 @@ regraded G1
 $ regrade --run {RUN} --seat-id red-lens-evidence --id G1 --impact low --reason second movement, same id
 exit 2
 stderr:
-feov-record: lens: record: red-lens-evidence has already recorded a regrade on "G1" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). If the first was wrong, say so in the act that supersedes it; the record is append-only and both stay visible
+feov-record: lens: record: red-lens-evidence has already recorded a regrade on "G1" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). If it was wrong, correct it now: run the same command with --corrects red-lens-evidence:regrade:#1:G1 --correction-why <what was wrong>. The corrected act stays on the record, struck, beside the replacement
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}

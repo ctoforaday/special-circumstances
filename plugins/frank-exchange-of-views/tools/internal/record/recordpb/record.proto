@@ -48,6 +48,15 @@ import "google/protobuf/descriptor.proto";
 // already omitted Outcome.verdict, which is how a run could record that it ENDED and not how.
 extend google.protobuf.FieldOptions {
   optional Sql sql = 50000;
+
+  // prose IS WHETHER A SAME-SITTING CORRECTION MAY CHANGE THIS FIELD when its event type's tier is
+  // PROSE (see CorrectionTier). It is DECLARED on every string field a free-text flag fills, true
+  // or false, so "nobody asked" cannot pass for either answer: `true` is the seat's own wording,
+  // which a correction exists to fix; `false` marks free text the tier freezes anyway (a closure's
+  // verification tool is part of the anchor triple, not of its argument). A test walks every
+  // free-text flag of every correctable verb to the field it fills and refuses one that does not
+  // declare this.
+  optional bool prose = 50008;
 }
 
 // A VALUE'S MEANING BELONGS ON THE VALUE.
@@ -120,6 +129,22 @@ extend google.protobuf.EnumValueOptions {
   // still to come, and a realized defect is measured by its damage instead. That zero is a real
   // weight, not an absent one, which is exactly why the column is NOT NULL.
   optional double mass = 50005;
+
+  // correct IS WHETHER THE SEAT THAT WROTE AN ACT OF THIS TYPE MAY CORRECT IT in the same sitting,
+  // and how much of it. It is on the EventType value for the reason `closes` is on a disposition: a
+  // type cannot be added without answering it, because the schema refuses a facet declared on some
+  // values and not others. The rule the answers follow: an act that CREATES an identity (a gap, a
+  // motion, a finding, a citation, a class) is never correctable; an act that REFERENCES one may
+  // be.
+  optional CorrectionTier correct = 50007;
+}
+
+// CorrectionTier is how much of an act a same-sitting correction may change.
+enum CorrectionTier {
+  CORRECTION_TIER_UNSPECIFIED = 0;
+  CORRECTION_TIER_NONE = 1 [(means) = "not correctable: the act creates an identity, decides a fate no restatement may move, or is written by the tool or the harness rather than a seat"];
+  CORRECTION_TIER_PROSE = 2 [(means) = "only the seat's own wording may change — the fields that declare (prose); every other field must equal the corrected act's"];
+  CORRECTION_TIER_FULL = 3 [(means) = "every field may change except the label the act is keyed on"];
 }
 
 // A CONSTRAINT THAT DEPENDS ON ANOTHER FIELD BELONGS ON THE MESSAGE.
@@ -211,47 +236,48 @@ message Sql {
 // have NO value here. That absence is the deletion of the legacy vocabulary.
 enum EventType {
   EVENT_TYPE_UNSPECIFIED = 0;
-  EVENT_TYPE_REGISTER = 1 [(means) = "a seat took its seat — the first act of any seat, stamping the tool version it ran under"];
-  EVENT_TYPE_ANCHOR = 2 [(means) = "evidence tied to a finding: where in the artifact the claim actually lives"];
-  EVENT_TYPE_AVENUE = 3 [(means) = "a line of inquiry, from proposed through pursued, declined, deferred or abandoned"];
-  EVENT_TYPE_BLUE_EDIT = 4 [(means) = "a change to the living report, recorded as old and new so the edit itself is auditable"];
-  EVENT_TYPE_CERTIFY = 5 [(means) = "a seat's signed statement about its own work — what it asserts on the record"];
-  EVENT_TYPE_CITE = 6 [(means) = "a source brought into the debate, with the hash and access date that make it re-checkable"];
-  EVENT_TYPE_CLASS_NEW = 7 [(means) = "a defect class coined in this run, with its definition and the neighbour it is distinguished from"];
-  EVENT_TYPE_CLOSE = 8 [(means) = "a merge closing a gap on a verified repair — red's half of the closing vocabulary"];
-  EVENT_TYPE_CLOSING = 9 [(means) = "a seat's closing statement on a gap: the argument, not the disposition"];
-  EVENT_TYPE_DECLARE = 10 [(means) = "the bench stating a holding that later sittings are expected to apply"];
-  EVENT_TYPE_FINDING = 11 [(means) = "something red found, graded but not yet minted as a gap"];
-  EVENT_TYPE_LOG = 12 [(means) = "an entry addressed to the operator who can retool the seat: a defect, a request, an impediment, or a nominal sitting"];
-  EVENT_TYPE_HALT = 14 [(means) = "the bench ending the run on a safety, ethics, consent or integrity boundary"];
-  EVENT_TYPE_MANIFEST_ROW = 15 [(means) = "one row of the run's manifest, tying a gap to what shipped for it"];
-  EVENT_TYPE_MINT = 16 [(means) = "a gap put on the board — the act that creates the entity every other act refers to"];
-  EVENT_TYPE_MOTION = 17 [(means) = "a motion filed: a grade contested, a petition to the bench, or a direction proposed"];
-  EVENT_TYPE_MOTION_APPEAL = 18 [(means) = "an appeal of a ruling already made on a motion"];
-  EVENT_TYPE_MOTION_RULE = 19 [(means) = "the bench's ruling on a filed motion, and whom it binds"];
-  EVENT_TYPE_OBSERVE = 20 [(means) = "an observation recorded without a claim attached to it"];
+  EVENT_TYPE_REGISTER = 1 [(correct) = CORRECTION_TIER_NONE, (means) = "a seat took its seat — the first act of any seat, stamping the tool version it ran under"];
+  EVENT_TYPE_ANCHOR = 2 [(correct) = CORRECTION_TIER_NONE, (means) = "evidence tied to a finding: where in the artifact the claim actually lives"];
+  EVENT_TYPE_AVENUE = 3 [(correct) = CORRECTION_TIER_PROSE, (means) = "a line of inquiry, from proposed through pursued, declined, deferred or abandoned"];
+  EVENT_TYPE_BLUE_EDIT = 4 [(correct) = CORRECTION_TIER_NONE, (means) = "a change to the living report, recorded as old and new so the edit itself is auditable"];
+  EVENT_TYPE_CERTIFY = 5 [(correct) = CORRECTION_TIER_PROSE, (means) = "a seat's signed statement about its own work — what it asserts on the record"];
+  EVENT_TYPE_CITE = 6 [(correct) = CORRECTION_TIER_NONE, (means) = "a source brought into the debate, with the hash and access date that make it re-checkable"];
+  EVENT_TYPE_CLASS_NEW = 7 [(correct) = CORRECTION_TIER_NONE, (means) = "a defect class coined in this run, with its definition and the neighbour it is distinguished from"];
+  EVENT_TYPE_CLOSE = 8 [(correct) = CORRECTION_TIER_PROSE, (means) = "a merge closing a gap on a verified repair — red's half of the closing vocabulary"];
+  EVENT_TYPE_CLOSING = 9 [(correct) = CORRECTION_TIER_FULL, (means) = "a seat's closing statement on a gap: the argument, not the disposition"];
+  EVENT_TYPE_DECLARE = 10 [(correct) = CORRECTION_TIER_PROSE, (means) = "the bench stating a holding that later sittings are expected to apply"];
+  EVENT_TYPE_FINDING = 11 [(correct) = CORRECTION_TIER_NONE, (means) = "something red found, graded but not yet minted as a gap"];
+  EVENT_TYPE_LOG = 12 [(correct) = CORRECTION_TIER_FULL, (means) = "an entry addressed to the operator who can retool the seat: a defect, a request, an impediment, or a nominal sitting"];
+  EVENT_TYPE_HALT = 14 [(correct) = CORRECTION_TIER_PROSE, (means) = "the bench ending the run on a safety, ethics, consent or integrity boundary"];
+  EVENT_TYPE_MANIFEST_ROW = 15 [(correct) = CORRECTION_TIER_FULL, (means) = "one row of the run's manifest, tying a gap to what shipped for it"];
+  EVENT_TYPE_MINT = 16 [(correct) = CORRECTION_TIER_NONE, (means) = "a gap put on the board — the act that creates the entity every other act refers to"];
+  EVENT_TYPE_MOTION = 17 [(correct) = CORRECTION_TIER_NONE, (means) = "a motion filed: a grade contested, a petition to the bench, or a direction proposed"];
+  EVENT_TYPE_MOTION_APPEAL = 18 [(correct) = CORRECTION_TIER_PROSE, (means) = "an appeal of a ruling already made on a motion"];
+  EVENT_TYPE_MOTION_RULE = 19 [(correct) = CORRECTION_TIER_PROSE, (means) = "the bench's ruling on a filed motion, and whom it binds"];
+  EVENT_TYPE_OBSERVE = 20 [(correct) = CORRECTION_TIER_NONE, (means) = "an observation recorded without a claim attached to it"];
   // 21 was EVENT_TYPE_OPINION. Reserved rather than left free: a stored event carries its type
   // as an integer, so a new type given 21 would silently inherit every pre-#681 bench ruling —
   // and `Body` dispatches on this enum, so those events would be handed to the wrong arm.
   reserved 21;
   reserved "EVENT_TYPE_OPINION";
-  EVENT_TYPE_OUTCOME = 22 [(means) = "the run's terminal act: how it ended and whether the question was answered"];
-  EVENT_TYPE_POSITION = 23 [(means) = "a seat's stated position going into a round"];
-  EVENT_TYPE_PROOF = 24 [(means) = "a script that was RUN, with its hash and exit status — the answer a computation check demands"];
-  EVENT_TYPE_REGRADE = 25 [(means) = "a gap's grade changed, with the basis for the change"];
-  EVENT_TYPE_REPRODUCE = 26 [(means) = "an attempt to re-run a recorded proof, and whether what it computes is sound"];
-  EVENT_TYPE_RETIRE = 27 [(means) = "a claim withdrawn from the report, with the reason and what supersedes it"];
-  EVENT_TYPE_REVISION = 28 [(means) = "a revision to a seat's own earlier text"];
-  EVENT_TYPE_SPOT_CHECK = 29 [(means) = "red re-checking a sample of prior work, or stating that it checked none and why"];
-  EVENT_TYPE_VERDICT = 30 [(means) = "red's round gate: PASS or FAIL against the open board"];
-  EVENT_TYPE_VERIFY = 31 [(means) = "a citation checked at the leaf: what the source did for the claim, and how sure the reader is"];
-  EVENT_TYPE_INQUIRY_REVIEW = 32 [(means) = "a review of the lines of inquiry themselves, rather than of a finding"];
-  EVENT_TYPE_BASE_INGEST = 33 [(means) = "the frozen round-0 report, stored verbatim as the origin the diff-stack replays over"];
-  EVENT_TYPE_SITTING_OPEN = 34 [(means) = "the harness dispatching an agent — one end of a sitting's span, observed by a hook rather than claimed by a seat"];
-  EVENT_TYPE_SITTING_CLOSE = 35 [(means) = "the harness's agent returning — the other end of that span"];
-  EVENT_TYPE_CAST = 36 [(means) = "the run's admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against"];
-  EVENT_TYPE_DISPATCH = 37 [(means) = "the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch"];
-  EVENT_TYPE_SITTING_LIMIT = 38 [(means) = "a seat's sitting stopped at the run's per-sitting tool-call limit — the hook refuses every further call in it, and this records which seat, which sitting and the limit"];
+  EVENT_TYPE_OUTCOME = 22 [(correct) = CORRECTION_TIER_PROSE, (means) = "the run's terminal act: how it ended and whether the question was answered"];
+  EVENT_TYPE_POSITION = 23 [(correct) = CORRECTION_TIER_FULL, (means) = "a seat's stated position going into a round"];
+  EVENT_TYPE_PROOF = 24 [(correct) = CORRECTION_TIER_NONE, (means) = "a script that was RUN, with its hash and exit status — the answer a computation check demands"];
+  EVENT_TYPE_REGRADE = 25 [(correct) = CORRECTION_TIER_FULL, (means) = "a gap's grade changed, with the basis for the change"];
+  EVENT_TYPE_REPRODUCE = 26 [(correct) = CORRECTION_TIER_PROSE, (means) = "an attempt to re-run a recorded proof, and whether what it computes is sound"];
+  EVENT_TYPE_RETIRE = 27 [(correct) = CORRECTION_TIER_NONE, (means) = "a claim withdrawn from the report, with the reason and what supersedes it"];
+  EVENT_TYPE_REVISION = 28 [(correct) = CORRECTION_TIER_FULL, (means) = "a revision to a seat's own earlier text"];
+  EVENT_TYPE_SPOT_CHECK = 29 [(correct) = CORRECTION_TIER_FULL, (means) = "red re-checking a sample of prior work, or stating that it checked none and why"];
+  EVENT_TYPE_VERDICT = 30 [(correct) = CORRECTION_TIER_NONE, (means) = "red's round gate: PASS or FAIL against the open board"];
+  EVENT_TYPE_VERIFY = 31 [(correct) = CORRECTION_TIER_NONE, (means) = "a citation checked at the leaf: what the source did for the claim, and how sure the reader is"];
+  EVENT_TYPE_INQUIRY_REVIEW = 32 [(correct) = CORRECTION_TIER_FULL, (means) = "a review of the lines of inquiry themselves, rather than of a finding"];
+  EVENT_TYPE_BASE_INGEST = 33 [(correct) = CORRECTION_TIER_NONE, (means) = "the frozen round-0 report, stored verbatim as the origin the diff-stack replays over"];
+  EVENT_TYPE_SITTING_OPEN = 34 [(correct) = CORRECTION_TIER_NONE, (means) = "the harness dispatching an agent — one end of a sitting's span, observed by a hook rather than claimed by a seat"];
+  EVENT_TYPE_SITTING_CLOSE = 35 [(correct) = CORRECTION_TIER_NONE, (means) = "the harness's agent returning — the other end of that span"];
+  EVENT_TYPE_CAST = 36 [(correct) = CORRECTION_TIER_NONE, (means) = "the run's admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against"];
+  EVENT_TYPE_DISPATCH = 37 [(correct) = CORRECTION_TIER_NONE, (means) = "the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch"];
+  EVENT_TYPE_SITTING_LIMIT = 38 [(correct) = CORRECTION_TIER_NONE, (means) = "a seat's sitting stopped at the run's per-sitting tool-call limit — the hook refuses every further call in it, and this records which seat, which sitting and the limit"];
+  EVENT_TYPE_CORRECTION = 39 [(correct) = CORRECTION_TIER_NONE, (means) = "a seat correcting its own act within the sitting that wrote it: names the act it strikes, the replacement that takes its place, and why — both acts stay on the record"];
 }
 
 // Grade is the canonical grade set. `realized` contributes zero mass by design — it is a grade,
@@ -533,14 +559,16 @@ message Event {
     Cast cast = 55;
     Dispatch dispatch = 56;
     SittingLimit sitting_limit = 57;
+    Correction correction = 58;
   }
 
-  // 58-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
+  // 59-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
   // claimed now rather than negotiated later. 51 was drawn from it for `inquiry_review`, 52 for
   // `base_ingest`, 53-54 for the sitting span, 55-56 for the cast and the dispatch
-  // (plans/roundless.md §III.B.1) and 57 for the sitting limit, which is what the reserve is for —
+  // (plans/roundless.md §III.B.1), 57 for the sitting limit and 58 for the correction, which is
+  // what the reserve is for —
   // the block shrinks and nothing is renumbered.
-  reserved 58 to 80;
+  reserved 59 to 80;
 
   // 36 HELD `Opinion`, and it is reserved for the reason the block above is: the number is
   // permanent even though the message is gone. The bench's disposition is a docket motion's
@@ -787,7 +815,9 @@ message Close {
   // The attestation anchor: WHO checked, with WHAT tool, against WHAT target. An unanchored
   // closure is unauditable — or the closure is a carry, restating an earlier one.
   optional string anchor_seat = 3;
-  optional string anchor_tool = 4;
+  // (feov.record.v1.prose) is spelled out in this message and in Outcome because each has a FIELD
+  // named `prose`, which the bare option name would resolve to.
+  optional string anchor_tool = 4 [(sql) = { flag: "verified-with" }, (feov.record.v1.prose) = false];
   optional string anchor_target = 5;
   optional string carried_from = 6;
 
@@ -814,7 +844,7 @@ message Close {
   optional string prose = 8 [(sql) = {
     flag: "reason"
     why: "the closure's argument — what was verified and why it holds; the report renders it and the re-audit reads it"
-  }];
+  }, (feov.record.v1.prose) = true];
 }
 
 // Closing is the closing argument on a docket-bound gap, read by the bench.
@@ -824,7 +854,7 @@ message Closing {
     required: true
     flag: "reason"
     why: "the closing argument for this gap — the report renders it under the gap's docket"
-  }];
+  }, (prose) = true];
 }
 
 // Regrade moves a grade, with its reason. A grade decides what happens NEXT to a gap, so moving
@@ -839,7 +869,7 @@ message Regrade {
     required: true
     flag: "reason"
     why: "grade movement is recorded with its reason"
-  }];
+  }, (prose) = true];
 }
 
 // SpotCheck re-reads archived closures. THE NUMBER IS COMPUTED FROM THE BOARD, NOT TAKEN FROM
@@ -850,7 +880,7 @@ message SpotCheck {
 
   // ONE PROSE CHANNEL. `notes` held what the spot-check found and `reason` held why there was
   // nothing to sample — the same field, split by which branch wrote it.
-  optional string reason = 4;
+  optional string reason = 4 [(prose) = true];
 
   reserved 2;
   reserved "notes";
@@ -1065,7 +1095,7 @@ message Reproduce {
   optional Soundness soundness = 3;
   optional string recorded_output = 4;
   optional string observed_output = 5;
-  optional string note = 6;
+  optional string note = 6 [(sql) = { flag: "reason" }, (prose) = true];
 }
 
 // InquiryReview is one seat's statement, ONCE THIS ROUND, that it read the current report against
@@ -1095,7 +1125,7 @@ message Reproduce {
 // FrictionNone.text is: an explicit negative is only worth more than silence when it says what was
 // looked at.
 message InquiryReview {
-  optional string reason = 1;
+  optional string reason = 1 [(prose) = true];
 }
 
 // Avenue is a line of inquiry with a lifecycle. A PROPOSAL assigns the id and carries the
@@ -1113,10 +1143,11 @@ message Avenue {
   // not be stored either. A conditional requirement expressed as an unconditional one does not
   // become stricter — it becomes wrong.
   optional string line = 2 [(sql) = {
+    flag: "reason"
     why: "what you are going to try — an unnamed avenue teaches a future run nothing"
-  }];
-  optional string hypothesis = 3;
-  optional string method = 4;
+  }, (prose) = true];
+  optional string hypothesis = 3 [(prose) = true];
+  optional string method = 4 [(prose) = true];
   optional AvenueStatus status = 5 [(sql) = {
     required: true
     flag: "as"
@@ -1128,7 +1159,7 @@ message Avenue {
 
   // A declined, deferred or abandoned avenue requires a reason: the road not taken is worthless
   // without why, and a deferral with none is indistinguishable from forgetting.
-  optional string reason = 7;
+  optional string reason = 7 [(prose) = true];
 }
 
 // BlueEdit is a change to the report. `answers` names the gap the edit responds to, and it is a
@@ -1199,7 +1230,7 @@ message BlueEdit {
 }
 
 message Revision {
-  optional string text = 1;
+  optional string text = 1 [(sql) = { flag: "reason" }, (prose) = true];
 }
 
 // Retire removes substance from the report. Substance leaves ONLY with its reason recorded.
@@ -1239,7 +1270,7 @@ message Retire {
 
 message ManifestRow {
   optional string gap_id = 1 [(sql) = { references: "mint.gap_id" }];
-  optional string row = 2;
+  optional string row = 2 [(sql) = { flag: "reason" }, (prose) = true];
 }
 
 // LogSource is WHO recorded the entry, and LogType is WHAT IT ASSERTS. They are two axes and were
@@ -1280,7 +1311,7 @@ enum LogType {
 // because a NOMINAL entry is still an EVENT — an attested-clean sitting stays distinguishable from
 // a channel nobody used, which is what silence could never say.
 message Log {
-  optional string text = 1;
+  optional string text = 1 [(sql) = { flag: "reason" }, (prose) = true];
   optional LogType type = 2 [(sql) = {
     required: true
     why: "the operator triages this channel by FILTERING on the type; an untyped entry hands the reader back the reading this field exists to replace — measured at 142,891 characters on one run"
@@ -1438,31 +1469,31 @@ message DocketRuling {
   optional string principle = 2 [(sql) = {
     required: true
     why: "the rule the bench applied, stated so a later sitting can apply the same one"
-  }];
+  }, (prose) = true];
 
   optional string tension = 3 [(sql) = {
     required: true
     allow_empty: true
     why: "the values that pulled against each other, or empty when none did — an empty answer here is an answer"
-  }];
+  }, (prose) = true];
 
   optional string review_flag = 4 [(sql) = {
     required: true
     allow_empty: true
     flag: "review-flag"
     why: "what a human should look at again, or empty when nothing needs it"
-  }];
+  }, (prose) = true];
 
   optional string settled = 5 [(sql) = {
     required: true
     allow_empty: true
     why: "what the losing party may no longer assert, as one sentence — not the gap id, and not the disposition"
-  }];
+  }, (prose) = true];
 
   optional string reopens_on = 6 [(sql) = {
     flag: "reopens-on"
     why: "the evidence or condition that would make this worth raising again"
-  }];
+  }, (prose) = true];
 
   // Recorded only when TRUE. Absent means the ruling answered with `reopens_on` instead; the
   // checks above are what make "neither" and "both" unrepresentable.
@@ -1522,7 +1553,7 @@ message MotionRule {
     required: true
     flag: "reason"
     why: "the ruling's argument in the ruler's words — a ruling with no reasoning is a verdict the losing party cannot answer"
-  }];
+  }, (prose) = true];
 
   oneof ruling {
     GradeRuling grade = 10;
@@ -1574,7 +1605,7 @@ message MotionAppeal {
   // RequireMotionSubjectRef is the check, and it knows the subject.
   optional string motion_id = 1 [(sql) = { flag: "id" }];
   optional MotionSubject subject = 2;
-  optional string reason = 3;
+  optional string reason = 3 [(prose) = true];
 }
 
 // Register is every seat's FIRST record action, and the only event Append does not write —
@@ -1792,7 +1823,7 @@ message Outcome {
     required: true
     flag: "reason"
     why: "how this run ended, in your words — the verdict is derived from the record, but your account of the sitting is not, and on an UNVERIFIED run it is the only evidence of why the run stopped will ever have"
-  }];
+  }, (feov.record.v1.prose) = true];
   optional string verdict_why = 3;
 
   // A HAND CENSUS DOES NOT FIND THESE: a grep requiring `.Set(` on one line cannot see a chained
@@ -1813,7 +1844,7 @@ message Outcome {
 }
 
 message Position {
-  optional string text = 1;
+  optional string text = 1 [(sql) = { flag: "reason" }, (prose) = true];
 }
 
 // Halt is the safety boundary, and it reaches the human as the words the bench chose, relayed
@@ -1823,7 +1854,7 @@ message Halt {
     required: true
     flag: "reason"
     why: "the written opinion capture relays verbatim — a halt nobody can read is a stop with no stated cause"
-  }];
+  }, (prose) = true];
 }
 
 // Certify is the bench's continuity: what it would want a human to re-examine. The bench keeps
@@ -1833,9 +1864,37 @@ message Certify {
     required: true
     flag: "reason"
     why: "what you would want a human to re-examine — the bench keeps no memory between runs, so this statement is its continuity"
-  }];
+  }, (prose) = true];
 }
 
 message Declare {
-  optional string holding = 1;
+  optional string holding = 1 [(sql) = { flag: "reason" }, (prose) = true];
+}
+
+// Correction is a seat correcting its OWN act within the sitting that wrote it.
+//
+// The record stays append-only: the corrected act is not edited or removed. The seat re-runs the
+// act's own verb with the text it meant and `--corrects <key>`, and the tool writes the replacement
+// and this event in one transaction. Every reader then shows the corrected act STRUCK, beside the
+// replacement that takes its place — never hidden. What may change is the type's CorrectionTier;
+// who and when is fixed: the writing seat, the same sitting, and only while no other seat has acted
+// since.
+message Correction {
+  // corrects is the key of the act this strikes. No foreign key: `events.key` is a PARTIAL unique
+  // index, which SQLite does not accept as a parent key, so the write checks the target exists
+  // inside the transaction that inserts this row.
+  optional string corrects = 1 [(sql) = {
+    required: true
+    why: "the key of the act this correction strikes"
+  }];
+  // replacement is the key of the act that takes the corrected one's place.
+  optional string replacement = 2 [(sql) = {
+    required: true
+    why: "the key of the act that replaces the struck one"
+  }];
+  optional string why = 3 [(sql) = {
+    required: true
+    flag: "correction-why"
+    why: "what was wrong with the corrected act — a reader sees it beside the struck text"
+  }, (prose) = true];
 }

@@ -70,7 +70,10 @@ func TestEveryEventTypeHasABodyAndViceVersa(t *testing.T) {
 	//
 	// And one more for `sitting_limit`: a sitting the PreToolUse hook stopped at the run's
 	// per-sitting tool-call limit.
-	const wantBodies = 36
+	//
+	// And one for `correction`: a seat's same-sitting correction of its own act
+	// (plans/same-sitting-correction.md).
+	const wantBodies = 37
 	if len(bodies) != wantBodies {
 		t.Errorf("the `body` oneof has %d fields, want %d — the event-type census in "+
 			"plans/record-protobuf.md §II.1 and this schema must agree", len(bodies), wantBodies)

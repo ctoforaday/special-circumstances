@@ -40,46 +40,56 @@ CREATE TABLE "seat_turn" (
 
 CREATE INDEX "seat_turn_agent" ON "seat_turn" ("agent_id");
 
-CREATE TABLE "enum_event_type" (
+CREATE TABLE "enum_correction_tier" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('anchor', 'evidence tied to a finding: where in the artifact the claim actually lives');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('avenue', 'a line of inquiry, from proposed through pursued, declined, deferred or abandoned');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('base_ingest', 'the frozen round-0 report, stored verbatim as the origin the diff-stack replays over');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('blue_edit', 'a change to the living report, recorded as old and new so the edit itself is auditable');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('cast', 'the run''s admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('certify', 'a seat''s signed statement about its own work — what it asserts on the record');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('cite', 'a source brought into the debate, with the hash and access date that make it re-checkable');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('class_new', 'a defect class coined in this run, with its definition and the neighbour it is distinguished from');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('close', 'a merge closing a gap on a verified repair — red''s half of the closing vocabulary');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('closing', 'a seat''s closing statement on a gap: the argument, not the disposition');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('declare', 'the bench stating a holding that later sittings are expected to apply');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('dispatch', 'the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('finding', 'something red found, graded but not yet minted as a gap');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('halt', 'the bench ending the run on a safety, ethics, consent or integrity boundary');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('inquiry_review', 'a review of the lines of inquiry themselves, rather than of a finding');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('log', 'an entry addressed to the operator who can retool the seat: a defect, a request, an impediment, or a nominal sitting');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('manifest_row', 'one row of the run''s manifest, tying a gap to what shipped for it');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('mint', 'a gap put on the board — the act that creates the entity every other act refers to');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion', 'a motion filed: a grade contested, a petition to the bench, or a direction proposed');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion_appeal', 'an appeal of a ruling already made on a motion');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion_rule', 'the bench''s ruling on a filed motion, and whom it binds');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('observe', 'an observation recorded without a claim attached to it');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('outcome', 'the run''s terminal act: how it ended and whether the question was answered');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('position', 'a seat''s stated position going into a round');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('proof', 'a script that was RUN, with its hash and exit status — the answer a computation check demands');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('register', 'a seat took its seat — the first act of any seat, stamping the tool version it ran under');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('regrade', 'a gap''s grade changed, with the basis for the change');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('reproduce', 'an attempt to re-run a recorded proof, and whether what it computes is sound');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('retire', 'a claim withdrawn from the report, with the reason and what supersedes it');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('revision', 'a revision to a seat''s own earlier text');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_close', 'the harness''s agent returning — the other end of that span');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_limit', 'a seat''s sitting stopped at the run''s per-sitting tool-call limit — the hook refuses every further call in it, and this records which seat, which sitting and the limit');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_open', 'the harness dispatching an agent — one end of a sitting''s span, observed by a hook rather than claimed by a seat');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('spot_check', 'red re-checking a sample of prior work, or stating that it checked none and why');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('verdict', 'red''s round gate: PASS or FAIL against the open board');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('verify', 'a citation checked at the leaf: what the source did for the claim, and how sure the reader is');
+INSERT INTO "enum_correction_tier" ("value", "means") VALUES ('full', 'every field may change except the label the act is keyed on');
+INSERT INTO "enum_correction_tier" ("value", "means") VALUES ('none', 'not correctable: the act creates an identity, decides a fate no restatement may move, or is written by the tool or the harness rather than a seat');
+INSERT INTO "enum_correction_tier" ("value", "means") VALUES ('prose', 'only the seat''s own wording may change — the fields that declare (prose); every other field must equal the corrected act''s');
+
+CREATE TABLE "enum_event_type" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL,
+  "correct" TEXT NOT NULL REFERENCES "enum_correction_tier"("value")
+) STRICT;
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('anchor', 'evidence tied to a finding: where in the artifact the claim actually lives', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('avenue', 'a line of inquiry, from proposed through pursued, declined, deferred or abandoned', 'prose');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('base_ingest', 'the frozen round-0 report, stored verbatim as the origin the diff-stack replays over', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('blue_edit', 'a change to the living report, recorded as old and new so the edit itself is auditable', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('cast', 'the run''s admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('certify', 'a seat''s signed statement about its own work — what it asserts on the record', 'prose');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('cite', 'a source brought into the debate, with the hash and access date that make it re-checkable', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('class_new', 'a defect class coined in this run, with its definition and the neighbour it is distinguished from', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('close', 'a merge closing a gap on a verified repair — red''s half of the closing vocabulary', 'prose');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('closing', 'a seat''s closing statement on a gap: the argument, not the disposition', 'full');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('correction', 'a seat correcting its own act within the sitting that wrote it: names the act it strikes, the replacement that takes its place, and why — both acts stay on the record', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('declare', 'the bench stating a holding that later sittings are expected to apply', 'prose');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('dispatch', 'the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('finding', 'something red found, graded but not yet minted as a gap', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('halt', 'the bench ending the run on a safety, ethics, consent or integrity boundary', 'prose');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('inquiry_review', 'a review of the lines of inquiry themselves, rather than of a finding', 'full');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('log', 'an entry addressed to the operator who can retool the seat: a defect, a request, an impediment, or a nominal sitting', 'full');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('manifest_row', 'one row of the run''s manifest, tying a gap to what shipped for it', 'full');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('mint', 'a gap put on the board — the act that creates the entity every other act refers to', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('motion', 'a motion filed: a grade contested, a petition to the bench, or a direction proposed', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('motion_appeal', 'an appeal of a ruling already made on a motion', 'prose');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('motion_rule', 'the bench''s ruling on a filed motion, and whom it binds', 'prose');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('observe', 'an observation recorded without a claim attached to it', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('outcome', 'the run''s terminal act: how it ended and whether the question was answered', 'prose');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('position', 'a seat''s stated position going into a round', 'full');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('proof', 'a script that was RUN, with its hash and exit status — the answer a computation check demands', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('register', 'a seat took its seat — the first act of any seat, stamping the tool version it ran under', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('regrade', 'a gap''s grade changed, with the basis for the change', 'full');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('reproduce', 'an attempt to re-run a recorded proof, and whether what it computes is sound', 'prose');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('retire', 'a claim withdrawn from the report, with the reason and what supersedes it', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('revision', 'a revision to a seat''s own earlier text', 'full');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('sitting_close', 'the harness''s agent returning — the other end of that span', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('sitting_limit', 'a seat''s sitting stopped at the run''s per-sitting tool-call limit — the hook refuses every further call in it, and this records which seat, which sitting and the limit', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('sitting_open', 'the harness dispatching an agent — one end of a sitting''s span, observed by a hook rather than claimed by a seat', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('spot_check', 'red re-checking a sample of prior work, or stating that it checked none and why', 'full');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('verdict', 'red''s round gate: PASS or FAIL against the open board', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('verify', 'a citation checked at the leaf: what the source did for the claim, and how sure the reader is', 'none');
 
 CREATE TABLE "enum_verdict" (
   "value" TEXT PRIMARY KEY,
@@ -709,6 +719,13 @@ CREATE TABLE "sitting_limit" (
   "limit" INTEGER
 ) STRICT;
 
+CREATE TABLE "correction" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
+  "corrects" TEXT NOT NULL,
+  "replacement" TEXT NOT NULL,
+  "why" TEXT NOT NULL
+) STRICT;
+
 CREATE INDEX "gate_verdict" ON "gate" ("verdict");
 
 -- THE TWO WINDOWS THAT REPLACE THE ROUND (plans/roundless.md §III.A.0).
@@ -872,6 +889,39 @@ WHERE e."id" > me."id"
   AND COALESCE(b."old", '') != ''
   AND (instr(b."old", m."location") > 0 OR instr(m."location", b."old") > 0);
 
+-- THE STRUCK ACTS: every act a seat corrected in the sitting that wrote it, with the act that
+-- replaced it, who corrected it and why. A struck act is never hidden — listings render it struck,
+-- beside its replacement — but it is never a WINNER: see live_event.
+CREATE VIEW "struck" AS
+SELECT
+  e."id"            AS "event_id",
+  c."corrects"      AS "corrects",
+  c."replacement"   AS "replacement",
+  c."why"           AS "why",
+  ce."seat_id"      AS "seat_id",
+  ce."id"           AS "by_event"
+FROM "correction" c
+JOIN "events" ce ON ce."id" = c."event_id"
+JOIN "events" e  ON e."key" = c."corrects";
+
+-- THE ACTS THAT STAND, and WHERE each stands. Every event that no correction struck, with its
+-- position "pos": its own id, or — for a replacement — the id of the act at the ROOT of its chain.
+-- A correction takes its target's place in every ordering: a reader picking the FIRST or the LATEST
+-- act orders by "pos", so a replacement cannot jump ahead of a later act by the same seat (correcting
+-- regrade #1 after regrade #2 must not make #1's replacement the current grade).
+CREATE VIEW "live_event" AS
+WITH RECURSIVE "chain"("event_id", "key", "pos") AS (
+  SELECT e."id", e."key", e."id" FROM "events" e
+   WHERE NOT EXISTS (SELECT 1 FROM "correction" c WHERE c."replacement" = e."key")
+  UNION ALL
+  SELECT r."id", r."key", ch."pos" FROM "chain" ch
+    JOIN "correction" c ON c."corrects" = ch."key"
+    JOIN "events" r ON r."key" = c."replacement"
+)
+SELECT ch."event_id" AS "event_id", ch."pos" AS "pos"
+FROM "chain" ch
+WHERE NOT EXISTS (SELECT 1 FROM "correction" c2 WHERE c2."corrects" = ch."key");
+
 CREATE VIEW "gap" AS
 SELECT
   m."gap_id"                                   AS "gap_id",
@@ -915,14 +965,15 @@ SELECT
   -- mint's. The plain "severity" columns above are MINT-TIME grades — a reader that wants
   -- what the gap is graded NOW and reaches for them silently reads a number a regrade may
   -- have moved, which is why the overlay is answered here rather than left to each reader.
-  COALESCE((SELECT r."severity" FROM "regrade" r WHERE r."gap_id" = m."gap_id"
-    AND r."severity" IS NOT NULL ORDER BY r."event_id" DESC LIMIT 1), m."severity")   AS "current_severity",
-  COALESCE((SELECT r."likelihood" FROM "regrade" r WHERE r."gap_id" = m."gap_id"
-    AND r."likelihood" IS NOT NULL ORDER BY r."event_id" DESC LIMIT 1), m."likelihood") AS "current_likelihood",
-  COALESCE((SELECT r."impact" FROM "regrade" r WHERE r."gap_id" = m."gap_id"
-    AND r."impact" IS NOT NULL ORDER BY r."event_id" DESC LIMIT 1), m."impact")       AS "current_impact",
-  COALESCE((SELECT r."complexity_cost" FROM "regrade" r WHERE r."gap_id" = m."gap_id"
-    AND r."complexity_cost" IS NOT NULL ORDER BY r."event_id" DESC LIMIT 1), m."complexity_cost") AS "current_complexity_cost",
+  -- A STRUCK regrade is not a grade: only the acts that stand are read, in their "pos" order.
+  COALESCE((SELECT r."severity" FROM "regrade" r JOIN "live_event" rl ON rl."event_id" = r."event_id"
+    WHERE r."gap_id" = m."gap_id" AND r."severity" IS NOT NULL ORDER BY rl."pos" DESC LIMIT 1), m."severity") AS "current_severity",
+  COALESCE((SELECT r."likelihood" FROM "regrade" r JOIN "live_event" rl ON rl."event_id" = r."event_id"
+    WHERE r."gap_id" = m."gap_id" AND r."likelihood" IS NOT NULL ORDER BY rl."pos" DESC LIMIT 1), m."likelihood") AS "current_likelihood",
+  COALESCE((SELECT r."impact" FROM "regrade" r JOIN "live_event" rl ON rl."event_id" = r."event_id"
+    WHERE r."gap_id" = m."gap_id" AND r."impact" IS NOT NULL ORDER BY rl."pos" DESC LIMIT 1), m."impact") AS "current_impact",
+  COALESCE((SELECT r."complexity_cost" FROM "regrade" r JOIN "live_event" rl ON rl."event_id" = r."event_id"
+    WHERE r."gap_id" = m."gap_id" AND r."complexity_cost" IS NOT NULL ORDER BY rl."pos" DESC LIMIT 1), m."complexity_cost") AS "current_complexity_cost",
   -- THE PROOF JOIN, answered where every asker can share it: a 'computation' gap closes on
   -- a recorded proof naming it in --answers, and "awaiting proof" is the debt list blue is
   -- handed. 'computation' is the vocabulary's own word; the Go home for the question
@@ -976,8 +1027,9 @@ SELECT
      JOIN "motion_rule" mr4 ON mr4."motion_id" = mo4."motion_id"
      JOIN "motion_rule_docket" rd4 ON rd4."event_id" = mr4."event_id"
      JOIN "enum_disposition" d4 ON d4."value" = rd4."disposition"
+     JOIN "live_event" l4 ON l4."event_id" = mr4."event_id"
    WHERE md4."gap_id" = m."gap_id" AND NOT d4."closes"
-   ORDER BY mr4."event_id" DESC LIMIT 1)                                            AS "docket_reopens_on",
+   ORDER BY l4."pos" DESC LIMIT 1)                                                   AS "docket_reopens_on",
   -- LINEAGE FROM THE OTHER END: the LAST gap that claimed to replace this one, and whether
   -- that promise is broken — a superseded ancestor still open is the same defect counted
   -- twice, which is what the verdict gate refuses.
@@ -996,9 +1048,13 @@ JOIN "events_w" e ON e."id" = m."event_id"
 -- and a gap with two closes then counts twice in board_counts while the raw event walk counts it
 -- once (a projection disagreement the consistency oracle catches). closed_round's MIN already
 -- assumed the earliest; this makes the row do so too.
+--
+-- EARLIEST AMONG THE ACTS THAT STAND, by "pos": a struck close is not a closure, and a corrected
+-- close keeps its original place. (SQLite's bare column beside MIN() is read from the MIN row.)
 LEFT JOIN (
-  SELECT c0."gap_id" AS "gap_id", MIN(c0."event_id") AS "event_id"
+  SELECT c0."gap_id" AS "gap_id", c0."event_id" AS "event_id", MIN(l0."pos") AS "pos"
   FROM "close" c0
+  JOIN "live_event" l0 ON l0."event_id" = c0."event_id"
   GROUP BY c0."gap_id"
 ) cx ON cx."gap_id" = m."gap_id"
 LEFT JOIN "close" c ON c."event_id" = cx."event_id"
@@ -1018,9 +1074,10 @@ LEFT JOIN "events" ce ON ce."id" = cx."event_id"
 -- returned no bench closures at all: every disposed gap reading as undisposed, which is the exact
 -- defect this whole change exists to remove.
 LEFT JOIN (
-  SELECT md."gap_id" AS "gap_id", MIN(mr."event_id") AS "event_id"
+  SELECT md."gap_id" AS "gap_id", mr."event_id" AS "event_id", MIN(lr."pos") AS "pos"
   FROM "motion_rule_docket" rd
   JOIN "motion_rule" mr ON mr."event_id" = rd."event_id"
+  JOIN "live_event" lr ON lr."event_id" = mr."event_id"
   JOIN "motion" mo ON mo."motion_id" = mr."motion_id"
   JOIN "motion_docket" md ON md."event_id" = mo."event_id"
   JOIN "enum_disposition" d ON d."value" = rd."disposition"
@@ -1128,12 +1185,16 @@ SELECT
   fae."seat_id"                                          AS "appealed_by",
   fae."id"                                            AS "appealed_seq"
 FROM (SELECT "motion_id" FROM "motion_rule" UNION SELECT "motion_id" FROM "motion_appeal") ids
+-- FIRST AMONG THE ACTS THAT STAND: a ruling corrected in its sitting is answered by its
+-- replacement, in the original's place.
 LEFT JOIN "motion_rule" fr ON fr."event_id" =
-  (SELECT MIN(x."event_id") FROM "motion_rule" x WHERE x."motion_id" = ids."motion_id")
+  (SELECT x."event_id" FROM "motion_rule" x JOIN "live_event" lx ON lx."event_id" = x."event_id"
+    WHERE x."motion_id" = ids."motion_id" ORDER BY lx."pos" LIMIT 1)
 LEFT JOIN "motion_rule_docket" rd ON rd."event_id" = fr."event_id"
 LEFT JOIN "events" fre ON fre."id" = fr."event_id"
 LEFT JOIN "motion_appeal" fa ON fa."event_id" =
-  (SELECT MIN(y."event_id") FROM "motion_appeal" y WHERE y."motion_id" = ids."motion_id")
+  (SELECT y."event_id" FROM "motion_appeal" y JOIN "live_event" ly ON ly."event_id" = y."event_id"
+    WHERE y."motion_id" = ids."motion_id" ORDER BY ly."pos" LIMIT 1)
 LEFT JOIN "events" fae ON fae."id" = fa."event_id";
 
 -- A motion with its filing and its ruling on one row. This join is hand-written at eight readers in
@@ -1182,17 +1243,21 @@ SELECT
   lr."direction"                       AS "direction_ruling",
   lre."seat_id"                        AS "ruled_by",
   lre."id"                          AS "ruled_seq"
-FROM (SELECT "avenue_id", MIN("event_id") AS "pid" FROM "avenue"
-        WHERE COALESCE("avenue_id", '') != '' AND "supersedes_status" IS NULL
-        GROUP BY "avenue_id") p
+-- Only the acts that stand, in their "pos" order: a proposal corrected after it was moved keeps its
+-- place, and its replacement does not become the line's LATEST status.
+FROM (SELECT a0."avenue_id" AS "avenue_id", a0."event_id" AS "pid", MIN(l0."pos") AS "ppos"
+        FROM "avenue" a0 JOIN "live_event" l0 ON l0."event_id" = a0."event_id"
+        WHERE COALESCE(a0."avenue_id", '') != '' AND a0."supersedes_status" IS NULL
+        GROUP BY a0."avenue_id") p
 JOIN "avenue" fp ON fp."event_id" = p."pid"
 JOIN "events" pe ON pe."id" = p."pid"
 LEFT JOIN "avenue" ls ON ls."event_id" =
-  (SELECT MAX(x."event_id") FROM "avenue" x WHERE x."avenue_id" = p."avenue_id")
+  (SELECT x."event_id" FROM "avenue" x JOIN "live_event" lx ON lx."event_id" = x."event_id"
+     WHERE x."avenue_id" = p."avenue_id" ORDER BY lx."pos" DESC LIMIT 1)
 LEFT JOIN "events" lse ON lse."id" = ls."event_id"
 LEFT JOIN "motion_rule" lr ON lr."event_id" =
-  (SELECT MAX(y."event_id") FROM "motion_rule" y
-     WHERE y."motion_id" = p."avenue_id" AND y."subject" = 'direction')
+  (SELECT y."event_id" FROM "motion_rule" y JOIN "live_event" ly ON ly."event_id" = y."event_id"
+     WHERE y."motion_id" = p."avenue_id" AND y."subject" = 'direction' ORDER BY ly."pos" DESC LIMIT 1)
 LEFT JOIN "events" lre ON lre."id" = lr."event_id";
 
 -- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report (#709). The

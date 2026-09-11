@@ -168,6 +168,15 @@ type Identity struct {
 	// struct literal that skipped the constructor.
 	Run    Run
 	SeatID string
+
+	// Correct, when set, makes this identity's write of Correct.Type a same-sitting correction of
+	// the act Correct.Key names (see Correct). Nil for every ordinary write.
+	Correct *Correct
+
+	// OnWrite is told of every event a write through this identity committed — the replacement
+	// and its Correction included — so the command that asked can say what it wrote (its key)
+	// without re-deriving it.
+	OnWrite func(*Event)
 }
 
 // RegisterSeat is every seat's FIRST record action. Duplicate dispatches are
@@ -566,12 +575,29 @@ func Append(id Identity, body proto.Message) (*Event, error) {
 	if f, ok := body.(*recordpb.Finding); ok && f.FindingId == nil {
 		f.FindingId = proto.String(NewFindingID())
 	}
+	// A CORRECTING INVOCATION'S ONE BODY OF THE CORRECTED TYPE is the replacement; every other body
+	// it writes (a tool log beside it) is an ordinary act.
+	if c := id.Correct; c != nil && typ == c.Type {
+		if c.written {
+			return nil, feov.Errorf(feov.Validation,
+				"record: this invocation already wrote its correction of %s — a second %s in one correcting command would be an act with no key to name it by",
+				c.Key, recordpb.Word(typ))
+		}
+		c.written = true
+		return appendCorrected(id, db, ev, typ, body)
+	}
 	if err := validate(run, seatID, typ, body); err != nil {
 		return nil, err
 	}
 	// SEQ AND THE INSERT ARE ONE TRANSACTION. The shard version read the file, counted the lines
 	// and appended — two steps with a gap, held together only by one seat owning one file.
-	return ev, insertNumbered(db, ev, seatID, typ, body)
+	if err := insertNumbered(db, ev, seatID, typ, body); err != nil {
+		return ev, err
+	}
+	if id.OnWrite != nil {
+		id.OnWrite(ev)
+	}
+	return ev, nil
 }
 
 // insertNumbered stamps the envelope and writes the event in ONE transaction.
@@ -604,18 +630,24 @@ func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType
 		// never learned that only one survived. Refusing is the better answer and it has to say
 		// what was refused.
 		if isDuplicateKey(err) {
+			// THE TAIL DEPENDS ON THE TIER. A correctable act gets the key of the act that stands
+			// and the invocation that corrects it — the act that "supersedes" a manifest row or a
+			// ruling does not exist, and sending a seat to it is what moved clean text into a log.
+			// An act that cannot be corrected keeps the old tail: the domain act supersedes it.
+			tail := "If the first was wrong, say so in the act that supersedes it; the record is append-only and both stay visible"
+			if Correctable(typ, body) {
+				tail = correctionPointer(tx, key)
+			}
 			if singleton[typ] {
 				return feov.Errorf(feov.Validation,
 					"record: %s has already recorded a %s this sitting, and it is a once-per-sitting act — "+
-						"the record keeps your first one rather than quietly replacing it. If the first was wrong, "+
-						"say so in the act that supersedes it; the record is append-only and both stay visible",
-					seatID, recordpb.Word(typ))
+						"the record keeps your first one rather than quietly replacing it. %s",
+					seatID, recordpb.Word(typ), tail)
 			}
 			return feov.Errorf(feov.Validation,
 				"record: %s has already recorded a %s on %q this sitting — the record keeps your first one "+
-					"rather than quietly replacing it (a retried write lands on the same key on purpose). If the "+
-					"first was wrong, say so in the act that supersedes it; the record is append-only and both stay visible",
-				seatID, recordpb.Word(typ), keyLabel(body))
+					"rather than quietly replacing it (a retried write lands on the same key on purpose). %s",
+				seatID, recordpb.Word(typ), keyLabel(body), tail)
 		}
 		return err
 	}
@@ -644,7 +676,16 @@ func insertEvent(db *sql.DB, ev *Event) error {
 // filing fields, and the ruling vocabulary — each is now a closed enum or a oneof case. Where the
 // schema replaced a VALUE check with a STRUCTURAL one, the structural check is made here rather
 // than assumed: see the filing/ruling arms below.
+//
+// TARGET IS THE ACT A CORRECTION REPLACES, nil for every ordinary write. A guard that refuses
+// because "this has already happened" must pass when what already happened IS the act being
+// corrected — a closure's correction names a closed gap by definition. validate is the ordinary
+// write's form; validateAgainst is the correction's.
 func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message) error {
+	return validateAgainst(run, seatID, typ, body, nil)
+}
+
+func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.Message, target *correctionTarget) error {
 	// THE UNCONDITIONAL REQUIREMENTS COME FROM THE FIELDS THEMSELVES, once, before any verb's own
 	// rules run. What stays below is everything an annotation CANNOT say: requirements that depend
 	// on another field's value, references that must resolve against the record, and the closed
@@ -669,6 +710,11 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 		return err
 	}
 	switch b := body.(type) {
+	case *recordpb.Correction:
+		// A CORRECTION IS NEVER APPENDED ON ITS OWN. It is written by appendCorrected in the same
+		// transaction as the replacement it names; one without the other is a strike with nothing
+		// in its place, or a replacement nothing marks as one.
+		return fmt.Errorf("record: a correction is written by re-running the corrected act's own verb with --corrects <key>, never on its own")
 	case *recordpb.Anchor:
 		// The finding-marker's record: it says "finding <id> has a marker at <location>
 		// in blue/report.md". EXPECTED for the immortal-marker detector is exactly the set
@@ -842,7 +888,7 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 		// repair_regression denominator (see replay.go on ClosedByBench). A --carried-from
 		// close is exempt: restating an earlier closure is exactly what it means, and it
 		// is separately checked against a real prior closure below.
-		if b.CarriedFrom == nil {
+		if b.CarriedFrom == nil && !closedByTarget(run, b.GetGapId(), target) {
 			if err := requireOpenGap(run, b.GetGapId(), "close", "--id",
 				"closing it twice double-counts closure history and corrupts the repair_regression denominator; use `merge carry --carried-from <epoch>` to RESTATE an earlier closure"); err != nil {
 				return err
