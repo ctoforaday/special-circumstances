@@ -22,6 +22,7 @@
 package scorecard
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"os"
@@ -770,8 +771,41 @@ func benchRows(results []map[string]any, fam *record.Family) []Row {
 func Compute(run record.Run, results []map[string]any, fam *record.Family) map[string][]Row {
 	telemetry := ReadTelemetry(run)
 	return map[string][]Row{
-		"blue":  blueRows(run, results, telemetry, fam),
-		"red":   redRows(run, results, telemetry, fam),
-		"bench": benchRows(results, fam),
+		"blue":  append(blueRows(run, results, telemetry, fam), correctionsRow(fam, "blue")),
+		"red":   append(redRows(run, results, telemetry, fam), correctionsRow(fam, "merge", "lens")),
+		"bench": append(benchRows(results, fam), correctionsRow(fam, "bench")),
 	}
+}
+
+// correctionsRow counts each seat's same-sitting corrections, for the seats of this card's parties
+// (plans/same-sitting-correction.md F9). The owner ruled correction chains UNCAPPED, so this count
+// is the only brake on a seat that corrects instead of getting it right — which is why it sits on
+// every card, and why it is a count per SEAT rather than one total a single seat could hide in.
+//
+// A record that could not be read is "not measured", never 0: a zero is the claim that no seat on
+// this card corrected anything, and an unread record supports no claim. A readable record with no
+// correction answers {} — measured, and none.
+func correctionsRow(fam *record.Family, parties ...string) Row {
+	r := Row{Clause: "Same-sitting corrections", Metric: "corrections", Cls: "measure",
+		Joint: "correction events per seat on this card; chains are uncapped by ruling, so this count is the only brake"}
+	if fam == nil {
+		r.Note = "the record could not be read — not measured"
+		return r
+	}
+	on := map[string]bool{}
+	for _, p := range parties {
+		on[p] = true
+	}
+	per := map[string]int{}
+	for _, e := range fam.Events {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_CORRECTION && on[record.PartyOf(e)] {
+			per[e.GetSeatId()]++
+		}
+	}
+	b, _ := json.Marshal(per) // map keys marshal sorted, so the value is deterministic
+	r.Value = objJSON(b)
+	if len(per) == 0 {
+		r.Note = "no seat on this card corrected an act"
+	}
+	return r
 }
