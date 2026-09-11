@@ -244,11 +244,47 @@ func Check(run record.Run) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("consistency: reading the record: %w", err)
 	}
-	gt := walk(m.Events)
+	// THE GROUND TRUTH IS THE ACTS THAT STAND. An act its seat corrected in the sitting is not the
+	// record's answer — its replacement is, in its place — so the walk folds Live. That makes the
+	// walk lean on the same overlay the readers do, which is why the section below holds that
+	// overlay to the SQL views, an independent statement of the same fact.
+	gt := walk(record.Live(m.Events))
 
 	var v []string
 	add := func(rule, format string, args ...any) {
 		v = append(v, rule+": "+fmt.Sprintf(format, args...))
+	}
+
+	// ---- struck vs live (plans/same-sitting-correction.md S7) ----
+	// Two homes state which acts a correction struck and where each standing act stands: the SQL
+	// views every winner query reads (`struck`, `live_event`) and the Go overlay every fold and
+	// listing reads (StruckIndex, Live). They must agree act for act, in order.
+	if sk, measured, err := record.StruckKeys(run); err != nil {
+		add("struck-vs-live", "the struck view could not be read: %v", err)
+	} else if measured {
+		if goKeys := record.StruckIndexOf(m.Events).Keys(); !sameSet(sk, goKeys) {
+			add("struck-vs-live", "the struck view names %v and the Go overlay strikes %v", sk, goKeys)
+		}
+		lk, _, err := record.LiveKeys(run)
+		if err != nil {
+			add("struck-vs-live", "live_event could not be read: %v", err)
+		} else {
+			live := record.Live(m.Events)
+			goOrder := make([]string, len(live))
+			for i, e := range live {
+				goOrder[i] = e.GetKey()
+			}
+			if len(lk) != len(goOrder) {
+				add("struck-vs-live", "live_event holds %d acts and Live holds %d", len(lk), len(goOrder))
+			} else {
+				for i := range lk {
+					if lk[i] != goOrder[i] {
+						add("struck-vs-live", "act %d stands as %q in live_event and as %q in Live", i, lk[i], goOrder[i])
+						break
+					}
+				}
+			}
+		}
 	}
 
 	// A DOCKET RULING THE WALK COULD NOT PAIR settles no gap here and would settle none on the
