@@ -75,8 +75,9 @@ research/<date>_<slug>/
 │                      #  read them as the `lines-of-inquiry` projection. A hypothesis in a file is one red
 │                      #  cannot rule too-thin or out-of-scope, and the opening ones shape the
 │                      #  whole run)
-│   ├── report.md      # blue's LIVING report — grows every sitting, never summarized away.
-│   │                  #   Authored prose, but every EDIT after synthesis goes through the `edit` verb
+│   ├── report.md      # the synthesizer's stub — filled at synthesis, then frozen into the record
+│   │                  #   by `ingest`, which deletes it. From then the living report is read
+│   │                  #   through the tool, and every change goes through the `edit` verb
 │   └── candidates/    # best-of-N method-lens lane drafts, preserved (authored)
 └── cost.md            # measured tokens + dollars per seat-sitting (feov-record cost)
 
@@ -161,7 +162,7 @@ in it opens with a link bar to the others.
 first*) → **the Catechism** (`references/catechism_template.md` — the worth-our-time decision,
 adapted from Heilmeier) → analytical core (foundations / analysis / risk matrix graded
 likelihood × impact × complexity, including risk-accepted items with rationale) → the three
-inquiry areas → **open questions carried past this run** (blue's final envelope, verbatim) →
+inquiry areas → **open questions carried past this run** (authored by blue into the report's `## Open questions`, audited by red every sitting, lifted verbatim) →
 footnotes (with access dates; volatility noted for living sources).
 
 The process record is beside it, one document per audience: `docket.md` (the board in

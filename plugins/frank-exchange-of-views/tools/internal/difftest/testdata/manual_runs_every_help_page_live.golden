@@ -530,7 +530,7 @@ Flags:
 (Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show changes --help
-every recorded edit to blue/report.md (the blue_edit diff stack), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`
+every recorded edit to the report (the blue_edit diff stack), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`
 
 Usage:
   feov-record show changes [flags]
@@ -1359,7 +1359,7 @@ Flags:
 (Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show changes --help
-every recorded edit to blue/report.md (the blue_edit diff stack), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`
+every recorded edit to the report (the blue_edit diff stack), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`
 
 Usage:
   feov-record show changes [flags]

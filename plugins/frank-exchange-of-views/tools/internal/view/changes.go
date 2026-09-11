@@ -41,7 +41,7 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 	out := []string{
 		"# blue changes — RENDERED PROJECTION (source of truth: records/ event log)",
 		"",
-		"Every recorded edit to `blue/report.md`, in record order, grouped by the sitting that made",
+		"Every recorded edit to the report, in record order, grouped by the sitting that made",
 		"it (`seat #N` is that seat's Nth sitting). This is a navigation hint, not",
 		"a substitute for reading the report: a diff decontextualizes research prose, which is why",
 		"the audit is a full re-read. To put red's required_fix and blue's actual change side by",

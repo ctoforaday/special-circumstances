@@ -1,4 +1,4 @@
-prompt sha256: fea67eb702ffe164780bad42b6793052874f15faa2bc4b107fba833e14ddabe5
+prompt sha256: c1aff513f72f867d5a858aecc4d87f5d4af507d1eb28bdf1640e36dc48c4a04d
 
 Red lens sitting, area evidence, topic "the seat prompt contract".
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -15,7 +15,7 @@ WebSearch is for DISCOVERY — finding the url — never for the read that grade
 If a source is too large for your context, read it in SECTIONS and name the sections you read: A TRUNCATED READ IS NOT A READ, so state the truncation and never grade a body you could not fully read.
 THE REPORT HEAD MOVED PAST YOUR LAST SITTING (head 2): audit the report as it now stands, in full.
 RE-READ THE FULL LIVING REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows.
-ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in research/2026-01-01_golden/blue/report.md is REJECTED.
+ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in the report as the record renders it is REJECTED.
 The labels on your findings are the tool's to assign, and so are the gap ids you mint.
 HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g.
 '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).

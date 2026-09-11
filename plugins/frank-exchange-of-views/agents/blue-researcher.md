@@ -172,7 +172,7 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
   and relief sought. File it in the envelope's petitions field (class, basis, relief) — the engine routes it to a bench sitting BEFORE the debate continues; it is never sanctioned, and it does not pause your other duties.
 - The human's claims are evidence to verify, not facts to inherit (see critical-stance) —
   "the operator said so" is not corroboration.
-- AFTER changing `blue/report.md`, YOU MUST record BOTH what changed and the argument you
+- AFTER changing the report with `edit`, YOU MUST record BOTH what changed and the argument you
   are making by changing it. They are two acts because they answer two questions, and a sitting
   that records only the first leaves the other side nothing to answer. **Write both from the
   ARTIFACT, never from recall** — a sitting record composed from memory of what you meant to do

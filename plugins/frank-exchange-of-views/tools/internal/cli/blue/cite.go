@@ -43,7 +43,7 @@ func newCite() *cobra.Command {
 		}
 		quote := seat.Str(cmd, flags.Quote)
 		if strings.TrimSpace(quote) == "" {
-			return nil, fmt.Errorf("blue cite requires --quote: the EXACT sentence to anchor the citation at, verbatim from blue/report.md and nothing else")
+			return nil, fmt.Errorf("blue cite requires --quote: the EXACT sentence to anchor the citation at, verbatim from the report as `show report` serves it, and nothing else")
 		}
 		url := seat.Str(cmd, flags.URL)
 		if strings.TrimSpace(url) == "" {
