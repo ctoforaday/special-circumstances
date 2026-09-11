@@ -1,8 +1,8 @@
 // Staticproof asserts the per-format staticness contract of plan §V.3 on one binary:
 //
 //	linux (ELF):    fully static — no interpreter, no dynamic section at all.
-//	windows (PE):   imports only KERNEL32.dll and the api-ms-win-crt-* UCRT api-sets,
-//	                which Windows 10+ provides; no third-party DLLs.
+//	windows (PE):   imports only KERNEL32.dll, NTDLL.dll and the api-ms-win-crt-* UCRT
+//	                api-sets, which every Windows provides; no third-party DLLs.
 //	darwin (Mach-O): load commands reference only OS-provided libraries — libSystem.B,
 //	                CoreFoundation, libresolv.9. Fully static does not exist on macOS
 //	                (no static libSystem); the latter two are Go-runtime link flags
@@ -89,9 +89,9 @@ func checkPE(path string, f *pe.File) {
 		}
 	}
 	if len(bad) > 0 {
-		fail("%s: PE imports beyond KERNEL32 + UCRT api-sets: %v", path, bad)
+		fail("%s: PE imports beyond KERNEL32 + NTDLL + UCRT api-sets: %v", path, bad)
 	}
-	fmt.Printf("%s: PE, imports only KERNEL32 + UCRT api-sets (%d libraries)\n", path, len(libs))
+	fmt.Printf("%s: PE, imports only KERNEL32 + NTDLL + UCRT api-sets (%d libraries)\n", path, len(libs))
 }
 
 // peLibAllowed and machOLibAllowed are the two ALLOWLISTS, lifted out of their readers so
@@ -100,8 +100,13 @@ func checkPE(path string, f *pe.File) {
 // direction: inverted, a forbidden import PASSES and the release ships a binary that
 // needs libraries the target may not have. Nothing else in this program can notice that,
 // because a green run and an unchecked run print the same line.
+// ntdll.dll is the loader's own library: Windows maps it into every process before any
+// import is resolved, so a binary that names it asks for nothing a target could lack —
+// the property this list protects. The C stack's runtime imports it directly, which the
+// frank-exchange-of-views 1.66.0 release run was the first build to show: no PR job
+// cross-compiles for windows, so this list first met a real PE at a release tag.
 func peLibAllowed(lib string) bool {
-	return lib == "kernel32.dll" || strings.HasPrefix(lib, "api-ms-win-crt-")
+	return lib == "kernel32.dll" || lib == "ntdll.dll" || strings.HasPrefix(lib, "api-ms-win-crt-")
 }
 
 // The Mach-O side is an exact set: darwin cannot be fully static (no static libSystem),

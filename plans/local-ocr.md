@@ -187,7 +187,10 @@ Carrier censuses, run 2026-09-06:
 3. Static proof per release target, using the per-format mechanisms Wave 0 actually
    validated (amended by §VI — `ldd` cannot audit PE or Mach-O on the linux build
    host): linux — `ldd` reports "not a dynamic executable"; windows — `objdump -p`
-   import scan showing only KERNEL32 + UCRT api-sets; darwin — load-command scan
+   import scan showing only KERNEL32, NTDLL and the UCRT api-sets — ntdll.dll is the
+   loader's own library, mapped into every process, and the C stack's runtime imports it
+   directly (measured on frank-exchange-of-views 1.66.0's release run, the first build to
+   put a real PE through this gate); darwin — load-command scan
    against the OS-provided allowlist {libSystem.B, CoreFoundation, libresolv.9}, the
    two extras being Go-runtime link requirements satisfied by stubs at build time and
    by the OS at run time. Plus a smoke OCR of a checked-in fixture page by every built

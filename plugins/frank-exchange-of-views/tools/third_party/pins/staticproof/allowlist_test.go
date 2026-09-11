@@ -8,12 +8,13 @@ import "testing"
 // through with the same "fully static" line the honest case prints. The predicates are
 // pure, so the contract is pinned here rather than inferred from whichever artifacts a
 // release happened to build.
-func TestPEAllowlistAdmitsOnlyKernel32AndTheUCRTApiSets(t *testing.T) {
+func TestPEAllowlistAdmitsOnlyKernel32NtdllAndTheUCRTApiSets(t *testing.T) {
 	for _, c := range []struct {
 		lib   string
 		allow bool
 	}{
 		{"kernel32.dll", true},
+		{"ntdll.dll", true}, // the loader maps it into every process; no target can lack it
 		{"api-ms-win-crt-runtime-l1-1-0.dll", true},
 		{"api-ms-win-crt-math-l1-1-0.dll", true},
 		{"user32.dll", false},
