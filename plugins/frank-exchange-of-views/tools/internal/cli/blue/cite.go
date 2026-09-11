@@ -54,13 +54,20 @@ func newCite() *cobra.Command {
 			return nil, fmt.Errorf("blue cite requires --title: the source's name as it appears in the composed bibliography")
 		}
 
+		// THE TITLE IS THE ONE SEAT-TYPED STRING THE REPORT PRINTS for a cite — its Bibliography
+		// entry is "<title>. <url> (accessed <date>)" (report/assemble.go); the quote is text the
+		// report already holds and the rest is the tool's. So the title meets the voice advisory.
+		// ADVISORY, COMPUTED BEFORE ANY RETURN so an idempotent retry carries it; it refuses
+		// nothing — a real source's own title can legitimately carry a tell.
+		tells := spanVoiceTells(title)
+
 		// Crash-retry idempotency: a prior cite under this --key returns its label, no
 		// second fetch AND no second anchor (BEFORE any effect).
 		key := seat.Str(cmd, flags.Key)
 		if prior, err := record.ExistingCiteByKey(run, s.SeatID, key); err != nil {
 			return nil, err
 		} else if prior != "" {
-			return citeResult{Label: prior, Idempotent: true}, nil
+			return citeResult{Label: prior, Idempotent: true, VoiceTells: tells}, nil
 		}
 
 		// Resolve the source through the run cache (fetch-once). A FAILURE is an unusable
@@ -121,7 +128,7 @@ func newCite() *cobra.Command {
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		return citeResult{Label: label, URL: url, Sha256: entry.Sha}, nil
+		return citeResult{Label: label, URL: url, Sha256: entry.Sha, VoiceTells: tells}, nil
 	}))
 
 	enumhelp.Flag(c, flags.SourceText, record.MustEnum("cite", "source_text_read"),
@@ -138,11 +145,14 @@ type citeResult struct {
 	URL        string `json:"url,omitempty"`
 	Sha256     string `json:"sha256,omitempty"`
 	Idempotent bool   `json:"idempotent,omitempty"`
+	// VoiceTells is ADVICE on the title, and the citation is already recorded by the time it renders.
+	VoiceTells []string `json:"voice_tells,omitempty"`
 }
 
 func (r citeResult) Human() string {
+	note := voiceNote("the source's Bibliography entry", r.VoiceTells)
 	if r.Idempotent {
-		return "cite " + r.Label + " (idempotent retry — existing anchor returned)"
+		return "cite " + r.Label + " (idempotent retry — existing anchor returned)" + note
 	}
-	return "citation recorded: " + r.Label + " — an invisible immortal anchor at the quote, woven into the bibliography at assembly (" + r.URL + ")"
+	return "citation recorded: " + r.Label + " — an invisible immortal anchor at the quote, woven into the bibliography at assembly (" + r.URL + ")" + note
 }

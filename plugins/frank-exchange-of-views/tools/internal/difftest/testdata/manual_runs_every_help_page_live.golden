@@ -824,7 +824,7 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
   )
   … "$X"
 
-§4 (on 9 pages):
+§4 (on 8 pages):
 your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 §5 (on 22 pages):
@@ -943,6 +943,8 @@ attach a source to a sentence, when a claim needs evidence a reader can follow t
 The tool fetches and caches the source and splices an invisible anchor at the sentence — you never type a footnote. It survives every later edit: `edit` refuses a replacement that drops one.
 
 To RESOLVE an anchor you meet while reading (not create one), read the `evidence` projection, which lists every source by anchor id.
+
+THE TITLE IS PRINTED IN THE REPORT, as the source's Bibliography entry. Give the source's own name — author, work, section — for a reader of the SUBJECT, not an account of how you found or read it: no "this sitting" or "this run", no "re-read at the leaf". How much of the source you read is recorded as its own field, not in the title's words. Where that reading matters to a claim, say it in the report's prose, in the subject's terms: "the source, read in full, states…", "the abstract claims, and the body does not show, …". The tool flags a title that sounds like the run talking about itself; it refuses nothing, because a real source's own title can.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -1423,6 +1425,8 @@ Identical output twice is recorded as reproducible; output that moves, as observ
 
 A FAILING CHECK IS A RESULT: a non-zero exit is recorded as evidence, not as an error. Disproving your own claim is worth as much as confirming it.
 
+YOUR NOTE IS PRINTED IN THE REPORT, as this computation's footnote and as its heading in evidence.md. So write it for a reader of the SUBJECT: what the computation establishes, not what happened while you ran it. No "this sitting" or "this run", no "rather than trusting the lane draft", no gap ids (the gap it settles is recorded as its own field), no notes to another seat. That it was computed, and whether it reproduced, the tool already says beside your note. Where the kind of evidence still matters to the claim, say it in the subject's terms: "a reproducible computation shows 7 divides 91", "trial division by every prime up to 9 finds the divisor 7", "a second, independent implementation of modular exponentiation gives the same three residues". The tool flags a note that sounds like the run talking about itself; it refuses nothing.
+
 (If you need a verb or a flag tha…) → SHARED §1
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
@@ -1439,7 +1443,7 @@ Flags:
   -h, --help                    help for prove
       --key string              → SHARED §10
       --quote string            the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs
-      --reason string           → SHARED §4
+      --reason string           the proof note — printed in the report as this computation's footnote, so say what it SHOWS about the subject, not what happened while you ran it
       --script string           REQUIRED — path under the run directory of the program that settles it (.py, .js, .mjs, .sh or .go)
 
 (Global Flags:) → SHARED §5

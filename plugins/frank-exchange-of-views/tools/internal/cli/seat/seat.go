@@ -754,6 +754,7 @@ func Prose(c *cobra.Command) *cobra.Command {
 var ReasonIs = map[string]string{
 	"propose":      "the line — research prose for a reader of the SUBJECT, printed in the report word for word",
 	"move":         "the account of what settled this fate, in the SUBJECT's terms — printed in the report beside the line",
+	"prove":        "the proof note — printed in the report as this computation's footnote, so say what it SHOWS about the subject, not what happened while you ran it",
 	"manifest-row": "the receipt: what you checked, and what checking it showed",
 	"log":          "the entry: what you concluded about the tooling",
 	"position":     "your sitting's argument — your THINKING, not your process. " + flags.ReasonNotProcess,

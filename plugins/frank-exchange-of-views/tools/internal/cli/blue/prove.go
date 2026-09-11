@@ -61,6 +61,15 @@ func newProve() *cobra.Command {
 		// cannot see which keys its earlier self used. Measured in
 		// research/2026-09-02_quadratic-formula (blue-respond, --key P1).
 		//
+		// THE NOTE IS PRINTED IN THE REPORT — as this proof's [^PN] footnote and its evidence.md
+		// heading (report/proofs.go) — so it meets the same voice advisory as edit's --new. ADVISORY,
+		// COMPUTED BEFORE ANY RETURN so an idempotent retry carries it too; it refuses nothing.
+		why, err := seat.Reason(cmd)
+		if err != nil {
+			return nil, err
+		}
+		tells := spanVoiceTells(why)
+
 		// The script's own sha settles it, and costs a file read rather than an execution.
 		if prior, err := record.ExistingProofByKey(run, s.SeatID, seat.Str(cmd, flags.Key)); err != nil {
 			return nil, err
@@ -75,7 +84,7 @@ func newProve() *cobra.Command {
 					"leave you citing a proof of something else. Give this program its own --key",
 					seat.Str(cmd, flags.Key), prior[:12], script, now[:12])
 			}
-			return proveResult{SHA: prior, Idempotent: true}, nil
+			return proveResult{SHA: prior, Idempotent: true, VoiceTells: tells}, nil
 		}
 
 		res, err := proof.Run(run.Dir(), script)
@@ -136,15 +145,11 @@ func newProve() *cobra.Command {
 		if res.Drift != "" {
 			body.Drift = proto.String(res.Drift)
 		}
-		why, err := seat.Reason(cmd)
-		if err != nil {
-			return nil, err
-		}
 		body.Text = proto.String(why)
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		return proveResult{Label: label, SHA: res.SHA, Basis: res.Basis, Exit: res.Exit, Drift: res.Drift}, nil
+		return proveResult{Label: label, SHA: res.SHA, Basis: res.Basis, Exit: res.Exit, Drift: res.Drift, VoiceTells: tells}, nil
 	}))
 
 	flags.Text(c, flags.Quote, flags.DescQuote)
@@ -163,15 +168,18 @@ type proveResult struct {
 	Exit       int    `json:"exit"`
 	Drift      string `json:"drift,omitempty"`
 	Idempotent bool   `json:"idempotent,omitempty"`
+	// VoiceTells is ADVICE on the note, and the proof is already recorded by the time it renders.
+	VoiceTells []string `json:"voice_tells,omitempty"`
 }
 
 func (r proveResult) Human() string {
+	note := voiceNote("the proof's footnote, and its heading in evidence.md", r.VoiceTells)
 	if r.Idempotent {
-		return "blue prove (idempotent retry — already recorded as " + r.SHA[:12] + ")"
+		return "blue prove (idempotent retry — already recorded as " + r.SHA[:12] + ")" + note
 	}
 	out := fmt.Sprintf("proof %s recorded (%s, exit %d) — anchored, script and output cached", r.Label, r.Basis, r.Exit)
 	if r.Drift != "" {
 		out += "\n  NOT reproducible: " + r.Drift + " — recorded as a measurement, not a proof"
 	}
-	return out
+	return out + note
 }
