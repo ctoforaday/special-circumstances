@@ -119,7 +119,8 @@ fi
 TESSOCR_GO="$SCRIPT_DIR/../../internal/tessocr/tessocr.go"
 for lib in tesseract leptonica; do
 	v="$(awk -v l="$lib" '$0 !~ /^#/ && $2 ~ "^"l"-" { sub("^"l"-", "", $2); sub("\\.tar\\.gz$", "", $2); print $2 }' "$PINS")"
-	grep -q "${lib}Pin = \"$v\"" "$TESSOCR_GO" \
+	# gofmt aligns the const block, so the gap before '=' widens whenever a longer name joins it.
+	grep -Eq "^[[:space:]]*${lib}Pin[[:space:]]*=[[:space:]]*\"${v//./\\.}\"" "$TESSOCR_GO" \
 		|| die "PINS.txt pins $lib $v but internal/tessocr/tessocr.go's ${lib}Pin disagrees — move both in one change"
 done
 
