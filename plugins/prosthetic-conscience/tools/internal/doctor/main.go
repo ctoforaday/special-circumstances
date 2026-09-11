@@ -404,8 +404,10 @@ func danceWarnings(root string) []string {
 			msg := fmt.Sprintf("EMPTY-BIN WINDOW: cache %s is missing %d of its %d hook binaries — ", newest, missing, len(bins))
 			if cause, err := os.ReadFile(filepath.Join(newRoot, ".fetch", "failed")); err == nil {
 				msg += fmt.Sprintf("the hooks' fetch failed (%s); doctor --fix installs them.", strings.TrimSpace(string(cause)))
-			} else {
+			} else if _, err := os.Stat(filepath.Join(newRoot, ".fetch", "lock")); err == nil {
 				msg += fmt.Sprintf("the hooks are installing them (%s); doctor --fix installs them now.", filepath.Join(newRoot, ".fetch", "log"))
+			} else {
+				msg += "the next hook that runs from it installs them; doctor --fix installs them now."
 			}
 			out = append(out, msg)
 		}

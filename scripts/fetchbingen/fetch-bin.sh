@@ -41,17 +41,20 @@ older_than() {
 	[ -e "$1" ] && [ -n "$(find "$1" -maxdepth 0 -mmin +"$2" 2>/dev/null)" ]
 }
 
-# speak is the one speaking rule: only a displaying event speaks, and at most once per 10
-# minutes across every event and branch. A non-displaying event never prints to stdout.
+# speak <kind> <message> is the one speaking rule: only a displaying event speaks, and each kind
+# of message at most once per 10 minutes across every event. Kinds are throttled apart so an
+# "installing" message cannot hide the failure that follows it. A non-displaying event never
+# prints to stdout.
 speak() {
 	[ "$DISPLAYING" = 1 ] || return 0
 	if [ -n "$STATE" ] && [ -d "$STATE" ]; then
-		if [ -e "$STATE/notified" ] && ! older_than "$STATE/notified" 10; then
+		mark="$STATE/notified.$1"
+		if [ -e "$mark" ] && ! older_than "$mark" 10; then
 			return 0
 		fi
-		: >"$STATE/notified" 2>/dev/null
+		: >"$mark" 2>/dev/null
 	fi
-	m=$(printf '%s' "$1" | clean)
+	m=$(printf '%s' "$2" | clean)
 	if [ "$EVENT" = SessionStart ]; then
 		printf '{"systemMessage":"%s","hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' "$m" "$m"
 	else
@@ -59,11 +62,19 @@ speak() {
 	fi
 }
 
-# take_lock succeeds when this process now holds the lock. A lock older than 10 minutes belongs
-# to a fetch that died, and is broken.
+# holder_alive succeeds when the lock names a process that is still running.
+holder_alive() {
+	pid=$(cat "$STATE/lock/pid" 2>/dev/null)
+	[ -n "$pid" ] && kill -0 "$pid" 2>/dev/null
+}
+
+# take_lock succeeds when this process now holds the lock. A lock whose holder is running is held
+# however old it is: a slow download must not be joined by a second one. A lock whose recorded
+# holder has gone, or that recorded none within 10 minutes, belongs to a fetch that died.
 take_lock() {
 	mkdir "$STATE/lock" 2>/dev/null && return 0
-	if older_than "$STATE/lock" 10; then
+	holder_alive && return 1
+	if [ -f "$STATE/lock/pid" ] || older_than "$STATE/lock" 10; then
 		rm -rf "$STATE/lock"
 		mkdir "$STATE/lock" 2>/dev/null && return 0
 	fi
@@ -87,26 +98,28 @@ hook() {
 	name=$(field name)
 	version=$(field version)
 	manual="run /prosthetic-conscience:doctor --fix"
+	# Created before anything can speak, so every message below is throttled. Where it cannot be
+	# created the message goes out unthrottled: a root nothing can write to is a state to see.
+	if [ -n "$STATE" ] && ! mkdir -p "$STATE" 2>/dev/null; then
+		m="${name:-a plugin} ${version}: hook binaries missing, and $STATE cannot be created, so they cannot install themselves. To install them, $manual."
+		printf '%s\n' "$m" >&2
+		speak failed "$m"
+		return 0
+	fi
 	if [ -z "$name" ] || [ -z "$version" ]; then
 		m="${name:-a plugin}: hook binaries missing, and its plugin.json gives no name or version to fetch them by. To install them, $manual."
 		printf '%s\n' "$m" >&2
-		speak "$m"
-		return 0
-	fi
-	if ! mkdir -p "$STATE" 2>/dev/null; then
-		m="$name $version: hook binaries missing, and $STATE cannot be created, so they cannot install themselves. To install them, $manual."
-		printf '%s\n' "$m" >&2
-		speak "$m"
+		speak failed "$m"
 		return 0
 	fi
 	if [ -f "$STATE/failed" ] && ! older_than "$STATE/failed" 5; then
-		speak "$name $version: installing its hook binaries failed ($(head -n 1 "$STATE/failed")). It retries in a few minutes; to install them now, $manual."
+		speak failed "$name $version: installing its hook binaries failed ($(head -n 1 "$STATE/failed")). It retries in a few minutes; to install them now, $manual."
 		return 0
 	fi
 	if take_lock; then
 		start_fetch
 	fi
-	speak "$name $version: installing its hook binaries in the background; its hooks start working when that finishes."
+	speak installing "$name $version: installing its hook binaries in the background; its hooks start working when that finishes."
 	return 0
 }
 
@@ -130,8 +143,14 @@ fetch() {
 			exit 1
 		}
 	fi
+	# The lock records its holder, so a later hook can tell a slow fetch from a dead one, and so
+	# this fetch removes only a lock it still owns.
+	printf '%s\n' "$$" >"$STATE/lock/pid" 2>/dev/null || {
+		echo "fetch-bin: lost $STATE/lock before it could record its holder" >&2
+		exit 1
+	}
 	TMP="$STATE/tmp.$$"
-	trap 'rm -rf "$TMP" "$STATE/lock"' EXIT
+	trap 'rm -rf "$TMP"; [ "$(cat "$STATE/lock/pid" 2>/dev/null)" = "$$" ] && rm -rf "$STATE/lock"' EXIT
 
 	name=$(field name)
 	version=$(field version)
@@ -176,14 +195,14 @@ fetch() {
 	fi
 
 	mkdir -p "$TMP" || fail "cannot create $TMP"
-	curl -fsSL --retry 2 -o "$TMP/SHA256SUMS" "$BASE_URL/$tag/SHA256SUMS" ||
+	curl -fsSL --retry 2 --connect-timeout 20 --max-time 600 -o "$TMP/SHA256SUMS" "$BASE_URL/$tag/SHA256SUMS" ||
 		fail "release $tag has no SHA256SUMS yet, or the network is unreachable"
 	# Verify every asset before installing any, so bin/ never holds part of a failed fetch.
 	for n in $missing; do
 		a="${n}_${os}_${arch}${ext}"
 		want=$(awk -v a="$a" '$2 == a || $2 == "*" a { print $1; exit }' "$TMP/SHA256SUMS")
 		[ -n "$want" ] || fail "release $tag has no $a"
-		curl -fsSL --retry 2 -o "$TMP/$a" "$BASE_URL/$tag/$a" || fail "downloading $a from release $tag failed"
+		curl -fsSL --retry 2 --connect-timeout 20 --max-time 600 -o "$TMP/$a" "$BASE_URL/$tag/$a" || fail "downloading $a from release $tag failed"
 		got=$($sum "$TMP/$a" | awk '{ print $1 }')
 		[ "$got" = "$want" ] || fail "checksum mismatch for $a from release $tag"
 	done

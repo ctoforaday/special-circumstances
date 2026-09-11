@@ -63,12 +63,16 @@ func TestDanceWarnings(t *testing.T) {
 	if !strings.Contains(ws[0], "DANCE INCOMPLETE") || !strings.Contains(ws[0], "0.8.0") {
 		t.Fatalf("stale-version warning wrong: %q", ws[0])
 	}
-	if !strings.Contains(ws[1], "EMPTY-BIN WINDOW") || !strings.Contains(ws[1], "missing 1 of its 1") || !strings.Contains(ws[1], "installing") {
-		t.Fatalf("a bin/ holding only .gitkeep must warn that the hooks are installing: %q", ws[1])
+	if !strings.Contains(ws[1], "EMPTY-BIN WINDOW") || !strings.Contains(ws[1], "missing 1 of its 1") || !strings.Contains(ws[1], "next hook") {
+		t.Fatalf("a bin/ holding only .gitkeep, with no fetch running, must say the next hook installs them: %q", ws[1])
+	}
+	// "Installing" is claimed only while a fetch holds the lock.
+	newest := filepath.Join(market, "prosthetic-conscience", "0.8.0")
+	os.MkdirAll(filepath.Join(newest, ".fetch", "lock"), 0o755)
+	if ws := danceWarnings(root); len(ws) != 2 || !strings.Contains(ws[1], "installing") {
+		t.Fatalf("a held lock should read as an install in progress, got %v", ws)
 	}
 	// A recorded fetch failure is reported with its cause.
-	newest := filepath.Join(market, "prosthetic-conscience", "0.8.0")
-	os.MkdirAll(filepath.Join(newest, ".fetch"), 0o755)
 	os.WriteFile(filepath.Join(newest, ".fetch", "failed"), []byte("curl not found\n"), 0o644)
 	if ws := danceWarnings(root); len(ws) != 2 || !strings.Contains(ws[1], "curl not found") {
 		t.Fatalf("the fetch's recorded cause should be in the warning, got %v", ws)

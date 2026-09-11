@@ -298,7 +298,7 @@ func TestFetchBinSpeaksOnlyOnDisplayingEvents(t *testing.T) {
 			f := newFetchFixture(t, []string{"alpha"}, nil, nil)
 			f.holdLock(t) // a fetch is already running, so this invocation starts none
 			msg, doc := f.hook(t, ev)
-			_, notified := os.Stat(f.state("notified"))
+			_, notified := os.Stat(f.state("notified.installing"))
 			if !displaying[ev] {
 				if msg != "" || notified == nil {
 					t.Fatalf("%s does not display, yet said %q (notified touched: %v)", ev, msg, notified == nil)
@@ -332,7 +332,7 @@ func TestFetchBinAnnouncesAFetchSomeoneElseStarted(t *testing.T) {
 	if msg, _ := f.hook(t, "PostToolUse"); msg != "" {
 		t.Fatalf("a second displaying event inside 10 minutes spoke: %q", msg)
 	}
-	age(t, f.state("notified"), 11*time.Minute)
+	age(t, f.state("notified.installing"), 11*time.Minute)
 	if msg, _ := f.hook(t, "Stop"); msg == "" {
 		t.Fatal("after 10 minutes the next displaying event should speak again")
 	}
@@ -386,4 +386,75 @@ func TestFetchBinWithoutAVersionPointsAtTheManualPath(t *testing.T) {
 	if msg, _ := f.hook(t, "PreToolUse"); !strings.Contains(msg, "doctor --fix") {
 		t.Fatalf("PreToolUse should show the manual path, said %q", msg)
 	}
+	// The same message is throttled like every other: not repeated on the next tool call.
+	if msg, _ := f.hook(t, "PreToolUse"); msg != "" {
+		t.Fatalf("the missing-version message repeated inside 10 minutes: %q", msg)
+	}
+}
+
+// Kinds are throttled apart: a failure that follows an "installing" message is reported at the
+// next displaying event, not 10 minutes later.
+func TestFetchBinReportsAFailureRightAfterAnnouncingTheInstall(t *testing.T) {
+	f := newFetchFixture(t, []string{"alpha"}, nil, nil)
+	f.holdLock(t)
+	if msg, _ := f.hook(t, "PreToolUse"); !strings.Contains(msg, "installing") {
+		t.Fatalf("expected the install announcement, got %q", msg)
+	}
+	if err := os.RemoveAll(f.state("lock")); err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, f.state("failed"), "boom\n")
+	if msg, _ := f.hook(t, "Stop"); !strings.Contains(msg, "boom") {
+		t.Fatalf("the failure was held back behind the install message: %q", msg)
+	}
+}
+
+// holdLockBy leaves a lock that names pid as its holder, aged past the 10-minute mark.
+func (f fetchFixture) holdLockBy(t *testing.T, pid int) {
+	t.Helper()
+	f.holdLock(t)
+	mustWrite(t, f.state("lock/pid"), fmt.Sprintf("%d\n", pid))
+	age(t, f.state("lock"), 11*time.Minute)
+}
+
+// A slow fetch is still running: however old its lock, a second fetch must not start beside it.
+func TestFetchBinNeverBreaksALockWhoseHolderIsRunning(t *testing.T) {
+	f := newFetchFixture(t, []string{"alpha"}, nil, nil)
+	f.holdLockBy(t, os.Getpid()) // this test process: certainly alive
+	f.hook(t, "PreToolUse")
+	if _, err := os.Stat(f.state("log")); err == nil {
+		t.Fatal("a second fetch started beside a live holder")
+	}
+	if _, _, code := f.run(t, "", "fetch"); code == 0 {
+		t.Fatal("a direct fetch ran while a live holder had the lock")
+	}
+	if _, err := os.Stat(f.state("lock/pid")); err != nil {
+		t.Fatal("a fetch that never held the lock removed it")
+	}
+}
+
+// A fetch removes only a lock it still owns. The curl stub stands in for a takeover mid-fetch: it
+// records another holder in the lock, then fails the download.
+func TestFetchBinLeavesALockItNoLongerOwns(t *testing.T) {
+	f := newFetchFixture(t, []string{"alpha"}, nil, nil)
+	path := toolPath(t, nil, map[string]string{"curl": `echo 999999 > "$CLAUDE_PLUGIN_ROOT/.fetch/lock/pid"; exit 22`})
+	if _, _, code := f.run(t, path, "fetch"); code == 0 {
+		t.Fatal("fetch succeeded with a failing curl")
+	}
+	if b, err := os.ReadFile(f.state("lock/pid")); err != nil || strings.TrimSpace(string(b)) != "999999" {
+		t.Fatalf("the new holder's lock was removed or rewritten on exit: %q, %v", b, err)
+	}
+}
+
+// A holder that has exited leaves a lock that is broken at once, whatever its age.
+func TestFetchBinBreaksALockWhoseHolderHasExited(t *testing.T) {
+	f := newFetchFixture(t, []string{"alpha"}, nil, nil)
+	gone := exec.Command("sh", "-c", "exit 0")
+	if err := gone.Run(); err != nil {
+		t.Fatal(err)
+	}
+	f.holdLock(t)
+	mustWrite(t, f.state("lock/pid"), fmt.Sprintf("%d\n", gone.Process.Pid))
+	f.hook(t, "PreToolUse")
+	f.waitInstalled(t)
 }
