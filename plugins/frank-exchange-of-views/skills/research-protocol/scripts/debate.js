@@ -5,7 +5,7 @@ export const meta = {
     { title: 'Frontier', detail: 'hypotheses before searches' },
     { title: 'Blue', detail: 'best-of-N lanes + additive synthesis' },
     { title: 'Red', detail: 'per-lens audits + merged verdict' },
-    { title: 'Debate', detail: 'sittings dispatched from the record until nobody is ready — PASS permitted, or every open gap at its limit' },
+    { title: 'Debate', detail: 'sittings dispatched from the record until nobody is ready — PASS permitted, every open gap at its limit, or the epoch limit reached — or until the plan stops moving' },
     { title: 'Assemble', detail: 'final report by union' },
   ],
 }
@@ -57,8 +57,9 @@ const { topic, runDir, lanes = 3, lensAreas = null, model = null, judgmentModel 
 if (args && Object.prototype.hasOwnProperty.call(args, 'maxRounds')) {
   throw new Error(`debate: refusing dispatch — maxRounds is not a term of this engine any more (plans/roundless.md). The debate has no rounds:
 the chair's \`dispatch next\` says who sits, and the run ends when nobody is ready — PASS permitted, or every open material
-gap at its limit (CEILING). The bounds are the run's TERMS, recorded by setup in inputs/run-config.json: the exchanges a gap
-gets before impasse (k-max) and the floor of the gaps a lens may mint (mint-budget), raised with the report's size; setup's help names the words. Drop maxRounds from args.`)
+gap at its limit (CEILING) — or at the run's epoch limit (CEILING). The bounds are the run's TERMS, recorded by setup in
+inputs/run-config.json: the exchanges a gap gets before impasse (k-max), the floor of the gaps a lens may mint (mint-budget),
+raised with the report's size, and the chair sittings the run gets (max-epochs); setup's help names the words. Drop maxRounds from args.`)
 }
 if (!topic || !runDir || String(runDir).includes('undefined') || String(topic) === 'undefined') {
   throw new Error(`debate: refusing dispatch — topic/runDir unbound (topic=${JSON.stringify(topic)}, runDir=${JSON.stringify(runDir)})`)
@@ -459,6 +460,8 @@ const PLAN = {
     docket: { type: 'array', items: { type: 'string' }, description: 'gaps the verb docketed for the bench at this sitting' },
     pass_permitted: { type: 'boolean' },
     ceiling: { type: 'boolean' },
+    max_epochs: { type: 'integer', minimum: 0, description: "the run's epoch limit, a term setup records; 0 when the run is held to none" },
+    epoch_limit_reached: { type: 'boolean', description: "this chair sitting opens the run's last epoch: nobody is dispatched, and ceiling is set for that reason" },
     why: { type: 'array', items: { type: 'string' } },
   },
 }
@@ -788,7 +791,7 @@ takeFriction('blue-synthesize', blueEnv)
 await ensureSittingRecord(blueEnv, 'blue-synthesize', `your sitting-record event (the revision verb) stating the synthesis and its claim_count`,
   { ...judgment, agentType: 'frank-exchange-of-views:blue-synthesizer' })
 await hearPetitions(blueEnv, 'blue-synthesize')
-// ---- Debate loop: red audits gate; termination is judged, never counted ----
+// ---- Debate loop: red audits gate; termination is the record's, and the engine refuses to spin ----
 // ─── THE DEBATE: chair sits → the record says who sits → they sit → the chair sits again ───────────
 //
 // There are no rounds (plans/roundless.md §III.B.1). Each chair sitting opens an epoch: the chair
@@ -797,9 +800,34 @@ await hearPetitions(blueEnv, 'blue-synthesize')
 // else. Red parties sit first (in parallel), then blue, then the bench — an exchange is a red-party
 // sitting followed by a blue-party sitting, and the record counts them (impasse.go). Empty is the
 // termination signal: pass_permitted (the chair issues PASS → VERIFIED), ceiling (every open
-// material gap at its limit, ruled and carried → CEILING), or neither (UNVERIFIED, with the plan's
-// reasons on the record). The disputes, the docket, impasse and the ceiling all live on the record
-// now; nothing here keeps a second copy of them.
+// material gap at its limit, ruled and carried, or the run's epoch limit reached → CEILING), or
+// neither (UNVERIFIED, with the plan's reasons on the record). The disputes, the docket, impasse,
+// the ceiling and the epoch limit all live on the record; nothing here keeps a second copy of them.
+//
+// ONE STOP IS THE ENGINE'S OWN: THE NO-PROGRESS VALVE. A plan the record computes identically for
+// NO_PROGRESS_EPOCHS chair sittings in a row is a loop that nothing on the board is moving — the same
+// parties readied against the same head for the same reasons, sitting after sitting, while the run
+// spends. It stops the debate UNVERIFIED and names the stuck parties and the head. Not CEILING: no gap
+// reached its limit and no term ran out; the parties were still ready, and the record says so.
+//
+// IDENTICAL MEANS THE WHOLE PLAN, reasons included, not only the head and the parties. A gap marching
+// to impasse keeps its head and its parties while the exchange count in its reason advances — that
+// march is progress the run's terms (k, k-max) bound, and a valve blind to the reasons would cut it
+// short under any k of 3 or more, or a lens regrading without an edit. A seat that sits and never
+// registers moves no count, so its plan repeats exactly: the loop this valve exists for.
+const NO_PROGRESS_EPOCHS = 3
+const partyList = (ps) => ps.map((p) => `${p.seat_id}${p.gap_ids && p.gap_ids.length ? `[${p.gap_ids.join(' ')}]` : ''}`).join(', ')
+const sortedStrings = (xs) => (Array.isArray(xs) ? xs : []).map(String).sort()
+const planKey = (p) => JSON.stringify({
+  head: p.head,
+  parties: p.parties.map((x) => ({ seat_id: String(x.seat_id), gap_ids: sortedStrings(x.gap_ids) })).sort((a, b) => (a.seat_id < b.seat_id ? -1 : a.seat_id > b.seat_id ? 1 : 0)),
+  docket: sortedStrings(p.docket),
+  why: sortedStrings(p.why),
+  pass_permitted: !!p.pass_permitted,
+  ceiling: !!p.ceiling,
+})
+let samePlan = { key: null, epochs: 0 }
+let noProgress = null // { epochs, head, parties } when the valve stopped the debate
 let epoch = 0
 let chairEnv = null
 let lastPlan = null
@@ -827,7 +855,7 @@ THE ORIGINATOR CLOSES, AND LINEAGE IS NEVER DROPPED. A gap you minted is yours f
 // chair relays it; the verdict, the closings, the spot-check, the rulings on blue's motions and
 // directions and the vote on the lines of inquiry are what only the chair does.
 const chairPrompt = () => `Red chair, topic "${topic}". You RUN the debate: you mint nothing and you close nothing — a gap belongs to the lens that minted it from mint to close — and you are the seat that decides whether this report has been verified.${recordClause('red-chair')}${speedClause}${scorecardClause()}${holdingsClause()}${reliefFor('red')}${lawClause}
-FIRST, EVERY SITTING, ASK THE RECORD WHO SITS — the dispatch. It reads the board and RECORDS who sits — the lenses whose pin the report head moved past, the lens and blue of every open material gap below its limits, the bench for every gap at impasse (it dockets those itself). Relay its JSON VERBATIM as \`plan\` in your envelope; the workflow dispatches what the record says and capture audits your relay against it, so a party you drop or add is a finding against you. Empty is the record's word that the debate is over: with pass_permitted the board permits a PASS; with ceiling every open material gap is at its limit, ruled and carried.
+FIRST, EVERY SITTING, ASK THE RECORD WHO SITS — the dispatch. It reads the board and RECORDS who sits — the lenses whose pin the report head moved past, the lens and blue of every open material gap below its limits, the bench for every gap at impasse (it dockets those itself). Relay its JSON VERBATIM as \`plan\` in your envelope; the workflow dispatches what the record says and capture audits your relay against it, so a party you drop or add is a finding against you. Empty is the record's word that the debate is over: with pass_permitted the board permits a PASS; with ceiling every open material gap is at its limit, ruled and carried — or, with epoch_limit_reached, the run has reached its epoch limit and nobody further is dispatched.
 THE STOPPING JUDGMENT IS YOURS, AND IT IS NOT CEREMONY. When the plan says pass_permitted, decide: record a PASS verdict if you agree the report is verified — the tool refuses a PASS the board does not permit, so you cannot pass early — or a FAIL with the material defect that stops you, raised as a finding for its lens to mint; a FAIL over a converged board is refused (raise something material, or pass). Otherwise record no verdict this sitting. Your recorded verdict is the ONE fact the run's outcome is derived from.
 YOUR NARRATIVE IS YOUR ARGUMENT and the other side answers it: one position per sitting. CLOSING ARGUMENTS on every gap the plan docketed — each is docket-bound and owes ~120 words, your strongest evidence and your answer to blue's — the bench rules on the closings and the artifacts, not on prose in your envelope.
 A CLOSURE IS A CLAIM, AND CLAIMS DECAY. Re-sample the archive every sitting it is not empty (the spot-check; its assertable empty form only when the archive was empty when you sat) and put what the sample FOUND in the spot-check's own prose — not in \`log\`, which is the operator's channel; a lens reopens a drifted closure of its own, and a closure resting on a volatile living source inherits that source's drift triggers.
@@ -859,7 +887,20 @@ while (!halted) {
   log(`epoch ${epoch}: head ${plan.head} — ${plan.parties.length} party(ies) ready${plan.docket && plan.docket.length ? `, docketed ${plan.docket.join(', ')}` : ''}${chairEnv.verdict ? `, chair recorded ${chairEnv.verdict}` : ''}${plan.pass_permitted ? ' — PASS permitted' : ''}${plan.ceiling ? ' — at the ceiling' : ''}`)
   if (await hearPetitions(chairEnv, 'red-chair')) break
   if (chairEnv.verdict === 'PASS') break
+  // THE EPOCH LIMIT is the record's word, like the ceiling: the plan at the last epoch readies
+  // nobody. A relayed plan that says the limit is reached ends the debate whatever parties it lists.
+  if (plan.epoch_limit_reached) {
+    log(`epoch ${epoch}: the epoch limit (${plan.max_epochs}) is reached — nobody further is dispatched`)
+    break
+  }
   if (plan.parties.length === 0) break
+  const key = planKey(plan)
+  samePlan = key === samePlan.key ? { key, epochs: samePlan.epochs + 1 } : { key, epochs: 1 }
+  if (samePlan.epochs >= NO_PROGRESS_EPOCHS) {
+    noProgress = { epochs: samePlan.epochs, head: plan.head, parties: plan.parties.map((p) => ({ seat_id: String(p.seat_id), gap_ids: sortedStrings(p.gap_ids) })) }
+    log(`epoch ${epoch}: NO PROGRESS — the plan is identical for ${samePlan.epochs} consecutive epochs (NO_PROGRESS_EPOCHS = ${NO_PROGRESS_EPOCHS}) at head ${plan.head}; stuck: ${partyList(noProgress.parties)} — the debate stops rather than dispatch them again`)
+    break
+  }
 
   // Classified by seat id, never by object identity: a plan relayed through a host runtime may
   // hand out a fresh wrapper on every read, so two looks at one party need not be === equal.
@@ -931,13 +972,19 @@ const outcomeWord = (w) => {
   return w
 }
 
+// A NO-PROGRESS STOP IS UNVERIFIED, NEVER CEILING. CEILING is derived on the record — every open
+// material gap at its limit and carried, or the epoch limit reached — and `bench outcome` refuses it
+// over a board that is neither; a stalled plan still has parties ready. UNVERIFIED is the word for a
+// run that stopped before its record reached a terminal state, and the why says what stopped it.
 const verdict = halted ? outcomeWord('HALTED')
   : (chairEnv && chairEnv.verdict === 'PASS') ? outcomeWord('VERIFIED')
+  : noProgress ? outcomeWord('UNVERIFIED')
   : (lastPlan && lastPlan.ceiling) ? outcomeWord('CEILING')
   : outcomeWord('UNVERIFIED')
 const terminationWhy = halted ? 'judicial halt'
   : verdict === 'VERIFIED' ? 'the chair recorded PASS with the board permitting it'
-  : verdict === 'CEILING' ? 'every open material gap is at its limit, ruled by the bench and carried'
+  : noProgress ? `no progress: the dispatch plan was identical for ${noProgress.epochs} consecutive epochs (NO_PROGRESS_EPOCHS = ${NO_PROGRESS_EPOCHS}) at head ${noProgress.head} — ${partyList(noProgress.parties)} readied again each time with nothing on the board moving`
+  : verdict === 'CEILING' ? (lastPlan.epoch_limit_reached ? `epoch limit ${lastPlan.max_epochs} reached — the run's term on chair sittings; the parties the board still readied were not dispatched` : 'every open material gap is at its limit, ruled by the bench and carried')
   : (lastPlan ? `nobody was ready and neither PASS nor CEILING held: ${(lastPlan.why || []).join('; ')}` : 'the debate ended before any dispatch')
 log(`debate ended: ${verdict} after ${epoch} chair sitting(s)${halted ? ' (JUDICIAL HALT)' : ''} — ${terminationWhy}`)
 
@@ -964,7 +1011,7 @@ phase('Assemble')
 const assembleEnv = await agent(
   `Final assembly for topic "${topic}", run directory ${runDir}. Debate outcome: ${verdict} after ${epoch} chair sitting(s) — ${terminationWhy}. THE REPORT IS ASSEMBLED FROM THE RECORD — you author NOTHING, you copy NOTHING, you fill in NO inputs. There are no <FILL> fields and no sections for you to write; do not hand-write report.md and do not copy anything into it yourself.
 
-FIRST, STAMP HOW THIS RUN ENDED: it is ${verdict}${halted ? `, ended by JUDICIAL HALT — carry the opinion verbatim: ${haltOpinion}` : ''}${verdict === 'CEILING' ? ', ended at the CEILING: every open material gap reached its limit, the bench ruled on each and carried it — NOT a judged failure to verify' : ''}${verdict === 'UNVERIFIED' ? `, ended UNVERIFIED — nobody was ready and neither PASS nor CEILING held; the plan's reasons are the account: ${terminationWhy}` : ''}. Record it as the run's outcome — ${verdict}${verdict === 'CEILING' ? ', ended at the ceiling' : ''} — with WHY this outcome is the right read of the board as the reason — the judgement, never a recap of the sitting; the verdict is derived from the record and the stamp must agree with it.
+FIRST, STAMP HOW THIS RUN ENDED: it is ${verdict}${halted ? `, ended by JUDICIAL HALT — carry the opinion verbatim: ${haltOpinion}` : ''}${verdict === 'CEILING' ? (lastPlan.epoch_limit_reached ? `, ended at the CEILING: ${terminationWhy} — a limit the run was set up with, NOT a judged failure to verify` : ', ended at the CEILING: every open material gap reached its limit, the bench ruled on each and carried it — NOT a judged failure to verify') : ''}${verdict === 'UNVERIFIED' ? (noProgress ? `, ended UNVERIFIED — the engine stopped a debate that was making no progress: ${terminationWhy}. It is not CEILING: no gap reached its limit and no term ran out; the parties were still ready` : `, ended UNVERIFIED — nobody was ready and neither PASS nor CEILING held; the plan's reasons are the account: ${terminationWhy}`) : ''}. Record it as the run's outcome — ${verdict}${verdict === 'CEILING' ? ', ended at the ceiling' : ''} — with WHY this outcome is the right read of the board as the reason — the judgement, never a recap of the sitting; the verdict is derived from the record and the stamp must agree with it.
 
 THEN, TWO THINGS YOU MAY HOLD AND THIS IS YOUR LAST CHANCE TO RECORD EITHER. If you hold something that binds how the RECORD IS READ but moves no gap — a construction of a term, a correction of what the record MEANS rather than what it says, a holding worth offering as precedent — state it, and state it in its own right rather than folding it into an unrelated rationale. And if anything in this run needs A HUMAN to re-examine it — an unresolved tension, a claim that held only because nobody could reach the source, a boundary you ruled close to — say so. You keep no memory between runs, so this is the whole of your continuity.
 
@@ -975,7 +1022,7 @@ return {
   verdict,
   epochs: epoch,
   lanes,
-  termination: lastPlan ? { pass_permitted: !!lastPlan.pass_permitted, ceiling: !!lastPlan.ceiling, why: lastPlan.why || [] } : null,
+  termination: lastPlan ? { pass_permitted: !!lastPlan.pass_permitted, ceiling: !!lastPlan.ceiling, epoch_limit_reached: !!lastPlan.epoch_limit_reached, why: lastPlan.why || [], no_progress: noProgress } : null,
   gaps_outstanding: assembleEnv && Number.isInteger(assembleEnv.open_gaps) ? assembleEnv.open_gaps : null,
   blue_claims: blueEnv2 ? blueEnv2.claim_count : (blueEnv ? blueEnv.claim_count : null),
   infra_debts: infraDebts,

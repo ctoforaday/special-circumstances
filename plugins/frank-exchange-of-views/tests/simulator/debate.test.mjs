@@ -31,7 +31,7 @@ test('founding regression 1b: unbound topic/runDir refuses dispatch before any a
 
 test('maxRounds is refused as an argument, with the terms that replaced it', async () => {
   const world = makeWorld(makeResponder())
-  await assert.rejects(world.run(script, { ...ARGS, maxRounds: 12 }), (e) => /not a term of this engine/.test(e.message) && /k-max/.test(e.message) && /mint-budget/.test(e.message) && !/--k-max/.test(e.message))
+  await assert.rejects(world.run(script, { ...ARGS, maxRounds: 12 }), (e) => /not a term of this engine/.test(e.message) && /k-max/.test(e.message) && /mint-budget/.test(e.message) && /max-epochs/.test(e.message) && !/--k-max/.test(e.message))
   assert.equal(world.calls.length, 0, 'refused before anything was dispatched')
 })
 
@@ -115,7 +115,7 @@ test('VERIFIED: the chair records PASS on a plan that permits it; phases in orde
   const world = makeWorld(makeResponder({ chair: [passChair()] }))
   const out = await world.run(script, ARGS)
   assert.deepEqual({ verdict: out.verdict, epochs: out.epochs, gaps: out.gaps_outstanding, term: out.termination },
-    { verdict: 'VERIFIED', epochs: 1, gaps: 0, term: { pass_permitted: true, ceiling: false, why: [] } })
+    { verdict: 'VERIFIED', epochs: 1, gaps: 0, term: { pass_permitted: true, ceiling: false, epoch_limit_reached: false, why: [], no_progress: null } })
   assert.deepEqual(world.phases, ['Frontier', 'Blue', 'Red', 'Assemble'])
   assert.equal(labelsOf(world, 'blue-lane').length, 3)
   assert.ok(world.logs.some((m) => m.includes('researching: test topic')))
@@ -137,9 +137,76 @@ test('UNVERIFIED: nobody ready, neither PASS nor CEILING — the plan\'s reasons
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([], { why: ['G1: docketed, the bench sat and ruled nothing'] }) })] }))
   const out = await world.run(script, ARGS)
   assert.equal(out.verdict, 'UNVERIFIED')
-  assert.deepEqual(out.termination, { pass_permitted: false, ceiling: false, why: ['G1: docketed, the bench sat and ruled nothing'] })
+  assert.deepEqual(out.termination, { pass_permitted: false, ceiling: false, epoch_limit_reached: false, why: ['G1: docketed, the bench sat and ruled nothing'], no_progress: null })
   const asm = firstPrompt(world, 'assemble')
   assert.ok(/ended UNVERIFIED/.test(asm) && /the bench sat and ruled nothing/.test(asm), 'the reason reaches the stamp')
+})
+
+// ── the no-progress valve: a plan that repeats identically stops the debate ─────────────────
+//
+// The B5 loop (2026-09-11): the voice lens was readied alone at head 144 for eleven epochs, because
+// it never registered and so never sat. The chair's stub here repeats that plan well past the
+// valve and passes only at its tenth sitting, so a loop with no valve ends VERIFIED at epoch 10 and
+// fails every assertion below rather than hanging.
+const NO_PROGRESS_EPOCHS = 3
+const b5Plan = () => chairEnv({ plan: plan([party('red-lens-voice')], { head: 144, why: ['red-lens-voice: head 144 is past its pin 60'] }) })
+const repeated = (make, n) => Array.from({ length: n }, make)
+
+test('NO PROGRESS: a plan identical for NO_PROGRESS_EPOCHS epochs stops the debate UNVERIFIED, naming the stuck parties and the head', async () => {
+  const world = makeWorld(makeResponder({ chair: [...repeated(b5Plan, 9), passChair()] }))
+  const out = await world.run(script, ARGS)
+  assert.equal(out.verdict, 'UNVERIFIED')
+  assert.equal(out.epochs, NO_PROGRESS_EPOCHS, 'the valve stops at the sitting that repeats the plan the third time')
+  assert.equal(labelsOf(world, 'red-lens-voice').length, NO_PROGRESS_EPOCHS - 1, 'the repeated plan is not dispatched again')
+  assert.deepEqual(out.termination.no_progress, { epochs: NO_PROGRESS_EPOCHS, head: 144, parties: [{ seat_id: 'red-lens-voice', gap_ids: [] }] })
+  assert.equal(out.termination.ceiling, false)
+  const line = world.logs.find((m) => /NO PROGRESS/.test(m))
+  assert.ok(line && line.includes(`NO_PROGRESS_EPOCHS = ${NO_PROGRESS_EPOCHS}`) && /head 144/.test(line) && /red-lens-voice/.test(line), `the log names the constant, the head and the stuck party: ${line}`)
+  const asm = firstPrompt(world, 'assemble')
+  assert.ok(/ended UNVERIFIED/.test(asm) && /no progress/.test(asm) && /head 144/.test(asm) && /red-lens-voice/.test(asm) && /not CEILING/.test(asm), asm.slice(0, 900))
+  const lastChair = world.calls.map((c) => c.opts.label).lastIndexOf(labelsOf(world, 'red-chair').at(-1).opts.label)
+  assert.deepEqual(world.calls.slice(lastChair + 1).map((c) => c.opts.label.split(' ')[0]), ['assemble'], 'nobody sits after the stop but the assembly')
+})
+
+test('a plan that changes keeps going — the head moving, the exchange count in the reasons advancing, or a repeat that is not consecutive', async () => {
+  const heads = [2, 3, 4, 5, 6].map((head) => chairEnv({ plan: plan([party('red-lens-voice')], { head }) }))
+  const moving = await makeWorld(makeResponder({ chair: [...heads, passChair()] })).run(script, ARGS)
+  assert.deepEqual([moving.verdict, moving.epochs, moving.termination.no_progress], ['VERIFIED', 6, null])
+
+  // k and k-max bound this march; the valve must not cut it short at a head that does not move.
+  const march = [0, 1, 2, 3].map((n) => chairEnv({ plan: plan([party('red-lens-logic', 'G1'), party('blue-respond', 'G1')], { head: 9, why: [`G1: open, material, ${n} exchange(s) (0 stalled) — below its limits`] }) }))
+  const marching = await makeWorld(makeResponder({ chair: [...march, passChair()] })).run(script, ARGS)
+  assert.deepEqual([marching.verdict, marching.epochs], ['VERIFIED', 5])
+
+  const other = chairEnv({ plan: plan([party('red-lens-evidence')], { head: 144 }) })
+  const broken = await makeWorld(makeResponder({ chair: [b5Plan(), b5Plan(), other, b5Plan(), b5Plan(), passChair()] })).run(script, ARGS)
+  assert.deepEqual([broken.verdict, broken.epochs], ['VERIFIED', 6])
+})
+
+// ── the epoch limit: a run TERM, and the record's word, like the carried ceiling ────────────
+const limitPlan = (over = {}) => plan([], { ceiling: true, epoch_limit_reached: true, max_epochs: 4,
+  why: ['G1: open, material, 1 exchange(s) (0 stalled) — below its limits', "epoch limit 4 reached — this chair sitting opens the run's last epoch, so the 2 party(ies) above are not dispatched"], ...over })
+const toTheLimit = (last) => [...[11, 12, 13].map((head) => chairEnv({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G1')], { head }) })), chairEnv({ plan: last }), passChair()]
+
+test('EPOCH LIMIT: the plan at the last epoch ends the debate CEILING with the limit named, apart from the carried ceiling', async () => {
+  const world = makeWorld(makeResponder({ chair: toTheLimit(limitPlan()) }))
+  const out = await world.run(script, ARGS)
+  assert.deepEqual([out.verdict, out.epochs, out.termination.epoch_limit_reached, out.termination.ceiling], ['CEILING', 4, true, true])
+  assert.ok(out.termination.why.some((w) => /epoch limit 4 reached/.test(w)), 'the record\'s reason travels in the termination')
+  const asm = firstPrompt(world, 'assemble')
+  assert.ok(/it is CEILING/.test(asm) && /epoch limit 4 reached/.test(asm) && !/every open material gap reached its limit/.test(asm), asm.slice(0, 900))
+  assert.ok(world.logs.some((m) => /epoch 4: the epoch limit \(4\) is reached/.test(m)))
+
+  const carried = await makeWorld(makeResponder({ chair: [chairEnv({ plan: ceilingPlan() })] })).run(script, ARGS)
+  assert.deepEqual([carried.verdict, carried.termination.epoch_limit_reached], ['CEILING', false], 'the carried ceiling is told apart')
+})
+
+test('EPOCH LIMIT: a relayed plan that says the limit is reached dispatches nobody, whatever parties it still lists', async () => {
+  const world = makeWorld(makeResponder({ chair: toTheLimit(limitPlan({ parties: [party('red-lens-evidence'), party('blue-respond', 'G1')] })) }))
+  const out = await world.run(script, ARGS)
+  assert.deepEqual([out.verdict, out.epochs], ['CEILING', 4])
+  assert.equal(labelsOf(world, 'red-lens-evidence').length, 3, 'three epochs dispatched the lens; the fourth dispatched nobody')
+  assert.equal(labelsOf(world, 'blue-respond').length, 3)
 })
 
 test('a chair that records PASS ends the debate even if it relayed parties; a FAIL with parties continues', async () => {

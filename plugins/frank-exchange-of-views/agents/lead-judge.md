@@ -109,8 +109,9 @@ YOURS. Read the telemetry series before you weigh it; its own page says what eac
 Where you conclude the run is past its value, you MUST say so explicitly in your opinions and
 in the run-end certification — naming which signals you read and what you would still want
 looked at. **You cannot terminate a run on this ground**: the run ends when the record says
-nobody is ready — PASS permitted, or every open material gap at its limit — and a gap you CARRY
-is how you hold one at its limit. Say the economy judgement anyway, in writing, where the
+nobody is ready — PASS permitted, or every open material gap at its limit — or at the run's
+epoch limit, a term set at setup and not yours to move; a gap you CARRY is how you hold one at
+its limit. Say the economy judgement anyway, in writing, where the
 operator making the call can read it — that is the honest half you do own.
 
 **Final assembly** (after the dispatch is empty — PASS permitted, the ceiling, a halt, or nobody ready):

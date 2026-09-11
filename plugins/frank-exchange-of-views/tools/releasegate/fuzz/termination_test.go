@@ -41,6 +41,12 @@ type move struct {
 
 func (m move) terminal() bool { return m.pass || m.ceiling || m.stall || m.halt }
 
+// noProgressEpochs is the oracle's statement of debate.js's no-progress valve (NO_PROGRESS_EPOCHS):
+// that many identical plans in a row, and the loop stops UNVERIFIED at the sitting that repeats.
+// It is the expectation the oracle holds the script to, so a script that changes the constant or
+// drops the valve fails here by name rather than passing on a schedule that happens not to repeat.
+const noProgressEpochs = 3
+
 var moves = []move{
 	{name: "engage", engage: true},
 	{name: "fresh", fresh: true},
@@ -224,11 +230,31 @@ func TestTheDispatchLoopTerminatesConsistentlyOnEverySchedule(t *testing.T) {
 		name := scheduleName(sched)
 		verdicts[out.Verdict]++
 
-		// The terminating move is the first terminal one, or the ceiling stand-in past the schedule.
+		// The terminating move is the first terminal one, or the ceiling stand-in past the schedule —
+		// unless the no-progress valve stops the loop first: noProgressEpochs identical plans in a
+		// row end it UNVERIFIED at the sitting that repeats. engage serves the same plan every
+		// sitting, and so do both bench moves (the same bytes); fresh mints a new id each sitting.
 		term, sittings := move{name: "ceiling", ceiling: true}, len(sched)+1
+		prev, run := "", 0
 		for i, m := range sched {
 			if m.terminal() {
 				term, sittings = m, i+1
+				break
+			}
+			key := m.name
+			switch {
+			case m.bench:
+				key = "bench"
+			case m.fresh:
+				key = fmt.Sprintf("fresh-%d", i)
+			}
+			if key == prev {
+				run++
+			} else {
+				prev, run = key, 1
+			}
+			if run >= noProgressEpochs {
+				term, sittings = move{name: "no-progress"}, i+1
 				break
 			}
 		}

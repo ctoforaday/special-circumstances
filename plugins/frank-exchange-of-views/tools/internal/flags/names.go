@@ -241,6 +241,7 @@ const (
 	MintBudget          = "mint-budget"
 	ConvergenceFraction = "convergence-fraction"
 	MaxSittingCalls     = "max-sitting-calls"
+	MaxEpochs           = "max-epochs"
 	LensArea            = "lens-area"
 	BinDir              = "bin-dir"
 	MemoryDir           = "memory-dir"
@@ -298,7 +299,7 @@ func All() []string {
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Settled, ReopensOn, Final,
 		Method, AccessDate,
-		Topic, Model, JudgmentModel, Cite, Lanes, K, KMax, MintBudget, ConvergenceFraction, MaxSittingCalls, LensArea, BinDir, MemoryDir, RunID, ScriptPath, AllowSubstitution,
+		Topic, Model, JudgmentModel, Cite, Lanes, K, KMax, MintBudget, ConvergenceFraction, MaxSittingCalls, MaxEpochs, LensArea, BinDir, MemoryDir, RunID, ScriptPath, AllowSubstitution,
 		Chair, Watch, Now, Serve,
 		MigrateFrom, MigrateTo, AcceptLoss,
 		Sha, DPI, Force, OCR,

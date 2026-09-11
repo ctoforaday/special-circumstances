@@ -73,26 +73,15 @@ func eventIDs(db *sql.DB) ([]int64, error) {
 
 func exchangesOf(evs []*Event, ids []int64, p Params) map[string]*GapExchanges {
 	const chair = "red-chair"
-	minted := map[string]string{}     // gap -> the lens that minted it
-	grades := map[string][3]string{}  // gap -> current severity, likelihood, impact
-	movement := map[string][]int64{}  // gap -> ids of movement events
-	registers := map[string][]int64{} // seat -> register ids
-	var chairRegisters []int64
-	type dispatch struct {
-		id   int64
-		seat string
-		gaps []string
-	}
-	var dispatches []dispatch
+	minted := map[string]string{}    // gap -> the lens that minted it
+	grades := map[string][3]string{} // gap -> current severity, likelihood, impact
+	movement := map[string][]int64{} // gap -> ids of movement events
+	dispatches, registers := dispatchLedger(evs, ids)
+	chairRegisters := registers[chair]
 
 	for i, e := range evs {
 		id := ids[i]
 		switch b := mustBody(e).(type) {
-		case *recordpb.Register:
-			registers[e.GetSeatId()] = append(registers[e.GetSeatId()], id)
-			if e.GetSeatId() == chair {
-				chairRegisters = append(chairRegisters, id)
-			}
 		case *recordpb.Mint:
 			g := b.GetGapId()
 			if _, seen := minted[g]; !seen {
@@ -121,25 +110,16 @@ func exchangesOf(evs []*Event, ids []int64, p Params) map[string]*GapExchanges {
 			}
 		case *recordpb.Close:
 			movement[b.GetGapId()] = append(movement[b.GetGapId()], id)
-		case *recordpb.Dispatch:
-			dispatches = append(dispatches, dispatch{id: id, seat: b.GetSeatId(), gaps: b.GetGapIds()})
 		}
 	}
 
-	// A party's sitting for a dispatch: its first register after the dispatch. It is COMPLETE once
-	// the chair has registered again after it began — the workflow awaits the parties before it
-	// comes back to the chair — and it ends at the seat's next register or that chair register,
-	// whichever is first.
-	firstAfter := func(xs []int64, after int64) (int64, bool) {
-		k := sort.Search(len(xs), func(i int) bool { return xs[i] > after })
-		if k == len(xs) {
-			return 0, false
-		}
-		return xs[k], true
-	}
+	// A party's sitting for a dispatch: sittingFor, its first register after the dispatch. It is
+	// COMPLETE once the chair has registered again after it began — the workflow awaits the parties
+	// before it comes back to the chair — and it ends at the seat's next register or that chair
+	// register, whichever is first.
 	sittings := map[string][]partySitting{}
 	for _, d := range dispatches {
-		start, sat := firstAfter(registers[d.seat], d.id)
+		start, sat := sittingFor(registers[d.seat], d)
 		if !sat {
 			continue // engaged, never sat: no exchange yet, and rule 1 keeps readying it
 		}

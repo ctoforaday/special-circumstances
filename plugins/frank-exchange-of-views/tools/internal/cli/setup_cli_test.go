@@ -175,6 +175,46 @@ func TestSetupCLIArgParsing(t *testing.T) {
 	}
 }
 
+// The epoch limit is a term setup records — the default when none is passed, the operator's
+// value when one is — and a value below 1 is refused before any state exists. The recorded value
+// is read back through record.RunParams, the one reader of the terms.
+func TestSetupCLIRecordsAndRefusesTheEpochLimit(t *testing.T) {
+	bin := buildSetupBinary(t)
+	cwd := recordtest.TmpRun(t)
+	base := []string{"--topic", "t", "--model", "haiku", "--judgment-model", "haiku"}
+	for _, c := range []struct {
+		dir  string
+		args []string
+		want int
+	}{
+		{"default", nil, record.DefaultParams.MaxEpochs},
+		{"five", []string{"--max-epochs", "5"}, 5},
+	} {
+		runDir := filepath.Join(cwd, "research", "epochs-"+c.dir)
+		r := runSetup(t, bin, cwd, append(append([]string{runDir}, base...), c.args...)...)
+		if r.code != 0 {
+			t.Fatalf("%s: exit %d: %s", c.dir, r.code, r.stderr)
+		}
+		run, err := record.NewRun(runDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p, err := record.RunParams(run); err != nil || p.MaxEpochs != c.want {
+			t.Errorf("%s: recorded maxEpochs = (%+v, %v), want %d", c.dir, p, err, c.want)
+		}
+	}
+	for _, bad := range []string{"0", "-1"} {
+		runDir := filepath.Join(cwd, "research", "epochs-bad"+bad)
+		r := runSetup(t, bin, cwd, append(append([]string{runDir}, base...), "--max-epochs", bad)...)
+		if r.code != 2 || !strings.Contains(r.stderr, "--max-epochs") {
+			t.Errorf("--max-epochs %s: exit %d, stderr %q — want a refusal naming the flag", bad, r.code, r.stderr)
+		}
+		if _, err := os.Stat(filepath.Join(runDir, "blue")); err == nil {
+			t.Errorf("--max-epochs %s: state was created before the refusal", bad)
+		}
+	}
+}
+
 // Missing model tiers refuse with exit 2 before any state exists (#111).
 func TestSetupCLIModelTiersRequired(t *testing.T) {
 	bin := buildSetupBinary(t)

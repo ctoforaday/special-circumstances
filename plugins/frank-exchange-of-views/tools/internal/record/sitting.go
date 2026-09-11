@@ -1,6 +1,8 @@
 package record
 
 import (
+	"fmt"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -25,11 +27,12 @@ import (
 //
 // # Only duties that are enforced or recorded somewhere else
 //
-// Nothing here invents an obligation. Each one is either refused at a write path (open gaps and
-// unruled motions block `verdict`; a computation gap cannot be closed on prose) or is a stated
-// epoch-record requirement (W1.7's revision, the bench's terminal outcome). Inventing a duty here
-// would make this view disagree with the gates, and a seat told it was finished by one surface
-// and refused by another learns to trust neither.
+// Nothing here invents an obligation. Each one is refused at a write path (open gaps and unruled
+// motions block `verdict`; a computation gap cannot be closed on prose), is a stated epoch-record
+// requirement (W1.7's revision, the bench's terminal outcome), or is enforced by dispatch (a seat
+// that has not registered for the sitting it was dispatched for is readied again). Inventing a
+// duty here would make this view disagree with the gates, and a seat told it was finished by one
+// surface and refused by another learns to trust neither.
 
 // Duty is one outstanding obligation. It says WHAT is owed, and nothing about how.
 //
@@ -98,6 +101,16 @@ func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJS
 	// an attested-clean sitting is still an EVENT, and still distinguishable from silence.
 	if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_LOG) {
 		add("the log channel is open — you have neither reported a capability gap nor said that nothing blocked you")
+	}
+
+	// EVERY DISPATCHED SEAT OWES THE SITTING IT WAS DISPATCHED FOR, and this list says so by the
+	// predicate dispatch reads (sittingFor): a seat a dispatch names that has not registered since
+	// has not sat. Dispatch enforces it — the lens's pin does not move, the bench has not sat for
+	// the docketing, no exchange is counted for blue or the minting lens — so the seat is readied
+	// again, epoch after epoch, until it registers. That covers every seat a dispatch names: the
+	// lenses, blue-respond and the bench.
+	if d, owed := owedSitting(evs, seatID); owed {
+		add(fmt.Sprintf("you were dispatched against report head %d and have not registered since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting", d.pin))
 	}
 
 	switch role {
@@ -170,19 +183,19 @@ func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJS
 		}
 	// THE LENS HAS NO CASE, AND THAT IS THE RULE HOLDING RATHER THAN A GAP IN IT.
 	//
-	// Checked 2026-08-15 rather than assumed: nothing refuses a sitting over a missing lens act,
-	// and the scorecard scores no lens parity duty. Under the rule stated at the top of this file
-	// — every duty is enforced at a write path or scored at capture — a lens duty would be an
-	// invented obligation, and `complete: false` on a seat no gate would hold is exactly the
-	// disagreement that teaches a seat to trust neither surface.
+	// A lens's blocking duties are the two every seat it shares a moment with holds, above this
+	// switch: the log channel, and the sitting it was dispatched for. The second qualifies under
+	// the rule at the top of this file because dispatch enforces it — an unregistered lens stays
+	// ready. Nothing refuses a sitting over any other missing lens act, and the scorecard scores
+	// no lens parity duty, so a lens arm here would be an invented obligation, and `complete:
+	// false` on a seat no gate would hold is exactly the disagreement that teaches a seat to trust
+	// neither surface.
 	//
-	// Written down because the absence reads as an oversight to anyone who has just fixed the
-	// roleOf defect and is looking for more of it. The acts a lens genuinely has open to it —
-	// verifying a citation nobody checked, corroborating one blue never cited, re-running a proof
-	// nobody re-ran — come from availableOf and land on this same list carrying Blocks:false. A
-	// lens therefore has an EMPTY blocking set and a non-empty work list, which is the accurate
-	// statement and was previously unsayable: the old shape could only express it as an empty
-	// work list, and a lens seat read that and stopped.
+	// The acts a lens genuinely has open to it — verifying a citation nobody checked,
+	// corroborating one blue never cited, re-running a proof nobody re-ran — come from availableOf
+	// and land on this same list carrying Blocks:false. A lens that has registered and logged
+	// therefore has an EMPTY blocking set and a non-empty work list, which is the accurate
+	// statement: available work, none of it owed.
 	case "bench":
 		// THE SUBJECTS THE BENCH RULES, FROM THE SCHEMA — not the literal "petition" this
 		// arm used to test. The gavel is an annotation on the MotionSubject enum, and a

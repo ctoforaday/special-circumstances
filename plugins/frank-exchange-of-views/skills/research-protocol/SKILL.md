@@ -111,9 +111,14 @@ are the same bytes, by construction.
 **Termination is the record's, and the standing practice is stop-and-resume**: there is no round
 ceiling. The chair's `dispatch next` says who sits; the run ends when nobody is ready — PASS
 permitted (VERIFIED), or every open material gap at its limit, ruled by the bench and carried
-(CEILING). The bounds are the run's terms, recorded at setup: the exchanges a gap gets before
-impasse (k-max) and the floor of the gaps a lens may mint (mint-budget), which the record raises
-with the report's size in each lens's unit — citations, proofs, claims or prose paragraphs (plans/roundless.md §III.B.2). Red owns PASS/FAIL — *is it defensible*. **The bench
+(CEILING) — or when the run reaches its epoch limit with parties still ready (CEILING, the limit
+named as the reason). The bounds are the run's terms, recorded at setup: the exchanges a gap gets before
+impasse (k-max), the floor of the gaps a lens may mint (mint-budget), which the record raises
+with the report's size in each lens's unit — citations, proofs, claims or prose paragraphs (plans/roundless.md §III.B.2) — and
+the chair sittings the run gets (max-epochs, default 12). One stop is the engine's own: a dispatch
+plan identical for three chair sittings in a row — the same parties readied against the same
+head for the same reasons — is a loop nothing on the board is moving, and the engine ends the run
+UNVERIFIED naming the stuck parties and the head. Red owns PASS/FAIL — *is it defensible*. **The bench
 owns the stopping judgment** — *is it close enough*, the one call that weighs remaining defect
 against remaining cost, and the only terminal value (economy) that otherwise has no organ. It
 reads the telemetry projection — the series, never a snapshot — and files a reasoned,

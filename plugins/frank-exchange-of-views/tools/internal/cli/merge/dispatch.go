@@ -74,6 +74,8 @@ func (r dispatchResult) Human() string {
 	var b strings.Builder
 	if len(r.Parties) == 0 {
 		switch {
+		case r.EpochLimitReached:
+			fmt.Fprintf(&b, "dispatch: the epoch limit (%d) is reached — nobody is dispatched, and the run ends CEILING\n", r.MaxEpochs)
 		case r.PassPermitted:
 			b.WriteString("dispatch: nobody is ready and PASS is permitted — issue the verdict\n")
 		case r.Ceiling:

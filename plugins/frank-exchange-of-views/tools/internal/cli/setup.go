@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 
@@ -27,6 +28,7 @@ func newSetup() *cobra.Command {
 		lanes                       string
 		k, kMax, mintBudget         int
 		maxSittingCalls             int
+		maxEpochs                   int
 		convergenceFraction         float64
 		lensAreas                   []string
 		binDir, memoryDir           string
@@ -60,6 +62,8 @@ func newSetup() *cobra.Command {
 				MintBudget:          mintBudget,
 				ConvergenceFraction: convergenceFraction,
 				MaxSittingCalls:     maxSittingCalls,
+				MaxEpochs:           maxEpochs,
+				MaxEpochsSet:        cmd.Flags().Changed(flags.MaxEpochs),
 				LensAreas:           lensAreas,
 				BinDir:              binDir,
 				MemoryDir:           memoryDir,
@@ -88,6 +92,7 @@ func newSetup() *cobra.Command {
 	f.IntVar(&maxSittingCalls, flags.MaxSittingCalls, 0, "the tool calls one seat may make in one sitting; past it the hook refuses every call but a register, and the record says which seat and sitting stopped (default "+strconv.Itoa(sittingcap.DefaultMaxCalls)+"; recorded in run-config.json)")
 	f.StringArrayVar(&lensAreas, flags.LensArea, nil, "a red lens area this run dispatches (repeatable; default evidence, logic, dark-side, voice) — the cast is written from these")
 	f.Float64Var(&convergenceFraction, flags.ConvergenceFraction, 0, "fraction of the run's peak board mass below which a FAIL over a board with nothing material is refused (default 0.25)")
+	f.IntVar(&maxEpochs, flags.MaxEpochs, 0, fmt.Sprintf("the chair sittings the run gets, 1 or more; the sitting that opens the last epoch dispatches nobody, and a run with parties still ready there ends CEILING (default %d; recorded in run-config.json)", record.DefaultParams.MaxEpochs))
 	f.StringVar(&binDir, flags.BinDir, "", "where the feov-record binary the SEATS will call lives (default: this executable's own directory); the version preflight always runs and always refuses on a miss")
 	f.StringVar(&memoryDir, flags.MemoryDir, "", "override the gap-pattern memory source (default: promoted corpus, then raw accrual)")
 	f.BoolVar(&allowSubstitution, flags.AllowSubstitution, false, "accept a run whose environment answers with a model other than the configured tier — recorded on the run, so every seat's register stops refusing it and the substitution stays visible on the record")

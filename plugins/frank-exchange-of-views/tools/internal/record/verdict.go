@@ -1,6 +1,7 @@
 package record
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -41,7 +42,8 @@ const (
 //
 //	HALTED    a halt event exists — the bench ended the run on its own authority
 //	VERIFIED  the chair recorded a PASS verdict
-//	CEILING   every open material gap is at its limit and ruled — the dispatch plan's ceiling
+//	CEILING   the dispatch plan's ceiling: every open material gap is at its limit and ruled,
+//	          or the run's epoch limit is reached — the why says which
 //
 // The order matters: a halt outranks a pass, because a run stopped on safety or integrity
 // grounds did not end by passing however clean the board looked when it stopped.
@@ -61,15 +63,19 @@ func DeriveVerdict(run Run) (verdict, why string, ok bool) {
 	case passed:
 		return "VERIFIED", "the chair recorded a PASS verdict", true
 	}
-	// CEILING IS A FACT ABOUT THE BOARD, NOT A CLOCK (plans/roundless.md §III.B.2): every open
-	// material gap is at impasse and has had its bench ruling — carried, since it is still open.
-	// The dispatch plan computes exactly that; a record with no cast cannot reach it.
+	// CEILING IS THE DISPATCH PLAN'S (plans/roundless.md §III.B.2), for one of two reasons: every
+	// open material gap is at impasse and has had its bench ruling — carried, since it is still
+	// open — or the chair has sat for the run's last epoch under its epoch limit, a term setup
+	// records. A record with no cast cannot reach it.
 	if cast, err := CastOf(run); err == nil && cast != nil {
 		plan, err := PlanDispatch(run)
 		if err != nil {
 			return "", "the record could not be read: " + err.Error(), false
 		}
-		if plan.Ceiling {
+		switch {
+		case plan.EpochLimitReached:
+			return "CEILING", fmt.Sprintf("epoch limit %d reached — the run's term; the parties still ready were not dispatched and PASS is not permitted", plan.MaxEpochs), true
+		case plan.Ceiling:
 			return "CEILING", "every open material gap is at its limit and the bench has ruled on each — nobody is ready and PASS is not permitted", true
 		}
 	}
