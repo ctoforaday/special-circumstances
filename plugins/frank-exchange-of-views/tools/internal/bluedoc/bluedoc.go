@@ -205,7 +205,7 @@ func AnchorsTransitUnchanged(verb, oldSpan, newText string) error {
 	for id, want := range o {
 		switch got := n[id]; {
 		case got == 0:
-			return fmt.Errorf("%s: your old span contains %s but the replacement does not — an anchor may travel through an edit, but never be dropped by one. Reproduce it EXACTLY (%s) somewhere in the replacement. To take the claim itself out, make the replacement that anchor alone and then `retire` the claim — the retire takes the anchor out with it", verb, anchor.Label(id), anchor.Token(id))
+			return fmt.Errorf("%s: your old span contains %s but the replacement does not — an anchor may travel through an edit, but never be dropped by one. Reproduce it EXACTLY (%s) somewhere in the replacement. To take the claim itself out, make the replacement that anchor alone and then `retire` the claim — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor", verb, anchor.Label(id), anchor.Token(id))
 		case got != want:
 			return fmt.Errorf("%s: %s appears %d time(s) in the old span but %d in the replacement — an anchor may not be duplicated or removed by an edit; carry each one across exactly once", verb, anchor.Label(id), want, got)
 		}
