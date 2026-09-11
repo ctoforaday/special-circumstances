@@ -88,19 +88,24 @@ if [ "$MODE" = "env" ]; then
 	echo "export CGO_ENABLED=1"
 	echo "export CGO_CFLAGS=\"-I$PREFIX/include\""
 	echo "export CGO_CXXFLAGS=\"-I$PREFIX/include\""
-	echo "export CGO_LDFLAGS=\"-L$PREFIX/lib -ltesseract -lleptonica -lpng16 -lz -lc++\""
+	LDF="-L$PREFIX/lib -ltesseract -lleptonica -lpng16 -lz -lc++"
 	case "$SYSNAME" in
 	Darwin)
-		# Fully static linking does not exist on macOS (no static libSystem). Go also
-		# hard-adds -lresolv and -framework CoreFoundation to darwin external links;
-		# the .tbd stubs in the prefix satisfy them at link time, the OS at run time.
+		# Fully static linking does not exist on macOS (no static libSystem). Go hard-adds
+		# -lresolv and -framework CoreFoundation to darwin external links, and crypto/x509
+		# adds -framework Security; the .tbd stubs in the prefix satisfy all three at link
+		# time, the OS at run time. The search path travels IN CGO_LDFLAGS because that is
+		# what reaches the external linker: as a comment on a suggested go command it
+		# reached nothing, and darwin-amd64's first release link failed on exactly that.
 		# -w because Go runs dsymutil after a darwin link and this host has none.
-		echo "# go build -tags tessocr -ldflags '-w -linkmode external -extldflags -F$PREFIX/Frameworks'"
+		LDF="$LDF -F$PREFIX/Frameworks"
+		echo "# go build -tags tessocr -ldflags '-w'"
 		;;
 	*)
 		echo "# go build -tags tessocr -ldflags '-linkmode external -extldflags \"-static\"'"
 		;;
 	esac
+	echo "export CGO_LDFLAGS=\"$LDF\""
 	exit 0
 fi
 
@@ -269,27 +274,44 @@ Windows)
 	;;
 Darwin)
 	# Go hard-adds -lresolv and -framework CoreFoundation to darwin external links
-	# (net/cgo_unix_cgo_res.go, runtime/cgo) even when nothing uses them. Empty tapi
-	# stubs satisfy the linker; the OS provides the real libraries at run time —
-	# runtime/cgo's CoreFoundation usage is TARGET_OS_IPHONE-only.
+	# (net/cgo_unix_cgo_res.go, runtime/cgo), and crypto/x509 calls CoreFoundation and
+	# Security directly. Empty tapi stubs satisfied the linker while nothing REFERENCED
+	# those symbols; darwin-amd64's first real link failed on 24 of them. The stubs now
+	# EXPORT what the toolchain imports, read from the Go source that declares it, so a
+	# Go upgrade that adds a symbol is carried rather than discovered at a release tag.
+	command -v go >/dev/null 2>&1 || die "darwin stubs need go: the symbol lists come from \$(go env GOROOT)/src"
+	GOSRC="$(go env GOROOT)/src"
 	tbd_target="$PROC-macos"
-	mkdir -p "$PREFIX/Frameworks/CoreFoundation.framework"
-	cat > "$PREFIX/lib/libresolv.tbd" <<EOF
---- !tapi-tbd
-tbd-version: 4
-targets: [ $tbd_target ]
-install-name: '/usr/lib/libresolv.9.dylib'
-current-version: 1.0
-...
-EOF
-	cat > "$PREFIX/Frameworks/CoreFoundation.framework/CoreFoundation.tbd" <<EOF
---- !tapi-tbd
-tbd-version: 4
-targets: [ $tbd_target ]
-install-name: '/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation'
-current-version: 1.0
-...
-EOF
+
+	dyn_syms() { # dyn_syms <install-name suffix> — symbols Go imports from that library
+		grep -rhoE "//go:cgo_import_dynamic [^ ]+ [^ ]+ \"[^\"]*$1\"" "$GOSRC" |
+			awk '{ print "_" $3 }' | sort -u | paste -sd, - | sed 's/,/, /g'
+	}
+	write_tbd() { # write_tbd <path> <install-name> [symbols]
+		mkdir -p "$(dirname "$1")"
+		{
+			printf -- "--- !tapi-tbd\ntbd-version: 4\ntargets: [ %s ]\ninstall-name: '%s'\ncurrent-version: 1.0\n" "$tbd_target" "$2"
+			# No symbols is a real answer: -lresolv is on the link line because Go puts it
+			# there, and nothing references a symbol from it. An exports block with an empty
+			# list is not the same thing to the linker.
+			[ -n "${3:-}" ] && printf -- "exports:\n  - targets: [ %s ]\n    symbols: [ %s ]\n" "$tbd_target" "$3"
+			printf -- '...\n'
+		} > "$1"
+	}
+
+	cf_syms="$(dyn_syms CoreFoundation)"
+	sec_syms="$(dyn_syms Security)"
+	# libresolv gets no exports: this Go names no res_9_* symbol, and the link asks only
+	# for the library. If one ever appears, the link says so by name — a stub that exported
+	# a guessed set would answer for symbols the toolchain never asked for.
+	[ -n "$cf_syms" ] && [ -n "$sec_syms" ] ||
+		die "darwin stubs: no CoreFoundation/Security symbols under $GOSRC — the grep this reads has moved"
+
+	write_tbd "$PREFIX/lib/libresolv.tbd" '/usr/lib/libresolv.9.dylib'
+	write_tbd "$PREFIX/Frameworks/CoreFoundation.framework/CoreFoundation.tbd" \
+		'/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation' "$cf_syms"
+	write_tbd "$PREFIX/Frameworks/Security.framework/Security.tbd" \
+		'/System/Library/Frameworks/Security.framework/Versions/A/Security' "$sec_syms"
 	;;
 esac
 

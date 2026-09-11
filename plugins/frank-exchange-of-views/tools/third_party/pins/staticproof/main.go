@@ -4,9 +4,10 @@
 //	windows (PE):   imports only KERNEL32.dll, NTDLL.dll and the api-ms-win-crt-* UCRT
 //	                api-sets, which every Windows provides; no third-party DLLs.
 //	darwin (Mach-O): load commands reference only OS-provided libraries — libSystem.B,
-//	                CoreFoundation, libresolv.9. Fully static does not exist on macOS
-//	                (no static libSystem); the latter two are Go-runtime link flags
-//	                satisfied by .tbd stubs at build time and the OS at run time.
+//	                CoreFoundation, libresolv.9, Security. Fully static does not exist on
+//	                macOS (no static libSystem); the last three are Go link requirements
+//	                (runtime/cgo, net, crypto/x509) satisfied by .tbd stubs at build time
+//	                and the OS at run time.
 //
 // It parses the real import records with debug/elf, debug/pe and debug/macho rather than
 // shelling to platform tools, because the build host cannot audit two of the three
@@ -110,12 +111,14 @@ func peLibAllowed(lib string) bool {
 }
 
 // The Mach-O side is an exact set: darwin cannot be fully static (no static libSystem),
-// so the contract is "nothing beyond what every Mac provides" — libSystem plus the two
-// the Go runtime links for resolver and CoreFoundation symbols.
+// so the contract is "nothing beyond what every Mac provides" — libSystem plus the three
+// Go links for resolver, CoreFoundation and x509 symbols. Security joined the set when
+// darwin-amd64 first reached a release link and crypto/x509 asked for it.
 var machOAllowed = map[string]bool{
 	"/usr/lib/libSystem.B.dylib": true,
 	"/usr/lib/libresolv.9.dylib": true,
 	"/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation": true,
+	"/System/Library/Frameworks/Security.framework/Versions/A/Security":             true,
 }
 
 func machOLibAllowed(lib string) bool { return machOAllowed[lib] }
