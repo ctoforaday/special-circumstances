@@ -102,18 +102,6 @@ func MintCheckKind(run Run, gapID string) (recordpb.CheckKind, error) {
 	return recordpb.CheckKind(vd.Number()), nil
 }
 
-// EpochsWithRevision counts the distinct epochs that filed a sitting record. Errors fold into 0,
-// as the audit that reads it always treated an unreadable record: zero epochs it can vouch for.
-func EpochsWithRevision(run Run) int {
-	var n int
-	if _, err := queryRow(run, []any{&n},
-		`SELECT count(DISTINCT "epoch") FROM "events_w" WHERE "type" = ?`,
-		recordpb.Word(recordpb.EventType_EVENT_TYPE_REVISION)); err != nil {
-		return 0
-	}
-	return n
-}
-
 // EventsOf reads back only the named event families, in record order — the read for a
 // projection that renders one kind of act (findings, friction, the debate prose) and has no
 // business hauling the whole record through the loader to get it. A run with no record yet

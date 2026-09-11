@@ -62,7 +62,6 @@ func seedAndSweep(t *testing.T) *planguard.Recorder {
 	_, _ = record.EvidenceJSONBytes(run)
 	_, _ = record.Epochs(run)
 	_, _ = record.RegisteredSeats(run)
-	_ = record.EpochsWithRevision(run)
 	_ = record.GapsAwaitingProof(run)
 	_ = record.TerminalVerdict(run)
 	_ = record.RecordedOutcome(run)

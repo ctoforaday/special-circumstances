@@ -75,7 +75,7 @@ research/<date>_<slug>/
 │                      #  read them as the `lines-of-inquiry` projection. A hypothesis in a file is one red
 │                      #  cannot rule too-thin or out-of-scope, and the opening ones shape the
 │                      #  whole run)
-│   ├── report.md      # the synthesizer's stub — filled at synthesis, then frozen into the record
+│   ├── report.md      # written by the synthesizer at synthesis, then frozen into the record
 │   │                  #   by `ingest`, which deletes it. From then the report is read
 │   │                  #   through the tool, and every change goes through the `edit` verb
 │   └── candidates/    # best-of-N lane drafts, one method each, preserved (authored)
@@ -94,14 +94,14 @@ trajectories/       journal.jsonl (the HARNESS's lifecycle record, tracked)
                     + agent-transcripts.tar.gz (gitignored)
 ```
 
-`setup` lays down exactly two stubs — `report.md` and `blue/report.md` — because those are the
-two a later seat actually fills. **A stub is not an artifact**, and a stub nobody fills is worse
-than an absent file: it reads as an empty artifact rather than a missing one. Measured in the
-2026-08-05 run, stubs for the transcript and the citation list finished at 36 and 46 bytes
-while the record held 122 events; both are projections now, with no writer and no stub. Anything
-under RECORD above has no file at all — read it with `show <name>`.
+`setup` lays down directories and no file a seat fills. **A stub is not an artifact**: a
+placeholder reads as the real thing. Measured in the 2026-08-05 run, stubs for the transcript and
+the citation list finished at 36 and 46 bytes while the record held 122 events. In B7, setup still
+stubbed `report.md` and `blue/report.md`: the synthesizer copied its draft onto the first, and
+`ingest` froze the second — 40 bytes of heading — as the report's base. Anything under RECORD above
+has no file at all — read it with `show <name>`.
 
-`blue/report.md` is a stub the synthesizer fills and then FREEZES: the freeze records its
+`blue/report.md` is the file the synthesizer writes and then FREEZES: the freeze records its
 text as the base of the record and DELETES the file (#709). From then it too is a projection —
 there is no `blue/report.md` to open; read the report through the tool and change it only
 through the tool's edit path, each change an event the report is replayed from. It cannot be

@@ -26,29 +26,22 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
-// dirs and stubs mirror the mjs constants exactly. friction.md is deliberately
-// absent (friction lives on the record); ledger/archive/telemetry are red-merge-born.
+// dirs are the run's directories. friction.md is deliberately absent (friction lives on the
+// record); ledger/archive/telemetry are red-merge-born.
 //
 // `records` is NOT in this list — it is created at its RESOLVED location by BuildSkeleton,
 // because a separated run must not be handed an empty records/ in the run directory. An empty
 // one is worse than none: it shows up in the seat's listing as the place to look, and it makes
 // the run appear unseparated to anyone reading the tree.
-var dirs = []string{"blue/candidates", "red", "trajectories", "inputs"}
-
-// A STUB IS A PROMISE THAT SOMETHING WILL FILL IT. Two here were promises nobody kept:
-// `debate.md` and `red/citation-ledger.md` became rendered projections (`show --view debate`,
-// `--view citation-ledger`) and no writer remained, so setup laid down a one-line husk that
-// survived to capture in every run since. Untouched-but-present is the worst state a file can
-// be in — it reads as an empty artifact rather than an absent one, which is how `red/ledger.md`
-// and `red/archive.md` took a capture audit down with them for months (see internal/capture,
-// AUDIT 2). What is listed below is written by something after setup:
 //
-//	report.md          `bench assemble`
-//	blue/report.md     the round-0 synthesizer, then every `blue edit`
-var stubs = [][2]string{
-	{"report.md", "report.md"},
-	{"blue/report.md", "blue report"},
-}
+// SETUP WRITES NO FILE A SEAT FILLS. Untouched-but-present is the worst state a file can be in:
+// it reads as an artifact rather than an absence, and a reader takes it for the real thing.
+// `blue/report.md` is the synthesizer's to write and `ingest`'s to read; `report.md` is
+// `bench assemble`'s. Setup stubbed both, and in B7 the synthesizer copied its draft onto the
+// run-root stub while `ingest` froze the other one — 40 bytes of heading — as the report's base.
+// With neither stubbed, a report written to the wrong path is an ingest that cannot find its
+// file and says where it looked.
+var dirs = []string{"blue/candidates", "red", "trajectories", "inputs"}
 
 // marshalJSON matches JS `JSON.stringify(x, null, 2) + '\n'`: two-space indent, a
 // trailing newline, and — critically — NO HTML escaping. Go's default escapes
@@ -69,15 +62,9 @@ func exists(p string) bool { _, err := os.Stat(p); return err == nil }
 
 // ---- skeleton + pins ----
 
-// SkeletonResult reports which stub files were created versus kept (pre-staged).
-type SkeletonResult struct {
-	Created []string
-	Skipped []string
-}
-
-func BuildSkeleton(run record.Run, topic string) SkeletonResult {
+// BuildSkeleton lays down the run's directories, and no file.
+func BuildSkeleton(run record.Run) {
 	runDir := run.Dir()
-	res := SkeletonResult{Created: []string{}, Skipped: []string{}}
 	for _, d := range dirs {
 		os.MkdirAll(filepath.Join(runDir, d), 0o755)
 	}
@@ -86,18 +73,6 @@ func BuildSkeleton(run record.Run, topic string) SkeletonResult {
 	// argument, and no longer one anybody has to make: a run that cannot resolve never becomes a
 	// record.Run, so run-setup refuses it before laying down a single directory.
 	os.MkdirAll(run.Records(), 0o755)
-	for _, s := range stubs {
-		rel, name := s[0], s[1]
-		p := filepath.Join(runDir, filepath.FromSlash(rel))
-		if exists(p) {
-			res.Skipped = append(res.Skipped, rel)
-			continue
-		}
-		os.MkdirAll(filepath.Dir(p), 0o755)
-		os.WriteFile(p, []byte(fmt.Sprintf("# %s — %s\n", name, topic)), 0o644)
-		res.Created = append(res.Created, rel)
-	}
-	return res
 }
 
 // PinResult reports whether PINNED.md was written (false = pre-staged, kept).

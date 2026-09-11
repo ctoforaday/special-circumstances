@@ -30,43 +30,16 @@ import "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-vi
 // audit's finding, not the manifest's. A second register inside a sitting (the sitting-record
 // re-prompt) changes nothing.
 func ManifestOwed(evs []*Event) []string {
-	// The acts that stand: a corrected close or row is read as its replacement, in its place.
-	evs = Live(evs)
 	var owed []string
 	seen := map[string]bool{}
-	var engaged []string
-	closedFirst := map[string]bool{}
-	var eligible map[string]bool // engaged and open when blue sat; nil outside a sitting
-	waiting := false
-	for _, e := range evs {
-		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_DISPATCH:
-			d, ok := recordpb.BodyAs[*recordpb.Dispatch](e)
-			if !ok || d.GetSeatId() != "blue-respond" {
-				continue
-			}
-			engaged, closedFirst, eligible, waiting = d.GetGapIds(), map[string]bool{}, nil, true
-		case recordpb.EventType_EVENT_TYPE_CLOSE:
-			if c, ok := recordpb.BodyAs[*recordpb.Close](e); ok && waiting {
-				closedFirst[c.GetGapId()] = true
-			}
-		case recordpb.EventType_EVENT_TYPE_REGISTER:
-			if e.GetSeatId() != "blue-respond" || !waiting {
-				continue
-			}
-			eligible = map[string]bool{}
-			for _, g := range engaged {
-				if !closedFirst[g] {
-					eligible[g] = true
-				}
-			}
-			waiting = false
-		case recordpb.EventType_EVENT_TYPE_BLUE_EDIT:
-			if e.GetSeatId() != "blue-respond" || eligible == nil {
-				continue
-			}
+	for _, s := range BlueSittings(evs) {
+		open := map[string]bool{}
+		for _, g := range s.Open {
+			open[g] = true
+		}
+		for _, e := range s.Acts {
 			if be, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok {
-				if g := be.GetAnswers(); eligible[g] && !seen[g] {
+				if g := be.GetAnswers(); open[g] && !seen[g] {
 					seen[g] = true
 					owed = append(owed, g)
 				}
@@ -74,6 +47,55 @@ func ManifestOwed(evs []*Event) []string {
 		}
 	}
 	return owed
+}
+
+// BlueSitting is one sitting blue-respond took for a dispatch, as ManifestOwed delimits it: from
+// its register to the next blue-respond dispatch or the end of the record.
+type BlueSitting struct {
+	Engaged []string // the gaps the dispatch named
+	Open    []string // of those, the ones no close preceded blue's register — what the sitting owed an answer on
+	Acts    []*Event // blue-respond's standing events in the sitting, its register first
+}
+
+// BlueSittings is every blue-respond sitting for a dispatch, in stream order. It is the one
+// reading of "what did this blue sitting owe": the manifest counts receipts off it, and capture's
+// record-parity audit holds each owing sitting to a position and a revision. A dispatch blue never
+// sat has no sitting here.
+func BlueSittings(evs []*Event) []BlueSitting {
+	// The acts that stand: a corrected close or row is read as its replacement, in its place.
+	evs = Live(evs)
+	var out []BlueSitting
+	var engaged []string
+	closedFirst := map[string]bool{}
+	waiting := false
+	cur := -1 // the sitting blue's acts belong to; -1 outside one
+	for _, e := range evs {
+		switch e.GetType() {
+		case recordpb.EventType_EVENT_TYPE_DISPATCH:
+			if d, ok := recordpb.BodyAs[*recordpb.Dispatch](e); ok && d.GetSeatId() == "blue-respond" {
+				engaged, closedFirst, waiting, cur = d.GetGapIds(), map[string]bool{}, true, -1
+			}
+		case recordpb.EventType_EVENT_TYPE_CLOSE:
+			if c, ok := recordpb.BodyAs[*recordpb.Close](e); ok && waiting {
+				closedFirst[c.GetGapId()] = true
+			}
+		case recordpb.EventType_EVENT_TYPE_REGISTER:
+			if e.GetSeatId() == "blue-respond" && waiting {
+				s := BlueSitting{Engaged: engaged}
+				for _, g := range engaged {
+					if !closedFirst[g] {
+						s.Open = append(s.Open, g)
+					}
+				}
+				out = append(out, s)
+				cur, waiting = len(out)-1, false
+			}
+		}
+		if cur >= 0 && e.GetSeatId() == "blue-respond" {
+			out[cur].Acts = append(out[cur].Acts, e)
+		}
+	}
+	return out
 }
 
 // ManifestUnreceipted is ManifestOwed less every gap a manifest-row event names, in the same order:

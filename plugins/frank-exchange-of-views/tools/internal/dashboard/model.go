@@ -372,8 +372,8 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		// ONE READ, TWO USES, so the pair cannot disagree — and Terminal now answers from the
 		// record like its neighbour instead of from a filename.
 		//
-		// It was `fileExists(run.Dir()/report.md)`. setup.go's skeleton CREATES report.md (its own
-		// comment documents that file as `bench assemble`'s output and stubs it anyway), so
+		// It was `fileExists(run.Dir()/report.md)`. setup's skeleton then stubbed report.md (while
+		// documenting it as `bench assemble`'s output), so
 		// Terminal was true from the moment setup ran, before a seat was dispatched, for the
 		// entire life of every run. Measured 2026-08-22: the dashboard rendered "run complete —
 		// the assembler wrote the report" while blue-lane-1 was visibly live in the very next
