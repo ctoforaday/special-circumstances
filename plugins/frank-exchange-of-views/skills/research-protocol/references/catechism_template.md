@@ -5,12 +5,17 @@ decision**. We are not asking anyone for money; we are deciding whether to spend
 attention. Answer in plain language, as the *agreed* post-debate positions — no jargon, no
 enthusiasm standing in for evidence.
 
+"This" is always the SUBJECT — the idea, claim or recommendation the report is about — never the
+research that produced the report. A reason not to have run the research, or what would have
+happened without it, is a fact about the run, and the run is not the report's subject.
+
 1. **What are we trying to do?** (No jargon.)
 2. **How is it handled today, and what does that cost us?** The limits of current practice, in our
    context specifically.
 3. **What is new here, and why do we believe it works?** Evidence, not enthusiasm.
-4. **The case against.** Every honest reason NOT to do this — cost, complexity, risk, maintenance
-   burden, opportunity cost — each stated at full strength, not as a strawman. The idea must
+4. **The case against.** Every honest reason NOT to act on this — cost, complexity, risk,
+   maintenance burden, opportunity cost, and where the claim itself is weakest — each stated at full
+   strength, not as a strawman. The idea must
    survive its strongest objections; an idea that has run out of honest objections is a candidate
    for a good one.
 5. **Of interest, or merely interesting?** Given limited time, what would doing this displace, and
