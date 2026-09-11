@@ -130,7 +130,7 @@ Available Commands:
   log          an entry for the operator who can retool you — what it asserts, said in the positive
   manual       every command on your surface, each with its own help, run live — read it once, first thing in a sitting
   outcome      stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
-  register     your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+  register     your first act at EVERY sitting, and the one call that needs your seat id — nothing else runs until it does
 
 Command groups — each holds commands THIS page does not list:
   motion       file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
@@ -561,9 +561,11 @@ Enumerated values:
 (Global Flags:) → SHARED §2
 ==============================================================================
 $ feov-record register --help
-your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+your first act at EVERY sitting, and the one call that needs your seat id — nothing else runs until it does
 
 It binds your seat to you on the record: every later call resolves it, and your run is injected on every call, so you type neither again.
+
+It also OPENS THE SITTING, and a sitting is every time you are handed a prompt — including one that resumes your earlier session. The record counts your sittings by your registers, so a sitting you did not open with one is not on it: a dispatched seat is readied again until it registers, and the chair is refused `dispatch next`. Your work list says when one is owed.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -916,7 +918,7 @@ Available Commands:
   manual          every command on your surface, each with its own help, run live — read it once, first thing in a sitting
   position        your sitting's position — the argument the other side answers, rendered as this sitting's BLUE section
   prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
-  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+  register        your first act at EVERY sitting, and the one call that needs your seat id — nothing else runs until it does
   retire          take a claim out of the report, when it cannot stand and no edit will save it
   revision        your revision — what changed this sitting, once, after your edits have landed
 
@@ -1443,9 +1445,11 @@ Flags:
 (Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record register --help
-your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+your first act at EVERY sitting, and the one call that needs your seat id — nothing else runs until it does
 
 It binds your seat to you on the record: every later call resolves it, and your run is injected on every call, so you type neither again.
+
+It also OPENS THE SITTING, and a sitting is every time you are handed a prompt — including one that resumes your earlier session. The record counts your sittings by your registers, so a sitting you did not open with one is not on it: a dispatched seat is readied again until it registers, and the chair is refused `dispatch next`. Your work list says when one is owed.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
