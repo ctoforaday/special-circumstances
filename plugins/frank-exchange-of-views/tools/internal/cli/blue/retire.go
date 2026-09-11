@@ -251,8 +251,10 @@ func quoteCore(s string) string {
 // takeable splits the bare anchors exiting with a claim into those this retire takes out and
 // those it must leave, with why.
 //
-// OWNERSHIP. Cite and proof anchors are blue's; a finding marker is red's, and leaves only once
-// red's lifecycle has closed on it (record.FindingMarkerHold).
+// OWNERSHIP. Cite and proof anchors are the report's sources and leave with the claim they back —
+// a red corroboration's c- label included, since a corroboration is a source like any cite
+// (gblock's ruling, 2026-09-11); a finding marker is red's, and leaves only once red's lifecycle
+// has closed on it (record.FindingMarkerHold).
 //
 // A run whose database predates the retire_anchors table is not handled here: the generic body
 // walk reads and writes every list table of a Retire, so such a run cannot hold ANY retire this

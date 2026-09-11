@@ -77,6 +77,11 @@ type EvidenceSourceJSON struct {
 	Text   string `json:"text"`
 	SeatID string `json:"seat_id"`
 	Epoch  int    `json:"epoch"`
+	// CorroboratedBy names the red seat whose labelled corroboration placed this source's marker;
+	// empty for a blue cite. A corroboration is a source of the report like any cite — the
+	// assembler resolves its marker to a footnote — so it is listed here (gblock's ruling,
+	// 2026-09-11; B9's evidence lens read its own marker as a citation with no source).
+	CorroboratedBy string `json:"corroborated_by,omitempty"`
 
 	// Verified is every `lens verify` naming THIS anchor. An empty slice is the honest zero and
 	// it is rendered, not omitted: "nobody has checked this source" is what red reads to decide
@@ -231,6 +236,7 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 	// Red's verifications, split by whether they name a citation. The anchored ones are indexed
 	// so each source carries its own; the rest are corroboration and stand alone.
 	byAnchor := map[string][]EvidenceVerificationJSON{}
+	var corroborations []EvidenceSourceJSON
 	var clk Clock
 	for _, e := range Live(evs) {
 		w := clk.Advance(e)
@@ -269,6 +275,20 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 		// deliberate. A verification indexed under "" would join no source and disappear from
 		// both arrays; sending it to `independent` keeps it visible. The schema now carries an
 		// explicit `independent` bool alongside — a second carrier this view does not read.
+		// A LABELLED VERIFY WITH A CLAIM PLACED A MARKER in the report — report_op's insert
+		// predicate — and the assembler resolves it to a footnote like any cite. So it is a SOURCE
+		// of the report as well as a check: listed with the cites below, marked as red's
+		// corroboration, and still under independent[] where the check itself lives.
+		if vf.GetLabel() != "" && vf.GetClaim() != "" {
+			corroborations = append(corroborations, EvidenceSourceJSON{
+				Anchor: vf.GetLabel(), URL: vf.GetUrl(), Title: vf.GetTitle(), AccessDate: vf.GetAccessDate(),
+				Location: vf.GetClaim(), Text: vf.GetText(), SeatID: e.GetSeatId(), Epoch: w.Epoch,
+				CorroboratedBy: e.GetSeatId(),
+				// ITS OWN CHECK COMES FIRST: a corroboration is red reading the source, so the source
+				// is not "unverified" — the lens is not sent to check its own reading again.
+				Verified: []EvidenceVerificationJSON{v},
+			})
+		}
 		if v.Anchor == "" {
 			out.Independent = append(out.Independent, v)
 			continue
@@ -369,6 +389,11 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 			// `verify` is handled in the indexing pass above — it has to be, because a source
 			// must carry its verifications and a cite event may arrive after the check of it.
 		}
+	}
+	// Red's corroborations are sources too, after blue's cites, each with every later check naming it.
+	for _, c := range corroborations {
+		c.Verified = append(c.Verified, byAnchor[c.Anchor]...)
+		out.Sources = append(out.Sources, c)
 	}
 
 	out.Counts.Sources = len(out.Sources)
