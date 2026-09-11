@@ -1,4 +1,5 @@
 # This directory must EXIST when the plugin is enabled: Claude Code injects each
 # enabled plugin's bin/ onto the Bash tool's PATH at enable time, and a directory
-# created later is not injected retroactively. The binaries themselves are ignored
-# and are produced by /prosthetic-conscience:doctor --fix or by CI.
+# created later is not injected retroactively. The binaries themselves are ignored:
+# the hooks install them from the plugin's release (hooks/fetch-bin.sh), and
+# /prosthetic-conscience:doctor --fix installs them by hand.

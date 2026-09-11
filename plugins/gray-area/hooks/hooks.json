@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/gray-area-capture\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" -event SubagentStop; fi; echo 'gray-area: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/gray-area-capture\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" -event SubagentStop; fi; F=\"${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook SubagentStop; fi; echo 'gray-area: hook binaries missing — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/gray-area-capture\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" -event SessionStart; fi; echo 'gray-area: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/gray-area-capture\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" -event SessionStart; fi; F=\"${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook SessionStart; fi; echo 'gray-area: hook binaries missing — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/gray-area-capture\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" -event Stop; fi; echo 'gray-area: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/gray-area-capture\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" -event Stop; fi; F=\"${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook Stop; fi; echo 'gray-area: hook binaries missing — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
@@ -36,7 +36,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/gray-area-capture\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" -event SessionEnd; fi; echo 'gray-area: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/gray-area-capture\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" -event SessionEnd; fi; F=\"${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook SessionEnd; fi; echo 'gray-area: hook binaries missing — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }

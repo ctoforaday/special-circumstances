@@ -839,6 +839,61 @@ jobs:
         env:
           CGO_ENABLED: "1"
 
+  fetch-bin-platforms:
+    # The hooks' fetcher, driven the way a guard drives it, on each OS a consumer runs: the uname
+    # mapping, the checksum tool, the .exe name, LF line endings, and a detached fetch that
+    # outlives the guard's shell. How Claude Code itself treats a hook's children on macOS and
+    # Windows is not provable here; on Linux it was measured inside Claude Code.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: A guard hands a missing binary to fetch-bin.sh, returns, and the fetch installs it
+        run: |
+          set -eu
+          work="$(mktemp -d)"; root="$work/plugin"; rel="$work/rel"
+          mkdir -p "$root/.claude-plugin" "$root/hooks" "$root/bin" "$root/tools/cmd/alpha" "$root/tools/cmd/beta" "$rel/fixture--v1.2.3"
+          printf '{\n  "name": "fixture",\n  "version": "1.2.3"\n}\n' > "$root/.claude-plugin/plugin.json"
+          cp plugins/prosthetic-conscience/hooks/fetch-bin.sh "$root/hooks/"
+          case "$(uname -s)" in Linux) os=linux ;; Darwin) os=darwin ;; *) os=windows ;; esac
+          case "$(uname -m)" in x86_64|amd64) arch=amd64 ;; *) arch=arm64 ;; esac
+          ext=""; if [ "$os" = windows ]; then ext=".exe"; fi
+          a="alpha_${os}_${arch}${ext}"; b="beta_${os}_${arch}${ext}"
+          printf 'binary alpha\n' > "$rel/fixture--v1.2.3/$a"
+          printf 'binary beta\n' > "$rel/fixture--v1.2.3/$b"
+          if command -v sha256sum >/dev/null 2>&1; then sum="sha256sum"; else sum="shasum -a 256"; fi
+          (cd "$rel/fixture--v1.2.3" && $sum "$a" "$b" > SHA256SUMS)
+          base="file://$rel"
+          if [ "$os" = windows ]; then base="file:///$(cygpath -m "$rel")"; fi
+          cmd='B="${CLAUDE_PLUGIN_ROOT}/bin/alpha"; if [ -x "$B" ] || [ -x "$B.exe" ]; then exec "$B"; fi; '
+          cmd="$cmd"'F="${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh"; if [ -f "$F" ]; then exec sh "$F" hook PreToolUse; fi; echo missing >&2'
+          start=$(date +%s)
+          out=$(CLAUDE_PLUGIN_ROOT="$root" SC_RELEASE_BASE_URL="$base" bash -c "$cmd" </dev/null)
+          took=$(( $(date +%s) - start ))
+          echo "guard returned in ${took}s and said: $out"
+          if [ "$took" -gt 2 ]; then echo "the guard waited on the fetch"; exit 1; fi
+          case "$out" in *'"systemMessage"'*) ;; *) echo "the guard said nothing"; exit 1 ;; esac
+          for _ in $(seq 60); do
+            if [ -f "$root/bin/alpha$ext" ] && [ -f "$root/bin/beta$ext" ]; then break; fi
+            sleep 1
+          done
+          for n in alpha beta; do
+            if [ "$(cat "$root/bin/$n$ext" 2>/dev/null)" != "binary $n" ]; then
+              echo "$n was not installed"; cat "$root/.fetch/log" 2>/dev/null || true; exit 1
+            fi
+          done
+          echo "installed after the guard's shell exited, on $os/$arch"
+
   stackguard:
     # A stacked pull request must not merge into a base that is already in main.
     #
@@ -1342,6 +1397,12 @@ jobs:
       - name: Every module's buildid matches the one authored copy
         run: go run ./buildidgen -check
         working-directory: scripts
+      - name: Every plugin's fetch-bin.sh matches the one authored copy, and every guard names its own event
+        run: go run ./fetchbingen -check
+        working-directory: scripts
+      - name: Every plugin with binaries is pinned to the release tag its plugin.json names
+        run: go run ./marketplacegen -check
+        working-directory: scripts
       - name: The record binary and the plugin read the same event schema
         run: go run ./schemagen -check
         working-directory: scripts
@@ -1356,28 +1417,45 @@ jobs:
         # Naming one plugin was correct while it shipped the only hooks; a second
         # plugin with hooks would have been silently uncovered by a check that
         # still passed — the same shape as the unlisted test suite two steps up.
+        # Two roots per guard. An EMPTY root has no fetch-bin.sh: the guard's fallback must exit 0,
+        # name doctor --fix on stderr and print nothing on stdout (a SubagentStart/Stop hook that
+        # talks re-invokes the seat). A COPY of the plugin whose release is unreachable is the
+        # ordinary window: the guard hands off to fetch-bin.sh, which must exit 0 within 2 s with
+        # stdout empty or one JSON object.
         run: |
           EMPTY="$(mktemp -d)"
           node -e "
-            const { globSync } = require('fs');
-            const files = globSync('plugins/*/hooks/hooks.json');
+            const fs = require('fs');
+            const files = fs.globSync('plugins/*/hooks/hooks.json');
             if (!files.length) { console.error('no hooks.json found — the glob is wrong'); process.exit(1); }
-            const cmds = [];
+            const rows = [];
             for (const f of files) {
-              const h = JSON.parse(require('fs').readFileSync(f, 'utf8'));
-              for (const evs of Object.values(h.hooks)) for (const e of evs) for (const k of e.hooks) cmds.push(k.command);
+              const plugin = f.split('/')[1];
+              const h = JSON.parse(fs.readFileSync(f, 'utf8'));
+              for (const evs of Object.values(h.hooks)) for (const e of evs) for (const k of e.hooks) rows.push(plugin + '\t' + k.command);
             }
-            require('fs').writeFileSync('/tmp/hook-cmds.txt', cmds.join('\n') + '\n');
-            console.log(files.length + ' hooks.json, ' + cmds.length + ' hook command(s) extracted');
+            fs.writeFileSync('/tmp/hook-cmds.txt', rows.join('\n') + '\n');
+            console.log(files.length + ' hooks.json, ' + rows.length + ' hook command(s) extracted');
           "
-          while IFS= read -r cmd; do
+          onejson='const s = require("fs").readFileSync(0, "utf8").trim(); if (s) { if (s.split("\n").length !== 1) process.exit(1); JSON.parse(s); }'
+          tab="$(printf '\t')"
+          while IFS="$tab" read -r plugin cmd; do
             [ -z "$cmd" ] && continue
-            if ! CLAUDE_PLUGIN_ROOT="$EMPTY" bash -c "$cmd" </dev/null >/dev/null 2>/tmp/hook-stderr.txt; then
-              echo "GUARD FAILED (non-zero exit) for: $cmd"; exit 1
+            if ! CLAUDE_PLUGIN_ROOT="$EMPTY" timeout 2 bash -c "$cmd" </dev/null >/tmp/hook-stdout.txt 2>/tmp/hook-stderr.txt; then
+              echo "GUARD FAILED (non-zero exit, or over 2 s) on an empty root for: $cmd"; exit 1
             fi
-            grep -q "doctor --fix" /tmp/hook-stderr.txt || { echo "guard warning missing for: $cmd"; exit 1; }
+            grep -q "doctor --fix" /tmp/hook-stderr.txt || { echo "guard warning missing on stderr for: $cmd"; exit 1; }
+            if [ -s /tmp/hook-stdout.txt ]; then
+              echo "guard printed to stdout on an empty root for: $cmd"; exit 1
+            fi
+            copy="$(mktemp -d)/$plugin"
+            cp -R "plugins/$plugin" "$copy"
+            if ! CLAUDE_PLUGIN_ROOT="$copy" SC_RELEASE_BASE_URL="file:///nonexistent" timeout 2 bash -c "$cmd" </dev/null >/tmp/hook-stdout.txt 2>/dev/null; then
+              echo "GUARD FAILED (non-zero exit, or over 2 s) handing off to fetch-bin.sh for: $cmd"; exit 1
+            fi
+            node -e "$onejson" </tmp/hook-stdout.txt || { echo "guard printed more than one line, or invalid JSON, handing off for: $cmd"; exit 1; }
           done < /tmp/hook-cmds.txt
-          echo "all hook commands exit 0 with the guard warning on an empty plugin root"
+          echo "every hook command exits 0 on an empty root and on a copied root whose release is unreachable"
 
   release:
     # Cross-compile + publish binaries when a plugin version tag is pushed.

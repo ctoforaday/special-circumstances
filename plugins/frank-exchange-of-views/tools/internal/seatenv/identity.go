@@ -91,7 +91,7 @@ func AgentID() string { return strings.TrimSpace(os.Getenv(AgentVar)) }
 //
 // EMPTY MEANS UNATTESTED, NEVER "no role". A caller must treat the empty string as "nothing
 // attested this" and fall back, rather than as a claim about which role is running — CI, an
-// operator at a shell, and the bootstrap window before `doctor --fix` all reach here with nothing.
+// operator at a shell, and the bootstrap window before the binaries are installed all reach here with nothing.
 func AgentType() string { return strings.TrimSpace(os.Getenv(TypeVar)) }
 
 // Seat is a seat's identity as FACTS rather than as a string other code takes apart.

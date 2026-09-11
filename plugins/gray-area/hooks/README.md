@@ -8,9 +8,10 @@ plugin `hooks.json` that the hooks reference does not document.
 ## Every hook
 
 Every command is wrapped in the bootstrap guard prosthetic-conscience established: a fresh
-plugin-cache version ships from git WITHOUT binaries (they arrive via doctor --fix), and an
-unguarded hook crash-storms every tool call in that window. The guard degrades to ONE stderr line
-pointing at the fix.
+plugin-cache version ships from git WITHOUT binaries, and an unguarded hook crash-storms every tool
+call in that window. The guard hands a missing binary to hooks/fetch-bin.sh, which installs the
+plugin's binaries from its pinned release in the background (prosthetic-conscience's hooks/README.md
+describes the fetcher).
 
 ## SessionStart
 

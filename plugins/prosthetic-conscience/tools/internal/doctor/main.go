@@ -3,9 +3,9 @@
 // Contract (Design by Contract):
 //
 //	It MUST produce a deterministic table + verdict (READY / DEGRADED / BLOCKED).
-//	Plain run is read-only. `-fix` rebuilds missing hook binaries (go build) when Go
-//	is present, else prints the release-asset fetch instructions — it MUST NOT
-//	install external tools (that stays consent-gated at the agent layer).
+//	Plain run is read-only. `-fix` installs missing hook binaries from the plugin's
+//	release (checksum-verified), falling back to go build when no asset is reachable
+//	— it MUST NOT install external tools (that stays consent-gated at the agent layer).
 package doctor
 
 import (
@@ -390,10 +390,24 @@ func danceWarnings(root string) []string {
 		out = append(out, fmt.Sprintf("DANCE INCOMPLETE: this doctor runs from %s but the cache holds %s — finish the dance (/plugin update -> /reload-plugins -> /reload-skills -> doctor --fix).", current, newest))
 	}
 	if newest != "" {
-		binDir := filepath.Join(pluginDir, newest, "bin")
-		entries, err := os.ReadDir(binDir)
-		if err != nil || len(entries) == 0 {
-			out = append(out, fmt.Sprintf("EMPTY-BIN WINDOW: cache %s has no hook binaries — hooks degrade to guard warnings until doctor --fix runs there.", newest))
+		// Counted against tools/cmd, never read off the directory: bin/ always holds .gitkeep, so
+		// "bin/ is empty" was false on every real install and this warning could not fire.
+		newRoot := filepath.Join(pluginDir, newest)
+		bins := binariesOf(newRoot, filepath.Base(pluginDir), newest)
+		missing := 0
+		for _, b := range bins {
+			if !b.Built {
+				missing++
+			}
+		}
+		if missing > 0 {
+			msg := fmt.Sprintf("EMPTY-BIN WINDOW: cache %s is missing %d of its %d hook binaries — ", newest, missing, len(bins))
+			if cause, err := os.ReadFile(filepath.Join(newRoot, ".fetch", "failed")); err == nil {
+				msg += fmt.Sprintf("the hooks' fetch failed (%s); doctor --fix installs them.", strings.TrimSpace(string(cause)))
+			} else {
+				msg += fmt.Sprintf("the hooks are installing them (%s); doctor --fix installs them now.", filepath.Join(newRoot, ".fetch", "log"))
+			}
+			out = append(out, msg)
 		}
 	}
 	return out

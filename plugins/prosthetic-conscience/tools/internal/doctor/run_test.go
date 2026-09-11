@@ -142,9 +142,16 @@ func TestRunManifestFailures(t *testing.T) {
 // The dance warnings are cache facts, and a stale cache must pull READY down.
 func TestRunDanceWarningDowngradesReady(t *testing.T) {
 	root := doctorRoot(t, manifestJSON("optional"))
-	// A newer version dir than the one running, with an empty bin/.
-	newer := filepath.Join(filepath.Dir(root), "0.9.2", "bin")
-	if err := os.MkdirAll(newer, 0o755); err != nil {
+	// A newer version dir than the one running, shaped as an install leaves it: its binary is
+	// declared under tools/cmd, and bin/ holds only the tracked .gitkeep.
+	newer := filepath.Join(filepath.Dir(root), "0.9.2")
+	if err := os.MkdirAll(filepath.Join(newer, "tools", "cmd", "sc-doctor"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(newer, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(newer, "bin", ".gitkeep"), nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	out, _ := doctor(t, root)

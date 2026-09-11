@@ -34,8 +34,9 @@ cannot reach it — so the lockdown and its PostToolUse binary are gone; only th
 DEDICATED SINGLE-PURPOSE BINARY rather than a verb on feov-record: as `feov-record hook pretooluse`
 the invocation carried no --seat-id, the identity-scoped surface refused it, and the refusal's exit
 2 denied every mutating tool call in the session. The bootstrap guard mirrors prosthetic-conscience:
-a fresh plugin-cache version ships without binaries (they arrive via doctor --fix), and an unguarded
-hook would crash-storm every tool call in that window; the guard degrades to ONE stderr line. The
+a fresh plugin-cache version ships without binaries, and an unguarded hook would crash-storm every
+tool call in that window; the guard hands a missing binary to hooks/fetch-bin.sh, which installs it
+from the plugin's pinned release in the background. The
 decision ALWAYS travels in the stdout JSON with exit 0, enforced at the process boundary by
 hookcmd.Run rather than documented on a leaf.
 
@@ -67,7 +68,7 @@ fires at the MAIN agent's turn end, with a minted agent id and no agent_type —
 turn ends in one measured session, separated by agent_type with zero exceptions either way (§7a). An
 event with no agent_type is not a sitting and is dropped. The bootstrap guard mirrors every other
 hook here: a fresh plugin-cache version ships without binaries and an unguarded hook would
-crash-storm the window before doctor --fix; the guard degrades to ONE stderr line. SubagentStart
+crash-storm the window; the guard hands the missing binary to hooks/fetch-bin.sh, which says nothing on this event. SubagentStart
 CANNOT NAME THE SEAT — it carries the harness handle and the agent configuration and nothing the
 workflow supplied (#290, measured 2026-08-23), so the seat is recovered later by joining agent_id to
 the register event that names it.
@@ -87,4 +88,4 @@ fires at the MAIN agent's turn end, with a minted agent id and no agent_type —
 turn ends in one measured session, separated by agent_type with zero exceptions either way (§7a). An
 event with no agent_type is not a sitting and is dropped. The bootstrap guard mirrors every other
 hook here: a fresh plugin-cache version ships without binaries and an unguarded hook would
-crash-storm the window before doctor --fix; the guard degrades to ONE stderr line.
+crash-storm the window; the guard hands the missing binary to hooks/fetch-bin.sh, which says nothing on this event.

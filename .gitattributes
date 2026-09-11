@@ -3,6 +3,8 @@
 *.md text eol=lf
 *.yml text eol=lf
 *.go text eol=lf
+# Hooks run fetch-bin.sh with sh on Windows too, and sh reads a CRLF line as a command ending in \r.
+*.sh text eol=lf
 # A GOLDEN IS COMPARED BYTE FOR BYTE, so its line endings are part of the artifact. Without
 # these two, a Windows checkout converts them to CRLF while the code that derives them emits LF,
 # and the file differs from itself on one platform — `the derived schema differs from

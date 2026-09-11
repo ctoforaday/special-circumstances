@@ -185,7 +185,7 @@ func writerFileName() string {
 }
 
 // writerPath locates the writer beside this executable, or "" when it cannot be found — which is
-// the bootstrap window before `doctor --fix` has built the binaries, and is a silence rather than
+// the bootstrap window before the hooks' fetch (or `doctor --fix`) has installed the binaries, and is a silence rather than
 // an error for the same reason the shell guard in hooks.json is.
 func writerPath() string {
 	self, err := os.Executable()

@@ -35,7 +35,7 @@ for p in prosthetic-conscience frank-exchange-of-views sleeper-service gray-area
   claude plugin install "$p@$M" || echo "SC: install failed: $p"
 done
 
-command -v go >/dev/null || { echo "SC: no go, hook binaries unbuilt"; exit 0; }
+command -v go >/dev/null || { echo "SC: no go — the hooks fetch their binaries on first use"; exit 0; }
 T=$(find "$C" -maxdepth 3 -type d -name tools -print -quit 2>/dev/null)
 [ -n "$T" ] && go build -C "$T" ./... >/dev/null 2>&1   # warm module cache before parallel builds
 for d in "$C"/*/*/; do
@@ -165,9 +165,11 @@ real cache, or hand-remove both keys from `~/.claude/settings.json`.
 
 ## Building the hook binaries by hand
 
-`/prosthetic-conscience:doctor --fix` fetches CI-built release assets and falls
-back to a from-source build. Where neither reaches — no release asset for the
-platform, or no network — build directly. Plugin content is **copied** into a
+The hooks install their own binaries on first use: each guard hands a missing
+binary to `hooks/fetch-bin.sh`, which fetches the plugin's CI-built release
+assets in the background. `/prosthetic-conscience:doctor --fix` does the same by
+hand and falls back to a from-source build. Where none of these reaches — no
+release asset for the platform, or no network — build directly. Plugin content is **copied** into a
 versioned cache at install time, so `${CLAUDE_PLUGIN_ROOT}` resolves to that
 cache and never to a repository checkout. The binaries must land in the cache:
 
@@ -180,5 +182,5 @@ Repeat per command in `tools/cmd/`, and again for
 `frank-exchange-of-views`'s `feov-record`. Go is the only prerequisite; `-race`
 in the test suite additionally needs CGO.
 
-Until the binaries exist, each hook degrades to a single line on stderr pointing
-at `/prosthetic-conscience:doctor --fix` rather than failing the tool call.
+Until the binaries exist, each hook starts that fetch and returns at once rather
+than failing the tool call.

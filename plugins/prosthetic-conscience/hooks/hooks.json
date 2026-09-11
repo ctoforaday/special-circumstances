@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-pretooluse\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-pretooluse\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; F=\"${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook PreToolUse; fi; echo 'prosthetic-conscience: hook binaries missing — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-posttooluse\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-posttooluse\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; F=\"${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook PostToolUse; fi; echo 'prosthetic-conscience: hook binaries missing — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-sessionstart\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-sessionstart\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; F=\"${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook SessionStart; fi; echo 'prosthetic-conscience: hook binaries missing — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
@@ -38,7 +38,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-postcompact-observe\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-postcompact-observe\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; F=\"${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook PostCompact; fi; echo 'prosthetic-conscience: hook binaries missing — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
@@ -48,7 +48,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-filechanged-rearm\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-filechanged-rearm\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; F=\"${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook FileChanged; fi; echo 'prosthetic-conscience: hook binaries missing — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
@@ -58,7 +58,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-precompact\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-precompact\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; F=\"${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook PreCompact; fi; echo 'prosthetic-conscience: hook binaries missing — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
@@ -68,7 +68,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-sessionend\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-sessionend\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; F=\"${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook SessionEnd; fi; echo 'prosthetic-conscience: hook binaries missing — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
@@ -78,7 +78,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-subagentstop\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-subagentstop\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; F=\"${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook SubagentStop; fi; echo 'prosthetic-conscience: hook binaries missing — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
@@ -88,7 +88,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-strike-counter\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-strike-counter\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; F=\"${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook PostToolUseFailure; fi; echo 'prosthetic-conscience: hook binaries missing — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
@@ -98,7 +98,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-stop\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-stop\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; F=\"${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook Stop; fi; echo 'prosthetic-conscience: hook binaries missing — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }

@@ -46,6 +46,8 @@ Thumbs.db
 # .gitkeep costs nothing and makes the injection possible.
 plugins/*/bin/*
 !plugins/*/bin/.gitkeep
+# fetch-bin.sh's lock, log and failure record, written beside bin/ when a plugin runs from a checkout.
+plugins/*/.fetch/
 plugins/*/tools/dist/
 # ...and where `go build` ACTUALLY drops one. The rules above cover the INSTALL location
 # (bin/) and the release staging dir; neither covers the BUILD location. `go build

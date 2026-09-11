@@ -181,7 +181,7 @@ One binary handles each event, so a single process sees one parse of the payload
 | `FileChanged` | A validation check marked stale when its trigger surface moves |
 | `PostCompact` | Observation only — scoring what each summary kept |
 
-Every hook is wrapped in a bootstrap guard: a fresh plugin version ships from git *without* binaries, and an unguarded hook crash-storms every tool call in that window. The guard degrades to one line of stderr pointing at `/prosthetic-conscience:doctor --fix`.
+Every hook is wrapped in a bootstrap guard: a fresh plugin version ships from git *without* binaries, and an unguarded hook crash-storms every tool call in that window. The guard hands a missing binary to `hooks/fetch-bin.sh`, which installs the plugin's binaries from its own release in the background and tells you it is doing so. If that fails it says why, and `/prosthetic-conscience:doctor --fix` installs them by hand.
 
 ### Compaction survival — the Memento problem
 

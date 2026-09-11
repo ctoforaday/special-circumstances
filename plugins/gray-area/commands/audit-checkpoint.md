@@ -23,6 +23,6 @@ The check logic lives in the tested binary, not in this prompt. Your job is to r
 
 **If the binary cannot resolve a transcript**, it says why and exits non-zero. The usual cause is that gray-area's `SessionStart` hook has not run in this project, so no session row exists. Report that; YOU MUST NOT search `~/.claude/projects/` for a likely-looking file — deterministic attribution is the property this plugin is built on, and a guessed transcript produces confident findings about the wrong session.
 
-**Bootstrap** (only when the `gray-area` binary itself is missing): if Go is on PATH, build it — `go build -C "${CLAUDE_PLUGIN_ROOT}/tools" -o "${CLAUDE_PLUGIN_ROOT}/bin/gray-area" ./cmd/gray-area` (append `.exe` on Windows) — then run it. Otherwise report the absence and stop.
+**Bootstrap** (only when the `gray-area` binary itself is missing): if Go is on PATH, build it — `go build -C "${CLAUDE_PLUGIN_ROOT}/tools" -o "${CLAUDE_PLUGIN_ROOT}/bin/gray-area" ./cmd/gray-area` (append `.exe` on Windows) — then run it. Otherwise report the absence and stop: the hooks install it from the plugin's release in the background, and `/prosthetic-conscience:doctor --fix` installs it by hand.
 
 This command reads a session transcript, which carries user text, paths, and whatever tool results contained. It is a declared, scoped inspection of this project's own session: nothing leaves the machine, and no snapshot is written. See the plugin README on the line this plugin will not cross.

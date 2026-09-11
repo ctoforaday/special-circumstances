@@ -68,7 +68,7 @@ Always-on rules bind every session via the imports below; the rest load on deman
 
 - Worktrees live under `.claude/worktrees/<name>/`, inside the main checkout. YOU MUST NOT `cd ..` out of a worktree subdirectory, and background commands MUST use absolute paths (or `go -C` / `git -C`) — the cwd does not carry into them. A relative path from the wrong cwd silently measures or mutates the main checkout; "already used by worktree" is the tell.
 - Scratch — run directories, built binaries, measurement artifacts, caches — goes under a home-dir area such as `~/.claude/scratch/<task>/`, never `/tmp`.
-- A running session's hooks execute from the plugin install cache (`~/.claude/plugins/cache/special-circumstances/<plugin>/<version>/bin/`), never the checkout; `/prosthetic-conscience:doctor --fix` refreshes them.
+- A running session's hooks execute from the plugin install cache (`~/.claude/plugins/cache/special-circumstances/<plugin>/<version>/bin/`), never the checkout. A missing one is installed by its guard's `hooks/fetch-bin.sh` from the plugin's pinned release; `/prosthetic-conscience:doctor --fix` installs or rebuilds them by hand.
 - A FEOV smoke run launches from its own source tree (a detached worktree at `main`): while `.claude/run-live.json` names a run, the SubagentStart/Stop hooks attribute every subagent in that project — a dev session's included — to it.
 
 ### Pull requests
