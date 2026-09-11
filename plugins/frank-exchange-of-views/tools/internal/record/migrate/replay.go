@@ -168,7 +168,17 @@ func sortedKeys[V any](m map[string]V) []string {
 
 // writeSynthesizedCast writes the Cast an archived run never had, under the harness, from its
 // register events after seat translation. Petition sittings are admitted by shape and left out.
+//
+// A record that already carries a cast is not an archived run: its own cast replays in order
+// like every other event. Synthesizing one as well made the original a SECOND cast, which the
+// write path refuses — so migrating any roundless-era record exited non-zero on a refusal of
+// its own membership.
 func writeSynthesizedCast(evs []OldEvent, rm *remap, dst record.Run) (bool, error) {
+	for _, old := range evs {
+		if old.Word == "cast" {
+			return false, nil
+		}
+	}
 	seen := map[string]bool{}
 	var cast []string
 	for _, old := range evs {

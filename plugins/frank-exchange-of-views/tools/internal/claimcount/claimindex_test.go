@@ -53,9 +53,9 @@ func TestIndexExcludesFencesDefsHeadings(t *testing.T) {
 	}
 }
 
-// The reconciliation caveat, both directions. Under per-sentence-unique authoring
-// sum(occurrences) == Count. A segment carrying TWO distinct anchors makes the index
-// exceed Count by exactly one — one site, two claims — and that is by design, not a bug.
+// The reconciliation, exact: sum(occurrences) == Count, because both count attached
+// citation labels. A segment carrying TWO distinct anchors is two claims to both — the
+// unit is the citation, so a merge of two cited sentences into one moves neither.
 func TestIndexReconcilesWithCount(t *testing.T) {
 	// per-sentence-unique: three segments, one anchor each.
 	unique := "First<!--cite:c-a-->.\nSecond<!--cite:c-b-->.\nThird<!--cite:c-c-->.\n"
@@ -63,14 +63,13 @@ func TestIndexReconcilesWithCount(t *testing.T) {
 		t.Errorf("per-sentence-unique: occurrences %d != Count %d (they must agree)", got, want)
 	}
 
-	// one segment, TWO distinct anchors: Count sees one claim-bearing segment; the index
-	// sees two claims at that one site.
+	// one segment, TWO distinct anchors: two claims to Count and to the index alike.
 	twoLabel := "A single sentence citing two sources<!--cite:c-a--><!--cite:c-b-->.\n"
-	if Count(twoLabel) != 1 {
-		t.Fatalf("Count of a one-segment two-anchor line = %d, want 1", Count(twoLabel))
+	if Count(twoLabel) != 2 {
+		t.Fatalf("Count of a one-segment two-anchor line = %d, want 2", Count(twoLabel))
 	}
-	if got := occCount(Index(twoLabel)); got != 2 {
-		t.Errorf("index of a two-anchor segment = %d occurrences, want 2 (exceeds Count by design)", got)
+	if got := occCount(Index(twoLabel)); got != Count(twoLabel) {
+		t.Errorf("index of a two-anchor segment = %d occurrences, want %d (== Count)", got, Count(twoLabel))
 	}
 
 	// the same anchor twice in one segment is ONE site, not two (distinct labels only).

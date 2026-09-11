@@ -616,6 +616,19 @@ func renderView(cmd *cobra.Command, want string) error {
 			return err
 		}
 		if a, _ := cmd.Flags().GetString(flags.Anchor); a != "" {
+			// AN ANCHOR THAT LEFT WITH ITS CLAIM IS NOT STALE. `blue retire` takes a bare anchor out
+			// of the report on the record; saying "stale reference or another run" of it would send
+			// the reader hunting for an error that is really a recorded exit.
+			if !strings.Contains(string(b), anchor.Token(a)) {
+				ev, claim, found, err := record.AnchorRetiredAt(run, a)
+				if err != nil {
+					return err
+				}
+				if found {
+					return fmt.Errorf("show report: anchor %s is not in the report because it was RETIRED — it left with the claim %q at event %d (`blue retire` takes a bare anchor out with its claim). It is not a stale reference; there is no live text around it to read",
+						a, claim, ev)
+				}
+			}
 			n, _ := cmd.Flags().GetInt(flags.Window)
 			w, err := anchor.ReadAround(string(b), a, n)
 			if err != nil {

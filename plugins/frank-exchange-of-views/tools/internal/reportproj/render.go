@@ -7,6 +7,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -105,6 +106,137 @@ func (m insertMut) apply(text string) (string, error) {
 
 func (m insertMut) describe() string { return fmt.Sprintf("insert %s at %q", m.marker, m.location) }
 
+// removeMut takes out an anchor a retire named — the one way an anchor leaves the report.
+//
+// An edit may carry an anchor but never drop one, so a claim edited away leaves its anchor BARE;
+// `blue retire` records the claim's reason AND the bare anchors that exit with it, and this is
+// the replay of that exit. The anchor goes, and so does the husk it was holding open: an emptied
+// line (a `- ?` bullet, a paragraph that was only the anchor), or the empty segment and its stray
+// terminator mid-line. Loud when the anchor is not there: the retire validated its presence at
+// the write, so an absent one means the record no longer describes a real sequence.
+type removeMut struct{ id string }
+
+func (m removeMut) apply(text string) (string, error) {
+	tok := anchor.Token(m.id)
+	i := strings.Index(text, tok)
+	if i < 0 {
+		return "", fmt.Errorf("the retired anchor %s is not in the report", tok)
+	}
+	return RemoveAnchorAt(text, i, len(tok)), nil
+}
+
+func (m removeMut) describe() string { return fmt.Sprintf("remove %s", anchor.Token(m.id)) }
+
+// RemoveAnchorAt removes the anchor token at text[i:i+n] and tidies what it leaves: a line with
+// no prose and no other anchor goes whole (with a blank-line run it opened collapsed), and an
+// in-line segment left empty goes with its terminator. Anything still carrying prose or another
+// anchor is left exactly as it stands minus the token — the removal is order-independent across
+// several anchors exiting one segment, because only the LAST of them finds the segment empty.
+func RemoveAnchorAt(text string, i, n int) string {
+	text = text[:i] + text[i+n:]
+	ls := strings.LastIndexByte(text[:i], '\n') + 1
+	le := len(text)
+	if j := strings.IndexByte(text[i:], '\n'); j >= 0 {
+		le = i + j
+	}
+	line := text[ls:le]
+	if !claimcount.HasProse(line) && len(claimcount.ProtectedAnchorIDs(line)) == 0 {
+		end := le
+		if end < len(text) {
+			end++ // the line's own newline goes with it
+		} else if ls > 0 {
+			ls-- // the last line has none; take the one that led into it
+		}
+		return collapseNewlinesAt(text[:ls]+text[end:], ls)
+	}
+	// In-line: the segment around the removal point, bounded like claimcount's (. ! ? outside an
+	// anchor). Emptied, it goes with the terminator run that closed it.
+	p := i - ls
+	bound := sentenceBoundaries(line)
+	ss := 0
+	for k := p - 1; k >= 0; k-- {
+		if bound[k] {
+			ss = k + 1
+			break
+		}
+	}
+	se := len(line)
+	for k := p; k < len(line); k++ {
+		if bound[k] {
+			se = k
+			break
+		}
+	}
+	seg := line[ss:se]
+	if claimcount.HasProse(seg) || len(claimcount.ProtectedAnchorIDs(seg)) > 0 {
+		// Only the token went; close the whitespace seam it held open — the space an edit left
+		// between the anchor and the next sentence, or a doubled space mid-line.
+		switch {
+		case i == ls:
+			j := i
+			for j < le && (text[j] == ' ' || text[j] == '\t') {
+				j++
+			}
+			return text[:i] + text[j:]
+		case text[i-1] == ' ' && (i == le || text[i] == ' '):
+			return text[:i-1] + text[i:]
+		}
+		return text
+	}
+	cut := se
+	for cut < len(line) && bound[cut] {
+		cut++
+	}
+	if ss == 0 { // at the line's start, the space that followed the terminator goes too
+		for cut < len(line) && (line[cut] == ' ' || line[cut] == '\t') {
+			cut++
+		}
+	}
+	return text[:ls+ss] + text[ls+cut:]
+}
+
+// sentenceBoundaries marks the sentence terminators in a line, skipping every HTML comment — the
+// `!` in `<!--` is not a sentence end. The same rule claimcount's splitter applies.
+func sentenceBoundaries(line string) []bool {
+	b := make([]bool, len(line))
+	for i := 0; i < len(line); {
+		if strings.HasPrefix(line[i:], "<!--") {
+			if j := strings.Index(line[i:], "-->"); j >= 0 {
+				i += j + 3
+				continue
+			}
+		}
+		switch line[i] {
+		case '.', '!', '?':
+			b[i] = true
+		}
+		i++
+	}
+	return b
+}
+
+// collapseNewlinesAt folds the newline run around offset at, which a removed line may have
+// lengthened: at most one blank line in the body, none at the start, one final newline at the end.
+func collapseNewlinesAt(s string, at int) string {
+	a, b := at, at
+	for a > 0 && s[a-1] == '\n' {
+		a--
+	}
+	for b < len(s) && s[b] == '\n' {
+		b++
+	}
+	keep := b - a
+	switch {
+	case a == 0:
+		keep = 0
+	case b == len(s):
+		keep = min(keep, 1)
+	default:
+		keep = min(keep, 2)
+	}
+	return s[:a] + strings.Repeat("\n", keep) + s[b:]
+}
+
 // RenderFromRecord is the record-aware render: it reads the run's frozen base and the ordered
 // stream of text mutations from the record — the report_op view SELECTS and orders them in SQL — and
 // folds them over the base. This is the ONLY way to obtain the current report once the file is
@@ -147,8 +279,10 @@ func mutationOf(op record.ReportOp) (mutation, error) {
 		return spliceMut{old: op.A, new: op.B}, nil
 	case "insert":
 		return insertMut{location: op.A, marker: anchor.Token(op.B)}, nil
+	case "remove":
+		return removeMut{id: op.A}, nil
 	default:
-		return nil, fmt.Errorf("render: unknown report_op kind %q — the report_op view emits only edit and insert", op.Kind)
+		return nil, fmt.Errorf("render: unknown report_op kind %q — the report_op view emits only edit, insert and remove", op.Kind)
 	}
 }
 

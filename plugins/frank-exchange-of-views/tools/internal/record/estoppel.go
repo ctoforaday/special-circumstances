@@ -2,6 +2,7 @@ package record
 
 import (
 	"database/sql"
+	"fmt"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -239,6 +240,105 @@ func ClaimAppearsInAnEdit(run Run, claim string) bool {
 	found, err := recordHas(run,
 		`SELECT 1 FROM "blue_edit" WHERE instr("old", ?) > 0 LIMIT 1`, claim)
 	return err == nil && found
+}
+
+// EditSpan is one recorded blue_edit's (old, new) pair, in record order.
+type EditSpan struct{ Old, New string }
+
+// EditSpans returns every recorded blue_edit's (old, new), in record order — what `blue retire`
+// reads to learn which edit took a claim out and what that edit left behind in its place.
+func EditSpans(run Run) ([]EditSpan, error) {
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		return nil, err
+	}
+	rows, err := db.Query(`SELECT "old", "new" FROM "blue_edit" ORDER BY "event_id"`)
+	if err != nil {
+		return nil, fmt.Errorf("record: reading the recorded edits: %w", err)
+	}
+	defer rows.Close()
+	var out []EditSpan
+	for rows.Next() {
+		var o, n sql.NullString
+		if err := rows.Scan(&o, &n); err != nil {
+			return nil, err
+		}
+		out = append(out, EditSpan{Old: o.String, New: n.String})
+	}
+	return out, rows.Err()
+}
+
+// FindingMarkerHold says why red's finding marker must stay in the report, or "" when blue's
+// retire may take it out.
+//
+// A FINDING MARKER IS RED'S, not blue's. Cite and proof anchors are blue's to take out with a
+// claim; a finding marker is where red's finding lives, and the gap that credits the finding
+// quotes the prose around it. Taken out while that gap is open, the board shows a live gap at a
+// location nothing can resolve, and `show report --anchor` has nothing to read. So the marker
+// leaves only once red's own lifecycle has closed on it: the finding is credited by at least one
+// gap, and every gap crediting it is closed. A finding no gap credits is still red's — pending
+// the merge, or declined by it in silence — and is held too: the record cannot tell those apart,
+// so it errs toward keeping the marker.
+func FindingMarkerHold(run Run, findingID string) (string, error) {
+	db, err := openRunForRead(run)
+	if err != nil {
+		return "", err
+	}
+	if db == nil {
+		return "no record to consult", nil
+	}
+	rows, err := db.Query(`SELECT fb."value", g."gap_id", g."open"
+		FROM "finding" f
+		JOIN "mint_found_by" fb ON fb."value" = f."label"
+		JOIN "gap" g ON g."minted_seq" = fb."event_id"
+		WHERE f."finding_id" = ?
+		ORDER BY g."minted_seq"`, findingID)
+	if err != nil {
+		return "", fmt.Errorf("record: reading which gaps credit finding %s: %w", findingID, err)
+	}
+	defer rows.Close()
+	credited := false
+	for rows.Next() {
+		var label, gap string
+		var open bool
+		if err := rows.Scan(&label, &gap, &open); err != nil {
+			return "", err
+		}
+		credited = true
+		if open {
+			return fmt.Sprintf("gap %s is open and credits finding %s — the marker is red's until that gap closes", gap, label), nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return "", err
+	}
+	if !credited {
+		return "no gap credits this finding yet — the marker is red's while the finding is pending", nil
+	}
+	return "", nil
+}
+
+// AnchorRetiredAt answers where an anchor went when it is no longer in the report: the retire
+// event that took it out with its claim. found is false for an anchor no retire named — then it
+// is a stale reference or another run's id, and the caller says so.
+func AnchorRetiredAt(run Run, id string) (event int64, claim string, found bool, err error) {
+	// A run older than the table retired no anchor: answer not-found, not SQLite's error.
+	if has, err := HasTable(run, "retire_anchors"); err != nil || !has {
+		return 0, "", false, err
+	}
+	var c sql.NullString
+	found, err = queryRow(run, []any{&event, &c},
+		`SELECT r."event_id", r."claim" FROM "retire_anchors" ra JOIN "retire" r ON r."event_id" = ra."event_id"
+		 WHERE ra."value" = ? ORDER BY r."event_id" LIMIT 1`, id)
+	return event, c.String, found, err
+}
+
+// HasTable reports whether the run's record has a table. The schema is fixed when a run's
+// database is created — there is no migration, on purpose (recordsql.ensureSchema) — so a run
+// started by an older binary lacks every table added since, and a writer that needs one asks
+// first rather than failing on the insert with SQLite's "no such table".
+func HasTable(run Run, name string) (bool, error) {
+	return recordHas(run, `SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`, name)
 }
 
 // GapsAwaitingProof lists the OPEN gaps minted --check-kind computation that no proof answers,
