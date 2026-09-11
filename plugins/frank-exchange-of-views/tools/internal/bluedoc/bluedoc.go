@@ -190,7 +190,7 @@ func spanBoundaryOK(s string, start, end int) bool {
 // equal the multiset in its replacement — so an anchor may be carried across an edit (and
 // the prose around it rewritten), but never introduced, dropped or duplicated.
 //
-// Anchors are still born ONLY from `lens finding` and `blue cite`, and still die only by
+// Anchors are still born ONLY from `lens finding` and `cite`, and still die only by
 // tool. Transit is not authorship: the tool checks the bytes, so nothing is delegated to
 // the model.
 func AnchorsTransitUnchanged(verb, oldSpan, newText string) error {
@@ -205,7 +205,7 @@ func AnchorsTransitUnchanged(verb, oldSpan, newText string) error {
 	for id, want := range o {
 		switch got := n[id]; {
 		case got == 0:
-			return fmt.Errorf("%s: your old span contains %s but the replacement does not — an anchor may travel through an edit, but never be dropped by one. Reproduce it EXACTLY (%s) somewhere in the replacement. To take the claim itself out, make the replacement that anchor alone and then `blue retire` the claim — the retire takes the anchor out with it", verb, anchor.Label(id), anchor.Token(id))
+			return fmt.Errorf("%s: your old span contains %s but the replacement does not — an anchor may travel through an edit, but never be dropped by one. Reproduce it EXACTLY (%s) somewhere in the replacement. To take the claim itself out, make the replacement that anchor alone and then `retire` the claim — the retire takes the anchor out with it", verb, anchor.Label(id), anchor.Token(id))
 		case got != want:
 			return fmt.Errorf("%s: %s appears %d time(s) in the old span but %d in the replacement — an anchor may not be duplicated or removed by an edit; carry each one across exactly once", verb, anchor.Label(id), want, got)
 		}
@@ -234,7 +234,7 @@ type ErrAnchorIntroduced struct {
 }
 
 func (e *ErrAnchorIntroduced) Error() string {
-	return fmt.Sprintf("%s: your replacement introduces %s, which was not in the span it replaces — anchors are placed by `lens finding` and `blue cite`, never typed into a replacement (got %d occurrence(s))", e.Verb, anchor.Label(e.ID), e.Count)
+	return fmt.Sprintf("%s: your replacement introduces %s, which was not in the span it replaces — anchors are placed by `lens finding` and `cite`, never typed into a replacement (got %d occurrence(s))", e.Verb, anchor.Label(e.ID), e.Count)
 }
 
 // MaxProposalGrowth bounds how much longer a CONCRETE proposed fix may be than the span it
@@ -321,7 +321,7 @@ func ReopenedAnchors(before, after string) []string {
 			continue
 		}
 		// An anchor LEFT BARE is not reopened either: its sentence is gone, not moved, so there is
-		// nothing for red to re-verify. It is a claim on its way out through `blue retire`, which
+		// nothing for red to re-verify. It is a claim on its way out through `retire`, which
 		// takes the anchor with it — and if the retire never comes, the claim count has already
 		// fallen with no retire behind it, which is the loss detector's to report.
 		if bare[id] {

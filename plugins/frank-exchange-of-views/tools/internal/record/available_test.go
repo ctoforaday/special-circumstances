@@ -95,12 +95,20 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 				Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_ACCEPTED},
 			}),
 		})
-		got := availableOf(b.Events, workStatesOfFamilyT(b), "merge", "red-chair")
+		// THE ORIGINATOR'S ACT, SO THE ORIGINATOR'S LIST. requireOriginator refuses a regrade from
+		// any other seat, so the line belongs to the lens that minted G1 and to nobody else.
+		b.Events = append([]*Event{recordtest.Event(t, "red-lens-evidence", &recordpb.Mint{GapId: proto.String("G1")})}, b.Events...)
+		got := availableOf(b.Events, workStatesOfFamilyT(b), "lens", "red-lens-evidence")
 		if !mentions(got, "gap G1 had a grade motion ACCEPTED and no regrade") {
-			t.Fatalf("an accepted grade motion with no regrade afforded nothing: %v", hows(got))
+			t.Fatalf("an accepted grade motion with no regrade afforded nothing to the lens that minted it: %v", hows(got))
 		}
-		b.Events = append(b.Events, recordtest.Event(t, "red-chair", &recordpb.Regrade{GapId: proto.String("G1")}))
-		if got := availableOf(b.Events, workStatesOfFamilyT(b), "merge", "red-chair"); mentions(got, "gap G1 had a grade motion ACCEPTED and no regrade") {
+		for _, other := range []struct{ role, seat string }{{"merge", "red-chair"}, {"lens", "red-lens-logic"}} {
+			if got := availableOf(b.Events, workStatesOfFamilyT(b), other.role, other.seat); mentions(got, "no regrade followed it") {
+				t.Errorf("%s was offered a regrade its write path refuses — G1 is red-lens-evidence's: %v", other.seat, hows(got))
+			}
+		}
+		b.Events = append(b.Events, recordtest.Event(t, "red-lens-evidence", &recordpb.Regrade{GapId: proto.String("G1")}))
+		if got := availableOf(b.Events, workStatesOfFamilyT(b), "lens", "red-lens-evidence"); mentions(got, "gap G1 had a grade motion ACCEPTED and no regrade") {
 			t.Errorf("the regrade affordance survived the regrade: %v", hows(got))
 		}
 	})
@@ -124,7 +132,8 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 				Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED},
 			}),
 		})
-		if got := availableOf(b.Events, workStatesOfFamilyT(b), "merge", "red-chair"); mentions(got, "no regrade followed it") {
+		b.Events = append([]*Event{recordtest.Event(t, "red-lens-evidence", &recordpb.Mint{GapId: proto.String("G1")})}, b.Events...)
+		if got := availableOf(b.Events, workStatesOfFamilyT(b), "lens", "red-lens-evidence"); mentions(got, "no regrade followed it") {
 			t.Errorf("a REJECTED grade motion afforded a regrade: %v", hows(got))
 		}
 	})

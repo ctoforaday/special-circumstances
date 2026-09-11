@@ -11,7 +11,7 @@ import (
 
 // THE DIFF STACK, MADE READABLE (#268 → #267).
 //
-// `blue edit` has appended a `blue_edit` event since 0.27.0 and NO PROJECTION RENDERED IT.
+// `edit` has appended a `blue_edit` event since 0.27.0 and NO PROJECTION RENDERED IT.
 // The record's most detailed channel — every span blue replaced, with its reason — was
 // written by one seat and read by nobody, while the `changelog` view rendered faithfully
 // from a `revision` event no seat has emitted since the verb left the prompts. Two halves
@@ -85,7 +85,7 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 		// epoch 0 it means blue changed the report through no recorded path, or did not
 		// respond at all. Both are findings, and neither should look like formatting.
 		out = append(out, "_No recorded edits. On a run past epoch 0 that is itself a finding:",
-			"either blue answered nothing, or the report moved outside `blue edit`._", "")
+			"either blue answered nothing, or the report moved outside `edit`._", "")
 	} else {
 		out = append(out, "", fmt.Sprintf("_%d recorded edit(s)._", total), "")
 	}

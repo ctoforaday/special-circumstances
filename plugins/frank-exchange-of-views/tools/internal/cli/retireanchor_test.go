@@ -243,8 +243,8 @@ func TestDroppingAnAnchorTeachesRetire(t *testing.T) {
 	if err == nil {
 		t.Fatal("an edit dropping a citation anchor was accepted")
 	}
-	if !strings.Contains(err.Error(), "blue retire") {
-		t.Errorf("the refusal does not name `blue retire` as the way an anchored claim leaves:\n%v", err)
+	if !strings.Contains(err.Error(), "`retire`") {
+		t.Errorf("the refusal does not name `retire` as the way an anchored claim leaves:\n%v", err)
 	}
 }
 

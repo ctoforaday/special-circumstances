@@ -136,16 +136,39 @@ func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item 
 		if anyClosedGap(gaps) && !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_SPOT_CHECK) {
 			add("the closure archive is not empty and this sitting has sampled none of it")
 		}
+	case "lens":
 		// Accepting a grade motion does not move the grade. Saying so is not doing it.
+		//
+		// ON THE ORIGINATOR'S LIST, because the regrade is the originator's act and nobody else's:
+		// requireOriginator refuses it from any other seat. This line sat on the chair's list,
+		// which offered the chair an act its own write path refuses and left the one seat that
+		// could perform it with nothing on its list at all.
+		minted := mintedBy(evs)
 		for _, id := range gapsWithAcceptedMotionAndNoRegrade(evs) {
+			if minted[id] != seatID {
+				continue
+			}
 			add("gap " + id + " had a grade motion ACCEPTED and no regrade followed it — accepting a dispute does not move the grade, and a grade that moved with no regrade event reads as though the dispute was answered by silence")
 		}
-	case "lens":
 		for _, key := range citedClaimsWithoutVerify(evs) {
 			add("citation " + key + " is on the record and nobody has verified it against what the source actually says")
 		}
 		for _, id := range proofsWithoutReproduce(evs) {
 			add("proof " + id + " is recorded and nobody has re-run it — a proof is audited by RE-RUNNING it, not by reading it")
+		}
+	}
+	return out
+}
+
+// mintedBy maps each gap to the seat that minted it — the same fact requireOriginator reads off
+// the gap table, read here off the events this derivation already holds.
+func mintedBy(evs []*Event) map[string]string {
+	out := map[string]string{}
+	for _, e := range evs {
+		if m := e.GetMint(); m != nil && m.GetGapId() != "" {
+			if _, seen := out[m.GetGapId()]; !seen {
+				out[m.GetGapId()] = e.GetSeatId()
+			}
 		}
 	}
 	return out

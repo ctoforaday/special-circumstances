@@ -13,7 +13,7 @@ import (
 // line number captured in round 2 points at different text in round 3 — an address derived from a
 // rendering, which is the defect class this suite keeps finding in its own surfaces.
 //
-// The anchor is the stable identity and it is already enforced as one: `blue edit` refuses any edit
+// The anchor is the stable identity and it is already enforced as one: `edit` refuses any edit
 // that drops, duplicates or invents an anchor token, so `<!--fx:f-a1b2c3-->` survives rewrites,
 // insertions and reflows. Blue MAY rewrite the sentence carrying it — that is transit, not
 // authorship — which is exactly the case a frozen quote gets wrong and a live window gets right.
@@ -80,10 +80,10 @@ func ReadAround(report, anchorID string, n int) (Window, error) {
 		if strings.Contains(l, token) {
 			if at >= 0 {
 				// TWO OCCURRENCES IS NOT A WINDOW, IT IS A BUG UPSTREAM. An anchor is minted once
-				// and `blue edit` refuses a duplicate, so a second one means the invariant broke;
+				// and `edit` refuses a duplicate, so a second one means the invariant broke;
 				// picking either would hide that behind a plausible answer.
 				return Window{}, fmt.Errorf("anchor: anchor %s appears on lines %d AND %d — an anchor is unique by construction "+
-					"(`blue edit` refuses one that duplicates), so two occurrences is a broken invariant rather than an ambiguous read",
+					"(`edit` refuses one that duplicates), so two occurrences is a broken invariant rather than an ambiguous read",
 					anchorID, at+1, i+1)
 			}
 			at = i

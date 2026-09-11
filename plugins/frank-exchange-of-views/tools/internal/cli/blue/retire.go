@@ -78,7 +78,7 @@ func newRetire() *cobra.Command {
 		if md, rerr := reportproj.RenderFromRecord(run); rerr == nil {
 			if strings.Contains(md, claim) {
 				return nil, feov.Errorf(feov.Conflict,
-					"blue retire: %q is still in the report. Retiring is how a removal is EXPLAINED, not how it is performed — remove the text with `blue edit` first, then retire the claim to say why it went and what replaced it",
+					"blue retire: %q is still in the report. Retiring is how a removal is EXPLAINED, not how it is performed — remove the text with `edit` first, then retire the claim to say why it went and what replaced it",
 					claim)
 			}
 			// Absent now. Whether it was ever THERE is a different question, and the record

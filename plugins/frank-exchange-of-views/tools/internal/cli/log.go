@@ -27,10 +27,11 @@ func newLog() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "log",
 		Short: "read the run's log channel (operator; every capability gap a seat reported, and every seat that reported none)",
-		Long: "friction prints the capability and protocol complaints seats recorded, and — separately — the seats that " +
+		Long: "log prints the capability and protocol complaints seats recorded, and — separately — the seats that " +
 			"explicitly said nothing blocked them. The two counts are not interchangeable: an empty complaint list with " +
-			"no attestations is a channel nobody used, which is what eighteen recorded sittings turned out to be.\n\n" +
-			"Seats WRITE friction with `<role> friction`; this is the read, and it is yours, not theirs.",
+			"no attestations is a channel nobody used.\n\n" +
+			"Seats WRITE the channel with their own `log --type <type> --reason \"...\"`, under their own --seat-id; " +
+			"this is the read, and it is yours, not theirs.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -55,9 +56,10 @@ func newLog() *cobra.Command {
 			// `unknown command`.
 			if seatFlagsUsed(cmd) {
 				return feov.Errorf(feov.Validation,
-					"friction: this is the OPERATOR's read of the channel; it takes no --reason or --none. "+
-						"To WRITE friction, name your role: `<role> friction --reason \"<the capability gap and what it blocked>\"`, "+
-						"or `<role> friction --none --reason \"<what you reached for and found>\"` when nothing blocked you")
+					"log: this is the OPERATOR's read of the channel; it takes no --reason or --none. "+
+						"A seat WRITES the channel under its own --seat-id: `log --type <type> --reason \"<the capability gap and what it blocked>\"`, "+
+						"or `log --type nominal --reason \"<what you reached for and found>\"` when nothing blocked you — "+
+						"`log --help` on the seat's surface lists the types")
 			}
 			// A REFUSAL AND AN ABSENCE ARE DIFFERENT ANSWERS, and this read gave the same one to
 			// both: it took the path off seat.Of, where no error is reachable, and told an

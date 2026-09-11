@@ -163,7 +163,7 @@ func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJS
 		// each epoch, so a review recorded before this epoch's edits answers a question about a
 		// document that no longer exists.
 		if InquiryReviewDueOf(evs) {
-			add("the report's account of its own research has not been read this round — PASS is refused until one `inquiry-review` says what the read found (and any shortfall is minted as a gap)")
+			add("the report's account of its own research has not been read this round — PASS is refused until one `inquiry-support` says what the read found (and any shortfall is minted as a gap)")
 		}
 		if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_VERDICT) {
 			add("your terminal act is missing — the run cannot say from its own record that it was ever verified")

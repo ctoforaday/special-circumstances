@@ -149,7 +149,7 @@ func requireCitation(run Run, label, verb, flag string) error {
 	// "blue has cited" WAS TRUE AND IS NOT. The set now includes red's supporting
 	// corroborations, which mint a label of their own — so a count described as blue's would
 	// misstate what a seat is being compared against.
-	return fmt.Errorf("record: %s %s=%s names no citation on the record — %d source(s) are cited (blue's, and red's corroborations), and `show evidence` lists them by anchor. Cite the method with `blue cite` first; a proof pointing at a citation that does not exist claims a provenance it does not have",
+	return fmt.Errorf("record: %s %s=%s names no citation on the record — %d source(s) are cited (blue's, and red's corroborations), and `show evidence` lists them by anchor. Cite the method with `cite` first; a proof pointing at a citation that does not exist claims a provenance it does not have",
 		verb, flag, label, len(known))
 }
 
@@ -382,7 +382,7 @@ func requirePassClosesAllMaterialGaps(run Run) error {
 	if InquiryReviewDueOf(evs) {
 		return fmt.Errorf("record: verdict PASS refused — this epoch has no line-of-inquiry review. " +
 			"READ THE REPORT ONCE (`show report`), list what the record claims this run investigated with " +
-			"`show lines-of-inquiry`, and answer in one act: `inquiry-review --reason \"<what the report " +
+			"`show lines-of-inquiry`, and answer in one act: `inquiry-support --reason \"<what the report " +
 			"says at those lines>\"`. Where a line's research is thin, missing or unsupported by the text, " +
 			"MINT A GAP for it — the shortfall is an ordinary defect and gets the ordinary lifecycle; this " +
 			"event only records that the read happened, because an absent review reads exactly like a sound " +
