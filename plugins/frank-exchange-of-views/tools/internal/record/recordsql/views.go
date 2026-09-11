@@ -582,6 +582,8 @@ LEFT JOIN "events" lre ON lre."id" = lr."event_id";
 --   edit   → a=old span, b=new span (blue edit's splice, located and replaced at replay);
 --            exact=1 when the edit recorded exact_span, so replay locates a AS WRITTEN.
 --   insert → a=the anchoring quote, b=the marker id (Token(b) is spliced at that quote); exact=0.
+--            A cite or proof corrected in its sitting inserts nothing new: the replacement carries
+--            the original's label, and the render skips a marker the text already holds.
 --   remove → a=an anchor id a retire took out with its claim (Token(a) and the husk it leaves
 --            are removed). One row per named anchor; a retire recorded before the field names
 --            none, so an old record replays exactly as it did. exact=0.

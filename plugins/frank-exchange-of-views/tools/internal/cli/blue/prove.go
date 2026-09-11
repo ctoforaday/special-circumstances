@@ -43,7 +43,24 @@ func newProve() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
+		// A CORRECTION RE-STATES THE PROOF; it does not run the script again or mint a new id. What
+		// ran, its hash, exit and anchoring quote are the corrected act's, and only the note — the
+		// seat's own wording — may change. A flag left out is the act's own value; one given that
+		// differs is refused by the correction as a change to a frozen field.
+		target, err := s.CorrectionTarget()
+		if err != nil {
+			return nil, err
+		}
+		prior, correcting := target.(*recordpb.Proof)
 		location, script := seat.Str(cmd, flags.Quote), seat.Str(cmd, flags.Script)
+		if correcting {
+			if !seat.Given(cmd, flags.Quote) {
+				location = prior.GetLocation()
+			}
+			if !seat.Given(cmd, flags.Script) {
+				script = prior.GetScript()
+			}
+		}
 		if strings.TrimSpace(location) == "" {
 			return nil, fmt.Errorf("blue prove requires --quote: the EXACT sentence in the report (as `show report` serves it) this computation backs — a proof anchored to nothing is a script nobody can connect to a claim")
 		}
@@ -69,6 +86,16 @@ func newProve() *cobra.Command {
 			return nil, err
 		}
 		tells := spanVoiceTells(why)
+
+		if correcting {
+			body := proto.Clone(prior).(*recordpb.Proof)
+			body.Location, body.Script, body.Text = proto.String(location), proto.String(script), proto.String(why)
+			if _, err := record.Append(s.Identity(), body); err != nil {
+				return nil, err
+			}
+			return proveResult{Label: prior.GetProofId(), SHA: prior.GetProofSha(), Basis: prior.GetProofBasis(),
+				Exit: int(prior.GetExit()), Drift: prior.GetDrift(), VoiceTells: tells}, nil
+		}
 
 		// The script's own sha settles it, and costs a file read rather than an execution.
 		if prior, err := record.ExistingProofByKey(run, s.SeatID, seat.Str(cmd, flags.Key)); err != nil {
@@ -158,7 +185,8 @@ func newProve() *cobra.Command {
 	c.Flags().Bool(flags.ExpectError, false, "this proof's POINT is a failing command (a path that must be absent, a tool that must be missing) — record the environment error as the result instead of refusing it")
 	c.Flags().String(flags.Key, "", flags.DescKey)
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this computation settles (G4) — REQUIRED to close a gap red minted with --check-kind computation, which prose cannot answer")
-	return c
+	seat.Records(c, "proof")
+	return seat.Correctable(c)
 }
 
 type proveResult struct {

@@ -303,8 +303,10 @@ func TestRelianceIgnoresTheHarnessAndTheTool(t *testing.T) {
 func TestTheCorrectionTiersAreTheOwnersRuling(t *testing.T) {
 	full := map[string]bool{"manifest_row": true, "position": true, "closing": true, "revision": true, "log": true,
 		"inquiry_review": true, "spot_check": true, "regrade": true}
+	// cite and proof joined PROSE on gblock's 2026-09-11 ruling (#886): the title, the argument and
+	// the proof note are report text a seat may need to re-word in the sitting that wrote it.
 	prose := map[string]bool{"motion_rule": true, "motion_appeal": true, "declare": true, "certify": true, "close": true,
-		"avenue": true, "reproduce": true, "outcome": true, "halt": true}
+		"avenue": true, "reproduce": true, "outcome": true, "halt": true, "cite": true, "proof": true}
 	ed := recordpb.EventType(0).Descriptor()
 	for i := 0; i < ed.Values().Len(); i++ {
 		typ := recordpb.EventType(ed.Values().Get(i).Number())

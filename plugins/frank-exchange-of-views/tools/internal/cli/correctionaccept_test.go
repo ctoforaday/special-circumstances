@@ -108,6 +108,24 @@ func corrRows() map[string]corrRow {
 			return []string{"manifest-row", "--id", "G1", "--reason", text}
 		}},
 		"blue revision": {seat: "blue-respond", act: prose("revision")},
+		// A corrected cite keeps its label, url and quote; only the title — the prose the report
+		// prints — moves, and nothing is fetched again.
+		"blue cite": {seat: "blue-respond",
+			setup: func(t *testing.T, runDir string) corrVars {
+				withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://src/corr": []byte("<html>a source on the finding</html>")}})
+				return nil
+			},
+			act: func(_ corrVars, text string) []string {
+				return []string{"cite", "--quote", "§2 the finding prose lands in a quoted sentence.", "--url", "https://src/corr", "--title", text}
+			}},
+		// A corrected proof does not run again; only its note moves.
+		"blue prove": {seat: "blue-respond",
+			setup: func(t *testing.T, runDir string) corrVars {
+				return corrVars{"script": script(t, runDir, "corr.js", "console.log(91 % 7)")}
+			},
+			act: func(v corrVars, text string) []string {
+				return []string{"prove", "--quote", "the parser accepts an empty body in this line.", "--script", v["script"], "--reason", text}
+			}},
 		// F13: the correction keeps the line's id instead of minting a new one.
 		"blue line-of-inquiry propose": {seat: "blue-respond", act: func(_ corrVars, text string) []string {
 			return []string{"line-of-inquiry", "propose", "--reason", text, "--hypothesis", "it would settle something"}

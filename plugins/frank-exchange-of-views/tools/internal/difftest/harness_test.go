@@ -172,7 +172,7 @@ func (m *nonceMapper) normalize(s string) string {
 	for raw, placeholder := range m.seen {
 		s = strings.ReplaceAll(s, raw, placeholder)
 	}
-	return sortNonceLists(normalizeProofIDs(normalizeFindingIDs(s)))
+	return sortNonceLists(normalizeCitationIDs(normalizeProofIDs(normalizeFindingIDs(s))))
 }
 
 // proofIDRe matches the tool-assigned proof id, random for the same reason a finding id is. No
@@ -203,6 +203,22 @@ func normalizeFindingIDs(s string) string {
 			return p
 		}
 		p := fmt.Sprintf("FINDING%03d", len(seen)+1)
+		seen[id] = p
+		return p
+	})
+}
+
+// citationIDRe matches the tool-assigned citation label (record.NewCitationID), random for the
+// same reason a finding id is. The determinism fuzz cites, for the citation a cite correction names.
+var citationIDRe = regexp.MustCompile(`c-[0-9a-f]{8}`)
+
+func normalizeCitationIDs(s string) string {
+	seen := map[string]string{}
+	return citationIDRe.ReplaceAllStringFunc(s, func(id string) string {
+		if p, ok := seen[id]; ok {
+			return p
+		}
+		p := fmt.Sprintf("CITATION%03d", len(seen)+1)
 		seen[id] = p
 		return p
 	})
