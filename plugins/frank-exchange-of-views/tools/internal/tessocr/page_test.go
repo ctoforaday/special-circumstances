@@ -7,6 +7,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -109,19 +110,63 @@ func TestRotate90CWGeometry(t *testing.T) {
 	}
 }
 
-// The fallback threshold's both directions, on the Wave 0 boundary evidence: every
-// healthy reconstruction measured at or above 0.92 placed/total, so the 0.80 floor keeps
-// them all while a genuinely scattered placement falls to plain text. The constant is
-// asserted so a change has to restate the boundary pages, not just edit a number.
+// The placement threshold's both directions. Wave 0 listed 189/191, 129/135 and 33/36 as
+// healthy; checked against the pixels (#644) only p0054's 189/191 is — the other two lost
+// rows the ratio cannot see, and TestFallbackReasonOnTheMeasuredPages pins the gate that
+// catches them. The constant is asserted so a change has to restate the boundary pages,
+// not just edit a number.
 func TestMinMarkPlacementHoldsTheMeasuredBoundary(t *testing.T) {
 	if MinMarkPlacement != 0.8 {
-		t.Errorf("MinMarkPlacement = %v — the Wave 0 pages bound it (healthy: 189/191, 129/135, "+
-			"33/36, all ≥ 0.91); change it with the boundary restated", MinMarkPlacement)
+		t.Errorf("MinMarkPlacement = %v — p0054 (189/191) bounds it from above; change it "+
+			"with the boundary restated", MinMarkPlacement)
 	}
-	for _, healthy := range []struct{ placed, total int }{{189, 191}, {129, 135}, {33, 36}} {
+	for _, healthy := range []struct{ placed, total int }{{189, 191}} {
 		if ratio := float64(healthy.placed) / float64(healthy.total); ratio < MinMarkPlacement {
-			t.Errorf("Wave 0 healthy page %d/%d would fall back under the threshold", healthy.placed, healthy.total)
+			t.Errorf("healthy page %d/%d would fall back under the threshold", healthy.placed, healthy.total)
 		}
+	}
+}
+
+// The acceptance decision on the #644 measurement: the five pages of IEEE 1012 whose
+// reconstruction ran, each checked against its 300-DPI pixels. Only p0054 held; the other
+// four clear the placement threshold and must be caught by the dropout gate. Deleting the
+// gate's case from fallbackReason turns four rows here red.
+func TestFallbackReasonOnTheMeasuredPages(t *testing.T) {
+	for _, p := range []struct {
+		page                         string
+		gx, rows, sub, placed, total int
+		held                         bool
+	}{
+		{"p0054", 1040, 35, 11, 189, 191, true},
+		{"p0051", 3347, 17, 31, 129, 135, false},
+		{"p0052", 3295, 12, 14, 33, 36, false},
+		{"p0050", 2688, 14, 9, 22, 26, false},
+		{"p0053", 2001, 8, 3, 10, 12, false},
+	} {
+		st := Stats{RowsFound: p.rows, SubColumnsFound: p.sub, MarksPlaced: p.placed, MarksTotal: p.total}
+		reason := fallbackReason(nil, GridStats{Intersections: p.gx}, st)
+		if held := reason == ""; held != p.held {
+			t.Errorf("%s: held = %v (reason %q), want %v", p.page, held, reason, p.held)
+			continue
+		}
+		if !p.held && !strings.Contains(reason, "grid intersections") {
+			t.Errorf("%s fell back, but not on the dropout gate: %q", p.page, reason)
+		}
+	}
+}
+
+// Each fallback says why, and the two older reasons still fire on their own evidence.
+func TestFallbackReasonStatesEachCause(t *testing.T) {
+	noMarks := fallbackReason(ErrNoMarks, GridStats{Intersections: 200}, Stats{})
+	for _, want := range []string{"no mark tokens", "row", "page image"} {
+		if !strings.Contains(noMarks, want) {
+			t.Errorf("no-marks fallback %q does not state %q", noMarks, want)
+		}
+	}
+	scattered := fallbackReason(nil, GridStats{Intersections: 100},
+		Stats{RowsFound: 10, SubColumnsFound: 5, MarksPlaced: 5, MarksTotal: 20})
+	if !strings.Contains(scattered, "placed 5 of 20") {
+		t.Errorf("scattered placement fell back as %q, want the placement reason", scattered)
 	}
 }
 

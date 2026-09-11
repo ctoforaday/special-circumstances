@@ -47,11 +47,13 @@ type Stats struct {
 	SubColumnsFound  int `json:"subcolumns_found"`
 	RowsFound        int `json:"rows_found"`
 	HeaderNamesFound int `json:"header_names_found"`
-	// MarksPlaced/MarksTotal is the plan's original fallback trigger — and Wave 0 proved
-	// it is NOT sufficient alone: when the OCR drops glyphs, MarksTotal drops with them
-	// and the ratio stays healthy (p0052: 33/36 placed on a page missing 55% of its
-	// marks). PSMDisagreement and ExpectedIntersections are the two independent
-	// denominators that catch what this ratio cannot.
+	// MarksPlaced/MarksTotal is the plan's original fallback trigger — and it is NOT
+	// sufficient alone: when the OCR drops glyphs, MarksTotal drops with them and the ratio
+	// stays healthy (p0052: 33/36 placed on a page missing 55% of its marks). The dropout
+	// gate (MaxIntersectionRatio, over ExpectedIntersections) catches what it cannot;
+	// PSMDisagreement stays on the record as a second witness but gates nothing — on the
+	// #644 pages it read 0.81 on the one reconstruction that held and 0.10 on one that
+	// failed.
 	MarksTotal    int `json:"marks_total"`
 	MarksPlaced   int `json:"marks_placed"`
 	MarksUnplaced int `json:"marks_unplaced"`
@@ -63,10 +65,12 @@ type Stats struct {
 }
 
 // ExpectedIntersections is the rule-lattice size this reconstruction implies:
-// (rows+1) x (subcolumns+1) crossings. Compared against the grid detector's measured
-// intersection count it is the OCR-independent dropout signal — a lattice far larger than
-// the reconstruction accounts for means tesseract dropped grid content that leptonica can
-// still see.
+// (rows+1) x (subcolumns+1) crossings. Against the grid detector's measured intersection
+// count it is the OCR-independent dropout signal, and the denominator of the dropout gate
+// (MaxIntersectionRatio): a lattice far larger than the reconstruction accounts for means
+// tesseract dropped grid content that leptonica can still see. The two counts are in
+// different units — crossing pixels over lattice points — which is why the gate's limit
+// is a measured ratio, not 1.
 func (s Stats) ExpectedIntersections() int {
 	return (s.RowsFound + 1) * (s.SubColumnsFound + 1)
 }
