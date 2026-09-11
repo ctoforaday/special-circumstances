@@ -132,6 +132,11 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 		// RED'S INDEPENDENT RE-RUN (#343). The strongest audit the engine has is worth the
 		// reader knowing about, and its absence is worth knowing about too: a proof nobody
 		// re-ran and a proof that reproduced used to render identically.
+		// A RE-RUN ITS SEAT CORRECTED is listed struck, with who struck it and why, before the one
+		// that stands.
+		for _, s := range p.StruckReruns {
+			fmt.Fprintf(&b, "- %s\n", record.StruckMarkdown(fmt.Sprintf("audited by %s #%d: %s", s.SeatID, s.Sitting, s.Note), s.Struck))
+		}
 		if v := p.Verified; v != nil {
 			// TWO AXES. Reproducing measures determinism; soundness is red's judgement from
 			// reading the script. The dangerous cell is reproduces-but-unsound: it re-runs

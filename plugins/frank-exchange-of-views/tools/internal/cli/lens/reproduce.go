@@ -62,8 +62,19 @@ func newReproduce() *cobra.Command {
 			// document had the token this verb does not take and no path to the one it does.
 			return nil, fmt.Errorf("lens reproduce requires --id: the sha256 of the proof to re-run. Reading the report and holding a `<!--proof:p-…-->` anchor, resolve it with `lens show evidence --run <runDir>` — every proof is listed there with its anchor, its sha256, its script, and whether anyone has re-run it yet")
 		}
-		ok, got, want, err := proof.Reproduce(run.Dir(), sha)
+		// A CORRECTION RE-STATES THE REPRODUCTION; it does not re-run the proof. What the re-run
+		// showed is the corrected act's, and a corrected note must not hang on whether the proof's
+		// output is stable from one run to the next.
+		target, err := s.CorrectionTarget()
 		if err != nil {
+			return nil, err
+		}
+		prior, correcting := target.(*recordpb.Reproduce)
+		var ok bool
+		var got, want string
+		if correcting {
+			ok, got, want = prior.GetReproduced(), prior.GetObservedOutput(), prior.GetRecordedOutput()
+		} else if ok, got, want, err = proof.Reproduce(run.Dir(), sha); err != nil {
 			return nil, err
 		}
 		soundness := seat.Str(cmd, flags.As)
@@ -79,7 +90,10 @@ func newReproduce() *cobra.Command {
 			Reproduced: proto.Bool(ok),
 			Soundness:  &snd,
 		}
-		if !ok {
+		if correcting {
+			// Copied as stored, not re-truncated: the stored text already carries the ellipsis.
+			body.RecordedOutput, body.ObservedOutput = prior.RecordedOutput, prior.ObservedOutput
+		} else if !ok {
 			// Only on a MISMATCH, and truncated: the recorded output already lives in the
 			// proof artifact, and copying it wholesale into the event would put a second
 			// copy of the same bytes on the record. What the reader needs is what CHANGED.
@@ -101,7 +115,7 @@ func newReproduce() *cobra.Command {
 	}))
 	c.Flags().String(flags.ID, "", "REQUIRED — the sha256 of the recorded proof to re-run")
 	enumhelp.Flag(c, flags.As, record.MustEnum("reproduce", "soundness"), ("REQUIRED — having READ the script: does it actually establish the claim it is anchored to?"))
-	return c
+	return seat.Correctable(c)
 }
 
 // truncateOutput keeps a mismatch legible without copying a whole run's output onto the record.

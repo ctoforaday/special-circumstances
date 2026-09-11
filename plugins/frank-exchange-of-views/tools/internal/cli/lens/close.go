@@ -83,7 +83,7 @@ func newClose() *cobra.Command {
 	// fixed the carry and cost THIS verb both its cobra refusal and its REQUIRED marker.
 	// seat.ProseRequired restores the two together; separating them is how a parser ends up
 	// holding a rule the help does not state.
-	return seat.ProseRequired(c)
+	return seat.Correctable(seat.ProseRequired(c))
 }
 
 // carry: restate a closure made in an earlier epoch.

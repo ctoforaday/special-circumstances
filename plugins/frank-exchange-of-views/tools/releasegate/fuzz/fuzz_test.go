@@ -3069,6 +3069,9 @@ var verbsWithEvents = []string{
 	// any seat sits; `dispatch` by the chair's `dispatch next`. Exempted below until the workflow
 	// the fuzz drives runs the dispatch loop (roundless B-iii), when `dispatch` joins the sweep.
 	"cast", "dispatch",
+	// A same-sitting correction (plans/same-sitting-correction.md): written beside the replacement
+	// by the corrected act's own verb, run with --corrects.
+	"correction",
 }
 
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.
@@ -3100,6 +3103,11 @@ var coverExempt = map[string]bool{
 	// THE CAST IS SETUP'S, NOT A VERB'S: written once before the first seat sits, so no seed of
 	// the random sweep can produce it. `dispatch` is driven: the chair's first act every sitting.
 	"cast": true,
+	// A CORRECTION IS A SEAT REPAIRING ITS OWN DEFECTIVE TEXT, which no simulated seat of the sweep
+	// writes: the fake agent writes the text it means the first time. It is driven where a defect
+	// can be staged on purpose — the record tests, the per-command acceptance test in internal/cli,
+	// and the determinism fuzz in internal/difftest.
+	"correction": true,
 }
 
 // TestFuzzHaltPath drives the JUDICIAL HALT terminal path — kept OUT of the random sweep because a

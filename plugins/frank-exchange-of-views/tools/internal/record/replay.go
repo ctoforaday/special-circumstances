@@ -124,6 +124,26 @@ func MergedEvents(run Run) (Merged, error) {
 // Rendering the sentinel stays the consumer's decision, because they disagree: view.go prints
 // `undefined`, report/assemble.go prints an em-dash. GradeStr returns "" for the zero and each
 // caller supplies its own word.
+// RegradeEntry is one regrade as a listing shows it: the regrade, and who struck it and why when a
+// same-sitting correction replaced it.
+type RegradeEntry struct {
+	Regrade *recordpb.Regrade
+	Struck  *Struck
+}
+
+// RegradeListing is the gap's grade movements for a listing: the history with struck ones marked
+// when the record assembled it, else the standing regrades.
+func (g *Gap) RegradeListing() []RegradeEntry {
+	if g.RegradeHistory != nil {
+		return g.RegradeHistory
+	}
+	out := make([]RegradeEntry, len(g.Regrades))
+	for i, r := range g.Regrades {
+		out[i] = RegradeEntry{Regrade: r}
+	}
+	return out
+}
+
 type Gap struct {
 	ID          string
 	Epoch       int
@@ -143,9 +163,14 @@ type Gap struct {
 	//
 	// WATCH THE NIL TEST. `g.Closure != nil` used to mean "closed by anything" and now means
 	// "closed by a `close` event". HasClosed is the unchanged answer to "closed at all".
-	Closure        *recordpb.Close
-	BenchClosure   *recordpb.DocketRuling
-	Regrades       []*recordpb.Regrade
+	Closure      *recordpb.Close
+	BenchClosure *recordpb.DocketRuling
+	Regrades     []*recordpb.Regrade
+	// RegradeHistory is every regrade in listing order, a struck one marked — what a LISTING of
+	// the gap's grade movements renders. Regrades above is the acts that stand, for a reader that
+	// counts them or takes the latest. Nil for a gap no record assembled (a hand-built fixture);
+	// RegradeListing then falls back to the standing ones.
+	RegradeHistory []RegradeEntry
 	Severity       recordpb.Grade
 	Likelihood     recordpb.Grade
 	Impact         recordpb.Grade

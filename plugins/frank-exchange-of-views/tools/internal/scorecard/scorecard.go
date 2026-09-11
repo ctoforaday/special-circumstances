@@ -22,6 +22,7 @@
 package scorecard
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"os"
@@ -341,7 +342,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	manifestedGaps := map[string]bool{}
 	var owed []string
 	if fam != nil {
-		for _, e := range fam.Events {
+		for _, e := range fam.Live() {
 			// COUNTED BY EVENT TYPE, not by a readable body. `manifested` is the value this row
 			// falls back to when no denominator exists, so an event of this type whose body did
 			// not decode must still be counted — a short count would read as a low one, which is
@@ -414,7 +415,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 		sat := map[string]bool{}
 		closed := map[string]bool{}
 		seen := map[string]int{}
-		for _, e := range fam.Events {
+		for _, e := range fam.Live() {
 			seat := e.GetSeatId()
 			switch e.GetType() {
 			case recordpb.EventType_EVENT_TYPE_REGISTER:
@@ -436,7 +437,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 		// distribution is the reading the type field exists to replace, and a channel that only
 		// ever says `nominal` is not proof the system worked — it is proof nobody reported.
 		byType := map[string]int{}
-		for _, e := range fam.Events {
+		for _, e := range fam.Live() {
 			if l, ok := recordpb.BodyAs[*recordpb.Log](e); ok {
 				byType[recordpb.Word(l.GetType())]++
 			}
@@ -480,7 +481,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	// record written before the field credits no retire.
 	retires, events := 0, 0
 	if fam != nil {
-		for _, e := range fam.Events {
+		for _, e := range fam.Live() {
 			r, ok := recordpb.BodyAs[*recordpb.Retire](e)
 			if !ok {
 				continue
@@ -770,8 +771,41 @@ func benchRows(results []map[string]any, fam *record.Family) []Row {
 func Compute(run record.Run, results []map[string]any, fam *record.Family) map[string][]Row {
 	telemetry := ReadTelemetry(run)
 	return map[string][]Row{
-		"blue":  blueRows(run, results, telemetry, fam),
-		"red":   redRows(run, results, telemetry, fam),
-		"bench": benchRows(results, fam),
+		"blue":  append(blueRows(run, results, telemetry, fam), correctionsRow(fam, "blue")),
+		"red":   append(redRows(run, results, telemetry, fam), correctionsRow(fam, "merge", "lens")),
+		"bench": append(benchRows(results, fam), correctionsRow(fam, "bench")),
 	}
+}
+
+// correctionsRow counts each seat's same-sitting corrections, for the seats of this card's parties
+// (plans/same-sitting-correction.md F9). The owner ruled correction chains UNCAPPED, so this count
+// is the only brake on a seat that corrects instead of getting it right — which is why it sits on
+// every card, and why it is a count per SEAT rather than one total a single seat could hide in.
+//
+// A record that could not be read is "not measured", never 0: a zero is the claim that no seat on
+// this card corrected anything, and an unread record supports no claim. A readable record with no
+// correction answers {} — measured, and none.
+func correctionsRow(fam *record.Family, parties ...string) Row {
+	r := Row{Clause: "Same-sitting corrections", Metric: "corrections", Cls: "measure",
+		Joint: "correction events per seat on this card; chains are uncapped by ruling, so this count is the only brake"}
+	if fam == nil {
+		r.Note = "the record could not be read — not measured"
+		return r
+	}
+	on := map[string]bool{}
+	for _, p := range parties {
+		on[p] = true
+	}
+	per := map[string]int{}
+	for _, e := range fam.Events {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_CORRECTION && on[record.PartyOf(e)] {
+			per[e.GetSeatId()]++
+		}
+	}
+	b, _ := json.Marshal(per) // map keys marshal sorted, so the value is deterministic
+	r.Value = objJSON(b)
+	if len(per) == 0 {
+		r.Note = "no seat on this card corrected an act"
+	}
+	return r
 }

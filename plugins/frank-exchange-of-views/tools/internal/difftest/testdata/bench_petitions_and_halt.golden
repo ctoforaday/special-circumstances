@@ -28,12 +28,12 @@ TWO CONSEQUENCES:
 $ motion petition rule --run {RUN} --seat-id judge-petition-red-chair --id M1 --as granted --binds both --reason the relief binds the coming seats
 exit 0
 stdout:
-motion M1 ruled granted
+motion M1 ruled granted [key judge-petition-red-chair:motion_rule:#1]
 
 $ halt --run {RUN} --seat-id judge-petition-red-chair --reason continuing would compromise the consent gate
 exit 0
 stdout:
-JUDICIAL HALT recorded — capture relays this verbatim
+JUDICIAL HALT recorded — capture relays this verbatim [key judge-petition-red-chair:halt:#1]
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}

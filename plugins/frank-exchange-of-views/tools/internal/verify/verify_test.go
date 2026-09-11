@@ -317,8 +317,10 @@ func TestAnInapplicableCheckIsMarkedNAAndIsNotAFailure(t *testing.T) {
 	if len(Failed(Run(b.fam()))) != 0 {
 		t.Error("an inapplicable check must not appear in Failed()")
 	}
-	if na := NotApplicable(Run(b.fam())); len(na) != 1 || na[0].Name != "pass-closes-all-gaps" {
-		t.Errorf("NotApplicable() = %+v, want exactly the PASS gate", na)
+	// The PASS gate, and corrections-resolve — this record holds no same-sitting correction, so
+	// that check has nothing to hold either. Both are n/a, and nothing else is.
+	if na := NotApplicable(Run(b.fam())); len(na) != 2 || na[0].Name != "pass-closes-all-gaps" || na[1].Name != "corrections-resolve" {
+		t.Errorf("NotApplicable() = %+v, want exactly the PASS gate and corrections-resolve", na)
 	}
 	if got.Detail == "" {
 		t.Error("an unexplained 'did not apply' is the unreadable zero this state exists to remove")

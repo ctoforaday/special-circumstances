@@ -48,6 +48,13 @@ var flagExemptions = map[string]string{
 	"now":            "dashboard's clock injection, for its own deterministic tests",
 	"model":          "dashboard's tier labels, read from run-config in a real run",
 	"judgment-model": "as above",
+	// A CORRECTION IS A SEAT REPAIRING ITS OWN DEFECTIVE ACT, and the simulated seats write the text
+	// they mean the first time, so no honest sweep call produces one. DRIVEN ELSEWHERE, on every
+	// correctable path: internal/cli's TestCorrectionAcceptedPerCorrectablePath runs one accepted
+	// correction per command, and internal/difftest's determinism fuzz corrects every correctable
+	// event type (its correction tour). Read those, not this line, to know whether they still work.
+	"corrects":       "a same-sitting correction; driven per correctable path by internal/cli TestCorrectionAcceptedPerCorrectablePath and per type by the difftest correction tour",
+	"correction-why": "as above — the correction's reason, passed only with --corrects",
 }
 
 // enumExemptions are enum values no sweep can reach, each with its reason.

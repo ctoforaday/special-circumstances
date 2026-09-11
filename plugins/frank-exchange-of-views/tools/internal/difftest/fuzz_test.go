@@ -1,14 +1,21 @@
 package difftest
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/spf13/pflag"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
@@ -99,7 +106,10 @@ func TestReplayDeterminism(t *testing.T) {
 	for i := range seqs {
 		seqs[i] = generate(rng, fuzzMaxLen)
 	}
+	// THE CORRECTION TOUR, after the random sequences so they are drawn exactly as before.
+	seqs = append(seqs, correctionTour(rng))
 	drawn, landed := map[string]int{}, map[string]int{}
+	wroteType, correctedType := map[recordpb.EventType]bool{}, map[recordpb.EventType]bool{}
 	refusal := map[string]string{} // the first refusal each arm met, for the guard's message
 	written := 0
 	ran := 0 // sequences whose body ran in this process; a -run filter skips the rest
@@ -122,6 +132,20 @@ func TestReplayDeterminism(t *testing.T) {
 				}
 			}
 			written += first.written
+			tallyCorrectable(first.events[first.setup:], wroteType, correctedType)
+			// THE SENTINEL LAYER, on the tour — the one sequence that gives its free text tokens. A
+			// token in a field that declares no (prose) is free text a handler copied where the
+			// correction's frozen compare cannot tell it from a decided field.
+			if i == len(seqs)-1 {
+				found, undeclared := sentinelFields(first.events[first.setup:])
+				for _, u := range undeclared {
+					t.Error(u)
+				}
+				if len(found) < 20 {
+					t.Errorf("only %d sentinel token(s) reached the record — the layer is not seeing the tour's free text", len(found))
+				}
+				t.Logf("sentinel tokens stored: %d", len(found))
+			}
 
 			// The log now carries a wall clock, so two identical runs can never be
 			// byte-identical — that is the clock working, not a determinism failure.
@@ -151,10 +175,33 @@ func TestReplayDeterminism(t *testing.T) {
 	// have drawn (a false failure that teaches people to ignore the guard), and passing them would
 	// claim a measurement that was never taken. It skips instead, and says why.
 	t.Run("every arm lands", func(t *testing.T) {
-		if ran < fuzzSequences {
-			t.Skipf("not measured: %d of %d sequences ran (filtered run)", ran, fuzzSequences)
+		if ran < len(seqs) {
+			t.Skipf("not measured: %d of %d sequences ran (filtered run)", ran, len(seqs))
 		}
-		for _, a := range fuzzArms {
+		// EVERY CORRECTABLE TYPE IS WRITTEN AND CORRECTED (plans/same-sitting-correction.md,
+		// criterion 7). The set is read off the schema's tiers, so a type made correctable later
+		// fails here until the generator writes and corrects it.
+		var unwritten, uncorrected []string
+		n := 0
+		vs := recordpb.EventType(0).Descriptor().Values()
+		for i := 0; i < vs.Len(); i++ {
+			typ := recordpb.EventType(vs.Get(i).Number())
+			if recordpb.Word(typ) == "" || recordpb.Tier(typ) == recordpb.CorrectionTier_CORRECTION_TIER_NONE {
+				continue
+			}
+			n++
+			if !wroteType[typ] {
+				unwritten = append(unwritten, recordpb.Word(typ))
+			}
+			if !correctedType[typ] {
+				uncorrected = append(uncorrected, recordpb.Word(typ))
+			}
+		}
+		t.Logf("correctable types: %d; written %d, corrected %d", n, n-len(unwritten), n-len(uncorrected))
+		if len(unwritten) > 0 || len(uncorrected) > 0 {
+			t.Errorf("over the seed set the generator never wrote %v and never corrected %v", unwritten, uncorrected)
+		}
+		for _, a := range append(append([]fuzzArm{}, fuzzArms...), correctionArms...) {
 			t.Logf("%-28s landed %2d/%-2d", a.name, landed[a.name], drawn[a.name])
 			switch {
 			case drawn[a.name] == 0:
@@ -180,6 +227,8 @@ type replayResult struct {
 	stderrs []string // raw stderr per command, in order
 	// written counts the events the generated commands added, the round-0 setup excluded.
 	written int
+	// setup is how many of events the round-0 setup and prologue wrote.
+	setup int
 }
 
 func replay(t *testing.T, bin string, cmds []cmd) replayResult {
@@ -199,22 +248,41 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 			"--check-kind", "document", "--check", "re-read the section", "--severity", "medium",
 			"--likelihood", "medium", "--impact", "medium", "--problem", problem}
 	}
-	for _, pre := range []cmd{
+	prologue := []cmd{
 		{verb: "register", args: []string{"--run", "{RUN}", "--seat-id", "red-lens-evidence"}},
 		{verb: "mint", args: mintArgs("the open gap the fuzz starts from")},
 		{verb: "mint", args: mintArgs("the gap the fuzz starts with before the bench")},
 		{verb: "motion", args: []string{"docket", "file", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "G2",
 			"--reason", "contested, and not red's to close"}},
-	} {
+	}
+	// A RECORDED PROOF, for a sequence with a reproduce in it — and only for one, so the sequences
+	// that name none start from the board they always did. Its sha is read off the record.
+	vars := map[string]string{}
+	if namesVar(cmds, "{PROOF}") {
+		if err := os.WriteFile(filepath.Join(runDir, "fuzz-proof.js"), []byte("console.log('fuzz proof');\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		prologue = append(prologue, cmd{verb: "prove", args: []string{"--run", "{RUN}", "--seat-id", "blue-respond",
+			"--quote", "A claim sits under S2.", "--script", "{RUN}/fuzz-proof.js", "--reason", "the computation a lens re-runs"}})
+	}
+	for _, pre := range prologue {
 		if inv := runGo(bin, runDir, pre); inv.code != 0 {
 			t.Fatalf("fuzz prologue %s %v: exit %d\nstderr: %s", pre.verb, pre.args, inv.code, inv.stderr)
 		}
 		m.observe(filepath.Join(runDir, "records"))
 	}
-	setupEvents := len(collect(t, runDir, m).events)
-	res := replayResult{}
+	setup := collect(t, runDir, m).events
+	setupEvents := len(setup)
+	for _, ev := range setup {
+		if p, ok := ev["proof"].(map[string]any); ok {
+			vars["{PROOF}"], _ = p["proof_sha"].(string)
+		}
+	}
+	res := replayResult{setup: setupEvents}
 	for _, c := range cmds {
+		c.args = fillVars(c.args, vars)
 		inv := runGo(bin, runDir, c)
+		envelopeVars(inv.stdout, vars)
 		m.observe(filepath.Join(runDir, "records"))
 		got := normalizeOutput(inv, runDir, m)
 		res.output = append(res.output, fmt.Sprintf("exit=%d out=%q err=%q", got.code, got.stdout, got.stderr))
@@ -261,6 +329,10 @@ type fuzzArm struct {
 	seats  []string
 	verb   []string // the verb path, first word first: {"motion", "grade", "file"}
 	flags  func(rng *rand.Rand) []string
+	// steps, when set, builds SEVERAL commands for the arm's seat — a correction arm's
+	// prerequisites, its act and the correction. Only the step labelled with the arm's own name is
+	// what "every arm lands" measures.
+	steps func(rng *rand.Rand, seat string) []cmd
 }
 
 // fuzzArms is weighted toward the lens, since that is where validation, lineage, and id minting
@@ -361,6 +433,315 @@ var fuzzArms = []fuzzArm{
 			}
 			return f
 		}},
+}
+
+// correctionArms drive same-sitting correction (plans/same-sitting-correction.md): one per
+// correctable event type, each on a seat whose tree has the verb — the lens's close, regrade and
+// reproduce; blue's and the chair's position and closing; the bench's declare, certify, halt and
+// outcome. Every arm writes its act with --json, so the key the correction names is read off the
+// envelope's field rather than out of the success line.
+//
+// KEPT OUT OF fuzzArms, so the random sequences are drawn exactly as they were measured. They run
+// as ONE extra sequence, the correction tour, in which each arm is drawn once, in this order: the
+// acts on G1 before the closure that ends it, the outcome before the halt that would make it
+// derivable.
+var correctionArms = []fuzzArm{
+	corrArm("blue manifest-row corrected", blueSeats, []string{"manifest-row"}, func(t string) []string { return []string{"--id", "G1", "--reason", t} }, nil),
+	corrArm("blue revision corrected", blueSeats, []string{"revision"}, reasonOnly, nil),
+	corrArm("blue position corrected", blueSeats, []string{"position"}, reasonOnly, nil),
+	corrArm("chair position corrected", []string{"red-chair"}, []string{"position"}, reasonOnly, nil),
+	corrArm("blue closing corrected", blueSeats, []string{"closing"}, func(t string) []string { return []string{"--id", "G1", "--reason", t} }, nil),
+	corrArm("chair closing corrected", []string{"red-chair"}, []string{"closing"}, func(t string) []string { return []string{"--id", "G1", "--reason", t} }, nil),
+	corrArm("log corrected", []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}, []string{"log"},
+		func(t string) []string { return []string{"--type", "defect", "--reason", t} }, nil),
+	corrArm("chair inquiry-support corrected", []string{"red-chair"}, []string{"inquiry-support"}, reasonOnly, nil),
+	corrArm("chair spot-check corrected", []string{"red-chair"}, []string{"spot-check"}, func(t string) []string { return []string{"--none", "--reason", t} }, nil),
+	corrArm("lens regrade corrected", []string{"red-lens-evidence"}, []string{"regrade"},
+		func(t string) []string { return []string{"--id", "G1", "--severity", "high", "--reason", t} }, nil),
+	corrArm("chair motion grade rule corrected", []string{"red-chair"}, []string{"motion", "grade", "rule"},
+		func(t string) []string { return []string{"--id", "{MOTION}", "--as", "rejected", "--reason", t} },
+		func(name string) []cmd { return []cmd{fileGradeMotion(name)} }),
+	corrArm("blue motion grade appeal corrected", []string{"blue-respond"}, []string{"motion", "grade", "appeal"},
+		func(t string) []string { return []string{"--id", "{MOTION}", "--reason", t} },
+		func(name string) []cmd {
+			return []cmd{fileGradeMotion(name), fuzzStep(name+" · setup", []string{"motion", "grade", "rule"}, "red-chair",
+				"--id", "{MOTION}", "--as", "rejected", "--reason", "the evidence does not reach it")}
+		}),
+	corrArm("bench motion docket rule corrected", []string{"judge"}, []string{"motion", "docket", "rule"},
+		func(t string) []string {
+			return []string{"--id", "M1", "--as", "carried", "--principle", "p", "--tension", "t", "--review-flag", "r",
+				"--settled", "the proposition this ruling bars", "--final", "--reason", t}
+		}, nil),
+	corrArm("blue line-of-inquiry propose corrected", blueSeats, []string{"line-of-inquiry", "propose"},
+		func(t string) []string { return []string{"--reason", t, "--hypothesis", "it would settle something"} }, nil),
+	corrArm("lens reproduce corrected", []string{"red-lens-evidence"}, []string{"reproduce"},
+		func(t string) []string { return []string{"--id", "{PROOF}", "--as", "sound", "--reason", t} }, nil),
+	corrArm("bench declare corrected", []string{"judge"}, []string{"declare"}, reasonOnly, nil),
+	corrArm("bench certify corrected", []string{"judge"}, []string{"certify"}, reasonOnly, nil),
+	corrArm("bench outcome corrected", []string{"judge"}, []string{"outcome"},
+		func(t string) []string { return []string{"--as", "UNVERIFIED", "--reason", t} }, nil),
+	corrArm("lens close corrected", []string{"red-lens-evidence"}, []string{"close"},
+		func(t string) []string {
+			return []string{"--id", "G1", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "report.md#S1", "--reason", t}
+		}, nil),
+	corrArm("bench halt corrected", []string{"judge"}, []string{"halt"}, reasonOnly, nil),
+}
+
+func reasonOnly(t string) []string { return []string{"--reason", t} }
+
+func fileGradeMotion(name string) cmd {
+	return fuzzStep(name+" · setup", []string{"motion", "grade", "file"}, "blue-respond",
+		"--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", "the consequence is bounded", "--json")
+}
+
+// fuzzStep is one command, spelled as its seat types it.
+func fuzzStep(arm string, verb []string, seat string, flags ...string) cmd {
+	args := append(append([]string{}, verb[1:]...), "--run", "{RUN}", "--seat-id", seat)
+	return cmd{verb: verb[0], args: append(args, flags...), arm: arm}
+}
+
+// corrArm is a correction arm: `before` builds its prerequisites, then the act — whose only free
+// text differs from the correction's — then the correction naming it by {KEY}.
+func corrArm(name string, seats, verb []string, flagsFor func(text string) []string, before func(name string) []cmd) fuzzArm {
+	return fuzzArm{name: name, weight: 1, seats: seats, verb: verb, steps: func(rng *rand.Rand, seat string) []cmd {
+		const lost, whole = "as first recorded, with a word  lost", "as it was meant, whole"
+		var out []cmd
+		if before != nil {
+			out = before(name)
+		}
+		out = append(out, fuzzStep(name+" · act", verb, seat, append(flagsFor(lost), "--json")...))
+		fix := fuzzStep(name, verb, seat, append(flagsFor(whole), "--corrects", "{KEY}", "--correction-why", "a word was lost")...)
+		switch rng.Intn(6) {
+		case 0:
+			// A RETRY of the same correction answers with the act that stands and writes nothing.
+			retry := fix
+			retry.arm = name + " · retry"
+			return append(out, fix, retry)
+		case 1:
+			// A NO-OP correction — the act's own text — is refused before the real one lands.
+			noop := fuzzStep(name+" · no-op", verb, seat, append(flagsFor(lost), "--corrects", "{KEY}", "--correction-why", "nothing")...)
+			return append(out, noop, fix)
+		}
+		return append(out, fix)
+	}}
+}
+
+// correctionTour is one sequence holding every correction arm once — every free-text value in it
+// carrying a sentinel (see withSentinels).
+func correctionTour(rng *rand.Rand) []cmd {
+	var out []cmd
+	for _, a := range correctionArms {
+		out = append(out, a.steps(rng, pick(rng, a.seats))...)
+	}
+	return withSentinels(out)
+}
+
+// sentinelPrefix opens every sentinel token; no text the fuzz or the tool writes carries it.
+const sentinelPrefix = "⟦S"
+
+// withSentinels gives every FREE-TEXT flag value in a sequence a sentinel token (plans/
+// same-sitting-correction.md III.C.1, second layer). Which flags are free text is asked of the
+// command tree itself — flags.IsFreeText on the command the seat's own root resolves — so the set
+// cannot fall behind the verbs. A token is keyed by (seat, verb, flag, value), not issued per
+// argument: an arm's no-op correction repeats its act's exact text, and a fresh token would make
+// it a change. After replay, every stored field holding a token must declare (prose).
+func withSentinels(cmds []cmd) []cmd {
+	tokens := map[string]string{}
+	out := make([]cmd, len(cmds))
+	for i, c := range cmds {
+		c.args = append([]string{}, c.args...)
+		free := freeTextFlags(c)
+		for j := 0; j+1 < len(c.args); j++ {
+			name := strings.TrimPrefix(c.args[j], "--")
+			if name == c.args[j] || !free[name] {
+				continue
+			}
+			k := seatOf(c) + "|" + c.verb + "|" + name + "|" + c.args[j+1]
+			if tokens[k] == "" {
+				tokens[k] = fmt.Sprintf("%s%d⟧", sentinelPrefix, len(tokens)+1)
+			}
+			c.args[j+1] += " " + tokens[k]
+		}
+		out[i] = c
+	}
+	return out
+}
+
+func seatOf(c cmd) string {
+	for j := 0; j+1 < len(c.args); j++ {
+		if c.args[j] == "--seat-id" {
+			return c.args[j+1]
+		}
+	}
+	return ""
+}
+
+// freeTextFlags is the set of flags registered through flags.Text on the command this invocation
+// names, in its seat's own tree.
+func freeTextFlags(c cmd) map[string]bool {
+	root := cli.NewRootFor(seatOf(c))
+	path := []string{c.verb}
+	for _, a := range c.args {
+		if strings.HasPrefix(a, "--") {
+			break
+		}
+		path = append(path, a)
+	}
+	found, _, err := root.Find(path)
+	out := map[string]bool{}
+	if err != nil || found == nil {
+		return out
+	}
+	found.Flags().VisitAll(func(f *pflag.Flag) {
+		if flags.IsFreeText(f) {
+			out[f.Name] = true
+		}
+	})
+	return out
+}
+
+// sentinelFields walks every stored body for sentinel tokens and returns, per token, the fields
+// holding it, and the fields that hold one and do not declare (prose).
+func sentinelFields(evs []map[string]any) (found map[string][]string, undeclared []string) {
+	found = map[string][]string{}
+	oneof := (&recordpb.Event{}).ProtoReflect().Descriptor().Oneofs().ByName("body")
+	var walk func(md protoreflect.MessageDescriptor, m map[string]any, path string)
+	walk = func(md protoreflect.MessageDescriptor, m map[string]any, path string) {
+		for key, v := range m {
+			fd := md.Fields().ByName(protoreflect.Name(key))
+			if fd == nil {
+				continue
+			}
+			check := func(s string) {
+				for _, tok := range sentinelTokens(s) {
+					found[tok] = append(found[tok], path+"."+key)
+					if _, declared := recordpb.IsProse(fd); !declared {
+						undeclared = append(undeclared, fmt.Sprintf("%s.%s holds free text %s and declares no (prose)", path, key, tok))
+					}
+				}
+			}
+			switch x := v.(type) {
+			case string:
+				check(x)
+			case []any:
+				for _, e := range x {
+					if s, ok := e.(string); ok {
+						check(s)
+					}
+				}
+			case map[string]any:
+				if fd.Message() != nil {
+					walk(fd.Message(), x, path+"."+key)
+				}
+			}
+		}
+	}
+	// THE BODIES A CORRECTION CAN TOUCH, and the correction's own. (prose) is declared on the
+	// correctable bodies' free-text fields; a NONE act's free text (a motion's basis) is never
+	// compared by a correction, so it owes no declaration and is not asked for one.
+	correctionWord := recordpb.Word(recordpb.EventType_EVENT_TYPE_CORRECTION)
+	for _, ev := range evs {
+		name, _ := ev["type"].(string)
+		typ := recordpb.EventType(recordpb.EventType_value[name])
+		if recordpb.Tier(typ) == recordpb.CorrectionTier_CORRECTION_TIER_NONE && recordpb.Word(typ) != correctionWord {
+			continue
+		}
+		for key, v := range ev {
+			if fd := oneof.Fields().ByName(protoreflect.Name(key)); fd != nil {
+				if body, ok := v.(map[string]any); ok {
+					walk(fd.Message(), body, key)
+				}
+			}
+		}
+	}
+	return found, undeclared
+}
+
+func sentinelTokens(s string) []string {
+	var out []string
+	for {
+		i := strings.Index(s, sentinelPrefix)
+		if i < 0 {
+			return out
+		}
+		j := strings.Index(s[i:], "⟧")
+		if j < 0 {
+			return out
+		}
+		out = append(out, s[i:i+j+len("⟧")])
+		s = s[i+j+len("⟧"):]
+	}
+}
+
+// namesVar reports whether any command in a sequence names a placeholder.
+func namesVar(cmds []cmd, v string) bool {
+	for _, c := range cmds {
+		for _, a := range c.args {
+			if strings.Contains(a, v) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// fillVars substitutes the placeholders a correction arm names — {KEY}, {MOTION}, {PROOF} — into a
+// COPY of the arguments, since both replays of a sequence share its commands.
+func fillVars(args []string, vars map[string]string) []string {
+	out := make([]string, len(args))
+	for i, a := range args {
+		for k, v := range vars {
+			a = strings.ReplaceAll(a, k, v)
+		}
+		if strings.Contains(a, "{KEY}") || strings.Contains(a, "{MOTION}") {
+			a = strings.NewReplacer("{KEY}", "", "{MOTION}", "").Replace(a)
+		}
+		out[i] = a
+	}
+	return out
+}
+
+// envelopeVars reads the placeholders off a --json envelope: the act's `key`, and a filing's
+// `motion_id`. A refusal's envelope carries no key, so {KEY} empties and the correction that names
+// it is refused rather than aimed at an older act. Output that is not an envelope changes nothing.
+func envelopeVars(stdout string, vars map[string]string) {
+	var env struct {
+		OK     *bool  `json:"ok"`
+		Key    string `json:"key"`
+		Result struct {
+			MotionID string `json:"motion_id"`
+		} `json:"result"`
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(stdout)), &env) != nil || env.OK == nil {
+		return
+	}
+	vars["{KEY}"] = env.Key
+	if env.Result.MotionID != "" {
+		vars["{MOTION}"] = env.Result.MotionID
+	}
+}
+
+// tallyCorrectable marks the correctable types a replay wrote, and the types whose act it corrected
+// (the type of the event a correction names as its replacement).
+func tallyCorrectable(evs []map[string]any, wrote, corrected map[recordpb.EventType]bool) {
+	typeOf := map[string]recordpb.EventType{}
+	for _, ev := range evs {
+		name, _ := ev["type"].(string)
+		typ := recordpb.EventType(recordpb.EventType_value[name])
+		if k, _ := ev["key"].(string); k != "" {
+			typeOf[k] = typ
+		}
+		if recordpb.Tier(typ) != recordpb.CorrectionTier_CORRECTION_TIER_NONE {
+			wrote[typ] = true
+		}
+	}
+	for _, ev := range evs {
+		if c, ok := ev["correction"].(map[string]any); ok {
+			if r, _ := c["replacement"].(string); typeOf[r] != 0 {
+				corrected[typeOf[r]] = true
+			}
+		}
+	}
 }
 
 // generate builds one sequence from fuzzArms, each command spelled exactly as its seat types it:

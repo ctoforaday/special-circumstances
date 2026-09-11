@@ -214,8 +214,20 @@ func Read(sf Surface, run record.Run, seatID string) (*Choices, error) {
 		return nil, err
 	}
 	c := &Choices{SeatID: seatID, Used: map[string]int{}}
+	// FRICTION IS READ FROM THE ACTS THAT STAND. A log entry the seat corrected in its sitting
+	// would otherwise be listed twice, the struck wording beside the one it meant.
+	live := map[*record.Event]bool{}
+	for _, e := range record.Live(m.Events) {
+		live[e] = true
+	}
 	for _, e := range m.Events {
 		if e.GetSeatId() != seatID {
+			continue
+		}
+		// A CORRECTION IS NOT A VERB. The seat re-ran the corrected act's own verb, and that
+		// invocation is counted under it by its replacement event; counting the correction too
+		// would report a verb no surface offers, and hand substituteFor a name no seat can type.
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_CORRECTION {
 			continue
 		}
 		// THE ROLE COMES OFF THE EVENT, which is what #348 put it there for. Deriving it from
@@ -243,7 +255,7 @@ func Read(sf Surface, run record.Run, seatID string) (*Choices, error) {
 		// `nominal` entry on the same one — so it lands here too and the type distinguishes it.
 		// `text` is the field the schema gives the seat's own sentence; `reason` was the payload
 		// key that carried it.
-		if f, ok := recordpb.BodyAs[*recordpb.Log](e); ok {
+		if f, ok := recordpb.BodyAs[*recordpb.Log](e); ok && live[e] {
 			c.Friction = append(c.Friction, f.GetText())
 		}
 	}

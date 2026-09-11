@@ -603,14 +603,16 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 // record/viewjson.go (DebateJSONOf) buckets the same way, one `## Epoch N` per chair sitting.
 func debateMD(in Input) []byte {
 	var epochOrder []int
-	byEpoch := map[int][]*record.Event{}
+	// THE LISTING, NOT THE RAW STREAM: an act corrected in its sitting is shown struck, with who
+	// struck it and why, beside the act that replaced it — never as two acts, and never hidden.
+	byEpoch := map[int][]record.Listed{}
 	var clk record.Clock
-	for _, e := range in.Events {
-		r := clk.Advance(e).Epoch
+	for _, l := range record.Listing(in.Events) {
+		r := clk.Advance(l.Event).Epoch
 		if _, seen := byEpoch[r]; !seen {
 			epochOrder = append(epochOrder, r)
 		}
-		byEpoch[r] = append(byEpoch[r], e)
+		byEpoch[r] = append(byEpoch[r], l)
 	}
 	sort.Ints(epochOrder)
 
@@ -626,11 +628,11 @@ func debateMD(in Input) []byte {
 		// Party from the stamped field, not the id's prefix — see the twin in
 		// record/viewjson.go. These two renderers derive from one replay and must
 		// not drift, so they answer "which party" the same way.
-		sec := func(typ recordpb.EventType, party string) []*record.Event {
-			var out []*record.Event
-			for _, e := range re {
-				if e.GetType() == typ && record.PartyOf(e) == party {
-					out = append(out, e)
+		sec := func(typ recordpb.EventType, party string) []record.Listed {
+			var out []record.Listed
+			for _, l := range re {
+				if l.GetType() == typ && record.PartyOf(l.Event) == party {
+					out = append(out, l)
 				}
 			}
 			return out
@@ -640,24 +642,24 @@ func debateMD(in Input) []byte {
 		// Neither message has a `reason`. The twin in record/viewjson.go reads them the same way,
 		// which is the point of the note above.
 		parts := []string{fmt.Sprintf("\n## Epoch %d", r)}
-		for _, e := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "merge") {
-			if p, ok := recordpb.BodyAs[*recordpb.Position](e); ok {
-				parts = append(parts, "### RED\n"+p.GetText())
+		for _, l := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "merge") {
+			if p, ok := recordpb.BodyAs[*recordpb.Position](l.Event); ok {
+				parts = append(parts, "### RED\n"+l.Markdown(p.GetText()))
 			}
 		}
-		for _, e := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "merge") {
-			if c, ok := recordpb.BodyAs[*recordpb.Closing](e); ok {
-				parts = append(parts, fmt.Sprintf("### RED CLOSING (epoch %d) — %s\n%s", r, c.GetGapId(), c.GetText()))
+		for _, l := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "merge") {
+			if c, ok := recordpb.BodyAs[*recordpb.Closing](l.Event); ok {
+				parts = append(parts, fmt.Sprintf("### RED CLOSING (epoch %d) — %s\n%s", r, c.GetGapId(), l.Markdown(c.GetText())))
 			}
 		}
-		for _, e := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "blue") {
-			if p, ok := recordpb.BodyAs[*recordpb.Position](e); ok {
-				parts = append(parts, "### BLUE\n"+p.GetText())
+		for _, l := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "blue") {
+			if p, ok := recordpb.BodyAs[*recordpb.Position](l.Event); ok {
+				parts = append(parts, "### BLUE\n"+l.Markdown(p.GetText()))
 			}
 		}
-		for _, e := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "blue") {
-			if c, ok := recordpb.BodyAs[*recordpb.Closing](e); ok {
-				parts = append(parts, fmt.Sprintf("### BLUE CLOSING (epoch %d) — %s\n%s", r, c.GetGapId(), c.GetText()))
+		for _, l := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "blue") {
+			if c, ok := recordpb.BodyAs[*recordpb.Closing](l.Event); ok {
+				parts = append(parts, fmt.Sprintf("### BLUE CLOSING (epoch %d) — %s\n%s", r, c.GetGapId(), l.Markdown(c.GetText())))
 			}
 		}
 		// THE BENCH'S WHOLE OUTPUT, not only the part that moves a gap.
@@ -676,33 +678,32 @@ func debateMD(in Input) []byte {
 		// unread finding: an unread finding costs a reader, an undelivered ruling costs
 		// compliance, and nothing anywhere reported that it was not delivered.
 		var ops []string
-		for _, e := range re {
+		for _, l := range re {
 			// THE SWITCH IS ON THE BODY. Every arm reaches straight for a field, so binding the
 			// message and the type in one step removes the pair that could disagree. An event with
 			// NO body names none of these verbs — BoardState has already announced it as an
 			// anomaly — so it is skipped here exactly as a non-matching type was.
-			body, ok := recordpb.Body(e)
+			body, ok := recordpb.Body(l.Event)
 			if !ok {
 				continue
 			}
 			switch t := body.(type) {
 			case *recordpb.Declare:
-				ops = append(ops, "- **DECLARED** (binds how the record is read; moves no gap)\n"+t.GetHolding())
+				ops = append(ops, "- **DECLARED** (binds how the record is read; moves no gap)\n"+l.Markdown(t.GetHolding()))
 			case *recordpb.MotionRule:
 				// THE BENCH'S DISPOSITION OF A DOCKETED GAP. The gap comes from the JOIN, not
 				// from the ruling: a ruling carries only the ask's id, so `docketGapOf` above is
 				// the only thing that can name what was settled. The bench's argument is
 				// `MotionRule.opinion`, the prose channel every subject's ruling carries.
 				if d, isDocket := t.GetRuling().(*recordpb.MotionRule_Docket); isDocket {
-					ops = append(ops, fmt.Sprintf("- %s: %s — principle: %s; tension: %s; review: %s\n%s",
+					ops = append(ops, "- "+l.Strike(fmt.Sprintf("%s: %s — principle: %s; tension: %s; review: %s",
 						// recordpb.Word, NOT the enum's own String(). A generated enum prints its
 						// Go constant name — a seat reading the debate would be shown
 						// `DISPOSITION_REPAIRED` where the vocabulary's word belongs. The typing
 						// made this a rendering bug that no longer announces itself as a type
 						// error.
 						docketGapOf[t.GetMotionId()], recordpb.Word(d.Docket.GetDisposition()),
-						d.Docket.GetPrinciple(), d.Docket.GetTension(), d.Docket.GetReviewFlag(),
-						t.GetOpinion()))
+						d.Docket.GetPrinciple(), d.Docket.GetTension(), d.Docket.GetReviewFlag()))+"\n"+l.Markdown(t.GetOpinion()))
 					continue
 				}
 				// Otherwise only the PETITION subject: a grade or direction ruling answers a
@@ -725,7 +726,7 @@ func debateMD(in Input) []byte {
 					binds = " — binds **" + b + "**"
 				}
 				ops = append(ops, fmt.Sprintf("- **PETITION %s**%s\n%s",
-					strings.ToUpper(recordpb.Word(t.GetPetition())), binds, t.GetOpinion()))
+					strings.ToUpper(recordpb.Word(t.GetPetition())), binds, l.Markdown(t.GetOpinion())))
 			}
 		}
 		if len(ops) > 0 {
@@ -767,6 +768,9 @@ func InquiryBody(evs []*record.Event) string {
 	if len(avs) == 0 {
 		return ""
 	}
+	// InquiriesOf folds the acts that stand; the wording a correction struck is listed under its
+	// line, marked — a corrected proposal must not read as one that was always worded this way.
+	struckWording := record.StruckInquiryTexts(evs)
 	var inquiry []string
 	byStatus := map[string][]*record.Inquiry{}
 	for _, a := range avs {
@@ -791,6 +795,9 @@ func InquiryBody(evs []*record.Event) string {
 				reason = " — " + a.Reason
 			}
 			inquiry = append(inquiry, fmt.Sprintf("- **%s**%s%s (%s)", head, method, reason, a.SeatID))
+			for _, s := range struckWording[a.ID] {
+				inquiry = append(inquiry, "  - "+record.StruckMarkdown(s.Text, &s.Struck))
+			}
 			if a.Hypothesis != "" {
 				inquiry = append(inquiry, "  - hypothesis: "+a.Hypothesis)
 			}

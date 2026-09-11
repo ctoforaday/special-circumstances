@@ -1,0 +1,263 @@
+$ register --run {RUN} --seat-id red-chair
+exit 0
+stdout:
+registered red-chair
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+
+$ register --run {RUN} --seat-id red-lens-evidence
+exit 0
+stdout:
+registered red-lens-evidence
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+
+$ register --run {RUN} --seat-id blue-respond
+exit 0
+stdout:
+registered blue-respond
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+
+$ register --run {RUN} --seat-id judge
+exit 0
+stdout:
+registered judge
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+
+$ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check a --severity high --likelihood high --impact high --problem the first gap
+exit 0
+stdout:
+minted G1
+  acceptance check RECORDED as: a
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+
+$ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check b --severity high --likelihood high --impact high --problem the second gap
+exit 0
+stdout:
+minted G2
+  acceptance check RECORDED as: b
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+
+$ manifest-row --run {RUN} --seat-id blue-respond --id G1 --reason G1 is reproducible via 
+exit 0
+stdout:
+manifest row recorded for G1 [key blue-respond:manifest_row:#1:G1]
+
+$ manifest-row --run {RUN} --seat-id blue-respond --id G1 --reason G1 is reproducible via the recorded proof --corrects blue-respond:manifest_row:#1:G1 --correction-why the row lost its method
+exit 0
+stdout:
+manifest row recorded for G1 [key blue-respond:manifest_row:#1:G1~1]
+
+$ manifest-row --run {RUN} --seat-id blue-respond --id G1 --reason G1 is reproducible via the recorded proof --corrects blue-respond:manifest_row:#1:G1 --correction-why the row lost its method
+exit 0
+stdout:
+manifest row recorded for G1 [key blue-respond:manifest_row:#1:G1~1]
+
+$ line-of-inquiry propose --run {RUN} --seat-id blue-respond --reason try the  method
+exit 0
+stdout:
+line of inquiry Q1 recorded (proposed): try the  method [key blue-respond:avenue:#1]
+
+$ line-of-inquiry move --run {RUN} --seat-id blue-respond --id Q1 --as pursued --reason the method held
+exit 0
+stdout:
+line of inquiry Q1 moved to pursued [key blue-respond:avenue:#2]
+
+$ line-of-inquiry propose --run {RUN} --seat-id blue-respond --reason try the recorded method --corrects blue-respond:avenue:#1 --correction-why a word was lost
+exit 0
+stdout:
+line of inquiry Q1 recorded (proposed): try the recorded method [key blue-respond:avenue:#1~1]
+
+$ motion grade file --run {RUN} --seat-id blue-respond --id G2 --dimension severity --proposed low --reason the consequence is bounded
+exit 0
+stdout:
+motion M1 filed (grade)
+
+$ motion grade rule --run {RUN} --seat-id red-chair --id M1 --as rejected --reason the evidence does not  it
+exit 0
+stdout:
+motion M1 ruled rejected [key red-chair:motion_rule:#1]
+
+$ motion grade rule --run {RUN} --seat-id red-chair --id M1 --as rejected --reason the evidence does not reach it --corrects red-chair:motion_rule:#1 --correction-why a word was lost
+exit 0
+stdout:
+motion M1 ruled rejected [key red-chair:motion_rule:#1~1]
+
+$ motion grade appeal --run {RUN} --seat-id blue-respond --id M1 --reason pressing it on  grounds
+exit 0
+stdout:
+motion M1 appealed [key blue-respond:motion_appeal:#1]
+
+$ motion grade appeal --run {RUN} --seat-id blue-respond --id M1 --reason pressing it on new grounds --corrects blue-respond:motion_appeal:#1 --correction-why a word was lost
+exit 0
+stdout:
+motion M1 appealed [key blue-respond:motion_appeal:#1~1]
+
+$ close --run {RUN} --seat-id red-lens-evidence --id G1 --verified-by L1 --verified-with Read --verified-against report.md#S2 --reason verified at the  leaf
+exit 0
+stdout:
+closed G1 (repaired) [key red-lens-evidence:close:#1:G1]
+
+$ close --run {RUN} --seat-id red-lens-evidence --id G1 --verified-by L1 --verified-with Read --verified-against report.md#S2 --reason verified at the leaf --corrects red-lens-evidence:close:#1:G1 --correction-why a word was lost
+exit 0
+stdout:
+closed G1 (repaired) [key red-lens-evidence:close:#1:G1~1]
+
+$ motion petition file --run {RUN} --seat-id red-lens-evidence --class safety --relief halt before the next round --reason a consent gate is missing
+exit 0
+stdout:
+motion M2 filed (petition)
+
+$ motion petition rule --run {RUN} --seat-id judge --id M2 --as denied --reason the gate  exists
+exit 0
+stdout:
+motion M2 ruled denied [key judge:motion_rule:#1]
+
+$ motion petition rule --run {RUN} --seat-id judge --id M2 --as denied --reason the gate already exists --corrects judge:motion_rule:#1 --correction-why a word was lost
+exit 0
+stdout:
+motion M2 ruled denied [key judge:motion_rule:#1~1]
+
+$ outcome --run {RUN} --seat-id judge --as UNVERIFIED --reason it stopped because  refused
+exit 0
+stdout:
+outcome recorded: UNVERIFIED (asserted) [key judge:outcome:#1]
+
+$ outcome --run {RUN} --seat-id judge --as UNVERIFIED --reason it stopped because the gate refused --corrects judge:outcome:#1 --correction-why a word was lost
+exit 0
+stdout:
+outcome recorded: UNVERIFIED (asserted) [key judge:outcome:#1~1]
+
+═══ EVENTS ═══
+{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
+{"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
+{"key":"blue-respond:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":4,"type":"EVENT_TYPE_REGISTER"}
+{"key":"judge:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":5,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-lens-evidence:mint:G1","mint":{"acceptance_check":"a","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"G1","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"the first gap","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:mint:G2","mint":{"acceptance_check":"b","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"G2","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"the second gap","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_MINT"}
+{"key":"blue-respond:manifest_row:#1:G1","manifest_row":{"gap_id":"G1","row":"G1 is reproducible via "},"seat_id":"blue-respond","ts":8,"type":"EVENT_TYPE_MANIFEST_ROW"}
+{"key":"blue-respond:manifest_row:#1:G1~1","manifest_row":{"gap_id":"G1","row":"G1 is reproducible via the recorded proof"},"seat_id":"blue-respond","ts":9,"type":"EVENT_TYPE_MANIFEST_ROW"}
+{"correction":{"corrects":"blue-respond:manifest_row:#1:G1","replacement":"blue-respond:manifest_row:#1:G1~1","why":"the row lost its method"},"key":"blue-respond:correction:blue-respond:manifest_row:#1:G1","seat_id":"blue-respond","ts":10,"type":"EVENT_TYPE_CORRECTION"}
+{"avenue":{"avenue_id":"Q1","hypothesis":"","line":"try the  method","method":"","reason":"try the  method","status":"AVENUE_STATUS_PROPOSED"},"key":"blue-respond:avenue:#1","seat_id":"blue-respond","ts":11,"type":"EVENT_TYPE_AVENUE"}
+{"avenue":{"avenue_id":"Q1","reason":"the method held","status":"AVENUE_STATUS_PURSUED","supersedes_status":"1"},"key":"blue-respond:avenue:#2","seat_id":"blue-respond","ts":12,"type":"EVENT_TYPE_AVENUE"}
+{"avenue":{"avenue_id":"Q1","hypothesis":"","line":"try the recorded method","method":"","reason":"try the recorded method","status":"AVENUE_STATUS_PROPOSED"},"key":"blue-respond:avenue:#1~1","seat_id":"blue-respond","ts":13,"type":"EVENT_TYPE_AVENUE"}
+{"correction":{"corrects":"blue-respond:avenue:#1","replacement":"blue-respond:avenue:#1~1","why":"a word was lost"},"key":"blue-respond:correction:blue-respond:avenue:#1","seat_id":"blue-respond","ts":14,"type":"EVENT_TYPE_CORRECTION"}
+{"key":"blue-respond:motion:#1","motion":{"basis":"the consequence is bounded","grade":{"dimension":"GRADE_DIMENSION_SEVERITY","gap_id":"G2","proposed":"GRADE_LOW"},"motion_id":"M1","subject":"MOTION_SUBJECT_GRADE"},"seat_id":"blue-respond","ts":15,"type":"EVENT_TYPE_MOTION"}
+{"key":"red-chair:motion_rule:#1","motion_rule":{"grade":"GRADE_RULING_REJECTED","motion_id":"M1","opinion":"the evidence does not  it","subject":"MOTION_SUBJECT_GRADE"},"seat_id":"red-chair","ts":16,"type":"EVENT_TYPE_MOTION_RULE"}
+{"key":"red-chair:motion_rule:#1~1","motion_rule":{"grade":"GRADE_RULING_REJECTED","motion_id":"M1","opinion":"the evidence does not reach it","subject":"MOTION_SUBJECT_GRADE"},"seat_id":"red-chair","ts":17,"type":"EVENT_TYPE_MOTION_RULE"}
+{"correction":{"corrects":"red-chair:motion_rule:#1","replacement":"red-chair:motion_rule:#1~1","why":"a word was lost"},"key":"red-chair:correction:red-chair:motion_rule:#1","seat_id":"red-chair","ts":18,"type":"EVENT_TYPE_CORRECTION"}
+{"key":"blue-respond:motion_appeal:#1","motion_appeal":{"motion_id":"M1","reason":"pressing it on  grounds","subject":"MOTION_SUBJECT_GRADE"},"seat_id":"blue-respond","ts":19,"type":"EVENT_TYPE_MOTION_APPEAL"}
+{"key":"blue-respond:motion_appeal:#1~1","motion_appeal":{"motion_id":"M1","reason":"pressing it on new grounds","subject":"MOTION_SUBJECT_GRADE"},"seat_id":"blue-respond","ts":20,"type":"EVENT_TYPE_MOTION_APPEAL"}
+{"correction":{"corrects":"blue-respond:motion_appeal:#1","replacement":"blue-respond:motion_appeal:#1~1","why":"a word was lost"},"key":"blue-respond:correction:blue-respond:motion_appeal:#1","seat_id":"blue-respond","ts":21,"type":"EVENT_TYPE_CORRECTION"}
+{"close":{"anchor_seat":"L1","anchor_target":"report.md#S2","anchor_tool":"Read","closure_class":"DISPOSITION_REPAIRED","gap_id":"G1","prose":"verified at the  leaf"},"key":"red-lens-evidence:close:#1:G1","seat_id":"red-lens-evidence","ts":22,"type":"EVENT_TYPE_CLOSE"}
+{"close":{"anchor_seat":"L1","anchor_target":"report.md#S2","anchor_tool":"Read","closure_class":"DISPOSITION_REPAIRED","gap_id":"G1","prose":"verified at the leaf"},"key":"red-lens-evidence:close:#1:G1~1","seat_id":"red-lens-evidence","ts":23,"type":"EVENT_TYPE_CLOSE"}
+{"correction":{"corrects":"red-lens-evidence:close:#1:G1","replacement":"red-lens-evidence:close:#1:G1~1","why":"a word was lost"},"key":"red-lens-evidence:correction:red-lens-evidence:close:#1:G1","seat_id":"red-lens-evidence","ts":24,"type":"EVENT_TYPE_CORRECTION"}
+{"key":"red-lens-evidence:motion:#1","motion":{"basis":"a consent gate is missing","motion_id":"M2","petition":{"class":"PETITION_CLASS_SAFETY"},"relief":"halt before the next round","subject":"MOTION_SUBJECT_PETITION"},"seat_id":"red-lens-evidence","ts":25,"type":"EVENT_TYPE_MOTION"}
+{"key":"judge:motion_rule:#1","motion_rule":{"motion_id":"M2","opinion":"the gate  exists","petition":"PETITION_RULING_DENIED","subject":"MOTION_SUBJECT_PETITION"},"seat_id":"judge","ts":26,"type":"EVENT_TYPE_MOTION_RULE"}
+{"key":"judge:motion_rule:#1~1","motion_rule":{"motion_id":"M2","opinion":"the gate already exists","petition":"PETITION_RULING_DENIED","subject":"MOTION_SUBJECT_PETITION"},"seat_id":"judge","ts":27,"type":"EVENT_TYPE_MOTION_RULE"}
+{"correction":{"corrects":"judge:motion_rule:#1","replacement":"judge:motion_rule:#1~1","why":"a word was lost"},"key":"judge:correction:judge:motion_rule:#1","seat_id":"judge","ts":28,"type":"EVENT_TYPE_CORRECTION"}
+{"key":"judge:outcome:#1","outcome":{"prose":"it stopped because  refused","verdict":"RUN_OUTCOME_UNVERIFIED","verdict_basis":"asserted"},"seat_id":"judge","ts":29,"type":"EVENT_TYPE_OUTCOME"}
+{"key":"judge:outcome:#1~1","outcome":{"prose":"it stopped because the gate refused","verdict":"RUN_OUTCOME_UNVERIFIED","verdict_basis":"asserted"},"seat_id":"judge","ts":30,"type":"EVENT_TYPE_OUTCOME"}
+{"correction":{"corrects":"judge:outcome:#1","replacement":"judge:outcome:#1~1","why":"a word was lost"},"key":"judge:correction:judge:outcome:#1","seat_id":"judge","ts":31,"type":"EVENT_TYPE_CORRECTION"}
+
+═══ RENDERS ═══
+-- debate
+# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+## Epoch 1
+
+### LEAD
+- **PETITION DENIED**
+~~the gate  exists~~ (struck by judge: a word was lost)
+- **PETITION DENIED**
+the gate already exists
+
+-- lines-of-inquiry
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+
+## pursued (1)
+
+- **Q1 try the recorded method** — the method held (blue-respond)
+  - ~~try the  method~~ (struck by blue-respond: a word was lost)
+  - path: e1 proposed -> e1 pursued
+
+
+
+═══ REPORT ═══
+# _(blue/report.md has no title — not authored here)_
+
+**Report** · [Board](docket.md) · [Debate](debate.md) · [Judgments](judgments.md) · [Directions](lines-of-inquiry.md) · [Run](run.md)
+
+---
+
+**Verdict:** UNVERIFIED (asserted by the bench)
+
+## TL;DR
+
+_(blue/report.md has no "## TL;DR" section — not authored here; blue owns this surface and red audits it.)_
+
+## The Catechism
+
+_(blue/report.md has no "## The Catechism" section — not authored here; blue owns this surface and red audits it.)_
+
+## Technical foundations
+
+_(blue/report.md has no "## Technical foundations" section — not authored here; blue owns this surface and red audits it.)_
+
+## Analysis
+
+_(blue/report.md has no "## Analysis" section — not authored here; blue owns this surface and red audits it.)_
+
+## Risk matrix
+
+| Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
+|---|---|---|---|---|
+| the second gap | high | high | — | — |
+
+The matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in [the board](docket.md).
+
+## Research areas
+
+- **try the recorded method** — the method held
+
+## Future research directions
+
+_(none on the record)_
+
+## Alternatives considered
+
+_(none on the record)_
+
+## Open questions
+
+_(blue/report.md has no "## Open questions" section — not authored here; blue owns this surface and red audits it.)_
+
+## Additional findings
+
+## S2
+
+A claim sits under S2.
+
+## S4
+
+A claim sits under S4.

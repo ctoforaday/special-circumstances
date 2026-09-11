@@ -47,6 +47,12 @@ const (
 	IDs = "ids"
 	Key = "key"
 
+	// A same-sitting correction: --corrects names the seat's own act by the key its success line
+	// printed, and --correction-why says what was wrong with it. Both sit on every correctable
+	// verb and on no other.
+	Corrects      = "corrects"
+	CorrectionWhy = "correction-why"
+
 	// Quote is THE EXACT TEXT, quoted out of blue/report.md and nothing else, matched
 	// literally. Every verb that addresses a span of the report takes it: cite and prove
 	// splice an anchor there, finding flags it, mint says the defect lives there, edit
@@ -288,7 +294,7 @@ func All() []string {
 	return []string{
 		Run, SeatID, Schema, JSON,
 		Reason,
-		ID, IDs, Key, Quote, New, Answers, Accept, URL, Title, Format, Window,
+		ID, IDs, Key, Corrects, CorrectionWhy, Quote, New, Answers, Accept, URL, Title, Format, Window,
 		Sitting, Trajectory,
 		As, None, Confidence,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
@@ -320,7 +326,7 @@ func All() []string {
 func ClosedForm(name string) bool { return closedForm[name] }
 
 var closedForm = map[string]bool{
-	Run: true, SeatID: true, ID: true, Key: true, Class: true, Neighbor: true, Anchor: true,
+	Run: true, SeatID: true, ID: true, Key: true, Corrects: true, Class: true, Neighbor: true, Anchor: true,
 	Format: true, URL: true, At: true, Via: true, Script: true, VerifiedBy: true,
 	VerifiedAgainst: true, CarriedFrom: true, Sitting: true, Trajectory: true, Sha: true,
 	Model: true, JudgmentModel: true, Cite: true, Lanes: true, LensArea: true,
@@ -406,6 +412,11 @@ const (
 	// ReasonNotProcess is the half of DescReason every prose field shares, including the verbs whose
 	// prose is an artifact rather than an argument (seat.reasonIs).
 	ReasonNotProcess = "The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran"
+
+	// DescCorrects and DescCorrectionWhy are the two correction flags, the same on every verb that
+	// carries them.
+	DescCorrects      = "the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]"
+	DescCorrectionWhy = "what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text"
 
 	// ProseFooter is the quoting rule, stated ONCE and attached by Text to the help of every verb
 	// that takes a free-text flag — so it is on the page a seat reads before the write, without a

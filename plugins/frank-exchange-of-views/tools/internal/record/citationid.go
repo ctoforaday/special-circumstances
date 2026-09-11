@@ -268,6 +268,9 @@ type Proof struct {
 	// auditor, and what red made of it. Nil when nobody re-ran it — and that absence is
 	// itself information the reader needs, so the report says so rather than omitting it.
 	Verified *ProofVerification
+	// StruckReruns are re-runs of this proof their seat corrected in the sitting, each marked with
+	// who struck it and why — listed, never dropped. Verified is the one that stands.
+	StruckReruns []ProofVerification
 }
 
 // ProofVerification is one `reproduce` event: red re-ran the script and compared bytes.
@@ -284,6 +287,8 @@ type ProofVerification struct {
 	Note     string
 	Recorded string // only on a mismatch
 	Observed string
+	// Struck is set on a re-run a same-sitting correction replaced.
+	Struck *Struck
 }
 
 // RecordedProofs returns every proof on the record, in event order.
@@ -298,10 +303,14 @@ func RecordedProofs(run Run) ([]Proof, error) {
 	}
 	// Red's re-runs, keyed by the proof they checked, so the join happens once here rather
 	// than in every reader.
+	//
+	// THE LISTING, ONCE: a re-run a correction struck is kept, marked, under StruckReruns, and the
+	// one that stands — in its place, never a later act by position alone — is Verified.
 	verified := map[string]*ProofVerification{}
+	struck := map[string][]ProofVerification{}
 	var clk Clock
-	for i := range m.Events {
-		e := m.Events[i]
+	for _, l := range Listing(m.Events) {
+		e := l.Event
 		w := clk.Advance(e)
 		body, ok := recordpb.Body(e)
 		if !ok {
@@ -311,7 +320,7 @@ func RecordedProofs(run Run) ([]Proof, error) {
 		if !isReproduce {
 			continue
 		}
-		verified[r.GetProofSha()] = &ProofVerification{
+		v := &ProofVerification{
 			SeatID: e.GetSeatId(), Epoch: w.Epoch, Sitting: w.Sitting,
 			// `reproduced` is COMPUTED by the tool and always written; an absent one reads
 			// false, which is what the old bool-assertion default did with a missing or
@@ -328,7 +337,13 @@ func RecordedProofs(run Run) ([]Proof, error) {
 			// channel this message has.
 			Note:     r.GetNote(),
 			Recorded: r.GetRecordedOutput(), Observed: r.GetObservedOutput(),
+			Struck: l.Struck,
 		}
+		if l.Struck != nil {
+			struck[r.GetProofSha()] = append(struck[r.GetProofSha()], *v)
+			continue
+		}
+		verified[r.GetProofSha()] = v
 	}
 	// THREE FIELDS OF THIS PROJECTION HAVE NO FIELD ON `recordpb.Proof`, and they are left
 	// UNCONVERTED rather than defaulted — see the report to the lead. `blue prove` writes
@@ -363,7 +378,8 @@ func RecordedProofs(run Run) ([]Proof, error) {
 			Reason: pf.GetText(),
 			Drift:  pf.GetDrift(),
 			// nil when nobody re-ran it, which the report states rather than omits.
-			Verified: verified[pf.GetProofSha()],
+			Verified:     verified[pf.GetProofSha()],
+			StruckReruns: struck[pf.GetProofSha()],
 		})
 	}
 	return out, nil

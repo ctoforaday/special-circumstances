@@ -273,7 +273,7 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			// verb set draws everywhere else, instead of a runtime comparison of two copies of the
 			// acting role.
 			// A motion is answered ONCE; pressing it is an appeal, which keeps both positions.
-			if err := record.RequireUnruledMotion(run, id); err != nil {
+			if err := record.RequireUnruledMotion(run, id, s.SeatID, s.CorrectionKey()); err != nil {
 				return err
 			}
 			opinion, err := prose(cmd, "rule", "an unreasoned ruling is the decoration the filer cannot contest, and contesting it is the whole reason a ruling is not a command")
@@ -371,7 +371,7 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 	}
 	// The record type, for the contract gate — see newFile.
 	seat.Records(c, "motion_rule")
-	return c
+	return seat.Correctable(c)
 }
 
 // appeal: a seat presses a motion on after a ruling.
@@ -427,7 +427,7 @@ func newAppeal(subject string) *cobra.Command {
 			// #673: a second appeal REPLACED the first in every reader. The state graph found it
 			// by probing every act from every state — accepted, the state unchanged, the argument
 			// rewritten.
-			if err := record.RequireUnappealedMotion(run, id); err != nil {
+			if err := record.RequireUnappealedMotion(run, id, s.SeatID, s.CorrectionKey()); err != nil {
 				return err
 			}
 			reason, err := prose(cmd, "appeal", "why you are pressing on. Going against a ruling without saying why is the disagreement disappearing, which is what the record exists to prevent")
@@ -449,7 +449,7 @@ func newAppeal(subject string) *cobra.Command {
 	c.Flags().String(flags.ID, "", refHelp(subject)+" — the motion being appealed, which must already have been ruled")
 	// The record type, for the contract gate — see newFile.
 	seat.Records(c, "motion_appeal")
-	return c
+	return seat.Correctable(c)
 }
 
 // refHelp names WHICH id the subject joins on. `direction` has no filing verb, so its id is the

@@ -195,6 +195,48 @@ WHERE e."id" > me."id"
   AND COALESCE(b."old", '') != ''
   AND (instr(b."old", m."location") > 0 OR instr(m."location", b."old") > 0);
 
+-- THE STRUCK ACTS: every act a seat corrected in the sitting that wrote it, with the act that
+-- replaced it, who corrected it and why. A struck act is never hidden — listings render it struck,
+-- beside its replacement — but it is never a WINNER: see live_event.
+CREATE VIEW "struck" AS
+SELECT
+  e."id"            AS "event_id",
+  c."corrects"      AS "corrects",
+  c."replacement"   AS "replacement",
+  c."why"           AS "why",
+  ce."seat_id"      AS "seat_id",
+  ce."id"           AS "by_event"
+FROM "correction" c
+JOIN "events" ce ON ce."id" = c."event_id"
+JOIN "events" e  ON e."key" = c."corrects";
+
+-- THE ROOT OF EVERY CORRECTION CHAIN: for each replacement, the key of the act its chain began
+-- with. The walk runs over the correction rows ALONE and never over "events", so it costs the
+-- number of corrections, not the size of the record. (It walked every event once, and the "gap"
+-- view reads live_event in several correlated subqueries per gap: every board read, including the
+-- ones validation makes inside a write, paid for the whole record each time.)
+CREATE VIEW "correction_root" AS
+WITH RECURSIVE "up"("replacement", "root") AS (
+  SELECT c."replacement", c."corrects" FROM "correction" c
+  UNION ALL
+  SELECT u."replacement", c."corrects" FROM "up" u JOIN "correction" c ON c."replacement" = u."root"
+)
+SELECT u."replacement" AS "replacement", u."root" AS "root"
+FROM "up" u
+WHERE NOT EXISTS (SELECT 1 FROM "correction" c WHERE c."replacement" = u."root");
+
+-- THE ACTS THAT STAND, and WHERE each stands. Every event that no correction struck, with its
+-- position "pos": its own id, or — for a replacement — the id of the act at the ROOT of its chain.
+-- A correction takes its target's place in every ordering: a reader picking the FIRST or the LATEST
+-- act orders by "pos", so a replacement cannot jump ahead of a later act by the same seat (a line of
+-- inquiry's proposal corrected after it was moved must not become the line's latest status).
+CREATE VIEW "live_event" AS
+SELECT e."id" AS "event_id", COALESCE(re."id", e."id") AS "pos"
+FROM "events" e
+LEFT JOIN "correction_root" cr ON cr."replacement" = e."key"
+LEFT JOIN "events" re ON re."key" = cr."root"
+WHERE NOT EXISTS (SELECT 1 FROM "correction" c WHERE c."corrects" = e."key");
+
 CREATE VIEW "gap" AS
 SELECT
   m."gap_id"                                   AS "gap_id",
@@ -238,14 +280,15 @@ SELECT
   -- mint's. The plain "severity" columns above are MINT-TIME grades — a reader that wants
   -- what the gap is graded NOW and reaches for them silently reads a number a regrade may
   -- have moved, which is why the overlay is answered here rather than left to each reader.
-  COALESCE((SELECT r."severity" FROM "regrade" r WHERE r."gap_id" = m."gap_id"
-    AND r."severity" IS NOT NULL ORDER BY r."event_id" DESC LIMIT 1), m."severity")   AS "current_severity",
-  COALESCE((SELECT r."likelihood" FROM "regrade" r WHERE r."gap_id" = m."gap_id"
-    AND r."likelihood" IS NOT NULL ORDER BY r."event_id" DESC LIMIT 1), m."likelihood") AS "current_likelihood",
-  COALESCE((SELECT r."impact" FROM "regrade" r WHERE r."gap_id" = m."gap_id"
-    AND r."impact" IS NOT NULL ORDER BY r."event_id" DESC LIMIT 1), m."impact")       AS "current_impact",
-  COALESCE((SELECT r."complexity_cost" FROM "regrade" r WHERE r."gap_id" = m."gap_id"
-    AND r."complexity_cost" IS NOT NULL ORDER BY r."event_id" DESC LIMIT 1), m."complexity_cost") AS "current_complexity_cost",
+  -- A STRUCK regrade is not a grade: only the acts that stand are read, in their "pos" order.
+  COALESCE((SELECT r."severity" FROM "regrade" r JOIN "live_event" rl ON rl."event_id" = r."event_id"
+    WHERE r."gap_id" = m."gap_id" AND r."severity" IS NOT NULL ORDER BY rl."pos" DESC LIMIT 1), m."severity") AS "current_severity",
+  COALESCE((SELECT r."likelihood" FROM "regrade" r JOIN "live_event" rl ON rl."event_id" = r."event_id"
+    WHERE r."gap_id" = m."gap_id" AND r."likelihood" IS NOT NULL ORDER BY rl."pos" DESC LIMIT 1), m."likelihood") AS "current_likelihood",
+  COALESCE((SELECT r."impact" FROM "regrade" r JOIN "live_event" rl ON rl."event_id" = r."event_id"
+    WHERE r."gap_id" = m."gap_id" AND r."impact" IS NOT NULL ORDER BY rl."pos" DESC LIMIT 1), m."impact") AS "current_impact",
+  COALESCE((SELECT r."complexity_cost" FROM "regrade" r JOIN "live_event" rl ON rl."event_id" = r."event_id"
+    WHERE r."gap_id" = m."gap_id" AND r."complexity_cost" IS NOT NULL ORDER BY rl."pos" DESC LIMIT 1), m."complexity_cost") AS "current_complexity_cost",
   -- THE PROOF JOIN, answered where every asker can share it: a 'computation' gap closes on
   -- a recorded proof naming it in --answers, and "awaiting proof" is the debt list blue is
   -- handed. 'computation' is the vocabulary's own word; the Go home for the question
@@ -299,8 +342,9 @@ SELECT
      JOIN "motion_rule" mr4 ON mr4."motion_id" = mo4."motion_id"
      JOIN "motion_rule_docket" rd4 ON rd4."event_id" = mr4."event_id"
      JOIN "enum_disposition" d4 ON d4."value" = rd4."disposition"
+     JOIN "live_event" l4 ON l4."event_id" = mr4."event_id"
    WHERE md4."gap_id" = m."gap_id" AND NOT d4."closes"
-   ORDER BY mr4."event_id" DESC LIMIT 1)                                            AS "docket_reopens_on",
+   ORDER BY l4."pos" DESC LIMIT 1)                                                   AS "docket_reopens_on",
   -- LINEAGE FROM THE OTHER END: the LAST gap that claimed to replace this one, and whether
   -- that promise is broken — a superseded ancestor still open is the same defect counted
   -- twice, which is what the verdict gate refuses.
@@ -319,9 +363,13 @@ JOIN "events_w" e ON e."id" = m."event_id"
 -- and a gap with two closes then counts twice in board_counts while the raw event walk counts it
 -- once (a projection disagreement the consistency oracle catches). closed_round's MIN already
 -- assumed the earliest; this makes the row do so too.
+--
+-- EARLIEST AMONG THE ACTS THAT STAND, by "pos": a struck close is not a closure, and a corrected
+-- close keeps its original place. (SQLite's bare column beside MIN() is read from the MIN row.)
 LEFT JOIN (
-  SELECT c0."gap_id" AS "gap_id", MIN(c0."event_id") AS "event_id"
+  SELECT c0."gap_id" AS "gap_id", c0."event_id" AS "event_id", MIN(l0."pos") AS "pos"
   FROM "close" c0
+  JOIN "live_event" l0 ON l0."event_id" = c0."event_id"
   GROUP BY c0."gap_id"
 ) cx ON cx."gap_id" = m."gap_id"
 LEFT JOIN "close" c ON c."event_id" = cx."event_id"
@@ -341,9 +389,10 @@ LEFT JOIN "events" ce ON ce."id" = cx."event_id"
 -- returned no bench closures at all: every disposed gap reading as undisposed, which is the exact
 -- defect this whole change exists to remove.
 LEFT JOIN (
-  SELECT md."gap_id" AS "gap_id", MIN(mr."event_id") AS "event_id"
+  SELECT md."gap_id" AS "gap_id", mr."event_id" AS "event_id", MIN(lr."pos") AS "pos"
   FROM "motion_rule_docket" rd
   JOIN "motion_rule" mr ON mr."event_id" = rd."event_id"
+  JOIN "live_event" lr ON lr."event_id" = mr."event_id"
   JOIN "motion" mo ON mo."motion_id" = mr."motion_id"
   JOIN "motion_docket" md ON md."event_id" = mo."event_id"
   JOIN "enum_disposition" d ON d."value" = rd."disposition"
@@ -451,12 +500,16 @@ SELECT
   fae."seat_id"                                          AS "appealed_by",
   fae."id"                                            AS "appealed_seq"
 FROM (SELECT "motion_id" FROM "motion_rule" UNION SELECT "motion_id" FROM "motion_appeal") ids
+-- FIRST AMONG THE ACTS THAT STAND: a ruling corrected in its sitting is answered by its
+-- replacement, in the original's place.
 LEFT JOIN "motion_rule" fr ON fr."event_id" =
-  (SELECT MIN(x."event_id") FROM "motion_rule" x WHERE x."motion_id" = ids."motion_id")
+  (SELECT x."event_id" FROM "motion_rule" x JOIN "live_event" lx ON lx."event_id" = x."event_id"
+    WHERE x."motion_id" = ids."motion_id" ORDER BY lx."pos" LIMIT 1)
 LEFT JOIN "motion_rule_docket" rd ON rd."event_id" = fr."event_id"
 LEFT JOIN "events" fre ON fre."id" = fr."event_id"
 LEFT JOIN "motion_appeal" fa ON fa."event_id" =
-  (SELECT MIN(y."event_id") FROM "motion_appeal" y WHERE y."motion_id" = ids."motion_id")
+  (SELECT y."event_id" FROM "motion_appeal" y JOIN "live_event" ly ON ly."event_id" = y."event_id"
+    WHERE y."motion_id" = ids."motion_id" ORDER BY ly."pos" LIMIT 1)
 LEFT JOIN "events" fae ON fae."id" = fa."event_id";
 
 -- A motion with its filing and its ruling on one row. This join is hand-written at eight readers in
@@ -505,17 +558,21 @@ SELECT
   lr."direction"                       AS "direction_ruling",
   lre."seat_id"                        AS "ruled_by",
   lre."id"                          AS "ruled_seq"
-FROM (SELECT "avenue_id", MIN("event_id") AS "pid" FROM "avenue"
-        WHERE COALESCE("avenue_id", '') != '' AND "supersedes_status" IS NULL
-        GROUP BY "avenue_id") p
+-- Only the acts that stand, in their "pos" order: a proposal corrected after it was moved keeps its
+-- place, and its replacement does not become the line's LATEST status.
+FROM (SELECT a0."avenue_id" AS "avenue_id", a0."event_id" AS "pid", MIN(l0."pos") AS "ppos"
+        FROM "avenue" a0 JOIN "live_event" l0 ON l0."event_id" = a0."event_id"
+        WHERE COALESCE(a0."avenue_id", '') != '' AND a0."supersedes_status" IS NULL
+        GROUP BY a0."avenue_id") p
 JOIN "avenue" fp ON fp."event_id" = p."pid"
 JOIN "events" pe ON pe."id" = p."pid"
 LEFT JOIN "avenue" ls ON ls."event_id" =
-  (SELECT MAX(x."event_id") FROM "avenue" x WHERE x."avenue_id" = p."avenue_id")
+  (SELECT x."event_id" FROM "avenue" x JOIN "live_event" lx ON lx."event_id" = x."event_id"
+     WHERE x."avenue_id" = p."avenue_id" ORDER BY lx."pos" DESC LIMIT 1)
 LEFT JOIN "events" lse ON lse."id" = ls."event_id"
 LEFT JOIN "motion_rule" lr ON lr."event_id" =
-  (SELECT MAX(y."event_id") FROM "motion_rule" y
-     WHERE y."motion_id" = p."avenue_id" AND y."subject" = 'direction')
+  (SELECT y."event_id" FROM "motion_rule" y JOIN "live_event" ly ON ly."event_id" = y."event_id"
+     WHERE y."motion_id" = p."avenue_id" AND y."subject" = 'direction' ORDER BY ly."pos" DESC LIMIT 1)
 LEFT JOIN "events" lre ON lre."id" = lr."event_id";
 
 -- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report (#709). The

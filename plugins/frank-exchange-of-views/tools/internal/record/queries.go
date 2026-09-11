@@ -67,8 +67,17 @@ func BoardCounts(run Run) (open, closed int, err error) {
 //
 // Read errors fold into "" deliberately — both former copies of this fold did the same, because
 // every caller treats "cannot read" and "not recorded" identically: keep watching.
+//
+// THE LATEST OUTCOME THAT STANDS, in its place: a corrected outcome is answered by its replacement,
+// ordered where the corrected act stood. A record older than the live_event view has no correction
+// to honour, so it is asked the question it always was — not handed "" for a view it never had.
 func RecordedOutcome(run Run) string {
 	var v string
+	if _, err := queryRow(run, []any{&v},
+		`SELECT o."verdict" FROM "outcome" o JOIN "live_event" l ON l."event_id" = o."event_id"
+		  ORDER BY l."pos" DESC LIMIT 1`); err == nil {
+		return v
+	}
 	if _, err := queryRow(run, []any{&v},
 		`SELECT "verdict" FROM "outcome" ORDER BY "event_id" DESC LIMIT 1`); err != nil {
 		return ""
@@ -118,8 +127,16 @@ func EventsOf(run Run, types ...recordpb.EventType) ([]*Event, error) {
 		return nil, nil
 	}
 	words := make([]string, len(types))
+	correctable := false
 	for i, t := range types {
 		words[i] = recordpb.Word(t)
+		correctable = correctable || recordpb.Tier(t) != recordpb.CorrectionTier_CORRECTION_TIER_NONE
+	}
+	// A NARROWED READ KEEPS ITS CORRECTIONS. Live and Listing strike an act by the Correction that
+	// names it; a stream narrowed to positions alone would carry the struck position and not the
+	// event that strikes it, and every reader of it would show a corrected act as an ordinary one.
+	if correctable {
+		words = append(words, recordpb.Word(recordpb.EventType_EVENT_TYPE_CORRECTION))
 	}
 	return recordsql.EventsOfTypes(db, words...)
 }

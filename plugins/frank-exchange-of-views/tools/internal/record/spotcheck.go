@@ -94,7 +94,7 @@ func SpotCheckAudit(f Family) (checks []SpotCheck, debt []int, falseEmpty []Spot
 	mergeSat := map[int]bool{}
 	discharged := map[int]bool{}
 	var clk Clock
-	for _, e := range f.Events {
+	for _, e := range f.Live() {
 		w := clk.Advance(e)
 		// REGISTERING IS NOT SITTING. A seat announces itself before it does anything, and a
 		// epoch where the merge registered and then the run ended — a ceiling hit, a PASS, a

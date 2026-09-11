@@ -76,7 +76,9 @@ func newSpotCheck() *cobra.Command {
 	// group this verb has to remember to declare. MarkFlagRequired names one flag and would refuse
 	// the file form, which is what the hand-registered --reason here used to do.
 	seat.ProseRequired(c)
-	return c
+	// The verb's name is not its event's word, so the event is declared.
+	seat.Records(c, "spot_check")
+	return seat.Correctable(c)
 }
 
 type spotCheckResult struct {

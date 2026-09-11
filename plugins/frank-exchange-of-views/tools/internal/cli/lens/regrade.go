@@ -42,7 +42,7 @@ func newRegrade() *cobra.Command {
 	c.Flags().Var(&likelihood, flags.Likelihood, flags.DescLikelihood)
 	c.Flags().Var(&impact, flags.Impact, flags.DescImpact)
 	c.Flags().Var(&cx, flags.Complexity, flags.DescComplexity+", on the same scale")
-	return seat.Prose(c)
+	return seat.Correctable(seat.Prose(c))
 }
 
 type regradeResult struct {

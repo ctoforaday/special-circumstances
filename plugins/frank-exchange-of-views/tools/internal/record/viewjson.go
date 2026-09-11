@@ -337,19 +337,22 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 	if err != nil {
 		return out, err
 	}
-	closures, unpairedDocket := closureStatesOf(evs)
+	// THE CLOSURE IS A FOLD (the acts that stand); THE REGRADE HISTORY IS A LISTING (every regrade,
+	// a struck one marked `struck`). Read raw, a corrected regrade listed as two ordinary regrades
+	// and a struck close could be taken for the gap's closure.
+	closures, unpairedDocket := closureStatesOf(Live(evs))
 	for _, id := range unpairedDocket {
 		out.Anomalies = append(out.Anomalies, fmt.Sprintf(
 			"motion %s: a docket RULING with no filing in this stream — the gap it disposes of cannot be identified, so it is reported OPEN here; the ruling was DROPPED from this projection, not rendered empty", id))
 	}
-	regrades := map[string][]*recordpb.Regrade{}
+	regrades := map[string][]Listed{}
 	var findings []*Event
-	for _, e := range evs {
-		switch m := mustBody(e).(type) {
+	for _, l := range Listing(evs) {
+		switch m := mustBody(l.Event).(type) {
 		case *recordpb.Regrade:
-			regrades[m.GetGapId()] = append(regrades[m.GetGapId()], m)
+			regrades[m.GetGapId()] = append(regrades[m.GetGapId()], l)
 		case *recordpb.Finding:
-			findings = append(findings, e)
+			findings = append(findings, l.Event)
 		}
 	}
 
@@ -419,11 +422,14 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 			}
 			gj.Closure = m
 		}
-		for _, r := range regrades[id] {
-			m, err := bodyMap(r)
+		for _, l := range regrades[id] {
+			m, err := bodyMap(mustBody(l.Event))
 			if err != nil {
 				out.Anomalies = append(out.Anomalies, fmt.Sprintf("gap %s: %v — the regrade was DROPPED from this projection, not rendered empty", id, err))
 				continue
+			}
+			if l.Struck != nil {
+				m["struck"] = map[string]any{"replacement": l.Struck.Replacement, "by": l.Struck.By, "why": l.Struck.Why}
 			}
 			gj.Regrades = append(gj.Regrades, m)
 		}
@@ -1123,6 +1129,10 @@ type LogEntryJSON struct {
 	Type   string `json:"type"`
 	Source string `json:"source"`
 	Text   string `json:"text"`
+	// Struck is set on an entry its seat corrected in the sitting that wrote it: the act that
+	// replaced it, who struck it and why. The entry is listed, marked — never hidden — and is not
+	// counted, because the replacement listed after it is the entry that stands.
+	Struck *Struck `json:"struck,omitempty"`
 }
 
 // LogJSONOf projects the record's log events — from BoardState, never the markdown. Events, not a
@@ -1130,7 +1140,8 @@ type LogEntryJSON struct {
 func LogJSONOf(evs []*Event) LogJSON {
 	out := LogJSON{Log: []LogEntryJSON{}}
 	var clk Clock
-	for _, e := range evs {
+	for _, l := range Listing(evs) {
+		e := l.Event
 		w := clk.Advance(e)
 		// TYPE IS NOT FILTERED HERE, and that is the behaviour this view already had rather than a
 		// choice made in the conversion: the list carries every type and the reader narrows.
@@ -1141,7 +1152,11 @@ func LogJSONOf(evs []*Event) LogJSON {
 				Type:   recordpb.Word(f.GetType()),
 				Source: recordpb.Word(f.GetSource()),
 				Text:   f.GetText(),
+				Struck: l.Struck,
 			})
+			if l.Struck != nil {
+				continue
+			}
 			if f.GetType() == recordpb.LogType_LOG_TYPE_NOMINAL {
 				out.Counts.Attested++
 			} else {
@@ -1206,6 +1221,19 @@ type DebateEpochJSON struct {
 	Lead         []DebateOpinionJSON `json:"lead"`
 	RedClosings  []DebateClosingJSON `json:"red_closings"`
 	BlueClosings []DebateClosingJSON `json:"blue_closings"`
+	// Struck is every act of this epoch's transcript that its seat corrected in the sitting that
+	// wrote it — listed with what it said, who struck it and why. The arrays above hold the acts
+	// that stand; this is where the struck ones remain visible.
+	Struck []DebateStruckJSON `json:"struck,omitempty"`
+}
+
+// DebateStruckJSON is one struck transcript act: its type and seat, the text it carried, and the
+// correction that struck it.
+type DebateStruckJSON struct {
+	Type   string `json:"type"`
+	SeatID string `json:"seat_id"`
+	Text   string `json:"text"`
+	Struck
 }
 
 type DebateClosingJSON struct {
@@ -1235,11 +1263,30 @@ func DebateJSONOf(epochs []int, evs []*Event) DebateJSON {
 	out := DebateJSON{Epochs: []DebateEpochJSON{}}
 
 	epochOrder := append([]int{}, epochs...)
+	// THE ARRAYS HOLD THE ACTS THAT STAND; the struck ones are gathered into the epoch's `struck`
+	// list, with who struck them and why — the ONE Listing order, so no act is shown twice.
 	byEpoch := map[int][]*Event{}
+	struckIn := map[int][]DebateStruckJSON{}
 	var clk Clock
-	for _, e := range evs {
-		w := clk.Advance(e)
-		byEpoch[w.Epoch] = append(byEpoch[w.Epoch], e)
+	for _, l := range Listing(evs) {
+		w := clk.Advance(l.Event)
+		if l.Struck == nil {
+			byEpoch[w.Epoch] = append(byEpoch[w.Epoch], l.Event)
+			continue
+		}
+		text := ""
+		switch b := mustBody(l.Event).(type) {
+		case *recordpb.Position:
+			text = b.GetText()
+		case *recordpb.Closing:
+			text = b.GetText()
+		case *recordpb.MotionRule:
+			text = b.GetOpinion()
+		default:
+			continue
+		}
+		struckIn[w.Epoch] = append(struckIn[w.Epoch], DebateStruckJSON{
+			Type: recordpb.Word(l.GetType()), SeatID: l.GetSeatId(), Text: text, Struck: *l.Struck})
 	}
 	sort.Ints(epochOrder)
 
@@ -1256,7 +1303,7 @@ func DebateJSONOf(epochs []int, evs []*Event) DebateJSON {
 			}
 			return s
 		}
-		rj := DebateEpochJSON{Epoch: r, Red: []string{}, Blue: []string{}, Lead: []DebateOpinionJSON{}}
+		rj := DebateEpochJSON{Epoch: r, Red: []string{}, Blue: []string{}, Lead: []DebateOpinionJSON{}, Struck: struckIn[r]}
 		for _, e := range re {
 			if v, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
 				rj.Verdict = recordpb.Word(v.GetVerdict())

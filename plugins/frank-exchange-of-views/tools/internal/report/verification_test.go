@@ -90,14 +90,16 @@ func TestRecordVerificationDistinguishesNotApplicableFromHeld(t *testing.T) {
 	if !strings.Contains(got, "**n/a**") {
 		t.Errorf("an inapplicable invariant must be marked n/a, not ok:\n%s", got)
 	}
-	if !strings.Contains(got, "1 did not apply") {
+	// Two did not apply: the PASS gate (the verdict is FAIL) and corrections-resolve (this record
+	// holds no same-sitting correction).
+	if !strings.Contains(got, "2 did not apply") {
 		t.Errorf("the summary must separate did-not-apply from held:\n%s", got)
 	}
 	if !strings.Contains(got, "checked NOTHING") {
 		t.Errorf("the reader must be told an n/a is not a pass:\n%s", got)
 	}
-	// And it must NOT be counted among the ones that held.
-	if strings.Contains(got, "7 held") {
+	// And neither may be counted among the ones that held — one of them would read 7, both 8.
+	if strings.Contains(got, "7 held") || strings.Contains(got, "8 held") {
 		t.Errorf("an n/a invariant was counted as held:\n%s", got)
 	}
 }

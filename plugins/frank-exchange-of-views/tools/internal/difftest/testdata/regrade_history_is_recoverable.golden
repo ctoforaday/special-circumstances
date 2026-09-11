@@ -53,17 +53,26 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
   )
   … "$X"
 
+CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong — a lost word, a
+wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
+printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
+struck beside its replacement. You may correct only your own act, only in the sitting that recorded
+it, and only until another seat has acted; after that, say it in a new act. A correction may change
+anything the act says except --id, which names what it is about.
+
 Usage:
   feov-record regrade [flags]
 
 Flags:
-      --complexity grade   what fixing it costs, on the same scale
-  -h, --help               help for regrade
-      --id gap-id          the gap id
-      --impact grade       how bad the consequence is if it lands
-      --likelihood grade   how likely the CONSEQUENCE is — never how likely the defect is to BE there
-      --reason string      REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
-      --severity grade     how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --complexity grade        what fixing it costs, on the same scale
+      --correction-why string   what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
+      --corrects string         the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
+  -h, --help                    help for regrade
+      --id gap-id               the gap id
+      --impact grade            how bad the consequence is if it lands
+      --likelihood grade        how likely the CONSEQUENCE is — never how likely the defect is to BE there
+      --reason string           REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --severity grade          how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
@@ -74,12 +83,12 @@ Global Flags:
 $ regrade --run {RUN} --seat-id red-lens-evidence --id G1 --severity medium --likelihood low --reason blue narrowed the scope; consequence shrank
 exit 0
 stdout:
-regraded G1
+regraded G1 [key red-lens-evidence:regrade:#1:G1]
 
 $ regrade --run {RUN} --seat-id red-lens-evidence --id G1 --impact low --reason second movement, same id
 exit 2
 stderr:
-feov-record: lens: record: red-lens-evidence has already recorded a regrade on "G1" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). If the first was wrong, say so in the act that supersedes it; the record is append-only and both stay visible
+feov-record: lens: record: red-lens-evidence has already recorded a regrade on "G1" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). If it was wrong, correct it now: run the same command with --corrects red-lens-evidence:regrade:#1:G1 --correction-why <what was wrong>. The corrected act stays on the record, struck, beside the replacement
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}

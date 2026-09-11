@@ -23,7 +23,7 @@ TWO CONSEQUENCES:
 $ revision --run {RUN} --seat-id blue-respond --reason first pass
 exit 0
 stdout:
-revision recorded — the round is on the record
+revision recorded — the round is on the record [key blue-respond:revision:#1]
 
 $ log --run {RUN} --seat-id blue-respond --reason no PDF extraction
 exit 2
@@ -57,13 +57,22 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
   )
   … "$X"
 
+CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong — a lost word, a
+wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
+printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
+struck beside its replacement. You may correct only your own act, only in the sitting that recorded
+it, and only until another seat has acted; after that, say it in a new act. A correction may change
+anything the act says.
+
 Usage:
   feov-record log [flags]
 
 Flags:
-  -h, --help              help for log
-      --reason string     the entry: what you concluded about the tooling
-      --type type-value   REQUIRED — what this entry asserts
+      --correction-why string   what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
+      --corrects string         the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
+  -h, --help                    help for log
+      --reason string           the entry: what you concluded about the tooling
+      --type type-value         REQUIRED — what this entry asserts
 
 Enumerated values:
   --type

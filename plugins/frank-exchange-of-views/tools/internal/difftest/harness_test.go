@@ -172,7 +172,23 @@ func (m *nonceMapper) normalize(s string) string {
 	for raw, placeholder := range m.seen {
 		s = strings.ReplaceAll(s, raw, placeholder)
 	}
-	return sortNonceLists(normalizeFindingIDs(s))
+	return sortNonceLists(normalizeProofIDs(normalizeFindingIDs(s)))
+}
+
+// proofIDRe matches the tool-assigned proof id, random for the same reason a finding id is. No
+// golden runs `prove`; the determinism fuzz does, for the proof a reproduce correction names.
+var proofIDRe = regexp.MustCompile(`p-[0-9a-f]{8}`)
+
+func normalizeProofIDs(s string) string {
+	seen := map[string]string{}
+	return proofIDRe.ReplaceAllStringFunc(s, func(id string) string {
+		if p, ok := seen[id]; ok {
+			return p
+		}
+		p := fmt.Sprintf("PROOF%03d", len(seen)+1)
+		seen[id] = p
+		return p
+	})
 }
 
 // findingIDRe matches the tool-assigned finding id, which is RANDOM by design — an id a
@@ -276,8 +292,15 @@ func collect(t *testing.T, runDir string, m *nonceMapper) state {
 		if err != nil {
 			t.Fatalf("difftest: rendering event %s: %v", ev.GetKey(), err)
 		}
+		// THE RUN DIRECTORY DIFFERS BY CONSTRUCTION, here as in normalizeOutput: a proof records the
+		// path of the script it ran, and two replays run in two directories. Replaced in each form
+		// it takes inside JSON — as given, slashed, and with a Windows separator escaped.
+		s := string(b)
+		for _, dir := range []string{strings.ReplaceAll(runDir, `\`, `\\`), filepath.ToSlash(runDir), runDir} {
+			s = strings.ReplaceAll(s, dir, "{RUN}")
+		}
 		var one map[string]any
-		if err := json.Unmarshal([]byte(scrubToolVersion(m.normalize(string(b)))), &one); err != nil {
+		if err := json.Unmarshal([]byte(scrubToolVersion(m.normalize(s))), &one); err != nil {
 			t.Fatalf("difftest: re-reading rendered event %s: %v", ev.GetKey(), err)
 		}
 		st.events = append(st.events, one)

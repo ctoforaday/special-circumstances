@@ -23,6 +23,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 
 	"github.com/spf13/cobra"
@@ -141,6 +143,10 @@ type Context struct {
 	// making it also mean "you were refused" is the collapse the record keeps paying for — two
 	// states, one byte, and the healthy one wins by default.
 	RunErr error
+
+	// cmd is the command this context was read from: the key its write log and its correction are
+	// held under (see Correctable).
+	cmd *cobra.Command
 }
 
 // Run resolves the seat's run, or returns why it could not.
@@ -183,7 +189,14 @@ func (c Context) Identity() record.Identity {
 	// The zero Run when this context was REFUSED. Append asserts Valid() and refuses rather
 	// than writing, so a caller that skipped Run() still cannot record into an unresolved run —
 	// which is what the old `RunDir: ""` did, into the working directory.
-	return record.Identity{Run: c.handle(), SeatID: c.SeatID}
+	id := record.Identity{Run: c.handle(), SeatID: c.SeatID}
+	// A CORRECTABLE COMMAND KEEPS A WRITE LOG, so its success line can print the key a later
+	// correction names, and carries the correction it was asked to make (see Correctable).
+	if inv := invocationOf(c.cmd); inv != nil {
+		id.OnWrite = inv.add
+		id.Correct = inv.correct
+	}
+	return id
 }
 
 // Of reads the seat context from the inherited persistent flags, inferring the run
@@ -250,7 +263,7 @@ func Of(cmd *cobra.Command) Context {
 	if err != nil {
 		// NO RUN DIRECTORY LEAVES HERE. A caller holding one it was refused is a caller that
 		// will use it, and every reader below this point trusts what it is handed.
-		return Context{RunErr: err, Role: roleOf(cmd), RunVia: seatenv.RunUnresolved}
+		return Context{RunErr: err, Role: roleOf(cmd), RunVia: seatenv.RunUnresolved, cmd: cmd}
 	}
 	runDir = resolved
 	// Identity resolves the same way (#348): injected wins, a disagreeing flag is refused by
@@ -263,7 +276,7 @@ func Of(cmd *cobra.Command) Context {
 	if id, rerr := seatenv.ResolveSeat(seatID, BoundSeat(run)); rerr == nil {
 		seatID = id.ID
 	}
-	return Context{runDir: runDir, SeatID: seatID, Role: roleOf(cmd), RunVia: via}
+	return Context{runDir: runDir, SeatID: seatID, Role: roleOf(cmd), RunVia: via, cmd: cmd}
 }
 
 // roleOf answers WHICH SEAT is running this command, from the identity the engine injected.
@@ -318,9 +331,11 @@ func (m Msg) Human() string { return m.Message }
 // position (not string-mashed into the message); the Result nests under "result" so the
 // envelope stays fully typed end to end. An error carries a `code` a consumer switches on.
 type okEnvelope struct {
-	Verb   string `json:"verb"`
-	Role   string `json:"role"`
-	OK     bool   `json:"ok"`
+	Verb string `json:"verb"`
+	Role string `json:"role"`
+	OK   bool   `json:"ok"`
+	// Key is the record key of the act a correctable verb just wrote — what --corrects names.
+	Key    string `json:"key,omitempty"`
 	Result Result `json:"result,omitempty"`
 }
 
@@ -626,13 +641,30 @@ func Emit(cmd *cobra.Command, res Result, err error) error {
 		}
 		return prefixed
 	}
+	// A CORRECTABLE VERB SHOWS THE KEY OF WHAT IT WROTE, because a correction names the act by its
+	// key and most keys are numbered — a re-run never collides with them, so the success line is the
+	// only place a seat can learn one. A correcting run that wrote no act of its type corrected
+	// nothing, and saying "ok" to it would read as a correction made.
+	key, correcting, tracked := writtenKey(cmd)
+	if tracked && correcting && key == "" {
+		return Emit(cmd, nil, feov.Errorf(feov.Validation,
+			"nothing was corrected — this invocation wrote no %s, so nothing replaced the act --corrects names", RecordType(cmd)))
+	}
 	if jsonMode(cmd) {
 		return json.NewEncoder(cmd.OutOrStdout()).Encode(okEnvelope{
-			Verb: cmd.Name(), Role: role, OK: true, Result: res,
+			Verb: cmd.Name(), Role: role, OK: true, Key: key, Result: res,
 		})
 	}
 	if res != nil {
-		fmt.Fprintln(cmd.OutOrStdout(), res.Human())
+		line := res.Human()
+		if key != "" {
+			first, rest, multi := strings.Cut(line, "\n")
+			line = first + " [key " + key + "]"
+			if multi {
+				line += "\n" + rest
+			}
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), line)
 	}
 	return nil
 }

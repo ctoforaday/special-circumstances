@@ -304,7 +304,8 @@ func sectionOr(blue, heading string) string {
 // a nil *Outcome, so the assignment says that in one line.
 func outcomeOf(evs []*record.Event) *recordpb.Outcome {
 	var last *recordpb.Outcome
-	for _, e := range evs {
+	// The outcome that STANDS: a corrected outcome is answered by its replacement, in its place.
+	for _, e := range record.Live(evs) {
 		if e.GetType() != recordpb.EventType_EVENT_TYPE_OUTCOME {
 			continue
 		}
@@ -804,7 +805,11 @@ func correctnessManifest(fam record.Family) string {
 	}
 	var rows []row
 	var clk record.Clock
-	for _, e := range fam.Events {
+	// A CORRECTED ROW IS SHOWN STRUCK, beside the row that replaced it, and counted once: the
+	// heading counts the receipts that stand.
+	standing := 0
+	for _, l := range fam.Listing() {
+		e := l.Event
 		w := clk.Advance(e)
 		mr, ok := recordpb.BodyAs[*recordpb.ManifestRow](e)
 		if !ok {
@@ -814,7 +819,10 @@ func correctnessManifest(fam record.Family) string {
 		if text == "" {
 			continue
 		}
-		rows = append(rows, row{mr.GetGapId(), text, e.GetSeatId(), w.Sitting})
+		rows = append(rows, row{mr.GetGapId(), l.Markdown(text), e.GetSeatId(), w.Sitting})
+		if l.Struck == nil {
+			standing++
+		}
 	}
 	// Every gap blue REPAIRED and owed a receipt for, with none filed: record.ManifestUnreceipted,
 	// over ManifestOwed — dispatched onto the gap, still open when blue sat, and answered by blue's
@@ -832,7 +840,7 @@ func correctnessManifest(fam record.Family) string {
 		return ""
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "### Blue's correctness manifest (%d)\n\n", len(rows))
+	fmt.Fprintf(&b, "### Blue's correctness manifest (%d)\n\n", standing)
 	b.WriteString("Blue's self-audit of its own repairs — what it checked for each gap and what checking it showed. An unmanifested repair is unchecked by blue's own standard, which is a stronger thing to be able to say than \"we think it was checked\".\n\n")
 	for _, r := range rows {
 		fmt.Fprintf(&b, "- **%s** (%s #%d): %s\n", r.gapID, r.seat, r.sitting, r.text)
@@ -918,11 +926,16 @@ func fixProposal(mint *recordpb.Mint) string {
 // assessment, usually because blue disputed it; the dispute renders, and the reasoning that
 // answered it must too.
 func regradeHistory(g *record.Gap) string {
-	if len(g.Regrades) == 0 {
+	entries := g.RegradeListing()
+	if len(entries) == 0 {
 		return ""
 	}
 	var rows []string
-	for _, r := range g.Regrades {
+	// THE LISTING, NOT THE STANDING REGRADES: a regrade its lens corrected in the sitting is shown
+	// struck, with who struck it and why, before the one that replaced it. The count says how many
+	// stand.
+	for _, entry := range entries {
+		r := entry.Regrade
 		// THE AXIS NAMES STAY, and they are already the schema's own spelling — one separator,
 		// underscores, so `complexity_cost` needs no translation. Iterating the four typed
 		// getters replaces a loop over four payload KEYS; the axis label and the field it reads
@@ -952,7 +965,7 @@ func regradeHistory(g *record.Gap) string {
 		// `--reason` LANDS ON `basis` (recordpb/required.go: "grade movement is recorded with
 		// its reason"). Regrade has no `reason` field, and inventing one would have been a
 		// silent blank in the one place this section exists to show.
-		rows = append(rows, fmt.Sprintf("\n  - %s — %s", moved, r.GetBasis()))
+		rows = append(rows, "\n  - "+record.StruckMarkdown(fmt.Sprintf("%s — %s", moved, r.GetBasis()), entry.Struck))
 	}
 	return fmt.Sprintf(" · regraded x%d%s", len(g.Regrades), strings.Join(rows, ""))
 }
@@ -1029,14 +1042,16 @@ func debate(fam record.Family, evs []*record.Event) string {
 	// BUCKETED BY EPOCH — the chair's sittings, counted by the Clock as the fold goes, never a
 	// number a seat stamped. The chair's own register is the first row of the epoch it opens.
 	var order []int
-	byEpoch := map[int][]*record.Event{}
+	// THE LISTING, NOT THE RAW STREAM: an act a seat corrected in its sitting is rendered struck,
+	// with who struck it and why, followed by the act that replaced it — never as two acts.
+	byEpoch := map[int][]record.Listed{}
 	var clk record.Clock
-	for _, e := range evs {
-		w := clk.Advance(e)
+	for _, l := range record.Listing(evs) {
+		w := clk.Advance(l.Event)
 		if _, seen := byEpoch[w.Epoch]; !seen {
 			order = append(order, w.Epoch)
 		}
-		byEpoch[w.Epoch] = append(byEpoch[w.Epoch], e)
+		byEpoch[w.Epoch] = append(byEpoch[w.Epoch], l)
 	}
 
 	// ONE PAIRING, READ MANY TIMES. A docket ruling names the gap it settles only through its
@@ -1064,8 +1079,8 @@ func debate(fam record.Family, evs []*record.Event) string {
 		// a wrong one would be worse than none. It is to render the FACT next to the claim, so a
 		// reader sees both and needs no inference.
 		recordedVerdict := ""
-		for _, e := range re {
-			if v, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
+		for _, l := range re {
+			if v, ok := recordpb.BodyAs[*recordpb.Gate](l.Event); ok {
 				recordedVerdict = recordpb.Word(v.GetVerdict())
 			}
 		}
@@ -1083,23 +1098,24 @@ func debate(fam record.Family, evs []*record.Event) string {
 		// THE BODY IS THE TYPE, and the party is still the seat's. `--reason` lands on
 		// Position.text and Closing.text — one prose channel each, declared for Closing in
 		// recordpb/required.go ("the closing argument for this gap").
-		for _, e := range re {
+		for _, l := range re {
+			e := l.Event
 			party := record.PartyOf(e)
 			if p, ok := recordpb.BodyAs[*recordpb.Position](e); ok {
 				switch party {
 				case "merge":
-					epoch = append(epoch, redHead+"\n"+p.GetText())
+					epoch = append(epoch, redHead+"\n"+l.Markdown(p.GetText()))
 				case "blue":
-					epoch = append(epoch, "### BLUE\n"+p.GetText())
+					epoch = append(epoch, "### BLUE\n"+l.Markdown(p.GetText()))
 				}
 				continue
 			}
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](e); ok {
 				switch party {
 				case "merge":
-					epoch = append(epoch, fmt.Sprintf("### RED CLOSING — %s\n%s", c.GetGapId(), c.GetText()))
+					epoch = append(epoch, fmt.Sprintf("### RED CLOSING — %s\n%s", c.GetGapId(), l.Markdown(c.GetText())))
 				case "blue":
-					epoch = append(epoch, fmt.Sprintf("### BLUE CLOSING — %s\n%s", c.GetGapId(), c.GetText()))
+					epoch = append(epoch, fmt.Sprintf("### BLUE CLOSING — %s\n%s", c.GetGapId(), l.Markdown(c.GetText())))
 				}
 			}
 		}
@@ -1120,8 +1136,8 @@ func debate(fam record.Family, evs []*record.Event) string {
 		// settle a gap. A grade or petition ruling answers a different question and does not
 		// belong under LEAD's per-gap list.
 		var lead []string
-		for _, e := range re {
-			mr, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
+		for _, l := range re {
+			mr, ok := recordpb.BodyAs[*recordpb.MotionRule](l.Event)
 			if !ok {
 				continue
 			}
@@ -1133,13 +1149,12 @@ func debate(fam record.Family, evs []*record.Event) string {
 			// recordpb/required.go ("a disposition with no stated reasoning is
 			// indistinguishable from a default"). THE GAP IS NOT ON THE RULING: it rides the
 			// docket motion's filing, so it comes from the join built above.
-			lead = append(lead, fmt.Sprintf("- %s: %s — principle: %s; tension: %s; review: %s\n%s",
+			lead = append(lead, "- "+l.Strike(fmt.Sprintf("%s: %s — principle: %s; tension: %s; review: %s",
 				// The vocabulary's word, not the generated constant name — see view.go's
 				// disposition renderer, where the same substitution was needed for the same
 				// reason.
 				docketGapOf[mr.GetMotionId()], recordpb.Word(d.Docket.GetDisposition()),
-				d.Docket.GetPrinciple(), d.Docket.GetTension(), d.Docket.GetReviewFlag(),
-				mr.GetOpinion()))
+				d.Docket.GetPrinciple(), d.Docket.GetTension(), d.Docket.GetReviewFlag()))+"\n"+l.Markdown(mr.GetOpinion()))
 		}
 		if len(lead) > 0 {
 			epoch = append(epoch, "### LEAD\n"+strings.Join(lead, "\n"))
@@ -1157,13 +1172,14 @@ func debate(fam record.Family, evs []*record.Event) string {
 	// certify and the schema keeps each on its own channel — `Halt.opinion` (relayed verbatim, so
 	// a halt with no written opinion cannot do its job) and `Certify.statement` (the bench's only
 	// continuity between runs). A `Halt.reason` does not exist and must not be invented.
-	for _, e := range evs {
+	for _, l := range record.Listing(evs) {
+		e := l.Event
 		if h, ok := recordpb.BodyAs[*recordpb.Halt](e); ok {
-			disp = append(disp, "**HALT** — "+h.GetOpinion())
+			disp = append(disp, "**HALT** — "+l.Markdown(h.GetOpinion()))
 			continue
 		}
 		if c, ok := recordpb.BodyAs[*recordpb.Certify](e); ok {
-			disp = append(disp, "**Certification** — "+c.GetStatement())
+			disp = append(disp, "**Certification** — "+l.Markdown(c.GetStatement()))
 			continue
 		}
 		// A DECLARATION BINDS HOW THE RECORD IS READ, so it belongs in the artifact the
@@ -1171,7 +1187,7 @@ func debate(fam record.Family, evs []*record.Event) string {
 		// which is why it could never have appeared in the per-gap dispositions above, and
 		// why the bench that needed one had nowhere to put it (#361).
 		if d, ok := recordpb.BodyAs[*recordpb.Declare](e); ok {
-			disp = append(disp, "**Declared** — "+d.GetHolding())
+			disp = append(disp, "**Declared** — "+l.Markdown(d.GetHolding()))
 			continue
 		}
 		// AND THE OUTCOME'S OWN ACCOUNT, which used to open the RESEARCH document and now lands
@@ -1181,7 +1197,7 @@ func debate(fam record.Family, evs []*record.Event) string {
 		// goes to find them, not in front of a reader who came for the subject.
 		if o, ok := recordpb.BodyAs[*recordpb.Outcome](e); ok {
 			if r := strings.TrimSpace(o.GetProse()); r != "" {
-				disp = append(disp, "**How the run ended** — "+r)
+				disp = append(disp, "**How the run ended** — "+l.Markdown(r))
 			}
 		}
 	}
@@ -1234,7 +1250,8 @@ func logSection(evs []*record.Event) string {
 	// ONE MESSAGE, TYPED. The clean case used to be a second message; it is now a `nominal` entry,
 	// so the split below reads the TYPE rather than the message. Each entry renders with its type
 	// so the operator can triage by filtering instead of by reading.
-	for _, e := range evs {
+	for _, l := range record.Listing(evs) {
+		e := l.Event
 		f, ok := recordpb.BodyAs[*recordpb.Log](e)
 		if !ok {
 			continue
@@ -1243,6 +1260,7 @@ func logSection(evs []*record.Event) string {
 		if t == "" {
 			continue
 		}
+		t = l.Markdown(t)
 		if f.GetType() == recordpb.LogType_LOG_TYPE_NOMINAL {
 			attested = append(attested, fmt.Sprintf("- **%s**: %s", e.GetSeatId(), t))
 			continue
@@ -1277,7 +1295,8 @@ func logSection(evs []*record.Event) string {
 func revisionHistory(evs []*record.Event) string {
 	var rows []string
 	var clk record.Clock
-	for _, e := range evs {
+	for _, l := range record.Listing(evs) {
+		e := l.Event
 		w := clk.Advance(e)
 		r, ok := recordpb.BodyAs[*recordpb.Revision](e)
 		if !ok {
@@ -1285,7 +1304,7 @@ func revisionHistory(evs []*record.Event) string {
 		}
 		// Revision's one field is `text`; `--reason` is the flag, as everywhere else.
 		if t := strings.TrimSpace(r.GetText()); t != "" {
-			rows = append(rows, fmt.Sprintf("### Epoch %d — %s\n\n%s", w.Epoch, e.GetSeatId(), t))
+			rows = append(rows, fmt.Sprintf("### Epoch %d — %s\n\n%s", w.Epoch, e.GetSeatId(), l.Markdown(t)))
 		}
 	}
 	if len(rows) == 0 {

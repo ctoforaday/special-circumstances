@@ -109,7 +109,7 @@ minted G1
 $ position --run {RUN} --seat-id red-chair --reason round one: FAIL
 exit 0
 stdout:
-position recorded
+position recorded [key red-chair:position:#1]
 
 $ verdict --run {RUN} --seat-id red-chair --as FAIL
 exit 0

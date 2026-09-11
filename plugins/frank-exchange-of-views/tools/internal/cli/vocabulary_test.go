@@ -146,6 +146,9 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 	// has required fields and no command of its own — its flags live on `friction`.
 	noVerbOfItsOwn := map[string]string{
 		"friction_none": "recorded by `friction --none`; its flags are on that verb",
+		// A correction is written BESIDE the replacement by the corrected act's own verb, run with
+		// --corrects; its one flag-filled field, why, is --correction-why on each of those verbs.
+		"correction": "recorded by any correctable verb run with --corrects; its flags are on that verb",
 	}
 
 	// THE TYPES COME FROM THE SCHEMA, and requiredness from the annotation on each field — the Go

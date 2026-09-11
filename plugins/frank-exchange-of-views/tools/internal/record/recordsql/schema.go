@@ -382,6 +382,7 @@ func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
 		word, means string
 		facets      map[string]bool
 		numbers     map[string]float64
+		words       map[string]string
 	}
 	var rows []row
 
@@ -404,7 +405,26 @@ func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
 		}
 		fs := map[string]bool{}
 		ns := map[string]float64{}
+		ws := map[string]string{}
 		for _, name := range recordpb.FacetNames() {
+			// AN ENUM FACET IS READ AS A WORD of its own vocabulary, and stored as that word so the
+			// column can point at the vocabulary's table like every other enum-valued column.
+			if recordpb.IsEnum(name) {
+				n, ok, err := recordpb.EnumFacet(v, name)
+				if err != nil {
+					return "", err
+				}
+				if ok {
+					fvd := recordpb.FacetEnum(name).Values().ByNumber(n)
+					if fvd == nil || n == 0 {
+						return "", fmt.Errorf("recordsql: %s declares `%s` with no word of %s — the zero is absence, not an answer",
+							v.FullName(), name, recordpb.FacetEnum(name).FullName())
+					}
+					ws[name] = recordpb.Spelling(fvd)
+					declared[name]++
+				}
+				continue
+			}
 			// A NUMERIC FACET IS READ AS A NUMBER, and the split is on the facet's declared kind
 			// rather than on a guess about its value: `mass` 0 is a real weight (GRADE_REALIZED),
 			// so reading it as a flag would turn "weighs nothing" into false and lose it.
@@ -428,7 +448,7 @@ func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
 				declared[name]++
 			}
 		}
-		rows = append(rows, row{w, means, fs, ns})
+		rows = append(rows, row{w, means, fs, ns, ws})
 	}
 
 	// A PARTLY-ANNOTATED FACET IS REFUSED, for the reason the facet exists. `closes` was added
@@ -463,6 +483,12 @@ func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
 			fmt.Fprintf(&b, ",\n  %q REAL NOT NULL", c)
 			continue
 		}
+		// AN ENUM FACET POINTS AT ITS OWN VOCABULARY, the way every enum-valued body column does,
+		// so a word outside that vocabulary cannot be stored and the meaning travels with it.
+		if recordpb.IsEnum(c) {
+			fmt.Fprintf(&b, ",\n  %q TEXT NOT NULL REFERENCES %q(\"value\")", c, EnumTableName(recordpb.FacetEnum(c)))
+			continue
+		}
 		fmt.Fprintf(&b, ",\n  %q INTEGER NOT NULL CHECK (%q IN (0, 1))", c, c)
 	}
 	b.WriteString("\n) STRICT;\n")
@@ -472,6 +498,10 @@ func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
 			lhs += fmt.Sprintf(", %q", c)
 			if recordpb.IsNumeric(c) {
 				vals += ", " + strconv.FormatFloat(r.numbers[c], 'g', -1, 64)
+				continue
+			}
+			if recordpb.IsEnum(c) {
+				vals += fmt.Sprintf(", '%s'", escape(r.words[c]))
 				continue
 			}
 			vals += fmt.Sprintf(", %d", b2i(r.facets[c]))
@@ -721,7 +751,12 @@ func enumTables(bodies []protoreflect.MessageDescriptor) (string, error) {
 	// was therefore the only enum-valued column in the record with no wall behind it, in the column
 	// every join keys on. It is seeded explicitly rather than inferred, because "the walk did not
 	// find it" and "no such vocabulary is wanted" are the same silence.
+	//
+	// CorrectionTier is seeded for the same reason one level down: no body field is a tier — it is
+	// the `correct` facet's vocabulary, which enum_event_type's column references — and it comes
+	// FIRST, because that reference needs its table to exist when enum_event_type's rows go in.
 	for _, ed := range []protoreflect.EnumDescriptor{
+		recordpb.CorrectionTier(0).Descriptor(),
 		recordpb.EventType(0).Descriptor(),
 	} {
 		if !seen[ed.FullName()] {

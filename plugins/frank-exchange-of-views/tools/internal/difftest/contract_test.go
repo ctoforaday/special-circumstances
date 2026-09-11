@@ -169,6 +169,39 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		// There are no role words left to be unknown; the nearest thing is a well-formed seat id no
 		// role owns. `nonsuch mint` pinned the same refusal as the row above.
 		{"unknown seat", []string{"mint", "--seat-id", "purple-team", "--class", "scope-creep"}},
+
+		// SAME-SITTING CORRECTION (plans/same-sitting-correction.md). Rows marked "target" record the
+		// act the refusals after them name; every other row refuses for the reason its name gives, in
+		// the words a seat reads. They run last, so no earlier row sees their state.
+		{"correction target: the lens regrades G1", []string{"regrade", "--id", "G1", "--severity", "high", "--reason", "the consequence reaches every caller"}},
+		{"correction without a why", []string{"regrade", "--id", "G1", "--severity", "high", "--reason", "r", "--corrects", "red-lens-evidence:regrade:#1:G1"}},
+		{"correction-why without corrects", []string{"regrade", "--id", "G1", "--severity", "high", "--reason", "r", "--correction-why", "w"}},
+		{"correction that changes nothing", []string{"regrade", "--id", "G1", "--severity", "high", "--reason", "the consequence reaches every caller",
+			"--corrects", "red-lens-evidence:regrade:#1:G1", "--correction-why", "w"}},
+		{"correction of another seat's act", []string{"regrade", "--seat-id", "red-lens-logic", "--id", "G1", "--severity", "high", "--reason", "r",
+			"--corrects", "red-lens-evidence:regrade:#1:G1", "--correction-why", "w"}},
+		{"correction naming another type's act", []string{"log", "--type", "defect", "--reason", "x",
+			"--corrects", "red-lens-evidence:regrade:#1:G1", "--correction-why", "w"}},
+		{"correction naming a key nothing carries", []string{"regrade", "--id", "G1", "--severity", "high", "--reason", "r",
+			"--corrects", "red-lens-evidence:regrade:#9:G1", "--correction-why", "w"}},
+		{"a creating act takes no correction (a motion)", []string{"motion", "grade", "file", "--seat-id", "blue-respond", "--id", "G1",
+			"--dimension", "severity", "--proposed", "low", "--reason", "r", "--corrects", "x"}},
+		{"a verdict takes no correction", []string{"verdict", "--as", "FAIL", "--corrects", "x"}},
+		{"reliance target: a second gap, regraded", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "x",
+			"--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "a second gap"}},
+		{"reliance target: the lens regrades G2", []string{"regrade", "--id", "G2", "--severity", "high", "--reason", "graded up"}},
+		{"reliance: another seat acts", []string{"register", "--seat-id", "red-chair"}},
+		{"correction after another seat has acted", []string{"regrade", "--id", "G2", "--severity", "medium", "--reason", "graded up, less",
+			"--corrects", "red-lens-evidence:regrade:#1:G2", "--correction-why", "w"}},
+		{"frozen field target: the lens closes G1", []string{"close", "--id", "G1", "--verified-by", "L1", "--verified-with", "Read",
+			"--verified-against", "t", "--reason", "verified at the  leaf"}},
+		{"a PROSE correction moving a frozen field", []string{"close", "--id", "G1", "--verified-by", "L1", "--verified-with", "another tool",
+			"--verified-against", "t", "--reason", "verified at the leaf", "--corrects", "red-lens-evidence:close:#1:G1", "--correction-why", "w"}},
+		{"earlier sitting target: the lens sits again", []string{"register", "--seat-id", "red-lens-evidence"}},
+		// G2, not G1: the frozen-field rows above closed G1, and a regrade of a closed gap is refused
+		// for that before the correction's own checks run — which would pin the wrong refusal here.
+		{"correction of an earlier sitting's act", []string{"regrade", "--id", "G2", "--severity", "medium", "--reason", "r",
+			"--corrects", "red-lens-evidence:regrade:#1:G2", "--correction-why", "w"}},
 	}
 
 	var b strings.Builder

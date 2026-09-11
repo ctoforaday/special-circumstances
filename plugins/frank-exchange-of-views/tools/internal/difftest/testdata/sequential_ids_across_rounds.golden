@@ -76,7 +76,7 @@ motion M1 filed (grade)
 $ motion grade rule --run {RUN} --seat-id red-chair --id M1 --as rejected --reason the consequence stands
 exit 0
 stdout:
-motion M1 ruled rejected
+motion M1 ruled rejected [key red-chair:motion_rule:#1]
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}

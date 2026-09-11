@@ -143,6 +143,55 @@ func scenarios() []scenario {
 			},
 		},
 		{
+			// oracle: same-sitting correction, accepted, through each command's own handler
+			// (plans/same-sitting-correction.md III.C.4). Every act is followed at once by its
+			// correction, before any other seat acts; the keys are the ones each success line prints.
+			// The named cases: a retry that writes nothing, a proposal corrected after its move
+			// (keeps Q1), a ruling and its appeal, a closure of a gap its own target closed, a
+			// petition ruling, and an outcome.
+			name: "correction_accepted_per_command",
+			cmds: []cmd{
+				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
+				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
+				base("register", "--run", "{RUN}", "--seat-id", "blue-respond"),
+				base("register", "--run", "{RUN}", "--seat-id", "judge"),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "a",
+					"--severity", "high", "--likelihood", "high", "--impact", "high", "--problem", "the first gap"),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "b",
+					"--severity", "high", "--likelihood", "high", "--impact", "high", "--problem", "the second gap"),
+				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "G1", "--reason", "G1 is reproducible via "),
+				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "G1", "--reason", "G1 is reproducible via the recorded proof",
+					"--corrects", "blue-respond:manifest_row:#1:G1", "--correction-why", "the row lost its method"),
+				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "G1", "--reason", "G1 is reproducible via the recorded proof",
+					"--corrects", "blue-respond:manifest_row:#1:G1", "--correction-why", "the row lost its method"),
+				base("line-of-inquiry", "propose", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "try the  method"),
+				base("line-of-inquiry", "move", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "Q1", "--as", "pursued", "--reason", "the method held"),
+				base("line-of-inquiry", "propose", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "try the recorded method",
+					"--corrects", "blue-respond:avenue:#1", "--correction-why", "a word was lost"),
+				base("motion", "grade", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "G2", "--dimension", "severity",
+					"--proposed", "low", "--reason", "the consequence is bounded"),
+				base("motion", "grade", "rule", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "M1", "--as", "rejected", "--reason", "the evidence does not  it"),
+				base("motion", "grade", "rule", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it",
+					"--corrects", "red-chair:motion_rule:#1", "--correction-why", "a word was lost"),
+				base("motion", "grade", "appeal", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "M1", "--reason", "pressing it on  grounds"),
+				base("motion", "grade", "appeal", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "M1", "--reason", "pressing it on new grounds",
+					"--corrects", "blue-respond:motion_appeal:#1", "--correction-why", "a word was lost"),
+				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "G1", "--verified-by", "L1", "--verified-with", "Read",
+					"--verified-against", "report.md#S2", "--reason", "verified at the  leaf"),
+				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "G1", "--verified-by", "L1", "--verified-with", "Read",
+					"--verified-against", "report.md#S2", "--reason", "verified at the leaf",
+					"--corrects", "red-lens-evidence:close:#1:G1", "--correction-why", "a word was lost"),
+				base("motion", "petition", "file", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "safety",
+					"--relief", "halt before the next round", "--reason", "a consent gate is missing"),
+				base("motion", "petition", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M2", "--as", "denied", "--reason", "the gate  exists"),
+				base("motion", "petition", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M2", "--as", "denied", "--reason", "the gate already exists",
+					"--corrects", "judge:motion_rule:#1", "--correction-why", "a word was lost"),
+				base("outcome", "--run", "{RUN}", "--seat-id", "judge", "--as", "UNVERIFIED", "--reason", "it stopped because  refused"),
+				base("outcome", "--run", "{RUN}", "--seat-id", "judge", "--as", "UNVERIFIED", "--reason", "it stopped because the gate refused",
+					"--corrects", "judge:outcome:#1", "--correction-why", "a word was lost"),
+			},
+		},
+		{
 			name: "mint_idempotency_on_crash_retry", // oracle: --key returns the EXISTING id
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),

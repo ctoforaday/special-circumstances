@@ -1162,8 +1162,9 @@ func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if strings.TrimSpace(out) != "log entry recorded: defect" {
-				t.Errorf("log said %q", out)
+			// The success line carries the act's key, which is what a same-sitting correction names.
+			if want := "log entry recorded: defect [key " + tc.seatID + ":log:#1]"; strings.TrimSpace(out) != want {
+				t.Errorf("log said %q, want %q", out, want)
 			}
 			ev := lastBody(t, runDir, &recordpb.Log{})
 			if got := ev.GetText(); got != "the capability I needed" {

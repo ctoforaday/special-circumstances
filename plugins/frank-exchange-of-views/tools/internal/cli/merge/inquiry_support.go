@@ -88,7 +88,11 @@ func newInquirySupport() *cobra.Command {
 	// A flag a seat can pass and the record ignores is worse than one that does not exist, so both
 	// go rather than lingering as accepted-and-discarded. One read of the document per sitting,
 	// recorded as prose.
-	return c
+	//
+	// The verb's name is not its event's word — it records an inquiry_review — so the event is
+	// declared.
+	seat.Records(c, "inquiry_review")
+	return seat.Correctable(c)
 }
 
 type inquiryReviewResult struct{}
