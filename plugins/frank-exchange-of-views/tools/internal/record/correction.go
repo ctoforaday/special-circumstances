@@ -566,11 +566,24 @@ type Listed struct {
 
 // Markdown renders an act's text the way every markdown listing shows it: as written, or struck
 // through with who struck it and why.
-func (l Listed) Markdown(text string) string {
-	if l.Struck == nil {
+func (l Listed) Markdown(text string) string { return StruckMarkdown(text, l.Struck) }
+
+// StruckMarkdown is the ONE rendering of a struck act's text in markdown: the text struck through,
+// then who struck it and why; the text as written when s is nil. The struck text is TRIMMED, because
+// a closing ~~ after whitespace does not close in CommonMark — `~~text ~~` renders as literal
+// tildes, and the strike a reader is owed does not show.
+func StruckMarkdown(text string, s *Struck) string {
+	if s == nil {
 		return text
 	}
-	return "~~" + text + "~~ (struck by " + l.Struck.By + ": " + l.Struck.Why + ")"
+	return strikeThrough(text) + " (struck by " + s.By + ": " + s.Why + ")"
+}
+
+func strikeThrough(text string) string {
+	if t := strings.TrimSpace(text); t != "" {
+		return "~~" + t + "~~"
+	}
+	return "~~(no text)~~"
 }
 
 // Strike is Markdown without the note, for a line rendered in parts: every part of a struck act is
@@ -579,7 +592,7 @@ func (l Listed) Strike(text string) string {
 	if l.Struck == nil {
 		return text
 	}
-	return "~~" + text + "~~"
+	return strikeThrough(text)
 }
 
 // Listing is the stream a LISTING renders — the ONE home of that order, as Live is of a fold's.

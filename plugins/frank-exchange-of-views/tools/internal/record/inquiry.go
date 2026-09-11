@@ -122,6 +122,31 @@ type Inquiry struct {
 }
 
 // InquiriesOf is Inquiries over the events themselves, for the run-shaped readers.
+// StruckText is a struck act's text, with who struck it and why.
+type StruckText struct {
+	Text string
+	Struck
+}
+
+// StruckInquiryTexts is, per line of inquiry, the wording of each proposal or move its seat corrected
+// in the sitting — what the lines-of-inquiry LISTING shows struck beside the line that stands.
+// InquiriesOf folds the acts that stand; this is the part of the listing that fold drops.
+func StruckInquiryTexts(evs []*Event) map[string][]StruckText {
+	out := map[string][]StruckText{}
+	for _, l := range Listing(evs) {
+		a, ok := recordpb.BodyAs[*recordpb.Avenue](l.Event)
+		if !ok || l.Struck == nil {
+			continue
+		}
+		text := a.GetLine()
+		if text == "" {
+			text = a.GetReason()
+		}
+		out[a.GetAvenueId()] = append(out[a.GetAvenueId()], StruckText{Text: text, Struck: *l.Struck})
+	}
+	return out
+}
+
 func InquiriesOf(evs []*Event) []*Inquiry {
 	// The acts that stand: a proposal or move corrected in its sitting is read as its replacement.
 	evs = Live(evs)

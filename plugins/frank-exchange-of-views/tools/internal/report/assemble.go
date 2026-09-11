@@ -926,11 +926,16 @@ func fixProposal(mint *recordpb.Mint) string {
 // assessment, usually because blue disputed it; the dispute renders, and the reasoning that
 // answered it must too.
 func regradeHistory(g *record.Gap) string {
-	if len(g.Regrades) == 0 {
+	entries := g.RegradeListing()
+	if len(entries) == 0 {
 		return ""
 	}
 	var rows []string
-	for _, r := range g.Regrades {
+	// THE LISTING, NOT THE STANDING REGRADES: a regrade its lens corrected in the sitting is shown
+	// struck, with who struck it and why, before the one that replaced it. The count says how many
+	// stand.
+	for _, entry := range entries {
+		r := entry.Regrade
 		// THE AXIS NAMES STAY, and they are already the schema's own spelling — one separator,
 		// underscores, so `complexity_cost` needs no translation. Iterating the four typed
 		// getters replaces a loop over four payload KEYS; the axis label and the field it reads
@@ -960,7 +965,7 @@ func regradeHistory(g *record.Gap) string {
 		// `--reason` LANDS ON `basis` (recordpb/required.go: "grade movement is recorded with
 		// its reason"). Regrade has no `reason` field, and inventing one would have been a
 		// silent blank in the one place this section exists to show.
-		rows = append(rows, fmt.Sprintf("\n  - %s — %s", moved, r.GetBasis()))
+		rows = append(rows, "\n  - "+record.StruckMarkdown(fmt.Sprintf("%s — %s", moved, r.GetBasis()), entry.Struck))
 	}
 	return fmt.Sprintf(" · regraded x%d%s", len(g.Regrades), strings.Join(rows, ""))
 }

@@ -140,3 +140,112 @@ func TestMotionsReadACorrectedRulingAsTheOneThatStands(t *testing.T) {
 		t.Errorf("motions = %q, want M1 answered by the corrected ruling", got)
 	}
 }
+
+// THE STRUCK TEXT IS TRIMMED: a closing ~~ after whitespace does not close in CommonMark, so
+// `~~text ~~` would render literal tildes and no strike at all.
+func TestStruckTextIsTrimmedSoTheStrikeRenders(t *testing.T) {
+	s := &Struck{By: "judge", Why: "a word was lost"}
+	if got := StruckMarkdown("G2 is reproducible via ", s); got != "~~G2 is reproducible via~~ (struck by judge: a word was lost)" {
+		t.Errorf("StruckMarkdown = %q", got)
+	}
+	if got := (Listed{Struck: s}).Strike("  a header  "); got != "~~a header~~" {
+		t.Errorf("Strike = %q", got)
+	}
+	if got := StruckMarkdown(" as written ", nil); got != " as written " {
+		t.Errorf("an act that stands must render as written, untouched: %q", got)
+	}
+}
+
+// THE LINES OF INQUIRY AND THE EVIDENCE LIST A STRUCK ACT, never drop it.
+func TestInquiryAndEvidenceListingsKeepTheStruckAct(t *testing.T) {
+	prop := func(line string) *recordpb.Avenue {
+		return &recordpb.Avenue{AvenueId: proto.String("Q1"), Line: proto.String(line), Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum()}
+	}
+	rerun := func(note string) *recordpb.Reproduce {
+		return &recordpb.Reproduce{ProofSha: proto.String("abc"), Reproduced: proto.Bool(true),
+			Soundness: recordpb.Soundness_SOUNDNESS_SOUND.Enum(), Note: proto.String(note)}
+	}
+	evs := []*Event{
+		recordtest.At(t, "blue-respond", "blue-respond:avenue:#1", prop("try the  method")),
+		recordtest.At(t, "blue-respond", "blue-respond:avenue:#1~1", prop("try the recorded method")),
+		correctionOf(t, "blue-respond", "blue-respond:avenue:#1"),
+		recordtest.At(t, "blue-respond", "blue-respond:proof:#1", &recordpb.Proof{ProofId: proto.String("p-1"), ProofSha: proto.String("abc")}),
+		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:reproduce:#1", rerun("it  computes")),
+		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:reproduce:#1~1", rerun("it computes primality")),
+		correctionOf(t, "red-lens-evidence", "red-lens-evidence:reproduce:#1"),
+	}
+	if got := StruckInquiryTexts(evs)["Q1"]; len(got) != 1 || got[0].Text != "try the  method" || got[0].By != "blue-respond" {
+		t.Errorf("the struck wording of Q1 = %+v, want the corrected proposal's", got)
+	}
+	ej := EvidenceJSONOf(evs)
+	if len(ej.Proofs) != 1 {
+		t.Fatalf("%d proofs", len(ej.Proofs))
+	}
+	p := ej.Proofs[0]
+	if p.Verified == nil || p.Verified.Note != "it computes primality" {
+		t.Errorf("verified = %+v, want the re-run that stands", p.Verified)
+	}
+	if len(p.StruckReruns) != 1 || p.StruckReruns[0].Note != "it  computes" || p.StruckReruns[0].Struck == nil {
+		t.Errorf("struck re-runs = %+v, want the corrected one, marked", p.StruckReruns)
+	}
+}
+
+// ON A REAL RECORD: the gap's grade history and the board list a corrected regrade struck; the
+// gap's standing regrades and its current grade are the replacement's; the proofs read back list
+// a corrected re-run struck.
+func TestRegradeHistoryAndProofsListTheStruckAct(t *testing.T) {
+	runDir := newRun(t)
+	run := mustRun(t, runDir)
+	red := sit(t, run, "red-chair")
+	mustAppend(t, red, corrMint("G1"))
+	regrade := func(sev recordpb.Grade, basis string) *recordpb.Regrade {
+		return &recordpb.Regrade{GapId: proto.String("G1"), Severity: sev.Enum(), Basis: proto.String(basis)}
+	}
+	k := mustAppend(t, red, regrade(recordpb.Grade_GRADE_LOW, "the consequence is  bounded")).GetKey()
+	if _, err := Append(correcting(red, recordpb.EventType_EVENT_TYPE_REGRADE, k, "a word was lost"),
+		regrade(recordpb.Grade_GRADE_HIGH, "the consequence reaches every caller")); err != nil {
+		t.Fatal(err)
+	}
+	gaps, err := GapStates(run)
+	if err != nil || len(gaps) != 1 {
+		t.Fatalf("gap states: %v %d", err, len(gaps))
+	}
+	g := gaps[0]
+	if len(g.Regrades) != 1 || g.Severity != recordpb.Grade_GRADE_HIGH {
+		t.Errorf("standing regrades %d, severity %v — want the replacement alone, and its grade", len(g.Regrades), g.Severity)
+	}
+	h := g.RegradeListing()
+	if len(h) != 2 || h[0].Struck == nil || h[0].Regrade.GetBasis() != "the consequence is  bounded" || h[1].Struck != nil {
+		t.Errorf("regrade history = %+v, want the struck regrade, marked, then the one that stands", h)
+	}
+	bj, err := BoardJSONOfRun(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var regrades []map[string]any
+	for _, gj := range append(bj.Open, bj.Closed...) {
+		regrades = append(regrades, gj.Regrades...)
+	}
+	if len(regrades) != 2 || regrades[0]["struck"] == nil || regrades[1]["struck"] != nil {
+		t.Errorf("board regrades = %v, want two, the first marked struck", regrades)
+	}
+
+	rerun := func(note string) *recordpb.Reproduce {
+		return &recordpb.Reproduce{ProofSha: proto.String("abc"), Reproduced: proto.Bool(true),
+			Soundness: recordpb.Soundness_SOUNDNESS_SOUND.Enum(), Note: proto.String(note)}
+	}
+	recordtest.Seed(t, runDir,
+		recordtest.At(t, "blue-respond", "blue-respond:proof:#1", &recordpb.Proof{ProofId: proto.String("p-1"), ProofSha: proto.String("abc"), ProofBasis: proto.String("reproducible")}),
+		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:reproduce:#1", rerun("it  computes")),
+		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:reproduce:#1~1", rerun("it computes primality")),
+		correctionOf(t, "red-lens-evidence", "red-lens-evidence:reproduce:#1"),
+	)
+	proofs, err := RecordedProofs(run)
+	if err != nil || len(proofs) != 1 {
+		t.Fatalf("proofs: %v %d", err, len(proofs))
+	}
+	if proofs[0].Verified == nil || proofs[0].Verified.Note != "it computes primality" ||
+		len(proofs[0].StruckReruns) != 1 || proofs[0].StruckReruns[0].Struck == nil {
+		t.Errorf("proof = verified %+v struck %+v — want the standing re-run, and the struck one listed", proofs[0].Verified, proofs[0].StruckReruns)
+	}
+}

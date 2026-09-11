@@ -337,19 +337,22 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 	if err != nil {
 		return out, err
 	}
-	closures, unpairedDocket := closureStatesOf(evs)
+	// THE CLOSURE IS A FOLD (the acts that stand); THE REGRADE HISTORY IS A LISTING (every regrade,
+	// a struck one marked `struck`). Read raw, a corrected regrade listed as two ordinary regrades
+	// and a struck close could be taken for the gap's closure.
+	closures, unpairedDocket := closureStatesOf(Live(evs))
 	for _, id := range unpairedDocket {
 		out.Anomalies = append(out.Anomalies, fmt.Sprintf(
 			"motion %s: a docket RULING with no filing in this stream — the gap it disposes of cannot be identified, so it is reported OPEN here; the ruling was DROPPED from this projection, not rendered empty", id))
 	}
-	regrades := map[string][]*recordpb.Regrade{}
+	regrades := map[string][]Listed{}
 	var findings []*Event
-	for _, e := range evs {
-		switch m := mustBody(e).(type) {
+	for _, l := range Listing(evs) {
+		switch m := mustBody(l.Event).(type) {
 		case *recordpb.Regrade:
-			regrades[m.GetGapId()] = append(regrades[m.GetGapId()], m)
+			regrades[m.GetGapId()] = append(regrades[m.GetGapId()], l)
 		case *recordpb.Finding:
-			findings = append(findings, e)
+			findings = append(findings, l.Event)
 		}
 	}
 
@@ -419,11 +422,14 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 			}
 			gj.Closure = m
 		}
-		for _, r := range regrades[id] {
-			m, err := bodyMap(r)
+		for _, l := range regrades[id] {
+			m, err := bodyMap(mustBody(l.Event))
 			if err != nil {
 				out.Anomalies = append(out.Anomalies, fmt.Sprintf("gap %s: %v — the regrade was DROPPED from this projection, not rendered empty", id, err))
 				continue
+			}
+			if l.Struck != nil {
+				m["struck"] = map[string]any{"replacement": l.Struck.Replacement, "by": l.Struck.By, "why": l.Struck.Why}
 			}
 			gj.Regrades = append(gj.Regrades, m)
 		}

@@ -30,6 +30,14 @@ func GapStates(run Run) ([]*Gap, error) {
 	if err != nil {
 		return nil, err
 	}
+	// THE HISTORY IS A LISTING: every regrade, a struck one marked, before the fold below narrows
+	// the stream to the acts that stand.
+	history := map[string][]RegradeEntry{}
+	for _, l := range Listing(evs) {
+		if r, ok := recordpb.BodyAs[*recordpb.Regrade](l.Event); ok {
+			history[r.GetGapId()] = append(history[r.GetGapId()], RegradeEntry{Regrade: r, Struck: l.Struck})
+		}
+	}
 	// The acts that stand: a corrected close, regrade or ruling is folded as its replacement.
 	evs = Live(evs)
 	mints := map[string]*recordpb.Mint{}
@@ -72,6 +80,7 @@ func GapStates(run Run) ([]*Gap, error) {
 		g := &Gap{
 			ID: id, Epoch: round, Open: open, Mint: mints[id],
 			Regrades:       regrades[id],
+			RegradeHistory: history[id],
 			Severity:       gradeOrZero(sev),
 			Likelihood:     gradeOrZero(lik),
 			Impact:         gradeOrZero(imp),

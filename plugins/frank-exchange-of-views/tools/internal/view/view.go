@@ -768,6 +768,9 @@ func InquiryBody(evs []*record.Event) string {
 	if len(avs) == 0 {
 		return ""
 	}
+	// InquiriesOf folds the acts that stand; the wording a correction struck is listed under its
+	// line, marked — a corrected proposal must not read as one that was always worded this way.
+	struckWording := record.StruckInquiryTexts(evs)
 	var inquiry []string
 	byStatus := map[string][]*record.Inquiry{}
 	for _, a := range avs {
@@ -792,6 +795,9 @@ func InquiryBody(evs []*record.Event) string {
 				reason = " — " + a.Reason
 			}
 			inquiry = append(inquiry, fmt.Sprintf("- **%s**%s%s (%s)", head, method, reason, a.SeatID))
+			for _, s := range struckWording[a.ID] {
+				inquiry = append(inquiry, "  - "+record.StruckMarkdown(s.Text, &s.Struck))
+			}
 			if a.Hypothesis != "" {
 				inquiry = append(inquiry, "  - hypothesis: "+a.Hypothesis)
 			}

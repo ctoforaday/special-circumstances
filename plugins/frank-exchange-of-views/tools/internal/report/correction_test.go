@@ -107,3 +107,26 @@ func TestACorrectedEarlierOutcomeDoesNotBecomeTheTerminalOne(t *testing.T) {
 		t.Errorf("the terminal outcome read = %q, want #2 — a correction of #1 stands in #1's place", got)
 	}
 }
+
+// THE DOCKET'S GRADE HISTORY AND THE SUPERSEDED BENCH STATEMENTS LIST A CORRECTED ACT STRUCK.
+func TestRegradeHistoryAndSupersededAsksStrikeTheCorrectedAct(t *testing.T) {
+	s := &record.Struck{By: "red-lens-evidence", Why: "a word was lost"}
+	g := &record.Gap{ID: "G1",
+		Regrades: []*recordpb.Regrade{{Severity: recordpb.Grade_GRADE_HIGH.Enum(), Basis: proto.String("it reaches every caller")}},
+		RegradeHistory: []record.RegradeEntry{
+			{Regrade: &recordpb.Regrade{Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("it is  bounded")}, Struck: s},
+			{Regrade: &recordpb.Regrade{Severity: recordpb.Grade_GRADE_HIGH.Enum(), Basis: proto.String("it reaches every caller")}},
+		}}
+	got := regradeHistory(g)
+	struck := strings.Index(got, "~~severity → low — it is  bounded~~ (struck by red-lens-evidence: a word was lost)")
+	stands := strings.Index(got, "severity → high — it reaches every caller")
+	if struck < 0 || stands < struck || !strings.Contains(got, "regraded x1") {
+		t.Errorf("the grade history must list the struck regrade, marked, then the one that stands, and count one:\n%s", got)
+	}
+
+	certify := func(s string) *recordpb.Certify { return &recordpb.Certify{Statement: proto.String(s)} }
+	asks := supersededAsks(corrected(t, "judge", "judge:certify:#1", certify("re-examine  G1"), certify("re-examine the G1 closure")))
+	if !strings.Contains(asks, "~~re-examine  G1~~ (struck by judge: a word was lost)") || strings.Contains(asks, "re-examine the G1 closure") {
+		t.Errorf("superseded asks must list the struck statement, marked, and not the one the report carries:\n%s", asks)
+	}
+}

@@ -619,7 +619,7 @@ WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §15
 
-OUTPUT (JSON): {sources:[{anchor,url,title,sha256,access_date,location,seat_id,epoch,verified:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch}]}],proofs:[{anchor,sha256,basis,cites,drift,seat_id,epoch,verified:{reproduced,sound,note,seat_id,epoch}}],independent:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch}],reopened:[string],unanswered_contradictions:[string],counts:{sources,proofs,proofs_unverified,sources_unverified,sources_refuted,verifications}}
+OUTPUT (JSON): {sources:[{anchor,url,title,sha256,access_date,location,seat_id,epoch,verified:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch}]}],proofs:[{anchor,sha256,basis,cites,drift,seat_id,epoch,verified:{reproduced,sound,note,seat_id,epoch,struck:{…}},struck_reruns:[{reproduced,sound,note,seat_id,epoch,struck:{…}}]}],independent:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch}],reopened:[string],unanswered_contradictions:[string],counts:{sources,proofs,proofs_unverified,sources_unverified,sources_refuted,verifications}}
 
 Usage:
   feov-record show evidence [flags]
@@ -1520,7 +1520,7 @@ WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §17
 
-OUTPUT (JSON): {sources:[{anchor,url,title,sha256,access_date,location,seat_id,epoch,verified:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch}]}],proofs:[{anchor,sha256,basis,cites,drift,seat_id,epoch,verified:{reproduced,sound,note,seat_id,epoch}}],independent:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch}],reopened:[string],unanswered_contradictions:[string],counts:{sources,proofs,proofs_unverified,sources_unverified,sources_refuted,verifications}}
+OUTPUT (JSON): {sources:[{anchor,url,title,sha256,access_date,location,seat_id,epoch,verified:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch}]}],proofs:[{anchor,sha256,basis,cites,drift,seat_id,epoch,verified:{reproduced,sound,note,seat_id,epoch,struck:{…}},struck_reruns:[{reproduced,sound,note,seat_id,epoch,struck:{…}}]}],independent:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch}],reopened:[string],unanswered_contradictions:[string],counts:{sources,proofs,proofs_unverified,sources_unverified,sources_refuted,verifications}}
 
 Usage:
   feov-record show evidence [flags]

@@ -115,6 +115,9 @@ type EvidenceProofJSON struct {
 	// "clean": it is unchecked, and a reader that could not tell those apart would rate an
 	// unaudited proof as an audited one.
 	Verified *EvidenceReproductionJSON `json:"verified"`
+	// StruckReruns are re-runs of this proof their seat corrected in the sitting — each listed with
+	// `struck`, never dropped; Verified is the one that stands.
+	StruckReruns []EvidenceReproductionJSON `json:"struck_reruns,omitempty"`
 }
 
 // EvidenceReproductionJSON is one `reproduce` event — the two axes kept apart.
@@ -127,6 +130,8 @@ type EvidenceReproductionJSON struct {
 	Note       string `json:"note"`
 	SeatID     string `json:"seat_id"`
 	Epoch      int    `json:"epoch"`
+	// Struck is set on a re-run its seat corrected in the sitting: the replacement, who, and why.
+	Struck *Struck `json:"struck,omitempty"`
 }
 
 // EvidenceVerificationJSON is one `lens verify` — a claim red checked against a source.
@@ -269,6 +274,20 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 
 	// Red's re-runs, keyed by the proof sha they checked — the one join the record supports.
 	reruns := map[string]*EvidenceReproductionJSON{}
+	// And the re-runs a correction struck, per proof, from the ONE listing order.
+	struckReruns := map[string][]EvidenceReproductionJSON{}
+	clk = Clock{}
+	for _, l := range Listing(evs) {
+		w := clk.Advance(l.Event)
+		r, ok := recordpb.BodyAs[*recordpb.Reproduce](l.Event)
+		if !ok || l.Struck == nil {
+			continue
+		}
+		struckReruns[r.GetProofSha()] = append(struckReruns[r.GetProofSha()], EvidenceReproductionJSON{
+			Reproduced: r.GetReproduced(), Sound: r.GetSoundness() == recordpb.Soundness_SOUNDNESS_SOUND,
+			Note: r.GetNote(), SeatID: l.GetSeatId(), Epoch: w.Epoch, Struck: l.Struck})
+	}
+
 	clk = Clock{}
 	for _, e := range Live(evs) {
 		w := clk.Advance(e)
@@ -332,14 +351,15 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 			// for one number. The JSON keeps `sha256`, which is what `reproduce --id` takes.
 			sha := bd.GetProofSha()
 			out.Proofs = append(out.Proofs, EvidenceProofJSON{
-				Anchor:   bd.GetProofId(),
-				Sha256:   sha,
-				Basis:    bd.GetProofBasis(),
-				Cites:    bd.GetCites(),
-				Drift:    bd.GetDrift(),
-				SeatID:   e.GetSeatId(),
-				Epoch:    w.Epoch,
-				Verified: reruns[sha],
+				Anchor:       bd.GetProofId(),
+				Sha256:       sha,
+				Basis:        bd.GetProofBasis(),
+				Cites:        bd.GetCites(),
+				Drift:        bd.GetDrift(),
+				SeatID:       e.GetSeatId(),
+				Epoch:        w.Epoch,
+				Verified:     reruns[sha],
+				StruckReruns: struckReruns[sha],
 			})
 			// `verify` is handled in the indexing pass above — it has to be, because a source
 			// must carry its verifications and a cite event may arrive after the check of it.
