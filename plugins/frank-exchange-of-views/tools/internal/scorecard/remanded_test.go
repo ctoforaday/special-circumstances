@@ -24,9 +24,9 @@ func TestDirectionUptakeReadsBothSpellingsOfTheDeferral(t *testing.T) {
 func rulingsResult(words ...string) []map[string]any {
 	var rs []any
 	for _, w := range words {
-		rs = append(rs, map[string]any{"gap_id": "G1", "resolution": w})
+		rs = append(rs, map[string]any{"gap_id": "G1", "disposition": w})
 	}
-	return []map[string]any{{"resolutions": rs}}
+	return []map[string]any{{"dispositions": rs}}
 }
 
 func TestRemandedShareCountsTheCurrentWord(t *testing.T) {

@@ -324,14 +324,8 @@
            {"phrase": "carried the closure of", "reason": "the carry verb's own result"},
            {"phrase": "carried from", "reason": "the carry verb's result as the archive view prints it: a closure carried from an earlier epoch, which is the flag --carried-from in words"}
          ]},
-        {"variant": "resolution (a disposition)", "kind": "GATED", "pattern": "\\bresolutions?\\b",
-         "allow": [
-           {"path": "plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js", "reason": "renamed in phase 2: JUDGE_ENVELOPE resolutions[].resolution becomes dispositions[].disposition with its readers"}
-         ]},
-        {"variant": "unmapped fate", "kind": "GATED", "pattern": "unmapped fate",
-         "allow": [
-           {"path": "plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js", "reason": "renamed in phase 2 with the envelope keys (UNMAPPED FATE becomes UNMAPPED DISPOSITION)"}
-         ]},
+        {"variant": "resolution (a disposition)", "kind": "GATED", "pattern": "\\bresolutions?\\b"},
+        {"variant": "unmapped fate", "kind": "GATED", "pattern": "unmapped fate"},
         {"variant": "fate (a disposition)", "kind": "REGISTRY-ONLY"}
       ],
       "collisions": [
@@ -346,7 +340,6 @@
         {"variant": "grade dispute", "kind": "GATED", "pattern": "grade disputes?"},
         {"variant": "grade_disputes (the envelope key)", "kind": "GATED", "pattern": "grade_disputes",
          "allow": [
-           {"path": "plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js", "reason": "renamed in phase 2: the envelope key becomes grade_motions with its readers"}
          ]}
       ],
       "collisions": []

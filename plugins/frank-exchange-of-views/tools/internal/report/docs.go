@@ -183,7 +183,7 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 		{File: FileDebate, Nav: "Debate", Title: "the debate",
 			Blurb: "the transcript, epoch by epoch — red's audits, blue's answers, the closings, and the bench's terminal disposition", Body: deb.String()},
 		{File: FileJudgments, Nav: "Judgments", Title: "judgments",
-			Blurb: "every contested question and how it was answered: grade disputes, petitions, and the bench's opinions", Body: jud.String()},
+			Blurb: "every contested question and how it was answered: grade motions, petitions, and the bench's opinions", Body: jud.String()},
 		{File: FileInquiry, Nav: "Directions", Title: "lines of inquiry",
 			Blurb: "every direction the research proposed, took, deferred, declined or abandoned: the path each one took, the seat that last moved it, red's ruling and any appeal", Body: inq},
 		{File: FileEvidence, Nav: "Evidence", Title: "evidence",

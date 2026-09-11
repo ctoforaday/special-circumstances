@@ -80,7 +80,7 @@ export const gap = (id, over = {}) => ({
   id, location: 'loc', problem: 'p', required_fix: 'f', acceptance_check: 'grep the corrected figure at the anchor', existence: 'verified',
   severity: 'medium', likelihood: 'medium', impact: 'medium', complexity_cost: 'low', ...over,
 })
-export const judgeEnv = (over = {}) => ({ resolutions: [], log: [], ...over })
+export const judgeEnv = (over = {}) => ({ dispositions: [], log: [], ...over })
 export const petitionRulingEnv = (over = {}) => ({ rulings: [{ petitioner: 'x', class: 'ethical', ruling: 'denied' }], log: [], ...over })
 // makeResponder serves envelopes by seat, in order; the last one repeats. Lenses answer in free text.
 export const assembleEnv = (over = {}) => ({ synopsis: 'synopsis', open_gaps: 0, log: [], ...over })

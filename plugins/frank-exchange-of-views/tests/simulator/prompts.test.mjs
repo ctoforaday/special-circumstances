@@ -96,7 +96,7 @@ async function fullRun(args = ARGS) {
       chairEnv({ plan: plan([party('red-lens-evidence', 'G1'), party('red-lens-logic')], { head: 9 }) }),
       passChair({ unruled_motions: 1 }),
     ],
-    judge: [judgeEnv({ resolutions: [{ gap_id: 'G1', resolution: 'remanded', rationale: 'the figure is still unrecomputed' }] })],
+    judge: [judgeEnv({ dispositions: [{ gap_id: 'G1', disposition: 'remanded', rationale: 'the figure is still unrecomputed' }] })],
   }))
   await world.run(script, args)
   return world

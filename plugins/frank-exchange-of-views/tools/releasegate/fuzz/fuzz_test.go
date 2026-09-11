@@ -1816,7 +1816,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		for _, id := range engaged {
 			manifest = append(manifest, id)
 		}
-		return map[string]any{"sitting_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_disputes": disputes, "petitions": r.maybePetition("blue", seatID), "log": arr()}
+		return map[string]any{"sitting_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_motions": disputes, "petitions": r.maybePetition("blue", seatID), "log": arr()}
 
 	case strings.HasPrefix(seatID, "judge-petition"):
 		r.sit("bench", seatID)
@@ -1851,9 +1851,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				r.benchDisposes(seatID, id, disp,
 					"--final", "--reason", "docket-rationale-for-"+id)
 			}
-			res = append(res, map[string]any{"gap_id": id, "resolution": disp, "reason": "fuzz"})
+			res = append(res, map[string]any{"gap_id": id, "disposition": disp, "reason": "fuzz"})
 		}
-		return map[string]any{"resolutions": res, "log": arr()}
+		return map[string]any{"dispositions": res, "log": arr()}
 
 	case strings.HasPrefix(seatID, "assemble"):
 		r.sit("bench", seatID)

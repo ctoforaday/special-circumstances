@@ -34,7 +34,7 @@ func TestBlueIsToldWhatTheBenchRuledAndWhatItObliges(t *testing.T) {
 			"synopsis": "estoppel delivery", "verdict": "FAIL", "citations_checked": 0,
 			"gaps": []any{}, "petitions": []any{}, "friction": []any{}, "rulings": []any{},
 			"closures": []any{}, "dispute_responses": []any{}, "deadlock": false,
-			"resolutions": []any{}, "grade_disputes": []any{},
+			"dispositions": []any{}, "grade_motions": []any{},
 			"manifest": []any{"G1", "G2"}, "claim_count": 3,
 			"saturation_reached": false, "sitting_record_appended": true,
 			"open_gaps": []any{},
@@ -46,8 +46,8 @@ func TestBlueIsToldWhatTheBenchRuledAndWhatItObliges(t *testing.T) {
 			e["gaps"] = gaps
 		case strings.HasPrefix(seatID, "judge"):
 			// One gap ruled in blue's favour; the other left open so the run has work in round 3.
-			e["resolutions"] = []any{map[string]any{
-				"gap_id": "G1", "resolution": "not_a_defect",
+			e["dispositions"] = []any{map[string]any{
+				"gap_id": "G1", "disposition": "not_a_defect",
 				"settled": settled, "reopens_on": "", "final": true,
 			}}
 		}

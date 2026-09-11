@@ -419,12 +419,12 @@ const BLUE_ENVELOPE = {
     found_closed: { type: 'array', items: { type: 'string' } },
     log: { type: 'array', items: { type: 'string' } },
     petitions: PETITIONS,
-    // Grade-dispute channel (run-4 §3.3 — RATIFIED minimal form): blue's machine-readable
+    // Grade-motion channel (run-4 §3.3 — RATIFIED minimal form): blue's machine-readable
     // contest path against red's grades. Record-integrity insurance; zero expected savings.
     // #62 Stage 2: this is a ROUTING REF, not the content — the argument (evidence) is emitted
     // as a `dispute` event on the record; the envelope carries only what the sandboxed
     // orchestrator needs to route the docket (proposed drives the accepted-delta arithmetic).
-    grade_disputes: {
+    grade_motions: {
       type: 'array',
       items: {
         type: 'object',
@@ -479,18 +479,18 @@ const CHAIR_ENVELOPE = {
 }
 const JUDGE_ENVELOPE = {
   type: 'object',
-  required: ['resolutions'],
+  required: ['dispositions'],
   properties: {
     // HOLDINGS THE BENCH LAID DOWN THIS SITTING, carried so the engine can route them. debate.js
     // reads no record, so a holding recorded through `bench declare` reaches the other seats only
     // if it travels here — the same reason `relief` is on the petition envelope (#503).
     holdings: { type: 'array', items: { type: 'string' } },
     log: { type: 'array', items: { type: 'string' } },
-    resolutions: {
+    dispositions: {
       type: 'array',
       items: {
         type: 'object',
-        required: ['gap_id', 'resolution', 'rationale', 'settled'],
+        required: ['gap_id', 'disposition', 'rationale', 'settled'],
         properties: {
           gap_id: { type: 'string' },
           // WHAT THE RULING BARS, AND WHAT WOULD UNDO IT (#502). Carried on the envelope
@@ -509,10 +509,10 @@ const JUDGE_ENVELOPE = {
           // THIS LIST IS THE RECORD'S DISPOSITION VOCABULARY, EXACTLY, and the envelope/record
           // gate holds it there: every word offered here is a word `motion docket rule --as`
           // accepts, and every word that verb accepts appears here with a duty in
-          // BLUE_DUTY_BY_RESOLUTION. A value added to one side fails the gate until it is on both.
+          // BLUE_DUTY_BY_DISPOSITION. A value added to one side fails the gate until it is on both.
           //
           // A GRADE OUTCOME IS NOT A DISPOSITION. "Gap real, grade wrong" is a GRADE MOTION —
-          // carried by `grade_disputes` on this envelope and by `motion grade rule --as accepted`
+          // carried by `grade_motions` on this envelope and by `motion grade rule --as accepted`
           // plus a `regrade` on the record, which is the richer path because it can be appealed.
           // Ruling one here would put a grade outcome in the docket's field.
           //
@@ -523,7 +523,7 @@ const JUDGE_ENVELOPE = {
           // `remanded` is the word for "I could not settle this on the record I have" — it says
           // the gap survives and names what the coming seat owes, which is the same act as
           // asking for evidence.
-          resolution: { type: 'string', enum: ['repaired', 'repaired_with_regression', 'amends_prior', 'not_a_defect', 'defect_accepted', 'remanded', 'moot', 'defect_owed_elsewhere'] },
+          disposition: { type: 'string', enum: ['repaired', 'repaired_with_regression', 'amends_prior', 'not_a_defect', 'defect_accepted', 'remanded', 'moot', 'defect_owed_elsewhere'] },
           rationale: { type: 'string' },
         },
       },
@@ -663,9 +663,9 @@ const holdingsInEffect = []
 // and that is where a settled proposition gets restated. And blue needs the inverse red never
 // does: what it may now ASSERT. Two of these fates are blue WINS, and under a bare subtraction
 // they look exactly like the ones that are not: the gap simply stops being dispatched. Keyed on
-// the resolution so a new fate cannot quietly inherit another's instruction; an unmapped one
+// the disposition so a new one cannot quietly inherit another's instruction; an unmapped one
 // falls through to a LOUD default rather than an empty string.
-const BLUE_DUTY_BY_RESOLUTION = {
+const BLUE_DUTY_BY_DISPOSITION = {
   not_a_defect: 'THE BENCH FOUND NO DEFECT — your position was vindicated. Keep the text as it stands; do not "repair" what the bench has just blessed. You may rely on this ruling as established for the rest of the run.',
   defect_accepted: 'YOUR RISK-ACCEPTANCE ARGUMENT WAS ACCEPTED. Record the acceptance where the report discusses the risk; do not spend a sitting fixing what the bench agreed may stand.',
   repaired: 'Your fix was accepted. Stop working this one.',
@@ -682,7 +682,7 @@ const rulingsInEffect = new Map()
 const rulingsClause = (party) => {
   if (!rulingsInEffect.size) return ''
   const rows = [...rulingsInEffect.values()].map((r) => party === 'blue'
-    ? { ...r, your_duty: BLUE_DUTY_BY_RESOLUTION[r.resolution] || `UNMAPPED FATE ${r.resolution} — read the opinion on the record before acting on it` }
+    ? { ...r, your_duty: BLUE_DUTY_BY_DISPOSITION[r.disposition] || `UNMAPPED DISPOSITION ${r.disposition} — read the opinion on the record before acting on it` }
     : r)
   const duty = party === 'blue'
     ? ' You were once handed these as a bare SUBTRACTION — a ruled gap simply stopped appearing — and a vindication and an upheld finding were the same absence. THE BAR IS ON THE PROPOSITION, NOT THE GAP: what you may no longer re-argue in the report is the sentence under settled, not everything the finding touched. WHERE A RULING WENT YOUR WAY IT IS YOURS TO INVOKE — say so on the record and rely on it, rather than quietly re-fixing text the bench has already blessed.'
@@ -862,7 +862,7 @@ A CLOSURE IS A CLAIM, AND CLAIMS DECAY. Re-sample the archive every sitting it i
 VOTE EVERY LINE OF INQUIRY THIS SITTING, ON ONE READ: read the report ONCE and answer every line against that pass, the way anyone checks a document against a list — not once per line, and from THIS read, because the report is rewritten between sittings. RULE ON BLUE'S DIRECTIONS: a ruling is an ARGUMENT, not a command — it needs a reason, and blue may appeal it. RULE THE GRADE MOTIONS blue filed: accept and the minting lens owes the regrade; reject and blue may re-dispute. Report what still stands unruled as unruled_motions, read from the record's motions projection and never counted by hand.
 NEVER RE-DERIVE THE BOARD IN YOUR HEAD: the board, work and motions projections are the reads, and the plan is the record's, not yours.${frictionClause('red-chair', 'chair')}${petitionClause('red-chair')}`
 const bluePrompt = (gaps, docket) => `Blue response, topic "${topic}". You are engaged on: ${gaps.join(', ')}.${reliefFor('blue')} YOUR FIRST READ COMES AFTER THE MANUAL BELOW, NOT BEFORE IT: pull your working set — the board and work projections, the transcript, and ${runDir}/inputs/red-gap-patterns.md — in one pass rather than three, concatenating them into a single file under your session scratchpad (an ABSOLUTE path, never under ${runDir}) and reading that.${recordClause('blue-respond')}${speedClause}${holdingsClause()}${rulingsClause('blue')}${lawClause}
-READ THE BOARD FOR YOUR GAPS: each carries its lens's problem, required fix and acceptance check, and the transcript's RED section carries red's argument; the bench's latest resolutions are on the record too, and any gap the bench REMANDED comes with a stated research direction you owe. The gap list you were handed is a lossy summary of the record, and the record is authoritative. PRE-FLIGHT: re-check your planned repairs against red's gap patterns — the staged inventory names, per gap class, how this class of repair goes wrong — and say in each manifest row which patterns you checked. A row you got wrong is corrected in this sitting by the same act for that gap — never by a second row, and never by moving its text into a log.
+READ THE BOARD FOR YOUR GAPS: each carries its lens's problem, required fix and acceptance check, and the transcript's RED section carries red's argument; the bench's latest dispositions are on the record too, and any gap the bench REMANDED comes with a stated research direction you owe. The gap list you were handed is a lossy summary of the record, and the record is authoritative. PRE-FLIGHT: re-check your planned repairs against red's gap patterns — the staged inventory names, per gap class, how this class of repair goes wrong — and say in each manifest row which patterns you checked. A row you got wrong is corrected in this sitting by the same act for that gap — never by a second row, and never by moving its text into a log.
 YOU MAY COMPUTE AN ANSWER, NOT ONLY COLLATE SOURCES. You have Bash, Write and Edit, and for a whole class of questions running something settles it faster and harder than arguing about it. WORKING IT OUT IN YOUR HEAD IS NOT THE EXCEPTION — IT IS THE CASE THIS EXISTS FOR: a correct figure with no derivation is indistinguishable from a confident guess. A gap can be WAITING ON A PROGRAM FROM YOU — it says so (a computation check), and where it does, no amount of prose will close it. DOCUMENT-PROBE checks you discharge now; a LIVE-PROBE you discharge by naming the deferred acceptance test and its pass condition.
 YOUR LINES OF INQUIRY ARE A LIVING RECORD, NOT AN OPENING PLAN. Every sitting, revisit what is still open and say what became of it. The hypothesis is what makes that honest — a line abandoned against its own stated claim is evidence of choosing; one abandoned on a shrug is not. Red rules on your proposals and you may APPEAL a ruling — appeal whether or not you go on to pursue the line, because the appeal is where your ARGUMENT is recorded.
 WHERE RED PROPOSED EXACT TEXT you have THREE paths and you are not obliged to take the first: apply it verbatim, counter-edit with your own fix, or dispute it. Say plainly which path you took and why. A sitting in which you never decline is not agreement, it is capitulation. Applying red's exact text ESTOPS red from re-raising that text as a fresh gap, so verbatim application is a real settlement, not a surrender.
@@ -951,9 +951,9 @@ while (!halted) {
     const judge = await agent(benchPrompt(p.gap_ids), { ...judgment, label: labelFor('judge'), phase: 'Debate', agentType: 'frank-exchange-of-views:lead-judge', schema: JUDGE_ENVELOPE })
     if (!judge) throw new Error(`bench sitting (epoch ${epoch}) returned null (agent failed) — aborting cleanly`)
     for (const h of judge.holdings || []) holdingsInEffect.push(h)
-    for (const r of judge.resolutions || []) {
-      rulingsInEffect.set(r.gap_id, { gap_id: r.gap_id, resolution: r.resolution, settled: r.settled, reopens_on: r.reopens_on, final: !!r.final, epoch })
-      if (r.resolution === 'defect_owed_elsewhere') infraDebts.push({ gap_id: r.gap_id, owed_fix: r.rationale, epoch })
+    for (const r of judge.dispositions || []) {
+      rulingsInEffect.set(r.gap_id, { gap_id: r.gap_id, disposition: r.disposition, settled: r.settled, reopens_on: r.reopens_on, final: !!r.final, epoch })
+      if (r.disposition === 'defect_owed_elsewhere') infraDebts.push({ gap_id: r.gap_id, owed_fix: r.rationale, epoch })
     }
     takeFriction('judge', judge)
     if (await hearPetitions(judge, 'judge')) break

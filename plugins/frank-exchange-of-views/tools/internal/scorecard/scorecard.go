@@ -28,6 +28,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -682,11 +683,47 @@ func redRows(run record.Run, results []map[string]any, telemetry []*recordpb.Tel
 	return rows
 }
 
+// legacyEnvelopeKeys are the envelope keys the engine wrote before the disposition keys:
+// JUDGE_ENVELOPE's `resolutions` (now `dispositions`) and BLUE_ENVELOPE's `grade_disputes`
+// (now `grade_motions`).
+var legacyEnvelopeKeys = []string{"resolutions", "grade_disputes"}
+
+// LegacyKeys names which of those keys a journal's results carry, in a fixed order, and nothing
+// for a journal that holds none.
+//
+// A TRANSCRIPT IS NOT A RECORD, SO NOTHING TRANSLATES IT. migrate rewrites record.db; a captured
+// journal keeps the keys its engine wrote. Read under the current keys, an old journal's rulings
+// are simply absent, and every number computed from them reads as a bench that never sat. This
+// is how a reader tells that absence from a real one — and then says so instead of counting.
+func LegacyKeys(results []map[string]any) []string {
+	seen := map[string]bool{}
+	for _, r := range results {
+		for _, k := range legacyEnvelopeKeys {
+			if _, ok := r[k]; ok {
+				seen[k] = true
+			}
+		}
+	}
+	var out []string
+	for _, k := range legacyEnvelopeKeys {
+		if seen[k] {
+			out = append(out, k)
+		}
+	}
+	return out
+}
+
+// LegacyNote is the stated row for a number those keys held: the reader could not measure it,
+// and says which keys it found.
+func LegacyNote(keys []string) string {
+	return "not measured: this transcript's envelopes predate the disposition keys (" + strings.Join(keys, "/") + ")"
+}
+
 func benchRows(results []map[string]any, fam *record.Family) []Row {
 	var rows []Row
 	var rulings []map[string]any
 	for _, r := range results {
-		if rs, ok := r["resolutions"].([]any); ok {
+		if rs, ok := r["dispositions"].([]any); ok {
 			for _, x := range rs {
 				if m, ok := x.(map[string]any); ok {
 					rulings = append(rulings, m)
@@ -706,7 +743,7 @@ func benchRows(results []map[string]any, fam *record.Family) []Row {
 	var foreign []string
 	seen := map[string]bool{}
 	for _, r := range rulings {
-		w := str(r["resolution"])
+		w := str(r["disposition"])
 		if _, ok := record.DispositionOf(w); !ok {
 			if !seen[w] {
 				seen[w] = true
@@ -718,7 +755,10 @@ func benchRows(results []map[string]any, fam *record.Family) []Row {
 			remanded++
 		}
 	}
+	legacy := LegacyKeys(results)
 	switch {
+	case slices.Contains(legacy, "resolutions"):
+		rows = append(rows, Row{Clause: "Not a router", Metric: "remanded_share", Cls: "benchmark", Note: LegacyNote(legacy)})
 	case len(foreign) > 0:
 		rows = append(rows, Row{Clause: "Not a router", Metric: "remanded_share", Cls: "benchmark",
 			Note: "not measured: disposition " + strings.Join(foreign, ", ") + " is not in this binary's vocabulary"})

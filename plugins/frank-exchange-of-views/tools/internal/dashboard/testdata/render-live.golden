@@ -69,11 +69,11 @@ td, th { font-variant-numeric: tabular-nums; }
 <tr><td>archived closure records</td><td>3</td></tr>
 <tr><td>lens findings recorded</td><td>9 <span class="muted">(raw leaf audit, before the chair coalesces into gaps)</span></td></tr>
 </table><p class="muted">counts come from the board view (feov-record &lt;role&gt; show board) — the record, read once by the tool, not a markdown parse</p>
-<h2>Judiciary (rulings, disputes, and how long arguments actually run)</h2>
+<h2>Judiciary (rulings, grade motions, and how long arguments actually run)</h2>
 <table>
 <tr><td>judge sittings</td><td>1</td></tr>
 <tr><td>rulings by type</td><td>remanded: 2 · repaired: 1 <span class="muted">(a remand-dominated bench is routing, not deciding — the closing-arguments ordering predicts this diversifies)</span></td></tr>
-<tr><td>grade disputes</td><td>raised 2 · accepted 1 · rejected 1</td></tr>
+<tr><td>grade motions</td><td>raised 2 · accepted 1 · rejected 1</td></tr>
 <tr><td>argument chains (supersedes-aware)</td><td>3 chains · by epochs alive: 2×1 · 1×2</td></tr>
 <tr><td>grade migration on multi-epoch chains</td><td>down 1 · up 0 · flat 0 <span class="muted">(first-vs-last mass along the chain — the downgrade process)</span></td></tr>
 </table>

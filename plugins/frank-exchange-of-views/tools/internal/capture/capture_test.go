@@ -573,7 +573,7 @@ func TestHarvestPrecedents(t *testing.T) {
 func TestHarvestNamesTheEnvelopeDivergence(t *testing.T) {
 	runDir := filepath.Join(t.TempDir(), "2026-08-15_divergence")
 	claimed := []map[string]any{
-		{"resolutions": []any{map[string]any{"gap_id": "G1", "resolution": "repaired", "reason": "fixed"}}},
+		{"dispositions": []any{map[string]any{"gap_id": "G1", "disposition": "repaired", "reason": "fixed"}}},
 		{"rulings": []any{map[string]any{"petitioner": "blue", "ruling": "denied", "reason": "no"}}},
 	}
 

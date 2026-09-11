@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1315,6 +1316,9 @@ type HarvestResult struct {
 	// a source: a field rather than a sentence, so a reader can compare it to Count without
 	// parsing prose (facts-are-fields).
 	EnvelopeClaimed int
+	// EnvelopeUnmeasured is set when the journal's envelopes predate the disposition keys: the
+	// claim was not read, so EnvelopeClaimed's 0 is not a claim of zero (scorecard.LegacyNote).
+	EnvelopeUnmeasured string
 }
 
 var (
@@ -1435,7 +1439,7 @@ func rulingsFromRecord(evs []*record.Event) []ruling {
 func rulingsClaimedByEnvelopes(results []map[string]any) int {
 	n := 0
 	for _, r := range results {
-		for _, key := range []string{"resolutions", "rulings"} {
+		for _, key := range []string{"dispositions", "rulings"} {
 			if rs, ok := r[key].([]any); ok {
 				n += len(rs)
 			}
@@ -1448,18 +1452,22 @@ func HarvestPrecedents(run record.Run, results []map[string]any, lawDir string, 
 	slug := slugOf(run)
 	rulings := rulingsFromRecord(evs)
 	claimed := rulingsClaimedByEnvelopes(results)
+	unmeasured := ""
+	if k := scorecard.LegacyKeys(results); slices.Contains(k, "resolutions") {
+		unmeasured = scorecard.LegacyNote(k)
+	}
 	if len(rulings) == 0 {
 		// STATED, not implied. "0 rulings" is otherwise the output of both an honest quiet run
 		// and a harvest that cannot see the rulings in front of it. If the envelopes claim
 		// rulings the record does not hold, that is the second case and it says so.
 		if claimed > 0 {
-			return HarvestResult{Written: false, Count: 0, EnvelopeClaimed: claimed,
+			return HarvestResult{Written: false, Count: 0, EnvelopeClaimed: claimed, EnvelopeUnmeasured: unmeasured,
 				Reason: fmt.Sprintf("the record holds NO rulings while the envelopes claim %d — the record is the source, so nothing is promoted; this divergence is the finding", claimed)}
 		}
-		return HarvestResult{Written: false, Count: 0}
+		return HarvestResult{Written: false, Count: 0, EnvelopeUnmeasured: unmeasured}
 	}
 	if _, err := os.Stat(lawDir); err != nil {
-		return HarvestResult{Written: false, Count: len(rulings), EnvelopeClaimed: claimed, Reason: "no law/ dir at repo root"}
+		return HarvestResult{Written: false, Count: len(rulings), EnvelopeClaimed: claimed, EnvelopeUnmeasured: unmeasured, Reason: "no law/ dir at repo root"}
 	}
 	_ = os.MkdirAll(filepath.Join(lawDir, "proposed"), 0o755)
 	out := filepath.Join(lawDir, "proposed", slug+".md")
@@ -1517,10 +1525,10 @@ func HarvestPrecedents(run record.Run, results []map[string]any, lawDir string, 
 	if err := os.WriteFile(out, []byte(strings.Join(body, "\n")), 0o644); err != nil {
 		// This branch is a WRITE failure and must say so. Reusing the branch above's reason
 		// ("no law/ dir at repo root") would send a reader looking for a directory that exists.
-		return HarvestResult{Written: false, Count: len(rulings), EnvelopeClaimed: claimed,
+		return HarvestResult{Written: false, Count: len(rulings), EnvelopeClaimed: claimed, EnvelopeUnmeasured: unmeasured,
 			Reason: "could not write " + out + ": " + err.Error()}
 	}
-	return HarvestResult{Written: true, Count: len(rulings), EnvelopeClaimed: claimed, Path: out}
+	return HarvestResult{Written: true, Count: len(rulings), EnvelopeClaimed: claimed, EnvelopeUnmeasured: unmeasured, Path: out}
 }
 
 // ---- scorecards ----
@@ -1842,7 +1850,10 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	// The divergence has to REACH the report. Computing it and then printing "no rulings this
 	// run" would rebuild the same defect one level up: the miss folded back into the zero.
 	divergence := ""
-	if prec.EnvelopeClaimed != prec.Count {
+	switch {
+	case prec.EnvelopeUnmeasured != "":
+		divergence = " [the envelopes' claim: " + prec.EnvelopeUnmeasured + " — the record is the source]"
+	case prec.EnvelopeClaimed != prec.Count:
 		divergence = fmt.Sprintf(" [the envelopes claim %d — the record is the source]", prec.EnvelopeClaimed)
 	}
 	switch {
@@ -1853,7 +1864,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	case prec.Reason != "":
 		lines = append(lines, "precedent harvest: "+prec.Reason)
 	default:
-		lines = append(lines, "precedent harvest: no rulings this run")
+		lines = append(lines, "precedent harvest: no rulings this run"+divergence)
 	}
 
 	// THE CLASS HARVEST, beside the precedent one and for the same reason: a run's coinage that

@@ -270,7 +270,7 @@ test('blue is engaged on named gaps, told the board is authoritative, and files 
   await world.run(script, ARGS)
   const [first, second] = labelsOf(world, 'blue-respond').map((c) => c.prompt)
   assert.ok(/You are engaged on: G1, G2/.test(first))
-  for (const want of ['YOUR FIRST READ COMES AFTER THE MANUAL', 'red-gap-patterns.md', 'in one pass rather than three', 'lossy summary', "bench's latest resolutions",
+  for (const want of ['YOUR FIRST READ COMES AFTER THE MANUAL', 'red-gap-patterns.md', 'in one pass rather than three', 'lossy summary', "bench's latest dispositions",
     'REMANDED comes with a stated research direction you owe', 'which patterns you checked', 'YOU MAY COMPUTE AN ANSWER', 'DOCUMENT-PROBE', 'deferred acceptance test',
     'LINES OF INQUIRY ARE A LIVING RECORD', 'THREE paths', 'ESTOPS', 'OWNERSHIP BINDS, AS IT DID AT SYNTHESIS', 'each edit naming the gap it answers', 'a grade motion on the axis', 'Compact and reorganize prose', 'retired on the record',
     'PROPAGATE EVERY CORRECTION TO ALL SITES', 'NULL TURN', 'AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP', 'manifest array', 'claim_count', 'never hand-count']) {
@@ -292,13 +292,13 @@ test('the bench rules on docketed gaps from the closings, the transcript and the
   }
   const schema = labelsOf(world, 'judge')[0].opts.schema
   assert.ok(!schema.properties.deadlock && !schema.required.includes('deadlock'), 'deadlock is not a flag the bench returns')
-  assert.ok(schema.properties.resolutions.items.properties.resolution.enum.includes('defect_owed_elsewhere'))
+  assert.ok(schema.properties.dispositions.items.properties.disposition.enum.includes('defect_owed_elsewhere'))
 })
 
 test('W1.9: defect_owed_elsewhere ships as a named infra debt with the epoch it was ruled in', async () => {
   const world = makeWorld(makeResponder({
     chair: [chairEnv({ plan: plan([party('judge', 'G1')], { docket: ['G1'] }) }), passChair()],
-    judge: [judgeEnv({ resolutions: [{ gap_id: 'G1', resolution: 'defect_owed_elsewhere', rationale: 'setup tooling must stage it' }] })],
+    judge: [judgeEnv({ dispositions: [{ gap_id: 'G1', disposition: 'defect_owed_elsewhere', rationale: 'setup tooling must stage it' }] })],
   }))
   const out = await world.run(script, ARGS)
   assert.deepEqual(out.infra_debts, [{ gap_id: 'G1', owed_fix: 'setup tooling must stage it', epoch: 1 }])
@@ -322,7 +322,7 @@ test('the bench\'s rulings travel to both parties, with blue told its duty and r
   const world = makeWorld(makeResponder({
     chair: [chairEnv({ plan: plan([party('blue-respond', 'G1')]) }), chairEnv({ plan: plan([party('judge', 'G1')], { docket: ['G1'] }) }),
       chairEnv({ plan: plan([party('red-lens-evidence', 'G1'), party('blue-respond', 'G1')]) }), passChair()],
-    judge: [judgeEnv({ resolutions: [{ gap_id: 'G1', resolution: 'not_a_defect', rationale: 'THE OPINION', settled: 'THE BARRED PROPOSITION', reopens_on: 'A NEW SOURCE', final: false }] })],
+    judge: [judgeEnv({ dispositions: [{ gap_id: 'G1', disposition: 'not_a_defect', rationale: 'THE OPINION', settled: 'THE BARRED PROPOSITION', reopens_on: 'A NEW SOURCE', final: false }] })],
   }))
   await world.run(script, ARGS)
   const [blue1, blue2] = labelsOf(world, 'blue-respond').map((c) => c.prompt)

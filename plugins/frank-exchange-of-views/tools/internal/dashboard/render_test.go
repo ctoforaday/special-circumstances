@@ -89,7 +89,7 @@ func TestRenderHTMLTerminal(t *testing.T) {
 	m.Eta = Eta{State: "complete"}
 	m.Seats = []Seat{
 		{Label: "frontier", Seat: "frontier", Done: true, Result: `{"verdict":"PASS","claim_count":15,"gaps":[]}`},
-		{Label: "red-chair #1", Seat: "red-chair", Epoch: 1, Sitting: 1, Done: true, Result: `{"verdict":"FAIL","gaps":[1,2],"resolutions":[1]}`},
+		{Label: "red-chair #1", Seat: "red-chair", Epoch: 1, Sitting: 1, Done: true, Result: `{"verdict":"FAIL","gaps":[1,2],"dispositions":[1]}`},
 		{Label: "red-chair #1", Seat: "red-chair", Epoch: 1, Sitting: 1, Done: false, StartedMs: fp(1000)}, // superseded (a done one shares the label)
 		{Label: "judge #1", Seat: "judge", Epoch: 1, Sitting: 1, Done: false, StartedMs: fp(1000)},         // did not finish
 	}
@@ -126,9 +126,9 @@ func TestRenderHTMLLive(t *testing.T) {
 
 func TestSummarizeResult(t *testing.T) {
 	cases := []struct{ in, want string }{
-		{`{"verdict":"FAIL","claim_count":15,"gaps":[1,2,3],"resolutions":[1],"citations_checked":4,"log":["x"]}`,
+		{`{"verdict":"FAIL","claim_count":15,"gaps":[1,2,3],"dispositions":[1],"citations_checked":4,"log":["x"]}`,
 			"verdict FAIL · 15 claims · 3 gaps · 1 ruling · 4 citations checked · 1 friction"},
-		{`{"resolutions":[1,2]}`, "2 rulings"},
+		{`{"dispositions":[1,2]}`, "2 rulings"},
 		{`not json`, "not json"},
 		{`{}`, "{}"},
 	}

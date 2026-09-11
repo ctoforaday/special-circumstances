@@ -134,7 +134,7 @@ func summarizeResult(raw any) string {
 	if g, ok := j["gaps"].([]any); ok {
 		bits = append(bits, itoa(len(g))+" gaps")
 	}
-	if r, ok := j["resolutions"].([]any); ok {
+	if r, ok := j["dispositions"].([]any); ok {
 		plural := "s"
 		if len(r) == 1 {
 			plural = ""
@@ -388,8 +388,8 @@ func RenderHTML(m Model) string {
 	}
 
 	// Judiciary.
-	w("\n<h2>Judiciary (rulings, disputes, and how long arguments actually run)</h2>\n")
-	if m.Judiciary.JudgeSittings != 0 {
+	w("\n<h2>Judiciary (rulings, grade motions, and how long arguments actually run)</h2>\n")
+	if m.Judiciary.JudgeSittings != 0 || len(m.Judiciary.Legacy) > 0 {
 		rulingsStr := "—"
 		if len(m.Judiciary.Rulings) > 0 {
 			keys := sortedKeys(m.Judiciary.Rulings)
@@ -408,10 +408,18 @@ func RenderHTML(m Model) string {
 		for _, k := range spanKeys {
 			spanParts = append(spanParts, esc(itoa(m.Judiciary.ChainSpans[k]))+"×"+esc(itoa(k)))
 		}
+		sittingsStr := itoa(m.Judiciary.JudgeSittings)
+		motionsStr := fmt.Sprintf("raised %d · accepted %d · rejected %d", m.Judiciary.Disputes.Raised, m.Judiciary.Disputes.Accepted, m.Judiciary.Disputes.Rejected)
+		// AN OLD JOURNAL IS NOT A QUIET BENCH. Its rulings sit under keys this reader does not
+		// count, so each count would print as zero; the cells say what was found instead.
+		if len(m.Judiciary.Legacy) > 0 {
+			nm := esc(scorecard.LegacyNote(m.Judiciary.Legacy))
+			sittingsStr, rulingsStr, motionsStr = nm, nm, nm
+		}
 		w("<table>\n")
-		w(fmt.Sprintf(`<tr><td>judge sittings</td><td>%d</td></tr>`+"\n", m.Judiciary.JudgeSittings))
+		w(`<tr><td>judge sittings</td><td>` + sittingsStr + `</td></tr>` + "\n")
 		w(`<tr><td>rulings by type</td><td>` + rulingsStr + ` <span class="muted">(a remand-dominated bench is routing, not deciding — the closing-arguments ordering predicts this diversifies)</span></td></tr>` + "\n")
-		w(fmt.Sprintf(`<tr><td>grade disputes</td><td>raised %d · accepted %d · rejected %d</td></tr>`+"\n", m.Judiciary.Disputes.Raised, m.Judiciary.Disputes.Accepted, m.Judiciary.Disputes.Rejected))
+		w(`<tr><td>grade motions</td><td>` + motionsStr + `</td></tr>` + "\n")
 		w(fmt.Sprintf(`<tr><td>argument chains (supersedes-aware)</td><td>%d chains · by epochs alive: %s</td></tr>`+"\n", m.Judiciary.Chains, strings.Join(spanParts, " · ")))
 		w(fmt.Sprintf(`<tr><td>grade migration on multi-epoch chains</td><td>down %d · up %d · flat %d <span class="muted">(first-vs-last mass along the chain — the downgrade process)</span></td></tr>`+"\n", m.Judiciary.MigDown, m.Judiciary.MigUp, m.Judiciary.MigFlat))
 		w("</table>")

@@ -1,4 +1,4 @@
-prompt sha256: 07a11d2f21eb50bb6d134e677e8faddb3d5d92f344ad9a2365cf20fa6d8f0c6d
+prompt sha256: 500c1043006b538d223e823b4e1c9c3d83d2c3a1f1260abe02a57487e6236123
 
 Red lens sitting, area evidence, topic "the seat prompt contract".
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -37,7 +37,7 @@ Where blue backed a sentence with a computation, RE-RUN IT, then READ THE SCRIPT
 THE ORIGINATOR CLOSES, AND LINEAGE IS NEVER DROPPED.
 A gap you minted is yours for its whole life: only you regrade it, only you close it — with the triple (who verified, with what, against what) — and a successor you mint names the gaps it supersedes, a closure that regressed says so, and the docket follows those chains.
 The chair carries archived closures and dispatches you when your gap needs acting on; the bench disposes of a docketed gap through its ruling.
-GAPS THE BENCH HAS RULED, AND WHAT EACH RULING OBLIGES OF YOU: [{"gap_id":"G1","resolution":"remanded","final":false,"epoch":1}].
+GAPS THE BENCH HAS RULED, AND WHAT EACH RULING OBLIGES OF YOU: [{"gap_id":"G1","disposition":"remanded","final":false,"epoch":1}].
 YOU ARE ESTOPPED on each settled proposition: do not re-raise it as a fresh gap or a successor; a defect that survives the ruling arrives as the reopens_on condition or not at all.
 A ruling marked final does not reopen; one carrying a reopens_on condition reopens only on that condition and not on a re-reading.
 THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT — read the bench's opinion for any fate you are about to rely on or work around, because a fate you never read is one you can neither honour nor invoke.
