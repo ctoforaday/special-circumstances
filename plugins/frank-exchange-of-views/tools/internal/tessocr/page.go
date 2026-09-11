@@ -50,13 +50,30 @@ type PageResult struct {
 	Fallback string
 }
 
-// MinMarkPlacement is the reconstruction fallback threshold: below this placed/total
-// ratio the emitted table is discarded for plain text, with the failure stated. The Wave
-// 0 pages bound it: healthy reconstructions measured 0.99 (p0054), 0.96 (p0051) and 0.92
-// (p0052) — and p0052 is why the ratio alone is NOT the whole confidence story: OCR glyph
-// dropout shrinks MarksTotal and the ratio stays green, which is what PSMDisagreement and
-// the ExpectedIntersections comparison exist to expose on the record.
+// MinMarkPlacement is the first reconstruction fallback threshold: below this placed/total
+// ratio the emitted table is discarded for plain text, with the failure stated. It catches
+// a SCATTERED placement and nothing else — OCR glyph dropout shrinks MarksTotal along with
+// the marks, so the ratio stays green on a page missing most of its grid (p0052 at 33/36
+// lost five of seventeen rows). MaxIntersectionRatio is the gate for that.
 const MinMarkPlacement = 0.8
+
+// MaxIntersectionRatio is the dropout gate: a reconstruction whose grid the detector
+// measures at more than this many times the lattice the reconstruction accounts for
+// (GridStats.Intersections / Stats.ExpectedIntersections) is discarded for plain text.
+//
+// The boundary is measured on one document (#644, 2026-09-11, every page checked against
+// its 300-DPI pixels): the one reconstruction that held, p0054, at 1040/432 = 2.4; the
+// four that did not — rows lost, marks miscounted, cells shifted a column — at p0051
+// 3347/576 = 5.8, p0052 3295/195 = 16.9, p0050 2688/150 = 17.9 and p0053 2001/36 = 55.6.
+// Wave 0 had called p0051 and p0052 healthy on placement alone.
+//
+// THE RATIO IS NOT UNITLESS, AND THAT LIMITS IT. The numerator counts crossing PIXELS (the
+// AND of two morphological openings), the denominator lattice POINTS, so a healthy page
+// sits near the rule thickness squared rather than 1; and the expected lattice is built
+// from the columns that hold marks, so a sparse grid read correctly also scores high. Both
+// errors fall the safe way — to plain text with the reason stated — and a second document
+// (#934) is what tests where the boundary really sits.
+const MaxIntersectionRatio = 4.0
 
 // Rotation probe. A whole-page rotated table reads as near-silence under PSMAuto: the
 // portrait TSV of p0051/p0052 held 9 confident words each where ordinary pages of this
@@ -165,16 +182,8 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats) (PageResult, erro
 		out.Reconstruction = &st
 	}
 
-	switch {
-	case rerr == ErrNoMarks:
-		// The detector's standing false positive (p0025, boxed text) lands here and is the
-		// designed failure direction: over-detection degrades to plain text WITH the
-		// failure stated — never a fabricated grid, never a silent zero.
-		out.Fallback = "grid detected but the TSV held no mark tokens; page kept as plain text"
-	case st.MarksTotal > 0 && float64(st.MarksPlaced)/float64(st.MarksTotal) < MinMarkPlacement:
-		out.Fallback = fmt.Sprintf("reconstruction placed %d of %d marks, below the %.2f "+
-			"placement threshold; page kept as plain text", st.MarksPlaced, st.MarksTotal, MinMarkPlacement)
-	default:
+	out.Fallback = fallbackReason(rerr, grid, st)
+	if out.Fallback == "" {
 		out.Text = table
 		return out, nil
 	}
@@ -185,6 +194,35 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats) (PageResult, erro
 	}
 	out.Text = text
 	return out, nil
+}
+
+// fallbackReason is the whole acceptance decision for a reconstruction, a pure function of
+// what the page measured: "" when the reconstructed table may stand as the page text,
+// otherwise the sentence the record carries for why it did not. Pure so the measured
+// boundary pages can be pinned without the C stack.
+func fallbackReason(rerr error, grid GridStats, st Stats) string {
+	switch {
+	case rerr == ErrNoMarks:
+		// Every ruled table whose cells hold TEXT rather than marks lands here, and so does
+		// the detector's standing false positive (p0025, boxed text). Over-detection degrades
+		// to plain text WITH the failure stated — never a fabricated grid, never a silent
+		// zero — and the sentence says what the reader loses, not only why: tesseract's plain
+		// reading serializes such a table column by column, so a cell's words survive and its
+		// row does not (#932).
+		return "grid detected but the TSV held no mark tokens; page kept as plain text — " +
+			"its words are read, but which row and column each belongs to is not preserved, " +
+			"so check a cell against the page image before relying on it"
+	case st.MarksTotal > 0 && float64(st.MarksPlaced)/float64(st.MarksTotal) < MinMarkPlacement:
+		return fmt.Sprintf("reconstruction placed %d of %d marks, below the %.2f "+
+			"placement threshold; page kept as plain text", st.MarksPlaced, st.MarksTotal, MinMarkPlacement)
+	case float64(grid.Intersections) > MaxIntersectionRatio*float64(st.ExpectedIntersections()):
+		return fmt.Sprintf("the detector measured %d grid intersections, %.1f times the %d the "+
+			"reconstruction accounts for (limit %.1f): the OCR dropped rows or columns the grid "+
+			"still shows; page kept as plain text", grid.Intersections,
+			float64(grid.Intersections)/float64(st.ExpectedIntersections()),
+			st.ExpectedIntersections(), MaxIntersectionRatio)
+	}
+	return ""
 }
 
 // confidentWordCount counts TSV words tesseract is sure of — the orientation signal. A

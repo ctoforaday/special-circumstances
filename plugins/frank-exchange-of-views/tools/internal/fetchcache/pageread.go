@@ -138,7 +138,8 @@ type PageReading struct {
 	// OCR-independent denominator: compared against
 	// Reconstruction.ExpectedIntersections(), a lattice far larger than the
 	// reconstruction accounts for means the OCR dropped grid content leptonica can still
-	// see.
+	// see — and past tessocr.MaxIntersectionRatio the reconstruction is discarded, which
+	// ReconstructionFallback then states.
 	GridIntersections int `json:"grid_intersections,omitempty"`
 	// Reconstruction is the grid branch's confidence, a FIELD rather than something
 	// inferred from the emitted table's shape (plan §II). Nil on prose pages and on grid
