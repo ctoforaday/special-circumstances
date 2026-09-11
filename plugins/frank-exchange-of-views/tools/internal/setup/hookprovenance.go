@@ -49,7 +49,7 @@ type HookProvenance struct {
 	// Binaries lists the hook programs present in each cached version, keyed by version. A
 	// version whose hooks.json registers a binary its bin/ does not hold is the bootstrap window
 	// every hooks.json guard describes — the entry fires, the binary is missing, and the guard
-	// degrades to one stderr line.
+	// hands it to fetch-bin.sh; until that fetch lands, the hook does nothing.
 	Binaries map[string][]string `json:"binaries"`
 	// Missing names the hook binaries a cached version REGISTERS and does not ship, per version.
 	// Empty is a real answer and is recorded as such.
@@ -104,8 +104,8 @@ func hookProvenanceAt(home, plugin string) HookProvenance {
 }
 
 // binariesIn lists executable names in a bin directory. A missing directory is the empty list
-// rather than an error: a fresh cache version ships without binaries until `doctor --fix` runs,
-// which is the documented bootstrap window and a real state to record.
+// rather than an error: a fresh cache version ships without binaries until the hooks' fetch (or
+// `doctor --fix`) installs them, which is the documented bootstrap window and a real state to record.
 func binariesIn(dir string) []string {
 	ents, err := os.ReadDir(dir)
 	if err != nil {
@@ -123,7 +123,7 @@ func binariesIn(dir string) []string {
 
 // registeredButAbsent is the gap that matters: hook entries this version DECLARES whose binary
 // it does not carry. That is the window where the harness fires an entry, the guard finds no
-// binary, and the run proceeds with one stderr line and no identity injection — which is the
+// binary, and the run proceeds with no identity injection while the fetch runs — which is the
 // 2026-08-23 shape exactly.
 func registeredButAbsent(versionDir string, present []string) []string {
 	b, err := os.ReadFile(filepath.Join(versionDir, "hooks", "hooks.json"))

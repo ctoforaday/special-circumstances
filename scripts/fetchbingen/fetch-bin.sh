@@ -1,0 +1,234 @@
+# shellcheck shell=sh
+# fetch-bin.sh installs this plugin's hook binaries from the plugin's own GitHub release.
+#
+# A plugin install copies text, never binaries, so every new cache version starts with a bin/
+# that holds only .gitkeep. Each hook's guard runs this script when its binary is missing:
+#
+#   sh fetch-bin.sh hook <Event>   start a background fetch unless one is running, and tell the
+#                                  human when <Event> is one whose message Claude Code displays
+#   sh fetch-bin.sh fetch          download, verify and install every missing binary, all or none
+#
+# The release is the tag <name>--v<version>, both read from .claude-plugin/plugin.json — never
+# "latest", which is whichever plugin tagged most recently. Every file is checked against the
+# release's SHA256SUMS before it is made executable. State lives in ${CLAUDE_PLUGIN_ROOT}/.fetch/,
+# never in bin/, so nothing that lists bin/ mistakes it for a binary.
+#
+# `hook` always exits 0 and never waits on the network: a guard must not fail or slow a tool call.
+
+ROOT=${CLAUDE_PLUGIN_ROOT:-}
+SELF=$0
+STATE=
+[ -n "$ROOT" ] && STATE="$ROOT/.fetch"
+BASE_URL=${SC_RELEASE_BASE_URL:-https://github.com/ctoforaday/special-circumstances/releases/download}
+EVENT=
+DISPLAYING=0
+
+# field prints a top-level string field of plugin.json, or nothing. Top level is the two-space
+# indent: author.name sits deeper and must not answer for name.
+field() {
+	[ -n "$ROOT" ] && [ -f "$ROOT/.claude-plugin/plugin.json" ] || return 0
+	sed -n "s/^  \"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$ROOT/.claude-plugin/plugin.json" | head -n 1
+}
+
+# clean makes text safe inside a JSON string: it drops double quotes and backslashes (octal 042,
+# 134) and turns line breaks and tabs into spaces.
+clean() {
+	tr -d '\042\134' | tr '\n\r\t' '   '
+}
+
+# older_than <path> <minutes> succeeds when path exists and was modified more than minutes ago.
+older_than() {
+	[ -e "$1" ] && [ -n "$(find "$1" -maxdepth 0 -mmin +"$2" 2>/dev/null)" ]
+}
+
+# speak <kind> <message> is the one speaking rule: only a displaying event speaks, and each kind
+# of message at most once per 10 minutes across every event. Kinds are throttled apart so an
+# "installing" message cannot hide the failure that follows it. A non-displaying event never
+# prints to stdout.
+speak() {
+	[ "$DISPLAYING" = 1 ] || return 0
+	if [ -n "$STATE" ] && [ -d "$STATE" ]; then
+		mark="$STATE/notified.$1"
+		if [ -e "$mark" ] && ! older_than "$mark" 10; then
+			return 0
+		fi
+		: >"$mark" 2>/dev/null
+	fi
+	m=$(printf '%s' "$2" | clean)
+	if [ "$EVENT" = SessionStart ]; then
+		printf '{"systemMessage":"%s","hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' "$m" "$m"
+	else
+		printf '{"systemMessage":"%s"}\n' "$m"
+	fi
+}
+
+# holder_alive succeeds when the lock names a process that is still running.
+holder_alive() {
+	pid=$(cat "$STATE/lock/pid" 2>/dev/null)
+	[ -n "$pid" ] && kill -0 "$pid" 2>/dev/null
+}
+
+# take_lock succeeds when this process now holds the lock. A lock whose holder is running is held
+# however old it is: a slow download must not be joined by a second one. A lock whose recorded
+# holder has gone, or that recorded none within 10 minutes, belongs to a fetch that died.
+take_lock() {
+	mkdir "$STATE/lock" 2>/dev/null && return 0
+	holder_alive && return 1
+	if [ -f "$STATE/lock/pid" ] || older_than "$STATE/lock" 10; then
+		rm -rf "$STATE/lock"
+		mkdir "$STATE/lock" 2>/dev/null && return 0
+	fi
+	return 1
+}
+
+# start_fetch runs `fetch` detached, with every stream off the hook's, so the hook returns now.
+start_fetch() {
+	if command -v nohup >/dev/null 2>&1; then
+		SC_FETCH_LOCKED=1 nohup sh "$SELF" fetch </dev/null >>"$STATE/log" 2>&1 &
+	else
+		(SC_FETCH_LOCKED=1 sh "$SELF" fetch </dev/null >>"$STATE/log" 2>&1 &)
+	fi
+}
+
+hook() {
+	EVENT=${1:-}
+	case "$EVENT" in
+	SessionStart | PreToolUse | PostToolUse | PostToolUseFailure | Stop) DISPLAYING=1 ;;
+	esac
+	name=$(field name)
+	version=$(field version)
+	manual="run /prosthetic-conscience:doctor --fix"
+	# Created before anything can speak, so every message below is throttled. Where it cannot be
+	# created the message goes out unthrottled: a root nothing can write to is a state to see.
+	if [ -n "$STATE" ] && ! mkdir -p "$STATE" 2>/dev/null; then
+		m="${name:-a plugin} ${version}: hook binaries missing, and $STATE cannot be created, so they cannot install themselves. To install them, $manual."
+		printf '%s\n' "$m" >&2
+		speak failed "$m"
+		return 0
+	fi
+	if [ -z "$name" ] || [ -z "$version" ]; then
+		m="${name:-a plugin}: hook binaries missing, and its plugin.json gives no name or version to fetch them by. To install them, $manual."
+		printf '%s\n' "$m" >&2
+		speak failed "$m"
+		return 0
+	fi
+	if [ -f "$STATE/failed" ] && ! older_than "$STATE/failed" 5; then
+		speak failed "$name $version: installing its hook binaries failed ($(head -n 1 "$STATE/failed")). It retries in a few minutes; to install them now, $manual."
+		return 0
+	fi
+	if take_lock; then
+		start_fetch
+	fi
+	speak installing "$name $version: installing its hook binaries in the background; its hooks start working when that finishes."
+	return 0
+}
+
+# fail records the cause where `hook` and the doctor read it, then exits; the EXIT trap removes
+# the temp directory and the lock.
+fail() {
+	printf '%s\n' "$1" | clean >"$STATE/failed.tmp" && mv -f "$STATE/failed.tmp" "$STATE/failed"
+	printf '%s fetch-bin: FAILED: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1"
+	exit 1
+}
+
+fetch() {
+	[ -n "$ROOT" ] || {
+		echo "fetch-bin: CLAUDE_PLUGIN_ROOT is not set" >&2
+		exit 2
+	}
+	mkdir -p "$STATE" || exit 1
+	if [ "${SC_FETCH_LOCKED:-}" != 1 ]; then
+		take_lock || {
+			echo "fetch-bin: another fetch holds $STATE/lock" >&2
+			exit 1
+		}
+	fi
+	# The lock records its holder, so a later hook can tell a slow fetch from a dead one, and so
+	# this fetch removes only a lock it still owns.
+	printf '%s\n' "$$" >"$STATE/lock/pid" 2>/dev/null || {
+		echo "fetch-bin: lost $STATE/lock before it could record its holder" >&2
+		exit 1
+	}
+	TMP="$STATE/tmp.$$"
+	trap 'rm -rf "$TMP"; [ "$(cat "$STATE/lock/pid" 2>/dev/null)" = "$$" ] && rm -rf "$STATE/lock"' EXIT
+
+	name=$(field name)
+	version=$(field version)
+	[ -n "$name" ] && [ -n "$version" ] || fail "plugin.json gives no name or version"
+	command -v curl >/dev/null 2>&1 || fail "curl not found"
+	if command -v sha256sum >/dev/null 2>&1; then
+		sum="sha256sum"
+	elif command -v shasum >/dev/null 2>&1; then
+		sum="shasum -a 256"
+	else
+		fail "neither sha256sum nor shasum found"
+	fi
+	s=$(uname -s 2>/dev/null)
+	m=$(uname -m 2>/dev/null)
+	case "$s" in
+	Linux) os=linux ;;
+	Darwin) os=darwin ;;
+	MINGW* | MSYS* | CYGWIN*) os=windows ;;
+	*) fail "unsupported platform $s/$m" ;;
+	esac
+	case "$m" in
+	x86_64 | amd64) arch=amd64 ;;
+	arm64 | aarch64) arch=arm64 ;;
+	*) fail "unsupported platform $s/$m" ;;
+	esac
+	ext=
+	[ "$os" = windows ] && ext=.exe
+	tag="$name--v$version"
+
+	# The binaries are the directories under tools/cmd — the list the release job builds and the
+	# doctor checks. Only missing ones are fetched: a running .exe cannot be replaced on Windows,
+	# and a binary already in this version's bin/ came from this version's release.
+	missing=
+	for d in "$ROOT"/tools/cmd/*/; do
+		[ -d "$d" ] || continue
+		n=$(basename "$d")
+		[ -x "$ROOT/bin/$n$ext" ] || missing="$missing $n"
+	done
+	if [ -z "$missing" ]; then
+		rm -f "$STATE/failed"
+		return 0
+	fi
+
+	mkdir -p "$TMP" || fail "cannot create $TMP"
+	curl -fsSL --retry 2 --connect-timeout 20 --max-time 600 -o "$TMP/SHA256SUMS" "$BASE_URL/$tag/SHA256SUMS" ||
+		fail "release $tag has no SHA256SUMS yet, or the network is unreachable"
+	# Verify every asset before installing any, so bin/ never holds part of a failed fetch.
+	for n in $missing; do
+		a="${n}_${os}_${arch}${ext}"
+		want=$(awk -v a="$a" '$2 == a || $2 == "*" a { print $1; exit }' "$TMP/SHA256SUMS")
+		[ -n "$want" ] || fail "release $tag has no $a"
+		curl -fsSL --retry 2 --connect-timeout 20 --max-time 600 -o "$TMP/$a" "$BASE_URL/$tag/$a" || fail "downloading $a from release $tag failed"
+		got=$($sum "$TMP/$a" | awk '{ print $1 }')
+		[ "$got" = "$want" ] || fail "checksum mismatch for $a from release $tag"
+	done
+	mkdir -p "$ROOT/bin" || fail "cannot create $ROOT/bin"
+	for n in $missing; do
+		a="${n}_${os}_${arch}${ext}"
+		if ! chmod 0755 "$TMP/$a" || ! mv -f "$TMP/$a" "$ROOT/bin/$n$ext"; then
+			fail "cannot install $n into $ROOT/bin"
+		fi
+	done
+	rm -f "$STATE/failed"
+	printf '%s fetch-bin: installed%s from %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$missing" "$tag"
+}
+
+case "${1:-}" in
+hook)
+	shift
+	hook "$@"
+	exit 0
+	;;
+fetch)
+	fetch
+	exit 0
+	;;
+*)
+	echo "usage: sh fetch-bin.sh hook <Event> | sh fetch-bin.sh fetch" >&2
+	exit 2
+	;;
+esac

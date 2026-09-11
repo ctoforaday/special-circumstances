@@ -35,7 +35,7 @@ Ten load on every session, the rest by description. `design-by-contract` is the 
 
 `sc-doctor` is the eleventh binary and the one you invoke yourself, via `/prosthetic-conscience:doctor`.
 
-Every hook is wrapped in a bootstrap guard: a fresh plugin version ships from git *without* binaries, and an unguarded hook crash-storms every tool call in that window. The guard degrades to one stderr line pointing at `/prosthetic-conscience:doctor --fix`.
+Every hook is wrapped in a bootstrap guard: a fresh plugin version ships from git *without* binaries, and an unguarded hook crash-storms every tool call in that window. The guard hands a missing binary to `hooks/fetch-bin.sh`, which installs the plugin's binaries from its own release in the background and tells you it is doing so. If that fails it says why, and `/prosthetic-conscience:doctor --fix` installs them by hand.
 
 ## Compaction survival — the Memento problem
 

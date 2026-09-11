@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/feov-pretooluse\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'frank-exchange-of-views: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/feov-pretooluse\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; F=\"${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook PreToolUse; fi; echo 'frank-exchange-of-views: hook binaries missing — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/feov-subagentstart\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'frank-exchange-of-views: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/feov-subagentstart\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; F=\"${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook SubagentStart; fi; echo 'frank-exchange-of-views: hook binaries missing — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/feov-subagentstop\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'frank-exchange-of-views: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/feov-subagentstop\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; F=\"${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook SubagentStop; fi; echo 'frank-exchange-of-views: hook binaries missing — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }

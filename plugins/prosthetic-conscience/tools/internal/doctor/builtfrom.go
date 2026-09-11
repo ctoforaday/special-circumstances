@@ -2,8 +2,8 @@ package doctor
 
 // A STALE HOOK BINARY IS SILENT, WHERE AN EMPTY ONE IS LOUD (#450).
 //
-// The empty-bin case already announces itself: no binary means every hook event spawn-fails, the
-// crash storm is unmissable, and a bootstrap guard turns it into a pointer at `doctor --fix`.
+// The empty-bin case already announces itself: a missing binary sends its hook's guard to
+// fetch-bin.sh, which installs it from the release and says so on the next displayed event.
 //
 // The STALE case has none of that. A binary built weeks ago runs, exits 0, and does exactly what it
 // did then. There is no crash, no warning, and no output that differs from a healthy hook — so the

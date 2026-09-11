@@ -9,4 +9,4 @@ Run the Special Circumstances environment preflight. Model terse-communication: 
 3. If the argument is `--fix`: fixing mutates the machine, so YOU MUST get explicit human confirmation first (see [[semantic-consent]]), then run `sc-doctor -fix` — for each missing hook binary it downloads the CI-built release asset (SHA256-verified) and only falls back to a from-source `go build` when no release asset is reachable (dev convenience); it reprints the verdict after.
 4. External tools (git / gh / qlty): the binary prints the per-platform install command but never runs it; execute one only on a second explicit confirmation, one tool at a time.
 
-YOU MUST NOT auto-run `--fix` at session start.
+A missing hook binary installs itself: the hook's guard fetches it from the plugin's pinned release in the background and says so, and a failure is reported with its cause. `--fix` is the manual path for when that failed. YOU MUST NOT auto-run `--fix` at session start.

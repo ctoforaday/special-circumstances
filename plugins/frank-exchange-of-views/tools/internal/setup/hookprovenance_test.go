@@ -69,7 +69,7 @@ func TestNoCachedPluginIsRecordedAsAnObservationNotAnEmptyField(t *testing.T) {
 
 // THE BOOTSTRAP WINDOW IS THE FINDING, and it is what the 2026-08-23 run was sitting in: a cached
 // version that REGISTERS a hook binary it does not ship. The entry fires, the guard finds no
-// binary, and the run proceeds with one stderr line and no identity injection.
+// binary, and the run proceeds with no identity injection while the fetch runs.
 func TestAVersionThatRegistersAHookItDoesNotShipIsReported(t *testing.T) {
 	home := t.TempDir()
 	cachePlugin(t, home, "sc", "frank-exchange-of-views", "1.58.0",

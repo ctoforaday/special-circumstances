@@ -7,12 +7,22 @@
   "plugins": [
     {
       "name": "prosthetic-conscience",
-      "source": "./plugins/prosthetic-conscience",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/ctoforaday/special-circumstances.git",
+        "path": "plugins/prosthetic-conscience",
+        "ref": "prosthetic-conscience--v0.45.0"
+      },
       "description": "Core adversarial + cowork behaviour: Design-by-Contract rules-as-skills, pair programming, spec-driven development + a plan-audit gate, project memory, context checkpointing for compaction survival, proficiency skills, quality hooks, and environment preflight (/prosthetic-conscience:doctor)."
     },
     {
       "name": "frank-exchange-of-views",
-      "source": "./plugins/frank-exchange-of-views",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/ctoforaday/special-circumstances.git",
+        "path": "plugins/frank-exchange-of-views",
+        "ref": "frank-exchange-of-views--v1.64.0"
+      },
       "description": "The research debate engine: an additive blue side, a subtractive red side that owns the pass/fail gate, an engine that runs the mechanics and a bench that rules the final compromise — best-of-N, a Heilmeier Catechism, and the full record preserved."
     },
     {
@@ -22,7 +32,12 @@
     },
     {
       "name": "gray-area",
-      "source": "./plugins/gray-area",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/ctoforaday/special-circumstances.git",
+        "path": "plugins/gray-area",
+        "ref": "gray-area--v0.11.0"
+      },
       "description": "Trajectory evidence: what a session actually did, as against what it reported. Captures each seat's own transcript by path at SubagentStop, so an inspection cites the primary record rather than a summary of it."
     }
   ]

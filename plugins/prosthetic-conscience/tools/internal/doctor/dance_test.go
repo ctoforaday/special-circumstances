@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 )
 
 func TestSemverLess(t *testing.T) {
@@ -25,7 +27,8 @@ func TestSemverLess(t *testing.T) {
 	}
 }
 
-// cacheFixture builds <tmp>/<plugin>/<version>[/bin/tool.exe][/requirements.json].
+// cacheFixture builds <tmp>/<plugin>/<version>/{tools/cmd/sc-doctor,bin/.gitkeep}[/requirements.json]
+// — the shape a real install has: bin/ is never empty, because .gitkeep is tracked.
 func cacheFixture(t *testing.T) string {
 	t.Helper()
 	market := t.TempDir()
@@ -36,10 +39,12 @@ func cacheFixture(t *testing.T) string {
 		}
 		return p
 	}
-	// Own plugin: running from 0.7.0 while 0.8.0 exists with an EMPTY bin.
-	mk("prosthetic-conscience", "0.7.0", "bin")
-	os.WriteFile(filepath.Join(mk("prosthetic-conscience", "0.7.0", "bin"), "sc-doctor.exe"), []byte("x"), 0o755)
-	mk("prosthetic-conscience", "0.8.0", "bin")
+	for _, v := range []string{"0.7.0", "0.8.0"} {
+		mk("prosthetic-conscience", v, "tools", "cmd", "sc-doctor")
+		os.WriteFile(filepath.Join(mk("prosthetic-conscience", v, "bin"), ".gitkeep"), nil, 0o644)
+	}
+	// Own plugin: running from 0.7.0, which has its binary, while 0.8.0 has none yet.
+	os.WriteFile(filepath.Join(market, "prosthetic-conscience", "0.7.0", "bin", "sc-doctor"+buildid.ExeName("")), []byte("x"), 0o755)
 	// Sibling plugin with its own requirements.json at its newest version.
 	sib := mk("frank-exchange-of-views", "0.6.0")
 	os.WriteFile(filepath.Join(sib, "requirements.json"),
@@ -58,12 +63,22 @@ func TestDanceWarnings(t *testing.T) {
 	if !strings.Contains(ws[0], "DANCE INCOMPLETE") || !strings.Contains(ws[0], "0.8.0") {
 		t.Fatalf("stale-version warning wrong: %q", ws[0])
 	}
-	if !strings.Contains(ws[1], "EMPTY-BIN WINDOW") {
-		t.Fatalf("empty-bin warning wrong: %q", ws[1])
+	if !strings.Contains(ws[1], "EMPTY-BIN WINDOW") || !strings.Contains(ws[1], "missing 1 of its 1") || !strings.Contains(ws[1], "next hook") {
+		t.Fatalf("a bin/ holding only .gitkeep, with no fetch running, must say the next hook installs them: %q", ws[1])
 	}
-	// Running from the newest version with a populated bin: no warnings.
-	os.WriteFile(filepath.Join(market, "prosthetic-conscience", "0.8.0", "bin", "sc-doctor.exe"), []byte("x"), 0o755)
+	// "Installing" is claimed only while a fetch holds the lock.
 	newest := filepath.Join(market, "prosthetic-conscience", "0.8.0")
+	os.MkdirAll(filepath.Join(newest, ".fetch", "lock"), 0o755)
+	if ws := danceWarnings(root); len(ws) != 2 || !strings.Contains(ws[1], "installing") {
+		t.Fatalf("a held lock should read as an install in progress, got %v", ws)
+	}
+	// A recorded fetch failure is reported with its cause.
+	os.WriteFile(filepath.Join(newest, ".fetch", "failed"), []byte("curl not found\n"), 0o644)
+	if ws := danceWarnings(root); len(ws) != 2 || !strings.Contains(ws[1], "curl not found") {
+		t.Fatalf("the fetch's recorded cause should be in the warning, got %v", ws)
+	}
+	// Running from the newest version with its binary present: no warnings, .fetch/ notwithstanding.
+	os.WriteFile(filepath.Join(newest, "bin", "sc-doctor"+buildid.ExeName("")), []byte("x"), 0o755)
 	if ws := danceWarnings(newest); len(ws) != 0 {
 		t.Fatalf("healthy cache should warn nothing, got %v", ws)
 	}
