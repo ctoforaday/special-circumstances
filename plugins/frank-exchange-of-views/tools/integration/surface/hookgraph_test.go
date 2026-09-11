@@ -72,17 +72,23 @@ var hookLocalPackages = map[string][]string{
 		// — a read of metadata already embedded in the binary, beside a process spawn and a JSON
 		// parse this hook was already paying.
 		"internal/buildid",
+		// sittingcap counts a seat's tool calls per sitting so the hook can refuse the calls past
+		// the run's limit; standard library only. sittinghook hands the first refusal to
+		// feov-sitting-write, which writes the record; it links runlive and nothing else. Both run
+		// on every tool call a registered seat makes, which is what a per-call limit costs.
+		"internal/sittingcap", "internal/sittinghook",
 	},
 	// The sitting hooks link buildid TRANSITIVELY, through hookgate — they do not stamp anything
-	// themselves. Listed because this allowlist is per-binary and states each graph as its own
-	// claim, so an inherited dependency is still a dependency that binary pays for.
+	// themselves — and sittingcap the same way, through hookcmd, whose Run they use. Listed because
+	// this allowlist is per-binary and states each graph as its own claim, so an inherited
+	// dependency is still a dependency that binary pays for.
 	"./cmd/feov-subagentstart": {
 		"internal/feov", "internal/seatenv", "internal/hookgate", "internal/runlive", "internal/hookcmd",
-		"internal/sittinghook", "internal/buildid",
+		"internal/sittinghook", "internal/buildid", "internal/sittingcap",
 	},
 	"./cmd/feov-subagentstop": {
 		"internal/feov", "internal/seatenv", "internal/hookgate", "internal/runlive", "internal/hookcmd",
-		"internal/sittinghook", "internal/buildid",
+		"internal/sittinghook", "internal/buildid", "internal/sittingcap",
 	},
 }
 
@@ -158,7 +164,7 @@ func assertGraph(t *testing.T, hookBinary string) {
 	sort.Strings(added)
 	if len(added) > 0 {
 		t.Errorf("%s gained module-local package(s) %s.\n\n"+
-			"This binary runs once per Bash call in every session, and it pays every linked package's "+
+			"This binary runs on every firing of its hook event in every session, and it pays every linked package's "+
 			"init() before main. If the new dependency is genuinely needed, add it to hookLocalPackages "+
 			"WITH the reason; if it is one function from a large package, move that function to a leaf "+
 			"instead — which is what #684 F2 did with InferRunDir.", hookBinary, strings.Join(added, ", "))

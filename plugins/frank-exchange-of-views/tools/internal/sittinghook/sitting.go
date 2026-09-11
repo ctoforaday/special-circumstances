@@ -21,11 +21,13 @@ package sittinghook
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 )
@@ -51,7 +53,41 @@ const writerName = "feov-sitting-write"
 const (
 	phaseOpen  = "open"
 	phaseClose = "close"
+	phaseLimit = "limit"
 )
+
+// Limit hands a sitting that has reached the run's tool-call limit to the writer, which puts it on
+// the record. The PreToolUse hook calls it once per such sitting (sittingcap decides which call).
+//
+// UNLIKE THE SPAN ENDS, A MISSING WRITER IS REPORTED. The seat is being refused either way; what a
+// missing writer loses is the record's account of why, and that absence should reach the hook log
+// rather than read as a sitting that never hit the limit.
+func Limit(runDir, agentID, agentType string, sitting, limit int) error {
+	writer := writerPath()
+	if writer == "" {
+		return fmt.Errorf("%s is not beside this hook, so %s sitting %d reaching the limit of %d is not on the record",
+			writerName, agentID, sitting, limit)
+	}
+	return spawnLimit(writer, runDir, agentID, agentType, sitting, limit)
+}
+
+// spawnLimit is a variable for the reason spawn is.
+var spawnLimit = func(writer, runDir, agentID, agentType string, sitting, limit int) error {
+	args := []string{
+		"-run", runDir,
+		"-phase", phaseLimit,
+		"-agent-id", agentID,
+		"-sitting", strconv.Itoa(sitting),
+		"-limit", strconv.Itoa(limit),
+	}
+	if agentType != "" {
+		args = append(args, "-agent-type", agentType)
+	}
+	if out, err := exec.Command(writer, args...).CombinedOutput(); err != nil {
+		return fmt.Errorf("%s: %v: %s", writerName, err, out)
+	}
+	return nil
+}
 
 // sittingInput is the subset of the SubagentStart/SubagentStop payload this needs.
 type sittingInput struct {

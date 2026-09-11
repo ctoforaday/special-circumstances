@@ -43,7 +43,55 @@ type Phase string
 const (
 	Open  Phase = "open"
 	Close Phase = "close"
+	// Limit is not an end of the span: it is a sitting stopped at the run's tool-call limit,
+	// written by WriteLimit. It is a phase so the one writer binary carries every harness-observed
+	// fact about a sitting.
+	Limit Phase = "limit"
 )
+
+// WriteLimit records that a seat's sitting reached the run's per-sitting tool-call limit and was
+// stopped by the PreToolUse hook.
+//
+// THE SEAT AND THE SITTING ARE CHECKED AGAINST THE RECORD. The hook counted against a sitting that
+// register opened; the seat is resolved here by the agent's latest register, and a sitting number
+// the seat has not reached is refused rather than written.
+func WriteLimit(runDir, agentID, agentType string, sitting, limit int) error {
+	if agentID == "" {
+		return fmt.Errorf("sittingwrite: refusing a sitting limit with no agent id")
+	}
+	if sitting < 1 || limit < 1 {
+		return fmt.Errorf("sittingwrite: a sitting limit needs a sitting and a limit from 1, got %d/%d", sitting, limit)
+	}
+	run, err := record.NewRun(runDir)
+	if err != nil {
+		return err
+	}
+	seat, found, err := record.SeatOfAgent(run, agentID)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return fmt.Errorf("sittingwrite: agent %s has no register on this record, so no sitting of it was counted", agentID)
+	}
+	n, err := record.SittingsOf(run, seat)
+	if err != nil {
+		return err
+	}
+	if sitting > n {
+		return fmt.Errorf("sittingwrite: %s has opened %d sitting(s), so sitting %d cannot have reached a limit", seat, n, sitting)
+	}
+	body := &recordpb.SittingLimit{
+		AgentId: proto.String(agentID),
+		SeatId:  proto.String(seat),
+		Sitting: proto.Int32(int32(sitting)),
+		Limit:   proto.Int32(int32(limit)),
+	}
+	if agentType != "" {
+		body.AgentType = proto.String(agentType)
+	}
+	_, err = record.Append(record.Identity{Run: run, SeatID: HookSeat}, body)
+	return err
+}
 
 // Write appends the sitting event and, at the closing end, ingests the seat's turns.
 //

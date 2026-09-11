@@ -1809,6 +1809,8 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		StrayRecordsAudit(repoRootOf(run), run.Dir()),
 		RecordParityAudit(run, redEpochs, blueBlocks),
 		DispatchParityAudit(run),
+		// Which sittings the hook stopped at the per-sitting tool-call limit. See sittinglimit.go.
+		SittingLimitAudit(run),
 		BackfillAudit(run),
 		AttestationAudit(run, transcriptDir, agentFiles, 5),
 		ModelTierAudit(run, transcriptDir, agentFiles),

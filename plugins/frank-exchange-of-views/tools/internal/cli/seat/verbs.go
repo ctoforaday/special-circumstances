@@ -17,6 +17,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingcap"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -39,6 +40,15 @@ func Register() *cobra.Command {
 			return nil, err
 		}
 		r := registerResult{SeatID: s.SeatID, Dispatch: dispatch, RunVia: string(s.RunVia)}
+		// THE SITTING'S TOOL-CALL COUNT STARTS HERE. The dispatch number is the seat's register
+		// count, which is the record's own sitting number, so the hook counts in the record's
+		// window. An operator is never limited; an agent with no id cannot be counted.
+		if agent := seatenv.AgentID(); agent != "" && s.SeatID != record.OperatorRole {
+			if err := sittingcap.Open(s.Identity().Run.Dir(), agent,
+				sittingcap.Header{SeatID: s.SeatID, Sitting: dispatch}); err != nil {
+				r.TurnLimitUnarmed = err.Error()
+			}
+		}
 		// THE IDENTITY DID NOT ARRIVE, AND THE SEAT IS THE ONLY PARTY THAT CAN STILL ACT ON IT.
 		//
 		// register is where the agent->seat binding is written, so it is also the first and only
@@ -777,6 +787,9 @@ type registerResult struct {
 	// HookAbsent says the hook is not reaching the RUN, rather than only the identity being
 	// missing — every seat in it is affected, not just this one.
 	HookAbsent bool `json:"hook_absent,omitempty"`
+	// TurnLimitUnarmed is why this sitting's tool calls are not being counted, when the count
+	// could not be opened. Empty when it was.
+	TurnLimitUnarmed string `json:"turn_limit_unarmed,omitempty"`
 }
 
 // hookAbsentSource names the carrier that stood in for the hook, so the operator reading a
@@ -822,6 +835,10 @@ func (r registerResult) Human() string {
 			"recorded against it. What is lost is the identity binding, and the fix for that is " +
 			"above. Record the hook's absence ONCE with the friction verb — you are the first party " +
 			"that can see it, and the run leaves no other trace of it."
+	}
+	if r.TurnLimitUnarmed != "" {
+		out += "\n\nThis sitting's tool calls are not being counted against the run's limit (" +
+			r.TurnLimitUnarmed + "). Record it once with the friction verb."
 	}
 	return out
 }

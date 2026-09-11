@@ -8,6 +8,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingcap"
 	"io"
 	"os"
 	"path/filepath"
@@ -32,6 +33,9 @@ type Config struct {
 	// states what bound the run.
 	K, KMax, MintBudget int
 	ConvergenceFraction float64
+	// MaxSittingCalls is the tool calls one seat may make in one sitting before the PreToolUse
+	// hook refuses the rest (internal/sittingcap). Zero means sittingcap.DefaultMaxCalls.
+	MaxSittingCalls int
 	// LensAreas are the red lens areas this run dispatches; empty means record.DefaultCastAreas.
 	// They go on the record as the CAST (plans/roundless.md §III.B.1), which register and the
 	// dispatch verb check every seat against.
@@ -328,9 +332,14 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	if cfg.ConvergenceFraction > 0 {
 		terms.ConvergenceFraction = cfg.ConvergenceFraction
 	}
+	maxCalls := sittingcap.DefaultMaxCalls
+	if cfg.MaxSittingCalls > 0 {
+		maxCalls = cfg.MaxSittingCalls
+	}
 	rc := runConfig{Topic: topic, RunDir: run.Dir(), Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect, AllowModelSubstitution: cfg.AllowSubstitution,
 		K: terms.K, KMax: terms.KMax, MintBudget: terms.MintBudget, ConvergenceFraction: terms.ConvergenceFraction,
-		Hooks: hookProvenanceAt(homeDir(), "frank-exchange-of-views")}
+		MaxSittingCalls: maxCalls,
+		Hooks:           hookProvenanceAt(homeDir(), "frank-exchange-of-views")}
 	if b, err := marshalJSON(rc); err == nil {
 		os.WriteFile(filepath.Join(run.Dir(), "inputs", "run-config.json"), b, 0o644)
 	}
@@ -481,6 +490,9 @@ type runConfig struct {
 	KMax                int     `json:"kMax"`
 	MintBudget          int     `json:"mintBudget"`
 	ConvergenceFraction float64 `json:"convergenceFraction"`
+	// MaxSittingCalls is read by the PreToolUse hook through sittingcap.Limit, not by
+	// record.Params: the hook may not link the record. The key is sittingcap.ConfigKey.
+	MaxSittingCalls int `json:"maxSittingCalls"`
 	// Hooks is what was INSTALLED on the hook side when this run was set up (#751). The record
 	// binary is baked from the working tree and the hooks come from the version-gated install
 	// cache, so the two can be days apart — and a run whose hooks were stale is otherwise

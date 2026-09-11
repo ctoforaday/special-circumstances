@@ -78,7 +78,7 @@ message Event {
 
   optional uint32 schema_version = 9;   // the format discriminator — see §II.5
 
-  oneof body { /* 35 bodies — the census below is the whole set */ }
+  oneof body { /* 36 bodies — the census below is the whole set */ }
 }
 ```
 
@@ -94,7 +94,7 @@ central artifact is one message per event type, so the set it covers is not an a
 Produced by `grep -rhoE '(record\.)?Append\([^,]+, *[^,]+, *"[a-z_-]+"' --include="*.go"
 internal/cli internal/record internal/capture` (30 types) **plus `register`**, which `Append`
 never writes — `RegisterSeat` mints it directly (`record.go`), so no grep over `Append` can
-see it. **35 messages: 30 + `register` + `inquiry-review` + `base-ingest` + `sitting-open` + `sitting-close` + `cast` + `dispatch` (plans/roundless.md §III.B.1), less `friction-none` and less `opinion` — the clean sitting is now a `nominal` entry on `log` rather than its own body (plans/run-channels.md, PR-2), and the bench's disposition is a docket MOTION's ruling (`MotionRule.ruling.docket`) rather than a body of its own (plans/bench-rulings-first-class.md, #681 Scope 2). The second subtraction is the instructive one: it removed an event type WITHOUT removing a capability, because the ruling moved onto a body that already existed.**
+see it. **36 messages: 30 + `register` + `inquiry-review` + `base-ingest` + `sitting-open` + `sitting-close` + `cast` + `dispatch` (plans/roundless.md §III.B.1) + `sitting-limit` (a sitting the PreToolUse hook stopped at the run's per-sitting tool-call limit), less `friction-none` and less `opinion` — the clean sitting is now a `nominal` entry on `log` rather than its own body (plans/run-channels.md, PR-2), and the bench's disposition is a docket MOTION's ruling (`MotionRule.ruling.docket`) rather than a body of its own (plans/bench-rulings-first-class.md, #681 Scope 2). The second subtraction is the instructive one: it removed an event type WITHOUT removing a capability, because the ruling moved onto a body that already existed.**
 
 `sitting-open` and `sitting-close` are the census's THIRD blind spot, and they are blind to it in a
 new way: no grep over `Append`'s call sites can see them because **no seat writes them**. They are

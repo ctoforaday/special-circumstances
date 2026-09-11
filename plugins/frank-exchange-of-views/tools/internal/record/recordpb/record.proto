@@ -251,6 +251,7 @@ enum EventType {
   EVENT_TYPE_SITTING_CLOSE = 35 [(means) = "the harness's agent returning — the other end of that span"];
   EVENT_TYPE_CAST = 36 [(means) = "the run's admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against"];
   EVENT_TYPE_DISPATCH = 37 [(means) = "the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch"];
+  EVENT_TYPE_SITTING_LIMIT = 38 [(means) = "a seat's sitting stopped at the run's per-sitting tool-call limit — the hook refuses every further call in it, and this records which seat, which sitting and the limit"];
 }
 
 // Grade is the canonical grade set. `realized` contributes zero mass by design — it is a grade,
@@ -531,14 +532,15 @@ message Event {
     SittingClose sitting_close = 54;
     Cast cast = 55;
     Dispatch dispatch = 56;
+    SittingLimit sitting_limit = 57;
   }
 
-  // 57-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
+  // 58-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
   // claimed now rather than negotiated later. 51 was drawn from it for `inquiry_review`, 52 for
-  // `base_ingest`, 53-54 for the sitting span and 55-56 for the cast and the dispatch
-  // (plans/roundless.md §III.B.1), which is what the reserve is for — the block shrinks and
-  // nothing is renumbered.
-  reserved 57 to 80;
+  // `base_ingest`, 53-54 for the sitting span, 55-56 for the cast and the dispatch
+  // (plans/roundless.md §III.B.1) and 57 for the sitting limit, which is what the reserve is for —
+  // the block shrinks and nothing is renumbered.
+  reserved 58 to 80;
 
   // 36 HELD `Opinion`, and it is reserved for the reason the block above is: the number is
   // permanent even though the message is gone. The bench's disposition is a docket motion's
@@ -1707,6 +1709,22 @@ message SittingOpen {
 message SittingClose {
   optional string agent_id = 1;
   optional string agent_type = 2;
+}
+
+// SittingLimit is a seat's sitting stopped at the run's per-sitting tool-call limit (the run term
+// maxSittingCalls in inputs/run-config.json). The PreToolUse hook counts each seat's calls from its
+// register and refuses every call past the limit; the first refusal hands the sitting to
+// feov-sitting-write, which writes this under seat `harness`.
+//
+// UNLIKE THE SPAN ENDS IT NAMES THE SEAT. A limit is counted from a register, so the agent is
+// already bound, and the writer resolves the seat from that binding rather than taking it from
+// the hook. The sitting is the seat's own sitting number: its register count, as events_w counts it.
+message SittingLimit {
+  optional string agent_id = 1;
+  optional string agent_type = 2;
+  optional string seat_id = 3;
+  optional int32 sitting = 4;
+  optional int32 limit = 5;
 }
 
 // Cast is the run's admissible seats (plans/roundless.md §III.B.1). setup writes it ONCE, under

@@ -75,6 +75,7 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('reproduce', 'an attemp
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('retire', 'a claim withdrawn from the report, with the reason and what supersedes it');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('revision', 'a revision to a seat''s own earlier text');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_close', 'the harness''s agent returning — the other end of that span');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_limit', 'a seat''s sitting stopped at the run''s per-sitting tool-call limit — the hook refuses every further call in it, and this records which seat, which sitting and the limit');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_open', 'the harness dispatching an agent — one end of a sitting''s span, observed by a hook rather than claimed by a seat');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('spot_check', 'red re-checking a sample of prior work, or stating that it checked none and why');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('verdict', 'red''s round gate: PASS or FAIL against the open board');
@@ -697,6 +698,15 @@ CREATE TABLE "dispatch_gap_ids" (
   "ord"      INTEGER NOT NULL,
   "value"    TEXT    NOT NULL,
   PRIMARY KEY ("event_id", "ord")
+) STRICT;
+
+CREATE TABLE "sitting_limit" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
+  "agent_id" TEXT,
+  "agent_type" TEXT,
+  "seat_id" TEXT,
+  "sitting" INTEGER,
+  "limit" INTEGER
 ) STRICT;
 
 CREATE INDEX "gate_verdict" ON "gate" ("verdict");
