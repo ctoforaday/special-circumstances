@@ -1666,3 +1666,155 @@ Flags:
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
   -v, --version          version for feov-record
 
+── correction target: the lens regrades G1
+exit 0
+regraded G1 [key red-lens-evidence:regrade:#1:G1]
+
+── correction without a why
+exit 2
+feov-record: lens: a correction requires --correction-why — what was wrong with the act; a reader sees it beside the struck text
+
+── correction-why without corrects
+exit 2
+feov-record: lens: --correction-why says what was wrong with the act --corrects names, and --corrects is not given — pass both to correct an act, or neither to record a new one
+
+── correction that changes nothing
+exit 2
+feov-record: lens: record: this correction changes nothing — the replacement equals event 3; correct it with the text you meant
+
+── correction of another seat's act
+exit 2
+feov-record: lens: record: red-lens-evidence:regrade:#1:G1 was written by red-lens-evidence, not by red-lens-logic — only the seat that wrote an act may correct it. To answer another seat's act, say so in an act of your own
+
+── correction naming another type's act
+exit 2
+feov-record: merge: record: red-lens-evidence:regrade:#1:G1 is a regrade, and this command writes a log — a correction re-runs the corrected act's OWN verb, so name a key this command wrote
+
+── correction naming a key nothing carries
+exit 2
+feov-record: lens: record: --corrects names "red-lens-evidence:regrade:#9:G1", and no act on this record carries that key — the key is printed on the act's own success line as [key …]
+
+── a creating act takes no correction (a motion)
+exit 2
+feov-record: unknown flag: --corrects
+
+file a grade motion — the tool assigns its id.
+
+ONE EVENT, DIFFERENT CONTRACTS: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules).
+
+It disputes a gap's grade.
+
+Any seat may file; exactly one rules, and `rule` appears only on that seat's surface.
+
+FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
+your text, and records whatever the command printed — or nothing — in its place. Pass every
+free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
+
+  X=$(cat <<'EOF'
+  your text — backticks, apostrophes and $ signs are all literal here
+  EOF
+  )
+  … "$X"
+
+Usage:
+  feov-record motion grade file [flags]
+
+Flags:
+      --dimension dimension-value   REQUIRED for a grade motion
+  -h, --help                        help for file
+      --id string                   REQUIRED for a grade motion
+      --proposed grade              the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --reason string               your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The ledger already holds WHAT you did, in order, so do not narrate the verbs you ran
+
+Enumerated values:
+  --dimension
+    severity    how bad the defect is in itself
+    likelihood  how likely the CONSEQUENCE is — never how likely the defect is to BE there
+    impact      how bad the consequence is if it lands
+    complexity  what fixing it costs — the axis to contest when the fix is worth more than the defect
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
+      --schema           print the event-schema epoch this binary writes, and exit
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
+
+── a verdict takes no correction
+exit 2
+feov-record: unknown flag: --corrects
+
+the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+
+After it, the record is mirrored to the recovery copy.
+
+A PASS is REFUSED while anything still blocks it — an open gap, an unruled motion, no line-of-inquiry review this sitting. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with 'log', as a request — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  feov-record verdict [flags]
+
+Flags:
+      --as PASS|FAIL   the seat's terminal act
+  -h, --help           help for verdict
+
+Enumerated values:
+  --as
+    PASS  every gap on the board is resolved — this is CHECKED against the open board, not taken on your word
+    FAIL  at least one gap is still open, or you are not satisfied it was answered
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
+      --schema           print the event-schema epoch this binary writes, and exit
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
+
+── reliance target: a second gap, regraded
+exit 0
+minted G2
+  acceptance check RECORDED as: x
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+
+── reliance target: the lens regrades G2
+exit 0
+regraded G2 [key red-lens-evidence:regrade:#1:G2]
+
+── reliance: another seat acts
+exit 0
+registered red-chair
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+
+── correction after another seat has acted
+exit 2
+feov-record: lens: record: another seat has acted since this regrade (event 6, a register by red-chair); what you would correct is now on the record they read — say it in a new act
+
+── frozen field target: the lens closes G1
+exit 0
+closed G1 (repaired) [key red-lens-evidence:close:#1:G1]
+
+── a PROSE correction moving a frozen field
+exit 2
+feov-record: lens: record: a close correction may change only the seat's own wording (--reason); this one changes --verified-with, which must stay as event 7 recorded it. What the act decided is not restated by a correction — say it in a new act
+
+── earlier sitting target: the lens sits again
+exit 0
+registered red-lens-evidence (dispatch 2 — a previous dispatch of this seat is on the record)
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+
+── correction of an earlier sitting's act
+exit 2
+feov-record: lens: record: red-lens-evidence:regrade:#1:G2 was written in an earlier sitting of red-lens-evidence (sitting 1; this is sitting 2) — a correction is for the sitting that wrote the act, while it is still yours alone. Say it in a new regrade; the record keeps both
+
