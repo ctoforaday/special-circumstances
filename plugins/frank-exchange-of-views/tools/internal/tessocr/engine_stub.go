@@ -33,6 +33,10 @@ func (en *Engine) RotatedBand(png []byte, x, y, w, h int) (string, error) {
 	return "", ErrNotCompiledIn
 }
 
+// captureDiagnostics has nothing to capture on the stub: fn runs, and its refusal is the
+// result.
+func captureDiagnostics(fn func() error) (string, error) { return "", fn() }
+
 // DetectGrid reports the engine absent — an error, not a zero measurement.
 func DetectGrid(png []byte, t GridThresholds) (GridStats, error) {
 	return GridStats{}, ErrNotCompiledIn

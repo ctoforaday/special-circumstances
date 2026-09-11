@@ -22,7 +22,9 @@ import (
 // instruction telling it so was the remaining half of #644 — and an instruction is the
 // weakest possible carrier for a step the tool can simply take.
 //
-// So fetch takes it — ONE PAGE AT A TIME, AND NOTHING IS KEPT BUT THE TEXT. The first
+// So fetch takes it — ONE PAGE AT A TIME, AND NO IMAGE IS KEPT. Beside each page's reading
+// sits only the engine's evidence for it (tesseract's diagnostics and, on ruled pages, its
+// word boxes — see writePageEvidence): kilobytes of text a debugger reads. The first
 // composition rendered every page to disk and then read the directory back, which held every
 // page's raster in memory at once (#671) and persisted images the automatic path has no
 // further use for: the product of a fetch is the reading, and the reading record carries the

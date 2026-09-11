@@ -40,6 +40,15 @@ int tessocr_grid_stats(const unsigned char *png, size_t len, int sel,
 
 void tessocr_free_text(char *t);
 
+/* Point this process's stderr (file descriptor 2) at path until tessocr_diag_end, so
+ * tesseract's per-page diagnostics are captured rather than printed. Returns 0 on success;
+ * nonzero names the failing stage (1 open, 2 dup, 3 dup2, 4 already capturing), and on
+ * failure stderr is left untouched. Not reentrant. */
+int tessocr_diag_begin(const char *path);
+
+/* Restore stderr after tessocr_diag_begin. A no-op when nothing is being captured. */
+void tessocr_diag_end(void);
+
 #ifdef __cplusplus
 }
 #endif

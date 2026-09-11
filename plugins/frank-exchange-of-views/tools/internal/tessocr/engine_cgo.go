@@ -27,6 +27,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"os"
 	"unsafe"
 )
 
@@ -131,4 +132,33 @@ func DetectGrid(png []byte, t GridThresholds) (GridStats, error) {
 		return GridStats{}, fmt.Errorf("tessocr: grid detection failed at stage %d (1 decode, 2 binarize, 3 open)", int(rc))
 	}
 	return GridStats{HPix: int(h), VPix: int(v), Intersections: int(ix)}, nil
+}
+
+// captureDiagnostics runs fn with this process's stderr pointed at a scratch file (see
+// tessocr_diag_begin) and returns what was written there during fn — tesseract's own
+// diagnostics for that call. The scratch file lives only for the call. A capture that
+// cannot start is an error, never a silently printed page.
+func captureDiagnostics(fn func() error) (string, error) {
+	f, err := os.CreateTemp("", "tessocr-diag-*.log")
+	if err != nil {
+		return "", fmt.Errorf("tessocr: diagnostics scratch file: %w", err)
+	}
+	path := f.Name()
+	f.Close()
+	defer os.Remove(path)
+	cpath := C.CString(path)
+	defer C.free(unsafe.Pointer(cpath))
+	if rc := C.tessocr_diag_begin(cpath); rc != 0 {
+		return "", fmt.Errorf("tessocr: could not capture diagnostics (stage %d: 1 open, 2 dup, 3 dup2, 4 already capturing)", int(rc))
+	}
+	ferr := fn()
+	C.tessocr_diag_end()
+	if ferr != nil {
+		return "", ferr
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("tessocr: reading captured diagnostics: %w", err)
+	}
+	return string(b), nil
 }
