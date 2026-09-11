@@ -735,6 +735,10 @@ type WorkGapState struct {
 	AboutKind, AboutRef                     string
 	Edits                                   []GapEdit
 	Open, AwaitingProof, ClosedByBench      bool
+	// Material and Stranded are what the PASS gate refuses over: an open gap whose current
+	// severity carries material mass (requirePassClosesAllMaterialGaps), and an open gap somebody
+	// superseded (requireSupersededAreClosed). A sub-material gap stays open without holding PASS.
+	Material, Stranded bool
 	// AwaitingDocket: OPEN, the bench has carried it, and nothing is pending. Off the view, the
 	// same way AwaitingProof is — the alternative was a second Go fold of a question the SQL
 	// already answers, which is what #681's standing rule forbids.
@@ -773,7 +777,7 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 	}
 	rows, err := db.Query(`SELECT "gap_id", "open", "awaiting_proof", "awaiting_docket", "docket_reopens_on",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
-	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event"
+	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event", "stranded"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
 		return nil, fmt.Errorf("record: asking the record for its work list: %w", err)
@@ -790,9 +794,10 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 		// field — every gap's problem text landing in about_ref and so on.
 		if err := rows.Scan(&g.ID, &g.Open, &g.AwaitingProof, &g.AwaitingDocket, &reopensOn,
 			&sev, &lik, &imp, &cx,
-			&class, &loc, &aboutKind, &aboutRef, &problem, &kind, &mintedEvent); err != nil {
+			&class, &loc, &aboutKind, &aboutRef, &problem, &kind, &mintedEvent, &g.Stranded); err != nil {
 			return nil, err
 		}
+		g.Material = g.Open && MASS[sev.String] >= material
 		g.DocketReopensOn = reopensOn.String
 		g.Severity, g.Likelihood, g.Impact, g.Cx = nullWord(sev), nullWord(lik), nullWord(imp), nullWord(cx)
 		g.Class, g.Location, g.Problem, g.CheckKind = class.String, loc.String, problem.String, kind.String

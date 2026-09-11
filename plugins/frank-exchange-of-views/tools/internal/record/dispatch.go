@@ -21,7 +21,7 @@ type Party struct {
 // The chair relays it; the workflow dispatches what it says; nothing in it is a seat's assertion.
 type Plan struct {
 	Head    int64   `json:"head"`    // events.id of the latest blue_edit or base_ingest — the report the parties audit
-	Parties []Party `json:"parties"` // who to engage; empty is the termination signal
+	Parties []Party `json:"parties"` // who to engage; empty is the termination signal, and empty is [], never null
 	// Docket names the gaps that reached impasse with no docket motion yet: the verb files one for
 	// each under the chair's authorship the moment impasse is first computed, so "docketed" and
 	// "at impasse" are one fact and no seat's discretion sits between a stalled gap and the bench.
@@ -57,7 +57,10 @@ type openGap struct {
 // each open material gap below its limits, and each docketed gap awaiting the bench — and the two
 // derived facts the termination turns on. It writes nothing.
 func PlanDispatch(run Run) (Plan, error) {
-	var plan Plan
+	// THE LISTS ARE LISTS FROM THE START. A nil slice prints as null, and the workflow refuses a plan
+	// without a parties list: B9's chair relayed a PASS-permitted plan verbatim, "parties": null,
+	// and the engine aborted the run at the sitting that should have ended it.
+	plan := Plan{Parties: []Party{}, Docket: []string{}}
 	cast, err := CastOf(run)
 	if err != nil {
 		return plan, err
@@ -196,7 +199,7 @@ func PlanDispatch(run Run) (Plan, error) {
 	plan.MaxEpochs = params.MaxEpochs
 	if params.MaxEpochs > 0 && len(plan.Parties) > 0 && epochOf(evs) >= params.MaxEpochs {
 		plan.Why = append(plan.Why, fmt.Sprintf("epoch limit %d reached — this chair sitting opens the run's last epoch, so the %d party(ies) above are not dispatched", params.MaxEpochs, len(plan.Parties)))
-		plan.Parties = nil
+		plan.Parties = []Party{}
 		plan.EpochLimitReached, plan.Ceiling = true, true
 	}
 	return plan, nil
