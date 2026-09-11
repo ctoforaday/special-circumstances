@@ -222,17 +222,74 @@ func IngestFile(db *sql.DB, tf TranscriptFile) (IngestResult, error) {
 	if tf.AgentID == "" {
 		dir = filepath.Dir(tf.Path)
 	}
+	// NEW BYTES REOPEN THE SESSION. This point is reached only when the pass read something — an
+	// unchanged file returned above — and a transcript that grew belongs to a session that did
+	// something after whatever closed it. Leaving closed_at set would keep a session resumed after
+	// closure out of `agents --lost` for good. Closure itself ingests BEFORE it closes, so a session
+	// closure settles stays settled after its own read.
 	if _, err := tx.Exec(
 		`INSERT INTO session(session_id,project_dir,ingested_first,ingested_last) VALUES(?,?,?,?)
-		 ON CONFLICT(session_id) DO UPDATE SET ingested_last=excluded.ingested_last,
+		 ON CONFLICT(session_id) DO UPDATE SET ingested_last=excluded.ingested_last, closed_at=NULL,
 		     project_dir=CASE WHEN excluded.project_dir != '' THEN excluded.project_dir ELSE session.project_dir END`,
 		tf.SessionID, dir, now, now); err != nil {
 		return res, fmt.Errorf("catalogue: session: %w", err)
+	}
+	// THE RESUME DIRECTORY, like project_dir, comes from the session's OWN transcript only: a seat's
+	// records carry the seat's cwd, which may be a worktree the session never resumes from.
+	if tf.AgentID == "" {
+		var stored string
+		if err := tx.QueryRow(`SELECT cwd FROM session WHERE session_id = ?`, tf.SessionID).Scan(&stored); err != nil {
+			return res, fmt.Errorf("catalogue: reading cwd: %w", err)
+		}
+		if cwd, write := chooseCWD(p.CWDs, filepath.Base(dir), stored); write {
+			if _, err := tx.Exec(`UPDATE session SET cwd = ? WHERE session_id = ?`, cwd, tf.SessionID); err != nil {
+				return res, fmt.Errorf("catalogue: cwd: %w", err)
+			}
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return res, fmt.Errorf("catalogue: commit: %w", err)
 	}
 	return res, nil
+}
+
+// projectKey is the folder name the client files a directory's transcripts under: every character
+// outside [a-zA-Z0-9] replaced by '-'. Measured on 141 transcripts, 140 of whose first record's
+// cwd encodes to their folder. The client hashes names past 200 characters, which this does not
+// reproduce: such a cwd never matches, and is kept as a hint.
+func projectKey(dir string) string {
+	b := []byte(dir)
+	for i, c := range b {
+		if !('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9') {
+			b[i] = '-'
+		}
+	}
+	return string(b)
+}
+
+// chooseCWD decides what one pass writes to session.cwd, and whether it writes at all.
+//
+// A cwd MATCHES when its key is the transcript's folder name, which makes it a directory the
+// session can be resumed from. A matching cwd in this pass wins — the latest, if several. Otherwise
+// the pass's first cwd is written ONLY over an empty or non-matching value: A VERIFIED DIRECTORY
+// IS NEVER REPLACED BY A HINT, so the later passes of a session that moved into a worktree (whose
+// records carry only the worktree's cwd) cannot overwrite the folder it is filed under.
+func chooseCWD(cwds []string, folder, stored string) (string, bool) {
+	match := ""
+	for _, c := range cwds {
+		if projectKey(c) == folder {
+			match = c
+		}
+	}
+	switch {
+	case match != "":
+		return match, match != stored
+	case len(cwds) == 0:
+		return "", false
+	case stored == "" || projectKey(stored) != folder:
+		return cwds[0], cwds[0] != stored
+	}
+	return "", false
 }
 
 func nullable(s string) any {

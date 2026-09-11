@@ -103,6 +103,10 @@ type Projection struct {
 	ExplicitFlag map[string]int
 	ResultCount  map[string]int
 	LastOffset   int64
+	// CWDs are the distinct record `cwd`s, in the order first seen. IngestFile chooses the
+	// session's resume directory from them (chooseCWD). Ingest projects only the bytes after the
+	// stored offset, so this is ONE PASS's cwds, never the file's.
+	CWDs []string
 }
 
 type Act struct {
@@ -149,6 +153,7 @@ func Project(r io.Reader, startSeq int) Projection {
 	p := Projection{ExplicitFlag: map[string]int{}, ResultCount: map[string]int{}}
 	byUUID := map[string]*record{}
 	var recs []*record
+	seenCWD := map[string]bool{}
 
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 0, 256*1024), 64*1024*1024)
@@ -164,6 +169,10 @@ func Project(r io.Reader, startSeq int) Projection {
 		}
 		if rec.UUID != "" {
 			byUUID[rec.UUID] = &rec
+		}
+		if rec.CWD != "" && !seenCWD[rec.CWD] {
+			seenCWD[rec.CWD] = true
+			p.CWDs = append(p.CWDs, rec.CWD)
 		}
 		recs = append(recs, &rec)
 	}

@@ -831,6 +831,52 @@ func TestAnOlderCatalogueIsRebuilt(t *testing.T) {
 	}
 }
 
+// A SHAPE-4 STORE IS RECOGNISED OLDER AND REBUILT AT 5, WITH THE CAPTURE COLUMN. #894's mechanism
+// carries the bump unchanged: bridge_session_id is not in sessionCore, so a shape-4 `session`
+// still reads as a catalogue, and the rebuild applies today's DDL.
+func TestAShape4StoreIsRebuiltWithTheCaptureColumn(t *testing.T) {
+	p := currentAt(t, 4)
+	raw := rawOpen(t, p)
+	// What the shape-4 binary left: no capture column on `session`, none on v_session.
+	mustExec(t, raw, `DROP VIEW v_session`, `ALTER TABLE session DROP COLUMN bridge_session_id`,
+		`CREATE VIEW v_session AS SELECT s.session_id, s.project_dir, s.cwd, NULL AS first_act, NULL AS last_act,
+		     s.ingested_first, s.ingested_last, s.closed_at, s.capture_build FROM session s`,
+		`INSERT INTO session(session_id,project_dir,ingested_first,ingested_last,closed_at) VALUES('OLD','/p',1,1,1)`)
+	raw.Close()
+	if v, c, _ := classify(t, p); v != 4 || c != Older {
+		t.Fatalf("a shape-4 store classified %v at stamp %d, want older at 4", c, v)
+	}
+	var notice bytes.Buffer
+	db, err := Open(p, &notice)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if want := fmt.Sprintf("was stamped 4, rebuilt empty at shape %d", UserVersion); !strings.Contains(notice.String(), want) {
+		t.Errorf("notice = %q, want it to say %q", notice.String(), want)
+	}
+	cols, err := names(db, `SELECT name FROM pragma_table_info('session')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(","+strings.Join(cols, ",")+",", ",bridge_session_id,") {
+		t.Errorf("session after the rebuild = %v, want bridge_session_id among them", cols)
+	}
+	rows, err := db.Query(`SELECT * FROM v_session LIMIT 0`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, _ := rows.Columns()
+	rows.Close()
+	if strings.Join(got, ",") != strings.Join(ViewColumns["v_session"], ",") {
+		t.Errorf("v_session after the rebuild = %v, want %v", got, ViewColumns["v_session"])
+	}
+	var n int
+	if db.QueryRow(`SELECT count(*) FROM session`).Scan(&n); n != 0 {
+		t.Errorf("%d sessions survived the rebuild, want 0", n)
+	}
+}
+
 func TestACurrentStoreKeepsItsRows(t *testing.T) {
 	p, db := newStore(t)
 	mustExec(t, db, `INSERT INTO session(session_id,project_dir,ingested_first,ingested_last) VALUES('KEEP','/p',1,1)`)

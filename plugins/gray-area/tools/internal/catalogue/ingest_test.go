@@ -2,6 +2,7 @@ package catalogue
 
 import (
 	"bytes"
+	"database/sql"
 	"io"
 	"os"
 	"path/filepath"
@@ -305,6 +306,117 @@ func TestStoredRoleIsTheSpeaker(t *testing.T) {
 	db.QueryRow(`SELECT count(*) FROM v_word WHERE text = 'queued prompt'`).Scan(&n)
 	if n != 0 {
 		t.Errorf("a queued_command attachment was stored as %d word row(s)", n)
+	}
+}
+
+// cwdLine is a user record carrying one cwd — a word row, so every pass has something to store.
+func cwdLine(uuid, cwd string) string {
+	return `{"uuid":"` + uuid + `","type":"user","sessionId":"S","cwd":"` + cwd +
+		`","timestamp":"2026-09-08T10:00:00Z","message":{"role":"user","content":"at ` + cwd + `"}}`
+}
+
+func storedCWD(t *testing.T, db interface {
+	QueryRow(string, ...any) *sql.Row
+}) string {
+	t.Helper()
+	var cwd string
+	if err := db.QueryRow(`SELECT cwd FROM session WHERE session_id='S'`).Scan(&cwd); err != nil {
+		t.Fatal(err)
+	}
+	return cwd
+}
+
+// THE RESUME DIRECTORY IS CHOSEN BY THE FOLDER KEY: a matching cwd wins over an earlier one that
+// does not, and with no match the first cwd is kept as a hint.
+func TestTheResumeDirectoryIsChosenByTheFolderKey(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		cwds []string
+		want string
+	}{
+		{"a matching cwd wins", []string{"/tmp/elsewhere", "/home/u/work", "/tmp/later"}, "/home/u/work"},
+		{"no match keeps the first", []string{"/a/one", "/b/two"}, "/a/one"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			var recs []string
+			for i, c := range tc.cwds {
+				recs = append(recs, cwdLine("u"+string(rune('0'+i)), c))
+			}
+			p := filepath.Join(root, "-home-u-work", "S.jsonl")
+			os.MkdirAll(filepath.Dir(p), 0o755)
+			if err := os.WriteFile(p, []byte(lines(recs...)), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			db := store(t)
+			if _, err := IngestFile(db, TranscriptFile{Path: p, SessionID: "S"}); err != nil {
+				t.Fatal(err)
+			}
+			if got := storedCWD(t, db); got != tc.want {
+				t.Errorf("cwd = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// A VERIFIED DIRECTORY IS NEVER REPLACED BY A HINT. Ingest sees one pass at a time, so a session
+// that moved into a worktree carries only the worktree's cwd in its later passes; the stored,
+// matching directory must survive them.
+func TestAVerifiedDirectoryIsNeverReplacedByAHint(t *testing.T) {
+	root := t.TempDir()
+	p := filepath.Join(root, "-home-u-work", "S.jsonl")
+	os.MkdirAll(filepath.Dir(p), 0o755)
+	if err := os.WriteFile(p, []byte(lines(cwdLine("u1", "/home/u/work"))), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	db := store(t)
+	tf := TranscriptFile{Path: p, SessionID: "S"}
+	if _, err := IngestFile(db, tf); err != nil {
+		t.Fatal(err)
+	}
+	fh, _ := os.OpenFile(p, os.O_APPEND|os.O_WRONLY, 0o600)
+	fh.WriteString(cwdLine("u2", "/home/u/work/.claude/worktrees/x") + "\n")
+	fh.Close()
+	r, err := IngestFile(db, tf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.BytesRead == 0 {
+		t.Fatal("fixture premise: the second pass read nothing")
+	}
+	if got := storedCWD(t, db); got != "/home/u/work" {
+		t.Errorf("cwd = %q after a pass whose only cwd does not match — the verified directory was overwritten", got)
+	}
+}
+
+// NEW BYTES REOPEN A CLOSED SESSION, and a pass that reads nothing does not.
+func TestNewBytesReopenAClosedSession(t *testing.T) {
+	root := corpus(t)
+	db := store(t)
+	target := sessionFile(t, root)
+	if _, err := IngestFile(db, target); err != nil {
+		t.Fatal(err)
+	}
+	closed := func() sql.NullInt64 {
+		var c sql.NullInt64
+		db.QueryRow(`SELECT closed_at FROM session WHERE session_id='S'`).Scan(&c)
+		return c
+	}
+	db.Exec(`UPDATE session SET closed_at = 5 WHERE session_id='S'`)
+	if _, err := IngestFile(db, target); err != nil {
+		t.Fatal(err)
+	}
+	if c := closed(); !c.Valid || c.Int64 != 5 {
+		t.Errorf("a pass over unchanged bytes moved closed_at to %v — nothing happened, so nothing reopens", c)
+	}
+	fh, _ := os.OpenFile(target.Path, os.O_APPEND|os.O_WRONLY, 0o600)
+	fh.WriteString(`{"uuid":"a8","parentUuid":"u1","timestamp":"2026-09-08T10:02:00Z","message":{"role":"assistant","content":[{"type":"text","text":"back"}]}}` + "\n")
+	fh.Close()
+	if _, err := IngestFile(db, target); err != nil {
+		t.Fatal(err)
+	}
+	if c := closed(); c.Valid {
+		t.Errorf("closed_at = %d after new bytes, want NULL — the session did something after closure", c.Int64)
 	}
 }
 

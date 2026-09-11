@@ -33,6 +33,10 @@ type SessionFile struct {
 	// without checking it would report a session from a container, or another host sharing $HOME,
 	// as Ended — which is exactly the confident-wrong answer Unknown exists to refuse.
 	PidDomain string `json:"pidDomain"`
+	// BridgeSessionID is the Remote Control cloud session, `session_<suffix>`, when the session has
+	// one. This file is the only local holder of it and is gone by SessionEnd, which is why the
+	// capture hook copies it into the store (RegisterSession) while the session runs.
+	BridgeSessionID string `json:"bridgeSessionId"`
 }
 
 // ReadSessionFiles returns every session the client currently advertises.

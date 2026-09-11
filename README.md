@@ -114,7 +114,7 @@ What it can do today:
 | `/gray-area:audit-repetition` | What was done more than once, and what was repeated three times back to back? |
 | `/gray-area:audit-seat-coverage` | Does the record name every subagent transcript that exists? |
 | `gray-area tools` | What did a given agent actually invoke? (command line) |
-| `telepathy agents` | Which agents are running on this box, and what is each doing? |
+| `telepathy agents` | Which agents are running on this box, and what is each doing — and which did the last restart cut off? |
 | `telepathy touched` | Is anyone else acting on this file? |
 | `telepathy session` | One session's shape: calls and errors by tool |
 | `telepathy find` | Search every local transcript, joined back to who and when |
@@ -124,7 +124,7 @@ Each row cites both documents — the claim and the evidence — so a reader can
 
 Reading transcripts is a surveillance capability, and the plugin is scoped accordingly. The **manifest** is an index of where trajectories are, never a copy of their contents. The **catalogue** — the host-wide store the switchboard verbs read — does copy the signal: tool names and their outcomes, assistant and user text, and reasoning summaries where they were captured. It never copies tool *results*, which are 96% of a transcript's bytes. It lives outside any repository, at `~/.local/state/special-circumstances/`, keeps a month, and nothing leaves the box.
 
-The catalogue fills itself from the same hooks: `Stop` and `SessionEnd` read the ending session's transcript, and `SessionStart` closes out sessions that have stopped since and prunes past the retention window. `telepathy backfill` is the one explicit cold read — for a corpus that predates capture, and after an upgrade rebuilds the store (every read verb warns until it has run). `telepathy sql` is deliberately raw SQL rather than a menu — the questions worth asking of a trajectory corpus are not knowable in advance — over five published views, on a connection that is read-only, `query_only`, defensive, and refused `ATTACH`. It requires **ripgrep**, and if ripgrep is missing `find` refuses rather than printing "no matches": a search that could not run must never be reported as a search that found nothing.
+The catalogue fills itself from the same hooks: `Stop` and `SessionEnd` read the ending session's transcript, and `SessionStart` closes out sessions that have stopped since and prunes past the retention window. `SessionStart` and `Stop` also register the running session, with its Remote Control cloud id, so that after a reboot `telepathy agents --lost` can list the sessions the restart cut off, each with the commands that bring it back — and the `restart-recovery` skill walks a human through choosing and running them. `telepathy backfill` is the one explicit cold read — for a corpus that predates capture, and after an upgrade rebuilds the store (every read verb warns until it has run). `telepathy sql` is deliberately raw SQL rather than a menu — the questions worth asking of a trajectory corpus are not knowable in advance — over five published views, on a connection that is read-only, `query_only`, defensive, and refused `ATTACH`. It requires **ripgrep**, and if ripgrep is missing `find` refuses rather than printing "no matches": a search that could not run must never be reported as a search that found nothing.
 
 ### sleeper-service — autonomous self-improvement
 

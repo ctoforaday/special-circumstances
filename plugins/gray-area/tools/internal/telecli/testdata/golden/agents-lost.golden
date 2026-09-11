@@ -1,0 +1,17 @@
+boot 2026-09-09 11:40:00 UTC (from --boot)
+newest pre-boot activity 2026-09-09 11:31:00 UTC (session bbbbbbbb) — 0h29m ago, inside the ~4 h window: open server-spawned sessions in the app first
+
+lost dddddddd-4444-4444-8444-444444444444
+  RESUME FROM /work/delta
+  CLOUD cse_01DELTA
+  LAST SIGN OF LIFE 2026-09-09 11:16:00 UTC
+  MODE default
+  REATTACH claude remote-control --session-id cse_01DELTA
+  LOCAL RESUME claude --resume dddddddd-4444-4444-8444-444444444444 --permission-mode manual --remote-control
+
+lost cccccccc-3333-4333-8333-333333333333
+  RESUME FROM /work/gamma
+  CLOUD unknown
+  LAST SIGN OF LIFE 2026-09-09 10:53:00 UTC
+  MODE unknown — the resume starts in whatever mode the CLI chooses
+  LOCAL RESUME claude --resume cccccccc-3333-4333-8333-333333333333 --remote-control

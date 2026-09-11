@@ -25,6 +25,18 @@ const (
 	orphanUse = `{"uuid":"a3","parentUuid":"r2","timestamp":"2026-09-08T10:00:05Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"t3","name":"Edit","input":{"file_path":"/x/z.go"}}]}}`
 )
 
+// CWDS ARE DISTINCT, IN THE ORDER FIRST SEEN, and a record with none contributes none: IngestFile
+// picks the resume directory from this list, and "the first cwd" must mean the first one.
+func TestCWDsAreDistinctInTheOrderFirstSeen(t *testing.T) {
+	rec := func(uuid, cwd string) string {
+		return `{"uuid":"` + uuid + `","type":"user","cwd":"` + cwd + `","timestamp":"2026-09-08T10:00:00Z","message":{"role":"user","content":"x"}}`
+	}
+	p := Project(strings.NewReader(lines(rec("1", "/b"), rec("2", "/a"), rec("3", "/b"), userRec, rec("4", "/c"))), 0)
+	if got := strings.Join(p.CWDs, ","); got != "/b,/a,/c" {
+		t.Errorf("CWDs = %s, want /b,/a,/c", got)
+	}
+}
+
 func outcomes(p Projection) map[string]string {
 	m := map[string]string{}
 	for _, a := range p.Acts {

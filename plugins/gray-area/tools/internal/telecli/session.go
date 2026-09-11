@@ -15,8 +15,13 @@ func newSessionCmd(env *Env) *cobra.Command {
 		Short: "one session's shape: calls and errors by tool",
 		Long: `Summarises what one session did, by tool, with its error count beside each.
 
-The id may be the full session id. Run 'telepathy agents' for the ones running now,
-or query v_session for the ones that have ended.`,
+The id may be the full session id. Run 'telepathy agents' for the ones running now
+and, after a restart, 'telepathy agents --lost' for the ones it cut off, or query
+v_session for the ones that have ended.
+
+'closed' means the catalogue's closure has settled the session. Any sign of life
+after that — new transcript bytes, or the session starting or finishing a turn —
+clears it, so a resumed session reads 'open' again.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			db, err := env.openRead(cmd.ErrOrStderr())
@@ -29,6 +34,8 @@ or query v_session for the ones that have ended.`,
 				return err
 			}
 			out := cmd.OutOrStdout()
+			// closed_at is CLEARED on any sign of life after closure (IngestFile, RegisterSession), so
+			// "closed" is the catalogue's latest word, not a verdict that the session is over.
 			state := "open"
 			if s.ClosedAt.Valid {
 				state = "closed " + env.ago(s.ClosedAt.Int64)

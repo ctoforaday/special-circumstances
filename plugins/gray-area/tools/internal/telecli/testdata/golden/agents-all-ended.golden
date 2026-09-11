@@ -1,9 +1,8 @@
+2 session file(s) are advertised and none is live — each was cut off by the restart and is listed below as lost
 SESSION    STATE       ACTS  LAST           CWD
-bbbbbbbb   unknown        1  Edit 29m ago   /work/beta
-aaaaaaaa   unknown        7  Read 1h ago    /work/alpha
+bbbbbbbb   lost           1  Edit 29m ago   /work/beta
 dddddddd   lost           0  —              /work/delta
 cccccccc   lost           0  —              /work/gamma
-
-  `unknown` means liveness could not be established — a foreign pid namespace, or a platform where this is not implemented. It is not `ended`.
+aaaaaaaa   lost           7  Read 1h ago    /work/alpha
 
   `lost` is inferred, not measured: last active before the boot at 2026-09-09 11:40:00 UTC and not seen to end. `telepathy agents --lost` prints each with the commands that bring it back.
