@@ -406,9 +406,16 @@ const BLUE_ENVELOPE = {
     // SCORED on this array, and told about the verb by nothing — which is why `blue
     // manifest-row` was never called once.
     //
-    // The array survives as gap ids alone, for the in-run shape check below. Coverage is scored
+    // The array survives as gap ids alone, for the in-run coverage LOG below. Coverage is scored
     // from the manifest-row EVENTS at capture, and the rows reach the reader in the report.
     manifest: { type: 'array', items: { type: 'string' } },
+    // THE ENGAGED GAPS BLUE FOUND ALREADY CLOSED WHEN IT SAT (#868). The lenses sit before blue,
+    // so a lens can close a gap blue was dispatched onto; blue then has nothing to repair and
+    // owes no row. This engine reads no record, and the lenses return prose, so blue's board
+    // read is the only word of it that reaches here. It is trusted for ONE thing — which gaps
+    // the in-run coverage log names — and for nothing that scores: capture recomputes the owed
+    // set from the record's dispatch, close and register events (record.ManifestOwed).
+    found_closed: { type: 'array', items: { type: 'string' } },
     log: { type: 'array', items: { type: 'string' } },
     petitions: PETITIONS,
     // Grade-dispute channel (run-4 §3.3 — RATIFIED minimal form): blue's machine-readable
@@ -833,7 +840,7 @@ YOUR LINES OF INQUIRY ARE A LIVING RECORD, NOT AN OPENING PLAN. Every sitting, r
 WHERE RED PROPOSED EXACT TEXT you have THREE paths and you are not obliged to take the first: apply it verbatim, counter-edit with your own fix, or dispute it. Say plainly which path you took and why. A sitting in which you never decline is not agreement, it is capitulation. Applying red's exact text ESTOPS red from re-raising that text as a fresh gap, so verbatim application is a real settlement, not a surrender.
 OWNERSHIP BINDS, AS IT DID AT SYNTHESIS: you write ONLY your own surfaces — TL;DR, Catechism, technical foundations, analysis, open questions, your citations. You MUST NOT introduce a \`**Verdict:**\` line or any tool-owned section (\`## Risk matrix\`, \`## The board\`, \`## The debate\`, \`## How this run was conducted\`, a \`## Blue team report\` wrapper): assembly composes those from the record. AND WHICH MODEL IS ANSWERING THIS RUN IS NOT A FACT YOU HOLD: you can see what was REQUESTED, never what replied; if your argument turns on the models used, say that the record's measurement decides it. GRADING SEMANTICS (mapping ${MASS_MAPPING_VERSION}): likelihood and impact are CONSEQUENCE axes — how likely the harm lands and how much it costs when it does — and severity is red's overall grade; they multiply into mass, and material begins at medium.
 ANSWER EVERY GAP YOU ARE ENGAGED ON, ADDITIVELY, in ${runDir}/blue/report.md — expand and repair where red is right (each edit naming the gap it answers, so the repair joins to it), REBUT IN WRITING WITH EVIDENCE where red is wrong, and argue risk-acceptance where the fix's complexity exceeds its likelihood x impact. DISPUTE RED'S GRADING WHERE YOU DISAGREE WITH IT (a grade motion on the axis, with the grade you say it should be and your evidence). Compact and reorganize prose as clarity demands — but a CLAIM leaves only by being retired on the record, which names it, why it goes, and what replaces it. PROPAGATE EVERY CORRECTION TO ALL SITES that state the corrected claim, not only the flagged sentence — a bare corrected FIGURE needs a report-wide sweep of its own — and log the sites you checked in your sitting record. A sitting in which you record nothing on a gap you were engaged on is a NULL TURN on it, and null turns count toward its impasse: silence is a turn taken.${docket.length ? ` CLOSING ARGUMENTS: the following are DOCKETED for adjudication AFTER your response this sitting: ${docket.join(', ')}. For EACH, after your repairs, argue in ~120 words why your response resolves it, or why red's grade or claim is wrong, citing the exact section and evidence, as your recorded closing. This is your case; material not in the record cannot help you.` : ''}
-AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP (W2b; your constitution carries the full standard): figures recomputed, universals enumerated, consistency sites swept report-wide — one manifest row per gap you touched, and the manifest array in your envelope names them. Record the sitting's revision with the tool's claim_count; never hand-count it — the tool computes claim_count with the tool's own read.${frictionClause('blue-respond', 'blue')}${petitionClause('blue-respond')}`
+AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP (W2b; your constitution carries the full standard): figures recomputed, universals enumerated, consistency sites swept report-wide — one manifest row per gap you REPAIRED — one an edit of yours this sitting answers — and the manifest array in your envelope names them; a gap you rebut without an edit owes none. A gap you are engaged on that the board shows CLOSED when you sit — its lens sat before you and closed it — owes no row: name it in found_closed, from the board you read. Record the sitting's revision with the tool's claim_count; never hand-count it — the tool computes claim_count with the tool's own read.${frictionClause('blue-respond', 'blue')}${petitionClause('blue-respond')}`
 const benchPrompt = (gaps) => `Adjudication, topic "${topic}". Docketed for you: ${gaps.join(', ')} — each reached impasse under the run's terms and the record docketed it. THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE. It carries ids; a gap's problem text and its acceptance check live on the board, and you read them FRESH before ruling. Re-run each document-probe acceptance check against the artifact AS IT NOW STANDS, and rule on what you find rather than on what any snapshot asserts.
 YOUR RULING BASIS IS CONFINED TO THREE THINGS: the two sides' recorded closings, the full transcript, and the final state of the artifacts — the board and ${runDir}/blue/report.md as they now stand. Weigh each closing as that side's best case, and a claim in a closing that the record does not support counts AGAINST the side that made it. For every ruling on a gap with a lineage chain, READ THE NAMED ANCESTORS' RECORDS first and NAME what you read in your rationale.${holdingsClause()}${lawClause}${declareClause}${inspectionClause}
 Every docketed gap gets a written ruling — the docket ruling: its fate, the principle you applied, the values in tension, whether a human should look at it, your reasoning, and TWO THINGS THE FATE CANNOT SAY — the proposition you are barring as settled, and what would reopen it or that nothing would (final). Two fates route work OUT of the debate rather than ending it: a gap you CARRY stays open, owes blue a stated research direction, and is that gap's deadlock — what CEILING is made of; and a valid finding whose FIX is owned outside the debate — run tooling, the harness, the lead — leaves the board and ships as a NAMED infrastructure debt (defect_owed_elsewhere), recorded and never dropped. Rule the grade motions and directions the parties left for you. A bench sitting that rules nothing is a workflow error: the run cannot end in a verdict while a docketed gap stands unruled.${frictionClause('judge', 'bench')}${speedClause}${recordClause('judge')}${petitionClause('judge')} Return the judge envelope.`
@@ -881,12 +888,19 @@ while (!halted) {
     if (!blueEnv2) throw new Error(`blue response (epoch ${epoch}) returned null (agent failed) — aborting cleanly`)
     await ensureSittingRecord(blueEnv2, 'blue-respond', `your position event for this sitting (it renders as the "### BLUE" section) AND your revision event`,
       { ...bulk, agentType: 'frank-exchange-of-views:blue-researcher' })
-    if (p.gap_ids.length > 0 && (!Array.isArray(blueEnv2.manifest) || blueEnv2.manifest.length === 0)) {
-      throw new Error(`manifest (W2b): blue-respond was engaged on ${p.gap_ids.length} gap(s) and returned an EMPTY correctness manifest — an unmanifested repair is unaudited by its own author`)
-    }
-    const covered = new Set(blueEnv2.manifest || [])
-    const uncovered = p.gap_ids.filter((g) => !covered.has(g))
-    if (uncovered.length) log(`epoch ${epoch}: manifest coverage ${covered.size}/${p.gap_ids.length} — unmanifested: ${uncovered.join(', ')} (scored at capture)`)
+    // W2b, OWED GAPS ONLY, NEVER AN ABORT (gblock's ruling on #868). A row is owed for a gap blue
+    // REPAIRED — its sitting's edit answers it — while the gap was still OPEN when blue sat; one
+    // its lens closed first, or one blue rebutted without an edit, owes nothing. The plan was
+    // computed at the START of the epoch and the lenses sat in between, so checking blue against
+    // the plan aborted two runs over an empty manifest that was correct. This engine sees neither
+    // the closures nor the edits; it logs the open gaps blue named no row for, and capture decides
+    // which were owed from the record (record.ManifestOwed) — none, some or all of them alike.
+    const foundClosed = new Set((Array.isArray(blueEnv2.found_closed) ? blueEnv2.found_closed : []).filter((g) => p.gap_ids.includes(g)))
+    const open = p.gap_ids.filter((g) => !foundClosed.has(g))
+    const covered = new Set(Array.isArray(blueEnv2.manifest) ? blueEnv2.manifest : [])
+    const uncovered = open.filter((g) => !covered.has(g))
+    if (foundClosed.size) log(`epoch ${epoch}: blue found ${[...foundClosed].join(', ')} closed before it sat — no manifest row owed (capture re-derives this from the record)`)
+    if (uncovered.length) log(`epoch ${epoch}: manifest rows named for ${open.length - uncovered.length}/${open.length} gap(s) open when blue sat — no row for: ${uncovered.join(', ')} (owed where this sitting's edit answered it; scored at capture)`)
     log(`epoch ${epoch}: blue responded on ${p.gap_ids.join(', ')} — corpus at ${blueEnv2.claim_count} claims`)
     if (await hearPetitions(blueEnv2, 'blue-respond')) break
   }
