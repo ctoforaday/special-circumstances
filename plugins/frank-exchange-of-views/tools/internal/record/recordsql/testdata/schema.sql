@@ -55,8 +55,8 @@ CREATE TABLE "enum_event_type" (
 ) STRICT;
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('anchor', 'evidence tied to a finding: where in the artifact the claim actually lives', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('avenue', 'a line of inquiry, from proposed through pursued, declined, deferred or abandoned', 'prose');
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('base_ingest', 'the frozen round-0 report, stored verbatim as the origin the diff-stack replays over', 'none');
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('blue_edit', 'a change to the living report, recorded as old and new so the edit itself is auditable', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('base_ingest', 'the report as blue ingested it, stored verbatim as the origin every recorded edit replays over', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('blue_edit', 'a change to the report, recorded as old and new so the edit itself is auditable', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('cast', 'the run''s admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('certify', 'a seat''s signed statement about its own work — what it asserts on the record', 'prose');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('cite', 'a source brought into the debate, with the hash and access date that make it re-checkable', 'none');
@@ -77,18 +77,18 @@ INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('motion_appe
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('motion_rule', 'the bench''s ruling on a filed motion, and whom it binds', 'prose');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('observe', 'an observation recorded without a claim attached to it', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('outcome', 'the run''s terminal act: how it ended and whether the question was answered', 'prose');
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('position', 'a seat''s stated position going into a round', 'full');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('position', 'a seat''s stated position going into its sitting', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('proof', 'a script that was RUN, with its hash and exit status — the answer a computation check demands', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('register', 'a seat took its seat — the first act of any seat, stamping the tool version it ran under', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('regrade', 'a gap''s grade changed, with the basis for the change', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('reproduce', 'an attempt to re-run a recorded proof, and whether what it computes is sound', 'prose');
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('retire', 'a claim withdrawn from the report, with the reason and what supersedes it', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('retire', 'a claim retired from the report, with the reason and what supersedes it', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('revision', 'a revision to a seat''s own earlier text', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('sitting_close', 'the harness''s agent returning — the other end of that span', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('sitting_limit', 'a seat''s sitting stopped at the run''s per-sitting tool-call limit — the hook refuses every further call in it, and this records which seat, which sitting and the limit', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('sitting_open', 'the harness dispatching an agent — one end of a sitting''s span, observed by a hook rather than claimed by a seat', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('spot_check', 'red re-checking a sample of prior work, or stating that it checked none and why', 'full');
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('verdict', 'red''s round gate: PASS or FAIL against the open board', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('verdict', 'the chair''s verdict for its epoch: PASS or FAIL against the open board', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('verify', 'a citation checked at the leaf: what the source did for the claim, and how sure the reader is', 'none');
 
 CREATE TABLE "enum_verdict" (
@@ -188,7 +188,7 @@ CREATE TABLE "enum_ruling_binds" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('blue', 'the relief binds the response seat — what blue must do, or must not, in the coming round');
+INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('blue', 'the relief binds the response seat — what blue must do, or must not, in its coming sitting');
 INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('both', 'it binds the whole exchange, and every dispatched seat carries it');
 INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('red', 'it binds the audit seats: the lenses and the chair');
 

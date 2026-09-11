@@ -239,7 +239,7 @@ enum EventType {
   EVENT_TYPE_REGISTER = 1 [(correct) = CORRECTION_TIER_NONE, (means) = "a seat took its seat — the first act of any seat, stamping the tool version it ran under"];
   EVENT_TYPE_ANCHOR = 2 [(correct) = CORRECTION_TIER_NONE, (means) = "evidence tied to a finding: where in the artifact the claim actually lives"];
   EVENT_TYPE_AVENUE = 3 [(correct) = CORRECTION_TIER_PROSE, (means) = "a line of inquiry, from proposed through pursued, declined, deferred or abandoned"];
-  EVENT_TYPE_BLUE_EDIT = 4 [(correct) = CORRECTION_TIER_NONE, (means) = "a change to the living report, recorded as old and new so the edit itself is auditable"];
+  EVENT_TYPE_BLUE_EDIT = 4 [(correct) = CORRECTION_TIER_NONE, (means) = "a change to the report, recorded as old and new so the edit itself is auditable"];
   EVENT_TYPE_CERTIFY = 5 [(correct) = CORRECTION_TIER_PROSE, (means) = "a seat's signed statement about its own work — what it asserts on the record"];
   EVENT_TYPE_CITE = 6 [(correct) = CORRECTION_TIER_NONE, (means) = "a source brought into the debate, with the hash and access date that make it re-checkable"];
   EVENT_TYPE_CLASS_NEW = 7 [(correct) = CORRECTION_TIER_NONE, (means) = "a defect class coined in this run, with its definition and the neighbour it is distinguished from"];
@@ -261,17 +261,17 @@ enum EventType {
   reserved 21;
   reserved "EVENT_TYPE_OPINION";
   EVENT_TYPE_OUTCOME = 22 [(correct) = CORRECTION_TIER_PROSE, (means) = "the run's terminal act: how it ended and whether the question was answered"];
-  EVENT_TYPE_POSITION = 23 [(correct) = CORRECTION_TIER_FULL, (means) = "a seat's stated position going into a round"];
+  EVENT_TYPE_POSITION = 23 [(correct) = CORRECTION_TIER_FULL, (means) = "a seat's stated position going into its sitting"];
   EVENT_TYPE_PROOF = 24 [(correct) = CORRECTION_TIER_NONE, (means) = "a script that was RUN, with its hash and exit status — the answer a computation check demands"];
   EVENT_TYPE_REGRADE = 25 [(correct) = CORRECTION_TIER_FULL, (means) = "a gap's grade changed, with the basis for the change"];
   EVENT_TYPE_REPRODUCE = 26 [(correct) = CORRECTION_TIER_PROSE, (means) = "an attempt to re-run a recorded proof, and whether what it computes is sound"];
-  EVENT_TYPE_RETIRE = 27 [(correct) = CORRECTION_TIER_NONE, (means) = "a claim withdrawn from the report, with the reason and what supersedes it"];
+  EVENT_TYPE_RETIRE = 27 [(correct) = CORRECTION_TIER_NONE, (means) = "a claim retired from the report, with the reason and what supersedes it"];
   EVENT_TYPE_REVISION = 28 [(correct) = CORRECTION_TIER_FULL, (means) = "a revision to a seat's own earlier text"];
   EVENT_TYPE_SPOT_CHECK = 29 [(correct) = CORRECTION_TIER_FULL, (means) = "red re-checking a sample of prior work, or stating that it checked none and why"];
-  EVENT_TYPE_VERDICT = 30 [(correct) = CORRECTION_TIER_NONE, (means) = "red's round gate: PASS or FAIL against the open board"];
+  EVENT_TYPE_VERDICT = 30 [(correct) = CORRECTION_TIER_NONE, (means) = "the chair's verdict for its epoch: PASS or FAIL against the open board"];
   EVENT_TYPE_VERIFY = 31 [(correct) = CORRECTION_TIER_NONE, (means) = "a citation checked at the leaf: what the source did for the claim, and how sure the reader is"];
   EVENT_TYPE_INQUIRY_REVIEW = 32 [(correct) = CORRECTION_TIER_FULL, (means) = "a review of the lines of inquiry themselves, rather than of a finding"];
-  EVENT_TYPE_BASE_INGEST = 33 [(correct) = CORRECTION_TIER_NONE, (means) = "the frozen round-0 report, stored verbatim as the origin the diff-stack replays over"];
+  EVENT_TYPE_BASE_INGEST = 33 [(correct) = CORRECTION_TIER_NONE, (means) = "the report as blue ingested it, stored verbatim as the origin every recorded edit replays over"];
   EVENT_TYPE_SITTING_OPEN = 34 [(correct) = CORRECTION_TIER_NONE, (means) = "the harness dispatching an agent — one end of a sitting's span, observed by a hook rather than claimed by a seat"];
   EVENT_TYPE_SITTING_CLOSE = 35 [(correct) = CORRECTION_TIER_NONE, (means) = "the harness's agent returning — the other end of that span"];
   EVENT_TYPE_CAST = 36 [(correct) = CORRECTION_TIER_NONE, (means) = "the run's admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against"];
@@ -798,7 +798,7 @@ message Close {
   // rule about two fields together belongs: everything that is not a carry owes an argument.
   option (check) = {
     expr: "\"carried_from\" IS NOT NULL OR \"prose\" IS NOT NULL"
-    why: "a closure states what was verified and why it holds; only a carry is exempt, because the round it restates already argued it"
+    why: "a closure states what was verified and why it holds; only a carry is exempt, because the epoch it restates already argued it"
   };
 
   optional string gap_id = 1 [(sql) = {
@@ -1445,7 +1445,7 @@ message DocketRuling {
   // `--none` made the empty case sayable.
   option (check) = {
     expr: "\"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL"
-    why: "a ruling owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted round"
+    why: "a ruling owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted sitting"
   };
 
   // REFUSED TOGETHER rather than silently preferring one: a ruling that says both "this is final"
@@ -1591,7 +1591,7 @@ enum RulingBinds {
   reserved "RULING_BINDS_ALL", "RULING_BINDS_FILER", "RULING_BINDS_NONE";
 
   RULING_BINDS_UNSPECIFIED = 0;
-  RULING_BINDS_BLUE = 4 [(means) = "the relief binds the response seat — what blue must do, or must not, in the coming round"];
+  RULING_BINDS_BLUE = 4 [(means) = "the relief binds the response seat — what blue must do, or must not, in its coming sitting"];
   RULING_BINDS_RED = 5 [(means) = "it binds the audit seats: the lenses and the chair"];
   RULING_BINDS_BOTH = 6 [(means) = "it binds the whole exchange, and every dispatched seat carries it"];
 }

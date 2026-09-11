@@ -648,7 +648,7 @@ func RequireUnappealedMotion(run Run, id, seatID, correcting string) error {
 		return nil
 	}
 	if found {
-		return fmt.Errorf("record: motion %s is already appealed by %s (%q). A second appeal does not add to the first — it REPLACES it in every reader, and the argument already on the record stops being the one anybody sees. If you are pressing on new grounds, file a NEW motion for this round: two motions keep two arguments, which is what an appeal being an event rather than a field is for%s",
+		return fmt.Errorf("record: motion %s is already appealed by %s (%q). A second appeal does not add to the first — it REPLACES it in every reader, and the argument already on the record stops being the one anybody sees. If you are pressing on new grounds, file a NEW motion for this epoch: two motions keep two arguments, which is what an appeal being an event rather than a field is for%s",
 			id, seat.String, reason.String, correctionOffer(run, seatID, seat.String, key.String, seq, "appeal"))
 	}
 	return nil

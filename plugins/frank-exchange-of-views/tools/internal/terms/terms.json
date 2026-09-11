@@ -7,18 +7,14 @@
       "bans": [
         {"variant": "candidate draft", "kind": "GATED", "pattern": "candidate drafts?|drafts? candidates"},
         {"variant": "candidate (the text)", "kind": "REGISTRY-ONLY"},
-        {"variant": "living report", "kind": "GATED", "pattern": "living report",
-         "allow": [
-           {"path": "plugins/frank-exchange-of-views/tools/internal/record/recordpb/record.proto", "reason": "renamed in phase 2 with the proto's other annotation text (EVENT_TYPE_BLUE_EDIT means), so record.proto changes once"}
-         ]},
+        {"variant": "living report", "kind": "GATED", "pattern": "living report"},
         {"variant": "document or artifact under audit", "kind": "GATED", "pattern": "(document|artifact) under audit"},
         {"variant": "synthesis (the document)", "kind": "REGISTRY-ONLY"},
         {"variant": "deliverable", "kind": "GATED", "pattern": "deliverables?"},
         {"variant": "frozen base, diff-stack", "kind": "GATED", "pattern": "frozen base|diff-stack",
          "allow": [
            {"path": "plugins/frank-exchange-of-views/tools/internal/cli/seat/help/ingest.md", "reason": "ingest is the act that freezes the base, and its own help says what it builds"},
-           {"path": "plugins/frank-exchange-of-views/tools/internal/cli/blue/ingest.go", "reason": "ingest's own refusals and result describe the base it builds"},
-           {"path": "plugins/frank-exchange-of-views/tools/internal/record/recordpb/record.proto", "reason": "renamed in phase 2 with the proto's other annotation text (EVENT_TYPE_BASE_INGEST means), so record.proto changes once"}
+           {"path": "plugins/frank-exchange-of-views/tools/internal/cli/blue/ingest.go", "reason": "ingest's own refusals and result describe the base it builds"}
          ]},
         {"variant": "blue/report.md after ingest", "kind": "GATED", "pattern": "blue/report\\.md",
          "masks": [
@@ -53,10 +49,7 @@
         {"variant": "ledger", "kind": "GATED", "pattern": "\\bledgers?\\b"},
         {"variant": "narrative", "kind": "GATED", "pattern": "\\bnarratives?\\b"},
         {"variant": "event log", "kind": "GATED", "pattern": "event log"},
-        {"variant": "sitting, round, judicial, adversarial or process record", "kind": "GATED", "pattern": "(sitting|round|judicial|adversarial|process) records?\\b",
-         "allow": [
-           {"path": "plugins/frank-exchange-of-views/tools/internal/record/sitting.go", "reason": "renamed in phase 2: the \"round record\" Go refusal goes with the other round refusals"}
-         ]}
+        {"variant": "sitting, round, judicial, adversarial or process record", "kind": "GATED", "pattern": "(sitting|round|judicial|adversarial|process) records?\\b"}
       ],
       "collisions": [
         {"word": "record (verb)", "resolution": "as a verb, say \"put on the record\" or name the verb that does it"}
@@ -82,11 +75,6 @@
         {"variant": "round", "kind": "GATED", "pattern": "\\brounds?\\b|round-0",
          "masks": [
            {"phrase": "round-trip", "reason": "a round-trip is a request and its answer, not a unit of the run"}
-         ],
-         "allow": [
-           {"path": "plugins/frank-exchange-of-views/tools/internal/record/sitting.go", "reason": "renamed in phase 2: \"round\" in the Go refusals"},
-           {"path": "plugins/frank-exchange-of-views/tools/internal/record/motion.go", "reason": "renamed in phase 2: \"round\" in the Go refusals"},
-           {"path": "plugins/frank-exchange-of-views/tools/internal/record/recordpb/record.proto", "reason": "renamed in phase 2: \"round\" in the proto annotations"}
          ]}
       ],
       "collisions": []
@@ -305,10 +293,7 @@
       "definition": "To retire a claim is to take it out of the report with the retire verb, on the record.",
       "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [
-        {"variant": "claims withdrawn", "kind": "GATED", "pattern": "claims? withdrawn",
-         "allow": [
-           {"path": "plugins/frank-exchange-of-views/tools/internal/record/recordpb/record.proto", "reason": "renamed in phase 2 with the proto's other annotation text (EVENT_TYPE_RETIRE means), so record.proto changes once"}
-         ]},
+        {"variant": "claims withdrawn", "kind": "GATED", "pattern": "claims? withdrawn"},
         {"variant": "withdraw (retire)", "kind": "REGISTRY-ONLY"}
       ],
       "collisions": []
@@ -338,9 +323,7 @@
       "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [
         {"variant": "grade dispute", "kind": "GATED", "pattern": "grade disputes?"},
-        {"variant": "grade_disputes (the envelope key)", "kind": "GATED", "pattern": "grade_disputes",
-         "allow": [
-         ]}
+        {"variant": "grade_disputes (the envelope key)", "kind": "GATED", "pattern": "grade_disputes"}
       ],
       "collisions": []
     },

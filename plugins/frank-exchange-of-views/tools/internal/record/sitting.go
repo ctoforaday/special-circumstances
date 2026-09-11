@@ -148,7 +148,7 @@ func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJS
 		// reaches blue through the ordinary route with a grade, a required fix and the PASS gate
 		// behind it. Restoring a second duty here would be the same fact told twice.
 		if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_REVISION) {
-			add("the round record is missing — a revision that is not on the record did not happen as far as the debate is concerned (W1.7)")
+			add("this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)")
 		}
 	case "chair":
 		// Both of these already REFUSE `verdict --as PASS`. Naming them here is the same list,
@@ -188,7 +188,7 @@ func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJS
 		// each epoch, so a review recorded before this epoch's edits answers a question about a
 		// document that no longer exists.
 		if InquiryReviewDueOf(evs) {
-			add("the report's account of its own research has not been read this round — PASS is refused until one `inquiry-support` says what the read found (and any shortfall is minted as a gap)")
+			add("the report's account of its own research has not been read this epoch — PASS is refused until one `inquiry-support` says what the read found (and any shortfall is minted as a gap)")
 		}
 		if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_VERDICT) {
 			add("your terminal act is missing — the run cannot say from its own record that it was ever verified")

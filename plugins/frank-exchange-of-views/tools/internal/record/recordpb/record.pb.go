@@ -6775,7 +6775,7 @@ const file_record_proto_rawDesc = "" +
 	"\tsuccessor\x18\a \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x06R\tsuccessor\x88\x01\x01\x12\x9c\x01\n" +
 	"\x05prose\x18\b \x01(\tB\x80\x01\x82\xb5\x18x\x12\x06reason\x1anthe closure's argument — what was verified and why it holds; the report renders it and the re-audit reads it\xc0\xb5\x18\x01H\aR\x05prose\x88\x01\x01:\xe8\x02\x92\xb5\x18\xad\x01\n" +
 	"H\"closure_class\" <> 'repaired_with_regression' OR \"successor\" IS NOT NULL\x12aa closure that reports a regression must name the gap carrying it forward — lineage never drops\x92\xb5\x18\xb1\x01\n" +
-	"1\"carried_from\" IS NOT NULL OR \"prose\" IS NOT NULL\x12|a closure states what was verified and why it holds; only a carry is exempt, because the round it restates already argued itB\t\n" +
+	"1\"carried_from\" IS NOT NULL OR \"prose\" IS NOT NULL\x12|a closure states what was verified and why it holds; only a carry is exempt, because the epoch it restates already argued itB\t\n" +
 	"\a_gap_idB\x10\n" +
 	"\x0e_closure_classB\x0e\n" +
 	"\f_anchor_seatB\x0e\n" +
@@ -7057,7 +7057,7 @@ const file_record_proto_rawDesc = "" +
 	"\x06_class\"\xbb\x01\n" +
 	"\fDocketMotion\x12\x9f\x01\n" +
 	"\x06gap_id\x18\x01 \x01(\tB\x82\x01\x82\xb5\x18~\b\x01\x12\x02id\x1aiwhich gap is being put before the bench — a docket motion that names no gap is an escalation of nothing\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01B\t\n" +
-	"\a_gap_id\"\xf1\v\n" +
+	"\a_gap_id\"\xf3\v\n" +
 	"\fDocketRuling\x12\xc3\x01\n" +
 	"\vdisposition\x18\x01 \x01(\x0e2\x1b.feov.record.v1.DispositionB\x7f\x82\xb5\x18{\b\x01\x12\x02as\x1asthe bench's word, which decides the gap's fate — `remanded` defers it to a later sitting, everything else ends itH\x00R\vdisposition\x88\x01\x01\x12{\n" +
 	"\tprinciple\x18\x02 \x01(\tBX\x82\xb5\x18P\b\x01\x1aLthe rule the bench applied, stated so a later sitting can apply the same one\xc0\xb5\x18\x01H\x01R\tprinciple\x88\x01\x01\x12\x94\x01\n" +
@@ -7068,8 +7068,8 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"reopens_on\x18\x06 \x01(\tBX\x82\xb5\x18P\x12\n" +
 	"reopens-on\x1aBthe evidence or condition that would make this worth raising again\xc0\xb5\x18\x01H\x05R\treopensOn\x88\x01\x01\x12\x19\n" +
-	"\x05final\x18\a \x01(\bH\x06R\x05final\x88\x01\x01:\xf2\x03\x92\xb5\x18\xb4\x02\n" +
-	"/\"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL\x12\x80\x02a ruling owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted round\x92\xb5\x18\xb4\x01\n" +
+	"\x05final\x18\a \x01(\bH\x06R\x05final\x88\x01\x01:\xf4\x03\x92\xb5\x18\xb6\x02\n" +
+	"/\"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL\x12\x82\x02a ruling owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted sitting\x92\xb5\x18\xb4\x01\n" +
 	"'\"reopens_on\" IS NULL OR \"final\" IS NULL\x12\x88\x01--final says nothing would reopen this and --reopens-on names what would; they are opposite answers to one question, so pass exactly oneB\x0e\n" +
 	"\f_dispositionB\f\n" +
 	"\n" +
@@ -7204,13 +7204,13 @@ const file_record_proto_rawDesc = "" +
 	"\x1bCORRECTION_TIER_UNSPECIFIED\x10\x00\x12\xb1\x01\n" +
 	"\x14CORRECTION_TIER_NONE\x10\x01\x1a\x96\x01\x8a\xb5\x18\x91\x01not correctable: the act creates an identity, decides a fate no restatement may move, or is written by the tool or the harness rather than a seat\x12\x9c\x01\n" +
 	"\x15CORRECTION_TIER_PROSE\x10\x02\x1a\x80\x01\x8a\xb5\x18|only the seat's own wording may change — the fields that declare (prose); every other field must equal the corrected act's\x12Y\n" +
-	"\x14CORRECTION_TIER_FULL\x10\x03\x1a?\x8a\xb5\x18;every field may change except the label the act is keyed on*\xea\"\n" +
+	"\x14CORRECTION_TIER_FULL\x10\x03\x1a?\x8a\xb5\x18;every field may change except the label the act is keyed on*\x81#\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12{\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1ab\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\xb8\xb5\x18\x01\x12i\n" +
 	"\x11EVENT_TYPE_ANCHOR\x10\x02\x1aR\x8a\xb5\x18Jevidence tied to a finding: where in the artifact the claim actually lives\xb8\xb5\x18\x01\x12p\n" +
-	"\x11EVENT_TYPE_AVENUE\x10\x03\x1aY\x8a\xb5\x18Qa line of inquiry, from proposed through pursued, declined, deferred or abandoned\xb8\xb5\x18\x02\x12x\n" +
-	"\x14EVENT_TYPE_BLUE_EDIT\x10\x04\x1a^\x8a\xb5\x18Va change to the living report, recorded as old and new so the edit itself is auditable\xb8\xb5\x18\x01\x12n\n" +
+	"\x11EVENT_TYPE_AVENUE\x10\x03\x1aY\x8a\xb5\x18Qa line of inquiry, from proposed through pursued, declined, deferred or abandoned\xb8\xb5\x18\x02\x12q\n" +
+	"\x14EVENT_TYPE_BLUE_EDIT\x10\x04\x1aW\x8a\xb5\x18Oa change to the report, recorded as old and new so the edit itself is auditable\xb8\xb5\x18\x01\x12n\n" +
 	"\x12EVENT_TYPE_CERTIFY\x10\x05\x1aV\x8a\xb5\x18Na seat's signed statement about its own work — what it asserts on the record\xb8\xb5\x18\x02\x12v\n" +
 	"\x0fEVENT_TYPE_CITE\x10\x06\x1aa\x8a\xb5\x18Ya source brought into the debate, with the hash and access date that make it re-checkable\xb8\xb5\x18\x01\x12\x83\x01\n" +
 	"\x14EVENT_TYPE_CLASS_NEW\x10\a\x1ai\x8a\xb5\x18aa defect class coined in this run, with its definition and the neighbour it is distinguished from\xb8\xb5\x18\x01\x12m\n" +
@@ -7227,18 +7227,18 @@ const file_record_proto_rawDesc = "" +
 	"\x18EVENT_TYPE_MOTION_APPEAL\x10\x12\x1a6\x8a\xb5\x18.an appeal of a ruling already made on a motion\xb8\xb5\x18\x02\x12[\n" +
 	"\x16EVENT_TYPE_MOTION_RULE\x10\x13\x1a?\x8a\xb5\x187the bench's ruling on a filed motion, and whom it binds\xb8\xb5\x18\x02\x12V\n" +
 	"\x12EVENT_TYPE_OBSERVE\x10\x14\x1a>\x8a\xb5\x186an observation recorded without a claim attached to it\xb8\xb5\x18\x01\x12j\n" +
-	"\x12EVENT_TYPE_OUTCOME\x10\x16\x1aR\x8a\xb5\x18Jthe run's terminal act: how it ended and whether the question was answered\xb8\xb5\x18\x02\x12L\n" +
-	"\x13EVENT_TYPE_POSITION\x10\x17\x1a3\x8a\xb5\x18+a seat's stated position going into a round\xb8\xb5\x18\x03\x12}\n" +
+	"\x12EVENT_TYPE_OUTCOME\x10\x16\x1aR\x8a\xb5\x18Jthe run's terminal act: how it ended and whether the question was answered\xb8\xb5\x18\x02\x12P\n" +
+	"\x13EVENT_TYPE_POSITION\x10\x17\x1a7\x8a\xb5\x18/a seat's stated position going into its sitting\xb8\xb5\x18\x03\x12}\n" +
 	"\x10EVENT_TYPE_PROOF\x10\x18\x1ag\x8a\xb5\x18_a script that was RUN, with its hash and exit status — the answer a computation check demands\xb8\xb5\x18\x01\x12T\n" +
 	"\x12EVENT_TYPE_REGRADE\x10\x19\x1a<\x8a\xb5\x184a gap's grade changed, with the basis for the change\xb8\xb5\x18\x03\x12n\n" +
-	"\x14EVENT_TYPE_REPRODUCE\x10\x1a\x1aT\x8a\xb5\x18Lan attempt to re-run a recorded proof, and whether what it computes is sound\xb8\xb5\x18\x02\x12h\n" +
-	"\x11EVENT_TYPE_RETIRE\x10\x1b\x1aQ\x8a\xb5\x18Ia claim withdrawn from the report, with the reason and what supersedes it\xb8\xb5\x18\x01\x12H\n" +
+	"\x14EVENT_TYPE_REPRODUCE\x10\x1a\x1aT\x8a\xb5\x18Lan attempt to re-run a recorded proof, and whether what it computes is sound\xb8\xb5\x18\x02\x12f\n" +
+	"\x11EVENT_TYPE_RETIRE\x10\x1b\x1aO\x8a\xb5\x18Ga claim retired from the report, with the reason and what supersedes it\xb8\xb5\x18\x01\x12H\n" +
 	"\x13EVENT_TYPE_REVISION\x10\x1c\x1a/\x8a\xb5\x18'a revision to a seat's own earlier text\xb8\xb5\x18\x03\x12r\n" +
-	"\x15EVENT_TYPE_SPOT_CHECK\x10\x1d\x1aW\x8a\xb5\x18Ored re-checking a sample of prior work, or stating that it checked none and why\xb8\xb5\x18\x03\x12U\n" +
-	"\x12EVENT_TYPE_VERDICT\x10\x1e\x1a=\x8a\xb5\x185red's round gate: PASS or FAIL against the open board\xb8\xb5\x18\x01\x12|\n" +
+	"\x15EVENT_TYPE_SPOT_CHECK\x10\x1d\x1aW\x8a\xb5\x18Ored re-checking a sample of prior work, or stating that it checked none and why\xb8\xb5\x18\x03\x12f\n" +
+	"\x12EVENT_TYPE_VERDICT\x10\x1e\x1aN\x8a\xb5\x18Fthe chair's verdict for its epoch: PASS or FAIL against the open board\xb8\xb5\x18\x01\x12|\n" +
 	"\x11EVENT_TYPE_VERIFY\x10\x1f\x1ae\x8a\xb5\x18]a citation checked at the leaf: what the source did for the claim, and how sure the reader is\xb8\xb5\x18\x01\x12l\n" +
-	"\x19EVENT_TYPE_INQUIRY_REVIEW\x10 \x1aM\x8a\xb5\x18Ea review of the lines of inquiry themselves, rather than of a finding\xb8\xb5\x18\x03\x12x\n" +
-	"\x16EVENT_TYPE_BASE_INGEST\x10!\x1a\\\x8a\xb5\x18Tthe frozen round-0 report, stored verbatim as the origin the diff-stack replays over\xb8\xb5\x18\x01\x12\x97\x01\n" +
+	"\x19EVENT_TYPE_INQUIRY_REVIEW\x10 \x1aM\x8a\xb5\x18Ea review of the lines of inquiry themselves, rather than of a finding\xb8\xb5\x18\x03\x12\x82\x01\n" +
+	"\x16EVENT_TYPE_BASE_INGEST\x10!\x1af\x8a\xb5\x18^the report as blue ingested it, stored verbatim as the origin every recorded edit replays over\xb8\xb5\x18\x01\x12\x97\x01\n" +
 	"\x17EVENT_TYPE_SITTING_OPEN\x10\"\x1az\x8a\xb5\x18rthe harness dispatching an agent — one end of a sitting's span, observed by a hook rather than claimed by a seat\xb8\xb5\x18\x01\x12b\n" +
 	"\x18EVENT_TYPE_SITTING_CLOSE\x10#\x1aD\x8a\xb5\x18<the harness's agent returning — the other end of that span\xb8\xb5\x18\x01\x12\xaa\x01\n" +
 	"\x0fEVENT_TYPE_CAST\x10$\x1a\x94\x01\x8a\xb5\x18\x8b\x01the run's admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against\xb8\xb5\x18\x01\x12\xc3\x01\n" +
@@ -7359,10 +7359,10 @@ const file_record_proto_rawDesc = "" +
 	"\x18PETITION_CLASS_INTEGRITY\x10\x01\x1aX\x8a\xb5\x18Tproceeding would require asserting what you believe false, or burying a real finding\x12J\n" +
 	"\x15PETITION_CLASS_SAFETY\x10\x02\x1a/\x8a\xb5\x18+proceeding would create or conceal a hazard\x12p\n" +
 	"\x16PETITION_CLASS_ETHICAL\x10\x05\x1aT\x8a\xb5\x18Pproceeding would require acting against the interests of someone the run affects\x12j\n" +
-	"\x1dPETITION_CLASS_CONSTITUTIONAL\x10\x06\x1aG\x8a\xb5\x18Cthe instruction itself conflicts with the rules the run is bound by\"\x04\b\x03\x10\x03\"\x04\b\x04\x10\x04*\x16PETITION_CLASS_PROCESS*\x14PETITION_CLASS_SCOPE*\x99\x03\n" +
+	"\x1dPETITION_CLASS_CONSTITUTIONAL\x10\x06\x1aG\x8a\xb5\x18Cthe instruction itself conflicts with the rules the run is bound by\"\x04\b\x03\x10\x03\"\x04\b\x04\x10\x04*\x16PETITION_CLASS_PROCESS*\x14PETITION_CLASS_SCOPE*\x9b\x03\n" +
 	"\vRulingBinds\x12\x1c\n" +
-	"\x18RULING_BINDS_UNSPECIFIED\x10\x00\x12u\n" +
-	"\x11RULING_BINDS_BLUE\x10\x04\x1a^\x8a\xb5\x18Zthe relief binds the response seat — what blue must do, or must not, in the coming round\x12L\n" +
+	"\x18RULING_BINDS_UNSPECIFIED\x10\x00\x12w\n" +
+	"\x11RULING_BINDS_BLUE\x10\x04\x1a`\x8a\xb5\x18\\the relief binds the response seat — what blue must do, or must not, in its coming sitting\x12L\n" +
 	"\x10RULING_BINDS_RED\x10\x05\x1a6\x8a\xb5\x182it binds the audit seats: the lenses and the chair\x12\\\n" +
 	"\x11RULING_BINDS_BOTH\x10\x06\x1aE\x8a\xb5\x18Ait binds the whole exchange, and every dispatched seat carries it\"\x04\b\x01\x10\x01\"\x04\b\x02\x10\x02\"\x04\b\x03\x10\x03*\x10RULING_BINDS_ALL*\x12RULING_BINDS_FILER*\x11RULING_BINDS_NONE:I\n" +
 	"\x03sql\x12\x1d.google.protobuf.FieldOptions\x18І\x03 \x01(\v2\x13.feov.record.v1.SqlR\x03sql\x88\x01\x01:8\n" +

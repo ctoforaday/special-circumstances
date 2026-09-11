@@ -52,11 +52,11 @@ The report is the research prose written for a reader of the subject: one docume
 |---|---|---|---|---|
 | candidate draft | GATED | `candidate drafts?\|drafts? candidates` |  |  |
 | candidate (the text) | REGISTRY-ONLY |  |  |  |
-| living report | GATED | `living report` |  | `plugins/frank-exchange-of-views/tools/internal/record/recordpb/record.proto` — renamed in phase 2 with the proto's other annotation text (EVENT_TYPE_BLUE_EDIT means), so record.proto changes once |
+| living report | GATED | `living report` |  |  |
 | document or artifact under audit | GATED | `(document\|artifact) under audit` |  |  |
 | synthesis (the document) | REGISTRY-ONLY |  |  |  |
 | deliverable | GATED | `deliverables?` |  |  |
-| frozen base, diff-stack | GATED | `frozen base\|diff-stack` |  | `plugins/frank-exchange-of-views/tools/internal/cli/seat/help/ingest.md` — ingest is the act that freezes the base, and its own help says what it builds<br>`plugins/frank-exchange-of-views/tools/internal/cli/blue/ingest.go` — ingest's own refusals and result describe the base it builds<br>`plugins/frank-exchange-of-views/tools/internal/record/recordpb/record.proto` — renamed in phase 2 with the proto's other annotation text (EVENT_TYPE_BASE_INGEST means), so record.proto changes once |
+| frozen base, diff-stack | GATED | `frozen base\|diff-stack` |  | `plugins/frank-exchange-of-views/tools/internal/cli/seat/help/ingest.md` — ingest is the act that freezes the base, and its own help says what it builds<br>`plugins/frank-exchange-of-views/tools/internal/cli/blue/ingest.go` — ingest's own refusals and result describe the base it builds |
 | blue/report.md after ingest | GATED | `blue/report\.md` | `synthesize ${runDir}/blue/report.md by UNION` — the synthesizer's own prompt: blue/report.md is that seat's file until ingest removes it<br>`INTO ${runDir}/blue/report.md at synthesis` — the synthesizer's own prompt, as above | `plugins/frank-exchange-of-views/agents/blue-synthesizer.md` — the synthesizer writes blue/report.md before ingest; it is that seat's file<br>`plugins/frank-exchange-of-views/skills/research-protocol/SKILL.md` — the run-directory layout describes the synthesizer's stub and its removal at ingest<br>`plugins/frank-exchange-of-views/tools/internal/cli/blue/ingest.go` — ingest consumes blue/report.md and removes it; its refusal names the file it could not remove |
 
 **Collisions:**
@@ -89,7 +89,7 @@ The record is the run's account of every act, held as events in records/record.d
 | ledger | GATED | `\bledgers?\b` |  |  |
 | narrative | GATED | `\bnarratives?\b` |  |  |
 | event log | GATED | `event log` |  |  |
-| sitting, round, judicial, adversarial or process record | GATED | `(sitting\|round\|judicial\|adversarial\|process) records?\b` |  | `plugins/frank-exchange-of-views/tools/internal/record/sitting.go` — renamed in phase 2: the "round record" Go refusal goes with the other round refusals |
+| sitting, round, judicial, adversarial or process record | GATED | `(sitting\|round\|judicial\|adversarial\|process) records?\b` |  |  |
 
 **Collisions:**
 
@@ -122,7 +122,7 @@ An epoch runs from one chair sitting to the next: the chair relays who sits, the
 
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
-| round | GATED | `\brounds?\b\|round-0` | `round-trip` — a round-trip is a request and its answer, not a unit of the run | `plugins/frank-exchange-of-views/tools/internal/record/sitting.go` — renamed in phase 2: "round" in the Go refusals<br>`plugins/frank-exchange-of-views/tools/internal/record/motion.go` — renamed in phase 2: "round" in the Go refusals<br>`plugins/frank-exchange-of-views/tools/internal/record/recordpb/record.proto` — renamed in phase 2: "round" in the proto annotations |
+| round | GATED | `\brounds?\b\|round-0` | `round-trip` — a round-trip is a request and its answer, not a unit of the run |  |
 
 ## sitting
 
@@ -384,7 +384,7 @@ To retire a claim is to take it out of the report with the retire verb, on the r
 
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
-| claims withdrawn | GATED | `claims? withdrawn` |  | `plugins/frank-exchange-of-views/tools/internal/record/recordpb/record.proto` — renamed in phase 2 with the proto's other annotation text (EVENT_TYPE_RETIRE means), so record.proto changes once |
+| claims withdrawn | GATED | `claims? withdrawn` |  |  |
 | withdraw (retire) | REGISTRY-ONLY |  |  |  |
 
 ## disposition
@@ -398,8 +398,8 @@ A disposition is the bench's ruling value on a docketed gap, and it decides whet
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
 | carried (a disposition) | GATED | `\bcarried\b` | `--carried-from` — the carry verb's flag: carry restates an earlier closure, which is its own meaning<br>`carried the closure of` — the carry verb's own result<br>`carried from` — the carry verb's result as the archive view prints it: a closure carried from an earlier epoch, which is the flag --carried-from in words |  |
-| resolution (a disposition) | GATED | `\bresolutions?\b` |  | `plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js` — renamed in phase 2: JUDGE_ENVELOPE resolutions[].resolution becomes dispositions[].disposition with its readers |
-| unmapped fate | GATED | `unmapped fate` |  | `plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js` — renamed in phase 2 with the envelope keys (UNMAPPED FATE becomes UNMAPPED DISPOSITION) |
+| resolution (a disposition) | GATED | `\bresolutions?\b` |  |  |
+| unmapped fate | GATED | `unmapped fate` |  |  |
 | fate (a disposition) | REGISTRY-ONLY |  |  |  |
 
 **Collisions:**
@@ -417,7 +417,7 @@ A grade motion is a side's motion contesting a gap's grade, ruled by the bench.
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
 | grade dispute | GATED | `grade disputes?` |  |  |
-| grade_disputes (the envelope key) | GATED | `grade_disputes` |  | `plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js` — renamed in phase 2: the envelope key becomes grade_motions with its readers |
+| grade_disputes (the envelope key) | GATED | `grade_disputes` |  |  |
 
 ## scorecard
 
