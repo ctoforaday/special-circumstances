@@ -71,8 +71,12 @@ type EvidenceSourceJSON struct {
 	// no second span to render; `Verify.claim` is a different field and is still on a
 	// verification below.
 	Location string `json:"location"`
-	SeatID   string `json:"seat_id"`
-	Epoch    int    `json:"epoch"`
+	// Text is blue's argument for the citation — why this source backs that sentence — from
+	// `cite --reason`. Rendered always: "" is "blue offered no argument", which red reads when
+	// deciding what to verify. It is never printed in the report.
+	Text   string `json:"text"`
+	SeatID string `json:"seat_id"`
+	Epoch  int    `json:"epoch"`
 
 	// Verified is every `lens verify` naming THIS anchor. An empty slice is the honest zero and
 	// it is rendered, not omitted: "nobody has checked this source" is what red reads to decide
@@ -341,6 +345,7 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 				Sha256:     bd.GetSha256(),
 				AccessDate: bd.GetAccessDate(),
 				Location:   bd.GetLocation(),
+				Text:       bd.GetText(),
 				SeatID:     e.GetSeatId(),
 				Epoch:      w.Epoch,
 				Verified:   checks,

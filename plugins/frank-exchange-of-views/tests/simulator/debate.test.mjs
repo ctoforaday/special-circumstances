@@ -391,7 +391,8 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   // already holds it: the lane drafts, the frozen base and every recorded edit.
   assert.ok(!/minority|lane marker|exactly ONE lane/.test(synth), 'the synthesis prompt orders provenance into prose again')
   // THE CONTENT RULE IS THE VERBS', and the prompt points at it rather than restating it: the rule is
-  // on every verb whose text the report prints (edit, ingest, and line-of-inquiry's propose and move),
+  // on every verb whose text the report prints (edit, ingest, line-of-inquiry's propose and move, and
+  // prove's note and cite's title, which the Bibliography prints),
   // so a copy here is a second statement of a contract nothing keeps in step.
   assert.ok(/THE REPORT'S CONTENT RULE .* is on the verbs that write report text/.test(synth),
     'the synthesis prompt must point at where the report content rule lives')
