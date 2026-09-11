@@ -69,11 +69,18 @@ func TestADispatchedLensThatHasNotRegisteredOwesItsSitting(t *testing.T) {
 		t.Fatalf("the work list says the sitting is owed but dispatch does not ready the lens: %+v", plan)
 	}
 
-	// It registers: the sitting is on the record, the work list is complete, and dispatch agrees.
-	sat := b5Shape(t).register(voiceLens).seed()
+	// It registers: the sitting is on the record, so the owed-sitting item goes — and the new
+	// sitting owes its own log, which its first sitting's entry does not discharge.
+	registered := b5Shape(t).register(voiceLens).seed()
+	s = sittingOfRunT(t, registered, "lens", voiceLens)
+	if len(owedItems(s)) != 0 || !hasItem(s, "the log is open") {
+		t.Fatalf("after its register: want no owed sitting and the log open, got complete=%v open=%+v", s.Complete, s.Open)
+	}
+	// It logs: the work list is complete, and dispatch agrees.
+	sat := b5Shape(t).register(voiceLens).logNominal(voiceLens).seed()
 	s = sittingOfRunT(t, sat, "lens", voiceLens)
 	if !s.Complete || len(owedItems(s)) != 0 {
-		t.Fatalf("after its register the lens still owes: complete=%v open=%+v", s.Complete, s.Open)
+		t.Fatalf("after its register and log the lens still owes: complete=%v open=%+v", s.Complete, s.Open)
 	}
 	plan, err = PlanDispatch(sat)
 	if err != nil {
