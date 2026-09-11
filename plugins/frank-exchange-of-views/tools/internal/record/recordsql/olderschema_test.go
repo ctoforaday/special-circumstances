@@ -11,7 +11,8 @@ import (
 // the reader used to surface SQLite's bare "no such table". A table that exists and fails for
 // another reason keeps its own error.
 func TestAMissingTableIsNamedAsAnOlderRun(t *testing.T) {
-	db, err := Open(filepath.Join(t.TempDir(), "record.db"))
+	// tmpRun, not t.TempDir: Open caches the handle, and Windows refuses to remove an open file.
+	db, err := Open(filepath.Join(tmpRun(t), "record.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
