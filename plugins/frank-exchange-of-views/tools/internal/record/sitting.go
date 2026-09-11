@@ -8,7 +8,7 @@ import (
 
 // WHAT THIS SEAT STILL OWES, ON THE READ IT ALREADY DOES.
 //
-// A seat had no way to know it was finished. Asked directly, the merge named a real mechanism —
+// A seat had no way to know it was finished. Asked directly, the chair named a real mechanism —
 // "the `verdict` command either succeeds or fails; if it fails the tool tells me what's blocking
 // closure, and I iterate" — because `verdict` refuses over open gaps and unruled motions and
 // enumerates them. Blue and the bench answered with things they cannot observe: "red agrees it's
@@ -127,7 +127,7 @@ func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJS
 
 	switch role {
 	case "blue":
-		// A computation demand prose cannot answer. The merge is REFUSED if it tries to close
+		// A computation demand prose cannot answer. The chair is REFUSED if it tries to close
 		// one unproved, so an unanswered demand does not settle — it carries into the next epoch.
 		for _, g := range gaps {
 			if !g.AwaitingProof {
@@ -148,9 +148,9 @@ func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJS
 		// reaches blue through the ordinary route with a grade, a required fix and the PASS gate
 		// behind it. Restoring a second duty here would be the same fact told twice.
 		if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_REVISION) {
-			add("the round record is missing — a revision that is not on the record did not happen as far as the debate is concerned (W1.7)")
+			add("this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)")
 		}
-	case "merge":
+	case "chair":
 		// Both of these already REFUSE `verdict --as PASS`. Naming them here is the same list,
 		// arriving when the seat can still act on it rather than at the terminal act.
 		for _, g := range gaps {
@@ -160,11 +160,11 @@ func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJS
 		}
 		// THE VIEW NAMES THE GAVEL BECAUSE THE REFUSAL DOES. requirePassClosesAllMaterialGaps refuses
 		// PASS over any unruled motion and says who rules each one; this list said only that the
-		// motion stood. A merge seat reading it saw work it appeared to owe, and the item it
+		// motion stood. A chair seat reading it saw work it appeared to owe, and the item it
 		// could not rule looked the same as the ones it could — which is the wedge the refusal's
 		// message was rewritten to close, arriving on the other surface.
 		//
-		// WHO IS BLOCKED DOES NOT CHANGE HERE. An unruled petition still blocks a merge PASS: the
+		// WHO IS BLOCKED DOES NOT CHANGE HERE. An unruled petition still blocks a chair PASS: the
 		// run is not finished until the bench answers it. What changes is that the seat is told
 		// whose answer it is waiting for.
 		for _, m := range MotionsOf(evs) {
@@ -188,7 +188,7 @@ func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJS
 		// each epoch, so a review recorded before this epoch's edits answers a question about a
 		// document that no longer exists.
 		if InquiryReviewDueOf(evs) {
-			add("the report's account of its own research has not been read this round — PASS is refused until one `inquiry-support` says what the read found (and any shortfall is minted as a gap)")
+			add("the report's account of its own research has not been read this epoch — PASS is refused until one `inquiry-support` says what the read found (and any shortfall is minted as a gap)")
 		}
 		if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_VERDICT) {
 			add("your terminal act is missing — the run cannot say from its own record that it was ever verified")

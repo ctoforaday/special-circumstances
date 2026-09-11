@@ -11,7 +11,7 @@ import (
 // by more than one seat, 13 labels were disposed that no event ever created, and 8 findings
 // carried no label at all. The middle one is why the ids are random: L6-F8 through L6-F16
 // were not typos — the lens recorded seven findings as events and wrote nine more in prose,
-// and the merge CONTINUED THE SEQUENCE. A guessable id can be composed without checking it
+// and the chair CONTINUED THE SEQUENCE. A guessable id can be composed without checking it
 // exists; an unguessable one has to be looked up.
 //
 // Both halves are now fixed at the source: the LABEL is TOOL-assigned (L{role}-F{N},

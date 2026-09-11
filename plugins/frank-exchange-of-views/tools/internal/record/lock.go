@@ -23,7 +23,7 @@ import (
 // WHY THIS REPLACED THE MKDIR LOCK. The ported algorithm acquired by mkdir and
 // STOLE any lock whose directory was older than ten seconds, on the theory that
 // the holder had crashed. That theory is unfalsifiable from outside the process:
-// a merge seat rendering a large board, or any seat on a loaded machine, is
+// a chair seat rendering a large board, or any seat on a loaded machine, is
 // indistinguishable from a dead one — so the heuristic could revoke a lock from
 // a LIVE holder and admit two writers to the critical section, which is the
 // exact failure the lock exists to prevent. It was also untestable, since no

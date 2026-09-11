@@ -134,7 +134,7 @@ func TestCarriedThenClosed(t *testing.T) {
 		chairSits(t, 1),
 		mint(t, "red-chair", "G1"),
 		docketed(t, "red-chair", "M1", "G1"),
-		benchRule(t, "judge", "M1", recordpb.Disposition_DISPOSITION_CARRIED),
+		benchRule(t, "judge", "M1", recordpb.Disposition_DISPOSITION_REMANDED),
 		chairSits(t, 2),
 		redClose(t, "red-chair", "G1", recordpb.Disposition_DISPOSITION_REPAIRED),
 	)
@@ -148,7 +148,7 @@ func TestCarriedOnlyStaysOpen(t *testing.T) {
 		chairSits(t, 1),
 		mint(t, "red-chair", "G1"),
 		docketed(t, "red-chair", "M1", "G1"),
-		benchRule(t, "judge", "M1", recordpb.Disposition_DISPOSITION_CARRIED),
+		benchRule(t, "judge", "M1", recordpb.Disposition_DISPOSITION_REMANDED),
 	)
 	check(t, dir)
 }

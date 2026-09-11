@@ -1,4 +1,4 @@
-package merge
+package chair
 
 import (
 	"testing"
@@ -26,7 +26,7 @@ import (
 // this regrows is somebody restoring "the id it votes on" without noticing the event has nowhere to
 // put it. So the absence is asserted rather than assumed.
 func TestTheInquiryReviewOffersNoRetiredFlags(t *testing.T) {
-	// Verbs(), not a role-scoped tree: the merge surface is assembled by the root from this list,
+	// Verbs(), not a role-scoped tree: the chair surface is assembled by the root from this list,
 	// so asking it directly is asking the same question one construction step earlier.
 	var review *cobra.Command
 	for _, sub := range Verbs() {
@@ -36,7 +36,7 @@ func TestTheInquiryReviewOffersNoRetiredFlags(t *testing.T) {
 		}
 	}
 	if review == nil {
-		t.Fatal("the merge has no inquiry-support verb — if it was renamed, retarget this test rather than deleting it: the flags are the point")
+		t.Fatal("the chair has no inquiry-support verb — if it was renamed, retarget this test rather than deleting it: the flags are the point")
 	}
 	for _, dead := range []string{flags.ID, flags.As} {
 		if f := review.Flags().Lookup(dead); f != nil {

@@ -161,7 +161,7 @@ func TestAnUnknownCommandIsNamedBeforeAnyFlagOnIt(t *testing.T) {
 			}
 			// The refusal must carry the surface, or it teaches nothing: this is the moment a
 			// seat is definitively looking for what exists.
-			if !strings.Contains(err.Error(), "blue") || !strings.Contains(err.Error(), "merge") {
+			if !strings.Contains(err.Error(), "blue") || !strings.Contains(err.Error(), "chair") {
 				t.Errorf("the refusal does not list the commands that DO exist:\n%v", err)
 			}
 		})
@@ -197,7 +197,7 @@ func TestTheToolNamesItselfByArgv0(t *testing.T) {
 
 // A SEAT VERB TYPED WITHOUT ITS ROLE IS A WRONG ADDRESS, NOT A MISSING CAPABILITY.
 //
-// MEASURED 2026-08-17 on an elicitation probe. A red-merge seat holding a work list duty that named
+// MEASURED 2026-08-17 on an elicitation probe. A red-chair seat holding a work list duty that named
 // `inquiry-support` typed `feov-record inquiry-support --help` and was told
 //
 //	no command named "inquiry-support" exists
@@ -222,7 +222,7 @@ func TestABareSeatVerbIsToldWhereItLives(t *testing.T) {
 	root := NewRootFor(record.SampleSeatOf("blue"))
 
 	for _, tc := range []struct{ name, wantSeat string }{
-		{"inquiry-support", "merge"},
+		{"inquiry-support", "chair"},
 		{"close", "lens"},
 		{"reproduce", "lens"},
 		{"halt", "bench"},

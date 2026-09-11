@@ -18,7 +18,7 @@ import (
 //
 // Measured on 2026-08-23_research-loop-counterparts: 20 findings, 16 gaps, and three findings —
 // L2-F1, L6-F8, L6-F11 — that no gap credits. One alleged a fabricated verbatim quote in the very
-// text the merge closed a gap on in that same sitting; nothing on the docket said so, because the
+// text the chair closed a gap on in that same sitting; nothing on the docket said so, because the
 // docket is gap-shaped and that fact is finding-shaped.
 //
 // This is the same defect the `Anchor` field was, one join over: a key living where nothing could

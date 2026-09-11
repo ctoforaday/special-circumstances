@@ -124,7 +124,7 @@ func TestBoardJSONCarriesTheClosureAnchorAsFields(t *testing.T) {
 	}
 }
 
-// The findings view is the merge's structured read of the lens findings, replacing the
+// The findings view is the chair's structured read of the lens findings, replacing the
 // red/candidates/*.md files — label (tool-assigned), role from the seat id, grades, text.
 func TestFindingsViewProjectsLensFindings(t *testing.T) {
 	runDir := seatRun(t)
@@ -148,7 +148,7 @@ func TestFindingsViewProjectsLensFindings(t *testing.T) {
 		Counts   struct{ Total int }
 	}
 	if err := json.Unmarshal([]byte(out), &fv); err != nil {
-		t.Fatalf("findings view must be valid JSON the merge parses: %v\n%s", err, out)
+		t.Fatalf("findings view must be valid JSON the chair parses: %v\n%s", err, out)
 	}
 	if fv.Counts.Total != 2 || len(fv.Findings) != 2 {
 		t.Fatalf("findings total = %d, want 2", fv.Counts.Total)

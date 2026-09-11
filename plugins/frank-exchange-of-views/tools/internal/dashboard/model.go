@@ -12,6 +12,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
@@ -66,6 +67,9 @@ type Judiciary struct {
 	MigDown       int
 	MigUp         int
 	MigFlat       int
+	// Legacy names the pre-disposition envelope keys this journal carries (scorecard.LegacyKeys).
+	// Set, the counts above were not measured, and the page says so rather than printing them.
+	Legacy        []string
 	LatestVerdict string
 	// VerdictEpoch is which chair sitting delivered LatestVerdict — counted off the journal's
 	// verdict envelopes, one per chair sitting, so it is the epoch (plans/roundless.md §III.A.0).
@@ -438,6 +442,13 @@ func readTerminalVerdict(run record.Run) string {
 // argument longevity over supersedes chains (union-find), with grade migration.
 func buildJudiciary(journal []map[string]any) Judiciary {
 	j := Judiciary{Rulings: map[string]int{}, ChainSpans: map[int]int{}}
+	var results []map[string]any
+	for _, env := range journal {
+		if r, ok := env["result"].(map[string]any); ok {
+			results = append(results, r)
+		}
+	}
+	j.Legacy = scorecard.LegacyKeys(results)
 	type ge struct {
 		first, last         int
 		firstMass, lastMass float64
@@ -461,16 +472,16 @@ func buildJudiciary(journal []map[string]any) Judiciary {
 		if r == nil {
 			continue
 		}
-		if res, ok := r["resolutions"].([]any); ok {
+		if res, ok := r["dispositions"].([]any); ok {
 			j.JudgeSittings++
 			for _, x := range res {
 				m, _ := x.(map[string]any)
-				if s, ok := m["resolution"].(string); ok {
+				if s, ok := m["disposition"].(string); ok {
 					j.Rulings[s]++
 				}
 			}
 		}
-		if gd, ok := r["grade_disputes"].([]any); ok {
+		if gd, ok := r["grade_motions"].([]any); ok {
 			j.Disputes.Raised += len(gd)
 		}
 		if dr, ok := r["dispute_responses"].([]any); ok {

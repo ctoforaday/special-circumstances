@@ -193,7 +193,7 @@ type EvidenceJSON struct {
 	// UnansweredContradictions are the claims where red read a source that CONTRADICTS or does
 	// not support the report, and no finding was ever raised about it.
 	//
-	// STATED HERE BECAUSE THIS IS WHERE RED LOOKS. The duty is enforced at the merge's PASS gate,
+	// STATED HERE BECAUSE THIS IS WHERE RED LOOKS. The duty is enforced at the chair's PASS gate,
 	// which is the right place to REFUSE — but a duty that only surfaces when someone else is
 	// blocked at the end of the epoch is one the seat that owes it never sees. An empty array is
 	// the honest "nothing outstanding"; without the field, nothing outstanding and nothing

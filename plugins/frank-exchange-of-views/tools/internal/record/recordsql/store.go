@@ -16,7 +16,7 @@ import (
 	// THE DRIVER BELONGS TO THE PACKAGE THAT OPENS THE DATABASE, not to its tests.
 	//
 	// It lived in schema_test.go, so database/sql had a registered "sqlite" driver throughout the
-	// suite and none in the shipped binary. Every test passed and the first real `merge register`
+	// suite and none in the shipped binary. Every test passed and the first real `chair register`
 	// failed with `unknown driver "sqlite"`. A blank import is invisible to the compiler's unused
 	// check, which is exactly why the wrong file stayed good enough.
 	_ "modernc.org/sqlite"

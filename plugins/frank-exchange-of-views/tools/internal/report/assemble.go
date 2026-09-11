@@ -378,7 +378,7 @@ func verdictGloss(o *recordpb.Outcome) string {
 	var lead string
 	switch o.GetVerdict() {
 	case recordpb.RunOutcome_RUN_OUTCOME_CEILING:
-		lead = "**CEILING-TERMINATED** — every open material gap reached its limit under the run's terms, the bench ruled on each and carried it, and nobody was left to dispatch. This is NOT a judged failure to verify and must not be read as one: gaps remain open at impasse, the final blue revision was never audited by a red pass, and that re-audit debt travels OUT of the run."
+		lead = "**CEILING-TERMINATED** — every open material gap reached its limit under the run's terms, the bench ruled on each and remanded it, and nobody was left to dispatch. This is NOT a judged failure to verify and must not be read as one: gaps remain open at impasse, the final blue revision was never audited by a red pass, and that re-audit debt travels OUT of the run."
 	case recordpb.RunOutcome_RUN_OUTCOME_HALTED:
 		lead = "**HALTED** — the bench ended this run. The halt opinion is on the record ([the debate](" + FileDebate + "), under Bench disposition) and is relayed to the human verbatim, never smoothed."
 	default:
@@ -642,10 +642,10 @@ func withdrawnClaims(evs []*record.Event) string {
 //
 // This was `surfaced by: L5-F1, L6-F2` — labels and nothing else. Nothing in the report defines
 // those labels: unmintedFindings renders a finding's text only when NO gap claims it, so the
-// instant the merge acted on a finding, the leaf-level evidence that produced it left the
+// instant the chair acted on a finding, the leaf-level evidence that produced it left the
 // document and the citation dangled.
 //
-// It is the wrong half to drop. A gap's `problem` is the merge's RESTATEMENT; the finding is what
+// It is the wrong half to drop. A gap's `problem` is the chair's RESTATEMENT; the finding is what
 // red actually observed at the leaf, and the two sitting together is what lets a reader see a
 // restatement drift from its evidence. Unresolvable labels are kept as bare labels rather than
 // silently dropped — an unresolvable citation is itself worth seeing.
@@ -698,11 +698,11 @@ func boardSection(fam record.Family) string {
 			//
 			// This was `surfaced by: L2-F1, L5-F2` — labels and nothing else. Nothing in the
 			// report defines those labels: unmintedFindings renders a finding's text only when
-			// NO gap claims it, so the moment the merge acts on a finding, the leaf-level
+			// NO gap claims it, so the moment the chair acts on a finding, the leaf-level
 			// evidence that produced it leaves the document and the citation dangles. The fuzz
 			// found runs where EVERY finding was minted and red's words appeared nowhere at all.
 			//
-			// It is the wrong half to drop. A gap's `problem` is the merge's RESTATEMENT; the
+			// It is the wrong half to drop. A gap's `problem` is the chair's RESTATEMENT; the
 			// finding is what red actually observed at the leaf, and the two sitting together is
 			// what lets a reader see a restatement drift from its evidence. Unresolvable labels
 			// (a found_by naming no finding on the record) are kept as bare labels rather than
@@ -771,7 +771,7 @@ func boardSection(fam record.Family) string {
 		b.WriteString(strings.Join(closed, "\n"))
 	}
 
-	// Lens findings the merge did NOT raise to a gap — red's leaf audit that fell short of a
+	// Lens findings the chair did NOT raise to a gap — red's leaf audit that fell short of a
 	// mint but still carries substance (a claimed failure mode shown inapplicable, a resilient
 	// result confirmed). A finding is "minted" when its label appears in some gap's found_by
 	// credit chain; the rest are dropped on the floor by every report before this one. Surfaced
@@ -1005,11 +1005,11 @@ func unmintedFindings(fam record.Family) string {
 		// credits it — and NOT the second fact this comment used to assert, that "the merge
 		// weighed it and did not mint it".
 		//
-		// NOTHING ON THE RECORD SAYS THE MERGE WEIGHED ANYTHING. Deliberation is not an event;
+		// NOTHING ON THE RECORD SAYS THE CHAIR WEIGHED ANYTHING. Deliberation is not an event;
 		// declining to mint writes nothing. Measured (#747): across one run three findings
 		// reached this section with no recorded reason, and one of them — a medium-severity
 		// allegation, with a reproducible `grep -ic` behind it, that blue had fabricated a
-		// verbatim quote — was dropped in the same epoch the merge closed the gap that very text
+		// verbatim quote — was dropped in the same epoch the chair closed the gap that very text
 		// was repairing. Rendering that as "weighed and declined" is the sentence that makes a
 		// silent drop read as a considered decision, which is the whole of the harm.
 		//
@@ -1027,7 +1027,7 @@ func unmintedFindings(fam record.Family) string {
 	if len(rows) == 0 {
 		return ""
 	}
-	return fmt.Sprintf("### Lens findings credited by no gap (%d)\n\nRed's leaf audit that no gap on the board credits. Whether each was considered and declined, or never reached the merge at all, is NOT recorded — declining to mint writes nothing. Kept for the record, and not a gate on the verdict.\n\n%s",
+	return fmt.Sprintf("### Lens findings credited by no gap (%d)\n\nRed's leaf audit that no gap on the board credits. Whether each was considered and declined, or never reached the chair at all, is NOT recorded — declining to mint writes nothing. Kept for the record, and not a gate on the verdict.\n\n%s",
 		len(rows), strings.Join(rows, "\n\n"))
 }
 
@@ -1103,7 +1103,7 @@ func debate(fam record.Family, evs []*record.Event) string {
 			party := record.PartyOf(e)
 			if p, ok := recordpb.BodyAs[*recordpb.Position](e); ok {
 				switch party {
-				case "merge":
+				case "chair":
 					epoch = append(epoch, redHead+"\n"+l.Markdown(p.GetText()))
 				case "blue":
 					epoch = append(epoch, "### BLUE\n"+l.Markdown(p.GetText()))
@@ -1112,7 +1112,7 @@ func debate(fam record.Family, evs []*record.Event) string {
 			}
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](e); ok {
 				switch party {
-				case "merge":
+				case "chair":
 					epoch = append(epoch, fmt.Sprintf("### RED CLOSING — %s\n%s", c.GetGapId(), l.Markdown(c.GetText())))
 				case "blue":
 					epoch = append(epoch, fmt.Sprintf("### BLUE CLOSING — %s\n%s", c.GetGapId(), l.Markdown(c.GetText())))

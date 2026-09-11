@@ -108,9 +108,9 @@ func TestGolden(t *testing.T) {
 			// contributes nothing, so degenerate runs carry no RENDERS section — as before.
 			var renders strings.Builder
 			for _, v := range []string{"ledger", "archive", "debate", "changelog", "citation-ledger", "lines-of-inquiry"} {
-				// THE SEAT SELECTS THE TREE, so the projection is read the way a merge seat reads
-				// it: `show <v> --seat-id red-chair`. This said `cmd{role: "merge", args:
-				// {"show", ...}}`, which composes `merge show ledger` — a path that stopped
+				// THE SEAT SELECTS THE TREE, so the projection is read the way a chair seat reads
+				// it: `show <v> --seat-id red-chair`. This said `cmd{role: "chair", args:
+				// {"show", ...}}`, which composes `chair show ledger` — a path that stopped
 				// existing when the surface became seat-scoped, and no --seat-id at all, so the
 				// root exposed no verbs to begin with.
 				//

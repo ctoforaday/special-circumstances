@@ -14,7 +14,7 @@ import (
 //
 // `carried` answers its motion — the gap returns only by being docketed again — so an open gap
 // with a carry behind it is a different situation from one nobody has ever put before the bench,
-// and the merge seat used to get the same sentence for both.
+// and the chair used to get the same sentence for both.
 //
 // FIVE GAPS, AND FOUR OF THEM ARE THE NEGATIVE CASES. A flag that is simply true for every open
 // gap would pass any test that only checks the positive one, which is the shape #759 warned this
@@ -46,7 +46,7 @@ func TestAwaitingDocketIsSetOnlyByALiveCarry(t *testing.T) {
 			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Opinion: proto.String("not this round"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED),
+				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 				Principle:   proto.String("thoroughness over speed"),
 				Tension:     proto.String("cost against certainty"),
 				ReviewFlag:  proto.String("none"),

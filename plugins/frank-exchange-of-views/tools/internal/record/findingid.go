@@ -17,7 +17,7 @@ import (
 //	 8 finding events carried no label at all, so nothing could ever address them
 //
 // The middle failure is the instructive one. L6-F8..F16 were not typos: the lens recorded
-// seven findings as events and wrote nine more in prose, and the merge, reading the prose,
+// seven findings as events and wrote nine more in prose, and the chair, reading the prose,
 // CONTINUED THE SEQUENCE. A guessable identifier invites exactly that — you can write down
 // a plausible id without ever checking whether it exists.
 //

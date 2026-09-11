@@ -122,10 +122,10 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"regression close without successor", []string{"close", "--id", "G1", "--as", "repaired_with_regression", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t"}},
 		{"regrade without basis", []string{"regrade", "--id", "G1", "--severity", "high"}},
 		// THE GAVEL REFUSAL, which is what this row has always actually pinned. Named "opinion
-		// missing fields" it ran from the MERGE seat and froze the wrong-seat message — the same
+		// missing fields" it ran from the CHAIR seat and froze the wrong-seat message — the same
 		// mis-naming the two rows below record. The missing-FIELD refusal for the bench's ruling
 		// is pinned where it can be reached, in the difftest scenario of that name.
-		{"docket rule without the gavel", []string{"motion", "docket", "rule", "--id", "M1", "--as", "carried", "--reason", "r"}},
+		{"docket rule without the gavel", []string{"motion", "docket", "rule", "--id", "M1", "--as", "remanded", "--reason", "r"}},
 		// The closed sets. Each names what would have worked AND what the near-miss
 		// would have done, because the near-miss is the case that used to be recorded
 		// silently rather than refused.

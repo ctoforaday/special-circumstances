@@ -150,7 +150,7 @@ type GapJSON struct {
 
 type ObservationJSON struct {
 	// ID is the tool-assigned, unguessable identity. It leads the struct because it is the
-	// field the merge seat acts on; the label below is description, and two lenses may both
+	// field the chair acts on; the label below is description, and two lenses may both
 	// use "F1" without either being wrong.
 	ID     string `json:"id"`
 	SeatID string `json:"seat_id"`
@@ -573,12 +573,12 @@ func listValuesByEvent(db *sql.DB, table string) (map[int64][]string, error) {
 	return out, rows.Err()
 }
 
-// WorkJSON is the merge's SHRINKING working set: OPEN gaps only, in the lean shape a
+// WorkJSON is the chair's SHRINKING working set: OPEN gaps only, in the lean shape a
 // merge acts on turn to turn, plus a prose-free index of the closed gaps so a near-match
 // screen has ids and locations to hit without carrying every closed gap's full prose.
 //
 // It exists because the full board JSON grows monotonically (every closed gap stays, with
-// all its prose), and the merge re-read that whole thing every epoch only to act on the
+// all its prose), and the chair re-read that whole thing every epoch only to act on the
 // open few. The work list is the once-per-turn read: open gaps carry their grades + a
 // TRUNCATED problem synopsis (enough to recognise, not the whole record — the ledger/board
 // views still serve the full prose when a seat needs it), and closed gaps collapse to
@@ -601,7 +601,7 @@ type WorkJSON struct {
 // CounterpartyJSON is what the OTHER party has done in this run, for a seat that has to decide
 // whether to wait, act, or dispose.
 //
-// MEASURED 2026-08-16 BY ASKING THE MERGE. Dropped onto a board with three gaps, two open, it
+// MEASURED 2026-08-16 BY ASKING THE CHAIR. Dropped onto a board with three gaps, two open, it
 // reported: "The absence of any `blue edit` record suggests blue hasn't even tried. But I should
 // check the work list again — does it say anything about blue's next move?" It then listed the
 // three readings it could not choose between: blue is repairing in sequence and I should wait,
@@ -628,7 +628,7 @@ type CounterpartyJSON struct {
 	Reading string `json:"reading"`
 }
 
-// WorkGapJSON is an open gap in its lean form: the grades a merge weighs, its class and
+// WorkGapJSON is an open gap in its lean form: the grades a chair weighs, its class and
 // location, a synopsis of the problem, and the lens findings that surfaced it. NOT the full
 // prose — required_fix and acceptance_check stay on the board (--view board / ledger) for the
 // seat that opens the gap; the work list is for scanning the open set, not re-deriving it.
@@ -723,7 +723,7 @@ func synopsis(s string) string {
 	return strings.TrimRight(string(r[:synopsisLimit]), " ") + "…"
 }
 
-// WorkJSONOf projects the replayed board into the merge's working set. It walks the same
+// WorkJSONOf projects the replayed board into the chair's working set. It walks the same
 // GapOrder as BoardJSONOf so the two views agree on membership and order — open gaps to the
 // lean work list shape, closed gaps to the prose-free index.
 // WorkGapState is one gap's answer from the record for the work path: the view's scalar facts
@@ -868,10 +868,10 @@ func WorkJSONOfRun(run Run) (WorkJSON, error) {
 // counterpartyOf counts what the OTHER party has done, so a seat can tell "not yet" from "not
 // coming". See CounterpartyJSON for the seat testimony that produced it.
 //
-// The pairing is the adversarial one: the merge waits on blue and blue waits on the merge. A lens
+// The pairing is the adversarial one: the chair waits on blue and blue waits on the chair. A lens
 // or the bench is told so plainly rather than being handed a zero it would read as inactivity.
 func counterpartyOf(evs []*Event, role string, epoch int) CounterpartyJSON {
-	other := map[string]string{"merge": "blue", "blue": "merge"}[role]
+	other := map[string]string{"chair": "blue", "blue": "chair"}[role]
 	if other == "" {
 		return CounterpartyJSON{Reading: "this seat waits on no single party — the lens and the bench read the board itself"}
 	}
@@ -939,8 +939,8 @@ func WorkJSONBytes(run Run, role, seatID string) ([]byte, error) {
 	return append(out, '\n'), nil
 }
 
-// FindingJSON is one lens finding, in the form the merge coalesces on and scorecards
-// attribute per role/epoch from. It replaces the red/candidates/*.md file the merge used
+// FindingJSON is one lens finding, in the form the chair coalesces on and scorecards
+// attribute per role/epoch from. It replaces the red/candidates/*.md file the chair used
 // to `cat` and hand-transcribe — the finding is now a record event, read structured.
 type FindingJSON struct {
 	Label string `json:"label"`
@@ -968,7 +968,7 @@ type FindingJSON struct {
 	// section it is missing from, a line of inquiry whose stated reason is being argued against,
 	// or a gap. Empty means the finding anchors to `location`, a live sentence.
 	//
-	// A merge reading this list needs to know which: a finding with no location is not one whose
+	// A chair reading this list needs to know which: a finding with no location is not one whose
 	// anchor went missing, it is one whose subject was never on the page.
 	AboutKind string `json:"about_kind,omitempty"`
 	AboutRef  string `json:"about_ref,omitempty"`
@@ -984,7 +984,7 @@ type FindingJSON struct {
 	//
 	// Measured on 2026-08-23_research-loop-counterparts (#747): 20 findings, 16 gaps, and three
 	// findings — L2-F1, L6-F8, L6-F11 — that no gap credits. One of them alleged a fabricated
-	// verbatim quote in the very text the merge closed a gap on in that same sitting. Nothing on
+	// verbatim quote in the very text the chair closed a gap on in that same sitting. Nothing on
 	// the docket said so, because the docket is gap-shaped and this fact is finding-shaped.
 	//
 	// EMPTY IS THE FINDING, NOT AN ABSENCE, so it is not omitempty: `[]` means read and not
@@ -994,7 +994,7 @@ type FindingJSON struct {
 }
 
 // FindingsJSON is the seat-facing findings view: every lens finding on the record, in
-// event order. The merge reads it to coalesce findings into gaps (naming labels in
+// event order. The chair reads it to coalesce findings into gaps (naming labels in
 // found_by); scorecards counts it per role/epoch for citation-yield.
 type FindingsJSON struct {
 	Findings []FindingJSON `json:"findings"`
@@ -1311,12 +1311,12 @@ func DebateJSONOf(epochs []int, evs []*Event) DebateJSON {
 		}
 		// `reason` WAS THE PAYLOAD KEY on position and closing; `text` is the field on both
 		// messages (Position.text, Closing.text). Neither message has a `reason`.
-		for _, p := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "merge") {
+		for _, p := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "chair") {
 			if pos, ok := recordpb.BodyAs[*recordpb.Position](p); ok {
 				rj.Red = append(rj.Red, pos.GetText())
 			}
 		}
-		for _, c := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "merge") {
+		for _, c := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "chair") {
 			if cl, ok := recordpb.BodyAs[*recordpb.Closing](c); ok {
 				rj.RedClosings = append(rj.RedClosings, DebateClosingJSON{GapID: cl.GetGapId(), Text: cl.GetText()})
 			}

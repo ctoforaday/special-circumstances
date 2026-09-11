@@ -40,11 +40,11 @@ func TestTheRoleSurvivesTheShowGroup(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &got); err != nil {
 		t.Fatalf("work list did not parse: %v\n%s", err, out)
 	}
-	if got.Sitting.Role != "merge" {
+	if got.Sitting.Role != "chair" {
 		t.Errorf("role = %q, want \"merge\" — a projection read under a command group must still know whose sitting it is", got.Sitting.Role)
 	}
 
-	// THE DUTIES THAT DEPEND ON IT. This board carries open gaps, so a merge seat owes the
+	// THE DUTIES THAT DEPEND ON IT. This board carries open gaps, so a chair seat owes the
 	// disposal and PASS is refused while they stand. Before the fix the only line here was
 	// friction, and `complete` went true the moment friction was filed.
 	var sawOpenGap bool
@@ -58,7 +58,7 @@ func TestTheRoleSurvivesTheShowGroup(t *testing.T) {
 		for _, d := range got.Sitting.Open {
 			what = append(what, d.What)
 		}
-		t.Errorf("a merge sitting on a board with open gaps listed no open-gap duty; outstanding was:\n  %s\n\n"+
+		t.Errorf("a chair sitting on a board with open gaps listed no open-gap duty; outstanding was:\n  %s\n\n"+
 			"`verdict --as PASS` refuses over those gaps, so a work list that omits them tells a seat it is finished while the write path holds it.",
 			strings.Join(what, "\n  "))
 	}

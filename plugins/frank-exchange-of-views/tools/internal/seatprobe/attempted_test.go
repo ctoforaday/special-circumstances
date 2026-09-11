@@ -160,7 +160,7 @@ func TestAFlagValueNeverNominatesAVerb(t *testing.T) {
 
 // THE SCOPED TREE BROKE THE VIEW COUNTER AND NOTHING SAID SO.
 //
-// ReadViewReads had its own matcher — `(?:lens|merge|blue|bench)\s+show` — from the era when a
+// ReadViewReads had its own matcher — `(?:lens|chair|blue|bench)\s+show` — from the era when a
 // seat typed `blue show board`. The role level went away, the regex matched nothing, and every
 // sitting in a nine-board run reported "no projection opened at all — the duty list reached this
 // seat through no channel" while one of those seats had run `show` FOURTEEN times.
@@ -178,7 +178,7 @@ func TestShowViewSurvivesTheRoleLevelGoingAway(t *testing.T) {
 		{"scoped: named view", "/tmp/feov-record show board --run /r", "board", true},
 		{"scoped: flags first", `/tmp/feov-record --run /r --seat-id red-chair show findings`, "findings", true},
 		// The old spelling still resolves, so a trajectory from either era reads the same.
-		{"role-prefixed still reads", "/tmp/feov-record merge show board --run /r", "board", true},
+		{"role-prefixed still reads", "/tmp/feov-record chair show board --run /r", "board", true},
 		{"not a show at all", "/tmp/feov-record mint --problem p --run /r", "", false},
 		// A flag VALUE must never nominate a view — the defect verbIn was already hardened for.
 		{"show inside a reason is not a read", `/tmp/feov-record friction --reason show me the board`, "", false},

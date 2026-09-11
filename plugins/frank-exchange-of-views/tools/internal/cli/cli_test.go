@@ -262,7 +262,7 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 		{"blue revision without --run", []string{"revision", "--seat-id", "blue-lane-1",
 			"--reason", "what changed this round"}, "blue: --run <runDir> is required"},
 		{"opinion with no identity at all", []string{"opinion", "--run", "X",
-			"--id", "G1", "--as", "carried", "--principle", "p", "--tension", "t",
+			"--id", "G1", "--as", "remanded", "--principle", "p", "--tension", "t",
 			"--review-flag", "no", "--settled", "the proposition this ruling bars", "--final", "--reason", "r"}, "--seat-id IS REQUIRED HERE"},
 		{"register is not exempt", []string{"register", "--run", "X"}, "--seat-id IS REQUIRED HERE"},
 	}
@@ -335,12 +335,12 @@ func TestUnknownVerbAnswersWithTheAvailableSet(t *testing.T) {
 	// decides the tree — and the claim got stronger: the verb is absent from the surface this
 	// seat was given, not merely refused to it.
 	cases := []struct{ role, verb string }{
-		{"merge", "mint"},
-		{"merge", "close"},
+		{"chair", "mint"},
+		{"chair", "close"},
 		{"blue", "mint"},
 		{"blue", "close"},
 		{"bench", "mint"},
-		{"merge", "revision"},
+		{"chair", "revision"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.role+"/"+tc.verb, func(t *testing.T) {
@@ -375,7 +375,7 @@ func TestUnknownVerbAnswersWithTheAvailableSet(t *testing.T) {
 // level now, so the same situation is the bare invocation — and the claim is unchanged: naming no
 // verb is an error that answers with what this seat can do, never a silent success.
 func TestASeatWithNoVerbIsAnError(t *testing.T) {
-	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+	for _, role := range []string{"lens", "chair", "blue", "bench"} {
 		t.Run(role, func(t *testing.T) {
 			out, err := run(t, "--seat-id", record.SampleSeatOf(role))
 			if err == nil {
@@ -396,7 +396,7 @@ func TestASeatWithNoVerbIsAnError(t *testing.T) {
 // The friction footer closes the loop the help opens: a missing capability is a
 // finding about the tooling, not something to improvise around.
 func TestRoleHelpCarriesTheFrictionFooter(t *testing.T) {
-	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+	for _, role := range []string{"lens", "chair", "blue", "bench"} {
 		t.Run(role, func(t *testing.T) {
 			out := help(t, "--help", "--seat-id", record.SampleSeatOf(role))
 			if !strings.Contains(out, "it does not exist for you") {
@@ -429,7 +429,7 @@ func TestBoardVerbsExistOnlyInTheLensRole(t *testing.T) {
 		if !verbs["lens"][board] {
 			t.Errorf("the lens role is missing the board verb %q", board)
 		}
-		for _, other := range []string{"merge", "blue", "bench"} {
+		for _, other := range []string{"chair", "blue", "bench"} {
 			if verbs[other][board] {
 				t.Errorf("the %s role has the board verb %q — a gap would have a writer other than the lens that minted it", other, board)
 			}
@@ -438,8 +438,8 @@ func TestBoardVerbsExistOnlyInTheLensRole(t *testing.T) {
 	// The chair's duties are the chair's alone: the lens that minted a gap does not carry it,
 	// sample the archive, or pronounce on the run.
 	for _, duty := range []string{"carry", "spot-check", "verdict", "dispatch"} {
-		if !verbs["merge"][duty] {
-			t.Errorf("the merge role is missing the chair duty %q", duty)
+		if !verbs["chair"][duty] {
+			t.Errorf("the chair role is missing the chair duty %q", duty)
 		}
 		for _, other := range []string{"lens", "blue", "bench"} {
 			if verbs[other][duty] {
@@ -454,7 +454,7 @@ func TestBoardVerbsExistOnlyInTheLensRole(t *testing.T) {
 		}
 	}
 	// Every role can show, and every role can register.
-	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+	for _, role := range []string{"lens", "chair", "blue", "bench"} {
 		if !verbs[role]["show"] {
 			t.Errorf("%s cannot show", role)
 		}
@@ -491,7 +491,7 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The ID leads the message now: it is what the merge will name, and a seat told only
+	// The ID leads the message now: it is what the chair will name, and a seat told only
 	// "recorded" has to invent a way to refer to this later.
 	if !strings.Contains(out, "finding recorded:") || !strings.Contains(out, "evidence-F1") {
 		t.Errorf("finding said %q", out)
@@ -1086,7 +1086,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	// same question the other way), so it is supplied separately for the complete call and is
 	// not a subtest of its own (#502).
 	full := map[string]string{
-		"id": "M1", "as": "carried", "principle": "correctness first",
+		"id": "M1", "as": "remanded", "principle": "correctness first",
 		"tension": "correctness vs economy", "review-flag": "no",
 		"settled": "blue must repair c-65ca0a9e",
 	}
@@ -1137,7 +1137,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	if err != nil {
 		t.Fatalf("a complete docket ruling was refused: %v", err)
 	}
-	if !strings.Contains(out, "motion M1 ruled carried") {
+	if !strings.Contains(out, "motion M1 ruled remanded") {
 		t.Errorf("the docket ruling said %q", out)
 	}
 	// THE RULER'S ARGUMENT IS `MotionRule.opinion` — the prose channel every subject's ruling
@@ -1152,7 +1152,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 	cases := []struct{ role, seatID string }{
 		{"lens", "red-lens-evidence"},
-		{"merge", "red-chair"},
+		{"chair", "red-chair"},
 		{"blue", "blue-lane-1"},
 		{"bench", "judge"},
 	}
@@ -1269,7 +1269,7 @@ func TestPositionIsASingletonPerSeat(t *testing.T) {
 		}
 	}
 	if positions != 1 {
-		t.Errorf("%d positions survived the merge, want 1", positions)
+		t.Errorf("%d positions survived the chair, want 1", positions)
 	}
 }
 
@@ -1360,7 +1360,7 @@ func TestVerdictGateCannotBeSpelledPast(t *testing.T) {
 	}
 }
 
-// verdict is the merge seat's terminal act: it renders and checkpoints.
+// verdict is the chair's terminal act: it renders and checkpoints.
 func TestVerdictRendersAndCheckpoints(t *testing.T) {
 	runDir := newRun(t)
 	seatID := lensSeat // the lens that mints is the one that closes

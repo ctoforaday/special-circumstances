@@ -8,7 +8,7 @@ import "testing"
 func TestSeatRoleBinding(t *testing.T) {
 	allowed := map[string][]string{
 		"lens":  {"red-lens-evidence", "red-lens-dark-side"},
-		"merge": {"red-chair", "red-chair"},
+		"chair": {"red-chair", "red-chair"},
 		"blue":  {"blue-lane-1", "blue-respond", "blue-synthesize", "frontier"},
 		"bench": {"judge", "judge-petition", "judge-terminal", "assemble"},
 	}

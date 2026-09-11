@@ -28,7 +28,7 @@ type Plan struct {
 	Docket        []string `json:"docket"`
 	PassPermitted bool     `json:"pass_permitted"` // no material gap open, every cast lens sat against the head, every docket ruled
 	// Ceiling is the run at its limit, for one of two reasons EpochLimitReached tells apart: every
-	// open material gap is at impasse and has had its bench ruling (carried), or the run's epoch
+	// open material gap is at impasse and has had its bench ruling (remanded), or the run's epoch
 	// limit is reached with parties still ready.
 	Ceiling bool `json:"ceiling"`
 	// MaxEpochs is the run's epoch limit (Params.MaxEpochs); 0 when the run is held to none.
@@ -179,8 +179,8 @@ func PlanDispatch(run Run) (Plan, error) {
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse (%d exchange(s), %d stalled) — docketed for the bench", g.id, x.Exchanges, x.Stalled))
 			continue
 		}
-		materialSettled++ // ruled and still open: carried
-		plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse, ruled carried — at its limit", g.id))
+		materialSettled++ // ruled and still open: remanded
+		plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse, ruled remanded — at its limit", g.id))
 	}
 	for _, s := range order {
 		plan.Parties = append(plan.Parties, Party{SeatID: s, GapIDs: parties[s]})

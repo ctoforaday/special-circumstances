@@ -8,43 +8,43 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 
 | term | delivered to |
 |---|---|
-| [the report](#the-report) | lens, merge, blue, bench, operator |
-| [run directory](#run-directory) | lens, merge, blue, bench, operator |
-| [the record](#the-record) | lens, merge, blue, bench, operator |
-| [run](#run) | lens, merge, blue, bench, operator |
-| [epoch](#epoch) | lens, merge, blue, bench, operator |
-| [sitting](#sitting) | lens, merge, blue, bench, operator |
-| [exchange](#exchange) | lens, merge, blue, bench, operator |
-| [seat](#seat) | lens, merge, blue, bench, operator |
-| [side](#side) | lens, merge, blue, bench, operator |
-| [lens](#lens) | lens, merge, blue, bench, operator |
-| [chair](#chair) | lens, merge, blue, bench, operator |
-| [bench](#bench) | lens, merge, blue, bench, operator |
+| [the report](#the-report) | lens, chair, blue, bench, operator |
+| [run directory](#run-directory) | lens, chair, blue, bench, operator |
+| [the record](#the-record) | lens, chair, blue, bench, operator |
+| [run](#run) | lens, chair, blue, bench, operator |
+| [epoch](#epoch) | lens, chair, blue, bench, operator |
+| [sitting](#sitting) | lens, chair, blue, bench, operator |
+| [exchange](#exchange) | lens, chair, blue, bench, operator |
+| [seat](#seat) | lens, chair, blue, bench, operator |
+| [side](#side) | lens, chair, blue, bench, operator |
+| [lens](#lens) | lens, chair, blue, bench, operator |
+| [chair](#chair) | lens, chair, blue, bench, operator |
+| [bench](#bench) | lens, chair, blue, bench, operator |
 | [lane](#lane) | blue, bench, operator |
 | [synthesizer](#synthesizer) | blue, bench, operator |
-| [engine](#engine) | lens, merge, blue, bench, operator |
-| [operator](#operator) | lens, merge, blue, bench, operator |
-| [the log](#the-log) | lens, merge, blue, bench, operator |
-| [friction](#friction) | lens, merge, blue, bench, operator |
-| [missing capability](#missing-capability) | lens, merge, blue, bench, operator |
-| [citation](#citation) | lens, merge, blue, bench, operator |
-| [anchor](#anchor) | lens, merge, blue, bench, operator |
-| [proof](#proof) | lens, merge, blue, bench, operator |
-| [finding anchor](#finding-anchor) | lens, merge, blue, bench, operator |
-| [verdict](#verdict) | lens, merge, blue, bench, operator |
-| [outcome](#outcome) | lens, merge, blue, bench, operator |
-| [finding](#finding) | lens, merge, blue, bench, operator |
-| [gap](#gap) | lens, merge, blue, bench, operator |
-| [retire](#retire) | lens, merge, blue, bench, operator |
-| [disposition](#disposition) | lens, merge, blue, bench, operator |
-| [grade motion](#grade-motion) | lens, merge, blue, bench, operator |
-| [scorecard](#scorecard) | lens, merge, blue, bench, operator |
+| [engine](#engine) | lens, chair, blue, bench, operator |
+| [operator](#operator) | lens, chair, blue, bench, operator |
+| [the log](#the-log) | lens, chair, blue, bench, operator |
+| [friction](#friction) | lens, chair, blue, bench, operator |
+| [missing capability](#missing-capability) | lens, chair, blue, bench, operator |
+| [citation](#citation) | lens, chair, blue, bench, operator |
+| [anchor](#anchor) | lens, chair, blue, bench, operator |
+| [proof](#proof) | lens, chair, blue, bench, operator |
+| [finding anchor](#finding-anchor) | lens, chair, blue, bench, operator |
+| [verdict](#verdict) | lens, chair, blue, bench, operator |
+| [outcome](#outcome) | lens, chair, blue, bench, operator |
+| [finding](#finding) | lens, chair, blue, bench, operator |
+| [gap](#gap) | lens, chair, blue, bench, operator |
+| [retire](#retire) | lens, chair, blue, bench, operator |
+| [disposition](#disposition) | lens, chair, blue, bench, operator |
+| [grade motion](#grade-motion) | lens, chair, blue, bench, operator |
+| [scorecard](#scorecard) | lens, chair, blue, bench, operator |
 
 ## the report
 
 The report is the research prose written for a reader of the subject: one document from a lane's text to the assembled report.md, named by its stage only where the stage matters (your part of the report, the report as `show report` serves it, the assembled report.md).
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 **Not:**
 
@@ -52,11 +52,11 @@ The report is the research prose written for a reader of the subject: one docume
 |---|---|---|---|---|
 | candidate draft | GATED | `candidate drafts?\|drafts? candidates` |  |  |
 | candidate (the text) | REGISTRY-ONLY |  |  |  |
-| living report | GATED | `living report` |  | `plugins/frank-exchange-of-views/tools/internal/record/recordpb/record.proto` — renamed in phase 2 with the proto's other annotation text (EVENT_TYPE_BLUE_EDIT means), so record.proto changes once |
+| living report | GATED | `living report` |  |  |
 | document or artifact under audit | GATED | `(document\|artifact) under audit` |  |  |
 | synthesis (the document) | REGISTRY-ONLY |  |  |  |
 | deliverable | GATED | `deliverables?` |  |  |
-| frozen base, diff-stack | GATED | `frozen base\|diff-stack` |  | `plugins/frank-exchange-of-views/tools/internal/cli/seat/help/ingest.md` — ingest is the act that freezes the base, and its own help says what it builds<br>`plugins/frank-exchange-of-views/tools/internal/cli/blue/ingest.go` — ingest's own refusals and result describe the base it builds<br>`plugins/frank-exchange-of-views/tools/internal/record/recordpb/record.proto` — renamed in phase 2 with the proto's other annotation text (EVENT_TYPE_BASE_INGEST means), so record.proto changes once |
+| frozen base, diff-stack | GATED | `frozen base\|diff-stack` |  | `plugins/frank-exchange-of-views/tools/internal/cli/seat/help/ingest.md` — ingest is the act that freezes the base, and its own help says what it builds<br>`plugins/frank-exchange-of-views/tools/internal/cli/blue/ingest.go` — ingest's own refusals and result describe the base it builds |
 | blue/report.md after ingest | GATED | `blue/report\.md` | `synthesize ${runDir}/blue/report.md by UNION` — the synthesizer's own prompt: blue/report.md is that seat's file until ingest removes it<br>`INTO ${runDir}/blue/report.md at synthesis` — the synthesizer's own prompt, as above | `plugins/frank-exchange-of-views/agents/blue-synthesizer.md` — the synthesizer writes blue/report.md before ingest; it is that seat's file<br>`plugins/frank-exchange-of-views/skills/research-protocol/SKILL.md` — the run-directory layout describes the synthesizer's stub and its removal at ingest<br>`plugins/frank-exchange-of-views/tools/internal/cli/blue/ingest.go` — ingest consumes blue/report.md and removes it; its refusal names the file it could not remove |
 
 **Collisions:**
@@ -68,7 +68,7 @@ The report is the research prose written for a reader of the subject: one docume
 
 The run directory is the directory that holds one run: its record, its report and the documents assembled beside it.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 **Not:**
 
@@ -80,7 +80,7 @@ The run directory is the directory that holds one run: its record, its report an
 
 The record is the run's account of every act, held as events in records/record.db, and every read a seat makes is a projection of it.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 **Not:**
 
@@ -89,7 +89,7 @@ The record is the run's account of every act, held as events in records/record.d
 | ledger | GATED | `\bledgers?\b` |  |  |
 | narrative | GATED | `\bnarratives?\b` |  |  |
 | event log | GATED | `event log` |  |  |
-| sitting, round, judicial, adversarial or process record | GATED | `(sitting\|round\|judicial\|adversarial\|process) records?\b` |  | `plugins/frank-exchange-of-views/tools/internal/record/sitting.go` — renamed in phase 2: the "round record" Go refusal goes with the other round refusals |
+| sitting, round, judicial, adversarial or process record | GATED | `(sitting\|round\|judicial\|adversarial\|process) records?\b` |  |  |
 
 **Collisions:**
 
@@ -99,7 +99,7 @@ The record is the run's account of every act, held as events in records/record.d
 
 A run is one research question taken from setup to its outcome.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 **Not:**
 
@@ -116,19 +116,19 @@ A run is one research question taken from setup to its outcome.
 
 An epoch runs from one chair sitting to the next: the chair relays who sits, the parties the record names sit, and the chair sits again.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 **Not:**
 
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
-| round | GATED | `\brounds?\b\|round-0` | `round-trip` — a round-trip is a request and its answer, not a unit of the run | `plugins/frank-exchange-of-views/tools/internal/record/sitting.go` — renamed in phase 2: "round" in the Go refusals<br>`plugins/frank-exchange-of-views/tools/internal/record/motion.go` — renamed in phase 2: "round" in the Go refusals<br>`plugins/frank-exchange-of-views/tools/internal/record/recordpb/record.proto` — renamed in phase 2: "round" in the proto annotations |
+| round | GATED | `\brounds?\b\|round-0` | `round-trip` — a round-trip is a request and its answer, not a unit of the run |  |
 
 ## sitting
 
 A sitting is one seat's dispatch, from the prompt the engine hands it to the envelope it returns.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 **Not:**
 
@@ -146,19 +146,19 @@ A sitting is one seat's dispatch, from the prompt the engine hands it to the env
 
 An exchange is a red sitting followed by a blue sitting on one gap, and k-max counts them.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 ## seat
 
 A seat is one agent's place in the run, registered under a seat id whose role decides the surface it is given.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 ## side
 
 A side is red or blue: red audits the report and passes or fails it, blue researches, writes and repairs it.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 **Not:**
 
@@ -170,7 +170,7 @@ A side is red or blue: red audits the report and passes or fails it, blue resear
 
 A lens is a red seat that audits the report for one class of defect, and the only seat that files findings and mints gaps.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 **Collisions:**
 
@@ -180,14 +180,14 @@ A lens is a red seat that audits the report for one class of defect, and the onl
 
 The chair is red's running seat: it relays who sits, rules blue's motions, spot-checks the archive and records red's verdict.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 **Not:**
 
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
 | red-merge, merge seat, red merged | GATED | `red-merge\|merge seat\|red merged` |  |  |
-| merge (the chair's role) | GATED | `\bmerge (carry\|close\|verdict\|position\|closing\|spot-check\|show)\b\|lens\\|merge` |  | `plugins/frank-exchange-of-views/tools/internal/cli/merge/verdict.go` — renamed in phase 2: the role id merge becomes chair, and cli/merge moves to cli/chair<br>`plugins/frank-exchange-of-views/tools/internal/record/record.go` — renamed in phase 2, as above<br>`plugins/frank-exchange-of-views/tools/internal/record/recordpb/record.proto` — renamed in phase 2, as above ((ruled_by) = "merge" and the annotation text) |
+| merge (the chair's role) | GATED | `\bmerge (carry\|close\|verdict\|position\|closing\|spot-check\|show)\b\|lens\\|merge` |  |  |
 
 **Collisions:**
 
@@ -197,7 +197,7 @@ The chair is red's running seat: it relays who sits, rules blue's motions, spot-
 
 The bench is the seat that adjudicates the contested docket, rules on motions and stamps how the run ended.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 **Not:**
 
@@ -232,7 +232,7 @@ The synthesizer is the blue seat that merges the lane drafts into the report by 
 
 The engine is the workflow script that dispatches the seats the record says are ready and reads the envelopes they return.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 **Not:**
 
@@ -249,13 +249,13 @@ The engine is the workflow script that dispatches the seats the record says are 
 
 The operator is the person running the research, and the seat id their own commands run under.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 ## the log
 
 The log is the entries a seat files for the operator with the `log` verb — a missing capability, a defect in the tooling, an impediment or a nominal sitting — and none of it is debate material.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 **Not:**
 
@@ -274,13 +274,13 @@ The log is the entries a seat files for the operator with the `log` verb — a m
 
 Friction is one type of log entry: the work was impeded and the seat is noting it.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 ## missing capability
 
 A missing capability is an act a seat needed that no surface offers, and it goes in the log, never on the board.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 **Not:**
 
@@ -292,7 +292,7 @@ A missing capability is an act a seat needed that no surface offers, and it goes
 
 A citation is a source attached to a sentence of the report with the cite verb, hashed and dated so it can be checked again.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 **Not:**
 
@@ -309,19 +309,19 @@ A citation is a source attached to a sentence of the report with the cite verb, 
 
 An anchor is the invisible token a citation, a proof or a finding leaves at its sentence in the report.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 ## proof
 
 A proof is a recorded computation: a script that was run, with its hash and exit status.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 ## finding anchor
 
 A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 **Not:**
 
@@ -337,7 +337,7 @@ A finding anchor is the anchor a lens's finding leaves at the sentence the findi
 
 The verdict is the chair's PASS or FAIL on the board.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 **Not:**
 
@@ -350,13 +350,13 @@ The verdict is the chair's PASS or FAIL on the board.
 
 The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 ## finding
 
 A finding is a lens's recorded observation of a defect in the report, graded and not yet minted.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 **Not:**
 
@@ -368,7 +368,7 @@ A finding is a lens's recorded observation of a defect in the report, graded and
 
 A gap is a defect in the report, minted onto the board by a lens.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 **Collisions:**
 
@@ -378,28 +378,28 @@ A gap is a defect in the report, minted onto the board by a lens.
 
 To retire a claim is to take it out of the report with the retire verb, on the record.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 **Not:**
 
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
-| claims withdrawn | GATED | `claims? withdrawn` |  | `plugins/frank-exchange-of-views/tools/internal/record/recordpb/record.proto` — renamed in phase 2 with the proto's other annotation text (EVENT_TYPE_RETIRE means), so record.proto changes once |
+| claims withdrawn | GATED | `claims? withdrawn` |  |  |
 | withdraw (retire) | REGISTRY-ONLY |  |  |  |
 
 ## disposition
 
 A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 **Not:**
 
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
-| carried (a disposition) | GATED | `\bcarried\b` | `--carried-from` — the carry verb's flag: carry restates an earlier closure, which is its own meaning<br>`carried the closure of` — the carry verb's own result | `plugins/frank-exchange-of-views/agents/blue-researcher.md` — renamed in phase 2: the disposition carried becomes remanded (enum, migrate alias, epoch 6)<br>`plugins/frank-exchange-of-views/agents/lead-judge.md` — renamed in phase 2, as above<br>`plugins/frank-exchange-of-views/agents/red-chair.md` — renamed in phase 2, as above<br>`plugins/frank-exchange-of-views/skills/adversarial-audit/SKILL.md` — renamed in phase 2, as above (its CARRIED label is reworded with the enum)<br>`plugins/frank-exchange-of-views/skills/research-protocol/SKILL.md` — renamed in phase 2, as above<br>`plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js` — renamed in phase 2, as above (the enum list and the duty map carry it)<br>`plugins/frank-exchange-of-views/tools/internal/cli/seat/help/carry.md` — renamed in phase 2, as above<br>`plugins/frank-exchange-of-views/tools/internal/cli/seat/verbs.go` — renamed in phase 2, as above<br>`plugins/frank-exchange-of-views/tools/internal/record/available.go` — renamed in phase 2, as above<br>`plugins/frank-exchange-of-views/tools/internal/record/dispatch.go` — renamed in phase 2, as above<br>`plugins/frank-exchange-of-views/tools/internal/record/enums.go` — renamed in phase 2, as above<br>`plugins/frank-exchange-of-views/tools/internal/record/liveness.go` — renamed in phase 2, as above<br>`plugins/frank-exchange-of-views/tools/internal/record/record.go` — renamed in phase 2, as above<br>`plugins/frank-exchange-of-views/tools/internal/view/view.go` — renamed in phase 2, as above (the archive view labels a carried disposition)<br>`plugins/frank-exchange-of-views/tools/internal/record/recordpb/record.proto` — renamed in phase 2: DISPOSITION_CARRIED and the annotation text that names it |
-| resolution (a disposition) | GATED | `\bresolutions?\b` |  | `plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js` — renamed in phase 2: JUDGE_ENVELOPE resolutions[].resolution becomes dispositions[].disposition with its readers |
-| unmapped fate | GATED | `unmapped fate` |  | `plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js` — renamed in phase 2 with the envelope keys (UNMAPPED FATE becomes UNMAPPED DISPOSITION) |
+| carried (a disposition) | GATED | `\bcarried\b` | `--carried-from` — the carry verb's flag: carry restates an earlier closure, which is its own meaning<br>`carried the closure of` — the carry verb's own result<br>`carried from` — the carry verb's result as the archive view prints it: a closure carried from an earlier epoch, which is the flag --carried-from in words |  |
+| resolution (a disposition) | GATED | `\bresolutions?\b` |  |  |
+| unmapped fate | GATED | `unmapped fate` |  |  |
 | fate (a disposition) | REGISTRY-ONLY |  |  |  |
 
 **Collisions:**
@@ -410,20 +410,20 @@ A disposition is the bench's ruling value on a docketed gap, and it decides whet
 
 A grade motion is a side's motion contesting a gap's grade, ruled by the bench.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 **Not:**
 
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
 | grade dispute | GATED | `grade disputes?` |  |  |
-| grade_disputes (the envelope key) | GATED | `grade_disputes` |  | `plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js` — renamed in phase 2: the envelope key becomes grade_motions with its readers |
+| grade_disputes (the envelope key) | GATED | `grade_disputes` |  |  |
 
 ## scorecard
 
 A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
 
-**Delivered to:** lens, merge, blue, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 **Not:**
 

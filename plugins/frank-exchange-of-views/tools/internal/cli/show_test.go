@@ -58,26 +58,26 @@ func TestBareShowGivesEachRoleItsOwnView(t *testing.T) {
 
 	// merge's own view is the structured WORKLIST — its shrinking working set (OPEN gaps
 	// lean + a prose-free closed_index), the once-per-turn read it acts on. It is the
-	// last-wins default among the merge's views (board, findings, work list all default to
-	// merge; work list is registered last), so a bare `merge show` resolves here. The marker
+	// last-wins default among the chair's views (board, findings, work list all default to
+	// merge; work list is registered last), so a bare `chair show` resolves here. The marker
 	// is `closed_index`, which ONLY the work list carries — board/findings would also match a
 	// bare `"counts"`, so pinning on the unique key is what fixes the default to work list.
 	// EVERY ROLE NOW DEFAULTS TO ITS OWN PENDING WORK, which is what a bare `show` should
 	// answer. It did not: blue got `changelog` — a record of what it had ALREADY done, before it
 	// had done anything — the lens got `citation-ledger`, and the bench got `debate`. Asked what
-	// would tell them a sitting was finished, only the merge could name a mechanism; the others
+	// would tell them a sitting was finished, only the chair could name a mechanism; the others
 	// answered with another seat's future act, which is not observable when they must decide to
 	// stop. The marker is `sitting`, the block that says what is outstanding and whether anything
 	// is.
 	for _, c := range []struct{ role, marker string }{
-		{"merge", `"sitting"`},
+		{"chair", `"sitting"`},
 		{"blue", `"sitting"`},
 		{"lens", `"sitting"`},
 		{"bench", `"sitting"`},
 	} {
 		t.Run(c.role, func(t *testing.T) {
 			seat := map[string]string{
-				"merge": "red-chair", "blue": "blue-respond",
+				"chair": "red-chair", "blue": "blue-respond",
 				"lens": "red-lens-evidence", "bench": "judge",
 			}[c.role]
 			out, err := run(t, "show", "--run", runDir, "--seat-id", seat)

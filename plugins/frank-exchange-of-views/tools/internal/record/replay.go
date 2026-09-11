@@ -156,7 +156,7 @@ type Gap struct {
 	//
 	// `merge close` writes a Close (a closure_class, an anchor triple, a successor, a
 	// carried-from); the bench writes a DocketRuling on a motion (a disposition, a principle, what
-	// it settles) and closes the gap when that disposition is not `carried`. The old map-shaped payload let
+	// it settles) and closes the gap when that disposition is not `remanded`. The old map-shaped payload let
 	// one field hold either, which is why every reader downstream spells the same question twice —
 	// `Str("closure_class")`, and if that is empty, `Str("disposition")`. Typed, they cannot share
 	// a field, and that duplicated question now has one answer: ClosureReason.
@@ -281,7 +281,7 @@ func DocketGapByMotion(evs []*Event) map[string]string {
 //
 // # What this used to be, and why the shape was the bug
 //
-// It was `disposition != "" && disposition != DispositionCarried` — a NEGATIVE rule, with the
+// It was `disposition != "" && disposition != DispositionRemanded` — a NEGATIVE rule, with the
 // closing set defined as everything left over. That reads as economical and it is a trap: a
 // disposition added to the vocabulary later is classified as CLOSING by default, silently, with no
 // author ever asked. Measured — `grade_adjusted` was added for a bench that had adjusted a grade
@@ -357,7 +357,7 @@ func GradeOf(word string) (recordpb.Grade, bool) {
 }
 
 // Observation is a lens FINDING as replayed. The name is historical: it once covered both
-// findings and `observe` notes, and carried the merge's `dispose` fate for each.
+// findings and `observe` notes, and carried the chair's `dispose` fate for each.
 //
 // Both retired (#327). A finding's fate is now COALESCENCE and only coalescence — it is
 // addressed by being credited in some gap's found_by — so there is no Disposition to carry and

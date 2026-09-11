@@ -108,7 +108,7 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 		if !mentions(got, "gap G1 had a grade motion ACCEPTED and no regrade") {
 			t.Fatalf("an accepted grade motion with no regrade afforded nothing to the lens that minted it: %v", hows(got))
 		}
-		for _, other := range []struct{ role, seat string }{{"merge", "red-chair"}, {"lens", "red-lens-logic"}} {
+		for _, other := range []struct{ role, seat string }{{"chair", "red-chair"}, {"lens", "red-lens-logic"}} {
 			if got := availableOf(b.Events, workStatesOfFamilyT(b), other.role, other.seat); mentions(got, "no regrade followed it") {
 				t.Errorf("%s was offered a regrade its write path refuses — G1 is red-lens-evidence's: %v", other.seat, hows(got))
 			}
@@ -272,13 +272,13 @@ func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
 				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 				Opinion:  proto.String("not this round"),
 				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-					Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED),
+					Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 					ReopensOn:   proto.String("blue reporting what the stated direction found"),
 				}},
 			}),
 			file("M2", "G-pending"),
 		})
-	open := availableOf(b.Events, workStatesOfFamilyT(b), "merge", "red-chair")
+	open := availableOf(b.Events, workStatesOfFamilyT(b), "chair", "red-chair")
 
 	for _, want := range []string{"G-carried", "G-fresh"} {
 		if !mentions(open, "gap "+want+" is open") {
@@ -299,8 +299,8 @@ func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
 
 // A CARRIED GAP GETS DIFFERENT WORDS, AND THAT DIFFERENCE IS THE WHOLE POINT (#759).
 //
-// The vacuous version of this test is "the merge sitting is incomplete and names the gap" — which
-// passed before any of this existed, because the merge arm already blocks on every open gap. So
+// The vacuous version of this test is "the chair sitting is incomplete and names the gap" — which
+// passed before any of this existed, because the chair arm already blocks on every open gap. So
 // what is asserted here is the DISTINCTION: a carried gap and a never-docketed one must not read
 // the same, the carried one must carry the bench's stated condition, and neither may add a second
 // blocking row for a gap sitting.go already blocks on.
@@ -310,7 +310,7 @@ func TestACarriedGapReadsDifferentlyFromOneNobodyDocketed(t *testing.T) {
 			DocketReopensOn: "blue reporting what the stated direction found"},
 		{ID: "FRESH", Open: true},
 	}
-	open := availableOf(nil, gaps, "merge", "red-chair")
+	open := availableOf(nil, gaps, "chair", "red-chair")
 
 	find := func(id string) string {
 		t.Helper()
@@ -333,8 +333,8 @@ func TestACarriedGapReadsDifferentlyFromOneNobodyDocketed(t *testing.T) {
 	if carried == fresh {
 		t.Fatalf("a carried gap and a gap nobody has docketed read identically:\n  %q", carried)
 	}
-	if !strings.Contains(carried, "CARRIED it") {
-		t.Errorf("the carried gap's row does not say the bench carried it: %q", carried)
+	if !strings.Contains(carried, "REMANDED it") {
+		t.Errorf("the carried gap's row does not say the bench remanded it: %q", carried)
 	}
 	if !strings.Contains(carried, "blue reporting what the stated direction found") {
 		t.Errorf("the carried gap's row drops the bench's stated condition, which is the substance "+

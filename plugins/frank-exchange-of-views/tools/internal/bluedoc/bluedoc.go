@@ -5,7 +5,7 @@
 // present, unique, must not split a word, and must not change which immortal anchors exist.
 // With #267 stage 3 red may attach a CONCRETE proposed fix to a gap, and a proposal red
 // cannot state legally is a proposal blue cannot apply — so the same checks have to run at
-// mint time, in the merge role.
+// mint time, in the chair role.
 //
 // The alternative was `internal/cli/merge` importing `internal/cli/blue`, which makes two
 // role packages depend on each other for a rule that belongs to neither: it belongs to the
@@ -38,7 +38,7 @@ var ErrMisQuote = errors.New("the quoted span was not found in report.md — quo
 // LocateUnique resolves the one span `old` names, or explains why it cannot.
 //
 // verb prefixes every message, because the seat's only teacher is the error text and a
-// merge seat told "blue edit: …" learns the wrong command.
+// chair seat told "blue edit: …" learns the wrong command.
 //
 // AMBIGUITY IS REFUSED, NOT GUESSED. Taking the first of several matches silently edits a
 // site the author may not have meant — and blue is explicitly told to propagate corrections

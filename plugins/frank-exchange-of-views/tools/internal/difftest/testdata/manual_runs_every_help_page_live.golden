@@ -77,7 +77,7 @@ what was wrong with the act you are correcting, in one sentence; a reader sees i
 the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
 
 §8 (on 3 pages):
-ONE EVENT, DIFFERENT CONTRACTS: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules).
+ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules).
 
 §9 (on 3 pages):
 Any seat may file; exactly one rules, and `rule` appears only on that seat's surface.
@@ -86,7 +86,7 @@ Any seat may file; exactly one rules, and `rule` appears only on that seat's sur
 your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 §11 (on 2 pages):
-EVERY SUBJECT AND ITS GAVEL: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
+EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
 
 §12 (on 2 pages):
 REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
@@ -133,7 +133,7 @@ Available Commands:
   register     your first act at EVERY sitting, and the one call that needs your seat id — nothing else runs until it does
 
 Command groups — each holds commands THIS page does not list:
-  motion       file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
+  motion       file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). One mechanism, one id.
   show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -375,7 +375,7 @@ Enumerated values:
     not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
-    carried                   NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes
+    remanded                  NOT a closure: the gap stays open into a later sitting with a stated research direction the coming seat owes
     moot                      the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired
 
 (Global Flags:) → SHARED §2
@@ -522,8 +522,8 @@ Enumerated values:
     denied   the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest
 
   --binds
-    blue  the relief binds the response seat — what blue must do, or must not, in the coming round
-    red   it binds the audit seats: the lenses and the merge
+    blue  the relief binds the response seat — what blue must do, or must not, in its coming sitting
+    red   it binds the audit seats: the lenses and the chair
     both  it binds the whole exchange, and every dispatched seat carries it
 
 (Global Flags:) → SHARED §2
@@ -554,7 +554,7 @@ Flags:
 Enumerated values:
   --as
     VERIFIED    red passed the board and the bench agrees the question was answered
-    CEILING     every open material gap reached its limit — ruled by the bench and carried — with work still open: NOT a judged failure to verify, and the stamp says so
+    CEILING     every open material gap reached its limit — ruled by the bench and remanded — with work still open: NOT a judged failure to verify, and the stamp says so
     HALTED      the bench ended the run on a safety, ethics, consent or integrity boundary
     UNVERIFIED  the run ended without the question being answered, and no ceiling or halt explains it
 
@@ -714,7 +714,7 @@ Usage:
 Flags:
       --anchor id    read the report AT one anchor id (f-…, c-…, p-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back
   -h, --help         help for report
-      --window int   with --anchor: how many paragraphs of content either side of it (blank lines are carried, not counted) (default 3)
+      --window int   with --anchor: how many paragraphs of content either side of it (blank lines are kept, not counted) (default 3)
 
 (Global Flags:) → SHARED §16
 ==============================================================================
@@ -749,7 +749,7 @@ $ feov-record show work --help
 
 An item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran, a line of inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.
 
-`open` holds OPEN gaps only (grades, class, location, a problem synopsis, found_by); one with `awaiting_docket` was CARRIED by the bench — nothing is pending, and it returns only if you docket it again (`docket_reopens_on` says what would bring it back).
+`open` holds OPEN gaps only (grades, class, location, a problem synopsis, found_by); one with `awaiting_docket` was REMANDED by the bench — nothing is pending, and it returns only if you docket it again (`docket_reopens_on` says what would bring it back).
 
 `closed_index` IS THE ESTOPPEL REGISTER, NOT DEBRIS: each entry carries id, location, class, the `fate` that ended it, and `closed_by` (`bench` or `red`). THAT DISTINCTION IS LOAD-BEARING: red may reopen its OWN closure on new evidence, but a bench ruling is ESTOPPED and re-raising it is relitigation, not diligence. New evidence against a bench-ruled gap is a lineage successor — mint it under a new id naming the ruled gap in `supersedes`, and say what the ruling did not account for.
 
@@ -871,7 +871,7 @@ it, and only until another seat has acted; after that, say it in a new act. A co
 anything the act says.
 
 §13 (on 3 pages):
-ONE EVENT, DIFFERENT CONTRACTS: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules).
+ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules).
 
 §14 (on 3 pages):
 Any seat may file; exactly one rules, and `rule` appears only on that seat's surface.
@@ -924,7 +924,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
-  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
+  motion          file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -1649,7 +1649,7 @@ Usage:
 Flags:
       --anchor id    read the report AT one anchor id (f-…, c-…, p-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back
   -h, --help         help for report
-      --window int   with --anchor: how many paragraphs of content either side of it (blank lines are carried, not counted) (default 3)
+      --window int   with --anchor: how many paragraphs of content either side of it (blank lines are kept, not counted) (default 3)
 
 (Global Flags:) → SHARED §18
 ==============================================================================
@@ -1684,7 +1684,7 @@ $ feov-record show work --help
 
 An item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran, a line of inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.
 
-`open` holds OPEN gaps only (grades, class, location, a problem synopsis, found_by); one with `awaiting_docket` was CARRIED by the bench — nothing is pending, and it returns only if you docket it again (`docket_reopens_on` says what would bring it back).
+`open` holds OPEN gaps only (grades, class, location, a problem synopsis, found_by); one with `awaiting_docket` was REMANDED by the bench — nothing is pending, and it returns only if you docket it again (`docket_reopens_on` says what would bring it back).
 
 `closed_index` IS THE ESTOPPEL REGISTER, NOT DEBRIS: each entry carries id, location, class, the `fate` that ended it, and `closed_by` (`bench` or `red`). THAT DISTINCTION IS LOAD-BEARING: red may reopen its OWN closure on new evidence, but a bench ruling is ESTOPPED and re-raising it is relitigation, not diligence. New evidence against a bench-ruled gap is a lineage successor — mint it under a new id naming the ruled gap in `supersedes`, and say what the ruling did not account for.
 

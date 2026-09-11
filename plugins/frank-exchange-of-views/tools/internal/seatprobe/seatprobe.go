@@ -114,7 +114,7 @@ func NewSurface(paths []string) Surface {
 func (s Surface) Verbs(role string) []string { return s.byRole[role] }
 
 // Roles is the party set, in dispatch order.
-var Roles = []string{"lens", "merge", "blue", "bench"}
+var Roles = []string{"lens", "chair", "blue", "bench"}
 
 func isRole(s string) bool {
 	for _, r := range Roles {

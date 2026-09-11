@@ -787,7 +787,7 @@ Global Flags:
 
 ── docket rule without the gavel
 exit 2
-feov-record: a docket motion is ruled by the bench seat, so `rule` is not on your surface; you are red-chair (merge). A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle
+feov-record: a docket motion is ruled by the bench seat, so `rule` is not on your surface; you are red-chair (chair). A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle
 
 ── verdict in the wrong case
 exit 2
@@ -866,7 +866,7 @@ exit 2
 feov-record: invalid argument "ceiling" for "--as" flag: --as must be one of VERIFIED|CEILING|HALTED|UNVERIFIED (got "ceiling") — "ceiling" differs from "CEILING" only in case, and the report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses the "this is NOT a judged failure to verify" caveat the stamp exists to carry
 
     VERIFIED    red passed the board and the bench agrees the question was answered
-    CEILING     every open material gap reached its limit — ruled by the bench and carried — with work still open: NOT a judged failure to verify, and the stamp says so
+    CEILING     every open material gap reached its limit — ruled by the bench and remanded — with work still open: NOT a judged failure to verify, and the stamp says so
     HALTED      the bench ended the run on a safety, ethics, consent or integrity boundary
     UNVERIFIED  the run ended without the question being answered, and no ceiling or halt explains it
 
@@ -909,7 +909,7 @@ Flags:
 Enumerated values:
   --as
     VERIFIED    red passed the board and the bench agrees the question was answered
-    CEILING     every open material gap reached its limit — ruled by the bench and carried — with work still open: NOT a judged failure to verify, and the stamp says so
+    CEILING     every open material gap reached its limit — ruled by the bench and remanded — with work still open: NOT a judged failure to verify, and the stamp says so
     HALTED      the bench ended the run on a safety, ethics, consent or integrity boundary
     UNVERIFIED  the run ended without the question being answered, and no ceiling or halt explains it
 
@@ -928,7 +928,7 @@ feov-record: invalid argument "halt" for "--as" flag: --as must be one of grante
 
 rule on a petition motion — this verb is the bench seat's, and it appears only on that surface.
 
-EVERY SUBJECT AND ITS GAVEL: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
+EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
 
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
 your text, and records whatever the command printed — or nothing — in its place. Pass every
@@ -965,8 +965,8 @@ Enumerated values:
     denied   the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest
 
   --binds
-    blue  the relief binds the response seat — what blue must do, or must not, in the coming round
-    red   it binds the audit seats: the lenses and the merge
+    blue  the relief binds the response seat — what blue must do, or must not, in its coming sitting
+    red   it binds the audit seats: the lenses and the chair
     both  it binds the whole exchange, and every dispatched seat carries it
 
 Global Flags:
@@ -1057,7 +1057,7 @@ feov-record: invalid argument "banana" for "--dimension" flag: --dimension must 
 
 file a grade motion — the tool assigns its id.
 
-ONE EVENT, DIFFERENT CONTRACTS: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules).
+ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules).
 
 It disputes a gap's grade.
 
@@ -1400,7 +1400,7 @@ feov-record: invalid argument "banana" for "--class" flag: --class must be one o
 
 file a petition motion — the tool assigns its id.
 
-ONE EVENT, DIFFERENT CONTRACTS: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules).
+ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules).
 
 It raises an ethical, safety, integrity or constitutional objection, heard BEFORE the debate continues.
 
@@ -1462,7 +1462,7 @@ Flags:
 
 ── verb outside the lens role
 exit 2
-feov-record: "verdict" is not on your surface — it is the merge seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here. The commands below are everything you can run.
+feov-record: "verdict" is not on your surface — it is the chair seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here. The commands below are everything you can run.
 
 feov-record — red lens seats — findings, source verification and corroboration, proof re-runs; mints its own gaps against its budget and, as the originator, regrades and closes them.
 
@@ -1494,7 +1494,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   class        the gap-class registry: what KINDS of defect this run recognises
-  motion       file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
+  motion       file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). One mechanism, one id.
   show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -1543,7 +1543,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
-  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
+  motion          file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -1586,7 +1586,7 @@ Available Commands:
   register     your first act at EVERY sitting, and the one call that needs your seat id — nothing else runs until it does
 
 Command groups — each holds commands THIS page does not list:
-  motion       file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
+  motion       file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). One mechanism, one id.
   show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -1631,7 +1631,7 @@ Available Commands:
   verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
 Command groups — each holds commands THIS page does not list:
-  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
+  motion          file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -1688,7 +1688,7 @@ feov-record: lens: record: red-lens-evidence:regrade:#1:G1 was written by red-le
 
 ── correction naming another type's act
 exit 2
-feov-record: merge: record: red-lens-evidence:regrade:#1:G1 is a regrade, and this command writes a log — a correction re-runs the corrected act's OWN verb, so name a key this command wrote
+feov-record: chair: record: red-lens-evidence:regrade:#1:G1 is a regrade, and this command writes a log — a correction re-runs the corrected act's OWN verb, so name a key this command wrote
 
 ── correction naming a key nothing carries
 exit 2
@@ -1700,7 +1700,7 @@ feov-record: unknown flag: --corrects
 
 file a grade motion — the tool assigns its id.
 
-ONE EVENT, DIFFERENT CONTRACTS: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules).
+ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules).
 
 It disputes a gap's grade.
 

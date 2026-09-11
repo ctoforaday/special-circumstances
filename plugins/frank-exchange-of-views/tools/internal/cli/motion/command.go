@@ -46,7 +46,7 @@ import (
 // THE GAVEL IS A FACT ABOUT WHICH TREE YOU ARE IN, not a check the verb runs. `rule` is added
 // only to the gavel-holder's surface, which is why newRule carries no requireRuler.
 //
-// THE PAIR IS LOAD-BEARING AND IT CAME APART IN THE MERGE. verbs.go dropped the runtime check on
+// THE PAIR IS LOAD-BEARING AND IT CAME APART IN THE CHAIR. verbs.go dropped the runtime check on
 // the strength of this scoping while this constructor still added `rule` to every seat, so for a
 // moment there was no gavel at all: blue ruled its own grade motion and was told it succeeded.
 // Neither half is wrong alone and neither is sufficient alone — TestAHostileSeatIsRefused is what
@@ -66,7 +66,7 @@ func NewCommandFor(actingRole string) *cobra.Command {
 	// without knowing whose ruling it would be. Both readers take it off the MotionSubject enum
 	// now, so a subject cannot be added with a gavel in one place and not the other.
 	c.AddCommand(subject(actingRole, "grade",
-		// "TO THE BENCH" NAMED AN ACTOR THAT CANNOT RESPOND (#673). `rule` is the merge's verb, and
+		// "TO THE BENCH" NAMED AN ACTOR THAT CANNOT RESPOND (#673). `rule` is the chair's verb, and
 		// RequireUnruledMotion refuses a second ruling in terms — so no bench act can answer an
 		// appeal, and the state graph shows `appealed` with no exit. A seat reading the old line
 		// filed an appeal and waited for a sitting that the protocol has no way to hold.
@@ -76,7 +76,7 @@ func NewCommandFor(actingRole string) *cobra.Command {
 		// the appeal is worth filing because it is where the ARGUMENT lands, and nothing further
 		// arrives. debate.js presses blue to appeal whether or not it yields, so a line that only
 		// said "the ruling stands" would have read as "do not bother".
-		"contest a gap's grade: the merge rules, and a rejected dispute may be appealed — an appeal records the argument, not a second ruling",
+		"contest a gap's grade: the chair rules, and a rejected dispute may be appealed — an appeal records the argument, not a second ruling",
 		[]string{flags.ID, flags.Dimension, flags.Proposed}, nil))
 	c.AddCommand(subject(actingRole, "petition",
 		"an ethical | safety | integrity | constitutional objection: the BENCH rules, before the debate continues",
@@ -86,7 +86,7 @@ func NewCommandFor(actingRole string) *cobra.Command {
 		[]string{flags.ID},
 		[]string{flags.Principle, flags.Tension, flags.ReviewFlag, flags.Settled, flags.ReopensOn, flags.Final}))
 	c.AddCommand(subject(actingRole, "inquiry",
-		"rule on a line blue proposed: the merge rules. NO file verb — the proposal (`line-of-inquiry propose`) is the filing",
+		"rule on a line blue proposed: the chair rules. NO file verb — the proposal (`line-of-inquiry propose`) is the filing",
 		nil, nil))
 	seat.MarkTree(c)
 	return c
@@ -207,7 +207,7 @@ func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cob
 // Not from tree position (see the package comment) and not from a flag — the seat id is injected
 // and cross-checked (#348), so it is the one identity fact a seat cannot quietly get wrong.
 func actingRole(seatID string) string {
-	for _, r := range []string{"lens", "merge", "blue", "bench"} {
+	for _, r := range []string{"lens", "chair", "blue", "bench"} {
 		if record.CheckSeatRole(r, seatID) == nil {
 			return r
 		}

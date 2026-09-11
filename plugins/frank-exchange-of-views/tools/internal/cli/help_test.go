@@ -75,7 +75,7 @@ func TestMenuLinesStayScannable(t *testing.T) {
 func TestEveryHelpDocumentIsClaimedByAVerb(t *testing.T) {
 	// BUILD EVERY ROLE'S TREE FIRST. The claim is recorded when a verb is constructed, so a gate
 	// that read it without building would find nothing claimed and report every document orphaned.
-	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+	for _, role := range []string{"lens", "chair", "blue", "bench"} {
 		if root := NewRootFor(record.SampleSeatOf(role)); root == nil {
 			t.Fatalf("no command tree for %s", role)
 		}

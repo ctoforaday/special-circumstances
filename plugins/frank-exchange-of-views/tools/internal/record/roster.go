@@ -21,7 +21,7 @@ import (
 // carried the real vocabulary —
 //
 //	lens   red-lens-r<N>-<area>
-//	merge  red-chair
+//	chair  red-chair
 //	blue   blue-lane-<N>, blue-respond-r<N>, blue-synthesize, frontier
 //	bench  judge-r<N>, judge-petition-<petitioner>, judge-terminal, assemble
 //
@@ -56,7 +56,7 @@ type seatShape struct {
 
 var seatShapes = []seatShape{
 	{"lens", regexp.MustCompile(`^red-lens-[a-z]+(?:-[a-z]+)*$`), "red-lens", "red-lens-evidence"},
-	{"merge", regexp.MustCompile(`^red-chair$`), "red-chair", "red-chair"},
+	{"chair", regexp.MustCompile(`^red-chair$`), "red-chair", "red-chair"},
 	{"blue", regexp.MustCompile(`^blue-lane-\d+$`), "blue-lane", "blue-lane-1"},
 	{"blue", regexp.MustCompile(`^blue-respond$`), "blue-respond", "blue-respond"},
 	{"blue", regexp.MustCompile(`^blue-synthesize$`), "blue-synthesize", "blue-synthesize"},

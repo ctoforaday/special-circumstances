@@ -11,7 +11,7 @@ import (
 // The CHECKPOINT MIRROR: where a run's records/ is copied so a lost blackboard can be
 // recovered, and the one place that path is spelled.
 //
-// It was spelled in two places and about to be spelled in a third — `merge verdict` composed
+// It was spelled in two places and about to be spelled in a third — `chair verdict` composed
 // it to write, `run-setup` composed the root to purge, and the reaper below wanted it again.
 // A path assembled from parts at each end is a fact with no schema between the writer and the
 // reader: get one segment wrong and the write still succeeds, the purge still returns 0, and

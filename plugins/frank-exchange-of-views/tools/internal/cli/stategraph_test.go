@@ -25,7 +25,7 @@ import (
 // (record.Gaps, record.Motions, record.Inquiries). What the matrix reports is what the shipped
 // write path did.
 //
-// SEAT SCOPE IS FACTORED OUT ON PURPOSE. `close` is the merge's verb and the bench is refused it —
+// SEAT SCOPE IS FACTORED OUT ON PURPOSE. `close` is the chair's verb and the bench is refused it —
 // a fact about ROLE, which the surface graph already owns, and not about the entity's state. So
 // each act is attempted under every registered seat and counts as possible if ANY seat is allowed
 // it. The question here is only "can this entity get from here to there at all".
@@ -241,7 +241,7 @@ func gapProbe(t *testing.T) entityProbe {
 		"--reason", "closed on the merits"}}
 	// THE BENCH CLOSES TOO, and by a different verb writing a different message: `close` writes a
 	// Close with a closure_class, `opinion` writes an Opinion with a disposition, and Gap carries
-	// both because "closed" arrives as one of two shapes. A gap probe that drove only the merge's
+	// both because "closed" arrives as one of two shapes. A gap probe that drove only the chair's
 	// verb would report a lifecycle with one exit where the record has two.
 	opinionArgs := func(as string) []string {
 		return []string{"opinion", "--id", "G1", "--as", as,
@@ -267,7 +267,7 @@ func gapProbe(t *testing.T) entityProbe {
 				"--reason", "the consequence is narrower than first graded"}},
 			{"carry", []string{"carry", "--id", "G1", "--carried-from", "0", "--as", "repaired",
 				"--reason", "carried from the prior round"}},
-			{"opinion:carried", opinionArgs("carried")},
+			{"opinion:remanded", opinionArgs("remanded")},
 			{"opinion:not_a_defect", opinionArgs("not_a_defect")},
 			// THE SAME TWO EXITS THROUGH THE NEW VERB, and both are driven because the pair is
 			// the point: `carried` defers and leaves the gap OPEN, anything else ends it. A probe
@@ -275,7 +275,7 @@ func gapProbe(t *testing.T) entityProbe {
 			// record can reach and the graph cannot see.
 			{"motion docket file", []string{"motion", "docket", "file", "--id", "G1",
 				"--reason", "contested and not mine to close"}},
-			{"motion docket rule:carried", docketRuleArgs("carried")},
+			{"motion docket rule:remanded", docketRuleArgs("remanded")},
 			{"motion docket rule:not_a_defect", docketRuleArgs("not_a_defect")},
 		},
 		buildTo: func(t *testing.T, state string) string {
@@ -317,7 +317,7 @@ func gapProbe(t *testing.T) entityProbe {
 			// FINGERPRINT THE CARRIERS, NOT THE COLLAPSE. This read ClosureReason(), which is a
 			// DERIVED accessor with a precedence rule — the bench's disposition wins over the
 			// merge's closure_class — and the derivation made a FIRST write look like a
-			// replacement: a bench opinion on a gap the merge had already closed reported as an
+			// replacement: a bench opinion on a gap the chair had already closed reported as an
 			// overwrite of "repaired" by "not_a_defect". Both are on the record, in their own
 			// fields, exactly as Gap's own comment says ("a closure arrives as one of two
 			// different messages"). Nothing is lost; a view collapsed them and the probe believed
@@ -672,7 +672,7 @@ func TestEveryVerbThatTouchesAProbedEntityIsProbed(t *testing.T) {
 	// notProbed are surface verbs deliberately left out, each with the reason. A verb in NEITHER
 	// list fails: that is what makes a newly-added one loud instead of silently unprobed.
 	notProbed := map[string]string{
-		"merge carry": "a carry restates a closure an EARLIER ROUND argued, and every probe here builds a single round-1 board, so it can only ever be refused for a reason that is not about the gap's state. Driving it needs a two-round fixture, which is the fuzz's shape rather than this prober's. It IS attempted and reported as `refused (not a state fact)` so the absence is visible in the matrix rather than only here.",
+		"chair carry": "a carry restates a closure an EARLIER ROUND argued, and every probe here builds a single round-1 board, so it can only ever be refused for a reason that is not about the gap's state. Driving it needs a two-round fixture, which is the fuzz's shape rather than this prober's. It IS attempted and reported as `refused (not a state fact)` so the absence is visible in the matrix rather than only here.",
 	}
 
 	var missing []string

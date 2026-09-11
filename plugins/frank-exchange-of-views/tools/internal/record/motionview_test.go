@@ -11,8 +11,8 @@ import (
 
 // A MOTION MUST BE READABLE BY THE SEAT THAT HAS TO ANSWER IT.
 //
-// An unruled motion blocks `merge verdict --as PASS`, and before this view the refusal's id was
-// all a seat could ever learn: no read verb, no projection. A probed merge seat blocked here
+// An unruled motion blocks `chair verdict --as PASS`, and before this view the refusal's id was
+// all a seat could ever learn: no read verb, no projection. A probed chair seat blocked here
 // searched six views and three help pages, then ruled `rejected` on an argument it had not read.
 func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	runDir := newRun(t)

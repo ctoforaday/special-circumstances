@@ -82,15 +82,15 @@ func adversarialCases() []adversarialCase {
 			act:     seatStep{"motion", "grade", "rule", "--seat-id", "red-chair", "--id", "M1", "--as", "accepted", "--reason", "ruling a petition as if it were a grade"},
 			refused: "was filed as a petition motion and you are ruling it as a grade",
 			guards: "THE ONE THAT WAS ACCEPTED AND REACHED THE REPORT. The subject came from the " +
-				"command tree, so the caller chose the gavel (the merge answering what only the " +
+				"command tree, so the caller chose the gavel (the chair answering what only the " +
 				"bench may answer) AND the verdict set (`accepted`, not a petition ruling at all).",
 		},
 		{
 			name:    "a grade motion cannot be ruled through the petition subgroup",
 			setup:   []seatStep{mint, fileGrade},
-			act:     seatStep{"motion", "petition", "rule", "--seat-id", "judge", "--id", "M1", "--as", "granted", "--reason", "the bench takes the merge's docket"},
+			act:     seatStep{"motion", "petition", "rule", "--seat-id", "judge", "--id", "M1", "--as", "granted", "--reason", "the bench takes the chair's docket"},
 			refused: "was filed as a grade motion and you are ruling it as a petition",
-			guards:  "The same hole from the other side — the bench reaching a grade the merge owns.",
+			guards:  "The same hole from the other side — the bench reaching a grade the chair owns.",
 		},
 		{
 			name:    "a motion is answered once",
@@ -221,7 +221,7 @@ func adversarialCases() []adversarialCase {
 			name:    "the gavel holds even with the right subject",
 			setup:   []seatStep{mint, fileGrade},
 			act:     seatStep{"motion", "grade", "rule", "--seat-id", "blue-respond", "--id", "M1", "--as", "accepted", "--reason", "ruling my own motion"},
-			refused: "is ruled by the merge seat",
+			refused: "is ruled by the chair",
 			guards: "Filed by any seat, ruled by one. The asymmetry IS the mechanism, and blue " +
 				"answering its own ask would make the exchange a monologue.",
 		},

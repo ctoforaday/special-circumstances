@@ -184,11 +184,11 @@ func Closing(key string) *cobra.Command {
 // EVERY SEAT DEFAULTS TO ITS PENDING WORK. It did not: blue's bare `show` returned `changelog`
 // — a record of what blue had ALREADY done, handed to it before it had done anything — the lens
 // got `citation-ledger` and the bench got `debate`. Asked what would tell them a sitting was
-// finished, only the merge could name a mechanism; blue and the bench answered with another
+// finished, only the chair could name a mechanism; blue and the bench answered with another
 // seat's future act ("red agrees it's sound"), which is not observable at the moment they have
 // to decide to stop.
 //
-// THREE VIEWS ALSO CLAIMED "merge" AND THE LAST ONE SILENTLY WON, because the resolution loop
+// THREE VIEWS ALSO CLAIMED "chair" AND THE LAST ONE SILENTLY WON, because the resolution loop
 // keeps overwriting. A default decided by slice order is a default nobody chose.
 // jsonByName marks a projection whose NATIVE form is already JSON, so `--json` on it is a
 // no-op — the same bytes, not a second form (Show says why it stopped being refused).
@@ -226,7 +226,7 @@ var views = []struct {
 	{"report", "THE REPORT, as it stands now. `changes` says how it got that way. Written by the opening synthesis and every `edit`, with anchors from `cite`, `finding` and `prove`", "THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the opening synthesis and every `edit`", "", false, nil},
 	{"board", "EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by `mint`, `close`, `regrade` and `retire`", "THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. JSON by default; --format markdown gives the human-verification rendering. Written by `mint`, `close`, `regrade` and `retire`", "", true, record.BoardJSON{}},
 	{"findings", "THE RAW LENS FINDINGS, BEFORE they are minted into gaps — several findings can become one gap, and this is where you see which. Written by `finding`", "Every lens finding on the record (label, seat, epoch, role, grades, location, text) — the minting lens coalesces these into gaps", "", true, record.FindingsJSON{}},
-	{"work", "WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Run it first and again before you finish. Written by `mint`, `close` and the bench's `motion docket rule`", "**RUN THIS FIRST AND AGAIN BEFORE YOU STOP.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left.\n\nAn item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran, a line of inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.\n\n`open` holds OPEN gaps only (grades, class, location, a problem synopsis, found_by); one with `awaiting_docket` was CARRIED by the bench — nothing is pending, and it returns only if you docket it again (`docket_reopens_on` says what would bring it back).\n\n`closed_index` IS THE ESTOPPEL REGISTER, NOT DEBRIS: each entry carries id, location, class, the `fate` that ended it, and `closed_by` (`bench` or `red`). THAT DISTINCTION IS LOAD-BEARING: red may reopen its OWN closure on new evidence, but a bench ruling is ESTOPPED and re-raising it is relitigation, not diligence. New evidence against a bench-ruled gap is a lineage successor — mint it under a new id naming the ruled gap in `supersedes`, and say what the ruling did not account for.\n\nFate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. The reasoning behind a fate is on the record: `show debate` carries the bench's opinions, `show board --format markdown` the closure archive with its prose — read the one you are about to rely on or work around. Bare `show` defaults here for every role. Written by `mint`, `close` and the bench's `motion docket rule`", "*", true, record.WorkJSON{}},
+	{"work", "WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Run it first and again before you finish. Written by `mint`, `close` and the bench's `motion docket rule`", "**RUN THIS FIRST AND AGAIN BEFORE YOU STOP.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left.\n\nAn item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran, a line of inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.\n\n`open` holds OPEN gaps only (grades, class, location, a problem synopsis, found_by); one with `awaiting_docket` was REMANDED by the bench — nothing is pending, and it returns only if you docket it again (`docket_reopens_on` says what would bring it back).\n\n`closed_index` IS THE ESTOPPEL REGISTER, NOT DEBRIS: each entry carries id, location, class, the `fate` that ended it, and `closed_by` (`bench` or `red`). THAT DISTINCTION IS LOAD-BEARING: red may reopen its OWN closure on new evidence, but a bench ruling is ESTOPPED and re-raising it is relitigation, not diligence. New evidence against a bench-ruled gap is a lineage successor — mint it under a new id naming the ruled gap in `supersedes`, and say what the ruling did not account for.\n\nFate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. The reasoning behind a fate is on the record: `show debate` carries the bench's opinions, `show board --format markdown` the closure archive with its prose — read the one you are about to rely on or work around. Bare `show` defaults here for every role. Written by `mint`, `close` and the bench's `motion docket rule`", "*", true, record.WorkJSON{}},
 	{"motions", "WHAT HAS BEEN CONTESTED AND HOW IT WAS RULED — the ask in the filer's words, and the ruling if it has one. `debate` is what each side ARGUED; this is what was formally disputed. Written by `motion`, `rule` and `appeal`", "Every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks a PASS verdict, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal`", "", true, record.MotionsJSON{}},
 	{"debate", "WHAT EACH SIDE ARGUED, epoch by epoch — the transcript, in order. Written by `position`, `closing` and the bench's `motion docket rule`", "the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by `position`, `closing` and the bench's `motion docket rule`", "", false, record.DebateJSON{}},
 	{"changes", "HOW THE REPORT GOT THAT WAY — every edit in record order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by `edit`", "every recorded edit to the report (the blue_edit diff stack), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`", "", false, nil},
@@ -455,7 +455,7 @@ func Show() *cobra.Command {
 			sub.Flags().String(flags.Anchor, "",
 				"read the report AT one anchor `id` (f-…, c-…, p-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back")
 			sub.Flags().Int(flags.Window, anchor.DefaultWindow,
-				"with --anchor: how many paragraphs of content either side of it (blank lines are carried, not counted)")
+				"with --anchor: how many paragraphs of content either side of it (blank lines are kept, not counted)")
 		}
 		c.AddCommand(sub)
 	}
@@ -489,7 +489,7 @@ func renderView(cmd *cobra.Command, want string) error {
 	}
 	if want == "" {
 		// FIRST MATCH WINS, not last. The loop used to keep overwriting, so three views
-		// claiming "merge" resolved by slice order — a default nobody chose.
+		// claiming "chair" resolved by slice order — a default nobody chose.
 		for _, v := range views {
 			if v.defaultFor == role || v.defaultFor == "*" {
 				want = v.name
@@ -550,8 +550,8 @@ func renderView(cmd *cobra.Command, want string) error {
 	// baseline because it parsed sentences while the anchors sat in structured
 	// fields). Markdown for the same state stays available behind --view ledger.
 	//
-	// Resolved AFTER the role default, not before: `merge show` with no flags must
-	// reach this branch, and checking the raw flag first sent the merge seat's own
+	// Resolved AFTER the role default, not before: `chair show` with no flags must
+	// reach this branch, and checking the raw flag first sent the chair's own
 	// default view looking for a board.md that no renderer writes.
 	if want == "board" {
 		// The markdown arm is what `ledger` and `archive` rendered: the open board for a human
@@ -601,7 +601,7 @@ func renderView(cmd *cobra.Command, want string) error {
 		cmd.OutOrStdout().Write(b)
 		return nil
 	}
-	// findings is served as JSON too, and for the same reason: the merge ACTS on it
+	// findings is served as JSON too, and for the same reason: the chair ACTS on it
 	// (coalesces findings into gaps), so it reads structured fields, not prose it must
 	// parse. This is the channel that replaced red/candidates/*.md.
 	if want == "findings" {
@@ -744,7 +744,7 @@ func renderView(cmd *cobra.Command, want string) error {
 //
 // It used to build a `<role>` command GROUP and the root mounted all four. The role level is gone:
 // the seat is bound at `register`, the tool derives the role from that binding, and the root IS the
-// seat's surface. A merge seat runs `mint`; a lens seat running `mint` gets an unknown command,
+// seat's surface. A chair seat runs `mint`; a lens seat running `mint` gets an unknown command,
 // which is the same boundary the role group drew and is now drawn by the only fact that decides it.
 //
 // The seat therefore no longer types a word the tool can already look up. ResolveSeat has always

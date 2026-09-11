@@ -39,7 +39,7 @@ func TestARequiredFieldIsRefusedWhenAbsent(t *testing.T) {
 // no way to say that at all.
 func TestAnEmptyValueTheSeatPassedSatisfiesTheRequirement(t *testing.T) {
 	body := &DocketRuling{
-		Disposition: Disposition_DISPOSITION_CARRIED.Enum(),
+		Disposition: Disposition_DISPOSITION_REMANDED.Enum(),
 		Principle:   proto.String("p"),
 		Tension:     proto.String("t"),
 		ReviewFlag:  proto.String(""), // said, and said to be nothing

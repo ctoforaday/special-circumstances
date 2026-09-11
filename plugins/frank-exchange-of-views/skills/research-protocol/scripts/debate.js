@@ -419,12 +419,12 @@ const BLUE_ENVELOPE = {
     found_closed: { type: 'array', items: { type: 'string' } },
     log: { type: 'array', items: { type: 'string' } },
     petitions: PETITIONS,
-    // Grade-dispute channel (run-4 §3.3 — RATIFIED minimal form): blue's machine-readable
+    // Grade-motion channel (run-4 §3.3 — RATIFIED minimal form): blue's machine-readable
     // contest path against red's grades. Record-integrity insurance; zero expected savings.
     // #62 Stage 2: this is a ROUTING REF, not the content — the argument (evidence) is emitted
     // as a `dispute` event on the record; the envelope carries only what the sandboxed
     // orchestrator needs to route the docket (proposed drives the accepted-delta arithmetic).
-    grade_disputes: {
+    grade_motions: {
       type: 'array',
       items: {
         type: 'object',
@@ -479,18 +479,18 @@ const CHAIR_ENVELOPE = {
 }
 const JUDGE_ENVELOPE = {
   type: 'object',
-  required: ['resolutions'],
+  required: ['dispositions'],
   properties: {
     // HOLDINGS THE BENCH LAID DOWN THIS SITTING, carried so the engine can route them. debate.js
     // reads no record, so a holding recorded through `bench declare` reaches the other seats only
     // if it travels here — the same reason `relief` is on the petition envelope (#503).
     holdings: { type: 'array', items: { type: 'string' } },
     log: { type: 'array', items: { type: 'string' } },
-    resolutions: {
+    dispositions: {
       type: 'array',
       items: {
         type: 'object',
-        required: ['gap_id', 'resolution', 'rationale', 'settled'],
+        required: ['gap_id', 'disposition', 'rationale', 'settled'],
         properties: {
           gap_id: { type: 'string' },
           // WHAT THE RULING BARS, AND WHAT WOULD UNDO IT (#502). Carried on the envelope
@@ -509,10 +509,10 @@ const JUDGE_ENVELOPE = {
           // THIS LIST IS THE RECORD'S DISPOSITION VOCABULARY, EXACTLY, and the envelope/record
           // gate holds it there: every word offered here is a word `motion docket rule --as`
           // accepts, and every word that verb accepts appears here with a duty in
-          // BLUE_DUTY_BY_RESOLUTION. A value added to one side fails the gate until it is on both.
+          // BLUE_DUTY_BY_DISPOSITION. A value added to one side fails the gate until it is on both.
           //
           // A GRADE OUTCOME IS NOT A DISPOSITION. "Gap real, grade wrong" is a GRADE MOTION —
-          // carried by `grade_disputes` on this envelope and by `motion grade rule --as accepted`
+          // carried by `grade_motions` on this envelope and by `motion grade rule --as accepted`
           // plus a `regrade` on the record, which is the richer path because it can be appealed.
           // Ruling one here would put a grade outcome in the docket's field.
           //
@@ -520,10 +520,10 @@ const JUDGE_ENVELOPE = {
           // (that is not_a_defect) and nobody verified a fix (that is repaired). The text the
           // finding attached to is gone. It closes the gap and leaves the merits unreached.
           //
-          // `carried` is the word for "I could not settle this on the record I have" — it says
+          // `remanded` is the word for "I could not settle this on the record I have" — it says
           // the gap survives and names what the coming seat owes, which is the same act as
           // asking for evidence.
-          resolution: { type: 'string', enum: ['repaired', 'repaired_with_regression', 'amends_prior', 'not_a_defect', 'defect_accepted', 'carried', 'moot', 'defect_owed_elsewhere'] },
+          disposition: { type: 'string', enum: ['repaired', 'repaired_with_regression', 'amends_prior', 'not_a_defect', 'defect_accepted', 'remanded', 'moot', 'defect_owed_elsewhere'] },
           rationale: { type: 'string' },
         },
       },
@@ -663,13 +663,13 @@ const holdingsInEffect = []
 // and that is where a settled proposition gets restated. And blue needs the inverse red never
 // does: what it may now ASSERT. Two of these fates are blue WINS, and under a bare subtraction
 // they look exactly like the ones that are not: the gap simply stops being dispatched. Keyed on
-// the resolution so a new fate cannot quietly inherit another's instruction; an unmapped one
+// the disposition so a new one cannot quietly inherit another's instruction; an unmapped one
 // falls through to a LOUD default rather than an empty string.
-const BLUE_DUTY_BY_RESOLUTION = {
+const BLUE_DUTY_BY_DISPOSITION = {
   not_a_defect: 'THE BENCH FOUND NO DEFECT — your position was vindicated. Keep the text as it stands; do not "repair" what the bench has just blessed. You may rely on this ruling as established for the rest of the run.',
   defect_accepted: 'YOUR RISK-ACCEPTANCE ARGUMENT WAS ACCEPTED. Record the acceptance where the report discusses the risk; do not spend a sitting fixing what the bench agreed may stand.',
   repaired: 'Your fix was accepted. Stop working this one.',
-  carried: 'The gap stays OPEN and you owe the research direction the ruling states — it is what CEILING is made of, so a sitting that ignores it is a null turn.',
+  remanded: 'The gap stays OPEN and you owe the research direction the ruling states — it is what CEILING is made of, so a sitting that ignores it is a null turn.',
   defect_owed_elsewhere: 'The finding was UPHELD and the fix is owned outside this debate. Stop trying to fix it in the report; expect the debt to be named rather than closed here.',
   moot: 'Adjudicated out of existence — the text it attached to is gone, so there is nothing left to repair. Drop it; this is NOT a finding that was argued down.',
   repaired_with_regression: 'Your fix was accepted AND something else broke. Stop working this one and expect a successor gap naming the regression — answer that one, not this.',
@@ -682,7 +682,7 @@ const rulingsInEffect = new Map()
 const rulingsClause = (party) => {
   if (!rulingsInEffect.size) return ''
   const rows = [...rulingsInEffect.values()].map((r) => party === 'blue'
-    ? { ...r, your_duty: BLUE_DUTY_BY_RESOLUTION[r.resolution] || `UNMAPPED FATE ${r.resolution} — read the opinion on the record before acting on it` }
+    ? { ...r, your_duty: BLUE_DUTY_BY_DISPOSITION[r.disposition] || `UNMAPPED DISPOSITION ${r.disposition} — read the opinion on the record before acting on it` }
     : r)
   const duty = party === 'blue'
     ? ' You were once handed these as a bare SUBTRACTION — a ruled gap simply stopped appearing — and a vindication and an upheld finding were the same absence. THE BAR IS ON THE PROPOSITION, NOT THE GAP: what you may no longer re-argue in the report is the sentence under settled, not everything the finding touched. WHERE A RULING WENT YOUR WAY IT IS YOURS TO INVOKE — say so on the record and rely on it, rather than quietly re-fixing text the bench has already blessed.'
@@ -800,7 +800,7 @@ await hearPetitions(blueEnv, 'blue-synthesize')
 // else. Red parties sit first (in parallel), then blue, then the bench — an exchange is a red-party
 // sitting followed by a blue-party sitting, and the record counts them (impasse.go). Empty is the
 // termination signal: pass_permitted (the chair issues PASS → VERIFIED), ceiling (every open
-// material gap at its limit, ruled and carried, or the run's epoch limit reached → CEILING), or
+// material gap at its limit, ruled and remanded, or the run's epoch limit reached → CEILING), or
 // neither (UNVERIFIED, with the plan's reasons on the record). The disputes, the docket, impasse,
 // the ceiling and the epoch limit all live on the record; nothing here keeps a second copy of them.
 //
@@ -855,14 +855,14 @@ THE ORIGINATOR CLOSES, AND LINEAGE IS NEVER DROPPED. A gap you minted is yours f
 // chair relays it; the verdict, the closings, the spot-check, the rulings on blue's motions and
 // directions and the vote on the lines of inquiry are what only the chair does.
 const chairPrompt = () => `Red chair, topic "${topic}". You RUN the debate: you mint nothing and you close nothing — a gap belongs to the lens that minted it from mint to close — and you are the seat that decides whether this report has been verified.${recordClause('red-chair')}${speedClause}${scorecardClause()}${holdingsClause()}${reliefFor('red')}${lawClause}
-FIRST, EVERY SITTING, ASK THE RECORD WHO SITS — the dispatch. It reads the board and RECORDS who sits — the lenses whose pin the report head moved past, the lens and blue of every open material gap below its limits, the bench for every gap at impasse (it dockets those itself). Relay its JSON VERBATIM as \`plan\` in your envelope; the workflow dispatches what the record says and capture audits your relay against it, so a party you drop or add is a finding against you. Empty is the record's word that the run is over: with pass_permitted the board permits a PASS; with ceiling every open material gap is at its limit, ruled and carried — or, with epoch_limit_reached, the run has reached its epoch limit and nobody further is dispatched.
+FIRST, EVERY SITTING, ASK THE RECORD WHO SITS — the dispatch. It reads the board and RECORDS who sits — the lenses whose pin the report head moved past, the lens and blue of every open material gap below its limits, the bench for every gap at impasse (it dockets those itself). Relay its JSON VERBATIM as \`plan\` in your envelope; the workflow dispatches what the record says and capture audits your relay against it, so a party you drop or add is a finding against you. Empty is the record's word that the run is over: with pass_permitted the board permits a PASS; with ceiling every open material gap is at its limit, ruled and remanded — or, with epoch_limit_reached, the run has reached its epoch limit and nobody further is dispatched.
 THE STOPPING JUDGMENT IS YOURS, AND IT IS NOT CEREMONY. When the plan says pass_permitted, decide: record a PASS verdict if you agree the report is verified — the tool refuses a PASS the board does not permit, so you cannot pass early — or a FAIL with the material defect that stops you, raised as a finding for its lens to mint; a FAIL over a converged board is refused (raise something material, or pass). Otherwise record no verdict this sitting. Your recorded verdict is the ONE fact the run's outcome is derived from.
 YOUR POSITION IS YOUR ARGUMENT and the other side answers it: one position per sitting. CLOSING ARGUMENTS on every gap the plan docketed — each is docket-bound and owes ~120 words, your strongest evidence and your answer to blue's — the bench rules on the closings and the artifacts, not on prose in your envelope.
 A CLOSURE IS A CLAIM, AND CLAIMS DECAY. Re-sample the archive every sitting it is not empty (the spot-check; its assertable empty form only when the archive was empty when you sat) and put what the sample FOUND in the spot-check's own prose — not in \`log\`, which is the operator's channel; a lens reopens a drifted closure of its own, and a closure resting on a volatile living source inherits that source's drift triggers.
 VOTE EVERY LINE OF INQUIRY THIS SITTING, ON ONE READ: read the report ONCE and answer every line against that pass, the way anyone checks a document against a list — not once per line, and from THIS read, because the report is rewritten between sittings. RULE ON BLUE'S DIRECTIONS: a ruling is an ARGUMENT, not a command — it needs a reason, and blue may appeal it. RULE THE GRADE MOTIONS blue filed: accept and the minting lens owes the regrade; reject and blue may re-dispute. Report what still stands unruled as unruled_motions, read from the record's motions projection and never counted by hand.
-NEVER RE-DERIVE THE BOARD IN YOUR HEAD: the board, work and motions projections are the reads, and the plan is the record's, not yours.${frictionClause('red-chair', 'merge')}${petitionClause('red-chair')}`
+NEVER RE-DERIVE THE BOARD IN YOUR HEAD: the board, work and motions projections are the reads, and the plan is the record's, not yours.${frictionClause('red-chair', 'chair')}${petitionClause('red-chair')}`
 const bluePrompt = (gaps, docket) => `Blue response, topic "${topic}". You are engaged on: ${gaps.join(', ')}.${reliefFor('blue')} YOUR FIRST READ COMES AFTER THE MANUAL BELOW, NOT BEFORE IT: pull your working set — the board and work projections, the transcript, and ${runDir}/inputs/red-gap-patterns.md — in one pass rather than three, concatenating them into a single file under your session scratchpad (an ABSOLUTE path, never under ${runDir}) and reading that.${recordClause('blue-respond')}${speedClause}${holdingsClause()}${rulingsClause('blue')}${lawClause}
-READ THE BOARD FOR YOUR GAPS: each carries its lens's problem, required fix and acceptance check, and the transcript's RED section carries red's argument; the bench's latest resolutions are on the record too, and any gap the bench CARRIED comes with a stated research direction you owe. The gap list you were handed is a lossy summary of the record, and the record is authoritative. PRE-FLIGHT: re-check your planned repairs against red's gap patterns — the staged inventory names, per gap class, how this class of repair goes wrong — and say in each manifest row which patterns you checked. A row you got wrong is corrected in this sitting by the same act for that gap — never by a second row, and never by moving its text into a log.
+READ THE BOARD FOR YOUR GAPS: each carries its lens's problem, required fix and acceptance check, and the transcript's RED section carries red's argument; the bench's latest dispositions are on the record too, and any gap the bench REMANDED comes with a stated research direction you owe. The gap list you were handed is a lossy summary of the record, and the record is authoritative. PRE-FLIGHT: re-check your planned repairs against red's gap patterns — the staged inventory names, per gap class, how this class of repair goes wrong — and say in each manifest row which patterns you checked. A row you got wrong is corrected in this sitting by the same act for that gap — never by a second row, and never by moving its text into a log.
 YOU MAY COMPUTE AN ANSWER, NOT ONLY COLLATE SOURCES. You have Bash, Write and Edit, and for a whole class of questions running something settles it faster and harder than arguing about it. WORKING IT OUT IN YOUR HEAD IS NOT THE EXCEPTION — IT IS THE CASE THIS EXISTS FOR: a correct figure with no derivation is indistinguishable from a confident guess. A gap can be WAITING ON A PROGRAM FROM YOU — it says so (a computation check), and where it does, no amount of prose will close it. DOCUMENT-PROBE checks you discharge now; a LIVE-PROBE you discharge by naming the deferred acceptance test and its pass condition.
 YOUR LINES OF INQUIRY ARE A LIVING RECORD, NOT AN OPENING PLAN. Every sitting, revisit what is still open and say what became of it. The hypothesis is what makes that honest — a line abandoned against its own stated claim is evidence of choosing; one abandoned on a shrug is not. Red rules on your proposals and you may APPEAL a ruling — appeal whether or not you go on to pursue the line, because the appeal is where your ARGUMENT is recorded.
 WHERE RED PROPOSED EXACT TEXT you have THREE paths and you are not obliged to take the first: apply it verbatim, counter-edit with your own fix, or dispute it. Say plainly which path you took and why. A sitting in which you never decline is not agreement, it is capitulation. Applying red's exact text ESTOPS red from re-raising that text as a fresh gap, so verbatim application is a real settlement, not a surrender.
@@ -951,9 +951,9 @@ while (!halted) {
     const judge = await agent(benchPrompt(p.gap_ids), { ...judgment, label: labelFor('judge'), phase: 'Debate', agentType: 'frank-exchange-of-views:lead-judge', schema: JUDGE_ENVELOPE })
     if (!judge) throw new Error(`bench sitting (epoch ${epoch}) returned null (agent failed) — aborting cleanly`)
     for (const h of judge.holdings || []) holdingsInEffect.push(h)
-    for (const r of judge.resolutions || []) {
-      rulingsInEffect.set(r.gap_id, { gap_id: r.gap_id, resolution: r.resolution, settled: r.settled, reopens_on: r.reopens_on, final: !!r.final, epoch })
-      if (r.resolution === 'defect_owed_elsewhere') infraDebts.push({ gap_id: r.gap_id, owed_fix: r.rationale, epoch })
+    for (const r of judge.dispositions || []) {
+      rulingsInEffect.set(r.gap_id, { gap_id: r.gap_id, disposition: r.disposition, settled: r.settled, reopens_on: r.reopens_on, final: !!r.final, epoch })
+      if (r.disposition === 'defect_owed_elsewhere') infraDebts.push({ gap_id: r.gap_id, owed_fix: r.rationale, epoch })
     }
     takeFriction('judge', judge)
     if (await hearPetitions(judge, 'judge')) break
@@ -973,7 +973,7 @@ const outcomeWord = (w) => {
 }
 
 // A NO-PROGRESS STOP IS UNVERIFIED, NEVER CEILING. CEILING is derived on the record — every open
-// material gap at its limit and carried, or the epoch limit reached — and `bench outcome` refuses it
+// material gap at its limit and remanded, or the epoch limit reached — and `bench outcome` refuses it
 // over a board that is neither; a stalled plan still has parties ready. UNVERIFIED is the word for a
 // run that stopped before its record reached a terminal state, and the why says what stopped it.
 const verdict = halted ? outcomeWord('HALTED')
@@ -984,7 +984,7 @@ const verdict = halted ? outcomeWord('HALTED')
 const terminationWhy = halted ? 'judicial halt'
   : verdict === 'VERIFIED' ? 'the chair recorded PASS with the board permitting it'
   : noProgress ? `no progress: the dispatch plan was identical for ${noProgress.epochs} consecutive epochs (NO_PROGRESS_EPOCHS = ${NO_PROGRESS_EPOCHS}) at head ${noProgress.head} — ${partyList(noProgress.parties)} readied again each time with nothing on the board moving`
-  : verdict === 'CEILING' ? (lastPlan.epoch_limit_reached ? `epoch limit ${lastPlan.max_epochs} reached — the run's term on chair sittings; the parties the board still readied were not dispatched` : 'every open material gap is at its limit, ruled by the bench and carried')
+  : verdict === 'CEILING' ? (lastPlan.epoch_limit_reached ? `epoch limit ${lastPlan.max_epochs} reached — the run's term on chair sittings; the parties the board still readied were not dispatched` : 'every open material gap is at its limit, ruled by the bench and remanded')
   : (lastPlan ? `nobody was ready and neither PASS nor CEILING held: ${(lastPlan.why || []).join('; ')}` : 'the run ended before any dispatch')
 log(`debate ended: ${verdict} after ${epoch} chair sitting(s)${halted ? ' (JUDICIAL HALT)' : ''} — ${terminationWhy}`)
 
@@ -992,7 +992,7 @@ log(`debate ended: ${verdict} after ${epoch} chair sitting(s)${halted ? ' (JUDIC
 // motions, directions, a petition) is disposed of before assembly — the chair reported the count.
 if (!halted && chairEnv && chairEnv.unruled_motions > 0) {
   const terminalJudge = await agent(
-    `Terminal disposition for topic "${topic}" (debate ended ${verdict} after ${epoch} chair sitting(s); this sitting fires at the exit boundary). ${chairEnv.unruled_motions} motion(s) stand unruled on the record — read them back from the record's motions projection, read the transcript in full and the board back, and rule each with a reason. NOTHING CAN BE CARRIED AT A TERMINAL EXIT — there is no next sitting to carry it into. Each grade motion either moves to a corrected grade, which you state, or ships CONTESTED and the report records it as contested.${holdingsClause()}${lawClause}${declareClause}${inspectionClause}${frictionClause('judge-terminal', 'bench')}${speedClause}${recordClause('judge-terminal')} Return your envelope.`,
+    `Terminal disposition for topic "${topic}" (debate ended ${verdict} after ${epoch} chair sitting(s); this sitting fires at the exit boundary). ${chairEnv.unruled_motions} motion(s) stand unruled on the record — read them back from the record's motions projection, read the transcript in full and the board back, and rule each with a reason. NOTHING CAN BE REMANDED AT A TERMINAL EXIT — there is no next sitting to remand it to. Each grade motion either moves to a corrected grade, which you state, or ships CONTESTED and the report records it as contested.${holdingsClause()}${lawClause}${declareClause}${inspectionClause}${frictionClause('judge-terminal', 'bench')}${speedClause}${recordClause('judge-terminal')} Return your envelope.`,
     { ...judgment, label: `judge-terminal · ${slug}`, phase: 'Assemble', agentType: 'frank-exchange-of-views:lead-judge', schema: JUDGE_ENVELOPE })
   if (terminalJudge) takeFriction('judge-terminal', terminalJudge)
 }
@@ -1011,7 +1011,7 @@ phase('Assemble')
 const assembleEnv = await agent(
   `Final assembly for topic "${topic}", run directory ${runDir}. Debate outcome: ${verdict} after ${epoch} chair sitting(s) — ${terminationWhy}. THE REPORT IS ASSEMBLED FROM THE RECORD — you author NOTHING, you copy NOTHING, you fill in NO inputs. There are no <FILL> fields and no sections for you to write; do not hand-write report.md and do not copy anything into it yourself.
 
-FIRST, STAMP HOW THIS RUN ENDED: it is ${verdict}${halted ? `, ended by JUDICIAL HALT — carry the opinion verbatim: ${haltOpinion}` : ''}${verdict === 'CEILING' ? (lastPlan.epoch_limit_reached ? `, ended at the CEILING: ${terminationWhy} — a limit the run was set up with, NOT a judged failure to verify` : ', ended at the CEILING: every open material gap reached its limit, the bench ruled on each and carried it — NOT a judged failure to verify') : ''}${verdict === 'UNVERIFIED' ? (noProgress ? `, ended UNVERIFIED — the engine stopped a debate that was making no progress: ${terminationWhy}. It is not CEILING: no gap reached its limit and no term ran out; the parties were still ready` : `, ended UNVERIFIED — nobody was ready and neither PASS nor CEILING held; the plan's reasons are the account: ${terminationWhy}`) : ''}. Record it as the run's outcome — ${verdict}${verdict === 'CEILING' ? ', ended at the ceiling' : ''} — with WHY this outcome is the right read of the board as the reason — the judgement, never a recap of the sitting; the verdict is derived from the record and the stamp must agree with it.
+FIRST, STAMP HOW THIS RUN ENDED: it is ${verdict}${halted ? `, ended by JUDICIAL HALT — carry the opinion verbatim: ${haltOpinion}` : ''}${verdict === 'CEILING' ? (lastPlan.epoch_limit_reached ? `, ended at the CEILING: ${terminationWhy} — a limit the run was set up with, NOT a judged failure to verify` : ', ended at the CEILING: every open material gap reached its limit, the bench ruled on each and remanded it — NOT a judged failure to verify') : ''}${verdict === 'UNVERIFIED' ? (noProgress ? `, ended UNVERIFIED — the engine stopped a debate that was making no progress: ${terminationWhy}. It is not CEILING: no gap reached its limit and no term ran out; the parties were still ready` : `, ended UNVERIFIED — nobody was ready and neither PASS nor CEILING held; the plan's reasons are the account: ${terminationWhy}`) : ''}. Record it as the run's outcome — ${verdict}${verdict === 'CEILING' ? ', ended at the ceiling' : ''} — with WHY this outcome is the right read of the board as the reason — the judgement, never a recap of the sitting; the verdict is derived from the record and the stamp must agree with it.
 
 THEN, TWO THINGS YOU MAY HOLD AND THIS IS YOUR LAST CHANCE TO RECORD EITHER. If you hold something that binds how the RECORD IS READ but moves no gap — a construction of a term, a correction of what the record MEANS rather than what it says, a holding worth offering as precedent — state it, and state it in its own right rather than folding it into an unrelated rationale. And if anything in this run needs A HUMAN to re-examine it — an unresolved tension, a claim that held only because nobody could reach the source, a boundary you ruled close to — say so. You keep no memory between runs, so this is the whole of your continuity.
 

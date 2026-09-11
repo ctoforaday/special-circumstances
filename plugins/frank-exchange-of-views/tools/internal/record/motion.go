@@ -314,7 +314,7 @@ func MotionsOf(evs []*Event) []*Motion {
 	// single pass in the function compat.go exists to be the legacy twin of. What caught it was the
 	// prose gate (#320) — "judge-petition/motion-rule prose absent from report" on 25 of 60 seeds —
 	// not the reasoning that had already been written down one file over.
-	// A PASS OF ITS OWN, for the same interleaving reason: blue proposes the line of inquiry and the merge
+	// A PASS OF ITS OWN, for the same interleaving reason: blue proposes the line of inquiry and the chair
 	// rules it, so the two live in different shards and the ruling can replay first. Gathered
 	// inside pass 1 this map was read before it was filled, and a direction motion came out with
 	// no filer, no epoch and no ask — rendering as an answer to a question nobody asked.
@@ -508,7 +508,7 @@ func RequireMotionSubjectRef(run Run, subject recordpb.MotionSubject, id string)
 // level down. `motion <subject> rule` takes its subject from its POSITION IN THE TREE — which
 // subgroup you typed — and validated the verdict against that, never against the subject the
 // motion was actually filed under. So `motion grade rule --id M1` on a PETITION motion was
-// accepted: it bypassed the gavel (the merge ruling what only the bench may rule) AND the verdict
+// accepted: it bypassed the gavel (the chair ruling what only the bench may rule) AND the verdict
 // vocabulary (`accepted`, which is not a petition ruling at all). The report then rendered
 // "petition (safety) … ruled accepted".
 //
@@ -559,7 +559,7 @@ func motionSubjectOf(run Run, id string) (string, error) {
 
 // RequireUnruledMotion refuses a SECOND ruling on a motion already answered.
 //
-// MEASURED BY PROBING: a petition ruled `accepted` by the merge was then ruled `denied` by the
+// MEASURED BY PROBING: a petition ruled `accepted` by the chair was then ruled `denied` by the
 // bench, both accepted, and the report showed ONE of them with no sign the other existed. A
 // direction ruled `endorsed` was re-ruled `out-of-scope` the same way. Replay keeps whichever the
 // ordering happens to favour, so the answer a reader sees is decided by shard interleaving.
@@ -648,7 +648,7 @@ func RequireUnappealedMotion(run Run, id, seatID, correcting string) error {
 		return nil
 	}
 	if found {
-		return fmt.Errorf("record: motion %s is already appealed by %s (%q). A second appeal does not add to the first — it REPLACES it in every reader, and the argument already on the record stops being the one anybody sees. If you are pressing on new grounds, file a NEW motion for this round: two motions keep two arguments, which is what an appeal being an event rather than a field is for%s",
+		return fmt.Errorf("record: motion %s is already appealed by %s (%q). A second appeal does not add to the first — it REPLACES it in every reader, and the argument already on the record stops being the one anybody sees. If you are pressing on new grounds, file a NEW motion for this epoch: two motions keep two arguments, which is what an appeal being an event rather than a field is for%s",
 			id, seat.String, reason.String, correctionOffer(run, seatID, seat.String, key.String, seq, "appeal"))
 	}
 	return nil
@@ -700,7 +700,7 @@ func MotionVerdictEnum(subject string) EnumField {
 // compatibility code's entire evidence base was the fixtures written to justify it.
 //
 // Two sessions reached that conclusion independently on the same instruction and deleted it in
-// parallel; the merge kept `Motions` as the single read and dropped the `AllMotions` seam with it.
+// parallel; the chair kept `Motions` as the single read and dropped the `AllMotions` seam with it.
 //
 // THE COST IF THE PREMISE IS WRONG, stated rather than left to be discovered: a record written
 // before #344 renders an empty motions section and `0 filed / 0 ruled`, exactly the plausible zero

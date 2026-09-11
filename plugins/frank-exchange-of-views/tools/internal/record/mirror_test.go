@@ -8,7 +8,7 @@ import (
 )
 
 // THE KEY IS FROZEN. These twelve characters name a directory that already exists on
-// developers' disks, written by every `merge verdict` since the mirror shipped. Any change to
+// developers' disks, written by every `chair verdict` since the mirror shipped. Any change to
 // how it is derived — a filepath.Clean, a case fold, a different hash, os.UserCacheDir instead
 // of os.UserHomeDir — renames every mirror, which does not fail: the writer creates a fresh one
 // under the new name and the purge reports 0 against the old, both of them silent.

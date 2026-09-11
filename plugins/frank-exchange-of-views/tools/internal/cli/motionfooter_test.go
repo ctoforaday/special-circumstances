@@ -21,7 +21,7 @@ import (
 // when the role level went away. The pointer is gone because the thing it pointed around is gone:
 // `motion` is mounted in each seat's own surface, with `rule` only where the gavel is.
 func TestEverySeatHasTheMotionGroupInItsOwnTree(t *testing.T) {
-	for _, role := range []string{"blue", "lens", "merge", "bench"} {
+	for _, role := range []string{"blue", "lens", "chair", "bench"} {
 		t.Run(role, func(t *testing.T) {
 			root := NewRootFor(record.SampleSeatOf(role))
 			c, _, err := root.Find([]string{"motion"})
@@ -43,10 +43,10 @@ func TestEverySeatHasTheMotionGroupInItsOwnTree(t *testing.T) {
 // or removed is worse than no footer. There is no pointer now; the group is in the tree. The claim
 // that survives, and is the one that mattered, is that the group a seat lands in is not empty.
 func TestEveryMotionSubjectCarriesAVerb(t *testing.T) {
-	root := NewRootFor(record.SampleSeatOf("merge"))
+	root := NewRootFor(record.SampleSeatOf("chair"))
 	c, _, err := root.Find([]string{"motion"})
 	if err != nil || c == nil || c.Name() != "motion" {
-		t.Fatalf("the merge seat has no motion group: %v", err)
+		t.Fatalf("the chair has no motion group: %v", err)
 	}
 	if !c.HasSubCommands() {
 		t.Fatal("the motion group has no subjects — a seat sent here finds nothing to do")
@@ -66,7 +66,7 @@ func TestEveryMotionSubjectCarriesAVerb(t *testing.T) {
 // cannot find is a finding about the tooling rather than something to work around — which is the
 // regression this caught when the groups were deleted.
 func TestNoSeatsRootIsMissingTheFrictionFooter(t *testing.T) {
-	for _, role := range []string{"blue", "lens", "merge", "bench"} {
+	for _, role := range []string{"blue", "lens", "chair", "bench"} {
 		root := NewRootFor(record.SampleSeatOf(role))
 		if !strings.Contains(root.Long, "it does not exist for you") {
 			t.Errorf("the %s seat's root help is missing the friction footer", role)

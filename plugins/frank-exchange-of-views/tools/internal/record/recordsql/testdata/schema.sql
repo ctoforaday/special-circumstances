@@ -55,13 +55,13 @@ CREATE TABLE "enum_event_type" (
 ) STRICT;
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('anchor', 'evidence tied to a finding: where in the artifact the claim actually lives', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('avenue', 'a line of inquiry, from proposed through pursued, declined, deferred or abandoned', 'prose');
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('base_ingest', 'the frozen round-0 report, stored verbatim as the origin the diff-stack replays over', 'none');
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('blue_edit', 'a change to the living report, recorded as old and new so the edit itself is auditable', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('base_ingest', 'the report as blue ingested it, stored verbatim as the origin every recorded edit replays over', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('blue_edit', 'a change to the report, recorded as old and new so the edit itself is auditable', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('cast', 'the run''s admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('certify', 'a seat''s signed statement about its own work — what it asserts on the record', 'prose');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('cite', 'a source brought into the debate, with the hash and access date that make it re-checkable', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('class_new', 'a defect class coined in this run, with its definition and the neighbour it is distinguished from', 'none');
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('close', 'a merge closing a gap on a verified repair — red''s half of the closing vocabulary', 'prose');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('close', 'red closing a gap on a verified repair — red''s half of the closing vocabulary', 'prose');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('closing', 'a seat''s closing statement on a gap: the argument, not the disposition', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('correction', 'a seat correcting its own act within the sitting that wrote it: names the act it strikes, the replacement that takes its place, and why — both acts stay on the record', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('declare', 'the bench stating a holding that later sittings are expected to apply', 'prose');
@@ -77,18 +77,18 @@ INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('motion_appe
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('motion_rule', 'the bench''s ruling on a filed motion, and whom it binds', 'prose');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('observe', 'an observation recorded without a claim attached to it', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('outcome', 'the run''s terminal act: how it ended and whether the question was answered', 'prose');
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('position', 'a seat''s stated position going into a round', 'full');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('position', 'a seat''s stated position going into its sitting', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('proof', 'a script that was RUN, with its hash and exit status — the answer a computation check demands', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('register', 'a seat took its seat — the first act of any seat, stamping the tool version it ran under', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('regrade', 'a gap''s grade changed, with the basis for the change', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('reproduce', 'an attempt to re-run a recorded proof, and whether what it computes is sound', 'prose');
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('retire', 'a claim withdrawn from the report, with the reason and what supersedes it', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('retire', 'a claim retired from the report, with the reason and what supersedes it', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('revision', 'a revision to a seat''s own earlier text', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('sitting_close', 'the harness''s agent returning — the other end of that span', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('sitting_limit', 'a seat''s sitting stopped at the run''s per-sitting tool-call limit — the hook refuses every further call in it, and this records which seat, which sitting and the limit', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('sitting_open', 'the harness dispatching an agent — one end of a sitting''s span, observed by a hook rather than claimed by a seat', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('spot_check', 'red re-checking a sample of prior work, or stating that it checked none and why', 'full');
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('verdict', 'red''s round gate: PASS or FAIL against the open board', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('verdict', 'the chair''s verdict for its epoch: PASS or FAIL against the open board', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('verify', 'a citation checked at the leaf: what the source did for the claim, and how sure the reader is', 'none');
 
 CREATE TABLE "enum_verdict" (
@@ -102,7 +102,7 @@ CREATE TABLE "enum_run_outcome" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('ceiling', 'every open material gap reached its limit — at impasse, ruled by the bench and carried — with nobody ready and PASS not permitted; NOT a judged failure to verify, and the stamp says so');
+INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('ceiling', 'every open material gap reached its limit — at impasse, ruled by the bench and remanded — with nobody ready and PASS not permitted; NOT a judged failure to verify, and the stamp says so');
 INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('halted', 'the bench ended the run on a safety, ethics, consent or integrity boundary');
 INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('unverified', 'the run ended without the question being answered, and no ceiling or halt explains it');
 INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('verified', 'red passed the board and the bench agrees the question was answered');
@@ -176,11 +176,11 @@ CREATE TABLE "enum_disposition" (
   "closes" INTEGER NOT NULL CHECK ("closes" IN (0, 1))
 ) STRICT;
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('amends_prior', 'a defect found BETWEEN two repairs that each closed clean earlier — its lineage is the supersedes the gap was minted with; the close itself carries none and nothing checks it', 1);
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('carried', 'NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes', 0);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('defect_accepted', 'the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('defect_owed_elsewhere', 'a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('moot', 'the gap''s predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('not_a_defect', 'blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be', 1);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('remanded', 'NOT a closure: the gap stays open into a later sitting with a stated research direction the coming seat owes', 0);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired', 'the repair was verified at the leaf and nothing regressed', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired_with_regression', 'repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward', 1);
 
@@ -188,9 +188,9 @@ CREATE TABLE "enum_ruling_binds" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('blue', 'the relief binds the response seat — what blue must do, or must not, in the coming round');
+INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('blue', 'the relief binds the response seat — what blue must do, or must not, in its coming sitting');
 INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('both', 'it binds the whole exchange, and every dispatched seat carries it');
-INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('red', 'it binds the audit seats: the lenses and the merge');
+INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('red', 'it binds the audit seats: the lenses and the chair');
 
 CREATE TABLE "enum_about_kind" (
   "value" TEXT PRIMARY KEY,
@@ -994,7 +994,7 @@ SELECT
   -- THE BENCH HEARD IT AND KEPT IT ALIVE, and this is the column that lets a seat be told so.
   --
   -- carried is 76 of 77 bench rulings in the measured base rate, and it ANSWERS its motion: the
-  -- gap comes back by being docketed again next epoch. Without this the merge seat was told only
+  -- gap comes back by being docketed again next epoch. Without this the chair was told only
   -- "gap G1 is open — PASS is refused while it is", which is true of a gap nobody has ever put
   -- before the bench and of one the bench has considered twice and deliberately deferred. Same
   -- sentence, two very different situations, and the seat cannot act differently on them.
@@ -1009,7 +1009,7 @@ SELECT
   --
   -- AND NOTHING PENDING, which is the arm that keeps this from double-counting. A gap already
   -- re-docketed and awaiting an answer is not awaiting a FILING, and reporting it as such would
-  -- ask the merge seat to file the same question at the bench twice.
+  -- ask the chair to file the same question at the bench twice.
   (c."event_id" IS NULL AND bc."event_id" IS NULL
      AND EXISTS(SELECT 1 FROM "motion_docket" md2
                   JOIN "motion" mo2 ON mo2."event_id" = md2."event_id"

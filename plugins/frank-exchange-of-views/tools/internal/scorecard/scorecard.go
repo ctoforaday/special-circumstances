@@ -1,6 +1,6 @@
 // Package scorecard is the Go port of scorecards.mjs's COMPUTE + RENDER: it turns a run's
 // record (board/findings/debate views, read IN-PROCESS from BoardState — not by self-spawning
-// `merge show`), its journal envelopes, and its board telemetry into the per-card scorecard
+// `chair show`), its journal envelopes, and its board telemetry into the per-card scorecard
 // rows, and renders the markdown section a seat's in-run self-read prints.
 //
 // THE JS MODULE IS GONE, and this paragraph outlived it. It read "the JS module stays for now —
@@ -28,6 +28,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -177,7 +178,10 @@ func anchoredClosures(fam *record.Family) (anchored, total int, ok bool) {
 	return a, t, true
 }
 
-var citeRe = regexp.MustCompile(`(?i)lead|judge|direction|carried`)
+// citeRe reads blue's POSITION PROSE, which a run writes once and keeps: a run recorded before
+// the deferring disposition was spelled `remanded` says "carried" in the same place. Matching only
+// the current word would score those runs' uptake low and look like a measurement.
+var citeRe = regexp.MustCompile(`(?i)lead|judge|direction|carried|remanded`)
 
 // ComputeDirectionUptake counts LEAD sittings and blue sections referencing the bench direction
 // — the pure kernel over the debate JSON (JS computeDirectionUptake).
@@ -679,11 +683,47 @@ func redRows(run record.Run, results []map[string]any, telemetry []*recordpb.Tel
 	return rows
 }
 
+// legacyEnvelopeKeys are the envelope keys the engine wrote before the disposition keys:
+// JUDGE_ENVELOPE's `resolutions` (now `dispositions`) and BLUE_ENVELOPE's `grade_disputes`
+// (now `grade_motions`).
+var legacyEnvelopeKeys = []string{"resolutions", "grade_disputes"}
+
+// LegacyKeys names which of those keys a journal's results carry, in a fixed order, and nothing
+// for a journal that holds none.
+//
+// A TRANSCRIPT IS NOT A RECORD, SO NOTHING TRANSLATES IT. migrate rewrites record.db; a captured
+// journal keeps the keys its engine wrote. Read under the current keys, an old journal's rulings
+// are simply absent, and every number computed from them reads as a bench that never sat. This
+// is how a reader tells that absence from a real one — and then says so instead of counting.
+func LegacyKeys(results []map[string]any) []string {
+	seen := map[string]bool{}
+	for _, r := range results {
+		for _, k := range legacyEnvelopeKeys {
+			if _, ok := r[k]; ok {
+				seen[k] = true
+			}
+		}
+	}
+	var out []string
+	for _, k := range legacyEnvelopeKeys {
+		if seen[k] {
+			out = append(out, k)
+		}
+	}
+	return out
+}
+
+// LegacyNote is the stated row for a number those keys held: the reader could not measure it,
+// and says which keys it found.
+func LegacyNote(keys []string) string {
+	return "not measured: this transcript's envelopes predate the disposition keys (" + strings.Join(keys, "/") + ")"
+}
+
 func benchRows(results []map[string]any, fam *record.Family) []Row {
 	var rows []Row
 	var rulings []map[string]any
 	for _, r := range results {
-		if rs, ok := r["resolutions"].([]any); ok {
+		if rs, ok := r["dispositions"].([]any); ok {
 			for _, x := range rs {
 				if m, ok := x.(map[string]any); ok {
 					rulings = append(rulings, m)
@@ -692,19 +732,42 @@ func benchRows(results []map[string]any, fam *record.Family) []Row {
 		}
 	}
 
-	// carried_share
-	carried := 0
+	// remanded_share
+	//
+	// A WORD THIS BINARY DOES NOT KNOW MAKES THE ROW UNMEASURED, NOT SMALLER. A transcript is
+	// not a record and migrate never touches it, so one captured under an older vocabulary holds
+	// the deferring disposition under its old spelling. Counting only the current word would put
+	// every such ruling in the denominator and none in the numerator: a bench that deferred 76 of
+	// 77 would score 0, which reads exactly like a bench that decided everything.
+	remanded := 0
+	var foreign []string
+	seen := map[string]bool{}
 	for _, r := range rulings {
-		if str(r["resolution"]) == "carried" {
-			carried++
+		w := str(r["disposition"])
+		if _, ok := record.DispositionOf(w); !ok {
+			if !seen[w] {
+				seen[w] = true
+				foreign = append(foreign, strconv.Quote(w))
+			}
+			continue
+		}
+		if w == record.DispositionRemanded {
+			remanded++
 		}
 	}
-	if len(rulings) > 0 {
-		rows = append(rows, Row{Clause: "Not a router", Metric: "carried_share", Cls: "benchmark",
-			Value: float64(carried) / float64(len(rulings)),
-			Note:  strconv.Itoa(carried) + "/" + strconv.Itoa(len(rulings)) + "; baseline 76/77"})
-	} else {
-		rows = append(rows, Row{Clause: "Not a router", Metric: "carried_share", Cls: "benchmark", Note: "the bench did not sit this run"})
+	legacy := LegacyKeys(results)
+	switch {
+	case slices.Contains(legacy, "resolutions"):
+		rows = append(rows, Row{Clause: "Not a router", Metric: "remanded_share", Cls: "benchmark", Note: LegacyNote(legacy)})
+	case len(foreign) > 0:
+		rows = append(rows, Row{Clause: "Not a router", Metric: "remanded_share", Cls: "benchmark",
+			Note: "not measured: disposition " + strings.Join(foreign, ", ") + " is not in this binary's vocabulary"})
+	case len(rulings) > 0:
+		rows = append(rows, Row{Clause: "Not a router", Metric: "remanded_share", Cls: "benchmark",
+			Value: float64(remanded) / float64(len(rulings)),
+			Note:  strconv.Itoa(remanded) + "/" + strconv.Itoa(len(rulings)) + "; baseline 76/77"})
+	default:
+		rows = append(rows, Row{Clause: "Not a router", Metric: "remanded_share", Cls: "benchmark", Note: "the bench did not sit this run"})
 	}
 
 	// blue_sections_citing_direction (string value)
@@ -775,7 +838,7 @@ func Compute(run record.Run, results []map[string]any, fam *record.Family) map[s
 	telemetry := ReadTelemetry(run)
 	return map[string][]Row{
 		"blue":  append(blueRows(run, results, telemetry, fam), correctionsRow(fam, "blue")),
-		"red":   append(redRows(run, results, telemetry, fam), correctionsRow(fam, "merge", "lens")),
+		"red":   append(redRows(run, results, telemetry, fam), correctionsRow(fam, "chair", "lens")),
 		"bench": append(benchRows(results, fam), correctionsRow(fam, "bench")),
 	}
 }

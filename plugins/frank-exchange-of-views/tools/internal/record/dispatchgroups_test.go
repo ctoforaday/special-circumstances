@@ -41,7 +41,7 @@ func TestDispatchGroupsSplitWhereSomebodySat(t *testing.T) {
 func chairOwed(t *testing.T, run Run) []Item {
 	t.Helper()
 	var out []Item
-	for _, it := range sittingOfRunT(t, run, "merge", "red-chair").Open {
+	for _, it := range sittingOfRunT(t, run, "chair", "red-chair").Open {
 		if it.Blocks && strings.Contains(it.What, "register for this sitting") {
 			out = append(out, it)
 		}

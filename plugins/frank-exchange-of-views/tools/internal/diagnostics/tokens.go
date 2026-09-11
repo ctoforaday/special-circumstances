@@ -114,7 +114,7 @@ func CommandWords(fields []string) []string {
 			continue
 		}
 		switch f {
-		case "blue", "lens", "merge", "bench":
+		case "blue", "lens", "chair", "bench":
 			continue
 		}
 		// A verb is a lowercase word, possibly hyphenated. Anything else is prose that leaked out

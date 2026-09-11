@@ -17,7 +17,7 @@ import (
 //
 // A SET PER TYPE IS NO LONGER NEEDED FOR RED, AND THAT IS THE POINT OF THE SPLIT. This table
 // carried `red-auditor -> {lens, merge}` and said so as a real limit: debate.js dispatched both
-// the lenses and the merge as one configuration, so an attestation of red-auditor admitted either
+// the lenses and the chair as one configuration, so an attestation of red-auditor admitted either
 // and could refuse neither. Every red seat now has its OWN configuration, so `agent_type` names
 // WHICH lens — not merely that it is one — and the ambiguous row is gone.
 //
@@ -35,7 +35,7 @@ var agentTypeRoles = map[string][]string{
 	"frank-exchange-of-views:red-lens-computation":  {"lens"},
 	"frank-exchange-of-views:red-lens-adversary":    {"lens"},
 	"frank-exchange-of-views:red-lens-architecture": {"lens"},
-	"frank-exchange-of-views:red-chair":             {"merge"},
+	"frank-exchange-of-views:red-chair":             {"chair"},
 	"frank-exchange-of-views:blue-researcher":       {"blue"},
 	"frank-exchange-of-views:blue-synthesizer":      {"blue"},
 	"frank-exchange-of-views:lead-judge":            {"bench"},

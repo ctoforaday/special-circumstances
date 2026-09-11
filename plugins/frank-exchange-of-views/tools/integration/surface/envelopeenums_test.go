@@ -48,7 +48,7 @@ var constEnum = regexp.MustCompile(`^const ([A-Z_]+) = \{[^}]*enum:\s*\[([^\]]*)
 // this gate's own first draft did exactly that, which is the same collision it exists to catch.
 // engineOnly and recordOnly are the DECLARED asymmetries: values one side legitimately has and
 // the other does not. Both are named rather than exempted wholesale, so a fourth of either kind
-// fails this gate until someone says what it is. See JUDGE_ENVELOPE.resolution for the case that
+// fails this gate until someone says what it is. See JUDGE_ENVELOPE.disposition for the case that
 // forced them.
 type enumBind struct {
 	typ, key   string
@@ -87,8 +87,8 @@ var envelopeEnumBinding = map[string]enumBind{
 	// Getting here took three changes rather than a mapping: `moot` became a record disposition
 	// (it asserts neither the argument not_a_defect claims nor the verification repaired claims);
 	// `grade_adjusted` left, because it is a GRADE MOTION's outcome and this envelope already
-	// carries grade_disputes for that; `unresolved` left as a duplicate of `carried`.
-	"JUDGE_ENVELOPE.resolution": {typ: "motion:docket", key: "ruling"},
+	// carries grade_motions for that; `unresolved` left as a duplicate of `carried`.
+	"JUDGE_ENVELOPE.disposition": {typ: "motion:docket", key: "ruling"},
 
 	// BOTH OF THESE WERE EXEMPT, AND NEITHER HAD NO RECORD COUNTERPART (#847 sibling sweep).
 	//
@@ -100,7 +100,7 @@ var envelopeEnumBinding = map[string]enumBind{
 	// the envelope stops OFFERING one: a grade dropped from this list is a grade no seat is ever
 	// invited to use, and the write path never sees the value it would have refused.
 	//
-	// That is the same shape as JUDGE_ENVELOPE.resolution above: an exemption whose reason is
+	// That is the same shape as JUDGE_ENVELOPE.disposition above: an exemption whose reason is
 	// true, protecting a direction nobody was checking.
 	"CHAIR_ENVELOPE.verdict": {typ: "verdict", key: "verdict"},
 	"GRADE.<self>":           {typ: "grade", key: "<self>"},
@@ -179,7 +179,7 @@ func TestEveryEnvelopeEnumAgreesWithTheRecord(t *testing.T) {
 		if absent := missing(want, append(append([]string{}, got...), bind.recordOnly...)); len(absent) > 0 {
 			t.Errorf("the record's %s.%s accepts %v, which envelope enum %q does not offer and which is not\n"+
 				"declared in recordOnly. A bench recording one of these has no envelope word for it, so the\n"+
-				"other party is handed a different fate's duty or the UNMAPPED FATE default.",
+				"other party is handed a different fate's duty or the UNMAPPED DISPOSITION default.",
 				bind.typ, bind.key, absent, key)
 		}
 	}
@@ -286,9 +286,9 @@ func missing(got, allowed []string) []string {
 	return out
 }
 
-// reDutyMap and reDutyKey read the KEYS of debate.js's BLUE_DUTY_BY_RESOLUTION.
+// reDutyMap and reDutyKey read the KEYS of debate.js's BLUE_DUTY_BY_DISPOSITION.
 var (
-	reDutyMap = regexp.MustCompile(`(?s)const BLUE_DUTY_BY_RESOLUTION = \{(.*?)\n\}`)
+	reDutyMap = regexp.MustCompile(`(?s)const BLUE_DUTY_BY_DISPOSITION = \{(.*?)\n\}`)
 	reDutyKey = regexp.MustCompile(`(?m)^\s+(\w+):\s*'`)
 )
 
@@ -296,7 +296,7 @@ var (
 //
 // Agreeing on the WORDS is not agreeing on the CONSEQUENCE. The binding proves every disposition
 // the record accepts has a matching word in the judge envelope; it says nothing about whether the
-// engine knows what that word obliges of blue. The duty lookup falls through to `UNMAPPED FATE
+// engine knows what that word obliges of blue. The duty lookup falls through to `UNMAPPED DISPOSITION
 // <word> — read the opinion on the record before acting on it`, which is deliberately loud and is
 // still a seat being told to go and find its own instruction: the ruling reaches blue with no
 // duty on it, on a run nobody is watching.
@@ -315,26 +315,26 @@ func TestEveryRulingFateHandsBlueADuty(t *testing.T) {
 	}
 	m := reDutyMap.FindSubmatch(b)
 	if m == nil {
-		t.Fatal("no `const BLUE_DUTY_BY_RESOLUTION = { ... }` in debate.js — the map was renamed or reshaped and this gate is measuring nothing, which reads exactly like a pass")
+		t.Fatal("no `const BLUE_DUTY_BY_DISPOSITION = { ... }` in debate.js — the map was renamed or reshaped and this gate is measuring nothing, which reads exactly like a pass")
 	}
 	var got []string
 	for _, k := range reDutyKey.FindAllSubmatch(m[1], -1) {
 		got = append(got, string(k[1]))
 	}
 	if len(got) == 0 {
-		t.Fatal("BLUE_DUTY_BY_RESOLUTION parsed to ZERO keys — an empty set is missing from nothing and would report a pass")
+		t.Fatal("BLUE_DUTY_BY_DISPOSITION parsed to ZERO keys — an empty set is missing from nothing and would report a pass")
 	}
 	sort.Strings(got)
 
 	want := recordEnumValues(t, "motion:docket", "ruling")
 	if absent := missing(want, got); len(absent) > 0 {
-		t.Errorf("the bench can rule %v with no entry in BLUE_DUTY_BY_RESOLUTION.\n"+
-			"Blue is handed the UNMAPPED FATE default for these — a sentence telling it to go read the\n"+
+		t.Errorf("the bench can rule %v with no entry in BLUE_DUTY_BY_DISPOSITION.\n"+
+			"Blue is handed the UNMAPPED DISPOSITION default for these — a sentence telling it to go read the\n"+
 			"record instead of the duty the fate actually carries. Two of these fates are blue WINS, and\n"+
 			"under a bare fallthrough they read like the ones that are not.", absent)
 	}
 	if extra := missing(got, want); len(extra) > 0 {
-		t.Errorf("BLUE_DUTY_BY_RESOLUTION carries a duty for %v, which the record's motion:docket.ruling\n"+
+		t.Errorf("BLUE_DUTY_BY_DISPOSITION carries a duty for %v, which the record's motion:docket.ruling\n"+
 			"does not accept. A duty for a fate no bench can rule is checked coverage of nothing, and it\n"+
 			"reads as the map being complete.", extra)
 	}

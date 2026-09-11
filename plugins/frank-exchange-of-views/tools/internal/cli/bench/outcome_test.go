@@ -102,7 +102,7 @@ func TestOutcomeAssertsOnlyUnverifiedAndAlwaysWithAnAccount(t *testing.T) {
 // report could stamp a verdict and never say why it was that one.
 func TestOutcomeRecordsWhyTheVerdictIsWhatItIs(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	// The bench's own handle is the one that must resolve; the merge is registered here only so
+	// The bench's own handle is the one that must resolve; the chair is registered here only so
 	// its verdict has a seat to hang on, and it binds a different agent for the same reason a run
 	// does — two seats are two agents.
 	t.Setenv(seatenv.AgentVar, "agent_merge")

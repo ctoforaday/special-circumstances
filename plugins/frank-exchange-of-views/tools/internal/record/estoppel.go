@@ -277,7 +277,7 @@ func EditSpans(run Run) ([]EditSpan, error) {
 // location nothing can resolve, and `show report --anchor` has nothing to read. So the marker
 // leaves only once red's own lifecycle has closed on it: the finding is credited by at least one
 // gap, and every gap crediting it is closed. A finding no gap credits is still red's — pending
-// the merge, or declined by it in silence — and is held too: the record cannot tell those apart,
+// the chair, or declined by it in silence — and is held too: the record cannot tell those apart,
 // so it errs toward keeping the marker.
 func FindingMarkerHold(run Run, findingID string) (string, error) {
 	db, err := openRunForRead(run)
@@ -345,7 +345,7 @@ func HasTable(run Run, name string) (bool, error) {
 // in board order.
 //
 // It is the same join the close gate and the board projection use, exposed as a debt a seat can
-// be handed at the moment it matters. The gate is at the MERGE's close, one seat and one epoch
+// be handed at the moment it matters. The gate is at the CHAIR's close, one seat and one epoch
 // after blue — the only seat that can discharge it — has finished its sitting.
 //
 // Measured: projecting check_kind moved `prove` from 0 uses across eighteen sittings to 1 across

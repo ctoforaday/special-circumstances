@@ -60,7 +60,7 @@ func pathsOf(pages []diagnostics.ManualPage) []string {
 
 func everySurface() map[string]string {
 	seats := map[string]string{record.OperatorRole: record.OperatorRole}
-	for _, r := range []string{"lens", "merge", "blue", "bench"} {
+	for _, r := range []string{"lens", "chair", "blue", "bench"} {
 		seats[r] = record.SampleSeatOf(r)
 	}
 	return seats

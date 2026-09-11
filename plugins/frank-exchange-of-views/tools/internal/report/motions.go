@@ -33,7 +33,7 @@ func motions(fam record.Family) string {
 	for _, m := range ms {
 		rows = append(rows, motionRow(m, &unruled, struckRulings[m.ID], struckAppeals[m.ID]))
 	}
-	out := "## Motions\n\nEvery contested question and how it was answered: grade disputes, petitions, and rulings on proposed directions. One mechanism, one id — an ask and its answer are one row.\n\n" +
+	out := "## Motions\n\nEvery contested question and how it was answered: grade motions, petitions, and rulings on proposed directions. One mechanism, one id — an ask and its answer are one row.\n\n" +
 		strings.Join(rows, "\n")
 	if unruled > 0 {
 		out += fmt.Sprintf("\n\n**%d motion(s) received no ruling.** A motion is answered before the debate moves on; a filing with no ruling means that sitting is missing, not that the ask was withdrawn.", unruled)

@@ -9,12 +9,12 @@ import (
 
 // THE MOTIONS VIEW, AND WHY IT HAD TO EXIST.
 //
-// A motion BLOCKS the terminal verb: `merge verdict --as PASS` is refused while one is unruled,
+// A motion BLOCKS the terminal verb: `chair verdict --as PASS` is refused while one is unruled,
 // and the refusal names its id. Until this view, that id was all a seat could ever learn — there
 // was no read verb (`motion` offers direction|grade|petition, each file/rule/appeal, no show) and
 // no projection carried one. The ask was on the record and unreadable.
 //
-// Measured, from a probed merge seat blocked by exactly this. It tried `motion show --id M1`,
+// Measured, from a probed chair seat blocked by exactly this. It tried `motion show --id M1`,
 // read `motion --help` and concluded in its own words "there's a motion command but no show
 // subcommand", then searched six views, `--json`, `jq` and three help pages across ten-plus
 // calls. Then: "Since I don't know what direction blue proposed, let me reason about what's

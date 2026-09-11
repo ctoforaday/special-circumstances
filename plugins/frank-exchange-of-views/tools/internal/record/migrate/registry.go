@@ -179,7 +179,7 @@ func scalarValue(fd protoreflect.FieldDescriptor, v any) (protoreflect.Value, er
 		if !ok {
 			return protoreflect.Value{}, fmt.Errorf("enum field %s wants a word, old record holds %T", fd.Name(), v)
 		}
-		num, err := enumNumberOf(fd.Enum(), w)
+		num, err := enumValue(fd.Enum(), w)
 		if err != nil {
 			return protoreflect.Value{}, err
 		}

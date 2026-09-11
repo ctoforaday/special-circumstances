@@ -18,7 +18,7 @@ import (
 
 // EVERY VERB A PROMPT NAMES MUST EXIST.
 //
-// MEASURED, and it nearly shipped: the merge prompt told red to run `merge rule-line of inquiry`
+// MEASURED, and it nearly shipped: the chair prompt told red to run `merge rule-line of inquiry`
 // while the verb is `avenue-rule`. The rename landed in four Go files and missed the one
 // surface an agent actually reads. Nothing caught it — the fuzzer drives verbs DIRECTLY, so
 // it exercised the real verb and the prompt's dead name went unexercised behind a green
@@ -39,17 +39,19 @@ import (
 // checking a SUBSET of the prompts it appeared to cover, and the inverse gate below reported 16
 // verbs as unnamed when 15 were named in exactly that form. A gate that silently covers less
 // than it claims is the defect this suite keeps finding, so the boundary now admits both.
+// The ternary's close is `'feov-record'}`, and the anchor is that, not a bare `}`: a bare brace
+// also ends `${epoch}`, and "after ${epoch} chair sitting(s)" is prose, not an invocation.
 // A SEAT VERB IS NOT ALWAYS ONE WORD. The verbs that carried two contracts were split into
 // subgroups — `blue line-of-inquiry propose`, `lens class new` — so a pattern taking exactly one
 // word after the role reads `blue line-of-inquiry propose` as the GROUP `blue line-of-inquiry`,
 // which is not an invocable path. The forward gate then reports a verb the prompt names correctly
 // as missing, and the inverse gate reports both real verbs as named nowhere. Two words are
 // captured and the LONGER path wins where the tree has one (see promptPath).
-var promptVerb = regexp.MustCompile(`(?:feov-record"?|})\s+(lens|merge|blue|bench)\s+([a-z][a-z-]+)(?:\s+([a-z][a-z-]+))?`)
+var promptVerb = regexp.MustCompile(`feov-record(?:"|'\})?\s+(lens|chair|blue|bench)\s+([a-z][a-z-]+)(?:\s+([a-z][a-z-]+))?`)
 
 // AND THE BINARY IS NOT ALWAYS IN FRONT OF IT.
 //
-// promptVerb anchors on `feov-record` or the template `}` because it answers "is this verb a seat
+// promptVerb anchors on `feov-record` or the ternary's `'feov-record'}` because it answers "is this verb a seat
 // is being told to TYPE real". The naming gates ask a different question — "does this text hand a
 // seat a slice of the surface" — and there the prefix is often neither: `edit by edit through
 // \`blue edit\“, "an anchor is BORN only from \`lens finding\`/\`blue cite\`", "cite the METHOD
@@ -59,11 +61,11 @@ var promptVerb = regexp.MustCompile(`(?:feov-record"?|})\s+(lens|merge|blue|benc
 //
 // The boundary can be dropped here and NOT in the forward gate, and the asymmetry is the whole
 // design: the naming gates keep a match only when the TREE has that path, so "blue read the
-// report" and "the merge is refused" cannot survive — the tree is the discriminator. The forward
+// report" and "the chair is refused" cannot survive — the tree is the discriminator. The forward
 // gate treats a NON-match as the finding, so the same shape would report every such phrase as a
 // verb that does not exist.
 var promptRoleVerb = regexp.MustCompile(
-	"(?:^|[^\\w-])(lens|merge|blue|bench)[ `]+([a-z][a-z-]+)(?:[ `]+([a-z][a-z-]+))?")
+	"(?:^|[^\\w-])(lens|chair|blue|bench)[ `]+([a-z][a-z-]+)(?:[ `]+([a-z][a-z-]+))?")
 
 // promptPath resolves one match to the command path it names, preferring the two-word form when
 // the tree has it. The one-word form is returned otherwise — including when it is a group, which
@@ -99,7 +101,7 @@ var promptMotion = regexp.MustCompile(
 
 // AND A COMMAND NAMED WITHOUT ITS ROLE IS STILL A COMMAND.
 //
-// promptVerb requires the role — `feov-record blue show board`, `} lens mint`. That shape is what
+// promptVerb requires the role — `feov-record blue show board`, `'feov-record'} lens mint`. That shape is what
 // a prompt writes when it hands a seat something to TYPE, so the gate was built around it, and the
 // motion matcher above was added when the same hole showed up for `motion grade file`. The note
 // there says seven live commands sat outside the question the gate exists to ask. This is the
@@ -136,7 +138,7 @@ func promptRolelessPaths(real map[string]bool) *regexp.Regexp {
 		}
 		var tail string
 		switch f[0] {
-		case "lens", "merge", "blue", "bench":
+		case "lens", "chair", "blue", "bench":
 			tail = strings.Join(f[1:], " ")
 		default:
 			// Root-level paths (`motion grade file`) already carry no role; promptMotion covers
@@ -164,7 +166,7 @@ func rolelessTail(tail string, real map[string]bool) []string {
 		return []string{tail}
 	}
 	var out []string
-	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+	for _, role := range []string{"lens", "chair", "blue", "bench"} {
 		if real[role+" "+tail] {
 			out = append(out, role+" "+tail)
 		}
@@ -220,7 +222,7 @@ var promptView = regexp.MustCompile(`--view\s+([a-z][a-z-]+)`)
 // promptShowDoubled catches the regression above directly, because the bare form is exactly what
 // it hides behind: `show --run <dir> show board` opens with a flag and slips past the first
 // check. A second `show` inside one invocation is never right.
-var promptViewSub = regexp.MustCompile(`(?:feov-record"?|})\s+(?:lens|merge|blue|bench)\s+show\s+([a-z][a-z-]*)`)
+var promptViewSub = regexp.MustCompile(`feov-record(?:"|'\})?\s+(?:lens|chair|blue|bench)\s+show\s+([a-z][a-z-]*)`)
 
 var promptShowDoubled = regexp.MustCompile(`\bshow\s+(?:--\S+\s+\S+\s+)+show\b`)
 
@@ -258,7 +260,7 @@ func agentFacingFiles(t *testing.T) []string {
 		//
 		// Reading only the SOURCE made every parameterised clause invisible. `frictionClause` is
 		// written `${binDir…} ${role} friction --reason …`, so the string `merge friction` exists
-		// nowhere in debate.js — it exists in the prompt the merge seat is handed. A gate asking
+		// nowhere in debate.js — it exists in the prompt the chair is handed. A gate asking
 		// "is this verb named where a seat can read it" was reading the template, not the text.
 		//
 		// The goldens are that text, regenerated by tests/simulator/prompts.test.mjs, one per
@@ -326,7 +328,7 @@ func TestEveryVerbNamedInAPromptExists(t *testing.T) {
 // THE INVERSE, AND THE QUESTION IT ASKS HAD TO CHANGE WITH THE MODEL.
 //
 // It used to ask whether every recording verb was NAMED IN A PROMPT, and that caught three real
-// holes: `blue manifest-row` had never been invoked in any run, `merge verdict` was in no prompt
+// holes: `blue manifest-row` had never been invoked in any run, `chair verdict` was in no prompt
 // so a whole derivation was inert in production, and `merge regrade` was declared canonical with
 // the note "debate.js must name it" and appeared there zero times.
 //
@@ -693,7 +695,7 @@ func TestEveryVerbHasATriggerRow(t *testing.T) {
 
 	// Every backticked token in a table row's FIRST cell that looks like a command path.
 	documented := map[string]bool{}
-	pathTok := regexp.MustCompile("`((?:lens|merge|blue|bench|motion) [a-z][a-z -]*)`")
+	pathTok := regexp.MustCompile("`((?:lens|chair|blue|bench|motion) [a-z][a-z -]*)`")
 	for _, line := range strings.Split(string(b), "\n") {
 		if !strings.HasPrefix(strings.TrimSpace(line), "|") {
 			continue
@@ -719,7 +721,7 @@ func TestEveryVerbHasATriggerRow(t *testing.T) {
 	// map under "Every seat" and are NOT checked here, because deriving "root command a prompt
 	// names" would take a second prompt scan and the honest cost of that is a rule stated in one
 	// place instead of enforced in two. Stated rather than left as a silent hole.
-	isSeatPath := regexp.MustCompile(`^(lens|merge|blue|bench|motion) `)
+	isSeatPath := regexp.MustCompile(`^(lens|chair|blue|bench|motion) `)
 	real := map[string]bool{}
 	var missing []string
 	for _, p := range cli.CommandPaths() {
@@ -748,7 +750,7 @@ func TestEveryVerbHasATriggerRow(t *testing.T) {
 	// (~~`blue dispute`~~) are DELIBERATE history — the map records what a collapse retired and
 	// why — so they are exempt by the strikethrough, which is a mark the author makes on purpose.
 	struck := map[string]bool{}
-	for _, m := range regexp.MustCompile("~~`((?:lens|merge|blue|bench|motion) [a-z][a-z -]*)`~~").FindAllStringSubmatch(string(b), -1) {
+	for _, m := range regexp.MustCompile("~~`((?:lens|chair|blue|bench|motion) [a-z][a-z -]*)`~~").FindAllStringSubmatch(string(b), -1) {
 		struck[strings.TrimSpace(m[1])] = true
 	}
 	var stale []string

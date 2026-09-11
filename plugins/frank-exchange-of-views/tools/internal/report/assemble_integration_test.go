@@ -119,7 +119,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 		Opinion:  proto.String("a model-check is owed before this closes"),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED),
+			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 			Principle:   proto.String("correctness"), Tension: proto.String("cost vs certainty"),
 			ReviewFlag: proto.String("false"),
 			Settled:    proto.String("the claim as it stood may not be re-asserted"),
@@ -192,7 +192,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 			t.Errorf("report.md still carries the docket (%q) — the split did not happen", want)
 		}
 	}
-	for _, want := range []string{"## The debate", "### RED — NO VERDICT RECORDED THIS EPOCH\ngap G1 stands", "### BLUE\nG1 is repaired", "G1: carried"} {
+	for _, want := range []string{"## The debate", "### RED — NO VERDICT RECORDED THIS EPOCH\ngap G1 stands", "### BLUE\nG1 is repaired", "G1: remanded"} {
 		if !strings.Contains(deb, want) {
 			t.Errorf("debate.md missing %q\n---\n%s", want, deb)
 		}
@@ -210,7 +210,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 	// written. That inverts what this assertion used to say — the old fixture wrote a `bench
 	// opinion`, which was not a motion, so the judgments document was legitimately empty.
 	judgments := read(FileJudgments)
-	for _, want := range []string{"## Motions", "**M1** · docket G1", "**ruled carried** by judge"} {
+	for _, want := range []string{"## Motions", "**M1** · docket G1", "**ruled remanded** by judge"} {
 		if !strings.Contains(judgments, want) {
 			t.Errorf("judgments.md missing %q — the bench's disposition is a docket motion, and the "+
 				"section whose promise is \"an ask and its answer are one row\" must carry it\n---\n%s", want, judgments)

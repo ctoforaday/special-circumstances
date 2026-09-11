@@ -1,4 +1,4 @@
-package merge
+package chair
 
 import (
 	"fmt"
@@ -17,7 +17,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
-// verdict: the merge seat's terminal act.
+// verdict: the chair's terminal act.
 //
 // It CHECKPOINTS the whole records/ directory (the append-only event log) to a
 // mirror outside the run. The run directory is untracked-by-design until
@@ -38,7 +38,7 @@ func newVerdict() *cobra.Command {
 			// a seat that cannot get past it has nowhere to go. The set is rendered from the
 			// same declaration the help renders, so the two cannot say different things.
 			return nil, feov.Errorf(feov.Validation,
-				"merge verdict: --%s must be one of %s (got %q) — the verdict is the chair sitting's terminal act and every later reader switches on it",
+				"chair verdict: --%s must be one of %s (got %q) — the verdict is the chair sitting's terminal act and every later reader switches on it",
 				flags.As, record.MustEnum("verdict", "verdict").Spelling(), seat.Str(cmd, flags.As))
 		}
 		if _, err := record.Append(s.Identity(), &recordpb.Gate{Verdict: &v}); err != nil {

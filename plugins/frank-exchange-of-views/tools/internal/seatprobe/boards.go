@@ -528,7 +528,7 @@ Figures were read from the deployed configuration at the pinned revision.
 			{Seat: "red-chair", Verb: "motion inquiry rule", Because: "Blue proposed a line and it is unruled. Red had no verb to reject a direction for six runs and rejected none; the projection blue reads shows an unruled line as one nobody has sat on."},
 			{Seat: "red-chair", Verb: "inquiry-support", Because: "The report's own account of what this run investigated is part of the report, and it is the one part `lens verify` cannot reach — assemble GENERATES those rows, so they carry no citation anchor. The vote is per-epoch and `verdict --as PASS` is refused while any line is unvoted, so skipping it stops the run rather than passing quietly. The bait is answering from the record instead of the document: the grade is a conclusion, and --reason must quote what the report SAYS at that line."},
 			{Seat: "red-chair", Verb: "closing", Because: "Every gap red re-raises and every grade motion it rules `rejected` is docket-bound, and the closing is red's case to the bench."},
-			{Seat: "red-chair", Verb: "motion docket file", Because: "The closing above states the case; THIS puts the gap on the record as one the bench owes an answer to. Until the docket was a motion that case was prose — the board said `docket-bound` and nothing wrote it down, so a gap could reach the bench and get no ruling with nothing able to notice. The merge is the seat that owns what reaches the bench, and an open gap it cannot close itself is exactly the one to file."},
+			{Seat: "red-chair", Verb: "motion docket file", Because: "The closing above states the case; THIS puts the gap on the record as one the bench owes an answer to. Until the docket was a motion that case was prose — the board said `docket-bound` and nothing wrote it down, so a gap could reach the bench and get no ruling with nothing able to notice. The chair is the seat that owns what reaches the bench, and an open gap it cannot close itself is exactly the one to file."},
 			{Seat: "red-chair", Verb: "dispatch", Because: "The chair's sitting BEGINS here: the record says who sits — the parties, their gaps, the head they audit — and the chair relays it. A chair that names parties from its own reading has reopened the self-assertion channel the verb closes."},
 			{Seat: "red-chair", Verb: "verdict", Because: "The sitting's terminal act. A PASS is checked against the open board AND against unanswered motions, so it is a claim the tool will refuse rather than a summary."},
 		},
@@ -684,7 +684,7 @@ No material downside was identified.
 			// through the additive half of #681; a verb the bench role no longer offers reports
 			// UNMET on every probe, and an expectation that cannot be met teaches its reader to
 			// skim the whole board.
-			{Seat: "judge", Verb: "motion docket rule", Because: "The bench's disposition both rules and ends the gap, and `carried` is the one value that defers instead of closing — a gap that reaches the bench and gets no ruling is a docket item nobody disposed of. The disposition joins to the ask that raised it."},
+			{Seat: "judge", Verb: "motion docket rule", Because: "The bench's disposition both rules and ends the gap, and `remanded` is the one value that defers instead of closing — a gap that reaches the bench and gets no ruling is a docket item nobody disposed of. The disposition joins to the ask that raised it."},
 			{Seat: "judge", Verb: "motion petition rule", Because: "A petition is heard BEFORE the debate continues, so an unruled one stops the run rather than waiting. The bench holds this gavel alone."},
 			{Seat: "judge", Verb: "certify", Because: "The bench keeps no memory between runs, so what it would want a human to re-examine exists only if it is recorded. The report promotes it into `Read this first`."},
 			{Seat: "judge", Verb: "declare", Because: "The petition turns on what `required_fix` MEANS — whether it can " +
@@ -818,7 +818,7 @@ func Boards() map[string]Board {
 // THIS MAP IS A FINDING, NOT AN EXEMPTION LIST. Building the boards surfaced it: `motion grade
 // file`, `motion grade appeal` and `motion inquiry appeal` are offered to every seat because a
 // motion is filed by ANY seat and ruled by one — but grades and directions are blue's to contest.
-// A lens files findings; a merge sets the grades itself and would be appealing its own ruling; a
+// A lens files findings; a chair sets the grades itself and would be appealing its own ruling; a
 // bench disposes of gaps rather than arguing their axes. Twelve verb-slots exist that no honest
 // situation reaches.
 //
@@ -827,15 +827,15 @@ func Boards() map[string]Board {
 // filing verbs by role the way the RULING verbs already are, or accept the openness and say so
 // where a seat can read it. Tracked rather than quietly excused — see the issue named below.
 var NoSituation = map[string]string{
-	"lens motion docket file":     "a lens files FINDINGS; the merge turns them into graded gaps and decides what reaches the bench. A lens has no gap of its own to escalate.",
+	"lens motion docket file":     "a lens files FINDINGS; the chair turns them into graded gaps and decides what reaches the bench. A lens has no gap of its own to escalate.",
 	"bench motion docket file":    "the bench RULES docket motions. Filing one to itself is the gavel problem in miniature — the forum putting a question to the forum, then answering it.",
-	"lens motion grade file":      "a lens files FINDINGS; the merge turns them into graded gaps. Contesting a grade it never set has no sitting.",
+	"lens motion grade file":      "a lens files FINDINGS; the chair turns them into graded gaps. Contesting a grade it never set has no sitting.",
 	"lens motion grade appeal":    "follows from the above: nothing for a lens to appeal.",
 	"lens motion inquiry appeal":  "directions are blue's to propose and blue's to press; a lens has no line of its own at stake.",
-	"merge motion grade file":     "the merge SETS the grades. Filing a motion against its own grade is an argument with itself, and `regrade` is the channel for changing its mind.",
-	"merge motion grade appeal":   "the merge rules grade motions; appealing one is appealing its own ruling.",
-	"merge motion inquiry appeal": "the merge RULES directions. The appeal is the other side of that exchange.",
-	"merge motion petition file":  "possible and real — a merge may object on integrity grounds — but no board here builds it, and claiming coverage of a sitting nobody wrote would be worse than saying so.",
+	"chair motion grade file":     "the chair SETS the grades. Filing a motion against its own grade is an argument with itself, and `regrade` is the channel for changing its mind.",
+	"chair motion grade appeal":   "the chair rules grade motions; appealing one is appealing its own ruling.",
+	"chair motion inquiry appeal": "the chair RULES directions. The appeal is the other side of that exchange.",
+	"chair motion petition file":  "possible and real — a chair may object on integrity grounds — but no board here builds it, and claiming coverage of a sitting nobody wrote would be worse than saying so.",
 	"bench motion grade file":     "the bench DISPOSES of gaps; it does not argue their axes with the seat that set them.",
 	"bench motion grade appeal":   "follows from the above.",
 	"bench motion inquiry appeal": "the bench does not propose or pursue lines.",

@@ -65,14 +65,14 @@ func TestBenchCarriedLeavesTheGapOpenWhileClosedDoesNot(t *testing.T) {
 	closed := mintGap(t, runDir, "bench-closes-that", "carry-vs-close")
 
 	for _, c := range []struct{ id, as, principle string }{
-		{carried, "carried", "the repair is unverified at the leaf; it needs another round"},
+		{carried, "remanded", "the repair is unverified at the leaf; it needs another round"},
 		{closed, "repaired", "the repair discharges the defect and the anchor is checkable"},
 	} {
 		benchDisposes(t, runDir, c.id, c.as, c.principle)
 	}
 
 	if !gapIsOpen(t, runDir, carried) {
-		t.Errorf("gap %s was CARRIED, not closed, and must still be open — a carry that closes turns the judge back into a router and reports the carried_share metric as perfect while the board loses the gap", carried)
+		t.Errorf("gap %s was REMANDED, not closed, and must still be open — a carry that closes turns the judge back into a router and reports the remanded_share metric as perfect while the board loses the gap", carried)
 	}
 	if gapIsOpen(t, runDir, closed) {
 		t.Errorf("gap %s was CLOSED by the bench and is still on the open board", closed)
@@ -148,7 +148,7 @@ func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 	}
 	// The FILER is on the envelope, not the body — the body is what the seat said.
 	if got := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_MOTION).GetSeatId(); got != "red-chair" {
-		t.Errorf("the motion was filed by %q, want the merge seat — the filer is on the filing, never restated on the answer", got)
+		t.Errorf("the motion was filed by %q, want the chair — the filer is on the filing, never restated on the answer", got)
 	}
 }
 
@@ -221,7 +221,7 @@ func TestConcurrentLensShardsBothReachTheMerge(t *testing.T) {
 		}
 	}
 	if !seen["evidence-F1"] || !seen["adversary-F1"] {
-		t.Errorf("the merge sees %v, want both lenses — findings from every seat are rows in one record", seen)
+		t.Errorf("the chair sees %v, want both lenses — findings from every seat are rows in one record", seen)
 	}
 }
 

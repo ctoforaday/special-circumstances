@@ -243,7 +243,7 @@ func scenarios() []scenario {
 				// disposition on the ruling.
 				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "G1",
 					"--reason", "contested, and not red's to close"),
-				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M2", "--as", "carried",
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M2", "--as", "remanded",
 					"--principle", "correctness over economy", "--tension", "thoroughness vs cost",
 					"--review-flag", "the figure was never recomputed", "--settled", "the proposition this ruling bars", "--final", "--reason", "the rationale body"),
 				base("certify", "--run", "{RUN}", "--seat-id", "judge", "--reason", "what a human should re-examine"),

@@ -11,7 +11,7 @@ import (
 //
 // Before a lens mints a fresh gap it must ask "is this already on the board?" — a
 // near-duplicate should reopen (mint --supersedes) the prior gap, not fork a second one.
-// That screen used to be the merge reading the whole board and eyeballing it. Here it is a
+// That screen used to be the chair reading the whole board and eyeballing it. Here it is a
 // tool op: score the candidate's text against every gap's problem+location by token
 // overlap, return the top few. The tool SCREENS — it ranks candidates and never decides;
 // the seat reads the ranking and calls reopen-or-new. No store, no model, no embedding: a

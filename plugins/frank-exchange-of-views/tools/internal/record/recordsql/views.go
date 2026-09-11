@@ -16,14 +16,14 @@ package recordsql
 //
 // The first cut of this file could not fold a bench closure and said so: `disposition` was a plain
 // string, the bench's vocabulary was not in the database, and "does this word close the gap" was a
-// Go predicate — `benchClosesGap`, whose rule was "everything except `carried`". A negative rule
+// Go predicate — `benchClosesGap`, whose rule was "everything except `remanded`". A negative rule
 // has no gap to notice, and that is not hypothetical: a deferring disposition added later was
 // classified as closing by default and retired a gap the bench had deliberately kept alive.
 //
 // Making it an enum was the price of this join, and the join is the smaller half of what it bought.
 // `closes` is now an annotation ON each value, so the vocabulary table carries it as a NOT NULL
 // column and a value added without answering the question fails at build. The predicate is a
-// SELECT, the schema refuses a partly-annotated set, and `merge close` may not write `carried`
+// SELECT, the schema refuses a partly-annotated set, and `merge close` may not write `remanded`
 // because the CHECK is expanded from the same annotation.
 //
 // # What a gap being closed by BOTH arms means here
@@ -300,7 +300,7 @@ SELECT
   -- THE BENCH HEARD IT AND KEPT IT ALIVE, and this is the column that lets a seat be told so.
   --
   -- carried is 76 of 77 bench rulings in the measured base rate, and it ANSWERS its motion: the
-  -- gap comes back by being docketed again next epoch. Without this the merge seat was told only
+  -- gap comes back by being docketed again next epoch. Without this the chair was told only
   -- "gap G1 is open — PASS is refused while it is", which is true of a gap nobody has ever put
   -- before the bench and of one the bench has considered twice and deliberately deferred. Same
   -- sentence, two very different situations, and the seat cannot act differently on them.
@@ -315,7 +315,7 @@ SELECT
   --
   -- AND NOTHING PENDING, which is the arm that keeps this from double-counting. A gap already
   -- re-docketed and awaiting an answer is not awaiting a FILING, and reporting it as such would
-  -- ask the merge seat to file the same question at the bench twice.
+  -- ask the chair to file the same question at the bench twice.
   (c."event_id" IS NULL AND bc."event_id" IS NULL
      AND EXISTS(SELECT 1 FROM "motion_docket" md2
                   JOIN "motion" mo2 ON mo2."event_id" = md2."event_id"

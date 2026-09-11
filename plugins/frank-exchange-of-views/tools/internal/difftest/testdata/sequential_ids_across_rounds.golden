@@ -55,7 +55,7 @@ minted G3
 $ spot-check --run {RUN} --seat-id red-chair --ids G1, G2 --reason both re-read
 exit 2
 stderr:
-feov-record: merge: record: spot-check --ids names gap G1, which is still OPEN — the spot-check samples ARCHIVED closures, and re-verifying something that was never closed discharges the duty without doing it
+feov-record: chair: record: spot-check --ids names gap G1, which is still OPEN — the spot-check samples ARCHIVED closures, and re-verifying something that was never closed discharges the duty without doing it
 
 $ register --run {RUN} --seat-id blue-respond
 exit 0

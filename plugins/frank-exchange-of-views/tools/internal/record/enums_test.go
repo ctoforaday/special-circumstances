@@ -151,7 +151,7 @@ func TestBothClosureSetsShareOneVocabulary(t *testing.T) {
 	// Every class red may close with must also be a disposition the bench may rule, or the
 	// two verbs mean different things by the same outcome — which is what #342 removed.
 	for _, v := range Names(benchSet) {
-		if v == DispositionCarried {
+		if v == DispositionRemanded {
 			continue
 		}
 		if !closes[v] {
@@ -170,7 +170,7 @@ func TestBothClosureSetsShareOneVocabulary(t *testing.T) {
 		}
 	}
 	// `carried` is the ONE word that defers instead of closing, and only the bench has it.
-	if closes[DispositionCarried] {
+	if closes[DispositionRemanded] {
 		t.Error("`carried` is not a closure — red must not be able to close a gap with it")
 	}
 }
@@ -239,7 +239,7 @@ func schemaCarries(t *testing.T, typ, key, word string) bool {
 	if _, found := recordpb.BySpelling(fd.Enum(), word); found {
 		return true
 	}
-	// A CONVERTER MAY FOLD CASE, and two deliberately do. `merge verdict --as PASS` and `bench
+	// A CONVERTER MAY FOLD CASE, and two deliberately do. `chair verdict --as PASS` and `bench
 	// outcome --as VERIFIED` are the seat's words in capitals — that is the surface, and VerdictOf
 	// and RunOutcomeOf lowercase before resolving. BySpelling is exact by design (its own test
 	// pins that `PASS` does not resolve to `pass`), so the fold is checked here rather than
@@ -281,7 +281,7 @@ func TestArtifactStateSeparatesTheDisputeFromTheDefect(t *testing.T) {
 		{"defect_accepted", ArtifactDefectLive},
 		{"defect_owed_elsewhere", ArtifactDefectLive},
 		{"repaired_with_regression", ArtifactDefectLive},
-		{DispositionCarried, ArtifactUnexamined},
+		{DispositionRemanded, ArtifactUnexamined},
 	} {
 		got, ok := ArtifactStateOf(c.class)
 		if !ok {

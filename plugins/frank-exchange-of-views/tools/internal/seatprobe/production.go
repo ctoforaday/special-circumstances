@@ -31,7 +31,7 @@ import (
 // It is not a random walk like the fuzz's: the capture is a rendering, so the envelopes are the
 // board, stated in the shape debate.js branches on. Two branches matter and are deliberate:
 //
-//	VERDICT FAIL   a PASS ends the run before red's merge dispatches anyone else.
+//	VERDICT FAIL   a PASS ends the run before red's chair dispatches anyone else.
 //	GAPS REPEAT    red returns the SAME gap ids every epoch, so the second epoch sees them as
 //	               re-raised. That is what fills the contested docket — and the docket is the
 //	               ONLY thing that seats a judge at all. The first epoch cannot have one (nothing
@@ -63,7 +63,7 @@ func backendFor(b Board) debatejs.Backend {
 	return func(seatID, label, prompt string) debatejs.Envelope {
 		e := debatejs.Envelope{
 			"synopsis": "seatprobe capture", "petitions": []any{}, "log": []any{}, "rulings": []any{},
-			"resolutions": []any{}, "holdings": []any{},
+			"dispositions": []any{}, "holdings": []any{},
 			"manifest": manifest, "claim_count": len(b.Claims),
 			"saturation_reached": false, "sitting_record_appended": true,
 			"open_gaps": 0, "unruled_motions": 0,

@@ -136,7 +136,7 @@ func correctionsResolve(f record.Family) Check {
 //
 // The duty was born from a real defect — run 5's round-2 spot-check "had degraded to same-seat
 // self-attestation" — and its fix shipped as an envelope self-report, which was deleted in 2026
-// for comparing numbers the merge made up. Nothing replaced it. The `merge spot-check` verb
+// for comparing numbers the chair made up. Nothing replaced it. The `chair spot-check` verb
 // carried a receipt that NOTHING READ, so the fix for a self-attestation defect was a better
 // place to write the self-attestation.
 //
@@ -150,7 +150,7 @@ func archiveSpotCheckFloor(f record.Family) Check {
 	_, debt, falseEmpty := record.SpotCheckAudit(f)
 	var violations []string
 	for _, epoch := range debt {
-		violations = append(violations, fmt.Sprintf("epoch %d: the merge sat with archived closures available and recorded no spot-check", epoch))
+		violations = append(violations, fmt.Sprintf("epoch %d: the chair sat with archived closures available and recorded no spot-check", epoch))
 	}
 	for _, sc := range falseEmpty {
 		violations = append(violations, fmt.Sprintf("epoch %d (%s #%d): discharged with --none (%q) while the board shows %d archived closure(s) at epoch start",
@@ -187,7 +187,7 @@ func Failed(checks []Check) []Check {
 }
 
 // gapsDisposed: a gap is either OPEN or CLOSED WITH A RECORDED REASON. A closure carries its
-// reason in one of two fields depending on WHO closed it: a merge `close` carries a
+// reason in one of two fields depending on WHO closed it: a chair `close` carries a
 // `closure_class`, while the bench's ruling on a `docket` motion carries a `disposition`
 // (closed / not_a_defect / defect_accepted — see replay.go benchClosesGap). Either is a
 // decision; a closed gap with NEITHER is a torn closure — closed by the replay with no reason
@@ -199,7 +199,7 @@ func gapsDisposed(f record.Family) Check {
 		if g == nil || g.Open {
 			continue
 		}
-		// ASK THE GAP, NOT THE CLOSURE FIELD. The merge's `closure_class` and the bench's
+		// ASK THE GAP, NOT THE CLOSURE FIELD. The chair's `closure_class` and the bench's
 		// `disposition` now live on two different messages (`Close` and `DocketRuling`), and
 		// `g.Closure != nil` no longer means "closed by anything" — it means "closed by a
 		// `close` event". Reading it here would report every bench-closed gap as a torn
@@ -324,7 +324,7 @@ func supersedesResolve(f record.Family) Check {
 // like a considered judgement — "verdict is VERIFIED — gate not applicable".
 //
 // Severity, stated honestly rather than inflated: the LIVE gate works. record.Append refuses
-// `merge verdict --as PASS` while any gap is open ("1 gap(s) still OPEN: G1"), so the
+// `chair verdict --as PASS` while any gap is open ("1 gap(s) still OPEN: G1"), so the
 // contradiction cannot arise through the tool. What was lost is the after-the-fact half — the
 // one that exists for a record assembled some OTHER way: a hand-edited shard, a legacy run, or
 // a live gate that itself regressed. That is precisely the case a verifier is for, and it was

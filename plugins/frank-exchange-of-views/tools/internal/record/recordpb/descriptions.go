@@ -150,7 +150,7 @@ func isZeroValue(v protoreflect.EnumValueDescriptor) bool { return v.Number() ==
 // the gavel as a literal argument — `subject("petition", …, "bench")` — and enforced it in
 // requireRuler. The PASS gate, in `internal/record`, cannot import the CLI, so its refusal told
 // every blocked seat to "rule it with `motion <subject> rule`" without knowing whose ruling it
-// would be. For a petition that instruction is refused by requireRuler: the merge does not hold
+// would be. For a petition that instruction is refused by requireRuler: the chair does not hold
 // that gavel and cannot obtain it, so the seat had no legal verdict and the epoch wedged.
 //
 // The miss is LOUD for the same reason EnumValueDoc's is: a silent "" would put a role-shaped

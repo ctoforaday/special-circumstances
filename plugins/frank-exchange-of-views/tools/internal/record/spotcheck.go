@@ -17,13 +17,13 @@ import (
 //
 // W1.8 specified the repair as an ENFORCEMENT: key the floor on the archive's state at epoch
 // START, so the obligation exists exactly when there is something to sample. What shipped was an
-// envelope self-report — the merge wrote `archive_spot_checks[]` and the script compared it
-// against `prevArchiveBlocks`, ANOTHER NUMBER THE MERGE REPORTED. That gate was deleted on
+// envelope self-report — the chair wrote `archive_spot_checks[]` and the script compared it
+// against `prevArchiveBlocks`, ANOTHER NUMBER THE CHAIR REPORTED. That gate was deleted on
 // 2026-07-19, correctly, with its own epitaph: "they compared numbers the merge made up (a haiku
 // smoke self-reported archive_blocks:22 in an epoch where the true archived count was 0). The tool
 // board is the count authority; capture audits the truth from disk."
 //
-// Neither replacement authority was built. The `merge spot-check` verb was created to carry the
+// Neither replacement authority was built. The `chair spot-check` verb was created to carry the
 // receipt, and for a year the receipt went nowhere: the only code that touched the event was the
 // validation switch permitting it to be written. So the fix for a self-attestation defect was, in
 // net effect, a better place to write the self-attestation.
@@ -39,7 +39,7 @@ type SpotCheck struct {
 	Epoch   int
 	Sitting int
 	SeatID  string
-	// Sampled are the archived closures the merge says it re-verified.
+	// Sampled are the archived closures the chair says it re-verified.
 	Sampled []string
 	// Prose is what the sample found, or why there was nothing to sample. ONE channel: it was
 	// `notes` and `reason`, two payload keys filled by different branches of one verb, so the
@@ -88,8 +88,8 @@ func SpotCheckAudit(f Family) (checks []SpotCheck, debt []int, falseEmpty []Spot
 		return n
 	}
 
-	// An epoch is only OWED a sample if the merge actually sat in it. Demanding one from an epoch
-	// the merge never entered would fail a run for a duty nobody was there to discharge — the
+	// An epoch is only OWED a sample if the chair actually sat in it. Demanding one from an epoch
+	// the chair never entered would fail a run for a duty nobody was there to discharge — the
 	// epoch-number keying W1.8 replaced, in a new spelling.
 	mergeSat := map[int]bool{}
 	discharged := map[int]bool{}
@@ -97,14 +97,14 @@ func SpotCheckAudit(f Family) (checks []SpotCheck, debt []int, falseEmpty []Spot
 	for _, e := range f.Live() {
 		w := clk.Advance(e)
 		// REGISTERING IS NOT SITTING. A seat announces itself before it does anything, and a
-		// epoch where the merge registered and then the run ended — a ceiling hit, a PASS, a
+		// epoch where the chair registered and then the run ended — a ceiling hit, a PASS, a
 		// halt between the two — owed a sample it never had the chance to take. The floor is
-		// about work the merge DID, so the announcement does not count as work.
+		// about work the chair DID, so the announcement does not count as work.
 		//
 		// Found by the sweep at 1 seed in 60 once an unrelated change shifted the RNG stream:
 		// rare, real, and exactly the kind of gate that would have fired on a live run months
 		// later with nobody able to say why.
-		if PartyOf(e) == "merge" && e.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER {
+		if PartyOf(e) == "chair" && e.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER {
 			mergeSat[w.Epoch] = true
 		}
 		// The BODY is the type test. Named `body` because the projection struct this loop fills

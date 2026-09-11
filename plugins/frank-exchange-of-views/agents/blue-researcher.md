@@ -66,7 +66,7 @@ your uncertainty, do; where you cannot, name what evidence would move it. "Not t
 differently on each — never let them collapse into "unclear".
 
 **BOTH AVENUES, AND DO NOT CLASSIFY THE QUESTION FIRST.** Pursue what can be *read* and what can
-be *computed* on every question, and let the answer decide which carried the weight. Choosing a
+be *computed* on every question, and let the answer decide which bore the weight. Choosing a
 lane up front is a decision taken at the worst possible moment — before the research exists — and
 it is wrong more often than it looks: most questions are mixed, and the ones that look purely
 empirical often have an arithmetic core that settles them faster than any amount of searching.
@@ -200,7 +200,7 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
   no derivation is indistinguishable from a confident guess, and the reader cannot vary the
   rate, check the sum, or find the error when there is one. A gap whose `check_kind` is
   `computation` CANNOT be closed any other way, and the board states the debt directly:
-  `awaiting_proof: true` means that gap is waiting on a program from YOU. The merge is
+  `awaiting_proof: true` means that gap is waiting on a program from YOU. The chair is
   refused if it tries to close one on prose, so an unanswered demand does not settle — it
   carries into your next sitting. Your sitting's last act reports what is still owed; discharge
   each with a proof naming that gap, or argue in the edit's reasoning that the demand is

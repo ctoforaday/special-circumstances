@@ -46,9 +46,9 @@ import (
 //
 // BUT A SEQUENCE OF NOTHING BUT REFUSALS PROVES NOTHING, and that is what this test ran on for
 // as long as the tree has been flat. The generator composed `feov-record merge mint …`; the role
-// groups were gone, so every command it built exited 2 with `no command named "merge" exists`,
+// groups were gone, so every command it built exited 2 with `no command named "chair" exists`,
 // the record was never written, and the two replays agreed perfectly on zero events. Over the
-// fixed seed set every arm landed 0 times — merge register 0/8, blue revision 0/7, merge
+// fixed seed set every arm landed 0 times — chair register 0/8, blue revision 0/7, merge
 // spot-check 0/4 among them. The "every arm lands" subtest and the event floor below are what
 // make that state a failure instead of a pass.
 //
@@ -426,7 +426,7 @@ var fuzzArms = []fuzzArm{
 	// Was `bench reason`: the bench's disposition of a gap is its ruling on a docket motion.
 	{name: "bench motion docket rule", weight: 2, seats: []string{"judge"}, verb: []string{"motion", "docket", "rule"},
 		flags: func(rng *rand.Rand) []string {
-			f := []string{"--id", pick(rng, fuzzMotions), "--as", "carried", "--principle", "p", "--tension", "t",
+			f := []string{"--id", pick(rng, fuzzMotions), "--as", "remanded", "--principle", "p", "--tension", "t",
 				"--reason", "the ruling", "--review-flag", "r", "--settled", "the proposition this ruling bars"}
 			if rng.Intn(4) > 0 {
 				f = append(f, "--final") // omitted: neither --final nor --reopens-on, the validation path
@@ -469,7 +469,7 @@ var correctionArms = []fuzzArm{
 		}),
 	corrArm("bench motion docket rule corrected", []string{"judge"}, []string{"motion", "docket", "rule"},
 		func(t string) []string {
-			return []string{"--id", "M1", "--as", "carried", "--principle", "p", "--tension", "t", "--review-flag", "r",
+			return []string{"--id", "M1", "--as", "remanded", "--principle", "p", "--tension", "t", "--review-flag", "r",
 				"--settled", "the proposition this ruling bars", "--final", "--reason", t}
 		}, nil),
 	corrArm("blue line-of-inquiry propose corrected", blueSeats, []string{"line-of-inquiry", "propose"},

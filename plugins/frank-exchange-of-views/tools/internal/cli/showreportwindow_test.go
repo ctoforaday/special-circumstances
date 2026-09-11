@@ -124,7 +124,7 @@ func TestEveryRoleCanReadAtAnAnchor(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, windowReport)
 
-	for _, role := range []string{"blue", "lens", "merge", "bench"} {
+	for _, role := range []string{"blue", "lens", "chair", "bench"} {
 		out, err := run(t, "show", "report", "--run", runDir, "--anchor", "f-a1b2c3", "--seat-id", record.SampleSeatOf(role))
 		if err != nil {
 			t.Errorf("%s cannot read at an anchor: %v", role, err)

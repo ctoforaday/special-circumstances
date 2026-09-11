@@ -79,7 +79,7 @@ func CommandFlags() map[string][]string {
 func commandsByPath() map[string]*cobra.Command {
 	out := map[string]*cobra.Command{}
 	// A PATH IS A LEAF, OR A GROUP WHOSE BARE FORM IS A CAPABILITY. `show` became a group answering
-	// with the seat's pending work, and a leaves-only walk reported `merge show` — which every
+	// with the seat's pending work, and a leaves-only walk reported `chair show` — which every
 	// constitution names and every seat runs — as a verb that "does not exist in the command tree".
 	//
 	// RUNNABLE ALONE IS THE WRONG TEST, and the coverage gate said so within a minute: the role
@@ -99,7 +99,7 @@ func commandsByPath() map[string]*cobra.Command {
 	// (role, verb), because `closing`, `position`, `friction`, `register` and `show` each exist
 	// under several roles with different contracts. The key is a JOIN KEY for the trigger map and
 	// the gates, not an invocation.
-	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+	for _, role := range []string{"lens", "chair", "blue", "bench"} {
 		walkSurface(NewRootFor(dispatchedSeatFor(role)), func(path []string, c *cobra.Command) {
 			if !keep(c) {
 				return
@@ -243,7 +243,7 @@ func CommandPaths() []string {
 // repository keeps paying for.
 func AllRoots() map[string]*cobra.Command {
 	out := map[string]*cobra.Command{}
-	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+	for _, role := range []string{"lens", "chair", "blue", "bench"} {
 		out[role] = NewRootFor(dispatchedSeatFor(role))
 	}
 	out[record.OperatorRole] = NewRootFor(record.OperatorRole)
@@ -290,7 +290,7 @@ func PersistentFlagNames() []string {
 	}
 	// The same four roles CommandPaths walks, and through the same dispatchedSeatFor: the tree
 	// is per-role, and a walker that forgets that measures the operator's surface only (#654).
-	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+	for _, role := range []string{"lens", "chair", "blue", "bench"} {
 		add(NewRootFor(dispatchedSeatFor(role)).PersistentFlags())
 	}
 	sort.Strings(out)

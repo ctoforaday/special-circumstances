@@ -1,4 +1,4 @@
-package merge
+package chair
 
 import (
 	"github.com/spf13/cobra"

@@ -373,7 +373,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 
 	fmt.Fprintf(stdout, "run-setup: %s\n", cfg.RunDir)
 	fmt.Fprintf(stdout, "  skeleton: %d created, %d pre-staged (kept)\n", len(skel.Created), len(skel.Skipped))
-	// "red-merge-born" was true when the merge wrote those files. It stopped being true, and the
+	// "red-merge-born" was true when the chair wrote those files. It stopped being true, and the
 	// line went on implying a writer would arrive — the same promise the husk stubs made.
 	fmt.Fprintln(stdout, "  NOT created (rendered from the record on read, never materialized): the ledger,")
 	fmt.Fprintln(stdout, "  debate transcript, evidence layer and board telemetry — `<role> show <name>`")

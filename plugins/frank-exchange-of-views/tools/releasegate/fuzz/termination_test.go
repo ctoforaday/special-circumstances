@@ -122,7 +122,7 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 	backend := func(seatID, label, prompt string) debatejs.Envelope {
 		e := debatejs.Envelope{
 			"synopsis": "termination", "petitions": []any{}, "log": []any{}, "rulings": []any{},
-			"resolutions": []any{}, "holdings": []any{}, "manifest": []any{}, "claim_count": 3,
+			"dispositions": []any{}, "holdings": []any{}, "manifest": []any{}, "claim_count": 3,
 			"saturation_reached": false, "sitting_record_appended": true, "unruled_motions": 0,
 		}
 		switch {
@@ -170,11 +170,11 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 			res := []any{}
 			if lastMove.rules {
 				b.ruled["G1"] = true
-				res = append(res, map[string]any{"gap_id": "G1", "resolution": "not_a_defect", "settled": "settled", "reopens_on": "new evidence", "rationale": "ruled"})
+				res = append(res, map[string]any{"gap_id": "G1", "disposition": "not_a_defect", "settled": "settled", "reopens_on": "new evidence", "rationale": "ruled"})
 			} else {
-				res = append(res, map[string]any{"gap_id": "G1", "resolution": "carried", "rationale": "owed"})
+				res = append(res, map[string]any{"gap_id": "G1", "disposition": "remanded", "rationale": "owed"})
 			}
-			e["resolutions"] = res
+			e["dispositions"] = res
 		case seatID == "assemble":
 			e["open_gaps"] = b.open()
 		}

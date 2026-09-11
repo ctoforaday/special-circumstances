@@ -44,19 +44,19 @@ func deliverySentinel(field string) string {
 // each is asserted. A field NOT listed here is reported and not asserted — the difference
 // between "this must travel" and "this was measured".
 var deliveryExpectations = map[string]string{
-	"judge.holdings":               "the envelope's own comment says a holding reaches other seats ONLY if it travels here, because debate.js reads no record (#503)",
-	"judge.resolutions.settled":    "the barred proposition — red's estoppel line is built from it (#517) and blue's duty is statable only through it (#524)",
-	"judge.resolutions.reopens_on": "the other assertable answer to what would reopen a ruling; a seat that cannot see it cannot honour or contest the bar",
-	"red.friction":                 "friction is a seat's report of what the tooling cost it; it must reach assembly or the run cannot say what got in the way",
-	"blue.friction":                "as above, from the other party",
+	"judge.holdings":                "the envelope's own comment says a holding reaches other seats ONLY if it travels here, because debate.js reads no record (#503)",
+	"judge.dispositions.settled":    "the barred proposition — red's estoppel line is built from it (#517) and blue's duty is statable only through it (#524)",
+	"judge.dispositions.reopens_on": "the other assertable answer to what would reopen a ruling; a seat that cannot see it cannot honour or contest the bar",
+	"red.friction":                  "friction is a seat's report of what the tooling cost it; it must reach assembly or the run cannot say what got in the way",
+	"blue.friction":                 "as above, from the other party",
 }
 
 // deliveryNotForwarded are marked fields that legitimately reach no prompt, each with its
 // reason. Being on this list is a DECISION — it says somebody looked — which is the whole
 // difference between a reasoned absence and an unnoticed one.
 var deliveryNotForwarded = map[string]string{
-	"judge.resolutions.rationale": "deliberate — the prompts tell every seat THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT, and forwarding it would ship the snapshot that instruction exists to prevent",
-	"red.notes":                   "NOT deliberate as far as anything states: `notes` appears exactly once in debate.js, on its own schema line, and no engine branch and no prompt reads it. Filed as #662; listed here so the gate stays honest until that is resolved",
+	"judge.dispositions.rationale": "deliberate — the prompts tell every seat THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT, and forwarding it would ship the snapshot that instruction exists to prevent",
+	"red.notes":                    "NOT deliberate as far as anything states: `notes` appears exactly once in debate.js, on its own schema line, and no engine branch and no prompt reads it. Filed as #662; listed here so the gate stays honest until that is resolved",
 }
 
 // TestEveryEnvelopeFieldThatMustTravelReachesAReader drives the shipped debate.js and reports,
@@ -69,9 +69,9 @@ func TestEveryEnvelopeFieldThatMustTravelReachesAReader(t *testing.T) {
 		return s
 	}
 	holding := mark("judge.holdings")
-	settled := mark("judge.resolutions.settled")
-	reopens := mark("judge.resolutions.reopens_on")
-	rationale := mark("judge.resolutions.rationale")
+	settled := mark("judge.dispositions.settled")
+	reopens := mark("judge.dispositions.reopens_on")
+	rationale := mark("judge.dispositions.rationale")
 	redNotes := mark("red.notes")
 	redFriction := mark("red.friction")
 	blueFriction := mark("blue.friction")
@@ -85,7 +85,7 @@ func TestEveryEnvelopeFieldThatMustTravelReachesAReader(t *testing.T) {
 			"synopsis": "delivery graph", "verdict": "FAIL", "citations_checked": 0,
 			"gaps": []any{}, "petitions": []any{}, "log": []any{}, "rulings": []any{},
 			"closures": []any{}, "dispute_responses": []any{}, "deadlock": false,
-			"resolutions": []any{}, "grade_disputes": []any{}, "holdings": []any{},
+			"dispositions": []any{}, "grade_motions": []any{}, "holdings": []any{},
 			"manifest": []any{"G1", "G2"}, "claim_count": 3,
 			"saturation_reached": false, "sitting_record_appended": true, "open_gaps": []any{},
 		}
@@ -99,8 +99,8 @@ func TestEveryEnvelopeFieldThatMustTravelReachesAReader(t *testing.T) {
 			e["log"] = []any{blueFriction}
 		case strings.HasPrefix(seatID, "judge"):
 			e["holdings"] = []any{holding}
-			e["resolutions"] = []any{map[string]any{
-				"gap_id": "G1", "resolution": "not_a_defect",
+			e["dispositions"] = []any{map[string]any{
+				"gap_id": "G1", "disposition": "not_a_defect",
 				"settled": settled, "reopens_on": reopens, "rationale": rationale,
 			}}
 		}
