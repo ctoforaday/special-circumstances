@@ -93,13 +93,13 @@ It also ships `/plan-audit` — a binary PASS/FAIL auditor that puts an implemen
 
 ### frank-exchange-of-views — the research debate engine
 
-Give it a topic; it gives back a verified research deliverable with the entire adversarial record preserved beside it. Three seats with genuinely different mandates:
+Give it a topic; it gives back a verified research report with the whole record of the debate preserved beside it. Three seats with genuinely different mandates:
 
 - **Blue** is *additive*. It researches, drafts, and synthesizes by **union, never summary** — its terminal goal is to be true *at the leaf node*, meaning every claim traces to a source somebody can open.
 - **Red** is *subtractive*, and **owns the PASS/FAIL gate**. It opens blue's citations at the source, grades **trust** (corroboration confidence) and **risk** (likelihood × impact × complexity), and files every defect as a tracked *gap*.
-- **The bench** (a `lead-judge` agent) rules only on the contested docket, in writing. It holds the terminal values — correctness > thoroughness > economy, safety above all — and assembles the final report. It never gates a round; passing is red's call alone.
+- **The bench** (a `lead-judge` agent) rules only on the contested docket, in writing. It holds the terminal values — correctness > thoroughness > economy, safety above all — and assembles the final report. It never gates the run; passing is red's call alone.
 
-**Termination is judged, never counted.** A run ends on a red PASS or on detected deadlock. The round ceiling is a spending limit, not a definition of done — and a run that hits it is stamped CEILING-TERMINATED so nobody mistakes "ran out of budget" for "verified".
+**Termination is judged, never counted.** A run ends on a red PASS or on detected deadlock. The epoch limit is a spending limit, not a definition of done — and a run that hits it is stamped CEILING-TERMINATED so nobody mistakes "ran out of budget" for "verified".
 
 ### gray-area — trajectory evidence
 
@@ -134,11 +134,11 @@ The learning plugin, designed to improve the suite while you sleep: a `/self-imp
 
 ## Anatomy of a research run
 
-Run `/research <topic>` (or `/frank-exchange-of-views:research <topic> [--lanes N] [--lenses N] [--max-rounds N]`). One end-to-end run:
+Run `/research <topic>` (or `/frank-exchange-of-views:research <topic> [--lanes N] [--lens-areas a,b,c] [--k-max N] [--mint-budget N] [--max-epochs N]`). One end-to-end run:
 
-1. **Blue builds.** Parallel lanes and lenses research the topic; blue synthesizes them additively into a living report, carrying a frontier of hypotheses and preserving the candidate drafts.
+1. **Blue builds.** Parallel lanes research the topic, one method each; blue synthesizes them additively into the report, carrying a frontier of hypotheses and preserving the lane drafts.
 2. **Red audits at the leaf.** Red opens each citation at its source, grades trust and risk, and files every defect as a gap. Red owns the verdict.
-3. **Blue repairs, round by round.** Gaps come back as obligations; blue revises; red re-audits the changed text. Repeat until red passes or the debate deadlocks.
+3. **Blue repairs, epoch by epoch.** Gaps come back as obligations; blue revises; red re-audits the changed text. Repeat until red passes or the run deadlocks.
 4. **The bench rules** on whatever is still contested, in writing, and assembles the final report from the audited sources.
 5. **The record captures all of it** — findings, gaps, opinions, closures, disputes, friction — as validated events in an append-only log.
 
@@ -148,18 +148,18 @@ The run lands in `research/<date>_<slug>/`:
 |---|---|
 | `README.md` | The run's front door — verdict, gaps, and what each document below holds |
 | `report.md` | The research — verdict, TL;DR, the Catechism, foundations, analysis, risks, open questions |
-| `docket.md`, `debate.md`, `judgments.md` | The adversarial record: the board all three parties wrote, the round-by-round transcript, the motions and their rulings |
+| `docket.md`, `debate.md`, `judgments.md` | The record's documents: the board all three parties wrote, the epoch-by-epoch transcript, the motions and their rulings |
 | `evidence.md`, `run.md`, `CHANGELOG.md` | The computations in full; the friction, record check and cost; the report's own revisions |
 | `report.html` | The whole set with real tabs and cross-document links — one self-contained file, no server |
-| `records/*.jsonl` | The append-only event log — the authoritative record of every act |
-| `blue/`, `red/` | The seats' working surfaces — blue's living report and its candidate drafts |
+| `records/record.db` | The record — one SQLite store, the authoritative account of every act |
+| `blue/`, `red/` | The seats' working surfaces — blue's lane drafts |
 | `inputs/` | The brief, the pinned configuration, the scorecards — what the run was asked to do |
 | `trajectories/` | Per-seat execution journals |
-| `cost.md` | Per-seat, per-round token and dollar accounting |
+| `cost.md` | Per-seat, per-sitting token and dollar accounting |
 
-The debate transcript and the gap board are **not files**: they are projections rendered from the event log on demand (`show debate`, `show board`), so there is never a second copy to drift from the record.
+The debate transcript and the gap board are **not files**: they are projections rendered from the record on demand (`show debate`, `show board`), so there is never a second copy to drift from the record.
 
-A real run ships in the repo as evidence: [`research/2026-08-23_research-loop-counterparts/`](research/2026-08-23_research-loop-counterparts/). It is *ceiling-terminated* — it hit its round budget while still converging — and the report says so in its own verdict line, naming the debt it leaves (a final blue revision no red pass audited). That is the point: the record makes the residual honesty checkable.
+A real run ships in the repo as evidence: [`research/2026-08-23_research-loop-counterparts/`](research/2026-08-23_research-loop-counterparts/). It is *ceiling-terminated* — it hit its budget while still converging — and the report says so in its own verdict line, naming the debt it leaves (a final blue revision no red pass audited). That is the point: the record makes the residual honesty checkable.
 
 ## Under the hood
 
@@ -196,7 +196,7 @@ It lives in prosthetic-conscience rather than gray-area on purpose: keeping a no
 
 ### The tool is the contract
 
-In a debate run, seats never hand-write state. Every act goes through `feov-record`, a Go command-line tool that validates each write — required fields, cross-references checked at write time, legal state transitions, unguessable identifiers it assigns itself — and appends to a JSONL event log. Everything a seat reads back is a view over that log. This is why a hand-written board once drifted to 3-open/15-closed against an event log that said 9-open/9-closed, and why it cannot now.
+In a debate run, seats never hand-write state. Every act goes through `feov-record`, a Go command-line tool that validates each write — required fields, cross-references checked at write time, legal state transitions, unguessable identifiers it assigns itself — and appends it to the record, a SQLite store in the run (`records/record.db`). Everything a seat reads back is a view over the record. This is why a hand-written board once drifted to 3-open/15-closed against a record that said 9-open/9-closed, and why it cannot now.
 
 ### The line gray-area will not cross
 
@@ -217,7 +217,7 @@ An agent asked to read a transcript and report what it sees is a summarizer — 
 - **Four verbs seats asked for by hitting their absence:** amending a mint, amending a prior closure from a seat that did not enter it, withdrawing an entry written in error, and closing with a named residue.
 - **Scorecard metric fixes** — several telemetry metrics still parse hand-written prose while the data lives in events.
 
-**Later — new capability.** A SQLite-backed index so the event log is queryable without re-rendering (the JSONL stays authoritative), and the rest of gray-area's mining: friction claims adjudicated against the trajectory that refutes them, act-versus-claim discrepancy, stall forensics from the timing.
+**Later — new capability.** The rest of gray-area's mining: friction claims adjudicated against the trajectory that refutes them, act-versus-claim discrepancy, stall forensics from the timing.
 
 <!-- TODO (microsite): expand each roadmap item into a page; add a "what a run costs" section grounded in the evidence run; link the plans/ documents as the authoritative design record. -->
 <!-- TODO: write the TestSeatNeverNeedsAPath validation loop first and let it fail; re-measure the archive byte-parity gap on the first post-timestamp run (the 34,086-vs-7,527 figure is contaminated by legacy event ordering). -->
