@@ -152,10 +152,16 @@ func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJS
 		}
 	case "chair":
 		// Both of these already REFUSE `verdict --as PASS`. Naming them here is the same list,
-		// arriving when the seat can still act on it rather than at the terminal act.
+		// arriving when the seat can still act on it rather than at the terminal act — and ONLY the
+		// gaps the gate refuses over. B9's chair was told two below-material gaps refused PASS while
+		// dispatch said pass_permitted and the verdict accepted it; it settled the contradiction by
+		// trying the verdict.
 		for _, g := range gaps {
-			if g.Open {
-				add("gap " + g.ID + " is open — PASS is refused while it is")
+			switch {
+			case g.Stranded:
+				add("gap " + g.ID + " is open and superseded — PASS is refused until its minter closes it")
+			case g.Material:
+				add("gap " + g.ID + " is open and material — PASS is refused while it is")
 			}
 		}
 		// THE VIEW NAMES THE GAVEL BECAUSE THE REFUSAL DOES. requirePassClosesAllMaterialGaps refuses

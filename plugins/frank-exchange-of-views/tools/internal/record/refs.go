@@ -305,17 +305,12 @@ func requireSupersededAreClosed(run Run) error {
 		len(stranded), strings.Join(stranded, ", "))
 }
 
-// requirePassClosesAllMaterialGaps refuses a PASS while ANY gap is still open. The protocol is "PASS
-// only when every remaining gap is repaired, not_a_defect, or defect_accepted", and all of
-// those resolutions go through `close` (which sets the gap not-open) — so an open gap at PASS
-// is an unadjudicated one. requireSupersededAreClosed catches only the lineage subset; the
-// 2026-07-20 run recorded PASS with 9 PLAIN open gaps (one HIGH) that no lineage check saw,
-// and the envelope then reported 0 outstanding. This is the complete enforcement, at the
-// write path so no verdict route can bypass it. A FAIL is always allowed.
-// requirePassClosesAllMaterialGaps refuses PASS while any open gap is MATERIAL — current
-// severity at GRADE_MEDIUM or above (plans/roundless.md §III.B.2.1). It was requirePassClosesAllMaterialGaps,
-// refusing over ANY open gap, and that made "below material does not hold the gate" unreachable:
-// a run minting one trifle per sitting could never pass. An open sub-material gap at PASS stays
+// requirePassClosesAllMaterialGaps refuses PASS while any open gap is MATERIAL — current severity
+// at GRADE_MEDIUM or above (plans/roundless.md §III.B.2.1) — at the write path, so no verdict
+// route can bypass it; requireSupersededAreClosed holds the lineage case. A FAIL is always
+// allowed. The chair's work list names exactly these gaps (sitting.go), and dispatch's
+// pass_permitted counts the same ones. Refusing over ANY open gap made "below material does not
+// hold the gate" unreachable: a run minting one trifle per sitting could never pass. An open sub-material gap at PASS stays
 // open on the board and the report lists it as open, below material, not certified against — not
 // auto-disposed, not carried, not accepted; red's finding stays visible and the report says what
 // it was not certified against.
