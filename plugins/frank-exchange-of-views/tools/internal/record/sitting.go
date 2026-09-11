@@ -30,7 +30,8 @@ import (
 // Nothing here invents an obligation. Each one is refused at a write path (open gaps and unruled
 // motions block `verdict`; a computation gap cannot be closed on prose), is a stated epoch-record
 // requirement (W1.7's revision, the bench's terminal outcome), or is enforced by dispatch (a seat
-// that has not registered for the sitting it was dispatched for is readied again). Inventing a
+// that has not registered for the sitting it was dispatched for is readied again; a chair that has
+// not registered for its sitting is refused `dispatch next`). Inventing a
 // duty here would make this view disagree with the gates, and a seat told it was finished by one
 // surface and refused by another learns to trust neither.
 
@@ -111,6 +112,17 @@ func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJS
 	// lenses, blue-respond and the bench.
 	if d, owed := owedSitting(evs, seatID); owed {
 		add(fmt.Sprintf("you were dispatched against report head %d and have not registered since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting", d.pin))
+	}
+	// THE CHAIR OWES THE SAME REGISTER, AND NO DISPATCH NAMES IT, so the item above never reaches
+	// it. A warm chair resuming its session registered once per run on every archived B run, and
+	// read register's "first act at the seat" as a binding for its tenure; nothing on this list
+	// said otherwise. Its sitting is known to have begun when a party has sat for its last
+	// dispatch, and `dispatch next` — the chair's first act — refuses until the register lands,
+	// which is the enforcement the rule at the top of this file asks of every item here.
+	if seatID == chairSeat {
+		if g, owed := unopenedChairSitting(evs); owed {
+			add(chairRegisterOwed(g) + " — register for this sitting")
+		}
 	}
 
 	switch role {

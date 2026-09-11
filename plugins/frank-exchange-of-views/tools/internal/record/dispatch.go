@@ -258,6 +258,183 @@ func sittingFor(registers []int64, d dispatchRow) (int64, bool) {
 	return firstAfter(registers, d.at)
 }
 
+// DispatchGroup is one chair sitting's dispatch as the record delimits it: the dispatch rows
+// written with NO REGISTER BETWEEN THEM, by any seat. Somebody registering is somebody sitting —
+// the chair opening a sitting, or a party sitting for what the chair dispatched — and the workflow
+// sequences the two, so a dispatch row after a register belongs to a later chair sitting, and one
+// before any register belongs to the same.
+//
+// NOT THE CLOCK'S CHAIR-SITTING COUNT, and the difference is measured. The clock counts the
+// chair's registers, and a warm chair — a later sitting resuming the same session — registered
+// ONCE per run on all four archived is-91-prime B runs (B3–B6), so every chair sitting read as
+// sitting 1 and every dispatch of the run as one. Nor one row set per `dispatch next`: the B5 and
+// B6 chairs each ran the verb twice in their first sitting, once for the prose and once for
+// --json, and wrote the plan twice, 4 s apart, with nobody sitting in between.
+type DispatchGroup struct {
+	First, Last int      // stream positions of the group's first and last dispatch row
+	Parties     []string // each seat the group names, in the order first named
+	// Sat is each party's sitting for the group, by sittingFor off the last row naming it: the
+	// stream position of its first register after that row. A party absent here has not sat.
+	Sat  map[string]int
+	rows []dispatchRow
+}
+
+// DispatchGroups is the record's dispatches, grouped as DispatchGroup says, in stream order.
+func DispatchGroups(evs []*Event) []DispatchGroup {
+	seq := make([]int64, len(evs))
+	for i := range seq {
+		seq[i] = int64(i)
+	}
+	ds, registers := dispatchLedger(evs, seq)
+	var anyone []int64
+	for _, rs := range registers {
+		anyone = append(anyone, rs...)
+	}
+	sort.Slice(anyone, func(a, b int) bool { return anyone[a] < anyone[b] })
+	var groups []DispatchGroup
+	for i, d := range ds {
+		if i == 0 || registeredBetween(anyone, ds[i-1].at, d.at) {
+			groups = append(groups, DispatchGroup{First: int(d.at), Sat: map[string]int{}})
+		}
+		g := &groups[len(groups)-1]
+		g.Last = int(d.at)
+		g.rows = append(g.rows, d)
+	}
+	for k := range groups {
+		g := &groups[k]
+		last := map[string]dispatchRow{}
+		for _, d := range g.rows {
+			if _, seen := last[d.seat]; !seen {
+				g.Parties = append(g.Parties, d.seat)
+			}
+			last[d.seat] = d
+		}
+		for p, d := range last {
+			if r, ok := sittingFor(registers[p], d); ok {
+				g.Sat[p] = int(r)
+			}
+		}
+	}
+	return groups
+}
+
+// registeredBetween reports whether any of the ascending registers falls strictly between a and b.
+func registeredBetween(registers []int64, a, b int64) bool {
+	r, ok := firstAfter(registers, a)
+	return ok && r < b
+}
+
+// chairSeat is the seat whose registers the clock counts as epochs.
+const chairSeat = "red-chair"
+
+// unopenedChairSitting is the chair's latest dispatch when a party has SAT for it (sittingFor)
+// and the chair has not registered since recording it. The workflow comes back to the chair only
+// after the parties sit, so that is a new chair sitting no register opened: the clock would read
+// it as the previous epoch, exchangesOf would never see the parties' sittings complete (it closes
+// a sitting at the chair's next register), and the dispatch groups would have only the parties'
+// registers to split on. Every seat's sitting opens with a register; this is the chair's owed one.
+func unopenedChairSitting(evs []*Event) (DispatchGroup, bool) {
+	groups := DispatchGroups(evs)
+	if len(groups) == 0 {
+		return DispatchGroup{}, false
+	}
+	g := groups[len(groups)-1]
+	if len(g.Sat) == 0 {
+		return DispatchGroup{}, false // nobody has sat for it: still the sitting that recorded it
+	}
+	for i := len(evs) - 1; i > g.Last; i-- {
+		if evs[i].GetType() == recordpb.EventType_EVENT_TYPE_REGISTER && evs[i].GetSeatId() == chairSeat {
+			return DispatchGroup{}, false
+		}
+	}
+	return g, true
+}
+
+// dispatchEventsOf reads the stream the dispatch folds read, or nil for a run with no record.
+func dispatchEventsOf(run Run) ([]*Event, error) {
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		return nil, err
+	}
+	evs, _, err := recordsql.EventsW(db)
+	return evs, err
+}
+
+// RequireChairSittingOpened refuses `dispatch next` in a chair sitting no register opened (see
+// unopenedChairSitting). It is the write-time half of the chair's "register for this sitting" work
+// item: the verb is the chair's first act every sitting, so refusing it there puts the register
+// ahead of every act the sitting records.
+func RequireChairSittingOpened(run Run) error {
+	evs, err := dispatchEventsOf(run)
+	if err != nil {
+		return err
+	}
+	g, owed := unopenedChairSitting(evs)
+	if !owed {
+		return nil
+	}
+	return fmt.Errorf("record: dispatch refused — %s", chairRegisterOwed(g))
+}
+
+// chairRegisterOwed is the one wording of the chair's owed register, for the refusal and the work
+// list alike.
+func chairRegisterOwed(g DispatchGroup) string {
+	sat := make([]string, 0, len(g.Sat))
+	for p := range g.Sat {
+		sat = append(sat, p)
+	}
+	sort.Strings(sat)
+	return fmt.Sprintf("%s sat for the dispatch you recorded against report head %d, and you have not registered since. The workflow came back to you, so this is a new sitting, and a sitting is opened by a register — even one that resumes your earlier session. Register for this sitting, then ask again",
+		strings.Join(sat, ", "), g.rows[0].pin)
+}
+
+// DispatchStands reports whether plan is already the record's standing dispatch: nobody has
+// registered since the latest dispatch rows, and those rows name exactly plan's parties, on the
+// same gaps, at plan's head. `dispatch next` then records nothing new — asking twice in one
+// sitting, for the prose and then for --json, is one decision, and the B5 and B6 chairs each wrote
+// it twice. A plan that differs is a new decision and is recorded.
+func DispatchStands(run Run, plan Plan) (bool, error) {
+	if len(plan.Parties) == 0 || len(plan.Docket) > 0 {
+		return false, nil
+	}
+	evs, err := dispatchEventsOf(run)
+	if err != nil || evs == nil {
+		return false, err
+	}
+	groups := DispatchGroups(evs)
+	if len(groups) == 0 {
+		return false, nil
+	}
+	g := groups[len(groups)-1]
+	for _, e := range evs[g.Last+1:] {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER {
+			return false, nil
+		}
+	}
+	key := func(seat string, pin int64, gaps []string) string {
+		gs := append([]string{}, gaps...)
+		sort.Strings(gs)
+		return fmt.Sprintf("%s@%d:%s", seat, pin, strings.Join(gs, ","))
+	}
+	standing := map[string]bool{}
+	for _, d := range g.rows {
+		standing[key(d.seat, d.pin, d.gaps)] = true
+	}
+	asked := map[string]bool{}
+	for _, p := range plan.Parties {
+		asked[key(p.SeatID, plan.Head, p.GapIDs)] = true
+	}
+	if len(asked) != len(standing) {
+		return false, nil
+	}
+	for k := range asked {
+		if !standing[k] {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
 // owedSitting is the latest dispatch naming seatID that the seat has not sat for, by sittingFor.
 // The stream's positions stand in for events.id: evs is in id order.
 func owedSitting(evs []*Event, seatID string) (dispatchRow, bool) {

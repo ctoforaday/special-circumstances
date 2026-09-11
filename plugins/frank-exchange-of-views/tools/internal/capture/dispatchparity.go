@@ -15,8 +15,15 @@ import (
 // window from the first dispatch to termination, every register between one chair sitting's
 // dispatches D and the next's D+1 is either a party named in D or the seat that authors D+1 (the
 // chair registering to run the verb is exempt BY RULE, not by allowlist), and every party named in
-// D registered before D+1. The bookends register outside the window by position: the base phase
-// before the first dispatch, judge-terminal and assemble after the last chair sitting.
+// D SAT for it — record.DispatchGroup's Sat, the one "has this seat sat" predicate — before D+1.
+// The bookends register outside the window by position: the base phase before the first dispatch,
+// judge-terminal and assemble after the last chair sitting.
+//
+// A CHAIR SITTING'S DISPATCH IS record.DispatchGroups', NOT THE CLOCK'S CHAIR-SITTING COUNT. This
+// audit grouped by the count, and a warm chair registers once per run: B3–B6 each read as a single
+// chair sitting whose last dispatch was the run's last, so every register before it was discarded
+// and every party of "dispatch 1" read as never registered — the same FAIL on every warm run,
+// whether or not the parties sat.
 //
 // The verb records the truth; this catches a relay that departed from it. A mismatch is a FAIL.
 func DispatchParityAudit(run record.Run) Audit {
@@ -28,33 +35,13 @@ func DispatchParityAudit(run record.Run) Audit {
 		pos  int
 		seat string
 	}
-	type group struct { // one chair sitting's dispatches
-		first, last int
-		parties     map[string]bool
-	}
 	var regs []reg
-	var groups []*group
-	var clk record.Clock
-	lastChairSitting := -1
 	for i, e := range fam.Events {
-		w := clk.Advance(e)
-		body, ok := recordpb.Body(e)
-		if !ok {
-			continue
-		}
-		switch b := body.(type) {
-		case *recordpb.Register:
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER {
 			regs = append(regs, reg{pos: i, seat: e.GetSeatId()})
-		case *recordpb.Dispatch:
-			if w.Sitting != lastChairSitting || len(groups) == 0 {
-				groups = append(groups, &group{first: i, parties: map[string]bool{}})
-				lastChairSitting = w.Sitting
-			}
-			g := groups[len(groups)-1]
-			g.last = i
-			g.parties[b.GetSeatId()] = true
 		}
 	}
+	groups := record.DispatchGroups(fam.Events)
 	if len(groups) == 0 {
 		return Audit{Check: "dispatch-parity", Verdict: "SKIP", Detail: "no dispatch on the record — a run before the chair dispatched, or one that never reached the debate"}
 	}
@@ -63,21 +50,23 @@ func DispatchParityAudit(run record.Run) Audit {
 	for k, g := range groups {
 		end := len(fam.Events)
 		if k+1 < len(groups) {
-			end = groups[k+1].first
+			end = groups[k+1].First
 		}
-		sat := map[string]bool{}
+		party := map[string]bool{}
+		for _, p := range g.Parties {
+			party[p] = true
+		}
 		for _, r := range regs {
-			if r.pos <= g.last || r.pos >= end {
+			if r.pos <= g.Last || r.pos >= end {
 				continue
 			}
-			sat[r.seat] = true
-			if g.parties[r.seat] || r.seat == "red-chair" || (k+1 == len(groups) && terminal[r.seat]) {
+			if party[r.seat] || r.seat == "red-chair" || (k+1 == len(groups) && terminal[r.seat]) {
 				continue
 			}
 			strays = append(strays, fmt.Sprintf("%s registered after dispatch %d and was not a party to it", r.seat, k+1))
 		}
-		for p := range g.parties {
-			if !sat[p] {
+		for _, p := range g.Parties {
+			if at, sat := g.Sat[p]; !sat || at >= end {
 				absent = append(absent, fmt.Sprintf("%s was named in dispatch %d and never registered before the next", p, k+1))
 			}
 		}
