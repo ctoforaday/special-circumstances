@@ -13,6 +13,15 @@
 
 #include "shim.h"
 
+#include <cstdio>
+#include <fcntl.h>
+#ifdef _WIN32
+#include <io.h>
+#include <sys/stat.h>
+#else
+#include <unistd.h>
+#endif
+
 #include <tesseract/baseapi.h>
 #include <leptonica/allheaders.h>
 
@@ -59,15 +68,56 @@ tessocr_engine *tessocr_new(const unsigned char *traineddata, int len) {
 		delete e;
 		return nullptr;
 	}
-	// Tesseract's own diagnostics ("Estimating resolution as N", "Detected N diacritics",
-	// "Empty page!!") go through tprintf to stderr — the same class of noise the leptonica
-	// silencer above discards, and in a seat's run it lands in the tool output (153 lines per
-	// fetch on #644). /dev/null is tesseract's documented sink; tprintf.cpp maps it to "nul"
-	// on Windows. Only the diagnostics move — no recognition parameter changes, so no reading
-	// changes. (Stating the source resolution instead would silence the first message too, but
-	// it changes the readings: measured on #644/#934, it cost the one reconstruction that held.)
-	e->api.SetVariable("debug_file", "/dev/null");
 	return e;
+}
+
+// Tesseract's own diagnostics ("Estimating resolution as N", "Detected N diacritics",
+// "Empty page!!") go through tprintf and tesserr to stderr. They must not reach a seat's
+// tool output (153 lines per fetch on #644), and they must not be thrown away either:
+// the resolution estimate exists NOWHERE else — it is a local in pagesegmain.cpp, not
+// retrievable through the API — and it is the evidence #934 needs per page.
+//
+// So each page's stderr is captured to a file the caller names, by pointing file
+// descriptor 2 at it for the duration of the page. Why the descriptor and not tesseract's
+// debug_file: tesserr caches the FILE* of its first write and never refreshes it, and it
+// writes during recognition, so switching debug_file between pages would leave it writing
+// through a closed FILE*. The descriptor moves underneath an unchanged stderr FILE, which
+// tesseract never closes. Not reentrant: the engine is serialized, and so is this.
+static int saved_stderr = -1;
+
+int tessocr_diag_begin(const char *path) {
+	if (saved_stderr >= 0) return 4;
+	fflush(stderr);
+#ifdef _WIN32
+	int fd = _open(path, _O_WRONLY | _O_CREAT | _O_TRUNC | _O_BINARY, _S_IREAD | _S_IWRITE);
+	if (fd < 0) return 1;
+	int saved = _dup(2);
+	if (saved < 0) { _close(fd); return 2; }
+	if (_dup2(fd, 2) < 0) { _close(fd); _close(saved); return 3; }
+	_close(fd);
+#else
+	int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+	if (fd < 0) return 1;
+	int saved = dup(2);
+	if (saved < 0) { close(fd); return 2; }
+	if (dup2(fd, 2) < 0) { close(fd); close(saved); return 3; }
+	close(fd);
+#endif
+	saved_stderr = saved;
+	return 0;
+}
+
+void tessocr_diag_end(void) {
+	if (saved_stderr < 0) return;
+	fflush(stderr);
+#ifdef _WIN32
+	_dup2(saved_stderr, 2);
+	_close(saved_stderr);
+#else
+	dup2(saved_stderr, 2);
+	close(saved_stderr);
+#endif
+	saved_stderr = -1;
 }
 
 void tessocr_free(tessocr_engine *e) {

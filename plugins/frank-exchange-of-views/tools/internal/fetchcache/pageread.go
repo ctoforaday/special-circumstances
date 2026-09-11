@@ -255,6 +255,9 @@ func readPageStep(run record.Run, sha string, page int, png []byte, dpi int) (pa
 		return pageReceipt{}, "", rerr
 	}
 
+	if err := writePageEvidence(run, sha, page, res); err != nil {
+		return pageReceipt{}, "", err
+	}
 	norm := tessocr.NormalizeReading(res.Text)
 	if err := writeReplacing(PageTextPath(run, sha, page), []byte(norm)); err != nil {
 		return pageReceipt{}, "", err
@@ -335,6 +338,45 @@ func readingRecordPath(run record.Run, sha string) string {
 // to that page's image — not an offset into a document-length file they must count into.
 func PageTextPath(run record.Run, sha string, page int) string {
 	return filepath.Join(PagesDir(run, sha), fmt.Sprintf("p%04d.txt", page))
+}
+
+// evidenceKinds are the per-page evidence files kept beside a reading, by suffix, each
+// with the engine output it holds. They are debugging artifacts, not the reading: no
+// receipt, record or hash names them, and a page served from its receipt keeps the ones
+// its original read wrote.
+var evidenceKinds = []struct {
+	suffix string
+	of     func(tessocr.PageResult) string
+}{
+	{"engine.log", func(r tessocr.PageResult) string { return r.Diagnostics }},
+	{"portrait.tsv", func(r tessocr.PageResult) string { return r.Evidence.PortraitTSV }},
+	{"rotated.tsv", func(r tessocr.PageResult) string { return r.Evidence.RotatedTSV }},
+	{"sparse.tsv", func(r tessocr.PageResult) string { return r.Evidence.SparseTSV }},
+	{"band.txt", func(r tessocr.PageResult) string { return r.Evidence.HeaderBand }},
+}
+
+// EvidencePath is one page's evidence file of the given kind (a suffix in evidenceKinds).
+func EvidencePath(run record.Run, sha string, page int, suffix string) string {
+	return filepath.Join(PagesDir(run, sha), fmt.Sprintf("p%04d.%s", page, suffix))
+}
+
+// writePageEvidence replaces a page's evidence with what this read produced. Every kind is
+// removed first, so a page re-read under a new engine never keeps evidence from the old one
+// beside the new reading; an empty kind (no diagnostics, or a prose page's TSVs) leaves no
+// file, and an absent file means the engine produced nothing of that kind.
+func writePageEvidence(run record.Run, sha string, page int, res tessocr.PageResult) error {
+	for _, k := range evidenceKinds {
+		p := EvidencePath(run, sha, page, k.suffix)
+		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("clearing page %d's old %s: %w", page, k.suffix, err)
+		}
+		if body := k.of(res); body != "" {
+			if err := writeReplacing(p, []byte(body)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // OCRTextPath is the assembled reading, beside the extraction TextPath would hold.

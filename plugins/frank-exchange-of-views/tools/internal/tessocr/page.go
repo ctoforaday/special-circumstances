@@ -48,6 +48,27 @@ type PageResult struct {
 	// Empty when the reconstruction held (or no grid fired). A page whose grid could not
 	// be rebuilt must say so — never emit a plausible half-table, never a silent zero.
 	Fallback string
+	// Diagnostics is what tesseract printed while reading this page — its resolution
+	// estimate among it, which exists nowhere else. Captured, never printed (#644), and
+	// kept for debugging: none of it is part of the reading or changes a byte it hashes.
+	Diagnostics string
+	// Evidence is what the grid branch read on the way to its answer; zero on a prose page.
+	Evidence PageEvidence
+}
+
+// PageEvidence is the grid branch's intermediate readings, kept so a reconstruction — or
+// its fallback — can be debugged after the run from what the engine actually saw. Like
+// Diagnostics it is evidence, not the reading.
+type PageEvidence struct {
+	// PortraitTSV is the level-5 word TSV under PSMAuto on the page as scanned.
+	PortraitTSV string
+	// RotatedTSV is the same on the page turned 90° clockwise, when the orientation probe
+	// ran; empty when it did not.
+	RotatedTSV string
+	// SparseTSV is the word TSV under PSMSparseText, on the orientation adopted.
+	SparseTSV string
+	// HeaderBand is the rotated-header band's re-OCR text, when a band was found.
+	HeaderBand string
 }
 
 // MinMarkPlacement is the first reconstruction fallback threshold: below this placed/total
@@ -103,7 +124,23 @@ const (
 // ReadPage runs the whole per-page pipeline over one PNG. On a stub build the first
 // engine call returns ErrNotCompiledIn and the page fails loudly — the caller must
 // surface that, never record it as an empty reading.
+//
+// Tesseract's diagnostics for the page are captured into the result rather than printed.
 func (en *Engine) ReadPage(pagePNG []byte, thr GridThresholds) (PageResult, error) {
+	var res PageResult
+	diag, err := captureDiagnostics(func() error {
+		var rerr error
+		res, rerr = en.readPage(pagePNG, thr)
+		return rerr
+	})
+	if err != nil {
+		return PageResult{}, err
+	}
+	res.Diagnostics = diag
+	return res, nil
+}
+
+func (en *Engine) readPage(pagePNG []byte, thr GridThresholds) (PageResult, error) {
 	grid, err := DetectGrid(pagePNG, thr)
 	if err != nil {
 		return PageResult{}, err
@@ -127,6 +164,7 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats) (PageResult, erro
 	if err != nil {
 		return PageResult{}, err
 	}
+	out.Evidence.PortraitTSV = tsvAuto
 
 	// Orientation (plan §VI amendment a). Only probed when the portrait pass read almost
 	// nothing; adopted only when the rotated pass measurably reads better. The rotation is
@@ -142,6 +180,7 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats) (PageResult, erro
 		if rerr != nil {
 			return PageResult{}, rerr
 		}
+		out.Evidence.RotatedTSV = rotTSV
 		if confidentWordCount(rotTSV) > confidentWordCount(tsvAuto) {
 			out.RotatedPage = true
 			pagePNG, tsvAuto = rotPNG, rotTSV
@@ -152,6 +191,7 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats) (PageResult, erro
 	if err != nil {
 		return PageResult{}, err
 	}
+	out.Evidence.SparseTSV = tsvSparse
 
 	// PSMAuto's layout analysis silently drops isolated marks it cannot attach to a text
 	// block (Wave 0, p0052: zero mark tokens on a page with 74 marks); the sparse pass is
@@ -170,6 +210,7 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats) (PageResult, erro
 		if berr != nil {
 			return PageResult{}, berr
 		}
+		out.Evidence.HeaderBand = band
 		headers = ParseRotatedBandHeaders(band)
 	}
 
