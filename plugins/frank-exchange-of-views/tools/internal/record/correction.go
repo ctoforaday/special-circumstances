@@ -549,6 +549,60 @@ func (x StruckIndex) Head(key string) string {
 // IsStruck answers whether ev was corrected, on a stream's index.
 func IsStruck(idx StruckIndex, ev *Event) bool { return idx.IsStruck(ev.GetKey()) }
 
+// Listed is one act as a LISTING shows it: the act, and — when a correction struck it — who struck
+// it and why. A listing never hides a struck act; it marks it.
+type Listed struct {
+	*Event
+	Struck *Struck
+}
+
+// Markdown renders an act's text the way every markdown listing shows it: as written, or struck
+// through with who struck it and why.
+func (l Listed) Markdown(text string) string {
+	if l.Struck == nil {
+		return text
+	}
+	return "~~" + text + "~~ (struck by " + l.Struck.By + ": " + l.Struck.Why + ")"
+}
+
+// Listing is the stream a LISTING renders — the ONE home of that order, as Live is of a fold's.
+// The acts that stand, in Live's order, each replacement preceded by the acts it struck (oldest
+// first), each of those marked. So a reader sees the struck wording where the act stood, the
+// corrected one right after it, and never two acts where the seat made one.
+func Listing(evs []*Event) []Listed {
+	idx := StruckIndexOf(evs)
+	if idx.Empty() {
+		out := make([]Listed, len(evs))
+		for i, e := range evs {
+			out[i] = Listed{Event: e}
+		}
+		return out
+	}
+	byKey := make(map[string]*Event, len(evs))
+	for _, e := range evs {
+		if k := e.GetKey(); k != "" {
+			byKey[k] = e
+		}
+	}
+	struckBy := map[string]string{} // replacement key -> the key it struck
+	for k, s := range idx.byKey {
+		struckBy[s.Replacement] = k
+	}
+	var out []Listed
+	for _, e := range Live(evs) {
+		var chain []Listed
+		for k := struckBy[e.GetKey()]; k != ""; k = struckBy[k] {
+			if old := byKey[k]; old != nil {
+				s, _ := idx.Of(k)
+				chain = append([]Listed{{Event: old, Struck: &s}}, chain...)
+			}
+		}
+		out = append(out, chain...)
+		out = append(out, Listed{Event: e})
+	}
+	return out
+}
+
 // Live is the stream a WINNER or DUTY reader folds: each struck act replaced IN PLACE by the act
 // that stands now, and each replacement dropped from its own later position — so a correction takes
 // its target's place in every ordering (F12) and a last-wins reader cannot pick a replacement over a

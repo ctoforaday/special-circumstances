@@ -123,10 +123,20 @@ func ObservationsOf(evs []*Event) []*Observation {
 // verifiers and the operators' consumers take instead of a Board (plans/board-as-views.md waves
 // 4-6): no fold builds it, and no board-wide state rides along to drift.
 type Family struct {
-	Gaps   []*Gap
+	Gaps []*Gap
+	// Events is the WHOLE stream, struck acts included: a listing shows a corrected act struck,
+	// never hides it. A reader picking a winner or discharging a duty reads Live() instead.
 	Events []*Event
+	// Struck is every same-sitting correction on the stream, indexed once.
+	Struck StruckIndex
 	byID   map[string]*Gap
 }
+
+// Live is the stream a fold reads: each struck act replaced in place by the act that stands.
+func (f Family) Live() []*Event { return Live(f.Events) }
+
+// Listing is the stream a listing renders: the acts that stand, each preceded by what it struck.
+func (f Family) Listing() []Listed { return Listing(f.Events) }
 
 // FamilyOf assembles the family from the record: the gap view + typed loader (GapStates) and
 // the stream.
@@ -144,7 +154,7 @@ func FamilyOf(run Run) (Family, error) {
 
 // NewFamily indexes the family once, so a lineage lookup is a map hit for every consumer.
 func NewFamily(gaps []*Gap, evs []*Event) Family {
-	return Family{Gaps: gaps, Events: evs, byID: GapsByID(gaps)}
+	return Family{Gaps: gaps, Events: evs, Struck: StruckIndexOf(evs), byID: GapsByID(gaps)}
 }
 
 // Gap is the family's index: the gap by id, or nil — the same answer b.Gaps[id] gave.
