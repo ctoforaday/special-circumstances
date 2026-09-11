@@ -31,7 +31,8 @@ import (
 // and never did, so a second spelling of ONE flag was never going to close the class.
 //
 // What closes it is one way for EVERY free-text value — capture it with a quoted heredoc, pass the
-// variable — stated once in the help of every verb that takes prose (ProseFooter), and a PreToolUse
+// variable — stated once in the help of every verb that takes free text (ProseFooter, attached by
+// Text), and a PreToolUse
 // deny of any tool command carrying a backtick the shell would run (internal/hookgate). With that
 // rule in place the file spelling is a second way to write the same field, which is the one-way
 // rule's own definition of an alias, and it went.
@@ -53,14 +54,10 @@ var (
 // Register attaches the channel to a command: the flag, its canonical wording, the quoting rule in
 // the verb's help, and the binding that makes this struct the thing the flag writes to.
 //
-// THE QUOTING RULE IS ATTACHED HERE, NOT TYPED ONTO PAGES. Every verb that takes prose passes
-// through this function, so this is the one place that can say "every verb that takes prose shows
-// it" and be right by construction — TestEveryProseVerbShowsTheQuotingRule holds it.
+// The prose channel is a free-text flag like any other, so it registers through TextVar, which is
+// what attaches the quoting rule.
 func (p *Prose) Register(c *cobra.Command) {
-	c.Flags().StringVar(&p.inline, Reason, "", DescReason)
-	if !strings.Contains(c.Long, ProseFooter) {
-		c.Long = strings.TrimRight(c.Long, "\n") + "\n\n" + ProseFooter
-	}
+	TextVar(c, &p.inline, Reason, DescReason)
 	registryMu.Lock()
 	registry[c] = p
 	registryMu.Unlock()

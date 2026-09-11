@@ -72,7 +72,7 @@ func newSetup() *cobra.Command {
 		},
 	}
 	f := c.Flags()
-	f.StringVar(&topic, flags.Topic, "", "the run's research topic (goes in every stub header)")
+	flags.TextVar(c, &topic, flags.Topic, "the run's research topic (goes in every stub header)")
 	f.StringVar(&model, flags.Model, "", "the bulk tier (frontier, blue lanes, red lenses, blue responses)")
 	f.StringVar(&judgmentModel, flags.JudgmentModel, "", "the judgment tier (blue-synthesize, red-chair, judge, assemble)")
 	f.StringArrayVar(&cites, flags.Cite, nil, "a cited path, optionally pinned: <path>[@<commit>] (repeatable)")

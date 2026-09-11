@@ -161,10 +161,10 @@ func newFinding() *cobra.Command {
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage("how bad this is"))
 	c.Flags().Var(&likelihood, flags.Likelihood, "how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what one grade meant before v2 split them")
 	c.Flags().Var(&impact, flags.Impact, "how bad the consequence is if it lands")
-	c.Flags().String(flags.Quote, "", flags.DescQuote+". The finding-marker is placed there")
+	flags.Text(c, flags.Quote, flags.DescQuote+". The finding-marker is placed there")
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("finding", "about_kind"),
 		"anchor this finding to something that is NOT report text — use instead of --quote when the defect is an ABSENCE")
-	c.Flags().String(flags.About, "", "the reference --about-kind names: a section heading, an avenue id, or a gap id. "+
+	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an avenue id, or a gap id. "+
 		"It is CHECKED against the record, which a borrowed quote never was")
 	return c
 }

@@ -126,9 +126,9 @@ func newCite() *cobra.Command {
 
 	enumhelp.Flag(c, flags.SourceText, record.MustEnum("cite", "source_text_read"),
 		"how much of the source you actually READ. Omitted records `unread` — the citation then rests on the source EXISTING, not on anything it says")
-	c.Flags().String(flags.Quote, "", flags.DescQuote+". The invisible citation anchor is spliced here, so a mis-quote is rejected rather than guessed at")
+	flags.Text(c, flags.Quote, flags.DescQuote+". The invisible citation anchor is spliced here, so a mis-quote is rejected rather than guessed at")
 	c.Flags().String(flags.URL, "", flags.DescURL)
-	c.Flags().String(flags.Title, "", flags.DescTitle)
+	flags.Text(c, flags.Title, flags.DescTitle)
 	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL assigns the c-<hex> label")
 	return c
 }

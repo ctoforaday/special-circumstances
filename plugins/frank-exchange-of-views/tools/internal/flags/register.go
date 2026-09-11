@@ -2,9 +2,37 @@ package flags
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
+
+// FreeTextAnnotation marks a flag registered through Text: its value is words a seat composes, so
+// it passes through the shell as text and the quoting rule applies to it.
+const FreeTextAnnotation = "feov_free_text"
+
+// Text registers a FREE-TEXT string flag: the flag, the annotation that says what it is, and the
+// quoting rule in the verb's help.
+//
+// THE RULE IS ATTACHED HERE, NOT TYPED ONTO PAGES. Every free-text flag passes through this
+// function (the prose channel included, via Prose.Register), so this is the one place that can say
+// "every verb that takes free text shows it" and be right by construction.
+// TestEveryFreeTextVerbShowsTheQuotingRule holds it, and refuses a string flag registered the plain
+// way unless its name is ClosedForm.
+func Text(c *cobra.Command, name, desc string) { TextVar(c, new(string), name, desc) }
+
+// TextVar is Text bound to a variable.
+func TextVar(c *cobra.Command, p *string, name, desc string) {
+	c.Flags().StringVar(p, name, "", desc)
+	_ = c.Flags().SetAnnotation(name, FreeTextAnnotation, []string{"true"})
+	if !strings.Contains(c.Long, ProseFooter) {
+		c.Long = strings.TrimRight(c.Long, "\n") + "\n\n" + ProseFooter
+	}
+}
+
+// IsFreeText reports whether a flag was registered through Text.
+func IsFreeText(f *pflag.Flag) bool { return len(f.Annotations[FreeTextAnnotation]) > 0 }
 
 // RegisterPayload attaches the prose payload channel.
 //

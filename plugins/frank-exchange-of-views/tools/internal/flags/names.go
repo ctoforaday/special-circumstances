@@ -304,6 +304,28 @@ func All() []string {
 	}
 }
 
+// ClosedForm reports whether a flag's value is drawn from a closed or machine-checked form rather
+// than composed in words: an id, key, slug, enum, path, URL, date, number, model name or seat.
+// Such a value has no business carrying a backtick, so its verb needs no quoting rule for it.
+//
+// Every OTHER string flag is free text and must be registered through Text, which attaches the
+// rule. The line is drawn by what the value IS, not by how long it usually is: --title and --about
+// are short, but a source's title and a section heading are words, and words can carry a backtick.
+// --verified-with names a tool or a command, which is exactly where a backtick turns up.
+//
+// The set is the refusal: TestEveryFreeTextVerbShowsTheQuotingRule fails a string flag registered
+// the plain way whose name is not here, so a new flag is classified by whoever adds it.
+func ClosedForm(name string) bool { return closedForm[name] }
+
+var closedForm = map[string]bool{
+	Run: true, SeatID: true, ID: true, Key: true, Class: true, Neighbor: true, Anchor: true,
+	Format: true, URL: true, At: true, Via: true, Script: true, VerifiedBy: true,
+	VerifiedAgainst: true, CarriedFrom: true, Sitting: true, Trajectory: true, Sha: true,
+	Model: true, JudgmentModel: true, Cite: true, Lanes: true, LensArea: true,
+	BinDir: true, MemoryDir: true, RunID: true, ScriptPath: true, MigrateFrom: true, MigrateTo: true,
+	AcceptLoss: true, Chair: true,
+}
+
 // ForPayloadKey maps a stored payload key back to the flag a seat types to set it.
 //
 // The two are NOT the same word and must not be derived from each other. Validation used to
@@ -376,14 +398,15 @@ var payloadFlag = map[string]string{
 const (
 	DescReason = "your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as \"$X\" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words"
 
-	// ProseFooter is the quoting rule, stated ONCE and attached by Prose.Register to the help of
-	// every verb that takes prose — so it is on the page a seat reads before the write, without a
+	// ProseFooter is the quoting rule, stated ONCE and attached by Text to the help of every verb
+	// that takes a free-text flag — so it is on the page a seat reads before the write, without a
 	// hand-typed copy per page and without naming a flag (a help detail never restates what cobra
 	// prints; this names the shell, not the tool).
 	//
 	// It covers EVERY free-text value, not only the prose channel: --quote, --new, --problem,
-	// --check and the rest pass through the same shell, and a PreToolUse deny refuses a command
-	// carrying a backtick the shell would run (internal/hookgate) with this same instruction.
+	// --check and the rest pass through the same shell, each registers through Text, and a
+	// PreToolUse deny refuses a command carrying a backtick the shell would run (internal/hookgate)
+	// with this same instruction.
 	ProseFooter = `FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
 your text, and records whatever the command printed — or nothing — in its place. Pass every
 free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:

@@ -36,6 +36,30 @@ func TestABacktickTheShellWouldRunIsRefused(t *testing.T) {
 		{"a comment is not run", "feov-record position --reason x # see `prove`", false},
 		{"$( ) is a capture, not a stray backtick", "feov-record position --reason \"$(date)\"", false},
 		{"apostrophes inside double quotes", "feov-record position --reason \"the report's figures don't move\"", false},
+
+		// HERE-STRINGS. `<<<` is not a heredoc: its word is ordinary quoting on the same line.
+		{"double-quoted here-string runs its backtick", "feov-record x --reason \"$(cat)\" <<< \"it uses `prove`\"", true},
+		{"a here-string does not swallow the lines after it", "feov-record x --reason \"$(cat)\" <<< \"ok\"\nfeov-record y --reason \"a `prove`\"", true},
+		{"single-quoted here-string is literal", "feov-record x --reason \"$(cat)\" <<< 'it uses `prove`'", false},
+		// ANSI-C QUOTES. `\'` does not end `$'…'`, and what follows it is scanned in step.
+		{"escaped apostrophe in $'' then double quotes", "feov-record x --reason $'don\\'t' \"see `prove`\"", true},
+		{"$'' holding a double quote, then a single-quoted backtick", "feov-record x --reason $'a\\'\"' '  b `x` '", false},
+		{"$'' is literal", "feov-record x --reason $'uses `prove` here'", false},
+		{"an unterminated quote refuses any backtick after it", "feov-record x --reason \"a\" 'b `prove`", true},
+		// NESTED QUOTING inside text: ${ } and $( ) each open their own.
+		{"double quotes nested in ${ } in double quotes", "feov-record x --reason \"${v:-\"`x`\"}\"", true},
+		{"a case pattern's ) does not close $( )", "feov-record x --reason \"$(case x in x) echo \"`x`\";; esac)\"", true},
+		{"a subshell's ) does not close $( )", "feov-record x --reason \"$( (echo a); echo \"`x`\" )\"", true},
+		{"$(( closed by one paren is a subshell", "feov-record x --reason \"$((echo a); echo \"`x`\")\"", true},
+		// ARITHMETIC. `<<` there is a shift, and opens no heredoc.
+		{"arithmetic shift is not a heredoc", "x=$((1<<2))\nfeov-record x --reason 'see `x`'", false},
+		{"arithmetic command shift is not a heredoc", "((x=1<<2))\nfeov-record x --reason 'see `x`'", false},
+		{"arithmetic shift, then double quotes", "x=$((1<<2))\nfeov-record x --reason \"see `x`\"", true},
+		// UNQUOTED HEREDOC BODIES are text: quotes literal, but $( ) opens full quoting again.
+		{"single quotes inside $( ) in an unquoted body", "X=$(cat <<EOF\n$(echo '`x`')\nEOF\n)\nfeov-record x --reason \"$X\"", false},
+		{"a quoted heredoc nested in an unquoted body", "X=$(cat <<EOF\n$(cat <<'I'\n`x`\nI\n)\nEOF\n)\nfeov-record x --reason \"$X\"", false},
+		{"an apostrophe in an unquoted body does not hide a backtick", "X=$(cat <<EOF\ndon't `x`\nEOF\n)\nfeov-record x --reason \"$X\"", true},
+		{"a comment after a redirection", "feov-record x --reason b >#out \"a `x`\"", false},
 	} {
 		at, runs := executedBacktick(c.command)
 		if runs != c.deny {
@@ -83,6 +107,9 @@ func FuzzExecutedBacktick(f *testing.F) {
 		"feov-record position --reason \"`x`\"",
 		"X=$(cat <<'EOF'\n`y`\nEOF\n)\n",
 		"<<", "<<-", "<<'", "\"$(", "'", "\\", "#`", "a <<E\n`\nE", "$(((", ")))",
+		"<<<", "a <<< \"`x`\"\n`y`", "$'", "$'\\'", "$'\\'\" \"`x`\"", "\"${", "\"${\"`", "}\"`",
+		"\"$(case x in x) \"`\";; esac)\"", "\"$( (a); \"`\" )\"", "\"$((a); \"`\")\"", "$((1<<2))\n'`'",
+		"((", "((1<<2))\n`", "<<E\n$('`')\nE", "<<E\n$(cat <<'I'\n`\nI\n)\nE", "case", "esac)", "then case x in x)",
 	} {
 		f.Add(s)
 	}

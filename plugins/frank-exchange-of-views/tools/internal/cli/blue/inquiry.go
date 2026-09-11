@@ -120,8 +120,8 @@ func newInquiryPropose() *cobra.Command {
 	// is where a seat actually learns the verb. Without it the only refusal was validate's, which
 	// arrives later and teaches less.
 	_ = c.MarkFlagRequired(flags.Reason)
-	c.Flags().String(flags.Hypothesis, "", "what would be TRUE if this line pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug")
-	c.Flags().String(flags.Method, "", "the source class or technique it belonged to, when that is what distinguishes it")
+	flags.Text(c, flags.Hypothesis, "what would be TRUE if this line pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug")
+	flags.Text(c, flags.Method, "the source class or technique it belonged to, when that is what distinguishes it")
 	return c
 }
 

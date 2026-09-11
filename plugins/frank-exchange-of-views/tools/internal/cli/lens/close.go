@@ -68,7 +68,7 @@ func newClose() *cobra.Command {
 
 	seat.ClosureFlags(c)
 	c.Flags().String(flags.VerifiedBy, "", "WHO verified it — the seat that read the evidence")
-	c.Flags().String(flags.VerifiedWith, "", "WITH WHAT — the tool or command that showed it")
+	flags.Text(c, flags.VerifiedWith, "WITH WHAT — the tool or command that showed it")
 	c.Flags().String(flags.VerifiedAgainst, "", "AGAINST WHAT — the exact file, ref or URL read")
 	// ALL THREE OR NONE, said by cobra rather than by a refusal after the fact. `validate` reads
 	// them as one fact (`anchored`), so two of three was never a partial closure — it was an

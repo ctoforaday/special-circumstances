@@ -109,8 +109,8 @@ func newRetire() *cobra.Command {
 		return retireResult{Claim: seat.Str(cmd, flags.Quote), Anchors: body.Anchors, Kept: kept}, nil
 	}))
 
-	c.Flags().String(flags.Quote, "", flags.DescQuote+" — the claim being removed, as it stood before you edited it out")
-	c.Flags().String(flags.New, "", "the claim that replaces it, when one does — the same --quote/--new pair `edit` and `mint` take")
+	flags.Text(c, flags.Quote, flags.DescQuote+" — the claim being removed, as it stood before you edited it out")
+	flags.Text(c, flags.New, "the claim that replaces it, when one does — the same --quote/--new pair `edit` and `mint` take")
 	return c
 }
 

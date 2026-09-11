@@ -17,34 +17,43 @@ Global Flags:
       --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
-§3 (on 4 pages):
-REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
+§3 (on 12 pages):
+FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
+your text, and records whatever the command printed — or nothing — in its place. Pass every
+free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
 
 §4 (on 12 pages):
-read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+  X=$(cat <<'EOF'
+  your text — backticks, apostrophes and $ signs are all literal here
+  EOF
+  )
+  … "$X"
 
-§5 (on 7 pages):
-your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
+§5 (on 4 pages):
+REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as "$X" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words
 
-§6 (on 3 pages):
-ONE EVENT, DIFFERENT CONTRACTS: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules).
+§6 (on 7 pages):
+your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as "$X" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words
 
 §7 (on 3 pages):
-`motion grade file` disputes a gap's grade; `motion petition file` raises an ethical, safety, integrity or constitutional objection, heard BEFORE the debate continues; `motion docket file` puts a GAP before the bench, which is the channel for a gap the filing seat cannot settle itself; an inquiry needs no file verb at all — proposing the line of inquiry IS the filing, and only its ruling is a motion.
+ONE EVENT, DIFFERENT CONTRACTS: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules).
 
 §8 (on 3 pages):
+`motion grade file` disputes a gap's grade; `motion petition file` raises an ethical, safety, integrity or constitutional objection, heard BEFORE the debate continues; `motion docket file` puts a GAP before the bench, which is the channel for a gap the filing seat cannot settle itself; an inquiry needs no file verb at all — proposing the line of inquiry IS the filing, and only its ruling is a motion.
+
+§9 (on 3 pages):
 Any seat may file. Exactly one rules, and `rule` appears only on that seat's surface.
 
-§9 (on 2 pages):
+§10 (on 2 pages):
 EVERY SUBJECT AND ITS GAVEL: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues. A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle, and it is why `rule` is missing from the surfaces that do not hold the gavel.
 
-§10 (on 2 pages):
+§11 (on 2 pages):
 TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade dispute the merge rejected; `motion inquiry appeal` presses a line of inquiry red ruled out-of-scope or too-thin, and it is filed whether or not blue also pursues the line — separating the argument from the act is the whole point of the verb.
 
-§11 (on 2 pages):
+§12 (on 2 pages):
 A PETITION HAS NO APPEAL, and that absence is the design rather than an omission: it is heard by the bench BEFORE the debate continues, so there is nothing to escalate to.
 
-§12 (on 11 pages):
+§13 (on 11 pages):
 Global Flags:
       --id show changes    scope show changes to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
       --json               emit a structured JSON result (and structured errors) instead of human text
@@ -108,13 +117,16 @@ The bench keeps no memory between runs, so what a human should re-examine exists
 
 (If you need a verb or a flag tha…) → SHARED §1
 
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+
+(X=$(cat <<'EOF') → SHARED §4
+
 Usage:
   feov-record certify [flags]
 
 Flags:
   -h, --help            help for certify
-      --reason string   → SHARED §3
-      --reason-file -   → SHARED §4
+      --reason string   → SHARED §5
 
 (Global Flags:) → SHARED §2
 ==============================================================================
@@ -138,13 +150,16 @@ Reach for it when the dispute is over what a term MEANS. Measured: a bench with 
 
 (If you need a verb or a flag tha…) → SHARED §1
 
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+
+(X=$(cat <<'EOF') → SHARED §4
+
 Usage:
   feov-record declare [flags]
 
 Flags:
   -h, --help            help for declare
-      --reason string   → SHARED §5
-      --reason-file -   → SHARED §4
+      --reason string   → SHARED §6
 
 (Global Flags:) → SHARED §2
 ==============================================================================
@@ -178,13 +193,16 @@ Reach for it when continuing would itself be the harm — a safety or consent bo
 
 (If you need a verb or a flag tha…) → SHARED §1
 
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+
+(X=$(cat <<'EOF') → SHARED §4
+
 Usage:
   feov-record halt [flags]
 
 Flags:
   -h, --help            help for halt
-      --reason string   → SHARED §3
-      --reason-file -   → SHARED §4
+      --reason string   → SHARED §5
 
 (Global Flags:) → SHARED §2
 ==============================================================================
@@ -203,13 +221,16 @@ YOUR AUDIENCE IS THE OPERATOR, not the other seats. This channel is read by whoe
 
 (If you need a verb or a flag tha…) → SHARED §1
 
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+
+(X=$(cat <<'EOF') → SHARED §4
+
 Usage:
   feov-record log [flags]
 
 Flags:
   -h, --help            help for log
-      --reason string   → SHARED §5
-      --reason-file -   → SHARED §4
+      --reason string   → SHARED §6
       --type nominal    REQUIRED — REQUIRED — what this entry asserts. nominal is the clean sitting said in the positive; `friction` is an impediment you are NOTING and which may be neither actionable nor advisable to change
 
 Enumerated values:
@@ -224,11 +245,15 @@ Enumerated values:
 $ feov-record motion docket file --help
 file a docket motion — the tool assigns its id.
 
-(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §6
+(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §7
 
-(`motion grade file` disputes a g…) → SHARED §7
+(`motion grade file` disputes a g…) → SHARED §8
 
-(Any seat may file. Exactly one r…) → SHARED §8
+(Any seat may file. Exactly one r…) → SHARED §9
+
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+
+(X=$(cat <<'EOF') → SHARED §4
 
 Usage:
   feov-record motion docket file [flags]
@@ -236,15 +261,18 @@ Usage:
 Flags:
   -h, --help            help for file
       --id string       REQUIRED for a docket motion
-      --reason string   → SHARED §5
-      --reason-file -   → SHARED §4
+      --reason string   → SHARED §6
 
 (Global Flags:) → SHARED §2
 ==============================================================================
 $ feov-record motion docket rule --help
 rule on a docket motion — this verb is the bench seat's, and it appears only on that surface.
 
-(EVERY SUBJECT AND ITS GAVEL: gra…) → SHARED §9
+(EVERY SUBJECT AND ITS GAVEL: gra…) → SHARED §10
+
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+
+(X=$(cat <<'EOF') → SHARED §4
 
 Usage:
   feov-record motion docket rule [flags]
@@ -255,8 +283,7 @@ Flags:
   -h, --help                 help for rule
       --id string            REQUIRED — the motion id (M1, M2 …)
       --principle string     the rule you applied, stated so a later sitting can apply the same one
-      --reason string        → SHARED §3
-      --reason-file -        → SHARED §4
+      --reason string        → SHARED §5
       --reopens-on string    the evidence or condition that would make this worth raising again — or pass --final to say nothing would
       --review-flag string   what a human should look at again — empty when nothing needs it
       --settled string       what the losing party may no longer assert, in one sentence
@@ -278,9 +305,13 @@ Enumerated values:
 $ feov-record motion grade appeal --help
 press a grade motion after a ruling — a ruling is an ARGUMENT, not a command, so the losing side may answer it on the record.
 
-(TWO SUBJECTS TAKE AN APPEAL. `mo…) → SHARED §10
+(TWO SUBJECTS TAKE AN APPEAL. `mo…) → SHARED §11
 
-(A PETITION HAS NO APPEAL, and th…) → SHARED §11
+(A PETITION HAS NO APPEAL, and th…) → SHARED §12
+
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+
+(X=$(cat <<'EOF') → SHARED §4
 
 Usage:
   feov-record motion grade appeal [flags]
@@ -288,19 +319,22 @@ Usage:
 Flags:
   -h, --help            help for appeal
       --id string       the motion id (M1, M2 …) — the motion being appealed, which must already have been ruled
-      --reason string   → SHARED §5
-      --reason-file -   → SHARED §4
+      --reason string   → SHARED §6
 
 (Global Flags:) → SHARED §2
 ==============================================================================
 $ feov-record motion grade file --help
 file a grade motion — the tool assigns its id.
 
-(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §6
+(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §7
 
-(`motion grade file` disputes a g…) → SHARED §7
+(`motion grade file` disputes a g…) → SHARED §8
 
-(Any seat may file. Exactly one r…) → SHARED §8
+(Any seat may file. Exactly one r…) → SHARED §9
+
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+
+(X=$(cat <<'EOF') → SHARED §4
 
 Usage:
   feov-record motion grade file [flags]
@@ -310,8 +344,7 @@ Flags:
   -h, --help                        help for file
       --id string                   REQUIRED for a grade motion
       --proposed grade              the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
-      --reason string               → SHARED §5
-      --reason-file -               → SHARED §4
+      --reason string               → SHARED §6
 
 Enumerated values:
   --dimension
@@ -325,9 +358,13 @@ Enumerated values:
 $ feov-record motion inquiry appeal --help
 press a inquiry motion after a ruling — a ruling is an ARGUMENT, not a command, so the losing side may answer it on the record.
 
-(TWO SUBJECTS TAKE AN APPEAL. `mo…) → SHARED §10
+(TWO SUBJECTS TAKE AN APPEAL. `mo…) → SHARED §11
 
-(A PETITION HAS NO APPEAL, and th…) → SHARED §11
+(A PETITION HAS NO APPEAL, and th…) → SHARED §12
+
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+
+(X=$(cat <<'EOF') → SHARED §4
 
 Usage:
   feov-record motion inquiry appeal [flags]
@@ -335,19 +372,22 @@ Usage:
 Flags:
   -h, --help            help for appeal
       --id string       the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number — the motion being appealed, which must already have been ruled
-      --reason string   → SHARED §5
-      --reason-file -   → SHARED §4
+      --reason string   → SHARED §6
 
 (Global Flags:) → SHARED §2
 ==============================================================================
 $ feov-record motion petition file --help
 file a petition motion — the tool assigns its id.
 
-(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §6
+(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §7
 
-(`motion grade file` disputes a g…) → SHARED §7
+(`motion grade file` disputes a g…) → SHARED §8
 
-(Any seat may file. Exactly one r…) → SHARED §8
+(Any seat may file. Exactly one r…) → SHARED §9
+
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+
+(X=$(cat <<'EOF') → SHARED §4
 
 Usage:
   feov-record motion petition file [flags]
@@ -355,8 +395,7 @@ Usage:
 Flags:
       --class class-value   REQUIRED for a petition motion
   -h, --help                help for file
-      --reason string       → SHARED §5
-      --reason-file -       → SHARED §4
+      --reason string       → SHARED §6
       --relief string       REQUIRED for a petition motion
 
 Enumerated values:
@@ -371,7 +410,11 @@ Enumerated values:
 $ feov-record motion petition rule --help
 rule on a petition motion — this verb is the bench seat's, and it appears only on that surface.
 
-(EVERY SUBJECT AND ITS GAVEL: gra…) → SHARED §9
+(EVERY SUBJECT AND ITS GAVEL: gra…) → SHARED §10
+
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+
+(X=$(cat <<'EOF') → SHARED §4
 
 Usage:
   feov-record motion petition rule [flags]
@@ -381,8 +424,7 @@ Flags:
       --binds blue|red|both   who granted relief BINDS — set it when you grant, or the relief reaches no prompt and nothing reports that it did not
   -h, --help                  help for rule
       --id string             REQUIRED — the motion id (M1, M2 …)
-      --reason string         → SHARED §3
-      --reason-file -         → SHARED §4
+      --reason string         → SHARED §5
 
 Enumerated values:
   --as
@@ -405,6 +447,10 @@ The verdict is derived from the record — a halt, the chair's PASS, or a board 
 
 (If you need a verb or a flag tha…) → SHARED §1
 
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+
+(X=$(cat <<'EOF') → SHARED §4
+
 Usage:
   feov-record outcome [flags]
 
@@ -412,7 +458,6 @@ Flags:
       --as as-value     REQUIRED — the run's terminal verdict
   -h, --help            help for outcome
       --reason string   REQUIRED — how this run ended, in your words. The verdict itself is derived from the record; this is the bench's account of the sitting, and on an UNVERIFIED run — the one verdict the record cannot derive — it is the only evidence of why the run stopped
-      --reason-file -   → SHARED §4
 
 Enumerated values:
   --as
@@ -484,7 +529,7 @@ Flags:
       --format string   json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose) (default "json")
   -h, --help            help for board
 
-(Global Flags:) → SHARED §12
+(Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show changes --help
 every recorded edit to blue/report.md (the blue_edit diff stack), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`
@@ -495,7 +540,7 @@ Usage:
 Flags:
   -h, --help   help for changes
 
-(Global Flags:) → SHARED §12
+(Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show debate --help
 the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order (add --json for the STRUCTURED form: epochs with red/blue/lead sections as data, for the audits). Written by `position`, `closing` and the bench's `motion docket rule`
@@ -508,7 +553,7 @@ Usage:
 Flags:
   -h, --help   help for debate
 
-(Global Flags:) → SHARED §12
+(Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show evidence --help
 STRUCTURED JSON: WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs), every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their trust grades. THIS IS HOW YOU RESOLVE AN ANCHOR you are reading in the report. Written by `cite`, `prove`, `verify` and `reproduce` THIS PROJECTION IS ALREADY THE JSON — --json is accepted, and on success its output is byte-for-byte the same. On an ERROR, --json prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
@@ -521,7 +566,7 @@ Usage:
 Flags:
   -h, --help   help for evidence
 
-(Global Flags:) → SHARED §12
+(Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show findings --help
 STRUCTURED JSON: every lens finding on the record (label, seat, epoch, role, grades, location, text) — the merge coalesces these into gaps; replaces the red/candidates/*.md files THIS PROJECTION IS ALREADY THE JSON — --json is accepted, and on success its output is byte-for-byte the same. On an ERROR, --json prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
@@ -534,7 +579,7 @@ Usage:
 Flags:
   -h, --help   help for findings
 
-(Global Flags:) → SHARED §12
+(Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show lines-of-inquiry --help
 the exploration space: lines taken, deferred, declined and abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule` (red's ruling)
@@ -545,7 +590,7 @@ Usage:
 Flags:
   -h, --help   help for lines-of-inquiry
 
-(Global Flags:) → SHARED §12
+(Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show motions --help
 STRUCTURED JSON: every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks `merge verdict --as PASS`, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal` THIS PROJECTION IS ALREADY THE JSON — --json is accepted, and on success its output is byte-for-byte the same. On an ERROR, --json prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
@@ -558,7 +603,7 @@ Usage:
 Flags:
   -h, --help   help for motions
 
-(Global Flags:) → SHARED §12
+(Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show report --help
 THE ARTIFACT UNDER AUDIT — blue's living report, read THROUGH the tool instead of off disk; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `blue edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the round-0 synthesis and every `blue edit`
@@ -571,7 +616,7 @@ Flags:
   -h, --help           help for report
       --window int     with --anchor: how many paragraphs of content either side of it (blank lines are carried, not counted) (default 3)
 
-(Global Flags:) → SHARED §12
+(Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show scorecard --help
 YOUR CHAIR'S IN-RUN SCORECARD — how the side you sit on is doing on THIS question, computed live from this run's record. Your own performance, not another party's: there is no selector, because your chair is the seat you registered as. A number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures, because a diagnostic gamed is itself a defect and a detector firing is a finding. Rows reading "not computed" are HONEST, not gaps to fill: the envelope-derived rows fill in at capture. Computed from the record, so no verb fills it
@@ -582,7 +627,7 @@ Usage:
 Flags:
   -h, --help   help for scorecard
 
-(Global Flags:) → SHARED §12
+(Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show telemetry --help
 STRUCTURED JSONL, one line per epoch (chair sitting): open count, max severity, mass under the pinned mapping, new mints BY SEVERITY AND BY CLASS with the class repeat rate, repair-regression ratio, and edge deltas — the trend the STOPPING judgment reads. The bench's signal for whether the findings are still changing character or merely recurring THIS PROJECTION IS ALREADY THE JSON — --json is accepted, and on success its output is byte-for-byte the same. On an ERROR, --json prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
@@ -595,7 +640,7 @@ Usage:
 Flags:
   -h, --help   help for telemetry
 
-(Global Flags:) → SHARED §12
+(Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show work --help
 **RUN THIS FIRST AND RUN IT AGAIN BEFORE YOU STOP.** STRUCTURED JSON: EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item — each with `blocks`, saying whether it is what is stopping you closing — and `sitting.complete` is true exactly when nothing blocking is left.
@@ -616,7 +661,7 @@ Usage:
 Flags:
   -h, --help   help for work
 
-(Global Flags:) → SHARED §12
+(Global Flags:) → SHARED §13
 
 $ manual --seat-id blue-respond
 exit 0
@@ -630,41 +675,50 @@ do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with your role's 'friction' verb — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
-§2 (on 15 pages):
-your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
+§2 (on 17 pages):
+FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
+your text, and records whatever the command printed — or nothing — in its place. Pass every
+free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
 
 §3 (on 17 pages):
-read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+  X=$(cat <<'EOF'
+  your text — backticks, apostrophes and $ signs are all literal here
+  EOF
+  )
+  … "$X"
 
-§4 (on 22 pages):
+§4 (on 15 pages):
+your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as "$X" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words
+
+§5 (on 22 pages):
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
       --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
-§5 (on 2 pages):
-REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs; --reason-file for anything long or from stdin with -
-
 §6 (on 2 pages):
+REQUIRED — your THINKING for this act, never your process — why you graded, closed, ruled or edited as you did, which is the substance the other side answers. The ledger already holds WHAT you did, in order, so an account of the verbs you ran narrates what the record reconstructs. Pass it as "$X" after X=$(cat <<'EOF' … EOF): bash RUNS a backtick inside double quotes and records its output instead of your words
+
+§7 (on 2 pages):
 a stable local handle of your own (C1, F2, P3 …) making a retried call idempotent — a repeat under the same handle returns the first result instead of acting twice
 
-§7 (on 3 pages):
+§8 (on 3 pages):
 ONE EVENT, DIFFERENT CONTRACTS: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules).
 
-§8 (on 3 pages):
+§9 (on 3 pages):
 `motion grade file` disputes a gap's grade; `motion petition file` raises an ethical, safety, integrity or constitutional objection, heard BEFORE the debate continues; `motion docket file` puts a GAP before the bench, which is the channel for a gap the filing seat cannot settle itself; an inquiry needs no file verb at all — proposing the line of inquiry IS the filing, and only its ruling is a motion.
 
-§9 (on 3 pages):
+§10 (on 3 pages):
 Any seat may file. Exactly one rules, and `rule` appears only on that seat's surface.
 
-§10 (on 2 pages):
+§11 (on 2 pages):
 TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade dispute the merge rejected; `motion inquiry appeal` presses a line of inquiry red ruled out-of-scope or too-thin, and it is filed whether or not blue also pursues the line — separating the argument from the act is the whole point of the verb.
 
-§11 (on 2 pages):
+§12 (on 2 pages):
 A PETITION HAS NO APPEAL, and that absence is the design rather than an omission: it is heard by the bench BEFORE the debate continues, so there is nothing to escalate to.
 
-§12 (on 11 pages):
+§13 (on 11 pages):
 Global Flags:
       --id show changes    scope show changes to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
       --json               emit a structured JSON result (and structured errors) instead of human text
@@ -725,6 +779,10 @@ To RESOLVE an anchor you meet while reading, rather than create one, read the `e
 
 (If you need a verb or a flag tha…) → SHARED §1
 
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
+
+(X=$(cat <<'EOF') → SHARED §3
+
 Usage:
   feov-record cite [flags]
 
@@ -732,8 +790,7 @@ Flags:
   -h, --help                 help for cite
       --key string           a stable local handle of your own (C1, F2, P3 …) making a retried call idempotent — a repeat under the same handle returns the first result instead of acting twice; the TOOL assigns the c-<hex> label
       --quote string         the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. The invisible citation anchor is spliced here, so a mis-quote is rejected rather than guessed at
-      --reason string        → SHARED §2
-      --reason-file -        → SHARED §3
+      --reason string        → SHARED §4
       --source-text unread   how much of the source you actually READ. Omitted records unread — the citation then rests on the source EXISTING, not on anything it says
       --title string         the source's name, as it appears in the composed bibliography
       --url string           the source's http/https URL — fetched once and cached, so both sides read the same bytes
@@ -744,7 +801,7 @@ Enumerated values:
     summary_only  someone else's account of it: an abstract, a secondary description, or the summary of an INTERESTED party
     unread        never read — the citation rests on a record that the source EXISTS, not on anything it says
 
-(Global Flags:) → SHARED §4
+(Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record claim-index --help
 claim-index reads <run>/blue/report.md and prints, per footnote label, every site that claim appears: {label, occurrences:[{heading, line}]}. WHEN to use it: you are correcting a claim and must propagate the fix to ALL its sites — query the label for its occurrences instead of re-reading the whole report to find them. WHAT it is NOT: a replacement for the report-wide string/figure sweep — an unfootnoted restatement (a bare corrected FIGURE) is invisible to a footnote-marker index, so still grep the corrected strings report-wide. It records nothing. JSON only.
@@ -755,7 +812,7 @@ Usage:
 Flags:
   -h, --help   help for claim-index
 
-(Global Flags:) → SHARED §4
+(Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record closing --help
 your closing argument on one docketed gap, when the bench is about to rule on it
@@ -766,16 +823,19 @@ The judge rules on the closings, the transcript, and the final state of the arti
 
 (If you need a verb or a flag tha…) → SHARED §1
 
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
+
+(X=$(cat <<'EOF') → SHARED §3
+
 Usage:
   feov-record closing [flags]
 
 Flags:
   -h, --help            help for closing
       --id gap-id       the gap id this closing argues
-      --reason string   → SHARED §5
-      --reason-file -   → SHARED §3
+      --reason string   → SHARED §6
 
-(Global Flags:) → SHARED §4
+(Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record count-claims --help
 count-claims reads <run>/blue/report.md and prints its claim_count — the number of footnoted declarative claims, computed deterministically (see the rule in internal/claimcount). It writes nothing. Used live by blue to size its envelope figure and by capture to recompute it independently.
@@ -786,7 +846,7 @@ Usage:
 Flags:
   -h, --help   help for count-claims
 
-(Global Flags:) → SHARED §4
+(Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record edit --help
 change the report — the only path into report.md, and how every repair lands
@@ -816,6 +876,10 @@ WHAT MAY BE IN THE REPORT AT ALL: research prose written for a reader of the SUB
 
 (If you need a verb or a flag tha…) → SHARED §1
 
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
+
+(X=$(cat <<'EOF') → SHARED §3
+
 Usage:
   feov-record edit [flags]
 
@@ -823,13 +887,12 @@ Flags:
       --accept           take red's prescribed fix EXACTLY as recorded on the gap named by --answers, instead of retyping it: the tool supplies --quote and --new from the mint, so you pass neither. Your --reason is still yours and still required — it is the argument for accepting. Refused when red prescribed no concrete text
       --answers gap-id   the gap id this edit responds to (G4) — the provenance join key; omit only for an edit that answers no gap
   -h, --help             help for edit
-      --key string       → SHARED §6
+      --key string       → SHARED §7
       --new string       the text that span should become
       --quote string     the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. It is matched ACROSS the invisible anchor layer, and rejected if it contains a finding-marker or a citation anchor
-      --reason string    → SHARED §2
-      --reason-file -    → SHARED §3
+      --reason string    → SHARED §4
 
-(Global Flags:) → SHARED §4
+(Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record fetch --help
 fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself, for any content type. Open what you need with Read, which can take an offset and a limit; a 67-page paper pasted into your context is the same waste whether it is legible or not. Where the source is a PDF, its text is extracted to <run>/cache/<sha256>.txt and named in the summary, so you need no PDF tooling to read it.
@@ -850,7 +913,7 @@ Flags:
       --url string    the http/https URL to read (fetched once, then served from the run cache)
       --via archive   reach the source through a named backend instead of the live URL: live | archive | oa | metadata | arxiv | eric | auto. They answer DIFFERENT questions — archive what the page said on a date (right for web pages, usually the landing page for a subscription article), `oa` whether a legal open copy exists, `metadata` only that the source exists and where (no text, and the honest answer when there is none to get), `arxiv` the preprint's PDF or LaTeX source. Omitted, a refusal falls back through them in that order
 
-(Global Flags:) → SHARED §4
+(Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record ingest --help
 freeze the synthesized report into the record and remove the file — done once, by its author
@@ -867,15 +930,18 @@ WHAT MAY BE IN THE REPORT AT ALL: research prose written for a reader of the SUB
 
 (If you need a verb or a flag tha…) → SHARED §1
 
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
+
+(X=$(cat <<'EOF') → SHARED §3
+
 Usage:
   feov-record ingest [flags]
 
 Flags:
   -h, --help            help for ingest
-      --reason string   → SHARED §2
-      --reason-file -   → SHARED §3
+      --reason string   → SHARED §4
 
-(Global Flags:) → SHARED §4
+(Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record line-of-inquiry move --help
 say what became of a direction you proposed — every open line owes this before your sitting ends
@@ -888,6 +954,10 @@ THE REASON IS PRINTED IN THE REPORT, beside the line. Give the account in the SU
 
 (If you need a verb or a flag tha…) → SHARED §1
 
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
+
+(X=$(cat <<'EOF') → SHARED §3
+
 Usage:
   feov-record line-of-inquiry move [flags]
 
@@ -895,8 +965,7 @@ Flags:
       --as as-value     REQUIRED — the fate of this line of inquiry
   -h, --help            help for move
       --id inquiry-id   inquiry-id — the line of inquiry whose fate you are moving (A1, A2 …); the lines-of-inquiry projection lists every one
-      --reason string   → SHARED §2
-      --reason-file -   → SHARED §3
+      --reason string   → SHARED §4
 
 Enumerated values:
   --as
@@ -906,7 +975,7 @@ Enumerated values:
     abandoned  you TRIED it and it died — the most valuable fate, because it stops a later run re-walking it
     deferred   worth taking, and not by THIS run. --reason says what a later run should pick it up FOR; it reaches the report as a proposal a human selects, never an automatic seed
 
-(Global Flags:) → SHARED §4
+(Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record line-of-inquiry propose --help
 put a direction on the record, when something is worth trying and a later run needs to know you chose it
@@ -919,6 +988,10 @@ THE APPROACH YOU PROPOSE IS THE LINE, AND IT IS PRINTED IN THE REPORT word for w
 
 (If you need a verb or a flag tha…) → SHARED §1
 
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
+
+(X=$(cat <<'EOF') → SHARED §3
+
 Usage:
   feov-record line-of-inquiry propose [flags]
 
@@ -926,10 +999,9 @@ Flags:
   -h, --help                help for propose
       --hypothesis string   what would be TRUE if this line pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug
       --method string       the source class or technique it belonged to, when that is what distinguishes it
-      --reason string       → SHARED §2
-      --reason-file -       → SHARED §3
+      --reason string       → SHARED §4
 
-(Global Flags:) → SHARED §4
+(Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record log --help
 an entry for the operator who can retool you — what it asserts, said in the positive
@@ -946,13 +1018,16 @@ YOUR AUDIENCE IS THE OPERATOR, not the other seats. This channel is read by whoe
 
 (If you need a verb or a flag tha…) → SHARED §1
 
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
+
+(X=$(cat <<'EOF') → SHARED §3
+
 Usage:
   feov-record log [flags]
 
 Flags:
   -h, --help            help for log
-      --reason string   → SHARED §2
-      --reason-file -   → SHARED §3
+      --reason string   → SHARED §4
       --type nominal    REQUIRED — REQUIRED — what this entry asserts. nominal is the clean sitting said in the positive; `friction` is an impediment you are NOTING and which may be neither actionable nor advisable to change
 
 Enumerated values:
@@ -962,7 +1037,7 @@ Enumerated values:
     request   a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong
     friction  the work was impeded and you are NOTING it; NOT necessarily actionable and not necessarily advisable to change, which is why it has its own word rather than posing as a defect
 
-(Global Flags:) → SHARED §4
+(Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record manifest-row --help
 your receipt for one repaired gap: what you checked, and what checking it showed
@@ -973,25 +1048,32 @@ It goes on the RECORD, not in the envelope. It is scored from the record at capt
 
 (If you need a verb or a flag tha…) → SHARED §1
 
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
+
+(X=$(cat <<'EOF') → SHARED §3
+
 Usage:
   feov-record manifest-row [flags]
 
 Flags:
   -h, --help            help for manifest-row
       --id gap-id       the gap id this receipt covers
-      --reason string   → SHARED §2
-      --reason-file -   → SHARED §3
+      --reason string   → SHARED §4
 
-(Global Flags:) → SHARED §4
+(Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record motion docket file --help
 file a docket motion — the tool assigns its id.
 
-(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §7
+(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §8
 
-(`motion grade file` disputes a g…) → SHARED §8
+(`motion grade file` disputes a g…) → SHARED §9
 
-(Any seat may file. Exactly one r…) → SHARED §9
+(Any seat may file. Exactly one r…) → SHARED §10
+
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
+
+(X=$(cat <<'EOF') → SHARED §3
 
 Usage:
   feov-record motion docket file [flags]
@@ -999,17 +1081,20 @@ Usage:
 Flags:
   -h, --help            help for file
       --id string       REQUIRED for a docket motion
-      --reason string   → SHARED §2
-      --reason-file -   → SHARED §3
+      --reason string   → SHARED §4
 
-(Global Flags:) → SHARED §4
+(Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record motion grade appeal --help
 press a grade motion after a ruling — a ruling is an ARGUMENT, not a command, so the losing side may answer it on the record.
 
-(TWO SUBJECTS TAKE AN APPEAL. `mo…) → SHARED §10
+(TWO SUBJECTS TAKE AN APPEAL. `mo…) → SHARED §11
 
-(A PETITION HAS NO APPEAL, and th…) → SHARED §11
+(A PETITION HAS NO APPEAL, and th…) → SHARED §12
+
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
+
+(X=$(cat <<'EOF') → SHARED §3
 
 Usage:
   feov-record motion grade appeal [flags]
@@ -1017,19 +1102,22 @@ Usage:
 Flags:
   -h, --help            help for appeal
       --id string       the motion id (M1, M2 …) — the motion being appealed, which must already have been ruled
-      --reason string   → SHARED §2
-      --reason-file -   → SHARED §3
+      --reason string   → SHARED §4
 
-(Global Flags:) → SHARED §4
+(Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record motion grade file --help
 file a grade motion — the tool assigns its id.
 
-(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §7
+(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §8
 
-(`motion grade file` disputes a g…) → SHARED §8
+(`motion grade file` disputes a g…) → SHARED §9
 
-(Any seat may file. Exactly one r…) → SHARED §9
+(Any seat may file. Exactly one r…) → SHARED §10
+
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
+
+(X=$(cat <<'EOF') → SHARED §3
 
 Usage:
   feov-record motion grade file [flags]
@@ -1039,8 +1127,7 @@ Flags:
   -h, --help                        help for file
       --id string                   REQUIRED for a grade motion
       --proposed grade              the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
-      --reason string               → SHARED §2
-      --reason-file -               → SHARED §3
+      --reason string               → SHARED §4
 
 Enumerated values:
   --dimension
@@ -1049,14 +1136,18 @@ Enumerated values:
     impact      how bad the consequence is if it lands
     complexity  what fixing it costs — the axis to contest when the fix is worth more than the defect
 
-(Global Flags:) → SHARED §4
+(Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record motion inquiry appeal --help
 press a inquiry motion after a ruling — a ruling is an ARGUMENT, not a command, so the losing side may answer it on the record.
 
-(TWO SUBJECTS TAKE AN APPEAL. `mo…) → SHARED §10
+(TWO SUBJECTS TAKE AN APPEAL. `mo…) → SHARED §11
 
-(A PETITION HAS NO APPEAL, and th…) → SHARED §11
+(A PETITION HAS NO APPEAL, and th…) → SHARED §12
+
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
+
+(X=$(cat <<'EOF') → SHARED §3
 
 Usage:
   feov-record motion inquiry appeal [flags]
@@ -1064,19 +1155,22 @@ Usage:
 Flags:
   -h, --help            help for appeal
       --id string       the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number — the motion being appealed, which must already have been ruled
-      --reason string   → SHARED §2
-      --reason-file -   → SHARED §3
+      --reason string   → SHARED §4
 
-(Global Flags:) → SHARED §4
+(Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record motion petition file --help
 file a petition motion — the tool assigns its id.
 
-(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §7
+(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §8
 
-(`motion grade file` disputes a g…) → SHARED §8
+(`motion grade file` disputes a g…) → SHARED §9
 
-(Any seat may file. Exactly one r…) → SHARED §9
+(Any seat may file. Exactly one r…) → SHARED §10
+
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
+
+(X=$(cat <<'EOF') → SHARED §3
 
 Usage:
   feov-record motion petition file [flags]
@@ -1084,8 +1178,7 @@ Usage:
 Flags:
       --class class-value   REQUIRED for a petition motion
   -h, --help                help for file
-      --reason string       → SHARED §2
-      --reason-file -       → SHARED §3
+      --reason string       → SHARED §4
       --relief string       REQUIRED for a petition motion
 
 Enumerated values:
@@ -1095,7 +1188,7 @@ Enumerated values:
     ethical         proceeding would require acting against the interests of someone the run affects
     constitutional  the instruction itself conflicts with the rules the run is bound by
 
-(Global Flags:) → SHARED §4
+(Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record position --help
 your sitting's narrative — the argument the other side answers, rendered as this sitting's BLUE section
@@ -1106,15 +1199,18 @@ It is prose on the record, not a summary of your acts — the acts are already t
 
 (If you need a verb or a flag tha…) → SHARED §1
 
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
+
+(X=$(cat <<'EOF') → SHARED §3
+
 Usage:
   feov-record position [flags]
 
 Flags:
   -h, --help            help for position
-      --reason string   → SHARED §2
-      --reason-file -   → SHARED §3
+      --reason string   → SHARED §4
 
-(Global Flags:) → SHARED §4
+(Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record prove --help
 settle a claim by RUNNING something, when computing the answer beats arguing about it
@@ -1127,6 +1223,10 @@ A FAILING CHECK IS A RESULT: a non-zero exit is recorded as evidence, not as an 
 
 (If you need a verb or a flag tha…) → SHARED §1
 
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
+
+(X=$(cat <<'EOF') → SHARED §3
+
 Usage:
   feov-record prove [flags]
 
@@ -1135,13 +1235,12 @@ Flags:
       --cites citation-anchor   the citation label of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed
       --expect-error            this proof's POINT is a failing command (a path that must be absent, a tool that must be missing) — record the environment error as the result instead of refusing it
   -h, --help                    help for prove
-      --key string              → SHARED §6
+      --key string              → SHARED §7
       --quote string            the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. The proof anchor is spliced there
-      --reason string           → SHARED §2
-      --reason-file -           → SHARED §3
+      --reason string           → SHARED §4
       --script string           REQUIRED — path under the run directory of the program that settles it (.py, .js, .mjs, .sh or .go)
 
-(Global Flags:) → SHARED §4
+(Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record register --help
 your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
@@ -1158,7 +1257,7 @@ Usage:
 Flags:
   -h, --help   help for register
 
-(Global Flags:) → SHARED §4
+(Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record retire --help
 take a claim out of the report, when it cannot stand and no edit will save it
@@ -1171,6 +1270,10 @@ Name what replaces it where something does.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
+
+(X=$(cat <<'EOF') → SHARED §3
+
 Usage:
   feov-record retire [flags]
 
@@ -1178,10 +1281,9 @@ Flags:
   -h, --help            help for retire
       --new edit        the claim that replaces it, when one does — the same --quote/--new pair edit and `mint` take
       --quote string    REQUIRED — the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs — the claim being removed, as it stood before you edited it out
-      --reason string   → SHARED §5
-      --reason-file -   → SHARED §3
+      --reason string   → SHARED §6
 
-(Global Flags:) → SHARED §4
+(Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record revision --help
 the sitting record — what changed this sitting, once, after your edits have landed
@@ -1192,15 +1294,18 @@ The event IS the record and there is no file: one run carried a 6,847-byte hand-
 
 (If you need a verb or a flag tha…) → SHARED §1
 
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
+
+(X=$(cat <<'EOF') → SHARED §3
+
 Usage:
   feov-record revision [flags]
 
 Flags:
   -h, --help            help for revision
-      --reason string   → SHARED §2
-      --reason-file -   → SHARED §3
+      --reason string   → SHARED §4
 
-(Global Flags:) → SHARED §4
+(Global Flags:) → SHARED §5
 ==============================================================================
 $ feov-record show --help
 read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK.
@@ -1230,7 +1335,7 @@ Flags:
   -h, --help              help for show
       --id show changes   scope show changes to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
 
-(Global Flags:) → SHARED §4
+(Global Flags:) → SHARED §5
 
 Use "feov-record show [command] --help" for more information about a command.
 ==============================================================================
@@ -1246,7 +1351,7 @@ Flags:
       --format string   json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose) (default "json")
   -h, --help            help for board
 
-(Global Flags:) → SHARED §12
+(Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show changes --help
 every recorded edit to blue/report.md (the blue_edit diff stack), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`
@@ -1257,7 +1362,7 @@ Usage:
 Flags:
   -h, --help   help for changes
 
-(Global Flags:) → SHARED §12
+(Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show debate --help
 the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order (add --json for the STRUCTURED form: epochs with red/blue/lead sections as data, for the audits). Written by `position`, `closing` and the bench's `motion docket rule`
@@ -1270,7 +1375,7 @@ Usage:
 Flags:
   -h, --help   help for debate
 
-(Global Flags:) → SHARED §12
+(Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show evidence --help
 STRUCTURED JSON: WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs), every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their trust grades. THIS IS HOW YOU RESOLVE AN ANCHOR you are reading in the report. Written by `cite`, `prove`, `verify` and `reproduce` THIS PROJECTION IS ALREADY THE JSON — --json is accepted, and on success its output is byte-for-byte the same. On an ERROR, --json prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
@@ -1283,7 +1388,7 @@ Usage:
 Flags:
   -h, --help   help for evidence
 
-(Global Flags:) → SHARED §12
+(Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show findings --help
 STRUCTURED JSON: every lens finding on the record (label, seat, epoch, role, grades, location, text) — the merge coalesces these into gaps; replaces the red/candidates/*.md files THIS PROJECTION IS ALREADY THE JSON — --json is accepted, and on success its output is byte-for-byte the same. On an ERROR, --json prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
@@ -1296,7 +1401,7 @@ Usage:
 Flags:
   -h, --help   help for findings
 
-(Global Flags:) → SHARED §12
+(Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show lines-of-inquiry --help
 the exploration space: lines taken, deferred, declined and abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule` (red's ruling)
@@ -1307,7 +1412,7 @@ Usage:
 Flags:
   -h, --help   help for lines-of-inquiry
 
-(Global Flags:) → SHARED §12
+(Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show motions --help
 STRUCTURED JSON: every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks `merge verdict --as PASS`, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal` THIS PROJECTION IS ALREADY THE JSON — --json is accepted, and on success its output is byte-for-byte the same. On an ERROR, --json prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
@@ -1320,7 +1425,7 @@ Usage:
 Flags:
   -h, --help   help for motions
 
-(Global Flags:) → SHARED §12
+(Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show report --help
 THE ARTIFACT UNDER AUDIT — blue's living report, read THROUGH the tool instead of off disk; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `blue edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the round-0 synthesis and every `blue edit`
@@ -1333,7 +1438,7 @@ Flags:
   -h, --help           help for report
       --window int     with --anchor: how many paragraphs of content either side of it (blank lines are carried, not counted) (default 3)
 
-(Global Flags:) → SHARED §12
+(Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show scorecard --help
 YOUR CHAIR'S IN-RUN SCORECARD — how the side you sit on is doing on THIS question, computed live from this run's record. Your own performance, not another party's: there is no selector, because your chair is the seat you registered as. A number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures, because a diagnostic gamed is itself a defect and a detector firing is a finding. Rows reading "not computed" are HONEST, not gaps to fill: the envelope-derived rows fill in at capture. Computed from the record, so no verb fills it
@@ -1344,7 +1449,7 @@ Usage:
 Flags:
   -h, --help   help for scorecard
 
-(Global Flags:) → SHARED §12
+(Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show telemetry --help
 STRUCTURED JSONL, one line per epoch (chair sitting): open count, max severity, mass under the pinned mapping, new mints BY SEVERITY AND BY CLASS with the class repeat rate, repair-regression ratio, and edge deltas — the trend the STOPPING judgment reads. The bench's signal for whether the findings are still changing character or merely recurring THIS PROJECTION IS ALREADY THE JSON — --json is accepted, and on success its output is byte-for-byte the same. On an ERROR, --json prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
@@ -1357,7 +1462,7 @@ Usage:
 Flags:
   -h, --help   help for telemetry
 
-(Global Flags:) → SHARED §12
+(Global Flags:) → SHARED §13
 ==============================================================================
 $ feov-record show work --help
 **RUN THIS FIRST AND RUN IT AGAIN BEFORE YOU STOP.** STRUCTURED JSON: EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item — each with `blocks`, saying whether it is what is stopping you closing — and `sitting.complete` is true exactly when nothing blocking is left.
@@ -1378,7 +1483,7 @@ Usage:
 Flags:
   -h, --help   help for work
 
-(Global Flags:) → SHARED §12
+(Global Flags:) → SHARED §13
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}

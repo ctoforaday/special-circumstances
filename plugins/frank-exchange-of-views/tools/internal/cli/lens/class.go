@@ -46,9 +46,9 @@ func newClassNew() *cobra.Command {
 	}), "class-new")
 
 	c.Flags().String(flags.Class, "", "the slug you are coining — lowercase, hyphenated, and NOT one the registry already has")
-	c.Flags().String(flags.Definition, "", "what this class is, in one line")
+	flags.Text(c, flags.Definition, "what this class is, in one line")
 	c.Flags().String(flags.Neighbor, "", "the existing class it sits closest to")
-	c.Flags().String(flags.Distinguisher, "", "the tie-break question that tells the two apart — without it a new class is a synonym, and the registry stops discriminating")
+	flags.Text(c, flags.Distinguisher, "the tie-break question that tells the two apart — without it a new class is a synonym, and the registry stops discriminating")
 	_ = c.MarkFlagRequired(flags.Class)
 	// COBRA SAYS THE TRIO TRAVELS TOGETHER. It was a boolean plus three optional flags checked
 	// in a handler, so a coining missing its distinguisher was composed, sent, and refused after

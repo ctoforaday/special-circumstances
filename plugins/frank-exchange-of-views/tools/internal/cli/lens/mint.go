@@ -238,15 +238,15 @@ func newMint() *cobra.Command {
 	// as "lens class new": a phrase from the prose offered to a seat as the thing to type. The
 	// command is named without them, and the placeholder is the shape actually wanted.
 	c.Flags().String(flags.Class, "", "the gap's `slug` — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb")
-	c.Flags().String(flags.Quote, "", flags.DescQuote)
+	flags.Text(c, flags.Quote, flags.DescQuote)
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
 		"anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE. The same pair the lens finding verb takes")
-	c.Flags().String(flags.About, "", "the reference --about-kind names: a section heading, an avenue id, or a gap id. "+
+	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an avenue id, or a gap id. "+
 		"It is CHECKED against the record, which a borrowed quote never was")
-	c.Flags().String(flags.Problem, "", "what is wrong (or pass it via --reason)")
-	c.Flags().String(flags.Fix, "", "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
-	c.Flags().String(flags.New, "", "OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. Bounded — a replacement more than 120 characters longer than the span is refused as AUTHORING, because a substantive addition is blue's to write and you say so in --fix. Its presence is what DERIVES fix_basis: verified")
-	c.Flags().String(flags.Check, "", "the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description")
+	flags.Text(c, flags.Problem, "what is wrong (or pass it via --reason)")
+	flags.Text(c, flags.Fix, "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
+	flags.Text(c, flags.New, "OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. Bounded — a replacement more than 120 characters longer than the span is refused as AUTHORING, because a substantive addition is blue's to write and you say so in --fix. Its presence is what DERIVES fix_basis: verified")
+	flags.Text(c, flags.Check, "the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description")
 	enumhelp.Flag(c, flags.CheckKind, record.MustEnum("mint", "check_kind"), ("what would SETTLE that check — read a document, RUN a computation, or verify a source. A `computation` check cannot be closed by prose: it closes only when a proof answers this gap"))
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage("how bad this is"))
 	c.Flags().Var(&likelihood, flags.Likelihood, "how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what the grade meant before v2 split them")
