@@ -38,6 +38,8 @@ func TestMachOAllowlistAdmitsOnlyOSProvidedLibraries(t *testing.T) {
 		{"/usr/lib/libSystem.B.dylib", true},
 		{"/usr/lib/libresolv.9.dylib", true},
 		{"/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation", true},
+		{"/System/Library/Frameworks/Security.framework/Versions/A/Security", true}, // crypto/x509 on darwin
+		{"/System/Library/Frameworks/CoreServices.framework/Versions/A/CoreServices", false},
 		{"/usr/local/lib/libtesseract.5.dylib", false},
 		{"/opt/homebrew/lib/libleptonica.dylib", false},
 		{"/usr/lib/libc++.1.dylib", false},

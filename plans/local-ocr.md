@@ -191,9 +191,10 @@ Carrier censuses, run 2026-09-06:
    loader's own library, mapped into every process, and the C stack's runtime imports it
    directly (measured on frank-exchange-of-views 1.66.0's release run, the first build to
    put a real PE through this gate); darwin — load-command scan
-   against the OS-provided allowlist {libSystem.B, CoreFoundation, libresolv.9}, the
-   two extras being Go-runtime link requirements satisfied by stubs at build time and
-   by the OS at run time. Plus a smoke OCR of a checked-in fixture page by every built
+   against the OS-provided allowlist {libSystem.B, CoreFoundation, libresolv.9,
+   Security}, the three extras being Go link requirements — runtime/cgo, net and
+   crypto/x509 — satisfied by stubs at build time and by the OS at run time; the
+   framework search path travels in CGO_LDFLAGS, which is what reaches the linker. Plus a smoke OCR of a checked-in fixture page by every built
    binary that can execute on the build host.
 4. End-to-end, local and free: fetch IEEE 1012 through the new path — expect all 80
    pages read (17 formerly-blocked included), wall time under ~3 minutes, table pages
