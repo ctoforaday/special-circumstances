@@ -30,6 +30,16 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "F=\"${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" ensure SessionStart; fi"
+          }
+        ]
+      }
     ]
   }
 }

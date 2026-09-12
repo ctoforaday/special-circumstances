@@ -35,6 +35,14 @@ const src = "scripts/fetchbingen/fetch-bin.sh"
 // fetchVar is how a guard names its plugin's fetch-bin.sh.
 const fetchVar = `F="${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh"`
 
+// ensureEntry is the SessionStart entry that asks the version question once per session. A guard
+// fires only when its binary is ABSENT, so without this a binary from an older release is treated
+// as current for as long as it sits there. It checks its script exists before running it for the
+// reason every guard checks its binary: a bare path to something missing fails the event.
+// prosthetic-conscience's hookinvocation test admits exactly this command as the one hooks.json
+// entry that runs no binary, so the two must stay the same string.
+const ensureEntry = `F="${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh"; if [ -f "$F" ]; then exec sh "$F" ensure SessionStart; fi`
+
 func main() {
 	check := flag.Bool("check", false, "verify every copy and every guard instead of writing the copies")
 	flag.Parse()
@@ -153,10 +161,14 @@ func guardProblems(plugin string, data []byte) []string {
 	sort.Strings(events)
 
 	var out []string
-	guards := 0
+	guards, ensures := 0, 0
 	for _, ev := range events {
 		for _, entry := range doc.Hooks[ev] {
 			for _, h := range entry.Hooks {
+				if ev == "SessionStart" && h.Command == ensureEntry {
+					ensures++
+					continue
+				}
 				if !strings.Contains(h.Command, "${CLAUDE_PLUGIN_ROOT}/bin/") {
 					continue
 				}
@@ -170,6 +182,12 @@ func guardProblems(plugin string, data []byte) []string {
 				}
 			}
 		}
+	}
+	// The version question is asked once per session, from SessionStart. A plugin without this
+	// entry heals only when a binary is missing outright, which is the state frank-exchange-of-views
+	// was in: three guards, no SessionStart hook at all, and a stale binary would have stayed.
+	if ensures != 1 {
+		out = append(out, fmt.Sprintf("plugins/%s: wants exactly one SessionStart entry running `fetch-bin.sh ensure SessionStart`, found %d", plugin, ensures))
 	}
 	// Zero guards in a plugin that ships binaries means the pattern moved, not that all is well.
 	if guards == 0 {

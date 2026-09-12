@@ -31,6 +31,12 @@ import (
 // so the wrapper degrades instead of failing the event.
 var binRef = regexp.MustCompile(`\$\{CLAUDE_PLUGIN_ROOT\}/bin/([a-z0-9-]+)`)
 
+// ensureCommand is the ONE hooks.json command that runs no binary: SessionStart's version check,
+// which fetches this plugin's release when the installed binaries are not its version. It guards
+// its script the way a guard guards its binary, so a missing script degrades rather than failing
+// the event. scripts/fetchbingen holds every plugin to exactly this string; the two must match.
+const ensureCommand = `F="${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh"; if [ -f "$F" ]; then exec sh "$F" ensure SessionStart; fi`
+
 type hooksFile struct {
 	Hooks map[string][]struct {
 		Matcher string `json:"matcher"`
@@ -64,6 +70,9 @@ func registered(t *testing.T) map[string]string {
 	for event, entries := range load(t).Hooks {
 		for _, e := range entries {
 			for _, h := range e.Hooks {
+				if event == "SessionStart" && h.Command == ensureCommand {
+					continue // runs a script, not a binary: no binary to build or feed payloads to
+				}
 				m := binRef.FindStringSubmatch(h.Command)
 				if m == nil {
 					t.Errorf("%s: command names no ${CLAUDE_PLUGIN_ROOT}/bin/<binary>: %q", event, h.Command)
@@ -101,6 +110,9 @@ func TestEveryCommandDegradesWhenTheBinaryIsMissing(t *testing.T) {
 	for event, entries := range load(t).Hooks {
 		for _, e := range entries {
 			for _, h := range e.Hooks {
+				if event == "SessionStart" && h.Command == ensureCommand {
+					continue // guards its script with `if [ -f "$F" ]`, by construction of the exact string
+				}
 				if !strings.Contains(h.Command, "if [ -x") {
 					t.Errorf("%s: command does not check the binary exists before running it — "+
 						"a missing binary would fail the event rather than degrade:\n%s", event, h.Command)
