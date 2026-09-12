@@ -21,7 +21,7 @@
         "source": "git-subdir",
         "url": "https://github.com/ctoforaday/special-circumstances.git",
         "path": "plugins/frank-exchange-of-views",
-        "ref": "frank-exchange-of-views--v1.67.0"
+        "ref": "frank-exchange-of-views--v1.68.0"
       },
       "description": "The research debate engine: an additive blue side, a subtractive red side that owns the pass/fail gate, an engine that runs the mechanics and a bench that rules the final compromise — best-of-N, a Heilmeier Catechism, and the full record preserved."
     },
