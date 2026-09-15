@@ -232,8 +232,8 @@ type EnumField struct {
 var EnumFields = map[string][]EnumField{
 	"verdict": {{
 		Key: "verdict", Flag: flags.As, Values: []EnumValue{
-			ev("PASS", "every gap on the board is resolved — this is CHECKED against the open board, not taken on your word"),
-			ev("FAIL", "at least one gap is still open, or you are not satisfied it was answered"),
+			ev("PASS", "nothing on the board holds the gate — no material gap open, no lens ready, every stale area spot-checked — and this is CHECKED against the board, not taken on your word"),
+			ev("FAIL", "a material defect still stops you — a FAIL over a converged board is refused"),
 		},
 		Why: "a PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass",
 	}},

@@ -116,7 +116,7 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 
 	// EVERY DISPATCHED SEAT OWES THE SITTING IT WAS DISPATCHED FOR, and this list says so by the
 	// predicate dispatch reads (sittingFor): a seat a dispatch names that has not registered since
-	// has not sat. Dispatch enforces it — the lens's pin does not move, the bench has not sat for
+	// has not sat. Dispatch enforces it — the lens's sitting is not counted, the bench has not sat for
 	// the docketing, no exchange is counted for blue or the minting lens — so the seat is readied
 	// again, epoch after epoch, until it registers. That covers every seat a dispatch names: the
 	// lenses, blue-respond and the bench.

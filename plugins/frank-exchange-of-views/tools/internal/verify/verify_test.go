@@ -114,8 +114,8 @@ func TestPassClosesAllGaps(t *testing.T) {
 	if c := find(t, Run(openUnderPass.fam()), "pass-closes-all-gaps"); c.OK {
 		t.Error("PASS with an open gap must fail the #67 gate")
 	}
-	// Below material does not hold the gate (plans/roundless.md §III.B.2.1): the trifle stays open
-	// on the board, listed as not certified against, and the PASS is legal.
+	// A gap that is not material does not hold the gate: the trifle stays open on the board, the
+	// chair's PASS lists it by class, and the PASS is legal.
 	trifleUnderPass := &boardT{
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_LOW}},

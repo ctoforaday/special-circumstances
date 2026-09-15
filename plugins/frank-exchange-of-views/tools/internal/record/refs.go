@@ -378,7 +378,7 @@ func stampMigrationAdmission(run Run, g *recordpb.Gate) error {
 // chair's work list names exactly these gaps (sitting.go), and dispatch's pass_permitted counts
 // the same ones. An open gap that is not material stays open on the board, not auto-disposed, not
 // carried, not accepted: the chair's PASS lists it by class, on the record, with why it changes no
-// reader decision, and the report lists it as open and not certified against. Refusing over ANY
+// reader decision. Refusing over ANY
 // open gap made "not material does not hold the gate" unreachable: a run minting one trifle per
 // sitting could never pass. The 2026-07-20 run recorded PASS with 9 plain open gaps (one HIGH) that
 // no lineage check saw. A FAIL is always allowed here, and unruled motions, the inquiry read and

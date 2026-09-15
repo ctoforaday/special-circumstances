@@ -64,7 +64,7 @@ func passItems(s SittingJSON) []string {
 }
 
 // THE CHAIR'S WORK LIST NAMES THE GAPS THE PASS GATE REFUSES OVER, AND ONLY THOSE. B9's chair was
-// told two below-material gaps refused PASS while dispatch said pass_permitted and the verdict
+// told two gaps graded below medium refused PASS while dispatch said pass_permitted and the verdict
 // accepted it; it settled the contradiction by trying the verdict.
 func TestTheChairsPassItemsAreTheGatesGaps(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().

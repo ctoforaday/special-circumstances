@@ -487,7 +487,7 @@ func TestTelemetryCarriesTheClassDistributionAndRepeatRate(t *testing.T) {
 // which is not a test of the projection at all.
 
 // TestTelemetryUndefinedSeverityKey is GONE for the reason its own preamble gave for the class
-// test it replaced: `Mint.severity` is REQUIRED now (the material threshold reads it —
+// test it replaced: `Mint.severity` is REQUIRED now (materiality reads it wherever the class goes by grade —
 // plans/roundless.md §III.B.2), the write path refuses a mint without one and the column is NOT
 // NULL, so the "undefined" severity bucket cannot be reached from a record. Keeping the test would
 // mean seeding a mint the record rejects, which is not a test of the projection at all.

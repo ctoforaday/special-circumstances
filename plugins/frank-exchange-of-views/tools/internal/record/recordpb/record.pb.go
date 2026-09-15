@@ -6160,8 +6160,8 @@ func (x *Cast) GetSeatIds() []string {
 // ONE EVENT PER PARTY rather than one event carrying a list of parties, because a body's lists
 // are lists of scalars in this schema (schemagen's list tables) and the per-(seat, gap) row is
 // the fact that makes a null turn computable: a blue sitting engaged on {G1, G2, G3} that acts on
-// G1 took a null turn on G2 and G3. A lens engaged with NO gaps is rule 1's dispatch — the head
-// moved past its pin — and gap_ids is empty, which is "lineage none", not "unknown".
+// G1 took a null turn on G2 and G3. A lens engaged with NO gaps is rule 1's dispatch — ready by its
+// retirement state — and gap_ids is empty, which is "lineage none", not "unknown".
 type Dispatch struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Pin           *int64                 `protobuf:"varint,1,opt,name=pin,proto3,oneof" json:"pin,omitempty"`
@@ -7534,11 +7534,11 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"GRADE_HIGH\x10\x06\x1a\x16\x8a\xb5\x18\aserious\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\b@\x12\xaf\x01\n" +
 	"\rGRADE_CERTAIN\x10\a\x1a\x9b\x01\x8a\xb5\x18\x8b\x01the top of the scale — for LIKELIHOOD, reserve it for a consequence that is itself certain, never for a defect you merely verified exists\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\f@\x12\xbc\x01\n" +
-	"\x0eGRADE_REALIZED\x10\b\x1a\xa7\x01\x8a\xb5\x18\x97\x01it has already happened. Contributes ZERO mass by design: mass forecasts what is still to come, and a realized defect is measured by its damage instead\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\x00\x00*\xff\x01\n" +
+	"\x0eGRADE_REALIZED\x10\b\x1a\xa7\x01\x8a\xb5\x18\x97\x01it has already happened. Contributes ZERO mass by design: mass forecasts what is still to come, and a realized defect is measured by its damage instead\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\x00\x00*\xcf\x02\n" +
 	"\aVerdict\x12\x17\n" +
-	"\x13VERDICT_UNSPECIFIED\x10\x00\x12{\n" +
-	"\fVERDICT_PASS\x10\x01\x1ai\x8a\xb5\x18eevery gap on the board is resolved — this is CHECKED against the open board, not taken on your word\x12^\n" +
-	"\fVERDICT_FAIL\x10\x02\x1aL\x8a\xb5\x18Hat least one gap is still open, or you are not satisfied it was answered*\xca\x04\n" +
+	"\x13VERDICT_UNSPECIFIED\x10\x00\x12\xc4\x01\n" +
+	"\fVERDICT_PASS\x10\x01\x1a\xb1\x01\x8a\xb5\x18\xac\x01nothing on the board holds the gate — no material gap open, no lens ready, every stale area spot-checked — and this is CHECKED against the board, not taken on your word\x12d\n" +
+	"\fVERDICT_FAIL\x10\x02\x1aR\x8a\xb5\x18Na material defect still stops you — a FAIL over a converged board is refused*\xca\x04\n" +
 	"\n" +
 	"RunOutcome\x12\x1b\n" +
 	"\x17RUN_OUTCOME_UNSPECIFIED\x10\x00\x12a\n" +

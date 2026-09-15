@@ -44,7 +44,7 @@ func TestTheRoleSurvivesTheShowGroup(t *testing.T) {
 		t.Errorf("role = %q, want \"merge\" — a projection read under a command group must still know whose sitting it is", got.Sitting.Role)
 	}
 
-	// THE DUTIES THAT DEPEND ON IT. This board carries open gaps, so a chair seat owes the
+	// THE DUTIES THAT DEPEND ON IT. This board carries open material gaps, so a chair seat owes the
 	// disposal and PASS is refused while they stand. Before the fix the only line here was
 	// friction, and `complete` went true the moment friction was filed.
 	var sawOpenGap bool

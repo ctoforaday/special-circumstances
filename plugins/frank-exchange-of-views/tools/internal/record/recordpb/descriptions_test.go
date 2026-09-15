@@ -80,7 +80,7 @@ func TestUsageRendersEveryValue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Usage: %v", err)
 	}
-	for _, want := range []string{"pass", "fail", "CHECKED against the open board"} {
+	for _, want := range []string{"pass", "fail", "CHECKED against the board"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("Usage output missing %q:\n%s", want, got)
 		}

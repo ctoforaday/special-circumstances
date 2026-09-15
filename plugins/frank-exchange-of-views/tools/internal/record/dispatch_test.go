@@ -177,7 +177,7 @@ func TestASubMaterialGapDoesNotReadyBlue(t *testing.T) {
 		t.Errorf("the plan must say why the trifle readies nobody:\n%s", strings.Join(plan.Why, "\n"))
 	}
 	if plan.PassPermitted {
-		t.Error("PASS is not permitted while a cast lens has not sat against the head")
+		t.Error("PASS is not permitted while a cast lens is ready")
 	}
 }
 
@@ -219,7 +219,7 @@ func TestAHandFiledDocketReadiesTheBenchWithoutImpasse(t *testing.T) {
 }
 
 // A STRANDED ANCESTOR READIES ITS MINTER WHATEVER ITS GRADE. The PASS gate refuses a verdict while
-// a superseded gap is open, so a sub-material ancestor that readied nobody left the plan saying
+// a superseded gap is open, so an ancestor that was not material and readied nobody left the plan saying
 // "pass permitted" and the gate saying no — the run ended UNVERIFIED with nobody ready (found by
 // the release sweep). Held as material: its minter and blue are engaged on it.
 func TestAStrandedAncestorIsReadyWorkWhateverItsGrade(t *testing.T) {
@@ -365,7 +365,7 @@ func TestPassIsRefusedWhileAnyCastLensIsReady(t *testing.T) {
 	}
 }
 
-// An open gap below material does not hold the gate; a material one does.
+// An open gap that is not material (a by-grade class graded below medium) does not hold the gate; a material one does.
 func TestABelowMaterialGapDoesNotHoldTheGate(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").dispatch(2, evLens).register(evLens).dispatch(2, evLens).register(evLens).mint(evLens, "G1", "low").

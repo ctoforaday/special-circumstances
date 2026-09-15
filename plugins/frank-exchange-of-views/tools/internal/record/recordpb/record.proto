@@ -305,8 +305,8 @@ enum Grade {
 // entirely, and `--as banana` recorded a banana.
 enum Verdict {
   VERDICT_UNSPECIFIED = 0;
-  VERDICT_PASS = 1 [(means) = "every gap on the board is resolved — this is CHECKED against the open board, not taken on your word"];
-  VERDICT_FAIL = 2 [(means) = "at least one gap is still open, or you are not satisfied it was answered"];
+  VERDICT_PASS = 1 [(means) = "nothing on the board holds the gate — no material gap open, no lens ready, every stale area spot-checked — and this is CHECKED against the board, not taken on your word"];
+  VERDICT_FAIL = 2 [(means) = "a material defect still stops you — a FAIL over a converged board is refused"];
 }
 
 // RunOutcome is how the SITTING ended. The report's verdict stamp switches on it, so an
@@ -1852,8 +1852,8 @@ message Cast {
 // ONE EVENT PER PARTY rather than one event carrying a list of parties, because a body's lists
 // are lists of scalars in this schema (schemagen's list tables) and the per-(seat, gap) row is
 // the fact that makes a null turn computable: a blue sitting engaged on {G1, G2, G3} that acts on
-// G1 took a null turn on G2 and G3. A lens engaged with NO gaps is rule 1's dispatch — the head
-// moved past its pin — and gap_ids is empty, which is "lineage none", not "unknown".
+// G1 took a null turn on G2 and G3. A lens engaged with NO gaps is rule 1's dispatch — ready by its
+// retirement state — and gap_ids is empty, which is "lineage none", not "unknown".
 message Dispatch {
   optional int64 pin = 1 [(sql) = {
     required: true

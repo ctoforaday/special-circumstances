@@ -43,9 +43,17 @@ import (
 // missed — the JOB, which §V #6 requires the prompt to carry. The lens measured 11,846 (+465 net of
 // the relayed head clause it replaced); the ceiling moved to 12,000, not +10%, to keep the ratchet
 // tight.
+//
+// Raised 2026-09-15 for the lens bar (plans/feov-lens-bar.md III.5, §V #6): the chair relays a
+// dispatch readied by retirement state and records the PASS that state permits, so its prompt says
+// that a lens retires and is re-armed once, that a PASS needs no lens ready, that the stale areas are
+// read and named in the spot-check before it, and that the PASS lists every open gap that is not
+// material by class — the JOB, which §V #6 requires the prompt to carry. The refusal that restated
+// "the tool refuses a PASS the board does not permit" was cut from it; that refusal is the verdict
+// help's. The chair measured 10,059 (+559); the ceiling moved to 10,200.
 var ceilings = map[string]int{
 	"blue-respond":      15200,
-	"red-chair":         9500,
+	"red-chair":         10200,
 	"red-lens-evidence": 12000,
 	"judge":             7800,
 }

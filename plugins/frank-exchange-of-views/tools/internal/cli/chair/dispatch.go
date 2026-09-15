@@ -14,7 +14,7 @@ import (
 )
 
 // dispatch next — the chair reads the board and the record says who sits (plans/roundless.md
-// §III.B.1). The verb computes readiness FROM THE BOARD: the report head against each lens's pin,
+// §III.B.1). The verb computes readiness FROM THE BOARD: each lens's retirement state against the report head,
 // each open material gap below its limits, each docketed gap awaiting the bench. It records the
 // decision as one dispatch event per party, under the chair, and prints the same plan for the
 // chair to relay. The workflow dispatches what the record says and nothing else.

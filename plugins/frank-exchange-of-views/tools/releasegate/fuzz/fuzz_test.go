@@ -2306,7 +2306,7 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 	//
 	// THE SMOKE TERMS, NOT THE DEFAULTS. This sweep's job is to drive every branch of the engine
 	// forty times inside a release gate, not to run forty production-length debates: under the
-	// defaults (kMax 6, mintBudget 5, four lenses) a run is up to twenty gaps of six exchanges
+	// defaults (kMax 6, mintBudget 5, every lens area) a run is up to twenty gaps of six exchanges
 	// each, and 29 of 40 blew the ten-minute per-run budget while every verb the sweep counts had
 	// already been reached. One mint per lens and two exchanges per gap reach impasse, the
 	// docket, the ceiling and the pass in a few epochs — the shape `/research --smoke` runs.
@@ -2981,8 +2981,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 				openCount++
 			}
 		}
-		// A PASS HOLDS OVER SUB-MATERIAL WORK (plans/roundless.md §III.B.2): a gap below material
-		// does not hold the gate, so "any open gap" is the wrong count — the record's own dispatch
+		// A PASS HOLDS OVER WORK THAT IS NOT MATERIAL: a gap that is not material — by its class, or
+		// graded below medium — does not hold the gate, so "any open gap" is the wrong count — the record's own dispatch
 		// plan says whether the board permitted the PASS, and that is the oracle: a VERIFIED the
 		// board does not permit means the refusal in `verdict` stopped firing.
 		permitted := true
@@ -2999,7 +2999,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			}
 		}
 		if recorded == "VERIFIED" && !permitted {
-			res.err = fmt.Sprintf("verdict oracle: the run recorded VERIFIED over a board that does not permit a PASS (%d gap(s) open) — a pass over unfinished work", openCount)
+			res.err = fmt.Sprintf("verdict oracle: the run recorded VERIFIED over a board that does not permit a PASS (%d gap(s) open, material or not) — a pass over unfinished work", openCount)
 			return res
 		}
 		// THE CONVERSE NEEDS A CARVE-OUT, and finding out why is the point of running it.

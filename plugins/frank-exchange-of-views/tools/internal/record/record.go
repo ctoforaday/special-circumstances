@@ -499,9 +499,10 @@ var Now = func() time.Time { return time.Now().UTC() }
 // write path (plans/roundless.md §III.A.5). Every STRUCTURAL refusal stays on — a reference to a
 // gap nobody minted, a second cast, a seat outside the cast — because a migrated record must be a
 // record. The refusals that shape LIVE behaviour are gated off: the convergence refusal on a FAIL,
-// and the material-gap and every-lens-sat refusals on a PASS, judge what a seat may do NEXT, and an
-// archived gate is what a seat DID. Refusing it would drop a real event and call the loss a
-// translation.
+// and the material-gap, lens-ready and stale-area refusals on a PASS, judge what a seat may do NEXT,
+// and an archived gate is what a seat DID. Refusing it would drop a real event and call the loss a
+// translation. A PASS the material exemption admits carries the gaps it was admitted over
+// (stampMigrationAdmission), so verify tells the admission from a violated gate.
 var Migrating bool
 
 // stamp formats an event time at NANOSECOND precision.
@@ -1197,8 +1198,8 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		if err := requireSupersededAreClosed(run); err != nil {
 			return err
 		}
-		// A PASS is a claim that nothing is left open. Enforce it here, at the one write
-		// path, so no verdict route can record a PASS over an unadjudicated board (the
+		// A PASS is a claim that nothing left on the board holds the gate. Enforce it here, at the
+		// one write path, so no verdict route can record a PASS over an unadjudicated board (the
 		// 2026-07-20 rubber-stamp: PASS with 9 open gaps).
 		if b.GetVerdict() == recordpb.Verdict_VERDICT_FAIL && !Migrating {
 			if err := requireFailIsNotConvergent(run); err != nil {

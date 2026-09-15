@@ -36,7 +36,10 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [outcome](#outcome) | lens, chair, blue, bench, operator |
 | [finding](#finding) | lens, chair, blue, bench, operator |
 | [gap](#gap) | lens, chair, blue, bench, operator |
+| [material](#material) | lens, chair, blue, bench, operator |
 | [retire](#retire) | lens, chair, blue, bench, operator |
+| [lens retirement](#lens-retirement) | lens, chair, operator |
+| [stale area](#stale-area) | chair, operator |
 | [disposition](#disposition) | lens, chair, blue, bench, operator |
 | [grade motion](#grade-motion) | lens, chair, blue, bench, operator |
 | [scorecard](#scorecard) | lens, chair, blue, bench, operator |
@@ -373,13 +376,23 @@ A finding is a lens's recorded observation of a defect in the report, graded and
 
 ## gap
 
-A gap is a defect in the report, minted onto the board by a lens.
+A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
 
 **Delivered to:** lens, chair, blue, bench, operator
 
 **Collisions:**
 
 - **gap** — a parity gap between two numbers is ordinary English; a missing tool is a missing capability
+
+## material
+
+A gap is material when its class is always material, or when its class goes by grade and its current severity is medium or above, and an open material gap holds the PASS gate.
+
+**Delivered to:** lens, chair, blue, bench, operator
+
+**Collisions:**
+
+- **material** — material as content, or as bearing on the reader's question, is ordinary English; a gap is material only by its class and grade
 
 ## retire
 
@@ -393,6 +406,22 @@ To retire a claim is to take it out of the report with the retire verb, on the r
 |---|---|---|---|---|
 | claims withdrawn | GATED | `claims? withdrawn` |  |  |
 | withdraw (retire) | REGISTRY-ONLY |  |  |  |
+
+**Collisions:**
+
+- **retired (a lens)** — a lens retires from dispatch, which is a state of the seat; a claim is retired from the report, on the record
+
+## lens retirement
+
+Lens retirement is the record's state for a lens that has stopped finding material: two sittings without a fresh material gap retire it, a head move re-arms it once, and a barren re-arm retires it for good.
+
+**Delivered to:** lens, chair, operator
+
+## stale area
+
+A stale area is the area of a lens retired for good whose last sitting is behind the report head, which the chair reads and names in a spot-check before a PASS.
+
+**Delivered to:** chair, operator
 
 ## disposition
 
