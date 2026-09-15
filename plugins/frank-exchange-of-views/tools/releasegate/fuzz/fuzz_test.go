@@ -262,6 +262,11 @@ type runner struct {
 	// which runs it ONCE. More verbatim applications do not help: reds were observed with 6, 8
 	// and 9 of them, so what is missing is not applications but the PAIR.
 	forceEstoppel bool
+	// forceVerified drives the VERIFIED terminal verdict on one seed instead of leaving it to the
+	// draw. VERIFIED needs a board with no gap left at its limit, and every gap the sweep mints has
+	// about a one-in-four chance of ending there (see directives), so the chance a run reaches
+	// VERIFIED falls with every gap a run mints: seven lenses mint about seven.
+	forceVerified bool
 	// provedExpectedError fires the --expect-error drive once per run. A proof whose FAILURE is
 	// the result — proving a path is absent, a command missing — is a distinct contract from the
 	// answering proof beside it, and the sweep had never passed the flag that says so.
@@ -921,6 +926,11 @@ func (r *runner) mint(seatID string) string {
 	if r.forceEstoppel {
 		directive = dirApply
 	}
+	// The verified run mints only gaps blue repairs and the lens closes: an applied or a countered
+	// edit is movement, so neither reaches impasse before the lens's closing sitting.
+	if r.forceVerified {
+		directive = pick(r.rng, []string{dirApply, dirCounter})
+	}
 	kind := checkKinds[r.rng.Intn(len(checkKinds))]
 	if directive == dirProve || directive == dirProveDrifts {
 		// The demand and the answer must agree: a gap settled by computing is minted as a
@@ -1398,9 +1408,16 @@ const (
 )
 
 // WEIGHTED so a run can still reach PASS. Every fate is now DERIVED from the directive, so a
-// board whose gaps are all IGNORE correctly never closes and the run correctly ends CEILING —
-// which is right, and would leave VERIFIED uncovered if the draw were uniform. Four of seven
-// draws are satisfiable, which keeps both terminal states in the sweep.
+// board whose gaps are all IGNORE correctly never closes and the run correctly ends CEILING.
+// Under the sweep's terms (k 1, kMax 2) only APPLY and COUNTER are movement before the lens's
+// closing sitting; a proof, a grade motion or silence is a stalled exchange, the gap is at impasse
+// after one, and the bench remands every docket but a lost dispute, leaving the gap at its limit.
+// MEASURED over 80 runs at seven lenses: 153 of 558 minted gaps ended remanded (PROVE 70,
+// PROVE-DRIFTS 33, DISPUTE-WON 26, IGNORE 24), every one of the 71 CEILING runs held at least one,
+// and 8 runs reached VERIFIED. At four lenses 63 of 250 gaps ended remanded and 29 of 80 runs
+// reached VERIFIED: the share of gaps left at their limit did not move, the gaps per run did. The
+// draw keeps both terminal states in the sweep's distribution; verifiedSeed makes VERIFIED a fact
+// of every sweep.
 var directives = []string{dirApply, dirApply, dirCounter, dirCounter, dirDisputeWon, dirDisputeLost, dirIgnore, dirProve, dirProve, dirProveDrifts}
 
 // satisfied reports whether a directive means the gap is repaired and red should close it.
@@ -2501,7 +2518,17 @@ const unverifiedSeed = 1
 // ~46% on a gate that a tag runs ONCE — and a green told you only that the draw went your way.
 const estoppelSeed = 2
 
-func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forceEstoppel bool) (res outcome) {
+// verifiedSeed is the one seed whose run is FORCED to VERIFIED: it mints only APPLY and COUNTER
+// gaps, which the lens closes once blue has sat. It is neither of the seeds above: a
+// dispute-lost docket holds the PASS, and the estoppel run exists for its refused mint.
+//
+// MEASURED at seven lenses (plans/feov-lens-bar.md §V #9): sweeps reached VERIFIED on 2 of 40, 8 of
+// 80 and 8 of 80 runs, the estoppel seed's all-APPLY run among them each time, carrying the word by
+// accident of its drive. At that rate 38 drawn runs find none about once in fifty-five, and
+// `outcome --as VERIFIED` then fails the enum census as a missing word.
+const verifiedSeed = 3
+
+func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forceEstoppel, forceVerified bool) (res outcome) {
 	runDir, err := os.MkdirTemp("", "fuzz-run-")
 	if err != nil {
 		// A FULL TMPDIR IS THE LIKELY CAUSE, AND IT HAS TO SAY SO. Discarded, this left runDir
@@ -2544,6 +2571,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r := newRunner(bin, runDir, newLockedRand(seed))
 	r.forceUnverified = forceUnverified
 	r.forceEstoppel = forceEstoppel
+	r.forceVerified = forceVerified
 
 	// INGEST THE ROUND-0 REPORT (#709). The report is the record projection now: blue-synthesize
 	// freezes the seeded report into the record and the file is deleted, exactly as the engine does
@@ -3585,14 +3613,15 @@ func TestFuzzDebate(t *testing.T) {
 	epochHist := map[int]int{}
 	whyHist := map[string]int{} // verdict → first stated reason, with the gap id folded
 	dcov := map[string]int{}
-	citeAnchors, cacheFiles := 0, 0    // dialectic-event coverage across all runs (proves the fuzz emits them)
-	editAnswers := 0                   // #267: blue_edit events that carried the provenance key
-	forcedVerdict, forcedWhy := "", "" // what the FORCED-UNVERIFIED seed actually ended as
-	verifiedBasis := 0                 // #267 stage 3: gaps whose fix_basis was EARNED by a validated pair
-	verbatimApplied := 0               // #267 stage 4: edits that applied red's proposal exactly (the estoppel precondition)
-	estoppels := 0                     // the TOOL's own refusals of a mint against text blue applied verbatim
-	applyMisses := map[string]int{}    // and why it did not, by cause — a bare 0 above named none of them
-	estoppelMisses := map[string]int{} // and why the estoppel drive declined, for the same reason
+	citeAnchors, cacheFiles := 0, 0        // dialectic-event coverage across all runs (proves the fuzz emits them)
+	editAnswers := 0                       // #267: blue_edit events that carried the provenance key
+	forcedVerdict, forcedWhy := "", ""     // what the FORCED-UNVERIFIED seed actually ended as
+	verifiedVerdict, verifiedWhy := "", "" // and the FORCED-VERIFIED seed
+	verifiedBasis := 0                     // #267 stage 3: gaps whose fix_basis was EARNED by a validated pair
+	verbatimApplied := 0                   // #267 stage 4: edits that applied red's proposal exactly (the estoppel precondition)
+	estoppels := 0                         // the TOOL's own refusals of a mint against text blue applied verbatim
+	applyMisses := map[string]int{}        // and why it did not, by cause — a bare 0 above named none of them
+	estoppelMisses := map[string]int{}     // and why the estoppel drive declined, for the same reason
 
 	for i := 0; i < n; i++ {
 		seed := int64(i) + 1
@@ -3601,7 +3630,7 @@ func TestFuzzDebate(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			defer func() { <-sem }()
-			o := runOne(t, wrapped, bin, seed, seed == unverifiedSeed, seed == estoppelSeed)
+			o := runOne(t, wrapped, bin, seed, seed == unverifiedSeed, seed == estoppelSeed, seed == verifiedSeed)
 			// THE ORACLE RUNS ON EVERY RECORD THE SWEEP PRODUCES. The drives above assert that
 			// each command SUCCEEDED; the oracle asserts that the record those commands built is
 			// one every projection agrees about — the cross-reader class the unit suites cannot
@@ -3633,6 +3662,9 @@ func TestFuzzDebate(t *testing.T) {
 			// is the whole diagnosis; a count says only that nothing reached the word.
 			if o.seed == unverifiedSeed {
 				forcedVerdict, forcedWhy = o.verdict, o.why
+			}
+			if o.seed == verifiedSeed {
+				verifiedVerdict, verifiedWhy = o.verdict, o.why
 			}
 			epochHist[o.epochs]++
 			if o.why != "" {
@@ -3816,6 +3848,13 @@ func TestFuzzDebate(t *testing.T) {
 				"`outcome --as UNVERIFIED` a fact rather than a 1-in-60 draw did not deliver, and the enum census "+
 				"reports that as a missing WORD rather than as this declining DRIVER.%s",
 				unverifiedSeed, forcedVerdict, forcedWhyClause(forcedWhy))
+		}
+		// AND THE FORCED-VERIFIED DRIVE, for the same reason: the run that exists to write the word
+		// went somewhere else, and this names where.
+		if verifiedVerdict != "VERIFIED" {
+			t.Errorf("the forced-VERIFIED run on seed %d ended %q, not VERIFIED — the drive that makes "+
+				"`outcome --as VERIFIED` a fact rather than a draw did not deliver.%s",
+				verifiedSeed, verifiedVerdict, forcedWhyClause(verifiedWhy))
 		}
 		if !mootSpent.Load() {
 			t.Error("the sweep's single `close --as moot` drive never fired: no run reached closeGap with it pending, or every attempt was refused. The word's whole coverage is that one drive")
