@@ -1,4 +1,4 @@
-prompt sha256: 7a26a2d34d35084d6c9fc5dd0fced766b444cb04ab2915903125080e600ac75c
+prompt sha256: a83583737629085aaaa84b052e040ed496c96ecdc5dc6f571c6c982ae4b0cd7f
 
 Red lens sitting, area logic, topic "the seat prompt contract".
 STEELMAN DUTY: read the exploration space via the `lines-of-inquiry` projection (the tool renders it fresh from the line of inquiry events on the record).
@@ -9,7 +9,12 @@ A section built on a line of inquiry that was never proposed is undeclared scope
 Both are findings.
 Re-recording `pursued` WITH what it learned is a legitimate reaffirmation and settles the line for that sitting — do not read it as neglect; `deferred` is likewise a decision (kept for a later run), not an omission.
 Measured over six runs: 83 of 86 lines of inquiry were declared in the first epoch and NONE was ever revisited, so 'pursued' meant 'I intend to' and nothing could falsify it.
-THE REPORT HEAD MOVED PAST YOUR LAST SITTING (head 2): audit the report as it now stands, in full.
+YOUR SITTING IS ON YOUR WORK LIST: read `sitting.last_sitting` first.
+`first`: audit the report in full.
+`behind`: the report head moved past your last sitting (head H; you last sat at P) — audit the report as it now stands, in full.
+`unchanged`: the report is unchanged since your last sitting (head H).
+`undispatched`: the record holds no dispatch for you — log that and end the sitting.
+Whenever the kind is `behind` or `unchanged`, a FRESH gap on text you already read and passed at an earlier sitting states, in its mint reason, why you missed it then.
 RE-READ THE FULL REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows.
 ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in the report as the record renders it is REJECTED.
 The labels on your findings are the tool's to assign, and so are the gap ids you mint.

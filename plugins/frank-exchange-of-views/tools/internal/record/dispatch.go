@@ -80,10 +80,11 @@ type openGap struct {
 // open material gap below its limits, and each docketed gap awaiting the bench — and the two
 // derived facts the termination turns on. It writes nothing.
 func PlanDispatch(run Run) (Plan, error) {
-	// THE LISTS ARE LISTS FROM THE START. A nil slice prints as null, and the workflow refuses a plan
-	// without a parties list: B9's chair relayed a PASS-permitted plan verbatim, "parties": null,
-	// and the engine aborted the run at the sitting that should have ended it.
-	plan := Plan{Parties: []Party{}, Docket: []string{}, StaleAreas: []StaleArea{}}
+	// ARRAYS, NEVER null, AT THE SOURCE. The chair relays this JSON and the engine type-checks every
+	// field it reads; a nil slice marshals as null, which the relay refuses as a missing array. B9's
+	// chair relayed a PASS-permitted plan verbatim, "parties": null, and the engine aborted the run
+	// at the sitting that should have ended it.
+	plan := Plan{Parties: []Party{}, Docket: []string{}, Why: []string{}, StaleAreas: []StaleArea{}}
 	cast, err := CastOf(run)
 	if err != nil {
 		return plan, err
@@ -303,8 +304,19 @@ type DispatchGroup struct {
 	Parties     []string // each seat the group names, in the order first named
 	// Sat is each party's sitting for the group, by sittingFor off the last row naming it: the
 	// stream position of its first register after that row. A party absent here has not sat.
-	Sat  map[string]int
-	rows []dispatchRow
+	Sat map[string]int
+	// PartyRows is each party's LAST row in the group — the row Sat reads, and the one a relayed
+	// plan is compared against: a docket plan is never standing, so a chair that writes the plan
+	// twice leaves two rows for one party, and the later is the dispatch.
+	PartyRows map[string]PartyRow
+	rows      []dispatchRow
+}
+
+// PartyRow is one party's dispatch row as recorded: the head it was pinned to and the gaps it
+// engaged the party on.
+type PartyRow struct {
+	Pin    int64
+	GapIDs []string
 }
 
 // DispatchGroups is the record's dispatches, grouped as DispatchGroup says, in stream order.
@@ -322,7 +334,7 @@ func DispatchGroups(evs []*Event) []DispatchGroup {
 	var groups []DispatchGroup
 	for i, d := range ds {
 		if i == 0 || registeredBetween(anyone, ds[i-1].at, d.at) {
-			groups = append(groups, DispatchGroup{First: int(d.at), Sat: map[string]int{}})
+			groups = append(groups, DispatchGroup{First: int(d.at), Sat: map[string]int{}, PartyRows: map[string]PartyRow{}})
 		}
 		g := &groups[len(groups)-1]
 		g.Last = int(d.at)
@@ -338,6 +350,7 @@ func DispatchGroups(evs []*Event) []DispatchGroup {
 			last[d.seat] = d
 		}
 		for p, d := range last {
+			g.PartyRows[p] = PartyRow{Pin: d.pin, GapIDs: append([]string{}, d.gaps...)}
 			if r, ok := sittingFor(registers[p], d); ok {
 				g.Sat[p] = int(r)
 			}

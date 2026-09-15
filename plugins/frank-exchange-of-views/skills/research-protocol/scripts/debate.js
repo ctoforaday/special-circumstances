@@ -436,14 +436,15 @@ const BLUE_ENVELOPE = {
 }
 
 // The chair's envelope RELAYS the record (plans/roundless.md §III.B.1): `plan` is the JSON `dispatch next`
-// printed, verbatim — the verb computed it from the board and recorded it; the chair could drop or add a
-// party on the way, which is why capture's dispatch-parity audit checks the relay against the record. The
+// printed, verbatim — the verb computed it from the board and recorded it; the chair could drop, add or
+// alter a party, a gap id or the head on the way, which is why capture's dispatch-parity audit checks the
+// relay against the record's dispatch rows, and why requirePlan below type-checks every field read. The
 // verdict is what the chair RECORDED this sitting, if it recorded one. Nothing else the old envelope carried
 // (gaps, closures, dispute responses, citation counts) is here: the record holds them and every seat reads
 // them through the tool.
 const PLAN = {
   type: 'object',
-  required: ['head', 'parties', 'pass_permitted', 'ceiling'],
+  required: ['head', 'parties', 'docket', 'pass_permitted', 'ceiling', 'max_epochs', 'epoch_limit_reached', 'why', 'stale_areas'],
   properties: {
     head: { type: 'integer', minimum: 0, description: 'events.id of the report head the parties audit' },
     parties: {
@@ -453,8 +454,17 @@ const PLAN = {
         required: ['seat_id', 'gap_ids'],
         properties: {
           seat_id: { type: 'string' },
-          gap_ids: { type: 'array', items: { type: 'string' }, description: 'the gaps this party is engaged on; empty for a lens whose pin the head moved past' },
+          gap_ids: { type: 'array', items: { type: 'string' }, description: 'the gaps this party is engaged on; empty for a lens engaged by its retirement state — active, or retired and re-armed once by a head move' },
         },
+      },
+    },
+    stale_areas: {
+      type: 'array',
+      description: 'each lens retired for good whose pin the report head has moved past: the chair reads the changes since each pin and names the areas in its spot-check before a PASS',
+      items: {
+        type: 'object',
+        required: ['seat_id', 'pin'],
+        properties: { seat_id: { type: 'string' }, pin: { type: 'integer', minimum: 0 } },
       },
     },
     docket: { type: 'array', items: { type: 'string' }, description: 'gaps the verb docketed for the bench at this sitting' },
@@ -464,6 +474,30 @@ const PLAN = {
     epoch_limit_reached: { type: 'boolean', description: "this chair sitting opens the run's last epoch: nobody is dispatched, and ceiling is set for that reason" },
     why: { type: 'array', items: { type: 'string' } },
   },
+}
+// EVERY FIELD THE WORKFLOW READS FROM THE RELAY IS CHECKED, AND A MISS THROWS NAMING IT. The plan
+// reaches this script only as the chair model's copy, and a field dropped or mistyped on the way read
+// as its fallback: `plan.docket || []` was "nothing docketed" for a docket the chair lost. The Go verb
+// prints every field and every array as an array, so a plan that fails here was altered in transit.
+const PLAN_FIELD_TYPES = {
+  head: 'integer', max_epochs: 'integer',
+  pass_permitted: 'boolean', ceiling: 'boolean', epoch_limit_reached: 'boolean',
+  parties: 'array', docket: 'array', why: 'array', stale_areas: 'array',
+}
+const typeName = (t) => (t === 'integer' ? 'an integer' : t === 'boolean' ? 'a boolean' : t === 'string' ? 'a string' : 'an array')
+const typeOk = (v, t) => (t === 'integer' ? Number.isInteger(v) : t === 'boolean' ? typeof v === 'boolean' : t === 'string' ? typeof v === 'string' : Array.isArray(v))
+const requirePlan = (plan, epoch) => {
+  if (!plan || typeof plan !== 'object') throw new Error(`red-chair sitting ${epoch} relayed no plan — the envelope carries \`dispatch next\`'s JSON verbatim, or the workflow has nothing to dispatch`)
+  const refuse = (field, v, t) => { throw new Error(`red-chair sitting ${epoch} relayed a plan whose \`${field}\` is ${JSON.stringify(v)}, not ${typeName(t)} — the plan is \`dispatch next\`'s JSON, relayed verbatim`) }
+  for (const [f, t] of Object.entries(PLAN_FIELD_TYPES)) if (!typeOk(plan[f], t)) refuse(f, plan[f], t)
+  plan.parties.forEach((p, i) => {
+    if (!p || !typeOk(p.seat_id, 'string')) refuse(`parties[${i}].seat_id`, p && p.seat_id, 'string')
+    if (!typeOk(p.gap_ids, 'array')) refuse(`parties[${i}].gap_ids`, p.gap_ids, 'array')
+  })
+  plan.stale_areas.forEach((a, i) => {
+    if (!a || !typeOk(a.seat_id, 'string')) refuse(`stale_areas[${i}].seat_id`, a && a.seat_id, 'string')
+    if (!typeOk(a.pin, 'integer')) refuse(`stale_areas[${i}].pin`, a.pin, 'integer')
+  })
 }
 const CHAIR_ENVELOPE = {
   type: 'object',
@@ -560,7 +594,10 @@ for (const seat of Object.keys(LENS_DISPATCH)) if (!RED_AREAS.includes(seat.repl
 // The areas a run dispatches. Default is the four that have always sat; the rest are opt-in per
 // run, because every area costs a full dispatch every round against a concurrency cap measured at
 // about two concurrent agents — seven areas is four waves where four is two.
-const DEFAULT_AREAS = ['evidence', 'logic', 'dark-side', 'voice']
+// EVERY AREA SITS BY DEFAULT. A lens that finds nothing retires within two sittings (the record's
+// retirement fold), so seating an area costs at most that; an operator narrows the cast only with a
+// reason. record.DefaultCastAreas says the same, and the cast setup writes is read from it.
+const DEFAULT_AREAS = RED_AREAS.slice()
 
 // AREA SELECTION IS VALIDATED AT THE DOOR, because a typo'd area name is a lens that silently
 // does not sit — a run missing an entire kind of audit, reading exactly like a run that asked for
@@ -839,13 +876,17 @@ const areaOf = (seatID) => seatID.replace(/^red-lens-/, '')
 // THE LENS: it audits its area and puts what it finds on the board ITSELF (plans/roundless.md
 // §III.B.3). The duties of the seat that mints — asking for the answer to be PRODUCED, classing
 // the probe, reading the script, keeping lineage — sit here, with the minter.
-const lensPrompt = (seatID, gaps, plan) => {
+// THE LENS'S SITTING IS READ FROM THE RECORD, NOT FROM THE RELAY. A head copied into this prompt from
+// the chair's relay could be present and wrong and nothing would object; the lens's work view carries
+// its last sitting as a field with an explicit kind, computed from the record (lastSittingBefore).
+const lastSittingClause = ` YOUR SITTING IS ON YOUR WORK LIST: read \`sitting.last_sitting\` first. \`first\`: audit the report in full. \`behind\`: the report head moved past your last sitting (head H; you last sat at P) — audit the report as it now stands, in full. \`unchanged\`: the report is unchanged since your last sitting (head H). \`undispatched\`: the record holds no dispatch for you — log that and end the sitting. Whenever the kind is \`behind\` or \`unchanged\`, a FRESH gap on text you already read and passed at an earlier sitting states, in its mint reason, why you missed it then.`
+const lensPrompt = (seatID, gaps) => {
   const area = areaOf(seatID)
   const extra = area === 'evidence' ? ledgerClause : (area === 'logic' || area === 'dark-side') ? steelmanClause : ''
   const engaged = gaps.length
     ? ` YOU ARE ENGAGED ON: ${gaps.join(', ')} — gaps you minted that are still open and below their limits. Re-read the report where each is anchored and DID BLUE ACTUALLY DO WHAT YOU ASKED? Put your required fix and blue's edits side by side (the record's changes projection names the recorded edits, not blue's account of them) rather than inferring the answer. Then act: regrade on what you now see, or close with the verification triple where the repair holds. A gap you neither move nor close this sitting is a NULL TURN on it, and null turns count toward its impasse — silence is a turn taken.`
-    : ` THE REPORT HEAD MOVED PAST YOUR LAST SITTING (head ${plan.head}): audit the report as it now stands, in full.`
-  return `Red lens sitting, area ${area}, topic "${topic}".${extra}${engaged} RE-READ THE FULL REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows. ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in the report as the record renders it is REJECTED. The labels on your findings are the tool's to assign, and so are the gap ids you mint. HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g. '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).
+    : ''
+  return `Red lens sitting, area ${area}, topic "${topic}".${extra}${engaged}${lastSittingClause} RE-READ THE FULL REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows. ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in the report as the record renders it is REJECTED. The labels on your findings are the tool's to assign, and so are the gap ids you mint. HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g. '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).
 YOU MINT YOUR OWN GAPS. What you find that is real and belongs on the board goes there as YOUR gap: screen every candidate against the board first for a near match — a defect already closed is a REOPEN and arrives carrying that history or arrives lying; a duplicate minted fresh forks the lineage — then mint, one considered gap at a time, graded on every axis, registering a new class first where the registry lacks one. Nobody coalesces for you and nobody transcribes for you: a finding is your graded observation; a gap is your claim on the board. Your budget scales with the report: the larger of the run's floor (mintBudget in run-config.json) and one mint per so many units of what your area audits, read off the record at each mint — a refused mint states the arithmetic. Spend it on defects a reader would pay to have fixed, not on nitpicks — a trifle costs you a mint and holds nothing open, because a gap below material does not hold the gate.
 ASK FOR THE ANSWER TO BE PRODUCED, NOT ASSERTED. Where a claim is arithmetic, an enumeration, or a reproducible measurement, your acceptance check demands that it be computed, and says so in the check's kind; where it turns on what the document states or what a source says, say so plainly — there is no credit for inflating it. Say WHEN your demand can be discharged, in the two classes blue answers in: a DOCUMENT-PROBE is executable now against shipped artifacts; a LIVE-PROBE needs built artifacts and is DEFERRABLE in a design-phase debate, discharged by naming it as a deferred acceptance test with its pass condition. PRESCRIBE TEXT ONLY WHERE THE DEFECT IS TEXTUAL: the required fix is prose — what must become true — and stays the channel for substantive work.
 BELIEVE NO BYTES YOU DID NOT WATCH BEING PRODUCED. Where blue backed a sentence with a computation, RE-RUN IT, then READ THE SCRIPT and say what it ACTUALLY COMPUTES: a script that re-runs clean and establishes nothing is the dangerous case, because it looks maximally credible.
@@ -855,7 +896,7 @@ THE ORIGINATOR CLOSES, AND LINEAGE IS NEVER DROPPED. A gap you minted is yours f
 // chair relays it; the verdict, the closings, the spot-check, the rulings on blue's motions and
 // directions and the vote on the lines of inquiry are what only the chair does.
 const chairPrompt = () => `Red chair, topic "${topic}". You RUN the debate: you mint nothing and you close nothing — a gap belongs to the lens that minted it from mint to close — and you are the seat that decides whether this report has been verified.${recordClause('red-chair')}${speedClause}${scorecardClause()}${holdingsClause()}${reliefFor('red')}${lawClause}
-FIRST, EVERY SITTING, ASK THE RECORD WHO SITS — the dispatch. It reads the board and RECORDS who sits — the lenses whose pin the report head moved past, the lens and blue of every open material gap below its limits, the bench for every gap at impasse (it dockets those itself). Relay its JSON VERBATIM as \`plan\` in your envelope; the workflow dispatches what the record says and capture audits your relay against it, so a party you drop or add is a finding against you. Empty is the record's word that the run is over: with pass_permitted the board permits a PASS; with ceiling every open material gap is at its limit, ruled and remanded — or, with epoch_limit_reached, the run has reached its epoch limit and nobody further is dispatched.
+FIRST, EVERY SITTING, ASK THE RECORD WHO SITS — the dispatch. It reads the board and RECORDS who sits — the lenses whose pin the report head moved past, the lens and blue of every open material gap below its limits, the bench for every gap at impasse (it dockets those itself). Relay its JSON VERBATIM as \`plan\` in your envelope; the workflow dispatches what the record says and capture audits your relay against it, so a party, gap id or head you drop, add or alter is a finding against you. Empty is the record's word that the run is over: with pass_permitted the board permits a PASS; with ceiling every open material gap is at its limit, ruled and remanded — or, with epoch_limit_reached, the run has reached its epoch limit and nobody further is dispatched.
 THE STOPPING JUDGMENT IS YOURS, AND IT IS NOT CEREMONY. When the plan says pass_permitted, decide: record a PASS verdict if you agree the report is verified — the tool refuses a PASS the board does not permit, so you cannot pass early — or a FAIL with the material defect that stops you, raised as a finding for its lens to mint; a FAIL over a converged board is refused (raise something material, or pass). Otherwise record no verdict this sitting. Your recorded verdict is the ONE fact the run's outcome is derived from.
 YOUR POSITION IS YOUR ARGUMENT and the other side answers it: one position per sitting. CLOSING ARGUMENTS on every gap the plan docketed — each is docket-bound and owes ~120 words, your strongest evidence and your answer to blue's — the bench rules on the closings and the artifacts, not on prose in your envelope.
 A CLOSURE IS A CLAIM, AND CLAIMS DECAY. Re-sample the archive every sitting it is not empty (the spot-check; its assertable empty form only when the archive was empty when you sat) and put what the sample FOUND in the spot-check's own prose — not in \`log\`, which is the operator's channel; a lens reopens a drifted closure of its own, and a closure resting on a volatile living source inherits that source's drift triggers.
@@ -882,9 +923,9 @@ while (!halted) {
   takeFriction('red-chair', chairEnv)
   if (!chairEnv) throw new Error(`red-chair sitting ${epoch} returned null (agent failed) — aborting cleanly`)
   const plan = chairEnv.plan
-  if (!plan || !Array.isArray(plan.parties)) throw new Error(`red-chair sitting ${epoch} relayed no plan — the envelope carries \`dispatch next\`'s JSON verbatim, or the workflow has nothing to dispatch`)
+  requirePlan(plan, epoch)
   lastPlan = plan
-  log(`epoch ${epoch}: head ${plan.head} — ${plan.parties.length} party(ies) ready${plan.docket && plan.docket.length ? `, docketed ${plan.docket.join(', ')}` : ''}${chairEnv.verdict ? `, chair recorded ${chairEnv.verdict}` : ''}${plan.pass_permitted ? ' — PASS permitted' : ''}${plan.ceiling ? ' — at the ceiling' : ''}`)
+  log(`epoch ${epoch}: head ${plan.head} — ${plan.parties.length} party(ies) ready${plan.docket.length ? `, docketed ${plan.docket.join(', ')}` : ''}${chairEnv.verdict ? `, chair recorded ${chairEnv.verdict}` : ''}${plan.pass_permitted ? ' — PASS permitted' : ''}${plan.ceiling ? ' — at the ceiling' : ''}`)
   if (await hearPetitions(chairEnv, 'red-chair')) break
   if (chairEnv.verdict === 'PASS') break
   // THE EPOCH LIMIT is the record's word, like the ceiling: the plan at the last epoch readies
@@ -914,7 +955,7 @@ while (!halted) {
 
   if (lenses.length) {
     log(`epoch ${epoch}: dispatching ${lenses.length} red lens(es): ${lenses.map((p) => `${areaOf(p.seat_id)}${p.gap_ids.length ? `[${p.gap_ids.join(' ')}]` : ''}`).join(', ')}`)
-    const envs = await parallel(lenses.map((p) => () => agent(lensPrompt(p.seat_id, p.gap_ids, plan),
+    const envs = await parallel(lenses.map((p) => () => agent(lensPrompt(p.seat_id, p.gap_ids),
       { ...bulk, label: labelFor(p.seat_id), phase: 'Red', ...LENS_DISPATCH[p.seat_id] })))
     for (const [k, env] of envs.entries()) {
       takeFriction(lenses[k].seat_id, env)
@@ -924,7 +965,7 @@ while (!halted) {
   }
   for (const p of blues) {
     phase('Debate')
-    blueEnv2 = await agent(bluePrompt(p.gap_ids, plan.docket || []), { ...bulk, label: labelFor('blue-respond'), phase: 'Debate', agentType: 'frank-exchange-of-views:blue-researcher', schema: BLUE_ENVELOPE })
+    blueEnv2 = await agent(bluePrompt(p.gap_ids, plan.docket), { ...bulk, label: labelFor('blue-respond'), phase: 'Debate', agentType: 'frank-exchange-of-views:blue-researcher', schema: BLUE_ENVELOPE })
     takeFriction('blue-respond', blueEnv2)
     if (!blueEnv2) throw new Error(`blue response (epoch ${epoch}) returned null (agent failed) — aborting cleanly`)
     const foundClosed = new Set((Array.isArray(blueEnv2.found_closed) ? blueEnv2.found_closed : []).filter((g) => p.gap_ids.includes(g)))
@@ -993,7 +1034,7 @@ const terminationWhy = halted ? 'judicial halt'
   : verdict === 'VERIFIED' ? 'the chair recorded PASS with the board permitting it'
   : noProgress ? `no progress: the dispatch plan was identical for ${noProgress.epochs} consecutive epochs (NO_PROGRESS_EPOCHS = ${NO_PROGRESS_EPOCHS}) at head ${noProgress.head} — ${partyList(noProgress.parties)} readied again each time with nothing on the board moving`
   : verdict === 'CEILING' ? (lastPlan.epoch_limit_reached ? `epoch limit ${lastPlan.max_epochs} reached — the run's term on chair sittings; the parties the board still readied were not dispatched` : 'every open material gap is at its limit, ruled by the bench and remanded')
-  : (lastPlan ? `nobody was ready and neither PASS nor CEILING held: ${(lastPlan.why || []).join('; ')}` : 'the run ended before any dispatch')
+  : (lastPlan ? `nobody was ready and neither PASS nor CEILING held: ${lastPlan.why.join('; ')}` : 'the run ended before any dispatch')
 log(`debate ended: ${verdict} after ${epoch} chair sitting(s)${halted ? ' (JUDICIAL HALT)' : ''} — ${terminationWhy}`)
 
 // Terminal bench sitting: whatever the record still holds unruled at the exit boundary (grade
@@ -1030,7 +1071,7 @@ return {
   verdict,
   epochs: epoch,
   lanes,
-  termination: lastPlan ? { pass_permitted: !!lastPlan.pass_permitted, ceiling: !!lastPlan.ceiling, epoch_limit_reached: !!lastPlan.epoch_limit_reached, why: lastPlan.why || [], no_progress: noProgress } : null,
+  termination: lastPlan ? { pass_permitted: lastPlan.pass_permitted, ceiling: lastPlan.ceiling, epoch_limit_reached: lastPlan.epoch_limit_reached, why: lastPlan.why, no_progress: noProgress } : null,
   gaps_outstanding: assembleEnv && Number.isInteger(assembleEnv.open_gaps) ? assembleEnv.open_gaps : null,
   blue_claims: blueEnv2 ? blueEnv2.claim_count : (blueEnv ? blueEnv.claim_count : null),
   infra_debts: infraDebts,

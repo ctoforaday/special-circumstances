@@ -1,6 +1,7 @@
 package capture
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -11,13 +12,31 @@ import (
 
 // DispatchParityAudit holds the workflow's RELAY to the record (plans/roundless.md §III.B.1). The
 // chair's verb records who sits; the chair relays that into its envelope; the workflow dispatches
-// what the envelope says — and the chair could drop or add a party on the way. So: within the
-// window from the first dispatch to termination, every register between one chair sitting's
-// dispatches D and the next's D+1 is either a party named in D or the seat that authors D+1 (the
-// chair registering to run the verb is exempt BY RULE, not by allowlist), and every party named in
-// D SAT for it — record.DispatchGroup's Sat, the one "has this seat sat" predicate — before D+1.
-// The bookends register outside the window by position: the base phase before the first dispatch,
-// judge-terminal and assemble after the last chair sitting.
+// what the envelope says — and the chair could drop, add or alter a party on the way. Two halves:
+//
+// REGISTERS AGAINST DISPATCH ROWS. Within the window from the first dispatch to termination, every
+// register between one chair sitting's dispatches D and the next's D+1 is either a party named in D
+// or the seat that authors D+1 (the chair registering to run the verb is exempt BY RULE, not by
+// allowlist), and every party named in D SAT for it — record.DispatchGroup's Sat, the one "has this
+// seat sat" predicate — before D+1. The bookends register outside the window by position: the base
+// phase before the first dispatch, judge-terminal and assemble after the last chair sitting.
+//
+// RELAYED FIELDS AGAINST DISPATCH ROWS. A chair result in the journal is the one whose `plan` is an
+// object with a `parties` array — the chair envelope is the only one carrying a plan, and it is how
+// the workflow itself recognises what to dispatch. Each relayed plan with non-empty parties pairs,
+// in journal order, with a dispatch group, in stream order: the verb records a row per party and none
+// for an empty plan, so the two sequences are one per chair sitting that dispatched. A count mismatch
+// FAILs and nothing is compared, because the pairing is then unknown. Per pair, every relayed field
+// with a row counterpart is compared: the seat_id set against the group's parties, each party's
+// gap_ids (as a set) against its PartyRows row, and the plan's head against that row's pin. The row
+// is the LAST one naming the party in the group — a docket plan is never standing, so a chair that
+// asks twice writes two rows, and the later is the dispatch. Without this half a wrong gap id or head
+// reached a seat and every register still matched, so the relay read as faithful.
+//
+// THE JOURNAL HOLDS ONE CHAIR RESULT PER CHAIR SITTING — the stated assumption the pairing rests on.
+// A resume that re-journals a cached chair result shifts the pairing by one and FAILs on the count,
+// loudly. With no journal there is nothing to compare, and the detail says the relayed fields were
+// NOT compared: an absent journal never reads as a faithful relay.
 //
 // A CHAIR SITTING'S DISPATCH IS record.DispatchGroups', NOT THE CLOCK'S CHAIR-SITTING COUNT. This
 // audit grouped by the count, and a warm chair registers once per run: B3–B6 each read as a single
@@ -26,10 +45,21 @@ import (
 // whether or not the parties sat.
 //
 // The verb records the truth; this catches a relay that departed from it. A mismatch is a FAIL.
-func DispatchParityAudit(run record.Run) Audit {
+func DispatchParityAudit(run record.Run, results []map[string]any, journalPresent bool) Audit {
 	fam, err := record.FamilyOf(run)
 	if err != nil {
 		return Audit{Check: "dispatch-parity", Verdict: "FAIL", Detail: "the record could not be read: " + err.Error()}
+	}
+	notCompared := ""
+	var relays []relayedPlan
+	if journalPresent {
+		relays = relayedPlans(results)
+	} else {
+		notCompared = " — no workflow journal, so the relayed party fields (seat_id, gap_ids, head) were NOT compared"
+	}
+	groups := record.DispatchGroups(fam.Events)
+	if len(groups) == 0 && len(relays) == 0 {
+		return Audit{Check: "dispatch-parity", Verdict: "SKIP", Detail: "no dispatch on the record — a run before the chair dispatched, or one that never reached the debate" + notCompared}
 	}
 	type reg struct {
 		pos  int
@@ -40,10 +70,6 @@ func DispatchParityAudit(run record.Run) Audit {
 		if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER {
 			regs = append(regs, reg{pos: i, seat: e.GetSeatId()})
 		}
-	}
-	groups := record.DispatchGroups(fam.Events)
-	if len(groups) == 0 {
-		return Audit{Check: "dispatch-parity", Verdict: "SKIP", Detail: "no dispatch on the record — a run before the chair dispatched, or one that never reached the debate"}
 	}
 	terminal := map[string]bool{"judge-terminal": true, "assemble": true}
 	var strays, absent []string
@@ -73,8 +99,123 @@ func DispatchParityAudit(run record.Run) Audit {
 	}
 	sort.Strings(strays)
 	sort.Strings(absent)
-	if len(strays)+len(absent) == 0 {
-		return Audit{Check: "dispatch-parity", Verdict: "PASS", Detail: fmt.Sprintf("%d dispatch(es); every register between them was a named party or the chair, and every party registered", len(groups))}
+	findings := append(strays, absent...)
+	compared := ""
+	if journalPresent {
+		if len(relays) != len(groups) {
+			findings = append(findings, fmt.Sprintf("the journal relays %d plan(s) with parties and the record holds %d chair sitting dispatch(es) — the pairing is unknown, so no relayed party field was compared", len(relays), len(groups)))
+		} else {
+			for k := range groups {
+				findings = append(findings, relayDepartures(k+1, relays[k], groups[k])...)
+			}
+			compared = fmt.Sprintf("; %d relayed plan(s) matched their dispatch rows on parties, gap_ids and head", len(relays))
+		}
 	}
-	return Audit{Check: "dispatch-parity", Verdict: "FAIL", Detail: strings.Join(append(strays, absent...), "; ")}
+	if len(findings) == 0 {
+		return Audit{Check: "dispatch-parity", Verdict: "PASS", Detail: fmt.Sprintf("%d dispatch(es); every register between them was a named party or the chair, and every party registered", len(groups)) + compared + notCompared}
+	}
+	return Audit{Check: "dispatch-parity", Verdict: "FAIL", Detail: strings.Join(findings, "; ") + notCompared}
 }
+
+// relayedPlan is one chair result's plan as the journal holds it: the head as relayed (raw, so a
+// value that is not an integer is reported as it stands) and each party in relay order.
+type relayedPlan struct {
+	head    any
+	parties []relayedParty
+}
+
+type relayedParty struct {
+	seat string
+	gaps []string
+}
+
+// relayedPlans is every chair result in the journal whose plan names at least one party, in journal
+// order. An empty plan dispatches nobody and writes no row, so it has no group to pair with.
+func relayedPlans(results []map[string]any) []relayedPlan {
+	var out []relayedPlan
+	for _, r := range results {
+		plan, ok := r["plan"].(map[string]any)
+		if !ok {
+			continue
+		}
+		ps, ok := plan["parties"].([]any)
+		if !ok || len(ps) == 0 {
+			continue
+		}
+		rp := relayedPlan{head: plan["head"]}
+		for _, p := range ps {
+			pm, _ := p.(map[string]any)
+			party := relayedParty{seat: jsString(pm["seat_id"])}
+			if gs, ok := pm["gap_ids"].([]any); ok {
+				for _, g := range gs {
+					party.gaps = append(party.gaps, jsString(g))
+				}
+			}
+			rp.parties = append(rp.parties, party)
+		}
+		out = append(out, rp)
+	}
+	return out
+}
+
+// relayDepartures compares one relayed plan against the dispatch group it pairs with, naming the
+// sitting (the 1-based pair index), the seat, and the relayed and recorded values of each field that
+// departs.
+func relayDepartures(sitting int, rp relayedPlan, g record.DispatchGroup) []string {
+	var out []string
+	relayed := map[string][]string{}
+	var relayedSeats []string
+	for _, p := range rp.parties {
+		if _, dup := relayed[p.seat]; dup {
+			out = append(out, fmt.Sprintf("sitting %d: %s is relayed twice — the dispatch names each party once", sitting, p.seat))
+			continue
+		}
+		relayed[p.seat] = p.gaps
+		relayedSeats = append(relayedSeats, p.seat)
+	}
+	if !sameSet(relayedSeats, g.Parties) {
+		out = append(out, fmt.Sprintf("sitting %d: relayed parties %s, the dispatch rows name %s", sitting, setOf(relayedSeats), setOf(g.Parties)))
+	}
+	head, headOK := relayedHead(rp.head)
+	for _, seat := range g.Parties {
+		gaps, ok := relayed[seat]
+		if !ok {
+			continue // named by the seat-set departure above
+		}
+		row := g.PartyRows[seat]
+		if !sameSet(gaps, row.GapIDs) {
+			out = append(out, fmt.Sprintf("sitting %d: %s relayed gap_ids %s, its dispatch row recorded %s", sitting, seat, setOf(gaps), setOf(row.GapIDs)))
+		}
+		if !headOK || head != row.Pin {
+			out = append(out, fmt.Sprintf("sitting %d: %s relayed head %s, its dispatch row pinned %d", sitting, seat, jsString(rp.head), row.Pin))
+		}
+	}
+	return out
+}
+
+// relayedHead reads the relayed head as the integer the plan prints; ok is false for anything else.
+func relayedHead(v any) (int64, bool) {
+	n, ok := v.(json.Number)
+	if !ok {
+		return 0, false
+	}
+	h, err := n.Int64()
+	return h, err == nil
+}
+
+// setOf renders xs as a sorted, de-duplicated list: the form both sides of a set comparison are
+// named in.
+func setOf(xs []string) string {
+	seen := map[string]bool{}
+	var s []string
+	for _, x := range xs {
+		if !seen[x] {
+			seen[x] = true
+			s = append(s, x)
+		}
+	}
+	sort.Strings(s)
+	return "[" + strings.Join(s, ", ") + "]"
+}
+
+func sameSet(a, b []string) bool { return setOf(a) == setOf(b) }

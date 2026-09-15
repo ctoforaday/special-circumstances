@@ -107,6 +107,10 @@ var (
 	mootSpent   atomic.Bool
 )
 
+// classDefaultTurn alternates the sweep's `always` and `never` coinings between runs (see mint's
+// class coining). Package-level for the same reason as mootPending: the runs are concurrent.
+var classDefaultTurn atomic.Int64
+
 // lockedRand is the seed's generator, safe for the concurrent seats phase 3 introduces.
 //
 // A WRAPPER RATHER THAN A MUTEX AT EVERY CALL SITE: there are 23 draws across this file, all
@@ -590,18 +594,18 @@ func (r *runner) dispatchNext(seatID string) map[string]any {
 	out, err := r.exec("--json", "dispatch", "next", "--seat-id", seatID)
 	if err != nil {
 		r.noteEstoppelMiss("dispatch next refused: " + err.Error())
-		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch refused: " + err.Error()}}
+		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch refused: " + err.Error()}, "max_epochs": 0, "epoch_limit_reached": false, "stale_areas": []any{}}
 	}
 	var env struct {
 		OK     bool           `json:"ok"`
 		Result map[string]any `json:"result"`
 	}
 	if err := json.Unmarshal([]byte(out), &env); err != nil || !env.OK || env.Result == nil {
-		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch envelope unreadable"}}
+		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch envelope unreadable"}, "max_epochs": 0, "epoch_limit_reached": false, "stale_areas": []any{}}
 	}
-	if env.Result["parties"] == nil {
-		env.Result["parties"] = []any{}
-	}
+	// RELAYED EXACTLY AS PRINTED. The verb emits every array as an array, never null, and the
+	// engine refuses a plan missing one — so a patch here would hide the defect the relay check
+	// exists to catch.
 	return env.Result
 }
 
@@ -645,11 +649,29 @@ func (r *runner) docketed() []string {
 	return out
 }
 
+// staleAreas is the current plan's stale areas — each lens retired for good whose pin the head
+// moved past, by seat — which the chair's spot-check names before a PASS.
+func (r *runner) staleAreas() []string {
+	var out []string
+	if r.planThisSitting == nil {
+		return out
+	}
+	areas, _ := r.planThisSitting["stale_areas"].([]any)
+	for _, a := range areas {
+		m, _ := a.(map[string]any)
+		if sid, ok := m["seat_id"].(string); ok {
+			out = append(out, sid)
+		}
+	}
+	return out
+}
+
 func (r *runner) chairEnvelope(seatID, verdict string, responses []map[string]any) map[string]any {
 	_ = responses // grade motions are ruled on the record; the envelope no longer restates them
 	plan := r.planThisSitting
 	if plan == nil {
-		plan = map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{}}
+		plan = map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false,
+			"max_epochs": 0, "epoch_limit_reached": false, "why": []any{}, "stale_areas": []any{}}
 	}
 	e := map[string]any{"plan": plan, "unruled_motions": 0, "petitions": r.maybePetition("chair", seatID), "log": arr()}
 	if verdict != "" {
@@ -954,13 +976,35 @@ func (r *runner) mint(seatID string) string {
 		// with "unknown class" — a run that mints nothing, returns FAIL with an empty gaps array,
 		// and is rejected by the engine as a degenerate merge. The cause was three verbs away
 		// from the symptom and invisible from the log.
-		if _, err := r.exec("class", "new", "--seat-id", seatID,
+		coin := []string{"class", "new", "--seat-id", seatID,
 			// --neighbor names an EXISTING class, and is checked. `verification-gap` was not one;
 			// nothing objected while the registry was absent, so the coining path ran green for
 			// its whole life against a neighbour that did not exist.
-			"--class", "fuzzcls", "--definition", "d", "--neighbor", "self-attestation", "--distinguisher", "q"); err != nil {
+			"--class", "fuzzcls", "--definition", "d", "--neighbor", "self-attestation", "--distinguisher", "q"}
+		// BOTH SPELLINGS OF by_grade: the verb writes it when the coiner says nothing, and the
+		// flag says it outright. Either way every mint of the run's class is graded by severity,
+		// so the board this sweep measures is the one it always measured.
+		if r.coin(50) {
+			coin = append(coin, "--material-default", "by_grade")
+		}
+		if _, err := r.exec(coin...); err != nil {
 			r.noteApplyMiss("class new refused: " + err.Error())
 			r.classMade = false // let a later seat try again rather than latching the run dead
+		} else {
+			// THE OTHER TWO DEFAULTS ARE COINED BESIDE IT AND NOTHING IS MINTED UNDER THEM. A run
+			// whose one class went `always` or `never` would move every gap's materiality, and with
+			// it the boards, the epochs and the terminal verdicts the sweep's other gates count on
+			// — a coverage drive that displaces the sweep's other coverage is a trade (see closeGap's
+			// `moot`). Alternated across the sweep by construction, not drawn.
+			md := "always"
+			if classDefaultTurn.Add(1)%2 == 0 {
+				md = "never"
+			}
+			if _, err := r.exec("class", "new", "--seat-id", seatID, "--class", "fuzzcls-"+md,
+				"--definition", "d", "--neighbor", "self-attestation", "--distinguisher", "q",
+				"--material-default", md); err != nil {
+				r.noteApplyMiss("class new --material-default " + md + " refused: " + err.Error())
+			}
 		}
 	}
 	args = append(args, "--class", "fuzzcls")
@@ -1528,11 +1572,20 @@ func (r *runner) extras(role, seatID string, open []string) {
 		//
 		// It now models a seat that discharges the duty honestly: sample when there is something
 		// to sample, and claim emptiness only when the board agrees.
+		// AND IT READS THE STALE AREAS THE PLAN NAMES. A lens retired for good does not sit again,
+		// so the plan lists each whose pin the head has moved past, and the PASS gate refuses a
+		// verdict until a spot-check this sitting names every one. A drive that never passed
+		// --areas modelled a chair that skipped the read, and every run whose lenses retired for
+		// good ended UNVERIFIED on the refusal, so VERIFIED went undriven.
+		sc := r.do("spot-check", seatID)
+		if stale := r.staleAreas(); len(stale) > 0 {
+			sc.set("--areas", strings.Join(stale, ","))
+		}
 		if closed := r.closedGapIDs(); len(closed) > 0 {
-			r.do("spot-check", seatID).set("--ids", closed[r.rng.Intn(len(closed))]).
+			sc.set("--ids", closed[r.rng.Intn(len(closed))]).
 				set("--reason", "fuzz: re-read the closure record; the anchor still resolves").run()
 		} else {
-			r.do("spot-check", seatID).bare("--none").
+			sc.bare("--none").
 				set("--reason", "fuzz: the archive was empty at round start").run()
 		}
 		// RED RULES ON BLUE'S DIRECTIONS (#246) — the verb red never had. Across six runs blue

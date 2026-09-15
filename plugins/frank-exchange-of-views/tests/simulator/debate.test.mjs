@@ -63,14 +63,19 @@ test('the plan is what dispatches: the parties it names sit, in role order — l
   assert.equal(out.epochs, 2, 'two chair sittings')
 })
 
-test('a lens engaged with no gaps is told the head moved; one engaged on gaps is told which, and that silence is a null turn', async () => {
+test('a lens is told to read its last sitting from its work list; one engaged on gaps is told which, and that silence is a null turn', async () => {
   const world = makeWorld(makeResponder({
     chair: [chairEnv({ plan: plan([party('red-lens-evidence'), party('red-lens-logic', 'G3', 'G4')], { head: 7 }) }), passChair()],
   }))
   await world.run(script, ARGS)
   const evidence = firstPrompt(world, 'red-lens-evidence')
   const logic = firstPrompt(world, 'red-lens-logic')
-  assert.ok(/HEAD MOVED PAST YOUR LAST SITTING \(head 7\)/.test(evidence), 'rule 1: the head is past the pin')
+  for (const [name, p] of [['evidence', evidence], ['logic', logic]]) {
+    assert.ok(/YOUR SITTING IS ON YOUR WORK LIST: read `sitting\.last_sitting` first/.test(p), `${name}: the sitting is read from the record`)
+    for (const kind of ['first', 'behind', 'unchanged', 'undispatched']) assert.ok(p.includes(`\`${kind}\``), `${name}: the ${kind} kind is explained`)
+    assert.ok(/why you missed it then/.test(p), `${name}: a fresh gap on already-read text owes why it was missed`)
+    assert.ok(!/head 7/.test(p) && !/HEAD MOVED/.test(p), `${name}: no head clause is built from the relay`)
+  }
   assert.ok(/YOU ARE ENGAGED ON: G3, G4/.test(logic), 'the engaged lens is told its gaps')
   assert.ok(/NULL TURN/.test(logic) && /silence is a turn taken/.test(logic), 'a null turn counts toward impasse')
   assert.ok(/DID BLUE ACTUALLY DO WHAT YOU ASKED/.test(logic), 'the lens compares its fix to blue\'s edits')
@@ -149,7 +154,7 @@ test('UNVERIFIED: nobody ready, neither PASS nor CEILING — the plan\'s reasons
 // valve and passes only at its tenth sitting, so a loop with no valve ends VERIFIED at epoch 10 and
 // fails every assertion below rather than hanging.
 const NO_PROGRESS_EPOCHS = 3
-const b5Plan = () => chairEnv({ plan: plan([party('red-lens-voice')], { head: 144, why: ['red-lens-voice: head 144 is past its pin 60'] }) })
+const b5Plan = () => chairEnv({ plan: plan([party('red-lens-voice')], { head: 144, why: ['red-lens-voice: active, never sat — audits the report at head 144'] }) })
 const repeated = (make, n) => Array.from({ length: n }, make)
 
 test('NO PROGRESS: a plan identical for NO_PROGRESS_EPOCHS epochs stops the debate UNVERIFIED, naming the stuck parties and the head', async () => {
@@ -606,4 +611,47 @@ test('the lens constitutions say a lens mints and the chair runs the debate', ()
   assert.ok(!/COALESCE/.test(chair) && !/board's only writer/.test(chair), 'the chair constitution still describes the coalescing merge')
   assert.ok(/dispatch/.test(chair), 'the chair constitution names its dispatch duty')
   assert.ok(/mint/i.test(lens), 'the lens constitution names minting')
+})
+
+// EVERY FIELD THE WORKFLOW READS FROM THE RELAY IS REFUSED LOUD WHEN MISSING OR MISTYPED — one table,
+// so the check in debate.js and this list cannot drift. A fallback here once read a dropped docket as
+// "nothing docketed"; each row now throws, naming the field.
+test('a relayed plan missing a required field, or carrying the wrong type, aborts naming the field', async () => {
+  const cases = [
+    ['head', (p) => { delete p.head }], ['head', (p) => { p.head = '7' }],
+    ['parties', (p) => { delete p.parties }], ['parties', (p) => { p.parties = null }],
+    ['pass_permitted', (p) => { delete p.pass_permitted }], ['pass_permitted', (p) => { p.pass_permitted = 'yes' }],
+    ['ceiling', (p) => { delete p.ceiling }], ['ceiling', (p) => { p.ceiling = 0 }],
+    ['docket', (p) => { delete p.docket }], ['docket', (p) => { p.docket = null }],
+    ['why', (p) => { delete p.why }], ['why', (p) => { p.why = null }],
+    ['max_epochs', (p) => { delete p.max_epochs }], ['max_epochs', (p) => { p.max_epochs = '3' }],
+    ['epoch_limit_reached', (p) => { delete p.epoch_limit_reached }], ['epoch_limit_reached', (p) => { p.epoch_limit_reached = 1 }],
+    ['stale_areas', (p) => { delete p.stale_areas }], ['stale_areas', (p) => { p.stale_areas = null }],
+    ['parties[0].seat_id', (p) => { p.parties[0].seat_id = 7 }],
+    ['parties[0].gap_ids', (p) => { p.parties[0].gap_ids = null }],
+    ['stale_areas[0].seat_id', (p) => { p.stale_areas = [{ seat_id: 7, pin: 3 }] }],
+    ['stale_areas[0].pin', (p) => { p.stale_areas = [{ seat_id: 'red-lens-voice', pin: '3' }] }],
+  ]
+  for (const [field, spoil] of cases) {
+    const p = plan([party('red-lens-evidence'), party('blue-respond', 'G1')])
+    spoil(p)
+    const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: p })] }))
+    await assert.rejects(world.run(script, ARGS), (err) => err.message.includes(`\`${field}\``), `a plan spoiled at ${field} must abort naming it`)
+  }
+  // And a faithful plan with a stale area relays.
+  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('red-lens-evidence')], { stale_areas: [{ seat_id: 'red-lens-voice', pin: 3 }] }) }), passChair()] }))
+  assert.equal((await world.run(script, ARGS)).verdict, 'VERIFIED')
+})
+
+// EVERY AREA SITS BY DEFAULT: with no lens areas named, the engine admits all seven, and a plan
+// naming each dispatches seven lens sittings, one agent configuration per area.
+test('the default cast is every lens area', async () => {
+  const src = readFileSync(new URL('../../skills/research-protocol/scripts/debate.js', import.meta.url), 'utf8')
+  assert.ok(/const DEFAULT_AREAS = RED_AREAS\.slice\(\)/.test(src), 'DEFAULT_AREAS is every declared area')
+  const areas = ['evidence', 'logic', 'dark-side', 'voice', 'computation', 'adversary', 'architecture']
+  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan(areas.map((a) => party(`red-lens-${a}`))) }), passChair()] }))
+  const { lensAreas, ...noAreas } = ARGS
+  await world.run(script, noAreas)
+  const types = labelsOf(world, 'red-lens').map((c) => c.opts.agentType).sort()
+  assert.deepEqual(types, areas.map((a) => `frank-exchange-of-views:red-lens-${a}`).sort(), 'seven lens sittings, one per area')
 })

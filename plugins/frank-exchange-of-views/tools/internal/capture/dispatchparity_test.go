@@ -36,7 +36,7 @@ func TestDispatchedPartiesAndRegistersAgree(t *testing.T) {
 	clean := append(append([]*record.Event{}, head...), reg("blue-respond"), reg("red-chair"), reg("judge-terminal"), reg("assemble"))
 	dir := t.TempDir()
 	recordtest.Seed(t, dir, clean...)
-	if a := DispatchParityAudit(runtest.Open(t, dir)); a.Verdict != "PASS" {
+	if a := DispatchParityAudit(runtest.Open(t, dir), nil, false); a.Verdict != "PASS" {
 		t.Fatalf("a faithful relay = %s: %s", a.Verdict, a.Detail)
 	}
 
@@ -44,7 +44,7 @@ func TestDispatchedPartiesAndRegistersAgree(t *testing.T) {
 	stray := append(append([]*record.Event{}, head...), reg("blue-respond"), reg("red-lens-voice"), reg("red-chair"))
 	dir2 := t.TempDir()
 	recordtest.Seed(t, dir2, stray...)
-	if a := DispatchParityAudit(runtest.Open(t, dir2)); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "red-lens-voice registered after dispatch 2") {
+	if a := DispatchParityAudit(runtest.Open(t, dir2), nil, false); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "red-lens-voice registered after dispatch 2") {
 		t.Fatalf("a seat nobody dispatched sat unnoticed: %s: %s", a.Verdict, a.Detail)
 	}
 
@@ -52,11 +52,11 @@ func TestDispatchedPartiesAndRegistersAgree(t *testing.T) {
 	absent := append(append([]*record.Event{}, head...), reg("red-chair")) // blue never sat for dispatch 2
 	dir3 := t.TempDir()
 	recordtest.Seed(t, dir3, absent...)
-	if a := DispatchParityAudit(runtest.Open(t, dir3)); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "blue-respond was named in dispatch 2 and never registered") {
+	if a := DispatchParityAudit(runtest.Open(t, dir3), nil, false); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "blue-respond was named in dispatch 2 and never registered") {
 		t.Fatalf("an absent party went unnoticed: %s: %s", a.Verdict, a.Detail)
 	}
 
-	if a := DispatchParityAudit(runtest.Open(t, func() string { d := t.TempDir(); recordtest.Seed(t, d, reg("red-chair")); return d }())); a.Verdict != "SKIP" {
+	if a := DispatchParityAudit(runtest.Open(t, func() string { d := t.TempDir(); recordtest.Seed(t, d, reg("red-chair")); return d }()), nil, false); a.Verdict != "SKIP" {
 		t.Errorf("a record with no dispatch must SKIP, not judge: %s", a.Verdict)
 	}
 }
@@ -107,14 +107,14 @@ func TestAWarmChairsDispatchesAreGroupedByWhoSat(t *testing.T) {
 
 	dir := t.TempDir()
 	recordtest.Seed(t, dir, warm(true, false)...)
-	if a := DispatchParityAudit(runtest.Open(t, dir)); a.Verdict != "PASS" || !strings.HasPrefix(a.Detail, "3 dispatch(es)") {
+	if a := DispatchParityAudit(runtest.Open(t, dir), nil, false); a.Verdict != "PASS" || !strings.HasPrefix(a.Detail, "3 dispatch(es)") {
 		t.Fatalf("a warm run whose parties all sat = %s: %s — want PASS over 3 dispatches", a.Verdict, a.Detail)
 	}
 
 	n = 400
 	dir2 := t.TempDir()
 	recordtest.Seed(t, dir2, warm(false, false)...)
-	if a := DispatchParityAudit(runtest.Open(t, dir2)); a.Verdict != "FAIL" || a.Detail != "red-lens-voice was named in dispatch 2 and never registered before the next" {
+	if a := DispatchParityAudit(runtest.Open(t, dir2), nil, false); a.Verdict != "FAIL" || a.Detail != "red-lens-voice was named in dispatch 2 and never registered before the next"+noJournalNote {
 		t.Fatalf("a warm run whose voice lens never sat for dispatch 2 = %s: %s", a.Verdict, a.Detail)
 	}
 
@@ -123,7 +123,7 @@ func TestAWarmChairsDispatchesAreGroupedByWhoSat(t *testing.T) {
 	n = 500
 	dir3 := t.TempDir()
 	recordtest.Seed(t, dir3, warm(false, true)...)
-	a := DispatchParityAudit(runtest.Open(t, dir3))
+	a := DispatchParityAudit(runtest.Open(t, dir3), nil, false)
 	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "red-lens-voice was named in dispatch 2 and never registered before the next") ||
 		!strings.Contains(a.Detail, "red-lens-voice registered after dispatch 3 and was not a party to it") {
 		t.Fatalf("a party that sat only after the next dispatch = %s: %s", a.Verdict, a.Detail)

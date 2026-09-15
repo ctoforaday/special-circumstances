@@ -36,10 +36,17 @@ import (
 // so the chair fell to 8,627 and the lens rose to 10,658 — the same paragraphs, read by the
 // seat that now performs them. Both ceilings moved to measured +10%; the pair's total shrank. The numbers before it: blue-respond 24,356 · red-merge 24,193 · red-lens 13,931 ·
 // judge 11,861.
+//
+// Raised 2026-09-11 for the lens bar (plans/feov-lens-bar.md III.4, D10): the lens reads its last
+// sitting off its work view instead of a head the chair relayed, and its prompt now says how to
+// scope the audit by each kind and that a fresh gap on text it already passed owes why it was
+// missed — the JOB, which §V #6 requires the prompt to carry. The lens measured 11,846 (+465 net of
+// the relayed head clause it replaced); the ceiling moved to 12,000, not +10%, to keep the ratchet
+// tight.
 var ceilings = map[string]int{
 	"blue-respond":      15200,
 	"red-chair":         9500,
-	"red-lens-evidence": 11700,
+	"red-lens-evidence": 12000,
 	"judge":             7800,
 }
 

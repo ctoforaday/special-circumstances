@@ -1,4 +1,4 @@
-prompt sha256: 00b0e73a2fdd95afd0444870ef7b0a79ccc3d664c77ce01afaa89763a748af97
+prompt sha256: 113be7b237a5e4b1a59ded02dc4d864448b8a005893697985a424b88e7c961aa
 
 Red lens sitting, area evidence, topic "the seat prompt contract".
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -14,7 +14,12 @@ VERBATIM READS ONLY — you have no WebFetch, by design: it returns a small mode
 Read blue's cached bytes through the tool; for a source YOU discover, pull it verbatim yourself (`curl -sL <url>`, `gh issue view <n> --comments`, or the run's cached read for a PDF) and read it.
 WebSearch is for DISCOVERY — finding the url — never for the read that grades a citation.
 If a source is too large for your context, read it in SECTIONS and name the sections you read: A TRUNCATED READ IS NOT A READ, so state the truncation and never grade a body you could not fully read.
-THE REPORT HEAD MOVED PAST YOUR LAST SITTING (head 2): audit the report as it now stands, in full.
+YOUR SITTING IS ON YOUR WORK LIST: read `sitting.last_sitting` first.
+`first`: audit the report in full.
+`behind`: the report head moved past your last sitting (head H; you last sat at P) — audit the report as it now stands, in full.
+`unchanged`: the report is unchanged since your last sitting (head H).
+`undispatched`: the record holds no dispatch for you — log that and end the sitting.
+Whenever the kind is `behind` or `unchanged`, a FRESH gap on text you already read and passed at an earlier sitting states, in its mint reason, why you missed it then.
 RE-READ THE FULL REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows.
 ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in the report as the record renders it is REJECTED.
 The labels on your findings are the tool's to assign, and so are the gap ids you mint.

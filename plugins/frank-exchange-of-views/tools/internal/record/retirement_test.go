@@ -326,6 +326,23 @@ func TestMigratingSkipsStaleAreaGate(t *testing.T) {
 	}
 }
 
+// ---- the relay (§V #2) ----
+
+// ARRAYS, NEVER null: the engine refuses a relayed plan whose array is anything else, so the verb
+// emits `[]` for every list with nothing in it — an empty plan included.
+func TestPlanJSONEmitsArraysNeverNull(t *testing.T) {
+	plan := planOf(t, newStage(t).cast("red-chair", "blue-respond", "judge").ingest().register("red-chair"))
+	b, err := json.Marshal(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range []string{"parties", "docket", "why", "stale_areas"} {
+		if !strings.Contains(string(b), `"`+field+`":[]`) {
+			t.Errorf("an empty plan marshals %q as something other than []: %s", field, b)
+		}
+	}
+}
+
 // ---- the cast (§V #3) ----
 
 func TestDefaultCastListsAllSevenAreas(t *testing.T) {
