@@ -15,7 +15,7 @@ import (
 //   - the first sentence of a gap's `problem` and of its `required_fix` is a row of the risk matrix
 //     while the gap is open;
 //   - a `fix_new` prescription becomes the report's text when blue accepts it;
-//   - a labelled corroboration's `title` is the source's Bibliography entry.
+//   - a labelled corroboration's `title` prints in the source's note and Bibliography entry.
 //
 // Only the UNAMBIGUOUS tells are refused — a seat or lens id, a finding label, a gap id joined to a
 // process word, a lane tag — because none of them has a reading as subject prose; the rest ("this
@@ -59,7 +59,7 @@ func refuseMintReportVoice(m *recordpb.Mint) error {
 }
 
 // refuseCorroborationTitleVoice holds a corroboration's title to the report's voice when the title
-// prints: a LABELLED corroboration is a cited source, and its title is its Bibliography entry. An
+// prints: a LABELLED corroboration is a cited source, and its title prints in the source's note and Bibliography entry. An
 // unlabelled one — a refutation, an absence, an unreachable source — is no footnote, so its title
 // stays on the record and is not checked.
 func refuseCorroborationTitleVoice(v *recordpb.Verify) error {
@@ -70,6 +70,6 @@ func refuseCorroborationTitleVoice(v *recordpb.Verify) error {
 	if len(hits) == 0 {
 		return nil
 	}
-	return fmt.Errorf("record: corroborate refused — a corroboration that backs the claim is a footnote, its title prints as the source's Bibliography entry, and the report is written to a reader of the subject:\n  - %s\nGive the source's own title — author, work, publisher. Which seat found it, and how, goes in --reason",
+	return fmt.Errorf("record: corroborate refused — a corroboration that backs the claim is a footnote, its title prints in the source's note and Bibliography entry, and the report is written to a reader of the subject:\n  - %s\nGive the source's own title — author, work, publisher. Which seat found it, and how, goes in --reason",
 		strings.Join(hits, "\n  - "))
 }

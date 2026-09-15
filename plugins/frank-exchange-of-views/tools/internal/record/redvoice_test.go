@@ -96,7 +96,7 @@ func TestMigratingReplayKeepsAVoicedFixNew(t *testing.T) {
 	}
 }
 
-// A labelled corroboration's title is its Bibliography entry, and migration replays an archived one
+// A labelled corroboration's title prints in the source's note and Bibliography entry, and migration replays an archived one
 // that carries a refused tell as archived.
 func TestMigratingReplayKeepsAVoicedCorroborationTitle(t *testing.T) {
 	_, lens := liveRegistryRun(t, map[string]recordpb.ClassMaterial{"g": recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE})

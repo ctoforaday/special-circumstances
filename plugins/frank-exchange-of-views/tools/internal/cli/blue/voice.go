@@ -21,7 +21,7 @@ import (
 // census instead (#873).
 //
 // A verb whose text the report prints OUTSIDE the body — the proof note (a [^PN] footnote and its
-// evidence.md heading) and the source title (its Bibliography entry) — renders the advice with
+// evidence.md heading) and the source title (its note and Bibliography entry) — renders the advice with
 // reportvoice.Note, naming where it lands. The 2026-09-11 is-91-prime run's lane drafts and frozen
 // base carried no tell, and its report.md carried four, every one in a proof footnote: the census
 // that exempted the Bibliography counted it as the tool's text, and the note inside each entry is

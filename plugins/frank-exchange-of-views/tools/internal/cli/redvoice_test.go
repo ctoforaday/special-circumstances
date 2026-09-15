@@ -43,10 +43,11 @@ func TestMintAdvisesOnThisRun(t *testing.T) {
 	}
 }
 
-// A LABELLED CORROBORATION PUTS ONE SPAN OF RED'S TEXT INTO report.md: its title, in the Bibliography
-// entry "[^N]: <title>. <url> (accessed <date>)". The url and the date are the source's identity, and
-// the claim is blue's sentence. Red's reason, outcome, confidence and seat stay on the record — so the
-// entry is exactly those three fields, and nothing else red wrote reaches the reader.
+// A LABELLED CORROBORATION PUTS ONE SPAN OF RED'S TEXT INTO report.md: its title, in the source's note
+// "[^N]: <title>. <url> (accessed <date>)" and, with no blue cite of the URL, its Bibliography line
+// "- <title>. <url> (accessed <date>)". The url and the date are the source's identity, and the claim
+// is blue's sentence. Red's reason, outcome, confidence and seat stay on the record — so the note and
+// the line are exactly those three fields, and nothing else red wrote reaches the reader.
 func TestCorroborationCarriesOnlyItsSourceIntoTheReport(t *testing.T) {
 	runDir := corroborateRun(t)
 	const (
@@ -61,11 +62,18 @@ func TestCorroborationCarriesOnlyItsSourceIntoTheReport(t *testing.T) {
 		t.Fatalf("corroborate: %v", err)
 	}
 	out := assembled(t, runDir)
-	bib := out[strings.Index(out, "## Bibliography"):]
-	entries := regexp.MustCompile(`(?m)^\[\^\d+\]:.*$`).FindAllString(bib, -1)
-	want := "[^1]: " + title + ". " + url + " (accessed 2026-09-01)"
-	if len(entries) != 1 || entries[0] != want {
-		t.Fatalf("the Bibliography entry is not exactly title, url and date:\n got %q\nwant %q", entries, want)
+	entry := title + ". " + url + " (accessed 2026-09-01)"
+	notes := regexp.MustCompile(`(?m)^\[\^\d+\]:.*$`).FindAllString(out, -1)
+	if len(notes) != 1 || notes[0] != "[^1]: "+entry {
+		t.Fatalf("the source's note is not exactly title, url and date:\n got %q\nwant %q", notes, "[^1]: "+entry)
+	}
+	i := strings.Index(out, "## Bibliography")
+	if i < 0 {
+		t.Fatalf("no Bibliography:\n%s", out)
+	}
+	lines := regexp.MustCompile(`(?m)^- .*$`).FindAllString(out[i:], -1)
+	if len(lines) != 1 || lines[0] != "- "+entry {
+		t.Fatalf("the Bibliography line is not exactly title, url and date:\n got %q\nwant %q", lines, "- "+entry)
 	}
 	for _, leak := range []string{"REDREASON", "red-lens-evidence", "supports_with_bridge", "corroborat"} {
 		if strings.Contains(out, leak) {
@@ -75,7 +83,7 @@ func TestCorroborationCarriesOnlyItsSourceIntoTheReport(t *testing.T) {
 }
 
 // THE AMBIGUOUS TELLS IN A TITLE ARE ADVICE, THROUGH THE REAL VERB: "this run" has a reading as part of a
-// source's own title, so the corroboration lands and the advice names the Bibliography entry; a clean
+// source's own title, so the corroboration lands and the advice names the note and Bibliography entry; a clean
 // title says nothing extra.
 func TestCorroborateAdvisesOnItsTitleThroughTheRealVerb(t *testing.T) {
 	runDir := corroborateRun(t)
@@ -105,7 +113,7 @@ func TestCorroborateAdvisesOnItsTitleThroughTheRealVerb(t *testing.T) {
 }
 
 // AN UNAMBIGUOUS TELL IN A TITLE THAT PRINTS IS REFUSED, THROUGH THE REAL VERB. A seat id has no reading as
-// a source's title, and a supporting corroboration's title is its Bibliography entry: the refusal names
+// a source's title, and a supporting corroboration's title prints in the source's note and Bibliography entry: the refusal names
 // the flag and the term, and nothing is recorded. The same title on a refutation lands — a refutation is
 // no footnote, so its title stays on the record.
 func TestCorroborateRefusesAnUnambiguousTellInItsTitleThroughTheRealVerb(t *testing.T) {
@@ -116,7 +124,7 @@ func TestCorroborateRefusesAnUnambiguousTellInItsTitleThroughTheRealVerb(t *test
 		"--quote", corroborated, "--as", "supports", "--confidence", "high",
 		"--reason", "the standard states it")
 	if err == nil {
-		t.Fatalf("a title naming a seat id landed as a Bibliography entry:\n%s", out)
+		t.Fatalf("a title naming a seat id landed in the report:\n%s", out)
 	}
 	for _, want := range []string{"--title", `"red-lens-evidence"`, "Bibliography", "--reason"} {
 		if !strings.Contains(err.Error(), want) {

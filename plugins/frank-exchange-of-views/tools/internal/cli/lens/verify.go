@@ -289,9 +289,10 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 	// one source may now corroborate several claims. Keyed on the source, only the first recorded.
 	var tells []string
 	if mayCite == cites && backsTheClaim(body.GetOutcome()) {
-		// THE TITLE IS RED'S TEXT IN THE REPORT. A labelled corroboration's --title is its
-		// Bibliography entry, "[^N]: <title>. <url> (accessed <date>)", and where red's anchor
-		// precedes blue's cite of the same URL in the document, red's title is the one it prints. The url and the date
+		// THE TITLE IS RED'S TEXT IN THE REPORT. A labelled corroboration's --title prints in the
+		// source's note, "[^N]: <title>. <url> (accessed <date>)", where red's anchor is the first under
+		// that note, and in the Bibliography line "- <title>. <url> (accessed <date>)" where no blue cite
+		// names the URL (report/assemble.go weaveCitations, bibliographyEntry). The url and the date
 		// are the source's identity; the claim is blue's sentence; the reason, outcome, confidence
 		// and seat stay on the record. So the title is the one span of a corroboration that reaches
 		// report.md, and it is held to the report's voice as a mint's problem, fix and prescription are:
@@ -355,12 +356,12 @@ type verifyResult struct {
 	Idempotent bool   `json:"idempotent,omitempty"`
 	Source     string `json:"source,omitempty"`
 	Outcome    string `json:"outcome"`
-	// VoiceTells is ADVICE on a labelled corroboration's title, which prints in the Bibliography.
+	// VoiceTells is ADVICE on a labelled corroboration's title, which prints in the source's note and Bibliography entry.
 	VoiceTells []string `json:"voice_tells,omitempty"`
 }
 
 func (r verifyResult) Human() string {
-	return r.human() + reportvoice.Note("the source's Bibliography entry", r.VoiceTells)
+	return r.human() + reportvoice.Note("the source's note and Bibliography entry", r.VoiceTells)
 }
 
 func (r verifyResult) human() string {

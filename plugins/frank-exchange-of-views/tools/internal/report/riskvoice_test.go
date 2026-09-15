@@ -20,7 +20,7 @@ import (
 // record, so the voice refusal's reach is exactly what reaches the reader. A new column, or a second
 // sentence, is a new span of red's text in the report that the refusal does not cover.
 //
-// A labelled corroboration's title is red's other span in report.md (the Bibliography), pinned by
+// A labelled corroboration's title is red's other span in report.md (the source's note and Bibliography entry), pinned by
 // cli's TestCorroborationCarriesOnlyItsSourceIntoTheReport.
 func TestRiskMatrixCarriesOnlyWhatMintWrote(t *testing.T) {
 	runDir := newRun(t)
