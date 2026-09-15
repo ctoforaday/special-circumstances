@@ -9,7 +9,7 @@ b6 archive and PRs #927 and #928, which changed 34 FEOV files: `dispatch.go` gai
 help pages move. The design was re-checked against that tree (extracted at
 `~/.claude/scratch/feov-lens-review/audit/r4-om/`) and holds: the parity audit's grouping is the one fork (b) extends
 (III.4), and `DispatchStands` compares recorded rows with the plan, which the retirement fold does not change.
-**Every `file:line` below is verified against `1ef6338f`, and implementation starts from a rebase on it.** Paths are relative to `plugins/frank-exchange-of-views/`
+**Every `file:line` below is verified against `origin/main` `6d89b380` (re-verified at the phase-0 rebase, 2026-09-15), the tree implementation is rebased on.** Between `1ef6338f` and `6d89b380`, main renamed the chair's role and CLI package `merge` to `chair` (#847), and `6a67e0bf` made the plan's `parties` and `docket` print `[]` and gave the chair's work list severity-based `Material` and `Stranded` items; §II states the result, and the design is unchanged by either. Paths are relative to `plugins/frank-exchange-of-views/`
 unless they start with `feov-memory/`, `scripts/` or `law/`.
 **[R]** = evidence from FEOV run records; **[P]** = extrapolated from plan-auditor verdicts.
 Evidence: `~/.claude/scratch/feov-lens-review/{lens-quant.md, gh-lens-issues.md, work/*.py, gap1-*.txt, gap2-sweep.txt}`,
@@ -63,29 +63,29 @@ Non-goals:
 S1–S4 are classified line by line in III.1; S5 in III.5.
 
 - **Materiality today is severity alone.** Every decider below compares current severity mass with 2.0:
-  - `record/dispatch.go:136` (readiness, and `materialOpen` for `PassPermitted` at `:188`), over `openGaps` (`:500`, query at `:506`);
-  - `record/refs.go:327-355` (the PASS gate, `requirePassClosesAllMaterialGaps`);
+  - `record/dispatch.go:139` (readiness, and `materialOpen` for `PassPermitted` at `:191`), over `openGaps` (`:503`, query at `:509`);
+  - `record/refs.go:322-350` (the PASS gate, `requirePassClosesAllMaterialGaps`);
   - `record/convergence_refusal.go:41-62` (the FAIL refusal);
   - `record/recordsql/views.go:439,454,466` (`convergence_vs_verdict`);
   - `verify/verify.go:371`, check `pass-closes-all-gaps`, on the Go `Family` fold (`record/replay.go:147`). Its
-    output reaches `run.md` (`report/assemble.go:1372`) and `feov-record verify`.
-  - **The chair's work list, which S1 missed because it names no threshold.** `record/sitting.go:153-160`
-    (`SittingOf`, role `merge`, which is `red-chair`: `roles.go:52`) adds a BLOCKING item "gap X is open — PASS is
-    refused while it is" for every open gap, and `Complete = !Blocked()` (`:235`). The gaps come from
-    `workGapStatesOfRun` (`viewjson.go:753-793`), which selects no materiality, through `WorkJSONBytes`
-    (`viewjson.go:922-933`). `cli/seat/help/verdict.md:9` tells the chair "`sitting.complete` is true exactly when
-    nothing blocking is left". Today that agrees with the gate only where every open gap is material.
-  - **The work view's open-gap rows** (`viewjson.go:820`, `workJSONOfGaps`, into `WorkGapJSON`): the rows the chair
+    output reaches `run.md` (`report/assemble.go:1389`) and `feov-record verify`.
+  - **The chair's work list, which S1 missed because it names no threshold.** `record/sitting.go:153-166`
+    (`SittingOf`, role `chair`, which is `red-chair`: `roles.go:52`) adds a BLOCKING item "gap X is open and material — PASS is
+    refused while it is" for every open gap whose current severity is medium or above, and "gap X is open and superseded — PASS is refused until its minter closes it" for every stranded gap (since `6a67e0bf`), and `Complete = !Blocked()` (`:241`). The gaps come from
+    `workGapStatesOfRun` (`viewjson.go:757-797`), which selects `stranded` and computes `Material` from the severity mass, not the class, through `WorkJSONBytes`
+    (`viewjson.go:927-938`). `cli/seat/help/verdict.md:9` tells the chair "`sitting.complete` is true exactly when
+    nothing blocking is left". Today that agrees with the severity gate; it names no unraised contradiction and no lens condition, and nothing on it is class-aware.
+  - **The work view's open-gap rows** (`viewjson.go:825`, `workJSONOfGaps`, into `WorkGapJSON`): the rows the chair
     lists at PASS. They carry no materiality today.
-  - **The chair's docket affordance** (`record/available.go:112-136`, role `merge`, the loop at `:113`): it offers
+  - **The chair's docket affordance** (`record/available.go:112-136`, role `chair`, the loop at `:113`): it offers
     `motion docket file` on EVERY open gap that has no pending docket motion. A docket motion holds PASS until
-    the bench rules it (`refs.go:375`; `dispatch.go:139-147`, `unruledDocket`), so docketing a gap that is not
+    the bench rules it (`refs.go:370`; `dispatch.go:142-150`, `unruledDocket`), so docketing a gap that is not
     material creates a block that the gap itself does not.
   - S3's other 17 lines count or render openness without deciding the gate: `verify.go:199,552`,
     `graph/graph.go:205,219,265,271`, `view/view.go:273,380,468`, `report/docs.go:339`, `report/site.go:169`,
-    `report/assemble.go:695`, `record/nearmatch.go:93`, `record/estoppel.go:290`, `record/replay.go:193`,
+    `report/assemble.go:712`, `record/nearmatch.go:93`, `record/estoppel.go:290`, `record/replay.go:193`,
     `record/available.go:181`, `recordsql/views.go:473`.
-  - **Not readers** (S1): ordering (`view/view.go:556`, `report/assemble.go:452`); the mass table and definition
+  - **Not readers** (S1): ordering (`view/view.go:556`, `report/assemble.go:469`); the mass table and definition
     (`record/record.go:108,119`, `recordpb/facets.go:163`); subject prose (`seatprobe/boards.go:622-657`,
     `enums.go:318`).
 - **Fresh** is `supersedes_count = 0` (`views.go:462-466`).
@@ -96,7 +96,7 @@ S1–S4 are classified line by line in III.1; S5 in III.5.
   honours (`cli/vocabulary_test.go:162-185`).
 - **The class registry:**
   - It lives at `feov-memory/class-registry.json` (39 classes, `{slug}` only).
-  - Staged by `setup/setup.go:687-708`.
+  - Staged by `setup/setup.go:662-683`.
   - Read by `record/replay.go:470-570`.
   - Written for hand-built runs by `StageForRun` (`replay.go:579`). Its callers: `seatprobe/build.go`,
     `releasegate/fuzz/{fuzz,registerbeforeappend}_test.go`, `difftest/golden_test.go`,
@@ -115,7 +115,7 @@ S1–S4 are classified line by line in III.1; S5 in III.5.
   (`migrate/sqlitesource.go:14,63`). A word with no registry entry translates by identity: fields matched by
   NAME (`migrate/registry.go:27-44`, `identityBody` `:77-112`, `fillFields` `:119-139`). So a run written by a
   binary that already has a field replays that field as recorded, and a pre-change run lacks the column, so the
-  field arrives absent. The event-schema epoch is compared once, at setup (`setup.go:492`).
+  field arrives absent. The event-schema epoch is compared once, at setup (`setup.go:467`).
   `record/store.go:82-95` refuses a former record FORMAT (event shards, no database) by content.
 - **A pre-change database keeps its creation-time schema.** `recordsql.Open` (`recordsql/store.go:250`) calls
   `ensureSchema` (`:339`), which returns at once when an `events` table exists (`hasEvents`, `:365`), so tables and
@@ -123,14 +123,14 @@ S1–S4 are classified line by line in III.1; S5 in III.5.
   (`recordsql/read.go:490,526`, advice at `:513`), fire only on the ERROR path of a body-table read or write. A
   view read that names a new column (`gap."material"`) fails first with SQLite's "no such column", which names
   neither the cause nor `migrate`.
-- **Dispatch** is `PlanDispatch` (`dispatch.go:59-203`), which has three sources:
-  1. a lens is ready when `pins[l] < Head` (`:112-118`). With `Head == 0` (nothing ingested) no lens is ready,
-     and `allLensesSat := plan.Head > 0` (`:111`) keeps `PassPermitted` false;
+- **Dispatch** is `PlanDispatch` (`dispatch.go:59-206`), which has three sources:
+  1. a lens is ready when `pins[l] < Head` (`:115-121`). With `Head == 0` (nothing ingested) no lens is ready,
+     and `allLensesSat := plan.Head > 0` (`:114`) keeps `PassPermitted` false;
   2. every open material gap engages its minter and `blue-respond`;
   3. docketed gaps engage the bench.
 
-  `PassPermitted` needs every lens to have sat at the head (`:188`, `requireEveryCastLensSatAgainstHead` `:527`,
-  which also refuses at head 0, `:559-560`). `Party` carries only `{seat_id, gap_ids}`, so `debate.js:847` tells
+  `PassPermitted` needs every lens to have sat at the head (`:191`, `requireEveryCastLensSatAgainstHead` `:530`,
+  which also refuses at head 0, `:562-563`). `Party` carries only `{seat_id, gap_ids}`, so `debate.js:847` tells
   every no-gap lens that "the head moved", whether or not it did.
 - **The relay.** `debate.js` reads no record (`:338, :415, :485, :679`); it calls only `agent`, `parallel` and
   `log`. The plan reaches it as the chair model's copy, `chairEnv.plan` (`:884`), checked only for
@@ -139,30 +139,30 @@ S1–S4 are classified line by line in III.1; S5 in III.5.
   `epoch_limit_reached` are optional and read with fallbacks (`plan.docket || []` at `:927`). Go's `Plan`
   (`dispatch.go:22-39`) emits every field, with no `omitempty`. Capture's `DispatchParityAudit`
   (`capture/dispatchparity.go:12-29`) checks registrations against dispatch rows, not party fields. Capture already
-  reads every envelope result from the workflow journal (`ReadJournal`, `capture.go:97-130`, called at `:1776`),
-  so the relayed plans are there to compare. `PlanDispatch` builds `var plan Plan` (`dispatch.go:60`): with
-  nothing to say, `Docket` and `Why` are nil, and `Parties` is nil when nobody is ready, so `--json` emits `null`
-  for each. The fuzz relays the verb's JSON as a live chair does and patches only `parties`
+  reads every envelope result from the workflow journal (`ReadJournal`, `capture.go:98-131`, called at `:1818`),
+  so the relayed plans are there to compare. `PlanDispatch` builds `plan := Plan{Parties: []Party{}, Docket: []string{}}` (`dispatch.go:63`, since `6a67e0bf`): with
+  nothing to say, `Parties` and `Docket` print `[]`, but `Why` is nil, so `--json` emits `null`
+  for it. The fuzz relays the verb's JSON as a live chair does and patches only `parties`
   (`releasegate/fuzz/fuzz_test.go:581-599`).
-- **"Has this seat sat" is one predicate.** `sittingFor` (`dispatch.go:257`) counts the seat's first register
+- **"Has this seat sat" is one predicate.** `sittingFor` (`dispatch.go:260`) counts the seat's first register
   after a dispatch as its sitting for that dispatch, and `register` is every seat's first act
   (`cli/seat/help/register.md`). So a fact read from INSIDE a sitting sees that sitting as already sat. The
-  readers: `PlanDispatch` (`:95`, `lensPins` `:458`), `benchSatFor` (`:148,475`), `exchangesOf` (`impasse.go:74-122`, via
+  readers: `PlanDispatch` (`:98`, `lensPins` `:461`), `benchSatFor` (`:151,478`), `exchangesOf` (`impasse.go:74-122`, via
   `:125`; its exported `Exchanges`, `impasse.go:39`, has no caller outside tests), the PASS gate's lens check
-  (`:549`) — all read by the chair between sittings — and `owedSitting` (`dispatch.go:440`, read at `sitting.go:113`), read inside the
+  (`:552`) — all read by the chair between sittings — and `owedSitting` (`dispatch.go:443`, read at `sitting.go:113`), read inside the
   sitting, where "not yet sat for" is the intended meaning (the register discharges it). #927 adds three more,
-  none reading inside a sitting in the wrong sense: `DispatchGroups` (`dispatch.go:283`; `Sat` off the LAST row
+  none reading inside a sitting in the wrong sense: `DispatchGroups` (`dispatch.go:286`; `Sat` off the LAST row
   naming each party, read by the parity audit after the run and by the two below); `unopenedChairSitting`
-  (`:336`, read inside the chair's sitting at `sitting.go:122-125` and by `RequireChairSittingOpened`, where it asks
-  exactly whether the chair's CURRENT sitting has been opened); and `DispatchStands` (`:396`, the chair's
+  (`:339`, read inside the chair's sitting at `sitting.go:122-125` and by `RequireChairSittingOpened`, where it asks
+  exactly whether the chair's CURRENT sitting has been opened); and `DispatchStands` (`:399`, the chair's
   `dispatch next`, which asks only whether anyone registered since the latest rows).
 - **Default cast** is four areas: `record/cast.go:15` and `debate.js:563`. Concurrency is capped at about 2 (#788).
   computation, adversary and architecture were never seated in any archived run [R §1].
 - **Report voice:**
-  - The rules: `agents/blue-researcher.md:184`, `blue-synthesizer.md:108`, `red-lens-voice.md:11-17`,
+  - The rules: `agents/blue-researcher.md:184`, `blue-synthesizer.md:109`, `red-lens-voice.md:11-17`,
     `adversarial-audit/SKILL.md:62`.
-  - The tells: `reportvoice/tells.go`. They are advisory and wired only into blue (`cli/blue/voice.go`, `ingest.go:114`).
-  - **Red's one path into `report.md`** is the risk matrix (`report/assemble.go:465-480`, `docs.go:121`), which
+  - The tells: `reportvoice/tells.go`. They are advisory and wired only into blue (`cli/blue/voice.go`, `ingest.go:125`).
+  - **Red's one path into `report.md`** is the risk matrix (`report/assemble.go:482-497`, `docs.go:121`), which
     lifts the lead sentence of each OPEN gap's `problem` and `required_fix`. Findings go to `docket.md`, verdict
     prose to `debate.md`/`run.md`, and retirements to `CHANGELOG.md`. No lens reads the matrix.
 - **Archives:** 13 on `origin/main` (`run-archive/*.tar.gz`, b6 added since the base). All 13 migrate with the base
@@ -199,14 +199,14 @@ S1–S4 are classified line by line in III.1; S5 in III.5.
   - `feov-memory/class-registry.json` gains the field on all 40 rows.
   - `scripts/classgen` parses it and FAILS on a row with a missing or unknown value, so a hand-added row without
     it is a CI failure, not a runtime surprise.
-  - `setup/setup.go:687` (`StageClassRegistry`) validates it (below); `seatprobe/build.go` stages
+  - `setup/setup.go:662` (`StageClassRegistry`) validates it (below); `seatprobe/build.go` stages
     `ShippedMaterialDefaults`; `migrate.go` copies and translates it; `StageForRun`/`StageForRunWithDefaults`
     (`replay.go:579`); and the hand-written JSON in `difftest/{scenarios,contract}_test.go` and
     `cli/referencechecks_test.go:136`.
 - **Instructions:**
   - The registry's `_extending` text ("A slug that earns its keep across runs is promoted into this file by a
     human") gains "with its `material_default` — `always`, `never` or `by_grade`".
-  - `capture/capture.go:2131`, the adoption text written into every `law/proposed/class-*.md` ("Adopting it means
+  - `capture/capture.go:2173`, the adoption text written into every `law/proposed/class-*.md` ("Adopting it means
     adding the slug to `feov-memory/class-registry.json` by hand"), gains "with its `material_default`; this run
     coined it as `<value>`". Capture reads the value from the run's `ClassNew.material_default`.
   - The 14 committed `law/proposed/class-*.md` files that remain after the promotion predate the field. Their
@@ -232,15 +232,15 @@ S1–S4 are classified line by line in III.1; S5 in III.5.
 
 **Every decider and every statement of the PASS gate** switches to that definition (S2 and S3, §II):
 - **Deciders:**
-  - `dispatch.go:136` reads `material` (still OR-ing `stranded`); `openGaps` (`:500`, query at `:506`) selects it.
-  - `refs.go:327-355` selects `g."material"` in place of the mass join.
+  - `dispatch.go:139` reads `material` (still OR-ing `stranded`); `openGaps` (`:503`, query at `:509`) selects it.
+  - `refs.go:322-350` selects `g."material"` in place of the mass join.
   - `convergence_refusal.go:41-62`: "nothing open is material" and `FreshMaterialMints` both read the column;
     `MaxSeverityMass` stays as a reported figure and no longer decides.
   - `views.go:439,454,466`: `convergence_vs_verdict` reads the column.
   - `verify.go:371` reads `g.Material`.
-  - **The chair's work list.** `WorkGapState` (`viewjson.go:733-749`) gains `Material`, selected and scanned at
-    `viewjson.go:774-793`. `WorkGapJSON` (`viewjson.go:635`) gains `"material"`, so the open-gap rows the chair
-    lists at PASS say which gaps hold it. `sitting.go:155-159` becomes:
+  - **The chair's work list.** `WorkGapState` (`viewjson.go:733-753`) reads `Material` from the view's class-aware column in place of `6a67e0bf`'s severity mass, selected and scanned at
+    `viewjson.go:778-797`. `WorkGapJSON` (`viewjson.go:635`) gains `"material"`, so the open-gap rows the chair
+    lists at PASS say which gaps hold it. `sitting.go:156-166` becomes:
     - an open MATERIAL gap is BLOCKING: "gap X is open and material — PASS is refused while it is";
     - an open gap that is not material goes on the same list with `Blocks: false`: "gap X is open and not material
       (its class is never material | graded <severity>) — it does not hold PASS; your PASS lists it by class with
@@ -255,20 +255,20 @@ S1–S4 are classified line by line in III.1; S5 in III.5.
   - **The docket affordance (`available.go:112-136`) is offered only on open MATERIAL gaps** (D12), the carried
     arm (`:128-134`) included. An open gap that is not material gets the sitting row above instead, which says
     it does not hold PASS. The verb itself is not refused: a party may still docket such a gap
-    (`dispatch.go:137-140`, "a trifle may be escalated too"). The work list just does not offer an act that
+    (`dispatch.go:140-143`, "a trifle may be escalated too"). The work list just does not offer an act that
     would create a PASS block the chair's by-class listing exists to avoid. Tested in §V #2. A stranded gap is held
-    as material (`dispatch.go:130-161`), so the docket offer stays on it.
+    as material (`dispatch.go:133-164`), so the docket offer stays on it.
 
 **Every Gate write-path refusal has a statement on the chair's work list, and the reverse** (round-5 gap 1).
 `sitting.complete` agrees with the gate only if every refusal has a blocking item and no item blocks what the gate
 admits. The census is the `*recordpb.Gate` case (`record.go:1172-1195`) and every refusal it reaches:
-| Gate refusal | Refuses | Work-list statement (role `merge`) |
+| Gate refusal | Refuses | Work-list statement (role `chair`) |
 |---|---|---|
-| `requireSupersededAreClosed` (`refs.go:272-305`), the stranded arm | ANY verdict, whatever the grade | **none today; added.** `WorkGapState` gains `Stranded` and `SupersededBy` (the view's `stranded`/`superseded_by`). A BLOCKING item: "gap X is open and superseded by Y — every verdict is refused while it is; close it with `--superseded-by`". A stranded gap is never listed as "not material — does not hold PASS", whatever its grade. |
-| material gaps (`refs.go:327-355`) | PASS | `sitting.go:155-159`, class-aware (above). |
-| unruled motions (`refs.go:375`) | PASS | `sitting.go:180` — agrees. |
-| no line-of-inquiry review (`refs.go:383`) | PASS | `sitting.go:191` — agrees. |
-| unraised contradictions (`unansweredContradictions`, `refs.go:392-394`) | PASS | **none today; added:** a BLOCKING item per claim, from the same function. |
+| `requireSupersededAreClosed` (`refs.go:272-305`), the stranded arm | ANY verdict, whatever the grade | **today (`6a67e0bf`) "gap X is open and superseded — PASS is refused until its minter closes it"; reworded.** `WorkGapState` gains `SupersededBy` beside `Stranded` (the view's `stranded`/`superseded_by`). A BLOCKING item: "gap X is open and superseded by Y — every verdict is refused while it is; close it with `--superseded-by`". A stranded gap is never listed as "not material — does not hold PASS", whatever its grade. |
+| material gaps (`refs.go:322-350`) | PASS | `sitting.go:156-166`, class-aware (above). |
+| unruled motions (`refs.go:370`) | PASS | `sitting.go:186` — agrees. |
+| no line-of-inquiry review (`refs.go:378`) | PASS | `sitting.go:197` — agrees. |
+| unraised contradictions (`unansweredContradictions`, `refs.go:387-389`) | PASS | **none today; added:** a BLOCKING item per claim, from the same function. |
 | `requireNoCastLensReady` (III.5), head 0 included | PASS | **added:** "lens L is ready (active \| re-arm owed) — PASS is refused while it is", and "no report has been ingested — PASS is refused", both from the same fold. |
 | `requirePassCoversStaleAreas` (III.5) | PASS | **added:** "area A is behind its pin P — PASS is refused until a spot-check this sitting names it". |
 | `requireFailIsNotConvergent` (`record.go:1181-1185`) | FAIL only | none: the list claims nothing about a FAIL. The chair prompt states the refusal. |
@@ -276,46 +276,46 @@ admits. The census is the `*recordpb.Gate` case (`record.go:1172-1195`) and ever
 Each added item is computed by the function the refusal calls, so the two cannot disagree. Pinned by
 `TestChairWorkListStatesEveryGateRefusal` and the stranded row of `TestChairWorkListAgreesWithPassGate` (§V #2).
   - `recordsql/views.go:300-305` quotes the sitting sentence; it quotes the new one.
-  - `dispatch.go:29` (`PassPermitted`'s comment) and `:141`: "material" is defined by reference to the class
+  - `dispatch.go:29` (`PassPermitted`'s comment) and `:144`: "material" is defined by reference to the class
     definition.
   - `agents/red-chair.md:13-14` and `debate.js:858-859` (III.5).
-- **Non-carriers in S2** (another gate, or they read the plan's own flag): `sitting.go:180,191` and
-  `refs.go:375,383,394` (motions, the inquiry read, unraised contradictions); `research-protocol/SKILL.md:21`
+- **Non-carriers in S2** (another gate, or they read the plan's own flag): `sitting.go:186,197` and
+  `refs.go:370,378,389` (motions, the inquiry read, unraised contradictions); `research-protocol/SKILL.md:21`
   (a contradiction finding); `cli/seat/help/inquiry-support.md:3`; `seatprobe/boards.go:503,527`,
   `recordpb/descriptions.go:164`, `cli/seat/help.go:22`, `cli/seat/verbs.go:230` (motions); `record/verdict.go:77-79`
-  and `cli/merge/dispatch.go:102,105` ("every open material gap", `r.PassPermitted`, both read the plan);
-  `seatprobe/production.go:61`, `releasegate/fuzz/{termination_test.go:106, fuzz_test.go:585,592,644,1736,2892}`
-  (plan fixtures and the oracle over `plan.PassPermitted`); `debate.js:446,461,826,887,1025` (the relay fields), and `debate.js:802` (the termination comment, which reads the plan's `pass_permitted`).
+  and `cli/chair/dispatch.go:102,105` ("every open material gap", `r.PassPermitted`, both read the plan);
+  `seatprobe/production.go:61`, `releasegate/fuzz/{termination_test.go:106, fuzz_test.go:585,592,644,1742,2898}`
+  (plan fixtures and the oracle over `plan.PassPermitted`); `debate.js:446,461,826,887,1033` (the relay fields), and `debate.js:802` (the termination comment, which reads the plan's `pass_permitted`).
 
 **S1, every line classified** (70 lines, paths under `tools/internal/`):
 | Lines | Disposition |
 |---|---|
-| `record/dispatch.go:136`, `refs.go:329`, `convergence_refusal.go:59,62`, `recordsql/views.go:466`, `verify/verify.go:371` | Deciders: read the class-aware column or `Gap.Material` (above). |
-| `record/dispatch.go:29,43,46,157`, `refs.go:317-319,355`, `convergence_refusal.go:12,77-79`, `views.go:435`, `verify.go:367` | Rewrite (S4 table below). |
-| `record/recordpb/record.pb.go:2792,2793,2795,6715,7250,7252` | Generated; regenerate. |
-| `record/verdict.go:45,67,79`; `record/enums.go:243`; `record/recordpb/record.pb.go:7265`; `report/assemble.go:381,397`; `cli/merge/dispatch.go:18,105`; `record/dispatch.go:31,57` | Stay true: CEILING and readiness text, "every open material gap", where materiality is whatever the one definition says. |
-| `record/dispatch.go:130,133,161,173` | Stay true: a stranded gap is held as material; the reason strings say "material" by the definition. |
-| `record/params.go:22`; `record/convergence_refusal.go:8,54,66,68`; `cli/setup.go:94`; `verify/verify.go:376-377`; `refs.go:352` | Stay true: they say "material" and define nothing. (The audit's range `convergence_refusal.go:54-68` also covers `:59,62`, which are deciders.) |
-| `view/view.go:556`; `report/assemble.go:452`; `record/record.go:108,117,119,754`; `recordpb/facets.go:163`; `recordsql/views.go:421`; `record.pb.go:6528` | Not materiality: ordering, the mass table and the mass formula. |
-| `seatprobe/boards.go:622,638,644,649,657`; `record/enums.go:318`; `record.pb.go:7272`; `diagnostics/seen.go:81`; `cli/log.go:16`; `cli/seat/verbs.go:89`; `cli/lens/verify.go:157` | Another sense ("material" as content, subject prose). |
+| `record/dispatch.go:139`, `refs.go:324`, `convergence_refusal.go:59,62`, `recordsql/views.go:466`, `verify/verify.go:371` | Deciders: read the class-aware column or `Gap.Material` (above). |
+| `record/dispatch.go:29,43,46,160`, `refs.go:312-316,350`, `convergence_refusal.go:12,77-79`, `views.go:435`, `verify.go:367` | Rewrite (S4 table below). |
+| `record/recordpb/record.pb.go:2794,2795,2797,6723,7258,7260` | Generated; regenerate. |
+| `record/verdict.go:45,67,79`; `record/enums.go:243`; `record/recordpb/record.pb.go:7273`; `report/assemble.go:398,414`; `cli/chair/dispatch.go:18,105`; `record/dispatch.go:31,57` | Stay true: CEILING and readiness text, "every open material gap", where materiality is whatever the one definition says. |
+| `record/dispatch.go:133,136,164,176` | Stay true: a stranded gap is held as material; the reason strings say "material" by the definition. |
+| `record/params.go:22`; `record/convergence_refusal.go:8,54,66,68`; `cli/setup.go:94`; `verify/verify.go:376-377`; `refs.go:347` | Stay true: they say "material" and define nothing. (The audit's range `convergence_refusal.go:54-68` also covers `:59,62`, which are deciders.) |
+| `view/view.go:556`; `report/assemble.go:469`; `record/record.go:108,117,119,754`; `recordpb/facets.go:163`; `recordsql/views.go:421`; `record.pb.go:6536` | Not materiality: ordering, the mass table and the mass formula. |
+| `seatprobe/boards.go:622,638,644,649,657`; `record/enums.go:318`; `record.pb.go:7280`; `diagnostics/seen.go:81`; `cli/log.go:16`; `cli/seat/verbs.go:89`; `cli/lens/verify.go:157` | Another sense ("material" as content, subject prose). |
 
 **S4, every line classified** (46 lines):
 | Lines | Disposition |
 |---|---|
-| `dispatch.go:43,46,136,157` | Rewrite. `:43-45`: "`material` is the severity mass at or above which a `by_grade` gap is material; the class decides for `always` and `never`". `:157`: the reason names why ("never-material class" or the grade). |
-| `refs.go:316` (with `:308-321`, two stacked doc comments, and `:355`) | Rewrite as one comment stating the class-aware gate: an open gap that is not material stays open on the board. The rewrite drops the claim at `:318-319,355` that "the report lists it as open, below material, not certified against": nothing produces that listing. |
+| `dispatch.go:43,46,139,160` | Rewrite. `:43-45`: "`material` is the severity mass at or above which a `by_grade` gap is material; the class decides for `always` and `never`". `:160`: the reason names why ("never-material class" or the grade). |
+| `refs.go:308-309` (with `:308-316`, one doc comment since `6a67e0bf` merged the two, and `:350`) | Rewrite as one comment stating the class-aware gate: an open gap that is not material stays open on the board. The rewrite drops the claim at `:314-316,350` that "the report lists it as open, below material, not certified against": nothing produces that listing. |
 | `convergence_refusal.go:12` (with `:8-12`), `:62`, `:77-79` | Rewrite. The message's "(top severity mass %.1f, material is %.1f)" and "a finding graded medium or above" become "a material finding — by its class, else graded medium or above". The seat-facing clause at `:78`, "the sub-material gaps stay on the board and the report lists them as not certified against", becomes "the gaps that are not material stay open on the board". |
 | `verify.go:366-367` | Rewrite the comment to the class-aware definition, without the same report-listing claim. |
 | `views.go:426,434-435` (with `:462-463`) | Rewrite the comments; the SQL reads the column. |
-| `record.proto:734-735` and `:740` (the `(sql).why` a lens sees when it mints without `--severity`) | Rewrite. New `why`: "materiality reads it wherever the class goes by grade (medium and above holds the gate), so an absent grade would score as TRIVIAL and the gap would read as harmless rather than ungraded". |
+| `record.proto:736-737` and `:742` (the `(sql).why` a lens sees when it mints without `--severity`) | Rewrite. New `why`: "materiality reads it wherever the class goes by grade (medium and above holds the gate), so an absent grade would score as TRIVIAL and the gap would read as harmless rather than ungraded". |
 | `record.proto:295-297` (`(means)` on low_medium, medium, medium_high: "between minor and material", "material", "between material and serious"), seat-facing through `enums.go:125` and `enumvalue.go:225` | Rewrite: "below the by-grade material floor", "the by-grade material floor", "above the by-grade material floor, below serious". |
-| `record.pb.go:2792-2793,6715,7250-7252`; `recordsql/testdata/schema.sql:136-138,1129` | Generated. Regenerate with `go -C $W/scripts run ./protogen` and `./schemagen`; §V #7's `schemagen` gate fails a stale copy. |
+| `record.pb.go:2794-2795,6723,7258-7260`; `recordsql/testdata/schema.sql:136-138,1129` | Generated. Regenerate with `go -C $W/scripts run ./protogen` and `./schemagen`; §V #7's `schemagen` gate fails a stale copy. |
 | `debate.js:849` | Rewrite: "a gap that is not material — by its class, or graded below medium — does not hold the gate". |
 | `debate.js:869` | Rewrite "material begins at medium" to "materiality is the class's default: always, never, or by grade from medium". |
 | `view/view_test.go:490` | Rewrite the comment: "materiality reads it wherever the class goes by grade". |
 | `dispatch_test.go:385,423,453-454,468`; `cli/cli_test.go:1285`; `recordsql/convergence_test.go:47-49,63` | Stay true: these fixtures stage `by_grade` classes (`StageForRun`), where medium is the floor. |
 | `cli/setup.go:94` | Stays true: "nothing material" names no definition. |
-| `blue-synthesizer.md:109`, `lead-judge.md:121`, `adversarial-audit/SKILL.md:38,67`, `debate.js:870` | Another sense ("material" as content). |
+| `blue-synthesizer.md:110`, `lead-judge.md:121`, `adversarial-audit/SKILL.md:38,67`, `debate.js:870` | Another sense ("material" as content). |
 
 `cli/lens/mint.go:250` (`--class` help) adds "its material default is recorded with the gap".
 
@@ -380,7 +380,7 @@ Each added item is computed by the function the refusal calls, so the two cannot
   (is-91-prime-a, -b3, -b6) had no gap open at PASS that class defaults make material. b6's two open gaps
   (`inquiry-fate-mismatch`, `record-status-erasure`, both `low_medium`, both `ClassNew`) stay `by_grade`.
 - `EventSchema` bumps (`requirements.json` → `schemagen`), because the event shape changes. Setup's existing
-  start-of-run check (`setup.go:492`) covers new runs. No epoch is compared on resume or read (PR #794).
+  start-of-run check (`setup.go:467`) covers new runs. No epoch is compared on resume or read (PR #794).
 
 ### III.2 Closure targets the object — item 2 [R]
 
@@ -409,13 +409,13 @@ seat prompt:
 | Field | Read at | Missing today |
 |---|---|---|
 | `parties[].seat_id` | `roleOfParty` `:907`, agent choice | schema-required |
-| `parties[].gap_ids` | `lensPrompt` `:917`, `bluePrompt` `:927`, `benchPrompt` `:951`, `found_closed` filter `:939-940` | schema-required |
+| `parties[].gap_ids` | `lensPrompt` `:917`, `bluePrompt` `:927`, `benchPrompt` `:959`, `found_closed` filter `:930-931` | schema-required |
 | `head` | `lensPrompt` `:847` | schema-required |
 | `docket` | `bluePrompt` `:927` (the closing-arguments clause) | optional; `plan.docket \|\| []` silently reads as "nothing docketed" |
 | `last_pin`, `stale_areas` (proposed in round 1) | would be `lensPrompt`, the chair | would be absence-encoded |
 
 The rest (`pass_permitted`, `ceiling`, `epoch_limit_reached`, `max_epochs`, `why`) steer termination and the
-outcome text (`:887-896, :980-988, :1014, :1025`), not a seat prompt.
+outcome text (`:887-896, :988-996, :1022, :1033`), not a seat prompt.
 
 **Decision: the lens's sitting fact leaves the relay and comes from the record.** Alternatives weighed:
 1. Keep `last_pin` in the relay, schema-required, with a guard in `debate.js`. Rejected. A present but wrong value
@@ -441,7 +441,7 @@ same `dispatchLedger`/`sittingFor`:
   `first` with no prior sitting (pin 0), `behind` when `pin < head`, and `unchanged` when `pin == head`.
 
 The sweep of every fact computed from `lensPins`, `sat`, `sittingFor` or `owedSitting` (§II) finds one other
-reader inside the sitting it describes. That is `owedSitting` (`dispatch.go:440`, read at `sitting.go:113`), whose "not yet sat for" is
+reader inside the sitting it describes. That is `owedSitting` (`dispatch.go:443`, read at `sitting.go:113`), whose "not yet sat for" is
 correct there. The facts this plan adds — retirement states, productive-sitting attribution and `stale_areas` —
 are computed by `PlanDispatch`, which the chair runs between sittings.
 
@@ -466,24 +466,24 @@ No "read changed text first" clause.
 
 A failed check throws, naming the field and the sitting. `plan.docket || []` at `:927` becomes `plan.docket`.
 
-**Go emits arrays, never `null`, at the source.** `PlanDispatch` (`dispatch.go:60`) initializes `Parties`,
+**Go emits arrays, never `null`, at the source.** `PlanDispatch` (`dispatch.go:63`) initializes `Parties`,
 `Docket`, `Why` and `StaleAreas` to empty slices. The fuzz's `parties` patch (`fuzz_test.go:594-596`) is deleted,
 so the fuzz relays exactly what the verb prints, and §V #9 fails if any array comes back `null`.
 
 **A relayed party field that disagrees with the dispatch row is caught** (fork (b), gblock: build the check).
-`DispatchParityAudit` (`capture/dispatchparity.go:29`) takes the journal results (`capture.go:1776`) and the
+`DispatchParityAudit` (`capture/dispatchparity.go:29`) takes the journal results (`capture.go:1818`) and the
 journal's presence. It pairs each relayed plan with non-empty `parties`, in order, with the chair sitting's
 dispatch group, in order; a count mismatch is a FAIL. It then compares every relayed field that has a
 dispatch-row counterpart:
 - the set of `seat_id`s against the group's rows;
 - each party's `gap_ids` (as a set) against the `gap_ids` of the LAST row naming that seat in the group
-  (`Dispatch.gap_ids`, `record.proto:1790`);
+  (`Dispatch.gap_ids`, `record.proto:1798`);
 - `head` against that last row's `pin`.
 
 A group can hold more than one row per seat: a plan with a docket is never "standing" (`DispatchStands`,
-`dispatch.go:397-398`), and the archived B5 and B6 chairs wrote the plan twice. The last row is the one
+`dispatch.go:400-401`), and the archived B5 and B6 chairs wrote the plan twice. The last row is the one
 `DispatchGroup.Sat` already reads. `DispatchGroup` exports it per party (`PartyRows map[string]PartyRow{Pin, GapIDs}`; `DispatchGroup` already has `Last int`, the group's last stream position),
-built from the map `DispatchGroups` already keeps (`dispatch.go:305-311`), so capture reads no second copy of the
+built from the map `DispatchGroups` already keeps (`dispatch.go:308-314`), so capture reads no second copy of the
 rule.
 
 A mismatch FAILs, naming the sitting, the seat, and the relayed and recorded values. **Stated assumption:** the
@@ -494,7 +494,7 @@ run's capture (`run-record-audit.md`, the `dispatch-parity` line; §V #10) is wh
 registration half still runs, and the detail states that party fields were NOT compared — never a silent pass.
 Carriers:
 - `dispatchparity.go:12-28` (the doc comment);
-- the call at `capture.go:1814`;
+- the call at `capture.go:1853`;
 - `debate.js:440` (comment) and `debate.js:858` / `red-chair.md:13` ("a party you drop or add is a finding
   against you" becomes "a party, gap id or head you drop, add or alter is a finding against you");
 - `docs/seat-command-triggers.md:72`.
@@ -530,15 +530,15 @@ because nothing has been ingested and there is nothing to audit. A never-sat len
 - `requireEveryCastLensSatAgainstHead` becomes `requireNoCastLensReady`, at the same site
   (`record.go:1190-1194`, `!Migrating`). Outside `Migrating` it refuses a PASS whenever the fold leaves any cast
   lens ready, naming each lens and why it is ready. So a chair that ignores `pass_permitted` cannot record a PASS
-  over an owed re-arm, which today's gate (`pins[s] < head`, `dispatch.go:527-562`) also refuses.
-  It keeps the head-0 refusal (`dispatch.go:559-560`).
+  over an owed re-arm, which today's gate (`pins[s] < head`, `dispatch.go:530-565`) also refuses.
+  It keeps the head-0 refusal (`dispatch.go:562-563`).
 
 **Stale-area spot-check** (N3, gblock):
 - The plan gains `stale_areas`: every lens retired for good whose pin is behind the head, with that pin. The chair
   reads it from its own `dispatch next` output; the relay carries it (schema-required), and `debate.js` builds
   no prompt from it.
 - At the PASS sitting the chair reads the record's changes since each pin against the area's duties, and names the
-  areas: `merge spot-check --areas <csv>`, a field on the SpotCheck event, validated against the cast.
+  areas: `chair spot-check --areas <csv>`, a field on the SpotCheck event, validated against the cast.
 - `requirePassCoversStaleAreas` refuses a PASS until a spot-check in that sitting names every stale area. It is
   gated `!Migrating`, because is-91-prime-a, -b3 and -b6 carry PASS gates.
 - A defect found there goes in the spot-check's prose and the chair records no verdict (§IV, residue).
@@ -546,8 +546,8 @@ because nothing has been ingested and there is nothing to audit. A never-sat len
 **Interactions:** the chair's verdict, CEILING, MaxEpochs, the valve, the bench and the mint budget are all
 unchanged. A lens at budget retires within two sittings. There is no chair route to ready a lens (D6).
 
-**Carriers that no gate reads** (goldens diff only the flag list, so each is named). S5 gives 53 lines. Four are new since #927 and are not carriers: `dispatch.go:388` (the chair's owed-register
-message names the dispatch row's pin) and `:414,417,421` (`DispatchStands`' key is a row's seat, pin and gaps).
+**Carriers that no gate reads** (goldens diff only the flag list, so each is named). S5 gives 53 lines. Four are new since #927 and are not carriers: `dispatch.go:391` (the chair's owed-register
+message names the dispatch row's pin) and `:417,420,424` (`DispatchStands`' key is a row's seat, pin and gaps).
 The rest change as follows:
 - **Help pages:**
   - `cli/seat/help/dispatch.md:11` becomes: "Three things make a party ready. A lens that is active (it minted fresh
@@ -558,10 +558,10 @@ The rest change as follows:
     with no re-arm owed, or retired for good — and `stale_areas` names what the chair spot-checks before a PASS".
   - `cli/seat/help/spot-check.md` gains the `--areas` paragraph.
 - **Code and schema comments:**
-  - `dispatch.go:14,29,56,84,113-115,456-470,527-562` are rewritten to the states.
-  - `record.proto:1779-1783` (the Dispatch comment; regenerate `record.pb.go:5925`): "a lens engaged with no gaps is
+  - `dispatch.go:14,29,56,87,116-118,459-473,530-565` are rewritten to the states.
+  - `record.proto:1787-1791` (the Dispatch comment; regenerate `record.pb.go:5933`): "a lens engaged with no gaps is
     ready by its retirement state".
-  - `releasegate/fuzz/fuzz_test.go:1892`: "or FRESH, because the head moved past its pin" becomes "or by its
+  - `releasegate/fuzz/fuzz_test.go:1898`: "or FRESH, because the head moved past its pin" becomes "or by its
     retirement state".
   - `releasegate/fuzz/scriptedchair_test.go:32`: the fixture reason "every lens sat against the head and nothing
     material is open" becomes "no lens is ready and nothing material is open".
@@ -593,10 +593,10 @@ The rest change as follows:
     > OPEN GAP THAT IS NOT MATERIAL, BY CLASS — your work list marks each — with one line on why it changes no reader
     > decision, on the record.
   - `red-chair.md:16` (the spot-check duty) and its prompt twin `debate.js:861` gain the stale areas.
-  - `dispatch.go:253`, `sittingFor`'s comment listing its readers, gains `lensStates` and `lastSittingBefore`.
-  - `dispatch.go:95` (`lensPins` in `PlanDispatch`) is replaced by the retirement fold's call.
+  - `dispatch.go:256`, `sittingFor`'s comment listing its readers, gains `lensStates` and `lastSittingBefore`.
+  - `dispatch.go:98` (`lensPins` in `PlanDispatch`) is replaced by the retirement fold's call.
 - **Printers and schema:**
-  - `cli/merge/dispatch.go:113` ("— the head moved past its pin") becomes "— audits the report (its state is in the
+  - `cli/chair/dispatch.go:113` ("— the head moved past its pin") becomes "— audits the report (its state is in the
     reasons below)", and the printer lists `stale_areas`.
   - The `CHAIR_ENVELOPE` plan schema (`debate.js:444-466`) gains `stale_areas`, required (III.4).
   - `docs/seat-command-triggers.md:72` gains one clause.
@@ -604,15 +604,15 @@ The rest change as follows:
   - `debate.js:215` ("pins" means tests pin);
   - `docs/{propagation-and-anchoring,seat-surface-naming}.md`;
   - `lead-judge.md:118`, `report_template.md:91`, `research-protocol/SKILL.md:61`;
-  - `record.proto:881`, `docs/seat-command-triggers.md:66,169-207`;
+  - `record.proto:883`, `docs/seat-command-triggers.md:66,169-207`;
   - `vocabulary.md:117,181,190`, which stay true;
   - `debate.js:795` (the section banner) and `debate.js:855` (a comment on what the chair does), `red-chair.md:3`
     (the description: "spot-checks the archive");
-  - `dispatch.go:219,236` and `record.proto:1781`: "pin" is the dispatch row's head, which stays true.
+  - `dispatch.go:222,239` and `record.proto:1789`: "pin" is the dispatch row's head, which stays true.
 
 ### III.6 Blue: the reader's question, focus, complexity that pays — item 6 and gblock's standard [R/P]
 
-`agents/blue-researcher.md` gets new points after `:57`; `blue-synthesizer.md` gets the same after `:53`, phrased
+`agents/blue-researcher.md` gets new points after `:57`; `blue-synthesizer.md` gets the same after `:54`, phrased
 for authorship.
 > 4. **Material to the question asked — of interest, not merely interesting.** YOU MUST make every section, table and
 >    caveat name the reader's question it answers. A tangent stays only if it illuminates something central to it.
@@ -623,7 +623,7 @@ for authorship.
 > 6. **COMPLEXITY MUST PAY.** Kept complexity — explanation, method or implementation — MUST beat the naive version by
 >    more than the cognitive load and cost it adds; state that trade where you keep it.
 
-**The drop rule** (D4), at `blue-researcher.md:125-126` and `blue-synthesizer.md:58-59`, becomes:
+**The drop rule** (D4), at `blue-researcher.md:125-126` and `blue-synthesizer.md:59-60`, becomes:
 > YOU MUST NOT drop substantive content — a claim, its evidence, or its qualification. Material that answers no
 > question the reader asked may leave the report for the record: retire it there, with the reason.
 
@@ -642,7 +642,7 @@ for authorship.
 
 ### III.7 The half-landed telos — item 7 [R]
 
-- `agents/blue-synthesizer.md:45-53` ("**Red's PASS is your win condition**…") is replaced by `blue-researcher.md`'s
+- `agents/blue-synthesizer.md:46-54` ("**Red's PASS is your win condition**…") is replaced by `blue-researcher.md`'s
   text ("AND THE PASS IS EVIDENCE, NOT THE GOAL…").
 - `agents/blue-researcher.md:109-111` loses its history ("An earlier version of this constitution said 'Red's PASS
   is your win condition'. That frame is wrong and it invites…") and reads in the present tense:
@@ -658,7 +658,7 @@ for authorship.
 - `adversarial-audit/SKILL.md:62`: "the voice seat is not always cast" becomes "the voice seat sits unless an
   operator narrows the cast".
 - Fixtures:
-  - `releasegate/fuzz/fuzz_test.go:740-745,2437`: `fuzzLensSeats` comes from `record.CastFor(nil, …)`;
+  - `releasegate/fuzz/fuzz_test.go:740-745,2443`: `fuzzLensSeats` comes from `record.CastFor(nil, …)`;
   - `record/cast_test.go:31`;
   - `tests/simulator/debate.test.mjs`.
 - `seatprobe/build.go:54` stays at four (D5); only its comment is corrected.
@@ -734,9 +734,9 @@ Red text that reaches `report.md` is addressed to the reader, about the subject.
 | A late catch where earlier text claimed impossibility | catalogue-shape R6.1, the foreign-file write [P] | The single re-arm, then the chair's stale-area spot-check. `false-universal` is `always`. |
 | A late change breaks the area of a lens retired for good (ACCEPTED, D1) | D1 | The chair must read and name each stale area before a PASS; a chair read is not a lens sitting. |
 | A regrade down retroactively retires a lens for good without its re-arm (ACCEPTED, fork) | material is read NOW | The stale-area spot-check covers that area before a PASS. |
-| The chair finds a defect in a stale area (ACCEPTED, D6 reversed) | N1/N2 | The chair records it in the spot-check and records no verdict, so the run ends UNVERIFIED: loud. A FAIL is refused on a converged board (`requireFailIsNotConvergent`), so the bench's `outcome --reason` cites the spot-check; the engine's "neither PASS nor CEILING held" (`debate.js:988`) understates it. Rare: the defect must fall in an area whose lens already spent its re-arm. |
+| The chair finds a defect in a stale area (ACCEPTED, D6 reversed) | N1/N2 | The chair records it in the spot-check and records no verdict, so the run ends UNVERIFIED: loud. A FAIL is refused on a converged board (`requireFailIsNotConvergent`), so the bench's `outcome --reason` cites the spot-check; the engine's "neither PASS nor CEILING held" (`debate.js:996`) understates it. Rare: the defect must fall in an area whose lens already spent its re-arm. |
 | A reader of "material" disagrees with the rest | the deciders and gate statements (§II, III.1) | One definition carried on the record: the view column and the `Family` fold. #2 tests the `verify` PASS case and the chair's work list against the gate; #14 re-runs S1–S5. |
-| The chair's work list says a PASS is blocked while the gate admits it, or the reverse | `sitting.go:155-159` (audit round 2) | `WorkGapState.Material`; #2's table test holds `sitting.complete` equal to the gate's answer for `always`, `never` and `by_grade` gaps. |
+| The chair's work list says a PASS is blocked while the gate admits it, or the reverse | `sitting.go:156-166` (audit round 2) | `WorkGapState.Material`; #2's table test holds `sitting.complete` equal to the gate's answer for `always`, `never` and `by_grade` gaps. |
 | A migrated archive carries a PASS over a gap class defaults now make material (ACCEPTED, fork (a)) | the `Migrating` exemption (gblock) | None of the 13 archives has such a PASS (measured, III.1). For one that did, `verify`'s `pass-closes-all-gaps` and `run.md` would report a violation of the current rule. No mechanism is built. |
 | A pre-change run dies on SQLite "no such column" | `recordsql/store.go:339-372` | The open-time column check fires first and names `migrate` (#2). |
 | A relayed prompt input is dropped, mistyped or copied wrong | the chair model's copy (`debate.js:884`) | The sitting fact is off the relay (III.4). Every required field is type-checked and throws. Go emits arrays, never `null`. `DispatchParityAudit` FAILs a relayed seat set, `gap_ids` or `head` that disagrees with the dispatch rows (fork (b)). |
@@ -759,17 +759,17 @@ origin/main` (`1ef6338f` or later), with a clean tree; implementation starts the
 | # | Command | Proves | Re-armed by |
 |---|---|---|---|
 | 1 | `go -C $W/$T test -count=1 ./internal/record/...` running `TestLensRetiresAfterTwoBarrenSittings`, `TestRetiredLensReArmedOnceByHeadMove`, `TestBarrenReArmRetiresForGood`, `TestRetiredForGoodIgnoresLaterHeadMoves`, `TestFreshMintOnReArmMakesLensActiveAgain`, `TestActiveLensReadyAtSameHead`, `TestNoLensReadyBeforeIngest`, `TestLineageMintIsNotFresh`, `TestNeverClassMintIsNotFresh`, `TestPassPermittedWithLensRetiredForGoodBehindHead`, `TestPassRefusedWhileReArmOwed` (a lens retired with `Head > pin`: `pass_permitted` is false AND a chair's `verdict --as PASS` is refused at the write path, naming the lens), `TestPassPermittedAndGateShareTheFold` (table over active, retired-at-head, retired-with-re-arm-owed and retired-for-good: the plan's `pass_permitted` and the write path's answer agree in every row), `TestBudgetExhaustedLensRetires`, `TestWhyCarriesState`, `TestLensWorkCarriesLastSitting` (the fixture REGISTERS the lens for the dispatch before reading its work view, as a live seat does: its first sitting reads `first`; after a mint and a blue edit, the next sitting reads `behind` with the earlier pin; a re-dispatch at the same head reads `unchanged`; a lens whose earlier dispatch went unsat reads `first`; a lens never dispatched reads `undispatched`; the key is always present) | retirement (D1), D11, D10 | `dispatch.go`, `refs.go`, `sitting.go` |
-| 1b | same package: `TestPlanListsStaleAreas`, `TestPassRefusedUntilSpotCheckCoversStaleAreas`, `TestSpotCheckAreasValidatedAgainstCast`, `TestMigratingSkipsStaleAreaGate` | N3 | `dispatch.go`, `refs.go`, `cli/merge/spot_check.go` |
-| 2 | `go -C $W/$T test -count=1 ./internal/record/... ./internal/verify/... ./internal/cli/...` running `TestMaterialAlwaysHoldsLowGrade`, `TestMaterialNeverReleasesHighGrade`, `TestFamilyGapMaterialMatchesView`, `TestChairWorkListOverOpenNeverClassGap` (an open `never` gap graded high: the item is present with `blocks: false`, `sitting.complete` is true, and the PASS appends), `TestChairWorkListAgreesWithPassGate` (the fixture registers the chair AFTER the parties sit, because #927's blocking "register for this sitting" item, `sitting.go:122-125`, would otherwise hold `complete` false for a reason unrelated to materiality; table over `always`-low, `never`-high, `by_grade`-low, `by_grade`-medium and a STRANDED `by_grade`-low ancestor — blocking, `complete` false while it is open, never listed as "does not hold PASS", with the docket offer present: `complete` equals "the PASS appends", and `open[].material` matches), `TestPreChangeRegistryRefusedNamingMigrate`, `TestPreChangeDatabaseRefusedAtOpen` (a database whose `mint` table lacks `class_material`: `recordsql.Open` refuses naming the table, the column and `migrate`, and `dispatch next` over the same run prints that refusal, not "no such column"; the test logs the open's added cost), `TestMigrateSourceOpensPreChangeDatabase`, `TestStageForRunWritesByGrade`, `TestClassNewCarriesMaterialDefault`, `TestMintRefusesPresetClassMaterial`, `TestSeverityRefusalWhyIsClassAware` (minting without `--severity` shows the new `why`), `TestMigratingAdmitsArchivedPassOverNowAlwaysGap` (migrating a fixture whose archived PASS stood over an open low-graded gap of a class the shipped table makes `always` succeeds, and the PASS gate is on the migrated record), `TestLivePassOverOpenAlwaysGapRefused` (the same board, a live `Append`, is refused), `TestMigrateClassNewTakesCurrentRegistryDefault` (a pre-change `ClassNew` with no `material_default`), `TestMigrateRunWrittenByThisBinaryKeepsNewFields` (a run written by the new binary with a run-coined `class new --material-default always`, a `Mint` of that class, a `Mint` of a registry `never` class and a `spot-check --areas`: migration refuses nothing, and `class_material`, `material_default`, the staged registry rows and `areas` in the destination equal the source's), `TestPlanJSONEmitsArraysNeverNull` (an empty plan marshals `parties`, `docket`, `why` and `stale_areas` as `[]`), `TestChairWorkListStatesEveryGateRefusal` (for each Gate refusal in III.1's table, a board where only that refusal holds: the chair's list carries exactly one blocking item naming it, and `complete` is false; the FAIL-only convergence refusal adds none), `TestSetupRefusesRegistryWithoutMaterialDefault` (a `<cwd>/feov-memory/class-registry.json` row lacking the field, and one with an unknown value: setup exits 2 before any run directory exists, naming the file, the slug and the registry remedy, never `migrate`), `TestLoadRegistryRefusalNamesRegistryNotMigrate` (a current run whose staged registry was altered after setup), `TestMigrateStagedSlugAbsentFromTableFillsByGrade` (the row takes `by_grade`; the manifest's `stated_fills` names it; nothing is refused), `TestMigrateClassNewWithoutDefaultFillsFromTable` (a slug the table holds takes the table's value with no fill; one it lacks takes `by_grade` with a stated fill), `TestMigrateClassNewWithDefaultKeepsIt`, `TestChairDocketAffordanceOnlyOnMaterialGaps` (an open `never` gap and an open low `by_grade` gap get no `motion docket file` item; an open material gap, and a carried material gap, do), and in verify `TestPassOverOpenNeverClassGapIsNotA67Violation` | one class-aware definition (G2), the work list (audit gap 1), the pre-change refusals, the exemption | `replay.go`, `views.go`, `viewjson.go`, `sitting.go`, `verify.go`, `record.proto`, `recordsql/store.go`, `migrate.go`, `record.go` |
+| 1b | same package: `TestPlanListsStaleAreas`, `TestPassRefusedUntilSpotCheckCoversStaleAreas`, `TestSpotCheckAreasValidatedAgainstCast`, `TestMigratingSkipsStaleAreaGate` | N3 | `dispatch.go`, `refs.go`, `cli/chair/spot_check.go` |
+| 2 | `go -C $W/$T test -count=1 ./internal/record/... ./internal/verify/... ./internal/cli/... ./internal/setup/...` running `TestMaterialAlwaysHoldsLowGrade`, `TestMaterialNeverReleasesHighGrade`, `TestFamilyGapMaterialMatchesView`, `TestChairWorkListOverOpenNeverClassGap` (an open `never` gap graded high: the item is present with `blocks: false`, `sitting.complete` is true, and the PASS appends), `TestChairWorkListAgreesWithPassGate` (the fixture registers the chair AFTER the parties sit, because #927's blocking "register for this sitting" item, `sitting.go:122-125`, would otherwise hold `complete` false for a reason unrelated to materiality; table over `always`-low, `never`-high, `by_grade`-low, `by_grade`-medium and a STRANDED `by_grade`-low ancestor — blocking, `complete` false while it is open, never listed as "does not hold PASS", with the docket offer present: `complete` equals "the PASS appends", and `open[].material` matches), `TestPreChangeRegistryRefusedNamingMigrate`, `TestPreChangeDatabaseRefusedAtOpen` (a database whose `mint` table lacks `class_material`: `recordsql.Open` refuses naming the table, the column and `migrate`, and `dispatch next` over the same run prints that refusal, not "no such column"; the test logs the open's added cost), `TestMigrateSourceOpensPreChangeDatabase`, `TestStageForRunWritesByGrade`, `TestClassNewCarriesMaterialDefault`, `TestMintRefusesPresetClassMaterial`, `TestSeverityRefusalWhyIsClassAware` (minting without `--severity` shows the new `why`), `TestMigratingAdmitsArchivedPassOverNowAlwaysGap` (migrating a fixture whose archived PASS stood over an open low-graded gap of a class the shipped table makes `always` succeeds, and the PASS gate is on the migrated record), `TestLivePassOverOpenAlwaysGapRefused` (the same board, a live `Append`, is refused), `TestMigrateClassNewTakesCurrentRegistryDefault` (a pre-change `ClassNew` with no `material_default`), `TestMigrateRunWrittenByThisBinaryKeepsNewFields` (a run written by the new binary with a run-coined `class new --material-default always`, a `Mint` of that class, a `Mint` of a registry `never` class and a `spot-check --areas`: migration refuses nothing, and `class_material`, `material_default`, the staged registry rows and `areas` in the destination equal the source's), `TestPlanJSONEmitsArraysNeverNull` (an empty plan marshals `parties`, `docket`, `why` and `stale_areas` as `[]`), `TestChairWorkListStatesEveryGateRefusal` (for each Gate refusal in III.1's table, a board where only that refusal holds: the chair's list carries exactly one blocking item naming it, and `complete` is false; the FAIL-only convergence refusal adds none), `TestSetupRefusesRegistryWithoutMaterialDefault` (a `<cwd>/feov-memory/class-registry.json` row lacking the field, and one with an unknown value: setup exits 2 before any run directory exists, naming the file, the slug and the registry remedy, never `migrate`), `TestLoadRegistryRefusalNamesRegistryNotMigrate` (a current run whose staged registry was altered after setup), `TestMigrateStagedSlugAbsentFromTableFillsByGrade` (the row takes `by_grade`; the manifest's `stated_fills` names it; nothing is refused), `TestMigrateClassNewWithoutDefaultFillsFromTable` (a slug the table holds takes the table's value with no fill; one it lacks takes `by_grade` with a stated fill), `TestMigrateClassNewWithDefaultKeepsIt`, `TestChairDocketAffordanceOnlyOnMaterialGaps` (an open `never` gap and an open low `by_grade` gap get no `motion docket file` item; an open material gap, and a carried material gap, do), and in verify `TestPassOverOpenNeverClassGapIsNotA67Violation` | one class-aware definition (G2), the work list (audit gap 1), the pre-change refusals, the exemption | `replay.go`, `views.go`, `viewjson.go`, `sitting.go`, `verify.go`, `record.proto`, `recordsql/store.go`, `migrate.go`, `record.go` |
 | 3 | `go -C $W/$T test -count=1 -run TestDefaultCastListsAllSevenAreas ./internal/record/` | III.8 | `cast.go` |
 | 4 | Delete-the-row check: invert `streak >= 2`; delete the retired-for-good transition; delete the stale-area refusal; delete one `always` row; delete the refused lane-tag tell; drop the `material` arm in `sitting.go`; drop the `!Migrating` around the material gate; drop the open-time column check; drop the `r < D.at` bound in `lastSittingBefore`; drop the `!Migrating` gate on the preset-`class_material` refusal; make the migrate translation unconditional; drop the material filter on the docket affordance; drop the `gap_ids` comparison in `DispatchParityAudit`; compare against the group's FIRST row instead of its last; make `requireNoCastLensReady` admit a lens retired with its re-arm owed; delete one row's `material_default` from the registry (`classgen` must fail); hand-edit one value in `record/shippedclasses_gen.go` (`go -C $W/$S run ./classgen -check` must fail); drop the stranded item from the work list; drop the setup refusal; drop the stated-fill record. Re-run #1, #1b, #2, #12 and #15; each MUST fail. Then restore. | the tests notice | the same files |
 | 5 | `go -C $W/$T test -count=1 ./...` | whole module, including `TestVocabularyProse` (D4) and the vocabulary gate over `Supplies` | any `$T` file, agents, skills |
 | 6 | `node --test $W/plugins/frank-exchange-of-views/tests/simulator/{debate,prompts}.test.mjs`. The assertion at `debate.test.mjs:73` ("HEAD MOVED PAST YOUR LAST SITTING (head 7)") becomes: every lens prompt carries the static `sitting.last_sitting` clause with all three kinds and the missed-then sentence, and no head clause built from the relay. New tests: for EVERY required relayed field (`head`, `parties`, `pass_permitted`, `ceiling`, `docket`, `why`, `max_epochs`, `epoch_limit_reached`, `stale_areas`, and a party's `seat_id` or `gap_ids`, and a `stale_areas` entry's `seat_id` (a string) or `pin` (an integer)), a plan missing it or carrying the wrong type (including `null` for an array) throws, naming the field — one table-driven test, so the check and III.4's list cannot drift; blue's prompt carries the closing-arguments clause exactly when the relayed `docket` is non-empty; seven default lenses; the chair prompt carries re-arm-once, the no-lens-ready PASS condition, the stale areas and the by-class listing. The prompt goldens that carry the old wording — `tests/simulator/testdata/prompt-red-chair.golden:41` and `prompt-red-lens-{evidence:16,logic:12,dark-side:12}.golden` ("HEAD MOVED PAST YOUR LAST SITTING") — are regenerated by #8 and reviewed line by line, together with `prompt-red-lens-evidence-engaged.golden` (the engaged lens prompt now carries the static `last_sitting` clause) and `seat-roster.golden` (reviewed for the seven-area default wherever the simulator uses it). | III.4, III.5, III.8 | `debate.js`, `tests/simulator/` |
 | 7 | `go -C $W/$S run ./classgen`, then `go -C $W/$S run ./protogen`, then `go -C $W/$S run ./check -only classgen,schemagen,massgen,vocabdoc,validatejson,frontmatter,pluginparity,fixtureparity,mjsparity,archaeology,rulesweep,lawqueue,golden,feov-record` | generated carriers (`record.pb.go`, `testdata/schema.sql`), parity, vocabulary, the law queue after the deletion | registry, `record.proto`, agents, `debate.js`, `law/` |
-| 8 | `go -C $W/$S run ./golden -update` once after the prompt and help changes (the command `tests/simulator/golden.mjs:65-70` names), committed on its own; then `go -C $W/$S run ./golden` (uncached), reviewing each changed page, including the four simulator prompt goldens #6 lists | the flag lists of `dispatch`, `spot-check`, `mint` and `class new`, and `verdict.md`/`dispatch.md` text | `cli/merge/*`, `cli/lens/*`, `cli/seat/help/*` |
+| 8 | `go -C $W/$S run ./golden -update` once after the prompt and help changes (the command `tests/simulator/golden.mjs:65-70` names), committed on its own; then `go -C $W/$S run ./golden` (uncached), reviewing each changed page, including the four simulator prompt goldens #6 lists | the flag lists of `dispatch`, `spot-check`, `mint` and `class new`, and `verdict.md`/`dispatch.md` text | `cli/chair/*`, `cli/lens/*`, `cli/seat/help/*` |
 | 9 | `FEOV_RELEASE_GATE=1 go -C $W/$T test -count=1 ./releasegate/fuzz/` | seven-lens fuzz runs end in a terminal verdict, and none settles empty (#637/#870); with the `parties` patch deleted, the fuzz relays the verb's JSON unaltered, so a `null` array fails it | `dispatch.go`, `cast.go`, `fuzz_test.go` |
 | 10 | `go -C $W/$T build -o ~/.claude/scratch/feov-lens-review/bin/feov-record ./cmd/feov-record && go -C $W/$T run ./cmd/seatprobe -bin ~/.claude/scratch/feov-lens-review/bin/feov-record -board all -dir ~/.claude/scratch/feov-lens-review/seatprobe` (once, at the end; costs tokens) | real seats read the changed constitutions and reach their verbs | `agents/*.md`, the skill |
-| 11 | `feov-record --seat-id operator migrate --from <run> --to <fresh>` for each of the **13** archives (extracted from `origin/main:run-archive/`) into scratch; then `work/classmaterial.py`, `work/passopen.py`, `work/gapagg.py` and `work/refusalrate2.py`. Expected, from the base-binary measurement: zero refusals, and no stated fill for any staged row (every staged registry holds 38–39 slugs, all in the shipped table); exactly 27 stated fills, one per archived class-creation slug absent from the table (28 class-creation events; `structure-noncompliance` is in the table); every staged registry carries `material_default`; 112 gaps, material 74 today and **91** under class defaults (19 raised by an `always` class, 2 lowered: sleeper's `structure-noncompliance`), open-at-end material 3 → 7; no PASS gate over a newly material open gap. Each per-run difference against lens-quant §2 is explained by a class default. | the migration translation, on real data | `migrate.go`, `views.go`, `replay.go` |
+| 11 | `feov-record --seat-id operator migrate --from <run> --to <fresh>` for each of the **16** archives (extracted from `origin/main:run-archive/`) into scratch; then `work/classmaterial.py`, `work/passopen.py`, `work/gapagg.py` and `work/refusalrate2.py`. Expected, measured over the 16 archives on the rebased tree: zero refusals, and no stated fill for any staged row (every staged registry holds 38–39 slugs, all in the shipped table); exactly 29 stated fills, one per archived class-creation slug absent from the table (30 class-creation events; `structure-noncompliance` is in the table); every staged registry carries `material_default`; 123 gaps, material 82 today and **101** under class defaults (21 raised by an `always` class, 2 lowered: sleeper's `structure-noncompliance`), open-at-end material 3 → 9; no PASS gate over a newly material open gap. <!-- pending gblock ruling on fork (a): 2 of 16 archives --> Each per-run difference against lens-quant §2 is explained by a class default. | the migration translation, on real data | `migrate.go`, `views.go`, `replay.go` |
 | 12 | `go -C $W/$T test -count=1 ./internal/reportvoice/ ./internal/record/ ./internal/cli/...` running `TestRefusedTellsAreUnambiguous` (seat ids, finding labels, gap ids with process words, lane tags), `TestOrdinarySubjectProseIsClean` (plus "the G20 summit", "the chair of the committee", "a sitting judge", "the red team exercise"), `TestMintRefusesSeatIdInProblem`, `TestMintRefusesLaneTagInRequiredFix`, `TestMintAcceptsProcessWordsInMintReason`, `TestMintAdvisesOnThisRun`, `TestMigratingReplaySkipsVoiceRefusal`, and the blue advisory tests unchanged | III.9(c) | `tells.go`, the Mint validation in `record.go` |
 | 13 | `go -C $W/$T test -count=1 -run TestRiskMatrixCarriesOnlyWhatMintWrote ./internal/report/`; blanking the `RequiredFix` cell must fail it | III.9 names the whole red path into the report | `report/assemble.go`, `docs.go` |
 | 14 | Re-run S1–S5 (§II). S1's only thresholds are the `by_grade` constant and its two carriers; S2 and S3 show every decider and gate statement on the class-aware definition, each remaining line in III.1's non-carrier list; S4 shows only III.1's "stays true" and "another sense" rows; S5 shows no old-model text outside III.5's non-carriers. A new line in any sweep is classified before merge. | no carrier still speaks the old model | any file the sweeps reach |
