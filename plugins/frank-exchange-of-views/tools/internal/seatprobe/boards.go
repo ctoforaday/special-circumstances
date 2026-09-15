@@ -97,6 +97,12 @@ type Proof struct {
 	Location, Script, Answers string
 }
 
+// PagedClaim is a cited claim whose source is a scan: Location names the claim, Span the text its
+// citation quotes from the OCR reading.
+type PagedClaim struct {
+	Location, Span string
+}
+
 // Board is one coherent sitting a seat is dropped into.
 type Board struct {
 	Name string
@@ -114,6 +120,10 @@ type Board struct {
 	// Claims are cited claims already on the record, so a seat has something to re-cite, retire,
 	// or index rather than having to author one first.
 	Claims []string
+	// PagedClaims ANNOTATE entries of Claims whose citation quotes OCR text: the claim at Location
+	// is cited against the scanned fixture, quoting Span from its reading, so the tool records a
+	// page and a lens owes a check against that page's image. They add no claim.
+	PagedClaims []PagedClaim
 	// Motions and Proofs are the adjudications and computations the board already carries.
 	Motions []Motion
 	Proofs  []Proof
@@ -574,6 +584,31 @@ The working group's standard has been withdrawn since the benchmark was run.
 	}
 }
 
+// lensOCRVerify: a lens holding a citation of OCR text with a page. Its own board rather than a
+// line on lens-audit, so that sitting stays a situation and not a checklist (see lensDispose).
+func lensOCRVerify() Board {
+	claim := "Integrity levels are assigned according to the consequence of a failure."
+	return Board{
+		Name: "lens-ocr-verify", Seat: "red-lens-evidence",
+		Report: `# How are software integrity levels assigned? — research report
+
+## TL;DR
+
+Integrity levels follow consequence.
+
+## Findings
+
+` + claim + `
+`,
+		Claims:      []string{claim},
+		PagedClaims: []PagedClaim{{Location: claim, Span: ScannedFixtureSpan}},
+		Expect: []Expectation{
+			{Seat: "red-lens-evidence", Verb: "render-page", Because: "The citation rests on OCR text, which can misread; the page's pixels are what settle it, and the verification records which page was checked."},
+			{Seat: "red-lens-evidence", Verb: "verify", Because: "The cited claim is checked against the page image the tool located its quote on — reading the reading again would audit a misread against itself."},
+		},
+	}
+}
+
 // sitting: the bench. A docket to dispose of, a run to end, and a boundary to hold.
 // lensDispose is the lens sitting AFTER its gap was answered: the report now carries the
 // derivation G1 asked for and blue's grade motion on G1 was accepted by the chair. Two moves are
@@ -806,7 +841,7 @@ The comparison rests on the operator's own cost model, which is not published.
 // Boards is every named starting position, keyed by name.
 func Boards() map[string]Board {
 	out := map[string]Board{}
-	for _, b := range []Board{arithmetic(), sources(), docket(), audit(), adjudicate(), lensAudit(), lensDispose(), sitting(), boundary(), blocked()} {
+	for _, b := range []Board{arithmetic(), sources(), docket(), audit(), adjudicate(), lensAudit(), lensDispose(), lensOCRVerify(), sitting(), boundary(), blocked()} {
 		out[b.Name] = b
 	}
 	return out

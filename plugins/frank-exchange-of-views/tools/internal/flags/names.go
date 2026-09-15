@@ -175,6 +175,13 @@ const (
 	// on a bibliographic record deserves.
 	SourceText = "source-text"
 
+	// OCRQuote is the span a citation of OCR-derived text quotes FROM THE READING — not --quote,
+	// which is the report's sentence. The tool finds the span's page in the reading and records
+	// it, so a seat never types a page. Page is the one page image red checked, on `verify`, and
+	// the one page `render-page` draws.
+	OCRQuote = "ocr-quote"
+	Page     = "page"
+
 	// Via names WHICH BACKEND to reach a source through. The strategies answer different
 	// questions — an archive says what a page said on a date, an open-access lookup says whether
 	// a legal copy exists, a metadata lookup says only that the source exists — and choosing
@@ -299,7 +306,7 @@ func All() []string {
 		As, None, Confidence,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class, Definition, Neighbor, Distinguisher,
-		Problem, Fix, Check, CheckKind, Type, SourceText, Via, At, About, AboutKind, Hypothesis, Script, Cites, ExpectError,
+		Problem, Fix, Check, CheckKind, Type, SourceText, OCRQuote, Page, Via, At, About, AboutKind, Hypothesis, Script, Cites, ExpectError,
 		Supersedes, SupersededBy, FoundBy, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor,
 		Principle, Tension, ReviewFlag, Relief, Binds,

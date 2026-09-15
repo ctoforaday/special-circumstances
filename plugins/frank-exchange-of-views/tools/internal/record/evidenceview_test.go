@@ -28,7 +28,7 @@ func evidenceEvent(t *testing.T, round int, seat string, body proto.Message) *Ev
 // THE ANCHOR RESOLVES. This is the whole reason the view exists: a seat holding the c- id it read
 // in the report gets the url it needs to re-fetch the source.
 func TestEvidence_CitationAnchorResolvesToItsSource(t *testing.T) {
-	b := evidenceBoard(evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{
+	b := evidenceBoard(evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(),
 		Label: proto.String("c-29a72fe2"), Url: proto.String("https://example.org/p"),
 		Title: proto.String("A Paper"), Sha256: proto.String("abc123"),
 		Location: proto.String("Seven is prime."), AccessDate: proto.String("2026-08-12"),
@@ -54,8 +54,8 @@ func TestEvidence_CitationAnchorResolvesToItsSource(t *testing.T) {
 // #341 introduced; getting it wrong here would put red's audit volume into blue's citation list.
 func TestEvidence_RedLensCiteIsNotASource(t *testing.T) {
 	b := evidenceBoard(
-		evidenceEvent(t, 1, "lens-r1", &recordpb.Cite{Text: proto.String("checked something")}),            // no label: red's
-		evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{Label: proto.String("c-1"), Url: proto.String("u")}), // blue's
+		evidenceEvent(t, 1, "lens-r1", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), Text: proto.String("checked something")}),            // no label: red's
+		evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), Label: proto.String("c-1"), Url: proto.String("u")}), // blue's
 	)
 	got := EvidenceJSONOf(b)
 	if len(got.Sources) != 1 || got.Sources[0].Anchor != "c-1" {
@@ -138,7 +138,7 @@ func TestEvidence_ReproduceJoinsItsProofAndKeepsTheAxesApart(t *testing.T) {
 // verdict travels with the source it is about, so "has anyone checked this?" is a field.
 func TestEvidence_VerificationAttachesToItsCitation(t *testing.T) {
 	b := evidenceBoard(
-		evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{Label: proto.String("c-1"), Url: proto.String("https://example.org/p")}),
+		evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), Label: proto.String("c-1"), Url: proto.String("https://example.org/p")}),
 		evidenceEvent(t, 1, "lens-r1", &recordpb.Verify{
 			Anchor: proto.String("c-1"), Claim: proto.String("seven is prime"),
 			Url:        proto.String("example.org/p"),
@@ -164,7 +164,7 @@ func TestEvidence_VerificationAttachesToItsCitation(t *testing.T) {
 // is a different fact from an unverified citation, so it lands in its own array.
 func TestEvidence_IndependentChecksStandApart(t *testing.T) {
 	b := evidenceBoard(
-		evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{Label: proto.String("c-1"), Url: proto.String("https://example.org/p")}),
+		evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), Label: proto.String("c-1"), Url: proto.String("https://example.org/p")}),
 		evidenceEvent(t, 1, "lens-r1", &recordpb.Verify{
 			Claim: proto.String("seven is prime"), Url: proto.String("a textbook I found"),
 			Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS),
@@ -183,7 +183,7 @@ func TestEvidence_IndependentChecksStandApart(t *testing.T) {
 // UNCHECKED IS AN EMPTY ARRAY IN THE JSON, not an absent key: "nobody has verified this source"
 // is what red reads to decide where its next pass goes.
 func TestEvidence_UncheckedSourceSaysSoInTheJSON(t *testing.T) {
-	b := evidenceBoard(evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{Label: proto.String("c-1"), Url: proto.String("u")}))
+	b := evidenceBoard(evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), Label: proto.String("c-1"), Url: proto.String("u")}))
 	out, err := json.Marshal(EvidenceJSONOf(b))
 	if err != nil {
 		t.Fatal(err)
@@ -201,7 +201,7 @@ func TestEvidence_RefutedCitationsAreCounted(t *testing.T) {
 		recordpb.SourceOutcome_SOURCE_OUTCOME_ABSENT,
 	} {
 		b := evidenceBoard(
-			evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{Label: proto.String("c-1"), Url: proto.String("u")}),
+			evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), Label: proto.String("c-1"), Url: proto.String("u")}),
 			evidenceEvent(t, 2, "lens-r2", &recordpb.Verify{
 				Anchor: proto.String("c-1"), Claim: proto.String("x"),
 				Outcome: outcome.Enum(), Text: proto.String("read it"),
@@ -218,7 +218,7 @@ func TestEvidence_RefutedCitationsAreCounted(t *testing.T) {
 	}
 	// And the supporting half is NOT counted as found-against.
 	b := evidenceBoard(
-		evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{Label: proto.String("c-1"), Url: proto.String("u")}),
+		evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), Label: proto.String("c-1"), Url: proto.String("u")}),
 		evidenceEvent(t, 2, "lens-r2", &recordpb.Verify{
 			Anchor: proto.String("c-1"), Claim: proto.String("x"),
 			Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_WEAK), Text: proto.String("thin"),

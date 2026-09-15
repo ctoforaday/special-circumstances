@@ -61,6 +61,8 @@ var tells = []Tell{
 		"the change stack holds what the report used to say"},
 	{Apparatus, regexp.MustCompile(`(?i)the checking (program|script)|measurement apparatus`),
 		"the proof store holds the program; the report carries what it SHOWED"},
+	{Apparatus, regexp.MustCompile(`\bPDF pp?\. ?\d`),
+		"the tool renders a citation's PDF page at its marker from the record; a typed page is a second copy that nothing keeps true"},
 }
 
 // Tells is the whole list, and the only way to get it.

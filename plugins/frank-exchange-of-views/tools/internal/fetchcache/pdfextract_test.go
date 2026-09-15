@@ -130,9 +130,6 @@ func TestPDFExtractorReadsATextLayerAndItsTitle(t *testing.T) {
 	if got.ExtractorID != extractorIdentity() {
 		t.Errorf("ExtractorID = %q, want %q", got.ExtractorID, extractorIdentity())
 	}
-	if got.OCRDerived {
-		t.Error("OCRDerived = true for text read from a text layer")
-	}
 }
 
 // THE FAILURE THIS WHOLE CHANGE EXISTS FOR. IEEE 1012 was 11 of the 33 PDF reads in the

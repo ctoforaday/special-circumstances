@@ -77,6 +77,16 @@ type EvidenceSourceJSON struct {
 	Text   string `json:"text"`
 	SeatID string `json:"seat_id"`
 	Epoch  int    `json:"epoch"`
+	// SourceTextOrigin is where the cited text came from — embedded, ocr, none or not_recorded —
+	// stamped by the tool. Empty on a corroboration, which red read itself.
+	SourceTextOrigin string `json:"source_text_origin,omitempty"`
+	// OCRQuote and Pages are blue's span from an OCR reading and the PDF pages the tool found it
+	// on. A source with pages is checked against a page image, not against the reading;
+	// OCREngine and OCRTextSha name the reading the pages were found in.
+	OCRQuote   string  `json:"ocr_quote,omitempty"`
+	Pages      []int32 `json:"pages,omitempty"`
+	OCREngine  string  `json:"ocr_engine,omitempty"`
+	OCRTextSha string  `json:"ocr_text_sha,omitempty"`
 	// CorroboratedBy names the red seat whose labelled corroboration placed this source's marker;
 	// empty for a blue cite. A corroboration is a source of the report like any cite — the
 	// assembler resolves its marker to a footnote — so it is listed here (gblock's ruling,
@@ -171,6 +181,12 @@ type EvidenceVerificationJSON struct {
 	AccessDate string `json:"access_date"`
 	SeatID     string `json:"seat_id"`
 	Epoch      int    `json:"epoch"`
+	// Page is the page image red checked for a citation with pages; PageRenderSha is that image's
+	// sha256 and ReadingRenderSha the render the reading was made from. Equal hashes mean red
+	// looked at the very pixels the reading came from.
+	Page             int32  `json:"page,omitempty"`
+	PageRenderSha    string `json:"page_render_sha,omitempty"`
+	ReadingRenderSha string `json:"reading_render_sha,omitempty"`
 }
 
 // Refuted reports whether this verification found AGAINST the claim — the two outcomes that
@@ -269,6 +285,10 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 			AccessDate: vf.GetAccessDate(),
 			SeatID:     e.GetSeatId(),
 			Epoch:      w.Epoch,
+
+			Page:             vf.GetPage(),
+			PageRenderSha:    vf.GetPageRenderSha(),
+			ReadingRenderSha: vf.GetReadingRenderSha(),
 		}
 		out.Counts.Verifications++
 		// THE SPLIT IS STILL ON THE ANCHOR, not on `Verify.independent`, and the empty string is
@@ -369,6 +389,12 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 				SeatID:     e.GetSeatId(),
 				Epoch:      w.Epoch,
 				Verified:   checks,
+
+				SourceTextOrigin: recordpb.Word(bd.GetSourceTextOrigin()),
+				OCRQuote:         bd.GetOcrQuote(),
+				Pages:            bd.GetPages(),
+				OCREngine:        bd.GetOcrEngine(),
+				OCRTextSha:       bd.GetOcrTextSha(),
 			})
 		case *recordpb.Proof:
 			// `proof_sha` is the proof's sha256 — the record spells it once, on the field the

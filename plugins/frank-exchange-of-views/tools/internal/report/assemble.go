@@ -52,71 +52,182 @@ func StripFindingMarkers(md string) string { return findingMarker.ReplaceAllStri
 // bibliography.
 var citeAnchor = regexp.MustCompile(`<!--cite:(c-[0-9a-f]+)-->`)
 
-// weaveCitations turns the invisible citation layer into a visible one: each "<!--cite:c-…-->"
-// anchor becomes a footnote reference [^N] (N in first-appearance order; every label resolving to
-// one source URL shares one N, and a reference repeated beside itself reads once), and a
-// "## Bibliography" of "[^N]: <title>. <url> (accessed <date>)" is
-// appended, composed from the cite events. A dangling anchor — one with no source on the
-// record (bijection-impossible under the lockdown, but defended) — becomes an explicit
-// unresolved-citation line rather than a crash or a silent drop. With no citations the report
-// is returned unchanged (no empty bibliography).
+// weaveCitations turns the invisible citation layer into a visible one. Each "<!--cite:c-…-->"
+// anchor becomes a footnote reference [^N], and each N's note is a full entry,
+// "[^N]: <title>. <url> (accessed <date>)", placed after the body as a bare definition — with the
+// PDF page in Chicago's position, "<title>, PDF p. 10. <url> …", for a quote the tool located in
+// an OCR reading. A "## Bibliography" follows, listing each source URL ONCE and never a page:
+// "- <title>. <url> (accessed <date>)". A dangling anchor — one with no source on the record
+// (bijection-impossible under the lockdown, but defended) — becomes an explicit
+// unresolved-citation note rather than a crash or a silent drop. With no citations the report is
+// returned unchanged (no empty bibliography).
 func weaveCitations(md string, sources []record.Source) string {
 	byLabel := map[string]record.Source{}
 	for _, s := range sources {
 		byLabel[s.Label] = s
 	}
-	// ONE FOOTNOTE PER SOURCE, NOT PER LABEL. A red corroboration and a blue cite of the same URL
-	// are two labels on one source; keyed by label, B9's report wove them into "[^1][^2]" on one
-	// clause, both notes naming the same page. A label with no source on the record keys by itself.
+	// ONE NOTE PER (URL, PAGES). A red corroboration and a blue cite of the same URL are two
+	// labels on one source; keyed by label, B9's report wove them into "[^1][^2]" on one clause,
+	// both notes naming the same page. Pages split the key, because a note points at a place:
+	// two quotes from one PDF on different pages are two notes. A label with no source on the
+	// record keys by itself.
 	keyOf := func(label string) string {
-		if s, ok := byLabel[label]; ok && s.URL != "" {
-			return s.URL
+		s, ok := byLabel[label]
+		if !ok || s.URL == "" {
+			return label
 		}
-		return label
+		return s.URL + "\x00" + pageLocator(s.Pages)
 	}
-	var order []string // the first label seen for each source, in first-appearance order
+	// A PAGELESS ANCHOR BESIDE A PAGED ANCHOR OF THE SAME URL READS AS THAT NOTE (gblock,
+	// 2026-09-15): red's corroboration of blue's OCR cite is the same pointer, and a second note
+	// without the page would restore B9's doubled reference.
+	keys := map[int]string{} // anchor start offset → key
+	locs := citeAnchor.FindAllStringSubmatchIndex(md, -1)
+	for i := 0; i < len(locs); {
+		j := i + 1
+		for j < len(locs) && locs[j][0] == locs[j-1][1] {
+			j++
+		}
+		paged := map[string]string{} // url → the first paged key in this run of adjacent anchors
+		for _, l := range locs[i:j] {
+			if s, ok := byLabel[md[l[2]:l[3]]]; ok && s.URL != "" && len(s.Pages) > 0 {
+				if _, had := paged[s.URL]; !had {
+					paged[s.URL] = keyOf(s.Label)
+				}
+			}
+		}
+		for _, l := range locs[i:j] {
+			label := md[l[2]:l[3]]
+			keys[l[0]] = keyOf(label)
+			if s, ok := byLabel[label]; ok && len(s.Pages) == 0 {
+				if k, had := paged[s.URL]; had {
+					keys[l[0]] = k
+				}
+			}
+		}
+		i = j
+	}
+
+	var order []string            // each key, in first-appearance order
+	noteOf := map[string]string{} // key → the first label seen under it
 	num := map[string]int{}
-	body := citeAnchor.ReplaceAllStringFunc(md, func(tok string) string {
-		label := citeAnchor.FindStringSubmatch(tok)[1]
-		k := keyOf(label)
+	var b strings.Builder
+	last := 0
+	for _, l := range locs {
+		b.WriteString(md[last:l[0]])
+		last = l[1]
+		k := keys[l[0]]
 		n, seen := num[k]
 		if !seen {
 			n = len(order) + 1
 			num[k] = n
-			order = append(order, label)
+			order = append(order, k)
+			noteOf[k] = md[l[2]:l[3]]
 		}
-		return fmt.Sprintf("[^%d]", n)
-	})
-	if len(order) == 0 {
-		return body
+		fmt.Fprintf(&b, "[^%d]", n)
 	}
+	b.WriteString(md[last:])
+	if len(order) == 0 {
+		return md
+	}
+	body := b.String()
 	for n := 1; n <= len(order); n++ {
 		ref := fmt.Sprintf("[^%d]", n)
 		for strings.Contains(body, ref+ref) {
 			body = strings.ReplaceAll(body, ref+ref, ref)
 		}
 	}
-	var b strings.Builder
-	b.WriteString(strings.TrimRight(body, "\n"))
-	b.WriteString("\n\n## Bibliography\n\n")
-	for _, label := range order {
-		n := num[keyOf(label)]
-		s, ok := byLabel[label]
+
+	var out strings.Builder
+	out.WriteString(strings.TrimRight(body, "\n"))
+	out.WriteString("\n\n")
+	var bib []string // Bibliography lines, one per URL (or per dangling label), first appearance
+	listed := map[string]bool{}
+	for _, k := range order {
+		n := num[k]
+		s, ok := byLabel[noteOf[k]]
 		if !ok {
-			fmt.Fprintf(&b, "[^%d]: _(unresolved citation %s — no source on the record)_\n", n, label)
+			// A dangling anchor is listed in the Bibliography too: it is where a reader looks for
+			// what the text references, and a reference to nothing is a fact to state.
+			line := fmt.Sprintf("_(unresolved citation %s — no source on the record)_", noteOf[k])
+			fmt.Fprintf(&out, "[^%d]: %s\n", n, line)
+			bib = append(bib, "- "+line)
 			continue
 		}
-		title := strings.TrimSpace(s.Title)
-		if title == "" {
-			title = "_(untitled)_"
+		locator := ""
+		if l := pageLocator(s.Pages); l != "" {
+			locator = ", " + l
 		}
-		accessed := ""
-		if s.AccessDate != "" {
-			accessed = fmt.Sprintf(" (accessed %s)", s.AccessDate)
+		fmt.Fprintf(&out, "[^%d]: %s%s. %s%s\n", n, citationTitle(s), locator, s.URL, accessed(s.AccessDate))
+		if !listed[s.URL] {
+			listed[s.URL] = true
+			bib = append(bib, "- "+bibliographyEntry(s.URL, sources))
 		}
-		fmt.Fprintf(&b, "[^%d]: %s. %s%s\n", n, title, s.URL, accessed)
 	}
-	return b.String()
+	out.WriteString("\n## Bibliography\n\n")
+	for _, line := range bib {
+		out.WriteString(line + "\n")
+	}
+	return out.String()
+}
+
+// bibliographyEntry is a URL's one Bibliography line, never with a page. ONE LINE PER URL, the
+// URL being what a reader follows: its title is the first blue cite's for that URL (a
+// corroboration's only when no blue cite names it), and its date the earliest any cite or
+// corroboration of it records — read over every source on the record, so the line does not
+// depend on which label the text happened to reference first.
+func bibliographyEntry(url string, sources []record.Source) string {
+	var pick record.Source
+	found, date := false, ""
+	for _, src := range sources {
+		if src.URL != url {
+			continue
+		}
+		date = earliest(date, src.AccessDate)
+		if !found || (pick.Corroborated && !src.Corroborated) {
+			pick, found = src, true
+		}
+	}
+	return fmt.Sprintf("%s. %s%s", citationTitle(pick), url, accessed(date))
+}
+
+// pageLocator is the Chicago locator for the PDF pages a quote was found on — "PDF p. 10",
+// "PDF pp. 10, 34" — or "" for none. "PDF p." because the binary knows the PDF's page index, not
+// the folio printed on the page.
+func pageLocator(pages []int32) string {
+	if len(pages) == 0 {
+		return ""
+	}
+	parts := make([]string, len(pages))
+	for i, p := range pages {
+		parts[i] = fmt.Sprint(p)
+	}
+	if len(pages) == 1 {
+		return "PDF p. " + parts[0]
+	}
+	return "PDF pp. " + strings.Join(parts, ", ")
+}
+
+func citationTitle(s record.Source) string {
+	if t := strings.TrimSpace(s.Title); t != "" {
+		return t
+	}
+	return "_(untitled)_"
+}
+
+func accessed(date string) string {
+	if date == "" {
+		return ""
+	}
+	return fmt.Sprintf(" (accessed %s)", date)
+}
+
+// earliest is the earlier of two YYYY-MM-DD dates, ignoring an empty one.
+func earliest(a, b string) string {
+	if a == "" || (b != "" && b < a) {
+		return b
+	}
+	return a
 }
 
 func Assemble(run record.Run) (string, error) {

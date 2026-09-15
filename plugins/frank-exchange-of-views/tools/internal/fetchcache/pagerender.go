@@ -3,6 +3,7 @@ package fetchcache
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"image/draw"
@@ -230,6 +231,48 @@ func RenderPages(run record.Run, sha string, body []byte, dpi int) (RenderRecord
 		return RenderRecord{}, err
 	}
 	return rec, nil
+}
+
+// PageImagePath is one page's image drawn for a verification, OUTSIDE PagesDir. A render and a
+// reading both clear PagesDir, and an image kept there would vanish under either and pose as a
+// partial `ocr pages` render.
+func PageImagePath(run record.Run, sha string, page int) string {
+	return filepath.Join(Path(run, sha)+".page-images", fmt.Sprintf("p%04d.png", page))
+}
+
+// ErrPageOutOfRange is a page number the document does not have.
+var ErrPageOutOfRange = errors.New("page out of range")
+
+// RenderOnePage draws ONE page of a PDF at dpi, the same grayscale raster the reader reads, and
+// writes it to PageImagePath, replacing an earlier image. page is 1-based. It returns the path,
+// the image's sha256 and the document's page count.
+func RenderOnePage(run record.Run, sha string, body []byte, page, dpi int) (string, string, int, error) {
+	inst, closer, err := pdfiumInstance(Dir(run))
+	if err != nil {
+		return "", "", 0, err
+	}
+	defer closer()
+	doc, err := inst.OpenDocument(&requests.OpenDocument{File: &body})
+	if err != nil {
+		return "", "", 0, fmt.Errorf("pdf could not be opened: %w", err)
+	}
+	defer inst.FPDF_CloseDocument(&requests.FPDF_CloseDocument{Document: doc.Document})
+	pc, err := inst.FPDF_GetPageCount(&requests.FPDF_GetPageCount{Document: doc.Document})
+	if err != nil {
+		return "", "", 0, fmt.Errorf("pdf page count unavailable: %w", err)
+	}
+	if page < 1 || page > pc.PageCount {
+		return "", "", pc.PageCount, fmt.Errorf("%w: page %d of a %d-page document", ErrPageOutOfRange, page, pc.PageCount)
+	}
+	b, err := renderPagePNG(inst, doc.Document, page-1, dpi)
+	if err != nil {
+		return "", "", pc.PageCount, fmt.Errorf("page %d of %d: %w", page, pc.PageCount, err)
+	}
+	p := PageImagePath(run, sha, page)
+	if err := writeReplacing(p, b); err != nil {
+		return "", "", pc.PageCount, err
+	}
+	return p, Sha(b), pc.PageCount, nil
 }
 
 // renderPagePNG rasterises ONE page to grayscale PNG bytes and releases the bitmap before

@@ -1,6 +1,7 @@
 package seatprobe
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -262,10 +263,19 @@ func Build(run record.Run, b Board, exec Exec) error {
 		defer stop()
 
 		for i, claim := range b.Claims {
-			if _, err := exec("cite", "--run", run.Dir(), "--seat-id", "blue-respond",
+			args := []string{"cite", "--run", run.Dir(), "--seat-id", "blue-respond",
 				"--key", fmt.Sprintf("C%d", i+1), "--quote", claim,
 				"--title", "the pinned source", "--url", src,
-				"--reason", "the source this claim rests on"); err != nil {
+				"--reason", "the source this claim rests on"}
+			if pc, ok := pagedClaim(b, claim); ok {
+				scan := src + "scan.pdf"
+				if err := readScan(run, exec, scan); err != nil {
+					return fmt.Errorf("board %s: %w", b.Name, err)
+				}
+				args = append(args[:len(args)-6], "--title", "the pinned standard", "--url", scan,
+					"--source-text", "leaf", "--ocr-quote", pc.Span, "--reason", "the standard this claim rests on")
+			}
+			if _, err := exec(args...); err != nil {
 				return fmt.Errorf("cite %d (%q): %w — the board declares this claim and its expectations are about acting on it; building without it would produce a board whose demands cannot be met", i+1, claim, err)
 			}
 		}
@@ -281,12 +291,55 @@ func serveSource() (url string, stop func(), err error) {
 	if err != nil {
 		return "", nil, err
 	}
-	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/scan.pdf" {
+			w.Header().Set("Content-Type", "application/pdf")
+			_, _ = w.Write(scannedFixture)
+			return
+		}
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = io.WriteString(w, "the pinned source\n\nthe sentence this claim rests on\n")
 	})}
 	go func() { _ = srv.Serve(ln) }()
 	return "http://" + ln.Addr().String() + "/", func() { _ = srv.Close() }, nil
+}
+
+func pagedClaim(b Board, claim string) (PagedClaim, bool) {
+	for _, pc := range b.PagedClaims {
+		if pc.Location == claim {
+			return pc, true
+		}
+	}
+	return PagedClaim{}, false
+}
+
+// readScan fetches the scanned fixture so its OCR reading exists before the cite quotes it.
+//
+// WHETHER THE BINARY HAS AN ENGINE IS READ FROM A FIELD. The same Build runs in-process with a
+// fake engine, through a tag-less binary, and through a tagged one; it never swaps the engine
+// itself. A summary saying the engine is absent makes the board NOT BUILT (ErrEngineRequired); a
+// summary saying neither that nor that the text was read is a loud failure, so a missing field
+// never folds into a skip.
+func readScan(run record.Run, exec Exec, url string) error {
+	out, err := exec("fetch", "--run", run.Dir(), "--seat-id", "blue-respond", "--url", url, "--json")
+	if err != nil {
+		return fmt.Errorf("fetch the scanned standard: %w", err)
+	}
+	var sum struct {
+		OCRDerived      bool   `json:"ocr_derived"`
+		OCREngineAbsent bool   `json:"ocr_engine_absent"`
+		OCRReason       string `json:"ocr_reason"`
+	}
+	if err := json.Unmarshal([]byte(out), &sum); err != nil {
+		return fmt.Errorf("fetch --json printed no summary (%v): %s", err, out)
+	}
+	switch {
+	case sum.OCRDerived:
+		return nil
+	case sum.OCREngineAbsent:
+		return fmt.Errorf("%w (-tags tessocr); this binary reports it absent, so the board's cite cannot exist", ErrEngineRequired)
+	}
+	return fmt.Errorf("fetch read nothing from the scanned standard and did not report the engine absent: %s", sum.OCRReason)
 }
 
 // rulingReason is the ruler's argument, and it refuses to invent one.

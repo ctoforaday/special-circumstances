@@ -38,7 +38,7 @@ func budgetRun(t *testing.T, floor, cites, proofs int, lens string) Identity {
 	writeRunConfig(t, runDir, fmt.Sprintf(`{"mintBudget":%d}`, floor))
 	var evs []*recordpb.Event
 	for i := 0; i < cites; i++ {
-		evs = append(evs, recordtest.At(t, "blue-synthesize", fmt.Sprintf("cite:%d", i), &recordpb.Cite{Label: proto.String(fmt.Sprintf("c-%x", i))}))
+		evs = append(evs, recordtest.At(t, "blue-synthesize", fmt.Sprintf("cite:%d", i), &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), Label: proto.String(fmt.Sprintf("c-%x", i))}))
 	}
 	for i := 0; i < proofs; i++ {
 		evs = append(evs, recordtest.At(t, "blue-synthesize", fmt.Sprintf("proof:%d", i), &recordpb.Proof{ProofId: proto.String(fmt.Sprintf("p-%x", i))}))

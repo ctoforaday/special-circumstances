@@ -34,6 +34,11 @@ func TestEveryProbeBoardStillBuilds(t *testing.T) {
 	if len(boards) == 0 {
 		t.Fatal("no probe boards at all — an empty set builds cleanly forever and reports nothing")
 	}
+	// THE OCR BOARD BUILDS FOR REAL HERE. PDFium renders the scanned fixture without a build tag;
+	// only the engine is faked, reading every page as the fixture's sentence, so the board's cite
+	// locates its span through the real reader. A skip here would be a failure: this is the gate
+	// that proves lens-ocr-verify is reachable on every `go test ./...`.
+	withCLIEngine(t, func(int) (string, error) { return seatprobe.ScannedFixtureSentence, nil })
 	for name, b := range boards {
 		b := b
 		t.Run(name, func(t *testing.T) {

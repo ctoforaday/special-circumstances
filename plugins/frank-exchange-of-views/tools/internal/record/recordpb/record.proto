@@ -972,6 +972,19 @@ enum SourceTextRead {
   SOURCE_TEXT_READ_LEAF = 3 [(means) = "the source's own text was read at the leaf, in the bytes the run cached. The only value that licenses a claim about what the source SAYS"];
 }
 
+// SourceTextOrigin is WHERE THE CITED TEXT CAME FROM, and the tool stamps it; a seat never types
+// it. It is the twin of SourceTextRead: that one is how much the seat read, this one is whether
+// what it read is the author's text or the local engine's reading of page images. A bool
+// `ocr_derived` would fold a scan nobody read and an author's own text into one `false`, and
+// "false" on an unread scan claims the text is trustworthy.
+enum SourceTextOrigin {
+  SOURCE_TEXT_ORIGIN_UNSPECIFIED = 0;
+  SOURCE_TEXT_ORIGIN_EMBEDDED = 1 [(means) = "the retrieved bytes carry the text: markup, plain text, or a PDF's own text layer"];
+  SOURCE_TEXT_ORIGIN_OCR = 2 [(means) = "machine-read off page images by the local engine — deterministic, and it can misread, so a quote from it is checked against the page's pixels"];
+  SOURCE_TEXT_ORIGIN_NONE = 3 [(means) = "the tool holds no text for the source: an image, or a scan nobody has read"];
+  SOURCE_TEXT_ORIGIN_NOT_RECORDED = 4 [(means) = "this citation predates the field; written only by migrate"];
+}
+
 message Cite {
   optional string label = 1;
   optional string url = 2;
@@ -988,6 +1001,21 @@ message Cite {
   // HOW MUCH OF IT WAS READ. Not `required`: the verb defaults it to UNREAD, so the conservative
   // claim costs a seat nothing and only a stronger one is asserted.
   optional SourceTextRead source_text_read = 10;
+
+  // WHERE THE QUOTE SITS, stamped by the tool; a same-sitting correction carries all five
+  // unchanged. Not `(sql).required`: that annotation teaches a flag, and no seat types these —
+  // validate refuses an unstamped origin instead.
+  //
+  // ocr_quote is the seat's span, verbatim as typed; pages are the PDF page indexes the binary
+  // found it on, ascending and unique; ocr_engine and ocr_text_sha name WHICH reading located
+  // them, because run-archive keeps no cache and the event is the only thing that outlives it.
+  // A page is bound to that page's pixels, not to the engine: a later engine can stop finding
+  // the span, never move it.
+  optional SourceTextOrigin source_text_origin = 11 [(prose) = false];
+  optional string ocr_quote = 12 [(prose) = false];
+  repeated int32 pages = 13 [(prose) = false];
+  optional string ocr_engine = 14 [(prose) = false];
+  optional string ocr_text_sha = 15 [(prose) = false];
 
   // `claim` held the cited sentence a SECOND time, beside `location` which held it to place the
   // anchor. One span, one field.
@@ -1047,6 +1075,15 @@ message Verify {
   //
   // `verify` never sets it — that verb keys on `anchor`, which already sits at one sentence.
   optional string label = 11;
+
+  // THE PAGE IMAGE RED CHECKED, for a citation whose OCR quote carries pages. page is the one red
+  // names; page_render_sha is the sha256 of the image on disk when the verification was written,
+  // and reading_render_sha the render the reading was made from. A mismatch between the two is
+  // recorded, not refused: the image still shows the page, and two fields let any reader compare
+  // them. All three are set together or not at all.
+  optional int32 page = 12;
+  optional string page_render_sha = 13;
+  optional string reading_render_sha = 14;
 
   reserved 2;
   reserved "reference";

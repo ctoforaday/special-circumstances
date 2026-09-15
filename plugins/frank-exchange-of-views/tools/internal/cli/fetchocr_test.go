@@ -129,8 +129,9 @@ func TestFetchSurvivesAFailedReadAndSaysWhy(t *testing.T) {
 }
 
 // --ocr=false IS A STATED REASON, NOT A SILENCE. A seat shown only "no text layer" concludes
-// the source is unreadable; it must be told that reading it is available and was declined.
-func TestFetchOCROffReadsNothingAndNamesTheVerbs(t *testing.T) {
+// the source is unreadable; it must be told that reading it is available and was declined — in
+// an act every surface has. `ocr pages` and `ocr read` are the operator's tree.
+func TestFetchOCROffReadsNothingAndSaysHowToRead(t *testing.T) {
 	sr := &stubScanReader{}
 	out, err := fetchScanned(t, sr, scannedPDF(2), "--ocr=false")
 	if err != nil {
@@ -139,10 +140,13 @@ func TestFetchOCROffReadsNothingAndNamesTheVerbs(t *testing.T) {
 	if sr.calls != 0 {
 		t.Errorf("--ocr=false still read the document %d times", sr.calls)
 	}
-	for _, want := range []string{"automatic reading is off", "ocr pages --sha", "ocr read --sha"} {
+	for _, want := range []string{"automatic reading is off", "fetch again without it to read the scan"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("summary is missing %q. got:\n%s", want, out)
 		}
+	}
+	if strings.Contains(out, "ocr pages") || strings.Contains(out, "ocr read") {
+		t.Errorf("summary names an operator command a seat cannot run:\n%s", out)
 	}
 }
 

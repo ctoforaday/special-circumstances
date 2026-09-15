@@ -42,6 +42,12 @@ type Source struct {
 	Title      string
 	AccessDate string
 	Location   string
+	// Pages are the PDF pages an OCR quote was found on, from blue's cite; a corroboration has
+	// none. Assembly prints them in the source's note, never in the Bibliography.
+	Pages []int32
+	// Corroborated marks a source red found itself (a supporting corroboration) rather than one
+	// blue cited. The Bibliography prefers blue's title for a URL both name.
+	Corroborated bool
 }
 
 // citedSource reads a citable source off an event body, if it is one.
@@ -72,17 +78,19 @@ func citedSource(body proto.Message) (Source, bool) {
 			Title:      b.GetTitle(),
 			AccessDate: b.GetAccessDate(),
 			Location:   b.GetLocation(),
+			Pages:      b.GetPages(),
 		}, true
 	case *recordpb.Verify:
 		// No sha: red read the source itself rather than through the run cache, and the
 		// bibliography renders title + url + access date, never the hash. `location` is blue's
 		// placement field; a corroboration's span is its `claim`.
 		return Source{
-			Label:      b.GetLabel(),
-			URL:        b.GetUrl(),
-			Title:      b.GetTitle(),
-			AccessDate: b.GetAccessDate(),
-			Location:   b.GetClaim(),
+			Label:        b.GetLabel(),
+			URL:          b.GetUrl(),
+			Title:        b.GetTitle(),
+			AccessDate:   b.GetAccessDate(),
+			Location:     b.GetClaim(),
+			Corroborated: true,
 		}, true
 	}
 	return Source{}, false
@@ -126,6 +134,22 @@ func CitedSources(run Run) ([]Source, error) {
 		}
 		seen[src.Label] = true
 		out = append(out, src)
+	}
+	return out, nil
+}
+
+// CiteByLabel returns the standing blue cite a citation label names — the corrected act where
+// one was corrected — or nil when no cite carries it.
+func CiteByLabel(run Run, label string) (*recordpb.Cite, error) {
+	m, err := MergedEvents(run)
+	if err != nil {
+		return nil, err
+	}
+	var out *recordpb.Cite
+	for _, e := range Live(m.Events) {
+		if c := e.GetCite(); c != nil && c.GetLabel() == label {
+			out = c
+		}
 	}
 	return out, nil
 }

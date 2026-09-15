@@ -240,6 +240,7 @@ Available Commands:
   near-match   screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
   register     your first act at EVERY sitting, and the one call that needs your seat id — nothing else runs until it does
   regrade      move a grade on a gap that already exists, with the reason it moved
+  render-page  draw one page of a cached PDF, to check a citation of OCR text against the page's pixels
   reproduce    re-run a recorded computation and judge whether it proves the sentence it is attached to
   verify       judge a citation blue authored, when the anchor exists and you have read what it points at
 

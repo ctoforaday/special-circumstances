@@ -65,6 +65,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -178,6 +179,12 @@ func main() {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, debateScript(*debatePath), *memoryDir, *reportOnly, *keep, *inRun, *ask, *buildOnly, surface)
+			if errors.Is(err, seatprobe.ErrEngineRequired) {
+				// NOT A SEAT MISS AND NOT A DISPATCH FAILURE: this binary cannot build the board's
+				// citation. Stated, and the run goes on with the boards it can build.
+				results[i] = fmt.Sprintf("## %s — NOT BUILT — engine required\n\n%v\n", name, err)
+				return
+			}
 			if err != nil {
 				results[i] = fmt.Sprintf("## %s — FAILED\n\n%v\n", name, err)
 				failed[i] = true

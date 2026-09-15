@@ -63,6 +63,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	reportdoc "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatprobe"
 )
 
 // Capture only seat-id characters — NOT the trailing "." in "SEAT_ID: red-chair." — or the
@@ -83,6 +84,13 @@ var (
 func sourceURL(path string) string {
 	sourceSrvOnce.Do(func() {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			// ONE REAL SCAN, so the one-page render has a success path to run: a PDF with no text
+			// layer, cached with --ocr=false and never read.
+			if req.URL.Path == "/scan.pdf" {
+				w.Header().Set("Content-Type", "application/pdf")
+				_, _ = w.Write(seatprobe.ScannedFixturePDF())
+				return
+			}
 			fmt.Fprintf(w, "fuzz source body for %s\n", req.URL.Path)
 		}))
 		sourceSrvURL = srv.URL // deliberately never closed: it lives for the test binary
@@ -1579,6 +1587,10 @@ func (r *runner) extras(role, seatID string, open []string) {
 			if r.coin(75) {
 				cite = cite.set("--source-text", pick(r.rng, []string{"leaf", "summary_only", "unread"}))
 			}
+			// AN OCR QUOTE ON A SOURCE WITH NO OCR READING IS REFUSED. The sweep's sources are
+			// synthetic text, so the happy path (a scan read by the engine) is internal/cli's; this
+			// drives the flag and its refusal, and proves the refusal never wedges the run.
+			cite = cite.on(15, "--ocr-quote", "fuzz span")
 			cite.run()
 		})
 		// An UNREACHABLE source is an unusable citation: the cite must be REJECTED and the failure
@@ -1987,6 +1999,23 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// error. The seeded anchor sentence is the right span: the edit target below it
 				// is swapped back and forth by blue's edits, this one is left alone precisely so
 				// findings and cites have something stable to attach to.
+				// ONE PAGE OF A CACHED PDF, for a citation with pages: the lens caches the served scan
+				// unread and draws page 1, or asks for a page the one-page document does not have and
+				// is refused. It records nothing either way.
+				r.maybe(10, func() {
+					out, err := r.exec("fetch", "--seat-id", seatID, "--url", sourceURL("/scan.pdf"), "--ocr=false", "--json")
+					var sum struct {
+						Sha256 string `json:"sha256"`
+					}
+					if err != nil || json.Unmarshal([]byte(out), &sum) != nil || sum.Sha256 == "" {
+						return
+					}
+					page := "1"
+					if r.coin(25) {
+						page = "2"
+					}
+					r.do("render-page", seatID).set("--sha", sum.Sha256).set("--page", page).run()
+				})
 				claim := "A § fuzz sentence to anchor findings."
 				outcome := verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]
 				axes := func(c *cmd) *cmd {
@@ -1997,7 +2026,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 						on(60, "--access-date", "2026-07-24")
 				}
 				if anchor := r.someCitation(); anchor != "" && r.coin(70) {
-					axes(r.do("verify", seatID)).set("--anchor", anchor).run()
+					// --page names a page image, and no citation this sweep writes has pages, so
+					// a verify carrying one is refused: the flag and its refusal, driven.
+					axes(r.do("verify", seatID)).set("--anchor", anchor).on(10, "--page", "1").run()
 				} else {
 					axes(r.do("corroborate", seatID)).
 						set("--url", "https://fuzz.invalid/"+seatID).
@@ -3265,7 +3296,7 @@ var reportExemptions = map[string]string{
 	// by the tool and rendered beside the proof either way (#343).
 	"reproduce": "reason",
 	"verify":    "red adjudicating ONE citation. It reaches the reader through the evidence view rather than the report body: the report carries BLUE's citations (woven into the bibliography), and red's verdict on them is audit provenance rather than a claim the reader acts on. It IS surfaced — attached to the source it names in `show evidence`, in the board's citations count, and, for `refutes` and `absent`, as an assembly-screen FAILURE if the report still cites what red found against",
-	"cite":      "resolved rather than rendered — the anchor becomes a visible [^N] and the source becomes a ## Bibliography line (weaveCitations)",
+	"cite":      "resolved rather than rendered — the anchor becomes a visible [^N] with its note, and the source a ## Bibliography line (weaveCitations)",
 	"proof":     "resolved rather than rendered — weaveProofs splices the computation at its anchor",
 	"close":     "the closure's prose is red's acceptance argument and reaches the reader only as an index row today; rendering it in full is tracked, not silently accepted",
 	// The per-round review of the report against the lines on the record. Its READER IS A GATE,

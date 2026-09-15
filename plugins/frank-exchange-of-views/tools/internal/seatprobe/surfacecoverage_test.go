@@ -1,6 +1,7 @@
 package seatprobe
 
 import (
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -220,11 +221,19 @@ func TestEveryExpectationIsReachableOnItsBoard(t *testing.T) {
 		"spot-check":      {"a CLOSED gap in the archive", func(b Board) bool { return anyClosed(b) }},
 		"claim-index":     {"at least one cited claim", func(b Board) bool { return len(b.Claims) > 0 }},
 		"verify":          {"at least one cited claim", func(b Board) bool { return len(b.Claims) > 0 }},
+		"render-page":     {"a cited claim with pages", func(b Board) bool { return len(b.PagedClaims) > 0 }},
 		"retire":          {"a claim in the report to remove", func(b Board) bool { return len(b.Claims) > 0 }},
 		"line-of-inquiry": {"nothing — a seat may always propose a line", func(b Board) bool { return true }},
 	}
 
 	for name, b := range Boards() {
+		// A PAGED CLAIM ANNOTATES A CLAIM; it adds none. One naming a claim the board does not
+		// cite would build a board with no paged citation while claiming to carry one.
+		for _, pc := range b.PagedClaims {
+			if !slices.Contains(b.Claims, pc.Location) {
+				t.Errorf("board %q annotates %q as a paged claim, and it is not one of the board's Claims", name, pc.Location)
+			}
+		}
 		for _, e := range b.Expect {
 			n, tracked := needs[e.Verb]
 			if !tracked {

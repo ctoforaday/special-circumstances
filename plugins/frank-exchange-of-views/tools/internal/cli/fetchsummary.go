@@ -61,6 +61,9 @@ type fetchSummary struct {
 	// source is unreadable when in fact automatic reading was switched off — or this
 	// binary was built without the engine, which OCRReason states in as many words.
 	OCRReason string `json:"ocr_reason,omitempty"`
+	// OCREngineAbsent says the automatic read failed because this binary was built without the
+	// engine — the fact behind one of OCRReason's sentences, as a field.
+	OCREngineAbsent bool `json:"ocr_engine_absent,omitempty"`
 	// NotRenderable says the bytes are an unrendered app skeleton rather than a document. It is
 	// printed EVEN WHEN text was extracted, because a shell usually yields a little text — the
 	// nav, a cookie banner — and a seat that saw `text_extracted: true` and stopped there would
@@ -123,8 +126,7 @@ func summarize(run record.Run, e fetchcache.Entry, bodyLen int, hit bool) fetchS
 		TextSha256:     e.TextSha,
 		TextReason:     e.TextReason,
 		NotRenderable:  e.NotRenderable, NotRenderableReason: e.NotRenderableReason,
-		Extractor:  e.Extractor,
-		OCRDerived: e.OCRDerived,
+		Extractor: e.Extractor,
 	}
 	// THE PATH IS NAMED ONLY WHEN THE FILE IS THERE. A text_path pointing at a file that was
 	// never written is worse than no field at all: a seat would Read it, get a not-found, and

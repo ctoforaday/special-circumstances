@@ -43,11 +43,6 @@ type Extraction struct {
 	Reason string
 	// ExtractorID is library plus semver (#629 D3) — the key an audit re-runs against.
 	ExtractorID string
-	// OCRDerived marks text recovered by optical recognition rather than read from a text
-	// layer: a machine's reading of the pixels, which re-derives byte for byte under its
-	// engine identity but can still be wrong about what the page says — so a reader must
-	// be told, never left to discover it.
-	OCRDerived bool
 }
 
 // DefaultExtractor is the process-wide Extractor, a variable for exactly the reason Default is:
