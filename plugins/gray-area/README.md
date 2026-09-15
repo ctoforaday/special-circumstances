@@ -82,6 +82,15 @@ an upgrade is not evidence of anything; every `telepathy` read verb warns on std
 `telepathy backfill` has run, and sessions whose transcripts are gone do not come back. A file
 that is not recognised as a catalogue — a mistyped `--store` — is refused and never written.
 
+**A hook that fails says so where you look.** Every capture hook exits 0 — a broken store must never
+cost a session its turn — and a hook's stderr at exit 0 reaches only the client's debug log. So each
+failure is also recorded, by stage (`catalogue-open`, `catalogue-ingest`, `manifest`, … and
+`catalogue-backfill` for a store rebuilt empty and not yet backfilled), in
+`~/.local/state/special-circumstances/gray-area-capture/failures.json`, and the next `SessionStart`
+or `Stop` shows it as a system message — each stage at most once every 10 minutes. `SubagentStop`
+and `SessionEnd` record and never print. An entry clears when its stage next works, so no file
+means every stage last worked.
+
 **After a restart, `agents` lists what it cut off.** `SessionStart` and `Stop` also *register* the
 session: its row exists before any transcript is read, a session closure had settled is reopened
 because it is running again, and the Remote Control cloud id is copied from the client's own
