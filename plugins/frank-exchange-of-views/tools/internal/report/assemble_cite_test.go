@@ -94,7 +94,7 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synthesize"}, &recordpb.BaseIngest{Text: proto.String(blue)}); err != nil {
 		t.Fatal(err)
 	}
-	cite := &recordpb.Cite{
+	cite := &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(),
 		Label:      proto.String("c-1"),
 		Url:        proto.String("https://ex/coherence"),
 		Sha256:     proto.String("deadbeef"),

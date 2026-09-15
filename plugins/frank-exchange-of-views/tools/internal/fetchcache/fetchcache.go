@@ -113,11 +113,6 @@ type Entry struct {
 	// TextReason states WHY, whenever TextExtracted is false. An empty extraction is never
 	// recorded as a silent zero.
 	TextReason string `json:"text_reason,omitempty"`
-	// OCRDerived marks text that came from optical recognition rather than a text layer. It
-	// re-derives byte for byte under its engine identity, but reproducible is not correct:
-	// it is a machine's reading of the pixels and can misread them (#644), which is why it
-	// is stated up front rather than discovered.
-	OCRDerived bool `json:"ocr_derived,omitempty"`
 	// Pages is the document's page count where the format has one, else 0.
 	Pages int `json:"pages,omitempty"`
 	// NotRenderable marks a response that arrived as an unrendered app skeleton rather than a
@@ -373,7 +368,6 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		extracted := ex.Text != ""
 		entry.TextExtracted = &extracted
 		entry.Extractor = ex.ExtractorID
-		entry.OCRDerived = ex.OCRDerived
 		if extracted {
 			textSha, terr := StoreText(run, entry.Sha, []byte(ex.Text))
 			if terr != nil {

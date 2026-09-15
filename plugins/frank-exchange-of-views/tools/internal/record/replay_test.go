@@ -788,7 +788,7 @@ func TestTheKeyLabelIsTheFirstFieldTheBodyCarries(t *testing.T) {
 	}{
 		{"gap_id is the first label consulted", &recordpb.Close{GapId: proto.String("G1")}, "G1"},
 		{"label when there is no gap_id", &recordpb.Finding{Label: proto.String("F1")}, "F1"},
-		{"url is a label too", &recordpb.Cite{Url: proto.String("https://x")}, "https://x"},
+		{"url is a label too", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), Url: proto.String("https://x")}, "https://x"},
 		{"an empty label is not a label", &recordpb.Finding{Label: proto.String("")}, ""},
 		{"no label at all", &recordpb.Log{}, ""},
 	} {

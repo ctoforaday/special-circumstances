@@ -80,7 +80,9 @@
 ## Bibliography                          <!-- [RECORD] COMPOSED AT ASSEMBLY from the cite events — do NOT author it, and do
                                               not author a "## Footnotes" section either: assembly drops a blue-authored one
                                               and weaves every invisible <!--cite:--> anchor into the visible [^N] refs.
-                                              Cite with the tool. PER DOCUMENT: a footnote definition cannot cross a file
+                                              Cite with the tool. Each [^N] note is the source's full entry, with the PDF
+                                              page for a quote from OCR text; the Bibliography lists each source once, with
+                                              no page. PER DOCUMENT: a footnote definition cannot cross a file
                                               boundary, so each document defines the references it carries. -->
 
 # docket.md — the board

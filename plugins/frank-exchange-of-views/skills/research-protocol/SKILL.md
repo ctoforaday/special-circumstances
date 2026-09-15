@@ -26,7 +26,7 @@ Research that survives an adversary.
   never lost, and an edit that moves the words under one REOPENS it — the reference stands, its
   referent moved, so a verification of it is stale rather than refuted.
 - AFTER drafting, every claim MUST trace to a source a skeptic can follow; unverifiable claims are labeled as such, not laundered into fact.
-- For PDF-only sources, YOU MUST try the document-extraction MCP tools before grading down on a lossy fetch: `arxiv-latex` (exact LaTeX for arXiv figures/tables) and `pdf-reader` (page/table extraction with provenance) — discoverable via ToolSearch when the project's `.mcp.json` servers are approved. Two runs of log entries ranked lossy PDF fetches the #1 missing capability; a claim capped at "unable to corroborate" without trying these is an incomplete audit.
+- For PDF-only sources, a scanned PDF is read by the run's cached source read itself, and that reading is what a citation can locate a page in; YOU MUST read it there before grading down on a lossy fetch. For arXiv figures and tables, `arxiv-latex` gives the exact LaTeX. A claim capped at "unable to corroborate" without trying these is an incomplete audit.
 
 ## The exchange is TOOL-MEDIATED
 
@@ -139,7 +139,7 @@ There is no search index, and there are two access modes:
    go blind. This clause outranks any token saving.
 2. **Leaf-node fetch for verification** — a citation is checked against its source, never against a
    summary. For a source BLUE CITED, read the exact bytes blue read from the run cache
-   (a cache hit, so you audit the same artifact, not a page that may have drifted since). For a source you discover yourself, pull it verbatim (Bash `curl`, PDF MCPs).
+   (a cache hit, so you audit the same artifact, not a page that may have drifted since). For a source you discover yourself, pull it verbatim (Bash `curl`, or the run's cached source read for a PDF).
    WebFetch is not used: it returns a summary, not the source.
 
 To find text inside the run's own artifacts, use `Grep` — the terms you want are the terms you

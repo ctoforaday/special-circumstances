@@ -83,7 +83,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 	// events below add no marker of their own (the report_op view excludes them).
 	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(blue)})
 
-	add("blue-synthesize", &recordpb.Cite{
+	add("blue-synthesize", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(),
 		Label: proto.String("c-1"), Url: proto.String("https://ex/eviction"),
 		Sha256: proto.String("deadbeef"), Title: proto.String("Eviction Under Contention"),
 		AccessDate: proto.String("2026-09-05"),

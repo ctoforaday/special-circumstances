@@ -526,7 +526,7 @@ func insertBody(tx *sql.Tx, eventID int64, m protoreflect.Message) error {
 		for i := 0; i < l.Len(); i++ {
 			if _, err := tx.Exec(
 				fmt.Sprintf("INSERT INTO %q (\"event_id\", \"ord\", \"value\") VALUES (?, ?, ?)", lt),
-				eventID, i, l.Get(i).String(),
+				eventID, i, listValue(fd, l.Get(i)),
 			); err != nil {
 				return olderSchema(tx, lt, fmt.Errorf("recordsql: recording %s.%s: %w", table, fd.Name(), err))
 			}
@@ -538,6 +538,23 @@ func insertBody(tx *sql.Tx, eventID int64, m protoreflect.Message) error {
 		}
 	}
 	return nil
+}
+
+// listValue is one list element in its column's type — the inverse of protoValue.
+func listValue(fd protoreflect.FieldDescriptor, v protoreflect.Value) any {
+	switch fd.Kind() {
+	case protoreflect.Int32Kind, protoreflect.Int64Kind:
+		return v.Int()
+	case protoreflect.BoolKind:
+		return v.Bool()
+	case protoreflect.BytesKind:
+		return v.Bytes()
+	case protoreflect.EnumKind:
+		if vd := fd.Enum().Values().ByNumber(v.Enum()); vd != nil {
+			return recordpb.Spelling(vd)
+		}
+	}
+	return v.String()
 }
 
 func insertArm(tx *sql.Tx, eventID int64, table string, m protoreflect.Message) error {

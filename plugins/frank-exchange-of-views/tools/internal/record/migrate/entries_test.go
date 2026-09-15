@@ -128,3 +128,29 @@ func TestIdentityRebuildsAOneofArm(t *testing.T) {
 		t.Errorf("the arm table did not rebuild the oneof: %+v", m)
 	}
 }
+
+// A CITE FROM BEFORE EPOCH 7 SAYS ITS ORIGIN WAS NEVER RECORDED. A guessed `embedded` would tell
+// red an OCR quote needs no page check; the fill states the question was never asked, and a cite
+// that carries an origin keeps it.
+func TestAnOldCiteStatesItsOriginWasNotRecorded(t *testing.T) {
+	dst := runtest.New(t, recordtest.TmpRun(t))
+	for _, tc := range []struct {
+		fields map[string]any
+		want   recordpb.SourceTextOrigin
+	}{
+		{map[string]any{"label": "c-1", "url": "https://x"}, recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NOT_RECORDED},
+		{map[string]any{"label": "c-2", "url": "https://x", "source_text_origin": "ocr"}, recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR},
+	} {
+		bodies, err := migrate.Entries()["cite"].Translate(migrate.OldEvent{ID: 1, SeatID: "blue-respond", TS: ts1, Word: "cite", Fields: tc.fields}, dst)
+		if err != nil {
+			t.Fatal(err)
+		}
+		c, ok := bodies[0].(*recordpb.Cite)
+		if !ok || len(bodies) != 1 {
+			t.Fatalf("a cite translated to %d bodies, the first %T", len(bodies), bodies[0])
+		}
+		if c.GetSourceTextOrigin() != tc.want {
+			t.Errorf("%v: origin = %v, want %v", tc.fields, c.GetSourceTextOrigin(), tc.want)
+		}
+	}
+}

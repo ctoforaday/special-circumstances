@@ -90,7 +90,7 @@ forbids removing one by a raw edit — so the record shows exactly what the repo
 ```mermaid
 flowchart TB
   subgraph blue["blue synthesis / response seat"]
-    BC["blue cite --quote --url --title"]
+    BC["blue cite --quote --url --title (+ --ocr-quote: the span from an OCR reading, located to its PDF page)"]
   end
   subgraph cache["run source cache (content-addressed)"]
     CF["&lt;run&gt;/cache/&lt;sha256&gt;<br/>(download-once; index: url→sha)"]
@@ -100,7 +100,7 @@ flowchart TB
   end
   RPT["blue/report.md<br/>invisible &lt;!--cite:c-…--&gt; anchor at the sentence"]
   RED["red lens / chair<br/>fetch --url &lt;cited url&gt; (cache HIT = blue's exact bytes)"]
-  ASM["assembly (the report set)<br/>weave anchor → [^N] + compose ## Bibliography, PER DOCUMENT"]
+  ASM["assembly (the report set)<br/>weave anchor → [^N] + a note per source and PDF page, then ## Bibliography with one line per URL, PER DOCUMENT"]
   DET["scorecard unbacked_citations<br/>(cite labels ⊄ report anchors)"]
   LOCK["blue edit lockdown<br/>(rejects an edit dropping/splitting a &lt;!--cite:--&gt; anchor)"]
 

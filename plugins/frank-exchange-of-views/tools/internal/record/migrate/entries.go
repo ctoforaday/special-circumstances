@@ -17,6 +17,7 @@ func Entries() Registry {
 		"friction":      {Translate: frictionEntry},
 		"friction_none": {Translate: frictionNoneEntry},
 		"opinion":       {Translate: opinionEntry},
+		"cite":          {Translate: citeEntry},
 	}
 	for w, e := range eraEntries() {
 		reg[w] = e
@@ -62,6 +63,25 @@ func frictionEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 		l.Source = recordpb.LogSource_LOG_SOURCE_TOOL.Enum()
 	}
 	return []proto.Message{l}, nil
+}
+
+// citeEntry: a cite is kept word for word, and the one thing an old cite cannot say is where its
+// text came from — no run before epoch 7 recorded it. A guessed `embedded` would tell red an OCR
+// quote needs no page check; NOT_RECORDED says the question was never asked. Filled only where
+// absent, so a cite that carries an origin keeps it.
+func citeEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
+	body, err := identityBody(old)
+	if err != nil {
+		return nil, err
+	}
+	c, ok := body.(*recordpb.Cite)
+	if !ok {
+		return nil, fmt.Errorf("migrate: cite translated to %T, not a Cite", body)
+	}
+	if c.SourceTextOrigin == nil {
+		c.SourceTextOrigin = recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NOT_RECORDED.Enum()
+	}
+	return []proto.Message{c}, nil
 }
 
 // frictionNoneEntry: the explicit empty form became the POSITIVE nominal entry — "none" is

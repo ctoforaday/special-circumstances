@@ -70,8 +70,8 @@ the 2026-08-23 retrospective).
 > of the **record**, which is the property that actually matters. Measured
 > across 66 seat transcripts, all 33 pdf-reader reads bypassed `fetch`
 > entirely, so better extraction would only have made an unrecorded read
-> cheaper and less visible. The tooling will come back as an implementation
-> detail of routing PDFs through `fetch` — see the issue tracking that.
+> cheaper and less visible. PDFs now route through `fetch`, which reads a scan
+> with the OCR engine compiled into the binary, so nothing needs provisioning.
 
 ### 1. The plugins must be installed by the SETUP SCRIPT, not mid-session
 

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/tessocr"
 )
 
 // newFetch is the cached web read that REPLACES WebFetch for every seat.
@@ -39,7 +41,7 @@ func newFetch() *cobra.Command {
 		// resolved" (#592) is at fetchcache/httpfetcher.go and egress_test.go. None of it changes
 		// what a seat does, so the page carries only the instruction each one produced.
 		Long: "fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself. Open what you need with Read, using an offset and a limit: a 67-page paper pasted into your context is waste whether legible or not. A PDF's text is extracted to <run>/cache/<sha256>.txt and named in the summary, so you need no PDF tooling.\n\n" +
-			"A PDF WITH NO TEXT LAYER (a scan) is read by the LOCAL OCR ENGINE compiled into this binary — deterministic, reproducible, no model, credentials or network, seconds per document — and named in the summary as ocr_derived text keyed to the engine identity, so an audit can re-derive it byte for byte. Ruled tables of marks are reconstructed into |-separated rows with confidence stats on the record; one that cannot place its marks, or whose measured grid is far larger than the rows and columns it recovered, falls back to plain text WITH the failure stated. A ruled table of TEXT cells always reads as plain text: its words are kept, but not which row and column each belongs to — the record says so on that page. A document over the render disk budget is refused rather than partly read.\n\n" +
+			"A PDF WITH NO TEXT LAYER (a scan) is read by the LOCAL OCR ENGINE compiled into this binary — deterministic, reproducible, no model, credentials or network, seconds per document — and named in the summary as ocr_derived text keyed to the engine identity, so an audit can re-derive it byte for byte. Ruled tables of marks are reconstructed into |-separated rows with confidence stats on the record; one that cannot place its marks, or whose measured grid is far larger than the rows and columns it recovered, falls back to plain text WITH the failure stated. A ruled table of TEXT cells always reads as plain text: its words are kept, but not which row and column each belongs to — the record says so on that page. A document over the render disk budget is refused rather than partly read. OCR text can misread: citing it at the leaf takes `cite --ocr-quote` with the span from the reading, and the tool records the PDF page it sits on.\n\n" +
 			"Pages already read are never re-derived: each carries a receipt checked against its image hash, so a retry or a crash resumes cleanly. Beside each page's reading, under <run>/cache/<sha>.pages/, the engine's evidence for it is kept for debugging — tesseract's own diagnostics for that page and, on ruled pages, the word boxes it read — never the page image. A later fetch of the same URL is served from cache, so every seat reads identical bytes. It writes no record event. A failure is a non-zero error (pick another source) and logs no friction itself.\n\n" +
 			"AN UNREACHED SOURCE IS NOT EVIDENCE OF ABSENCE: behind an egress proxy, a host outside the allowlist answers 403 — the status an origin uses to refuse a client — so a failure can be a fact about THIS CONTAINER or about the SOURCE, and those are different findings. The refusal says which where it can; where you cannot tell, record the source as UNREACHABLE FROM HERE, not the question as unresolved.",
 		Args:          cobra.NoArgs,
@@ -132,13 +134,17 @@ func newFetch() *cobra.Command {
 			if applicableToOCR(entry) {
 				switch on, _ := cmd.Flags().GetBool(flags.OCR); {
 				case !on:
-					s.OCRReason = fmt.Sprintf("automatic reading is off (--%s=false); read it deliberately "+
-						"with `ocr pages --%s %s` then `ocr read --%s %s`",
-						flags.OCR, flags.Sha, entry.Sha, flags.Sha, entry.Sha)
+					// No command a seat cannot run: `ocr` is the operator's tree, and every
+					// surface can fetch again.
+					s.OCRReason = fmt.Sprintf("automatic reading is off (--%s=false); fetch again without it to read the scan", flags.OCR)
 				default:
 					rec, rerr := fetchcache.DefaultScanReader.ReadScanned(cmd.Context(), run, entry)
 					if rerr != nil {
 						s.OCRReason = rerr.Error()
+						// THE FIELD IS WHAT A MACHINE READS; the sentence is for a human. A caller
+						// that must tell "this binary has no engine" from a read that failed would
+						// otherwise match the sentence.
+						s.OCREngineAbsent = errors.Is(rerr, tessocr.ErrNotCompiledIn)
 					} else {
 						s.applyReading(run, rec)
 					}

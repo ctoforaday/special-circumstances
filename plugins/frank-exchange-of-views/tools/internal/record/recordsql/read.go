@@ -214,7 +214,7 @@ type tableBatch struct {
 	scalars []protoreflect.FieldDescriptor // non-list, non-message: the row's columns
 	oneofs  []protoreflect.OneofDescriptor // non-synthetic: each carries a `_case` discriminator
 	rows    map[int64][]any                // scalar values, then one case word per oneof, aligned
-	lists   map[string]map[int64][]string  // list-field name → event → values in ord order
+	lists   map[string]map[int64][]any     // list-field name → event → values in ord order
 	arms    map[string]*armBatch           // arm-field name → its table's scan
 }
 
@@ -294,7 +294,7 @@ func (b *tableBatch) load(db *sql.DB) error {
 	if b.rows, err = scanTable(db, b.table, cols); err != nil {
 		return err
 	}
-	b.lists = map[string]map[int64][]string{}
+	b.lists = map[string]map[int64][]any{}
 	for i := 0; i < b.md.Fields().Len(); i++ {
 		fd := b.md.Fields().Get(i)
 		if !fd.IsList() {
@@ -369,9 +369,14 @@ func (b *tableBatch) fill(id int64, msg protoreflect.Message) error {
 		if len(v) == 0 {
 			continue
 		}
-		l := msg.Mutable(b.md.Fields().ByName(protoreflect.Name(name))).List()
-		for _, s := range v {
-			l.Append(protoreflect.ValueOfString(s))
+		lfd := b.md.Fields().ByName(protoreflect.Name(name))
+		l := msg.Mutable(lfd).List()
+		for _, e := range v {
+			pv, err := protoValue(lfd, e)
+			if err != nil {
+				return fmt.Errorf("recordsql: %s_%s: %w", b.table, name, err)
+			}
+			l.Append(pv)
 		}
 	}
 	// The oneof's message arms, found through the discriminator the write recorded.
@@ -455,16 +460,16 @@ func scanTable(db *sql.DB, table string, cols []string) (map[int64][]any, error)
 	return out, rows.Err()
 }
 
-func scanLists(db *sql.DB, table string) (map[int64][]string, error) {
+func scanLists(db *sql.DB, table string) (map[int64][]any, error) {
 	rows, err := db.Query(fmt.Sprintf("SELECT \"event_id\", \"value\" FROM %q ORDER BY \"event_id\", \"ord\"", table))
 	if err != nil {
 		return nil, olderSchema(db, table, err)
 	}
 	defer rows.Close()
-	out := map[int64][]string{}
+	out := map[int64][]any{}
 	for rows.Next() {
 		var id int64
-		var v string
+		var v any
 		if err := rows.Scan(&id, &v); err != nil {
 			return nil, err
 		}

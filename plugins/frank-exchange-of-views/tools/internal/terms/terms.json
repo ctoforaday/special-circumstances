@@ -230,6 +230,13 @@
       ]
     },
     {
+      "term": "OCR-derived text",
+      "definition": "OCR-derived text is a machine's reading of a scanned document's page images: deterministic, and able to misread, so a citation quoting it records the PDF page its quote sits on and is checked against that page's image.",
+      "seats": ["lens", "blue", "operator"],
+      "bans": [],
+      "collisions": []
+    },
+    {
       "term": "anchor",
       "definition": "An anchor is the invisible token a citation, a proof or a finding leaves at its sentence in the report.",
       "seats": ["lens", "chair", "blue", "bench", "operator"],

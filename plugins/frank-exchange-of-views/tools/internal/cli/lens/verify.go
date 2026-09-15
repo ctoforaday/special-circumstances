@@ -2,7 +2,9 @@ package lens
 
 import (
 	"errors"
+	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -12,6 +14,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -82,15 +85,92 @@ import (
 // genuinely requires and cobra refuses the nonsense before the handler runs.
 func newVerify() *cobra.Command {
 	c := seat.Prose(seat.New("verify", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-		return writeVerify(s, cmd, &recordpb.Verify{
-			Anchor: proto.String(strings.TrimSpace(seat.Str(cmd, flags.Anchor))),
-		}, adjudates)
+		body := &recordpb.Verify{Anchor: proto.String(strings.TrimSpace(seat.Str(cmd, flags.Anchor)))}
+		if err := checkedPage(s, cmd, body); err != nil {
+			return nil, err
+		}
+		return writeVerify(s, cmd, body, adjudates)
 	}))
 
 	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists), flags.Anchor, "the c-<hex> of the citation you checked, from the report's `<!--cite:c-…-->` token — resolve it with `show evidence`")
 	_ = c.MarkFlagRequired(flags.Anchor)
+	c.Flags().Int(flags.Page, 0, "for a citation with pages: the page whose image you checked, drawn first with render-page")
 	verifyAxes(c)
 	return c
+}
+
+// checkedPage holds a verification of a citation with pages to the page image red checked.
+//
+// A CITATION WITH PAGES QUOTES OCR TEXT, which can misread, so reading the reading again proves
+// nothing: the check is against the pixels, and the record says which page image it was. A page
+// given on a citation with none has no referent, and a page outside the citation's pages is a
+// check of something else. `unreachable` may omit the page — red could not draw or read the
+// image, and a verification that cannot be written is worse than one saying nothing was checked —
+// but a page it names must still have its image on disk.
+func checkedPage(s seat.Context, cmd *cobra.Command, body *recordpb.Verify) error {
+	run, err := s.Run()
+	if err != nil {
+		return err
+	}
+	cite, err := record.CiteByLabel(run, body.GetAnchor())
+	if err != nil || cite == nil {
+		return err
+	}
+	pages := cite.GetPages()
+	given := seat.Given(cmd, flags.Page)
+	page, _ := cmd.Flags().GetInt(flags.Page)
+	if len(pages) == 0 {
+		if given {
+			return feov.Errorf(feov.Validation, "lens verify: --page names a page image, and citation %s has no pages — its text is not a quote located in an OCR reading, so there is no image to check", body.GetAnchor())
+		}
+		return nil
+	}
+	sha := cite.GetSha256()
+	if !given {
+		if seat.Str(cmd, flags.As) == recordpb.Word(recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE) {
+			return nil
+		}
+		return feov.Errorf(feov.Validation, "lens verify: citation %s quotes OCR text found on PDF %s, and the reading may be what is wrong — draw one of those pages with `render-page --sha %s --page %d`, check the image, and pass that page as --page", body.GetAnchor(), pageList(pages), sha, pages[0])
+	}
+	if !containsPage(pages, page) {
+		return feov.Errorf(feov.Validation, "lens verify: --page %d is not a page citation %s's quote was found on (PDF %s) — check one of those", page, body.GetAnchor(), pageList(pages))
+	}
+	img, err := os.ReadFile(fetchcache.PageImagePath(run, sha, page))
+	if err != nil {
+		return feov.Errorf(feov.Validation, "lens verify: no image of page %d is on disk — draw it first with `render-page --sha %s --page %d`", page, sha, page)
+	}
+	rec, had, err := fetchcache.ReadReadingRecord(run, sha)
+	if err != nil {
+		return err
+	}
+	if !had || page > len(rec.RenderShas) {
+		return feov.Errorf(feov.Validation, "lens verify: the reading citation %s was located in is gone from the cache — `fetch --url %s` re-derives it", body.GetAnchor(), cite.GetUrl())
+	}
+	body.Page = proto.Int32(int32(page))
+	body.PageRenderSha = proto.String(fetchcache.Sha(img))
+	body.ReadingRenderSha = proto.String(rec.RenderShas[page-1])
+	return nil
+}
+
+func containsPage(pages []int32, page int) bool {
+	for _, p := range pages {
+		if int(p) == page {
+			return true
+		}
+	}
+	return false
+}
+
+// pageList renders pages the way the report prints them: "p. 10" or "pp. 10, 34".
+func pageList(pages []int32) string {
+	parts := make([]string, len(pages))
+	for i, p := range pages {
+		parts[i] = strconv.Itoa(int(p))
+	}
+	if len(pages) == 1 {
+		return "p. " + parts[0]
+	}
+	return "pp. " + strings.Join(parts, ", ")
 }
 
 // corroborate: red reading a source IT found, for a claim blue made.

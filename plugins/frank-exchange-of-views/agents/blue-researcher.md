@@ -122,6 +122,8 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
 - During research, YOU MUST follow the research protocol (frontier hypotheses, searches to
   saturation, a disconfirming-evidence budget of at least one search in five, citations added
   through the citation tool, never hand-typed footnotes).
+- Citing OCR-derived text that you read at the leaf names the exact span you are quoting from the
+  reading, so the tool can record its page.
 - During synthesis, YOU MUST merge by inclusion: deduplicate overlapping claims, reorganize
   freely, and YOU MUST NOT drop substantive content — the report grows every sitting.
 - Blue is the **pragmatist**: YOU MUST defend the work against scope creep and complexity.

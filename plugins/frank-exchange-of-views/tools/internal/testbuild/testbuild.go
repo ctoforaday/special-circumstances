@@ -247,7 +247,10 @@ func Binary(t *testing.T, name string) string {
 		} else {
 			// The platform convention, not a fixed spelling — see the package comment.
 			b.path = filepath.Join(dir, ExeName(name))
-			cmd := exec.Command("go", "build", "-o", b.path, "./cmd/"+name)
+			// A TAGGED TEST BUILDS A TAGGED BINARY, so a board that needs the engine is exercised
+			// for real under `go test -tags tessocr` and reported NOT BUILT without it.
+			args := append(append([]string{"build"}, engineBuildFlags...), "-o", b.path, "./cmd/"+name)
+			cmd := exec.Command("go", args...)
 			cmd.Dir = root
 			cmd.Env = buildEnv()
 			b.out, b.err = cmd.CombinedOutput()

@@ -1279,7 +1279,30 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// The verdict itself is derived and needs no defence. How the SITTING ended is not, and
 		// where a run ended UNVERIFIED — before the record reached a terminal state — nothing
 		// else records why; DeriveVerdict says so itself.
+	case *recordpb.Cite:
+		// WHERE THE CITED TEXT CAME FROM IS THE TOOL'S TO STAMP, and an unstamped cite is a tool
+		// defect, not a seat's omission — so the refusal names no flag. The OCR pins are refused
+		// on any other origin: a page list on an author's own text has no reading to have been
+		// found in, and it would read as a page check owed where none is.
+		origin := b.GetSourceTextOrigin()
+		if origin == recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_UNSPECIFIED {
+			return fmt.Errorf("record: cite carries no source_text_origin — the tool stamps where the cited text came from (embedded, ocr or none) before it writes, and this write skipped that")
+		}
+		if origin != recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR &&
+			(b.OcrQuote != nil || len(b.GetPages()) > 0 || b.OcrEngine != nil || b.OcrTextSha != nil) {
+			return fmt.Errorf("record: cite carries an OCR quote, pages or reading pins on a source whose text origin is %s — those locate a quote in the local engine's reading, and this source has none", recordpb.Word(origin))
+		}
+		if len(b.GetPages()) > 0 && (b.GetOcrQuote() == "" || b.GetOcrEngine() == "" || b.GetOcrTextSha() == "") {
+			return fmt.Errorf("record: cite carries pages without the quote and the reading (ocr_quote, ocr_engine, ocr_text_sha) they were found in — a page nobody can re-locate is a claim nothing can check")
+		}
 	case *recordpb.Verify:
+		// THE PAGE AND ITS TWO HASHES ARE ONE FACT: which image red checked, and which render the
+		// reading came from. One without the others is a check nobody can re-run.
+		if pinned := b.GetPageRenderSha() != "" || b.GetReadingRenderSha() != ""; b.Page != nil || pinned {
+			if b.GetPage() < 1 || b.GetPageRenderSha() == "" || b.GetReadingRenderSha() == "" {
+				return fmt.Errorf("record: verify carries a page without both render hashes, or hashes without a page — the page red checked, the sha of its image and the reading's render sha are written together")
+			}
+		}
 		// A VERIFICATION OF NOTHING WAS RECORDABLE. The bare verb — no flags at all — printed
 		// "source verified:" and appended an event that counted as red's audit volume. Enforced
 		// HERE and not only in the cobra verb, for the reason `outcome` states above: validate is

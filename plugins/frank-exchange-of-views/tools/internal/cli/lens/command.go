@@ -27,6 +27,7 @@ func Verbs() []*cobra.Command {
 		newNearMatch(),
 		newFinding(),
 		newVerify(),
+		newRenderPage(),
 		newCorroborate(),
 		newReproduce(),
 		seat.Log(),

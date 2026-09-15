@@ -24,7 +24,7 @@ import (
 // anonymous source and the join under test could not be exercised.
 func citeEvent(t *testing.T, anchor, claim string) *Event {
 	t.Helper()
-	return recordtest.Event(t, "blue-synthesize", &recordpb.Cite{
+	return recordtest.Event(t, "blue-synthesize", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(),
 		Label:    proto.String(anchor),
 		Text:     proto.String(claim),
 		Url:      proto.String("https://x"),

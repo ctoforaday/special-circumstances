@@ -14,7 +14,7 @@ import (
 // reason, a line's method, a proof's note, a citation's title. Each of these reaches report.md:
 // edit through the diff-stack, the line-of-inquiry fields through `inquiries()`, which composes
 // Research areas, Future research directions and Alternatives considered, and the proof note and
-// source title through the Bibliography. A second hand-written copy of this line in each verb
+// source title through its note and the Bibliography. A second hand-written copy of this line in each verb
 // would drift the first time one was reworded, and a seat hearing the same advice two ways learns
 // that the wording is not load-bearing.
 //

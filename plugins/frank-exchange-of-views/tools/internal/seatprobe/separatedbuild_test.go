@@ -1,6 +1,7 @@
 package seatprobe
 
 import (
+	"errors"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -86,7 +87,14 @@ func TestEveryProbeBoardBuildsThroughASubprocessWithASeparatedRecord(t *testing.
 				return string(out), nil
 			}
 
-			if err := Build(runtest.Open(t, runDir), b, run); err != nil {
+			err := Build(runtest.Open(t, runDir), b, run)
+			// A TAG-LESS BINARY CANNOT CITE OCR TEXT, and the board says so rather than building
+			// without its citation. A TAGGED one that reports the engine absent is the defect, so
+			// the skip is taken only where the engine was never compiled in.
+			if errors.Is(err, ErrEngineRequired) && !testbuild.EngineCompiledIn {
+				t.Skipf("board %q NOT BUILT — %v", name, err)
+			}
+			if err != nil {
 				t.Fatalf("board %q does not build with a separated record: %v\n\n"+
 					"This is the configuration cmd/seatprobe runs. A board that builds in-process and\n"+
 					"not here means every real dispatch dies before a seat is handed anything, while\n"+

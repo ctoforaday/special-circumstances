@@ -240,7 +240,11 @@ func tableFor(md protoreflect.MessageDescriptor) (string, error) {
 			continue // handled below, as a group
 		}
 		if fd.IsList() {
-			children = append(children, listTable(md, fd))
+			lt, err := listTable(md, fd)
+			if err != nil {
+				return "", err
+			}
+			children = append(children, lt)
 			continue
 		}
 		col, fchecks, ffks, err := scalarField(fd)
@@ -569,16 +573,24 @@ func escape(s string) string { return strings.ReplaceAll(s, "'", "''") }
 // listTable keeps a repeated field JOINABLE. Flattening it to a comma string would put a list back
 // inside a value, which is where `supersedes` lived before the schema and is the shape that made a
 // gap's lineage unqueryable.
-func listTable(parent protoreflect.MessageDescriptor, fd protoreflect.FieldDescriptor) string {
+//
+// THE VALUE COLUMN TAKES THE ELEMENT'S OWN TYPE. Every list was a list of strings until Cite's
+// `pages`, and a TEXT column read back into an int32 list panics on the first element: the type
+// is the field's, as it is for a scalar column.
+func listTable(parent protoreflect.MessageDescriptor, fd protoreflect.FieldDescriptor) (string, error) {
 	name := TableName(parent) + "_" + string(fd.Name())
+	typ, err := sqlType(fd)
+	if err != nil {
+		return "", err
+	}
 	return fmt.Sprintf(`
 CREATE TABLE %q (
   "event_id" INTEGER NOT NULL REFERENCES %q("event_id"),
   "ord"      INTEGER NOT NULL,
-  "value"    TEXT    NOT NULL,
+  "value"    %-7s NOT NULL,
   PRIMARY KEY ("event_id", "ord")
 ) STRICT;
-`, name, TableName(parent))
+`, name, TableName(parent), typ), nil
 }
 
 // oneofColumns models a real oneof.

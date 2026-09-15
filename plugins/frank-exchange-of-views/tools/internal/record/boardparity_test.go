@@ -100,7 +100,7 @@ func TestBoardJSONHoldsTheFoldsEdges(t *testing.T) {
 		Label: proto.String("v-1"), Title: proto.String("e"),
 		Outcome:    recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(),
 		Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(), Text: proto.String("the source states it plainly")})
-	app(blue, &recordpb.Cite{Label: proto.String("c-1"), Url: proto.String("https://example.org"),
+	app(blue, &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), Label: proto.String("c-1"), Url: proto.String("https://example.org"),
 		Title: proto.String("t"), CiteKey: proto.String("k1")})
 
 	bj, err := BoardJSONOfRun(run)
