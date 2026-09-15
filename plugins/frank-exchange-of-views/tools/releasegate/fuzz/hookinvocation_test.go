@@ -92,7 +92,9 @@ func TestTheShippedHooksResolveAgainstTheBuiltBinary(t *testing.T) {
 			}
 			for _, h := range m.Hooks {
 				driven++
-				installHookBinary(t, pluginRoot, h.Command)
+				if event != "SessionStart" || h.Command != ensureCommand {
+					installHookBinary(t, pluginRoot, h.Command)
+				}
 				cmd := exec.Command("sh", "-c", h.Command)
 				cmd.Dir = sandbox
 				cmd.Env = append(os.Environ(),
@@ -122,6 +124,13 @@ func TestTheShippedHooksResolveAgainstTheBuiltBinary(t *testing.T) {
 	}
 	t.Logf("%d shipped hook invocation(s) driven against the built binary", driven)
 }
+
+// ensureCommand is the ONE hooks.json command that runs no binary: SessionStart's version check,
+// which fetches this plugin's release when the installed binaries are not its version. There is
+// nothing to build for it; it is still driven below, and must exit 0 like every other hook — in
+// this sandbox its script is absent, so its own existence guard is what exits. scripts/fetchbingen
+// holds every plugin to exactly this string and fails when this copy drifts from it.
+const ensureCommand = `F="${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh"; if [ -f "$F" ]; then exec sh "$F" ensure SessionStart; fi`
 
 // binFromCommand pulls the ${CLAUDE_PLUGIN_ROOT}/bin/<name> a hook command resolves.
 var binFromCommand = regexp.MustCompile(`\$\{CLAUDE_PLUGIN_ROOT\}/bin/([A-Za-z0-9._-]+)`)

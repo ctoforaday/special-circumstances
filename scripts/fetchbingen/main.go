@@ -93,6 +93,7 @@ func main() {
 		}
 		problems = append(problems, guardProblems(p, hj)...)
 	}
+	problems = append(problems, ensureCopyProblems(root)...)
 
 	if !*check {
 		fmt.Printf("fetchbingen: wrote fetch-bin.sh into %d plugin(s): %s\n", len(plugins), strings.Join(plugins, ", "))
@@ -192,6 +193,31 @@ func guardProblems(plugin string, data []byte) []string {
 	// Zero guards in a plugin that ships binaries means the pattern moved, not that all is well.
 	if guards == 0 {
 		out = append(out, fmt.Sprintf("plugins/%s: no guard found in hooks.json — the shape this check reads has moved, so it would pass without reading anything", plugin))
+	}
+	return out
+}
+
+// ensureCopies are the tests that admit the ensure entry by its exact string. They sit in plugin
+// modules that cannot import this one, so the string is copied rather than shared, and a copy that
+// drifts rejects the shipped entry. frank-exchange-of-views' copy runs only under
+// FEOV_RELEASE_GATE=1: when #980 added the entry without it, no PR gate noticed and the 1.69.0 tag's
+// release run failed on it. This check runs everywhere.
+var ensureCopies = []string{
+	"plugins/prosthetic-conscience/tools/internal/hookinvocation/invocation_test.go",
+	"plugins/frank-exchange-of-views/tools/releasegate/fuzz/hookinvocation_test.go",
+}
+
+func ensureCopyProblems(root string) []string {
+	var out []string
+	for _, rel := range ensureCopies {
+		b, err := os.ReadFile(filepath.Join(root, rel))
+		if err != nil {
+			out = append(out, fmt.Sprintf("%s cannot be read, so its copy of the ensure entry is unchecked: %v", rel, err))
+			continue
+		}
+		if !bytes.Contains(b, []byte(ensureEntry)) {
+			out = append(out, fmt.Sprintf("%s does not carry the exact ensure entry, so it rejects what every plugin ships", rel))
+		}
 	}
 	return out
 }
