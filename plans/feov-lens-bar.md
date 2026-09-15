@@ -162,9 +162,15 @@ S1–S4 are classified line by line in III.1; S5 in III.5.
   - The rules: `agents/blue-researcher.md:184`, `blue-synthesizer.md:109`, `red-lens-voice.md:11-17`,
     `adversarial-audit/SKILL.md:62`.
   - The tells: `reportvoice/tells.go`. They are advisory and wired only into blue (`cli/blue/voice.go`, `ingest.go:125`).
-  - **Red's one path into `report.md`** is the risk matrix (`report/assemble.go:482-497`, `docs.go:121`), which
-    lifts the lead sentence of each OPEN gap's `problem` and `required_fix`. Findings go to `docket.md`, verdict
-    prose to `debate.md`/`run.md`, and retirements to `CHANGELOG.md`. No lens reads the matrix.
+  - **Red's paths into `report.md`** are three (III.9 names each):
+    - the risk matrix (`report/assemble.go:482-497`, `docs.go:121`), which lifts the lead sentence of each OPEN gap's
+      `problem` and `required_fix`;
+    - the Bibliography: a labelled corroboration is a cited source (`record/citationid.go:65-89`), and
+      `weaveCitations` (`report/assemble.go:63`, called at `docs.go:223`) prints it as `[^N]: <title>. <url>
+      (accessed <date>)`, one footnote per URL (main's `3114cf85`);
+    - a `fix_new` prescription, which reaches the report only when blue accepts it (`cli/blue/edit.go:88`).
+  - Findings go to `docket.md`, verdict prose to `debate.md`/`run.md`, and retirements to `CHANGELOG.md`. No lens
+    reads the matrix.
 - **Archives:** 13 on `origin/main` (`run-archive/*.tar.gz`, b6 added since the base). All 13 migrate with the base
   binary (b6: 194 events in, 194 out). Measured in `work/classmaterial.py` and `work/passopen.py`; see §V #11.
 
@@ -689,19 +695,38 @@ for authorship.
 
 ### III.9 Red's report-bound text obeys report voice — gblock [R]
 
-Red text that reaches `report.md` is addressed to the reader, about the subject.
+Red text that reaches `report.md` is addressed to the reader, about the subject. It reaches the report three ways,
+and each is held:
+- **The risk matrix** prints the first sentence of an open gap's `problem` and `required_fix`, and nothing else the
+  mint carries: not `mint_reason`, the acceptance check, the class, the gap id or the seat. Held by the refusal and
+  advice in (c); #13 pins the row.
+- **The Bibliography** prints a labelled corroboration's `--title` beside its URL and access date. The label is
+  minted only for `supports`, `supports_with_bridge` and `weak` (`backsTheClaim`, `cli/lens/verify.go`). The anchor
+  becomes a tool marker `[^N]`, and the claim is blue's sentence. Red's reason, outcome, confidence and seat stay on
+  the record. One footnote per URL means that where red's anchor comes before blue's cite of the same URL, red's
+  title is the one printed. A source's own title is subject matter, so the title is shown. It is held like blue's
+  cite title: `corroborate` returns the whole tell list as `voice_tells`, and refuses nothing, because N4 limits
+  the refusal to `problem` and `required_fix`. `TestCorroborationCarriesOnlyItsSourceIntoTheReport` pins the entry
+  to exactly title, URL and date; `TestCorroborateAdvisesOnItsTitleThroughTheRealVerb` pins the advice. Measured
+  over the 16 archives: 11 labelled corroboration titles, 0 carrying any tell.
+- **A `fix_new` prescription** becomes report prose only when blue accepts it. Blue's edit advisory runs on the
+  accepted text (`cli/blue/edit.go:102`), and red's voice lens audits it like any edit. The mint check does not read
+  `fix_new` (N4). Measured: 10 prescriptions across the 16 archives, 3 carrying an advised tell ("this report",
+  "this run"), none a refused one. **Open:** whether the mint check should read `fix_new` is not ruled.
 - **(a) Skill.** `adversarial-audit/SKILL.md`, after `:62`:
   > **WHAT YOU WRITE THAT REACHES THE REPORT IS HELD TO ITS VOICE.** The first sentence of a gap's problem and of its
-  > fix ship in the report's risk matrix while the gap is open. Write them to a reader of the SUBJECT: no lens, seat
-  > or side names, no gap or finding ids, no epochs or sittings, no tool verbs, no account of the run. Say "the
-  > analysis claims…", not "this run claimed…". The run's part goes in the mint reason.
+  > fix ship in the report's risk matrix while the gap is open, and a corroborating source's title ships in its
+  > Bibliography entry. Write them to a reader of the SUBJECT: no lens, seat or side names, no gap or finding ids, no
+  > epochs or sittings, no tool verbs, no account of the run. Say "the analysis claims…", not "this run claimed…".
+  > The run's part goes in the mint reason.
 - **(b) The chair's PASS listing stays on the record** (D8). The risk row keeps red's reader-facing remedy.
 - **(c) Refusal of the unambiguous, advice on the rest** (gblock's fork ruling). `tells.go` gains a `Refuse bool` on
   each tell.
   - **Refused:**
     - seat and lens ids: `\b(red-lens-[a-z-]+|red-chair|blue-(respond|synthesize|lane-\d+)|judge-terminal)\b`;
     - finding labels: `\b[a-z-]+-F\d+\b`;
-    - gap or finding ids joined to process words: `\b(gaps?|findings?) G?\d+\b`,
+    - gap or finding ids joined to process words: `\b(?i:gaps?|findings?) G\d+\b` (the id carries its `G`: "a gap
+      2 metres wide" is subject prose, and no archived problem or fix differs between the two spellings),
       `\bG\d+['’]s (fix|repair|closure|mint)\b`, `\b(minted|closed|regraded|superseded) (as )?G\d+\b`;
     - lane tags: `\[(minority|lane-\d)[^\]]*\]`.
   - **Advised:**
@@ -713,10 +738,17 @@ Red text that reaches `report.md` is addressed to the reader, about the subject.
     returns in the mint result's `voice_tells`.
   - Under `Migrating` the check does not run.
   - Bare ids stay a written duty under (a). Blue's advisory is unchanged, and it gains the new advisory tells.
-  - `cli/seat/help/mint.md` adds the refusal beside its write-time refusals (`:11-13`).
-- **Measured** (`work/refusalrate2.py`, 13 archives, b6 included): the refused set hits **2 of 112** problem
-  statements (`blue-respond`, `blue-lane-2` and a `[minority: lane-2/…]` tag) and **0 of 112** fixes. The advised
-  set hits 26 problem statements and 20 fixes.
+  - `cli/seat/help/mint.md` adds the refusal beside its write-time refusals (`:11-13`); `cli/seat/help/corroborate.md`
+    says the title is printed and advised.
+- **Measured** with the implemented `reportvoice.Refused` and `reportvoice.Advised` over the 16 archives' 123 gaps
+  (phase 6: a throwaway Go test over the migrated `record.db` files, not committed). The refused set hits **4 of 123**
+  problem statements and **1 of 123** fixes, on 4 gaps:
+  - quadratic G8: `blue-lane-2` and `[minority: lane-2/primary-literature]`;
+  - quadratic G25: `blue-respond`;
+  - b8 G2: `blue-synthesize`, in both the problem and the fix;
+  - b9 G4: `red-lens-evidence`.
+  The advised set hits **28 of 123** problem statements and **22 of 123** fixes, on 41 gaps. Most are "this run" (25),
+  "this round" (11) and "this report" (9).
 
 ### III.10 Decisions (2026-09-11)
 
@@ -765,7 +797,7 @@ Red text that reaches `report.md` is addressed to the reader, about the subject.
 | A chair records a PASS over an owed re-arm (a regression on today's gate) | round-4 audit | `requireNoCastLensReady` reads the same fold as `pass_permitted` (III.5); #1's `TestPassRefusedWhileReArmOwed` and #4's delete-the-row. |
 | The lens reads its current sitting as its last one | `sittingFor` counts the register the lens has just made (§II) | `lastSittingBefore` bounds both the dispatch and its register strictly before the current dispatch; #1's fixture registers before reading, and #4 drops the bound. |
 | Migrating a run written by this binary refuses or rewrites its own fields | identity translation by name (`migrate/registry.go:27-44`) | The preset-`class_material` refusal is gated `!Migrating`; the translation supplies values only where absent (III.1 table); #2 round-trips such a run. |
-| Friction from the mint refusal | `work/refusalrate2.py` | 2/112 problem statements and 0/112 fixes refused; the rest are advised. Lenses rephrase run and round references in reader terms. `mint_reason` is never checked. |
+| Friction from the mint refusal | the implemented refusal over the 16 archives (III.9) | 4/123 problem statements and 1/123 fixes refused (4 gaps); the rest are advised (28/123 and 22/123). Lenses rephrase run and round references in reader terms. `mint_reason` is never checked. |
 | structure-noncompliance becomes invisible | sleeper G7/G18 (medium, bench-repaired) [R] | It stays on the board, listed by class at PASS on the record. Migrated, sleeper's replayed `ClassNew` takes `never` (III.1). |
 | Blue uses "focus" to shed evidence | the item-6 narrowing | A claim, its evidence and its qualification cannot be dropped; retirement is on the record; the bench arbitrates; `always` classes cannot be argued sub-material. |
 | An unmigrated run, or a hand-built fixture, breaks | no tolerance path | The open-time refusal names `migrate`; setup refuses a stale caller registry, naming the registry fix; `StageForRun` writes `by_grade`; #11 migrates all 16 archives with zero refusals. |
@@ -792,8 +824,8 @@ origin/main` (`1ef6338f` or later), with a clean tree; implementation starts the
 | 9 | `FEOV_RELEASE_GATE=1 go -C $W/$T test -count=1 -timeout 45m ./releasegate/fuzz/` | seven-lens fuzz runs end in a terminal verdict, and none settles empty (#637/#870); with the `parties` patch deleted, the fuzz relays the verb's JSON unaltered, so a `null` array fails it | `dispatch.go`, `cast.go`, `fuzz_test.go` |
 | 10 | `go -C $W/$T build -o ~/.claude/scratch/feov-lens-review/bin/feov-record ./cmd/feov-record && go -C $W/$T run ./cmd/seatprobe -bin ~/.claude/scratch/feov-lens-review/bin/feov-record -board all -dir ~/.claude/scratch/feov-lens-review/seatprobe` (once, at the end; costs tokens) | real seats read the changed constitutions and reach their verbs | `agents/*.md`, the skill |
 | 11 | `feov-record --seat-id operator migrate --from <run> --to <fresh>` for each of the **16** archives (extracted from `origin/main:run-archive/`) into scratch; then `work/classmaterial.py`, `work/passopen.py`, `work/gapagg.py` and `work/refusalrate2.py`. Expected, measured over the 16 archives on the rebased tree: zero refusals, and no stated fill for any staged row (every staged registry holds 38–39 slugs, all in the shipped table); exactly 29 stated fills, one per archived class-creation slug absent from the table (30 class-creation events; `structure-noncompliance` is in the table); every staged registry carries `material_default`; 123 gaps, material 82 today and **101** under class defaults (21 raised by an `always` class, 2 lowered: sleeper's `structure-noncompliance`), open-at-end material 3 → 9; b7's PASS carries `migration_admitted_gap_ids` [G2] and b9's [G3], the other four PASSes carry none, and `feov-record verify` exits 0 on all 16, reporting b7 and b9's `pass-closes-all-gaps` as admitted by migration. Each per-run difference against lens-quant §2 is explained by a class default. | the migration translation, on real data | `migrate.go`, `views.go`, `replay.go` |
-| 12 | `go -C $W/$T test -count=1 ./internal/reportvoice/ ./internal/record/ ./internal/cli/...` running `TestRefusedTellsAreUnambiguous` (seat ids, finding labels, gap ids with process words, lane tags), `TestOrdinarySubjectProseIsClean` (plus "the G20 summit", "the chair of the committee", "a sitting judge", "the red team exercise"), `TestMintRefusesSeatIdInProblem`, `TestMintRefusesLaneTagInRequiredFix`, `TestMintAcceptsProcessWordsInMintReason`, `TestMintAdvisesOnThisRun`, `TestMigratingReplaySkipsVoiceRefusal`, and the blue advisory tests unchanged | III.9(c) | `tells.go`, the Mint validation in `record.go` |
-| 13 | `go -C $W/$T test -count=1 -run TestRiskMatrixCarriesOnlyWhatMintWrote ./internal/report/`; blanking the `RequiredFix` cell must fail it | III.9 names the whole red path into the report | `report/assemble.go`, `docs.go` |
+| 12 | `go -C $W/$T test -count=1 ./internal/reportvoice/ ./internal/record/ ./internal/cli/...` running `TestRefusedTellsAreUnambiguous` (seat ids, finding labels, gap ids with process words, lane tags), `TestOrdinarySubjectProseIsClean` (plus "the G20 summit", "the chair of the committee", "a sitting judge", "a gap 2 metres wide", and "the red team exercise", which is advised and not refused), `TestMintRefusesSeatIdInProblem`, `TestMintRefusesLaneTagInRequiredFix`, `TestMintAcceptsProcessWordsInMintReason`, `TestMintAdvisesOnThisRun`, `TestMigratingReplaySkipsVoiceRefusal`, and the blue advisory tests unchanged | III.9(c) | `tells.go`, the Mint validation in `record.go` |
+| 13 | `go -C $W/$T test -count=1 -run TestRiskMatrixCarriesOnlyWhatMintWrote ./internal/report/`; blanking the `RequiredFix` cell must fail it. Then `go -C $W/$T test -count=1 -run 'TestCorroborationCarriesOnlyItsSourceIntoTheReport|TestCorroborateAdvisesOnItsTitleThroughTheRealVerb' ./internal/cli/`; printing anything beyond title, URL and date in a Bibliography entry, or dropping the title advice, must fail them | III.9 names the whole red path into the report | `report/assemble.go`, `docs.go`, `cli/lens/verify.go` |
 | 14 | Re-run S1–S5 (§II). S1's only thresholds are the `by_grade` constant and its two carriers; S2 and S3 show every decider and gate statement on the class-aware definition, each remaining line in III.1's non-carrier list; S4 shows only III.1's "stays true" and "another sense" rows; S5 shows no old-model text outside III.5's non-carriers. A new line in any sweep is classified before merge. | no carrier still speaks the old model | any file the sweeps reach |
 | 15 | `go -C $W/$T test -count=1 ./internal/capture/...` running `TestDispatchedPartiesAndRegistersAgree` (unchanged) plus `TestRelayedGapIDsDisagreeingWithDispatchRowFail` (a record whose dispatch engages `blue-respond` on G1, and a journal whose relayed plan carries `blue-respond` on G2: FAIL naming the sitting, the seat, G2 relayed and G1 recorded), `TestRelayedHeadDisagreeingWithPinFails`, `TestRelayCountMismatchFails`, `TestRelayPairingOnDuplicatedChairResult` (a journal carrying one chair result twice, the resume shape: FAIL on the count, naming it), `TestAdoptionTextNamesMaterialDefault` (capture's `law/proposed/class-*.md` text names the field and the run's coined value), `TestRelayComparedAgainstLastRowOfDuplicatedGroup` (a group whose seat is named by two rows — a docket plan recorded twice, as B5 and B6 did — with different `gap_ids`: a relay matching the last row PASSes, one matching only the first FAILs), `TestFaithfulRelayFieldsPass`, and `TestNoJournalStatesFieldsNotCompared` | fork (b) | `capture/dispatchparity.go`, `capture.go` |
 
@@ -830,6 +862,8 @@ origin/main` (`1ef6338f` or later), with a clean tree; implementation starts the
   `TestClassgenCheckCoversShippedTable`, `TestAdoptionTextNamesMaterialDefault`.
 - fork (a) rebuilt (gblock, 2026-09-15): `TestMigrationRecordsAdmittedPassOnArchives`, `TestLiveGateCarryingMigrationAdmissionRefused`,
   `TestPassOverOpenMaterialGapWithoutAdmissionFails`, `TestMigratedPassOverOnlyNonMaterialGapsCarriesNoAdmission`.
+- phase 6 (red's report voice, the corroboration path): `TestCorroborationCarriesOnlyItsSourceIntoTheReport`,
+  `TestCorroborateAdvisesOnItsTitleThroughTheRealVerb`.
 - Every item in #4's delete-the-row list fails its test when applied.
 
 Done when #1–#9 and #11–#16 are green and observed, and #10 has run once.
