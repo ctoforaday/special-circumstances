@@ -1368,6 +1368,11 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		if b.GetConfidence() == recordpb.Confidence_CONFIDENCE_UNSPECIFIED {
 			return fmt.Errorf("record: verify requires --confidence high|medium|low — how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different facts, and low confidence is a call for more evidence rather than a fail")
 		}
+		if !Migrating {
+			if err := refuseCorroborationTitleVoice(b); err != nil {
+				return err
+			}
+		}
 	}
 	// The closed sets, checked from one declaration (enums.go) rather than five
 	// hand-written copies. LAST, so the more specific refusal leads when a body has

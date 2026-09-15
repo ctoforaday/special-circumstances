@@ -78,3 +78,38 @@ func TestMigratingReplaySkipsVoiceRefusal(t *testing.T) {
 		t.Errorf("the migrated problem was not kept as archived: %q", got)
 	}
 }
+
+// A --new prescription becomes the report's text when blue accepts it, so migration replays one that
+// carries a refused tell as archived — the same exemption the problem and the fix have.
+func TestMigratingReplayKeepsAVoicedFixNew(t *testing.T) {
+	run, lens := liveRegistryRun(t, map[string]recordpb.ClassMaterial{"g": recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE})
+	Migrating = true
+	defer func() { Migrating = false }()
+	m := liveMint("G1", "g", recordpb.Grade_GRADE_MEDIUM)
+	m.ClassMaterial = recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum()
+	m.Problem = proto.String("The error bound is stated without its derivation.")
+	m.Location = proto.String("The bound holds.")
+	m.FixNew = proto.String("The bound holds, as blue-respond conceded.")
+	appendOK(t, lens, m)
+	if got := familyGaps(t, run)["G1"].Mint.GetFixNew(); !strings.Contains(got, "blue-respond") {
+		t.Errorf("the migrated prescription was not kept as archived: %q", got)
+	}
+}
+
+// A labelled corroboration's title is its Bibliography entry, and migration replays an archived one
+// that carries a refused tell as archived.
+func TestMigratingReplayKeepsAVoicedCorroborationTitle(t *testing.T) {
+	_, lens := liveRegistryRun(t, map[string]recordpb.ClassMaterial{"g": recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE})
+	Migrating = true
+	defer func() { Migrating = false }()
+	appendOK(t, lens, &recordpb.Verify{
+		Independent: proto.Bool(true),
+		Url:         proto.String("https://example.org/voiced"),
+		Title:       proto.String("Standard found by red-lens-evidence"),
+		Label:       proto.String("c-0123456789ab"),
+		Claim:       proto.String("The bound holds."),
+		Outcome:     recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(),
+		Confidence:  recordpb.Confidence_CONFIDENCE_HIGH.Enum(),
+		Text:        proto.String("the standard states it"),
+	})
+}

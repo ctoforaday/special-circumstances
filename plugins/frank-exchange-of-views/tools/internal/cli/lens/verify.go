@@ -294,10 +294,11 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		// precedes blue's cite of the same URL in the document, red's title is the one it prints. The url and the date
 		// are the source's identity; the claim is blue's sentence; the reason, outcome, confidence
 		// and seat stay on the record. So the title is the one span of a corroboration that reaches
-		// report.md, and it is held to the report's voice as blue's cite title is: advice on the
-		// whole list. The refusal reaches the mint's problem and fix only (plans/feov-lens-bar.md
-		// §III.10, N4), so nothing here refuses. Computed before the retry check, so a retry hears it.
-		for _, f := range reportvoice.Find(body.GetTitle()) {
+		// report.md, and it is held to the report's voice as a mint's problem, fix and prescription are:
+		// the write path refuses the unambiguous tells (record.refuseCorroborationTitleVoice, which
+		// reads the label this branch mints), and the ambiguous rest is advice (gblock, 2026-09-15).
+		// Computed before the retry check, so a retry hears it.
+		for _, f := range reportvoice.Advised(body.GetTitle()) {
 			tells = append(tells, f.String())
 		}
 		// A RETRY RETURNS ITS OWN ANCHOR. The minted label is fresh every call, so without this

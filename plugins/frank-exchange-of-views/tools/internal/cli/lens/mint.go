@@ -243,9 +243,9 @@ func newMint() *cobra.Command {
 		// THE AMBIGUOUS TELLS ARE ADVICE, and they ride back on the confirmation. The write path has
 		// already refused the unambiguous ones (record.refuseMintReportVoice), so what remains is the
 		// set a pattern cannot tell from subject prose — "this run" or "the red team" may be exactly
-		// right in a report about red teams. Same two fields, never the reason.
+		// right in a report about red teams. Same three fields the report prints, never the reason.
 		var tells []string
-		for _, text := range []string{p.GetProblem(), p.GetRequiredFix()} {
+		for _, text := range []string{p.GetProblem(), p.GetRequiredFix(), p.GetFixNew()} {
 			for _, f := range reportvoice.Advised(text) {
 				tells = append(tells, f.String())
 			}
@@ -300,7 +300,7 @@ type mintResult struct {
 	// difference visible while the seat is still there to fix it. No verb amends a check after
 	// mint, so the moment of the write is the only moment.
 	Check string `json:"acceptance_check,omitempty"`
-	// VoiceTells is ADVICE on the problem and the fix, and the gap is already on the board by the
+	// VoiceTells is ADVICE on the problem, the fix and a --new replacement, and the gap is already on the board by the
 	// time it renders. The fix for a tell that turns out to be real is the next mint's wording, or
 	// a supersession; nothing here asks the seat to undo the write.
 	VoiceTells []string `json:"voice_tells,omitempty"`
@@ -311,7 +311,7 @@ func (r mintResult) Human() string {
 	if r.Idempotent {
 		head += " (idempotent retry — existing id returned)"
 	}
-	note := reportvoice.Note("the risk matrix, the first sentence of the problem and of the fix, while the gap is open", r.VoiceTells)
+	note := reportvoice.Note("the risk matrix, the first sentence of the problem and of the fix, while the gap is open; the body, a --new replacement blue accepts", r.VoiceTells)
 	if r.Check == "" {
 		return head + note
 	}
