@@ -216,6 +216,15 @@ INSERT INTO "enum_source_text_read" ("value", "means") VALUES ('leaf', 'the sour
 INSERT INTO "enum_source_text_read" ("value", "means") VALUES ('summary_only', 'read only through someone else''s account of it — an abstract, a secondary description, or the summary of an INTERESTED party. Everything the report says about its contents is that account, not the source');
 INSERT INTO "enum_source_text_read" ("value", "means") VALUES ('unread', 'the text was never read — the citation rests on a record that the source EXISTS (a bibliographic index, a search result), not on anything it says');
 
+CREATE TABLE "enum_source_text_origin" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_source_text_origin" ("value", "means") VALUES ('embedded', 'the retrieved bytes carry the text: markup, plain text, or a PDF''s own text layer');
+INSERT INTO "enum_source_text_origin" ("value", "means") VALUES ('none', 'the tool holds no text for the source: an image, or a scan nobody has read');
+INSERT INTO "enum_source_text_origin" ("value", "means") VALUES ('not_recorded', 'this citation predates the field; written only by migrate');
+INSERT INTO "enum_source_text_origin" ("value", "means") VALUES ('ocr', 'machine-read off page images by the local engine — deterministic, and it can misread, so a quote from it is checked against the page''s pixels');
+
 CREATE TABLE "enum_source_outcome" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
@@ -546,7 +555,19 @@ CREATE TABLE "cite" (
   "cite_key" TEXT,
   "text" TEXT,
   "source_text_read" TEXT,
-  FOREIGN KEY ("source_text_read") REFERENCES "enum_source_text_read"("value")
+  "source_text_origin" TEXT,
+  "ocr_quote" TEXT,
+  "ocr_engine" TEXT,
+  "ocr_text_sha" TEXT,
+  FOREIGN KEY ("source_text_read") REFERENCES "enum_source_text_read"("value"),
+  FOREIGN KEY ("source_text_origin") REFERENCES "enum_source_text_origin"("value")
+) STRICT;
+
+CREATE TABLE "cite_pages" (
+  "event_id" INTEGER NOT NULL REFERENCES "cite"("event_id"),
+  "ord"      INTEGER NOT NULL,
+  "value"    INTEGER NOT NULL,
+  PRIMARY KEY ("event_id", "ord")
 ) STRICT;
 
 CREATE TABLE "verify" (
@@ -561,6 +582,9 @@ CREATE TABLE "verify" (
   "confidence" TEXT NOT NULL,
   "text" TEXT NOT NULL,
   "label" TEXT,
+  "page" INTEGER,
+  "page_render_sha" TEXT,
+  "reading_render_sha" TEXT,
   CHECK ("independent" IS NULL OR "independent" IN (0, 1)),
   FOREIGN KEY ("outcome") REFERENCES "enum_source_outcome"("value"),
   FOREIGN KEY ("confidence") REFERENCES "enum_confidence"("value")
