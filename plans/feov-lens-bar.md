@@ -165,12 +165,37 @@ S1–S4 are classified line by line in III.1; S5 in III.5.
   - **Red's paths into `report.md`** are three (III.9 names each):
     - the risk matrix (`report/assemble.go:482-497`, `docs.go:121`), which lifts the lead sentence of each OPEN gap's
       `problem` and `required_fix`;
-    - the Bibliography: a labelled corroboration is a cited source (`record/citationid.go:65-89`), and
-      `weaveCitations` (`report/assemble.go:63`, called at `docs.go:223`) prints it as `[^N]: <title>. <url>
-      (accessed <date>)`, one footnote per URL (main's `3114cf85`);
+    - the source's note and the Bibliography: a labelled corroboration is a cited source (`record/citationid.go`),
+      and `weaveCitations` (`report/assemble.go`, called from `docs.go`) prints a note `[^N]: <title>. <url>
+      (accessed <date>)` per URL and PDF page, titled by the first label under it, then a Bibliography of one
+      `- <title>. <url> (accessed <date>)` line per URL, titled by a blue cite of that URL where one exists
+      (`bibliographyEntry`; main's `c408a944`);
     - a `fix_new` prescription, which reaches the report only when blue accepts it (`cli/blue/edit.go:88`).
   - Findings go to `docket.md`, verdict prose to `debate.md`/`run.md`, and retirements to `CHANGELOG.md`. No lens
     reads the matrix.
+- **Carriers no list above names** (phase 7's census of S1–S5 against the implemented tree; each speaks the
+  concept and is rewritten with it):
+  - `cli/chair/dispatch.go:17`, the verb's doc: readiness as the head against each lens's pin. S5 does not search
+    `cli/chair`, and S1's row reads only its material clause.
+  - `record/record.go:498-506`, the `Migrating` doc: it lists the exemptions, and names neither the stale-area
+    refusal nor the admission stamp.
+  - `record/sitting.go:119`: "Dispatch enforces it — the lens's pin does not move".
+  - `record/record.go:1201`, `cli/cli_test.go` (the PASS-over-an-open-gap tests), `cli/rolethroughgroup_test.go`:
+    the PASS gate as refused over ANY open gap.
+  - `record/passagreement_test.go:67`: "two below-material gaps" (b9's G3 is `always`, so material).
+  - `docs/seat-command-triggers.md`, the `chair verdict` row: refused while a gap is open (III.5 names only the
+    dispatch row beside it).
+  - `releasegate/fuzz/fuzz_test.go`'s verdict oracle message, which counts every open gap.
+  - The terms registry (`internal/terms/terms.json`, and `docs/vocabulary.md` generated from it): `gap`,
+    `material`, `lens retirement`, `stale area`, and the collision of "retired" (a lens) with retiring a claim.
+  - `debate.js`'s assemble prompt, which repeats `refs.go`'s claim that the report lists open gaps "below material,
+    not certified against"; nothing produces that listing.
+  - Comments and test wording in `record/mintbudget.go`, `record/roster_bind_test.go` and `verify/verify_test.go`.
+- **Seat prompt ceilings.** `seatprobe/promptsize_test.go` holds each dispatched prompt under a ceiling and fails on
+  growth. The chair's retirement paragraph (III.5) is its job, so the chair's ceiling is 10,200 (from 9,500; the
+  prompt measures 10,059) and the paragraph drops the refusal the verdict help carries. The evidence lens carries
+  the `last_sitting` clause (III.4) beside main's OCR page-check duty (`c408a944`): 12,166 against a ceiling of
+  12,300 (11,846 before main's clause).
 - **Archives:** 16 on `origin/main` `6d89b380` (`run-archive/*.tar.gz`). All 16 migrate with zero refusals (b6: 194
   events in, 194 out). Measured in `work/classmaterial.py` and `work/passopen.py`; see §V #11.
 
@@ -614,12 +639,16 @@ The rest change as follows:
   - `debate.js:456` (the `gap_ids` description), `debate.js:858` and `red-chair.md:13`: "the lenses whose pin the
     report head moved past" becomes "active lenses, and retired lenses a head move re-arms once".
   - `red-chair.md:14` and `debate.js:859` gain:
-    > A lens seat retires after two sittings with no fresh material mint, is re-armed ONCE when the head moves, and
-    > retires for good if that sitting is barren. The plan permits a PASS only when no lens is ready — every lens retired
-    > with no re-arm owed, or retired for good — and nothing material is open; the tool refuses any other PASS. BEFORE a PASS, read the changes since each stale area's pin and name those areas in your
+    > A LENS RETIRES WHEN IT STOPS FINDING MATERIAL. A lens seat retires after two sittings with no fresh material
+    > mint, is re-armed ONCE when the head moves, and retires for good if that sitting is barren. The plan permits a
+    > PASS only when no lens is ready — every lens retired with no re-arm owed, or retired for good — and nothing
+    > material is open. BEFORE a PASS, read the changes since each stale area's pin and name those areas in your
     > spot-check; a defect you find there goes in that spot-check, and you record no verdict. YOUR PASS LISTS EVERY
     > OPEN GAP THAT IS NOT MATERIAL, BY CLASS — your work list marks each — with one line on why it changes no reader
     > decision, on the record.
+
+    The paragraph states no refusal: the stopping-judgment clause beside it says the tool refuses a PASS the board
+    does not permit, and the verdict help carries each refusal.
   - `red-chair.md:16` (the spot-check duty) and its prompt twin `debate.js:861` gain the stale areas.
   - `dispatch.go:256`, `sittingFor`'s comment listing its readers, gains `lensStates` and `lastSittingBefore`.
   - `dispatch.go:98` (`lensPins` in `PlanDispatch`) is replaced by the retirement fold's call.
@@ -700,16 +729,16 @@ and each is held:
 - **The risk matrix** prints the first sentence of an open gap's `problem` and `required_fix`, and nothing else the
   mint carries: not `mint_reason`, the acceptance check, the class, the gap id or the seat. Held by the refusal and
   advice in (c); #13 pins the row.
-- **The Bibliography** prints a labelled corroboration's `--title` beside its URL and access date. The label is
+- **The source's note and the Bibliography** print a labelled corroboration's `--title` beside its URL and access date. The label is
   minted only for `supports`, `supports_with_bridge` and `weak` (`backsTheClaim`, `cli/lens/verify.go`). The anchor
   becomes a tool marker `[^N]`, and the claim is blue's sentence. Red's reason, outcome, confidence and seat stay on
-  the record. One footnote per URL means that where red's anchor comes before blue's cite of the same URL, red's
-  title is the one printed. A source's own title is subject matter, so the title is shown. **It is held as the mint
+  the record. Red's title prints in the note when red's anchor is the first under it, and in the Bibliography line
+  when no blue cite names the URL. A source's own title is subject matter, so the title is shown. **It is held as the mint
   fields are** (gblock, 2026-09-15): the `*recordpb.Verify` validation in `record.go` refuses the unambiguous tells
   in the title of a LABELLED corroboration (`refuseCorroborationTitleVoice`, `record/redvoice.go`; the label is the
   field that makes it a footnote), outside `Migrating`; `corroborate` returns the ambiguous rest as `voice_tells`.
   An unlabelled corroboration — refutes, absent, unreachable — prints nowhere, so its title is not checked.
-  `TestCorroborationCarriesOnlyItsSourceIntoTheReport` pins the entry to exactly title, URL and date. Measured with
+  `TestCorroborationCarriesOnlyItsSourceIntoTheReport` pins the note and the Bibliography line to exactly title, URL and date. Measured with
   the implemented checks over the 16 archives: **11 labelled corroboration titles, 0 refused, 0 advised** (5
   unlabelled corroborations, not checked).
 - **A `fix_new` prescription** becomes report prose when blue accepts it. **It is held at the write where red
@@ -722,7 +751,7 @@ and each is held:
 - **(a) Skill.** `adversarial-audit/SKILL.md`, after `:62`:
   > **WHAT YOU WRITE THAT REACHES THE REPORT IS HELD TO ITS VOICE.** The first sentence of a gap's problem and of its
   > fix ship in the report's risk matrix while the gap is open; replacement text you prescribe becomes the report's own
-  > text when blue accepts it; and a corroborating source's title ships as its Bibliography entry. Write all of them
+  > text when blue accepts it; and a corroborating source's title ships in the source's note and Bibliography entry. Write all of them
   > to a reader of the SUBJECT: no lens, seat or side names, no gap or finding ids, no epochs or sittings, no tool
   > verbs, no account of the run. Say "the analysis claims…", not "this run claimed…". The tool refuses the
   > unambiguous tells — a seat or lens id, a finding label, a gap id beside a process word, a lane tag — and flags the
@@ -835,11 +864,11 @@ origin/main` (`1ef6338f` or later), with a clean tree; implementation starts the
 | 6 | `node --test $W/plugins/frank-exchange-of-views/tests/simulator/{debate,prompts}.test.mjs`. The assertion at `debate.test.mjs:73` ("HEAD MOVED PAST YOUR LAST SITTING (head 7)") becomes: every lens prompt carries the static `sitting.last_sitting` clause with all three kinds and the missed-then sentence, and no head clause built from the relay. New tests: for EVERY required relayed field (`head`, `parties`, `pass_permitted`, `ceiling`, `docket`, `why`, `max_epochs`, `epoch_limit_reached`, `stale_areas`, and a party's `seat_id` or `gap_ids`, and a `stale_areas` entry's `seat_id` (a string) or `pin` (an integer)), a plan missing it or carrying the wrong type (including `null` for an array) throws, naming the field — one table-driven test, so the check and III.4's list cannot drift; blue's prompt carries the closing-arguments clause exactly when the relayed `docket` is non-empty; seven default lenses; the chair prompt carries re-arm-once, the no-lens-ready PASS condition, the stale areas and the by-class listing. The prompt goldens that carry the old wording — `tests/simulator/testdata/prompt-red-chair.golden:41` and `prompt-red-lens-{evidence:16,logic:12,dark-side:12}.golden` ("HEAD MOVED PAST YOUR LAST SITTING") — are regenerated by #8 and reviewed line by line, together with `prompt-red-lens-evidence-engaged.golden` (the engaged lens prompt now carries the static `last_sitting` clause) and `seat-roster.golden` (reviewed for the seven-area default wherever the simulator uses it). | III.4, III.5, III.8 | `debate.js`, `tests/simulator/` |
 | 7 | `go -C $W/$S run ./classgen`, then `go -C $W/$S run ./protogen`, then `go -C $W/$S run ./check -only classgen,schemagen,massgen,vocabdoc,validatejson,frontmatter,pluginparity,fixtureparity,mjsparity,archaeology,rulesweep,lawqueue,golden,feov-record` | generated carriers (`record.pb.go`, `testdata/schema.sql`), parity, vocabulary, the law queue after the deletion | registry, `record.proto`, agents, `debate.js`, `law/` |
 | 8 | `go -C $W/$S run ./golden -update` once after the prompt and help changes (the command `tests/simulator/golden.mjs:65-70` names), committed on its own; then `go -C $W/$S run ./golden` (uncached), reviewing each changed page, including the four simulator prompt goldens #6 lists | the flag lists of `dispatch`, `spot-check`, `mint` and `class new`, and `verdict.md`/`dispatch.md` text | `cli/chair/*`, `cli/lens/*`, `cli/seat/help/*` |
-| 9 | `FEOV_RELEASE_GATE=1 go -C $W/$T test -count=1 -timeout 45m ./releasegate/fuzz/` | seven-lens fuzz runs end in a terminal verdict, and none settles empty (#637/#870); with the `parties` patch deleted, the fuzz relays the verb's JSON unaltered, so a `null` array fails it | `dispatch.go`, `cast.go`, `fuzz_test.go` |
+| 9 | `FEOV_RELEASE_GATE=1 go -C $W/$T test -count=1 -timeout 45m ./releasegate/fuzz/` | seven-lens fuzz runs end in a terminal verdict, and none settles empty (#637/#870); with the `parties` patch deleted, the fuzz relays the verb's JSON unaltered, so a `null` array fails it; `outcome --as VERIFIED` is driven on seed 3 (`verifiedSeed`, APPLY and COUNTER gaps only) and asserted, because the draw reaches VERIFIED on about one run in ten at seven lenses: every gap left "at impasse, ruled remanded" holds the run at CEILING, about a quarter of minted gaps end there under the sweep's k 1 (153 of 558; 63 of 250 on `origin/main`), and seven lenses mint 7.0 per run against 3.1 (8 of 80 VERIFIED against 29 of 80). Before the forced seed the word rode on the estoppel seed's all-APPLY run. With every drawn seed forced, 39 of 39 reach VERIFIED | `dispatch.go`, `cast.go`, `fuzz_test.go` (the directives, `verifiedSeed`) |
 | 10 | `go -C $W/$T build -o ~/.claude/scratch/feov-lens-review/bin/feov-record ./cmd/feov-record && go -C $W/$T run ./cmd/seatprobe -bin ~/.claude/scratch/feov-lens-review/bin/feov-record -board all -dir ~/.claude/scratch/feov-lens-review/seatprobe` (once, at the end; costs tokens) | real seats read the changed constitutions and reach their verbs | `agents/*.md`, the skill |
 | 11 | `feov-record --seat-id operator migrate --from <run> --to <fresh>` for each of the **16** archives (extracted from `origin/main:run-archive/`) into scratch; then `work/classmaterial.py`, `work/passopen.py`, `work/gapagg.py` and `work/refusalrate2.py`. Expected, measured over the 16 archives on the rebased tree: zero refusals, and no stated fill for any staged row (every staged registry holds 38–39 slugs, all in the shipped table); exactly 29 stated fills, one per archived class-creation slug absent from the table (30 class-creation events; `structure-noncompliance` is in the table); every staged registry carries `material_default`; 123 gaps, material 82 today and **101** under class defaults (21 raised by an `always` class, 2 lowered: sleeper's `structure-noncompliance`), open-at-end material 3 → 9; b7's PASS carries `migration_admitted_gap_ids` [G2] and b9's [G3], the other four PASSes carry none, and `feov-record verify` exits 0 on all 16, reporting b7 and b9's `pass-closes-all-gaps` as admitted by migration. Each per-run difference against lens-quant §2 is explained by a class default. | the migration translation, on real data | `migrate.go`, `views.go`, `replay.go` |
 | 12 | `go -C $W/$T test -count=1 ./internal/reportvoice/ ./internal/record/ ./internal/cli/...` running `TestRefusedTellsAreUnambiguous` (seat ids, finding labels, gap ids with process words, lane tags), `TestOrdinarySubjectProseIsClean` (plus "the G20 summit", "the chair of the committee", "a sitting judge", "a gap 2 metres wide", and "the red team exercise", which is advised and not refused), `TestMintRefusesSeatIdInProblem`, `TestMintRefusesLaneTagInRequiredFix`, `TestMintAcceptsProcessWordsInMintReason`, `TestMintAdvisesOnThisRun`, `TestMigratingReplaySkipsVoiceRefusal`, `TestMintRefusesAnUnambiguousTellInFixNewThroughTheRealVerb`, `TestMintAdvisesOnAnAmbiguousTellInFixNewThroughTheRealVerb`, `TestMigratingReplayKeepsAVoicedFixNew`, `TestMigratingReplayKeepsAVoicedCorroborationTitle`, and the blue advisory tests unchanged | III.9(c) | `tells.go`, `record/redvoice.go`, the Mint and Verify validations in `record.go`, `cli/lens/mint.go` |
-| 13 | `go -C $W/$T test -count=1 -run TestRiskMatrixCarriesOnlyWhatMintWrote ./internal/report/`; blanking the `RequiredFix` cell must fail it. Then `go -C $W/$T test -count=1 -run 'TestCorroborationCarriesOnlyItsSourceIntoTheReport|TestCorroborateAdvisesOnItsTitleThroughTheRealVerb|TestCorroborateRefusesAnUnambiguousTellInItsTitleThroughTheRealVerb' ./internal/cli/`; printing anything beyond title, URL and date in a Bibliography entry, dropping the title advice, refusing an ambiguous tell, or dropping the title refusal must fail them | III.9 names the whole red path into the report | `report/assemble.go`, `docs.go`, `cli/lens/verify.go` |
+| 13 | `go -C $W/$T test -count=1 -run TestRiskMatrixCarriesOnlyWhatMintWrote ./internal/report/`; blanking the `RequiredFix` cell must fail it. Then `go -C $W/$T test -count=1 -run 'TestCorroborationCarriesOnlyItsSourceIntoTheReport|TestCorroborateAdvisesOnItsTitleThroughTheRealVerb|TestCorroborateRefusesAnUnambiguousTellInItsTitleThroughTheRealVerb' ./internal/cli/`; printing anything beyond title, URL and date in the source's note or its Bibliography line, dropping the title advice, refusing an ambiguous tell, or dropping the title refusal must fail them | III.9 names the whole red path into the report | `report/assemble.go`, `docs.go`, `cli/lens/verify.go` |
 | 14 | Re-run S1–S5 (§II). S1's only thresholds are the `by_grade` constant and its two carriers; S2 and S3 show every decider and gate statement on the class-aware definition, each remaining line in III.1's non-carrier list; S4 shows only III.1's "stays true" and "another sense" rows; S5 shows no old-model text outside III.5's non-carriers. A new line in any sweep is classified before merge. | no carrier still speaks the old model | any file the sweeps reach |
 | 15 | `go -C $W/$T test -count=1 ./internal/capture/...` running `TestDispatchedPartiesAndRegistersAgree` (unchanged) plus `TestRelayedGapIDsDisagreeingWithDispatchRowFail` (a record whose dispatch engages `blue-respond` on G1, and a journal whose relayed plan carries `blue-respond` on G2: FAIL naming the sitting, the seat, G2 relayed and G1 recorded), `TestRelayedHeadDisagreeingWithPinFails`, `TestRelayCountMismatchFails`, `TestRelayPairingOnDuplicatedChairResult` (a journal carrying one chair result twice, the resume shape: FAIL on the count, naming it), `TestAdoptionTextNamesMaterialDefault` (capture's `law/proposed/class-*.md` text names the field and the run's coined value), `TestRelayComparedAgainstLastRowOfDuplicatedGroup` (a group whose seat is named by two rows — a docket plan recorded twice, as B5 and B6 did — with different `gap_ids`: a relay matching the last row PASSes, one matching only the first FAILs), `TestFaithfulRelayFieldsPass`, and `TestNoJournalStatesFieldsNotCompared` | fork (b) | `capture/dispatchparity.go`, `capture.go` |
 
@@ -882,6 +911,7 @@ origin/main` (`1ef6338f` or later), with a clean tree; implementation starts the
   `TestCorroborateAdvisesOnItsTitleThroughTheRealVerb`, `TestMintRefusesAnUnambiguousTellInFixNewThroughTheRealVerb`,
   `TestMintAdvisesOnAnAmbiguousTellInFixNewThroughTheRealVerb`, `TestMigratingReplayKeepsAVoicedFixNew`,
   `TestMigratingReplayKeepsAVoicedCorroborationTitle`; each fails with its fix reverted.
+- phase 8 (the release sweep): the forced-VERIFIED seed's assertion in `TestFuzzDebate`, which fails with the seed's scenario override removed.
 - Every item in #4's delete-the-row list fails its test when applied.
 
 Done when #1–#9 and #11–#16 are green and observed, and #10 has run once.
