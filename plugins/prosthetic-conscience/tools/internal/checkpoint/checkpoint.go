@@ -43,11 +43,18 @@ func NotePath(projectDir string, exists Exists, glob func(string) ([]string, err
 			}
 		}
 	}
-	fallback := filepath.Join(projectDir, ".claude", "checkpoints", "CHECKPOINT.md")
-	if exists(fallback) {
+	if fallback := FallbackPath(projectDir); exists(fallback) {
 		return fallback
 	}
 	return ""
+}
+
+// FallbackPath is where a note goes when no workspace owns one. The Stop nudge names it to a
+// session that has no note at all, so this is the one spelling both the search and that line
+// read: a session told a different path would write a note the search never finds, and go on
+// being warned.
+func FallbackPath(projectDir string) string {
+	return filepath.Join(projectDir, ".claude", "checkpoints", "CHECKPOINT.md")
 }
 
 // Note is a parsed checkpoint. Values are taken verbatim from the file; nothing

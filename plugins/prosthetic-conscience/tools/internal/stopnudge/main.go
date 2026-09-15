@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/ctxusage"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/freshness"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
@@ -65,20 +66,26 @@ type hookOutput struct {
 //
 // The baseline is one machine over five days. Phase 3 falsifies these edges against a nudge-on
 // population; until then they are the honest reading of the only distribution that exists.
+//
+// THE CONTEXT EDGES HAVE NO BASELINE, and say so. No session without a note was ever measured, so
+// there was no distribution to take percentiles of; gblock chose 150k / 300k / 600k live tokens on
+// 2026-09-15, weighing interruptions against cost — every turn re-reads the whole context, so a
+// heavy context is paid for on each one.
 func configured() Thresholds {
 	return Thresholds{
 		TurnsNotice: 16, TurnsWarn: 39, TurnsUrgent: 47,
 		GrowthNotice: 66_764, GrowthWarn: 109_902, GrowthUrgent: 157_844,
 		BranchNotice: 10, BranchWarn: 12, BranchUrgent: 17,
+		ContextNotice: 150_000, ContextWarn: 300_000, ContextUrgent: 600_000,
 	}
 }
 
 // run takes its thresholds as an ARGUMENT rather than reading configured() directly, so
 // the emission path can be driven in a test.
 //
-// That is not test scaffolding for its own sake. Thresholds are unset today, so with a
-// hardcoded source the ONLY reachable path is the silent one — and the branch that would
-// go untested is the one that composes the response the client actually reads. A hook
+// That is not test scaffolding for its own sake. With a hardcoded source, a test could reach
+// the emit path only by building a session that crosses the live edges — and the branch that
+// would go untested is the one that composes the response the client actually reads. A hook
 // whose emit path has never run is a hook whose first real emission is its first
 // execution of that code.
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time, th Thresholds) int {
@@ -97,19 +104,23 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		st, err := os.Stat(p)
 		return err == nil && !st.IsDir()
 	}, filepath.Glob)
+	var d Decision
 	if notePath == "" {
-		return 0 // no note: nothing whose age could be reported
+		// No note: nothing has an age, but the context still has a size. The zero time keeps the
+		// read to a backward scan for the newest usage figure — measured p95 1.2 ms on a 36 MB
+		// transcript, against 6.6 ms for the with-note gauge every noted session already pays.
+		u, _ := ctxusage.Read(in.TranscriptPath, time.Time{})
+		d = DecideContext(projectDir, in.SessionID, in.StopHookActive, u, th)
+	} else {
+		body, err := os.ReadFile(notePath)
+		if err != nil {
+			return 0
+		}
+		n := checkpoint.Parse(string(body))
+		m := freshness.Of(projectDir, in.TranscriptPath, string(body),
+			freshness.BranchWork(n.Get("head")), now)
+		d = Decide(projectDir, in.SessionID, in.StopHookActive, m, notePath, newest(n), th, now)
 	}
-	body, err := os.ReadFile(notePath)
-	if err != nil {
-		return 0
-	}
-
-	n := checkpoint.Parse(string(body))
-	m := freshness.Of(projectDir, in.TranscriptPath, string(body),
-		freshness.BranchWork(n.Get("head")), now)
-
-	d := Decide(projectDir, in.SessionID, in.StopHookActive, m, notePath, newest(n), th, now)
 	if d.Emit == "" {
 		return 0
 	}

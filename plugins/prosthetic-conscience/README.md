@@ -12,7 +12,7 @@ The rules are **defense in depth, not duplication**. A skill states the *semanti
 
 ## Rules
 
-Ten load on every session, the rest by description. `design-by-contract` is the authoring grammar: BEFORE / During / AFTER · YOU MUST.
+Eleven load on every session, the rest by description. `design-by-contract` is the authoring grammar: BEFORE / During / AFTER · YOU MUST.
 
 `agent-guardrails` · `anti-spinning` · `complete-the-concept` · `context-checkpointing` · `context-efficiency` · `critical-stance` · `design-by-contract` · `facts-are-fields` · `git-proficiency` · `markdown-proficiency` · `pair-programming` · `plan-act-reflect` · `project-memory` · `qlty-proficiency` · `refactoring-safety` · `scratch-policy` · `semantic-consent` · `spec-driven-development` · `terse-communication` · `test-driven-development` · `think-around-problem` · `validation-loop`
 
@@ -31,7 +31,7 @@ Ten load on every session, the rest by description. `design-by-contract` is the 
 | `sc-subagentstop` | SubagentStop | Seals a seat's note, keyed by `agent_id` |
 | `sc-postcompact-observe` | PostCompact | Scores what each summary kept; observation only |
 | `sc-filechanged-rearm` | FileChanged | Marks a check stale when its trigger surface moves |
-| `sc-stop` | Stop | The checkpoint-freshness nudge — registered and inert until its thresholds exist |
+| `sc-stop` | Stop | The checkpoint-freshness nudge — once per band, how stale the note is; with no note, how heavy the context is |
 
 `sc-doctor` is the eleventh binary and the one you invoke yourself, via `/prosthetic-conscience:doctor`.
 

@@ -24,10 +24,13 @@ package stopnudge
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
 	"slices"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/ctxusage"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/freshness"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/statefile"
 )
@@ -58,6 +61,12 @@ type Thresholds struct {
 	// rather than declined. Adding the fields is what makes the shipped gate the gate that was
 	// specified; it is not a new measure arriving after the data.
 	BranchNotice, BranchWarn, BranchUrgent int
+
+	// CONTEXT BANDS ARE FOR THE SESSION WITH NO NOTE, which the three measures above cannot see:
+	// each is an age relative to a note, so a session that never wrote one had nothing to measure
+	// and ran to automatic compaction in silence. These edges are live context tokens, absolute —
+	// the hook is handed no window size, so there is no percentage to take.
+	ContextNotice, ContextWarn, ContextUrgent int
 }
 
 // Configured reports whether any band edge has been set. An unconfigured nudge emits
@@ -86,6 +95,10 @@ type State struct {
 	SessionID string `json:"session_id"`
 
 	BandsSpent []Band `json:"bands_spent"`
+	// ContextBandsSpent is the no-note path's own record. It is kept apart from BandsSpent
+	// because the two re-arm differently — a note band on an answer, a context band when the
+	// context falls back below its edge — and nudge_answered reads BandsSpent as note bands.
+	ContextBandsSpent []Band `json:"context_bands_spent,omitempty"`
 	// AnsweredAtSeen is the note's newest timestamp at the moment a band was spent. Bands
 	// re-arm by comparing it against the note's current timestamps — the band record is
 	// NOT cleared on an answer, because `nudge_answered`'s derivation reads it to know a
@@ -215,6 +228,99 @@ func highestBand(m freshness.Measures, th Thresholds) (Band, bool) {
 		return BandNotice, true
 	}
 	return "", false
+}
+
+// DecideContext is the guard for a session with NO NOTE, and it keeps every property Decide has:
+// the client's re-entry flag first, this session's record, the hard cap, and the write before
+// anything is emitted.
+//
+// What differs is what a band means. There is no note to answer, so a spent band re-arms when
+// the context falls back below its edge — a compaction or a fresh start — and the next climb
+// past it is said again. That is the only re-arm, and it costs a write only on the reading that
+// drops a band.
+func DecideContext(dir, sessionID string, stopHookActive bool, u ctxusage.Measure, th Thresholds) Decision {
+	if stopHookActive {
+		return Decision{}
+	}
+	// No edges, no band: no emission and NO FILE, for the same reason as Decide.
+	if th.ContextNotice <= 0 {
+		return Decision{}
+	}
+	// An unmeasured context abstains; it is not a light one.
+	if !u.TokensKnown {
+		return Decision{}
+	}
+
+	band, crossed := contextBand(u.Tokens, th)
+	st, status := statefile.Read[State](statePath(dir))
+	switch {
+	case status == statefile.Unreadable:
+		return Decision{} // fail closed, as load does
+	case status == statefile.Absent && !crossed:
+		return Decision{} // nothing said, nothing to re-arm, nothing to write
+	}
+	if status == statefile.Absent || st.SessionID != sessionID {
+		st = State{SessionID: sessionID}
+	}
+
+	kept := slices.DeleteFunc(slices.Clone(st.ContextBandsSpent), func(b Band) bool {
+		return u.Tokens < contextEdge(b, th)
+	})
+	rearmed := len(kept) != len(st.ContextBandsSpent)
+	st.ContextBandsSpent = kept
+
+	if !crossed || slices.Contains(st.ContextBandsSpent, band) || st.Emissions >= maxEmissions {
+		if rearmed {
+			if err := save(dir, st); err != nil {
+				return Decision{}
+			}
+		}
+		return Decision{}
+	}
+
+	line := renderContext(u.Tokens, band)
+	st.ContextBandsSpent = append(st.ContextBandsSpent, band)
+	st.Emissions++
+	if len(line) > st.EmissionBytes {
+		st.EmissionBytes = len(line)
+	}
+	if err := save(dir, st); err != nil {
+		return Decision{}
+	}
+	return Decision{Emit: line, Band: band}
+}
+
+func contextBand(tokens int, th Thresholds) (Band, bool) {
+	for _, b := range []Band{BandUrgent, BandWarn, BandNotice} {
+		if edge := contextEdge(b, th); edge > 0 && tokens >= edge {
+			return b, true
+		}
+	}
+	return "", false
+}
+
+func contextEdge(b Band, th Thresholds) int {
+	switch b {
+	case BandUrgent:
+		return th.ContextUrgent
+	case BandWarn:
+		return th.ContextWarn
+	}
+	return th.ContextNotice
+}
+
+// renderContext is the line the agent reads, and it names two acts in order. The note first,
+// because the human may not be there — an automatic compaction with a note on disk loses nothing
+// a resume needs. Then the human, because when to shed the context is theirs to choose. Once the
+// note exists this path goes quiet and the note's own bands take over.
+//
+// It names WHERE the note goes. A live session told only "write the checkpoint" wrote one at the
+// project root, where the search does not look, so the warning would have kept firing at a
+// session that had complied. Criterion 4 caps the line at 200 bytes.
+func renderContext(tokens int, band Band) string {
+	return fmt.Sprintf("context %dk tokens, no checkpoint note (%s): write %s now unless nothing is "+
+		"in flight, then tell the human and propose a moment to compact or start fresh",
+		tokens/1000, band, checkpoint.FallbackPath(""))
 }
 
 // StatePath is exported because the SEALER reads this file. seals.jsonl must carry the

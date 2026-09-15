@@ -834,7 +834,7 @@ correctness change and the stamping is pure observation.
 
 ### Phase 2 — the nudge on `Stop`, guarded
 
-**NOT DONE (2026-09-02):** the build slices (guard, registration) are merged, but thresholds have never been chosen — `stopnudge.configured()` still returns `Thresholds{}` — so the nudge has never emitted and none of this phase's live gates has been run.
+**WIRED (2026-09-05, e1306a84):** `stopnudge.configured()` carries the bands proposed below, branch edges included. **No-note context bands (2026-09-15, #957):** a session with no note had nothing to age and so was never nudged; `sc-stop` now measures its live context and bands it at 150k / 300k / 600k tokens, gblock's choice with no baseline behind it. The live gates below (loop, injection, compaction acceptance) have still not been run.
 
 **Threshold analysis (2026-09-02), against the Phase 1 baseline.** 64 rows in the 01CQ worktree's
 `seals.jsonl`, `at` spanning 2026-08-23T18:44Z…2026-08-28T05:51Z, `nudge_enabled: false` and
