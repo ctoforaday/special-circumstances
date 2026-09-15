@@ -6237,10 +6237,18 @@ func (x *Dispatch) GetGapIds() []string {
 // `Gate` says what it is. The collision is gone because the name is different, not because it was
 // decorated, and the wire is unaffected either way: field numbers carry the format, names do not.
 type Gate struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Verdict       *Verdict               `protobuf:"varint,1,opt,name=verdict,proto3,enum=feov.record.v1.Verdict,oneof" json:"verdict,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Verdict *Verdict               `protobuf:"varint,1,opt,name=verdict,proto3,enum=feov.record.v1.Verdict,oneof" json:"verdict,omitempty"`
+	// The open gaps that were MATERIAL when a migration wrote this PASS (gblock, fork (a),
+	// 2026-09-15). Migrate does not re-judge an archived PASS under the class rule it predates, so
+	// the PASS gate is exempt under `Migrating`; this field is what that exemption leaves behind, so
+	// `verify` can tell a PASS migration admitted from a PASS that violated the gate. Without it the
+	// two are the same bytes. The write path stamps it, only under `Migrating` and only on a PASS;
+	// a live write carrying it is refused, because a PASS that could claim a migration's admission
+	// could stand over any open gap. No flag sets it.
+	MigrationAdmittedGapIds []string `protobuf:"bytes,2,rep,name=migration_admitted_gap_ids,json=migrationAdmittedGapIds,proto3" json:"migration_admitted_gap_ids,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *Gate) Reset() {
@@ -6278,6 +6286,13 @@ func (x *Gate) GetVerdict() Verdict {
 		return *x.Verdict
 	}
 	return Verdict_VERDICT_UNSPECIFIED
+}
+
+func (x *Gate) GetMigrationAdmittedGapIds() []string {
+	if x != nil {
+		return x.MigrationAdmittedGapIds
+	}
+	return nil
 }
 
 // Outcome is the run's TERMINAL act. The verdict is DERIVED from the record — a halt, a recorded
@@ -7423,9 +7438,10 @@ const file_record_proto_rawDesc = "" +
 	"\agap_ids\x18\x03 \x03(\tR\x06gapIdsB\x06\n" +
 	"\x04_pinB\n" +
 	"\n" +
-	"\b_seat_id\"J\n" +
+	"\b_seat_id\"\x87\x01\n" +
 	"\x04Gate\x126\n" +
-	"\averdict\x18\x01 \x01(\x0e2\x17.feov.record.v1.VerdictH\x00R\averdict\x88\x01\x01B\n" +
+	"\averdict\x18\x01 \x01(\x0e2\x17.feov.record.v1.VerdictH\x00R\averdict\x88\x01\x01\x12;\n" +
+	"\x1amigration_admitted_gap_ids\x18\x02 \x03(\tR\x17migrationAdmittedGapIdsB\n" +
 	"\n" +
 	"\b_verdict\"\xb6\x05\n" +
 	"\aOutcome\x12\xf1\x01\n" +

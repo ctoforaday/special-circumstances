@@ -1181,6 +1181,12 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			return err
 		}
 	case *recordpb.Gate:
+		// THE ADMISSION FIRST: a live verdict claiming a migration's admission is refused before
+		// any gate reads the board, and a migrated PASS is stamped with the open material gaps its
+		// exemption below lets it stand over (gblock, fork (a), 2026-09-15).
+		if err := stampMigrationAdmission(run, b); err != nil {
+			return err
+		}
 		// The seat's terminal act is where completion duties belong: it is the last
 		// moment the seat is still there to discharge them.
 		if err := requireSupersededAreClosed(run); err != nil {
@@ -1197,8 +1203,10 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		if b.GetVerdict() == recordpb.Verdict_VERDICT_PASS && !Migrating {
 			// NOT UNDER A MIGRATION (gblock, 2026-09-11). Migrate translates history; it does not
 			// re-judge an archived PASS under a materiality rule that did not exist when the PASS
-			// was issued. The archived b9 run's PASS stands over a gap its class now makes material,
-			// and refusing it would drop a real event and call the loss a translation.
+			// was issued. The archived b7 and b9 runs' PASSes stand over gaps their classes now make
+			// material, and refusing them would drop a real event and call the loss a translation.
+			// The exemption is not silent: stampMigrationAdmission above records those gaps on the
+			// PASS, and verify reads them there.
 			if err := requirePassClosesAllMaterialGaps(run); err != nil {
 				return err
 			}

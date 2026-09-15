@@ -302,6 +302,13 @@ CREATE TABLE "gate" (
   FOREIGN KEY ("verdict") REFERENCES "enum_verdict"("value")
 ) STRICT;
 
+CREATE TABLE "gate_migration_admitted_gap_ids" (
+  "event_id" INTEGER NOT NULL REFERENCES "gate"("event_id"),
+  "ord"      INTEGER NOT NULL,
+  "value"    TEXT    NOT NULL,
+  PRIMARY KEY ("event_id", "ord")
+) STRICT;
+
 CREATE TABLE "outcome" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "verdict" TEXT NOT NULL,

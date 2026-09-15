@@ -293,3 +293,44 @@ func TestPreChangeRegistryRefusedNamingMigrate(t *testing.T) {
 		}
 	}
 }
+
+// A LIVE VERDICT CANNOT CLAIM A MIGRATION'S ADMISSION (fork (a)). On a board where a plain PASS
+// appends, a PASS carrying migration_admitted_gap_ids is refused, naming the field; so is one
+// claiming admission over an open material gap, where the refusal must be the admission's and not
+// the material gate's; so is a FAIL carrying it. The plain PASS appends and carries no admission.
+func TestLiveGateCarryingMigrationAdmissionRefused(t *testing.T) {
+	board := func(severity string) Run {
+		b := chairBoard(t, true)
+		b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, severity))
+		openChairSitting(b)
+		b.add("red-chair", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)})
+		return b.seed()
+	}
+	claim := func(v recordpb.Verdict) *recordpb.Gate {
+		return &recordpb.Gate{Verdict: v.Enum(), MigrationAdmittedGapIds: []string{"G1"}}
+	}
+	for _, c := range []struct {
+		name     string
+		severity string
+		gate     *recordpb.Gate
+	}{
+		{"PASS on a board a plain PASS clears", "low", claim(recordpb.Verdict_VERDICT_PASS)},
+		{"PASS over an open material gap", "medium", claim(recordpb.Verdict_VERDICT_PASS)},
+		{"FAIL", "medium", claim(recordpb.Verdict_VERDICT_FAIL)},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := Append(Identity{Run: board(c.severity), SeatID: "red-chair"}, c.gate)
+			if err == nil || !strings.Contains(err.Error(), "migration_admitted_gap_ids") || !strings.Contains(err.Error(), "only a migration writes") {
+				t.Fatalf("a live verdict carrying migration_admitted_gap_ids must be refused for it: %v", err)
+			}
+		})
+	}
+	run := board("low")
+	ev, err := Append(Identity{Run: run, SeatID: "red-chair"}, proto.Clone(passGate).(*recordpb.Gate))
+	if err != nil {
+		t.Fatalf("control: a plain PASS on this board must append: %v", err)
+	}
+	if g, _ := recordpb.BodyAs[*recordpb.Gate](ev); len(g.GetMigrationAdmittedGapIds()) != 0 {
+		t.Errorf("a live PASS was stamped with an admission: %v", g.GetMigrationAdmittedGapIds())
+	}
+}

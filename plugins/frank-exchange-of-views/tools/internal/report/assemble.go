@@ -1524,6 +1524,9 @@ func recordVerification(fam record.Family) string {
 		for _, v := range c.Violations {
 			fmt.Fprintf(&b, "    - %s\n", v)
 		}
+		for _, a := range c.Admitted {
+			fmt.Fprintf(&b, "    - %s — admitted by migration\n", a)
+		}
 	}
 
 	fmt.Fprintf(&b, "\n**%d held · %d did not apply · %d violated.**", held, na, failed)

@@ -40,6 +40,11 @@ type Check struct {
 	NA         bool     `json:"na"`
 	Detail     string   `json:"detail"`
 	Violations []string `json:"violations"`
+	// Admitted names the gaps a check does not count as violations because the record says a
+	// migration admitted them — today only `pass-closes-all-gaps`, over the open material gaps a
+	// migrated PASS carries. A separate field, not a detail string, so a renderer lists them
+	// beside the violations and a reader of the JSON can tell an admitted PASS from a clean one.
+	Admitted []string `json:"admitted_by_migration"`
 }
 
 func ok(name, detail string) Check { return Check{Name: name, OK: true, Detail: detail} }
@@ -347,7 +352,7 @@ const (
 // passClosesAllGaps: the #67 gate, verified after the fact. A PASS verdict with an open gap is
 // a contradiction — the record says the run resolved everything, and it did not.
 func passClosesAllGaps(f record.Family) Check {
-	var verdict recordpb.Verdict
+	var gate *recordpb.Gate
 	for _, e := range f.Live() {
 		if e.GetType() != passVerdictType {
 			continue
@@ -357,25 +362,44 @@ func passClosesAllGaps(f record.Family) Check {
 		// the answer to "". BodyAs returns the typed nil for both "no body" and "wrong body",
 		// and GetVerdict on it is the UNSPECIFIED zero — the same reset, without inventing a
 		// PASS out of an event that never said so.
-		v, _ := recordpb.BodyAs[*recordpb.Gate](e)
-		verdict = v.GetVerdict()
+		gate, _ = recordpb.BodyAs[*recordpb.Gate](e)
 	}
-	if verdict != passVerdictWord {
+	if verdict := gate.GetVerdict(); verdict != passVerdictWord {
 		return notApplicable("pass-closes-all-gaps", fmt.Sprintf("the verdict is %s, so there is no PASS to contradict", nonEmpty(verdictWord(verdict), "unrecorded")))
 	}
 	// MATERIAL gaps hold the gate, by the one definition the family carries (Gap.Material: its
 	// class, else a current severity of medium or above). A PASS over an open gap that is not
 	// material is legal; the gap stays open on the board. A PASS over an open MATERIAL gap is the
-	// #67 violation.
-	var open []string
+	// #67 violation — unless the PASS itself records that a migration admitted it over that gap
+	// (Gate.migration_admitted_gap_ids, stamped only under Migrating; a live write carrying it is
+	// refused). The field is the only thing that tells the two apart, so the admitted gaps are
+	// reported by name and never folded into a clean "ok".
+	admitted := map[string]bool{}
+	for _, id := range gate.GetMigrationAdmittedGapIds() {
+		admitted[id] = true
+	}
+	var open, admittedOpen []string
 	for _, g := range f.Gaps {
-		if g != nil && g.Open && g.Material {
+		if g == nil || !g.Open || !g.Material {
+			continue
+		}
+		if admitted[g.ID] {
+			admittedOpen = append(admittedOpen, g.ID)
+		} else {
 			open = append(open, g.ID)
 		}
 	}
-	return result("pass-closes-all-gaps",
+	c := result("pass-closes-all-gaps",
 		"PASS and no material gap left open",
 		"the verdict is PASS but material gaps are still open (the #67 gate was violated)", open)
+	if len(admittedOpen) > 0 {
+		sort.Strings(admittedOpen)
+		c.Admitted = admittedOpen
+		if c.OK {
+			c.Detail = "PASS admitted by migration over material gaps open when the archived PASS was issued, and no other material gap left open"
+		}
+	}
+	return c
 }
 
 // registerBeforeAppend: a seat's FIRST event must be its register — an event from a seat that

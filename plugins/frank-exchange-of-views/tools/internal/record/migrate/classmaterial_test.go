@@ -16,6 +16,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/verify"
 )
 
 func openRO(t *testing.T, runDir string) *sql.DB {
@@ -281,5 +282,104 @@ func TestMigrateRunWrittenByThisBinaryKeepsNewFields(t *testing.T) {
 	}
 	if !bytes.Equal(a, b) {
 		t.Errorf("the staged registry of a run written by this binary was rewritten:\n%s\n---\n%s", a, b)
+	}
+}
+
+// migratedPass is the one PASS gate on a migrated record, and the family it reads from.
+func migratedPass(t *testing.T, archive string) (record.Family, *recordpb.Gate, record.Run) {
+	t.Helper()
+	res, dst := migrateArchive(t, archive)
+	if len(res.Refusals) != 0 {
+		t.Fatalf("refusals: %+v", res.Refusals)
+	}
+	fam, err := record.FamilyOf(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var passes []*recordpb.Gate
+	for _, e := range fam.Events {
+		if g, ok := recordpb.BodyAs[*recordpb.Gate](e); ok && g.GetVerdict() == recordpb.Verdict_VERDICT_PASS {
+			passes = append(passes, g)
+		}
+	}
+	if len(passes) != 1 {
+		t.Fatalf("the migrated record carries %d PASS gates, want the archive's one", len(passes))
+	}
+	return fam, passes[0], dst
+}
+
+// THE ARCHIVED PASSES MIGRATION ADMITS CARRY THE FACT (fork (a), gblock 2026-09-15). b7's PASS stood
+// over G2 (derivation-status-overclaim, low_medium) and b9's over G3 (cross-section-contradiction,
+// low_medium), classes the shipped table makes `always`. Each migrated PASS carries exactly that
+// gap in migration_admitted_gap_ids, and verify reports the PASS as admitted by migration, naming
+// the gap — not the #67 violation. Migrating the migrated record again keeps the field.
+func TestMigrationRecordsAdmittedPassOnArchives(t *testing.T) {
+	for _, c := range []struct{ archive, gap string }{
+		{"2026-09-11_is-91-prime-b7.tar.gz", "G2"},
+		{"2026-09-11_is-91-prime-b9.tar.gz", "G3"},
+	} {
+		t.Run(c.archive, func(t *testing.T) {
+			fam, pass, dst := migratedPass(t, c.archive)
+			if got := pass.GetMigrationAdmittedGapIds(); len(got) != 1 || got[0] != c.gap {
+				t.Fatalf("the migrated PASS carries migration_admitted_gap_ids %v, want [%s]", got, c.gap)
+			}
+			if g := fam.Gap(c.gap); g == nil || !g.Open || !g.Material || g.Mint.GetClassMaterial() != recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS {
+				t.Fatalf("fixture: %s is not an open, material gap of an always class on the migrated record: %+v", c.gap, g)
+			}
+			var check verify.Check
+			for _, ck := range verify.Run(fam) {
+				if ck.Name == "pass-closes-all-gaps" {
+					check = ck
+				}
+			}
+			if !check.OK || check.NA || len(check.Violations) != 0 || len(check.Admitted) != 1 || check.Admitted[0] != c.gap ||
+				!strings.Contains(check.Detail, "admitted by migration") {
+				t.Errorf("verify must report the PASS as admitted by migration over %s, not [FAIL]: %+v", c.gap, check)
+			}
+			again := recordtest.TmpRun(t)
+			if m, err := migrate.Migrate(dst.Dir(), again, migrate.Entries(), migrate.Options{}); err != nil || len(m.Refusals) != 0 {
+				t.Fatalf("re-migrating the migrated record: %v (refusals %+v)", err, m.Refusals)
+			}
+			var kept []string
+			if err := func() error {
+				rows, err := openRO(t, again).Query(`SELECT "value" FROM "gate_migration_admitted_gap_ids" ORDER BY "ord"`)
+				if err != nil {
+					return err
+				}
+				defer rows.Close()
+				for rows.Next() {
+					var v string
+					if err := rows.Scan(&v); err != nil {
+						return err
+					}
+					kept = append(kept, v)
+				}
+				return rows.Err()
+			}(); err != nil || len(kept) != 1 || kept[0] != c.gap {
+				t.Errorf("re-migration kept migration_admitted_gap_ids %v (%v), want [%s]", kept, err, c.gap)
+			}
+		})
+	}
+}
+
+// A MIGRATED PASS OVER ONLY NON-MATERIAL OPEN GAPS CARRIES NO ADMISSION. b6's PASS stood over two
+// open low_medium gaps of run-coined classes the table lacks, so both stay by_grade and neither is
+// material: the gate the migration is exempt from would not have refused, and nothing is admitted.
+func TestMigratedPassOverOnlyNonMaterialGapsCarriesNoAdmission(t *testing.T) {
+	fam, pass, _ := migratedPass(t, "2026-09-11_is-91-prime-b6.tar.gz")
+	open := 0
+	for _, g := range fam.Gaps {
+		if g != nil && g.Open {
+			open++
+			if g.Material {
+				t.Fatalf("fixture: %s is open and material on the migrated b6 record", g.ID)
+			}
+		}
+	}
+	if open == 0 {
+		t.Fatal("fixture: the migrated b6 record has no open gap under its PASS")
+	}
+	if got := pass.GetMigrationAdmittedGapIds(); len(got) != 0 {
+		t.Errorf("a PASS over only non-material open gaps carries migration_admitted_gap_ids %v", got)
 	}
 }

@@ -1883,6 +1883,15 @@ message Dispatch {
 // decorated, and the wire is unaffected either way: field numbers carry the format, names do not.
 message Gate {
   optional Verdict verdict = 1;
+
+  // The open gaps that were MATERIAL when a migration wrote this PASS (gblock, fork (a),
+  // 2026-09-15). Migrate does not re-judge an archived PASS under the class rule it predates, so
+  // the PASS gate is exempt under `Migrating`; this field is what that exemption leaves behind, so
+  // `verify` can tell a PASS migration admitted from a PASS that violated the gate. Without it the
+  // two are the same bytes. The write path stamps it, only under `Migrating` and only on a PASS;
+  // a live write carrying it is refused, because a PASS that could claim a migration's admission
+  // could stand over any open gap. No flag sets it.
+  repeated string migration_admitted_gap_ids = 2;
 }
 
 // Outcome is the run's TERMINAL act. The verdict is DERIVED from the record — a halt, a recorded
