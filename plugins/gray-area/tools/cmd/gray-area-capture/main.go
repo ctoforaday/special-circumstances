@@ -400,32 +400,35 @@ func manifestPath(projectDir, sessionID string) string {
 // transcript on disk that no row names is #469's signature, and losing the row in the
 // page cache on a machine crash manufactures exactly that. One fsync of a ~1 KB
 // append, on a path already doing a stat and an open.
-func appendRow(path string, r manifestRow, stderr io.Writer) {
+func appendRow(projectDir, sessionID string, row manifestRow, r *report) {
+	path := manifestPath(projectDir, sessionID)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		fmt.Fprintln(stderr, "gray-area-capture: cannot create manifest dir:", err)
+		r.failIn(stageManifest, projectDir, fmt.Sprint("cannot create manifest dir: ", err))
 		return
 	}
-	line, err := json.Marshal(r)
+	line, err := json.Marshal(row)
 	if err != nil {
-		fmt.Fprintln(stderr, "gray-area-capture: cannot encode row:", err)
+		r.failIn(stageManifest, projectDir, fmt.Sprint("cannot encode row: ", err))
 		return
 	}
 	// O_RDWR rather than O_WRONLY only so the tail can be READ; O_APPEND still
 	// governs every write, which is what keeps concurrent seats from interleaving.
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0o644)
 	if err != nil {
-		fmt.Fprintln(stderr, "gray-area-capture: cannot open manifest:", err)
+		r.failIn(stageManifest, projectDir, fmt.Sprint("cannot open manifest: ", err))
 		return
 	}
 	defer func() { _ = f.Close() }()
-	healTornTail(f, stderr)
+	healTornTail(f, projectDir, r)
 	if _, err := f.Write(append(line, '\n')); err != nil {
-		fmt.Fprintln(stderr, "gray-area-capture: cannot append row:", err)
+		r.failIn(stageManifest, projectDir, fmt.Sprint("cannot append row: ", err))
 		return
 	}
 	if err := f.Sync(); err != nil {
-		fmt.Fprintln(stderr, "gray-area-capture: row appended but not synced:", err)
+		r.failIn(stageManifest, projectDir, fmt.Sprint("row appended but not synced: ", err))
+		return
 	}
+	r.okIn(stageManifest, projectDir) // a tail healTornTail could not close has already failed the stage, and a failure wins
 }
 
 // healTornTail terminates a manifest whose last line has no newline, so the next
@@ -433,8 +436,10 @@ func appendRow(path string, r manifestRow, stderr io.Writer) {
 //
 // Silent on every ordinary call, and silent when it cannot look: a probe that fails
 // must not cost the row it was protecting. It reports only when it actually repairs
-// something, because that is a fact about a PREVIOUS run that nothing else records.
-func healTornTail(f *os.File, stderr io.Writer) {
+// something, because that is a fact about a PREVIOUS run that nothing else records —
+// and that repair is routine, so it stays on stderr. A tail it could NOT close is a
+// failure of the stage: the row about to be appended lands on the torn line.
+func healTornTail(f *os.File, projectDir string, r *report) {
 	st, err := f.Stat()
 	if err != nil || st.Size() == 0 {
 		return
@@ -444,10 +449,10 @@ func healTornTail(f *os.File, stderr io.Writer) {
 		return
 	}
 	if _, err := f.Write([]byte{'\n'}); err != nil {
-		fmt.Fprintln(stderr, "gray-area-capture: manifest tail is unterminated and could not be closed:", err)
+		r.failIn(stageManifest, projectDir, fmt.Sprint("manifest tail is unterminated and could not be closed: ", err))
 		return
 	}
-	fmt.Fprintln(stderr, "gray-area-capture: closed an unterminated manifest tail — a previous append was cut short, and that line will not parse")
+	fmt.Fprintln(r.stderr, "gray-area-capture: closed an unterminated manifest tail — a previous append was cut short, and that line will not parse")
 }
 
 // buildSessionRow records what SessionStart handed over: where THIS session's
@@ -498,6 +503,17 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	var in hookInput
 	_ = json.Unmarshal(raw, &in)
 
+	r := newReport(*event, now, stderr)
+	capture(in, raw, *event, projectDir, now, stat, r)
+	path, pathErr := failuresPath()
+	r.settle(path, pathErr, stdout)
+	return 0
+}
+
+// capture does the event's work. Every outcome it cannot act on goes to r; run settles r once, at
+// the end, into the failure record and — on a displaying event — the one systemMessage.
+func capture(in hookInput, raw []byte, event, projectDir string, now time.Time, stat statFunc, r *report) {
+
 	// THE PAYLOAD ALSO SAYS WHERE THE PROJECT IS, and this used the environment alone.
 	// The refusal below is right — better than the silent no-op the same class produced
 	// in prosthetic-conscience's hooks — but it fired while `cwd` sat parsed and unread
@@ -515,29 +531,30 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	// No project dir means no durable place to key the manifest; say so once
 	// rather than writing a relative .claude/ wherever the process happens to be.
 	if projectDir == "" {
-		fmt.Fprintln(stderr, "gray-area-capture: no project root (CLAUDE_PROJECT_DIR unset and the hook payload carried no cwd) — trajectory not captured")
-		return 0
+		r.fail(stageProjectRoot, "no project root (CLAUDE_PROJECT_DIR unset and the hook payload carried no cwd) — trajectory not captured")
+		return
 	}
+	r.ok(stageProjectRoot)
 
 	// Stop and SessionEnd exist for the CATALOGUE and write NO manifest row. They are explicit
 	// branches, not additions to the fall-through below: that line writes a seat row, and a turn
 	// boundary is not a seat. Binding them without returning here would add one row per turn to
 	// every manifest. Stop also REGISTERS the session (catalogue.RegisterSession) before it
 	// ingests; SessionEnd only ingests, because the session file registration reads is gone by then.
-	if *event == "Stop" {
-		atStop(in, stderr)
-		return 0
+	if event == "Stop" {
+		atStop(in, r)
+		return
 	}
-	if *event == "SessionEnd" {
-		ingestForSession(in.SessionID, stderr)
-		return 0
+	if event == "SessionEnd" {
+		ingestForSession(in.SessionID, r)
+		return
 	}
 
-	if *event == "SessionStart" {
+	if event == "SessionStart" {
 		// The sweep is about OTHER sessions' tails and about age, so it runs before the alarm
 		// below — a missing transcript_path is a reason not to write this session's row, not a
 		// reason to stop maintaining the store. It registers this session before closing others.
-		sweep(in, stderr)
+		sweep(in, r)
 
 		// THE ALARM (plan §11.3). hook-surface-spike.md §3 states every event carries
 		// transcript_path, but that was not re-measured for SessionStart, and a
@@ -546,15 +563,15 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		// later, silently, which is the failure this plugin exists to avoid. If this
 		// line is ever seen in the wild, the spike's claim is wrong for this event.
 		if in.TranscriptPath == "" {
-			fmt.Fprintln(stderr, "gray-area-capture: SessionStart carried no transcript_path — no session row written (see plans/gray-area.md §11.3; this refutes the spike's claim that every event carries it)")
-			return 0
+			r.fail(stageSessionPath, "SessionStart carried no transcript_path — no session row written (see plans/gray-area.md §11.3; this refutes the spike's claim that every event carries it)")
+			return
 		}
-		appendRow(manifestPath(projectDir, in.SessionID), buildSessionRow(in, now, stat), stderr)
-		return 0
+		r.ok(stageSessionPath)
+		appendRow(projectDir, in.SessionID, buildSessionRow(in, now, stat), r)
+		return
 	}
 
-	appendRow(manifestPath(projectDir, in.SessionID), buildRow(in, raw, *event, now, stat), stderr)
-	return 0
+	appendRow(projectDir, in.SessionID, buildRow(in, raw, event, now, stat), r)
 }
 
 func statSize(p string) (int64, error) {
