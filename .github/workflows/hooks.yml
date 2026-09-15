@@ -561,7 +561,9 @@ jobs:
           # the board's span. `-run` alternation exits 0 when one side matches nothing, so the
           # fixture test's PASS line is required, not assumed. `shell: bash` sets pipefail, so
           # the tee does not mask a failure.
-          go test -tags tessocr -count=1 -ldflags '-linkmode external -extldflags "-static"' -run '^TestScannedFixtureSpanIsFoundOnPage1ByTheRealEngine$|TestEveryProbeBoardBuildsThroughASubprocessWithASeparatedRecord' -v ./internal/seatprobe/ | tee "$RUNNER_TEMP/seatprobe.txt"
+          go test -tags tessocr -count=1 -ldflags '-linkmode external -extldflags "-static"' -v \
+            -run '^TestScannedFixtureSpanIsFoundOnPage1ByTheRealEngine$|TestEveryProbeBoardBuildsThroughASubprocessWithASeparatedRecord' \
+            ./internal/seatprobe/ | tee "$RUNNER_TEMP/seatprobe.txt"
           grep -q '^--- PASS: TestScannedFixtureSpanIsFoundOnPage1ByTheRealEngine ' "$RUNNER_TEMP/seatprobe.txt"
       # FUZZ_C stays at the in-code default. Raising it to 24 on Windows was tried and
       # MEASURED WRONG: the fuzz itself improved (403s -> 368s) but `go test ./...` runs
