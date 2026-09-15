@@ -1,8 +1,8 @@
-prompt sha256: fec2428d9e3fb99d62e41cd95e55e05db884f3d584d85fe23285ac9ce95e97e9
+prompt sha256: 4bca450f46667fd19f78ed635778ad49f1698a1eaf36cb860ebee705a0fa35fa
 
 Blue synthesis for topic: "the seat prompt contract".
 PRE-FLIGHT: if research/2026-01-01_golden/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns.
-Read every draft in research/2026-01-01_golden/blue/candidates/ and synthesize research/2026-01-01_golden/blue/report.md by UNION: deduplicate overlapping claims, reorganize freely, and let no CLAIM leave without a record.
+Read every draft in research/2026-01-01_golden/blue/candidates/ and synthesize research/2026-01-01_golden/blue/report.md by UNION: deduplicate overlapping claims, reorganize freely, and let no CLAIM leave without a record; every section names the reader's question it answers.
 Compacting and reorganizing prose is not subtraction — rewriting for density is encouraged; losing a claim in the rewrite is the failure, and substance leaves only by being retired on the record, which names the claim, why it goes, and what replaces it.
 THE REPORT'S CONTENT RULE — what may be in it at all, and where everything else goes — is on the verbs that write report text: edit, ingest, line-of-inquiry's propose and move, and prove and cite, whose proof note and source title the report prints.
 THE CATECHISM IS YOURS (W2g — the run-5 assembly audit found the judge-authored catechism DEFECTIVE, 6/7 answers carrying defects from synthesis-by-recall; synthesis surfaces belong inside the audited document): write "## The Catechism" INTO research/2026-01-01_golden/blue/report.md at synthesis per references/catechism_template.md — the seven answers, the case against at FULL strength (include every risk-accepted residual; the audit found against-cases silently drop their strongest items), all figures copied from your own sourced sections never recomputed inline.

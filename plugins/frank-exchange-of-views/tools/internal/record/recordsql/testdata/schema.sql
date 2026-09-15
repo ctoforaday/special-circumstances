@@ -95,8 +95,8 @@ CREATE TABLE "enum_verdict" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_verdict" ("value", "means") VALUES ('fail', 'at least one gap is still open, or you are not satisfied it was answered');
-INSERT INTO "enum_verdict" ("value", "means") VALUES ('pass', 'every gap on the board is resolved — this is CHECKED against the open board, not taken on your word');
+INSERT INTO "enum_verdict" ("value", "means") VALUES ('fail', 'a material defect still stops you — a FAIL over a converged board is refused');
+INSERT INTO "enum_verdict" ("value", "means") VALUES ('pass', 'nothing on the board holds the gate — no material gap open, no lens ready, every stale area spot-checked — and this is CHECKED against the board, not taken on your word');
 
 CREATE TABLE "enum_run_outcome" (
   "value" TEXT PRIMARY KEY,

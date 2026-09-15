@@ -35,7 +35,7 @@ FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED,
 
 ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the tool logs the refusal as an `estoppel` entry. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
-THE PROBLEM AND THE FIX ARE PRINTED IN THE REPORT: the first sentence of each is a row of its risk matrix while the gap is open. Write both for a reader of the SUBJECT. A seat or lens id, a finding label, a gap id beside a word like "gap", "fix" or "closed", and a lane tag are REFUSED in either field. Softer tells — "this run", "the debate", "epoch 3" — are recorded and flagged, because a subject can use those words too. The run's part of the finding goes in your reason for the gap, which the report never prints and nothing checks.
+THE PROBLEM, THE FIX AND THE REPLACEMENT TEXT ARE PRINTED IN THE REPORT: the first sentence of the problem and of the fix is a row of its risk matrix while the gap is open, and a replacement you prescribe becomes the report's own text when blue accepts it. Write all three for a reader of the SUBJECT. A seat or lens id, a finding label, a gap id beside a word like "gap", "fix" or "closed", and a lane tag are REFUSED in any of them. Softer tells — "this run", "the debate", "epoch 3" — are recorded and flagged, because a subject can use those words too. The run's part of the finding goes in your reason for the gap, which the report never prints and nothing checks.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -58,7 +58,7 @@ Usage:
 Flags:
       --about string                             the reference --about-kind names: a section heading, a line-of-inquiry id (Q1), or a gap id. It is CHECKED against the record
       --about-kind section|inquiry|gap           anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
-      --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
+      --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
       --complexity grade                         what fixing it costs, on the same scale
@@ -107,7 +107,7 @@ FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED,
 
 ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the tool logs the refusal as an `estoppel` entry. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
-THE PROBLEM AND THE FIX ARE PRINTED IN THE REPORT: the first sentence of each is a row of its risk matrix while the gap is open. Write both for a reader of the SUBJECT. A seat or lens id, a finding label, a gap id beside a word like "gap", "fix" or "closed", and a lane tag are REFUSED in either field. Softer tells — "this run", "the debate", "epoch 3" — are recorded and flagged, because a subject can use those words too. The run's part of the finding goes in your reason for the gap, which the report never prints and nothing checks.
+THE PROBLEM, THE FIX AND THE REPLACEMENT TEXT ARE PRINTED IN THE REPORT: the first sentence of the problem and of the fix is a row of its risk matrix while the gap is open, and a replacement you prescribe becomes the report's own text when blue accepts it. Write all three for a reader of the SUBJECT. A seat or lens id, a finding label, a gap id beside a word like "gap", "fix" or "closed", and a lane tag are REFUSED in any of them. Softer tells — "this run", "the debate", "epoch 3" — are recorded and flagged, because a subject can use those words too. The run's part of the finding goes in your reason for the gap, which the report never prints and nothing checks.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -130,7 +130,7 @@ Usage:
 Flags:
       --about string                             the reference --about-kind names: a section heading, a line-of-inquiry id (Q1), or a gap id. It is CHECKED against the record
       --about-kind section|inquiry|gap           anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
-      --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
+      --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
       --complexity grade                         what fixing it costs, on the same scale
@@ -179,7 +179,7 @@ FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED,
 
 ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the tool logs the refusal as an `estoppel` entry. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
-THE PROBLEM AND THE FIX ARE PRINTED IN THE REPORT: the first sentence of each is a row of its risk matrix while the gap is open. Write both for a reader of the SUBJECT. A seat or lens id, a finding label, a gap id beside a word like "gap", "fix" or "closed", and a lane tag are REFUSED in either field. Softer tells — "this run", "the debate", "epoch 3" — are recorded and flagged, because a subject can use those words too. The run's part of the finding goes in your reason for the gap, which the report never prints and nothing checks.
+THE PROBLEM, THE FIX AND THE REPLACEMENT TEXT ARE PRINTED IN THE REPORT: the first sentence of the problem and of the fix is a row of its risk matrix while the gap is open, and a replacement you prescribe becomes the report's own text when blue accepts it. Write all three for a reader of the SUBJECT. A seat or lens id, a finding label, a gap id beside a word like "gap", "fix" or "closed", and a lane tag are REFUSED in any of them. Softer tells — "this run", "the debate", "epoch 3" — are recorded and flagged, because a subject can use those words too. The run's part of the finding goes in your reason for the gap, which the report never prints and nothing checks.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -202,7 +202,7 @@ Usage:
 Flags:
       --about string                             the reference --about-kind names: a section heading, a line-of-inquiry id (Q1), or a gap id. It is CHECKED against the record
       --about-kind section|inquiry|gap           anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
-      --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
+      --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
       --complexity grade                         what fixing it costs, on the same scale

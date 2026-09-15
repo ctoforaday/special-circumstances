@@ -71,7 +71,7 @@ Flags:
       --id gap-id                 REQUIRED — the gap id
       --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
-      --verified-against string   AGAINST WHAT — the exact file, ref or URL read
+      --verified-against string   AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in
       --verified-by string        WHO verified it — the seat that read the evidence
       --verified-with string      WITH WHAT — the tool or command that showed it
 
@@ -135,7 +135,7 @@ Flags:
       --id gap-id                 REQUIRED — the gap id
       --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
-      --verified-against string   AGAINST WHAT — the exact file, ref or URL read
+      --verified-against string   AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in
       --verified-by string        WHO verified it — the seat that read the evidence
       --verified-with string      WITH WHAT — the tool or command that showed it
 
@@ -199,7 +199,7 @@ Flags:
       --id gap-id                 REQUIRED — the gap id
       --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
-      --verified-against string   AGAINST WHAT — the exact file, ref or URL read
+      --verified-against string   AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in
       --verified-by string        WHO verified it — the seat that read the evidence
       --verified-with string      WITH WHAT — the tool or command that showed it
 

@@ -1,4 +1,4 @@
-prompt sha256: 857d346607b6c59fcec2bb752d25a860bee2c630adacdc2e4eb5e743330d004e
+prompt sha256: 0c9f17033f6a71acc3ae45f3ef348a5de111305b9e44bd21b56497c3706d5148
 
 Final assembly for topic "the seat prompt contract", run directory research/2026-01-01_golden.
 Debate outcome: VERIFIED after 3 chair sitting(s) — the chair recorded PASS with the board permitting it.
@@ -14,7 +14,7 @@ THEN ASSEMBLE.
 It writes a SET — research/2026-01-01_golden/report.md (the research), docket.md, debate.md, judgments.md, lines-of-inquiry.md, evidence.md, run.md, CHANGELOG.md, a README.md index and a tabbed report.html — and a document with nothing in it is not written at all, so a missing judgments.md means no motions were filed rather than a failure.
 Verify research/2026-01-01_golden/report.md exists and reads correctly at the top: the verdict stamp is the outcome's, the sections are blue's and the record's.
 A tool cannot mis-author a synthesis surface — the TL;DR and the catechism are blue's, inside the audited report.
-Open gaps below material are listed as open, below material, not certified against.
+An open gap that is not material stays open on the board and in the risk matrix; the chair's PASS listed it by class, on the record.
 THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: read it back and report it as open_gaps in your envelope.
 Infra debts the bench named: [].
 Collated friction so far (report any of your own as well): [].
