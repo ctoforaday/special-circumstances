@@ -1649,10 +1649,17 @@ jobs:
                 [ -d "${work}/${t}/prefix" ] || third_party/pins/build-cstack.sh "$t" "$work"
                 # build-cstack.sh env prints `export VAR="…"` lines for eval — the contract tessocr.go
                 # and the C-stack CI job use. The subshell keeps one target's env out of the next.
+                # -linkmode external for EVERY command, not only the ones with cgo of their own: a
+                # command with none (feov-sitting-write) gets Go's internal linker by default, which
+                # on darwin cannot resolve runtime/cgo's libc symbols — `relocation target strerror
+                # not defined`, frank-exchange-of-views 1.68.0's run. External linking sends every
+                # command through the same zig link feov-record already proves per target, and
+                # -extldflags carries the C stack's search paths to it: CGO_LDFLAGS reaches only a
+                # link that has a cgo package of its own, so without them darwin finds no libresolv.
                 (
                   eval "$(third_party/pins/build-cstack.sh env "$t" "$work")"
                   CGO_ENABLED=1 GOOS="$os" GOARCH="$arch" \
-                    go build -tags tessocr -trimpath -ldflags "-s -w" -o "${DIST}/${name}_${os}_${arch}${ext}" "./cmd/${name}"
+                    go build -tags tessocr -trimpath -ldflags "-s -w -linkmode external -extldflags '$CSTACK_EXTLDFLAGS'" -o "${DIST}/${name}_${os}_${arch}${ext}" "./cmd/${name}"
                 )
                 third_party/pins/build-cstack.sh check "${DIST}/${name}_${os}_${arch}${ext}"
               else
