@@ -19,6 +19,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportvoice"
 )
 
 // verify: red adjudicates ONE citation — which one, and what the source actually did for it.
@@ -286,7 +287,19 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 	// This is also what moves the event's key off the URL. `keyFields` is walked first-match and
 	// `label` sits before `url`, so a labelled corroboration keys on the minted id — which is why
 	// one source may now corroborate several claims. Keyed on the source, only the first recorded.
+	var tells []string
 	if mayCite == cites && backsTheClaim(body.GetOutcome()) {
+		// THE TITLE IS RED'S TEXT IN THE REPORT. A labelled corroboration's --title is its
+		// Bibliography entry, "[^N]: <title>. <url> (accessed <date>)", and where red's anchor
+		// precedes blue's cite of the same URL in the document, red's title is the one it prints. The url and the date
+		// are the source's identity; the claim is blue's sentence; the reason, outcome, confidence
+		// and seat stay on the record. So the title is the one span of a corroboration that reaches
+		// report.md, and it is held to the report's voice as blue's cite title is: advice on the
+		// whole list. The refusal reaches the mint's problem and fix only (plans/feov-lens-bar.md
+		// §III.10, N4), so nothing here refuses. Computed before the retry check, so a retry hears it.
+		for _, f := range reportvoice.Find(body.GetTitle()) {
+			tells = append(tells, f.String())
+		}
 		// A RETRY RETURNS ITS OWN ANCHOR. The minted label is fresh every call, so without this
 		// a crash-retried corroboration splices a SECOND anchor at the same sentence and records
 		// a second event — the duplication the url key used to prevent. Checked before the mint,
@@ -294,7 +307,7 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		if prior, err := record.ExistingCorroborationLabel(run, s.SeatID, body.GetUrl(), body.GetClaim()); err != nil {
 			return nil, err
 		} else if prior != "" {
-			return verifyResult{Label: prior, Source: body.GetTitle(), Outcome: recordpb.Word(body.GetOutcome()), Idempotent: true}, nil
+			return verifyResult{Label: prior, Source: body.GetTitle(), Outcome: recordpb.Word(body.GetOutcome()), Idempotent: true, VoiceTells: tells}, nil
 		}
 		label := record.NewCitationID()
 		marker := "<!--cite:" + label + "-->"
@@ -322,10 +335,11 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		return nil, err
 	}
 	return verifyResult{
-		Anchor:  body.GetAnchor(),
-		Label:   body.GetLabel(),
-		Source:  body.GetTitle(),
-		Outcome: recordpb.Word(body.GetOutcome()),
+		Anchor:     body.GetAnchor(),
+		Label:      body.GetLabel(),
+		Source:     body.GetTitle(),
+		Outcome:    recordpb.Word(body.GetOutcome()),
+		VoiceTells: tells,
 	}, nil
 }
 
@@ -340,9 +354,15 @@ type verifyResult struct {
 	Idempotent bool   `json:"idempotent,omitempty"`
 	Source     string `json:"source,omitempty"`
 	Outcome    string `json:"outcome"`
+	// VoiceTells is ADVICE on a labelled corroboration's title, which prints in the Bibliography.
+	VoiceTells []string `json:"voice_tells,omitempty"`
 }
 
 func (r verifyResult) Human() string {
+	return r.human() + reportvoice.Note("the source's Bibliography entry", r.VoiceTells)
+}
+
+func (r verifyResult) human() string {
 	subject := "citation " + r.Anchor
 	if r.Anchor == "" {
 		subject = "corroborating source " + r.Source

@@ -16,6 +16,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportvoice"
 )
 
 // mint: put a gap on the board.
@@ -239,7 +240,17 @@ func newMint() *cobra.Command {
 		if _, err := record.Append(s.Identity(), p); err != nil {
 			return nil, err
 		}
-		return mintResult{GapID: gapID, Check: seat.Str(cmd, flags.Check)}, nil
+		// THE AMBIGUOUS TELLS ARE ADVICE, and they ride back on the confirmation. The write path has
+		// already refused the unambiguous ones (record.refuseMintReportVoice), so what remains is the
+		// set a pattern cannot tell from subject prose — "this run" or "the red team" may be exactly
+		// right in a report about red teams. Same two fields, never the reason.
+		var tells []string
+		for _, text := range []string{p.GetProblem(), p.GetRequiredFix()} {
+			for _, f := range reportvoice.Advised(text) {
+				tells = append(tells, f.String())
+			}
+		}
+		return mintResult{GapID: gapID, Check: seat.Str(cmd, flags.Check), VoiceTells: tells}, nil
 	}))
 
 	c.Flags().String(flags.Key, "", flags.DescKey)
@@ -289,6 +300,10 @@ type mintResult struct {
 	// difference visible while the seat is still there to fix it. No verb amends a check after
 	// mint, so the moment of the write is the only moment.
 	Check string `json:"acceptance_check,omitempty"`
+	// VoiceTells is ADVICE on the problem and the fix, and the gap is already on the board by the
+	// time it renders. The fix for a tell that turns out to be real is the next mint's wording, or
+	// a supersession; nothing here asks the seat to undo the write.
+	VoiceTells []string `json:"voice_tells,omitempty"`
 }
 
 func (r mintResult) Human() string {
@@ -296,11 +311,12 @@ func (r mintResult) Human() string {
 	if r.Idempotent {
 		head += " (idempotent retry — existing id returned)"
 	}
+	note := reportvoice.Note("the risk matrix, the first sentence of the problem and of the fix, while the gap is open", r.VoiceTells)
 	if r.Check == "" {
-		return head
+		return head + note
 	}
 	return head + "\n  acceptance check RECORDED as: " + r.Check +
-		"\n  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)"
+		"\n  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)" + note
 }
 
 // contains reports membership, so an --supersedes that already names the estopping gap

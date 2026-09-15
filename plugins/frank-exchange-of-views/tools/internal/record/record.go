@@ -784,6 +784,11 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 				return fmt.Errorf("record: mint requires --%s — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded", g.flag)
 			}
 		}
+		if !Migrating {
+			if err := refuseMintReportVoice(b); err != nil {
+				return err
+			}
+		}
 		if err := validateClass(run, b); err != nil {
 			return err
 		}

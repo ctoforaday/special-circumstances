@@ -14,6 +14,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportvoice"
 )
 
 // prove: settle a claim by COMPUTING it, and leave the computation as the evidence.
@@ -201,7 +202,7 @@ type proveResult struct {
 }
 
 func (r proveResult) Human() string {
-	note := voiceNote("the proof's footnote, and its heading in evidence.md", r.VoiceTells)
+	note := reportvoice.Note("the proof's footnote, and its heading in evidence.md", r.VoiceTells)
 	if r.Idempotent {
 		return "blue prove (idempotent retry — already recorded as " + r.SHA[:12] + ")" + note
 	}
