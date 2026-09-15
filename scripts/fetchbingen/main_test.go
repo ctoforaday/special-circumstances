@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -107,5 +109,26 @@ func TestAnUnguardedEnsureEntryIsNotCounted(t *testing.T) {
 	b, _ := json.Marshal(m)
 	if got := guardProblems("p", b); len(got) != 1 || !strings.Contains(got[0], "ensure") {
 		t.Fatalf("an unguarded ensure must not satisfy the check, got %v", got)
+	}
+}
+
+// A test that admits the ensure entry by an older string rejects the shipped one — the 1.69.0 run.
+func TestAnEnsureCopyThatDriftedIsReported(t *testing.T) {
+	root := t.TempDir()
+	for i, rel := range ensureCopies {
+		body := "const ensureCommand = `" + ensureEntry + "`"
+		if i == 1 {
+			body = "const ensureCommand = `sh fetch-bin.sh ensure SessionStart`"
+		}
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, rel)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, rel), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := ensureCopyProblems(root)
+	if len(got) != 1 || !strings.Contains(got[0], ensureCopies[1]) {
+		t.Fatalf("want exactly the drifted copy reported, got %v", got)
 	}
 }
