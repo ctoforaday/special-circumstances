@@ -50,18 +50,19 @@
 // foot-guns carries imperatives by definition. The flag cannot be designed away
 // without dropping the content that makes the note worth restoring.
 //
-// So the constraint that survives is narrower and enforceable: THIS HOOK ADDS NO
-// IMPERATIVE OF ITS OWN. An instruction arriving inside injected text reads as an
-// instruction from outside the session however reasonable it is, and one the
-// hook invented is one the session never established. The duty to verify belongs
-// to the context-checkpointing skill, which the session already carries.
+// So the constraint that survives is narrower and enforceable: the digest itself
+// states facts, and the hook's ONE instruction is the resume line, emitted only
+// after a compaction (resumeLine). On startup, resume and fork the note may be
+// stale or another session's, so there the digest stays a claim with no
+// instruction. After a compaction the turn continues anyway; the only question is
+// whether it continues from the summary or from the note, and the
+// context-checkpointing skill that says "from the note" loads by description, so
+// a consumer session often does not carry it (#989).
 //
 // And the distrust turns out to be the right posture, not a defect to remove.
 // Both runs used the content accurately while labelling it a claim rather than a
 // fact — which is exactly what the skill's own contract asks for ("the note is a
-// claim, not a fact"). The agent got there without being told. What the narrower
-// constraint buys is that the suspicion now attaches only to the note's real
-// content, so a human reading the flag learns something true.
+// claim, not a fact"). The agent got there without being told.
 package checkpointrestore
 
 import (
@@ -189,15 +190,48 @@ const clearIsPointerOnly = "clear"
 // note is most valuable, and any threshold would be arbitrary where `status` is
 // a fact the note states about itself.
 func pointerOnly(source, status string) bool {
-	return source == clearIsPointerOnly || strings.EqualFold(status, "done")
+	return source == clearIsPointerOnly || strings.EqualFold(statusWord(status), "done")
+}
+
+// statusWord is the status value without the inline comment an agent writes after it
+// (`status: blocked   # waits on the human`). The frontmatter parser keeps the whole value.
+func statusWord(status string) string {
+	if f := strings.Fields(status); len(f) > 0 {
+		return f[0]
+	}
+	return ""
+}
+
+// resumeSource is the one source the resume line is emitted on.
+const resumeSource = "compact"
+
+// maxResumeLine bounds the resume line. It is appended after clamp so a long digest
+// cannot cut it, which makes its own cap the only bound on it.
+const maxResumeLine = 300
+
+// resumeLine is the hook's one instruction: after a compaction, continue from the note
+// rather than from the summary. Empty on every other source.
+//
+// It names prosthetic-conscience so the instruction carries its provenance. "Redo nothing
+// the summary reports as done" is deliberately not "run nothing listed before the next
+// actions": the validation loop sits before them and is meant to be re-run.
+func resumeLine(source, status string) string {
+	if source != resumeSource {
+		return ""
+	}
+	line := "After this compaction (prosthetic-conscience): read the full note at the path above, " +
+		"check its head, handles and queue pointers against now, and redo nothing the summary reports as done; "
+	if strings.EqualFold(statusWord(status), "blocked") {
+		return line + "its status is blocked, so tell the human what it waits on and stop."
+	}
+	return line + "then take its first next action, or ask if that action is the human's to decide."
 }
 
 // digest renders the note as recovered state. Empty means nothing to say.
 //
 // note is the raw file; path and its frontmatter supply provenance. The result
-// never contains an imperative that is not already the note's standing contract
-// (read-only until the next-actions list; verify each claim before acting) —
-// those come from the context-checkpointing skill the session is already under.
+// contains no imperative the note did not carry; the compaction resume line is
+// appended by compose, after the clamp.
 func digest(raw, path, source string, rearm checkpoint.RearmState) string {
 	n := checkpoint.Parse(raw)
 
@@ -254,14 +288,11 @@ func digest(raw, path, source string, rearm checkpoint.RearmState) string {
 		b.WriteString("\n" + rearmed)
 	}
 
-	// Declarative, never imperative. Measured 2026-07-29: a digest closing with
-	// "verify each item before acting on it, and re-run the validation loop" was
-	// flagged by the model as prompt-injection-shaped, and it named that very
-	// sentence as one of the "embedded behavioral directives" that made it so.
-	// An instruction arriving inside injected text reads as an instruction from
-	// outside the session no matter how reasonable it is. The duty to verify
-	// belongs to the context-checkpointing skill, which the session already
-	// carries; this hook states facts and stops.
+	// Declarative. Measured 2026-07-29: a digest closing with "verify each item
+	// before acting on it, and re-run the validation loop" was flagged by the model
+	// as prompt-injection-shaped, and it named that very sentence as one of the
+	// "embedded behavioral directives" that made it so. The one instruction the hook
+	// does give is resumeLine, on compaction only.
 	b.WriteString("\nThis is what was recorded before the seam. It has not been re-verified since.\n")
 
 	return b.String()
@@ -570,7 +601,14 @@ func compose(projectDir, source string) (string, []string) {
 		text += "\nTrigger surfaces that could not be resolved to a watched path, so a change there is not recorded: " +
 			strings.Join(unresolved, "; ") + ".\n"
 	}
-	return clamp(text, path), watch
+	if text == "" {
+		return "", watch
+	}
+	text = clamp(text, path)
+	if line := resumeLine(source, note.Get("status")); line != "" {
+		text += "\n" + line + "\n"
+	}
+	return text, watch
 }
 
 // Unit exposes the restore to the merged SessionStart binary.
