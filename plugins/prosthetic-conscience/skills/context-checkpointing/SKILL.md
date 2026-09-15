@@ -67,7 +67,7 @@ status: <in-progress|blocked|validating|done>
 - YOU MUST keep **one block, overwritten** — never accumulate. An accumulating note outgrows the harness's auto-recall budget and silently degrades from an anchor to a pointer you may not follow.
 - BEFORE recording a forward actionable, YOU MUST file it where the resumed workflow will actually look (issue, or a task in the plan) and let the note carry the pointer. A note-only actionable dies when the worklist is rebuilt from another index (see [[project-memory]]).
 - AFTER writing the note, YOU MUST register its path in the project's durable memory, so continuity survives a cold start where no hook fires.
-- AFTER a compaction or restart, the restore path is **read-only until the ordered next-actions list** — YOU MUST NOT re-execute anything replayed from before the seam, and YOU MUST verify each checkpoint claim against reality before acting on it. The note is a claim, not a fact.
+- AFTER a compaction or restart, the restore path is **read-only until the ordered next-actions list** — YOU MUST NOT re-execute anything replayed from before the seam, and YOU MUST verify each checkpoint claim against reality before acting on it. The note is a claim, not a fact. When the note's status is `blocked`, YOU MUST tell the human what it waits on and stop rather than take its next action, unless the human has already said what to do next.
 - AFTER the work completes, YOU MUST fold durable decisions into the plan or project memory and discard the note — it is scaffolding, not a record.
 
 ## Boundary with [[project-memory]]

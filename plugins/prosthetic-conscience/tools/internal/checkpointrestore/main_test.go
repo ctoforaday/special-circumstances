@@ -173,7 +173,7 @@ func TestDigestCarriesItsProvenance(t *testing.T) {
 	}
 }
 
-// THE mechanism for the no-imperative rule, so it is not prose that decays.
+// THE mechanism for the digest's declarative voice, so it is not prose that decays.
 //
 // Measured 2026-07-29: run 1's digest closed with "verify each item against
 // reality before acting on it, and re-run the validation loop rather than
@@ -182,9 +182,9 @@ func TestDigestCarriesItsProvenance(t *testing.T) {
 // from the agent's reason, leaving only the note's own content.
 //
 // The rule is scoped, not absolute: imperatives QUOTED FROM THE NOTE are the
-// content worth restoring (a foot-guns section is imperatives by definition).
-// What is banned is an imperative the HOOK invented — the session never
-// established it, so it arrives as a directive from outside.
+// content worth restoring (a foot-guns section is imperatives by definition),
+// and the resume line is the hook's one instruction, on compaction only. Every
+// other imperative the HOOK invents is banned, on every source.
 func TestTheHookAddsNoImperativeOfItsOwn(t *testing.T) {
 	// A note with no imperative anywhere in it, so anything commanding in the
 	// output can only have come from the hook.
@@ -202,24 +202,123 @@ status: in-progress
 1. wire hooks.json
 `
 	dir := withNote(t, declarative)
-	stdout, _, _ := call(t, dir, `{"source":"compact"}`)
-	got := injected(t, stdout)
+	for _, source := range []string{"startup", "resume", "fork", "compact"} {
+		stdout, _, _ := call(t, dir, `{"source":"`+source+`"}`)
+		got := injected(t, stdout)
+		if got == "" {
+			t.Fatalf("%s: fixture produced no digest, so the assertions below prove nothing", source)
+		}
+		line := resumeLine(source, "in-progress")
+		if source == "compact" && !strings.Contains(got, line) {
+			t.Fatalf("compact: the resume line is missing:\n%s", got)
+		}
+		if line != "" {
+			got = strings.Replace(got, line, "", 1)
+		}
 
-	// Second person and bare-imperative openers are how an invented directive
-	// actually reads. Quoted note content is exempt by construction here: the
-	// fixture contains none.
-	banned := []string{
-		"you must", "you should", "verify each", "re-run the", "do not ", "never ",
-		"make sure", "ensure that", "remember to", "before acting",
-	}
-	low := strings.ToLower(got)
-	for _, b := range banned {
-		if strings.Contains(low, b) {
-			t.Errorf("the hook introduced an imperative of its own (%q) — measured to read as injection:\n%s", b, got)
+		// Second person and bare-imperative openers are how an invented directive
+		// actually reads. Quoted note content is exempt by construction here: the
+		// fixture contains none.
+		banned := []string{
+			"you must", "you should", "verify each", "re-run the", "do not ", "never ",
+			"make sure", "ensure that", "remember to", "before acting",
+			"read the full note", "first next action", "tell the human",
+		}
+		low := strings.ToLower(got)
+		for _, b := range banned {
+			if strings.Contains(low, b) {
+				t.Errorf("%s: the hook introduced an imperative of its own (%q) — measured to read as injection:\n%s", source, b, got)
+			}
 		}
 	}
-	if got == "" {
-		t.Fatal("fixture produced no digest, so the assertion above proved nothing")
+}
+
+// After a compaction the turn continues anyway, so the hook says to continue from the
+// note: the skill that says so loads by description and a consumer session often lacks it
+// (#989). The line comes last, so nothing in the digest follows it.
+func TestCompactDigestEndsWithTheResumeLine(t *testing.T) {
+	dir := withNote(t, note)
+	stdout, _, _ := call(t, dir, `{"source":"compact"}`)
+	got := injected(t, stdout)
+	want := resumeLine("compact", "in-progress")
+	if want == "" {
+		t.Fatal("no resume line for compact")
+	}
+	if !strings.HasSuffix(strings.TrimRight(got, "\n"), want) {
+		t.Errorf("digest does not end with the resume line:\n%s", got)
+	}
+	if !strings.Contains(want, "first next action") {
+		t.Errorf("an unblocked note's line does not continue the work: %q", want)
+	}
+}
+
+// On startup, resume and fork the note may be stale or another session's, so the digest
+// stays a claim with no instruction. /clear and a done note get the pointer, and no line.
+func TestOnlyACompactionGetsTheResumeLine(t *testing.T) {
+	cases := []struct{ body, source string }{
+		{note, "startup"},
+		{note, "resume"},
+		{note, "fork"},
+		{note, "clear"},
+		{strings.Replace(note, "status: in-progress", "status: done", 1), "compact"},
+	}
+	for _, c := range cases {
+		dir := withNote(t, c.body)
+		stdout, _, _ := call(t, dir, `{"source":"`+c.source+`"}`)
+		got := injected(t, stdout)
+		if got == "" {
+			t.Fatalf("%s: no output, so the absence below proves nothing", c.source)
+		}
+		if strings.Contains(got, "After this compaction") {
+			t.Errorf("%s: carries the resume line:\n%s", c.source, got)
+		}
+	}
+}
+
+// A blocked note waits on someone, so continuing its first next action is the wrong
+// instruction. The status carries an inline comment, as agents write it.
+func TestABlockedNoteStopsInsteadOfContinuing(t *testing.T) {
+	dir := withNote(t, strings.Replace(note, "status: in-progress", "status: blocked   # waits on the human", 1))
+	stdout, _, _ := call(t, dir, `{"source":"compact"}`)
+	got := injected(t, stdout)
+	if !strings.Contains(got, "tell the human what it waits on and stop") {
+		t.Errorf("a blocked note's line does not stop:\n%s", got)
+	}
+	if strings.Contains(got, "first next action") {
+		t.Errorf("a blocked note's line continues the work:\n%s", got)
+	}
+}
+
+// The line is appended after the clamp, so a digest over its cap cannot cut it.
+func TestTheResumeLineSurvivesAnOversizeDigest(t *testing.T) {
+	long := strings.Replace(note, "   last run: pass",
+		"   last run: "+strings.Repeat("verbose ", 2000), 1)
+	dir := withNote(t, long)
+	stdout, _, _ := call(t, dir, `{"source":"compact"}`)
+	got := injected(t, stdout)
+	if !strings.Contains(got, "truncated") {
+		t.Fatalf("fixture did not overflow the digest:\n%s", got)
+	}
+	if !strings.HasSuffix(strings.TrimRight(got, "\n"), resumeLine("compact", "in-progress")) {
+		t.Errorf("the resume line was cut from an oversize digest:\n%s", got[max(0, len(got)-400):])
+	}
+}
+
+// Nothing bounds the line but its own cap, since it sits outside the digest's.
+func TestTheResumeLineFitsItsCap(t *testing.T) {
+	for _, status := range []string{"in-progress", "blocked"} {
+		if n := len(resumeLine("compact", status)); n == 0 || n > maxResumeLine {
+			t.Errorf("status %s: resume line is %d bytes, cap %d", status, n, maxResumeLine)
+		}
+	}
+}
+
+// A done note is a pointer even when the agent wrote a comment after the value.
+func TestACommentedDoneStatusStillGetsAPointer(t *testing.T) {
+	dir := withNote(t, strings.Replace(note, "status: in-progress", "status: done  # shipped in #141", 1))
+	stdout, _, _ := call(t, dir, `{"source":"resume"}`)
+	if got := injected(t, stdout); !strings.Contains(got, "status: done") || strings.Contains(got, "go test ./...") {
+		t.Errorf("a done note with a comment was restored as live work:\n%s", got)
 	}
 }
 
@@ -338,7 +437,7 @@ func TestOversizeDigestIsTruncatedAndStillPointsHome(t *testing.T) {
 	dir := withNote(t, long)
 	stdout, _, _ := call(t, dir, `{"source":"compact"}`)
 	got := injected(t, stdout)
-	if len(got) > maxDigest+200 {
+	if len(got) > maxDigest+200+maxResumeLine {
 		t.Errorf("digest length %d, want ~%d", len(got), maxDigest)
 	}
 	if !strings.Contains(got, "truncated") || !strings.Contains(got, "CHECKPOINT.md") {

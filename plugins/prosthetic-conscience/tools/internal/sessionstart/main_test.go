@@ -145,4 +145,13 @@ func TestRealUnitsRestoreANote(t *testing.T) {
 	if len(out.HookSpecificOutput.WatchPaths) == 0 {
 		t.Error("the note's trigger surface was not registered")
 	}
+	if strings.Contains(out.HookSpecificOutput.AdditionalContext, "After this compaction") {
+		t.Errorf("a startup carries the compaction resume line: %q", out.HookSpecificOutput.AdditionalContext)
+	}
+
+	// The restore unit runs last, so after a compaction the merged response ends with its line.
+	out, _, _ = fire(t, dir, `{"source":"compact"}`, Units(""))
+	if !strings.HasSuffix(strings.TrimRight(out.HookSpecificOutput.AdditionalContext, "\n"), "first next action, or ask if that action is the human's to decide.") {
+		t.Errorf("the compaction response does not end with the resume line: %q", out.HookSpecificOutput.AdditionalContext)
+	}
 }

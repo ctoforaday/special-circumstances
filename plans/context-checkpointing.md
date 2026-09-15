@@ -154,10 +154,14 @@ rules follow (evidence in historical §16 B):
 1. **The flag cannot be designed away.** The imperative the agent named was the note's own
    `Invariants / foot-guns` entry. A section whose purpose is to carry foot-guns carries imperatives
    by definition; removing them removes the reason to restore the note.
-2. **What IS enforceable: the hook adds no imperative of its own.** An instruction arriving inside
-   injected text reads as foreign however reasonable it is, and one the hook invented is one the
-   session never established. The verify duty belongs to the skill, which the session already
-   carries. This is a unit-tested rule.
+2. **What IS enforceable: the digest adds no imperative of its own, and the hook's one instruction
+   is the compaction resume line.** On `source: compact` the digest ends with a line telling the
+   agent to read the full note, check its head, handles and queue pointers, redo nothing the summary
+   reports as done, and take the first next action — or, when the note is `blocked`, tell the human
+   and stop. The turn continues after a compaction anyway, and the skill that says to continue from
+   the note loads by description, so a consumer session often lacks it (#989). Startup and resume
+   carry no instruction: there the note may be stale or another session's. Both halves are
+   unit-tested; the live comparison is in the plugin README.
 3. **The distrust is the correct posture, not a defect.** Both acceptance runs used the content
    accurately while labelling it a claim rather than a fact — which is what §5's own contract asks
    for (*the note is a claim, not a fact*). A checkpoint the agent distrusts **and uses** is the

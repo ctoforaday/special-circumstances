@@ -48,7 +48,8 @@ separate UNITS; what changed is that ONE response is composed from both. They we
 DIFFERENT CHANNELS and separate processes hid it — the nudge printed a bare line to stdout, the
 restore emitted a JSON document — and one process cannot do both without corrupting the document.
 Everything now travels as additionalContext, which is the channel hook-surface-spike.md §5 actually
-verified. No matcher: restore must fire on EVERY source, compact included.
+verified. No matcher: restore must fire on EVERY source, compact included. On compact alone the
+restore ends with one line telling the agent to resume from the note (#989).
 
 ## FileChanged
 

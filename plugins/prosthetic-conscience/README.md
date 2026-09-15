@@ -25,7 +25,7 @@ Eleven load on every session, the rest by description. `design-by-contract` is t
 | `sc-pretooluse` | PreToolUse | Secrets gate (fails closed, can deny) · push-freeze guard (warns, never blocks) |
 | `sc-posttooluse` | PostToolUse | The quality gate (`qlty fmt` + `qlty check`), over one shared context |
 | `sc-strike-counter` | PostToolUseFailure | Counts (tool, target) repeats for anti-spinning; skips interrupts |
-| `sc-sessionstart` | SessionStart | Toolchain nudge · checkpoint restore — every source, compaction included |
+| `sc-sessionstart` | SessionStart | Toolchain nudge · checkpoint restore — every source, compaction included, where it also says to resume from the note |
 | `sc-precompact` | PreCompact | Seals the note, and tells the summarizer what to preserve |
 | `sc-sessionend` | SessionEnd | Seals the note on every reason, headless `other` included |
 | `sc-subagentstop` | SubagentStop | Seals a seat's note, keyed by `agent_id` |
@@ -57,7 +57,16 @@ Two constraints came from measurement rather than design, and both cost a cycle 
 
 **The resumed agent treats the digest as a claim, and that is correct.** The digest names the file it came from, when it was written, and which session wrote it. That was designed to stop the agent reading it as a prompt-injection attempt — a reaction observed twice on other events. **It does not stop it.** In the acceptance run the agent recovered every value exactly, attributed them honestly to the hook, and *still* flagged the payload: *"untrusted file content … formatted to read as authoritative state … embeds an imperative instruction."* The imperative it named was the note's own foot-gun entry, and a section whose job is to carry foot-guns carries imperatives by definition.
 
-What that measurement did change is narrower and worth keeping: **the hook adds no imperative of its own.** The first run's digest closed with *"verify each item before acting on it"*, and the agent cited that sentence as one of the directives making it injection-shaped. Removing it removed it from the reason. An instruction arriving inside injected text reads as foreign however reasonable it is, and one the hook invented is one the session never established — so the duty to verify lives in the skill, which the session already carries. The distrust itself is the posture the skill asks for; the agent reached it unprompted.
+What that measurement did change is narrower: **the digest itself states facts.** The first run's digest closed with *"verify each item before acting on it"*, and the agent cited that sentence as one of the directives making it injection-shaped. Removing it removed it from the reason. The distrust itself is the posture the skill asks for; the agent reached it unprompted.
+
+**After a compaction, and only then, the hook adds one instruction.** The turn continues anyway, so the only question is whether it continues from the summary or from the note — and the skill that says "from the note" loads by description, so a consumer session often lacks it. The line tells the agent to read the full note, check its head, handles and queue pointers, redo nothing the summary reports as done, and take the first next action; when the note's status is `blocked`, to tell the human what it waits on and stop. On startup and resume the note may be stale or another session's, so there the digest stays a claim with no instruction. Measured on a manual `/compact` followed by *"Continue."*, one run per cell:
+
+| Note | haiku, old | haiku, with the line | sonnet, old | sonnet, with the line |
+|---|---|---|---|---|
+| in progress | finished the work | finished the work | finished the work | read the full note, checked it, then finished |
+| blocked on a human decision | **made the decision and edited** | stopped | stopped and asked | stopped and asked |
+
+None of the eight runs called the digest or the line an injection.
 
 An explicit `/clear` gets a pointer rather than the digest. That carve-out is by intent — the human just wiped the context deliberately — which is precisely what the withdrawn `compact` carve-out was not.
 
