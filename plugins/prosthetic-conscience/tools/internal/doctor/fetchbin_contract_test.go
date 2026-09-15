@@ -507,9 +507,24 @@ func TestEnsureFetchesWhenTheStampNamesAnotherRelease(t *testing.T) {
 		t.Fatalf("a stale install should announce the fetch, said %q", msg)
 	}
 	f.waitInstalled(t)
-	if got, err := os.ReadFile(f.state("installed")); err != nil || strings.TrimSpace(string(got)) != "fixture--v"+fixtureVersion {
-		t.Fatalf("the fetch must record the tag it installed from, got %q (%v)", got, err)
+	f.waitStamp(t, "fixture--v"+fixtureVersion)
+}
+
+// waitStamp waits for the fetch to record the tag it installed from. The fetch moves the binaries
+// into bin/ before it writes the stamp, so binaries arriving is not the stamp arriving: reading it
+// once after waitInstalled races the fetch, and lost under a loaded full check.
+func (f fetchFixture) waitStamp(t *testing.T, want string) {
+	t.Helper()
+	deadline := time.Now().Add(20 * time.Second)
+	var got []byte
+	for time.Now().Before(deadline) {
+		got, _ = os.ReadFile(f.state("installed"))
+		if strings.TrimSpace(string(got)) == want {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
+	t.Fatalf("the fetch must record the tag it installed from: want %q, still %q", want, got)
 }
 
 func TestEnsureFetchesWithNoStampAtAll(t *testing.T) {
