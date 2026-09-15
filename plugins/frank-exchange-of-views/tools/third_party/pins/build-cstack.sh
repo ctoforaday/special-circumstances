@@ -89,6 +89,12 @@ if [ "$MODE" = "env" ]; then
 	echo "export CGO_CFLAGS=\"-I$PREFIX/include\""
 	echo "export CGO_CXXFLAGS=\"-I$PREFIX/include\""
 	LDF="-L$PREFIX/lib -ltesseract -lleptonica -lpng16 -lz -lc++"
+	# CGO_LDFLAGS reaches the link only through a package that uses cgo itself — the engine does,
+	# so feov-record links. A command with no cgo of its own gets NO search path from it, and its
+	# external link fails on the first library Go itself asks for ("unable to find dynamic system
+	# library 'resolv' … searched paths: none", darwin). The search paths alone travel separately,
+	# for the caller to pass as -extldflags, which reaches every external link.
+	EXT="-L$PREFIX/lib"
 	case "$SYSNAME" in
 	Darwin)
 		# Fully static linking does not exist on macOS (no static libSystem). Go hard-adds
@@ -99,13 +105,15 @@ if [ "$MODE" = "env" ]; then
 		# reached nothing, and darwin-amd64's first release link failed on exactly that.
 		# -w because Go runs dsymutil after a darwin link and this host has none.
 		LDF="$LDF -F$PREFIX/Frameworks"
-		echo "# go build -tags tessocr -ldflags '-w'"
+		EXT="$EXT -F$PREFIX/Frameworks"
+		echo "# go build -tags tessocr -ldflags \"-w -linkmode external -extldflags '\$CSTACK_EXTLDFLAGS'\""
 		;;
 	*)
 		echo "# go build -tags tessocr -ldflags '-linkmode external -extldflags \"-static\"'"
 		;;
 	esac
 	echo "export CGO_LDFLAGS=\"$LDF\""
+	echo "export CSTACK_EXTLDFLAGS=\"$EXT\""
 	exit 0
 fi
 
