@@ -72,7 +72,7 @@ Everything else is ambient: once installed, the rules apply to every session wit
 
 ### prosthetic-conscience — the working discipline
 
-The base plugin: 22 skills, of which **ten load in every session**. Each is a short contract written in a `BEFORE / During / AFTER · YOU MUST` grammar, so it says exactly when it applies.
+The base plugin: 22 skills, of which **eleven load in every session**. Each is a short contract written in a `BEFORE / During / AFTER · YOU MUST` grammar, so it says exactly when it applies.
 
 | Rule | In one line |
 |---|---|
@@ -86,8 +86,9 @@ The base plugin: 22 skills, of which **ten load in every session**. Each is a sh
 | **context-efficiency** | Shield the context — delegate bulk reading, leave artifacts that survive compression. |
 | **complete-the-concept** | A change is finished when the concept is, not when the first commit merges. |
 | **facts-are-fields** | Facts other parties act on belong in a field something can refuse, not in a filename or a regex. |
+| **context-checkpointing** | Keep one checkpoint note; when the context grows heavy, write it, then tell the human and let them choose when to compact. |
 
-The other twelve load on demand by description: pair-programming, spec-driven-development, test-driven-development, refactoring-safety, project-memory, critical-stance, context-checkpointing, scratch-policy, design-by-contract, and proficiency guides for git, markdown and qlty.
+The other eleven load on demand by description: pair-programming, spec-driven-development, test-driven-development, refactoring-safety, project-memory, critical-stance, scratch-policy, design-by-contract, and proficiency guides for git, markdown and qlty.
 
 It also ships `/plan-audit` — a binary PASS/FAIL auditor that puts an implementation plan against a five-section standard — and a set of Go hook binaries that enforce the mechanically checkable rules even where prompts never fire. See [Under the hood](#under-the-hood) for how those two halves fit together.
 

@@ -73,10 +73,11 @@ cancel — does not fight this one (measured: plans/hook-surface-spike.md §2).
 
 ## Stop
 
-The checkpoint-freshness nudge. NO MATCHER: Stop takes none. INERT until band thresholds exist — it
-emits nothing and, deliberately, writes no state either, because the seal record derives
-nudge_enabled from whether nudge.json exists; a file created by an inert build would make every
-baseline row claim the nudge was live. Registration is the one carrier NOTHING gates:
+The checkpoint-freshness nudge. NO MATCHER: Stop takes none. With a note, it reports once per band
+how stale the note is (turns, token growth, branch commits); with no note, once per band how heavy
+the live context is (150k / 300k / 600k tokens), so a session that never wrote one is still warned.
+A session below every edge emits nothing and writes no state, because the seal record derives
+nudge_enabled from whether nudge.json exists. Registration is the one carrier NOTHING gates:
 scripts/pluginparity does not read `hooks.json`, and the hooks.json checks in CI test bootstrap-guard
 degradation and (`scripts/validatejson`) that every key is one the client documents — none of them
 checks that a binary which is built, declared and documented is also registered, so such a binary

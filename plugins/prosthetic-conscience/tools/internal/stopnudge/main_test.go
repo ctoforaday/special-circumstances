@@ -6,6 +6,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/freshness"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -88,27 +89,54 @@ func TestNewestOnAnUnparseableNoteIsZero(t *testing.T) {
 	}
 }
 
-// No note means nothing whose age could be reported. Silence, and no state file: the
-// seal record reads the nudge's liveness from whether that file exists.
-func TestRunWithNoNoteSaysNothingAndWritesNothing(t *testing.T) {
+// transcriptAt writes a transcript whose newest assistant entry holds a live context of tokens.
+func transcriptAt(t *testing.T, tokens int) string {
+	t.Helper()
+	p := filepath.Join(t.TempDir(), "t.jsonl")
+	line := `{"type":"assistant","timestamp":"2026-08-23T00:30:00Z","message":{"usage":` +
+		`{"input_tokens":2,"cache_read_input_tokens":` + strconv.Itoa(tokens-2) + `,"cache_creation_input_tokens":0}}}` + "\n"
+	if err := os.WriteFile(p, []byte(line), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+// No note and no measurable context: silence, and no state file — the seal record reads the
+// nudge's liveness from whether that file exists.
+func TestRunWithNoNoteAndNoTranscriptSaysNothingAndWritesNothing(t *testing.T) {
 	dir := t.TempDir()
 	out, errb := drive(t, dir, payload(t, map[string]any{"session_id": "s1", "cwd": dir}))
 	if out != "" {
-		t.Errorf("emitted with no note present:\n%s", out)
+		t.Errorf("emitted with no note and nothing measured:\n%s", out)
 	}
 	if strings.Contains(errb, "panic") {
 		t.Errorf("stderr: %s", errb)
 	}
 	if _, err := os.Stat(filepath.Join(dir, ".claude", "checkpoints", "nudge.json")); err == nil {
-		t.Error("created nudge.json with no note")
+		t.Error("created nudge.json with nothing said")
 	}
 }
 
-// THE CURRENT SHIPPED STATE, asserted rather than assumed: thresholds do not exist yet,
-// so the nudge emits nothing AND leaves no trace. If this ever starts failing, either
-// bands were configured (which Phase 2 does deliberately) or the inert path started
-// writing — and the second would silently mark every Phase 1 baseline row as
-// nudge_enabled, disarming criterion 6.
+// THE SESSION #957 WAS ABOUT: no note, and a context past an edge. It ran to automatic
+// compaction in silence because run() returned before measuring anything. Driven through run(),
+// so the call site is under test and not only DecideContext.
+func TestRunWithNoNoteWarnsOnAHeavyContext(t *testing.T) {
+	dir := t.TempDir()
+	p := payload(t, map[string]any{"session_id": "s1", "cwd": dir, "transcript_path": transcriptAt(t, 200_000)})
+	out, _ := drive(t, dir, p)
+	var resp hookOutput
+	if err := json.Unmarshal([]byte(out), &resp); err != nil {
+		t.Fatalf("no JSON response for a 200k context with no note: %v\n%q", err, out)
+	}
+	if resp.HookSpecificOutput.HookEventName != "Stop" ||
+		!strings.Contains(resp.HookSpecificOutput.AdditionalContext, "200k tokens, no checkpoint note (NOTICE)") {
+		t.Errorf("response: %+v", resp.HookSpecificOutput)
+	}
+	if again, _ := drive(t, dir, p); again != "" {
+		t.Errorf("the same band was said twice:\n%s", again)
+	}
+}
+
 // THE INERT-PATH TEST IS GONE BECAUSE ITS PREMISE IS, and it said so itself.
 //
 // It asserted that an unconfigured nudge emits nothing and writes no state, and it ended with a
@@ -147,6 +175,9 @@ func TestTheConfiguredEdgesAreThePreregisteredPercentiles(t *testing.T) {
 		{"TurnsNotice", th.TurnsNotice, 16}, {"TurnsWarn", th.TurnsWarn, 39}, {"TurnsUrgent", th.TurnsUrgent, 47},
 		{"GrowthNotice", th.GrowthNotice, 66_764}, {"GrowthWarn", th.GrowthWarn, 109_902}, {"GrowthUrgent", th.GrowthUrgent, 157_844},
 		{"BranchNotice", th.BranchNotice, 10}, {"BranchWarn", th.BranchWarn, 12}, {"BranchUrgent", th.BranchUrgent, 17},
+		// Not percentiles: no baseline exists for a session without a note. gblock's choice, and
+		// moving it is the same re-decision.
+		{"ContextNotice", th.ContextNotice, 150_000}, {"ContextWarn", th.ContextWarn, 300_000}, {"ContextUrgent", th.ContextUrgent, 600_000},
 	} {
 		if c.got != c.want {
 			t.Errorf("%s = %d, want %d — §III fixed these percentiles before the data existed, so a "+
