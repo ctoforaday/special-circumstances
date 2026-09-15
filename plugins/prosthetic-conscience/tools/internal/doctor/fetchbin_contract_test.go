@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 )
 
 // These tests drive hooks/fetch-bin.sh the way a guard does — `sh fetch-bin.sh hook <Event>` with
@@ -107,9 +109,16 @@ func (f fetchFixture) run(t *testing.T, path string, args ...string) (stdout, st
 // JSON object. It returns that object's systemMessage ("" when nothing was said).
 func (f fetchFixture) hook(t *testing.T, event string) (message string, doc map[string]any) {
 	t.Helper()
-	out, errOut, code := f.run(t, "", "hook", event)
+	return f.hookMode(t, "hook", event)
+}
+
+// hookMode drives `hook` or `ensure` and holds either to the guard's contract: exit 0, and stdout
+// empty or one JSON object.
+func (f fetchFixture) hookMode(t *testing.T, mode, event string) (message string, doc map[string]any) {
+	t.Helper()
+	out, errOut, code := f.run(t, "", mode, event)
 	if code != 0 {
-		t.Fatalf("hook %s exited %d (stderr %q) — a guard must never fail a tool call", event, code, errOut)
+		t.Fatalf("%s %s exited %d (stderr %q) — a guard must never fail a tool call", mode, event, code, errOut)
 	}
 	out = strings.TrimSpace(out)
 	if out == "" {
@@ -457,4 +466,109 @@ func TestFetchBinBreaksALockWhoseHolderHasExited(t *testing.T) {
 	mustWrite(t, f.state("lock/pid"), fmt.Sprintf("%d\n", gone.Process.Pid))
 	f.hook(t, "PreToolUse")
 	f.waitInstalled(t)
+}
+
+// `ensure` is the version question, asked once per session: a binary from an older release is as
+// broken as a missing one, and a current install must cost nothing.
+
+func (f fetchFixture) stamp(t *testing.T, tag string) {
+	t.Helper()
+	mustWrite(t, f.state("installed"), tag+"\n")
+}
+
+func TestEnsureIsSilentWhenTheInstalledTagMatches(t *testing.T) {
+	f := newFetchFixture(t, []string{"alpha"}, nil, nil)
+	// What a successful fetch leaves behind: the binary, and the tag it came from.
+	mustWrite(t, filepath.Join(f.root, "bin", "alpha"), "binary alpha\n")
+	if err := os.Chmod(filepath.Join(f.root, "bin", "alpha"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	f.stamp(t, "fixture--v"+fixtureVersion)
+	out, errOut, code := f.run(t, "", "ensure", "SessionStart")
+	if code != 0 || strings.TrimSpace(out) != "" || errOut != "" {
+		t.Fatalf("a current install must say nothing: exit %d, stdout %q, stderr %q", code, out, errOut)
+	}
+	if _, err := os.Stat(f.state("lock")); err == nil {
+		t.Fatal("a current install took the lock")
+	}
+	if _, err := os.Stat(f.state("log")); err == nil {
+		t.Fatal("a current install started a fetch")
+	}
+}
+
+func TestEnsureFetchesWhenTheStampNamesAnotherRelease(t *testing.T) {
+	f := newFetchFixture(t, []string{"alpha"}, nil, nil)
+	mustWrite(t, filepath.Join(f.root, "bin", "alpha"), "binary from the last release\n")
+	if err := os.Chmod(filepath.Join(f.root, "bin", "alpha"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	f.stamp(t, "fixture--v0.0.1")
+	if msg, _ := f.hookMode(t, "ensure", "SessionStart"); !strings.Contains(msg, "installing") {
+		t.Fatalf("a stale install should announce the fetch, said %q", msg)
+	}
+	f.waitInstalled(t)
+	if got, err := os.ReadFile(f.state("installed")); err != nil || strings.TrimSpace(string(got)) != "fixture--v"+fixtureVersion {
+		t.Fatalf("the fetch must record the tag it installed from, got %q (%v)", got, err)
+	}
+}
+
+func TestEnsureFetchesWithNoStampAtAll(t *testing.T) {
+	f := newFetchFixture(t, []string{"alpha"}, nil, nil)
+	f.hookMode(t, "ensure", "SessionStart")
+	f.waitInstalled(t)
+}
+
+// A matching stamp does not excuse a missing binary, or a deleted one stays gone for as long as
+// the stamp says everything is fine.
+func TestEnsureFetchesWhenTheStampMatchesButABinaryIsGone(t *testing.T) {
+	f := newFetchFixture(t, []string{"alpha", "beta"}, nil, nil)
+	mustWrite(t, filepath.Join(f.root, "bin", "alpha"), "binary alpha\n")
+	if err := os.Chmod(filepath.Join(f.root, "bin", "alpha"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	f.stamp(t, "fixture--v"+fixtureVersion) // beta never installed
+	f.hookMode(t, "ensure", "SessionStart")
+	f.waitInstalled(t)
+}
+
+// -fix installs the same binaries a release does, so a box the doctor fixed must not read as out
+// of date and refetch at every session start.
+func TestFixStampsTheTagItInstalled(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "tools", "cmd", "alpha"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	b := binStatus{Name: "alpha", Plugin: "fixture", Root: root, Version: "1.2.3"}
+	build := func(binStatus) (string, error) {
+		return "", os.WriteFile(filepath.Join(root, "bin", "alpha"+buildid.ExeName("")), []byte("x"), 0o755)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fixWith([]binStatus{b}, func(binStatus) error { return errors.New("no release") }, build, true)
+	got, err := os.ReadFile(filepath.Join(root, ".fetch", "installed"))
+	if err != nil || strings.TrimSpace(string(got)) != "fixture--v1.2.3" {
+		t.Fatalf("stamp = %q (%v); want fixture--v1.2.3", got, err)
+	}
+}
+
+// A partial install is not this version: stamping it would tell ensure to stop asking.
+func TestFixDoesNotStampAPartialInstall(t *testing.T) {
+	root := t.TempDir()
+	for _, n := range []string{"alpha", "beta"} {
+		if err := os.MkdirAll(filepath.Join(root, "tools", "cmd", n), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Join(root, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	b := binStatus{Name: "alpha", Plugin: "fixture", Root: root, Version: "1.2.3"}
+	build := func(binStatus) (string, error) {
+		return "", os.WriteFile(filepath.Join(root, "bin", "alpha"+buildid.ExeName("")), []byte("x"), 0o755)
+	}
+	fixWith([]binStatus{b}, func(binStatus) error { return errors.New("no release") }, build, true)
+	if _, err := os.Stat(filepath.Join(root, ".fetch", "installed")); err == nil {
+		t.Fatal("beta is still missing, yet the install was stamped as this version")
+	}
 }

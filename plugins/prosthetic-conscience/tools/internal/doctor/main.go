@@ -543,6 +543,32 @@ func fix(bins []binStatus) []string {
 	return fixWith(bins, fetchRelease, buildFromSource, toolchain.Present("go"))
 }
 
+// stampInstalled records the tag a plugin's binaries now come from, in the file fetch-bin.sh's
+// `ensure` reads. -fix installs the same binaries the release does — by fetching it, or by
+// building the same source when no asset is reachable — so a box the doctor has fixed must not
+// read as out of date and refetch at every session start.
+func stampInstalled(bins []binStatus) {
+	roots := map[string]binStatus{}
+	for _, b := range bins {
+		roots[b.Root] = b
+	}
+	for root, b := range roots {
+		if b.Plugin == "" || b.Version == "" {
+			continue
+		}
+		for _, probe := range binariesOf(root, b.Plugin, b.Version) {
+			if !probe.Built {
+				return // a partial install is not this version: leave the stamp alone
+			}
+		}
+		dir := filepath.Join(root, ".fetch")
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			continue
+		}
+		_ = os.WriteFile(filepath.Join(dir, "installed"), []byte(releaseTag(b)+"\n"), 0o644)
+	}
+}
+
 // fixWith is fix with both process boundaries passed in — the network (gh) and the
 // local toolchain (go build).
 //
@@ -578,6 +604,7 @@ func fixWith(bins []binStatus, fetch func(binStatus) error, build func(binStatus
 				b.Name, fetchErr, AssetName(b.Name, runtime.GOOS, runtime.GOARCH), filepath.Join(b.Root, "bin")))
 		}
 	}
+	stampInstalled(bins)
 	return report
 }
 

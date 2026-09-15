@@ -1447,7 +1447,12 @@ jobs:
             if ! CLAUDE_PLUGIN_ROOT="$EMPTY" timeout 2 bash -c "$cmd" </dev/null >/tmp/hook-stdout.txt 2>/tmp/hook-stderr.txt; then
               echo "GUARD FAILED (non-zero exit, or over 2 s) on an empty root for: $cmd"; exit 1
             fi
-            grep -q "doctor --fix" /tmp/hook-stderr.txt || { echo "guard warning missing on stderr for: $cmd"; exit 1; }
+            # The SessionStart ensure entry runs no binary: on an empty root it has no script, and
+            # silence is its correct degradation. Every command that names a binary must warn.
+            case "$cmd" in
+              *'${CLAUDE_PLUGIN_ROOT}/bin/'*)
+                grep -q "doctor --fix" /tmp/hook-stderr.txt || { echo "guard warning missing on stderr for: $cmd"; exit 1; } ;;
+            esac
             if [ -s /tmp/hook-stdout.txt ]; then
               echo "guard printed to stdout on an empty root for: $cmd"; exit 1
             fi

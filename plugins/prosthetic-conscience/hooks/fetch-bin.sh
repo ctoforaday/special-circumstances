@@ -7,12 +7,15 @@
 #
 #   sh fetch-bin.sh hook <Event>   start a background fetch unless one is running, and tell the
 #                                  human when <Event> is one whose message Claude Code displays
+#   sh fetch-bin.sh ensure <Event> the same, but only when the installed binaries are NOT this
+#                                  plugin's version — silent and free when they are
 #   sh fetch-bin.sh fetch          download, verify and install every missing binary, all or none
 #
 # The release is the tag <name>--v<version>, both read from .claude-plugin/plugin.json — never
 # "latest", which is whichever plugin tagged most recently. Every file is checked against the
 # release's SHA256SUMS before it is made executable. State lives in ${CLAUDE_PLUGIN_ROOT}/.fetch/,
-# never in bin/, so nothing that lists bin/ mistakes it for a binary.
+# never in bin/, so nothing that lists bin/ mistakes it for a binary; .fetch/installed holds the
+# TAG a successful install came from, and is what `ensure` compares against plugin.json.
 #
 # `hook` always exits 0 and never waits on the network: a guard must not fail or slow a tool call.
 
@@ -89,6 +92,36 @@ start_fetch() {
 	else
 		(SC_FETCH_LOCKED=1 sh "$SELF" fetch </dev/null >>"$STATE/log" 2>&1 &)
 	fi
+}
+
+# tag_of prints this plugin's release tag, or nothing when plugin.json cannot answer.
+tag_of() {
+	n=$(field name)
+	v=$(field version)
+	[ -n "$n" ] && [ -n "$v" ] && printf '%s--v%s' "$n" "$v"
+}
+
+# up_to_date succeeds when every tools/cmd binary is installed AND came from this plugin's own
+# release.
+#
+# THE STAMP IS THE TAG, NEVER A COMMIT. sc-doctor's staleness compares a binary's build stamp with
+# the install record's gitCommitSha — whatever main was when the plugin was copied — so it reports
+# stale on a current box whenever main moves after a tag without touching tools/. A tag compared
+# against plugin.json cannot drift that way, and `ensure` would refetch every session if it could.
+#
+# A matching stamp does not excuse a missing binary: deleted or un-executable must still heal, or a
+# corrupt install stays broken for as long as the stamp says it is fine.
+up_to_date() {
+	want=$(tag_of)
+	[ -n "$want" ] || return 1
+	[ "$(cat "$STATE/installed" 2>/dev/null)" = "$want" ] || return 1
+	ext=
+	case "$(uname -s 2>/dev/null)" in MINGW* | MSYS* | CYGWIN*) ext=.exe ;; esac
+	for d in "$ROOT"/tools/cmd/*/; do
+		[ -d "$d" ] || continue
+		[ -x "$ROOT/bin/$(basename "$d")$ext" ] || return 1
+	done
+	return 0
 }
 
 hook() {
@@ -182,13 +215,19 @@ fetch() {
 	tag="$name--v$version"
 
 	# The binaries are the directories under tools/cmd — the list the release job builds and the
-	# doctor checks. Only missing ones are fetched: a running .exe cannot be replaced on Windows,
-	# and a binary already in this version's bin/ came from this version's release.
+	# doctor checks. A binary already installed FROM THIS TAG is left alone: a running .exe cannot
+	# be replaced on Windows, and refetching what is already correct is waste. When the stamp names
+	# another release, or none, every binary is fetched: a stale one is as wrong as a missing one,
+	# and that is the whole reason `ensure` exists.
+	stale=1
+	[ "$(cat "$STATE/installed" 2>/dev/null)" = "$tag" ] && stale=0
 	missing=
 	for d in "$ROOT"/tools/cmd/*/; do
 		[ -d "$d" ] || continue
 		n=$(basename "$d")
-		[ -x "$ROOT/bin/$n$ext" ] || missing="$missing $n"
+		if [ "$stale" = 1 ] || [ ! -x "$ROOT/bin/$n$ext" ]; then
+			missing="$missing $n"
+		fi
 	done
 	if [ -z "$missing" ]; then
 		rm -f "$STATE/failed"
@@ -215,6 +254,7 @@ fetch() {
 		fi
 	done
 	rm -f "$STATE/failed"
+	printf '%s\n' "$tag" >"$STATE/installed"
 	printf '%s fetch-bin: installed%s from %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$missing" "$tag"
 }
 
@@ -224,12 +264,21 @@ hook)
 	hook "$@"
 	exit 0
 	;;
+ensure)
+	# The version question, asked once per session instead of on every tool call: a stale binary is
+	# as broken as a missing one, and a current one must cost nothing — no lock, no message, no
+	# process spawned.
+	shift
+	up_to_date && exit 0
+	hook "$@"
+	exit 0
+	;;
 fetch)
 	fetch
 	exit 0
 	;;
 *)
-	echo "usage: sh fetch-bin.sh hook <Event> | sh fetch-bin.sh fetch" >&2
+	echo "usage: sh fetch-bin.sh hook <Event> | sh fetch-bin.sh ensure <Event> | sh fetch-bin.sh fetch" >&2
 	exit 2
 	;;
 esac
