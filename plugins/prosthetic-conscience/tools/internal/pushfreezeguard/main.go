@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/runlive"
 )
@@ -126,14 +127,22 @@ func hasAny(args []string, want ...string) bool {
 	return false
 }
 
+// StageFreezeUnreadable is recorded when the live-run marker is there and its pinned paths are not:
+// the guard is then running blind, and says so until the marker can be read.
+const StageFreezeUnreadable hookfailures.Stage = "freeze-unreadable"
+
 // decide is the pure, unit-tested gate. While a run is LIVE it warns — NEVER blocks — on
 // every git operation class that can destroy or freeze-violate the untracked blackboard
 // (W1.13; 2026-07-17 incident: `git add -A` swept the blackboard into a commit, then
 // `git checkout main` deleted it from the working tree under a live round).
-func decide(st runlive.State, command string) string {
+//
+// It returns the text and whether the FREEZE ITSELF could not be read — a marker naming no pinned
+// paths. That second one is not an advisory about this call; it is a broken guard, and it persists
+// until the marker is readable, so the caller records it rather than only saying it.
+func decide(st runlive.State, command string) (say string, freezeUnreadable bool) {
 	live := st.Describe()
 	if live == "" || !strings.Contains(command, "git") {
-		return ""
+		return "", false
 	}
 	// The substring check is kept as a widening union with the token-based one: it
 	// catches forms the tokenizer does not model (quoting, aliases), while gitArgs
@@ -147,28 +156,28 @@ func decide(st runlive.State, command string) string {
 		// opposite of what it means.
 		if pinned := st.Pinned(); len(pinned) > 0 {
 			return fmt.Sprintf("sc-push-freeze-guard: %s — pinned paths are FROZEN: %s. Push only if it touches none of them (run-capture lifts the freeze).",
-				live, strings.Join(pinned, ", "))
+				live, strings.Join(pinned, ", ")), false
 		}
-		return fmt.Sprintf("sc-push-freeze-guard: %s — the marker names NO pinned paths, which means this guard could not read them, NOT that nothing is frozen. Treat the freeze as in force and check the run before pushing.", live)
+		return fmt.Sprintf("sc-push-freeze-guard: %s — the marker names NO pinned paths, which means this guard could not read them, NOT that nothing is frozen. Treat the freeze as in force and check the run before pushing.", live), true
 	}
 	if args, ok := gitArgs(command, "add"); ok && hasAny(args, "-A", "--all", ".") {
-		return fmt.Sprintf("sc-push-freeze-guard: %s — a sweeping `git add` stages the UNTRACKED blackboard (2026-07-17 incident class). Add explicit paths only.", live)
+		return fmt.Sprintf("sc-push-freeze-guard: %s — a sweeping `git add` stages the UNTRACKED blackboard (2026-07-17 incident class). Add explicit paths only.", live), false
 	}
 	if args, ok := gitArgs(command, "checkout"); ok && !hasAny(args, "-b", "-B") {
-		return fmt.Sprintf("sc-push-freeze-guard: %s — a checkout can DELETE the untracked blackboard from the working tree. Use a temp worktree (`git worktree add`) for branch work while the run is live.", live)
+		return fmt.Sprintf("sc-push-freeze-guard: %s — a checkout can DELETE the untracked blackboard from the working tree. Use a temp worktree (`git worktree add`) for branch work while the run is live.", live), false
 	}
 	if args, ok := gitArgs(command, "switch"); ok && !hasAny(args, "-c", "-C") {
-		return fmt.Sprintf("sc-push-freeze-guard: %s — a branch switch can DELETE the untracked blackboard from the working tree. Use a temp worktree (`git worktree add`) while the run is live.", live)
+		return fmt.Sprintf("sc-push-freeze-guard: %s — a branch switch can DELETE the untracked blackboard from the working tree. Use a temp worktree (`git worktree add`) while the run is live.", live), false
 	}
 	if args, ok := gitArgs(command, "stash"); ok {
 		if hasAny(args, "-u", "--include-untracked", "-a", "--all") {
-			return fmt.Sprintf("sc-push-freeze-guard: %s — a stash including untracked files sweeps the blackboard out from under the run. Never stash the blackboard.", live)
+			return fmt.Sprintf("sc-push-freeze-guard: %s — a stash including untracked files sweeps the blackboard out from under the run. Never stash the blackboard.", live), false
 		}
 		if hasAny(args, "pop", "apply") {
-			return fmt.Sprintf("sc-push-freeze-guard: %s — restoring a stash over the live run risks clobbering NEWER writes (incident recovery rule: restore-by-copy from `git stash show`, never pop).", live)
+			return fmt.Sprintf("sc-push-freeze-guard: %s — restoring a stash over the live run risks clobbering NEWER writes (incident recovery rule: restore-by-copy from `git stash show`, never pop).", live), false
 		}
 	}
-	return ""
+	return "", false
 }
 
 // Unit exposes the guard to the merged PreToolUse binary.
@@ -190,9 +199,18 @@ func Unit() hookunit.Unit {
 				Command string `json:"command"`
 			}
 			_ = json.Unmarshal(c.ToolInput, &ti)
+			say, freezeUnreadable := decide(runlive.Read(c.ProjectDir), ti.Command)
+			if freezeUnreadable {
+				c.Rec.Fail(StageFreezeUnreadable, say)
+			} else {
+				c.Rec.OK(StageFreezeUnreadable)
+			}
+			// SAID, not just logged: this guard never blocks, so the warning IS the mechanism, and
+			// stderr at exit 0 reaches nobody. Stderr keeps its copy for the debug log.
 			return hookunit.Result{
 				Name:   "sc-push-freeze-guard",
-				Stderr: decide(runlive.Read(c.ProjectDir), ti.Command),
+				Stderr: say,
+				Say:    say,
 			}
 		},
 	}

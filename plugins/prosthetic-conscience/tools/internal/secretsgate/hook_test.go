@@ -20,7 +20,7 @@ import (
 // Exit code is always 0 by contract: a PreToolUse block travels in the JSON, never in the
 // status, and the merged binary owns the process boundary.
 func call(stdin string, _ ...string) (stdout string, code int) {
-	ctx := hookunit.NewCtx("PreToolUse", []byte(stdin), "", time.Time{})
+	ctx := hookunit.NewCtx("PreToolUse", []byte(stdin), "", time.Time{}, testRecorder())
 	var out strings.Builder
 	for _, r := range hookunit.Run(ctx, []hookunit.Unit{Unit()}) {
 		out.WriteString(r.Stdout)

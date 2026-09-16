@@ -3,6 +3,7 @@ package runlive
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -207,5 +208,22 @@ func TestDescribeNamesEachState(t *testing.T) {
 	two := State{Runs: []Marker{{RunDir: "research/x"}, {RunDir: "research/y"}}}
 	if d := two.Describe(); d != "2 research runs are LIVE (research/x, research/y)" {
 		t.Errorf("two runs: %q", d)
+	}
+}
+
+// A marker with no `started` must not render "started )". This text is now shown to a human, as a
+// systemMessage from the PreToolUse guard, so a stray empty field is read as a broken tool rather
+// than a missing field.
+func TestDescribeOmitsAnAbsentStart(t *testing.T) {
+	got := State{Runs: []Marker{{RunDir: "/r"}}}.Describe()
+	if strings.Contains(got, "started") {
+		t.Errorf("Describe() = %q; an absent start is omitted, never rendered empty", got)
+	}
+	if !strings.Contains(got, "/r") {
+		t.Errorf("Describe() = %q; it still names the run", got)
+	}
+	with := State{Runs: []Marker{{RunDir: "/r", Started: "2026-09-16T12:00:00Z"}}}.Describe()
+	if !strings.Contains(with, "started 2026-09-16T12:00:00Z") {
+		t.Errorf("Describe() = %q; a start that exists is still shown", with)
 	}
 }

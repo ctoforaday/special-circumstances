@@ -79,6 +79,12 @@ func (s State) Describe() string {
 	case 0:
 		return ""
 	case 1:
+		// A marker with no `started` used to render "started )" — harmless while this text went to
+		// a debug log nobody read, and a visible defect the moment the guard's warning became a
+		// message a human is shown.
+		if s.Runs[0].Started == "" {
+			return fmt.Sprintf("a research run is LIVE (%s)", s.Runs[0].RunDir)
+		}
 		return fmt.Sprintf("a research run is LIVE (%s, started %s)", s.Runs[0].RunDir, s.Runs[0].Started)
 	default:
 		dirs := make([]string, 0, len(s.Runs))

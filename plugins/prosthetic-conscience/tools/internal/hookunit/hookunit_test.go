@@ -1,6 +1,10 @@
 package hookunit
 
 import (
+	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
+	"io"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -10,7 +14,9 @@ import (
 
 var noon = time.Date(2026, 7, 31, 12, 0, 0, 0, time.UTC)
 
-func ctx(raw string) *Ctx { return NewCtx("PostToolUse", []byte(raw), "/proj", noon) }
+func ctx(raw string) *Ctx {
+	return NewCtx("PostToolUse", []byte(raw), "/proj", noon, testRecorder())
+}
 
 func TestNewCtxParsesThePayloadOnce(t *testing.T) {
 	c := ctx(`{"tool_name":"Edit","tool_input":{"file_path":"/proj/a.go"}}`)
@@ -158,4 +164,27 @@ func TestRunOnNoUnits(t *testing.T) {
 	if res := Run(ctx("{}"), nil); len(res) != 0 {
 		t.Errorf("no units must yield no results, got %+v", res)
 	}
+}
+
+// testRecorder is a recorder for a unit under test: its lines go nowhere, and TestMain points the
+// record at a temporary state directory so no test writes the developer's own.
+func testRecorder() *hookfailures.Recorder {
+	return hookfailures.New("prosthetic-conscience", "test", "PreToolUse", time.Time{}, io.Discard)
+}
+
+// No test in this package may write the real failure record.
+func TestMain(m *testing.M) {
+	dir, err := os.MkdirTemp("", "pc-hookfailures-test-")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "TestMain:", err)
+		os.Exit(1)
+	}
+	defer os.RemoveAll(dir)
+	for _, k := range []string{"HOME", "USERPROFILE", "XDG_STATE_HOME"} {
+		if err := os.Setenv(k, dir); err != nil {
+			fmt.Fprintln(os.Stderr, "TestMain:", err)
+			os.Exit(1)
+		}
+	}
+	os.Exit(m.Run())
 }

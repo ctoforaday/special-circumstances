@@ -81,7 +81,7 @@ type plan struct {
 	format bool
 	rel    string // path handed to qlty, relative to the project dir
 	skip   string // why not, for the log
-	warn   bool   // ...and whether that reason is worth a line on stderr
+	warn   bool   // ...and whether that reason is worth saying to the human
 }
 
 func parseMode(v string) string {
@@ -338,7 +338,9 @@ func gate(e env, toolName, file string, now time.Time) hookunit.Result {
 		Log: fmt.Sprintf("%s sc-quality-gate %s -> %s | %s\n", now.UTC().Format(time.RFC3339), toolName, file, msg)}
 	switch {
 	case p.warn:
-		r.Stderr = p.skip
+		// SAID as well as logged: a gate that is not running is broken machine state a human fixes,
+		// and stderr at exit 0 reaches only the debug log. PostToolUse displays a systemMessage.
+		r.Stderr, r.Say = p.skip, p.skip
 	case feedback != "":
 		// Exit 2 is how a PostToolUse hook hands stderr back to the model. The write
 		// already happened — this reports on it, it does not revoke it.

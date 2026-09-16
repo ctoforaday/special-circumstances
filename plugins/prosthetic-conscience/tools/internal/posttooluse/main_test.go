@@ -2,6 +2,9 @@ package posttooluse
 
 import (
 	"bytes"
+	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,7 +33,7 @@ func fire(t *testing.T, dir string, units []hookunit.Unit) (stderr string, code 
 // Exit 2 at PostToolUse is a FEEDBACK channel — the write already happened. Any unit
 // wanting it wins, and no unit's message may be lost because another had nothing to say.
 func TestMergeKeepsEveryMessageAndTheHighestExit(t *testing.T) {
-	stderr, exit, logs := merge([]hookunit.Result{
+	stderr, exit, logs, _ := merge([]hookunit.Result{
 		{Name: "a", Stderr: "quality findings", Exit: 2, Log: "a-log\n"},
 		{Name: "b", Stderr: "", Exit: 0, Log: "b-log\n"},
 		{Name: "c", Stderr: "index note", Exit: 0, Log: "c-log\n"},
@@ -47,7 +50,7 @@ func TestMergeKeepsEveryMessageAndTheHighestExit(t *testing.T) {
 		t.Errorf("logs = %v; every unit's line must reach the single writer", logs)
 	}
 	// All quiet means quiet.
-	if s, e, _ := merge([]hookunit.Result{{Name: "a"}, {Name: "b"}}); s != "" || e != 0 {
+	if s, e, _, _ := merge([]hookunit.Result{{Name: "a"}, {Name: "b"}}); s != "" || e != 0 {
 		t.Errorf("silent units must produce silence: %q %d", s, e)
 	}
 }
@@ -135,11 +138,34 @@ func TestRealUnitsKeepTheirOwnMatchers(t *testing.T) {
 		if u.Applies == nil {
 			t.Fatalf("%s has no matcher — a merged binary registers the UNION, so each unit must still say whether a call is its business", u.Name)
 		}
-		if u.Applies(hookunit.NewCtx("PostToolUse", []byte(`{"tool_name":"Bash"}`), "/p", noon)) {
+		if u.Applies(hookunit.NewCtx("PostToolUse", []byte(`{"tool_name":"Bash"}`), "/p", noon, testRecorder())) {
 			t.Errorf("%s claimed a Bash call; it is a Write|Edit unit", u.Name)
 		}
-		if !u.Applies(hookunit.NewCtx("PostToolUse", []byte(`{"tool_name":"Edit"}`), "/p", noon)) {
+		if !u.Applies(hookunit.NewCtx("PostToolUse", []byte(`{"tool_name":"Edit"}`), "/p", noon, testRecorder())) {
 			t.Errorf("%s refused an Edit call", u.Name)
 		}
 	}
+}
+
+// testRecorder is a recorder for a unit under test: its lines go nowhere, and TestMain points the
+// record at a temporary state directory so no test writes the developer's own.
+func testRecorder() *hookfailures.Recorder {
+	return hookfailures.New("prosthetic-conscience", "test", "PreToolUse", time.Time{}, io.Discard)
+}
+
+// No test in this package may write the real failure record.
+func TestMain(m *testing.M) {
+	dir, err := os.MkdirTemp("", "pc-hookfailures-test-")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "TestMain:", err)
+		os.Exit(1)
+	}
+	defer os.RemoveAll(dir)
+	for _, k := range []string{"HOME", "USERPROFILE", "XDG_STATE_HOME"} {
+		if err := os.Setenv(k, dir); err != nil {
+			fmt.Fprintln(os.Stderr, "TestMain:", err)
+			os.Exit(1)
+		}
+	}
+	os.Exit(m.Run())
 }
