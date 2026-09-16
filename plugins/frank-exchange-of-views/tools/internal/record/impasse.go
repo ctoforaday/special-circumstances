@@ -29,9 +29,9 @@ type GapExchanges struct {
 	Stalled   int  // consecutive exchanges with no movement — resets on movement
 	Impasse   bool // Stalled >= K or Exchanges >= KMax
 	// Unresolved is the sittings engaged on G that the record cannot close (see partySitting):
-	// the seat sat, and nothing it wrote since says the sitting ended. They are NOT counted as
-	// exchanges and NOT reported as zero — the miss and the honest zero are different answers,
-	// and Counted words them apart.
+	// the seat sat, and neither its next register nor its agent's stop is on the record since.
+	// They are NOT counted as exchanges and NOT reported as zero — the miss and the honest zero are
+	// different answers, and Counted words them apart.
 	Unresolved int
 }
 
@@ -43,7 +43,7 @@ func (x *GapExchanges) Counted() string {
 	case x.Unresolved == 0:
 		return fmt.Sprintf("%d exchange(s) (%d stalled)", x.Exchanges, x.Stalled)
 	case x.Exchanges == 0:
-		return fmt.Sprintf("exchanges NOT MEASURED — %d sitting(s) the record cannot close (the seat has not registered since), so this is not a count of zero", x.Unresolved)
+		return fmt.Sprintf("exchanges NOT MEASURED — %d sitting(s) the record cannot close (the seat has not registered since and its agent's stop is not on the record), so this is not a count of zero", x.Unresolved)
 	default:
 		return fmt.Sprintf("%d exchange(s) (%d stalled), %d sitting(s) NOT MEASURED — the record cannot close them", x.Exchanges, x.Stalled, x.Unresolved)
 	}
@@ -53,20 +53,36 @@ func (x *GapExchanges) Counted() string {
 // register after the dispatch), the window its acts fall in, whether the record can say it ENDED,
 // and its side.
 //
-// THE SEAT'S OWN REGISTER CLOSES IT, AND NOTHING ELSE DOES. A register is a seat's first act of a
-// sitting, so the seat's next one is proof the sitting before it ended — a fact about that seat,
-// written by that seat. This used to close a party's sitting at THE CHAIR'S next register, on the
-// reasoning that the workflow comes back to the chair only after the parties sit. That made a READ
-// depend on a rule enforced at ANOTHER seat's write path, and a warm chair — one whose later
-// sittings resume the same session — registers once per run: on five archived runs every party
-// sitting therefore read as still open, the fold returned 0 exchanges, and no gap could reach the
-// bench by impasse while the line said "below its limits" (#1002).
+// ONLY FACTS ABOUT THIS SEAT CLOSE IT, AND THE EARLIER OF TWO DOES. A sitting ends at whichever
+// comes first after it began:
 //
-// A sitting with no register past it is UNRESOLVED, not complete and not absent. It may be in
-// flight, or it may have ended with nobody recording anything after it, and the record holds no
-// fact that tells the two apart. Counting it would let an in-flight sitting be scored as a null
-// turn and stall a gap that is still being answered; reporting it as zero would make the miss
-// read exactly like a gap nobody has disputed. So it is neither: it is its own answer.
+//   - the seat's next register. A register is a seat's first act of a sitting, so the next one is
+//     proof the sitting before it ended — written by that seat.
+//   - the stop of the agent that sat it: a sitting_close whose agent_id is the one on THIS
+//     sitting's register. The SubagentStop hook writes it when that agent returns, so it is the
+//     harness's observation of this seat, not an act of another seat.
+//
+// The register alone closes a sitting only when the seat sits AGAIN, which put every exchange —
+// and so every impasse — one epoch behind the sittings that made it; under an epoch limit landing
+// on that epoch, the run ended at its ceiling with a material gap the bench was never asked to
+// rule. The stop closes it when it ends.
+//
+// NOTHING ANOTHER SEAT WRITES BOUNDS IT. A party's sitting was once closed at the chair's next
+// register, on the reasoning that the workflow comes back to the chair only after the parties sit.
+// That made a READ depend on a rule enforced at ANOTHER seat's write path, and a warm chair — one
+// whose later sittings resume the same session — registers once per run: on five archived runs
+// every party sitting read as still open and no gap could reach the bench by impasse (#1002).
+//
+// A STOP THAT JOINS NO REGISTER CLOSES NOTHING. The hook records every typed subagent in a project
+// whose run marker is live, a developer's own subagents included, and a register with no agent_id
+// (a run the PreToolUse hook never reached) has nothing a stop can join. A headless seat run as a
+// `claude -p` main session fires no SubagentStop at all, so its sittings close by register alone.
+//
+// A sitting with neither past it is UNRESOLVED, not complete and not absent. It may be in flight,
+// or it may have ended with nobody recording anything after it, and the record holds no fact that
+// tells the two apart. Counting it would let an in-flight sitting be scored as a null turn and
+// stall a gap that is still being answered; reporting it as zero would make the miss read exactly
+// like a gap nobody has disputed. So it is neither: it is its own answer.
 type partySitting struct {
 	start, end int64
 	red        bool
@@ -128,10 +144,20 @@ func exchangesOf(evs []*Event, ids []int64, p Params) map[string]*GapExchanges {
 	grades := map[string][3]string{} // gap -> current severity, likelihood, impact
 	movement := map[string][]int64{} // gap -> ids of movement events
 	dispatches, registers := dispatchLedger(evs, ids)
+	sittingAgent := map[int64]string{} // register id -> the agent_id it carries
+	stops := map[string][]int64{}      // agent_id -> ids of its sitting_close events, ascending
 
 	for i, e := range evs {
 		id := ids[i]
 		switch b := mustBody(e).(type) {
+		case *recordpb.Register:
+			if a := b.GetAgentId(); a != "" {
+				sittingAgent[id] = a
+			}
+		case *recordpb.SittingClose:
+			if a := b.GetAgentId(); a != "" {
+				stops[a] = append(stops[a], id)
+			}
 		case *recordpb.Mint:
 			g := b.GetGapId()
 			if _, seen := minted[g]; !seen {
@@ -164,9 +190,10 @@ func exchangesOf(evs []*Event, ids []int64, p Params) map[string]*GapExchanges {
 	}
 
 	// A party's sitting for a dispatch: sittingFor, its first register after the dispatch, ended by
-	// THAT SEAT'S next register (partySitting). Only registers[d.seat] is read here — no other
-	// seat's acts bound this seat's sitting, so no rule enforced at another seat's write path can
-	// decide what this read reports.
+	// the earlier of THAT SEAT'S next register and the stop of the agent on THAT register
+	// (partySitting). Only registers[d.seat] and that agent's stops are read here — no other seat's
+	// acts bound this seat's sitting, so no rule enforced at another seat's write path can decide
+	// what this read reports.
 	sittings := map[string][]partySitting{}
 	for _, d := range dispatches {
 		start, sat := sittingFor(registers[d.seat], d)
@@ -174,8 +201,13 @@ func exchangesOf(evs []*Event, ids []int64, p Params) map[string]*GapExchanges {
 			continue // engaged, never sat: no exchange yet, and rule 1 keeps readying it
 		}
 		end, closed := firstAfter(registers[d.seat], start)
+		if agent := sittingAgent[start]; agent != "" {
+			if stop, stopped := firstAfter(stops[agent], start); stopped && (!closed || stop < end) {
+				end, closed = stop, true
+			}
+		}
 		if !closed {
-			end = math.MaxInt64 // no act of this seat closes it: the window runs to the end of the record
+			end = math.MaxInt64 // nothing about this seat closes it: the window runs to the end of the record
 		}
 		for _, g := range d.gaps {
 			switch {

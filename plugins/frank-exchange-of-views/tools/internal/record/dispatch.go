@@ -376,7 +376,8 @@ const chairSeat = "red-chair"
 //
 // THE EXCHANGE COUNT NO LONGER DEPENDS ON IT. exchangesOf closed a party's sitting at the chair's
 // next register, so a chair that skipped this register silently zeroed the fold; it now closes a
-// sitting at the sitting seat's OWN next register (#1002). This item stands on its own ground —
+// sitting at the sitting seat's OWN next register or its own agent's stop, whichever is first
+// (#1002). This item stands on its own ground —
 // the clock and the groups — and the fold stands on the parties'.
 func unopenedChairSitting(evs []*Event) (DispatchGroup, bool) {
 	groups := DispatchGroups(evs)

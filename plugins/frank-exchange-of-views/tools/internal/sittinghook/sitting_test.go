@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nonet"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingwrite"
 )
@@ -210,18 +212,32 @@ func testRecorder() *hookfailures.Recorder {
 
 // No test in this package may write the developer's own failure record: every entry point here now
 // settles into ~/.local/state unless something stops it.
+//
+// The join test opens a record, so the process must not exit while a cached database handle
+// outlives the directory it lived in — invisible on Linux, a Windows-leg failure. This package
+// needs its own TestMain for the state sandbox, so it keeps recordtest.Main's two guards around
+// m.Run rather than giving them up: loopback-only networking before, the orphaned-handle check
+// after (#666).
 func TestMain(m *testing.M) {
 	dir, err := os.MkdirTemp("", "feov-hookfailures-test-")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "TestMain:", err)
 		os.Exit(1)
 	}
-	defer os.RemoveAll(dir)
 	for _, k := range []string{"HOME", "USERPROFILE", "XDG_STATE_HOME"} {
 		if err := os.Setenv(k, dir); err != nil {
 			fmt.Fprintln(os.Stderr, "TestMain:", err)
 			os.Exit(1)
 		}
 	}
-	os.Exit(m.Run())
+	nonet.OnlyLoopback()
+	code := m.Run()
+	if err := recordtest.CheckOrphanedHandles(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		if code == 0 {
+			code = 1
+		}
+	}
+	os.RemoveAll(dir)
+	os.Exit(code)
 }
