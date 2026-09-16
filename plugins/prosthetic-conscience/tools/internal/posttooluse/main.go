@@ -83,6 +83,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	// Parsed once, resolved once — the point of the merge.
 	rec := hookfailures.New("prosthetic-conscience", "sc-posttooluse", "PostToolUse", now, stderr)
 	ctx := hookunit.NewCtx("PostToolUse", raw, hookenv.ProjectDir(projectDir, in.CWD), now, rec)
+	hookenv.Note(ctx.ProjectDir, rec)
 
 	feedback, exit, logs, say := merge(hookunit.Run(ctx, units))
 

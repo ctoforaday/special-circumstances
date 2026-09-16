@@ -39,7 +39,7 @@ func TestAContextBandIsSaidOnceAtItsOwnSeverity(t *testing.T) {
 		{700_000, ""},
 	}
 	for _, s := range steps {
-		d := DecideContext(dir, "s1", false, ctxAt(s.tokens), ctxBands())
+		d := DecideContext(testRecorder(), dir, "s1", false, ctxAt(s.tokens), ctxBands())
 		if d.Band != s.want {
 			t.Fatalf("at %d tokens: band %q, want %q", s.tokens, d.Band, s.want)
 		}
@@ -65,7 +65,7 @@ func TestAContextBandIsSaidOnceAtItsOwnSeverity(t *testing.T) {
 // liveness from whether nudge.json exists.
 func TestALightContextWithNoNoteWritesNothing(t *testing.T) {
 	dir := t.TempDir()
-	if d := DecideContext(dir, "s1", false, ctxAt(40_000), ctxBands()); d.Emit != "" {
+	if d := DecideContext(testRecorder(), dir, "s1", false, ctxAt(40_000), ctxBands()); d.Emit != "" {
 		t.Fatalf("emitted below every edge: %q", d.Emit)
 	}
 	if _, err := os.Stat(StatePath(dir)); err == nil {
@@ -78,16 +78,16 @@ func TestALightContextWithNoNoteWritesNothing(t *testing.T) {
 func TestAContextBandReArmsWhenTheContextFallsBelowItsEdge(t *testing.T) {
 	dir := t.TempDir()
 	for _, tok := range []int{160_000, 320_000} {
-		DecideContext(dir, "s1", false, ctxAt(tok), ctxBands())
+		DecideContext(testRecorder(), dir, "s1", false, ctxAt(tok), ctxBands())
 	}
-	if d := DecideContext(dir, "s1", false, ctxAt(60_000), ctxBands()); d.Emit != "" {
+	if d := DecideContext(testRecorder(), dir, "s1", false, ctxAt(60_000), ctxBands()); d.Emit != "" {
 		t.Fatalf("the drop itself emitted: %q", d.Emit)
 	}
 	st, _ := readState(t, dir)
 	if len(st.ContextBandsSpent) != 0 {
 		t.Fatalf("a drop below every edge left bands spent: %v", st.ContextBandsSpent)
 	}
-	if d := DecideContext(dir, "s1", false, ctxAt(155_000), ctxBands()); d.Band != BandNotice {
+	if d := DecideContext(testRecorder(), dir, "s1", false, ctxAt(155_000), ctxBands()); d.Band != BandNotice {
 		t.Errorf("the climb after a compaction was not said again: %+v", d)
 	}
 }
@@ -96,9 +96,9 @@ func TestAContextBandReArmsWhenTheContextFallsBelowItsEdge(t *testing.T) {
 func TestAPartialDropReArmsOnlyTheBandsItFellBelow(t *testing.T) {
 	dir := t.TempDir()
 	for _, tok := range []int{160_000, 320_000} {
-		DecideContext(dir, "s1", false, ctxAt(tok), ctxBands())
+		DecideContext(testRecorder(), dir, "s1", false, ctxAt(tok), ctxBands())
 	}
-	DecideContext(dir, "s1", false, ctxAt(200_000), ctxBands())
+	DecideContext(testRecorder(), dir, "s1", false, ctxAt(200_000), ctxBands())
 	st, _ := readState(t, dir)
 	if !slices.Equal(st.ContextBandsSpent, []Band{BandNotice}) {
 		t.Errorf("after falling to 200k: spent %v, want [NOTICE]", st.ContextBandsSpent)
@@ -108,19 +108,19 @@ func TestAPartialDropReArmsOnlyTheBandsItFellBelow(t *testing.T) {
 func TestTheContextPathKeepsTheLoopGuards(t *testing.T) {
 	t.Run("stop_hook_active", func(t *testing.T) {
 		dir := t.TempDir()
-		if d := DecideContext(dir, "s1", true, ctxAt(900_000), ctxBands()); d.Emit != "" {
+		if d := DecideContext(testRecorder(), dir, "s1", true, ctxAt(900_000), ctxBands()); d.Emit != "" {
 			t.Errorf("emitted on a re-entry: %q", d.Emit)
 		}
 	})
 	t.Run("unmeasured context abstains", func(t *testing.T) {
 		dir := t.TempDir()
-		if d := DecideContext(dir, "s1", false, ctxusage.Measure{Tokens: 900_000}, ctxBands()); d.Emit != "" {
+		if d := DecideContext(testRecorder(), dir, "s1", false, ctxusage.Measure{Tokens: 900_000}, ctxBands()); d.Emit != "" {
 			t.Errorf("emitted on an unmeasured figure: %q", d.Emit)
 		}
 	})
 	t.Run("no context edges, no file", func(t *testing.T) {
 		dir := t.TempDir()
-		if d := DecideContext(dir, "s1", false, ctxAt(900_000), Thresholds{}); d.Emit != "" {
+		if d := DecideContext(testRecorder(), dir, "s1", false, ctxAt(900_000), Thresholds{}); d.Emit != "" {
 			t.Errorf("emitted with no edges: %q", d.Emit)
 		}
 		if _, err := os.Stat(StatePath(dir)); err == nil {
@@ -132,7 +132,7 @@ func TestTheContextPathKeepsTheLoopGuards(t *testing.T) {
 		if err := statefile.Write(StatePath(dir), State{SessionID: "s1", Emissions: maxEmissions}); err != nil {
 			t.Fatal(err)
 		}
-		if d := DecideContext(dir, "s1", false, ctxAt(900_000), ctxBands()); d.Emit != "" {
+		if d := DecideContext(testRecorder(), dir, "s1", false, ctxAt(900_000), ctxBands()); d.Emit != "" {
 			t.Errorf("emitted past the session cap: %q", d.Emit)
 		}
 	})
@@ -144,7 +144,7 @@ func TestTheContextPathKeepsTheLoopGuards(t *testing.T) {
 		if err := os.WriteFile(StatePath(dir), []byte("{not json"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if d := DecideContext(dir, "s1", false, ctxAt(900_000), ctxBands()); d.Emit != "" {
+		if d := DecideContext(testRecorder(), dir, "s1", false, ctxAt(900_000), ctxBands()); d.Emit != "" {
 			t.Errorf("emitted over an unreadable record: %q", d.Emit)
 		}
 	})
@@ -154,7 +154,7 @@ func TestTheContextPathKeepsTheLoopGuards(t *testing.T) {
 			ContextBandsSpent: []Band{BandNotice}}); err != nil {
 			t.Fatal(err)
 		}
-		if d := DecideContext(dir, "s2", false, ctxAt(160_000), ctxBands()); d.Band != BandNotice {
+		if d := DecideContext(testRecorder(), dir, "s2", false, ctxAt(160_000), ctxBands()); d.Band != BandNotice {
 			t.Errorf("a new session inherited the old one's spent bands or cap: %+v", d)
 		}
 	})

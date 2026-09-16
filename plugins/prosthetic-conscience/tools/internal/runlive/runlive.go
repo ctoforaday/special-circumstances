@@ -51,6 +51,11 @@ type Marker struct {
 // reader does not understand. The bool is the whole point: without it, "no runs" and "a
 // shape I cannot parse" are the same empty slice, and that equivalence is what shipped.
 type State struct {
+	// Unparsable says the marker file exists and is not JSON. It is NOT the same as no marker
+	// (silence is right there) or an unrecognised shape (Unrecognised, which treats the run as
+	// live): nothing can be said about a freeze whose file cannot be read at all.
+	Unparsable bool
+
 	// Runs are the open runs, in the order the file holds them.
 	Runs []Marker
 	// Unrecognised is set when the file was present and valid JSON but carried neither
@@ -135,7 +140,11 @@ func Read(projectDir string) State {
 		Started     *string   `json:"started"`
 	}
 	if err := json.Unmarshal(raw, &probe); err != nil {
-		return State{}
+		// A marker that is not JSON AT ALL is a different fault from one whose SHAPE moved (the
+		// Unrecognised path below, which says so loudly) and from no marker at all. Returning the
+		// zero State makes the freeze guard see no live run and warn about nothing, which is the
+		// flattering direction: the caller records it so a human can be told.
+		return State{Unparsable: true}
 	}
 	switch {
 	case probe.Runs != nil:

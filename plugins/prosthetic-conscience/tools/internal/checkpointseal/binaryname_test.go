@@ -1,6 +1,7 @@
 package checkpointseal
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hooktest"
 	"os"
 	"regexp"
 	"strings"
@@ -68,3 +69,6 @@ func TestTheDriftAdvisoryNamesTheInvokingBinary(t *testing.T) {
 		t.Errorf("advisory names the retired binary:\n\t%s", got)
 	}
 }
+
+// No test in this package may write the developer's own state.
+func TestMain(m *testing.M) { os.Exit(hooktest.Isolated(m)) }

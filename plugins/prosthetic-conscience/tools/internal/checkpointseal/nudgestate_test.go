@@ -3,6 +3,7 @@ package checkpointseal
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"os"
 	"path/filepath"
 	"strings"
@@ -134,8 +135,9 @@ func TestANoteWrittenAfterTheSealIsCalledImpossible(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var e bytes.Buffer
-			reportImpossibleWrittenAt(tc.writtenAt, now, "sc-precompact", &e)
-			got := e.Len() > 0
+			rec := hookfailures.New("prosthetic-conscience", "sc-precompact", "Stop", now, &e)
+			reportImpossibleWrittenAt(tc.writtenAt, now, "sc-precompact", "/p", rec)
+			got := rec.Failed()
 			if got != tc.wantComplaint {
 				t.Errorf("complained=%v want %v; stderr=%q", got, tc.wantComplaint, e.String())
 			}

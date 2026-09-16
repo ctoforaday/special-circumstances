@@ -47,6 +47,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 )
 
@@ -119,6 +120,16 @@ func targetsFor(checks []checkpoint.Check, projectDir string) map[int][]string {
 	return out
 }
 
+// The stages this hook can fail at. FileChanged displays nothing, so each waits on the record for
+// the next SessionStart, Stop, PreToolUse, PostToolUse or PostToolUseFailure.
+const (
+	StageLoopOpensNoChecks hookfailures.Stage = "loop-opens-no-checks"
+	StageUnclaimedChange   hookfailures.Stage = "unclaimed-change"
+	StageRearmWrite        hookfailures.Stage = "rearm-write"
+	StageAmbiguousChecks   hookfailures.Stage = "ambiguous-check-keys"
+	StageNoteRead          hookfailures.Stage = "note-read"
+)
+
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time) int {
 	if hookmain.Preamble(args, stdout, stderr, hookmain.Named("sc-filechanged-rearm")) {
 		return 0
@@ -128,7 +139,11 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	var in hookInput
 	_ = json.Unmarshal(raw, &in)
 	projectDir = hookenv.ProjectDir(projectDir, in.CWD)
-	if !hookenv.Explain(projectDir, stderr, "sc-filechanged-rearm") || in.FilePath == "" {
+	// FileChanged displays NOTHING, so this hook only ever records: Settle returns "" here, and the
+	// next SessionStart, Stop, PreToolUse, PostToolUse or PostToolUseFailure reads the record out.
+	rec := hookfailures.New("prosthetic-conscience", "sc-filechanged-rearm", "FileChanged", now, stderr)
+	defer func() { _ = rec.Settle() }()
+	if !hookenv.Explain(projectDir, rec, "sc-filechanged-rearm") || in.FilePath == "" {
 		return 0
 	}
 
@@ -148,8 +163,13 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	}
 	body, err := os.ReadFile(notePath)
 	if err != nil {
+		// The note is THERE (NotePath stat'd it) and unreadable: no file change can re-arm a check,
+		// and returning 0 looked exactly like a note with nothing to re-arm.
+		rec.FailIn(StageNoteRead, projectDir, "cannot read the checkpoint note "+notePath+": "+err.Error()+
+			" — no file change re-arms anything until it can be read")
 		return 0
 	}
+	rec.OKIn(StageNoteRead, projectDir)
 	loop, ok := checkpoint.Parse(string(body)).NonEmptySection("Validation loop")
 	if !ok {
 		return 0
@@ -166,7 +186,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		// The severe case: the note carries a loop a reader would count and the parser
 		// opens nothing from. No file change re-arms anything, all session, silently.
 		if len(problems) > 0 {
-			fmt.Fprintf(stderr, "sc-filechanged-rearm: this note's validation loop opens NO checks, so no file change re-arms anything — %s\n", strings.Join(problems, "; "))
+			rec.FailIn(StageLoopOpensNoChecks, projectDir,
+				"this note's validation loop opens NO checks, so no file change re-arms anything — "+strings.Join(problems, "; "))
 		}
 		return 0
 	}
@@ -180,8 +201,12 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	// does not CLAIM that correlation (the problems are strings, not entries with
 	// surfaces); it reports both facts at the moment they might be the same fact.
 	if !matched && len(problems) > 0 {
-		fmt.Fprintf(stderr, "sc-filechanged-rearm: %s changed and no check claimed it, and the loop has entries a reader counts that the parser does not — the check that should have claimed this file may be one of them: %s\n",
-			relTo(projectDir, in.FilePath), strings.Join(problems, "; "))
+		rec.FailIn(StageUnclaimedChange, projectDir, fmt.Sprintf(
+			"%s changed and no check claimed it, and the loop has entries a reader counts that the parser does not — the check that should have claimed this file may be one of them: %s",
+			relTo(projectDir, in.FilePath), strings.Join(problems, "; ")))
+	} else if matched {
+		rec.OKIn(StageUnclaimedChange, projectDir)
+		rec.OKIn(StageLoopOpensNoChecks, projectDir)
 	}
 	stamp := now.UTC().Format(time.RFC3339)
 
@@ -224,15 +249,19 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 			At:    stamp,
 		}
 	}); err != nil {
-		fmt.Fprintln(stderr, "sc-filechanged-rearm: "+err.Error())
+		rec.FailIn(StageRearmWrite, projectDir, err.Error())
 		return 0
 	}
+	rec.OKIn(StageRearmWrite, projectDir)
 	// Said before the prune message because it EXPLAINS a prune that did not happen: under a
 	// collision PruneOrphans deletes nothing, and silence there is indistinguishable from a
 	// file with no orphans in it.
 	if len(collisions) > 0 {
-		fmt.Fprintf(stderr, "sc-filechanged-rearm: %d command(s) name more than one check in the loop, so one re-arm record would stand for several: %s. Records are keyed by the check's COMMAND, so give these checks distinct commands (or distinguish them inside the backticks). Nothing was pruned while the identity is ambiguous.\n",
-			len(collisions), strings.Join(collisions, ", "))
+		rec.FailIn(StageAmbiguousChecks, projectDir, fmt.Sprintf(
+			"%d command(s) name more than one check in the loop, so one re-arm record would stand for several: %s. Records are keyed by the check's COMMAND, so give these checks distinct commands (or distinguish them inside the backticks). Nothing was pruned while the identity is ambiguous.",
+			len(collisions), strings.Join(collisions, ", ")))
+	} else {
+		rec.OKIn(StageAmbiguousChecks, projectDir)
 	}
 	if len(dropped) > 0 {
 		// Reported only AFTER the write commits. Said from inside the callback it would

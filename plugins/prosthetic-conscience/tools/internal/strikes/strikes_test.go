@@ -3,6 +3,7 @@ package strikes
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"testing"
 	"time"
 )
@@ -108,15 +109,24 @@ func TestKeyIdentifiesTheSameAttempt(t *testing.T) {
 	}
 }
 
-// Losing strike history must never cost a tool call.
+// Losing strike history must never cost a tool call — and must never be SILENT, except for the one
+// ordinary case: no file yet.
 func TestLoadDegradesToEmpty(t *testing.T) {
-	for name, read := range map[string]func(string) ([]byte, error){
-		"missing":   func(string) ([]byte, error) { return nil, errors.New("nope") },
-		"corrupt":   func(string) ([]byte, error) { return []byte("{{{"), nil },
-		"null keys": func(string) ([]byte, error) { return []byte(`{"keys":null}`), nil },
+	for name, tc := range map[string]struct {
+		read    func(string) ([]byte, error)
+		wantErr bool
+	}{
+		"missing":    {func(string) ([]byte, error) { return nil, fs.ErrNotExist }, false},
+		"unreadable": {func(string) ([]byte, error) { return nil, errors.New("permission denied") }, true},
+		"corrupt":    {func(string) ([]byte, error) { return []byte("{{{"), nil }, true},
+		"null keys":  {func(string) ([]byte, error) { return []byte(`{"keys":null}`), nil }, true},
 	} {
+		read := tc.read
 		t.Run(name, func(t *testing.T) {
-			s := Load(read, "x.json")
+			s, err := Load(read, "x.json")
+			if (err != nil) != tc.wantErr {
+				t.Errorf("err = %v, want an error: %v — only a missing file is silent", err, tc.wantErr)
+			}
 			if s.Keys == nil {
 				t.Fatal("Load must always return a usable map")
 			}

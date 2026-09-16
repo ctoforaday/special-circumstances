@@ -3,6 +3,7 @@ package strikecounter
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hooktest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -93,7 +94,7 @@ func TestInterruptsAreNeverCounted(t *testing.T) {
 	}
 	// And nothing was recorded, so a genuine failure afterwards starts from one.
 	if _, err := os.Stat(strikes.Path(dir)); err == nil {
-		s := strikes.Load(os.ReadFile, strikes.Path(dir))
+		s, _ := strikes.Load(os.ReadFile, strikes.Path(dir))
 		if len(s.Keys) != 0 {
 			t.Errorf("interrupts left state behind: %v", s.Keys)
 		}
@@ -193,3 +194,6 @@ func TestMessageSaysItBlockedNothing(t *testing.T) {
 		}
 	}
 }
+
+// No test in this package may write the developer's own state.
+func TestMain(m *testing.M) { os.Exit(hooktest.Isolated(m)) }

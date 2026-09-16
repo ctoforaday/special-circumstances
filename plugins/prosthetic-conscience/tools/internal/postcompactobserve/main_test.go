@@ -3,6 +3,7 @@ package postcompactobserve
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hooktest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -304,3 +305,6 @@ func TestNoNoteMeansNoRow(t *testing.T) {
 		t.Error("wrote an observation row with no note to observe")
 	}
 }
+
+// No test in this package may write the developer's own state.
+func TestMain(m *testing.M) { os.Exit(hooktest.Isolated(m)) }

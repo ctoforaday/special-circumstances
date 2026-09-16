@@ -25,6 +25,7 @@ package stopnudge
 import (
 	"errors"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"path/filepath"
 	"slices"
 	"time"
@@ -141,7 +142,7 @@ var (
 // The order is the point. A guard that emits and then records has re-emitted whenever the
 // write fails or the process dies between the two — and on `Stop` a re-emission is not a
 // duplicate nudge, it is the sixteen-firing loop.
-func Decide(dir, sessionID string, stopHookActive bool, m freshness.Measures, notePath string,
+func Decide(rec *hookfailures.Recorder, dir, sessionID string, stopHookActive bool, m freshness.Measures, notePath string,
 	noteNewest time.Time, th Thresholds, now time.Time) Decision {
 
 	// 1. The client's own re-entry flag. No state, nothing to lose, checked first.
@@ -160,8 +161,14 @@ func Decide(dir, sessionID string, stopHookActive bool, m freshness.Measures, no
 
 	st, err := load(dir, sessionID)
 	if err != nil {
-		return Decision{} // fail closed: cannot read our own record, so say nothing
+		// FAIL CLOSED, AND SAY SO. Failing closed is right — a nudge that cannot read its own
+		// record must not guess — but the silence was total: an unreadable state file turns the
+		// nudge off for the session and looked exactly like a session with nothing to say.
+		rec.FailIn(StageStateRead, dir, "cannot read the nudge state for this session: "+err.Error()+
+			" — the freshness nudge is OFF until it can be read")
+		return Decision{}
 	}
+	rec.OKIn(StageStateRead, dir)
 	// 4. Bands re-arm when the note has moved since we last spoke — an answer, of either
 	//    kind. The record is not cleared; the comparison is what re-arms it.
 	if !st.AnsweredAtSeen.IsZero() && noteNewest.After(st.AnsweredAtSeen) {
@@ -188,8 +195,15 @@ func Decide(dir, sessionID string, stopHookActive bool, m freshness.Measures, no
 	// WRITE BEFORE EMIT. If this fails, nothing is emitted — the band would be unrecorded
 	// and the next boundary would say it again.
 	if err := save(dir, st); err != nil {
+		// An unwritable state file disables the nudge PERMANENTLY — every later turn
+		// re-reads a record that never records anything — so it is the failure most
+		// worth saying, and it said nothing.
+		rec.FailIn(StageStateWrite, dir, "cannot write the nudge state: "+err.Error()+
+			" — the nudge will not fire again until it can be written")
 		return Decision{}
 	}
+
+	rec.OKIn(StageStateWrite, dir)
 	return Decision{Emit: line, Band: band}
 }
 
@@ -238,7 +252,7 @@ func highestBand(m freshness.Measures, th Thresholds) (Band, bool) {
 // the context falls back below its edge — a compaction or a fresh start — and the next climb
 // past it is said again. That is the only re-arm, and it costs a write only on the reading that
 // drops a band.
-func DecideContext(dir, sessionID string, stopHookActive bool, u ctxusage.Measure, th Thresholds) Decision {
+func DecideContext(rec *hookfailures.Recorder, dir, sessionID string, stopHookActive bool, u ctxusage.Measure, th Thresholds) Decision {
 	if stopHookActive {
 		return Decision{}
 	}
@@ -255,7 +269,11 @@ func DecideContext(dir, sessionID string, stopHookActive bool, u ctxusage.Measur
 	st, status := statefile.Read[State](statePath(dir))
 	switch {
 	case status == statefile.Unreadable:
-		return Decision{} // fail closed, as load does
+		// statefile.Read reports the STATUS rather than the error, so the detail names the file:
+		// what a reader needs is which path to go and look at.
+		rec.FailIn(StageStateRead, dir, "cannot read the nudge state at "+statePath(dir)+
+			" — the context nudge is OFF for this session until it can be read")
+		return Decision{}
 	case status == statefile.Absent && !crossed:
 		return Decision{} // nothing said, nothing to re-arm, nothing to write
 	}
@@ -272,8 +290,15 @@ func DecideContext(dir, sessionID string, stopHookActive bool, u ctxusage.Measur
 	if !crossed || slices.Contains(st.ContextBandsSpent, band) || st.Emissions >= maxEmissions {
 		if rearmed {
 			if err := save(dir, st); err != nil {
+				// An unwritable state file disables the nudge PERMANENTLY — every later turn
+				// re-reads a record that never records anything — so it is the failure most
+				// worth saying, and it said nothing.
+				rec.FailIn(StageStateWrite, dir, "cannot write the nudge state: "+err.Error()+
+					" — the nudge will not fire again until it can be written")
 				return Decision{}
 			}
+
+			rec.OKIn(StageStateWrite, dir)
 		}
 		return Decision{}
 	}
@@ -285,8 +310,15 @@ func DecideContext(dir, sessionID string, stopHookActive bool, u ctxusage.Measur
 		st.EmissionBytes = len(line)
 	}
 	if err := save(dir, st); err != nil {
+		// An unwritable state file disables the nudge PERMANENTLY — every later turn
+		// re-reads a record that never records anything — so it is the failure most
+		// worth saying, and it said nothing.
+		rec.FailIn(StageStateWrite, dir, "cannot write the nudge state: "+err.Error()+
+			" — the nudge will not fire again until it can be written")
 		return Decision{}
 	}
+
+	rec.OKIn(StageStateWrite, dir)
 	return Decision{Emit: line, Band: band}
 }
 

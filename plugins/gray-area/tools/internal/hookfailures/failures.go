@@ -49,6 +49,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -92,7 +93,14 @@ type key struct {
 func (f Failure) key() key { return key{f.Stage, f.Scope} }
 
 // Recorder collects one invocation's outcomes and settles them into the record at the end.
+//
+// IT IS SHARED BY CONCURRENT UNITS, so its maps are guarded: prosthetic-conscience's hookunit fans
+// an event's units out over goroutines, and every one of them records — which crashed the process
+// with "concurrent map writes" the first time a second unit was wired in. A hook that PANICS is
+// worse than the silence this package exists to end, so the lock is not optional and the race
+// detector runs over this in CI.
 type Recorder struct {
+	mu      sync.Mutex
 	plugin  string
 	speaker string
 	event   string
@@ -122,15 +130,25 @@ func (r *Recorder) OK(s Stage) { r.OKIn(s, "") }
 
 // FailIn and OKIn are Fail and OK for a stage whose entries are per scope.
 func (r *Recorder) FailIn(s Stage, scope, detail string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	fmt.Fprintln(r.stderr, r.speaker+": "+detail)
 	r.failed[key{s, scope}] = detail
 }
 
-func (r *Recorder) OKIn(s Stage, scope string) { r.worked[key{s, scope}] = true }
+func (r *Recorder) OKIn(s Stage, scope string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.worked[key{s, scope}] = true
+}
 
 // Failed reports whether anything failed in this invocation, for a caller that must know before it
 // composes its response.
-func (r *Recorder) Failed() bool { return len(r.failed) > 0 }
+func (r *Recorder) Failed() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.failed) > 0
+}
 
 // Displays reports whether the client shows a top-level systemMessage from this hook event.
 func Displays(event string) bool {
@@ -162,6 +180,8 @@ func Path(plugin string) (string, error) {
 // this into that document's systemMessage field, because two top-level objects on stdout are not a
 // response. Emit is for a hook with nothing else to say.
 func (r *Recorder) Settle() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	path, pathErr := Path(r.plugin)
 	rec, persistErr := r.merge(path, pathErr)
 	if persistErr != nil {

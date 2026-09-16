@@ -19,6 +19,7 @@ package toolchainnudge
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"os"
 	"path/filepath"
 	"strings"
@@ -65,6 +66,16 @@ func nudge(statuses []toolchain.Status) string {
 		strings.Join(missing, "; "))
 }
 
+// The stages this unit records.
+const (
+	// StageManifest: the tool manifest cannot be read, does not parse, or has no plugin root to be
+	// read from. Each leaves the nudge silent about which tools are missing.
+	StageManifest hookfailures.Stage = "toolchain-manifest"
+	// StageMarkerUnparsable is the same stage pushfreezeguard records, named once per package that
+	// can hit it: SessionStart reads the marker too, and an unparsable one silenced this nudge.
+	StageMarkerUnparsable hookfailures.Stage = "run-live-parse"
+)
+
 // liveNudge warns when a research run is live — plugin updates and pushes to pinned
 // paths are frozen (marker-and-hook: the commitment is state, not memory).
 func liveNudge(st runlive.State) string {
@@ -93,20 +104,44 @@ func Unit(pluginRoot string, probe func([]toolchain.Tool) []toolchain.Status) ho
 		Run: func(c *hookunit.Ctx) hookunit.Result {
 			var lines []string
 			// A missing/unreadable/malformed manifest degrades to silence, never to an
-			// error: a SessionStart hook that fails is a session that fails.
-			if pluginRoot != "" {
-				if raw, err := os.ReadFile(filepath.Join(pluginRoot, "requirements.json")); err == nil {
+			// error: a SessionStart hook that fails is a session that fails. THE SILENCE IS NOW
+			// RECORDED, because it was total — the nudge reported no tools AND no reason, which
+			// reads exactly like a machine with every tool installed.
+			if pluginRoot == "" {
+				// No plugin root at all: the manifest cannot even be located, and the nudge was
+				// silent about exactly the tools it exists to name.
+				c.Rec.Fail(StageManifest, "no plugin root (CLAUDE_PLUGIN_ROOT unset) — the toolchain nudge cannot read requirements.json, so it cannot say which tools are missing")
+			} else {
+				manifest := filepath.Join(pluginRoot, "requirements.json")
+				switch raw, err := os.ReadFile(manifest); {
+				case err != nil:
+					c.Rec.Fail(StageManifest, "cannot read "+manifest+": "+err.Error()+
+						" — the toolchain nudge cannot say which tools are missing")
+				default:
 					var req requirements
-					if err := json.Unmarshal(raw, &req); err == nil {
-						if line := nudge(probe(req.Tools)); line != "" {
-							lines = append(lines, line)
-						}
+					if err := json.Unmarshal(raw, &req); err != nil {
+						c.Rec.Fail(StageManifest, manifest+" does not parse: "+err.Error()+
+							" — the toolchain nudge cannot say which tools are missing")
+						break
+					}
+					c.Rec.OK(StageManifest)
+					if line := nudge(probe(req.Tools)); line != "" {
+						lines = append(lines, line)
 					}
 				}
 			}
 			// INDEPENDENT of the manifest: a live research run must be announced even when
 			// there is no plugin root to read requirements from.
-			if line := liveNudge(runlive.Read(c.ProjectDir)); line != "" {
+			st := runlive.Read(c.ProjectDir)
+			if st.Unparsable {
+				// An unparsable marker reads as "nothing live" to Describe, so this nudge said
+				// nothing about a run that may well be live. SessionStart displays; say why.
+				c.Rec.FailIn(StageMarkerUnparsable, c.ProjectDir, "the live-run marker exists and does not parse — "+
+					"whether a research run is live (and a freeze in force) cannot be told")
+			} else {
+				c.Rec.OKIn(StageMarkerUnparsable, c.ProjectDir)
+			}
+			if line := liveNudge(st); line != "" {
 				lines = append(lines, line)
 			}
 			return hookunit.Result{Name: "sc-toolchain-nudge", Stdout: strings.Join(lines, "\n")}

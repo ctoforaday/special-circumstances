@@ -2,6 +2,9 @@ package stopnudge
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -50,11 +53,11 @@ func read(t *testing.T, dir string) (State, bool) {
 // this package is redundancy around this one assertion.
 func TestASpentBandEmitsNothing(t *testing.T) {
 	dir := t.TempDir()
-	first := Decide(dir, "s1", false, stale(), "CHECKPOINT.md", at(1), bands(), at(10))
+	first := Decide(testRecorder(), dir, "s1", false, stale(), "CHECKPOINT.md", at(1), bands(), at(10))
 	if first.Emit == "" {
 		t.Fatal("first crossing emitted nothing; the fixture does not exercise the guard")
 	}
-	second := Decide(dir, "s1", false, stale(), "CHECKPOINT.md", at(1), bands(), at(11))
+	second := Decide(testRecorder(), dir, "s1", false, stale(), "CHECKPOINT.md", at(1), bands(), at(11))
 	if second.Emit != "" {
 		t.Errorf("a spent band emitted again — this is the loop:\n%s", second.Emit)
 	}
@@ -65,7 +68,7 @@ func TestASpentBandEmitsNothing(t *testing.T) {
 // gone.
 func TestStopHookActiveSuppressesEvenWithNoStateAtAll(t *testing.T) {
 	dir := t.TempDir()
-	if d := Decide(dir, "s1", true, stale(), "CHECKPOINT.md", at(1), bands(), at(10)); d.Emit != "" {
+	if d := Decide(testRecorder(), dir, "s1", true, stale(), "CHECKPOINT.md", at(1), bands(), at(10)); d.Emit != "" {
 		t.Errorf("emitted inside a Stop-hook continuation:\n%s", d.Emit)
 	}
 	if _, exists := read(t, dir); exists {
@@ -79,7 +82,7 @@ func TestStopHookActiveSuppressesEvenWithNoStateAtAll(t *testing.T) {
 // against a "before" that is not one.
 func TestAnUnconfiguredNudgeWritesNoStateFile(t *testing.T) {
 	dir := t.TempDir()
-	if d := Decide(dir, "s1", false, stale(), "CHECKPOINT.md", at(1), Thresholds{}, at(10)); d.Emit != "" {
+	if d := Decide(testRecorder(), dir, "s1", false, stale(), "CHECKPOINT.md", at(1), Thresholds{}, at(10)); d.Emit != "" {
 		t.Errorf("emitted with no thresholds configured:\n%s", d.Emit)
 	}
 	if _, exists := read(t, dir); exists {
@@ -103,7 +106,7 @@ func TestAnUnusableStateLocationSuppressesTheEmission(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, ".claude", "checkpoints"), []byte("not a directory"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if d := Decide(dir, "s1", false, stale(), "CHECKPOINT.md", at(1), bands(), at(10)); d.Emit != "" {
+	if d := Decide(testRecorder(), dir, "s1", false, stale(), "CHECKPOINT.md", at(1), bands(), at(10)); d.Emit != "" {
 		t.Errorf("emitted with nowhere to record the band:\n%s", d.Emit)
 	}
 }
@@ -127,7 +130,7 @@ func TestAnUnwritableStateFileSuppressesTheEmission(t *testing.T) {
 	// the same property portably in both cases.
 	unwritable.Dir(t, cp)
 
-	if d := Decide(dir, "s1", false, stale(), "CHECKPOINT.md", at(1), bands(), at(10)); d.Emit != "" {
+	if d := Decide(testRecorder(), dir, "s1", false, stale(), "CHECKPOINT.md", at(1), bands(), at(10)); d.Emit != "" {
 		t.Errorf("emitted despite being unable to record the band:\n%s", d.Emit)
 	}
 }
@@ -143,7 +146,7 @@ func TestACorruptStateFileSuppressesRatherThanResets(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(cp, "nudge.json"), []byte("{not json"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if d := Decide(dir, "s1", false, stale(), "CHECKPOINT.md", at(1), bands(), at(10)); d.Emit != "" {
+	if d := Decide(testRecorder(), dir, "s1", false, stale(), "CHECKPOINT.md", at(1), bands(), at(10)); d.Emit != "" {
 		t.Errorf("emitted over a corrupt record:\n%s", d.Emit)
 	}
 }
@@ -154,13 +157,13 @@ func TestTheHardCapSuppressesEvenWhenBandsHaveReArmed(t *testing.T) {
 	dir := t.TempDir()
 	note := at(1)
 	for i := range maxEmissions {
-		d := Decide(dir, "s1", false, stale(), "CHECKPOINT.md", note, bands(), at(10+i))
+		d := Decide(testRecorder(), dir, "s1", false, stale(), "CHECKPOINT.md", note, bands(), at(10+i))
 		if d.Emit == "" {
 			t.Fatalf("emission %d suppressed early", i+1)
 		}
 		note = note.Add(time.Minute) // the note is answered each time, re-arming the band
 	}
-	if d := Decide(dir, "s1", false, stale(), "CHECKPOINT.md", note, bands(), at(99)); d.Emit != "" {
+	if d := Decide(testRecorder(), dir, "s1", false, stale(), "CHECKPOINT.md", note, bands(), at(99)); d.Emit != "" {
 		t.Errorf("emitted past the cap of %d:\n%s", maxEmissions, d.Emit)
 	}
 	st, _ := read(t, dir)
@@ -173,15 +176,15 @@ func TestTheHardCapSuppressesEvenWhenBandsHaveReArmed(t *testing.T) {
 // cleared, because nudge_answered's derivation reads it to know a band fired at all.
 func TestAnAnsweredNoteReArmsTheBand(t *testing.T) {
 	dir := t.TempDir()
-	if d := Decide(dir, "s1", false, stale(), "CHECKPOINT.md", at(1), bands(), at(10)); d.Emit == "" {
+	if d := Decide(testRecorder(), dir, "s1", false, stale(), "CHECKPOINT.md", at(1), bands(), at(10)); d.Emit == "" {
 		t.Fatal("first crossing emitted nothing")
 	}
 	// Same note: silent.
-	if d := Decide(dir, "s1", false, stale(), "CHECKPOINT.md", at(1), bands(), at(11)); d.Emit != "" {
+	if d := Decide(testRecorder(), dir, "s1", false, stale(), "CHECKPOINT.md", at(1), bands(), at(11)); d.Emit != "" {
 		t.Fatal("spent band emitted again")
 	}
 	// The note is answered — written or re-affirmed — so the band re-arms.
-	if d := Decide(dir, "s1", false, stale(), "CHECKPOINT.md", at(5), bands(), at(12)); d.Emit == "" {
+	if d := Decide(testRecorder(), dir, "s1", false, stale(), "CHECKPOINT.md", at(5), bands(), at(12)); d.Emit == "" {
 		t.Error("band did not re-arm after the note was answered")
 	}
 }
@@ -191,12 +194,12 @@ func TestAnAnsweredNoteReArmsTheBand(t *testing.T) {
 func TestADifferentSessionStartsWithAFreshBudget(t *testing.T) {
 	dir := t.TempDir()
 	for i := range maxEmissions {
-		Decide(dir, "old", false, stale(), "CHECKPOINT.md", at(1+i), bands(), at(10+i))
+		Decide(testRecorder(), dir, "old", false, stale(), "CHECKPOINT.md", at(1+i), bands(), at(10+i))
 	}
-	if d := Decide(dir, "old", false, stale(), "CHECKPOINT.md", at(50), bands(), at(50)); d.Emit != "" {
+	if d := Decide(testRecorder(), dir, "old", false, stale(), "CHECKPOINT.md", at(50), bands(), at(50)); d.Emit != "" {
 		t.Fatal("the old session is not actually capped; fixture is wrong")
 	}
-	if d := Decide(dir, "new", false, stale(), "CHECKPOINT.md", at(51), bands(), at(51)); d.Emit == "" {
+	if d := Decide(testRecorder(), dir, "new", false, stale(), "CHECKPOINT.md", at(51), bands(), at(51)); d.Emit == "" {
 		t.Error("a new session inherited the old session's spent budget")
 	}
 }
@@ -205,7 +208,7 @@ func TestADifferentSessionStartsWithAFreshBudget(t *testing.T) {
 func TestBelowTheFloorNothingIsEmitted(t *testing.T) {
 	dir := t.TempDir()
 	small := freshness.Measures{Turns: floorTurns - 1, TurnsMeasured: true}
-	if d := Decide(dir, "s1", false, small, "CHECKPOINT.md", at(1), bands(), at(10)); d.Emit != "" {
+	if d := Decide(testRecorder(), dir, "s1", false, small, "CHECKPOINT.md", at(1), bands(), at(10)); d.Emit != "" {
 		t.Errorf("emitted below the floor:\n%s", d.Emit)
 	}
 	if _, exists := read(t, dir); exists {
@@ -218,7 +221,7 @@ func TestBelowTheFloorNothingIsEmitted(t *testing.T) {
 func TestUnmeasuredFiguresCrossNoBand(t *testing.T) {
 	dir := t.TempDir()
 	unmeasured := freshness.Measures{Turns: 0, TurnsMeasured: false, Growth: 0, GrowthKnown: false}
-	if d := Decide(dir, "s1", false, unmeasured, "CHECKPOINT.md", at(1), bands(), at(10)); d.Emit != "" {
+	if d := Decide(testRecorder(), dir, "s1", false, unmeasured, "CHECKPOINT.md", at(1), bands(), at(10)); d.Emit != "" {
 		t.Errorf("emitted from unmeasured figures:\n%s", d.Emit)
 	}
 }
@@ -228,7 +231,7 @@ func TestUnmeasuredFiguresCrossNoBand(t *testing.T) {
 func TestGrowthAloneCanCrossABand(t *testing.T) {
 	dir := t.TempDir()
 	burned := freshness.Measures{Growth: 700_000, GrowthKnown: true}
-	d := Decide(dir, "s1", false, burned, "CHECKPOINT.md", at(1), bands(), at(10))
+	d := Decide(testRecorder(), dir, "s1", false, burned, "CHECKPOINT.md", at(1), bands(), at(10))
 	if d.Emit == "" {
 		t.Fatal("growth alone crossed no band")
 	}
@@ -284,7 +287,7 @@ func TestEveryBandEdgeFromEitherMeasure(t *testing.T) {
 // re-emission is the sixteen-firing loop rather than a duplicate nudge.
 func TestASpentBandSurvivesConcurrentDecisions(t *testing.T) {
 	dir := t.TempDir()
-	if d := Decide(dir, "s1", false, stale(), "CHECKPOINT.md", at(1), bands(), at(10)); d.Emit == "" {
+	if d := Decide(testRecorder(), dir, "s1", false, stale(), "CHECKPOINT.md", at(1), bands(), at(10)); d.Emit == "" {
 		t.Fatal("first crossing emitted nothing; the fixture does not exercise the guard")
 	}
 
@@ -298,7 +301,7 @@ func TestASpentBandSurvivesConcurrentDecisions(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			if d := Decide(dir, "s1", false, stale(), "CHECKPOINT.md", at(1), bands(), at(11+i)); d.Emit != "" {
+			if d := Decide(testRecorder(), dir, "s1", false, stale(), "CHECKPOINT.md", at(1), bands(), at(11+i)); d.Emit != "" {
 				mu.Lock()
 				emissions++
 				mu.Unlock()
@@ -319,4 +322,27 @@ func TestASpentBandSurvivesConcurrentDecisions(t *testing.T) {
 	if len(st.BandsSpent) != 1 {
 		t.Errorf("BandsSpent = %v, want exactly one band recorded", st.BandsSpent)
 	}
+}
+
+// testRecorder is a recorder for a decision under test: its lines go nowhere, and TestMain points
+// the record at a temporary state directory so no test writes the developer's own.
+func testRecorder() *hookfailures.Recorder {
+	return hookfailures.New("prosthetic-conscience", "sc-stop", "Stop", time.Time{}, io.Discard)
+}
+
+// No test in this package may write the real failure record.
+func TestMain(m *testing.M) {
+	dir, err := os.MkdirTemp("", "pc-stopnudge-test-")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "TestMain:", err)
+		os.Exit(1)
+	}
+	defer os.RemoveAll(dir)
+	for _, k := range []string{"HOME", "USERPROFILE", "XDG_STATE_HOME"} {
+		if err := os.Setenv(k, dir); err != nil {
+			fmt.Fprintln(os.Stderr, "TestMain:", err)
+			os.Exit(1)
+		}
+	}
+	os.Exit(m.Run())
 }

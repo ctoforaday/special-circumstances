@@ -24,6 +24,9 @@ package strikes
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -54,31 +57,42 @@ type State struct {
 // Path is where the state lives for a project.
 func Path(projectDir string) string { return filepath.Join(projectDir, ".claude", File) }
 
-// Load reads the state. A missing or corrupt file yields an empty state: losing strike
-// history must never cost a tool call.
-func Load(read func(string) ([]byte, error), path string) State {
+// Load reads the state. It ALWAYS returns a usable state — losing strike history must never cost a
+// tool call — and it says why when that state is empty for a reason other than "no file yet".
+//
+// It used to return the empty state for a missing file, an unreadable one and a corrupt one alike,
+// and no error at all. An unreadable strikes file therefore disabled anti-spinning's 3-strike
+// counter for the project PERMANENTLY, and nothing anywhere could tell.
+func Load(read func(string) ([]byte, error), path string) (State, error) {
 	s := State{Keys: map[string][]string{}}
 	b, err := read(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return s, nil // the ordinary first failure in a project
+	}
 	if err != nil {
-		return s
+		return s, fmt.Errorf("cannot read %s: %w", path, err)
 	}
 	var parsed State
-	if json.Unmarshal(b, &parsed) == nil && parsed.Keys != nil {
-		s = parsed
+	if err := json.Unmarshal(b, &parsed); err != nil {
+		return s, fmt.Errorf("%s does not parse: %w", path, err)
 	}
-	return s
+	if parsed.Keys == nil {
+		return s, fmt.Errorf("%s has no keys map", path)
+	}
+	return parsed, nil
 }
 
-// Save writes the state, best-effort.
-func Save(path string, s State) {
+// Save writes the state. Best-effort for the CALLER — nothing here can fail a tool call — and it
+// returns the error so the caller can record that strikes are no longer being kept.
+func Save(path string, s State) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return
+		return err
 	}
 	b, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
-		return
+		return err
 	}
-	_ = os.WriteFile(path, append(b, '\n'), 0o644)
+	return os.WriteFile(path, append(b, '\n'), 0o644)
 }
 
 // Key identifies "the same thing, tried again": the tool plus what it was aimed at.

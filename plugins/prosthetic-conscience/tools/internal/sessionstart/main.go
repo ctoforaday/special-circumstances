@@ -32,6 +32,7 @@ package sessionstart
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -52,15 +53,30 @@ type hookOutput struct {
 		AdditionalContext string   `json:"additionalContext,omitempty"`
 		WatchPaths        []string `json:"watchPaths,omitempty"`
 	} `json:"hookSpecificOutput"`
+	// SystemMessage is the failure record's, for the human. AdditionalContext above is for the
+	// agent, and a hook that is broken is not the agent's business to relay.
+	SystemMessage string `json:"systemMessage,omitempty"`
 }
 
+// StageEncode is recorded when this event's response cannot be encoded: a restored checkpoint that
+// never arrives, which used to be discarded with `_ =` and read as a session with no note.
+const StageEncode hookfailures.Stage = "encode"
+
 // merge composes one response from several units.
-func merge(results []hookunit.Result) (text string, watch []string) {
-	var parts []string
+//
+// IT USED TO READ ONLY Stdout AND Watch, which meant a unit's Stderr — the channel hookunit puts a
+// PANIC in — was dropped here, before it even reached the debug log. A crashed unit was silent on
+// every channel on this event. The panic is now recorded by hookunit itself, and the text is
+// forwarded so the debug log keeps its copy.
+func merge(results []hookunit.Result) (text string, watch []string, logged string) {
+	var parts, logs []string
 	seen := map[string]bool{}
 	for _, r := range results {
 		if t := strings.TrimRight(r.Stdout, "\n"); t != "" {
 			parts = append(parts, t)
+		}
+		if l := strings.TrimRight(r.Stderr, "\n"); l != "" {
+			logs = append(logs, l)
 		}
 		for _, p := range r.Watch {
 			if !seen[p] {
@@ -69,7 +85,7 @@ func merge(results []hookunit.Result) (text string, watch []string) {
 			}
 		}
 	}
-	return strings.Join(parts, "\n\n"), watch
+	return strings.Join(parts, "\n\n"), watch, strings.Join(logs, "\n")
 }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time, units []hookunit.Unit) int {
@@ -85,21 +101,35 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 
 	rec := hookfailures.New("prosthetic-conscience", "sc-sessionstart", "SessionStart", now, stderr)
 	ctx := hookunit.NewCtx("SessionStart", raw, hookenv.ProjectDir(projectDir, in.CWD), now, rec)
-	if !hookenv.Explain(ctx.ProjectDir, stderr, "sc-sessionstart") {
+	if !hookenv.Explain(ctx.ProjectDir, rec, "sc-sessionstart") {
+		// Recorded, and NOT said here: a hook with no project root writes nothing to stdout
+		// (projectroot_test.go pins that for every binary). The next event that resolves one
+		// announces it.
+		_ = rec.Settle()
 		return 0
 	}
 
-	text, watch := merge(hookunit.Run(ctx, units))
+	text, watch, logged := merge(hookunit.Run(ctx, units))
+	if logged != "" {
+		fmt.Fprintln(stderr, logged)
+	}
+	said := rec.Settle()
 	// Silence is a valid outcome and MUST stay silent. watchPaths alone is reason enough to
 	// speak: a note can be worth watching with nothing to say about it.
-	if strings.TrimSpace(text) == "" && len(watch) == 0 {
+	if strings.TrimSpace(text) == "" && len(watch) == 0 && said == "" {
 		return 0
 	}
 	var out hookOutput
 	out.HookSpecificOutput.HookEventName = "SessionStart"
 	out.HookSpecificOutput.AdditionalContext = text
 	out.HookSpecificOutput.WatchPaths = watch
-	_ = json.NewEncoder(stdout).Encode(out)
+	out.SystemMessage = said
+	if err := json.NewEncoder(stdout).Encode(out); err != nil {
+		// Discarded outright until now (`_ =`), which made a restored checkpoint that never
+		// arrived look exactly like a session that had none.
+		rec.Fail(StageEncode, "sc-sessionstart: cannot encode response: "+err.Error())
+		_ = rec.Settle()
+	}
 	return 0
 }
 

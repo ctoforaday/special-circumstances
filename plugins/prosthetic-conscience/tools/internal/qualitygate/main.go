@@ -230,7 +230,10 @@ func clamp(s string) string {
 
 // execute runs the planned qlty commands and returns the feedback for the model
 // (empty when there is nothing to say) plus the one-line summary for the log.
-func execute(e env, p plan) (feedback, logged string) {
+// broken is non-empty when qlty could not RUN — a timeout or an unlaunchable binary — as opposed to
+// running and finding something. That used to reach only the best-effort hook log: silent to the
+// human and to the agent, where a MISSING qlty was said. It is the same broken machine state.
+func execute(e env, p plan) (feedback, logged, broken string) {
 	ctx, cancel := context.WithTimeout(context.Background(), e.timeout)
 	defer cancel()
 
@@ -240,7 +243,8 @@ func execute(e env, p plan) (feedback, logged string) {
 	if p.format {
 		before := digest(abs)
 		if _, _, err := e.exec(ctx, e.projectDir, "qlty", "fmt", "--no-progress", "--trigger", "agent", p.rel); err != nil {
-			return "", "qlty fmt could not run: " + err.Error()
+			m := "qlty fmt could not run: " + err.Error()
+			return "", m, m
 		}
 		if after := digest(abs); after != before && after != "" {
 			// The model's cached copy of the file is now stale; an Edit against
@@ -254,7 +258,8 @@ func execute(e env, p plan) (feedback, logged string) {
 	if err != nil {
 		// A timeout or an unlaunchable qlty is infrastructure: report the
 		// format rewrite if there was one, but never fail on this.
-		return strings.Join(parts, "\n"), "qlty check could not run: " + err.Error()
+		m := "qlty check could not run: " + err.Error()
+		return strings.Join(parts, "\n"), m, m
 	}
 	if code != 0 {
 		// THE THING AN AGENT GETS WRONG HERE. Exit 2 at PostToolUse is a FEEDBACK channel,
@@ -269,11 +274,11 @@ func execute(e env, p plan) (feedback, logged string) {
 
 	switch {
 	case len(parts) == 0:
-		return "", "clean"
+		return "", "clean", ""
 	case code != 0:
-		return strings.Join(parts, "\n"), "issues reported"
+		return strings.Join(parts, "\n"), "issues reported", ""
 	default:
-		return strings.Join(parts, "\n"), "formatted"
+		return strings.Join(parts, "\n"), "formatted", ""
 	}
 }
 
@@ -329,9 +334,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, e env) int {
 func gate(e env, toolName, file string, now time.Time) hookunit.Result {
 	p := decide(e, file)
 	msg := p.skip
-	feedback := ""
+	feedback, broken := "", ""
 	if p.run {
-		feedback, msg = execute(e, p)
+		feedback, msg, broken = execute(e, p)
 	}
 	// Instrumentation: record every firing (proves the hook reaches here, incl. subagents).
 	r := hookunit.Result{Name: "sc-quality-gate",
@@ -345,6 +350,11 @@ func gate(e env, toolName, file string, now time.Time) hookunit.Result {
 		// Exit 2 is how a PostToolUse hook hands stderr back to the model. The write
 		// already happened — this reports on it, it does not revoke it.
 		r.Stderr, r.Exit = feedback, 2
+	}
+	if broken != "" {
+		// SAID whether or not a formatter rewrite also produced feedback: the two are for different
+		// readers, and exit 2 and a systemMessage coexist (measured).
+		r.Say = broken
 	}
 	return r
 }

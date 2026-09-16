@@ -74,10 +74,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/statefile"
@@ -545,19 +547,27 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	var in hookInput
 	_ = json.Unmarshal(raw, &in)
 	projectDir = hookenv.ProjectDir(projectDir, in.CWD)
-	if !hookenv.Explain(projectDir, stderr, "sc-checkpoint-restore") {
+	// RECORDED, NEVER EMITTED HERE: this binary already writes one document, and a second top-level
+	// object corrupts it. The record reaches a human through sc-sessionstart's response, which is
+	// where this unit actually ships.
+	rec := hookfailures.New("prosthetic-conscience", "sc-checkpoint-restore", "SessionStart", time.Now(), stderr)
+	defer func() { _ = rec.Settle() }()
+	if !hookenv.Explain(projectDir, rec, "sc-checkpoint-restore") {
 		return 0
 	}
 
-	text, watch := compose(projectDir, in.Source)
+	text, watch := compose(projectDir, in.Source, rec)
 	emit(stdout, text, watch)
 	return 0
 }
 
+// StageNoteRead is recorded when the note exists and cannot be read.
+const StageNoteRead hookfailures.Stage = "note-read"
+
 // compose is the restore's whole product — the digest text and the paths to watch — with no
 // I/O of its own. The standalone binary and the merged SessionStart binary both run THIS, so
 // the two cannot drift into restoring differently.
-func compose(projectDir, source string) (string, []string) {
+func compose(projectDir, source string, rec *hookfailures.Recorder) (string, []string) {
 	path := checkpoint.NotePath(projectDir, func(p string) bool {
 		st, err := os.Stat(p)
 		return err == nil && !st.IsDir()
@@ -567,8 +577,14 @@ func compose(projectDir, source string) (string, []string) {
 	}
 	body, err := os.ReadFile(path)
 	if err != nil {
+		// THE NOTE IS THERE AND UNREADABLE. NotePath stat'd it a line ago, so this is not "no note"
+		// — it is the session's own cursor, lost, and returning the same ("", nil) as an absent note
+		// made the two indistinguishable at exactly the moment they differ most.
+		rec.FailIn(StageNoteRead, projectDir, "cannot read the checkpoint note "+path+": "+err.Error()+
+			" — this session starts with no operational cursor")
 		return "", nil
 	}
+	rec.OKIn(StageNoteRead, projectDir)
 
 	note := checkpoint.Parse(string(body))
 	if pointerOnly(source, note.Get("status")) {
@@ -625,7 +641,7 @@ func Unit() hookunit.Unit {
 				Source string `json:"source"`
 			}
 			_ = json.Unmarshal(c.Raw, &src)
-			text, watch := compose(c.ProjectDir, src.Source)
+			text, watch := compose(c.ProjectDir, src.Source, c.Rec)
 			return hookunit.Result{Name: "sc-checkpoint-restore", Stdout: text, Watch: watch}
 		},
 	}

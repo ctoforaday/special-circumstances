@@ -88,10 +88,11 @@ func TestAnUnreadableFreezeIsRecorded(t *testing.T) {
 		t.Fatalf("record = %+v", record.Failures)
 	}
 
-	// ...and a freeze it CAN read clears it: the guard is working again.
-	ok := liveRun(t, `{"runs":[{"runDir":"/r","pinnedPaths":["a/b"]}]}`)
+	// ...and a freeze it CAN read, IN THE SAME PROJECT, clears it: the guard is working again. A
+	// readable marker in some other project says nothing about this one.
+	rewriteMarker(t, project, `{"runs":[{"runDir":"/r","pinnedPaths":["a/b"]}]}`)
 	rec = hookfailures.New("prosthetic-conscience", "sc-pretooluse", "PreToolUse", time.Now(), io.Discard)
-	runGuard(t, ok, "git push", rec)
+	runGuard(t, project, "git push", rec)
 	rec.Settle()
 	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
 		b, _ := os.ReadFile(path)
@@ -105,5 +106,12 @@ func TestNoLiveRunSaysNothing(t *testing.T) {
 	r := runGuard(t, t.TempDir(), "git push", testRecorder())
 	if r.Say != "" || r.Stderr != "" {
 		t.Errorf("say %q, stderr %q", r.Say, r.Stderr)
+	}
+}
+
+func rewriteMarker(t *testing.T, project, marker string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(project, ".claude", "run-live.json"), []byte(marker), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }

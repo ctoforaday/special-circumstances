@@ -103,6 +103,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 
 	rec := hookfailures.New("prosthetic-conscience", "sc-pretooluse", "PreToolUse", now, stderr)
 	ctx := hookunit.NewCtx("PreToolUse", raw, hookenv.ProjectDir(projectDir, in.CWD), now, rec)
+	hookenv.Note(ctx.ProjectDir, rec) // recorded, never a reason to skip the secrets gate
 	decision, warnings, say := merge(hookunit.Run(ctx, units))
 
 	if warnings != "" {
