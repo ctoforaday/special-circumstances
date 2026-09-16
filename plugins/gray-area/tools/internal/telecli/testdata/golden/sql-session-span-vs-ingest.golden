@@ -1,4 +1,4 @@
-sid	first_act	last_act	same_pass
+sid	first_act	last_act	ordered
 aaaaaaaa	1788941400	1788948300	1
 bbbbbbbb	1788953460	1788953460	1
 cccccccc	NULL	NULL	1

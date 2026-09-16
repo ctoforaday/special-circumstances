@@ -261,8 +261,16 @@ func TestGoldenOutput(t *testing.T) {
 		// first_act/last_act come from the ACTS and are what a reader wanted from the old
 		// first_seen/last_seen; ingested_* are the store's own bookkeeping and are now named as
 		// such. A session with no acts reports NULL for the pair, which is a real state.
+		//
+		// THE INGEST PAIR IS ASSERTED AS AN ORDERING, NOT AN EQUALITY (#949). This column was
+		// `ingested_first = ingested_last`, and IngestFile stamps the wall clock once per FILE — so a
+		// session whose files were read across a second boundary gave 0, and the golden flipped on a
+		// loaded machine, in CI and in the local check alike. Equality was never a property of the
+		// store: a large session is ingested across many seconds in production. What IS one is that
+		// the first read is never after the last, and that holds however the clock falls. The
+		// bookkeeping itself is tested where it is written (catalogue's ingeststamps_test.go).
 		{"sql-session-span-vs-ingest", []string{"sql",
-			"SELECT substr(session_id,1,8) sid, first_act, last_act, (ingested_first = ingested_last) same_pass FROM v_session ORDER BY 1"}},
+			"SELECT substr(session_id,1,8) sid, first_act, last_act, (ingested_first <= ingested_last) ordered FROM v_session ORDER BY 1"}},
 		// The population that used to be invisible: reasoning the client withheld.
 		{"sql-withheld-reasoning", []string{"sql",
 			"SELECT reason, count(*) n FROM v_skip GROUP BY 1"}},
