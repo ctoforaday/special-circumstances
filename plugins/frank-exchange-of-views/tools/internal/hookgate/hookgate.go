@@ -68,6 +68,10 @@ const (
 	// OutcomeDeny: refuse the call before the shell runs it; the string is the reason the seat
 	// reads. Only a tool command carrying a backtick the shell would execute (substitution.go).
 	OutcomeDeny
+	// OutcomeUnparsable: a Bash call inside a live run whose tool_input does not parse. No opinion
+	// on the call — it proceeds untouched, exactly as OutcomeNone — but it is NOT the same as a
+	// call with nothing to do: the run directory was not injected, and the caller records why.
+	OutcomeUnparsable
 )
 
 // THERE IS NO MATCHER, AND THAT IS THE POINT.
@@ -102,7 +106,10 @@ func PreOutcome(in Input, runDir string) (Outcome, string) {
 		return OutcomeNone, ""
 	}
 	var ti toolInput
-	if json.Unmarshal(in.ToolInput, &ti) != nil || ti.Command == "" {
+	if err := json.Unmarshal(in.ToolInput, &ti); err != nil {
+		return OutcomeUnparsable, err.Error()
+	}
+	if ti.Command == "" {
 		return OutcomeNone, ""
 	}
 	// THE DENY COMES FIRST, because a refused command runs nothing and so needs nothing injected.

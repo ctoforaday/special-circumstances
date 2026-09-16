@@ -1496,7 +1496,7 @@ func TestExplicitRunDirBeatsTheInferredOne(t *testing.T) {
 	}
 	t.Setenv("CLAUDE_PROJECT_DIR", proj)
 
-	if got := runlive.InferRunDir(proj); got != marker {
+	if got := runlive.InferRunDir(proj).Dir; got != marker {
 		t.Fatalf("precondition: marker should resolve to %q, got %q", marker, got)
 	}
 	// With the flag present the marker must not be consulted at all.

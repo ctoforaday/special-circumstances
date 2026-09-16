@@ -14,4 +14,4 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookcmd"
 )
 
-func main() { os.Exit(hookcmd.Run(hookcmd.Pre, os.Stdin, os.Stdout)) }
+func main() { os.Exit(hookcmd.Run("feov-pretooluse", "PreToolUse", hookcmd.Pre, os.Stdin, os.Stdout)) }

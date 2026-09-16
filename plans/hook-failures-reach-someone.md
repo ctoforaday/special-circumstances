@@ -156,9 +156,19 @@ Warnings still survive a denial (today's merge policy), and the decision documen
 - `hookcmd.Run` records `hook-panic` and `hook-error`; `Pre` records `turn-limit`. PreToolUse is
   FEOV's only displaying event, and it is where the announcement lands.
 - `runlive.InferRunDir` must distinguish "no marker, not a live run" from "marker present but
-  unusable" (item 12), because today both are `""` and only the second is a failure. It gains a
-  second return value saying whether a marker was SEEN. This is the one API change in the plan, and
-  it is forced: a call site cannot report a failure it cannot distinguish from the healthy zero.
+  unusable" (item 12), because today both are `""` and only the second is a failure. This is the
+  one API change in the plan, and it is forced: a call site cannot report a failure it cannot
+  distinguish from the healthy zero.
+
+  **Revised in the build: a reason, not a boolean.** "A marker was SEEN" is not the fault line. A
+  seen marker can name no open run (ordinary), name TWO runs open at once (legitimate — concurrent
+  runs are supported since #529, and there is simply no single run to infer), be unreadable, or name
+  a run whose directory is gone. A boolean would have recorded the two legitimate shapes as failures
+  and raised a false alarm on every tool call of both runs. So `InferRunDir` returns `Inferred{Dir,
+  Why, MarkerDir}`, where `Why` is one of `NoMarker`, `Resolved`, `NoRunOpen`, `Ambiguous`,
+  `Unreadable`, `Stale`, and only the last two are `Fault()`s. `MarkerDir` is the fault's scope on
+  the record. The marker is still decoded in one place: `readRunLive` returns the runs and whether
+  the file could be read at all, and `ReadRunLive` wraps it for callers that want only the runs.
 
   **Its consumer census** — four non-test callers, each RULED here, because a contract that gains a
   signal and wires it into one caller has moved the silence rather than ended it:

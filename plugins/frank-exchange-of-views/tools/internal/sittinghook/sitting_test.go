@@ -3,6 +3,9 @@ package sittinghook
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookfailures"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,7 +35,10 @@ func capture(t *testing.T) *[]handoffArgs {
 
 	var got []handoffArgs
 	prev := spawn
-	spawn = func(w, r, p, id, ty, tr string) { got = append(got, handoffArgs{w, r, p, id, ty, tr}) }
+	spawn = func(w, r, p, id, ty, tr string) error {
+		got = append(got, handoffArgs{w, r, p, id, ty, tr})
+		return nil
+	}
 	t.Cleanup(func() { spawn = prev })
 	return &got
 }
@@ -69,8 +75,8 @@ func TestTheSittingHooksEmitNothing(t *testing.T) {
 		name string
 		fn   func(*strings.Reader, *bytes.Buffer) error
 	}{
-		{"Start", func(r *strings.Reader, w *bytes.Buffer) error { return Start(r, w) }},
-		{"Stop", func(r *strings.Reader, w *bytes.Buffer) error { return Stop(r, w) }},
+		{"Start", func(r *strings.Reader, w *bytes.Buffer) error { return Start(r, w, testRecorder()) }},
+		{"Stop", func(r *strings.Reader, w *bytes.Buffer) error { return Stop(r, w, testRecorder()) }},
 	} {
 		var out bytes.Buffer
 		if err := tc.fn(payload(t, "agent_01", "frank-exchange-of-views:red-auditor", cwd), &out); err != nil {
@@ -94,7 +100,7 @@ func TestATurnEndIsNeitherRecordedNorSpawnedFor(t *testing.T) {
 	got := capture(t)
 	cwd, _ := liveRun(t)
 	var out bytes.Buffer
-	if err := Stop(payload(t, "minted_99", "", cwd), &out); err != nil {
+	if err := Stop(payload(t, "minted_99", "", cwd), &out, testRecorder()); err != nil {
 		t.Fatal(err)
 	}
 	if len(*got) != 0 {
@@ -107,7 +113,7 @@ func TestATurnEndIsNeitherRecordedNorSpawnedFor(t *testing.T) {
 func TestASubagentOutsideARunDoesNotSpawnTheWriter(t *testing.T) {
 	got := capture(t)
 	var out bytes.Buffer
-	if err := Start(payload(t, "agent_01", "frank-exchange-of-views:lead-judge", t.TempDir()), &out); err != nil {
+	if err := Start(payload(t, "agent_01", "frank-exchange-of-views:lead-judge", t.TempDir()), &out, testRecorder()); err != nil {
 		t.Errorf("a subagent outside a run failed the hook: %v", err)
 	}
 	if len(*got) != 0 {
@@ -120,7 +126,7 @@ func TestTheHandoffNamesTheRunPhaseAndIdentity(t *testing.T) {
 	got := capture(t)
 	cwd, runDir := liveRun(t)
 	var out bytes.Buffer
-	if err := Start(payload(t, "agent_07", "frank-exchange-of-views:blue-researcher", cwd), &out); err != nil {
+	if err := Start(payload(t, "agent_07", "frank-exchange-of-views:blue-researcher", cwd), &out, testRecorder()); err != nil {
 		t.Fatal(err)
 	}
 	if len(*got) != 1 {
@@ -173,7 +179,7 @@ func TestStopCarriesTheTranscriptPathAndStartDoesNot(t *testing.T) {
 	dir, _ := liveRun(t)
 
 	body := payloadWith(t, "a1", "frank-exchange-of-views:red-auditor", dir, "/tmp/agent-a1.jsonl")
-	if err := Stop(body, &bytes.Buffer{}); err != nil {
+	if err := Stop(body, &bytes.Buffer{}, testRecorder()); err != nil {
 		t.Fatal(err)
 	}
 	if len(*got) != 1 {
@@ -185,7 +191,7 @@ func TestStopCarriesTheTranscriptPathAndStartDoesNot(t *testing.T) {
 
 	// SubagentStart carries no transcript — a seat just dispatched has produced no turns.
 	*got = nil
-	if err := Start(payload(t, "a1", "frank-exchange-of-views:red-auditor", dir), &bytes.Buffer{}); err != nil {
+	if err := Start(payload(t, "a1", "frank-exchange-of-views:red-auditor", dir), &bytes.Buffer{}, testRecorder()); err != nil {
 		t.Fatal(err)
 	}
 	if len(*got) != 1 {
@@ -194,4 +200,28 @@ func TestStopCarriesTheTranscriptPathAndStartDoesNot(t *testing.T) {
 	if (*got)[0].transcript != "" {
 		t.Errorf("Start sent a transcript path %q; there are no turns at the opening end", (*got)[0].transcript)
 	}
+}
+
+// testRecorder records into the package's isolated state directory (TestMain) and writes its lines
+// nowhere.
+func testRecorder() *hookfailures.Recorder {
+	return hookfailures.New("frank-exchange-of-views", "test", "PreToolUse", time.Now(), io.Discard)
+}
+
+// No test in this package may write the developer's own failure record: every entry point here now
+// settles into ~/.local/state unless something stops it.
+func TestMain(m *testing.M) {
+	dir, err := os.MkdirTemp("", "feov-hookfailures-test-")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "TestMain:", err)
+		os.Exit(1)
+	}
+	defer os.RemoveAll(dir)
+	for _, k := range []string{"HOME", "USERPROFILE", "XDG_STATE_HOME"} {
+		if err := os.Setenv(k, dir); err != nil {
+			fmt.Fprintln(os.Stderr, "TestMain:", err)
+			os.Exit(1)
+		}
+	}
+	os.Exit(m.Run())
 }

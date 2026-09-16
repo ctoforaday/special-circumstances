@@ -100,6 +100,10 @@ func TestTheShippedHooksResolveAgainstTheBuiltBinary(t *testing.T) {
 				cmd.Env = append(os.Environ(),
 					"CLAUDE_PLUGIN_ROOT="+pluginRoot,
 					"CLAUDE_PROJECT_DIR="+sandbox,
+					// Every hook here records the failures it swallows (internal/hookfailures), and
+					// the record resolves from XDG_STATE_HOME before the home directory: without this
+					// a driven hook writes into the developer's own ~/.local/state.
+					"XDG_STATE_HOME="+filepath.Join(sandbox, ".state"),
 				)
 				cmd.Stdin = strings.NewReader(string(pb))
 				out, err := cmd.CombinedOutput()
