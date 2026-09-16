@@ -28,7 +28,7 @@ func stub(name, stdout, stderr string) hookunit.Unit {
 // Only ONE permission document may be emitted, so stdout is pick-first rather than
 // composed — the opposite of PostToolUse, where every unit's stderr must survive.
 func TestMergeTakesTheFirstDecisionAndKeepsEveryWarning(t *testing.T) {
-	d, w := merge([]hookunit.Result{
+	d, w, _ := merge([]hookunit.Result{
 		{Name: "a", Stderr: "warned first"},
 		{Name: "b", Stdout: `{"deny":1}`, Stderr: "and denied"},
 		{Name: "c", Stdout: `{"deny":2}`},
@@ -41,7 +41,7 @@ func TestMergeTakesTheFirstDecisionAndKeepsEveryWarning(t *testing.T) {
 			t.Errorf("warnings lost %q: %q", want, w)
 		}
 	}
-	if d, w := merge([]hookunit.Result{{Name: "a"}, {Name: "b"}}); d != "" || w != "" {
+	if d, w, _ := merge([]hookunit.Result{{Name: "a"}, {Name: "b"}}); d != "" || w != "" {
 		t.Errorf("silence must stay silent: %q %q", d, w)
 	}
 }

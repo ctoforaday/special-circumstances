@@ -73,7 +73,7 @@ func projectWithMarker(t *testing.T, body string) string {
 // fails, and the merged binary owns the process boundary.
 func call(t *testing.T, root, project string, probe func([]toolchain.Tool) []toolchain.Status, _ ...string) (string, int) {
 	t.Helper()
-	ctx := hookunit.NewCtx("SessionStart", nil, project, time.Time{})
+	ctx := hookunit.NewCtx("SessionStart", nil, project, time.Time{}, testRecorder())
 	var out strings.Builder
 	for _, r := range hookunit.Run(ctx, []hookunit.Unit{Unit(root, probe)}) {
 		out.WriteString(r.Stdout)

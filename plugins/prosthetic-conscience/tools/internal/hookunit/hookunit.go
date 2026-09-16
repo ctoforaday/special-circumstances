@@ -34,6 +34,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 )
 
 // Ctx is everything the units share, built ONCE per event.
@@ -55,14 +57,22 @@ type Ctx struct {
 	// scanned RAW so that truncating the JSON is not a way past the gate (#211).
 	Parsed bool
 
+	// Rec is where a unit records a failure it swallowed. Never nil: a unit that cannot record is
+	// a unit whose failures go nowhere, which is the defect this field exists to close.
+	Rec *hookfailures.Recorder
+
 	mu    sync.Mutex
 	memo  map[string]any
 	onces map[string]*sync.Once
 }
 
-// NewCtx builds a context. Units must treat it as READ-ONLY apart from Memo.
-func NewCtx(event string, raw []byte, projectDir string, now time.Time) *Ctx {
-	c := &Ctx{Event: event, Raw: raw, ProjectDir: projectDir, Now: now,
+// NewCtx builds a context. Units must treat it as READ-ONLY apart from Memo and Rec.
+//
+// The recorder is a REQUIRED argument rather than an optional field: a nil one would make a unit's
+// failure-recording call a silent no-op, and a silent no-op in the machinery that exists to end
+// silent no-ops is the joke this package can least afford.
+func NewCtx(event string, raw []byte, projectDir string, now time.Time, rec *hookfailures.Recorder) *Ctx {
+	c := &Ctx{Event: event, Raw: raw, ProjectDir: projectDir, Now: now, Rec: rec,
 		memo: map[string]any{}, onces: map[string]*sync.Once{}}
 	var in struct {
 		ToolName  string          `json:"tool_name"`
@@ -108,6 +118,16 @@ type Result struct {
 	// rather than a generic bag because two consumers do not justify one: if a third event
 	// needs its own channel, that is the moment to reconsider the shape, not before.
 	Watch []string
+	// Say is text for the HUMAN, on an event the client displays: a top-level systemMessage.
+	// It is a third channel because the other two are taken and neither reaches anyone — Stdout is
+	// the event's decision document, and Stderr at exit 0 goes to the debug log and nobody
+	// (measured 2026-09-16). A unit whose whole mechanism is a warning (sc-push-freeze-guard never
+	// blocks) has nowhere else to put it.
+	//
+	// Say is for what is true of THIS call. A failure that persists belongs on Ctx.Rec, which
+	// carries it to the next displaying event; saying it here would repeat it every call and
+	// forget it the moment the call ends.
+	Say string
 	// Log is the unit's hook-log line, returned rather than written. Two processes used to
 	// append to one log file concurrently — measured to be concurrent BY DESIGN once hooks
 	// were known to run in parallel. Collecting the lines and writing them from one place

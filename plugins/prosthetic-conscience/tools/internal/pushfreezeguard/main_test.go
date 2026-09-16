@@ -111,7 +111,7 @@ func TestDecide(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := decide(c.m, c.cmd)
+			got, _ := decide(c.m, c.cmd)
 			if (got != "") != c.wantHit {
 				t.Fatalf("decide(live=%v, %q) = %q; wantHit=%v", c.m.Live(), c.cmd, got, c.wantHit)
 			}

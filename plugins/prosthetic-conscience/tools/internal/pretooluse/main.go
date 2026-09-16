@@ -36,6 +36,7 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/pushfreezeguard"
@@ -43,8 +44,8 @@ import (
 )
 
 // merge is the event's decision policy, kept pure so it can be tested without units.
-func merge(results []hookunit.Result) (decision, warnings string) {
-	var warn []string
+func merge(results []hookunit.Result) (decision, warnings, say string) {
+	var warn, said []string
 	for _, r := range results {
 		if decision == "" && strings.TrimSpace(r.Stdout) != "" {
 			decision = r.Stdout // first denial in unit order wins; only one may be emitted
@@ -52,8 +53,41 @@ func merge(results []hookunit.Result) (decision, warnings string) {
 		if w := strings.TrimRight(r.Stderr, "\n"); w != "" {
 			warn = append(warn, w)
 		}
+		if t := strings.TrimRight(r.Say, "\n"); t != "" {
+			said = append(said, t)
+		}
 	}
-	return decision, strings.Join(warn, "\n")
+	return decision, strings.Join(warn, "\n"), strings.Join(said, "\n")
+}
+
+// respond writes the ONE object this event answers with. A decision and a message travel together —
+// measured 2026-09-16 against the real client: a PreToolUse response carrying both had the message
+// displayed, the decision honoured and the tool run. The decision is a document a unit composed, so
+// it is decoded and the message added to it rather than wrapped, which would bury the decision one
+// level down where the client does not look.
+func respond(stdout io.Writer, decision, say string) {
+	if decision == "" {
+		hookfailures.Emit(stdout, say)
+		return
+	}
+	if say == "" {
+		fmt.Fprint(stdout, decision)
+		return
+	}
+	var doc map[string]any
+	if err := json.Unmarshal([]byte(decision), &doc); err != nil {
+		// The decision is what protects the session; it goes out intact whatever happened here, and
+		// the message follows on its own line rather than corrupting it.
+		fmt.Fprint(stdout, decision)
+		return
+	}
+	doc["systemMessage"] = say
+	b, err := json.Marshal(doc)
+	if err != nil {
+		fmt.Fprint(stdout, decision)
+		return
+	}
+	fmt.Fprintln(stdout, string(b))
 }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time, units []hookunit.Unit) int {
@@ -67,15 +101,16 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	}
 	_ = json.Unmarshal(raw, &in)
 
-	ctx := hookunit.NewCtx("PreToolUse", raw, hookenv.ProjectDir(projectDir, in.CWD), now)
-	decision, warnings := merge(hookunit.Run(ctx, units))
+	rec := hookfailures.New("prosthetic-conscience", "sc-pretooluse", "PreToolUse", now, stderr)
+	ctx := hookunit.NewCtx("PreToolUse", raw, hookenv.ProjectDir(projectDir, in.CWD), now, rec)
+	decision, warnings, say := merge(hookunit.Run(ctx, units))
 
 	if warnings != "" {
 		fmt.Fprintln(stderr, warnings)
 	}
-	if decision != "" {
-		fmt.Fprint(stdout, decision)
-	}
+	// The record's message joins this call's own: both are for the human, and the event answers
+	// with one object.
+	respond(stdout, decision, strings.TrimSpace(say+"\n\n"+rec.Settle()))
 	// ALWAYS 0: the block travels in the JSON, never in the status.
 	return 0
 }

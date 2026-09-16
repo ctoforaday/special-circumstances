@@ -39,6 +39,7 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hooklog"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
@@ -49,8 +50,8 @@ import (
 //
 // Exit: the highest any unit asked for. Stderr: every unit's, in unit order, so a quiet
 // unit never suppresses a loud one. Log: every line, for a single ordered write.
-func merge(results []hookunit.Result) (stderr string, exit int, logs []string) {
-	var msgs []string
+func merge(results []hookunit.Result) (stderr string, exit int, logs []string, say string) {
+	var msgs, said []string
 	for _, r := range results {
 		if r.Exit > exit {
 			exit = r.Exit
@@ -58,11 +59,14 @@ func merge(results []hookunit.Result) (stderr string, exit int, logs []string) {
 		if s := strings.TrimRight(r.Stderr, "\n"); s != "" {
 			msgs = append(msgs, s)
 		}
+		if t := strings.TrimRight(r.Say, "\n"); t != "" {
+			said = append(said, t)
+		}
 		if r.Log != "" {
 			logs = append(logs, r.Log)
 		}
 	}
-	return strings.Join(msgs, "\n"), exit, logs
+	return strings.Join(msgs, "\n"), exit, logs, strings.Join(said, "\n")
 }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time, units []hookunit.Unit) int {
@@ -77,9 +81,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	_ = json.Unmarshal(raw, &in)
 
 	// Parsed once, resolved once — the point of the merge.
-	ctx := hookunit.NewCtx("PostToolUse", raw, hookenv.ProjectDir(projectDir, in.CWD), now)
+	rec := hookfailures.New("prosthetic-conscience", "sc-posttooluse", "PostToolUse", now, stderr)
+	ctx := hookunit.NewCtx("PostToolUse", raw, hookenv.ProjectDir(projectDir, in.CWD), now, rec)
 
-	feedback, exit, logs := merge(hookunit.Run(ctx, units))
+	feedback, exit, logs, say := merge(hookunit.Run(ctx, units))
 
 	// ONE writer, in unit order.
 	hooklog.Append(ctx.ProjectDir, logs...)
@@ -87,6 +92,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	if feedback != "" {
 		fmt.Fprintln(stderr, feedback)
 	}
+	// EMITTED WHATEVER THE EXIT, and that was measured rather than assumed: on a hook exiting 2 the
+	// client delivered both, the blocking feedback to the model and the systemMessage to the human.
+	hookfailures.Emit(stdout, strings.TrimSpace(say+"\n\n"+rec.Settle()))
 	return exit
 }
 

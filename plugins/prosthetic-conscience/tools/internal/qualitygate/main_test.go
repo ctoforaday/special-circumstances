@@ -70,7 +70,18 @@ func TestDecideSkips(t *testing.T) {
 				t.Errorf("skip = %q; missing %q", p.skip, c.expect)
 			}
 			if p.warn != c.warn {
-				t.Errorf("warn = %v, want %v (only actionable machine state earns stderr)", p.warn, c.warn)
+				t.Errorf("warn = %v, want %v (only actionable machine state is worth saying)", p.warn, c.warn)
+			}
+			// A WARN MUST REACH THE HUMAN. The plan's whole point: p.warn used to mean "one line on
+			// stderr", which at exit 0 is the debug log and nobody. It now means Say, which
+			// PostToolUse displays — so the flag is asserted through the Result it produces, not
+			// just as a bool.
+			r := gate(c.env, "Edit", c.file, time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC))
+			if c.warn && (r.Say == "" || r.Say != r.Stderr) {
+				t.Errorf("a warn said %q to the human and %q to the log", r.Say, r.Stderr)
+			}
+			if !c.warn && r.Say != "" {
+				t.Errorf("a silent skip spoke: %q", r.Say)
 			}
 		})
 	}
