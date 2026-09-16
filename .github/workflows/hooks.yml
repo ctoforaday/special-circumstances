@@ -1412,6 +1412,9 @@ jobs:
       - name: Every plugin's fetch-bin.sh matches the one authored copy, and every guard names its own event
         run: go run ./fetchbingen -check
         working-directory: scripts
+      - name: Every module's failure record matches the one authored copy
+        run: go run ./hookfailgen -check
+        working-directory: scripts
       - name: Every plugin with binaries is pinned to the release tag its plugin.json names
         run: go run ./marketplacegen -check
         working-directory: scripts

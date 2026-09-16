@@ -94,10 +94,10 @@ type Recorder struct {
 	plugin  string
 	speaker string
 	event   string
-	now    time.Time
-	stderr io.Writer
-	failed map[key]string
-	worked map[key]bool
+	now     time.Time
+	stderr  io.Writer
+	failed  map[key]string
+	worked  map[key]bool
 }
 
 // New starts a recorder for one hook invocation.

@@ -13,6 +13,16 @@ import (
 
 // The authored package is tested HERE, once, in the module that owns it. Each plugin's own suite
 // then tests its WIRING — that its hooks reach these calls — rather than re-testing the record.
+//
+// MUTATION PASS, 2026-09-16: 22 mutations of the call sites and branches below, one at a time
+// (`~/.claude/scratch/hookvoice/mutate.py`, throwaway, not committed — the repo has no mutation
+// tool and this is CLAUDE.md's "delete the row, invert the branch" done mechanically). 21 killed.
+// The one survivor is EQUIVALENT, not a gap: forcing `merge` to save when nothing changed makes a
+// healthy invocation call `save` with an empty record, which removes a file that does not exist and
+// leaves exactly the state it found. Four earlier survivors were real gaps and are closed by the
+// tests below — the displaying set is now stated by hand rather than read back from `Displays`, a
+// scope's own success is asserted to clear it, `Last` is asserted to move while `Since` holds, and
+// the record is asserted to be per plugin.
 
 var noon = time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC)
 
@@ -36,6 +46,26 @@ func isolate(t *testing.T) (plugin, path string) {
 		t.Fatalf("the record resolved outside the test's state dir: %s", p)
 	}
 	return plugin, p
+}
+
+// EACH PLUGIN GETS ITS OWN RECORD. Two plugins sharing one file would have each clearing stages it
+// knows nothing about, and the stage names are only unique within a plugin.
+func TestTheRecordIsPerPlugin(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	one, err := Path("plugin-one")
+	if err != nil {
+		t.Fatal(err)
+	}
+	two, err := Path("plugin-two")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if one == two {
+		t.Fatalf("two plugins share one record: %s", one)
+	}
+	if !strings.Contains(one, "plugin-one") || !strings.Contains(two, "plugin-two") {
+		t.Errorf("a record does not name its plugin: %s / %s", one, two)
+	}
 }
 
 func recorded(t *testing.T, path string) []Failure {
@@ -66,13 +96,23 @@ func entry(fs []Failure, s Stage, scope string) (Failure, bool) {
 	return Failure{}, false
 }
 
+// displayingEvents is written out HERE, by hand, and never read back from Displays: a test that asks
+// the code under test what to expect agrees with it by construction. Measured against the real
+// client for SessionStart, Stop, PreToolUse and PostToolUse (see the plan's §I); PostToolUseFailure
+// is documented with them.
+var displayingEvents = map[string]bool{
+	"SessionStart": true, "PreToolUse": true, "PostToolUse": true, "PostToolUseFailure": true, "Stop": true,
+	"PreCompact": false, "PostCompact": false, "SessionEnd": false,
+	"SubagentStart": false, "SubagentStop": false, "FileChanged": false,
+}
+
 // A failure is recorded whatever the event, and SAID only on an event the client displays.
 func TestAFailureIsRecordedAlwaysAndSaidOnlyWhereItIsDisplayed(t *testing.T) {
-	for _, ev := range []string{
-		"SessionStart", "PreToolUse", "PostToolUse", "PostToolUseFailure", "Stop",
-		"PreCompact", "PostCompact", "SessionEnd", "SubagentStart", "SubagentStop", "FileChanged",
-	} {
+	for ev, shows := range displayingEvents {
 		t.Run(ev, func(t *testing.T) {
+			if Displays(ev) != shows {
+				t.Fatalf("Displays(%s) = %v, want %v", ev, Displays(ev), shows)
+			}
 			plugin, path := isolate(t)
 			var stderr strings.Builder
 			r := New(plugin, "test-hook", ev, noon, &stderr)
@@ -89,7 +129,7 @@ func TestAFailureIsRecordedAlwaysAndSaidOnlyWhereItIsDisplayed(t *testing.T) {
 			if !strings.Contains(stderr.String(), "test-hook: the store would not open") {
 				t.Errorf("the debug log lost its line: %q", stderr.String())
 			}
-			if Displays(ev) {
+			if shows {
 				if !strings.Contains(msg, "- stage-a: the store would not open") {
 					t.Errorf("%s displays and said %q", ev, msg)
 				}
@@ -152,6 +192,15 @@ func TestScopeIsPartOfTheIdentity(t *testing.T) {
 	if _, ok := entry(recorded(t, path), stageA, "/p/one"); !ok {
 		t.Errorf("a success in another scope cleared it: %+v", recorded(t, path))
 	}
+
+	// ... and a success in the SAME scope does clear it, which is what makes the scope a key
+	// rather than a label nothing reads.
+	r = New(plugin, "test-hook", "Stop", noon.Add(2*time.Minute), io.Discard)
+	r.OKIn(stageA, "/p/one")
+	r.Settle()
+	if _, ok := entry(recorded(t, path), stageA, "/p/one"); ok {
+		t.Errorf("the scope worked and its entry stayed: %+v", recorded(t, path))
+	}
 }
 
 // A failure and a success for the same stage in ONE invocation settle as a CONTINUING failure: its
@@ -200,6 +249,16 @@ func TestAFailingStageIsSaidOnceEveryNotifyPeriod(t *testing.T) {
 	}
 	if msg := say(noon.Add(NotifyEvery), stageA); !strings.Contains(msg, "stage-a") {
 		t.Fatalf("not said at the period: %q", msg)
+	}
+	// A failure that persists keeps the time it STARTED and moves the time it was last seen: the
+	// first answers "how long has this been broken", which is the question a stale alarm hides.
+	path, err := Path(plugin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, _ := entry(recorded(t, path), stageA, "")
+	if !f.Since.Equal(noon) || !f.Last.Equal(noon.Add(NotifyEvery)) {
+		t.Errorf("since/last = %s/%s, want %s/%s", f.Since, f.Last, noon, noon.Add(NotifyEvery))
 	}
 }
 
