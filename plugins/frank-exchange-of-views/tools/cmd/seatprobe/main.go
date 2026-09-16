@@ -350,7 +350,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, pluginDir, model, debatePat
 		//
 		// A TEMP ROOT, NOT A SIBLING OF THE RUN. `ls ..` is one keystroke.
 		if !recordsInRun {
-			r, err := os.MkdirTemp("", "feov-records-")
+			r, err := newRecordsRoot()
 			if err != nil {
 				return "", err
 			}
@@ -359,8 +359,9 @@ func probe(b seatprobe.Board, runDir, bin, constDir, pluginDir, model, debatePat
 			// every post-hoc question ("did any seat file friction?") hit the resolver's own
 			// dangling-pointer refusal, because the evidence had been removed while the pointer
 			// binding the run to it survived. An instrument that destroys its own measurement on
-			// the way out is one you can only ever read once. It is a temp directory; the OS
-			// reclaims it, and the report prints where it went.
+			// the way out is one you can only ever read once. Nothing reclaims it either: it is a
+			// kept measurement under the home scratch area, and the report prints where it went,
+			// so a later reader finds it and deletes it deliberately.
 		}
 		run := func(args ...string) (string, error) {
 			cmd := exec.Command(bin, args...)
