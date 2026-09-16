@@ -56,6 +56,8 @@ PreCompact, PostCompact, SessionEnd, SubagentStart, SubagentStop, FileChanged.
 | 7 | `postcompactobserve/main.go:172` | PostCompact | FAILURE (one corpus row) | none |
 | 8a | `toolchainnudge/main.go:93-98` — a missing, unreadable or malformed `requirements.json` degrades to silence on every channel, so the nudge reports no tools AND no reason | SessionStart | FAILURE | none |
 | 8b | `checkpointseal/main.go:522` — the note read that feeds steering fails silently (the seal's own read at `:421` reports) | PreCompact | FAILURE (steering is skipped) | partial: the seal's read |
+| 8c | `checkpointrestore/main.go:568-571` — `compose` Stats the note, then `os.ReadFile` fails and it returns `"", nil`: the session's own cursor note vanishes and SessionStart says nothing | SessionStart | FAILURE | none |
+| 8d | `runlive/runlive.go:131-133` — a `run-live.json` that is not JSON at all returns `State{}`, so `pushfreezeguard` sees no live run and warns about NOTHING while a freeze may be in force. The file's fail-open comment covers the MISSING marker, not an unparseable one | PreToolUse | FAILURE (a guard silently disarmed) | none |
 | 8 | Silent on every channel: `stopnudge.go:162,190,274,287` (fail-closed), `sessionstart/main.go:100` and `strikecounter/main.go` encode errors, `stopnudge/main.go:132` | Stop, SessionStart, PostToolUseFailure | FAILURE | partial: `seals.jsonl` records the unreadable leg only |
 
 **frank-exchange-of-views**
@@ -65,6 +67,7 @@ PreCompact, PostCompact, SessionEnd, SubagentStart, SubagentStop, FileChanged.
 | 9 | `hookcmd.go:55,60,90` (panic, error funnel, turn-limit fault) | PreToolUse | FAILURE | none; the deny document still goes out |
 | 10 | `sittinghook/sitting.go:174` — `exec.Command(...).Run()` with no stderr wired, so the writer's output goes to `/dev/null`; the comment claims it "reports to stderr" | SubagentStart, SubagentStop | FAILURE, silent on every channel | none; the sibling `Limit` path uses `CombinedOutput` and DOES capture it |
 | 11 | `sittinghook/sitting.go:128,131-133,146-149` — silent returns, including a missing writer | SubagentStart, SubagentStop | FAILURE | none |
+| 12 | `runlive/infer.go:68` — "marker present but unusable" returns `""`, and `sittinghook/sitting.go:142-145` then drops the seat's sitting silently. The SAME return value also means "no marker, not a live run", which is the ordinary case and MUST stay silent — so the two cannot be told apart at the call site today | SubagentStart, SubagentStop | FAILURE | none |
 
 **The contradiction is SETTLED, by measurement (§V.1, run 2026-09-16).** `sealrow.go:277-279` claimed
 stderr "is MEASURED to reach the agent: it arrives inside the tool result of whatever call was
@@ -138,7 +141,12 @@ Warnings still survive a denial (today's merge policy), and the decision documen
   `ambiguous-check-keys`. Its own event never displays.
 - `postcompactobserve`: stage `observation-append`.
 - `toolchainnudge`: stage `toolchain-manifest` (item 8a) — the nudge's silence becomes a reason.
-- `checkpointseal`'s steering note read (item 8b): stage `note-read`.
+- The note read that fails after the note was seen: stage `note-read`, from BOTH readers — the seal's
+  steering read (item 8b) and `checkpointrestore.compose` (item 8c). One stage, because it is one
+  fact about one file, and either reader's success clears it.
+- `runlive.Live`: stage `run-live-parse` when the marker exists and is not JSON (item 8d). A MISSING
+  marker stays silent — that is the ordinary "no run" case, and the existing fail-open comment is
+  right about it.
 - `stopnudge`: the four fail-closed returns and the encode failure record stages `nudge-state-read`,
   `nudge-state-write`, `nudge-encode`. `sessionstart` and `strikecounter` record `encode`.
 
@@ -146,6 +154,11 @@ Warnings still survive a denial (today's merge policy), and the decision documen
 
 - `hookcmd.Run` records `hook-panic` and `hook-error`; `Pre` records `turn-limit`. PreToolUse is
   FEOV's only displaying event, and it is where the announcement lands.
+- `runlive.InferRunDir` must distinguish "no marker, not a live run" from "marker present but
+  unusable" (item 12), because today both are `""` and only the second is a failure. It gains a
+  second return value saying whether a marker was SEEN; `sittinghook.handoff` records
+  `sitting-run-dir` only in that case. This is the one API change in the plan, and it is forced: a
+  call site cannot report a failure it cannot distinguish from the healthy zero.
 - `sittinghook.spawn` switches to `CombinedOutput()` and records `sitting-write` on failure, which
   is what the sibling `Limit` path already does; the comment claiming the child "reports to stderr"
   is deleted. A missing writer records `sitting-writer-missing` from BOTH paths.
@@ -182,26 +195,35 @@ sessions", the strike counter's deliberate stderr duplicate of its `additionalCo
 1. **Settle the contradiction first** (§II): a scratch hook on PreCompact and on Stop writes a
    unique token to stderr and exits 0; read the session transcript and the debug log for the token.
    The comment that loses is deleted in PR1. Re-arms: any claim that stderr reaches the agent.
-2. **Per-item tests, breaking the real thing** (the #990 method, not injected failures): an
+2. **The census is re-derived, not remembered.** Two audit passes each found sites the hand-written
+   census had missed (8a, then 8c/8d/12), all of the same class, which is evidence about the METHOD:
+   an enumerated list of failure sites is a document standing in for a sweep. So BEFORE each PR, the
+   implementer re-runs the sweep over the binaries that PR touches and records its result in the PR
+   body: for every wired `hookunit.Unit` and every hook entry point, every `return` that yields the
+   healthy value on an error path, every `if err == nil` guard with no else, and every `_ =` on a
+   call that can fail. Each hit is then classified FAILURE / ACTION-NEEDED / ROUTINE in the PR body,
+   and a FAILURE with no stage is a defect in the PR, not a follow-up. The list in §II is the sweep's
+   result at 52e2e751, not its definition.
+3. **Per-item tests, breaking the real thing** (the #990 method, not injected failures): an
    unwritable state file, a note whose loop opens no checks, a snapshot directory that cannot be
    created, a `PATH` with no writer beside the hook, a panicking unit, a project root resolved from
    neither source. Each asserts: recorded under its stage; displayed on a displaying event; silent
    on a non-displaying one; cleared by that stage's own success.
-3. **Mutation pass** — the repo's "delete the row, invert the branch, run the suite" discipline
+4. **Mutation pass** — the repo's "delete the row, invert the branch, run the suite" discipline
    (CLAUDE.md, Verification), driven by a throwaway script over a copy of the module as in #990
    (there: 43 killed); there is no committed mutation tool and none is added. Over every new
    `fail`/`ok` call site and every branch of the generated record. Any survivor is either killed by a new test or named in the test
    file as unreachable, with the reason.
-4. **SubagentStop stays mute**: a test drives `sc-subagentstop` and FEOV's SubagentStop hook with a
+5. **SubagentStop stays mute**: a test drives `sc-subagentstop` and FEOV's SubagentStop hook with a
    failing store and asserts stdout is empty.
-5. **Live client**, per plugin: a real `claude -p --settings` session with the built binaries wired,
+6. **Live client**, per plugin: a real `claude -p --settings` session with the built binaries wired,
    asserting the message arrives as a `hook_system_message` attachment on SessionStart, Stop,
    PreToolUse and PostToolUse — and that a PreToolUse deny still denies while carrying one.
-6. **The mechanism is documented where the hooks' reasons live**: a section in
+7. **The mechanism is documented where the hooks' reasons live**: a section in
    `plugins/<plugin>/hooks/README.md` for prosthetic-conscience and frank-exchange-of-views, and the
    one #990 did not write for gray-area — what the record is, where it lives, which events announce,
    and that no file means every stage last worked.
-7. `go -C scripts run ./check` (adds the `hookfailgen` gate) before every push; the gray-area and
+8. `go -C scripts run ./check` (adds the `hookfailgen` gate) before every push; the gray-area and
    prosthetic-conscience suites also run on the Windows leg in CI.
 
 ### Sequence (four PRs, each green on its own)
@@ -213,8 +235,9 @@ sessions", the strike counter's deliberate stderr duplicate of its `additionalCo
 2. prosthetic-conscience advisories: pushfreezeguard and qualitygate through `systemMessage`
    (items 2, 4).
 3. prosthetic-conscience failures: `hookenv`, `hookunit`, sessionstart/stop/strike encode, seal,
-   filechanged-rearm, postcompact-observe, toolchain-nudge (items 1, 3, 5–8b).
-4. frank-exchange-of-views (items 9–11).
+   filechanged-rearm, postcompact-observe, toolchain-nudge, checkpoint-restore's note read, the
+   unparseable run-live marker (items 1, 3, 5–8d).
+4. frank-exchange-of-views (items 9–12), including `InferRunDir`'s second return value.
 
 A release of prosthetic-conscience and frank-exchange-of-views carries it; gray-area needs one only
 if PR1's record-path move ships.
