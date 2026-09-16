@@ -1,0 +1,13 @@
+table: true · rotated: false · grid h=61650 v=29156 intersections=600
+path: text cells (3 columns, 4 ruled bands, 4 rows, 10 cells, 28 words placed, 2 from the sparse pass, 5 around the table, 0 loose)
+marks fell back: grid detected but the TSV held no mark tokens; page kept as plain text — its words are read, but which row and column each belongs to is not preserved, so check a cell against the page image before relying on it
+---
+IEEE STANDARD FOR SOFTWARE
+
+| Criticality | Description | Outputs |
+|---|---|---|
+| 5.2.1 Acquisition Support V&V Activity |||
+| High | Selected function affects critical performance of the system | Task Report |
+| Major | Selected function affects important system performance | Anomaly Report |
+
+26

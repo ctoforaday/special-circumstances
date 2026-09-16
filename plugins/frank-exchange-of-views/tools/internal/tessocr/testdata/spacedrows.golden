@@ -1,0 +1,9 @@
+table: true · rotated: false · grid h=36978 v=22738 intersections=258
+path: text cells (2 columns, 2 ruled bands, 4 rows, 4 cells, 43 words placed, 0 from the sparse pass, 0 around the table, 0 loose)
+marks fell back: grid detected but the TSV held no mark tokens; page kept as plain text — its words are read, but which row and column each belongs to is not preserved, so check a cell against the page image before relying on it
+---
+| V&V task | Required inputs |
+|---|---|
+| (1) Scoping the V&V Effort. Define the project criticality. | Preliminary System Description |
+| (2) Planning the Interface. Plan the V&V schedule for each task. | SVVP RFP or tender |
+| (3) System Requirements Review. Review the system requirements. | | User Needs Contract |

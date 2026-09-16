@@ -162,3 +162,19 @@ func captureDiagnostics(fn func() error) (string, error) {
 	}
 	return string(b), nil
 }
+
+// GridLines is the rule geometry behind DetectGrid's counts: every horizontal and vertical
+// rule's bounding box, from the connected components of the same two openings. A page with
+// no rules measures as an empty lattice, which is an answer; a decode or morphology failure
+// is an error.
+func GridLines(png []byte, t GridThresholds) (Lattice, error) {
+	if len(png) == 0 {
+		return Lattice{}, errors.New("tessocr: empty image")
+	}
+	out := C.tessocr_grid_lines((*C.uchar)(unsafe.Pointer(&png[0])), C.size_t(len(png)), C.int(t.SEL))
+	if out == nil {
+		return Lattice{}, errors.New("tessocr: grid geometry failed (decode, binarize or open)")
+	}
+	defer C.tessocr_free_text(out)
+	return ParseLattice(C.GoString(out)), nil
+}

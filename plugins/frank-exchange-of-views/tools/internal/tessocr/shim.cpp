@@ -14,6 +14,8 @@
 #include "shim.h"
 
 #include <cstdio>
+#include <cstring>
+#include <string>
 #include <fcntl.h>
 #ifdef _WIN32
 #include <io.h>
@@ -182,6 +184,54 @@ int tessocr_grid_stats(const unsigned char *png, size_t len, int sel,
 	*vpix = cv;
 	*inter = ci;
 	return 0;
+}
+
+// open_rules binarizes and opens the page along one axis, the way tessocr_grid_stats does;
+// both entry points must see the same pixels or the geometry would not explain the counts.
+namespace {
+
+PIX *open_rules(PIX *bin, int sel, bool horizontal) {
+	return horizontal ? pixOpenBrick(nullptr, bin, sel, 1) : pixOpenBrick(nullptr, bin, 1, sel);
+}
+
+// append_boxes writes one line per connected component of an opened image.
+void append_boxes(std::string &out, PIX *lines, char axis) {
+	BOXA *boxa = pixConnCompBB(lines, 8);
+	if (boxa == nullptr) return;
+	char buf[96];
+	for (l_int32 i = 0; i < boxaGetCount(boxa); i++) {
+		l_int32 x = 0, y = 0, w = 0, h = 0;
+		if (boxaGetBoxGeometry(boxa, i, &x, &y, &w, &h) != 0) continue;
+		std::snprintf(buf, sizeof(buf), "%c %d %d %d %d\n", axis, x, y, w, h);
+		out += buf;
+	}
+	boxaDestroy(&boxa);
+}
+
+} // namespace
+
+char *tessocr_grid_lines(const unsigned char *png, size_t len, int sel) {
+	PIX *pix = read_png(png, len);
+	if (pix == nullptr) return nullptr;
+	PIX *bin = pixConvertTo1(pix, 180);
+	pixDestroy(&pix);
+	if (bin == nullptr) return nullptr;
+	PIX *hl = open_rules(bin, sel, true);
+	PIX *vl = open_rules(bin, sel, false);
+	pixDestroy(&bin);
+	if (hl == nullptr || vl == nullptr) {
+		pixDestroy(&hl);
+		pixDestroy(&vl);
+		return nullptr;
+	}
+	std::string out;
+	append_boxes(out, hl, 'h');
+	append_boxes(out, vl, 'v');
+	pixDestroy(&hl);
+	pixDestroy(&vl);
+	char *buf = new char[out.size() + 1];
+	std::memcpy(buf, out.c_str(), out.size() + 1);
+	return buf;
 }
 
 void tessocr_free_text(char *t) {

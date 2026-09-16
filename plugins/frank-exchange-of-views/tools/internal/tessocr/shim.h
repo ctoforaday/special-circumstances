@@ -38,6 +38,12 @@ char *tessocr_rot_band(tessocr_engine *e, const unsigned char *png, size_t len,
 int tessocr_grid_stats(const unsigned char *png, size_t len, int sel,
                        int *hpix, int *vpix, int *inter);
 
+/* tessocr_grid_lines returns the RULE GEOMETRY behind tessocr_grid_stats' counts: one line
+ * per rule, "h|v x y w h", horizontal rules first, from the connected components of the same
+ * two openings. The caller frees with tessocr_free_text. nullptr on a decode or morphology
+ * failure — a page with no rules returns an empty string, which is a measurement. */
+char *tessocr_grid_lines(const unsigned char *png, size_t len, int sel);
+
 void tessocr_free_text(char *t);
 
 /* Point this process's stderr (file descriptor 2) at path until tessocr_diag_end, so

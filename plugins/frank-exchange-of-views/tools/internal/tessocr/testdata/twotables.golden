@@ -1,0 +1,20 @@
+table: true · rotated: false · grid h=147972 v=17444 intersections=1092
+path: text cells (2 columns, 10 ruled bands, 10 rows, 20 cells, 49 words placed, 0 from the sparse pass, 18 around the table, 0 loose)
+marks fell back: grid detected but the TSV held no mark tokens; page kept as plain text — its words are read, but which row and column each belongs to is not preserved, so check a cell against the page image before relying on it
+---
+| Life cycle process | V&V activity |
+|---|---|
+|  |  |
+| Supply process | Planning V&V Activity and review |
+| Development process | Requirements V&V Activity |
+|  |  |
+
+The second table states the outputs each activity produces, and the two are read together
+by the reviewer.
+
+| V&V activity | Required outputs |
+|---|---|
+| Acquisition Support V&V | Updated SVVP and task report |
+| Planning V&V | Task Report and anomaly report |
+| Requirements V&V | Updated SVVP and review notes |
+| Operation V&V | Anomaly Report and evaluation |

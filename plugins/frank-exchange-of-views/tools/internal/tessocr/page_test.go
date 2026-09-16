@@ -178,3 +178,28 @@ func grayPagePNG(t *testing.T, w, h int) []byte {
 	}
 	return buf.Bytes()
 }
+
+// A ROTATION IS ADOPTED ON A MARGIN. Measured at 300 DPI on the corpus and on the generated
+// pages: a genuinely landscape table reads 9 words portrait and 97 rotated; a sparse portrait
+// page reads 15 and 24, and a grid of marks 0 and 8. Taking "more" turned those two pages
+// sideways, and a page read sideways loses its lattice — its rules no longer bound its text.
+func TestRotationIsAdoptedOnlyOnAMargin(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		port, rot int
+		adopt     bool
+	}{
+		{"a landscape table (p51)", 9, 97, true},
+		{"a landscape table (p52)", 9, 94, true},
+		{"a sparse portrait page", 15, 24, false},
+		{"a grid of marks", 0, 8, false},
+		{"a portrait page that reads well", 109, 104, false},
+		{"just under the ratio", 10, 29, false},
+		{"just over the ratio", 10, 30, true},
+	} {
+		got := tc.rot >= rotAdoptRatio*tc.port && tc.rot >= rotProbeMaxConfidentWords
+		if got != tc.adopt {
+			t.Errorf("%s: portrait %d, rotated %d → adopt=%v, want %v", tc.name, tc.port, tc.rot, got, tc.adopt)
+		}
+	}
+}
