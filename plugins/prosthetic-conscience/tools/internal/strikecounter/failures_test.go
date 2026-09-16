@@ -62,3 +62,41 @@ func TestAStrikesFileThatCannotBeKeptIsRecordedAndClears(t *testing.T) {
 		t.Errorf("a strikes file that works left entries: %v", got)
 	}
 }
+
+func TestNoRootIsRecordedAndNotMarkedSaid(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", "")
+	stdout, _, _ := fire(t, "", bash("make"), noon)
+	if stdout != "" {
+		t.Fatalf("no project root, and stdout was written: %q", stdout)
+	}
+	if recorded, unsaid := unsaidRoot(t); !recorded || !unsaid {
+		t.Fatalf("recorded=%v unsaid=%v — the entry must be kept and NOT marked as told", recorded, unsaid)
+	}
+}
+
+// unsaidRoot reports whether a project-root entry is on the record AND has never been marked said.
+// A binary with no project root writes nothing to stdout, so it must not mark anything as told —
+// otherwise the human never hears it and the next call that could tell them stays quiet for ten
+// minutes.
+func unsaidRoot(t *testing.T) (recorded, unsaid bool) {
+	t.Helper()
+	path, err := hookfailures.Path("prosthetic-conscience")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return false, false
+	}
+	var rec hookfailures.Record
+	if err := json.Unmarshal(b, &rec); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range rec.Failures {
+		if f.Stage == "project-root" {
+			return true, f.Notified.IsZero()
+		}
+	}
+	return false, false
+}

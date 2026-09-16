@@ -216,6 +216,24 @@ func (r *Recorder) Settle() string {
 	return render(r.speaker, due, path, nil)
 }
 
+// Persist merges this invocation into the record and says NOTHING — and, unlike a Settle whose
+// message is thrown away, marks nothing as said.
+//
+// That difference is the whole method. A caller that cannot speak on this call — no project root,
+// so no stdout at all; or a response that just failed to write — used to call Settle and discard the
+// result. On a displaying event Settle stamps every due entry as NOTIFIED, so the discarded message
+// counted as shown: the human was never told, and the entry then sat out the full quiet period
+// before anything would try again. Persist keeps the record and leaves the telling to the next call
+// that can.
+func (r *Recorder) Persist() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	path, pathErr := Path(r.plugin)
+	if _, err := r.merge(path, pathErr); err != nil {
+		fmt.Fprintf(r.stderr, "%s: failure record not kept: %v\n", r.speaker, err)
+	}
+}
+
 // Emit writes the one top-level object a hook with no document of its own uses to speak. It writes
 // nothing for an empty message, because silence is a valid response and an empty object is not.
 func Emit(stdout io.Writer, msg string) {

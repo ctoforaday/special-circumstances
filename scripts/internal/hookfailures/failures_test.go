@@ -405,3 +405,26 @@ func TestConcurrentUnitsMayShareARecorder(t *testing.T) {
 		t.Error("nothing reached the record")
 	}
 }
+
+// PERSIST RECORDS AND MARKS NOTHING AS SAID. A Settle whose message is discarded on a displaying event
+// stamps the entry as notified, so the human is never told and the next call that could tell them
+// stays quiet for NotifyEvery. Persist is what a caller that cannot speak uses instead.
+func TestPersistRecordsWithoutMarkingAnythingSaid(t *testing.T) {
+	plugin, path := isolate(t)
+	r := New(plugin, "test-hook", "Stop", noon, io.Discard) // Stop DISPLAYS
+	r.Fail(stageA, "could not speak on this call")
+	r.Persist()
+
+	f, ok := entry(recorded(t, path), stageA, "")
+	if !ok {
+		t.Fatal("Persist did not record")
+	}
+	if !f.Notified.IsZero() {
+		t.Fatalf("Persist marked the entry as said: %+v", f)
+	}
+	// The next call that CAN speak says it at once.
+	next := New(plugin, "test-hook", "Stop", noon.Add(time.Second), io.Discard)
+	if msg := next.Settle(); !strings.Contains(msg, "could not speak on this call") {
+		t.Errorf("the next displaying call did not say it: %q", msg)
+	}
+}

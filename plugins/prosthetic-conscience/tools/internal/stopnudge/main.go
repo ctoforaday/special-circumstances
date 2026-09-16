@@ -113,7 +113,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	if !hookenv.Explain(projectDir, rec, "sc-stop") {
 		// Recorded, and NOT said: a hook with no project root writes nothing to stdout, which
 		// projectroot_test.go pins for every binary here. The next event with a root says it.
-		_ = rec.Settle()
+		rec.Persist()
 		return 0
 	}
 
@@ -164,7 +164,7 @@ func emitResponse(stdout io.Writer, emit string, rec *hookfailures.Recorder) {
 		// said, because the channel for saying it is the thing that just failed; the next
 		// displaying event reads it out.
 		rec.Fail(StageEncode, "cannot encode response: "+err.Error())
-		_ = rec.Settle()
+		rec.Persist()
 	}
 }
 

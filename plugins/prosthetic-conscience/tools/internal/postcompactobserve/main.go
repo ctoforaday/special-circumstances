@@ -193,7 +193,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	projectDir = hookenv.ProjectDir(projectDir, in.CWD)
 	// PostCompact displays nothing: this hook records, and a later displaying event says it.
 	rec := hookfailures.New("prosthetic-conscience", "sc-postcompact-observe", "PostCompact", now, stderr)
-	defer func() { _ = rec.Settle() }()
+	defer rec.Persist()
 	if !hookenv.Explain(projectDir, rec, "sc-postcompact-observe") {
 		return 0
 	}

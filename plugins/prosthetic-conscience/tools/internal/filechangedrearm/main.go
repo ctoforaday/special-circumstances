@@ -142,7 +142,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	// FileChanged displays NOTHING, so this hook only ever records: Settle returns "" here, and the
 	// next SessionStart, Stop, PreToolUse, PostToolUse or PostToolUseFailure reads the record out.
 	rec := hookfailures.New("prosthetic-conscience", "sc-filechanged-rearm", "FileChanged", now, stderr)
-	defer func() { _ = rec.Settle() }()
+	defer rec.Persist()
 	if !hookenv.Explain(projectDir, rec, "sc-filechanged-rearm") || in.FilePath == "" {
 		return 0
 	}

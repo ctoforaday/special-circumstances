@@ -545,7 +545,7 @@ func runWith(fixedEvent string, args []string, stdin io.Reader, stdout, stderr i
 	// and a later displaying event says it. SubagentStop additionally must never write to stdout —
 	// an emission there re-invokes the seat — and Settle returning "" is what keeps that true.
 	rec := hookfailures.New("prosthetic-conscience", bin, event, now, stderr)
-	defer func() { _ = rec.Settle() }()
+	defer rec.Persist()
 	if !hookenv.Explain(projectDir, rec, bin) {
 		return 0
 	}

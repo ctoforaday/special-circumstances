@@ -105,7 +105,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		// Recorded, and NOT said here: a hook with no project root writes nothing to stdout
 		// (projectroot_test.go pins that for every binary). The next event that resolves one
 		// announces it.
-		_ = rec.Settle()
+		rec.Persist()
 		return 0
 	}
 
@@ -128,7 +128,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		// Discarded outright until now (`_ =`), which made a restored checkpoint that never
 		// arrived look exactly like a session that had none.
 		rec.Fail(StageEncode, "sc-sessionstart: cannot encode response: "+err.Error())
-		_ = rec.Settle()
+		rec.Persist()
 	}
 	return 0
 }

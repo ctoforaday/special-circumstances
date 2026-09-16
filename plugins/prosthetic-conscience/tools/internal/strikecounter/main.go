@@ -169,7 +169,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	projectDir = hookenv.ProjectDir(projectDir, in.CWD)
 	rec := hookfailures.New("prosthetic-conscience", "sc-strike-counter", "PostToolUseFailure", now, stderr)
 	if !hookenv.Explain(projectDir, rec, "sc-strike-counter") {
-		_ = rec.Settle() // recorded, not said: no project root means no stdout at all
+		rec.Persist() // recorded, not said: no project root means no stdout at all
 		return 0
 	}
 
@@ -219,7 +219,7 @@ func emit(stdout io.Writer, msg string, rec *hookfailures.Recorder) {
 		// The encode used to be discarded outright (`_ =`): a strike counted and never delivered,
 		// on the one hook whose whole job is to interrupt a loop.
 		rec.Fail(StageEncode, "cannot encode response: "+err.Error())
-		_ = rec.Settle()
+		rec.Persist()
 	}
 }
 

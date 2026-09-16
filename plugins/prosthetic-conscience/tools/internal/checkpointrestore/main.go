@@ -551,7 +551,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	// object corrupts it. The record reaches a human through sc-sessionstart's response, which is
 	// where this unit actually ships.
 	rec := hookfailures.New("prosthetic-conscience", "sc-checkpoint-restore", "SessionStart", time.Now(), stderr)
-	defer func() { _ = rec.Settle() }()
+	defer rec.Persist()
 	if !hookenv.Explain(projectDir, rec, "sc-checkpoint-restore") {
 		return 0
 	}
