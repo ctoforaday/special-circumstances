@@ -1,6 +1,7 @@
 package doctor
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hooktest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -165,3 +166,6 @@ func TestUnstampedIsNeitherCurrentNorStale(t *testing.T) {
 		t.Error("an unmeasurable binary must never read as a measurement")
 	}
 }
+
+// No test in this package may write the developer's own state.
+func TestMain(m *testing.M) { os.Exit(hooktest.Isolated(m)) }

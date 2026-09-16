@@ -72,9 +72,11 @@ package checkpointseal
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -84,6 +86,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/freshness"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/transcript"
 )
@@ -407,20 +410,38 @@ func notePath(projectDir string, exists func(string) bool) string {
 	return checkpoint.NotePath(projectDir, exists, filepath.Glob)
 }
 
+// The stages a seal can fail at. NONE of this hook's three events displays a message, so every one
+// of these waits on the record until a SessionStart, Stop, PreToolUse, PostToolUse or
+// PostToolUseFailure reads it out. That is the whole reason the record exists.
+const (
+	StageSnapshotDir   hookfailures.Stage = "snapshot-dir"
+	StageSnapshotRead  hookfailures.Stage = "snapshot-read"
+	StageSnapshotWrite hookfailures.Stage = "snapshot-write"
+	StageSealRow       hookfailures.Stage = "seal-row"
+	StageNoteCheck     hookfailures.Stage = "note-check"
+	StageLoopProblems  hookfailures.Stage = "note-loop-problems"
+	StageDrift         hookfailures.Stage = "note-drift"
+	StageWrittenAt     hookfailures.Stage = "note-written-at"
+	StageSteerNoteRead hookfailures.Stage = "note-read"
+	StagePrune         hookfailures.Stage = "snapshot-prune"
+)
+
 // seal copies the note to an immutable snapshot and prunes. Best-effort by
 // design: a seal that cannot be written must never cost the compaction, so
-// errors are reported to stderr and never change the exit code.
-func seal(projectDir, note string, now time.Time, event string, in hookInput, stderr io.Writer, steered bool, steeredSections []string) {
+// errors are recorded and never change the exit code.
+func seal(projectDir, note string, now time.Time, event string, in hookInput, rec *hookfailures.Recorder, steered bool, steeredSections []string) {
 	dir := filepath.Join(projectDir, ".claude", "checkpoints")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		fmt.Fprintln(stderr, binaryFor(event)+": cannot create snapshot dir:", err)
+		rec.FailIn(StageSnapshotDir, projectDir, binaryFor(event)+": cannot create snapshot dir: "+err.Error())
 		return
 	}
+	rec.OKIn(StageSnapshotDir, projectDir)
 	body, err := os.ReadFile(note)
 	if err != nil {
-		fmt.Fprintln(stderr, binaryFor(event)+": cannot read checkpoint:", err)
+		rec.FailIn(StageSnapshotRead, projectDir, binaryFor(event)+": cannot read checkpoint: "+err.Error())
 		return
 	}
+	rec.OKIn(StageSnapshotRead, projectDir)
 	occ := occasion(event, in)
 	stamp := fmt.Sprintf("<!-- sealed: event=%s occasion=%s session=%s agent=%s at=%s -->\n",
 		event, occ, in.SessionID, in.AgentID, now.UTC().Format(time.RFC3339))
@@ -430,19 +451,24 @@ func seal(projectDir, note string, now time.Time, event string, in hookInput, st
 	})
 	out := filepath.Join(dir, name)
 	if err := os.WriteFile(out, append([]byte(stamp), body...), 0o644); err != nil {
-		fmt.Fprintln(stderr, binaryFor(event)+": cannot write snapshot:", err)
+		rec.FailIn(StageSnapshotWrite, projectDir, binaryFor(event)+": cannot write snapshot: "+err.Error())
 		return
 	}
+	rec.OKIn(StageSnapshotWrite, projectDir)
 
 	// The record, beside the snapshot: fields a reader cannot mis-parse, hashing the
 	// NOTE rather than the stamped file — the stamp carries a timestamp, so hashing
 	// the snapshot would make every seal differ and the drift check meaningless.
 	age := freshness.Of(projectDir, in.TranscriptPath, string(body),
 		freshness.BranchWork(checkpoint.Parse(string(body)).Get("head")), now)
-	appendSealRow(dir, projectDir, body, now, event, occ, in, stderr, age, steered, steeredSections, checkpoint.Parse(string(body)).Get("written_at"))
+	appendSealRow(dir, projectDir, body, now, event, occ, in, rec, age, steered, steeredSections, checkpoint.Parse(string(body)).Get("written_at"))
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
+		// Pruning is what keeps snapshots bounded — unbounded growth is the resource-ballooning
+		// failure this design has already hit once — and a prune that cannot list the directory
+		// silently stops pruning for good.
+		rec.FailIn(StagePrune, projectDir, binaryFor(event)+": cannot list snapshots to prune: "+err.Error())
 		return
 	}
 	var snaps []string
@@ -451,9 +477,18 @@ func seal(projectDir, note string, now time.Time, event string, in hookInput, st
 			snaps = append(snaps, e.Name())
 		}
 	}
+	var stuck []string
 	for _, old := range prune(snaps, keepSnapshots) {
-		_ = os.Remove(filepath.Join(dir, old))
+		if err := os.Remove(filepath.Join(dir, old)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			stuck = append(stuck, old+" ("+err.Error()+")")
+		}
 	}
+	if len(stuck) > 0 {
+		rec.FailIn(StagePrune, projectDir, fmt.Sprintf("%s: %d old snapshot(s) could not be removed, so snapshots are growing: %s",
+			binaryFor(event), len(stuck), strings.Join(stuck, "; ")))
+		return
+	}
+	rec.OKIn(StagePrune, projectDir)
 }
 
 // runEvent is run() with the event already known. The flag path stays for the existing
@@ -506,7 +541,12 @@ func runWith(fixedEvent string, args []string, stdin io.Reader, stdout, stderr i
 		event = resolveEvent(*flagEvent, in)
 	}
 	bin := binaryFor(event)
-	if !hookenv.Explain(projectDir, stderr, bin) {
+	// NONE of this binary's three events displays anything, so the recorder only ever records here
+	// and a later displaying event says it. SubagentStop additionally must never write to stdout —
+	// an emission there re-invokes the seat — and Settle returning "" is what keeps that true.
+	rec := hookfailures.New("prosthetic-conscience", bin, event, now, stderr)
+	defer rec.Persist()
+	if !hookenv.Explain(projectDir, rec, bin) {
 		return 0
 	}
 	note := notePath(projectDir, func(p string) bool {
@@ -521,6 +561,12 @@ func runWith(fixedEvent string, args []string, stdin io.Reader, stdout, stderr i
 	if note != "" {
 		if b, err := os.ReadFile(note); err == nil {
 			body = string(b)
+			rec.OKIn(StageSteerNoteRead, projectDir)
+		} else {
+			// Steering reads the note a second time (the seal has its own read). A failure here
+			// skipped steering silently, so a compaction went unsteered and the record of WHY did
+			// not exist.
+			rec.FailIn(StageSteerNoteRead, projectDir, bin+": cannot read the checkpoint note for steering: "+err.Error())
 		}
 		// Decided BEFORE the seal, because the ROW must record whether this boundary was
 		// steered. Written after, it could not: nothing distinguished a compaction the
@@ -532,7 +578,7 @@ func runWith(fixedEvent string, args []string, stdin io.Reader, stdout, stderr i
 		if event == evPreCompact {
 			steerText, steerNamed = steer(body, in.CustomInstructions)
 		}
-		seal(projectDir, note, now, event, in, stderr, steerText != "", steerNamed)
+		seal(projectDir, note, now, event, in, rec, steerText != "", steerNamed)
 
 		// A malformed loop is reported HERE, at the seam, by the session that wrote it
 		// (#219). It was previously reported only by sc-checkpoint-restore, which means
@@ -545,26 +591,33 @@ func runWith(fixedEvent string, args []string, stdin io.Reader, stdout, stderr i
 		// the note. It NEVER refuses — the seal's whole contract is that a note gets
 		// written; trading continuity for a numbering slip is the worse failure.
 		if problems := checkpoint.NoteLoopProblems(body); len(problems) > 0 {
-			fmt.Fprintf(stderr, bin+": the note just sealed has %d validation-loop problem(s). The snapshot is written either way — fix the LIVE note now, while you still have the context that explains it, or the next session inherits both the fault and the confusion:\n", len(problems))
+			detail := fmt.Sprintf("%s: the note just sealed has %d validation-loop problem(s). The snapshot is written either way — fix the LIVE note now, while you still have the context that explains it, or the next session inherits both the fault and the confusion:", bin, len(problems))
 			for _, p := range problems {
-				fmt.Fprintln(stderr, "  - "+p)
+				detail += "\n  - " + p
 			}
+			rec.FailIn(StageLoopProblems, projectDir, detail)
+		} else {
+			rec.OKIn(StageLoopProblems, projectDir)
 		}
 
 		// The drift check runs on EVERY event, because drift is drift at any seam: a
 		// compaction, a session ending, and a seat finishing all discard the same
-		// context. stderr does not reach the transcript, so this costs the session no
-		// tokens and lands where `claude --debug` and the seal's other diagnostics
-		// already go.
+		// context. It costs the session no tokens: the finding goes to the record, which a
+		// displaying event reads out to the HUMAN, never into the transcript.
 		within, closeRoot := checkpoint.RootedWithin(projectDir)
 		written, unreadable := transcript.Read(driftTranscript(in), projectDir)
 		if unreadable != "" {
 			// The check cannot run, and MUST NOT read as "no drift". A broken reader
 			// that stays quiet is indistinguishable from a healthy session, which is
 			// the flattering direction and the one nobody investigates.
-			fmt.Fprintln(stderr, bin+": cannot check the note against this session's work — "+unreadable)
-		} else if line := drift(bin, body, written, within); line != "" {
-			fmt.Fprintln(stderr, line)
+			rec.FailIn(StageNoteCheck, projectDir, bin+": cannot check the note against this session's work — "+unreadable)
+		} else {
+			rec.OKIn(StageNoteCheck, projectDir)
+			if line := drift(bin, body, written, within); line != "" {
+				rec.FailIn(StageDrift, projectDir, line)
+			} else {
+				rec.OKIn(StageDrift, projectDir)
+			}
 		}
 		_ = closeRoot()
 	}

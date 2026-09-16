@@ -63,6 +63,7 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/strikes"
 )
@@ -84,7 +85,20 @@ type hookOutput struct {
 		HookEventName     string `json:"hookEventName"`
 		AdditionalContext string `json:"additionalContext"`
 	} `json:"hookSpecificOutput"`
+	// SystemMessage carries the failure record to the HUMAN. PostToolUseFailure displays one, which
+	// makes this hook a carrier for failures recorded on events that display nothing.
+	SystemMessage string `json:"systemMessage,omitempty"`
 }
+
+// StageEncode is recorded when this event's response cannot be encoded: the strike was counted and
+// the agent was never told.
+const StageEncode hookfailures.Stage = "encode"
+
+// The strike state's two failures: either one disables the 3-strike rule for the project.
+const (
+	StageStrikesRead  hookfailures.Stage = "strikes-read"
+	StageStrikesWrite hookfailures.Stage = "strikes-write"
+)
 
 // maxErrExcerpt bounds how much of the failure text is quoted back. The point is to
 // identify WHICH failure keeps recurring, not to re-print it.
@@ -153,29 +167,60 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	}
 
 	projectDir = hookenv.ProjectDir(projectDir, in.CWD)
-	if !hookenv.Explain(projectDir, stderr, "sc-strike-counter") {
+	rec := hookfailures.New("prosthetic-conscience", "sc-strike-counter", "PostToolUseFailure", now, stderr)
+	if !hookenv.Explain(projectDir, rec, "sc-strike-counter") {
+		rec.Persist() // recorded, not said: no project root means no stdout at all
 		return 0
 	}
 
 	path := strikes.Path(projectDir)
-	state := strikes.Load(os.ReadFile, path)
+	state, err := strikes.Load(os.ReadFile, path)
+	if err != nil {
+		// Counting continues from zero, which is the degrade the rule wants; what it must not do is
+		// continue from zero in silence, turn after turn, while the 3-strike rule never trips.
+		rec.FailIn(StageStrikesRead, projectDir, err.Error()+" — strikes are counted from zero until it can be read")
+	} else {
+		rec.OKIn(StageStrikesRead, projectDir)
+	}
 	key := strikes.Key(in.ToolName, in.ToolInput)
 	count, tripped := strikes.Record(&state, key, now)
-	strikes.Save(path, state)
+	if err := strikes.Save(path, state); err != nil {
+		rec.FailIn(StageStrikesWrite, projectDir, "cannot write "+path+": "+err.Error()+
+			" — strikes are not being kept, so the 3-strike rule cannot trip")
+	} else {
+		rec.OKIn(StageStrikesWrite, projectDir)
+	}
 
 	if !tripped {
+		emit(stdout, "", rec)
 		return 0
 	}
 
 	msg := message(in, key, count)
 	// Both channels, deliberately — see the package comment. Injection is measured (#234);
 	// stderr is for the operator watching the session, not a fallback for a doubted one.
+	fmt.Fprintln(stderr, msg)
+	emit(stdout, msg, rec)
+	return 0
+}
+
+// emit writes this event's ONE document: the strike for the agent, the record's message for the
+// human, or nothing.
+func emit(stdout io.Writer, msg string, rec *hookfailures.Recorder) {
+	said := rec.Settle()
+	if msg == "" && said == "" {
+		return
+	}
 	var out hookOutput
 	out.HookSpecificOutput.HookEventName = "PostToolUseFailure"
 	out.HookSpecificOutput.AdditionalContext = msg
-	_ = json.NewEncoder(stdout).Encode(out)
-	fmt.Fprintln(stderr, msg)
-	return 0
+	out.SystemMessage = said
+	if err := json.NewEncoder(stdout).Encode(out); err != nil {
+		// The encode used to be discarded outright (`_ =`): a strike counted and never delivered,
+		// on the one hook whose whole job is to interrupt a loop.
+		rec.Fail(StageEncode, "cannot encode response: "+err.Error())
+		rec.Persist()
+	}
 }
 
 // Main is the process boundary: it wires the real environment in and returns the

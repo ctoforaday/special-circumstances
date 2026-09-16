@@ -3,6 +3,8 @@ package pretooluse
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hooktest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -135,3 +137,6 @@ func TestPanicIsIsolatedAndReported(t *testing.T) {
 		}
 	}
 }
+
+// No test in this package may write the developer's own state.
+func TestMain(m *testing.M) { os.Exit(hooktest.Isolated(m)) }

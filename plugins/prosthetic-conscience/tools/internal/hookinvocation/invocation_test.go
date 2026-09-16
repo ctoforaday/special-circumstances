@@ -14,6 +14,7 @@ package hookinvocation
 
 import (
 	"encoding/json"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hooktest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -262,3 +263,6 @@ func TestTheShippedBinariesHonourTheIOContract(t *testing.T) {
 		}
 	}
 }
+
+// No test in this package may write the developer's own state.
+func TestMain(m *testing.M) { os.Exit(hooktest.Isolated(m)) }

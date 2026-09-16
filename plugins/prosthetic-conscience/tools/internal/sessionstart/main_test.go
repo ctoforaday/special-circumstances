@@ -3,6 +3,7 @@ package sessionstart
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hooktest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -36,7 +37,7 @@ func stub(name, text string, watch ...string) hookunit.Unit {
 // COMPOSE, not pick-first: every unit's text survives and watchPaths is the union. This is
 // the opposite of PreToolUse, where only one document may be emitted.
 func TestMergeComposesTextAndUnionsPaths(t *testing.T) {
-	text, watch := merge([]hookunit.Result{
+	text, watch, _ := merge([]hookunit.Result{
 		{Name: "a", Stdout: "nudge line", Watch: []string{"tools"}},
 		{Name: "b", Stdout: "recovered state", Watch: []string{"tools", "docs"}},
 		{Name: "c"},
@@ -155,3 +156,6 @@ func TestRealUnitsRestoreANote(t *testing.T) {
 		t.Errorf("the compaction response does not end with the resume line: %q", out.HookSpecificOutput.AdditionalContext)
 	}
 }
+
+// No test in this package may write the developer's own state.
+func TestMain(m *testing.M) { os.Exit(hooktest.Isolated(m)) }

@@ -127,6 +127,10 @@ func hasAny(args []string, want ...string) bool {
 	return false
 }
 
+// StageMarkerUnparsable is recorded when .claude/run-live.json is not JSON at all: the guard is
+// blind, and its silence would otherwise mean "nothing is frozen".
+const StageMarkerUnparsable hookfailures.Stage = "run-live-parse"
+
 // StageFreezeUnreadable is recorded when the live-run marker is there and its pinned paths are not:
 // the guard is then running blind, and says so until the marker can be read.
 const StageFreezeUnreadable hookfailures.Stage = "freeze-unreadable"
@@ -199,11 +203,20 @@ func Unit() hookunit.Unit {
 				Command string `json:"command"`
 			}
 			_ = json.Unmarshal(c.ToolInput, &ti)
-			say, freezeUnreadable := decide(runlive.Read(c.ProjectDir), ti.Command)
-			if freezeUnreadable {
-				c.Rec.Fail(StageFreezeUnreadable, say)
+			st := runlive.Read(c.ProjectDir)
+			if st.Unparsable {
+				// The marker is there and is not JSON: this guard cannot see the freeze at all, and
+				// the zero State it gets back would otherwise read as "no run is live".
+				c.Rec.FailIn(StageMarkerUnparsable, c.ProjectDir, "the live-run marker exists and does not parse — "+
+					"this guard cannot see the freeze, and is NOT reporting that nothing is frozen")
 			} else {
-				c.Rec.OK(StageFreezeUnreadable)
+				c.Rec.OKIn(StageMarkerUnparsable, c.ProjectDir)
+			}
+			say, freezeUnreadable := decide(st, ti.Command)
+			if freezeUnreadable {
+				c.Rec.FailIn(StageFreezeUnreadable, c.ProjectDir, say)
+			} else {
+				c.Rec.OKIn(StageFreezeUnreadable, c.ProjectDir)
 			}
 			// SAID, not just logged: this guard never blocks, so the warning IS the mechanism, and
 			// stderr at exit 0 reaches nobody. Stderr keeps its copy for the debug log.

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hooktest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -434,3 +435,6 @@ func TestFindingsSayTheWriteAlreadyHappened(t *testing.T) {
 		t.Error("the reassurance must precede the findings — it is what an agent reads first")
 	}
 }
+
+// No test in this package may write the developer's own state.
+func TestMain(m *testing.M) { os.Exit(hooktest.Isolated(m)) }

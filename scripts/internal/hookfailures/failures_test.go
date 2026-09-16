@@ -3,10 +3,12 @@ package hookfailures
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -369,5 +371,60 @@ func TestFailedReportsThisInvocation(t *testing.T) {
 	r.Fail(stageA, "boom")
 	if !r.Failed() {
 		t.Error("a failure was recorded and Failed() is false")
+	}
+}
+
+// CONCURRENT UNITS SHARE ONE RECORDER. prosthetic-conscience's hookunit fans an event's units out
+// over goroutines and every one of them records; unguarded maps crashed the process with "concurrent
+// map writes" the first time two units were wired in. A hook that panics is worse than the silence
+// this package exists to end, so this runs under -race in CI.
+func TestConcurrentUnitsMayShareARecorder(t *testing.T) {
+	plugin, path := isolate(t)
+	r := New(plugin, "test-hook", "Stop", noon, io.Discard)
+	var wg sync.WaitGroup
+	for i := range 16 {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			s := Stage(fmt.Sprintf("stage-%d", i%4))
+			if i%2 == 0 {
+				r.FailIn(s, fmt.Sprintf("/p/%d", i%3), "boom")
+				return
+			}
+			r.OKIn(s, fmt.Sprintf("/p/%d", i%3))
+		}(i)
+	}
+	wg.Wait()
+	if !r.Failed() {
+		t.Error("eight failures were recorded and Failed() is false")
+	}
+	if msg := r.Settle(); msg == "" {
+		t.Error("nothing was said for a record with failures in it")
+	}
+	if len(recorded(t, path)) == 0 {
+		t.Error("nothing reached the record")
+	}
+}
+
+// PERSIST RECORDS AND MARKS NOTHING AS SAID. A Settle whose message is discarded on a displaying event
+// stamps the entry as notified, so the human is never told and the next call that could tell them
+// stays quiet for NotifyEvery. Persist is what a caller that cannot speak uses instead.
+func TestPersistRecordsWithoutMarkingAnythingSaid(t *testing.T) {
+	plugin, path := isolate(t)
+	r := New(plugin, "test-hook", "Stop", noon, io.Discard) // Stop DISPLAYS
+	r.Fail(stageA, "could not speak on this call")
+	r.Persist()
+
+	f, ok := entry(recorded(t, path), stageA, "")
+	if !ok {
+		t.Fatal("Persist did not record")
+	}
+	if !f.Notified.IsZero() {
+		t.Fatalf("Persist marked the entry as said: %+v", f)
+	}
+	// The next call that CAN speak says it at once.
+	next := New(plugin, "test-hook", "Stop", noon.Add(time.Second), io.Discard)
+	if msg := next.Settle(); !strings.Contains(msg, "could not speak on this call") {
+		t.Errorf("the next displaying call did not say it: %q", msg)
 	}
 }

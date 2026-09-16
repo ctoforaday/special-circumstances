@@ -2,11 +2,15 @@ package hookenv
 
 import (
 	"bytes"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hooktest"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestProjectDirPrefersTheEnvironmentAndFallsBackToThePayload(t *testing.T) {
@@ -43,8 +47,14 @@ func TestUnknownStaysUnknownRatherThanBecomingTheWorkingDirectory(t *testing.T) 
 // nothing, and the session read it as "this project has no checkpoint".
 func TestAnUnresolvedRootSaysSoAndStopsTheCaller(t *testing.T) {
 	var errOut bytes.Buffer
-	if Explain("", &errOut, "sc-probe") {
+	rec := hookfailures.New("prosthetic-conscience", "sc-probe", "Stop", time.Now(), &errOut)
+	if Explain("", rec, "sc-probe") {
 		t.Error("Explain told the caller to continue with no project root")
+	}
+	// The record is the channel that reaches a human; Stop displays, so Settle renders it.
+	said := rec.Settle()
+	if !strings.Contains(said, string(StageProjectRoot)) {
+		t.Errorf("an unresolved root was not recorded under its stage: %q", said)
 	}
 	msg := errOut.String()
 	if !strings.Contains(msg, "sc-probe") {
@@ -57,7 +67,8 @@ func TestAnUnresolvedRootSaysSoAndStopsTheCaller(t *testing.T) {
 	}
 
 	errOut.Reset()
-	if !Explain("/somewhere", &errOut, "sc-probe") {
+	rec = hookfailures.New("prosthetic-conscience", "sc-probe", "Stop", time.Now(), &errOut)
+	if !Explain("/somewhere", rec, "sc-probe") {
 		t.Error("Explain stopped a caller that HAS a project root")
 	}
 	if errOut.Len() != 0 {
@@ -118,5 +129,22 @@ func TestNoHookReadsTheEnvironmentVariableWithoutResolvingThroughThisPackage(t *
 	if len(offenders) > 0 {
 		t.Errorf("hooks resolving the project root on their own:\n  %s\n\nCLAUDE_PROJECT_DIR is not the only statement of where the project is: the hook payload carries `cwd` as well, and a hook that reads only the environment goes silent when it is unset — silence that is indistinguishable from having nothing to do. Resolve through hookenv.ProjectDir(env, in.CWD) and report an unresolved root with hookenv.Explain.",
 			strings.Join(offenders, "\n  "))
+	}
+}
+
+// No test in this package may write the developer's own state.
+func TestMain(m *testing.M) { os.Exit(hooktest.Isolated(m)) }
+
+// A ROOT THAT RESOLVES CLEARS THE ENTRY. Without it, one session started from nowhere would leave
+// "no project root" on the record for every later session that had one.
+func TestAResolvedRootClearsTheEntry(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	rec := hookfailures.New("prosthetic-conscience", "sc-probe", "Stop", time.Now(), io.Discard)
+	Explain("", rec, "sc-probe")
+	rec.Settle()
+	rec = hookfailures.New("prosthetic-conscience", "sc-probe", "Stop", time.Now().Add(time.Hour), io.Discard)
+	Explain("/somewhere", rec, "sc-probe")
+	if msg := rec.Settle(); strings.Contains(msg, string(StageProjectRoot)) {
+		t.Errorf("a resolved root left the entry: %q", msg)
 	}
 }

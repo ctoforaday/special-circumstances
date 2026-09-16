@@ -107,6 +107,9 @@ func (c *Ctx) Memo(key string, build func() any) any {
 	return c.memo[key]
 }
 
+// StagePanic is recorded when a unit panics: the check did not run, and the event carried on.
+const StagePanic hookfailures.Stage = "unit-panic"
+
 // Result is what one unit has to say. Exit is the code that unit WANTS; the event's binary
 // decides what to do with several of them.
 type Result struct {
@@ -174,10 +177,16 @@ func Run(ctx *Ctx, units []Unit) []Result {
 			defer wg.Done()
 			defer func() {
 				if r := recover(); r != nil {
-					out[i] = Result{Name: u.Name,
-						Stderr: fmt.Sprintf("%s: panicked and was isolated: %v", u.Name, r)}
+					// RECORDED, not merely returned. A panicking unit produces the same Result shape
+					// as a unit with nothing to say, and on SessionStart the merge reads only
+					// Stdout — so a crashed secrets gate read as a clean pass on every channel. The
+					// scope is the unit, so one crashed check does not clear another's entry.
+					detail := fmt.Sprintf("%s panicked and was isolated: %v", u.Name, r)
+					ctx.Rec.FailIn(StagePanic, u.Name, detail)
+					out[i] = Result{Name: u.Name, Stderr: u.Name + ": " + detail}
 				}
 			}()
+			ctx.Rec.OKIn(StagePanic, u.Name)
 			out[i] = u.Run(ctx)
 		}(i, u)
 	}

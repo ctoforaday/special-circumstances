@@ -1,6 +1,7 @@
 package pretooluse
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"strings"
@@ -109,5 +110,25 @@ func TestARecordedFailureIsAnnouncedOnThisEvent(t *testing.T) {
 	msg, _ := responseOf(t, stdout)["systemMessage"].(string)
 	if !strings.Contains(msg, "snapshot-write") || !strings.Contains(msg, "read-only file system") {
 		t.Fatalf("the next displaying event did not carry it: %q", stdout)
+	}
+}
+
+// NO PROJECT ROOT ON THE EVENT THAT FIRES ON EVERY TOOL CALL. PreToolUse never called Explain, so an
+// unresolved root was recorded by every hook except this one and PostToolUse. It is recorded now —
+// and the secrets gate still runs, because recording decides nothing.
+func TestAnUnresolvedRootIsRecordedWithoutStoppingTheGate(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	ran := false
+	gate := hookunit.Unit{Name: "gate", Run: func(*hookunit.Ctx) hookunit.Result {
+		ran = true
+		return hookunit.Result{Name: "gate"}
+	}}
+	var o, e bytes.Buffer
+	run(nil, strings.NewReader(`{"tool_name":"Bash","tool_input":{"command":"ls"}}`), &o, &e, "", noon, []hookunit.Unit{gate})
+	if !ran {
+		t.Fatal("the gate did not run with no project root — recording the root must decide nothing")
+	}
+	if msg, _ := responseOf(t, o.String())["systemMessage"].(string); !strings.Contains(msg, "- project-root:") {
+		t.Fatalf("an unresolved root was not said: %q", o.String())
 	}
 }

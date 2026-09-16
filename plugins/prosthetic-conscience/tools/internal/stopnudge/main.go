@@ -2,7 +2,6 @@ package stopnudge
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -12,6 +11,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/ctxusage"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/freshness"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 )
 
@@ -33,6 +33,10 @@ type hookOutput struct {
 		HookEventName     string `json:"hookEventName"`
 		AdditionalContext string `json:"additionalContext,omitempty"`
 	} `json:"hookSpecificOutput"`
+	// SystemMessage is for the HUMAN, and is a different audience from AdditionalContext, which is
+	// for the agent. The failure record travels here: a broken hook is not something to ask the
+	// agent to relay.
+	SystemMessage string `json:"systemMessage,omitempty"`
 }
 
 // configured reads the band edges.
@@ -88,6 +92,15 @@ func configured() Thresholds {
 // would go untested is the one that composes the response the client actually reads. A hook
 // whose emit path has never run is a hook whose first real emission is its first
 // execution of that code.
+// The stages sc-stop can fail at, each cleared by its own next success.
+const (
+	StageNoteRead    hookfailures.Stage = "note-read"
+	StageEncode      hookfailures.Stage = "encode"
+	StageStateRead   hookfailures.Stage = "nudge-state-read"
+	StageStateWrite  hookfailures.Stage = "nudge-state-write"
+	StageStateRemove hookfailures.Stage = "nudge-state-remove"
+)
+
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time, th Thresholds) int {
 	if hookmain.Preamble(args, stdout, stderr, hookmain.Named("sc-stop")) {
 		return 0 // a bad flag is never worth disturbing the session over
@@ -96,7 +109,11 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	var in hookInput
 	_ = json.Unmarshal(raw, &in)
 	projectDir = hookenv.ProjectDir(projectDir, in.CWD)
-	if !hookenv.Explain(projectDir, stderr, "sc-stop") {
+	rec := hookfailures.New("prosthetic-conscience", "sc-stop", "Stop", now, stderr)
+	if !hookenv.Explain(projectDir, rec, "sc-stop") {
+		// Recorded, and NOT said: a hook with no project root writes nothing to stdout, which
+		// projectroot_test.go pins for every binary here. The next event with a root says it.
+		rec.Persist()
 		return 0
 	}
 
@@ -110,28 +127,45 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		// read to a backward scan for the newest usage figure — measured p95 1.2 ms on a 36 MB
 		// transcript, against 6.6 ms for the with-note gauge every noted session already pays.
 		u, _ := ctxusage.Read(in.TranscriptPath, time.Time{})
-		d = DecideContext(projectDir, in.SessionID, in.StopHookActive, u, th)
+		d = DecideContext(rec, projectDir, in.SessionID, in.StopHookActive, u, th)
 	} else {
 		body, err := os.ReadFile(notePath)
 		if err != nil {
+			// The note is THERE — NotePath stat'd it — and unreadable, so the nudge cannot measure
+			// anything. Silence here reads exactly like a session with no note.
+			rec.FailIn(StageNoteRead, projectDir, "cannot read the checkpoint note "+notePath+": "+err.Error())
+			emitResponse(stdout, "", rec)
 			return 0
 		}
+		rec.OKIn(StageNoteRead, projectDir)
 		n := checkpoint.Parse(string(body))
 		m := freshness.Of(projectDir, in.TranscriptPath, string(body),
 			freshness.BranchWork(n.Get("head")), now)
-		d = Decide(projectDir, in.SessionID, in.StopHookActive, m, notePath, newest(n), th, now)
+		d = Decide(rec, projectDir, in.SessionID, in.StopHookActive, m, notePath, newest(n), th, now)
 	}
-	if d.Emit == "" {
-		return 0
-	}
+	emitResponse(stdout, d.Emit, rec)
+	return 0
+}
 
+// emitResponse writes this event's ONE document: the nudge for the agent, the record's message for
+// the human, or nothing at all. Stop displays a systemMessage, which makes this hook the carrier for
+// every failure recorded on an event that displays none.
+func emitResponse(stdout io.Writer, emit string, rec *hookfailures.Recorder) {
+	msg := rec.Settle()
+	if emit == "" && msg == "" {
+		return // silence is a valid outcome and MUST stay silent
+	}
 	var out hookOutput
 	out.HookSpecificOutput.HookEventName = "Stop"
-	out.HookSpecificOutput.AdditionalContext = d.Emit
+	out.HookSpecificOutput.AdditionalContext = emit
+	out.SystemMessage = msg
 	if err := json.NewEncoder(stdout).Encode(out); err != nil {
-		fmt.Fprintln(stderr, "sc-stop: cannot encode response:", err)
+		// A response that cannot be encoded is a nudge that never arrives. Recorded rather than
+		// said, because the channel for saying it is the thing that just failed; the next
+		// displaying event reads it out.
+		rec.Fail(StageEncode, "cannot encode response: "+err.Error())
+		rec.Persist()
 	}
-	return 0
 }
 
 // newest is the later of written_at and reaffirmed_at — the note's most recent ANSWER of

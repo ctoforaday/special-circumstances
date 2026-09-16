@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"path/filepath"
 	"time"
 
@@ -184,7 +184,7 @@ func countHandles(tasks, crons *json.RawMessage) (n int, measured bool) {
 // hook path costs a session its restore over a lost observation. (The nudge is the
 // opposite — it fails CLOSED — because a lost row costs one measurement while an
 // unrecorded emission costs a loop.)
-func appendSealRow(dir, projectDir string, body []byte, now time.Time, event, occ string, in hookInput, stderr io.Writer, age Measures, steered bool, steeredSections []string, writtenAt string) {
+func appendSealRow(dir, projectDir string, body []byte, now time.Time, event, occ string, in hookInput, rec *hookfailures.Recorder, age Measures, steered bool, steeredSections []string, writtenAt string) {
 	sum := sha256.Sum256(body)
 	n, measured := countHandles(in.BackgroundTasks, in.SessionCrons)
 	row := sealRow{
@@ -208,7 +208,7 @@ func appendSealRow(dir, projectDir string, body []byte, now time.Time, event, oc
 		row.LiveHandles = &n
 	}
 	readNudgeState(projectDir, &row)
-	reportImpossibleWrittenAt(writtenAt, now, binaryFor(event), stderr)
+	reportImpossibleWrittenAt(writtenAt, now, binaryFor(event), projectDir, rec)
 	if age.TurnsMeasured {
 		t := age.Turns
 		row.NoteAgeTurns = &t
@@ -227,8 +227,10 @@ func appendSealRow(dir, projectDir string, body []byte, now time.Time, event, oc
 
 	if err := statefile.AppendRow(filepath.Join(dir, "seals.jsonl"), row); err != nil {
 		// Named for the shim that was INVOKED, not for the binary these three used to be.
-		fmt.Fprintln(stderr, binaryFor(event)+": cannot append seal row:", err)
+		rec.FailIn(StageSealRow, projectDir, binaryFor(event)+": cannot append seal row: "+err.Error())
+		return
 	}
+	rec.OKIn(StageSealRow, projectDir)
 }
 
 // readNudgeState copies the nudge's own counters onto the row.
@@ -282,7 +284,7 @@ const futureGrace = time.Minute
 // PreToolUse, the one event where a tool call really is in flight; this hook fires on PreCompact,
 // SessionEnd and SubagentStop, where none is. The line below is a debug-log line until the seal's
 // failures are carried to a displaying event.
-func reportImpossibleWrittenAt(writtenAt string, now time.Time, bin string, stderr io.Writer) {
+func reportImpossibleWrittenAt(writtenAt string, now time.Time, bin, projectDir string, rec *hookfailures.Recorder) {
 	if writtenAt == "" {
 		return // absent is a schema-2 note, not a false claim
 	}
@@ -291,10 +293,12 @@ func reportImpossibleWrittenAt(writtenAt string, now time.Time, bin string, stde
 		return // unparsable is a different fault and not this function's to report
 	}
 	if t.After(now.Add(futureGrace)) {
-		fmt.Fprintf(stderr, "%s: this note says written_at %s, which is AFTER the seam sealing it "+
+		rec.FailIn(StageWrittenAt, projectDir, fmt.Sprintf("%s: this note says written_at %s, which is AFTER the seam sealing it "+
 			"at %s — a note cannot be written in the future, so that stamp was typed rather than "+
 			"read. The age every measurement is taken from is this field: set it with "+
-			"`date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ` before you start composing.\n",
-			bin, writtenAt, now.UTC().Format(time.RFC3339))
+			"`date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ` before you start composing.",
+			bin, writtenAt, now.UTC().Format(time.RFC3339)))
+		return
 	}
+	rec.OKIn(StageWrittenAt, projectDir)
 }

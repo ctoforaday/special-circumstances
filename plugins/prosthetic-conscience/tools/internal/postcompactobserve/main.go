@@ -42,7 +42,6 @@ package postcompactobserve
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -54,6 +53,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/freshness"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/statefile"
 )
@@ -163,15 +163,24 @@ func overlap(note, summary string) []sectionOverlap {
 
 // appendRow writes one JSONL row. Best-effort: an observation that cannot be
 // written must never cost the session anything.
-func appendRow(projectDir string, o observation, stderr io.Writer) {
+func appendRow(projectDir string, o observation, rec *hookfailures.Recorder) {
 	path := filepath.Join(projectDir, ".claude", "checkpoints", "compaction-observations.jsonl")
 	if err := statefile.AppendRow(path, o); err != nil {
-		// EVERY failure is reported, where three of the four were silent before. A lost
-		// observation is cheap; a lost observation nobody knows about is what makes a
-		// thin corpus read like a quiet one.
-		fmt.Fprintln(stderr, "sc-postcompact-observe: cannot append observation:", err)
+		// EVERY failure is reported, where three of the four were silent before — and "reported"
+		// used to mean a stderr line at exit 0, which is the debug log and nobody. A lost
+		// observation is cheap; a lost observation nobody knows about is what makes a thin corpus
+		// read like a quiet one, which is the whole failure this hook measures.
+		rec.FailIn(StageObservationAppend, projectDir, "cannot append observation: "+err.Error())
+		return
 	}
+	rec.OKIn(StageObservationAppend, projectDir)
 }
+
+// StageObservationAppend is recorded when an observation row cannot be written.
+const StageObservationAppend hookfailures.Stage = "observation-append"
+
+// StageNoteRead is recorded when the note exists and cannot be read.
+const StageNoteRead hookfailures.Stage = "note-read"
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time) int {
 	if hookmain.Preamble(args, stdout, stderr, hookmain.Named("sc-postcompact-observe")) {
@@ -182,7 +191,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	var in hookInput
 	_ = json.Unmarshal(raw, &in)
 	projectDir = hookenv.ProjectDir(projectDir, in.CWD)
-	if !hookenv.Explain(projectDir, stderr, "sc-postcompact-observe") {
+	// PostCompact displays nothing: this hook records, and a later displaying event says it.
+	rec := hookfailures.New("prosthetic-conscience", "sc-postcompact-observe", "PostCompact", now, stderr)
+	defer rec.Persist()
+	if !hookenv.Explain(projectDir, rec, "sc-postcompact-observe") {
 		return 0
 	}
 
@@ -195,8 +207,13 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	}
 	body, err := os.ReadFile(path)
 	if err != nil {
+		// The note is there and unreadable, so this compaction gets no observation — the thin
+		// corpus this hook exists to prevent reading as a quiet one.
+		rec.FailIn(StageNoteRead, projectDir, "cannot read the checkpoint note "+path+": "+err.Error()+
+			" — this compaction is not observed")
 		return 0
 	}
+	rec.OKIn(StageNoteRead, projectDir)
 
 	age := freshness.Of(projectDir, in.TranscriptPath, string(body),
 		freshness.BranchWork(checkpoint.Parse(string(body)).Get("head")), now)
@@ -232,7 +249,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		c := age.BranchCommits
 		o.NoteBranchCommits = &c
 	}
-	appendRow(projectDir, o, stderr)
+	appendRow(projectDir, o, rec)
 	return 0
 }
 

@@ -1,6 +1,8 @@
 package checkpointrestore
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hooktest"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -125,3 +127,6 @@ objective: "no re-affirmation here"
 		t.Errorf("digest rendered a re-affirmation that never happened:\n%s", got)
 	}
 }
+
+// No test in this package may write the developer's own state.
+func TestMain(m *testing.M) { os.Exit(hooktest.Isolated(m)) }
