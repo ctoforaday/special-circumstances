@@ -58,6 +58,7 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/buildid"
+	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/hookfailures"
 	"sort"
 )
 
@@ -505,8 +506,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 
 	r := newReport(*event, now, stderr)
 	capture(in, raw, *event, projectDir, now, stat, r)
-	path, pathErr := failuresPath()
-	r.settle(path, pathErr, stdout)
+	// This hook emits no document of its own on any event it fires on, so the message is the
+	// whole response. A hook that DOES emit one merges the text into it instead.
+	hookfailures.Emit(stdout, r.Settle())
 	return 0
 }
 

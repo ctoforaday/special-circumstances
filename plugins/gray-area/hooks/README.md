@@ -37,3 +37,19 @@ Stop registers the session as SessionStart does, in the same open, before it ing
 resumed after closure is reopened at its first turn end, and a session whose SessionStart ran before
 capture was installed still gets its cloud id. SessionEnd only ingests — the session file the
 registration reads is already gone by then.
+
+## What happens when the hook fails
+
+Every event here exits 0 whatever happened — a broken store must never cost a session its turn — and
+a hook's stderr at exit 0 reaches the client's debug log and nobody (measured: it appears in the
+transcript only inside a `hook_success` record whose `content` is empty, and a live session asked
+straight afterwards had not seen it). So each failure is also a field on a record,
+`~/.local/state/special-circumstances/gray-area/failures.json`, keyed by the STAGE that failed and
+the project it failed in, written by `internal/hookfailures` (generated from
+`scripts/internal/hookfailures`, shared with the other plugins).
+
+SessionStart and Stop say what is due as one top-level `systemMessage`, each stage at most once every
+10 minutes. SubagentStop and SessionEnd record and stay silent: neither displays a message, and a
+subagent hook that talks can re-invoke its seat. An entry clears when its stage next works, so NO
+FILE means every stage last worked — the one reading that an absent record must never have is
+"nothing looked".

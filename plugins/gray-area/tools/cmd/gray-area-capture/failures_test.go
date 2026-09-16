@@ -15,9 +15,15 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/catalogue"
+	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/hookfailures"
 )
 
-// THE FAILURE RECORD IS TESTED BY BREAKING THE REAL THING.
+// WHAT THIS FILE TESTS, NOW THAT THE RECORD IS SHARED (scripts/internal/hookfailures): that THIS
+// hook's call sites reach it. The record's own behaviour — throttle, clearing, an unreadable file,
+// no record location at all — is tested once, in the module that authors it, and is not re-tested
+// per plugin.
+//
+// THE WIRING IS TESTED BY BREAKING THE REAL THING.
 //
 // Every stage below is made to fail the way it fails in the field — a foreign file where the store
 // should be, a write the database refuses, a directory that cannot be created — and then repaired,
@@ -86,7 +92,7 @@ func systemMessageOf(t *testing.T, stdout string) string {
 
 func recordPath(t *testing.T) string {
 	t.Helper()
-	p, err := failuresPath()
+	p, err := hookfailures.Path("gray-area")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +100,7 @@ func recordPath(t *testing.T) string {
 }
 
 // recorded reads the record as a reader outside this package would: the JSON file. Absent is nil.
-func recorded(t *testing.T) []failure {
+func recorded(t *testing.T) []hookfailures.Failure {
 	t.Helper()
 	b, err := os.ReadFile(recordPath(t))
 	if errors.Is(err, os.ErrNotExist) {
@@ -103,23 +109,23 @@ func recorded(t *testing.T) []failure {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var rec failureRecord
+	var rec hookfailures.Record
 	if err := json.Unmarshal(b, &rec); err != nil {
 		t.Fatalf("the failure record does not parse: %v\n%s", err, b)
 	}
-	if rec.Schema != failuresSchema {
-		t.Fatalf("schema = %d, want %d", rec.Schema, failuresSchema)
+	if rec.Schema != hookfailures.Schema {
+		t.Fatalf("schema = %d, want %d", rec.Schema, hookfailures.Schema)
 	}
 	return rec.Failures
 }
 
-func entryFor(fs []failure, s stage, project string) (failure, bool) {
+func entryFor(fs []hookfailures.Failure, s hookfailures.Stage, project string) (hookfailures.Failure, bool) {
 	for _, f := range fs {
-		if f.Stage == s && f.Project == project {
+		if f.Stage == s && f.Scope == project {
 			return f, true
 		}
 	}
-	return failure{}, false
+	return hookfailures.Failure{}, false
 }
 
 func execStore(t *testing.T, store string, stmts ...string) {
@@ -166,7 +172,7 @@ func allow(t *testing.T, e *hookEnv, names ...string) {
 func TestEveryStageIsRecordedShownAndClearedByItsOwnSuccess(t *testing.T) {
 	cases := []struct {
 		name    string // "" names the case by its stage
-		stage   stage
+		stage   hookfailures.Stage
 		event   string // the event that hits the failure
 		project bool   // the entry is per project
 		prep    func(t *testing.T, e *hookEnv)
@@ -340,7 +346,7 @@ func TestEveryStageIsRecordedShownAndClearedByItsOwnSuccess(t *testing.T) {
 			if !strings.Contains(stderr, "gray-area-capture: "+f.Error) {
 				t.Errorf("the debug log lost its line: stderr %q does not carry %q", stderr, f.Error)
 			}
-			if displays(tc.event) {
+			if hookfailures.Displays(tc.event) {
 				if !strings.Contains(msg, "- "+string(tc.stage)) || !strings.Contains(msg, f.Error) {
 					t.Errorf("%s displays, and its message does not name the failure: %q", tc.event, msg)
 				}
@@ -453,15 +459,15 @@ func TestAFailingStageIsShownAtMostOnceEveryNotifyPeriod(t *testing.T) {
 		t.Errorf("the count does not match what is listed: %q", msg)
 	}
 
-	if msg, _ := hook(t, e.input(), e.project, noon.Add(notifyEvery-time.Second), "Stop"); msg != "" {
+	if msg, _ := hook(t, e.input(), e.project, noon.Add(hookfailures.NotifyEvery-time.Second), "Stop"); msg != "" {
 		t.Fatalf("shown a second before the period ended: %q", msg)
 	}
-	msg, _ = hook(t, e.input(), e.project, noon.Add(notifyEvery), "Stop")
+	msg, _ = hook(t, e.input(), e.project, noon.Add(hookfailures.NotifyEvery), "Stop")
 	if !strings.Contains(msg, "- catalogue-open") || strings.Contains(msg, "session-transcript-path") {
 		t.Fatalf("at the period, only the stage last shown at noon is due: %q", msg)
 	}
 	f, _ := entryFor(recorded(t), stageOpen, "")
-	if !f.Since.Equal(noon) || !f.Last.Equal(noon.Add(notifyEvery)) {
+	if !f.Since.Equal(noon) || !f.Last.Equal(noon.Add(hookfailures.NotifyEvery)) {
 		t.Errorf("since/last = %s/%s: a failure that persists keeps its first time and moves its last", f.Since, f.Last)
 	}
 }
@@ -488,105 +494,6 @@ func TestWithNoRecordEveryDisplayingEventStillShowsTheFailure(t *testing.T) {
 	}
 	if msg, _ := hook(t, `{"session_id":"s"}`, "", noon, "SubagentStop"); msg != "" {
 		t.Errorf("SubagentStop printed %q", msg)
-	}
-}
-
-// AN UNREADABLE RECORD IS REPLACED, NEVER READ AS EMPTY AND NEVER KEPT: kept, it would disable the
-// throttle for good; read as empty, it would be the silent zero this record exists to prevent.
-func TestAnUnreadableRecordIsReplaced(t *testing.T) {
-	for name, body := range map[string]string{
-		"not json":     "{torn",
-		"other schema": `{"schema": 99, "failures": []}`,
-	} {
-		t.Run(name, func(t *testing.T) {
-			e := newHookEnv(t)
-			if err := os.MkdirAll(filepath.Dir(recordPath(t)), 0o700); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.WriteFile(recordPath(t), []byte(body), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			noPath := `{"session_id":"` + e.sid + `","cwd":` + strconv.Quote(e.project) + `}`
-			msg, stderr := hook(t, noPath, e.project, noon, "SessionStart")
-			if !strings.Contains(stderr, "replacing the failure record") {
-				t.Errorf("replaced silently: %q", stderr)
-			}
-			if _, ok := entryFor(recorded(t), stageSessionPath, ""); !ok || !strings.Contains(msg, "session-transcript-path") {
-				t.Fatalf("the replacement lost this invocation's failure: %+v / %q", recorded(t), msg)
-			}
-
-			// A healthy run replaces an unreadable record with none at all.
-			if err := os.WriteFile(recordPath(t), []byte(body), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			hook(t, e.input(), e.project, noon, "SubagentStop")
-			if _, err := os.Stat(recordPath(t)); !errors.Is(err, os.ErrNotExist) {
-				t.Errorf("an unreadable record survived a healthy run (stat err %v)", err)
-			}
-		})
-	}
-}
-
-// A STAGE THAT FAILS AND WORKS IN ONE INVOCATION SETTLES AS FAILED — as a CONTINUING failure, with its
-// first time and its last announcement kept. appendRow reaches both when a torn tail cannot be closed
-// and the row is then appended onto it; a success that erased the entry first would restart it as new
-// and announce it again at once.
-func TestAFailureOutranksASuccessInTheSameInvocation(t *testing.T) {
-	t.Setenv("XDG_STATE_HOME", t.TempDir())
-	r := newReport("Stop", noon, io.Discard)
-	r.failIn(stageManifest, "/p", "tail could not be closed")
-	r.settle(recordPath(t), nil, io.Discard)
-
-	var out bytes.Buffer
-	r = newReport("Stop", noon.Add(time.Minute), io.Discard)
-	r.failIn(stageManifest, "/p", "tail could not be closed")
-	r.okIn(stageManifest, "/p")
-	r.settle(recordPath(t), nil, &out)
-	f, ok := entryFor(recorded(t), stageManifest, "/p")
-	if !ok {
-		t.Fatalf("the success erased the failure: %+v", recorded(t))
-	}
-	if !f.Since.Equal(noon) || !f.Notified.Equal(noon) || out.Len() != 0 {
-		t.Errorf("the failure restarted as new: since %s, notified %s, stdout %q", f.Since, f.Notified, out.String())
-	}
-}
-
-// NO HOME AT ALL: the catalogue has no location and neither does the record, and the failure is still
-// shown rather than lost twice.
-func TestWithNoHomeTheFailureIsStillShown(t *testing.T) {
-	t.Setenv("XDG_STATE_HOME", "")
-	t.Setenv("HOME", "")
-	t.Setenv("USERPROFILE", "")
-	if _, err := failuresPath(); err == nil {
-		t.Skip("this platform resolves a home directory without HOME or USERPROFILE")
-	}
-	dir := t.TempDir()
-	msg, _ := hook(t, `{"session_id":"s","cwd":`+strconv.Quote(dir)+`}`, dir, noon, "Stop")
-	if !strings.Contains(msg, "- catalogue-open: catalogue unavailable") || !strings.Contains(msg, "the failure record cannot be kept") {
-		t.Fatalf("Stop with no home: %q", msg)
-	}
-}
-
-// catalogue-enumerate cannot be made to fail (see the top of this file), so its SUCCESS is what is
-// tested: an entry left by a failure clears at each of the two places that enumerate.
-func TestTranscriptEnumerationClearsItsEntry(t *testing.T) {
-	for _, ev := range []string{"Stop", "SessionStart"} {
-		t.Run(ev, func(t *testing.T) {
-			e := newHookEnv(t)
-			seeded := failureRecord{Schema: failuresSchema, Failures: []failure{{
-				Stage: stageEnumerate, Error: "catalogue: enumerating transcripts: boom", Event: "Stop",
-				Since: noon, Last: noon, Notified: noon,
-			}}}
-			if err := saveFailures(recordPath(t), seeded); err != nil {
-				t.Fatal(err)
-			}
-			if msg, _ := hook(t, e.input(), e.project, noon.Add(time.Minute), ev); msg != "" {
-				t.Errorf("%s spoke: %q", ev, msg)
-			}
-			if _, ok := entryFor(recorded(t), stageEnumerate, ""); ok {
-				t.Errorf("%s enumerated transcripts and the entry stayed: %+v", ev, recorded(t))
-			}
-		})
 	}
 }
 

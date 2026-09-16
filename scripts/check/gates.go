@@ -225,6 +225,8 @@ var tools = []gate{
 		why: "one authored buildid, copied into modules that cannot import it"},
 	{id: "fetchbingen", kind: kindTool, dir: "scripts", args: []string{"run", "./fetchbingen", "-check"}, ciJob: "debate-sim",
 		why: "one authored fetch-bin.sh, copied into every plugin that ships binaries; a guard's event literal decides whether its message is displayed"},
+	{id: "hookfailgen", kind: kindTool, dir: "scripts", args: []string{"run", "./hookfailgen", "-check"}, ciJob: "debate-sim",
+		why: "one authored failure record, copied into every plugin whose hooks exit 0 — the copies must be identical or a plugin's failures go somewhere else"},
 	{id: "marketplacegen", kind: kindTool, dir: "scripts", args: []string{"run", "./marketplacegen", "-check"}, ciJob: "debate-sim",
 		why: "a plugin with binaries is installed from its release tag; a version bump that left the ref behind ships main's hooks against the old release's binaries"},
 	{id: "schemagen", kind: kindTool, dir: "scripts", args: []string{"run", "./schemagen", "-check"}, ciJob: "debate-sim",
