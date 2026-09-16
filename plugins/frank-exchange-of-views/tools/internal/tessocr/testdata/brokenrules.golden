@@ -1,0 +1,14 @@
+table: true · rotated: false · grid h=98658 v=45540 intersections=978
+path: text cells (3 columns, 7 ruled bands, 7 rows, 21 cells, 72 words placed, 0 from the sparse pass, 1 around the table, 0 loose)
+marks fell back: grid detected but the TSV held no mark tokens; page kept as plain text — its words are read, but which row and column each belongs to is not preserved, so check a cell against the page image before relying on it
+---
+|
+
+| | Form | Technical | Management |
+|---|---|---|
+| Classical review of the form | rigorous independent check | full management oversight |
+| Modified review of the form | limited independent check | shared management oversight |
+| Internal review of the form | partial internal check | local management oversight |
+| Embedded review of the form | minimal internal check | team level oversight |
+| Deferred review of the form | no check performed yet | oversight still pending |
+| Waived review of the form | the check was waived | no oversight required |

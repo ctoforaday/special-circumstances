@@ -41,3 +41,8 @@ func captureDiagnostics(fn func() error) (string, error) { return "", fn() }
 func DetectGrid(png []byte, t GridThresholds) (GridStats, error) {
 	return GridStats{}, ErrNotCompiledIn
 }
+
+// GridLines is the rule geometry behind DetectGrid; on a stub build it refuses like every
+// other engine entry point rather than answering "no rules", which would read as a page
+// that carries none.
+func GridLines(png []byte, t GridThresholds) (Lattice, error) { return Lattice{}, ErrNotCompiledIn }

@@ -149,6 +149,14 @@ type PageReading struct {
 	// page text — a bad reconstruction must never read as a good one, and this field is
 	// where it says so.
 	ReconstructionFallback string `json:"reconstruction_fallback,omitempty"`
+
+	// TextCells is what the rules' own cells recovered on a page whose marks did not answer
+	// (#932): the lattice's shape and how much of the page it explained. Absent when the mark
+	// reconstruction stood, and absent when the cells were refused — TextCellFallback says why,
+	// and one of the two is always present on a table page that is not a mark grid.
+	TextCells *tessocr.CellStats `json:"text_cells,omitempty"`
+	// TextCellFallback states why the rules' cells were not used as the page text either.
+	TextCellFallback string `json:"text_cell_fallback,omitempty"`
 }
 
 // pageReceipt is one page's provenance row: what was rendered, what read it, and what
@@ -171,6 +179,9 @@ type pageReceipt struct {
 	GridIntersections      int            `json:"grid_intersections,omitempty"`
 	Reconstruction         *tessocr.Stats `json:"reconstruction,omitempty"`
 	ReconstructionFallback string         `json:"reconstruction_fallback,omitempty"`
+
+	TextCells        *tessocr.CellStats `json:"text_cells,omitempty"`
+	TextCellFallback string             `json:"text_cell_fallback,omitempty"`
 }
 
 // pageReading projects the receipt's page-level facts into the record's row — one
@@ -180,6 +191,7 @@ func (r pageReceipt) pageReading() PageReading {
 		Page: r.Page, TextSha: r.TextSha, Length: r.Length,
 		Table: r.Table, RotatedPage: r.RotatedPage, GridIntersections: r.GridIntersections,
 		Reconstruction: r.Reconstruction, ReconstructionFallback: r.ReconstructionFallback,
+		TextCells: r.TextCells, TextCellFallback: r.TextCellFallback,
 	}
 }
 
@@ -267,6 +279,7 @@ func readPageStep(run record.Run, sha string, page int, png []byte, dpi int) (pa
 		ReadAt: time.Now().UTC(), TextSha: Sha([]byte(norm)), Length: len([]rune(norm)),
 		Table: res.Table, RotatedPage: res.RotatedPage,
 		Reconstruction: res.Reconstruction, ReconstructionFallback: res.Fallback,
+		TextCells: res.TextCells, TextCellFallback: res.TextCellFallback,
 	}
 	if res.Table {
 		r.GridIntersections = res.Grid.Intersections
@@ -288,6 +301,19 @@ func (r ReadingRecord) TablePages() int {
 	n := 0
 	for _, p := range r.Pages {
 		if p.Table {
+			n++
+		}
+	}
+	return n
+}
+
+// TextCellPages is how many of those grid pages were rebuilt from the RULES' own cells — a
+// ruled table of text, where the marks path has nothing to infer a grid from (#932). Derived
+// for the same reason TablePages is.
+func (r ReadingRecord) TextCellPages() int {
+	n := 0
+	for _, p := range r.Pages {
+		if p.TextCells != nil {
 			n++
 		}
 	}

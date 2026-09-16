@@ -73,9 +73,13 @@ type fetchSummary struct {
 	// TablePages counts pages whose ruled grid the engine detected — their reconstruction
 	// stats live on the reading record. Present only when nonzero, so a prose-only reading
 	// renders without it.
-	TablePages int    `json:"table_pages,omitempty"`
-	Engine     string `json:"engine,omitempty"`
-	DPI        int    `json:"dpi,omitempty"`
+	TablePages int `json:"table_pages,omitempty"`
+	// TextCellPages counts those table pages rebuilt from the rules' own cells — a ruled table
+	// of TEXT, whose rows would otherwise arrive column by column with the row binding lost.
+	// A table page in neither count fell back to plain text, and the reading record says why.
+	TextCellPages int    `json:"text_cell_pages,omitempty"`
+	Engine        string `json:"engine,omitempty"`
+	DPI           int    `json:"dpi,omitempty"`
 }
 
 // applyReading folds the engine's reading of the page images into the summary.
@@ -102,6 +106,7 @@ func (s *fetchSummary) applyReading(run record.Run, r fetchcache.ReadingRecord) 
 	s.Engine = r.Engine
 	s.DPI = r.DPI
 	s.TablePages = r.TablePages()
+	s.TextCellPages = r.TextCellPages()
 }
 
 // summarize projects a cache entry into what the seat is shown. Paths are absolute — a Run
@@ -214,6 +219,9 @@ func (s fetchSummary) render() string {
 			// renders without the line.
 			if s.TablePages > 0 {
 				line("table_pages", fmt.Sprint(s.TablePages))
+			}
+			if s.TextCellPages > 0 {
+				line("text_cell_pages", fmt.Sprint(s.TextCellPages))
 			}
 		}
 	default:

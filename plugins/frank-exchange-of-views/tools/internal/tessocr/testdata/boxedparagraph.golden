@@ -1,0 +1,8 @@
+table: true · rotated: false · grid h=24666 v=6473 intersections=126
+path: plain text
+marks fell back: grid detected but the TSV held no mark tokens; page kept as plain text — its words are read, but which row and column each belongs to is not preserved, so check a cell against the page image before relying on it
+cells fell back: the page's rules bound 1 column(s), and a table needs at least 2 — this is a box or a rule, not a grid
+---
+NOTE: This standard does not require a particular life cycle model. The user of this
+standard maps the V&V activities to the life cycle model the project has chosen.
+

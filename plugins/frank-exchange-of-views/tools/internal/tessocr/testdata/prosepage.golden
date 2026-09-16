@@ -1,0 +1,15 @@
+table: true · rotated: false · grid h=49302 v=8070 intersections=342
+path: text cells (2 columns, 3 ruled bands, 3 rows, 6 cells, 14 words placed, 0 from the sparse pass, 62 around the table, 0 loose)
+marks fell back: grid detected but the TSV held no mark tokens; page kept as plain text — its words are read, but which row and column each belongs to is not preserved, so check a cell against the page image before relying on it
+---
+Software integrity levels denote a range of software criticality values necessary to
+maintain risks within acceptable limits. The assignment of a level is a project decision,
+and the table below states the scheme this standard uses.
+
+| Criticality | Description |
+|---|---|
+| High | Selected function affects critical performance |
+| Low | Selected function has noticeable effect |
+
+The V&V effort assigns a level to every component. Where the assignment changes during
+development, the plan is updated and the affected tasks are performed again.

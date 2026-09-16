@@ -48,6 +48,14 @@ type PageResult struct {
 	// Empty when the reconstruction held (or no grid fired). A page whose grid could not
 	// be rebuilt must say so — never emit a plausible half-table, never a silent zero.
 	Fallback string
+	// TextCells is what a TEXT-CELL reconstruction measured (#932): the lattice's shape and how
+	// much of the page it explained. Set only when the rules' own cells produced the page text —
+	// nil when the mark reconstruction stood, and nil when the lattice was refused, where
+	// TextCellFallback says why.
+	TextCells *CellStats
+	// TextCellFallback states why the rules' cells were not used either, after the mark
+	// reconstruction had already fallen back. Empty when they were used or never tried.
+	TextCellFallback string
 	// Diagnostics is what tesseract printed while reading this page — its resolution
 	// estimate among it, which exists nowhere else. Captured, never printed (#644), and
 	// kept for debugging: none of it is part of the reading or changes a byte it hashes.
@@ -105,6 +113,13 @@ const (
 	rotProbeMaxConfidentWords = 25
 	confidentWordMinConf      = 80
 	confidentWordMinRunes     = 4
+	// A ROTATION IS ADOPTED ON A MARGIN, NOT ON A MAJORITY. Measured at 300 DPI: the corpus's
+	// genuinely landscape tables read 9 words portrait and 97 and 94 rotated — an order of
+	// magnitude — while a sparse PORTRAIT page reads 15 and 24 (a generated two-table page) or
+	// 0 and 8 (a grid of marks). Taking "more" adopted those turns, and a page read sideways
+	// loses its lattice: its rules no longer bound its text. So the rotated pass must read at
+	// least rotAdoptRatio times the portrait one AND clear the same floor that fired the probe.
+	rotAdoptRatio = 3
 )
 
 // Header-band recovery constants. Rotated (bottom-up) column headers appear in the
@@ -152,12 +167,12 @@ func (en *Engine) readPage(pagePNG []byte, thr GridThresholds) (PageResult, erro
 		}
 		return PageResult{Text: text, Grid: grid}, nil
 	}
-	return en.readGridPage(pagePNG, grid)
+	return en.readGridPage(pagePNG, grid, thr)
 }
 
 // readGridPage is the grid branch: orientation, TSV under both segmentation modes, the
 // rotated-header band, reconstruction, and the stated fallback.
-func (en *Engine) readGridPage(pagePNG []byte, grid GridStats) (PageResult, error) {
+func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThresholds) (PageResult, error) {
 	out := PageResult{Table: true, Grid: grid}
 
 	tsvAuto, err := en.PageTSV(pagePNG, PSMAuto)
@@ -181,7 +196,7 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats) (PageResult, erro
 			return PageResult{}, rerr
 		}
 		out.Evidence.RotatedTSV = rotTSV
-		if confidentWordCount(rotTSV) > confidentWordCount(tsvAuto) {
+		if rot, port := confidentWordCount(rotTSV), confidentWordCount(tsvAuto); rot >= rotAdoptRatio*port && rot >= rotProbeMaxConfidentWords {
 			out.RotatedPage = true
 			pagePNG, tsvAuto = rotPNG, rotTSV
 		}
@@ -227,6 +242,29 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats) (PageResult, erro
 	if out.Fallback == "" {
 		out.Text = table
 		return out, nil
+	}
+
+	// THE RULES' OWN CELLS, WHERE THE MARKS DID NOT ANSWER (#932). A ruled table whose cells hold
+	// TEXT has no marks to infer a grid from, and tesseract's plain reading serialises it column
+	// by column within each band — the words survive and the row binding does not. The lattice is
+	// read off the same two openings the detector measured, so it explains those counts rather
+	// than being a second opinion about the page. Tried only here: a page whose marks
+	// reconstructed keeps that reading byte for byte.
+	lat, lerr := GridLines(pagePNG, thr)
+	if lerr != nil {
+		return PageResult{}, lerr
+	}
+	cellText, cst, why := TextCells(lat, tsv, tsvSparse)
+	switch {
+	case why == "":
+		out.TextCells = &cst
+		out.Text = cellText
+		return out, nil
+	case cst.Cells > 0:
+		out.TextCells = nil
+		out.TextCellFallback = why
+	default:
+		out.TextCellFallback = why
 	}
 
 	text, terr := en.PageText(pagePNG)
