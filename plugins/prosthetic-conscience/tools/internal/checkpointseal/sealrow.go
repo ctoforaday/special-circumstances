@@ -274,9 +274,14 @@ const futureGrace = time.Minute
 // produced four notes running whose stamps were round numbers — one of them seven minutes in the
 // FUTURE. That value silently becomes the age every measurement is taken from.
 //
-// It goes to stderr because that channel is MEASURED to reach the agent: it arrives inside the
-// tool result of whatever call was running when the hook fired (spike §2a's attachment settles
-// the injected channel; this one was confirmed directly from a live transcript).
+// STDERR REACHES NOBODY, and this comment used to claim the opposite — that the channel was
+// "MEASURED to reach the agent … inside the tool result of whatever call was running". Measured
+// again on 2026-09-16, against the real client: a token written to stderr at exit 0 appears in the
+// transcript only inside a `hook_success` record whose `content` is empty, in NO tool result, and a
+// live session asked immediately afterwards reported receiving no such text. It was measured on
+// PreToolUse, the one event where a tool call really is in flight; this hook fires on PreCompact,
+// SessionEnd and SubagentStop, where none is. The line below is a debug-log line until the seal's
+// failures are carried to a displaying event.
 func reportImpossibleWrittenAt(writtenAt string, now time.Time, bin string, stderr io.Writer) {
 	if writtenAt == "" {
 		return // absent is a schema-2 note, not a false claim

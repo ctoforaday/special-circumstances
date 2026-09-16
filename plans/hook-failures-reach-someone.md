@@ -144,8 +144,9 @@ Warnings still survive a denial (today's merge policy), and the decision documen
 - The note read that fails after the note was seen: stage `note-read`, from BOTH readers — the seal's
   steering read (item 8b) and `checkpointrestore.compose` (item 8c). One stage, because it is one
   fact about one file, and either reader's success clears it.
-- `runlive.Live`: stage `run-live-parse` when the marker exists and is not JSON (item 8d). A MISSING
-  marker stays silent — that is the ordinary "no run" case, and the existing fail-open comment is
+- `runlive.Read` (`runlive.go:114-148`, the package's one `json.Unmarshal`; `Live` is a pure method
+  over what Read returned): stage `run-live-parse` when the marker exists and is not JSON (item 8d).
+  A MISSING marker stays silent — that is the ordinary "no run" case, and the existing fail-open comment is
   right about it.
 - `stopnudge`: the four fail-closed returns and the encode failure record stages `nudge-state-read`,
   `nudge-state-write`, `nudge-encode`. `sessionstart` and `strikecounter` record `encode`.
@@ -156,9 +157,18 @@ Warnings still survive a denial (today's merge policy), and the decision documen
   FEOV's only displaying event, and it is where the announcement lands.
 - `runlive.InferRunDir` must distinguish "no marker, not a live run" from "marker present but
   unusable" (item 12), because today both are `""` and only the second is a failure. It gains a
-  second return value saying whether a marker was SEEN; `sittinghook.handoff` records
-  `sitting-run-dir` only in that case. This is the one API change in the plan, and it is forced: a
-  call site cannot report a failure it cannot distinguish from the healthy zero.
+  second return value saying whether a marker was SEEN. This is the one API change in the plan, and
+  it is forced: a call site cannot report a failure it cannot distinguish from the healthy zero.
+
+  **Its consumer census** — four non-test callers, each RULED here, because a contract that gains a
+  signal and wires it into one caller has moved the silence rather than ended it:
+
+  | Caller | Surface | Ruling |
+  |---|---|---|
+  | `sittinghook/sitting.go:142` (`handoff`) | SubagentStart, SubagentStop | records `sitting-run-dir` when a marker was seen; the seat's sitting is lost otherwise |
+  | `hookcmd/hookcmd.go:102` (`Pre`) | PreToolUse | RECORDS `run-dir-unusable`. `hookgate.PreOutcome` returns `(OutcomeNone, "")` on an empty runDir, so the injection simply does not happen — and `infer.go`'s own doc measures that class as ten of 55 tool-call errors in one run. PreToolUse displays, so this one is said on the call it happened to. |
+  | `hookcmd/hookcmd.go:131` (`enforceLimit`) | PreToolUse | same stage, same reason: an unusable marker means the limit is not counted |
+  | `cli/root.go:134`, `cli/seat/seat.go:262` | CLI, human-invoked | OUT OF SCOPE and stated: these have real exit codes and a human reading them. They take the mechanical `dir, _ :=`, and no stage — a CLI that cannot find the run says so through its own error path. |
 - `sittinghook.spawn` switches to `CombinedOutput()` and records `sitting-write` on failure, which
   is what the sibling `Limit` path already does; the comment claiming the child "reports to stderr"
   is deleted. A missing writer records `sitting-writer-missing` from BOTH paths.

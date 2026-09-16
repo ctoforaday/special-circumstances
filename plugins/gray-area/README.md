@@ -86,7 +86,7 @@ that is not recognised as a catalogue — a mistyped `--store` — is refused an
 cost a session its turn — and a hook's stderr at exit 0 reaches only the client's debug log. So each
 failure is also recorded, by stage (`catalogue-open`, `catalogue-ingest`, `manifest`, … and
 `catalogue-backfill` for a store rebuilt empty and not yet backfilled), in
-`~/.local/state/special-circumstances/gray-area-capture/failures.json`, and the next `SessionStart`
+`~/.local/state/special-circumstances/gray-area/failures.json`, and the next `SessionStart`
 or `Stop` shows it as a system message — each stage at most once every 10 minutes. `SubagentStop`
 and `SessionEnd` record and never print. An entry clears when its stage next works, so no file
 means every stage last worked.
