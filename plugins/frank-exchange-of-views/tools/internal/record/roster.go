@@ -37,8 +37,10 @@ import (
 // do not carry a seat id's shape at all.
 //
 // WHAT THIS DOES NOT DO, stated because a gate that seems to prove more than it does is worse than
-// none. It bounds the SHAPE, never the membership: `red-lens-L4` is well formed and no run will
-// ever dispatch it. Bounding the sitting against a declared ceiling was considered and
+// none. A lens id is bounded twice — the pattern for its shape, `LensAreas` for its area (see
+// MEMBERSHIP, NOT JUST SHAPE below) — so `red-lens-evidence-oops` is refused, not admitted. What
+// stays unbounded is the SITTING: a seat from any epoch passes. Bounding it against a declared
+// ceiling was considered and
 // REJECTED — a resume legitimately reduces that ceiling (the standing stop-and-resume practice), so
 // the bound would refuse seats from the run's own earlier epochs. The shape is what can be checked
 // without a second copy of the engine's dispatch logic living over here and drifting.
