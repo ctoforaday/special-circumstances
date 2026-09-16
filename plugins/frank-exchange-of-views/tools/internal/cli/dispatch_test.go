@@ -71,7 +71,9 @@ func TestDispatchNextDocketsAGapAtImpasse(t *testing.T) {
 		return recordtest.At(t, seat, fmt.Sprintf("%s:impasse:%d", seat, n), body)
 	}
 	var cycles []*record.Event
-	for i := 0; i < 2; i++ { // two stalled exchanges under K = 2
+	// Three party sittings for the two stalled exchanges K = 2 needs: a sitting is closed by that
+	// seat's next register, so the epoch that makes the second exchange countable is the third.
+	for i := 0; i < 3; i++ {
 		cycles = append(cycles,
 			at("red-chair", &recordpb.Register{}),
 			at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("red-lens-evidence"), GapIds: []string{"G1"}}),

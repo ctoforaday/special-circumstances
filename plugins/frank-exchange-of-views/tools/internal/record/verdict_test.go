@@ -53,7 +53,8 @@ func TestVerifiedIsDerivedFromThePassEvent(t *testing.T) {
 func TestCeilingIsDerivedFromEveryMaterialGapAtItsLimit(t *testing.T) {
 	st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "high")
-	for i := 0; i < 2; i++ {
+	// Three party sittings for two countable exchanges: each is closed by the parties sitting again.
+	for i := 0; i < 3; i++ {
 		st.register("red-chair").dispatch(2, evLens, "G1").dispatch(2, "blue-respond", "G1").register(evLens).register("blue-respond")
 	}
 	// At impasse: the chair's verb dockets G1 and the bench sits and rules it carried.

@@ -77,8 +77,9 @@ func (b *stage) seed() Run {
 const evLens = "red-lens-evidence"
 
 // One exchange is a red-party sitting engaged on G followed by a blue-party sitting engaged on G,
-// both complete (the chair sat again). Movement in it resets the stall; a null turn — blue sat
-// and recorded nothing on G — counts as an exchange and stalls it.
+// both complete — each closed by THAT SEAT's next register. Movement in it resets the stall; a null
+// turn — blue sat and recorded nothing on G — counts as an exchange and stalls it. The sittings of
+// the last epoch are still open: they are not counted, and they are not zero either.
 func TestAGapsExchangesAndStallsAreCountedFromTheRecord(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").register(evLens).mint(evLens, "G1", "high").                 // epoch 1: the lens mints
@@ -86,7 +87,8 @@ func TestAGapsExchangesAndStallsAreCountedFromTheRecord(t *testing.T) {
 		register(evLens).register("blue-respond").edit("G1", "was", "is").                 // both sit; blue moves the text
 		register("red-chair").dispatch(1, evLens, "G1").dispatch(1, "blue-respond", "G1"). // epoch 3
 		register(evLens).register("blue-respond").                                         // blue sits and says nothing on G1
-		register("red-chair")                                                              // epoch 4: the sittings above are complete
+		register("red-chair").dispatch(1, evLens, "G1").dispatch(1, "blue-respond", "G1"). // epoch 4
+		register(evLens).register("blue-respond")                                          // sitting again closes epoch 3's
 	run := b.seed()
 	x, err := Exchanges(run, DefaultParams)
 	if err != nil {
@@ -96,6 +98,72 @@ func TestAGapsExchangesAndStallsAreCountedFromTheRecord(t *testing.T) {
 	if g == nil || g.Exchanges != 2 || g.Stalled != 1 || g.Impasse {
 		t.Fatalf("G1 = %+v, want 2 exchanges, 1 stalled (the null turn), not at impasse under K=2", g)
 	}
+	if g.Unresolved != 2 {
+		t.Errorf("G1 unresolved = %d, want the two epoch-4 sittings nothing has closed", g.Unresolved)
+	}
+}
+
+// THE WARM CHAIR. The chair registers ONCE and dispatches from the same sitting all run — which
+// every archived B run did, and which the write path still permits for every epoch after the first
+// register. The parties sit twice on G1 and both exchanges are on the record; a fold that waited
+// for the chair to register again would find no chair register after either sitting and report
+// zero, which is the line a gap nobody has disputed produces (#1002).
+func TestAWarmChairCountsTheExchangesItsPartiesActuallySat(t *testing.T) {
+	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").register(evLens).mint(evLens, "G1", "high"). // the chair's only register
+		dispatch(1, evLens, "G1").dispatch(1, "blue-respond", "G1").
+		register(evLens).register("blue-respond").edit("G1", "was", "is").
+		dispatch(1, evLens, "G1").dispatch(1, "blue-respond", "G1").
+		register(evLens).register("blue-respond"). // sitting again closes the first sitting
+		dispatch(1, evLens, "G1").dispatch(1, "blue-respond", "G1").
+		register(evLens).register("blue-respond") // and this closes the second
+	x, err := Exchanges(b.seed(), DefaultParams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	g := x["G1"]
+	if g == nil || g.Exchanges != 2 || g.Stalled != 1 {
+		t.Fatalf("G1 under a warm chair = %+v, want the 2 exchanges its parties sat, the second stalled", g)
+	}
+	if g.Unresolved != 2 {
+		t.Errorf("G1 unresolved = %d, want the two sittings the record cannot close", g.Unresolved)
+	}
+}
+
+// NOT MEASURED IS NOT ZERO, AND THE CHAIR IS TOLD WHICH IT IS. Both parties sat once and neither
+// has registered since, so the record cannot say either sitting ended. The fold counts nothing and
+// says why; the plan's line states that instead of the "0 exchange(s)" a gap nobody has disputed
+// would produce.
+func TestASittingTheRecordCannotCloseIsNotMeasuredRatherThanZero(t *testing.T) {
+	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").register(evLens).mint(evLens, "G1", "high").
+		dispatch(1, evLens, "G1").dispatch(1, "blue-respond", "G1").
+		register(evLens).register("blue-respond")
+	run := b.seed()
+	x, err := Exchanges(run, DefaultParams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	g := x["G1"]
+	if g == nil || g.Exchanges != 0 || g.Unresolved != 2 {
+		t.Fatalf("G1 = %+v, want nothing counted and both sittings reported unresolved", g)
+	}
+	plan, err := PlanDispatch(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	line := ""
+	for _, w := range plan.Why {
+		if strings.HasPrefix(w, "G1: ") {
+			line = w
+		}
+	}
+	if !strings.Contains(line, "NOT MEASURED") {
+		t.Errorf("the plan's line for G1 is %q — a sitting the record cannot close must read as not measured", line)
+	}
+	if strings.Contains(line, "0 exchange(s)") {
+		t.Errorf("the plan's line for G1 is %q — this is the line an undisputed gap produces, and the two cannot share it", line)
+	}
 }
 
 func TestASilentSittingIsANullTurnThatStillCountsAnExchange(t *testing.T) {
@@ -103,7 +171,8 @@ func TestASilentSittingIsANullTurnThatStillCountsAnExchange(t *testing.T) {
 		register("red-chair").register(evLens).mint(evLens, "G1", "high").
 		register("red-chair").dispatch(1, evLens, "G1").dispatch(1, "blue-respond", "G1").
 		register(evLens).register("blue-respond"). // silence from both
-		register("red-chair")
+		register("red-chair").dispatch(1, evLens, "G1").dispatch(1, "blue-respond", "G1").
+		register(evLens).register("blue-respond") // sitting again closes the silent sitting
 	x, err := Exchanges(b.seed(), DefaultParams)
 	if err != nil {
 		t.Fatal(err)
@@ -111,13 +180,15 @@ func TestASilentSittingIsANullTurnThatStillCountsAnExchange(t *testing.T) {
 	if g := x["G1"]; g.Exchanges != 1 || g.Stalled != 1 {
 		t.Fatalf("a silent blue sitting = %+v, want one exchange, one stall — silence is a turn taken", g)
 	}
-	// The same shape with blue's sitting still OPEN (the chair has not sat again) counts nothing yet.
+	// AN UNFINISHED SITTING IS NOT A COMPLETED EXCHANGE. The same shape with neither party having
+	// registered since: the record cannot say either sitting ended, so nothing is counted — and the
+	// two open sittings are reported rather than left to read as a gap with no dispute.
 	b2 := newStage(t).cast(evLens, "red-chair", "blue-respond").ingest().
 		register("red-chair").register(evLens).mint(evLens, "G1", "high").
 		register("red-chair").dispatch(1, evLens, "G1").dispatch(1, "blue-respond", "G1").
 		register(evLens).register("blue-respond")
 	x2, _ := Exchanges(b2.seed(), DefaultParams)
-	if g := x2["G1"]; g.Exchanges != 0 {
+	if g := x2["G1"]; g.Exchanges != 0 || g.Unresolved != 2 {
 		t.Fatalf("an open sitting completed an exchange: %+v", g)
 	}
 }
@@ -132,10 +203,13 @@ func TestImpasseFiresOnStallAndOnTheMonotoneBound(t *testing.T) {
 			move(b)
 		}
 	}
+	// EACH EXCHANGE IS CLOSED BY THE PARTIES SITTING AGAIN, so the epoch that puts the Nth exchange
+	// on the record is the one after it: two stalled exchanges are countable once the parties have
+	// sat a third time, and the third sitting is itself still open.
 	stall := newStage(t).cast(evLens, "red-chair", "blue-respond").ingest().register("red-chair").register(evLens).mint(evLens, "G1", "high")
 	cycle(stall, nil)
 	cycle(stall, nil)
-	stall.register("red-chair")
+	cycle(stall, nil)
 	x, _ := Exchanges(stall.seed(), Params{K: 2, KMax: 6, MintBudget: 5, ConvergenceFraction: 0.25})
 	if g := x["G1"]; !g.Impasse || g.Stalled != 2 {
 		t.Fatalf("two stalled exchanges under K=2: %+v, want impasse", g)
@@ -147,7 +221,7 @@ func TestImpasseFiresOnStallAndOnTheMonotoneBound(t *testing.T) {
 		g := grades[i]
 		cycle(oscillate, func(b *stage) { b.regrade(evLens, "G1", g) })
 	}
-	oscillate.register("red-chair")
+	cycle(oscillate, nil)
 	x, _ = Exchanges(oscillate.seed(), Params{K: 2, KMax: 3, MintBudget: 5, ConvergenceFraction: 0.25})
 	if g := x["G1"]; !g.Impasse || g.Stalled != 0 || g.Exchanges != 3 {
 		t.Fatalf("a regrade every exchange under KMax=3: %+v, want impasse by the bound with no stall", g)
@@ -155,7 +229,7 @@ func TestImpasseFiresOnStallAndOnTheMonotoneBound(t *testing.T) {
 	// A regrade to the SAME grade is an act, not movement.
 	same := newStage(t).cast(evLens, "red-chair", "blue-respond").ingest().register("red-chair").register(evLens).mint(evLens, "G1", "high")
 	cycle(same, func(b *stage) { b.regrade(evLens, "G1", "high") })
-	same.register("red-chair")
+	cycle(same, nil)
 	x, _ = Exchanges(same.seed(), DefaultParams)
 	if g := x["G1"]; g.Stalled != 1 {
 		t.Fatalf("a regrade to the same grade counted as movement: %+v", g)
@@ -283,7 +357,8 @@ func TestAnEmptyDispatchIsTermination(t *testing.T) {
 func TestTheBenchIsReadyWhenAGapReachesImpasseAndTheVerbDocketsIt(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "high")
-	for i := 0; i < 2; i++ {
+	// Three party sittings for two countable exchanges: each is closed by the parties sitting again.
+	for i := 0; i < 3; i++ {
 		b.register("red-chair").dispatch(2, evLens, "G1").dispatch(2, "blue-respond", "G1").register(evLens).register("blue-respond")
 	}
 	b.register("red-chair")

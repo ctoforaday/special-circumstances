@@ -198,13 +198,13 @@ func PlanDispatch(run Run) (Plan, error) {
 				engage(g.mintedBy, g.id)
 			}
 			engage("blue-respond", g.id)
-			plan.Why = append(plan.Why, fmt.Sprintf("%s: open, material, %d exchange(s) (%d stalled) — below its limits", g.id, x.Exchanges, x.Stalled))
+			plan.Why = append(plan.Why, fmt.Sprintf("%s: open, material, %s — below its limits", g.id, x.Counted()))
 			continue
 		}
 		if g.dockets == 0 {
 			plan.Docket = append(plan.Docket, g.id)
 			engage("judge", g.id)
-			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse (%d exchange(s), %d stalled) — docketed for the bench", g.id, x.Exchanges, x.Stalled))
+			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse (%s) — docketed for the bench", g.id, x.Counted()))
 			continue
 		}
 		materialSettled++ // ruled and still open: remanded
@@ -371,9 +371,13 @@ const chairSeat = "red-chair"
 // unopenedChairSitting is the chair's latest dispatch when a party has SAT for it (sittingFor)
 // and the chair has not registered since recording it. The workflow comes back to the chair only
 // after the parties sit, so that is a new chair sitting no register opened: the clock would read
-// it as the previous epoch, exchangesOf would never see the parties' sittings complete (it closes
-// a sitting at the chair's next register), and the dispatch groups would have only the parties'
-// registers to split on. Every seat's sitting opens with a register; this is the chair's owed one.
+// it as the previous epoch, and the dispatch groups would have only the parties' registers to
+// split on. Every seat's sitting opens with a register; this is the chair's owed one.
+//
+// THE EXCHANGE COUNT NO LONGER DEPENDS ON IT. exchangesOf closed a party's sitting at the chair's
+// next register, so a chair that skipped this register silently zeroed the fold; it now closes a
+// sitting at the sitting seat's OWN next register (#1002). This item stands on its own ground —
+// the clock and the groups — and the fold stands on the parties'.
 func unopenedChairSitting(evs []*Event) (DispatchGroup, bool) {
 	groups := DispatchGroups(evs)
 	if len(groups) == 0 {
