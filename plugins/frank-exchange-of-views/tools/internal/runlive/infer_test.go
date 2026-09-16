@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -25,7 +26,7 @@ func TestInferRunDirReadsTheLiveMarker(t *testing.T) {
 	mustMkdir(t, filepath.Join(proj, ".claude"))
 	writeMarker(t, proj, `{"runs":[{"runDir":"research/2026-07-18_topic"}]}`)
 
-	if got := InferRunDir(proj); got != run {
+	if got := InferRunDir(proj).Dir; got != run {
 		t.Fatalf("InferRunDir(%q) = %q, want %q", proj, got, run)
 	}
 }
@@ -40,7 +41,7 @@ func TestInferRunDirWalksUpFromASubdirectory(t *testing.T) {
 
 	deep := filepath.Join(proj, "plugins", "x", "y")
 	mustMkdir(t, deep)
-	if got := InferRunDir(deep); got != run {
+	if got := InferRunDir(deep).Dir; got != run {
 		t.Fatalf("from %q got %q, want %q", deep, got, run)
 	}
 }
@@ -57,7 +58,7 @@ func TestInferRunDirRefusesAnUnusableMarker(t *testing.T) {
 			proj := t.TempDir()
 			mustMkdir(t, filepath.Join(proj, ".claude"))
 			writeMarker(t, proj, tc.body)
-			if got := InferRunDir(proj); got != "" {
+			if got := InferRunDir(proj).Dir; got != "" {
 				t.Fatalf("got %q, want empty", got)
 			}
 		})
@@ -65,7 +66,7 @@ func TestInferRunDirRefusesAnUnusableMarker(t *testing.T) {
 }
 
 func TestInferRunDirIsEmptyWithNoMarkerAnywhere(t *testing.T) {
-	if got := InferRunDir(t.TempDir()); got != "" {
+	if got := InferRunDir(t.TempDir()).Dir; got != "" {
 		t.Fatalf("got %q, want empty when no run is live", got)
 	}
 }
@@ -76,7 +77,7 @@ func TestInferRunDirHonoursAnAbsoluteRunDir(t *testing.T) {
 	elsewhere := t.TempDir()
 	mustMkdir(t, filepath.Join(proj, ".claude"))
 	writeMarker(t, proj, `{"runs":[{"runDir":`+quote(elsewhere)+`}]}`)
-	if got := InferRunDir(proj); got != elsewhere {
+	if got := InferRunDir(proj).Dir; got != elsewhere {
 		t.Fatalf("got %q, want %q", got, elsewhere)
 	}
 }
@@ -98,4 +99,76 @@ func writeMarker(t *testing.T, proj, body string) {
 func quote(s string) string {
 	b, _ := json.Marshal(s)
 	return string(b)
+}
+
+// EVERY REASON IS DISTINCT, AND ONLY TWO ARE FAULTS. A bare "" used to answer all six; a caller that
+// must tell a human about a broken marker cannot do it from a zero value the healthy cases share —
+// and must not raise an alarm for two runs legitimately open at once.
+func TestInferRunDirSaysWhy(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		marker *string // nil: no marker at all
+		dirs   []string
+		why    Inference
+		fault  bool
+		hasDir bool
+	}{
+		{name: "no marker", why: NoMarker},
+		{name: "resolved", marker: ptr(`{"runs":[{"runDir":"run"}]}`), dirs: []string{"run"}, why: Resolved, hasDir: true},
+		{name: "no run open", marker: ptr(`{"runs":[]}`), why: NoRunOpen},
+		{name: "two runs open", marker: ptr(`{"runs":[{"runDir":"a"},{"runDir":"b"}]}`), dirs: []string{"a", "b"}, why: Ambiguous},
+		{name: "unreadable", marker: ptr("{ not json"), why: Unreadable, fault: true},
+		{name: "stale", marker: ptr(`{"runs":[{"runDir":"gone"}]}`), why: Stale, fault: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			proj := t.TempDir()
+			for _, d := range tc.dirs {
+				mustMkdir(t, filepath.Join(proj, d))
+			}
+			if tc.marker != nil {
+				mustMkdir(t, filepath.Join(proj, ".claude"))
+				writeMarker(t, proj, *tc.marker)
+			}
+			got := InferRunDir(proj)
+			if got.Why != tc.why {
+				t.Fatalf("Why = %v, want %v", got.Why, tc.why)
+			}
+			if got.Why.Fault() != tc.fault {
+				t.Errorf("Fault() = %v, want %v", got.Why.Fault(), tc.fault)
+			}
+			if (got.Dir != "") != tc.hasDir {
+				t.Errorf("Dir = %q", got.Dir)
+			}
+			if tc.marker != nil && got.MarkerDir != proj {
+				t.Errorf("MarkerDir = %q, want %q — a fault is scoped to the project its marker is in", got.MarkerDir, proj)
+			}
+		})
+	}
+}
+
+func ptr(s string) *string { return &s }
+
+// NOWHERE TO START: no cwd, no CLAUDE_PROJECT_DIR, and a working directory that no longer exists.
+// That fell through to NoMarker — "not in a run" — the one answer it cannot honestly give.
+func TestNowhereToStartIsAFault(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("a process's working directory cannot be deleted from under it on Windows")
+	}
+	t.Setenv("CLAUDE_PROJECT_DIR", "")
+	gone := filepath.Join(t.TempDir(), "gone")
+	mustMkdir(t, gone)
+	t.Chdir(gone)
+	if err := os.Remove(gone); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Getwd(); err == nil {
+		t.Skip("Getwd still succeeds with its directory removed on this platform — the premise never took")
+	}
+	got := InferRunDir("")
+	if got.Why != Unlocatable || !got.Why.Fault() {
+		t.Fatalf("Why = %v, fault %v; want Unlocatable, a fault", got.Why, got.Why.Fault())
+	}
+	if FaultDetail(got) == "" {
+		t.Error("a fault with no words for its fix")
+	}
 }

@@ -259,7 +259,7 @@ func BoundSeat(run record.Run) func() (string, error) {
 
 func Of(cmd *cobra.Command) Context {
 	runDir, _ := cmd.Flags().GetString(flags.Run)
-	resolved, via, err := seatenv.ResolveWithSource(runDir, func() string { return runlive.InferRunDir("") })
+	resolved, via, err := seatenv.ResolveWithSource(runDir, func() string { return runlive.InferRunDir("").Dir })
 	if err != nil {
 		// NO RUN DIRECTORY LEAVES HERE. A caller holding one it was refused is a caller that
 		// will use it, and every reader below this point trusts what it is handed.

@@ -22,12 +22,14 @@ package sittinghook
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookfailures"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 )
@@ -111,26 +113,42 @@ type sittingInput struct {
 // returning additionalContext re-invoked the seat, its turn ended, the hook fired again — NINE
 // firings for one seat, the returned context discarded every time. Under a log-only hook the same
 // launch fires exactly once. An observation hook that starts talking turns one event into nine.
-func Start(stdin io.Reader, stdout io.Writer) error { return handoff(stdin, phaseOpen) }
+func Start(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
+	return handoff(stdin, phaseOpen, rec)
+}
 
 // Stop records the moment that agent returned. Silent for the reason above — and here the
 // measurement is of this very event rather than an analogy to it.
-func Stop(stdin io.Reader, stdout io.Writer) error { return handoff(stdin, phaseClose) }
+func Stop(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
+	return handoff(stdin, phaseClose, rec)
+}
+
+// The stages a sitting hook can fail at. NEITHER of its events displays anything, and neither may
+// speak (an emission re-invokes the seat), so each waits on the record for FEOV's only displaying
+// event — PreToolUse — which a seat's very next tool call fires.
+const (
+	StageInput         hookfailures.Stage = "sitting-input"
+	StageWriterMissing hookfailures.Stage = "sitting-writer-missing"
+	StageWrite         hookfailures.Stage = "sitting-write"
+)
 
 // handoff is the decision. Everything it rejects, it rejects BEFORE spawning anything.
 //
 // NOTHING HERE CAN FAIL THE HOOK. A hook's job is to observe; a seat is not blocked because the
 // bookkeeping failed, and an error returned from here would reach the harness as a failed hook on
 // an event the seat cannot even see.
-func handoff(stdin io.Reader, phase string) error {
+func handoff(stdin io.Reader, phase string, rec *hookfailures.Recorder) error {
 	raw, err := io.ReadAll(stdin)
 	if err != nil {
+		rec.Fail(StageInput, "cannot read the hook payload: "+err.Error()+" — this sitting is not on the record")
 		return nil
 	}
 	var in sittingInput
-	if json.Unmarshal(raw, &in) != nil {
+	if err := json.Unmarshal(raw, &in); err != nil {
+		rec.Fail(StageInput, "the hook payload does not parse: "+err.Error()+" — this sitting is not on the record")
 		return nil
 	}
+	rec.OK(StageInput)
 	// NOT A SEAT, AND THIS IS THE FILTER THE FREQUENCY ARGUMENT RESTS ON. Both halves are
 	// required and for different reasons: no agent id means nothing to join a span to, and no
 	// agent type means this is a main-agent turn boundary rather than a sitting. Without it a
@@ -139,27 +157,57 @@ func handoff(stdin io.Reader, phase string) error {
 	if in.AgentID == "" || in.AgentType == "" {
 		return nil
 	}
-	runDir := runlive.InferRunDir(in.Cwd)
-	if runDir == "" {
+	inferred := runlive.InferRunDir(in.Cwd)
+	if inferred.Why.Fault() {
+		// A marker that cannot be used is not "no run": it is a run whose seats' sittings are all
+		// being dropped. Only the two fault shapes are recorded — no marker, no open run and two
+		// runs open are the ordinary shapes of a session, and stay silent.
+		rec.FailIn(runlive.StageUnusable, inferred.MarkerDir, unusableDetail(inferred))
+		return nil
+	}
+	if inferred.MarkerDir != "" {
+		rec.OKIn(runlive.StageUnusable, inferred.MarkerDir)
+	}
+	if inferred.Dir == "" {
 		return nil
 	}
 	writer := writerPath()
 	if writer == "" {
+		// Limit already reported this case; the span ends did not, and every sitting of the run
+		// was lost with nothing said. It is the bootstrap window only until the fetch lands, and
+		// the entry clears on the first sitting written after that — so a transient miss is shown
+		// once, and a permanent one keeps showing.
+		rec.Fail(StageWriterMissing, writerName+" is not beside this hook, so "+in.AgentID+"'s sitting is not on the record")
 		return nil
 	}
-	spawn(writer, runDir, phase, in.AgentID, in.AgentType, in.AgentTranscriptPath)
+	rec.OK(StageWriterMissing)
+	if err := spawn(writer, inferred.Dir, phase, in.AgentID, in.AgentType, in.AgentTranscriptPath); err != nil {
+		rec.FailIn(StageWrite, inferred.MarkerDir, err.Error())
+		return nil
+	}
+	rec.OKIn(StageWrite, inferred.MarkerDir)
 	return nil
+}
+
+// unusableDetail says which fault the inference hit, because each is fixed differently.
+func unusableDetail(i runlive.Inferred) string {
+	return runlive.FaultDetail(i) + " — seats' sittings are not being recorded"
 }
 
 // spawn is a variable so the DECISION can be tested without a built writer on disk. What matters
 // about this function is which events reach it and with what — that a turn end never does, that a
 // session with no run never does — and asserting that through a real subprocess would test the
 // exec plumbing instead of the filter.
-var spawn = func(writer, runDir, phase, agentID, agentType, transcript string) {
+var spawn = func(writer, runDir, phase, agentID, agentType, transcript string) error {
 	// WAITED ON, not fired and forgotten: a detached child can be killed when the hook process
 	// exits, and a span silently missing one end is worse than a hook that took another
-	// millisecond. Its failure is deliberately discarded — it reports to stderr, and the hook's
-	// contract is to stay silent whatever happened.
+	// millisecond.
+	//
+	// ITS OUTPUT IS KEPT. This comment used to say the child's failure "reports to stderr" — and
+	// Run() leaves exec.Cmd.Stderr nil, which Go connects to os.DevNull, so everything the writer
+	// said was destroyed. The sibling Limit path always used CombinedOutput and kept it; the two
+	// disagreed about whether the same writer's failure was worth reading. It is: the caller records
+	// it, and the hook still writes nothing to its own stdout.
 	args := []string{
 		"-run", runDir,
 		"-phase", phase,
@@ -171,7 +219,10 @@ var spawn = func(writer, runDir, phase, agentID, agentType, transcript string) {
 	if transcript != "" {
 		args = append(args, "-transcript", transcript)
 	}
-	_ = exec.Command(writer, args...).Run()
+	if out, err := exec.Command(writer, args...).CombinedOutput(); err != nil {
+		return fmt.Errorf("%s: %v: %s", writerName, err, strings.TrimSpace(string(out)))
+	}
+	return nil
 }
 
 // writerFileName is the writer's name on this platform. It exists so the test that places a stub

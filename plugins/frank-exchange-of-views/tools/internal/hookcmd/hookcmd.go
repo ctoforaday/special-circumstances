@@ -32,10 +32,13 @@
 package hookcmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookfailures"
 	"io"
 	"os"
+	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
@@ -44,22 +47,86 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittinghook"
 )
 
+// The stages Run records for any entry point. A hook that panicked, or returned an error, did not do
+// its job — and both used to be a stderr line at exit 0, which reaches the debug log and nobody.
+const (
+	StagePanic     hookfailures.Stage = "hook-panic"
+	StageError     hookfailures.Stage = "hook-error"
+	StageTurnLimit hookfailures.Stage = "turn-limit"
+	StageInput     hookfailures.Stage = "pretooluse-input"
+	StageToolInput hookfailures.Stage = "tool-input"
+	StageDeliver   hookfailures.Stage = "deliver"
+)
+
+// Entry is a hook entry point: it reads the payload, writes its decision document (if any) to
+// stdout, and records what it could not do on rec.
+type Entry func(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error
+
 // Run invokes a hook entry point and guarantees the process exit code is 0.
 //
 // A panic here is a bug worth fixing, and it is NOT worth denying every tool call in the session
-// to report. It is swallowed deliberately: stderr still carries it for anyone reading hook logs,
-// and the caller proceeds.
-func Run(f func(io.Reader, io.Writer) error, stdin io.Reader, stdout io.Writer) (code int) {
+// to report. It is swallowed deliberately — and RECORDED, because swallowed used to mean a stderr
+// line nobody reads. The record is read out on PreToolUse, this plugin's only displaying event.
+//
+// The entry writes to a BUFFER, and Run writes the one response: the entry's document with the
+// record's systemMessage added to it, or the message alone, or nothing. A second top-level object
+// beside a permission document is not a response, and a decision is never risked for a message: a
+// document Run cannot decode goes out exactly as the entry wrote it.
+//
+// SubagentStart and SubagentStop display nothing, so Settle returns "" and nothing is added — which
+// keeps them mute, as they must be (an emission re-invokes the seat).
+func Run(bin, event string, f Entry, stdin io.Reader, stdout io.Writer) (code int) {
+	rec := hookfailures.New("frank-exchange-of-views", bin, event, time.Now(), os.Stderr)
+	var buf bytes.Buffer
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Fprintf(os.Stderr, "feov hook: recovered from %v (exiting 0: a hook must never block on its own fault)\n", r)
-			code = 0
+			rec.Fail(StagePanic, fmt.Sprintf("recovered from %v (exiting 0: a hook must never block on its own fault)", r))
+		} else {
+			rec.OK(StagePanic)
 		}
+		if err := respond(stdout, buf.Bytes(), rec.Settle()); err != nil {
+			// The decision never reached the client. Recorded rather than said — the channel for
+			// saying it is the thing that failed — and read out by the next call that can.
+			//
+			// PERSISTED, never settled: a second Settle on this displaying event would stamp the entry
+			// as said while its message went nowhere, and the next call would then stay quiet about
+			// it for ten minutes.
+			rec.Fail(StageDeliver, "cannot write the response: "+err.Error())
+			rec.Persist()
+		} else {
+			// Persisted AGAIN, because the Settle above ran before delivery was known: an OK recorded
+			// after it would never reach the record, and a delivery failure would never clear. The
+			// second pass is a load and, normally, no write.
+			rec.OK(StageDeliver)
+			rec.Persist()
+		}
+		code = 0
 	}()
-	if err := f(stdin, stdout); err != nil {
-		fmt.Fprintf(os.Stderr, "feov hook: %v (exiting 0)\n", err)
+	if err := f(stdin, &buf, rec); err != nil {
+		rec.Fail(StageError, err.Error()+" (exiting 0)")
+	} else {
+		rec.OK(StageError)
 	}
 	return 0
+}
+
+// respond writes the entry's document, with the record's message added when there is one.
+func respond(stdout io.Writer, doc []byte, msg string) error {
+	if msg == "" {
+		_, err := stdout.Write(doc)
+		return err
+	}
+	if len(bytes.TrimSpace(doc)) == 0 {
+		hookfailures.Emit(stdout, msg)
+		return nil
+	}
+	var m map[string]any
+	if err := json.Unmarshal(doc, &m); err != nil {
+		_, werr := stdout.Write(doc) // the decision goes out intact; the message waits for the next call
+		return werr
+	}
+	m["systemMessage"] = msg
+	return json.NewEncoder(stdout).Encode(m)
 }
 
 // readInput returns the parsed Input, the raw bytes, and whether the parse succeeded.
@@ -78,16 +145,25 @@ func readInput(stdin io.Reader) (hookgate.Input, []byte, bool) {
 // the record — and it refuses two things: any tool call past the seat's per-sitting call limit
 // (enforceLimit), and a tool command carrying a backtick the shell would run, which would rewrite
 // the seat's prose before the tool saw it (hookgate/substitution.go).
-func Pre(stdin io.Reader, stdout io.Writer) error {
+func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 	in, raw, ok := readInput(stdin)
 	if !ok {
-		return nil // no payload to inject into
+		// Not "nothing to do": the client always sends a payload, and one this hook cannot read
+		// means no turn limit counted and no run directory injected for this call. The sitting
+		// hooks record the same failure; this path, which carries both of those, did not.
+		rec.Fail(StageInput, "cannot read or parse the PreToolUse payload — the turn limit and run-directory injection did not run for this call")
+		return nil
 	}
+	rec.OK(StageInput)
 	// THE TURN LIMIT COMES FIRST, and covers every tool: a refused call runs nothing, so it needs
 	// nothing injected. A counting fault goes to stderr and the call proceeds.
-	denied, err := enforceLimit(in, cwdOf(raw), stdout)
+	denied, err := enforceLimit(in, cwdOf(raw), stdout, rec)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "feov hook: turn limit: %v\n", err)
+		// The seat is still refused when it should be — enforcement survives — but the record's
+		// account of WHY does not, and that used to be a stderr line nobody read.
+		rec.Fail(StageTurnLimit, "turn limit: "+err.Error())
+	} else {
+		rec.OK(StageTurnLimit)
 	}
 	if denied {
 		return nil
@@ -99,12 +175,19 @@ func Pre(stdin io.Reader, stdout io.Writer) error {
 	// The run directory is resolved from the payload's `cwd` — the SEAT's working directory,
 	// which is wire-supplied and documented, never this hook process's os.Getwd(). Absent or
 	// unusable marker → empty → no rewrite, matching InferRunDir's "say nothing rather than guess".
-	runDir := runlive.InferRunDir(cwdOf(raw))
-	switch outcome, payload := hookgate.PreOutcome(in, runDir); outcome {
+	inferred := runlive.InferRunDir(cwdOf(raw))
+	noteInference(inferred, rec)
+	switch outcome, payload := hookgate.PreOutcome(in, inferred.Dir); outcome {
 	case hookgate.OutcomeRewrite:
 		emitPreRewrite(stdout, in.ToolInput, payload)
+		rec.OK(StageToolInput)
 	case hookgate.OutcomeDeny:
 		emitPreDeny(stdout, payload)
+		rec.OK(StageToolInput)
+	case hookgate.OutcomeUnparsable:
+		rec.Fail(StageToolInput, "a Bash call's tool_input does not parse ("+payload+") — the run directory was not injected, and the seat will hit the missing-run refusal from another layer")
+	default:
+		rec.OK(StageToolInput)
 	}
 	return nil
 }
@@ -120,7 +203,7 @@ func Pre(stdin io.Reader, stdout io.Writer) error {
 //
 // The one call a limited sitting lets through is a register (hookgate.OpensASitting), because
 // that is what opens the next sitting's count.
-func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer) (denied bool, err error) {
+func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfailures.Recorder) (denied bool, err error) {
 	agentID, agentType := in.AgentID, in.AgentType
 	if agentID == "" {
 		agentID, agentType = seatenv.AgentID(), seatenv.AgentType()
@@ -128,7 +211,9 @@ func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer) (denied bool,
 	if agentID == "" {
 		return false, nil
 	}
-	runDir := runlive.InferRunDir(cwd)
+	inferred := runlive.InferRunDir(cwd)
+	noteInference(inferred, rec)
+	runDir := inferred.Dir
 	if runDir == "" {
 		runDir = os.Getenv(seatenv.Var)
 	}
@@ -139,11 +224,34 @@ func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer) (denied bool,
 	if err != nil || !counted || !d.Over || hookgate.OpensASitting(in) {
 		return false, err
 	}
+	if d.MarkErr != nil {
+		// The seat is still refused below. What is lost is the record of the sitting reaching its
+		// limit, which only the first refused call writes — and a marker that cannot be created
+		// means no call ever counts as first.
+		err = fmt.Errorf("cannot mark %s's sitting %d as limited, so its limit is not on the record: %w", agentID, d.Sitting, d.MarkErr)
+	}
 	if d.First {
 		err = recordLimit(runDir, agentID, agentType, d.Sitting, d.Limit)
 	}
 	emitPreDeny(stdout, hookgate.LimitReason(d.Count, d.Limit))
 	return true, err
+}
+
+// noteInference records a marker that is a FAULT, and clears the entry when the marker is usable.
+//
+// hookgate.PreOutcome says nothing on an empty run directory, so an unusable marker meant the run
+// directory was simply never injected — and the seat then hit "no run directory" from a different
+// layer, which names the wrong cause. InferRunDir's own comment measures that class at ten of 55
+// tool-call errors in one run. The ordinary shapes — no marker, no open run, two runs open — stay
+// silent.
+func noteInference(i runlive.Inferred, rec *hookfailures.Recorder) {
+	switch {
+	case i.Why.Fault():
+		rec.FailIn(runlive.StageUnusable, i.MarkerDir, runlive.FaultDetail(i)+
+			" — the run directory is not being injected into seats' commands")
+	case i.MarkerDir != "":
+		rec.OKIn(runlive.StageUnusable, i.MarkerDir)
+	}
 }
 
 // recordLimit is a variable so the hook's handoff can be tested without a built writer on disk.

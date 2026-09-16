@@ -18,4 +18,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittinghook"
 )
 
-func main() { os.Exit(hookcmd.Run(sittinghook.Start, os.Stdin, os.Stdout)) }
+func main() {
+	os.Exit(hookcmd.Run("feov-subagentstart", "SubagentStart", sittinghook.Start, os.Stdin, os.Stdout))
+}

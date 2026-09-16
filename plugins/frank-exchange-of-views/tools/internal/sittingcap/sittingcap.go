@@ -70,6 +70,11 @@ type Decision struct {
 	Over bool
 	// First is true for exactly one refused call per sitting: the one that records the limit.
 	First bool
+	// MarkErr is set when the one-per-sitting marker could not be created for a reason OTHER than
+	// a sibling call having created it already. That used to fold silently into "not first", so the
+	// sitting's limit never reached the record. It is a field rather than an error return because
+	// the refusal must still happen: Count's error path returns before the deny.
+	MarkErr error
 }
 
 // Open starts counting a sitting. register calls it after its event is written.
@@ -156,9 +161,12 @@ func Count(runDir, agentID string) (d Decision, ok bool, err error) {
 	}
 	d.Over = true
 	m, err := os.OpenFile(base+".limited", os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
-	if err == nil {
+	switch {
+	case err == nil:
 		m.Close()
 		d.First = true
+	case !errors.Is(err, fs.ErrExist):
+		d.MarkErr = err
 	}
 	return d, true, nil
 }

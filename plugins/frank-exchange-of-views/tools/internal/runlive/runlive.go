@@ -59,13 +59,23 @@ type RunLive struct {
 // treating that as "a run is live" would trade a silent hazard for a stuck operator. So an
 // unreadable or unparseable marker reports NO runs, and the next write replaces it.
 func ReadRunLive(projectDir string) []RunLiveMarker {
+	runs, _ := readRunLive(projectDir)
+	return runs
+}
+
+// readRunLive is ReadRunLive plus whether the file could be READ at all. ReadRunLive's callers want
+// the runs and treat a broken file as no runs, which is right for them; InferRunDir must also be
+// able to say that a marker is BROKEN rather than empty, because only one of those is a fault a
+// human should be told about. One decoder serves both, so the two can never disagree about the
+// shape of the file.
+func readRunLive(projectDir string) (runs []RunLiveMarker, readable bool) {
 	b, err := os.ReadFile(filepath.Join(projectDir, ".claude", "run-live.json"))
 	if err != nil {
-		return nil
+		return nil, false
 	}
 	var f RunLive
 	if json.Unmarshal(b, &f) != nil {
-		return nil
+		return nil, false
 	}
 	out := make([]RunLiveMarker, 0, len(f.Runs))
 	for _, m := range f.Runs {
@@ -73,7 +83,7 @@ func ReadRunLive(projectDir string) []RunLiveMarker {
 			out = append(out, m)
 		}
 	}
-	return out
+	return out, true
 }
 
 // ReadRunLiveMarker reports THE open run, if the marker names exactly one usably.

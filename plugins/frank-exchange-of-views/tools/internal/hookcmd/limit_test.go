@@ -3,6 +3,9 @@ package hookcmd
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookfailures"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -76,7 +79,7 @@ func call(t *testing.T, cwd, agent, tool, command string) (decision, reason stri
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
-	if err := Pre(bytes.NewReader(b), &out); err != nil {
+	if err := Pre(bytes.NewReader(b), &out, testRecorder()); err != nil {
 		t.Fatal(err)
 	}
 	if out.Len() == 0 {
@@ -200,4 +203,28 @@ func TestAHeadlessSeatIsLimitedFromItsEnvironment(t *testing.T) {
 	if len(*got) != 1 || (*got)[0].agentID != "agent_env" {
 		t.Errorf("handoffs %+v, want one for agent_env", *got)
 	}
+}
+
+// testRecorder records into the package's isolated state directory (TestMain) and writes its lines
+// nowhere.
+func testRecorder() *hookfailures.Recorder {
+	return hookfailures.New("frank-exchange-of-views", "test", "PreToolUse", time.Now(), io.Discard)
+}
+
+// No test in this package may write the developer's own failure record: every entry point here now
+// settles into ~/.local/state unless something stops it.
+func TestMain(m *testing.M) {
+	dir, err := os.MkdirTemp("", "feov-hookfailures-test-")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "TestMain:", err)
+		os.Exit(1)
+	}
+	defer os.RemoveAll(dir)
+	for _, k := range []string{"HOME", "USERPROFILE", "XDG_STATE_HOME"} {
+		if err := os.Setenv(k, dir); err != nil {
+			fmt.Fprintln(os.Stderr, "TestMain:", err)
+			os.Exit(1)
+		}
+	}
+	os.Exit(m.Run())
 }
