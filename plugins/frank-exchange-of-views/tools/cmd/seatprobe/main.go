@@ -17,6 +17,9 @@
 //	--model haiku                                   the instrument (see below)
 //	--agent frank-exchange-of-views:<agent>         the definition production dispatches, with
 //	                                                its skills and its declared tools
+//	--plugin-dir <this tree's plugin>               which COPY of the plugin that definition is
+//	                                                taken from — this repository's, not the
+//	                                                installed release
 //	--allowedTools <the agent's own tools: line>    PERMISSION, not availability — nobody is at
 //	                                                the keyboard to answer an approval prompt
 //	--add-dir <runDir>                              access to the board
@@ -100,8 +103,35 @@ func main() {
 		inRun      = flag.Bool("records-in-run", false, "leave the event record under the run directory, where the seat can read it without the tool — the CONTROL arm, for measuring what the separation changes")
 		memoryDir  = flag.String("memory", "", "directory holding red's accumulated gap patterns, staged into inputs/red-gap-patterns.md as run-setup stages it (default: the repo's feov-memory/red-gap-patterns, located by searching upward for the repository rather than by counting up from the working directory — pass this to stage a corpus from somewhere else)")
 		debatePath = flag.String("debate", "", "path to the shipped debate.js the probe takes its prompts from (default: the plugin's skills/research-protocol/scripts/debate.js)")
+		pluginDir  = flag.String("plugin-dir", "", "directory holding the frank-exchange-of-views plugin the dispatched seat LOADS — its agent definitions and the skills they declare (default: this repository's own plugins/frank-exchange-of-views)")
 	)
 	flag.Parse()
+
+	// THE PLUGIN THE SEAT LOADS IS THIS TREE, NOT THE INSTALLED ONE.
+	//
+	// `--agent frank-exchange-of-views:<agent>` resolves against the plugins the CLI has loaded,
+	// and with no plugin directory named that is the INSTALLED release in
+	// ~/.claude/plugins/cache. On a branch that changes constitutions or skills the probe then
+	// measured a seat carrying the branch's PROMPT (debate.js is read from this tree) under the
+	// RELEASE's constitution and skills — a mixture that exists nowhere, reported as production.
+	// Measured on the lens-bar branch: a seat asked to quote its own mint bullet returned the
+	// released wording, with the retirement clause this branch adds absent from it.
+	//
+	// The three plugin-sourced inputs now take ONE root, so -plugin-dir cannot point the seat at
+	// one tree while the constitution this harness reads for its tool grant comes from another.
+	if *pluginDir == "" {
+		p, err := repotree.Plugin()
+		if err != nil {
+			fail("%v — pass -plugin-dir", err)
+		}
+		*pluginDir = p
+	}
+	if *constDir == "" {
+		*constDir = filepath.Join(*pluginDir, "agents")
+	}
+	if *debatePath == "" {
+		*debatePath = filepath.Join(*pluginDir, "skills", "research-protocol", "scripts", "debate.js")
+	}
 
 	// THE SITTING TEXT, FOR A CALLER THAT DRIVES ITS OWN DISPATCH. The interview harness holds a
 	// session open across turns, which this binary does not do — but it must put the seat in the
@@ -119,7 +149,7 @@ func main() {
 		if *dir == "" || *bin == "" {
 			fail("-print-sitting renders the prompt debate.js hands the seat, which names the run directory and the tool: pass -dir and -bin (the same values the -build-only staging used)")
 		}
-		d, err := seatprobe.ProductionPrompt(debateScript(*debatePath), b, filepath.Join(*dir, b.Name), filepath.Dir(*bin), *model, *model)
+		d, err := seatprobe.ProductionPrompt(*debatePath, b, filepath.Join(*dir, b.Name), filepath.Dir(*bin), *model, *model)
 		if err != nil {
 			fail("%v", err)
 		}
@@ -178,7 +208,7 @@ func main() {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, debateScript(*debatePath), *memoryDir, *reportOnly, *keep, *inRun, *ask, *buildOnly, surface)
+			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *pluginDir, *model, *debatePath, *memoryDir, *reportOnly, *keep, *inRun, *ask, *buildOnly, surface)
 			if errors.Is(err, seatprobe.ErrEngineRequired) {
 				// NOT A SEAT MISS AND NOT A DISPATCH FAILURE: this binary cannot build the board's
 				// citation. Stated, and the run goes on with the boards it can build.
@@ -293,7 +323,7 @@ func trajectoryPath(runDir string) string {
 	return filepath.Join(filepath.Dir(runDir), ".probe", filepath.Base(runDir)+".jsonl")
 }
 
-func probe(b seatprobe.Board, runDir, bin, constDir, model, debatePath, memoryDir string, reportOnly, keep, recordsInRun, ask, buildOnly bool, surface seatprobe.Surface) (string, error) {
+func probe(b seatprobe.Board, runDir, bin, constDir, pluginDir, model, debatePath, memoryDir string, reportOnly, keep, recordsInRun, ask, buildOnly bool, surface seatprobe.Surface) (string, error) {
 	recordRoot := ""
 	// Declared before the branch and resolved inside it: the directory the handle names is
 	// created a few lines down, so there is no one point that serves both paths.
@@ -378,18 +408,28 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model, debatePath, memoryDi
 		if buildOnly {
 			return "", nil
 		}
-		if err := dispatch(b, runDir, bin, constDir, model, debateScript(debatePath), ask); err != nil {
+		if err := dispatch(b, runDir, bin, constDir, pluginDir, model, debatePath, ask); err != nil {
 			return "", fmt.Errorf("dispatch: %w", err)
 		}
 	}
+	// THE RUN IS RE-OPENED FOR THE REPORT, ALWAYS — never the handle the build was holding.
+	//
 	// --report-only points at a run built by an earlier invocation; the branch above built its
 	// own. Either way it exists by now, so OpenRun rather than NewRun — a run that does not
 	// resolve here is a real fault, not one awaiting its first write.
-	if !probeRun.Valid() {
-		probeRun, err = record.OpenRun(runDir)
-		if err != nil {
-			return "", err
-		}
+	//
+	// The reuse this replaces was measured wrong, and wrong in the silent direction. The build
+	// opens the run BEFORE the record leaves the run directory, so its handle names the store the
+	// seat never wrote to; the report then read zero events and printed `recorded:` EMPTY, filing
+	// every act the seat had actually recorded under "invoked, no event (a read, or a refusal)".
+	// A seat that recorded nothing and a seat whose record the report could not find produce the
+	// same line. Measured on the `audit` board, 2026-09-16: the live run printed no recorded
+	// verbs, and --report-only over the SAME directory printed eight, `verdict` and `spot-check`
+	// among them. --report-only was correct because it had no stale handle to reuse, which is why
+	// the defect survived: the two paths disagreed and only the unused one was right.
+	probeRun, err = record.OpenRun(runDir)
+	if err != nil {
+		return "", err
 	}
 
 	// IN THE ELICITATION ARM THE ANSWER IS THE DELIVERABLE. A choice report over a sitting that
@@ -459,7 +499,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model, debatePath, memoryDi
 }
 
 // dispatch runs one seat at the board through the `claude` CLI.
-func dispatch(b seatprobe.Board, runDir, bin, constDir, model, debatePath string, ask bool) error {
+func dispatch(b seatprobe.Board, runDir, bin, constDir, pluginDir, model, debatePath string, ask bool) error {
 	role := ""
 	for _, s := range seatprobe.Seats {
 		if s.ID == b.Seat {
@@ -547,6 +587,12 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, model, debatePath string
 		"--agent", "frank-exchange-of-views:" + agentFor(role),
 		"--add-dir", runDir,
 		"--max-turns", "60",
+		// WHICH COPY OF THE PLUGIN --agent RESOLVES AGAINST. Without this the CLI answers from
+		// the installed release, so a branch's constitutions and skills are invisible to the
+		// probe that exists to measure them. What the seat actually loaded is checked after the
+		// run, off the session's own init event, because the flag being accepted is not the same
+		// fact as the definition being taken from here.
+		"--plugin-dir", pluginDir,
 	}
 	// THE PERMISSION GRANT, TAKEN FROM THE AGENT'S OWN `tools:` LINE. Nobody is at the keyboard,
 	// and an ungranted Bash call comes back "This command requires approval" — measured: the seat's
@@ -628,24 +674,82 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, model, debatePath string
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("claude: %w (trajectory in %s)", err, out.Name())
 	}
-	return nil
+	return pluginLoadedFrom(trajectoryPath(runDir), pluginDir)
+}
+
+// pluginLoadedFrom refuses a sitting whose seat did not load the plugin this probe was pointed at.
+//
+// THE FLAG IS NOT THE FACT. `--plugin-dir` being accepted says the CLI parsed it; a definition
+// resolved from somewhere else — the installed release, a second copy of the plugin, a directory
+// the flag named but the loader rejected — produces a sitting that reads exactly like a good one.
+// The session states what it loaded in its own `init` event, as a field per plugin, so this reads
+// that instead of inferring from the argument list or grepping the constitution's prose out of
+// the trajectory.
+func pluginLoadedFrom(trajectory, want string) error {
+	f, err := os.Open(trajectory)
+	if err != nil {
+		return fmt.Errorf("no trajectory to check the loaded plugin against: %w", err)
+	}
+	defer f.Close()
+
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 0, 1<<20), 1<<24)
+	for sc.Scan() {
+		var ev struct {
+			Type    string `json:"type"`
+			Subtype string `json:"subtype"`
+			Plugins []struct {
+				Name string `json:"name"`
+				Path string `json:"path"`
+			} `json:"plugins"`
+		}
+		if json.Unmarshal(sc.Bytes(), &ev) != nil || ev.Type != "system" || ev.Subtype != "init" {
+			continue
+		}
+		var loaded []string
+		for _, p := range ev.Plugins {
+			if p.Name != feovPlugin {
+				continue
+			}
+			if sameDir(p.Path, want) {
+				return nil
+			}
+			loaded = append(loaded, p.Path)
+		}
+		return fmt.Errorf("the seat loaded %s from %v, not from %s — the sitting measured other text than this tree's (trajectory in %s)",
+			feovPlugin, loaded, want, trajectory)
+	}
+	// The absent case is NOT the healthy one: a trajectory with no init event is a session that
+	// never reported what it loaded, and saying so is the whole point of reading a field.
+	return fmt.Errorf("the trajectory %s carries no session init event, so which %s the seat loaded is NOT MEASURED", trajectory, feovPlugin)
+}
+
+// feovPlugin is the plugin name the CLI reports and `--agent` resolves against.
+const feovPlugin = "frank-exchange-of-views"
+
+// sameDir compares two directory paths as the loader would have resolved them: a symlinked or
+// relative -plugin-dir is the same tree as the absolute path the session reports.
+func sameDir(a, b string) bool {
+	ra, err := filepath.EvalSymlinks(a)
+	if err != nil {
+		ra = filepath.Clean(a)
+	}
+	rb, err := filepath.EvalSymlinks(b)
+	if err != nil {
+		rb = filepath.Clean(b)
+	}
+	return ra == rb
 }
 
 // constitutionFor finds the agent definition a seat actually runs under.
 //
 // THE REAL ONE, NOT A PARAPHRASE. The probe exists to test whether the constitution teaches the
 // surface; handing the seat a summary written for the harness would test the summary.
+//
+// The directory arrives resolved: main derives it from the plugin directory the seat LOADS, so
+// this file and the text the CLI hands the seat are one tree rather than two that agree by
+// coincidence.
 func constitutionFor(role, dir string) (string, error) {
-	if dir == "" {
-		// ANCHORED TO THE REPOSITORY, NOT TO THE WORKING DIRECTORY. This used to be
-		// `filepath.Join(wd, "..", "agents")`, correct only when the probe was launched from the
-		// tools module — and the same directory was reached by three different `..` counts in
-		// this one file, each right for its own launch point and wrong everywhere else.
-		var err error
-		if dir, err = repotree.Plugin("agents"); err != nil {
-			return "", err
-		}
-	}
 	name := map[string]string{
 		"lens":  "red-lens-evidence.md",
 		"chair": "red-chair.md",
@@ -780,28 +884,6 @@ func memoryDirs(flagValue string) ([]string, error) {
 			"pass -memory with the directory to stage", err)
 	}
 	return []string{filepath.Join(root, "feov-memory", "red-gap-patterns")}, nil
-}
-
-// debateScript resolves the orchestrator the probe takes its prompts from.
-//
-// ONE FILE, NOT A COPY OF ONE. The prompt a seat is dispatched with is rendered by executing this
-// script, so an edit to a clause reaches the probe on the next run. The default mirrors
-// constitutionFor's — both go through repotree, which finds the plugin tree by searching for it,
-// so the probe no longer has to be launched from the tools module for its defaults to land. A
-// missing file is a hard failure at the point of use: a probe that fell back to a written prompt
-// would be the defect this whole route removed.
-func debateScript(flagValue string) string {
-	if flagValue != "" {
-		return flagValue
-	}
-	// One address for the shipped script, shared with the three gates that parse it — see
-	// repotree.DebateJS. The old form joined `..` onto the working directory and so was only
-	// correct when the probe was launched from the tools module.
-	p, err := repotree.DebateJS()
-	if err != nil {
-		return ""
-	}
-	return p
 }
 
 // promptNamesTheBinary refuses a prompt that sends the seat somewhere other than the binary this
