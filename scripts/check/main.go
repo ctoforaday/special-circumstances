@@ -56,9 +56,10 @@ func main() {
 		return
 	}
 
-	selected := selectGates(gs, *only)
-	if len(selected) == 0 {
-		fmt.Fprintf(os.Stderr, "check: -only %q matched no gate. `-list` shows the set.\n", *only)
+	selected, unmatched := selectGates(gs, *only)
+	if len(unmatched) > 0 {
+		fmt.Fprintf(os.Stderr, "check: -only matched no gate for %s. `-list` shows the set.\n",
+			strings.Join(unmatched, ", "))
 		os.Exit(2)
 	}
 
@@ -121,21 +122,38 @@ func subsumeGoldenLegs(selected []gate) []gate {
 	return out
 }
 
-func selectGates(gs []gate, only string) []gate {
+// selectGates narrows the set, and reports EVERY -only term that matched nothing.
+//
+// Per term, not per run (#999). A list where one term matched and another was a typo used to
+// report "1 gate(s): 1 passed ... check: OK", so `-only rule-sweep,marketplacegen` — the gate is
+// `rulesweep` — read exactly like a run that swept the rules and found them clean. That is the
+// silent-zero shape facts-are-fields names: the miss and the healthy answer are the same bytes.
+// The single-term path already exited 2; this is that refusal applied per term.
+func selectGates(gs []gate, only string) (kept []gate, unmatched []string) {
 	if strings.TrimSpace(only) == "" {
-		return gs
+		return gs, nil
 	}
-	wants := strings.Split(only, ",")
-	var kept []gate
-	for _, g := range gs {
-		for _, w := range wants {
-			if w = strings.TrimSpace(w); w != "" && strings.Contains(g.id, w) {
-				kept = append(kept, g)
-				break
+	seen := map[string]bool{}
+	for _, w := range strings.Split(only, ",") {
+		w = strings.TrimSpace(w)
+		if w == "" {
+			continue
+		}
+		hit := false
+		for _, g := range gs {
+			if strings.Contains(g.id, w) {
+				hit = true
+				if !seen[g.id] {
+					seen[g.id] = true
+					kept = append(kept, g)
+				}
 			}
 		}
+		if !hit {
+			unmatched = append(unmatched, w)
+		}
 	}
-	return kept
+	return kept, unmatched
 }
 
 func anyNeedsBase(gs []gate) bool {

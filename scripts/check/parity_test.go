@@ -285,14 +285,42 @@ func TestGateIDsAreUnique(t *testing.T) {
 // -only must never silently match nothing; main exits 2 on that, and this pins the selector.
 func TestSelectGatesMatchesAndReportsEmpty(t *testing.T) {
 	gs := gateSet()
-	if got := selectGates(gs, ""); len(got) != len(gs) {
-		t.Errorf("empty -only selected %d, want all %d", len(got), len(gs))
+	if got, un := selectGates(gs, ""); len(got) != len(gs) || len(un) != 0 {
+		t.Errorf("empty -only selected %d (unmatched %v), want all %d", len(got), un, len(gs))
 	}
-	if got := selectGates(gs, "golden"); len(got) != 1 || got[0].id != "golden" {
-		t.Errorf("-only golden selected %v", got)
+	if got, un := selectGates(gs, "golden"); len(got) != 1 || got[0].id != "golden" || len(un) != 0 {
+		t.Errorf("-only golden selected %v, unmatched %v", got, un)
 	}
-	if got := selectGates(gs, "nosuchgate"); len(got) != 0 {
-		t.Errorf("-only nosuchgate selected %d, want 0 so main can refuse", len(got))
+	if got, un := selectGates(gs, "nosuchgate"); len(got) != 0 || len(un) != 1 || un[0] != "nosuchgate" {
+		t.Errorf("-only nosuchgate selected %d, unmatched %v — want 0 and the term reported", len(got), un)
+	}
+}
+
+// #999: a term that matched nothing must be reported even when ANOTHER term matched.
+//
+// Measured before the fix: `-only versionguard,no-such-gate` printed "1 gate(s): 1 passed, 0
+// failed" and exited 0, so a typo'd gate name read exactly like a gate that passed. The real
+// case was `-only rule-sweep,...` against a gate named `rulesweep`, on a release PR.
+func TestSelectGatesReportsATypoBesideAMatch(t *testing.T) {
+	gs := gateSet()
+	got, un := selectGates(gs, "golden,rule-sweep")
+	if len(un) != 1 || un[0] != "rule-sweep" {
+		t.Errorf("unmatched = %v, want [rule-sweep] so main can refuse the whole run", un)
+	}
+	if len(got) != 1 || got[0].id != "golden" {
+		t.Errorf("selected %v, want the one gate that did match", got)
+	}
+}
+
+// One gate, one entry: two terms matching the same gate must not run it twice.
+func TestSelectGatesDoesNotRepeatAGateMatchedTwice(t *testing.T) {
+	gs := gateSet()
+	got, un := selectGates(gs, "golden,golde")
+	if len(un) != 0 {
+		t.Fatalf("unmatched %v, want none", un)
+	}
+	if len(got) != 1 {
+		t.Errorf("selected %d gates for two terms naming one gate, want 1", len(got))
 	}
 }
 
