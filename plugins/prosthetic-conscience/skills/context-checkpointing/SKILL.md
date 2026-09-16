@@ -1,6 +1,8 @@
 ---
 name: context-checkpointing
 description: Always-on checkpoint discipline — the single overwritten CHECKPOINT.md carrying the validation loop, ordered next actions, and in-flight handles; written before a risky step and when the context grows heavy, read back after compaction or a restart.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # context-checkpointing

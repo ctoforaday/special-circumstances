@@ -1,6 +1,8 @@
 ---
 name: plan-act-reflect
 description: Always-on phase discipline — an approved plan before acting, reflection on failure, and verification against the original objective before claiming done.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # plan-act-reflect

@@ -1,6 +1,8 @@
 ---
 name: complete-the-concept
 description: Always-on completion discipline — a change is ONE conceptual action, finished when the concept is, not when the first commit merges. Follow the thread to every carrier and consumer.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # complete-the-concept

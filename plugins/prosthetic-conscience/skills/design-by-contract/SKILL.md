@@ -1,6 +1,8 @@
 ---
 name: design-by-contract
 description: Use when writing rules, defining agent roles, or authoring multi-step operational instructions — anchor every instruction to verifiable execution states.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # design-by-contract

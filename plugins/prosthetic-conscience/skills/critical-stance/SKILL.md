@@ -1,6 +1,8 @@
 ---
 name: critical-stance
 description: Use when evaluating a technical claim, reviewing work or peer-agent output, researching, or being asked to agree — enforces adversarial verification over deference. Not a yes-man.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # critical-stance

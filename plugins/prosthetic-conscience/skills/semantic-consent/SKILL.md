@@ -1,6 +1,8 @@
 ---
 name: semantic-consent
 description: Always-on consent boundary — the human owns intent, you own syntax; on ambiguity, split by reversibility — decide and disclose what you can undo, ask before what you cannot.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # semantic-consent

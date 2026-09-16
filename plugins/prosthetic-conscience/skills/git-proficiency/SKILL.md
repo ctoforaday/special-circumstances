@@ -1,6 +1,8 @@
 ---
 name: git-proficiency
 description: Use when performing git operations — repository health guardrails (big-file check, no destructive deletes), surgical recovery, and the maintained cheatsheet.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # git-proficiency

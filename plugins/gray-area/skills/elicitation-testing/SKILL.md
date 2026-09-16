@@ -1,9 +1,9 @@
 ---
-name: fork-elicitation
+name: elicitation-testing
 description: When an agent or seat did something you cannot explain from its instructions — a rule it read and did not apply, a command run twice, a duty skipped — gather what it actually did with telepathy, then interview a tool-less fork of its own session about why, and adjudicate the answer against the record. One of the first things to reach for when diagnosing agent behaviour.
 ---
 
-# fork-elicitation
+# elicitation-testing
 
 The record says **what** an agent did. Only the agent can say **how it read** the instructions that
 led there — and a fork of its own session, holding its whole context, can be asked. The two answers

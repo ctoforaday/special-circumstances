@@ -1,6 +1,8 @@
 ---
 name: pair-programming
 description: Use when working interactively with the human on code — driver/navigator roles, ping-pong test-driven development, adversarial review, and hold-on-submit.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # pair-programming

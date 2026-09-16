@@ -1,6 +1,8 @@
 ---
 name: agent-guardrails
 description: Always-on safety guardrails — no privileged mutations without approval, no sensitive data off-box. The backstop for when permission gating is relaxed.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # agent-guardrails

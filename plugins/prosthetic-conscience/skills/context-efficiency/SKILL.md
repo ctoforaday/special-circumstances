@@ -1,6 +1,8 @@
 ---
 name: context-efficiency
 description: Always-on context-budget discipline — shield the context with subagents and files, peek instead of streaming, and phase work so artifacts survive compression.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # context-efficiency

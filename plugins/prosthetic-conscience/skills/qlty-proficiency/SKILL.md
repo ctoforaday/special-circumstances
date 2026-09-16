@@ -1,6 +1,8 @@
 ---
 name: qlty-proficiency
 description: Use when formatting, linting, or assessing code quality — operational patterns for the qlty command-line tool, with the maintained cheatsheet.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # qlty-proficiency

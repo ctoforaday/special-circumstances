@@ -1,6 +1,8 @@
 ---
 name: restart-recovery
 description: After a host restart, crash or shutdown cut off running Claude sessions, use this to find them with `telepathy agents --lost` and bring each back in the mode it had — through a running Remote Control server first, then by reattach or local resume, one session at a time and only the ones the human chooses.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # restart-recovery
