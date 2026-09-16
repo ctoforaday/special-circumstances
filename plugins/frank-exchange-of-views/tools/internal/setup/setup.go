@@ -716,7 +716,7 @@ func ValidateClassRegistry(repoMemoryDir string) error {
 	if json.Unmarshal(b, &reg) != nil {
 		return nil
 	}
-	const remedy = "add `material_default` (`always` | `never` | `by_grade`) to that row, or re-stage from the plugin's shipped `feov-memory/class-registry.json`"
+	const remedy = "add `material_default` (`always` | `never` | `by_grade`) to that row"
 	for _, c := range reg.Classes {
 		if c.MaterialDefault == nil {
 			return fmt.Errorf("%s: class %q has no material_default — %s", src, c.Slug, remedy)

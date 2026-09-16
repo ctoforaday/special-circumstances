@@ -229,15 +229,33 @@ func TestChairDocketAffordanceOnlyOnMaterialGaps(t *testing.T) {
 		{ID: "STRANDED", Open: true, Stranded: true, SupersededBy: "MAT"},
 	}
 	open := availableOf(nil, gaps, "chair", "red-chair")
-	offered := func(id string) bool {
+	// THE OFFER IS THE VERB, NOT THE GAP'S NAME. A remanded gap is named by a row that says the
+	// opposite — it returns only if docketed again — so a predicate that matched the id alone
+	// read that row as an offer and could not fail.
+	items := func(id string) []string {
+		var out []string
 		for _, it := range open {
 			if strings.Contains(it.What, "gap "+id+" ") {
+				out = append(out, it.What)
+			}
+		}
+		return out
+	}
+	// EVERY item naming the gap is read, not the first: the remanded row is added before the
+	// offer would be, so a first-match predicate hides an offer standing behind it.
+	anyItem := func(id, want string) bool {
+		for _, w := range items(id) {
+			if strings.Contains(w, want) {
 				return true
 			}
 		}
 		return false
 	}
-	for id, want := range map[string]bool{"NEVER": false, "LOW": false, "MAT": true, "CARRIED": true, "STRANDED": true} {
+	offered := func(id string) bool { return anyItem(id, "motion docket file") }
+	if !anyItem("CARRIED", "BENCH REMANDED") {
+		t.Errorf("a carried gap gets the remanded row in place of the offer, got %q", items("CARRIED"))
+	}
+	for id, want := range map[string]bool{"NEVER": false, "LOW": false, "MAT": true, "CARRIED": false, "STRANDED": true} {
 		if offered(id) != want {
 			t.Errorf("%s: docket offer present=%v, want %v (%v)", id, offered(id), want, hows(open))
 		}

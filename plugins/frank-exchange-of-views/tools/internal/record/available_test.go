@@ -302,7 +302,7 @@ func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
 // A CARRIED GAP GETS DIFFERENT WORDS, AND THAT DIFFERENCE IS THE WHOLE POINT (#759).
 //
 // The vacuous version of this test is "the chair sitting is incomplete and names the gap" — which
-// passed before any of this existed, because the chair arm already blocks on every open gap. So
+// passed before any of this existed, because the chair arm already blocks on every open material gap. So
 // what is asserted here is the DISTINCTION: a carried gap and a never-docketed one must not read
 // the same, the carried one must carry the bench's stated condition, and neither may add a second
 // blocking row for a gap sitting.go already blocks on.

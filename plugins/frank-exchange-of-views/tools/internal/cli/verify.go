@@ -23,7 +23,7 @@ func newVerify() *cobra.Command {
 	c := &cobra.Command{
 		Use:           "verify",
 		Short:         "cross-check a run's record against its invariants, and tally it (read-only)",
-		Long:          "verify replays <run>'s event record and asserts the invariants that must hold if it is sound — gaps disposed, refs resolve, PASS closed everything, seats registered first — then prints the authoritative counts. It writes nothing. A violated invariant exits non-zero.",
+		Long:          "verify replays <run>'s event record and asserts the invariants that must hold if it is sound — gaps disposed, refs resolve, a PASS closed every material gap, seats registered first — then prints the authoritative counts. It writes nothing. A violated invariant exits non-zero.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,

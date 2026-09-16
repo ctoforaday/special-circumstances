@@ -10,8 +10,8 @@ import (
 //
 // A seat had no way to know it was finished. Asked directly, the chair named a real mechanism —
 // "the `verdict` command either succeeds or fails; if it fails the tool tells me what's blocking
-// closure, and I iterate" — because `verdict` refuses over open gaps and unruled motions and
-// enumerates them. Blue and the bench answered with things they cannot observe: "red agrees it's
+// closure, and I iterate" — because `verdict` refuses over open MATERIAL gaps and unruled motions
+// and enumerates them. Blue and the bench answered with things they cannot observe: "red agrees it's
 // sound", "the bench has ruled". Those are other seats' future acts. A seat whose completion
 // condition is someone else's next move cannot know it is done; it can only stop and hand over.
 //
@@ -27,7 +27,7 @@ import (
 //
 // # Only duties that are enforced or recorded somewhere else
 //
-// Nothing here invents an obligation. Each one is refused at a write path (open gaps and unruled
+// Nothing here invents an obligation. Each one is refused at a write path (open material gaps and unruled
 // motions block `verdict`; a computation gap cannot be closed on prose), is a stated epoch-record
 // requirement (W1.7's revision, the bench's terminal outcome), or is enforced by dispatch (a seat
 // that has not registered for the sitting it was dispatched for is readied again; a chair that has
@@ -155,8 +155,8 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 		// `unsupported` or `absent`. Presence is not a question: the lines reach the report on
 		// the worklist, generated from the record, so blue cannot cut them. Where blue's body
 		// genuinely failed to deliver a line's research, red MINTS A GAP, and an open gap already
-		// reaches blue through the ordinary route with a grade, a required fix and the PASS gate
-		// behind it. Restoring a second duty here would be the same fact told twice.
+		// reaches blue through the ordinary route with a grade and a required fix — with the PASS
+		// gate behind it when the gap is material by its class or grade. Restoring a second duty here would be the same fact told twice.
 		if revisionOwed(evs, seatID) && !seatDidThisSitting(evs, seatID, recordpb.EventType_EVENT_TYPE_REVISION) {
 			add("this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)")
 		}

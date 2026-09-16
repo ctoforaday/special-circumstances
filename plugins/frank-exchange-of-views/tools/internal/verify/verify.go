@@ -349,8 +349,9 @@ const (
 	passVerdictWord = recordpb.Verdict_VERDICT_PASS
 )
 
-// passClosesAllGaps: the #67 gate, verified after the fact. A PASS verdict with an open gap is
-// a contradiction — the record says the run resolved everything, and it did not.
+// passClosesAllGaps: the #67 gate, verified after the fact. A PASS verdict with an open MATERIAL
+// gap is a contradiction — the record says the run resolved what mattered, and it did not. A gap
+// its class never makes material leaves the PASS sound, and migration may admit a PASS it recorded.
 func passClosesAllGaps(f record.Family) Check {
 	var gate *recordpb.Gate
 	for _, e := range f.Live() {

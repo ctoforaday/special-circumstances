@@ -379,7 +379,7 @@ func TestSetupRefusesRegistryWithoutMaterialDefault(t *testing.T) {
 			if _, err := os.Stat(filepath.Join(runDir, "records")); err == nil {
 				t.Error("the refusal came after run state was written — records/ exists")
 			}
-			for _, want := range []string{reg, `"false-universal"`, c.names, "re-stage from the plugin's shipped"} {
+			for _, want := range []string{reg, `"false-universal"`, c.names, "add `material_default`"} {
 				if !strings.Contains(errb.String(), want) {
 					t.Errorf("the refusal must name %q:\n%s", want, errb.String())
 				}
