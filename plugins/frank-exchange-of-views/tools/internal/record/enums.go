@@ -232,8 +232,8 @@ type EnumField struct {
 var EnumFields = map[string][]EnumField{
 	"verdict": {{
 		Key: "verdict", Flag: flags.As, Values: []EnumValue{
-			ev("PASS", "every gap on the board is resolved — this is CHECKED against the open board, not taken on your word"),
-			ev("FAIL", "at least one gap is still open, or you are not satisfied it was answered"),
+			ev("PASS", "nothing on the board holds the gate — no material gap open, no lens ready, every stale area spot-checked — and this is CHECKED against the board, not taken on your word"),
+			ev("FAIL", "a material defect still stops you — a FAIL over a converged board is refused"),
 		},
 		Why: "a PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass",
 	}},
@@ -309,6 +309,16 @@ var EnumFields = map[string][]EnumField{
 		// side effect. required.go owns requiredness.
 		Optional: true,
 		Why:      "the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on repaired_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason",
+	}},
+	// `class new`, and the DEFAULT is where a coined class's gaps start: every mint of the class is
+	// stamped with it, and it decides whether an open gap of the class holds the PASS gate.
+	"class_new": {{
+		Key: "material_default", Flag: flags.MaterialDefault, Optional: true, Values: []EnumValue{
+			ev("always", "every gap of this class is material, whatever its grade — it changes a conclusion or a figure a reader relies on"),
+			ev("never", "no gap of this class is material, whatever its grade — it stays on the board and never holds the gate"),
+			ev("by_grade", "a gap of this class is material when its current severity is medium or above"),
+		},
+		Why: "the default is stamped on every gap minted under the class and decides whether an open one holds the PASS gate, so a word outside the set would leave the gate to guess",
 	}},
 	"mint": {
 		{

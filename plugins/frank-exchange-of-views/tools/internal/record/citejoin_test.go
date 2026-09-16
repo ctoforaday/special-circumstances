@@ -80,7 +80,7 @@ func TestTheLensSeesTheAffordance(t *testing.T) {
 	// Asked of the SITTING, not of availableOf: "reaches the seat" is a claim about the one list
 	// a seat reads, and this test passed for as long as the affordance existed on a surface the
 	// seat's completion check could not see.
-	got := SittingOf(b.Events, workStatesOfFamilyT(b), "lens", "red-lens-evidence").Open
+	got := SittingOf(b.Events, positions(b.Events), workStatesOfFamilyT(b), "lens", "red-lens-evidence").Open
 	if !mentions(got, "c-a08c9764") {
 		t.Errorf("the lens is not shown the unverified citation on its work list: %v", hows(got))
 	}

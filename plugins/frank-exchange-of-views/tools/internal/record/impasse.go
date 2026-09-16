@@ -54,6 +54,16 @@ func Exchanges(run Run, p Params) (map[string]*GapExchanges, error) {
 
 // eventIDs is events."id" per position — the sequence the folds compare against, which the proto
 // Event does not carry (see recordsql.Window for why nothing derived is stamped on the row).
+// eventIDsOfRun is eventIDs for a caller holding the run: the events' row ids in stream order,
+// aligned with MergedEvents, or nil for a run with no record yet.
+func eventIDsOfRun(run Run) ([]int64, error) {
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		return nil, err
+	}
+	return eventIDs(db)
+}
+
 func eventIDs(db *sql.DB) ([]int64, error) {
 	rows, err := db.Query(`SELECT "id" FROM "events" ORDER BY "id"`)
 	if err != nil {

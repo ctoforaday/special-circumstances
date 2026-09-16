@@ -1,9 +1,12 @@
 package lens
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -33,22 +36,36 @@ func newClass() *cobra.Command {
 
 func newClassNew() *cobra.Command {
 	c := seat.Records(seat.New("new", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		// THE DEFAULT IS ALWAYS WRITTEN. A coined class with no default on the record would leave
+		// every mint of it without the value its materiality starts from, so the verb supplies
+		// `by_grade` when the coiner says nothing.
+		word := seat.Str(cmd, flags.MaterialDefault)
+		if word == "" {
+			word = recordpb.Word(recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE)
+		}
+		md, ok := record.ClassMaterialOf(word)
+		if !ok {
+			return nil, fmt.Errorf("class new: %q is not a material default — always | never | by_grade", word)
+		}
 		body := &recordpb.ClassNew{
-			Slug:          proto.String(seat.Str(cmd, flags.Class)),
-			Definition:    proto.String(seat.Str(cmd, flags.Definition)),
-			Neighbor:      proto.String(seat.Str(cmd, flags.Neighbor)),
-			Distinguisher: proto.String(seat.Str(cmd, flags.Distinguisher)),
+			Slug:            proto.String(seat.Str(cmd, flags.Class)),
+			Definition:      proto.String(seat.Str(cmd, flags.Definition)),
+			Neighbor:        proto.String(seat.Str(cmd, flags.Neighbor)),
+			Distinguisher:   proto.String(seat.Str(cmd, flags.Distinguisher)),
+			MaterialDefault: md.Enum(),
 		}
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
 		return classResult{Slug: seat.Str(cmd, flags.Class)}, nil
-	}), "class-new")
+	}), "class_new")
 
 	c.Flags().String(flags.Class, "", "the slug you are coining — lowercase, hyphenated, and NOT one the registry already has")
 	flags.Text(c, flags.Definition, "what this class is, in one line")
 	c.Flags().String(flags.Neighbor, "", "the existing class it sits closest to")
 	flags.Text(c, flags.Distinguisher, "the tie-break question that tells the two apart — without it a new class is a synonym, and the registry stops discriminating")
+	enumhelp.Flag(c, flags.MaterialDefault, record.MustEnum("class_new", "material_default"),
+		"where materiality starts for every gap of this class (default by_grade) — always for a class whose defects change a conclusion or a figure, never for one whose defects change none")
 	_ = c.MarkFlagRequired(flags.Class)
 	// COBRA SAYS THE TRIO TRAVELS TOGETHER. It was a boolean plus three optional flags checked
 	// in a handler, so a coining missing its distinguisher was composed, sent, and refused after

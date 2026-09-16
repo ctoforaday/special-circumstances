@@ -4,15 +4,18 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // HarnessSeat is the seat the harness itself writes under — the cast at setup, the sitting span
 // from the hooks. It is not a debate seat: nothing dispatches it and it never registers.
 const HarnessSeat = "harness"
 
-// DefaultCastAreas are the lens areas a run dispatches when the operator names none: the four
-// that have always sat (debate.js DEFAULT_AREAS). The rest are opt-in per run.
-var DefaultCastAreas = []string{"evidence", "logic", "dark-side", "voice"}
+// DefaultCastAreas are the lens areas a run dispatches when the operator names none: every area
+// (debate.js DEFAULT_AREAS). An operator narrows the cast only with a reason; retirement bounds
+// what a lens that finds nothing costs.
+var DefaultCastAreas = LensAreas
 
 // CastFor is the run's admissible seats for a lens-area selection and a lane count
 // (plans/roundless.md §III.B.1): a lens per area, the chair, the blue lanes, the synthesizer and
@@ -36,6 +39,19 @@ func CastFor(areas []string, lanes int) []string {
 		out = append(out, fmt.Sprintf("blue-lane-%d", i))
 	}
 	return append(out, "blue-synthesize", "blue-respond", "frontier", "judge", "judge-terminal", "assemble")
+}
+
+// castOfEvents is CastOf read off a stream already in hand: the seats of the LAST cast event, or
+// nil when the stream holds none — the same answer as the cast table, for a fold that holds only
+// the events.
+func castOfEvents(evs []*Event) []string {
+	var out []string
+	for _, e := range evs {
+		if c, ok := recordpb.BodyAs[*recordpb.Cast](e); ok {
+			out = append([]string{}, c.GetSeatIds()...)
+		}
+	}
+	return out
 }
 
 // CastOf is the run's admissible seats — the Cast event setup wrote under `harness` before any

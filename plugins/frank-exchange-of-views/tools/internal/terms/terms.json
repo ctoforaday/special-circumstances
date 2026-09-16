@@ -289,11 +289,20 @@
     },
     {
       "term": "gap",
-      "definition": "A gap is a defect in the report, minted onto the board by a lens.",
+      "definition": "A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.",
       "seats": ["lens", "chair", "blue", "bench", "operator"],
       "bans": [],
       "collisions": [
         {"word": "gap", "resolution": "a parity gap between two numbers is ordinary English; a missing tool is a missing capability"}
+      ]
+    },
+    {
+      "term": "material",
+      "definition": "A gap is material when its class is always material, or when its class goes by grade and its current severity is medium or above, and an open material gap holds the PASS gate.",
+      "seats": ["lens", "chair", "blue", "bench", "operator"],
+      "bans": [],
+      "collisions": [
+        {"word": "material", "resolution": "material as content, or as bearing on the reader's question, is ordinary English; a gap is material only by its class and grade"}
       ]
     },
     {
@@ -304,6 +313,22 @@
         {"variant": "claims withdrawn", "kind": "GATED", "pattern": "claims? withdrawn"},
         {"variant": "withdraw (retire)", "kind": "REGISTRY-ONLY"}
       ],
+      "collisions": [
+        {"word": "retired (a lens)", "resolution": "a lens retires from dispatch, which is a state of the seat; a claim is retired from the report, on the record"}
+      ]
+    },
+    {
+      "term": "lens retirement",
+      "definition": "Lens retirement is the record's state for a lens that has stopped finding material: two sittings without a fresh material gap retire it, a head move re-arms it once, and a barren re-arm retires it for good.",
+      "seats": ["lens", "chair", "operator"],
+      "bans": [],
+      "collisions": []
+    },
+    {
+      "term": "stale area",
+      "definition": "A stale area is the area of a lens retired for good whose last sitting is behind the report head, which the chair reads and names in a spot-check before a PASS.",
+      "seats": ["chair", "operator"],
+      "bans": [],
       "collisions": []
     },
     {

@@ -1850,7 +1850,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		FootnoteIntegrity(run),
 		StrayRecordsAudit(repoRootOf(run), run.Dir()),
 		RecordParityAudit(run),
-		DispatchParityAudit(run),
+		DispatchParityAudit(run, results, journalPresent),
 		// Which sittings the hook stopped at the per-sitting tool-call limit. See sittinglimit.go.
 		SittingLimitAudit(run),
 		BackfillAudit(run),
@@ -2094,6 +2094,9 @@ const mirrorOrphanDays = 30
 type coinedClass struct {
 	slug, definition, neighbor, distinguisher string
 	seatID, firstGap                          string
+	// materialDefault is the default the run coined the class with, off the record: the value
+	// the adoption text tells a reviewer to carry into the registry row, or to overrule.
+	materialDefault string
 }
 
 // classesFromRecord reads the classes THE RECORD holds, for the same reason rulingsFromRecord
@@ -2116,7 +2119,7 @@ func classesFromRecord(evs []*record.Event) []coinedClass {
 		c := coinedClass{
 			slug: cn.GetSlug(), definition: cn.GetDefinition(),
 			neighbor: cn.GetNeighbor(), distinguisher: cn.GetDistinguisher(),
-			seatID: e.GetSeatId(),
+			seatID: e.GetSeatId(), materialDefault: recordpb.Word(cn.GetMaterialDefault()),
 		}
 		for _, m := range evs {
 			if mint := m.GetMint(); mint != nil && mint.GetClass() == c.slug {
@@ -2170,7 +2173,8 @@ func HarvestClasses(run record.Run, lawDir string, evs []*record.Event) HarvestR
 			"",
 			"Coined by `" + c.seatID + "` during `" + slug + "`. It is NOT staged into any later run:",
 			"an unreviewed class validating a future `--class` is the registry losing the only thing it",
-			"means. Adopting it means adding the slug to `feov-memory/class-registry.json` by hand.",
+			"means. Adopting it means adding the slug to `feov-memory/class-registry.json` by hand,",
+			"with its `material_default`; this run coined it as `" + c.materialDefault + "`.",
 			"",
 			"- **definition**: " + c.definition,
 			"- **neighbour**: `" + c.neighbor + "`",

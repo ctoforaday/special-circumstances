@@ -16,6 +16,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportvoice"
 )
 
 // cite: blue's ONLY mechanism for citing a source.
@@ -281,7 +282,7 @@ type citeResult struct {
 }
 
 func (r citeResult) Human() string {
-	note := voiceNote("the source's note and Bibliography entry", r.VoiceTells)
+	note := reportvoice.Note("the source's note and Bibliography entry", r.VoiceTells)
 	if r.Idempotent {
 		return "cite " + r.Label + " (idempotent retry — existing anchor returned)" + note
 	}

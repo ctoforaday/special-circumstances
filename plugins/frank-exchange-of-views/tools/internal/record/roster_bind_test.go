@@ -214,7 +214,7 @@ func TestTheLensAreasMatchWhatTheEngineDeclares(t *testing.T) {
 	}
 	ms := areaKey.FindAllStringSubmatch(string(block[1]), -1)
 	if len(ms) < 4 {
-		t.Fatalf("found %d areas in debate.js, expected at least the four that always sit — this bind "+
+		t.Fatalf("found %d areas in debate.js, expected at least four — this bind "+
 			"is reading the wrong thing and would pass on a near-empty set", len(ms))
 	}
 	declared := map[string]bool{}

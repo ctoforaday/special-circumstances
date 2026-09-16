@@ -63,14 +63,19 @@ test('the plan is what dispatches: the parties it names sit, in role order — l
   assert.equal(out.epochs, 2, 'two chair sittings')
 })
 
-test('a lens engaged with no gaps is told the head moved; one engaged on gaps is told which, and that silence is a null turn', async () => {
+test('a lens is told to read its last sitting from its work list; one engaged on gaps is told which, and that silence is a null turn', async () => {
   const world = makeWorld(makeResponder({
     chair: [chairEnv({ plan: plan([party('red-lens-evidence'), party('red-lens-logic', 'G3', 'G4')], { head: 7 }) }), passChair()],
   }))
   await world.run(script, ARGS)
   const evidence = firstPrompt(world, 'red-lens-evidence')
   const logic = firstPrompt(world, 'red-lens-logic')
-  assert.ok(/HEAD MOVED PAST YOUR LAST SITTING \(head 7\)/.test(evidence), 'rule 1: the head is past the pin')
+  for (const [name, p] of [['evidence', evidence], ['logic', logic]]) {
+    assert.ok(/YOUR SITTING IS ON YOUR WORK LIST: read `sitting\.last_sitting` first/.test(p), `${name}: the sitting is read from the record`)
+    for (const kind of ['first', 'behind', 'unchanged', 'undispatched']) assert.ok(p.includes(`\`${kind}\``), `${name}: the ${kind} kind is explained`)
+    assert.ok(/why you missed it then/.test(p), `${name}: a fresh gap on already-read text owes why it was missed`)
+    assert.ok(!/head 7/.test(p) && !/HEAD MOVED/.test(p), `${name}: no head clause is built from the relay`)
+  }
   assert.ok(/YOU ARE ENGAGED ON: G3, G4/.test(logic), 'the engaged lens is told its gaps')
   assert.ok(/NULL TURN/.test(logic) && /silence is a turn taken/.test(logic), 'a null turn counts toward impasse')
   assert.ok(/DID BLUE ACTUALLY DO WHAT YOU ASKED/.test(logic), 'the lens compares its fix to blue\'s edits')
@@ -149,7 +154,7 @@ test('UNVERIFIED: nobody ready, neither PASS nor CEILING — the plan\'s reasons
 // valve and passes only at its tenth sitting, so a loop with no valve ends VERIFIED at epoch 10 and
 // fails every assertion below rather than hanging.
 const NO_PROGRESS_EPOCHS = 3
-const b5Plan = () => chairEnv({ plan: plan([party('red-lens-voice')], { head: 144, why: ['red-lens-voice: head 144 is past its pin 60'] }) })
+const b5Plan = () => chairEnv({ plan: plan([party('red-lens-voice')], { head: 144, why: ['red-lens-voice: active, never sat — audits the report at head 144'] }) })
 const repeated = (make, n) => Array.from({ length: n }, make)
 
 test('NO PROGRESS: a plan identical for NO_PROGRESS_EPOCHS epochs stops the debate UNVERIFIED, naming the stuck parties and the head', async () => {
@@ -247,6 +252,26 @@ test('the chair runs the debate: relays the plan verbatim, mints nothing, closes
   assert.ok(/YOUR IN-RUN SCORECARD/.test(p) && !/YOUR CHAIR'S SCORECARD/.test(p), 'the in-run self-read, never a cross-run seed')
 })
 
+// THE CHAIR IS TOLD THE RETIREMENT MODEL IT RELAYS AND THE PASS IT MAY RECORD: a lens retires and is
+// re-armed once, a PASS needs no lens ready, the stale areas are spot-checked first, and the PASS lists
+// every open gap that is not material by class. Each clause is the text the gate enforces.
+test('the chair is told lenses retire and re-arm once, a PASS needs no lens ready, stale areas are spot-checked, and the PASS lists what is not material by class', async () => {
+  const world = makeWorld(makeResponder({ chair: [passChair()] }))
+  await world.run(script, ARGS)
+  const p = labelsOf(world, 'red-chair')[0].prompt
+  assert.ok(/RECORDS who sits — active lenses, and retired lenses a head move re-arms once,/.test(p), 'the dispatch is described by retirement state')
+  assert.ok(!/whose pin the report head moved past/.test(p), 'no lens is described as ready because the head moved past its pin')
+  assert.ok(/retires after two sittings with no fresh material mint, is re-armed ONCE when the head moves, and retires for good if that sitting is barren/.test(p), 're-arm once')
+  assert.ok(/permits a PASS only when no lens is ready — every lens retired with no re-arm owed, or retired for good — and nothing material is open\. BEFORE a PASS/.test(p), 'the no-lens-ready PASS condition')
+  assert.ok(/BEFORE a PASS, read the changes since each stale area's pin and name those areas in your spot-check; a defect you find there goes in that spot-check, and you record no verdict/.test(p), 'the stale areas')
+  assert.ok(/name in it every stale area the plan lists before a PASS/.test(p), 'the spot-check duty names the stale areas')
+  assert.ok(/YOUR PASS LISTS EVERY OPEN GAP THAT IS NOT MATERIAL, BY CLASS — your work list marks each — with one line on why it changes no reader decision, on the record/.test(p), 'the by-class listing')
+  const chairMd = readFileSync(new URL('../../agents/red-chair.md', import.meta.url), 'utf8')
+  for (const clause of ['is re-armed ONCE when the head moves', 'The plan permits a PASS only when no lens is ready', "each stale area's pin", 'YOUR PASS LISTS EVERY OPEN GAP THAT IS NOT MATERIAL, BY CLASS', 'active lenses, and retired lenses a head move re-arms once']) {
+    assert.ok(chairMd.includes(clause), `the chair constitution and prompt disagree: ${clause}`)
+  }
+})
+
 test('the lens mints its own gaps, screens first, spends a budget, and closes as the originator', async () => {
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('red-lens-evidence'), party('red-lens-logic'), party('red-lens-dark-side')]) }), passChair()] }))
   await world.run(script, ARGS)
@@ -254,7 +279,8 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
   for (const want of ['YOU MINT YOUR OWN GAPS', 'for a near match', 'then mint', 'registering a new class first', 'mintBudget', 'names the gaps it supersedes', "says so in the check's kind", 'THE ORIGINATOR CLOSES', 'LINEAGE IS NEVER DROPPED',
     'ASK FOR THE ANSWER TO BE PRODUCED, NOT ASSERTED', 'DOCUMENT-PROBE', 'LIVE-PROBE', 'BELIEVE NO BYTES', 'PRESCRIBE TEXT ONLY WHERE THE DEFECT IS TEXTUAL',
     'ANCHOR EVERY FINDING TO A QUOTED SENTENCE', "labels on your findings are the tool's to assign", 'read it whole in consecutive windows',
-    'counts LINES, not occurrences', 'prefer the Write tool over quoted heredocs']) {
+    'counts LINES, not occurrences', 'prefer the Write tool over quoted heredocs',
+    "a gap that is not material — by its class, or graded below medium — does not hold the gate", "run it from the proof store; a clean exit or '0 failing' is not an output"]) {
     assert.ok(evidence.includes(want), `the lens prompt lost: ${want}`)
   }
   assert.ok(!/gap ids are the chair's/.test(evidence), 'the ids are the tool\'s, minted by the lens')
@@ -273,7 +299,8 @@ test('blue is engaged on named gaps, told the board is authoritative, and files 
   for (const want of ['YOUR FIRST READ COMES AFTER THE MANUAL', 'red-gap-patterns.md', 'in one pass rather than three', 'lossy summary', "bench's latest dispositions",
     'REMANDED comes with a stated research direction you owe', 'which patterns you checked', 'YOU MAY COMPUTE AN ANSWER', 'DOCUMENT-PROBE', 'deferred acceptance test',
     'LINES OF INQUIRY ARE A LIVING RECORD', 'THREE paths', 'ESTOPS', 'OWNERSHIP BINDS, AS IT DID AT SYNTHESIS', 'each edit naming the gap it answers', 'a grade motion on the axis', 'Compact and reorganize prose', 'retired on the record',
-    'PROPAGATE EVERY CORRECTION TO ALL SITES', 'NULL TURN', 'AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP', 'manifest array', 'claim_count', 'never hand-count']) {
+    'PROPAGATE EVERY CORRECTION TO ALL SITES', 'NULL TURN', 'AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP', 'manifest array', 'claim_count', 'never hand-count',
+    'where the gap changes no reader decision or asks for complexity that does not pay, argue `defect_accepted` with that reason', "materiality is the class's default: always, never, or by grade from medium"]) {
     assert.ok(first.includes(want), `blue lost: ${want}`)
   }
   assert.ok(/CLOSING ARGUMENTS: the following are DOCKETED for adjudication AFTER your response this sitting: G2/.test(first) && /argue in ~120 words/.test(first))
@@ -336,7 +363,7 @@ test('the bench\'s rulings travel to both parties, with blue told its duty and r
   assert.ok(!/your_duty/.test(lens), 'the duty table is blue\'s')
 })
 
-test('the assembler authors nothing, stamps the outcome the record derives, and lists trifles as not certified against', async () => {
+test('the assembler authors nothing, stamps the outcome the record derives, and is told an open gap that is not material stays on the board', async () => {
   const world = makeWorld(makeResponder({ chair: [passChair()] }))
   await world.run(script, ARGS)
   const asm = firstPrompt(world, 'assemble')
@@ -346,7 +373,7 @@ test('the assembler authors nothing, stamps the outcome the record derives, and 
   // of the board; the ledger already holds what the sitting did, in order.
   assert.ok(/WHY this outcome is the right read of the board/.test(asm) && !/your account of the sitting/.test(asm),
     'the assemble prompt asks for a recap of the sitting rather than the judgement')
-  assert.ok(/open, below material, not certified against/.test(asm))
+  assert.ok(/An open gap that is not material stays open on the board and in the risk matrix; the chair's PASS listed it by class, on the record\./.test(asm))
   assert.ok(!asm.includes('open_questions'), 'assembly lifts blue\'s audited section, never receives it')
 })
 
@@ -390,6 +417,7 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   // shipped in a VERIFIED report before this was found. The fact is real and the record
   // already holds it: the lane drafts, the frozen base and every recorded edit.
   assert.ok(!/minority|lane marker|exactly ONE lane/.test(synth), 'the synthesis prompt orders provenance into prose again')
+  assert.ok(/every section names the reader's question it answers/.test(synth), "the synthesis is written to the reader's question")
   // THE CONTENT RULE IS THE VERBS', and the prompt points at it rather than restating it: the rule is
   // on every verb whose text the report prints (edit, ingest, line-of-inquiry's propose and move, and
   // prove's note and cite's title, which the Bibliography prints),
@@ -606,4 +634,53 @@ test('the lens constitutions say a lens mints and the chair runs the debate', ()
   assert.ok(!/COALESCE/.test(chair) && !/board's only writer/.test(chair), 'the chair constitution still describes the coalescing merge')
   assert.ok(/dispatch/.test(chair), 'the chair constitution names its dispatch duty')
   assert.ok(/mint/i.test(lens), 'the lens constitution names minting')
+  for (const area of ['evidence', 'logic', 'dark-side', 'voice', 'computation', 'adversary', 'architecture']) {
+    const md = readFileSync(new URL(`../../agents/red-lens-${area}.md`, import.meta.url), 'utf8')
+    assert.ok(md.includes('two sittings without one retire you, a head move after that re-arms you once, and a barren re-arm retires you for good'), `red-lens-${area}: readiness is the retirement state`)
+    assert.ok(!/dispatches you when the report head moves/.test(md), `red-lens-${area}: no lens is ready because the head moved`)
+    assert.ok(md.includes('the title of a source you corroborate all reach the report') && md.includes('replacement text you prescribe'), `red-lens-${area}: the title and the prescription are red text the report prints`)
+  }
+})
+
+// EVERY FIELD THE WORKFLOW READS FROM THE RELAY IS REFUSED LOUD WHEN MISSING OR MISTYPED — one table,
+// so the check in debate.js and this list cannot drift. A fallback here once read a dropped docket as
+// "nothing docketed"; each row now throws, naming the field.
+test('a relayed plan missing a required field, or carrying the wrong type, aborts naming the field', async () => {
+  const cases = [
+    ['head', (p) => { delete p.head }], ['head', (p) => { p.head = '7' }],
+    ['parties', (p) => { delete p.parties }], ['parties', (p) => { p.parties = null }],
+    ['pass_permitted', (p) => { delete p.pass_permitted }], ['pass_permitted', (p) => { p.pass_permitted = 'yes' }],
+    ['ceiling', (p) => { delete p.ceiling }], ['ceiling', (p) => { p.ceiling = 0 }],
+    ['docket', (p) => { delete p.docket }], ['docket', (p) => { p.docket = null }],
+    ['why', (p) => { delete p.why }], ['why', (p) => { p.why = null }],
+    ['max_epochs', (p) => { delete p.max_epochs }], ['max_epochs', (p) => { p.max_epochs = '3' }],
+    ['epoch_limit_reached', (p) => { delete p.epoch_limit_reached }], ['epoch_limit_reached', (p) => { p.epoch_limit_reached = 1 }],
+    ['stale_areas', (p) => { delete p.stale_areas }], ['stale_areas', (p) => { p.stale_areas = null }],
+    ['parties[0].seat_id', (p) => { p.parties[0].seat_id = 7 }],
+    ['parties[0].gap_ids', (p) => { p.parties[0].gap_ids = null }],
+    ['stale_areas[0].seat_id', (p) => { p.stale_areas = [{ seat_id: 7, pin: 3 }] }],
+    ['stale_areas[0].pin', (p) => { p.stale_areas = [{ seat_id: 'red-lens-voice', pin: '3' }] }],
+  ]
+  for (const [field, spoil] of cases) {
+    const p = plan([party('red-lens-evidence'), party('blue-respond', 'G1')])
+    spoil(p)
+    const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: p })] }))
+    await assert.rejects(world.run(script, ARGS), (err) => err.message.includes(`\`${field}\``), `a plan spoiled at ${field} must abort naming it`)
+  }
+  // And a faithful plan with a stale area relays.
+  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('red-lens-evidence')], { stale_areas: [{ seat_id: 'red-lens-voice', pin: 3 }] }) }), passChair()] }))
+  assert.equal((await world.run(script, ARGS)).verdict, 'VERIFIED')
+})
+
+// EVERY AREA SITS BY DEFAULT: with no lens areas named, the engine admits all seven, and a plan
+// naming each dispatches seven lens sittings, one agent configuration per area.
+test('the default cast is every lens area', async () => {
+  const src = readFileSync(new URL('../../skills/research-protocol/scripts/debate.js', import.meta.url), 'utf8')
+  assert.ok(/const DEFAULT_AREAS = RED_AREAS\.slice\(\)/.test(src), 'DEFAULT_AREAS is every declared area')
+  const areas = ['evidence', 'logic', 'dark-side', 'voice', 'computation', 'adversary', 'architecture']
+  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan(areas.map((a) => party(`red-lens-${a}`))) }), passChair()] }))
+  const { lensAreas, ...noAreas } = ARGS
+  await world.run(script, noAreas)
+  const types = labelsOf(world, 'red-lens').map((c) => c.opts.agentType).sort()
+  assert.deepEqual(types, areas.map((a) => `frank-exchange-of-views:red-lens-${a}`).sort(), 'seven lens sittings, one per area')
 })

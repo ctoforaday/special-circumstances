@@ -36,10 +36,31 @@ import (
 // so the chair fell to 8,627 and the lens rose to 10,658 — the same paragraphs, read by the
 // seat that now performs them. Both ceilings moved to measured +10%; the pair's total shrank. The numbers before it: blue-respond 24,356 · red-merge 24,193 · red-lens 13,931 ·
 // judge 11,861.
+//
+// Raised 2026-09-11 for the lens bar (plans/feov-lens-bar.md III.4, D10): the lens reads its last
+// sitting off its work view instead of a head the chair relayed, and its prompt now says how to
+// scope the audit by each kind and that a fresh gap on text it already passed owes why it was
+// missed — the JOB, which §V #6 requires the prompt to carry. The lens measured 11,846 (+465 net of
+// the relayed head clause it replaced); the ceiling moved to 12,000, not +10%, to keep the ratchet
+// tight.
+//
+// Raised 2026-09-15 for the lens bar (plans/feov-lens-bar.md III.5, §V #6): the chair relays a
+// dispatch readied by retirement state and records the PASS that state permits, so its prompt says
+// that a lens retires and is re-armed once, that a PASS needs no lens ready, that the stale areas are
+// read and named in the spot-check before it, and that the PASS lists every open gap that is not
+// material by class — the JOB, which §V #6 requires the prompt to carry. The refusal that restated
+// "the tool refuses a PASS the board does not permit" was cut from it; that refusal is the verdict
+// help's. The chair measured 10,059 (+559); the ceiling moved to 10,200.
+//
+// Raised 2026-09-15 when the lens bar met OCR citations (plans/ocr-cite-derives-page.md): the lens's
+// duty to check an OCR citation against one page's image, and its verbatim read of a PDF through the
+// run's cache, landed under the 11,700 ceiling on main; with the last-sitting clause beside them the
+// lens measured 12,166 (+320 over the lens bar's 11,846). The two are separate duties, both the JOB;
+// the ceiling moved to 12,300.
 var ceilings = map[string]int{
 	"blue-respond":      15200,
-	"red-chair":         9500,
-	"red-lens-evidence": 11700,
+	"red-chair":         10200,
+	"red-lens-evidence": 12300,
 	"judge":             7800,
 }
 

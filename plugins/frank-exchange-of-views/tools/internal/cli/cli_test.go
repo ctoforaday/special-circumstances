@@ -765,7 +765,7 @@ func TestClassNewCoinsTheSlugInClass(t *testing.T) {
 	if !m.GetClassNew() {
 		t.Error("class_new = false, want true — the mint must record that the seat coined the class")
 	}
-	cn := lastBody(t, runDir, &recordpb.ClassNew{})
+	cn := lastBody(t, runDir, &recordpb.ClassNew{MaterialDefault: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum()})
 	if got := cn.GetSlug(); got != "brand-new" {
 		t.Errorf("class-new slug = %q", got)
 	}
@@ -1273,7 +1273,7 @@ func TestPositionIsASingletonPerSeat(t *testing.T) {
 	}
 }
 
-// A PASS is a claim that nothing is left open; the tool refuses one over an open board —
+// A PASS is a claim that nothing left on the board holds the gate; the tool refuses one over an open material gap —
 // the 2026-07-20 rubber-stamp (PASS with 9 open gaps) made structurally impossible. FAIL is
 // always allowed.
 func TestVerdictPASSRefusedOverOpenGaps(t *testing.T) {
@@ -1370,7 +1370,7 @@ func TestVerdictRendersAndCheckpoints(t *testing.T) {
 		"--class", "x", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
-	// A PASS is refused over an open gap, so close it first (the guard is exercised in its
+	// A PASS is refused over an open material gap, so close it first (the guard is exercised in its
 	// own test); this test is about render + checkpoint on a legitimate PASS.
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", seatID,
 		"--id", "G1", "--as", "repaired",

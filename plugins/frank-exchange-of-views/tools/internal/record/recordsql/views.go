@@ -237,10 +237,21 @@ LEFT JOIN "correction_root" cr ON cr."replacement" = e."key"
 LEFT JOIN "events" re ON re."key" = cr."root"
 WHERE NOT EXISTS (SELECT 1 FROM "correction" c WHERE c."corrects" = e."key");
 
+-- THE GAP, AND WHETHER IT IS MATERIAL. "material" is the one definition in SQL: the class's
+-- default says 'always' or 'never', and a 'by_grade' class is material at a CURRENT severity of
+-- medium (mass 2.0, record.material) and above. The inner select is the gap as the record holds it;
+-- the outer adds the column from the current severity that select already overlays, so the
+-- regrade overlay is written once.
 CREATE VIEW "gap" AS
+SELECT
+  gb.*,
+  (gb."class_material" = 'always'
+     OR (gb."class_material" = 'by_grade' AND COALESCE(gm."mass", 0.0) >= 2.0)) AS "material"
+FROM (
 SELECT
   m."gap_id"                                   AS "gap_id",
   m."class"                                    AS "class",
+  m."class_material"                           AS "class_material",
   m."location"                                 AS "location",
   m."about_kind"                               AS "about_kind",
   m."about_ref"                                AS "about_ref",
@@ -301,7 +312,7 @@ SELECT
   --
   -- carried is 76 of 77 bench rulings in the measured base rate, and it ANSWERS its motion: the
   -- gap comes back by being docketed again next epoch. Without this the chair was told only
-  -- "gap G1 is open — PASS is refused while it is", which is true of a gap nobody has ever put
+  -- "gap G1 is open and material — PASS is refused while it is", which is true of a gap nobody has ever put
   -- before the bench and of one the bench has considered twice and deliberately deferred. Same
   -- sentence, two very different situations, and the seat cannot act differently on them.
   --
@@ -400,7 +411,9 @@ LEFT JOIN (
   GROUP BY md."gap_id"
 ) bc ON bc."gap_id" = m."gap_id"
 LEFT JOIN "motion_rule_docket" bo ON bo."event_id" = bc."event_id"
-LEFT JOIN "events" be ON be."id" = bc."event_id";
+LEFT JOIN "events" be ON be."id" = bc."event_id"
+) gb
+LEFT JOIN "enum_grade" gm ON gm."value" = gb."current_severity";
 
 -- The board's own count, asked once. Every consumer that wants "how many gaps are open" reads this
 -- rather than folding the stream again with its own idea of what closed means.
@@ -422,8 +435,9 @@ LEFT JOIN "events" be ON be."id" = bc."event_id";
 -- off the same table the schema built from the enum. It used to be a hand-written map in two
 -- languages with a regex test holding them level, and SQL could not ask the question at all.
 --
--- The thresholds: mass below a quarter of the run's peak gate mass, nothing at or above medium
--- (mass 2) on current grades, zero fresh MATERIAL mints, verdict FAIL.
+-- The thresholds: mass below a quarter of the run's peak gate mass, nothing open material (the gap
+-- view's "material" column: the class, else a current severity of medium and above), zero fresh
+-- MATERIAL mints, verdict FAIL. max_severity_mass is reported beside it and decides nothing.
 CREATE VIEW "convergence_vs_verdict" AS
 SELECT
   ve."epoch"                                       AS "epoch",
@@ -431,12 +445,12 @@ SELECT
   COALESCE(b."mass", 0.0)                          AS "mass",
   COALESCE(b."max_severity_mass", 0.0)             AS "max_severity_mass",
   COALESCE(f."fresh_mints", 0)                     AS "fresh_mints",
-  -- CORRECTED (plans/roundless.md §III.B.2.1): fresh MATERIAL mints, the top CURRENT severity
-  -- strictly below material, and the mass against this run's PEAK gate mass at setup's default
-  -- fraction — the refusal at the write path reads the run's own fraction (record.Params).
+  -- CORRECTED (plans/roundless.md §III.B.2.1): fresh MATERIAL mints, nothing open material, and
+  -- the mass against this run's PEAK gate mass at setup's default fraction — the refusal at the
+  -- write path reads the run's own fraction (record.Params).
   (rv."verdict" = 'fail'
      AND COALESCE(b."mass", 0.0) < 0.25 * MAX(COALESCE(b."mass", 0.0)) OVER ()
-     AND COALESCE(b."max_severity_mass", 0.0) < 2.0
+     AND COALESCE(b."material_open", 0) = 0
      AND COALESCE(f."fresh_mints", 0) = 0)         AS "divergent"
 FROM "events_w" ve
 JOIN "gate" rv ON rv."event_id" = ve."id"
@@ -447,7 +461,8 @@ LEFT JOIN (
   SELECT
     v2."id"                                                    AS "verdict_id",
     SUM(COALESCE(gl."mass", 0.0) * COALESCE(gi."mass", 0.0))   AS "mass",
-    MAX(COALESCE(gs."mass", 0.0))                              AS "max_severity_mass"
+    MAX(COALESCE(gs."mass", 0.0))                              AS "max_severity_mass",
+    SUM(g."material")                                          AS "material_open"
   FROM "events" v2
   JOIN "gap" g
     ON g."minted_seq" <= v2."id"
@@ -462,8 +477,8 @@ LEFT JOIN (
   -- FRESH means minted in this epoch, superseding nothing, and MATERIAL now: a lineage mint is a
   -- repair of known work, not new discovery, and a trifle is not what holds a report open.
   SELECT g."minted_epoch" AS "epoch", count(*) AS "fresh_mints"
-  FROM "gap" g LEFT JOIN "enum_grade" gs ON gs."value" = g."current_severity"
-  WHERE g."supersedes_count" = 0 AND COALESCE(gs."mass", 0.0) >= 2.0
+  FROM "gap" g
+  WHERE g."supersedes_count" = 0 AND g."material"
   GROUP BY g."minted_epoch"
 ) f ON f."epoch" = ve."epoch"
 WHERE ve."type" = 'verdict';

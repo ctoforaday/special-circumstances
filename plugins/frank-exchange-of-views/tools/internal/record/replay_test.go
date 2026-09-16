@@ -604,7 +604,7 @@ func TestValidateClassRegistry(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	registry := `{"classes":[{"slug":"scope-creep"},{"slug":"unfalsifiable"},{"slug":"stale-source"}]}`
+	registry := `{"classes":[{"slug":"scope-creep","material_default":"by_grade"},{"slug":"unfalsifiable","material_default":"by_grade"},{"slug":"stale-source","material_default":"by_grade"}]}`
 	// The fields every valid mint carries, so each case states only what it is ABOUT.
 	mint := func(m *recordpb.Mint) *recordpb.Mint {
 		m.AcceptanceCheck = proto.String("c")
@@ -684,7 +684,7 @@ func TestValidateClassRegistry(t *testing.T) {
 		runDir := newRun(t)
 		writeRegistry(t, runDir, registry)
 		complete := func() *recordpb.ClassNew {
-			return &recordpb.ClassNew{
+			return &recordpb.ClassNew{MaterialDefault: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(),
 				Slug: proto.String("brand-new"), Definition: proto.String("x"),
 				Neighbor: proto.String("scope-creep"), Distinguisher: proto.String("x"),
 			}
@@ -714,7 +714,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("coining needs a REAL neighbor", func(t *testing.T) {
 		runDir := newRun(t)
 		writeRegistry(t, runDir, registry)
-		n := &recordpb.ClassNew{
+		n := &recordpb.ClassNew{MaterialDefault: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(),
 			Slug: proto.String("brand-new"), Definition: proto.String("d"),
 			Neighbor: proto.String("not-a-class"), Distinguisher: proto.String("q"),
 		}
@@ -732,13 +732,13 @@ func TestValidateClassRegistry(t *testing.T) {
 		writeRegistry(t, runDir, registry)
 		seatID := "red-chair"
 		writeShard(t, runDir, []*Event{
-			recordtest.At(t, seatID, seatID+":class-new:x", &recordpb.ClassNew{Slug: proto.String("run-local-class")}),
+			recordtest.At(t, seatID, seatID+":class-new:x", &recordpb.ClassNew{MaterialDefault: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Slug: proto.String("run-local-class")}),
 		})
 		if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("run-local-class")})); err != nil {
 			t.Errorf("a class minted in this run was refused: %v", err)
 		}
 		// And it is a valid neighbor for a further new class.
-		n := &recordpb.ClassNew{
+		n := &recordpb.ClassNew{MaterialDefault: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(),
 			Slug: proto.String("another"), Definition: proto.String("d"),
 			Neighbor: proto.String("run-local-class"), Distinguisher: proto.String("q"),
 		}
@@ -749,7 +749,7 @@ func TestValidateClassRegistry(t *testing.T) {
 
 	t.Run("a registry with fewer than six slugs does not slice out of range", func(t *testing.T) {
 		runDir := newRun(t)
-		writeRegistry(t, runDir, `{"classes":[{"slug":"only-one"}]}`)
+		writeRegistry(t, runDir, `{"classes":[{"slug":"only-one","material_default":"by_grade"}]}`)
 		err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("invented")}))
 		if err == nil {
 			t.Fatal("expected a refusal")

@@ -84,7 +84,7 @@ const ARGS = { topic: 'the seat prompt contract', runDir: 'research/2026-01-01_g
 // the one that ships. What used to be the `.bindir` variant is simply the golden.
 
 // One run that seats every class the engine dispatches (plans/roundless.md §III.B.1): the chair's
-// first plan engages three lenses whose pin the head moved past, blue on G1, and the bench on G1
+// first plan engages three active lenses, blue on G1, and the bench on G1
 // (docketed); the second engages the evidence lens ON its gap — the other lens shape — and the
 // third permits PASS. The chair reports an unruled motion so the terminal sitting fires too.
 async function fullRun(args = ARGS) {

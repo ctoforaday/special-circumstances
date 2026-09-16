@@ -62,7 +62,7 @@ func GapStates(run Run) ([]*Gap, error) {
 		return nil, err
 	}
 	rows, err := db.Query(`SELECT "gap_id", "minted_epoch", "open",
-	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost"
+	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost", "class_material"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
 		return nil, fmt.Errorf("record: asking the record for its gap states: %w", err)
@@ -73,10 +73,11 @@ func GapStates(run Run) ([]*Gap, error) {
 		var id string
 		var round int
 		var open bool
-		var sev, lik, imp, cx sql.NullString
-		if err := rows.Scan(&id, &round, &open, &sev, &lik, &imp, &cx); err != nil {
+		var sev, lik, imp, cx, cmw sql.NullString
+		if err := rows.Scan(&id, &round, &open, &sev, &lik, &imp, &cx, &cmw); err != nil {
 			return nil, err
 		}
+		cm, _ := ClassMaterialOf(cmw.String) // NOT NULL on the mint; an unknown word reads as not material
 		g := &Gap{
 			ID: id, Epoch: round, Open: open, Mint: mints[id],
 			Regrades:       regrades[id],
@@ -86,6 +87,9 @@ func GapStates(run Run) ([]*Gap, error) {
 			Impact:         gradeOrZero(imp),
 			ComplexityCost: gradeOrZero(cx),
 		}
+		// THE GO CARRIER OF THE ONE DEFINITION, computed here from the class and the current grade
+		// rather than copied from the view's column — two computations a test holds level.
+		g.Material = IsMaterial(cm, g.Severity)
 		if c := closures[id]; c != nil && c.hasClosed {
 			g.HasClosed, g.ClosedEpoch, g.ClosedByBench = true, c.closedEpoch, c.closedByBench
 			g.Closure, g.BenchClosure = c.lastClose, c.lastBenchClosure

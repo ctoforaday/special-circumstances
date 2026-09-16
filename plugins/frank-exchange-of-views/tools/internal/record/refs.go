@@ -305,49 +305,97 @@ func requireSupersededAreClosed(run Run) error {
 		len(stranded), strings.Join(stranded, ", "))
 }
 
-// requirePassClosesAllMaterialGaps refuses PASS while any open gap is MATERIAL — current severity
-// at GRADE_MEDIUM or above (plans/roundless.md §III.B.2.1) — at the write path, so no verdict
-// route can bypass it; requireSupersededAreClosed holds the lineage case. A FAIL is always
-// allowed. The chair's work list names exactly these gaps (sitting.go), and dispatch's
-// pass_permitted counts the same ones. Refusing over ANY open gap made "below material does not
-// hold the gate" unreachable: a run minting one trifle per sitting could never pass. An open sub-material gap at PASS stays
-// open on the board and the report lists it as open, below material, not certified against — not
-// auto-disposed, not carried, not accepted; red's finding stays visible and the report says what
-// it was not certified against.
+// openMaterialGaps is the board's open MATERIAL gaps, sorted: the set the PASS gate refuses over
+// and the set a migrated PASS records as admitted. One query, so the gate and the admission it
+// is exempt from cannot disagree about which gaps they mean.
+func openMaterialGaps(run Run) ([]string, error) {
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		return nil, err
+	}
+	rows, err := db.Query(`SELECT g."gap_id" FROM "gap" g WHERE g."open" AND g."material" ORDER BY g."minted_event"`)
+	if err != nil {
+		return nil, fmt.Errorf("record: asking the record for its open gaps: %w", err)
+	}
+	defer rows.Close()
+	var open []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		open = append(open, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	sort.Strings(open)
+	return open, nil
+}
+
+// stampMigrationAdmission writes, on a PASS a migration replays, the open gaps the exempt PASS
+// gate would have refused over (Gate.migration_admitted_gap_ids). Outside Migrating any Gate
+// carrying the field is refused: the fact is the migration's to state, and a live PASS that could
+// state it could stand over any open gap with verify reporting nothing. Under Migrating a
+// non-PASS carrying it is refused (a FAIL admits nothing), and a PASS whose source already carries
+// it — a run this binary migrated before — must carry exactly what the board yields now: the
+// gaps' class material is kept as recorded, so the two agree unless the record was altered.
+func stampMigrationAdmission(run Run, g *recordpb.Gate) error {
+	arrived := append([]string(nil), g.GetMigrationAdmittedGapIds()...)
+	if !Migrating {
+		if len(arrived) > 0 {
+			return fmt.Errorf("record: verdict refused — it carries migration_admitted_gap_ids (%s), which only a migration writes: it records the open material gaps an archived PASS was admitted over. A live PASS closes its material gaps or is refused; record the verdict without it",
+				strings.Join(arrived, ", "))
+		}
+		return nil
+	}
+	if g.GetVerdict() != recordpb.Verdict_VERDICT_PASS {
+		if len(arrived) > 0 {
+			return fmt.Errorf("record: the archived %s verdict carries migration_admitted_gap_ids (%s) — only a PASS is admitted over open gaps",
+				recordpb.Word(g.GetVerdict()), strings.Join(arrived, ", "))
+		}
+		return nil
+	}
+	open, err := openMaterialGaps(run)
+	if err != nil {
+		return err
+	}
+	if len(arrived) > 0 {
+		sort.Strings(arrived)
+		if strings.Join(arrived, "\x00") != strings.Join(open, "\x00") {
+			return fmt.Errorf("record: the archived PASS carries migration_admitted_gap_ids (%s), but the open material gaps at it are (%s) — the record was altered after it was written",
+				strings.Join(arrived, ", "), strings.Join(open, ", "))
+		}
+	}
+	g.MigrationAdmittedGapIds = open
+	return nil
+}
+
+// requirePassClosesAllMaterialGaps refuses PASS while any open gap is MATERIAL, by the one
+// definition the gap view's "material" column carries: its class is `always`, or its class goes
+// by grade and its current severity is medium or above (IsMaterial). It refuses at the write path,
+// so no verdict route can bypass it; requireSupersededAreClosed holds the lineage case. The
+// chair's work list names exactly these gaps (sitting.go), and dispatch's pass_permitted counts
+// the same ones. An open gap that is not material stays open on the board, not auto-disposed, not
+// carried, not accepted: the chair's PASS lists it by class, on the record, with why it changes no
+// reader decision. Refusing over ANY
+// open gap made "not material does not hold the gate" unreachable: a run minting one trifle per
+// sitting could never pass. The 2026-07-20 run recorded PASS with 9 plain open gaps (one HIGH) that
+// no lineage check saw. A FAIL is always allowed here, and unruled motions, the inquiry read and
+// unraised contradictions below hold a PASS whatever is material.
 func requirePassClosesAllMaterialGaps(run Run) error {
 	db, err := openRunForRead(run)
 	if err != nil || db == nil {
 		return err
 	}
-	rows, err := db.Query(`SELECT g."gap_id", COALESCE(gs."mass", 0.0) >= ?
-	  FROM "gap" g LEFT JOIN "enum_grade" gs ON gs."value" = g."current_severity"
-	  WHERE g."open" ORDER BY g."minted_event"`, material)
+	open, err := openMaterialGaps(run)
 	if err != nil {
-		return fmt.Errorf("record: asking the record for its open gaps: %w", err)
-	}
-	defer rows.Close()
-	var open, trifles []string
-	for rows.Next() {
-		var id string
-		var isMaterial bool
-		if err := rows.Scan(&id, &isMaterial); err != nil {
-			return err
-		}
-		if isMaterial {
-			open = append(open, id)
-		} else {
-			trifles = append(trifles, id)
-		}
-	}
-	if err := rows.Err(); err != nil {
 		return err
 	}
 	if len(open) != 0 {
-		sort.Strings(open)
 		return fmt.Errorf("record: verdict PASS refused — %d material gap(s) still OPEN: %s. PASS requires every material gap resolved through `close --id <id> --as repaired|defect_accepted|not_a_defect|defect_owed_elsewhere`; close them, or issue `--as FAIL`",
 			len(open), strings.Join(open, ", "))
 	}
-	_ = trifles // below material: on the board, listed by the report, not holding the gate
 
 	m, err := MergedEvents(run)
 	if err != nil {

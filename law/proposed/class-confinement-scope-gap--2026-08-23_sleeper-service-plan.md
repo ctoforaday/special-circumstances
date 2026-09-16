@@ -2,7 +2,7 @@
 
 Coined by `red-merge-r3` during `2026-08-23_sleeper-service-plan`. It is NOT staged into any later run:
 an unreviewed class validating a future `--class` is the registry losing the only thing it
-means. Adopting it means adding the slug to `feov-memory/class-registry.json` by hand.
+means. Adopting it means adding the slug to `feov-memory/class-registry.json` by hand, with its `material_default` (`always`, `never` or `by_grade`).
 
 - **definition**: A keystone safety claim is modeled over only one write channel (e.g. local filesystem paths) while the process's actual write surface spans additional, structurally different channels (network egress, external API/MCP write verbs, git remote operations) the model never examines, so the claimed guarantee is over-read relative to what the named mechanism restricts.
 - **neighbour**: `mitigation-coverage-mismatch`

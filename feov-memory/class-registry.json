@@ -1,124 +1,171 @@
 {
   "_comment": "THE GAP CLASS REGISTRY — the machine-readable list `lens mint --class` validates against, staged by `setup` into <runDir>/records/class-registry.json. It did not exist until 2026-08-07, which meant loadRegistry() always returned nil, validateClass always took its advisory branch, and --class accepted ANY STRING on every run there has ever been (#299). Measured consequence: red invented a fresh vocabulary per run, and the class-indexed gap-pattern delivery — the design that replaced whole-corpus staging after run 5 measured that worthless — joined on a key that matched NOTHING. Two record-era runs, 10 and 14 minted classes, ZERO overlap with the 37 classes the memory corpus is indexed by. The corpus was built, the index was written, and the join never once delivered a pattern. THE ADVISORY BRANCH IS GONE (2026-08-21). An absent or unreadable registry no longer means \"--class accepts anything\" — it REFUSES every mint, because a run that cannot name its own vocabulary produces a board nobody can interpret afterwards. The tolerance was written as \"R1 tolerance; R4 makes it strict\" and R4 never came; it is the plausible zero in its purest form, since a check that no-ops on a missing input returns exactly what a passing check returns. Harnesses that build runs by hand (the fuzz, the seat probe, the tests, the golden scenarios) now DECLARE a vocabulary via record.StageForRun rather than being exempt from the check.",
   "_source": "class-registry-seed.md — 224 gaps across three runs (retrospective 52 + efficiency 77 + sleeper 95), 38 classes, 97% of gaps landing in a >=2-instance class. That analysis is the PROSE; this file is the artifact the validator reads. Keep them in step: the seed explains why a class exists, this says which exist.",
-  "_extending": "A class absent here is not forbidden — it is UNDECLARED. `lens class new` introduces one deliberately — with its definition, its nearest neighbour and the question that tells the two apart, on the record, and it binds for the rest of that run. That is the sanctioned path: the taxonomy grows by argument rather than by typo. A slug that earns its keep across runs is promoted into this file by a human.",
+  "_extending": "A class absent here is not forbidden — it is UNDECLARED. `lens class new` introduces one deliberately — with its definition, its nearest neighbour and the question that tells the two apart, on the record, and it binds for the rest of that run. That is the sanctioned path: the taxonomy grows by argument rather than by typo. A slug that earns its keep across runs is promoted into this file by a human, with its `material_default` — `always`, `never` or `by_grade`.",
   "classes": [
     {
-      "slug": "citation-figure-misattribution"
+      "slug": "citation-figure-misattribution",
+      "material_default": "always"
     },
     {
-      "slug": "figure-recount-fails"
+      "slug": "figure-recount-fails",
+      "material_default": "always"
     },
     {
-      "slug": "incomplete-repair-propagation"
+      "slug": "incomplete-repair-propagation",
+      "material_default": "always"
     },
     {
-      "slug": "policy-without-mechanism"
+      "slug": "policy-without-mechanism",
+      "material_default": "by_grade"
     },
     {
-      "slug": "derivation-status-overclaim"
+      "slug": "derivation-status-overclaim",
+      "material_default": "always"
     },
     {
-      "slug": "cross-section-contradiction"
+      "slug": "cross-section-contradiction",
+      "material_default": "always"
     },
     {
-      "slug": "enumeration-non-exhaustive"
+      "slug": "enumeration-non-exhaustive",
+      "material_default": "always"
     },
     {
-      "slug": "unhandled-degenerate-case"
+      "slug": "unhandled-degenerate-case",
+      "material_default": "by_grade"
     },
     {
-      "slug": "false-universal"
+      "slug": "false-universal",
+      "material_default": "always"
     },
     {
-      "slug": "unverified-composition"
+      "slug": "unverified-composition",
+      "material_default": "always"
     },
     {
-      "slug": "self-attestation"
+      "slug": "self-attestation",
+      "material_default": "always"
     },
     {
-      "slug": "spec-underspecification"
+      "slug": "spec-underspecification",
+      "material_default": "by_grade"
     },
     {
-      "slug": "claim-contradicts-own-record"
+      "slug": "claim-contradicts-own-record",
+      "material_default": "always"
     },
     {
-      "slug": "reader-channel-mismatch"
+      "slug": "reader-channel-mismatch",
+      "material_default": "by_grade"
     },
     {
-      "slug": "exhaustive-sweep-omits-case"
+      "slug": "exhaustive-sweep-omits-case",
+      "material_default": "always"
     },
     {
-      "slug": "risk-coverage-omission"
+      "slug": "risk-coverage-omission",
+      "material_default": "by_grade"
     },
     {
-      "slug": "live-source-drift"
+      "slug": "live-source-drift",
+      "material_default": "always"
     },
     {
-      "slug": "within-source-condition-misattribution"
+      "slug": "within-source-condition-misattribution",
+      "material_default": "always"
     },
     {
-      "slug": "partial-control-coverage"
+      "slug": "partial-control-coverage",
+      "material_default": "by_grade"
     },
     {
-      "slug": "figure-miscomposition"
+      "slug": "figure-miscomposition",
+      "material_default": "always"
     },
     {
-      "slug": "recurrence-detector-keying"
+      "slug": "recurrence-detector-keying",
+      "material_default": "by_grade"
     },
     {
-      "slug": "pricing-basis-drift"
+      "slug": "pricing-basis-drift",
+      "material_default": "always"
     },
     {
-      "slug": "metric-conflation"
+      "slug": "metric-conflation",
+      "material_default": "always"
     },
     {
-      "slug": "citation-status-drift"
+      "slug": "citation-status-drift",
+      "material_default": "always"
     },
     {
-      "slug": "undecided-disjunction"
+      "slug": "undecided-disjunction",
+      "material_default": "by_grade"
     },
     {
-      "slug": "causal-narrative-fails-reproduction"
+      "slug": "causal-narrative-fails-reproduction",
+      "material_default": "always"
     },
     {
-      "slug": "name-keying-vs-marker"
+      "slug": "name-keying-vs-marker",
+      "material_default": "by_grade"
     },
     {
-      "slug": "reflexivity-blindspot"
+      "slug": "reflexivity-blindspot",
+      "material_default": "by_grade"
     },
     {
-      "slug": "missing-root-invariant"
+      "slug": "missing-root-invariant",
+      "material_default": "by_grade"
     },
     {
-      "slug": "audited-artifact-sibling-halo"
+      "slug": "audited-artifact-sibling-halo",
+      "material_default": "by_grade"
     },
     {
-      "slug": "artifact-preservation"
+      "slug": "artifact-preservation",
+      "material_default": "by_grade"
     },
     {
-      "slug": "config-semantics-error"
+      "slug": "config-semantics-error",
+      "material_default": "by_grade"
     },
     {
-      "slug": "vote-laundering"
+      "slug": "vote-laundering",
+      "material_default": "by_grade"
     },
     {
-      "slug": "verification-scope-blindspot"
+      "slug": "verification-scope-blindspot",
+      "material_default": "always"
     },
     {
-      "slug": "doctrine-vs-implementation"
+      "slug": "doctrine-vs-implementation",
+      "material_default": "by_grade"
     },
     {
-      "slug": "measurement-methodology-drift"
+      "slug": "measurement-methodology-drift",
+      "material_default": "always"
     },
     {
-      "slug": "cross-corpus-id-collision"
+      "slug": "cross-corpus-id-collision",
+      "material_default": "always"
     },
     {
-      "slug": "negative-definition"
+      "slug": "negative-definition",
+      "material_default": "by_grade"
     },
     {
-      "slug": "report-voice"
+      "slug": "report-voice",
+      "material_default": "by_grade"
+    },
+    {
+      "slug": "structure-noncompliance",
+      "material_default": "never",
+      "definition": "the living report's analytical core omits a structural element the protocol's report template requires (e.g. a graded likelihood x impact x complexity risk matrix), carrying the raw material only as unordered prose",
+      "neighbor": "risk-cross-term-ungraded",
+      "distinguisher": "risk-cross-term-ungraded is two risks that ARE discussed but not jointly graded; structure-noncompliance is the ABSENCE of the required graded-matrix element entirely, for ALL risks, not just an interacting pair",
+      "_promoted": "gblock, 2026-09-11"
     }
   ]
 }

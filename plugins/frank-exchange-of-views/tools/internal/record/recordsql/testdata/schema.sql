@@ -95,8 +95,8 @@ CREATE TABLE "enum_verdict" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_verdict" ("value", "means") VALUES ('fail', 'at least one gap is still open, or you are not satisfied it was answered');
-INSERT INTO "enum_verdict" ("value", "means") VALUES ('pass', 'every gap on the board is resolved — this is CHECKED against the open board, not taken on your word');
+INSERT INTO "enum_verdict" ("value", "means") VALUES ('fail', 'a material defect still stops you — a FAIL over a converged board is refused');
+INSERT INTO "enum_verdict" ("value", "means") VALUES ('pass', 'nothing on the board holds the gate — no material gap open, no lens ready, every stale area spot-checked — and this is CHECKED against the board, not taken on your word');
 
 CREATE TABLE "enum_run_outcome" (
   "value" TEXT PRIMARY KEY,
@@ -133,9 +133,9 @@ CREATE TABLE "enum_grade" (
 INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('certain', 'the top of the scale — for LIKELIHOOD, reserve it for a consequence that is itself certain, never for a defect you merely verified exists', 3.5);
 INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('high', 'serious', 3);
 INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('low', 'minor', 1);
-INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('low_medium', 'between minor and material', 1.5);
-INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('medium', 'material', 2);
-INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('medium_high', 'between material and serious', 2.5);
+INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('low_medium', 'below the by-grade material floor', 1.5);
+INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('medium', 'the by-grade material floor', 2);
+INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('medium_high', 'above the by-grade material floor, below serious', 2.5);
 INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('realized', 'it has already happened. Contributes ZERO mass by design: mass forecasts what is still to come, and a realized defect is measured by its damage instead', 0);
 INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('trivial', 'cosmetic; nothing downstream changes if it is wrong', 0.5);
 
@@ -207,6 +207,14 @@ CREATE TABLE "enum_check_kind" (
 INSERT INTO "enum_check_kind" ("value", "means") VALUES ('computation', 'RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind');
 INSERT INTO "enum_check_kind" ("value", "means") VALUES ('document', 'reading a shipped artifact settles it — the check is answered by prose that quotes what is there');
 INSERT INTO "enum_check_kind" ("value", "means") VALUES ('source', 'verifying an external source settles it — the claim stands or falls on what the cited material actually says');
+
+CREATE TABLE "enum_class_material" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_class_material" ("value", "means") VALUES ('always', 'every gap of this class is material, whatever its grade — it changes a conclusion or a figure a reader relies on');
+INSERT INTO "enum_class_material" ("value", "means") VALUES ('by_grade', 'a gap of this class is material when its current severity is medium or above');
+INSERT INTO "enum_class_material" ("value", "means") VALUES ('never', 'no gap of this class is material, whatever its grade — it stays on the board and never holds the gate');
 
 CREATE TABLE "enum_source_text_read" (
   "value" TEXT PRIMARY KEY,
@@ -292,6 +300,13 @@ CREATE TABLE "gate" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "verdict" TEXT,
   FOREIGN KEY ("verdict") REFERENCES "enum_verdict"("value")
+) STRICT;
+
+CREATE TABLE "gate_migration_admitted_gap_ids" (
+  "event_id" INTEGER NOT NULL REFERENCES "gate"("event_id"),
+  "ord"      INTEGER NOT NULL,
+  "value"    TEXT    NOT NULL,
+  PRIMARY KEY ("event_id", "ord")
 ) STRICT;
 
 CREATE TABLE "outcome" (
@@ -424,13 +439,15 @@ CREATE TABLE "mint" (
   "impact" TEXT NOT NULL,
   "complexity_cost" TEXT,
   "mint_reason" TEXT,
+  "class_material" TEXT NOT NULL,
   CHECK ("class_new" IS NULL OR "class_new" IN (0, 1)),
   FOREIGN KEY ("about_kind") REFERENCES "enum_about_kind"("value"),
   FOREIGN KEY ("check_kind") REFERENCES "enum_check_kind"("value"),
   FOREIGN KEY ("severity") REFERENCES "enum_grade"("value"),
   FOREIGN KEY ("likelihood") REFERENCES "enum_grade"("value"),
   FOREIGN KEY ("impact") REFERENCES "enum_grade"("value"),
-  FOREIGN KEY ("complexity_cost") REFERENCES "enum_grade"("value")
+  FOREIGN KEY ("complexity_cost") REFERENCES "enum_grade"("value"),
+  FOREIGN KEY ("class_material") REFERENCES "enum_class_material"("value")
 ) STRICT;
 
 CREATE TABLE "mint_supersedes" (
@@ -452,7 +469,9 @@ CREATE TABLE "class_new" (
   "slug" TEXT,
   "definition" TEXT,
   "neighbor" TEXT,
-  "distinguisher" TEXT
+  "distinguisher" TEXT,
+  "material_default" TEXT,
+  FOREIGN KEY ("material_default") REFERENCES "enum_class_material"("value")
 ) STRICT;
 
 CREATE TABLE "close" (
@@ -503,6 +522,13 @@ CREATE TABLE "spot_check" (
 ) STRICT;
 
 CREATE TABLE "spot_check_ids" (
+  "event_id" INTEGER NOT NULL REFERENCES "spot_check"("event_id"),
+  "ord"      INTEGER NOT NULL,
+  "value"    TEXT    NOT NULL,
+  PRIMARY KEY ("event_id", "ord")
+) STRICT;
+
+CREATE TABLE "spot_check_areas" (
   "event_id" INTEGER NOT NULL REFERENCES "spot_check"("event_id"),
   "ord"      INTEGER NOT NULL,
   "value"    TEXT    NOT NULL,
@@ -955,10 +981,21 @@ LEFT JOIN "correction_root" cr ON cr."replacement" = e."key"
 LEFT JOIN "events" re ON re."key" = cr."root"
 WHERE NOT EXISTS (SELECT 1 FROM "correction" c WHERE c."corrects" = e."key");
 
+-- THE GAP, AND WHETHER IT IS MATERIAL. "material" is the one definition in SQL: the class's
+-- default says 'always' or 'never', and a 'by_grade' class is material at a CURRENT severity of
+-- medium (mass 2.0, record.material) and above. The inner select is the gap as the record holds it;
+-- the outer adds the column from the current severity that select already overlays, so the
+-- regrade overlay is written once.
 CREATE VIEW "gap" AS
+SELECT
+  gb.*,
+  (gb."class_material" = 'always'
+     OR (gb."class_material" = 'by_grade' AND COALESCE(gm."mass", 0.0) >= 2.0)) AS "material"
+FROM (
 SELECT
   m."gap_id"                                   AS "gap_id",
   m."class"                                    AS "class",
+  m."class_material"                           AS "class_material",
   m."location"                                 AS "location",
   m."about_kind"                               AS "about_kind",
   m."about_ref"                                AS "about_ref",
@@ -1019,7 +1056,7 @@ SELECT
   --
   -- carried is 76 of 77 bench rulings in the measured base rate, and it ANSWERS its motion: the
   -- gap comes back by being docketed again next epoch. Without this the chair was told only
-  -- "gap G1 is open — PASS is refused while it is", which is true of a gap nobody has ever put
+  -- "gap G1 is open and material — PASS is refused while it is", which is true of a gap nobody has ever put
   -- before the bench and of one the bench has considered twice and deliberately deferred. Same
   -- sentence, two very different situations, and the seat cannot act differently on them.
   --
@@ -1118,7 +1155,9 @@ LEFT JOIN (
   GROUP BY md."gap_id"
 ) bc ON bc."gap_id" = m."gap_id"
 LEFT JOIN "motion_rule_docket" bo ON bo."event_id" = bc."event_id"
-LEFT JOIN "events" be ON be."id" = bc."event_id";
+LEFT JOIN "events" be ON be."id" = bc."event_id"
+) gb
+LEFT JOIN "enum_grade" gm ON gm."value" = gb."current_severity";
 
 -- The board's own count, asked once. Every consumer that wants "how many gaps are open" reads this
 -- rather than folding the stream again with its own idea of what closed means.
@@ -1140,8 +1179,9 @@ LEFT JOIN "events" be ON be."id" = bc."event_id";
 -- off the same table the schema built from the enum. It used to be a hand-written map in two
 -- languages with a regex test holding them level, and SQL could not ask the question at all.
 --
--- The thresholds: mass below a quarter of the run's peak gate mass, nothing at or above medium
--- (mass 2) on current grades, zero fresh MATERIAL mints, verdict FAIL.
+-- The thresholds: mass below a quarter of the run's peak gate mass, nothing open material (the gap
+-- view's "material" column: the class, else a current severity of medium and above), zero fresh
+-- MATERIAL mints, verdict FAIL. max_severity_mass is reported beside it and decides nothing.
 CREATE VIEW "convergence_vs_verdict" AS
 SELECT
   ve."epoch"                                       AS "epoch",
@@ -1149,12 +1189,12 @@ SELECT
   COALESCE(b."mass", 0.0)                          AS "mass",
   COALESCE(b."max_severity_mass", 0.0)             AS "max_severity_mass",
   COALESCE(f."fresh_mints", 0)                     AS "fresh_mints",
-  -- CORRECTED (plans/roundless.md §III.B.2.1): fresh MATERIAL mints, the top CURRENT severity
-  -- strictly below material, and the mass against this run's PEAK gate mass at setup's default
-  -- fraction — the refusal at the write path reads the run's own fraction (record.Params).
+  -- CORRECTED (plans/roundless.md §III.B.2.1): fresh MATERIAL mints, nothing open material, and
+  -- the mass against this run's PEAK gate mass at setup's default fraction — the refusal at the
+  -- write path reads the run's own fraction (record.Params).
   (rv."verdict" = 'fail'
      AND COALESCE(b."mass", 0.0) < 0.25 * MAX(COALESCE(b."mass", 0.0)) OVER ()
-     AND COALESCE(b."max_severity_mass", 0.0) < 2.0
+     AND COALESCE(b."material_open", 0) = 0
      AND COALESCE(f."fresh_mints", 0) = 0)         AS "divergent"
 FROM "events_w" ve
 JOIN "gate" rv ON rv."event_id" = ve."id"
@@ -1165,7 +1205,8 @@ LEFT JOIN (
   SELECT
     v2."id"                                                    AS "verdict_id",
     SUM(COALESCE(gl."mass", 0.0) * COALESCE(gi."mass", 0.0))   AS "mass",
-    MAX(COALESCE(gs."mass", 0.0))                              AS "max_severity_mass"
+    MAX(COALESCE(gs."mass", 0.0))                              AS "max_severity_mass",
+    SUM(g."material")                                          AS "material_open"
   FROM "events" v2
   JOIN "gap" g
     ON g."minted_seq" <= v2."id"
@@ -1180,8 +1221,8 @@ LEFT JOIN (
   -- FRESH means minted in this epoch, superseding nothing, and MATERIAL now: a lineage mint is a
   -- repair of known work, not new discovery, and a trifle is not what holds a report open.
   SELECT g."minted_epoch" AS "epoch", count(*) AS "fresh_mints"
-  FROM "gap" g LEFT JOIN "enum_grade" gs ON gs."value" = g."current_severity"
-  WHERE g."supersedes_count" = 0 AND COALESCE(gs."mass", 0.0) >= 2.0
+  FROM "gap" g
+  WHERE g."supersedes_count" = 0 AND g."material"
   GROUP BY g."minted_epoch"
 ) f ON f."epoch" = ve."epoch"
 WHERE ve."type" = 'verdict';

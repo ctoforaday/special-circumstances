@@ -9,11 +9,13 @@ import (
 //
 // The view's `divergent` was wrong for this purpose on three counts, and the refusal uses the
 // corrected predicate: fresh MATERIAL mints in this epoch (a run minting one fresh trifle per
-// sitting must trip it); max severity STRICTLY below material (GRADE_MEDIUM is material and would
-// otherwise force a PASS over a live gap); the CURRENT severity, which a regrade can move; and the
-// mass bound as a fraction of this run's PEAK board mass rather than a magic number.
+// sitting must trip it); nothing open MATERIAL, by the one definition the gap view carries (its
+// class, else a current severity of medium or above), which a regrade can move; and the mass bound
+// as a fraction of this run's PEAK board mass rather than a magic number. MaxSeverityMass is
+// reported beside it and decides nothing.
 type Convergence struct {
 	Mass, Peak, MaxSeverityMass float64
+	MaterialOpen                int
 	FreshMaterialMints          int
 	Fraction                    float64
 	Holds                       bool
@@ -30,10 +32,11 @@ func convergenceOf(run Run) (Convergence, error) {
 	if err != nil || db == nil {
 		return c, err
 	}
-	// The open board now: its mass and its top severity, on CURRENT grades.
-	if _, err := queryRow(run, []any{&c.Mass, &c.MaxSeverityMass}, `
+	// The open board now: its mass, its top severity and its material count, on CURRENT grades.
+	if _, err := queryRow(run, []any{&c.Mass, &c.MaxSeverityMass, &c.MaterialOpen}, `
 	  SELECT COALESCE(SUM(COALESCE(gl."mass", 0.0) * COALESCE(gi."mass", 0.0)), 0.0),
-	         COALESCE(MAX(COALESCE(gs."mass", 0.0)), 0.0)
+	         COALESCE(MAX(COALESCE(gs."mass", 0.0)), 0.0),
+	         COALESCE(SUM(g."material"), 0)
 	  FROM "gap" g
 	  LEFT JOIN "enum_grade" gl ON gl."value" = g."current_likelihood"
 	  LEFT JOIN "enum_grade" gi ON gi."value" = g."current_impact"
@@ -53,19 +56,19 @@ func convergenceOf(run Run) (Convergence, error) {
 	}
 	// Fresh material mints in the CURRENT epoch: minted this epoch, superseding nothing, material now.
 	if _, err := queryRow(run, []any{&c.FreshMaterialMints}, `
-	  SELECT count(*) FROM "gap" g LEFT JOIN "enum_grade" gs ON gs."value" = g."current_severity"
-	  WHERE g."supersedes_count" = 0 AND COALESCE(gs."mass", 0.0) >= ?
-	    AND g."minted_epoch" = (SELECT count(*) FROM "events" WHERE "type" = 'register' AND "seat_id" = 'red-chair')`,
-		material); err != nil {
+	  SELECT count(*) FROM "gap" g
+	  WHERE g."supersedes_count" = 0 AND g."material"
+	    AND g."minted_epoch" = (SELECT count(*) FROM "events" WHERE "type" = 'register' AND "seat_id" = 'red-chair')`); err != nil {
 		return c, err
 	}
-	c.Holds = c.Peak > 0 && c.Mass < c.Fraction*c.Peak && c.MaxSeverityMass < material && c.FreshMaterialMints == 0
+	c.Holds = c.Peak > 0 && c.Mass < c.Fraction*c.Peak && c.MaterialOpen == 0 && c.FreshMaterialMints == 0
 	return c, nil
 }
 
 // requireFailIsNotConvergent refuses a FAIL over a board that has converged: nothing material is
 // open, its mass is a small fraction of the run's peak, and this epoch minted nothing fresh and
-// material. Red must raise something material, or PASS — the report is not held open by trifles.
+// material. Red must raise something material, or PASS — the report is not held open by gaps that
+// change no reader decision.
 func requireFailIsNotConvergent(run Run) error {
 	c, err := convergenceOf(run)
 	if err != nil {
@@ -74,7 +77,7 @@ func requireFailIsNotConvergent(run Run) error {
 	if !c.Holds {
 		return nil
 	}
-	return fmt.Errorf("record: verdict FAIL refused — the board has converged: open mass %.1f is below %.0f%% of this run's peak %.1f, nothing open is material (top severity mass %.1f, material is %.1f), and this epoch minted no fresh material gap. "+
-		"A FAIL here holds the report open on trifles. Raise something material — a finding graded medium or above, minted as a gap — or issue `--as PASS`; the sub-material gaps stay on the board and the report lists them as not certified against",
-		c.Mass, c.Fraction*100, c.Peak, c.MaxSeverityMass, material)
+	return fmt.Errorf("record: verdict FAIL refused — the board has converged: open mass %.1f is below %.0f%% of this run's peak %.1f, nothing open is material, and this epoch minted no fresh material gap. "+
+		"A FAIL here holds the report open on gaps that change no reader decision. Raise something material — a material finding, by its class or else graded medium or above, minted as a gap — or issue `--as PASS`; the gaps that are not material stay open on the board",
+		c.Mass, c.Fraction*100, c.Peak)
 }

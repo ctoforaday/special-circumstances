@@ -16,7 +16,7 @@ func workStatesOfFamilyT(f Family) []WorkGapState {
 			continue
 		}
 		w := WorkGapState{
-			ID: g.ID, Open: g.Open, ClosedByBench: g.ClosedByBench,
+			ID: g.ID, Open: g.Open, ClosedByBench: g.ClosedByBench, Material: g.Material,
 			Severity: gradeVal(g.Severity), Likelihood: gradeVal(g.Likelihood),
 			Impact: gradeVal(g.Impact), Cx: gradeVal(g.ComplexityCost),
 		}
@@ -47,7 +47,21 @@ func sittingOfRunT(t *testing.T, run Run, role, seatID string) SittingJSON {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return SittingOf(m.Events, gaps, role, seatID)
+	ids, err := eventIDsOfRun(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return SittingOf(m.Events, ids, gaps, role, seatID)
+}
+
+// positions stands in for events.id on a hand-built stream with no database: 1..n in stream
+// order, the ids an append-only record assigns.
+func positions(evs []*Event) []int64 {
+	out := make([]int64, len(evs))
+	for i := range out {
+		out[i] = int64(i + 1)
+	}
+	return out
 }
 
 // mustWorkJSONT is WorkJSONOfRun or a fatal.

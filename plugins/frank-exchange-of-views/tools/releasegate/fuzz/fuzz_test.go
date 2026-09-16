@@ -107,6 +107,10 @@ var (
 	mootSpent   atomic.Bool
 )
 
+// classDefaultTurn alternates the sweep's `always` and `never` coinings between runs (see mint's
+// class coining). Package-level for the same reason as mootPending: the runs are concurrent.
+var classDefaultTurn atomic.Int64
+
 // lockedRand is the seed's generator, safe for the concurrent seats phase 3 introduces.
 //
 // A WRAPPER RATHER THAN A MUTEX AT EVERY CALL SITE: there are 23 draws across this file, all
@@ -258,6 +262,11 @@ type runner struct {
 	// which runs it ONCE. More verbatim applications do not help: reds were observed with 6, 8
 	// and 9 of them, so what is missing is not applications but the PAIR.
 	forceEstoppel bool
+	// forceVerified drives the VERIFIED terminal verdict on one seed instead of leaving it to the
+	// draw. VERIFIED needs a board with no gap left at its limit, and every gap the sweep mints has
+	// about a one-in-four chance of ending there (see directives), so the chance a run reaches
+	// VERIFIED falls with every gap a run mints: seven lenses mint about seven.
+	forceVerified bool
 	// provedExpectedError fires the --expect-error drive once per run. A proof whose FAILURE is
 	// the result — proving a path is absent, a command missing — is a distinct contract from the
 	// answering proof beside it, and the sweep had never passed the flag that says so.
@@ -590,18 +599,18 @@ func (r *runner) dispatchNext(seatID string) map[string]any {
 	out, err := r.exec("--json", "dispatch", "next", "--seat-id", seatID)
 	if err != nil {
 		r.noteEstoppelMiss("dispatch next refused: " + err.Error())
-		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch refused: " + err.Error()}}
+		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch refused: " + err.Error()}, "max_epochs": 0, "epoch_limit_reached": false, "stale_areas": []any{}}
 	}
 	var env struct {
 		OK     bool           `json:"ok"`
 		Result map[string]any `json:"result"`
 	}
 	if err := json.Unmarshal([]byte(out), &env); err != nil || !env.OK || env.Result == nil {
-		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch envelope unreadable"}}
+		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch envelope unreadable"}, "max_epochs": 0, "epoch_limit_reached": false, "stale_areas": []any{}}
 	}
-	if env.Result["parties"] == nil {
-		env.Result["parties"] = []any{}
-	}
+	// RELAYED EXACTLY AS PRINTED. The verb emits every array as an array, never null, and the
+	// engine refuses a plan missing one — so a patch here would hide the defect the relay check
+	// exists to catch.
 	return env.Result
 }
 
@@ -645,11 +654,29 @@ func (r *runner) docketed() []string {
 	return out
 }
 
+// staleAreas is the current plan's stale areas — each lens retired for good whose pin the head
+// moved past, by seat — which the chair's spot-check names before a PASS.
+func (r *runner) staleAreas() []string {
+	var out []string
+	if r.planThisSitting == nil {
+		return out
+	}
+	areas, _ := r.planThisSitting["stale_areas"].([]any)
+	for _, a := range areas {
+		m, _ := a.(map[string]any)
+		if sid, ok := m["seat_id"].(string); ok {
+			out = append(out, sid)
+		}
+	}
+	return out
+}
+
 func (r *runner) chairEnvelope(seatID, verdict string, responses []map[string]any) map[string]any {
 	_ = responses // grade motions are ruled on the record; the envelope no longer restates them
 	plan := r.planThisSitting
 	if plan == nil {
-		plan = map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{}}
+		plan = map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false,
+			"max_epochs": 0, "epoch_limit_reached": false, "why": []any{}, "stale_areas": []any{}}
 	}
 	e := map[string]any{"plan": plan, "unruled_motions": 0, "petitions": r.maybePetition("chair", seatID), "log": arr()}
 	if verdict != "" {
@@ -745,12 +772,20 @@ func (r *runner) register(role, seatID string) {
 	close(done)
 }
 
-// fuzzLensSeats are the lens seats this driver mints from — debate.js's DEFAULT_AREAS, which are
-// the lenses the engine actually dispatches in a fuzz run (the other three areas are opt-in per
-// run). Each lens's budget is at least the run's mintBudget and grows with the report, so the
-// ceiling on gaps is at least four times the floor; a lens that reached its budget would see
-// `mint` refused with the budget text, which noteExec tallies.
-var fuzzLensSeats = []string{"red-lens-evidence", "red-lens-logic", "red-lens-dark-side", "red-lens-voice"}
+// fuzzLensSeats are the lens seats this driver mints from — the default cast's lenses, every area,
+// read off record.CastFor so the driver and setup cannot disagree about who sits. Each lens's
+// budget is at least the run's mintBudget and grows with the report, so the ceiling on gaps is at
+// least seven times the floor; a lens that reached its budget would see `mint` refused with the
+// budget text, which noteExec tallies.
+var fuzzLensSeats = func() []string {
+	var out []string
+	for _, s := range record.CastFor(nil, 1) {
+		if strings.HasPrefix(s, "red-lens-") {
+			out = append(out, s)
+		}
+	}
+	return out
+}()
 
 // minterOf is the seat that may close or regrade gapID: the lens whose mint created it. Every gap
 // this driver puts on the board goes through r.mint, which records the minter, so a miss here is
@@ -891,6 +926,11 @@ func (r *runner) mint(seatID string) string {
 	if r.forceEstoppel {
 		directive = dirApply
 	}
+	// The verified run mints only gaps blue repairs and the lens closes: an applied or a countered
+	// edit is movement, so neither reaches impasse before the lens's closing sitting.
+	if r.forceVerified {
+		directive = pick(r.rng, []string{dirApply, dirCounter})
+	}
 	kind := checkKinds[r.rng.Intn(len(checkKinds))]
 	if directive == dirProve || directive == dirProveDrifts {
 		// The demand and the answer must agree: a gap settled by computing is minted as a
@@ -946,13 +986,35 @@ func (r *runner) mint(seatID string) string {
 		// with "unknown class" — a run that mints nothing, returns FAIL with an empty gaps array,
 		// and is rejected by the engine as a degenerate merge. The cause was three verbs away
 		// from the symptom and invisible from the log.
-		if _, err := r.exec("class", "new", "--seat-id", seatID,
+		coin := []string{"class", "new", "--seat-id", seatID,
 			// --neighbor names an EXISTING class, and is checked. `verification-gap` was not one;
 			// nothing objected while the registry was absent, so the coining path ran green for
 			// its whole life against a neighbour that did not exist.
-			"--class", "fuzzcls", "--definition", "d", "--neighbor", "self-attestation", "--distinguisher", "q"); err != nil {
+			"--class", "fuzzcls", "--definition", "d", "--neighbor", "self-attestation", "--distinguisher", "q"}
+		// BOTH SPELLINGS OF by_grade: the verb writes it when the coiner says nothing, and the
+		// flag says it outright. Either way every mint of the run's class is graded by severity,
+		// so the board this sweep measures is the one it always measured.
+		if r.coin(50) {
+			coin = append(coin, "--material-default", "by_grade")
+		}
+		if _, err := r.exec(coin...); err != nil {
 			r.noteApplyMiss("class new refused: " + err.Error())
 			r.classMade = false // let a later seat try again rather than latching the run dead
+		} else {
+			// THE OTHER TWO DEFAULTS ARE COINED BESIDE IT AND NOTHING IS MINTED UNDER THEM. A run
+			// whose one class went `always` or `never` would move every gap's materiality, and with
+			// it the boards, the epochs and the terminal verdicts the sweep's other gates count on
+			// — a coverage drive that displaces the sweep's other coverage is a trade (see closeGap's
+			// `moot`). Alternated across the sweep by construction, not drawn.
+			md := "always"
+			if classDefaultTurn.Add(1)%2 == 0 {
+				md = "never"
+			}
+			if _, err := r.exec("class", "new", "--seat-id", seatID, "--class", "fuzzcls-"+md,
+				"--definition", "d", "--neighbor", "self-attestation", "--distinguisher", "q",
+				"--material-default", md); err != nil {
+				r.noteApplyMiss("class new --material-default " + md + " refused: " + err.Error())
+			}
 		}
 	}
 	args = append(args, "--class", "fuzzcls")
@@ -1346,9 +1408,16 @@ const (
 )
 
 // WEIGHTED so a run can still reach PASS. Every fate is now DERIVED from the directive, so a
-// board whose gaps are all IGNORE correctly never closes and the run correctly ends CEILING —
-// which is right, and would leave VERIFIED uncovered if the draw were uniform. Four of seven
-// draws are satisfiable, which keeps both terminal states in the sweep.
+// board whose gaps are all IGNORE correctly never closes and the run correctly ends CEILING.
+// Under the sweep's terms (k 1, kMax 2) only APPLY and COUNTER are movement before the lens's
+// closing sitting; a proof, a grade motion or silence is a stalled exchange, the gap is at impasse
+// after one, and the bench remands every docket but a lost dispute, leaving the gap at its limit.
+// MEASURED over 80 runs at seven lenses: 153 of 558 minted gaps ended remanded (PROVE 70,
+// PROVE-DRIFTS 33, DISPUTE-WON 26, IGNORE 24), every one of the 71 CEILING runs held at least one,
+// and 8 runs reached VERIFIED. At four lenses 63 of 250 gaps ended remanded and 29 of 80 runs
+// reached VERIFIED: the share of gaps left at their limit did not move, the gaps per run did. The
+// draw keeps both terminal states in the sweep's distribution; verifiedSeed makes VERIFIED a fact
+// of every sweep.
 var directives = []string{dirApply, dirApply, dirCounter, dirCounter, dirDisputeWon, dirDisputeLost, dirIgnore, dirProve, dirProve, dirProveDrifts}
 
 // satisfied reports whether a directive means the gap is repaired and red should close it.
@@ -1520,11 +1589,20 @@ func (r *runner) extras(role, seatID string, open []string) {
 		//
 		// It now models a seat that discharges the duty honestly: sample when there is something
 		// to sample, and claim emptiness only when the board agrees.
+		// AND IT READS THE STALE AREAS THE PLAN NAMES. A lens retired for good does not sit again,
+		// so the plan lists each whose pin the head has moved past, and the PASS gate refuses a
+		// verdict until a spot-check this sitting names every one. A drive that never passed
+		// --areas modelled a chair that skipped the read, and every run whose lenses retired for
+		// good ended UNVERIFIED on the refusal, so VERIFIED went undriven.
+		sc := r.do("spot-check", seatID)
+		if stale := r.staleAreas(); len(stale) > 0 {
+			sc.set("--areas", strings.Join(stale, ","))
+		}
 		if closed := r.closedGapIDs(); len(closed) > 0 {
-			r.do("spot-check", seatID).set("--ids", closed[r.rng.Intn(len(closed))]).
+			sc.set("--ids", closed[r.rng.Intn(len(closed))]).
 				set("--reason", "fuzz: re-read the closure record; the anchor still resolves").run()
 		} else {
-			r.do("spot-check", seatID).bare("--none").
+			sc.bare("--none").
 				set("--reason", "fuzz: the archive was empty at round start").run()
 		}
 		// RED RULES ON BLUE'S DIRECTIONS (#246) — the verb red never had. Across six runs blue
@@ -1906,8 +1984,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	case strings.HasPrefix(seatID, "red-lens"):
 		// A LENS FINDS AND MINTS; THE ORIGINATOR CLOSES (plans/roundless.md §III.B.3). The plan
 		// dispatched this lens either ENGAGED — on gaps it minted that are open and below their
-		// limits, which it now re-evaluates against blue's repair — or FRESH, because the report
-		// head moved past its pin. Either way it audits (the shared lens acts below the
+		// limits, which it now re-evaluates against blue's repair — or by its retirement state
+		// (active, or re-armed once). Either way it audits (the shared lens acts below the
 		// fallthrough) and may put new gaps on the board against its own budget.
 		r.sit("lens", seatID)
 		if r.evaluated == nil {
@@ -2245,7 +2323,7 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 	//
 	// THE SMOKE TERMS, NOT THE DEFAULTS. This sweep's job is to drive every branch of the engine
 	// forty times inside a release gate, not to run forty production-length debates: under the
-	// defaults (kMax 6, mintBudget 5, four lenses) a run is up to twenty gaps of six exchanges
+	// defaults (kMax 6, mintBudget 5, every lens area) a run is up to twenty gaps of six exchanges
 	// each, and 29 of 40 blew the ten-minute per-run budget while every verb the sweep counts had
 	// already been reached. One mint per lens and two exchanges per gap reach impasse, the
 	// docket, the ceiling and the pass in a few epochs — the shape `/research --smoke` runs.
@@ -2440,7 +2518,17 @@ const unverifiedSeed = 1
 // ~46% on a gate that a tag runs ONCE — and a green told you only that the draw went your way.
 const estoppelSeed = 2
 
-func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forceEstoppel bool) (res outcome) {
+// verifiedSeed is the one seed whose run is FORCED to VERIFIED: it mints only APPLY and COUNTER
+// gaps, which the lens closes once blue has sat. It is neither of the seeds above: a
+// dispute-lost docket holds the PASS, and the estoppel run exists for its refused mint.
+//
+// MEASURED at seven lenses (plans/feov-lens-bar.md §V #9): sweeps reached VERIFIED on 2 of 40, 8 of
+// 80 and 8 of 80 runs, the estoppel seed's all-APPLY run among them each time, carrying the word by
+// accident of its drive. At that rate 38 drawn runs find none about once in fifty-five, and
+// `outcome --as VERIFIED` then fails the enum census as a missing word.
+const verifiedSeed = 3
+
+func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forceEstoppel, forceVerified bool) (res outcome) {
 	runDir, err := os.MkdirTemp("", "fuzz-run-")
 	if err != nil {
 		// A FULL TMPDIR IS THE LIKELY CAUSE, AND IT HAS TO SAY SO. Discarded, this left runDir
@@ -2471,9 +2559,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	if err := record.StageForRun(stageRun, fuzzClasses...); err != nil {
 		return outcome{seed: seed, runDir: runDir, err: "stage the class registry: " + err.Error()}
 	}
-	// THE CAST, as setup writes it (plans/roundless.md §III.B.1): the default four areas — the
-	// lenses this driver mints through — the chair, one lane, the bookends. Every register and
-	// every `dispatch next` is checked against it.
+	// THE CAST, as setup writes it (plans/roundless.md §III.B.1): every area — the lenses this
+	// driver mints through — the chair, the lanes, the bookends. Every register and every
+	// `dispatch next` is checked against it.
 	// THREE LANES, because the run dispatches three (args.lanes above): a cast of one lane refused
 	// blue-lane-2 and blue-lane-3 at register on every run — 80 refusals across 40 — and every act
 	// of two of the three lanes ran unregistered behind a green sweep.
@@ -2483,6 +2571,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r := newRunner(bin, runDir, newLockedRand(seed))
 	r.forceUnverified = forceUnverified
 	r.forceEstoppel = forceEstoppel
+	r.forceVerified = forceVerified
 
 	// INGEST THE ROUND-0 REPORT (#709). The report is the record projection now: blue-synthesize
 	// freezes the seeded report into the record and the file is deleted, exactly as the engine does
@@ -2920,8 +3009,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 				openCount++
 			}
 		}
-		// A PASS HOLDS OVER SUB-MATERIAL WORK (plans/roundless.md §III.B.2): a gap below material
-		// does not hold the gate, so "any open gap" is the wrong count — the record's own dispatch
+		// A PASS HOLDS OVER WORK THAT IS NOT MATERIAL: a gap that is not material — by its class, or
+		// graded below medium — does not hold the gate, so "any open gap" is the wrong count — the record's own dispatch
 		// plan says whether the board permitted the PASS, and that is the oracle: a VERIFIED the
 		// board does not permit means the refusal in `verdict` stopped firing.
 		permitted := true
@@ -2938,7 +3027,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			}
 		}
 		if recorded == "VERIFIED" && !permitted {
-			res.err = fmt.Sprintf("verdict oracle: the run recorded VERIFIED over a board that does not permit a PASS (%d gap(s) open) — a pass over unfinished work", openCount)
+			res.err = fmt.Sprintf("verdict oracle: the run recorded VERIFIED over a board that does not permit a PASS (%d gap(s) open, material or not) — a pass over unfinished work", openCount)
 			return res
 		}
 		// THE CONVERSE NEEDS A CARVE-OUT, and finding out why is the point of running it.
@@ -3524,14 +3613,15 @@ func TestFuzzDebate(t *testing.T) {
 	epochHist := map[int]int{}
 	whyHist := map[string]int{} // verdict → first stated reason, with the gap id folded
 	dcov := map[string]int{}
-	citeAnchors, cacheFiles := 0, 0    // dialectic-event coverage across all runs (proves the fuzz emits them)
-	editAnswers := 0                   // #267: blue_edit events that carried the provenance key
-	forcedVerdict, forcedWhy := "", "" // what the FORCED-UNVERIFIED seed actually ended as
-	verifiedBasis := 0                 // #267 stage 3: gaps whose fix_basis was EARNED by a validated pair
-	verbatimApplied := 0               // #267 stage 4: edits that applied red's proposal exactly (the estoppel precondition)
-	estoppels := 0                     // the TOOL's own refusals of a mint against text blue applied verbatim
-	applyMisses := map[string]int{}    // and why it did not, by cause — a bare 0 above named none of them
-	estoppelMisses := map[string]int{} // and why the estoppel drive declined, for the same reason
+	citeAnchors, cacheFiles := 0, 0        // dialectic-event coverage across all runs (proves the fuzz emits them)
+	editAnswers := 0                       // #267: blue_edit events that carried the provenance key
+	forcedVerdict, forcedWhy := "", ""     // what the FORCED-UNVERIFIED seed actually ended as
+	verifiedVerdict, verifiedWhy := "", "" // and the FORCED-VERIFIED seed
+	verifiedBasis := 0                     // #267 stage 3: gaps whose fix_basis was EARNED by a validated pair
+	verbatimApplied := 0                   // #267 stage 4: edits that applied red's proposal exactly (the estoppel precondition)
+	estoppels := 0                         // the TOOL's own refusals of a mint against text blue applied verbatim
+	applyMisses := map[string]int{}        // and why it did not, by cause — a bare 0 above named none of them
+	estoppelMisses := map[string]int{}     // and why the estoppel drive declined, for the same reason
 
 	for i := 0; i < n; i++ {
 		seed := int64(i) + 1
@@ -3540,7 +3630,7 @@ func TestFuzzDebate(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			defer func() { <-sem }()
-			o := runOne(t, wrapped, bin, seed, seed == unverifiedSeed, seed == estoppelSeed)
+			o := runOne(t, wrapped, bin, seed, seed == unverifiedSeed, seed == estoppelSeed, seed == verifiedSeed)
 			// THE ORACLE RUNS ON EVERY RECORD THE SWEEP PRODUCES. The drives above assert that
 			// each command SUCCEEDED; the oracle asserts that the record those commands built is
 			// one every projection agrees about — the cross-reader class the unit suites cannot
@@ -3572,6 +3662,9 @@ func TestFuzzDebate(t *testing.T) {
 			// is the whole diagnosis; a count says only that nothing reached the word.
 			if o.seed == unverifiedSeed {
 				forcedVerdict, forcedWhy = o.verdict, o.why
+			}
+			if o.seed == verifiedSeed {
+				verifiedVerdict, verifiedWhy = o.verdict, o.why
 			}
 			epochHist[o.epochs]++
 			if o.why != "" {
@@ -3755,6 +3848,13 @@ func TestFuzzDebate(t *testing.T) {
 				"`outcome --as UNVERIFIED` a fact rather than a 1-in-60 draw did not deliver, and the enum census "+
 				"reports that as a missing WORD rather than as this declining DRIVER.%s",
 				unverifiedSeed, forcedVerdict, forcedWhyClause(forcedWhy))
+		}
+		// AND THE FORCED-VERIFIED DRIVE, for the same reason: the run that exists to write the word
+		// went somewhere else, and this names where.
+		if verifiedVerdict != "VERIFIED" {
+			t.Errorf("the forced-VERIFIED run on seed %d ended %q, not VERIFIED — the drive that makes "+
+				"`outcome --as VERIFIED` a fact rather than a draw did not deliver.%s",
+				verifiedSeed, verifiedVerdict, forcedWhyClause(verifiedWhy))
 		}
 		if !mootSpent.Load() {
 			t.Error("the sweep's single `close --as moot` drive never fired: no run reached closeGap with it pending, or every attempt was refused. The word's whole coverage is that one drive")

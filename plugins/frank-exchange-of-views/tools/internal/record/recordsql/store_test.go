@@ -53,7 +53,7 @@ func event(t *testing.T, ord int32, typ recordpb.EventType, body proto.Message) 
 // joins, constraints and aggregates — which is the trade this test exists to refuse.
 func TestABodyIsWrittenAsColumns(t *testing.T) {
 	db := store(t)
-	id, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Severity: recordpb.Grade_GRADE_HIGH.Enum(),
+	id, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 		GapId:           proto.String("G3"),
 		Class:           proto.String("scope-creep"),
 		Problem:         proto.String("an absence of findings is reported as an absence of risk"),
@@ -111,7 +111,7 @@ func TestABodyIsWrittenAsColumns(t *testing.T) {
 // to keep, and the one a plain Go struct could not have expressed.
 func TestAnAbsentFieldIsNull(t *testing.T) {
 	db := store(t)
-	id, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Severity: recordpb.Grade_GRADE_MEDIUM.Enum(),
+	id, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_MEDIUM.Enum(),
 		GapId:           proto.String("G1"),
 		Class:           proto.String("c"),
 		Problem:         proto.String("p"),
@@ -208,7 +208,7 @@ func TestARegressionClosureMustNameItsSuccessor(t *testing.T) {
 // remove, reintroduced at the last step.
 func TestAnEventSurvivesTheRoundTripWithItsAbsencesIntact(t *testing.T) {
 	db := store(t)
-	original := &recordpb.Mint{Severity: recordpb.Grade_GRADE_HIGH.Enum(),
+	original := &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 		GapId:           proto.String("G3"),
 		Class:           proto.String("scope-creep"),
 		Problem:         proto.String("an absence of findings is reported as an absence of risk"),
@@ -293,7 +293,7 @@ func TestTheBoardIsAQuery(t *testing.T) {
 	db := store(t)
 	mint := func(seq int32, id string) {
 		t.Helper()
-		if _, err := Insert(db, event(t, seq, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Severity: recordpb.Grade_GRADE_HIGH.Enum(),
+		if _, err := Insert(db, event(t, seq, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 			GapId:           proto.String(id),
 			Class:           proto.String("c"),
 			Problem:         proto.String("p"),
@@ -406,7 +406,7 @@ func TestABenchDispositionClosesTheGapOnlyIfTheVocabularySaysSo(t *testing.T) {
 	} {
 		t.Run(recordpb.Word(c.as), func(t *testing.T) {
 			db := store(t)
-			if _, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Severity: recordpb.Grade_GRADE_HIGH.Enum(),
+			if _, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 				GapId:           proto.String("G1"),
 				Class:           proto.String("c"),
 				Problem:         proto.String("p"),
@@ -543,7 +543,7 @@ func TestTheVocabularySaysWhichWordsEndAGap(t *testing.T) {
 // nobody displayed. The fixtures could be written that way because nothing refused them.
 func mintGap(t *testing.T, db *sql.DB, seq int32, gapID string) {
 	t.Helper()
-	if _, err := Insert(db, event(t, seq, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Severity: recordpb.Grade_GRADE_HIGH.Enum(),
+	if _, err := Insert(db, event(t, seq, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 		GapId:           proto.String(gapID),
 		Class:           proto.String("c"),
 		Problem:         proto.String("p"),
@@ -746,7 +746,7 @@ func TestTheSqliteDriverIsRegistered(t *testing.T) {
 func TestAGapsListsAreCountedByTheView(t *testing.T) {
 	db := store(t)
 	mintGap(t, db, 0, "G1")
-	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Severity: recordpb.Grade_GRADE_MEDIUM.Enum(),
+	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_MEDIUM.Enum(),
 		GapId:           proto.String("G2"),
 		Class:           proto.String("overclaim"),
 		Problem:         proto.String("p"),

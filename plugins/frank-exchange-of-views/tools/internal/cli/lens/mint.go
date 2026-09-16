@@ -16,6 +16,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportvoice"
 )
 
 // mint: put a gap on the board.
@@ -239,7 +240,17 @@ func newMint() *cobra.Command {
 		if _, err := record.Append(s.Identity(), p); err != nil {
 			return nil, err
 		}
-		return mintResult{GapID: gapID, Check: seat.Str(cmd, flags.Check)}, nil
+		// THE AMBIGUOUS TELLS ARE ADVICE, and they ride back on the confirmation. The write path has
+		// already refused the unambiguous ones (record.refuseMintReportVoice), so what remains is the
+		// set a pattern cannot tell from subject prose — "this run" or "the red team" may be exactly
+		// right in a report about red teams. Same three fields the report prints, never the reason.
+		var tells []string
+		for _, text := range []string{p.GetProblem(), p.GetRequiredFix(), p.GetFixNew()} {
+			for _, f := range reportvoice.Advised(text) {
+				tells = append(tells, f.String())
+			}
+		}
+		return mintResult{GapID: gapID, Check: seat.Str(cmd, flags.Check), VoiceTells: tells}, nil
 	}))
 
 	c.Flags().String(flags.Key, "", flags.DescKey)
@@ -247,7 +258,7 @@ func newMint() *cobra.Command {
 	// word as the flag's value shape. They sat around a COMMAND, so `--class` advertised its value
 	// as "lens class new": a phrase from the prose offered to a seat as the thing to type. The
 	// command is named without them, and the placeholder is the shape actually wanted.
-	c.Flags().String(flags.Class, "", "the gap's `slug` — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb")
+	c.Flags().String(flags.Class, "", "the gap's `slug` — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap")
 	flags.Text(c, flags.Quote, flags.DescQuote)
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
 		"anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE")
@@ -255,7 +266,7 @@ func newMint() *cobra.Command {
 	flags.Text(c, flags.Problem, "what is wrong (or pass it via --reason)")
 	flags.Text(c, flags.Fix, "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
 	flags.Text(c, flags.New, fmt.Sprintf("concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than %d characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified", bluedoc.MaxProposalGrowth))
-	flags.Text(c, flags.Check, "the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description")
+	flags.Text(c, flags.Check, "the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition")
 	enumhelp.Flag(c, flags.CheckKind, record.MustEnum("mint", "check_kind"), ("what would SETTLE that check"))
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage("how bad this is"))
 	c.Flags().Var(&likelihood, flags.Likelihood, flags.DescLikelihood)
@@ -269,6 +280,7 @@ func newMint() *cobra.Command {
 	// to: a requirement with no flag behind it is invisible to a seat unless something says the
 	// tool meets it.
 	seat.Supplies(c, "gap_id", "the tool assigns it (MintGapID), sequentially over the run — a seat that chose its own would collide with another seat's")
+	seat.Supplies(c, "class_material", "stamped from the class registry at the write path")
 	return c
 }
 
@@ -288,6 +300,10 @@ type mintResult struct {
 	// difference visible while the seat is still there to fix it. No verb amends a check after
 	// mint, so the moment of the write is the only moment.
 	Check string `json:"acceptance_check,omitempty"`
+	// VoiceTells is ADVICE on the problem, the fix and a --new replacement, and the gap is already on the board by the
+	// time it renders. The fix for a tell that turns out to be real is the next mint's wording, or
+	// a supersession; nothing here asks the seat to undo the write.
+	VoiceTells []string `json:"voice_tells,omitempty"`
 }
 
 func (r mintResult) Human() string {
@@ -295,11 +311,12 @@ func (r mintResult) Human() string {
 	if r.Idempotent {
 		head += " (idempotent retry — existing id returned)"
 	}
+	note := reportvoice.Note("the risk matrix, the first sentence of the problem and of the fix, while the gap is open; the body, a --new replacement blue accepts", r.VoiceTells)
 	if r.Check == "" {
-		return head
+		return head + note
 	}
 	return head + "\n  acceptance check RECORDED as: " + r.Check +
-		"\n  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)"
+		"\n  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)" + note
 }
 
 // contains reports membership, so an --supersedes that already names the estopping gap

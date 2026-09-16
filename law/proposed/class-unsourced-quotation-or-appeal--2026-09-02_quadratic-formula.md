@@ -2,7 +2,7 @@
 
 Coined by `red-merge-r1` during `2026-09-02_quadratic-formula`. It is NOT staged into any later run:
 an unreviewed class validating a future `--class` is the registry losing the only thing it
-means. Adopting it means adding the slug to `feov-memory/class-registry.json` by hand.
+means. Adopting it means adding the slug to `feov-memory/class-registry.json` by hand, with its `material_default` (`always`, `never` or `by_grade`).
 
 - **definition**: quoted text, or an appeal to an outside result, that resolves to no source the run holds — or to a source whose words it silently alters
 - **neighbour**: `citation-figure-misattribution`

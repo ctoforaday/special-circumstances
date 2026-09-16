@@ -108,14 +108,14 @@ func TestDialecticRefsResolve(t *testing.T) {
 func TestPassClosesAllGaps(t *testing.T) {
 	openUnderPass := &boardT{
 		GapOrder: []string{"G1"},
-		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_HIGH}},
+		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_HIGH, Material: true}},
 		Events:   []*record.Event{recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()})},
 	}
 	if c := find(t, Run(openUnderPass.fam()), "pass-closes-all-gaps"); c.OK {
 		t.Error("PASS with an open gap must fail the #67 gate")
 	}
-	// Below material does not hold the gate (plans/roundless.md §III.B.2.1): the trifle stays open
-	// on the board, listed as not certified against, and the PASS is legal.
+	// A gap that is not material does not hold the gate: the trifle stays open on the board, the
+	// chair's PASS lists it by class, and the PASS is legal.
 	trifleUnderPass := &boardT{
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_LOW}},
@@ -127,7 +127,7 @@ func TestPassClosesAllGaps(t *testing.T) {
 	// A FAIL verdict makes the gate inapplicable — an open gap is expected there.
 	failed := &boardT{
 		GapOrder: []string{"G1"},
-		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_HIGH}},
+		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_HIGH, Material: true}},
 		Events:   []*record.Event{recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()})},
 	}
 	if c := find(t, Run(failed.fam()), "pass-closes-all-gaps"); !c.OK {
@@ -138,7 +138,7 @@ func TestPassClosesAllGaps(t *testing.T) {
 	// question, not something this fix decided — see the issue at passClosesAllGaps.
 	ceiling := &boardT{
 		GapOrder: []string{"G1"},
-		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_HIGH}},
+		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_HIGH, Material: true}},
 		Events:   []*record.Event{recordtest.Event(t, "judge", &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_CEILING.Enum(), Prose: proto.String("the ceiling was reached")})},
 	}
 	if c := find(t, Run(ceiling.fam()), "pass-closes-all-gaps"); !c.OK {
@@ -231,7 +231,7 @@ func TestPassClosesAllGapsFiresOnAPassWithAnOpenGap(t *testing.T) {
 	b := &boardT{
 		Events:   []*record.Event{recordtest.Event(t, "", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
 		GapOrder: []string{"G1"},
-		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_HIGH}},
+		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_HIGH, Material: true}},
 	}
 	got := passClosesAllGaps(b.fam())
 	if got.OK {
@@ -263,7 +263,7 @@ func TestPassClosesAllGapsIsNotApplicableWithoutAPassVerdict(t *testing.T) {
 		b := &boardT{
 			Events:   []*record.Event{ev},
 			GapOrder: []string{"G1"},
-			Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_HIGH}},
+			Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_HIGH, Material: true}},
 		}
 		if got := passClosesAllGaps(b.fam()); !got.OK {
 			t.Errorf("%s must leave the gate inapplicable, not fire it: %q",
@@ -300,7 +300,7 @@ func TestAnInapplicableCheckIsMarkedNAAndIsNotAFailure(t *testing.T) {
 			recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
 		},
 		GapOrder: []string{"G1"},
-		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_HIGH}},
+		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_HIGH, Material: true}},
 	}
 	got := find(t, Run(b.fam()), "pass-closes-all-gaps")
 	if !got.NA {
@@ -351,7 +351,7 @@ func TestAViolatedCheckReportsFail(t *testing.T) {
 	b := &boardT{
 		Events:   []*record.Event{recordtest.Event(t, "", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
 		GapOrder: []string{"G1"},
-		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_HIGH}},
+		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_HIGH, Material: true}},
 	}
 	got := find(t, Run(b.fam()), "pass-closes-all-gaps")
 	if got.OK || got.NA || got.Status() != "FAIL" {

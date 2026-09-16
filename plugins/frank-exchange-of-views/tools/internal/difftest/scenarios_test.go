@@ -6,7 +6,7 @@ import "time"
 // "29 oracle tests' scenarios exported as replayable command lists" the R2g plan
 // calls for. Each names the oracle test it stands in for.
 
-const registry = `{"classes":[{"slug":"propagation-incomplete"},{"slug":"citation-drift"},{"slug":"scope-creep"}]}`
+const registry = `{"classes":[{"slug":"propagation-incomplete","material_default":"by_grade"},{"slug":"citation-drift","material_default":"by_grade"},{"slug":"scope-creep","material_default":"by_grade"}]}`
 
 // hostile prose: the quoting recurrence class, plus the characters that expose
 // Go's default HTML escaping (<, >, &) — a divergence that would otherwise show

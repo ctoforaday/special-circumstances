@@ -292,9 +292,9 @@ enum Grade {
   GRADE_UNSPECIFIED = 0 [(mass) = 0];
   GRADE_TRIVIAL = 1 [(means) = "cosmetic; nothing downstream changes if it is wrong", (mass) = 0.5];
   GRADE_LOW = 2 [(means) = "minor", (mass) = 1];
-  GRADE_LOW_MEDIUM = 3 [(means) = "between minor and material", (mass) = 1.5];
-  GRADE_MEDIUM = 4 [(means) = "material", (mass) = 2];
-  GRADE_MEDIUM_HIGH = 5 [(means) = "between material and serious", (mass) = 2.5];
+  GRADE_LOW_MEDIUM = 3 [(means) = "below the by-grade material floor", (mass) = 1.5];
+  GRADE_MEDIUM = 4 [(means) = "the by-grade material floor", (mass) = 2];
+  GRADE_MEDIUM_HIGH = 5 [(means) = "above the by-grade material floor, below serious", (mass) = 2.5];
   GRADE_HIGH = 6 [(means) = "serious", (mass) = 3];
   GRADE_CERTAIN = 7 [(means) = "the top of the scale — for LIKELIHOOD, reserve it for a consequence that is itself certain, never for a defect you merely verified exists", (mass) = 3.5];
   GRADE_REALIZED = 8 [(means) = "it has already happened. Contributes ZERO mass by design: mass forecasts what is still to come, and a realized defect is measured by its damage instead", (mass) = 0];
@@ -305,8 +305,8 @@ enum Grade {
 // entirely, and `--as banana` recorded a banana.
 enum Verdict {
   VERDICT_UNSPECIFIED = 0;
-  VERDICT_PASS = 1 [(means) = "every gap on the board is resolved — this is CHECKED against the open board, not taken on your word"];
-  VERDICT_FAIL = 2 [(means) = "at least one gap is still open, or you are not satisfied it was answered"];
+  VERDICT_PASS = 1 [(means) = "nothing on the board holds the gate — no material gap open, no lens ready, every stale area spot-checked — and this is CHECKED against the board, not taken on your word"];
+  VERDICT_FAIL = 2 [(means) = "a material defect still stops you — a FAIL over a converged board is refused"];
 }
 
 // RunOutcome is how the SITTING ended. The report's verdict stamp switches on it, so an
@@ -329,6 +329,19 @@ enum CheckKind {
   CHECK_KIND_DOCUMENT = 1 [(means) = "reading a shipped artifact settles it — the check is answered by prose that quotes what is there"];
   CHECK_KIND_COMPUTATION = 2 [(means) = "RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind"];
   CHECK_KIND_SOURCE = 3 [(means) = "verifying an external source settles it — the claim stands or falls on what the cited material actually says"];
+}
+
+// ClassMaterial is where a gap's materiality starts: from its class. A claim, figure or citation
+// defect changes what a reader concludes whatever it is graded, so its class is `always`; a
+// template-shape defect changes no conclusion, so its class is `never`; every other class goes
+// by the gap's current severity, medium and above. The registry row carries the class's default,
+// a coined class carries the one its coiner chose, and the write path stamps it onto every Mint,
+// so every reader of "is this gap material" reads the same field.
+enum ClassMaterial {
+  CLASS_MATERIAL_UNSPECIFIED = 0;
+  CLASS_MATERIAL_ALWAYS = 1 [(means) = "every gap of this class is material, whatever its grade — it changes a conclusion or a figure a reader relies on"];
+  CLASS_MATERIAL_NEVER = 2 [(means) = "no gap of this class is material, whatever its grade — it stays on the board and never holds the gate"];
+  CLASS_MATERIAL_BY_GRADE = 3 [(means) = "a gap of this class is material when its current severity is medium or above"];
 }
 
 // ClosureClass is HOW A GAP ENDED — one vocabulary for both closing verbs. Before it was
@@ -733,13 +746,13 @@ message Mint {
   // VALUE cannot be optional. GapMass multiplies likelihood by impact and an absent grade
   // contributes ZERO, so an ungraded gap reads exactly like a harmless one and sinks to the
   // bottom of every ranking. Severity joined them with the roundless record (plans/roundless.md
-  // §III.B.2): the MATERIAL threshold reads MASS[current severity], so an absent severity reads
-  // as mass zero — below material, readying nobody and never holding the gate — which is
-  // exactly "trivial". The release sweep found it: gaps minted without one ended runs VERIFIED
-  // over open work with the plan saying "below material ()". Cost is still reported, not read.
+  // §III.B.2): wherever the class goes by grade, materiality reads MASS[current severity], so an
+  // absent severity reads as mass zero — not material, readying nobody and never holding the
+  // gate — which is exactly "trivial". The release sweep found it: gaps minted without one ended
+  // runs VERIFIED over open work. Cost is still reported, not read.
   optional Grade severity = 16 [(sql) = {
     required: true
-    why: "the material threshold reads it (MASS[severity] < 2.0 readies nobody and never holds the gate), so an absent grade is scored as TRIVIAL and the gap reads as harmless rather than ungraded"
+    why: "materiality reads it wherever the class goes by grade (medium and above holds the gate), so an absent grade would score as TRIVIAL and the gap would read as harmless rather than ungraded"
   }];
   optional Grade likelihood = 17 [(sql) = {
     required: true
@@ -768,6 +781,15 @@ message Mint {
   // gap while every test stayed green. Added here rather than excused: a test
   // (TestAGapCarriesRedsArgumentAndNotOnlyItsProblem) asserts it reaches the projection.
   optional string mint_reason = 22;
+
+  // WHERE THIS GAP'S MATERIALITY STARTS, stamped by the write path from the class — the staged
+  // registry's row, or the run's own `class new` — and never by a seat: a lens that could set it
+  // could make any gap it minted immaterial. Required, because an absent value would leave every
+  // reader of "is this gap material" to guess, and the guess would be the grade alone.
+  optional ClassMaterial class_material = 25 [(sql) = {
+    required: true
+    why: "every reader of materiality — the dispatch, the PASS gate, the chair's work list — reads it; the tool stamps it from the class registry at the write"
+  }];
 }
 
 // ClassNew registers a coined gap class in the run's registry.
@@ -776,6 +798,10 @@ message ClassNew {
   optional string definition = 2;
   optional string neighbor = 3;
   optional string distinguisher = 4;
+  // The coined class's materiality default. The verb always writes it (`by_grade` unless the
+  // coiner says otherwise), so a class the run coined carries its default on the record, where
+  // the Mint stamp and the capture's adoption text read it.
+  optional ClassMaterial material_default = 5;
 }
 
 // Close ends a gap on verified repair.
@@ -883,6 +909,12 @@ message SpotCheck {
   // ONE PROSE CHANNEL. `notes` held what the spot-check found and `reason` held why there was
   // nothing to sample — the same field, split by which branch wrote it.
   optional string reason = 4 [(prose) = true];
+
+  // The lens seats whose area the chair read the changes against this sitting — the plan's
+  // stale_areas, each a lens retired for good whose pin the report head has moved past. A PASS is
+  // refused until a spot-check in the chair's sitting names every stale area. Validated against the
+  // cast at the write.
+  repeated string areas = 5;
 
   reserved 2;
   reserved "notes";
@@ -1820,8 +1852,8 @@ message Cast {
 // ONE EVENT PER PARTY rather than one event carrying a list of parties, because a body's lists
 // are lists of scalars in this schema (schemagen's list tables) and the per-(seat, gap) row is
 // the fact that makes a null turn computable: a blue sitting engaged on {G1, G2, G3} that acts on
-// G1 took a null turn on G2 and G3. A lens engaged with NO gaps is rule 1's dispatch — the head
-// moved past its pin — and gap_ids is empty, which is "lineage none", not "unknown".
+// G1 took a null turn on G2 and G3. A lens engaged with NO gaps is rule 1's dispatch — ready by its
+// retirement state — and gap_ids is empty, which is "lineage none", not "unknown".
 message Dispatch {
   optional int64 pin = 1 [(sql) = {
     required: true
@@ -1851,6 +1883,15 @@ message Dispatch {
 // decorated, and the wire is unaffected either way: field numbers carry the format, names do not.
 message Gate {
   optional Verdict verdict = 1;
+
+  // The open gaps that were MATERIAL when a migration wrote this PASS (gblock, fork (a),
+  // 2026-09-15). Migrate does not re-judge an archived PASS under the class rule it predates, so
+  // the PASS gate is exempt under `Migrating`; this field is what that exemption leaves behind, so
+  // `verify` can tell a PASS migration admitted from a PASS that violated the gate. Without it the
+  // two are the same bytes. The write path stamps it, only under `Migrating` and only on a PASS;
+  // a live write carrying it is refused, because a PASS that could claim a migration's admission
+  // could stand over any open gap. No flag sets it.
+  repeated string migration_admitted_gap_ids = 2;
 }
 
 // Outcome is the run's TERMINAL act. The verdict is DERIVED from the record — a halt, a recorded

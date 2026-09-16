@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // BUILDING A BOARD, THROUGH WHATEVER RUNS THE TOOL.
@@ -51,8 +52,9 @@ var Seats = []struct{ Role, ID string }{
 }
 
 // Build materialises a board into runDir.
-// stagingLenses are the lens seats the builder mints a board through, in rotation. Four, like the
-// default cast, so a board of up to twenty gaps stays within each lens's default budget of five.
+// stagingLenses are the lens seats the builder mints a board through, in rotation. Four — a budget
+// fixture, not the default cast (which seats every area): a board of up to twenty gaps stays within
+// each lens's default budget of five.
 var stagingLenses = []string{"red-lens-evidence", "red-lens-logic", "red-lens-dark-side", "red-lens-voice"}
 
 func Build(run record.Run, b Board, exec Exec) error {
@@ -113,7 +115,13 @@ func Build(run record.Run, b Board, exec Exec) error {
 	// first mint; fixing that in the wrong place stopped 9 of 9 on their first register. The probe
 	// refused to score either one ("this run is not a result"), which is the only reason both were
 	// five-minute diagnoses rather than runs reported with a thinner board.
-	if err := record.StageForRun(run, BoardClasses...); err != nil {
+	// WITH THE SHIPPED MATERIAL DEFAULTS, because a board is a fixture for a real sitting: a gap of
+	// an `always` class holds the gate here exactly as it would in production.
+	defaults := make(map[string]recordpb.ClassMaterial, len(BoardClasses))
+	for _, s := range BoardClasses {
+		defaults[s] = record.ShippedMaterialDefaults[s]
+	}
+	if err := record.StageForRunWithDefaults(run, defaults); err != nil {
 		return fmt.Errorf("stage the class registry: %w", err)
 	}
 

@@ -28,7 +28,7 @@ func TestAnAffordanceIsListedAndDoesNotBlock(t *testing.T) {
 		recordtest.Event(t, "blue-respond", &recordpb.Log{}),
 		recordtest.Event(t, "blue-respond", &recordpb.Revision{}),
 	})
-	s := SittingOf(b.Events, workStatesOfFamilyT(b), "blue", "blue-respond")
+	s := SittingOf(b.Events, positions(b.Events), workStatesOfFamilyT(b), "blue", "blue-respond")
 
 	var afforded, blocking int
 	for _, it := range s.Open {
@@ -260,10 +260,12 @@ func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
 			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}},
 		})
 	}
+	// All three are MATERIAL: the docket is offered only on a gap that holds PASS, and this test is
+	// about which of three such gaps the offer stands on.
 	b := NewFamily([]*Gap{
-		{ID: "G-carried", Open: true},
-		{ID: "G-pending", Open: true},
-		{ID: "G-fresh", Open: true},
+		{ID: "G-carried", Open: true, Material: true},
+		{ID: "G-pending", Open: true, Material: true},
+		{ID: "G-fresh", Open: true, Material: true},
 	},
 		[]*Event{
 			file("M1", "G-carried"),
@@ -300,15 +302,15 @@ func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
 // A CARRIED GAP GETS DIFFERENT WORDS, AND THAT DIFFERENCE IS THE WHOLE POINT (#759).
 //
 // The vacuous version of this test is "the chair sitting is incomplete and names the gap" — which
-// passed before any of this existed, because the chair arm already blocks on every open gap. So
+// passed before any of this existed, because the chair arm already blocks on every open material gap. So
 // what is asserted here is the DISTINCTION: a carried gap and a never-docketed one must not read
 // the same, the carried one must carry the bench's stated condition, and neither may add a second
 // blocking row for a gap sitting.go already blocks on.
 func TestACarriedGapReadsDifferentlyFromOneNobodyDocketed(t *testing.T) {
 	gaps := []WorkGapState{
-		{ID: "CARRIED", Open: true, AwaitingDocket: true,
+		{ID: "CARRIED", Open: true, Material: true, AwaitingDocket: true,
 			DocketReopensOn: "blue reporting what the stated direction found"},
-		{ID: "FRESH", Open: true},
+		{ID: "FRESH", Open: true, Material: true},
 	}
 	open := availableOf(nil, gaps, "chair", "red-chair")
 
@@ -318,7 +320,7 @@ func TestACarriedGapReadsDifferentlyFromOneNobodyDocketed(t *testing.T) {
 			if strings.Contains(it.What, "gap "+id+" ") {
 				if it.Blocks {
 					t.Errorf("%s: the docket affordance BLOCKS — sitting.go's open-gap row already "+
-						"refuses PASS over it, so this would be a second blocking row for one gap", id)
+						"refuses PASS over a material gap, so this would be a second blocking row for one gap", id)
 				}
 				return it.What
 			}

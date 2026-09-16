@@ -23,7 +23,7 @@ import (
 // move is what the chair's plan says at one sitting.
 type move struct {
 	name string
-	// engage: the evidence lens (head moved) and blue on G1 are ready — an exchange.
+	// engage: the evidence lens (active) and blue on G1 are ready — an exchange.
 	engage bool
 	// fresh: the lens is ready and blue is engaged on a NEW gap this sitting mints.
 	fresh bool
@@ -103,7 +103,8 @@ func plan(parties []any, pass, ceiling bool, docket []any, why string) map[strin
 	if docket == nil {
 		docket = []any{}
 	}
-	return map[string]any{"head": 2, "parties": parties, "docket": docket, "pass_permitted": pass, "ceiling": ceiling, "why": []any{why}}
+	return map[string]any{"head": 2, "parties": parties, "docket": docket, "pass_permitted": pass, "ceiling": ceiling,
+		"max_epochs": 0, "epoch_limit_reached": false, "why": []any{why}, "stale_areas": []any{}}
 }
 
 func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch, debatejs.Outcome, *board) {

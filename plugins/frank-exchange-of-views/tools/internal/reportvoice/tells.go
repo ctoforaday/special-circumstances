@@ -18,6 +18,7 @@
 package reportvoice
 
 import (
+	"fmt"
 	"regexp"
 	"sort"
 	"strings"
@@ -46,23 +47,54 @@ type Tell struct {
 	Class    Class
 	Pattern  *regexp.Regexp
 	Redirect string
+	// Refuse marks a tell that has NO READING AS SUBJECT PROSE: a seat or lens id, a finding label,
+	// a gap id joined to a process word, a lane tag. `lens mint` refuses these in the two fields the
+	// report's risk matrix prints (gblock's ruling, plans/feov-lens-bar.md §III.9). Every other
+	// tell has an innocent reading — "the red team exercise" is a security report's subject, "this
+	// report" may quote a source — so it stays advice for every writer.
+	//
+	// Refuse says nothing about BLUE: blue's advisory reads the whole list, refused tells included,
+	// and refuses nothing. The flag is the answer to "could this match be subject prose?", which is
+	// a property of the pattern; which writer turns it into a refusal is the write path's decision.
+	Refuse bool
 }
 
 var tells = []Tell{
 	{ProcessVoice, regexp.MustCompile(`(?i)\bthis (run|round|report|sitting)\b`),
-		"the record already holds the run; a sentence about the subject does not need to name it"},
+		"the record already holds the run; a sentence about the subject does not need to name it", false},
 	{ProcessVoice, regexp.MustCompile(`(?i)\b(the|this) debate\b`),
-		"the record already holds the debate; say what is true of the subject"},
+		"the record already holds the debate; say what is true of the subject", false},
+	// THE PARTIES BY SIDE AND ROLE. Ambiguous by construction — a red team, a blue side and a chair
+	// are all things a subject can have — which is why it advises and never refuses.
+	{ProcessVoice, regexp.MustCompile(`(?i)\b(red|blue) (team|side|lens|chair|seat)\b`),
+		"which party said it is the record's; say what is true of the subject", false},
+	{ProcessVoice, regexp.MustCompile(`(?i)\b(epoch|sitting) #?\d+\b`),
+		"when in the run it happened is the record's; the report says what holds now", false},
+	// SEAT AND LENS IDS. The roster's own spellings, which no subject uses.
+	{ProcessVoice, regexp.MustCompile(`\b(red-lens-[a-z-]+|red-chair|blue-(respond|synthesize|lane-\d+)|judge-terminal)\b`),
+		"a seat id names who acted in the run; say what is wrong with the subject", true},
+	// FINDING LABELS: an area joined to F<n>, the tool's label shape.
+	{ProcessVoice, regexp.MustCompile(`\b[a-z-]+-F\d+\b`),
+		"a finding label is the record's handle; say what the finding found", true},
+	// GAP AND FINDING IDS JOINED TO A PROCESS WORD. A bare G<n> is not refused — "the G20 summit" is
+	// subject prose — so each pattern requires the id to sit beside a word that names it as a gap's.
+	// The id must carry its G: an unprefixed number beside "gap" ("a gap 2 metres wide") is prose.
+	{ProcessVoice, regexp.MustCompile(`\b(?i:gaps?|findings?) G\d+\b`),
+		"a gap id is the record's handle; say what is wrong with the subject", true},
+	{ProcessVoice, regexp.MustCompile(`\bG\d+['’]s (fix|repair|closure|mint)\b`),
+		"a gap id is the record's handle; say what must become true", true},
+	{ProcessVoice, regexp.MustCompile(`\b(minted|closed|regraded|superseded) (as )?G\d+\b`),
+		"what happened to a gap is the record's; say what is wrong with the subject", true},
 	{LaneAttribution, regexp.MustCompile(`\[(minority|lane-\d)[^\]]*\]`),
-		"provenance is the record's; a claim in the report is the report's"},
+		"provenance is the record's; a claim in the report is the report's", true},
 	{LaneAttribution, regexp.MustCompile(`(?i)\bresearch lanes?\b`),
-		"which lane found it is the record's; the report says what was found"},
+		"which lane found it is the record's; the report says what was found", false},
 	{DraftHistory, regexp.MustCompile(`(?i)an earlier version of this (sentence|bullet|paragraph)|corrected here`),
-		"the change stack holds what the report used to say"},
+		"the change stack holds what the report used to say", false},
 	{Apparatus, regexp.MustCompile(`(?i)the checking (program|script)|measurement apparatus`),
-		"the proof store holds the program; the report carries what it SHOWED"},
+		"the proof store holds the program; the report carries what it SHOWED", false},
 	{Apparatus, regexp.MustCompile(`\bPDF pp?\. ?\d`),
-		"the tool renders a citation's PDF page at its marker from the record; a typed page is a second copy that nothing keeps true"},
+		"the tool renders a citation's PDF page at its marker from the record; a typed page is a second copy that nothing keeps true", false},
 }
 
 // Tells is the whole list, and the only way to get it.
@@ -72,6 +104,51 @@ func Tells() []Tell { return append([]Tell(nil), tells...) }
 type Found struct {
 	Tell
 	Match string
+}
+
+// String is how every advising verb names a match to a seat — blue's edits, cites, proofs and lines
+// of inquiry, and red's mints and corroborations. One formatter, so a seat hearing the same advice
+// from two verbs hears it in the same words.
+func (f Found) String() string {
+	return fmt.Sprintf("%q reads as %s — %s", f.Match, f.Class, f.Redirect)
+}
+
+// Refused is the matches a writer held to the refusal may not record: the unambiguous tells, one per
+// tell, in list order. Empty when the span carries none, which is the only answer that lets it land.
+func Refused(s string) []Found {
+	var out []Found
+	for _, f := range Find(s) {
+		if f.Refuse {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+// Advised is the matches that stay advice for a writer held to the refusal: the ambiguous tells.
+func Advised(s string) []Found {
+	var out []Found
+	for _, f := range Find(s) {
+		if !f.Refuse {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+// Note renders advice for a verb whose text the report prints, naming WHERE it lands, because a seat
+// told only "the report" looks for it in the body and does not find it. Empty when nothing matched:
+// a clean act says nothing extra.
+func Note(where string, tells []string) string {
+	if len(tells) == 0 {
+		return ""
+	}
+	return "\n\nNOTE — this text is printed in the report (" + where + ") and in places sounds\n" +
+		"like the run rather than the subject. It is recorded; this is not a refusal, and it may be wrong:\n  - " +
+		strings.Join(tells, "\n  - ") +
+		"\n\nSEPARATION, NEVER DELETION: what the evidence establishes stays, re-voiced in the\n" +
+		"subject's terms; only the fact about the run goes. Red's voice lens holds that\n" +
+		"judgement — these are only the literal tells."
 }
 
 // Find reports WHICH TELLS ARE PRESENT in a span of report prose — at most one per tell, the

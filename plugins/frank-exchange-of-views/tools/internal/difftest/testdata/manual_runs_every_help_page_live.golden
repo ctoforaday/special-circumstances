@@ -30,7 +30,8 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - The verdict is the chair's PASS or FAIL on the board.
   - The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
   - A finding is a lens's recorded observation of a defect in the report, graded and not yet minted.
-  - A gap is a defect in the report, minted onto the board by a lens.
+  - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
+  - A gap is material when its class is always material, or when its class goes by grade and its current severity is medium or above, and an open material gap holds the PASS gate.
   - To retire a claim is to take it out of the report with the retire verb, on the record.
   - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
   - A grade motion is a side's motion contesting a gap's grade, ruled by the bench.
@@ -757,7 +758,7 @@ Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_wit
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §15
 
-OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}]},open:[{id,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,edited_since:[{epoch,edited_by,old,new}],problem_synopsis,check_kind,awaiting_proof,awaiting_docket,docket_reopens_on,found_by:[string]}],closed_index:[{id,location,about_kind,about_ref,class,fate,closed_by,artifact_state}],counts:{open,closed},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
+OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}],last_sitting:{kind,pin,head}},open:[{id,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,edited_since:[{epoch,edited_by,old,new}],problem_synopsis,check_kind,awaiting_proof,awaiting_docket,docket_reopens_on,found_by:[string],material}],closed_index:[{id,location,about_kind,about_ref,class,fate,closed_by,artifact_state}],counts:{open,closed},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
 
 Usage:
   feov-record show work [flags]
@@ -800,7 +801,8 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - The verdict is the chair's PASS or FAIL on the board.
   - The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
   - A finding is a lens's recorded observation of a defect in the report, graded and not yet minted.
-  - A gap is a defect in the report, minted onto the board by a lens.
+  - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
+  - A gap is material when its class is always material, or when its class goes by grade and its current severity is medium or above, and an open material gap holds the PASS gate.
   - To retire a claim is to take it out of the report with the retire verb, on the record.
   - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
   - A grade motion is a side's motion contesting a gap's grade, ruled by the bench.
@@ -1717,7 +1719,7 @@ Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_wit
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §18
 
-OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}]},open:[{id,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,edited_since:[{epoch,edited_by,old,new}],problem_synopsis,check_kind,awaiting_proof,awaiting_docket,docket_reopens_on,found_by:[string]}],closed_index:[{id,location,about_kind,about_ref,class,fate,closed_by,artifact_state}],counts:{open,closed},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
+OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}],last_sitting:{kind,pin,head}},open:[{id,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,edited_since:[{epoch,edited_by,old,new}],problem_synopsis,check_kind,awaiting_proof,awaiting_docket,docket_reopens_on,found_by:[string],material}],closed_index:[{id,location,about_kind,about_ref,class,fate,closed_by,artifact_state}],counts:{open,closed},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
 
 Usage:
   feov-record show work [flags]

@@ -71,7 +71,7 @@ Flags:
       --id gap-id                 REQUIRED — the gap id
       --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
-      --verified-against string   AGAINST WHAT — the exact file, ref or URL read
+      --verified-against string   AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in
       --verified-by string        WHO verified it — the seat that read the evidence
       --verified-with string      WITH WHAT — the tool or command that showed it
 
@@ -135,7 +135,7 @@ Flags:
       --id gap-id                 REQUIRED — the gap id
       --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
-      --verified-against string   AGAINST WHAT — the exact file, ref or URL read
+      --verified-against string   AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in
       --verified-by string        WHO verified it — the seat that read the evidence
       --verified-with string      WITH WHAT — the tool or command that showed it
 
@@ -199,7 +199,7 @@ Flags:
       --id gap-id                 REQUIRED — the gap id
       --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
-      --verified-against string   AGAINST WHAT — the exact file, ref or URL read
+      --verified-against string   AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in
       --verified-by string        WHO verified it — the seat that read the evidence
       --verified-with string      WITH WHAT — the tool or command that showed it
 
@@ -229,7 +229,7 @@ closed G1 (repaired) [key red-lens-evidence:close:#1:G1]
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-lens-evidence:mint:G1","mint":{"acceptance_check":"refetch","check_kind":"CHECK_KIND_DOCUMENT","class":"citation-drift","class_new":false,"complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","gap_id":"G1","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"source moved","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:mint:G1","mint":{"acceptance_check":"refetch","check_kind":"CHECK_KIND_DOCUMENT","class":"citation-drift","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","gap_id":"G1","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"source moved","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_MINT"}
 {"close":{"anchor_seat":"L1","anchor_target":"https://example.invalid/spec#s3","anchor_tool":"WebFetch","closure_class":"DISPOSITION_REPAIRED","gap_id":"G1","prose":"refetched; the source now resolves and supports the claim"},"key":"red-lens-evidence:close:#1:G1","seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_CLOSE"}
 
 ═══ RENDERS ═══

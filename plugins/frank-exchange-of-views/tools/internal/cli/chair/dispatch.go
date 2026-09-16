@@ -14,7 +14,7 @@ import (
 )
 
 // dispatch next — the chair reads the board and the record says who sits (plans/roundless.md
-// §III.B.1). The verb computes readiness FROM THE BOARD: the report head against each lens's pin,
+// §III.B.1). The verb computes readiness FROM THE BOARD: each lens's retirement state against the report head,
 // each open material gap below its limits, each docketed gap awaiting the bench. It records the
 // decision as one dispatch event per party, under the chair, and prints the same plan for the
 // chair to relay. The workflow dispatches what the record says and nothing else.
@@ -110,7 +110,7 @@ func (r dispatchResult) Human() string {
 		fmt.Fprintf(&b, "dispatch against head %d:\n", r.Head)
 		for _, p := range r.Parties {
 			if len(p.GapIDs) == 0 {
-				fmt.Fprintf(&b, "  %s — the head moved past its pin\n", p.SeatID)
+				fmt.Fprintf(&b, "  %s — audits the report (its state is in the reasons below)\n", p.SeatID)
 			} else {
 				fmt.Fprintf(&b, "  %s — %s\n", p.SeatID, strings.Join(p.GapIDs, ", "))
 			}
@@ -118,6 +118,9 @@ func (r dispatchResult) Human() string {
 	}
 	for _, g := range r.Docket {
 		fmt.Fprintf(&b, "  docketed %s for the bench\n", g)
+	}
+	for _, a := range r.StaleAreas {
+		fmt.Fprintf(&b, "  stale area %s — retired for good at pin %d; read the changes since against its duties and name it in this sitting's spot-check before a PASS\n", a.SeatID, a.Pin)
 	}
 	for _, w := range r.Why {
 		fmt.Fprintf(&b, "  · %s\n", w)

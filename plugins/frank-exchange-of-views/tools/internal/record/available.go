@@ -81,8 +81,8 @@ func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item 
 		// docket, which is not recoverable from board state alone". It is now: a docket motion is
 		// an event, so "which gaps are before the bench" is a question the board answers.
 		//
-		// AN AFFORDANCE, NOT A DUTY. The open-gap row in sitting.go already refuses this seat's
-		// PASS, so a second blocking item would be a duplicate — and worse, a seat that OBEYED it
+		// AN AFFORDANCE, NOT A DUTY. The open-gap row in sitting.go already refuses PASS over a
+		// material gap, so a second blocking item would be a duplicate — and worse, a seat that OBEYED it
 		// would be further from complete than before, because filing adds an unruled motion. What
 		// filing buys is not completeness but the gap moving from this seat's undecided pile to a
 		// question the bench owes an answer to.
@@ -110,7 +110,12 @@ func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item 
 			}
 		}
 		for _, g := range gaps {
-			if !g.Open || pending[g.ID] {
+			// ONLY A GAP THAT HOLDS PASS IS OFFERED. A docket motion holds PASS until the bench
+			// rules it, so docketing a gap that is not material would create the block the gap
+			// itself does not — the one the chair's by-class listing exists to avoid. The verb is
+			// not refused (a party may still docket such a gap); the list just does not offer it.
+			// A stranded gap is held as material, so the offer stays on it.
+			if !g.Open || pending[g.ID] || !(g.Material || g.Stranded) {
 				continue
 			}
 			// ONE ROW PER GAP, BETTER WORDS WHEN THE BOARD KNOWS MORE (#759).
@@ -119,7 +124,7 @@ func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item 
 			// the view could tell them apart they got the same sentence — true of both and
 			// actionable on neither. A SECOND row for the remanded case would be the wrong fix:
 			// two items naming one gap is a duplicate, and the open-gap row in sitting.go
-			// already blocks PASS over it. So the row is REPLACED, not added.
+			// already blocks PASS over a material gap. So the row is REPLACED, not added.
 			//
 			// The reopens-on condition is the substance. "The bench remanded this" tells a seat
 			// the history; "the bench remanded it until blue reports what the stated direction

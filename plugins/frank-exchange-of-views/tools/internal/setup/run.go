@@ -255,6 +255,14 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "  the accrued files by adding `classes: [<slug>, ...]` to their frontmatter.")
 		return 2
 	}
+	// THE CLASS REGISTRY IS VALIDATED HERE, BESIDE THE CORPUS GATE AND BEFORE ANY RUN STATE: it is
+	// the caller's copy, it can be older than this binary, and a row without its material default
+	// would leave every gap of that class with no materiality to start from.
+	if err := ValidateClassRegistry(filepath.Join(cfg.Cwd, "feov-memory")); err != nil {
+		fmt.Fprintln(stderr, "run-setup: CLASS REGISTRY REFUSED — refusing to create the run:")
+		fmt.Fprintf(stderr, "  %v\n", err)
+		return 2
+	}
 
 	// RESOLVED ONCE, BEFORE ANYTHING IS WRITTEN. Everything below used to take the raw string
 	// and each site decided for itself whether to make it absolute — so a run was laid out with

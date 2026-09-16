@@ -127,6 +127,12 @@ func CheckKindOf(word string) (recordpb.CheckKind, bool) {
 	return enumOf[recordpb.CheckKind](recordpb.CheckKind(0).Descriptor(), word)
 }
 
+// ClassMaterialOf resolves a class's materiality default — `always`, `never` or `by_grade` — as
+// the registry row and `class new --material-default` spell it.
+func ClassMaterialOf(word string) (recordpb.ClassMaterial, bool) {
+	return enumOf[recordpb.ClassMaterial](recordpb.ClassMaterial(0).Descriptor(), word)
+}
+
 // SeatLogTypeWords are the log types a SEAT may file, in schema order — the set `log --type`
 // accepts, which is not the whole vocabulary. `estoppel` is the tool's own word and is excluded
 // by its `seat_may_file` facet rather than by a list here (#782).

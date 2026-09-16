@@ -162,7 +162,7 @@ func TestImpasseFiresOnStallAndOnTheMonotoneBound(t *testing.T) {
 	}
 }
 
-// A gap below material readies nobody. The lens is still ready under rule 1 when the head moved.
+// A gap that is not material readies nobody. The lens is still ready: it is active.
 func TestASubMaterialGapDoesNotReadyBlue(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").register(evLens).mint(evLens, "G1", "low")
@@ -173,11 +173,11 @@ func TestASubMaterialGapDoesNotReadyBlue(t *testing.T) {
 	if len(plan.Parties) != 1 || plan.Parties[0].SeatID != evLens || len(plan.Parties[0].GapIDs) != 0 {
 		t.Fatalf("parties = %+v, want only the lens, engaged on nothing (rule 1)", plan.Parties)
 	}
-	if !strings.Contains(strings.Join(plan.Why, "\n"), "G1: open but below material") {
+	if !strings.Contains(strings.Join(plan.Why, "\n"), "G1: open and not material (graded low)") {
 		t.Errorf("the plan must say why the trifle readies nobody:\n%s", strings.Join(plan.Why, "\n"))
 	}
 	if plan.PassPermitted {
-		t.Error("PASS is not permitted while a cast lens has not sat against the head")
+		t.Error("PASS is not permitted while a cast lens is ready")
 	}
 }
 
@@ -201,8 +201,10 @@ func TestAHandFiledDocketReadiesTheBenchWithoutImpasse(t *testing.T) {
 	if got := engaged["judge"]; len(got) != 2 || got[0] != "G1" || got[1] != "G2" {
 		t.Errorf("the bench is engaged on %v, want G1 and G2 — both escalated by hand, the trifle included", got)
 	}
-	if _, ready := engaged[evLens]; ready {
-		t.Error("the lens is engaged on a gap that is the bench's now")
+	// The lens minted fresh material, so it is active and sits to audit the report — engaged on
+	// no gap: both are the bench's now.
+	if got := engaged[evLens]; len(got) != 0 {
+		t.Errorf("the lens is engaged on %v, gaps that are the bench's now", got)
 	}
 	if len(plan.Docket) != 0 {
 		t.Errorf("the plan dockets %v again — a motion already stands on each", plan.Docket)
@@ -217,7 +219,7 @@ func TestAHandFiledDocketReadiesTheBenchWithoutImpasse(t *testing.T) {
 }
 
 // A STRANDED ANCESTOR READIES ITS MINTER WHATEVER ITS GRADE. The PASS gate refuses a verdict while
-// a superseded gap is open, so a sub-material ancestor that readied nobody left the plan saying
+// a superseded gap is open, so an ancestor that was not material and readied nobody left the plan saying
 // "pass permitted" and the gate saying no — the run ended UNVERIFIED with nobody ready (found by
 // the release sweep). Held as material: its minter and blue are engaged on it.
 func TestAStrandedAncestorIsReadyWorkWhateverItsGrade(t *testing.T) {
@@ -243,16 +245,16 @@ func TestAStrandedAncestorIsReadyWorkWhateverItsGrade(t *testing.T) {
 		t.Error("PASS is not permitted over a stranded ancestor")
 	}
 	why := strings.Join(plan.Why, "\n")
-	if !strings.Contains(why, "G1: open and superseded by G2") || !strings.Contains(why, "G2: open but below material") {
+	if !strings.Contains(why, "G1: open and superseded by G2") || !strings.Contains(why, "G2: open and not material (graded low)") {
 		t.Errorf("the plan must say the ancestor is held as material and the successor readies nobody:\n%s", why)
 	}
 }
 
-// Empty is the termination signal: every cast lens sat against the head and no material gap is
-// open — PASS permitted. With a material gap open and below its limits, its two parties are ready.
+// Empty is the termination signal: every cast lens retired and no material gap is open — PASS
+// permitted. With a material gap open and below its limits, its two parties are ready.
 func TestAnEmptyDispatchIsTermination(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest(). // head = 2
-											register("red-chair").dispatch(2, evLens).register(evLens). // the lens sat against the head
+											register("red-chair").dispatch(2, evLens).register(evLens).dispatch(2, evLens).register(evLens). // two barren sittings: retired
 											register("red-chair")
 	plan, err := PlanDispatch(b.seed())
 	if err != nil {
@@ -342,35 +344,31 @@ func TestTheDispatchVerbRefusesASeatOutsideTheCast(t *testing.T) {
 	}
 }
 
-// PASS waits for every cast lens to have sat against the head; a lens engaged that never
-// registered has not sat.
-func TestPassIsRefusedUntilEveryCastLensSatAgainstTheHead(t *testing.T) {
+// PASS waits for every cast lens to stop being ready — each retired with no re-arm owed, or retired
+// for good. A lens engaged that never registered has not sat, so it is still active.
+func TestPassIsRefusedWhileAnyCastLensIsReady(t *testing.T) {
 	logic := "red-lens-logic"
+	pass := &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}
 	b := newStage(t).cast(evLens, logic, "red-chair", "blue-respond", "judge").ingest(). // head 2
 												register("red-chair").dispatch(2, evLens).dispatch(2, logic).register(evLens). // only evidence sits
 												register("red-chair")
-	run := b.seed()
-	chair := Identity{Run: run, SeatID: "red-chair"}
-	pass := &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}
-	if _, err := Append(chair, pass); err == nil || !strings.Contains(err.Error(), logic) {
-		t.Fatalf("PASS landed with %s never having sat against the head: %v", logic, err)
+	if _, err := Append(Identity{Run: b.seed(), SeatID: "red-chair"}, pass); err == nil || !strings.Contains(err.Error(), logic) {
+		t.Fatalf("PASS landed with %s never having sat: %v", logic, err)
 	}
-	// The dispatch row alone does not count: logic was engaged. It sits now.
-	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: logic}, ""); err != nil {
-		t.Fatal(err)
-	}
-	if _, _, err := RegisterSeat(chair, ""); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Append(chair, pass); err != nil {
-		t.Fatalf("PASS refused after every cast lens sat against the head: %v", err)
+	// Both sit twice and find nothing: both retire at the head, and the PASS lands.
+	b2 := newStage(t).cast(evLens, logic, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").dispatch(2, evLens).dispatch(2, logic).register(evLens).register(logic).
+		dispatch(2, evLens).dispatch(2, logic).register(evLens).register(logic).
+		register("red-chair")
+	if _, err := Append(Identity{Run: b2.seed(), SeatID: "red-chair"}, pass); err != nil {
+		t.Fatalf("PASS refused with every cast lens retired at the head: %v", err)
 	}
 }
 
-// An open gap below material does not hold the gate; a material one does.
+// An open gap that is not material (a by-grade class graded below medium) does not hold the gate; a material one does.
 func TestABelowMaterialGapDoesNotHoldTheGate(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "low").
+		register("red-chair").dispatch(2, evLens).register(evLens).dispatch(2, evLens).register(evLens).mint(evLens, "G1", "low").
 		register("red-chair")
 	run := b.seed()
 	chair := Identity{Run: run, SeatID: "red-chair"}

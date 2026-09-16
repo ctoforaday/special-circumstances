@@ -10,8 +10,8 @@ import (
 //
 // A seat had no way to know it was finished. Asked directly, the chair named a real mechanism —
 // "the `verdict` command either succeeds or fails; if it fails the tool tells me what's blocking
-// closure, and I iterate" — because `verdict` refuses over open gaps and unruled motions and
-// enumerates them. Blue and the bench answered with things they cannot observe: "red agrees it's
+// closure, and I iterate" — because `verdict` refuses over open MATERIAL gaps and unruled motions
+// and enumerates them. Blue and the bench answered with things they cannot observe: "red agrees it's
 // sound", "the bench has ruled". Those are other seats' future acts. A seat whose completion
 // condition is someone else's next move cannot know it is done; it can only stop and hand over.
 //
@@ -27,7 +27,7 @@ import (
 //
 // # Only duties that are enforced or recorded somewhere else
 //
-// Nothing here invents an obligation. Each one is refused at a write path (open gaps and unruled
+// Nothing here invents an obligation. Each one is refused at a write path (open material gaps and unruled
 // motions block `verdict`; a computation gap cannot be closed on prose), is a stated epoch-record
 // requirement (W1.7's revision, the bench's terminal outcome), or is enforced by dispatch (a seat
 // that has not registered for the sitting it was dispatched for is readied again; a chair that has
@@ -83,13 +83,23 @@ type SittingJSON struct {
 	// — which is the difference this exists to make.
 	Complete bool   `json:"complete"`
 	Open     []Item `json:"open"`
+	// LastSitting is a lens's latest sitting strictly before the dispatch it is sitting for, on the
+	// read it already does first. Present for every lens, with an explicit kind — first, behind,
+	// unchanged or undispatched — never inferred from an absent field; absent for every other role.
+	LastSitting *LastSittingJSON `json:"last_sitting,omitempty"`
 }
 
 // SittingOf computes what the given seat still owes on this record — the events carry every
 // act, and the gap rows carry the view's answers (openness, the proof debt) so no fold decides
-// them a second time (plans/board-as-views.md wave 1c).
-func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJSON {
+// them a second time (plans/board-as-views.md wave 1c). ids are the events' row ids, aligned with
+// evs: the PASS gate's lens condition compares recorded pins with the report head, both row ids,
+// and the chair's list states that condition from the same fold the gate refuses from.
+func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID string) SittingJSON {
 	s := SittingJSON{Seat: seatID, Role: role, Open: []Item{}}
+	if role == "lens" {
+		ls := lastSittingBefore(evs, ids, seatID)
+		s.LastSitting = &ls
+	}
 	add := func(what string) { s.Open = append(s.Open, Item{What: what, Blocks: true}) }
 
 	// EVERY SEAT CLOSES THE LOG CHANNEL. Silence is not the empty case: an absent log reads the
@@ -106,7 +116,7 @@ func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJS
 
 	// EVERY DISPATCHED SEAT OWES THE SITTING IT WAS DISPATCHED FOR, and this list says so by the
 	// predicate dispatch reads (sittingFor): a seat a dispatch names that has not registered since
-	// has not sat. Dispatch enforces it — the lens's pin does not move, the bench has not sat for
+	// has not sat. Dispatch enforces it — the lens's sitting is not counted, the bench has not sat for
 	// the docketing, no exchange is counted for blue or the minting lens — so the seat is readied
 	// again, epoch after epoch, until it registers. That covers every seat a dispatch names: the
 	// lenses, blue-respond and the bench.
@@ -145,24 +155,40 @@ func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJS
 		// `unsupported` or `absent`. Presence is not a question: the lines reach the report on
 		// the worklist, generated from the record, so blue cannot cut them. Where blue's body
 		// genuinely failed to deliver a line's research, red MINTS A GAP, and an open gap already
-		// reaches blue through the ordinary route with a grade, a required fix and the PASS gate
-		// behind it. Restoring a second duty here would be the same fact told twice.
+		// reaches blue through the ordinary route with a grade and a required fix — with the PASS
+		// gate behind it when the gap is material by its class or grade. Restoring a second duty here would be the same fact told twice.
 		if revisionOwed(evs, seatID) && !seatDidThisSitting(evs, seatID, recordpb.EventType_EVENT_TYPE_REVISION) {
 			add("this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)")
 		}
 	case "chair":
-		// Both of these already REFUSE `verdict --as PASS`. Naming them here is the same list,
-		// arriving when the seat can still act on it rather than at the terminal act — and ONLY the
-		// gaps the gate refuses over. B9's chair was told two below-material gaps refused PASS while
-		// dispatch said pass_permitted and the verdict accepted it; it settled the contradiction by
-		// trying the verdict.
+		// EVERY REFUSAL THE GATE MAKES HAS AN ITEM HERE, AND NOTHING HERE BLOCKS WHAT THE GATE
+		// ADMITS — so `complete` agrees with the gate. Each item is read from what its refusal
+		// reads: the gap view's `stranded` and `material` columns, the motions, the inquiry read,
+		// unansweredContradictions and the lens fold. The FAIL-only convergence refusal has no item:
+		// this list claims nothing about a FAIL. B9's chair was told two gaps that did not hold the
+		// gate refused PASS while dispatch said pass_permitted and the verdict accepted it; it settled
+		// the contradiction by trying the verdict.
 		for _, g := range gaps {
+			if !g.Open {
+				continue
+			}
 			switch {
 			case g.Stranded:
-				add("gap " + g.ID + " is open and superseded — PASS is refused until its minter closes it")
+				// requireSupersededAreClosed refuses EVERY verdict over it, whatever its grade.
+				add("gap " + g.ID + " is open and superseded by " + g.SupersededBy + " — every verdict is refused while it is; close it with `--superseded-by`")
 			case g.Material:
 				add("gap " + g.ID + " is open and material — PASS is refused while it is")
+			default:
+				grade, _ := g.Severity.(string)
+				s.Open = append(s.Open, Item{Blocks: false, What: "gap " + g.ID + " is open and not material (" +
+					notMaterialBecause(g.ClassMaterial, grade) + ") — it does not hold PASS; your PASS lists it by class with why it changes no reader decision"})
 			}
+		}
+		for _, claim := range unansweredContradictions(evs) {
+			add("red read a source that contradicts or does not support the claim " + fmt.Sprintf("%q", claim) + " and no finding raises it — PASS is refused until one does")
+		}
+		for _, st := range passLensGateOf(evs, ids, freshMaterialOfStates(gaps)).statements() {
+			add(st)
 		}
 		// THE VIEW NAMES THE GAVEL BECAUSE THE REFUSAL DOES. requirePassClosesAllMaterialGaps refuses
 		// PASS over any unruled motion and says who rules each one; this list said only that the

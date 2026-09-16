@@ -38,6 +38,20 @@ type Result struct {
 	GapIDs         map[string]string // archived gap id -> the id the migrated record carries (§III.A.5)
 	Labels         map[string]string // archived finding label -> the label the migrated record carries
 	Serialized     map[string]int    // archived instance seat -> events moved after instance 1 (serializeInstances)
+	StatedFills    []StatedFill      // values supplied where the source predates the field
+}
+
+// byGradeFillWhy is the reason a class-material fill records, in one place so the staged-registry
+// fill and the class_new fill say the same thing.
+const byGradeFillWhy = "the source predates material_default and this binary's shipped class table does not hold the slug; by_grade keeps the class's gaps as material as their grade alone made them"
+
+// shippedDefault is the material default a class whose record predates the field takes: the
+// binary's shipped value for the slug, else by_grade — and fill reports that it was the latter.
+func shippedDefault(slug string) (v recordpb.ClassMaterial, fill bool) {
+	if v, ok := record.ShippedMaterialDefaults[slug]; ok {
+		return v, false
+	}
+	return recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, true
 }
 
 // Replay re-drives an old record's events, in order, through the current write path into
@@ -165,6 +179,18 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 			// the name — plans/roundless.md §III.A.2. A migrated record's round therefore means
 			// what a fresh record's does.
 			rm.apply(body, seatID)
+			// A COINING THAT PREDATES THE MATERIAL DEFAULT takes the shipped value for its slug,
+			// else by_grade as a stated fill. A value the source carries is kept as recorded — a
+			// run written by this binary migrates without any of its coinings changing.
+			if cn, ok := body.(*recordpb.ClassNew); ok && cn.MaterialDefault == nil {
+				v, fill := shippedDefault(cn.GetSlug())
+				cn.MaterialDefault = v.Enum()
+				if fill {
+					res.StatedFills = append(res.StatedFills, StatedFill{
+						Where: fmt.Sprintf("class_new event %d", old.ID), Slug: cn.GetSlug(),
+						Value: recordpb.Word(v), Why: byGradeFillWhy})
+				}
+			}
 			ev, err := record.Append(id, body)
 			if err != nil {
 				res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})

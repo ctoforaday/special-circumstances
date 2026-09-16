@@ -498,9 +498,11 @@ var Now = func() time.Time { return time.Now().UTC() }
 // Migrating is set by `feov-record migrate` while it re-drives an archived record through this
 // write path (plans/roundless.md §III.A.5). Every STRUCTURAL refusal stays on — a reference to a
 // gap nobody minted, a second cast, a seat outside the cast — because a migrated record must be a
-// record. The refusals that shape LIVE behaviour are gated off: the convergence refusal on a FAIL
-// and the every-lens-sat refusal on a PASS judge what a seat may do NEXT, and an archived gate is
-// what a seat DID. Refusing it would drop a real event and call the loss a translation.
+// record. The refusals that shape LIVE behaviour are gated off: the convergence refusal on a FAIL,
+// and the material-gap, lens-ready and stale-area refusals on a PASS, judge what a seat may do NEXT,
+// and an archived gate is what a seat DID. Refusing it would drop a real event and call the loss a
+// translation. A PASS the material exemption admits carries the gaps it was admitted over
+// (stampMigrationAdmission), so verify tells the admission from a violated gate.
 var Migrating bool
 
 // stamp formats an event time at NANOSECOND precision.
@@ -706,6 +708,16 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 	// its own help documents — was rejected. That annotation is conditional now, like Avenue.line.
 	// The lesson is the ordering: anything an annotation makes UNCONDITIONAL is decided before a
 	// single line here executes, so a `required` marking silently deletes every exemption below.
+	//
+	// WHICH IS WHY A MINT'S CLASS MATERIAL IS STAMPED FIRST. The field is required and the tool is
+	// its only writer, so the required-field walk would otherwise ask the seat for a value it may
+	// not supply; stamped here, every caller of validation gets the same stamp and the same refusals
+	// (an unknown class, an unstaged registry, a seat-supplied value).
+	if m, ok := body.(*recordpb.Mint); ok {
+		if err := stampClassMaterial(run, m); err != nil {
+			return err
+		}
+	}
 	if err := recordpb.CheckRequired(verbOf(typ), body); err != nil {
 		return err
 	}
@@ -771,6 +783,11 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		}{{"likelihood", b.GetLikelihood()}, {"impact", b.GetImpact()}} {
 			if g.grade == recordpb.Grade_GRADE_UNSPECIFIED {
 				return fmt.Errorf("record: mint requires --%s — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded", g.flag)
+			}
+		}
+		if !Migrating {
+			if err := refuseMintReportVoice(b); err != nil {
+				return err
 			}
 		}
 		if err := validateClass(run, b); err != nil {
@@ -1170,32 +1187,65 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			return err
 		}
 	case *recordpb.Gate:
+		// THE ADMISSION FIRST: a live verdict claiming a migration's admission is refused before
+		// any gate reads the board, and a migrated PASS is stamped with the open material gaps its
+		// exemption below lets it stand over (gblock, fork (a), 2026-09-15).
+		if err := stampMigrationAdmission(run, b); err != nil {
+			return err
+		}
 		// The seat's terminal act is where completion duties belong: it is the last
 		// moment the seat is still there to discharge them.
 		if err := requireSupersededAreClosed(run); err != nil {
 			return err
 		}
-		// A PASS is a claim that nothing is left open. Enforce it here, at the one write
-		// path, so no verdict route can record a PASS over an unadjudicated board (the
+		// A PASS is a claim that nothing left on the board holds the gate. Enforce it here, at the
+		// one write path, so no verdict route can record a PASS over an unadjudicated board (the
 		// 2026-07-20 rubber-stamp: PASS with 9 open gaps).
 		if b.GetVerdict() == recordpb.Verdict_VERDICT_FAIL && !Migrating {
 			if err := requireFailIsNotConvergent(run); err != nil {
 				return err
 			}
 		}
-		if b.GetVerdict() == recordpb.Verdict_VERDICT_PASS {
+		if b.GetVerdict() == recordpb.Verdict_VERDICT_PASS && !Migrating {
+			// NOT UNDER A MIGRATION (gblock, 2026-09-11). Migrate translates history; it does not
+			// re-judge an archived PASS under a materiality rule that did not exist when the PASS
+			// was issued. The archived b7 and b9 runs' PASSes stand over gaps their classes now make
+			// material, and refusing them would drop a real event and call the loss a translation.
+			// The exemption is not silent: stampMigrationAdmission above records those gaps on the
+			// PASS, and verify reads them there.
 			if err := requirePassClosesAllMaterialGaps(run); err != nil {
 				return err
 			}
-			if !Migrating {
-				if err := requireEveryCastLensSatAgainstHead(run); err != nil {
-					return err
-				}
+			// THE LENS CONDITION MIRRORS pass_permitted (gblock, round 4): the retirement fold the
+			// dispatch readies from, so a PASS over an active lens or an owed re-arm is refused here
+			// whatever the chair read off the plan. Then the stale areas the chair must have read.
+			if err := requireNoCastLensReady(run); err != nil {
+				return err
+			}
+			if err := requirePassCoversStaleAreas(run); err != nil {
+				return err
 			}
 		}
 	case *recordpb.SpotCheck:
 		if err := requireGaps(run, b.GetIds(), "spot-check", "--ids"); err != nil {
 			return err
+		}
+		// AN AREA IS A CAST LENS SEAT: the plan's stale_areas name seats, and a spot-check that
+		// named anything else could never discharge the stale-area gate.
+		if areas := b.GetAreas(); len(areas) > 0 {
+			cast, err := CastOf(run)
+			if err != nil {
+				return err
+			}
+			inCast := map[string]bool{}
+			for _, s := range cast {
+				inCast[s] = true
+			}
+			for _, a := range areas {
+				if !strings.HasPrefix(a, "red-lens-") || !inCast[a] {
+					return fmt.Errorf("record: spot-check --areas names %q, which is not a lens seat in this run's cast — name the stale areas `dispatch next` lists, by seat", a)
+				}
+			}
 		}
 		if err := requireClosedGaps(run, b.GetIds(), "spot-check", "--ids"); err != nil {
 			return err
@@ -1318,6 +1368,11 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		}
 		if b.GetConfidence() == recordpb.Confidence_CONFIDENCE_UNSPECIFIED {
 			return fmt.Errorf("record: verify requires --confidence high|medium|low — how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different facts, and low confidence is a call for more evidence rather than a fail")
+		}
+		if !Migrating {
+			if err := refuseCorroborationTitleVoice(b); err != nil {
+				return err
+			}
 		}
 	}
 	// The closed sets, checked from one declaration (enums.go) rather than five

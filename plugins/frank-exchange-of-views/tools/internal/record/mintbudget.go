@@ -161,8 +161,9 @@ func RegisterReportRenderer(fn func(Run) (string, error)) { reportRenderer = fn 
 
 // requireMintWithinBudget is the run-level bound that is not a clock: each cast lens may mint at
 // most its budget (above) in the run, a SUPERSEDING mint included — lineage is a new gap. A lens
-// whose budget is spent still sits when the head moves: it verifies, records findings, regrades
-// and closes its own gaps. The count is the record's own — this seat's mint events — not a counter
+// whose budget is spent still sits while the record readies it: it verifies, records findings,
+// regrades and closes its own gaps, and with no fresh mint its sittings are barren, so it retires
+// within two. The count is the record's own — this seat's mint events — not a counter
 // the seat carries. Only a lens is bounded: the chair mints nothing, and a seed or a migration
 // writing under another seat is not a lens spending a budget.
 //
