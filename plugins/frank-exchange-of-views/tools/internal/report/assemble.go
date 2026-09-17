@@ -963,7 +963,11 @@ func correctnessManifest(fam record.Family) string {
 	// red had not yet closed. Keyed on the edit that answers the gap, neither exclusion is needed,
 	// a bench ruling after blue's repair does not hide the missing receipt, and a rebuttal with no
 	// edit owes no row.
-	unmanifested := record.ManifestUnreceipted(fam.Events)
+	//
+	// Read while the run is running: the bench assembles the report as a seat of the run. The owed
+	// gaps are the same at either reading, and a sitting the record cannot close is process state
+	// for the scorecard, never a line of the report.
+	unmanifested := record.ManifestUnreceipted(fam.Events, record.WhileRunning).Gaps
 	if len(rows) == 0 && len(unmanifested) == 0 {
 		return ""
 	}

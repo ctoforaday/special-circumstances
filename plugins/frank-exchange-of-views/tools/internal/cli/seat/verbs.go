@@ -697,7 +697,7 @@ func renderView(cmd *cobra.Command, want string) error {
 		if f, err := record.FamilyOf(run); err == nil {
 			fam = &f
 		}
-		rows := scorecard.Compute(run, scorecard.ReadResults(run), fam)[card]
+		rows := scorecard.Compute(run, scorecard.ReadResults(run), fam, record.WhileRunning)[card]
 		fmt.Fprint(cmd.OutOrStdout(), scorecard.RenderCard(rows, "this run")+"\n")
 		return nil
 	}

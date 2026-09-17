@@ -182,7 +182,7 @@ func TestUnrecordedClaimLossCountsRetireEventsNotEnvelope(t *testing.T) {
 		recordtest.Event(t, "", &recordpb.Retire{Anchors: []string{"f-2"}}),
 		recordtest.Event(t, "", &recordpb.Retire{Anchors: []string{"c-2", "c-3"}}),
 	})
-	r := rowByMetric(blueRows(record.Run{}, results, nil, board), "unrecorded_claim_loss")
+	r := rowByMetric(blueRows(record.Run{}, results, nil, board, record.WhileRunning), "unrecorded_claim_loss")
 	if r == nil || r.Value == nil {
 		t.Fatalf("row not computed: %+v", r)
 	}
@@ -199,13 +199,13 @@ func TestUnrecordedClaimLossCountsRetireEventsNotEnvelope(t *testing.T) {
 		{"claim_count": float64(10)},
 		{"claim_count": float64(7), "retired": []any{map[string]any{}, map[string]any{}}},
 	}
-	rp := rowByMetric(blueRows(record.Run{}, phantom, nil, nil), "unrecorded_claim_loss")
+	rp := rowByMetric(blueRows(record.Run{}, phantom, nil, nil, record.WhileRunning), "unrecorded_claim_loss")
 	if v, _ := rp.Value.(int); v != 3 {
 		t.Errorf("a phantom envelope `retired` field must not count: want lost=3 (drop 3 − 0), got %v", rp.Value)
 	}
 
 	// A single envelope → the not-computed note.
-	r1 := rowByMetric(blueRows(record.Run{}, []map[string]any{{"claim_count": float64(5)}}, nil, nil), "unrecorded_claim_loss")
+	r1 := rowByMetric(blueRows(record.Run{}, []map[string]any{{"claim_count": float64(5)}}, nil, nil, record.WhileRunning), "unrecorded_claim_loss")
 	if r1.Value != nil {
 		t.Errorf("single envelope must not compute: %+v", r1)
 	}

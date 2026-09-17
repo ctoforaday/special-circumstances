@@ -18,6 +18,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
 )
 
 // chairRegister opens an epoch: the epoch is the count of red-chair registers at or before an
@@ -352,8 +353,9 @@ func screenRun(t *testing.T, outcome recordpb.SourceOutcome, url string) string 
 }
 
 // blueSittingRun seeds one blue-respond sitting for a dispatch on G1, with blue's acts after its
-// register. closedFirst puts the lens's close of G1 between the dispatch and that register.
-func blueSittingRun(t *testing.T, closedFirst bool, acts ...proto.Message) record.Run {
+// register. closedFirst puts the lens's close of G1 between the dispatch and that register; returned
+// ends the sitting with its agent's stop, and without it the record cannot close the sitting.
+func blueSittingRun(t *testing.T, closedFirst, returned bool, acts ...proto.Message) record.Run {
 	t.Helper()
 	n := 0
 	at := func(seat string, body proto.Message) *record.Event {
@@ -372,9 +374,12 @@ func blueSittingRun(t *testing.T, closedFirst bool, acts ...proto.Message) recor
 		evs = append(evs, at("red-lens-logic", &recordpb.Close{GapId: proto.String("G1"),
 			ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Prose: proto.String("verified at the leaf")}))
 	}
-	evs = append(evs, at("blue-respond", &recordpb.Register{}))
+	evs = append(evs, at("blue-respond", &recordpb.Register{AgentId: proto.String("blue-agent")}))
 	for _, a := range acts {
 		evs = append(evs, at("blue-respond", a))
+	}
+	if returned {
+		evs = append(evs, at(record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("blue-agent"), AgentType: proto.String("frank-exchange-of-views:blue-researcher")}))
 	}
 	dir := t.TempDir()
 	recordtest.Seed(t, dir, evs...)
@@ -387,25 +392,95 @@ func TestRecordParityAudit(t *testing.T) {
 	position := &recordpb.Position{Text: proto.String("G1 is repaired")}
 	revision := &recordpb.Revision{Text: proto.String("the G1 edit")}
 
-	if a := RecordParityAudit(blueSittingRun(t, false, position, revision)); a.Verdict != "PASS" {
+	if a := RecordParityAudit(blueSittingRun(t, false, true, position, revision)); a.Verdict != "PASS" {
 		t.Errorf("a sitting that answered with a position and a revision: want PASS, got %s (%s)", a.Verdict, a.Detail)
 	}
-	a := RecordParityAudit(blueSittingRun(t, false, revision))
+	a := RecordParityAudit(blueSittingRun(t, false, true, revision))
 	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "engaged on G1 still open when it sat, filed no position") {
 		t.Errorf("a sitting that owed G1 and filed no position: want a FAIL naming it, got %s (%s)", a.Verdict, a.Detail)
 	}
-	a = RecordParityAudit(blueSittingRun(t, false))
+	a = RecordParityAudit(blueSittingRun(t, false, true))
 	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "no position and no revision") {
 		t.Errorf("a sitting that owed G1 and filed nothing: want a FAIL naming both, got %s (%s)", a.Verdict, a.Detail)
 	}
 	// B7's epochs 3 and 4: the lens closed the gap before blue sat, and blue filed only a log.
-	if a := RecordParityAudit(blueSittingRun(t, true)); a.Verdict != "PASS" || !strings.Contains(a.Detail, "1 found every gap") {
+	if a := RecordParityAudit(blueSittingRun(t, true, true)); a.Verdict != "PASS" || !strings.Contains(a.Detail, "1 found every gap") {
 		t.Errorf("a sitting whose gap closed first owes nothing: want PASS, got %s (%s)", a.Verdict, a.Detail)
+	}
+	// A SITTING NOTHING ABOUT BLUE CLOSED: blue has neither registered again nor returned. Capture
+	// reads the finished run, so the end of the record closes it and it is held to what it filed.
+	a = RecordParityAudit(blueSittingRun(t, false, false, revision))
+	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "engaged on G1 still open when it sat, filed no position") || strings.Contains(a.Detail, "NOT MEASURED") {
+		t.Errorf("a sitting the run ended in with no position: want a FAIL naming it, got %s (%s)", a.Verdict, a.Detail)
+	}
+	if a := RecordParityAudit(blueSittingRun(t, false, false, position, revision)); a.Verdict != "PASS" {
+		t.Errorf("a sitting the run ended in that carries both: want PASS, got %s (%s)", a.Verdict, a.Detail)
 	}
 	dir := t.TempDir()
 	recordtest.Seed(t, dir, chairRegister(t, 1))
 	if a := RecordParityAudit(runtest.Open(t, dir)); a.Verdict != "SKIP" {
 		t.Errorf("no blue sitting for a dispatch: want SKIP, got %s", a.Verdict)
+	}
+}
+
+// CAPTURE CLOSES WHAT A LIVE READER CANNOT (#1002, ruling 1). One record, blue's last sitting with
+// no stop and no register after it: a reader while the run runs cannot tell it from a sitting in
+// flight and says NOT MEASURED; capture reads the finished run, where the end of the record closes
+// it, and holds it to the revision it never filed. The shape is B9's: a headless seat, whose agent
+// fires no stop, sat twice, and the second sitting — G4 still open — filed a position and no revision.
+func TestCaptureClosesTheLastSittingALiveReaderCannot(t *testing.T) {
+	n := 0
+	at := func(seat string, body proto.Message) *record.Event {
+		n++
+		return recordtest.At(t, seat, fmt.Sprintf("%s:%d", seat, n), body)
+	}
+	mint := func(g string) *record.Event {
+		return at("red-lens-evidence", &recordpb.Mint{GapId: proto.String(g), Problem: proto.String("p"),
+			RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"),
+			CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
+	}
+	launcher := &recordpb.Register{AgentId: proto.String("agent_blue_respond")}
+	dir := t.TempDir()
+	recordtest.Seed(t, dir,
+		at("red-chair", &recordpb.Register{}), mint("G1"),
+		at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("blue-respond"), GapIds: []string{"G1"}}),
+		at("blue-respond", launcher),
+		at("blue-respond", &recordpb.BlueEdit{Answers: proto.String("G1"), Old: proto.String("a"), New: proto.String("b")}),
+		at("blue-respond", &recordpb.Position{Text: proto.String("G1 is repaired")}),
+		at("blue-respond", &recordpb.Revision{Text: proto.String("the G1 edit")}),
+		at("red-chair", &recordpb.Register{}), mint("G4"),
+		at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(7), SeatId: proto.String("blue-respond"), GapIds: []string{"G4"}}),
+		at("blue-respond", launcher),
+		at("blue-respond", &recordpb.Position{Text: proto.String("nothing to dispute")}),
+	)
+	run := runtest.Open(t, dir)
+	fam, err := record.FamilyOf(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	live := record.BlueSittings(fam.Events, record.WhileRunning)
+	if len(live) != 2 || live[0].Unresolved || !live[1].Unresolved {
+		t.Fatalf("while the run runs, the first sitting is closed by blue's next register and the last is unresolved: %+v", live)
+	}
+	var note string
+	for _, r := range scorecard.Compute(run, nil, &fam, record.WhileRunning)["blue"] {
+		if r.Metric == "manifest_coverage" {
+			note = r.Note
+		}
+	}
+	if !strings.Contains(note, "1 blue sitting(s) NOT MEASURED") {
+		t.Errorf("a live scorecard cannot close the last sitting and must say so: note %q", note)
+	}
+
+	after := record.BlueSittings(fam.Events, record.AfterTheRun)
+	if len(after) != 2 || after[0].Unresolved || after[1].Unresolved {
+		t.Fatalf("after the run, the end of the record closes the last sitting: %+v", after)
+	}
+	a := RecordParityAudit(run)
+	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "blue sitting 2, engaged on G4 still open when it sat, filed no revision") {
+		t.Errorf("capture holds B9's last sitting to its missing revision: want FAIL naming it, got %s (%s)", a.Verdict, a.Detail)
 	}
 }
 

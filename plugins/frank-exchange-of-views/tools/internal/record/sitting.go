@@ -298,11 +298,17 @@ func seatDid(evs []*Event, seatID string, typ recordpb.EventType) bool {
 // nothing to answer, and its nominal log entry is the whole record of the sitting (gblock's ruling,
 // 2026-09-11). The sitting is record.BlueSittings' — the reading capture's record-parity audit
 // holds it to — so the work list and the audit cannot disagree about it.
+//
+// IT HAS NO NOT-MEASURED ANSWER, AND NEEDS NONE. Whether a sitting owes is its Open set, which is
+// fixed at blue's register — the dispatch and the closes before it — and never reads where the
+// sitting ended. The latest sitting is unresolved exactly while blue is sitting it, which is when
+// this list is read: an in-flight sitting still owes what it found open. Whether the owed revision
+// was FILED is seatDidThisSitting's question, read from blue's latest register onward.
 func revisionOwed(evs []*Event, seatID string) bool {
-	if seatID != "blue-respond" {
+	if seatID != blueRespondSeat {
 		return true
 	}
-	ss := BlueSittings(evs)
+	ss := BlueSittings(evs, WhileRunning) // the work list is read while blue sits
 	if len(ss) == 0 {
 		return true
 	}

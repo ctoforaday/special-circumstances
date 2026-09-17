@@ -258,7 +258,7 @@ func claimLoss(t *testing.T, runDir string, counts ...int) int {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, r := range scorecard.Compute(runtest.Open(t, runDir), results, &fam)["blue"] {
+	for _, r := range scorecard.Compute(runtest.Open(t, runDir), results, &fam, record.WhileRunning)["blue"] {
 		if r.Metric == "unrecorded_claim_loss" {
 			v, _ := r.Value.(int)
 			return v

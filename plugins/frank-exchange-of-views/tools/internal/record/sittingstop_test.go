@@ -240,3 +240,36 @@ func planLine(t *testing.T, run Run, gap string) string {
 	}
 	return ""
 }
+
+// WHAT A SITTING NOTHING CLOSED IS DEPENDS ON WHEN THE RECORD IS READ, AND ONLY THAT (#1002, ruling
+// 1). Both parties sat once and neither registered again nor returned. While the run runs, the
+// sittings may be in flight: the fold counts nothing and blue's sitting is unresolved. After the
+// run — capture's read — the end of the record closes both: one exchange, and a closed blue sitting.
+// One closer answers both readers, so the two readings cannot drift apart.
+func TestTheEndOfTheRecordClosesASittingOnlyAfterTheRun(t *testing.T) {
+	b := newStage(t).cast(evLens, "red-chair", "blue-respond").ingest().
+		register("red-chair").registerAs(evLens, "lens-1").mint(evLens, "G1", "high").stop("lens-1").
+		register("red-chair").dispatch(1, evLens, "G1").dispatch(1, "blue-respond", "G1").
+		registerAs(evLens, "lens-2").registerAs("blue-respond", "blue-1")
+	run := b.seed()
+	m, err := MergedEvents(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids, err := eventIDsOfRun(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g := exchangesOf(m.Events, ids, DefaultParams, WhileRunning)["G1"]; g == nil || g.Exchanges != 0 || g.Unresolved != 2 {
+		t.Errorf("while running: G1 = %+v, want nothing counted and both sittings unresolved", g)
+	}
+	if g := exchangesOf(m.Events, ids, DefaultParams, AfterTheRun)["G1"]; g == nil || g.Exchanges != 1 || g.Unresolved != 0 {
+		t.Errorf("after the run: G1 = %+v, want the one exchange the end of the record closes, nothing unresolved", g)
+	}
+	if ss := BlueSittings(m.Events, WhileRunning); len(ss) != 1 || !ss[0].Unresolved {
+		t.Errorf("while running: blue's sittings = %+v, want one unresolved", ss)
+	}
+	if ss := BlueSittings(m.Events, AfterTheRun); len(ss) != 1 || ss[0].Unresolved {
+		t.Errorf("after the run: blue's sittings = %+v, want one, closed", ss)
+	}
+}

@@ -150,7 +150,7 @@ func PlanDispatch(run Run) (Plan, error) {
 	if err != nil {
 		return plan, err
 	}
-	exch := exchangesOf(evs, ids, params)
+	exch := exchangesOf(evs, ids, params, WhileRunning)
 	materialOpen, materialSettled := 0, 0
 	unruledDocket := false
 	for _, g := range gaps {
@@ -287,6 +287,100 @@ func sittingFor(registers []int64, d dispatchRow) (int64, bool) {
 	return firstAfter(registers, d.at)
 }
 
+// sittingCloser IS THE ONE ANSWER TO "WHERE DID THIS SEAT'S SITTING END", as sittingFor is to where
+// it began. Every reader that bounds a seat's sitting asks it here — the exchange count
+// (exchangesOf) and blue's sittings (BlueSittings, behind revisionOwed, the manifest's owed set and
+// capture's record-parity audit) — so a change to what closes a sitting reaches all of them at once.
+//
+// ONLY FACTS ABOUT THIS SEAT CLOSE IT, AND THE EARLIER OF TWO DOES. A sitting ends at whichever
+// comes first after it began:
+//
+//   - the seat's next register. A register is a seat's first act of a sitting, so the next one is
+//     proof the sitting before it ended — written by that seat.
+//   - the stop of the agent that sat it: a sitting_close whose agent_id is the one on THIS
+//     sitting's register. The SubagentStop hook writes it when that agent returns, so it is the
+//     harness's observation of this seat, not an act of another seat.
+//
+// NOTHING ANOTHER SEAT WRITES BOUNDS IT. A read keyed on another seat's act — the chair's next
+// register, the chair's next dispatch row — depends on a rule enforced at that seat's write path,
+// and a warm chair registers once per run: on five archived runs a chair-keyed exchange fold read
+// every party sitting as still open and no gap could reach the bench by impasse (#1002).
+//
+// A STOP THAT JOINS NO REGISTER CLOSES NOTHING. The hook records every typed subagent in a project
+// whose run marker is live, a developer's own subagents included, and a register with no agent_id
+// (a run the PreToolUse hook never reached) has nothing a stop can join. A headless seat run as a
+// `claude -p` main session fires no SubagentStop at all, so its sittings close by register alone.
+//
+// WITH NEITHER PAST IT, WHAT THE SITTING IS DEPENDS ON WHEN THE RECORD IS READ (ReadWhen), and the
+// reader says which — the closer never guesses it:
+//
+//   - WhileRunning: the sitting is UNRESOLVED, not complete and not absent. It may be in flight, or
+//     it may have ended with nothing recorded after it, and the record holds no fact that tells the
+//     two apart. Each reader states that case as its own answer.
+//   - AfterTheRun: the end of the record closes it. A finished run has no sitting in flight, so the
+//     last act on the record is the last act of every sitting still open — that is the premise of
+//     the read, not an act of another seat.
+type sittingCloser struct {
+	registers map[string][]int64 // seat -> its registers' places, ascending
+	agentOf   map[int64]string   // a register's place -> the agent_id it carries
+	stops     map[string][]int64 // agent_id -> the places of its sitting_close events, ascending
+	recordEnd int64              // one past the last place on the record
+	when      ReadWhen
+}
+
+// ReadWhen is when a reader reads the record: while the run can still be sitting, or after it
+// ended. It decides one thing — whether a sitting nothing about its seat has closed is unresolved
+// or closed by the end of the record (sittingCloser) — and every reader that bounds a sitting
+// takes it from where it runs, never from a default.
+type ReadWhen int
+
+const (
+	// WhileRunning is a read made while a sitting may be in flight: a seat's work list, the
+	// chair's dispatch plan, a live view.
+	WhileRunning ReadWhen = iota
+	// AfterTheRun is a read of a finished run, which is capture's alone: capture runs once the run
+	// has ended, so no sitting is still in flight.
+	AfterTheRun
+)
+
+// sittingCloserOf reads the stream once for every fact that can close a sitting. seq and registers
+// are dispatchLedger's: the same places the sitting's start was read at.
+func sittingCloserOf(evs []*Event, seq []int64, registers map[string][]int64, when ReadWhen) sittingCloser {
+	c := sittingCloser{registers: registers, agentOf: map[int64]string{}, stops: map[string][]int64{}, when: when}
+	if n := len(seq); n > 0 {
+		c.recordEnd = seq[n-1] + 1
+	}
+	for i, e := range evs {
+		switch b := mustBody(e).(type) {
+		case *recordpb.Register:
+			if a := b.GetAgentId(); a != "" {
+				c.agentOf[seq[i]] = a
+			}
+		case *recordpb.SittingClose:
+			if a := b.GetAgentId(); a != "" {
+				c.stops[a] = append(c.stops[a], seq[i])
+			}
+		}
+	}
+	return c
+}
+
+// end is where the seat's sitting that began at start ended — the place of the act that closed it,
+// which is outside the sitting. With nothing about this seat past it, end is the end of the record,
+// and closed is false while the run is read as running and true after it.
+func (c sittingCloser) end(seat string, start int64) (int64, bool) {
+	end, closed := firstAfter(c.registers[seat], start)
+	if agent := c.agentOf[start]; agent != "" {
+		if stop, stopped := firstAfter(c.stops[agent], start); stopped && (!closed || stop < end) {
+			end, closed = stop, true
+		}
+	}
+	if !closed {
+		return c.recordEnd, c.when == AfterTheRun
+	}
+	return end, true
+}
+
 // DispatchGroup is one chair sitting's dispatch as the record delimits it: the dispatch rows
 // written with NO REGISTER BETWEEN THEM, by any seat. Somebody registering is somebody sitting —
 // the chair opening a sitting, or a party sitting for what the chair dispatched — and the workflow
@@ -367,6 +461,9 @@ func registeredBetween(registers []int64, a, b int64) bool {
 
 // chairSeat is the seat whose registers the clock counts as epochs.
 const chairSeat = "red-chair"
+
+// blueRespondSeat is blue's responding seat — the one the chair dispatches onto gaps.
+const blueRespondSeat = "blue-respond"
 
 // unopenedChairSitting is the chair's latest dispatch when a party has SAT for it (sittingFor)
 // and the chair has not registered since recording it. The workflow comes back to the chair only

@@ -103,3 +103,41 @@ func TestTheSynthesizerOwesItsSittingsRevision(t *testing.T) {
 		t.Fatal("the synthesizer filed no revision and is not told it is missing")
 	}
 }
+
+// WHETHER A BLUE SITTING OWES A REVISION IS FIXED AT ITS REGISTER. The latest sitting is unresolved
+// exactly while blue sits it — the moment its work list is read — so revisionOwed reads the Open set
+// and never where the sitting ended: an unresolved sitting owes what it found open, as a closed one does.
+func TestRevisionOwedReadsWhatTheSittingFoundOpenWhetherOrNotItHasEnded(t *testing.T) {
+	cases := map[string]struct {
+		evs              []*Event
+		unresolved, owes bool
+	}{
+		"in flight, G1 open": {
+			evs:        []*Event{dispatchBlue(t, "G1"), registersAs(t, "blue-respond", "blue-a")},
+			unresolved: true, owes: true,
+		},
+		"in flight, a later chair row naming blue changes nothing": {
+			evs:        []*Event{dispatchBlue(t, "G1"), registersAs(t, "blue-respond", "blue-a"), chairDispatches(t, "blue-respond", "G1")},
+			unresolved: true, owes: true,
+		},
+		"returned, G1 open": {
+			evs:  []*Event{dispatchBlue(t, "G1"), registersAs(t, "blue-respond", "blue-a"), agentStops(t, "blue-a")},
+			owes: true,
+		},
+		"in flight, G1 closed before blue sat": {
+			evs:        []*Event{dispatchBlue(t, "G1"), closeGap(t, "red-lens-logic", "G1"), registersAs(t, "blue-respond", "blue-a")},
+			unresolved: true,
+		},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			ss := BlueSittings(c.evs, WhileRunning)
+			if len(ss) != 1 || ss[0].Unresolved != c.unresolved {
+				t.Fatalf("sittings = %+v, want one with Unresolved=%v", ss, c.unresolved)
+			}
+			if got := revisionOwed(c.evs, "blue-respond"); got != c.owes {
+				t.Errorf("revisionOwed = %v, want %v", got, c.owes)
+			}
+		})
+	}
+}

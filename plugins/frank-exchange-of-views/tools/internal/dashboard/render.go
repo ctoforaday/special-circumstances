@@ -167,7 +167,7 @@ func scorecardSection(run record.Run) string {
 	if f, err := record.FamilyOf(run); err == nil {
 		fam = &f
 	}
-	cards := scorecard.Compute(run, scorecard.ReadResults(run), fam)
+	cards := scorecard.Compute(run, scorecard.ReadResults(run), fam, record.WhileRunning)
 	names := make([]string, 0, len(cards))
 	for c := range cards {
 		names = append(names, c)

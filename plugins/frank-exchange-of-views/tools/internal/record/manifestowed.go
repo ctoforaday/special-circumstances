@@ -1,6 +1,10 @@
 package record
 
-import "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+import (
+	"fmt"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+)
 
 // ManifestOwed is the set of gaps blue owed a correctness-manifest row, in the order each first
 // became owed. A row is owed for a gap blue REPAIRED while it was open, which the record states as
@@ -24,15 +28,19 @@ import "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-vi
 // for a repair that did not happen is not a receipt. The rebuttal is on the record as blue's
 // position; the manifest is not where it goes.
 //
-// THE SITTING RUNS FROM THE REGISTER TO THE NEXT blue-respond DISPATCH, or to the end of the record,
-// which is what lets a live sitting's work list see its own unreceipted edits. A dispatch blue
-// never sat owes nothing: no register, no sitting, and a missing sitting is the sitting-record
-// audit's finding, not the manifest's. A second register inside a sitting (the sitting-record
-// re-prompt) changes nothing.
-func ManifestOwed(evs []*Event) []string {
-	var owed []string
+// THE SITTING IS BlueSittings': from blue's register to where sittingCloser ends it, read at when.
+// A sitting nothing has closed is read to the end of the record either way, which is what lets a
+// live sitting's work list see its own unreceipted edits — so Gaps is the same at either reading,
+// and while the run is running Unresolved says those sittings may yet hold more.
+// A dispatch blue never sat owes nothing: no register, no sitting, and a missing sitting is the
+// sitting-record audit's finding, not the manifest's.
+func ManifestOwed(evs []*Event, when ReadWhen) ManifestOwing {
+	var o ManifestOwing
 	seen := map[string]bool{}
-	for _, s := range BlueSittings(evs) {
+	for _, s := range BlueSittings(evs, when) {
+		if s.Unresolved {
+			o.Unresolved++
+		}
 		open := map[string]bool{}
 		for _, g := range s.Open {
 			open[g] = true
@@ -41,66 +49,118 @@ func ManifestOwed(evs []*Event) []string {
 			if be, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok {
 				if g := be.GetAnswers(); open[g] && !seen[g] {
 					seen[g] = true
-					owed = append(owed, g)
+					o.Gaps = append(o.Gaps, g)
 				}
 			}
 		}
 	}
-	return owed
+	return o
 }
 
-// BlueSitting is one sitting blue-respond took for a dispatch, as ManifestOwed delimits it: from
-// its register to the next blue-respond dispatch or the end of the record.
+// ManifestOwing is what the record says blue owed the manifest: the gaps, and how many of blue's
+// sittings it cannot close — never any after the run, when the end of the record closes them. THE GAPS ARE A FLOOR AND UNRESOLVED IS THE REST OF THE ANSWER — an
+// unresolved sitting's edits are read as far as the record reaches, and it may yet hold more, so a
+// reader handed Gaps alone would read "owed nothing more" where the record says "not yet known".
+type ManifestOwing struct {
+	Gaps       []string
+	Unresolved int // blue sittings the record cannot close (BlueSitting.Unresolved)
+}
+
+// NotMeasured words the unresolved sittings for a reader of the owed set, and it is THE ONE PLACE
+// that case is worded; it is empty when the record closes every blue sitting.
+func (o ManifestOwing) NotMeasured() string {
+	if o.Unresolved == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%d blue sitting(s) NOT MEASURED — the record cannot close them (blue has not registered since and its agent's stop is not on the record), so what they owed is counted only as far as the record reaches", o.Unresolved)
+}
+
+// BlueSitting is one sitting blue-respond took for a dispatch: from its register to where
+// sittingCloser ends it.
 type BlueSitting struct {
 	Engaged []string // the gaps the dispatch named
 	Open    []string // of those, the ones no close preceded blue's register — what the sitting owed an answer on
 	Acts    []*Event // blue-respond's standing events in the sitting, its register first
+	// Unresolved is a sitting the record cannot close while the run is running: neither blue's next
+	// register nor its agent's stop is on the record since it began. Acts then runs to the end of the
+	// record — a floor, not the sitting — so a missing act in it is not a finding and a present one
+	// is. Read after the run, the end of the record closes it and it is never Unresolved.
+	Unresolved bool
 }
 
 // BlueSittings is every blue-respond sitting for a dispatch, in stream order. It is the one
-// reading of "what did this blue sitting owe": the manifest counts receipts off it, and capture's
-// record-parity audit holds each owing sitting to a position and a revision. A dispatch blue never
-// sat has no sitting here.
-func BlueSittings(evs []*Event) []BlueSitting {
+// reading of "what did this blue sitting owe": the manifest counts receipts off it, capture's
+// record-parity audit holds each owing sitting to a position and a revision, and blue's work list
+// asks it whether this sitting owes a revision. A dispatch blue never sat has no sitting here.
+//
+// ITS BOUNDS ARE THE SHARED ONES. The sitting begins where sittingFor says and ends where
+// sittingCloser says at when — blue's own next register, its agent's stop, or after the run the end
+// of the record — and nothing the chair writes
+// ends it: the chair's next dispatch row naming blue is another seat's act, and a read keyed on it
+// depends on a rule enforced at the chair's write path (#1002).
+//
+// ENGAGED IS THE LAST DISPATCH BEFORE THE REGISTER. A chair that writes the plan twice leaves two
+// rows for one sitting, and the later is the dispatch; a close counts as "closed first" only
+// between that row and the register.
+func BlueSittings(evs []*Event, when ReadWhen) []BlueSitting {
 	// The acts that stand: a corrected close or row is read as its replacement, in its place.
 	evs = Live(evs)
+	seq := make([]int64, len(evs))
+	for i := range seq {
+		seq[i] = int64(i)
+	}
+	ds, registers := dispatchLedger(evs, seq)
+	closer := sittingCloserOf(evs, seq, registers, when)
 	var out []BlueSitting
-	var engaged []string
-	closedFirst := map[string]bool{}
-	waiting := false
-	cur := -1 // the sitting blue's acts belong to; -1 outside one
-	for _, e := range evs {
-		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_DISPATCH:
-			if d, ok := recordpb.BodyAs[*recordpb.Dispatch](e); ok && d.GetSeatId() == "blue-respond" {
-				engaged, closedFirst, waiting, cur = d.GetGapIds(), map[string]bool{}, true, -1
-			}
-		case recordpb.EventType_EVENT_TYPE_CLOSE:
-			if c, ok := recordpb.BodyAs[*recordpb.Close](e); ok && waiting {
+	for k, d := range ds {
+		if d.seat != blueRespondSeat {
+			continue
+		}
+		start, sat := sittingFor(registers[blueRespondSeat], d)
+		if !sat || laterBlueDispatchBefore(ds[k+1:], start) {
+			continue // not sat, or not this sitting's dispatch: a later row before the register is
+		}
+		s := BlueSitting{Engaged: d.gaps}
+		closedFirst := map[string]bool{}
+		for _, e := range evs[d.at+1 : start] {
+			if c, ok := recordpb.BodyAs[*recordpb.Close](e); ok {
 				closedFirst[c.GetGapId()] = true
 			}
-		case recordpb.EventType_EVENT_TYPE_REGISTER:
-			if e.GetSeatId() == "blue-respond" && waiting {
-				s := BlueSitting{Engaged: engaged}
-				for _, g := range engaged {
-					if !closedFirst[g] {
-						s.Open = append(s.Open, g)
-					}
-				}
-				out = append(out, s)
-				cur, waiting = len(out)-1, false
+		}
+		for _, g := range d.gaps {
+			if !closedFirst[g] {
+				s.Open = append(s.Open, g)
 			}
 		}
-		if cur >= 0 && e.GetSeatId() == "blue-respond" {
-			out[cur].Acts = append(out[cur].Acts, e)
+		end, closed := closer.end(blueRespondSeat, start)
+		s.Unresolved = !closed
+		for _, e := range evs[start:end] {
+			if e.GetSeatId() == blueRespondSeat {
+				s.Acts = append(s.Acts, e)
+			}
 		}
+		out = append(out, s)
 	}
 	return out
 }
 
+// laterBlueDispatchBefore reports whether a later row naming blue-respond precedes its register.
+func laterBlueDispatchBefore(later []dispatchRow, register int64) bool {
+	for _, d := range later {
+		if d.at >= register {
+			return false
+		}
+		if d.seat == blueRespondSeat {
+			return true
+		}
+	}
+	return false
+}
+
 // ManifestUnreceipted is ManifestOwed less every gap a manifest-row event names, in the same order:
-// the repairs nobody audited, including their author.
-func ManifestUnreceipted(evs []*Event) []string {
+// the repairs nobody audited, including their author. Unresolved carries over: a sitting the record
+// cannot close may yet file the row, so its unreceipted gaps are what the record holds so far.
+func ManifestUnreceipted(evs []*Event, when ReadWhen) ManifestOwing {
 	evs = Live(evs)
 	rowed := map[string]bool{}
 	for _, e := range evs {
@@ -108,10 +168,11 @@ func ManifestUnreceipted(evs []*Event) []string {
 			rowed[mr.GetGapId()] = true
 		}
 	}
-	var out []string
-	for _, g := range ManifestOwed(evs) {
+	owed := ManifestOwed(evs, when)
+	out := ManifestOwing{Unresolved: owed.Unresolved}
+	for _, g := range owed.Gaps {
 		if !rowed[g] {
-			out = append(out, g)
+			out.Gaps = append(out.Gaps, g)
 		}
 	}
 	return out

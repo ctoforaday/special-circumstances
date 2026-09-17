@@ -38,7 +38,7 @@ func TestLinesOfInquiryComeFromTheRecordNotTheEnvelopes(t *testing.T) {
 			"the originality claim is scoped to English sources, so this is out of scope for the question asked"),
 	})
 	// The envelopes carry NOTHING — exactly the state that produced the false zero.
-	rows := blueRows(record.Run{}, []map[string]any{{"claim_count": float64(10)}}, nil, board)
+	rows := blueRows(record.Run{}, []map[string]any{{"claim_count": float64(10)}}, nil, board, record.WhileRunning)
 
 	r := rowByMetric(rows, "lines_of_inquiry")
 	if r == nil {
@@ -68,7 +68,7 @@ func TestALineThatMovedIsCountedOnceUnderItsCurrentStatus(t *testing.T) {
 			})
 		}(),
 	})
-	rows := blueRows(record.Run{}, nil, nil, board)
+	rows := blueRows(record.Run{}, nil, nil, board, record.WhileRunning)
 	got := string(rowByMetric(rows, "lines_of_inquiry").Value.(objJSON))
 	if !strings.Contains(got, `"pursued":1`) {
 		t.Errorf("a line that moved declined->pursued is not counted under its CURRENT status: %s", got)
@@ -82,7 +82,7 @@ func TestALineThatMovedIsCountedOnceUnderItsCurrentStatus(t *testing.T) {
 // inquiries recorded" would be the same defect one layer up — a failed read wearing the words of
 // a finding.
 func TestAnUnreadableRecordSaysNotMeasuredRatherThanNone(t *testing.T) {
-	r := rowByMetric(blueRows(record.Run{}, nil, nil, nil), "lines_of_inquiry")
+	r := rowByMetric(blueRows(record.Run{}, nil, nil, nil, record.WhileRunning), "lines_of_inquiry")
 	if r == nil || r.Value != nil {
 		t.Fatalf("expected an uncomputed row, got %+v", r)
 	}
