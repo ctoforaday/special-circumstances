@@ -29,6 +29,12 @@ var pages = []page{
 	{"prosepage", "prose with a small table in the middle of it: the page is not all table", drawProsePage},
 	{"twotables", "two tables on one page, separated by prose", drawTwoTables},
 	{"faintscan", "the ruled table again at low contrast, as a tired photocopy prints it", drawFaint},
+	{"levelgrid", "a mark table whose activities each print a Levels caption over 4 3 2 1 subcolumns — IEEE 1012's Table 2 shape, where the level is the content (#933)", drawLevelGrid},
+}
+
+// boldText writes in Times-Bold, the face a printed standard sets its table headers and marks in.
+func (c *canvas) boldText(x, y, size float64, s string) {
+	fmt.Fprintf(&c.b, "%.2f g BT /F2 %.0f Tf %.1f %.1f Td (%s) Tj ET\n", c.gray, size, x, y, escape(s))
 }
 
 // canvas draws a PDF content stream in points, with the origin at the bottom left.
@@ -247,4 +253,50 @@ func drawFaint(c *canvas) {
 	c.gray = 0.45 // a tired photocopy: ink well above the detector's binarization threshold
 	drawTextCells(c)
 	c.gray = 0
+}
+
+func drawLevelGrid(c *canvas) {
+	// Landscape content on a portrait page would trip the rotation probe, so the table is drawn
+	// upright: a label column, then four activities of four level subcolumns.
+	const label, sub = 150.0, 24.0
+	activities := []string{"Acquisition", "Supply", "Development", "Operation"}
+	x0 := 40.0
+	actW := 4 * sub
+	right := x0 + label + float64(len(activities))*actW
+	tops := []float64{740, 700, 676, 652} // activity names, Levels caption, level digits, grid top
+	rows := []string{"Algorithm analysis", "Audit performance", "Cost analysis", "Hazard analysis", "Risk analysis", "Test witnessing"}
+	for i := range rows {
+		tops = append(tops, 628-float64(i)*24)
+	}
+	for _, y := range tops {
+		c.rule(x0, y, right-x0, 1.2)
+	}
+	bottom := tops[len(tops)-1]
+	c.rule(x0, bottom, 1.2, tops[0]-bottom)
+	c.rule(x0+label, bottom, 1.2, tops[0]-bottom)
+	for a := range activities {
+		ax := x0 + label + float64(a)*actW
+		c.rule(ax+actW, bottom, 1.2, tops[0]-bottom)
+		for k := 1; k < 4; k++ {
+			c.rule(ax+float64(k)*sub, bottom, 1.2, tops[2]-bottom) // level rules start at the digit band
+		}
+		c.boldText(ax+6, 715, 10, activities[a])
+		c.boldText(ax+30, 685, 9, "Levels")
+		for k, d := range []string{"4", "3", "2", "1"} {
+			c.boldText(ax+float64(k)*sub+8, 659, 11, d)
+		}
+	}
+	c.boldText(x0+6, 685, 9, "Integrity level")
+	// marks: which levels each task requires, not contiguous from 4 on every row
+	marks := [][]int{{0, 1}, {0, 1, 2, 3}, {0}, {1, 2}, {0, 1, 2}, {3}}
+	for r, name := range rows {
+		y := 634 - float64(r)*24
+		c.text(x0+6, y, 10, name)
+		for a := range activities {
+			ax := x0 + label + float64(a)*actW
+			for _, k := range marks[(r+a)%len(marks)] {
+				c.boldText(ax+float64(k)*sub+7, y, 12, "X")
+			}
+		}
+	}
 }

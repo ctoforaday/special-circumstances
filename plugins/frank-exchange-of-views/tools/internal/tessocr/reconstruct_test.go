@@ -29,7 +29,7 @@ func TestReconstructP0054(t *testing.T) {
 		t.Fatalf("rotated-band fixture parsed to %d headers, want 11: %q", len(headers), headers)
 	}
 
-	table, st, err := Reconstruct(tsv, headers)
+	table, st, err := Reconstruct(tsv, headers, nil)
 	if err != nil {
 		t.Fatalf("Reconstruct: %v", err)
 	}
@@ -61,7 +61,7 @@ func TestReconstructNoMarks(t *testing.T) {
 	// A prose-only TSV must refuse loudly, never emit a plausible empty table.
 	tsv := "5\t1\t1\t1\t1\t1\t100\t100\t50\t20\t96.0\thello\n" +
 		"5\t1\t1\t1\t1\t2\t160\t100\t50\t20\t96.0\tworld\n"
-	if _, _, err := Reconstruct(tsv, nil); !errors.Is(err, ErrNoMarks) {
+	if _, _, err := Reconstruct(tsv, nil, nil); !errors.Is(err, ErrNoMarks) {
 		t.Fatalf("Reconstruct on prose = %v, want ErrNoMarks", err)
 	}
 }

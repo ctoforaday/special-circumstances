@@ -122,6 +122,10 @@ const (
 	// TSV pass under both modes and comparing mark counts is the dropout signal
 	// PSMDisagreement measures.
 	PSMSparseText PSM = 11
+	// PSMSingleChar reads a crop as one character run. It is how a table's level header is read
+	// (#933): a bold digit boxed tightly by rules is dropped by every page-level pass and read
+	// cleanly when its cell is cropped inside the rules — 32 of 32 cells on IEEE 1012 p51.
+	PSMSingleChar PSM = 10
 )
 
 // GridStats is the leptonica morphology measurement over one page image: pixels surviving
