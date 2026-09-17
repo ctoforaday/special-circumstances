@@ -226,6 +226,25 @@ var promptViewSub = regexp.MustCompile(`feov-record(?:"|'\})?\s+(?:lens|chair|bl
 
 var promptShowDoubled = regexp.MustCompile(`\bshow\s+(?:--\S+\s+\S+\s+)+show\b`)
 
+// operatorSkill is the slash command the human types to launch a run, as a plugin-relative path.
+// Keyed on the whole path, not a directory name, so no other file can inherit its exemption.
+const operatorSkill = "skills/research/SKILL.md"
+
+// pluginRel is a file's path relative to the plugin root, slash-separated on every platform —
+// the key a file is pinned and exempted by, because two skills share the basename SKILL.md.
+func pluginRel(t *testing.T, path string) string {
+	t.Helper()
+	root, err := repotree.Plugin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return filepath.ToSlash(rel)
+}
+
 // agentFacingFiles are the surfaces a seat reads: the orchestrator's prompts, the role
 // constitutions, and the skill that carries the protocol.
 func agentFacingFiles(t *testing.T) []string {
@@ -255,7 +274,7 @@ func agentFacingFiles(t *testing.T) []string {
 		// other never opened them. They are clean today; they were simply unwatched.
 		{"skills", "research-protocol", "references", "*.md"},
 		{"agents", "*.md"},
-		{"commands", "*.md"},
+		{"skills", "research", "SKILL.md"},
 		// THE RENDERED PROMPTS, which are what a seat actually receives.
 		//
 		// Reading only the SOURCE made every parameterised clause invisible. `frictionClause` is
@@ -524,7 +543,7 @@ func TestNoRenderedPromptSpellsAFlag(t *testing.T) {
 		// `/research` is invoked by a human who has to type `--topic`, `--lanes`, `--max-rounds`;
 		// its help is the only place those exist, and banning them there would be the rule aimed
 		// at the wrong audience. It stays in the command ratchet, which is about seat verbs.
-		if filepath.Base(filepath.Dir(path)) == "commands" {
+		if pluginRel(t, path) == operatorSkill {
 			continue
 		}
 		files++
@@ -597,16 +616,15 @@ var promptCatalogue = map[string]int{
 	// 48 -> 0. Every invocation is out; the prompts name the ACT and the projection, and
 	// recordClause carries the manual directive — every command's --help, in one call — that
 	// replaces the catalogue.
-	"debate.js":           0,
-	"blue-researcher.md":  0,
-	"blue-synthesizer.md": 0,
-	"lead-judge.md":       0,
-	"red-auditor.md":      0,
-	// SKILL.md IS PINNED BECAUSE IT IS DECIDED, not because the default happens to agree.
+	"skills/research-protocol/scripts/debate.js": 0,
+	"agents/blue-researcher.md":                  0,
+	"agents/blue-synthesizer.md":                 0,
+	"agents/lead-judge.md":                       0,
+	// THE PROTOCOL SKILL IS PINNED BECAUSE IT IS DECIDED, not because the default happens to agree.
 	//
 	// An untracked file's ceiling is already zero — the arm below says so — so this entry changes
-	// no behaviour today. What it changes is what a reader can conclude: without it, the one
-	// agent-facing surface that is NOT a prompt or a constitution is covered by a fallback, and
+	// no behaviour today. What it changes is what a reader can conclude: without it, an agent-facing
+	// surface that is NOT a prompt or a constitution is covered by a fallback, and
 	// "nobody has decided about this file" and "somebody decided zero" are the same green run.
 	//
 	// It is not hypothetical for this file. It reached 5 while the rest of the sweep was going to
@@ -614,7 +632,10 @@ var promptCatalogue = map[string]int{
 	// naming commands in prose at the same time as every other surface was having them removed.
 	// The default caught it; the default would also have accepted a new ceiling silently, because
 	// an untracked file has no ratchet and cannot report a strip that went the other way.
-	"SKILL.md": 0,
+	"skills/research-protocol/SKILL.md": 0,
+	// The slash command that launches a run is read by the operator agent, which is handed the
+	// help page like any seat: a verb named here is one more reason not to open it.
+	"skills/research/SKILL.md": 0,
 }
 
 func TestNoPromptGrowsItsCommandCatalogue(t *testing.T) {
@@ -623,13 +644,15 @@ func TestNoPromptGrowsItsCommandCatalogue(t *testing.T) {
 		real[p] = true
 	}
 	roleless := promptRolelessPaths(real)
+	seen := map[string]bool{}
 	for _, path := range agentFacingFiles(t) {
 		b, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatal(err)
 		}
 		named := namedIn(jsComment.ReplaceAllString(string(b), ""), real, roleless)
-		base := filepath.Base(path)
+		base := pluginRel(t, path)
+		seen[base] = true
 		if strings.HasSuffix(base, ".golden") {
 			// Counted in aggregate below instead: per-file pins on seventeen derived files would
 			// be seventeen hand-kept copies of one number.
@@ -656,6 +679,13 @@ func TestNoPromptGrowsItsCommandCatalogue(t *testing.T) {
 			t.Errorf("%s names %d distinct commands, below its pinned %d — the strip landed and the ratchet did not move.\n"+
 				"Re-pin promptCatalogue[%q] = %d in this change, or the next regrowth back to %d passes silently.",
 				base, len(named), pinned, base, len(named), pinned)
+		}
+	}
+	// A PIN ON A FILE THE GATE NEVER READS PROTECTS NOTHING, and a mistyped or moved key reads
+	// exactly like a tracked one while its file falls back to the untracked ceiling.
+	for key := range promptCatalogue {
+		if !seen[key] {
+			t.Errorf("promptCatalogue[%q] names no agent-facing file — the file moved or the key is mistyped, so the pin guards nothing", key)
 		}
 	}
 }

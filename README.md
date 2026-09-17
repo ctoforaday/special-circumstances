@@ -72,7 +72,7 @@ Everything else is ambient: once installed, the rules apply to every session wit
 
 ### prosthetic-conscience — the working discipline
 
-The base plugin: 22 skills, of which **eleven load in every session**. Each is a short contract written in a `BEFORE / During / AFTER · YOU MUST` grammar, so it says exactly when it applies.
+The base plugin: 27 skills, of which **eleven load in every session**. Each is a short contract written in a `BEFORE / During / AFTER · YOU MUST` grammar, so it says exactly when it applies.
 
 | Rule | In one line |
 |---|---|
@@ -88,7 +88,7 @@ The base plugin: 22 skills, of which **eleven load in every session**. Each is a
 | **facts-are-fields** | Facts other parties act on belong in a field something can refuse, not in a filename or a regex. |
 | **context-checkpointing** | Keep one checkpoint note; when the context grows heavy, write it, then tell the human and let them choose when to compact. |
 
-The other eleven load on demand by description: pair-programming, spec-driven-development, test-driven-development, refactoring-safety, project-memory, critical-stance, scratch-policy, design-by-contract, and proficiency guides for git, markdown and qlty.
+Five are slash commands (`/checkpoint` · `/resume` · `/doctor` · `/plan-audit` · `/probe`); the other eleven load on demand by description: pair-programming, spec-driven-development, test-driven-development, refactoring-safety, project-memory, critical-stance, scratch-policy, design-by-contract, and proficiency guides for git, markdown and qlty.
 
 It also ships `/plan-audit` — a binary PASS/FAIL auditor that puts an implementation plan against a five-section standard — and a set of Go hook binaries that enforce the mechanically checkable rules even where prompts never fire. See [Under the hood](#under-the-hood) for how those two halves fit together.
 
@@ -229,7 +229,7 @@ An agent asked to read a transcript and report what it sees is a summarizer — 
 
 | Path | Role |
 |---|---|
-| `plugins/<name>/` | The product: everything a consumer installs — skills, agents, commands, hooks, Go tools |
+| `plugins/<name>/` | The product: everything a consumer installs — skills, agents, hooks, Go tools |
 | `.claude-plugin/marketplace.json` | Marketplace manifest listing the four plugins |
 | `plans/` | Design artifacts under review — each arrives as a pull request, graduates into the plugins |
 | `research/` | Completed debate runs |

@@ -45,7 +45,6 @@ var protocolSurfaces = []*regexp.Regexp{
 	regexp.MustCompile(`/skills/[^/]+/SKILL\.md$`),
 	regexp.MustCompile(`/agents/[^/]+\.md$`),
 	regexp.MustCompile(`/references/[^/]+\.md$`),
-	regexp.MustCompile(`/commands/[^/]+\.md$`),
 	regexp.MustCompile(`/scripts/debate\.js$`),
 	regexp.MustCompile(`^law/`),
 	// A SHIPPED HOOK IS AS PROTOCOL AS AN AGENT DEFINITION, and it was outside this list while

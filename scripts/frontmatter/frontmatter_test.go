@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -143,14 +144,41 @@ func TestCRLFFrontmatterIsStillChecked(t *testing.T) {
 // AN AGENT WITH NO BLOCK IS BROKEN, NOT PLAIN. It loads with empty metadata — no name, no
 // tools, no skills — and runs anyway. Absence used to be indistinguishable from a clean board.
 func TestAMandatoryFileWithNoFrontmatterFails(t *testing.T) {
-	for _, f := range []string{"plugins/p/agents/a.md", "plugins/p/commands/c.md"} {
+	for _, f := range []string{"plugins/p/agents/a.md", "plugins/p/skills/s/SKILL.md"} {
 		if !mustCarryFrontmatter(f) {
 			t.Errorf("%s must be in the mandatory set", f)
 		}
 	}
-	for _, f := range []string{"README.md", "plugins/p/README.md", "plugins/p/skills/s/SKILL.md", "plugins/p/docs/d.md"} {
+	for _, f := range []string{"README.md", "plugins/p/README.md", "plugins/p/skills/s/references/r.md", "plugins/p/docs/d.md"} {
 		if mustCarryFrontmatter(f) {
 			t.Errorf("%s is ordinary markdown; demanding frontmatter of it would be noise", f)
 		}
+	}
+}
+
+// A SKILL'S NAME IS ITS SLASH COMMAND, so a name that drifts from the directory renames the
+// command while the file still loads. Absent is refused too: nothing else would say so.
+func TestASkillNameMustMatchItsDirectory(t *testing.T) {
+	const f = "plugins/p/skills/doctor/SKILL.md"
+	for _, tc := range []struct {
+		block string
+		want  string
+	}{
+		{"---\nname: doctor\ndescription: d\n---\n", ""},
+		{"---\nname: doctors\ndescription: d\n---\n", "the slash command is `/p:doctors`, not `/p:doctor`"},
+		{"---\ndescription: d\n---\n", "no `name`"},
+	} {
+		problems, _ := check(f, tc.block)
+		got := fmt.Sprint(problems)
+		if tc.want == "" && len(problems) > 0 {
+			t.Errorf("a matching name must pass: %v", problems)
+		}
+		if tc.want != "" && !strings.Contains(got, tc.want) {
+			t.Errorf("block %q: want a problem containing %q, got %v", tc.block, tc.want, problems)
+		}
+	}
+	// Only a skill's own SKILL.md carries the contract; an agent has no directory to agree with.
+	if p, _ := check("plugins/p/agents/doctor.md", "---\nname: other\ndescription: d\n---\n"); len(p) > 0 {
+		t.Errorf("an agent is not held to a directory name: %v", p)
 	}
 }

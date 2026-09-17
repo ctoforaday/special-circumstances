@@ -1,4 +1,5 @@
 ---
+name: audit-repetition
 description: Report acts this session did more than once — the same file written again, the same command re-run — and acts repeated 3+ times BACK-TO-BACK, the [[anti-spinning]] limit adjudicated against the trajectory rather than the hook counter. `--json` for rows; pass a transcript path to inspect a different session.
 ---
 

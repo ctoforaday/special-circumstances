@@ -1,4 +1,5 @@
 ---
+name: resume
 description: Print the full checkpoint and re-ground on it — the whole note, not the terse digest the SessionStart hook injects. `--seals` lists the sealed snapshots instead.
 ---
 

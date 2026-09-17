@@ -25,7 +25,7 @@ import (
 // "record binary: NOT AVAILABLE … (this run will not record through the tool)" and CREATED
 // THE RUN ANYWAY. Had that gone unread, the debate would have taken the legacy prompt set,
 // recorded nothing, and every axis added since would have been silently absent with every
-// gate green — while `commands/research.md` promised the opposite in writing.
+// gate green — while `skills/research/SKILL.md` promised the opposite in writing.
 
 // runCfg is a Config with the environment injected, so no test touches real git or a real
 // binary. Cwd/Home/ProjectDir point at t.TempDir() so mirrors and markers land in the sandbox.
@@ -166,7 +166,7 @@ func TestNoManifestIsRefusedRatherThanCheckedAgainstItself(t *testing.T) {
 //
 // The preflight was not specially unlucky: `Run` has four gates and NONE of them had a
 // decision-level test, which is why one of them could sit disarmed through six runs. Each of
-// these guards a promise `commands/research.md` makes to an operator in writing, so each one
+// these guards a promise `skills/research/SKILL.md` makes to an operator in writing, so each one
 // silently not firing is a documented guarantee that is simply untrue.
 
 func TestMissingModelTierRefuses(t *testing.T) {
@@ -288,7 +288,7 @@ func TestMostlyUnclassifiedCorpusRefuses(t *testing.T) {
 	}
 }
 
-// --memory-dir ADDS a source. It used to REPLACE, and research.md documents passing it as the
+// --memory-dir ADDS a source. It used to REPLACE, and skills/research/SKILL.md documents passing it as the
 // remedy when gap-patterns reports "no memory dir" — so following the documented advice
 // discarded the curated corpus (57 files, 55 classified) for the raw accrual (60, 1).
 func TestMemoryDirAddsRatherThanReplaces(t *testing.T) {

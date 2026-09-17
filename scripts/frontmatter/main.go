@@ -2,7 +2,7 @@
 //
 // Dev tooling for this repository only. Nothing here ships to an installing project.
 //
-// THE FAILURE. Every agent, command and skill declares its capabilities in YAML
+// THE FAILURE. Every agent and skill declares its capabilities in YAML
 // frontmatter, and Claude Code's loader responds to a parse failure by dropping the WHOLE
 // block — name, tools, skills, model, all of it — and loading the file anyway with empty
 // metadata. Nothing raises. An agent that declared `tools: Read, Write, Bash` and
@@ -54,6 +54,13 @@ import (
 // keyLine matches a top-level `key: value` in a frontmatter block.
 var keyLine = regexp.MustCompile(`^([A-Za-z_][\w-]*):\s+(\S.*)$`)
 
+// agentFile and skillFile are the two files a plugin declares its contract in. A skill is its
+// directory's SKILL.md only; the markdown under references/ beside it is ordinary prose.
+var (
+	agentFile = regexp.MustCompile(`^plugins/[^/]+/agents/[^/]+\.md$`)
+	skillFile = regexp.MustCompile(`^plugins/([^/]+)/skills/([^/]+)/SKILL\.md$`)
+)
+
 // problem is one finding, pre-formatted for the operator.
 type problem string
 
@@ -88,6 +95,8 @@ func check(file, text string) (problems []problem, scanned bool) {
 			file, strings.ReplaceAll(strings.TrimSpace(err.Error()), "\n", " ")))}, true
 	}
 
+	problems = append(problems, skillNameProblems(file, doc)...)
+
 	// Then the thing no parser can see: valid YAML that does not mean what it says.
 	for i, line := range strings.Split(block, "\n") {
 		m := keyLine.FindStringSubmatch(line)
@@ -107,18 +116,40 @@ func check(file, text string) (problems []problem, scanned bool) {
 	return problems, true
 }
 
+// skillNameProblems refuses a skill whose `name` is absent or differs from its directory.
+//
+// THE NAME IS THE SLASH COMMAND. In a plugin skill `name` sets the last segment of
+// `/<plugin>:<name>`, and nothing in the harness compares it with the directory — so a typo
+// renames the command a hook tells the agent to run, and every file still loads.
+func skillNameProblems(file string, doc map[string]any) []problem {
+	m := skillFile.FindStringSubmatch(filepath.ToSlash(file))
+	if m == nil {
+		return nil
+	}
+	plugin, dir := m[1], m[2]
+	name, _ := doc["name"].(string)
+	if name == "" {
+		return []problem{problem(fmt.Sprintf(
+			"%s: no `name`. Give it `name: %s` — the slash command is `/%s:%s` only while the two agree, and nothing else checks that they do.",
+			file, dir, plugin, dir))}
+	}
+	if name != dir {
+		return []problem{problem(fmt.Sprintf(
+			"%s: name `%s` does not match its directory `%s` — the slash command is `/%s:%s`, not `/%s:%s`.",
+			file, name, dir, plugin, name, plugin, dir))}
+	}
+	return nil
+}
+
 // mustCarryFrontmatter says which files are BROKEN rather than merely plain when they have no
-// frontmatter block: a plugin's agents and commands, whose whole contract is declared there.
+// frontmatter block: a plugin's agents and skills, whose whole contract is declared there.
 //
 // Everything else this guard scans — READMEs, skill prose, docs, the root documents — is
 // ordinary markdown, and a missing block means nothing. Naming the mandatory set is what turns
 // "the count went down" into a failure with a filename on it.
 func mustCarryFrontmatter(file string) bool {
 	slash := filepath.ToSlash(file)
-	if !strings.HasPrefix(slash, "plugins/") {
-		return false
-	}
-	return strings.Contains(slash, "/agents/") || strings.Contains(slash, "/commands/")
+	return agentFile.MatchString(slash) || skillFile.MatchString(slash)
 }
 
 // markdownFiles lists the tracked .md files this guard owns: everything under plugins/, plus
@@ -171,12 +202,12 @@ func main() {
 		}
 		// THE MISS IS LOUD WHERE A BLOCK IS MANDATORY. A file that stops being recognized is
 		// not invalid — it is ABSENT, and absence was indistinguishable from a clean board:
-		// the count moved and nothing failed. An agent or command with no frontmatter loads
+		// the count moved and nothing failed. An agent or skill with no frontmatter loads
 		// with empty metadata and behaves like one whose declarations do not work, which is
 		// the exact failure this guard exists to prevent.
 		if mustCarryFrontmatter(f) {
 			problems = append(problems, problem(fmt.Sprintf(
-				"%s: no frontmatter block at all. An agent/command without one loads with EMPTY metadata — no name, no tools, no skills — and runs anyway. If this file is not an agent or command, it is in the wrong directory.", f)))
+				"%s: no frontmatter block at all. An agent or skill without one loads with EMPTY metadata — no name, no tools, no skills — and runs anyway. If this file is not an agent or skill, it is in the wrong directory.", f)))
 		}
 	}
 

@@ -41,7 +41,7 @@ func TestAddedArchaeologyIsCaught(t *testing.T) {
 func TestScope(t *testing.T) {
 	in := map[string]bool{
 		"plugins/frank-exchange-of-views/agents/red-auditor.md":                      true,
-		"plugins/frank-exchange-of-views/commands/research.md":                       true,
+		"plugins/frank-exchange-of-views/skills/research/SKILL.md":                   true,
 		"plugins/frank-exchange-of-views/skills/research-protocol/SKILL.md":          true,
 		"plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js": true,
 		"plugins/prosthetic-conscience/skills/terse-communication/SKILL.md":          true,

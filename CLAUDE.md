@@ -26,7 +26,7 @@ Always-on rules bind every session via the imports below; the rest load on deman
 
 | Path | Role |
 |---|---|
-| `plugins/<name>/` | The product: everything a consumer installs (skills, agents, commands, hooks, tools) |
+| `plugins/<name>/` | The product: everything a consumer installs (skills, agents, hooks, tools) |
 | `.claude-plugin/marketplace.json` | Marketplace manifest listing the four plugins — keep in step with `PLUGINS` in `scripts/bootstrap-plugins.sh` |
 | `plans/` | Design artifacts under review — each arrives as a PR; graduates into the plugins |
 | `README.md`, `plugins/*/README.md` | The shipped documentation |
@@ -40,7 +40,7 @@ Always-on rules bind every session via the imports below; the rest load on deman
 
 - **No backwards compatibility, no archaeology.** When a format, schema, enum value, verb, role id, record field or store shape changes, the live code accepts and prints only the new form — no aliases, dual readers, tolerance paths, read-time fallbacks, or "formerly X" prose in help, prompts or refusals. Old FEOV records are brought forward by `migrate`, one translation per change with a test on an archived run; gray-area's catalogue rebuilds empty on a shape bump and `telepathy backfill` refills it. YOU MUST NOT propose a compatibility path, even as an option — it is not a fork the human is asked to rule on again.
   - FEOV's event-schema epoch (`record.EventSchema`, generated from `requirements.json` by `scripts/schemagen`) is compared once, at `setup`, binary against the plugin's declared epoch; bump it whenever the event shape changes. Nothing compares a run's recorded epoch on read or resume — old data is refused by its content, and the refusal names what it found and points to `migrate`.
-- BEFORE coining a name, YOU MUST grep it across the Go tree, `debate.js`, `agents/`, `skills/` and `commands/`, then read the declaration at every hit for what it MEANS there — the same word in another sense reads as confirmation. A concept that already has a name is extended, never given a rival term. FEOV's concept nouns live in its terms registry (`tools/internal/terms/terms.json`, gated by `TestVocabularyProse`); after changing it, run `go -C scripts run ./vocabdoc`.
+- BEFORE coining a name, YOU MUST grep it across the Go tree, `debate.js`, `agents/` and `skills/`, then read the declaration at every hit for what it MEANS there — the same word in another sense reads as confirmation. A concept that already has a name is extended, never given a rival term. FEOV's concept nouns live in its terms registry (`tools/internal/terms/terms.json`, gated by `TestVocabularyProse`); after changing it, run `go -C scripts run ./vocabdoc`.
 - BEFORE concluding from a measurement that structure does not matter, YOU MUST ask what the measurement assumes and whether the roadmap — parallel actions, shared expensive reads — breaks it. Structure is judged against where the system is heading.
 - Committed tooling is Go: new dev tools go in `scripts/`, never Node/`.mjs`, and never under `plugins/*/tools/cmd/`, where `sc-doctor` treats every directory as a shipped hook binary. Scratch may be anything.
 

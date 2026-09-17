@@ -1,4 +1,5 @@
 ---
+name: audit-pr-body
 description: Adjudicate a pull request body's claims against what the session actually ran. Reports CITED / NO-EVIDENCE / UNCHECKABLE with provenance on both sides, and names the parts of each claim the record cannot check. Exit is 0 even with findings.
 ---
 

@@ -1,4 +1,5 @@
 ---
+name: audit-seat-coverage
 description: Does the manifest name every seat transcript that exists? Reconciles the recorded seat rows against the session's own seat-transcript directory. Exits 1 when it could NOT measure, 0 when it did — whatever it found.
 ---
 

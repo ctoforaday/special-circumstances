@@ -1,4 +1,5 @@
 ---
+name: plan-audit
 description: Run an implementation plan through the plan-auditor gate — binary PASS/FAIL against the spec-driven-development standard, with actionable gaps.
 argument-hint: [path-to-plan-file]
 ---

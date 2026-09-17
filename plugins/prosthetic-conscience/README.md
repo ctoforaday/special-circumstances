@@ -4,7 +4,7 @@
 
 The base plugin of [Special Circumstances](../../README.md). It carries the shared rule substrate the other plugins preload, plus the adversarial-partner behaviour for interactive work.
 
-**Status: shipping.** 22 skills, 5 commands, 2 agents, 10 hook binaries.
+**Status: shipping.** 27 skills (5 of them slash commands), 2 agents, 10 hook binaries.
 
 ## The distinctive idea
 
@@ -70,7 +70,7 @@ None of the eight runs called the digest or the line an injection.
 
 An explicit `/clear` gets a pointer rather than the digest. That carve-out is by intent — the human just wiped the context deliberately — which is precisely what the withdrawn `compact` carve-out was not.
 
-## Commands
+## Slash commands
 
 `/checkpoint` · `/resume` · `/doctor` · `/plan-audit` · `/probe`
 
