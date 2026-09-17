@@ -80,12 +80,40 @@ func (o ManifestOwing) NotMeasured() string {
 type BlueSitting struct {
 	Engaged []string // the gaps the dispatch named
 	Open    []string // of those, the ones no close preceded blue's register — what the sitting owed an answer on
-	Acts    []*Event // blue-respond's standing events in the sitting, its register first
+	Acts    []*Event // blue-respond's standing events in the sitting, its register first, then any repair of it
 	// Unresolved is a sitting the record cannot close while the run is running: neither blue's next
 	// register nor its agent's stop is on the record since it began. Acts then runs to the end of the
 	// record — a floor, not the sitting — so a missing act in it is not a finding and a present one
 	// is. Read after the run, the end of the record closes it and it is never Unresolved.
 	Unresolved bool
+	opened     int64 // the place, in Live order, of the register that opened it
+}
+
+// Owes is what this sitting owed and did not file: a position and a revision, each missing one, for
+// a sitting that found a gap it was engaged on still open. It is THE ONE PREDICATE of an owing
+// sitting — capture's record-parity audit fails on it, and the register refuses a repair of a
+// sitting for which it is empty.
+func (s BlueSitting) Owes() []recordpb.EventType {
+	if len(s.Open) == 0 {
+		return nil
+	}
+	var position, revision bool
+	for _, e := range s.Acts {
+		switch e.GetType() {
+		case recordpb.EventType_EVENT_TYPE_POSITION:
+			position = true
+		case recordpb.EventType_EVENT_TYPE_REVISION:
+			revision = true
+		}
+	}
+	var owes []recordpb.EventType
+	if !position {
+		owes = append(owes, recordpb.EventType_EVENT_TYPE_POSITION)
+	}
+	if !revision {
+		owes = append(owes, recordpb.EventType_EVENT_TYPE_REVISION)
+	}
+	return owes
 }
 
 // BlueSittings is every blue-respond sitting for a dispatch, in stream order. It is the one
@@ -95,7 +123,7 @@ type BlueSitting struct {
 //
 // ITS BOUNDS ARE THE SHARED ONES. The sitting begins where sittingFor says and ends where
 // sittingCloser says at when — blue's own next register, its agent's stop, or after the run the end
-// of the record — and nothing the chair writes
+// of the record — with the acts of every register repairing it, and nothing the chair writes
 // ends it: the chair's next dispatch row naming blue is another seat's act, and a read keyed on it
 // depends on a rule enforced at the chair's write path (#1002).
 //
@@ -120,7 +148,7 @@ func BlueSittings(evs []*Event, when ReadWhen) []BlueSitting {
 		if !sat || laterBlueDispatchBefore(ds[k+1:], start) {
 			continue // not sat, or not this sitting's dispatch: a later row before the register is
 		}
-		s := BlueSitting{Engaged: d.gaps}
+		s := BlueSitting{Engaged: d.gaps, opened: start}
 		closedFirst := map[string]bool{}
 		for _, e := range evs[d.at+1 : start] {
 			if c, ok := recordpb.BodyAs[*recordpb.Close](e); ok {
@@ -132,11 +160,11 @@ func BlueSittings(evs []*Event, when ReadWhen) []BlueSitting {
 				s.Open = append(s.Open, g)
 			}
 		}
-		end, closed := closer.end(blueRespondSeat, start)
+		spans, end, closed := closer.bounds(blueRespondSeat, start)
 		s.Unresolved = !closed
-		for _, e := range evs[start:end] {
-			if e.GetSeatId() == blueRespondSeat {
-				s.Acts = append(s.Acts, e)
+		for i := start; i < end; i++ {
+			if evs[i].GetSeatId() == blueRespondSeat && holds(spans, i) {
+				s.Acts = append(s.Acts, evs[i])
 			}
 		}
 		out = append(out, s)

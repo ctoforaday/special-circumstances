@@ -253,13 +253,19 @@ type dispatchRow struct {
 // dispatch row, and each seat's registers, in stream order. seq gives each event's place — the
 // events."id" where the reader has them, the position where it holds only the stream. The
 // predicate compares order and nothing else, so either answers it the same.
+//
+// THE REGISTERS ARE THE ONES THAT OPEN A SITTING. A register naming the sitting it repairs
+// (repairs_sitting) opens none: it neither sits for a dispatch nor ends the sitting it repairs,
+// and sittingCloser adds its acts to that sitting.
 func dispatchLedger(evs []*Event, seq []int64) ([]dispatchRow, map[string][]int64) {
 	var ds []dispatchRow
 	registers := map[string][]int64{}
 	for i, e := range evs {
 		switch b := mustBody(e).(type) {
 		case *recordpb.Register:
-			registers[e.GetSeatId()] = append(registers[e.GetSeatId()], seq[i])
+			if b.RepairsSitting == nil {
+				registers[e.GetSeatId()] = append(registers[e.GetSeatId()], seq[i])
+			}
 		case *recordpb.Dispatch:
 			ds = append(ds, dispatchRow{at: seq[i], pin: b.GetPin(), seat: b.GetSeatId(), gaps: b.GetGapIds()})
 		}
@@ -301,6 +307,13 @@ func sittingFor(registers []int64, d dispatchRow) (int64, bool) {
 //     sitting's register. The SubagentStop hook writes it when that agent returns, so it is the
 //     harness's observation of this seat, not an act of another seat.
 //
+// A REPAIR OF THE SITTING IS PART OF IT. A register naming the sitting it repairs (repairs_sitting)
+// opens no sitting of its own: from it to where that register's own sitting would end — the seat's
+// next opening register, or the stop of the agent on the repair — its acts are the repaired
+// sitting's. Under the shipped Workflow engine the first agent's stop has already closed the
+// sitting when the re-prompt registers, so the repair is a second span, and the sitting ends where
+// its last span does.
+//
 // NOTHING ANOTHER SEAT WRITES BOUNDS IT. A read keyed on another seat's act — the chair's next
 // register, the chair's next dispatch row — depends on a rule enforced at that seat's write path,
 // and a warm chair registers once per run: on five archived runs a chair-keyed exchange fold read
@@ -321,9 +334,10 @@ func sittingFor(registers []int64, d dispatchRow) (int64, bool) {
 //     last act on the record is the last act of every sitting still open — that is the premise of
 //     the read, not an act of another seat.
 type sittingCloser struct {
-	registers map[string][]int64 // seat -> its registers' places, ascending
+	registers map[string][]int64 // seat -> its opening registers' places, ascending
 	agentOf   map[int64]string   // a register's place -> the agent_id it carries
 	stops     map[string][]int64 // agent_id -> the places of its sitting_close events, ascending
+	repairs   map[int64][]int64  // an opening register's place -> the places of the registers repairing its sitting, ascending
 	recordEnd int64              // one past the last place on the record
 	when      ReadWhen
 }
@@ -346,15 +360,25 @@ const (
 // sittingCloserOf reads the stream once for every fact that can close a sitting. seq and registers
 // are dispatchLedger's: the same places the sitting's start was read at.
 func sittingCloserOf(evs []*Event, seq []int64, registers map[string][]int64, when ReadWhen) sittingCloser {
-	c := sittingCloser{registers: registers, agentOf: map[int64]string{}, stops: map[string][]int64{}, when: when}
+	c := sittingCloser{registers: registers, agentOf: map[int64]string{}, stops: map[string][]int64{}, repairs: map[int64][]int64{}, when: when}
 	if n := len(seq); n > 0 {
 		c.recordEnd = seq[n-1] + 1
 	}
+	type opening struct {
+		seat  string
+		place int64
+	}
+	openedBy := map[string]opening{} // an opening register's key -> its seat and place
 	for i, e := range evs {
 		switch b := mustBody(e).(type) {
 		case *recordpb.Register:
 			if a := b.GetAgentId(); a != "" {
 				c.agentOf[seq[i]] = a
+			}
+			if b.RepairsSitting == nil {
+				openedBy[e.GetKey()] = opening{seat: e.GetSeatId(), place: seq[i]}
+			} else if o, ok := openedBy[b.GetRepairsSitting()]; ok && o.seat == e.GetSeatId() {
+				c.repairs[o.place] = append(c.repairs[o.place], seq[i])
 			}
 		case *recordpb.SittingClose:
 			if a := b.GetAgentId(); a != "" {
@@ -365,13 +389,39 @@ func sittingCloserOf(evs []*Event, seq []int64, registers map[string][]int64, wh
 	return c
 }
 
-// end is where the seat's sitting that began at start ended — the place of the act that closed it,
-// which is outside the sitting. With nothing about this seat past it, end is the end of the record,
-// and closed is false while the run is read as running and true after it.
-func (c sittingCloser) end(seat string, start int64) (int64, bool) {
-	end, closed := firstAfter(c.registers[seat], start)
-	if agent := c.agentOf[start]; agent != "" {
-		if stop, stopped := firstAfter(c.stops[agent], start); stopped && (!closed || stop < end) {
+// span is one stretch of a sitting's acts: the places from its register up to, not including, the
+// act that closed it.
+type span struct{ from, to int64 }
+
+// holds reports whether a place falls in any of the spans.
+func holds(spans []span, at int64) bool {
+	for _, s := range spans {
+		if at >= s.from && at < s.to {
+			return true
+		}
+	}
+	return false
+}
+
+// bounds is the seat's sitting that began at start: the spans its acts fall in — its own, then one
+// per register repairing it — where the last of them ends, and whether every one is closed.
+func (c sittingCloser) bounds(seat string, start int64) (spans []span, end int64, closed bool) {
+	closed = true
+	for _, from := range append([]int64{start}, c.repairs[start]...) {
+		to, ok := c.end(seat, from)
+		spans = append(spans, span{from: from, to: to})
+		end, closed = max(end, to), closed && ok
+	}
+	return spans, end, closed
+}
+
+// end is where the stretch a register at from opened ended — the place of the act that closed it,
+// which is outside it. With nothing about this seat past it, end is the end of the record, and
+// closed is false while the run is read as running and true after it.
+func (c sittingCloser) end(seat string, from int64) (int64, bool) {
+	end, closed := firstAfter(c.registers[seat], from)
+	if agent := c.agentOf[from]; agent != "" {
+		if stop, stopped := firstAfter(c.stops[agent], from); stopped && (!closed || stop < end) {
 			end, closed = stop, true
 		}
 	}

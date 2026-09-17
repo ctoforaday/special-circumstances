@@ -484,6 +484,52 @@ func TestCaptureClosesTheLastSittingALiveReaderCannot(t *testing.T) {
 	}
 }
 
+// THE SHIPPED ENGINE'S REPAIR PASSES PARITY (#1002, ruling 2). Blue's agent sat on G1, edited, and
+// returned with no position or revision, and its stop closed the sitting. The engine's re-prompt is a
+// new agent: registered as the repair of that sitting, it files both and returns. Parity holds the
+// sitting to what it and its repair filed. The same acts after a register that repairs nothing
+// belong to no sitting, and the sitting fails — which is what the field is for.
+func TestARepairFiledAfterTheSittingsStopPassesParity(t *testing.T) {
+	seed := func(t *testing.T, repair *recordpb.Register) record.Run {
+		n := 0
+		at := func(seat, key string, body proto.Message) *record.Event {
+			n++
+			if key == "" {
+				key = fmt.Sprintf("%s:%d", seat, n)
+			}
+			return recordtest.At(t, seat, key, body)
+		}
+		stop := func(agent string) *record.Event {
+			return at(record.HarnessSeat, "", &recordpb.SittingClose{AgentId: proto.String(agent), AgentType: proto.String("frank-exchange-of-views:blue-researcher")})
+		}
+		dir := t.TempDir()
+		recordtest.Seed(t, dir,
+			at("red-chair", "", &recordpb.Register{}),
+			at("red-lens-logic", "", &recordpb.Mint{GapId: proto.String("G1"), Problem: proto.String("p"),
+				RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"),
+				CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+				Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
+			at("red-chair", "", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("blue-respond"), GapIds: []string{"G1"}}),
+			at("blue-respond", "blue-respond:register:#1", &recordpb.Register{AgentId: proto.String("blue-a")}),
+			at("blue-respond", "", &recordpb.BlueEdit{Answers: proto.String("G1"), Old: proto.String("a"), New: proto.String("b")}),
+			stop("blue-a"),
+			at("blue-respond", "blue-respond:register:#2", repair),
+			at("blue-respond", "", &recordpb.Position{Text: proto.String("G1 is repaired")}),
+			at("blue-respond", "", &recordpb.Revision{Text: proto.String("the G1 edit")}),
+			stop("blue-b"),
+		)
+		return runtest.Open(t, dir)
+	}
+	repaired := seed(t, &recordpb.Register{AgentId: proto.String("blue-b"), RepairsSitting: proto.String("blue-respond:register:#1")})
+	if a := RecordParityAudit(repaired); a.Verdict != "PASS" {
+		t.Errorf("a sitting whose repair filed its position and revision: want PASS, got %s (%s)", a.Verdict, a.Detail)
+	}
+	plain := seed(t, &recordpb.Register{AgentId: proto.String("blue-b")})
+	if a := RecordParityAudit(plain); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "filed no position and no revision") {
+		t.Errorf("the same acts after a register that repairs nothing are no sitting's: want FAIL, got %s (%s)", a.Verdict, a.Detail)
+	}
+}
+
 func TestModelTierAudit(t *testing.T) {
 	run, tr := t.TempDir(), t.TempDir()
 	// A judgment seat (red-chair) running on haiku while configured for opus → dearer? No: haiku

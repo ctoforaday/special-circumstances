@@ -33,56 +33,74 @@ import (
 // are ONE document each; `position` and `closing` genuinely differ — a RED section is not a BLUE one
 // — and are keyed by role.
 
-func Register() *cobra.Command {
-	return New("register", func(s Context, _ *cobra.Command) (Result, error) {
-		dispatch, _, err := record.RegisterSeat(s.Identity(), string(s.RunVia))
-		if err != nil {
-			return nil, err
+// Register is the register every red seat and the bench mounts.
+func Register() *cobra.Command { return NewKeyed("register", "register", register) }
+
+// BlueRegister is blue's register: the same act, and the one seat family whose sitting owes a
+// position or a revision the engine re-prompts for — so it alone carries the repair. A lens, the
+// chair or the bench has no such re-prompt, so the flag is not on their surface at all rather than
+// on it and always refused.
+func BlueRegister() *cobra.Command {
+	c := NewKeyed("register", "register-blue", register)
+	c.Flags().Bool(flags.RepairSitting, false, "this sitting repairs your latest sitting: it puts on the record the position or revision that sitting owed and did not file, and its acts count as that sitting's. The tool names the sitting, and refuses when your latest sitting owes nothing, or you were dispatched again since it began")
+	return c
+}
+
+func register(s Context, cmd *cobra.Command) (Result, error) {
+	var dispatch int
+	var repairs string
+	var err error
+	if repair, _ := cmd.Flags().GetBool(flags.RepairSitting); repair { // absent on every surface but blue's: false
+		dispatch, repairs, err = record.RegisterRepair(s.Identity(), string(s.RunVia))
+	} else {
+		dispatch, _, err = record.RegisterSeat(s.Identity(), string(s.RunVia))
+	}
+	if err != nil {
+		return nil, err
+	}
+	r := registerResult{SeatID: s.SeatID, Dispatch: dispatch, RunVia: string(s.RunVia), RepairsSitting: repairs}
+	// THE SITTING'S TOOL-CALL COUNT STARTS HERE. The dispatch number is the seat's register
+	// count, which is the record's own sitting number, so the hook counts in the record's
+	// window. An operator is never limited; an agent with no id cannot be counted.
+	if agent := seatenv.AgentID(); agent != "" && s.SeatID != record.OperatorRole {
+		if err := sittingcap.Open(s.Identity().Run.Dir(), agent,
+			sittingcap.Header{SeatID: s.SeatID, Sitting: dispatch}); err != nil {
+			r.TurnLimitUnarmed = err.Error()
 		}
-		r := registerResult{SeatID: s.SeatID, Dispatch: dispatch, RunVia: string(s.RunVia)}
-		// THE SITTING'S TOOL-CALL COUNT STARTS HERE. The dispatch number is the seat's register
-		// count, which is the record's own sitting number, so the hook counts in the record's
-		// window. An operator is never limited; an agent with no id cannot be counted.
-		if agent := seatenv.AgentID(); agent != "" && s.SeatID != record.OperatorRole {
-			if err := sittingcap.Open(s.Identity().Run.Dir(), agent,
-				sittingcap.Header{SeatID: s.SeatID, Sitting: dispatch}); err != nil {
-				r.TurnLimitUnarmed = err.Error()
-			}
-		}
-		// THE IDENTITY DID NOT ARRIVE, AND THE SEAT IS THE ONLY PARTY THAT CAN STILL ACT ON IT.
-		//
-		// register is where the agent->seat binding is written, so it is also the first and only
-		// place that can see the binding was never possible. The record already handles this
-		// correctly at the write — absent is recorded as absent — and capture already reports it
-		// hours later. What nothing did was tell the SEAT, while the sitting it affects is still
-		// running.
-		//
-		// MEASURED, and it is the whole of #512. In research/2026-08-22_is-7-prime all FOURTEEN
-		// registers carry no agent_id: the hook never fired for that run at all, so every later
-		// call was refused "this agent has not registered" whatever shape it took. Across the
-		// session that message was returned 92 times and was FALSE every single time — zero of
-		// them were a seat that had genuinely not registered.
-		//
-		// A WARNING, NOT A REFUSAL. Refusing here would wedge a run whose only fault is a hook
-		// that did not fire, and the seat can work perfectly well by passing --seat-id.
-		if seatenv.AgentID() == "" && s.SeatID != record.OperatorRole {
-			r.IdentityAbsent = true
-		}
-		// THE HOOK IS NOT REACHING THIS RUN — a bigger fact than a missing identity, and one the
-		// hook itself records nowhere. It injects FEOV_RUN on every Bash call in a live run, so
-		// a run directory that arrived any OTHER way means the hook declined, was never invoked,
-		// or found no marker from the payload's cwd.
-		//
-		// THE WRAPPER MAKES THIS A CLEAN READING ON ITS OWN. `setup` bakes the run into
-		// <runDir>/.bin/feov-record, and the hook — when it fires — sets FEOV_RUN, which
-		// outranks it. So resolving by WRAPPER is a direct statement that the hook did not
-		// inject, needing no pairing with a missing identity to mean it. Inference still needs
-		// the pair, because a seat that simply typed --run looks identical from the run alone.
-		if s.RunVia == seatenv.RunFromWrapper || (r.IdentityAbsent && s.RunVia == seatenv.RunFromInference) {
-			r.HookAbsent = true
-		}
-		return r, nil
-	})
+	}
+	// THE IDENTITY DID NOT ARRIVE, AND THE SEAT IS THE ONLY PARTY THAT CAN STILL ACT ON IT.
+	//
+	// register is where the agent->seat binding is written, so it is also the first and only
+	// place that can see the binding was never possible. The record already handles this
+	// correctly at the write — absent is recorded as absent — and capture already reports it
+	// hours later. What nothing did was tell the SEAT, while the sitting it affects is still
+	// running.
+	//
+	// MEASURED, and it is the whole of #512. In research/2026-08-22_is-7-prime all FOURTEEN
+	// registers carry no agent_id: the hook never fired for that run at all, so every later
+	// call was refused "this agent has not registered" whatever shape it took. Across the
+	// session that message was returned 92 times and was FALSE every single time — zero of
+	// them were a seat that had genuinely not registered.
+	//
+	// A WARNING, NOT A REFUSAL. Refusing here would wedge a run whose only fault is a hook
+	// that did not fire, and the seat can work perfectly well by passing --seat-id.
+	if seatenv.AgentID() == "" && s.SeatID != record.OperatorRole {
+		r.IdentityAbsent = true
+	}
+	// THE HOOK IS NOT REACHING THIS RUN — a bigger fact than a missing identity, and one the
+	// hook itself records nowhere. It injects FEOV_RUN on every Bash call in a live run, so
+	// a run directory that arrived any OTHER way means the hook declined, was never invoked,
+	// or found no marker from the payload's cwd.
+	//
+	// THE WRAPPER MAKES THIS A CLEAN READING ON ITS OWN. `setup` bakes the run into
+	// <runDir>/.bin/feov-record, and the hook — when it fires — sets FEOV_RUN, which
+	// outranks it. So resolving by WRAPPER is a direct statement that the hook did not
+	// inject, needing no pairing with a missing identity to mean it. Inference still needs
+	// the pair, because a seat that simply typed --run looks identical from the run alone.
+	if s.RunVia == seatenv.RunFromWrapper || (r.IdentityAbsent && s.RunVia == seatenv.RunFromInference) {
+		r.HookAbsent = true
+	}
+	return r, nil
 }
 
 // Log records an entry addressed to the OPERATOR WHO CAN RETOOL THE SEAT — a defect, a request, an
@@ -779,6 +797,9 @@ func join(names []string) string {
 type registerResult struct {
 	SeatID   string `json:"seat_id"`
 	Dispatch int    `json:"dispatch"`
+	// RepairsSitting is the key of the register that opened the sitting this one repairs, when the
+	// register was a repair; absent for a register that opens a sitting of its own.
+	RepairsSitting string `json:"repairs_sitting,omitempty"`
 	// IdentityAbsent is true when a DISPATCHED seat registered with no agent id — the hook did
 	// not reach this call, so nothing on the record can bind this agent to this seat.
 	IdentityAbsent bool `json:"identity_absent,omitempty"`
@@ -804,7 +825,10 @@ func (r registerResult) hookAbsentSource() string {
 
 func (r registerResult) Human() string {
 	out := "registered " + r.SeatID
-	if r.Dispatch > 1 {
+	switch {
+	case r.RepairsSitting != "":
+		out = fmt.Sprintf("registered %s as the repair of the sitting %s opened — what you put on the record now counts as that sitting's", r.SeatID, r.RepairsSitting)
+	case r.Dispatch > 1:
 		out = fmt.Sprintf("registered %s (dispatch %d — a previous dispatch of this seat is on the record)", r.SeatID, r.Dispatch)
 	}
 	if r.IdentityAbsent {

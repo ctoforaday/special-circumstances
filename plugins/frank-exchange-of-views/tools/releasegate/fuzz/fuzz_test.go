@@ -1802,6 +1802,22 @@ func arr(v ...any) []any { return append([]any{}, v...) }
 // decide whether the loop continues, deadlocks, or terminates.
 func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	switch {
+	// THE ENGINE'S SITTING-RECORD RE-PROMPT (#1002). Its prompt names no SEAT_ID, so the seat comes
+	// from the label. The seat registers as the repair of its last sitting and files what that
+	// sitting owed; a refused repair — the sitting owed nothing — registers as a sitting of its own
+	// and attests what the refusal said. Listed first: the label also starts with the seat's id.
+	case strings.HasSuffix(seatID, "-sitting-record"):
+		seat := strings.TrimSuffix(seatID, "-sitting-record")
+		if _, err := r.exec("register", "--seat-id", seat, "--repair-sitting"); err != nil {
+			_, _ = r.exec("register", "--seat-id", seat)
+			r.do("log", seat).set("--type", "friction").set("--reason", "fuzz: the repair was refused — "+firstLine(err.Error())).run()
+			return map[string]any{"sitting_record_appended": false, "note": firstLine(err.Error())}
+		}
+		_, _ = r.exec("position", "--seat-id", seat, "--reason", "repair: the position the sitting owed")
+		r.do("revision", seat).set("--reason", "repair: the revision the sitting owed").run()
+		r.do("log", seat).set("--type", "nominal").set("--reason", "fuzz: repaired the last sitting's record").run()
+		return map[string]any{"sitting_record_appended": true}
+
 	case strings.HasPrefix(seatID, "blue-synthesize"):
 		r.sit("blue", seatID)
 		r.extras("blue", seatID, nil)
@@ -1912,7 +1928,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		for _, id := range engaged {
 			manifest = append(manifest, id)
 		}
-		return map[string]any{"sitting_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_motions": disputes, "petitions": r.maybePetition("blue", seatID), "log": arr()}
+		// ONE SITTING IN FIVE DOES NOT ATTEST ITS RECORD, so the engine's re-prompt — and the register
+		// that repairs a sitting — is driven. Its revision is filed only some of the time (extras), so
+		// the repair is admitted where the sitting owes one and refused where it owes nothing.
+		return map[string]any{"sitting_record_appended": !r.coin(20), "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_motions": disputes, "petitions": r.maybePetition("blue", seatID), "log": arr()}
 
 	case strings.HasPrefix(seatID, "judge-petition"):
 		r.sit("bench", seatID)
@@ -2238,6 +2257,10 @@ type outcome struct {
 	// blue had applied verbatim from red's prescription. Read off the record, never from the
 	// driver, so it distinguishes "the guard never fired" from "the guard is gone".
 	estoppels int
+	// repairs is the registers on the record that name the sitting they repair (#1002). The
+	// register verb is gated as a type, which any register satisfies, so a repair path that stopped
+	// writing the field would pass it silently.
+	repairs int
 }
 
 // installAgent wires r as the seat backend on vm: it parses the seat id from each agent() prompt
@@ -3087,6 +3110,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			continue
 		}
 		switch t := body.(type) {
+		case *recordpb.Register:
+			if t.RepairsSitting != nil {
+				res.repairs++
+			}
 		case *recordpb.BlueEdit:
 			if t.GetAnswers() != "" {
 				res.editAnswers++
@@ -3620,6 +3647,7 @@ func TestFuzzDebate(t *testing.T) {
 	verifiedBasis := 0                     // #267 stage 3: gaps whose fix_basis was EARNED by a validated pair
 	verbatimApplied := 0                   // #267 stage 4: edits that applied red's proposal exactly (the estoppel precondition)
 	estoppels := 0                         // the TOOL's own refusals of a mint against text blue applied verbatim
+	repairs := 0                           // registers naming the sitting they repair (the engine's re-prompt)
 	applyMisses := map[string]int{}        // and why it did not, by cause — a bare 0 above named none of them
 	estoppelMisses := map[string]int{}     // and why the estoppel drive declined, for the same reason
 
@@ -3679,6 +3707,7 @@ func TestFuzzDebate(t *testing.T) {
 			verifiedBasis += o.verifiedBasis
 			verbatimApplied += o.verbatimApplied
 			estoppels += o.estoppels
+			repairs += o.repairs
 			for why, n := range o.estoppelMisses {
 				estoppelMisses[why] += n
 			}
@@ -3708,8 +3737,8 @@ func TestFuzzDebate(t *testing.T) {
 		sort.Strings(causes)
 		misses = "\n  verbatim-apply declined: " + strings.Join(causes, "\n                          ")
 	}
-	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · epochs=%v · exits=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified · %d edits applied a proposal verbatim · %d estoppel refusals%s",
-		completed, len(failures), verdicts, epochHist, whyHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"], verbatimApplied, estoppels, misses)
+	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · epochs=%v · exits=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified · %d edits applied a proposal verbatim · %d estoppel refusals%s\n  sitting-record repairs: %d registers named the sitting they repaired",
+		completed, len(failures), verdicts, epochHist, whyHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"], verbatimApplied, estoppels, misses, repairs)
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
 	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
 	// Assert EVERY event-emitting seat verb fired at least once across the run set — so a
@@ -3764,6 +3793,9 @@ func TestFuzzDebate(t *testing.T) {
 		}
 		if verifiedBasis == 0 {
 			t.Errorf("fuzz minted ZERO gaps with fix_basis=verified across %d runs — no concrete proposal ever validated, so the whole stage-3 path is unexercised (false green)", completed)
+		}
+		if repairs == 0 {
+			t.Errorf("fuzz recorded ZERO registers naming a repaired sitting across %d runs — the engine's sitting-record re-prompt never registered as a repair, so the repair path is unexercised (false green)", completed)
 		}
 		if verbatimApplied == 0 {
 			t.Errorf("fuzz recorded ZERO verbatim applications across %d runs — nothing ever estopped red, so the stage-4 guard is unexercised (false green)", completed)

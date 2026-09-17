@@ -61,6 +61,8 @@ func seatOfGolden(name string) string {
 		return "blue-lane"
 	case name == "judge-terminal":
 		return "judge-terminal"
+	case strings.HasSuffix(name, "-sitting-record"):
+		return strings.TrimSuffix(name, "-sitting-record")
 	}
 	return name
 }

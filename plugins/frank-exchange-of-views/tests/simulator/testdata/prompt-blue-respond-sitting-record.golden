@@ -1,0 +1,10 @@
+prompt sha256: 4153bc4eef5d3cdd17f65ab3b836dc61f10c33312a13c092fa10332bd603ede7
+
+Sitting-record repair for blue-respond.
+Your last sitting did not attest what it put on the record, so the run cannot yet show your position event for this sitting (it renders as the "### BLUE" section) AND your revision event.
+Put it on the record NOW — nothing else.
+REGISTER AS THE REPAIR OF YOUR LAST SITTING, not as a sitting of your own: your register's help names how, and what you then put on the record counts as that sitting's.
+If that register is refused, your last sitting owes nothing a repair files — register as a sitting of your own, quote the refusal in the log, and return the attestation the record supports. your position event for this sitting (it renders as the "### BLUE" section) AND your revision event.
+Do NOT re-do your substantive work and do NOT edit the report again; this turn exists only to close the parity gap.
+If you genuinely cannot (the duty does not apply, or a tool refuses you), say in the log exactly why, and return sitting_record_appended false with a one-line note.
+Return the attestation.

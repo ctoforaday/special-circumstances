@@ -136,6 +136,21 @@ test('seat prompt goldens: every seat class carries exactly its recorded contrac
   await captureSeats(await fullRun())
 })
 
+// THE SITTING-RECORD REPAIR IS A SEAT PROMPT TOO. It is dispatched only when a sitting did not attest
+// its record, so the full run never reaches it; this run does, and the golden holds the act it names
+// — registering as the repair of the last sitting — where the prompt-naming check reads every golden.
+test('the sitting-record repair prompt carries exactly its recorded contract', async () => {
+  const world = makeWorld(makeResponder({
+    chair: [chairEnv({ plan: plan([party('blue-respond', 'G1')]) }), passChair()],
+    blueRespond: [blueEnv({ sitting_record_appended: false }), blueEnv()],
+  }))
+  await world.run(script, ARGS)
+  const call = world.calls.find((c) => c.opts.label.startsWith('blue-respond-sitting-record'))
+  assert.ok(call, 'blue was not re-prompted for its sitting record')
+  assertLossless('blue-respond-sitting-record', call.prompt)
+  assertGolden(import.meta.url, 'prompt-blue-respond-sitting-record', goldenBody(call.prompt))
+})
+
 // binDir must actually REACH the prompt text, not merely be accepted by the arg gate. The gate
 // throws on an absent binDir, which proves the arg arrived — not that any prompt names the
 // binary. If it stopped reaching the builder the goldens would move, but this says why.

@@ -188,16 +188,29 @@ type Identity struct {
 // the register event because a run whose seats all resolve by INFERENCE is a run the PreToolUse
 // hook is not reaching, and the hook records that nowhere (#512).
 func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err error) {
+	dispatch, _, where, err = registerSeat(id, runVia, false)
+	return dispatch, where, err
+}
+
+// RegisterRepair is RegisterSeat for a sitting-record repair: the register names the seat's latest
+// sitting as the one it repairs (repairs_sitting), and is refused unless that sitting owes what a
+// repair files (checkRepair). It returns the key of the register that opened the repaired sitting.
+func RegisterRepair(id Identity, runVia string) (dispatch int, repairs string, err error) {
+	dispatch, repairs, _, err = registerSeat(id, runVia, true)
+	return dispatch, repairs, err
+}
+
+func registerSeat(id Identity, runVia string, repair bool) (dispatch int, repairs, where string, err error) {
 	run, seatID := id.Run, id.SeatID
 	if seatID == "" || !seatIDRe.MatchString(seatID) {
-		return 0, "", fmt.Errorf("record: invalid --seat-id %s", strconv.Quote(seatID))
+		return 0, "", "", fmt.Errorf("record: invalid --seat-id %s", strconv.Quote(seatID))
 	}
 	// THE ROSTER GATE, AND IT BELONGS HERE RATHER THAN AT EVERY VERB. Register is the one call
 	// that takes a seat's word for who it is; everything after it reads the binding this call
 	// writes. So this is where an id no dispatch could have produced has to be refused — after
 	// it, the wrong id is not a claim any more, it is the record.
 	if err := requireDispatchableSeat(seatID); err != nil {
-		return 0, "", err
+		return 0, "", "", err
 	}
 	// AND THE MEMBERSHIP HALF, which the roster gate says outright that it cannot reach. The shape
 	// check above admits any well-formed id; this refuses one whose FAMILY the attested agent
@@ -208,12 +221,12 @@ func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err e
 	// cast is synthesized — but once setup has written one, a seat outside it is refused here, at
 	// the door, rather than discovered later as a party the dispatch verb never named.
 	if member, hasCast, err := InCast(run, seatID); err != nil {
-		return 0, "", err
+		return 0, "", "", err
 	} else if hasCast && !member {
-		return 0, "", fmt.Errorf("record: register refused — %q is not in this run's cast. The cast is the run's admissible seats, written by setup before any seat registered; a seat outside it is one the workflow was never told to dispatch", seatID)
+		return 0, "", "", fmt.Errorf("record: register refused — %q is not in this run's cast. The cast is the run's admissible seats, written by setup before any seat registered; a seat outside it is one the workflow was never told to dispatch", seatID)
 	}
 	if err := CheckAttestedRole(seatenv.AgentType(), seatID); err != nil {
-		return 0, "", err
+		return 0, "", "", err
 	}
 	// A SEAT RECORDS INTO A RUN THAT EXISTS. IT NEVER CREATES ONE.
 	//
@@ -234,11 +247,11 @@ func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err e
 	// message no longer describes anything reachable. What remains is the half that still is:
 	// the directory has to EXIST, because a seat records into a run `setup` already made.
 	if !run.Valid() {
-		return 0, "", feov.Errorf(feov.MissingField,
+		return 0, "", "", feov.Errorf(feov.MissingField,
 			"record: this registration names no run — pass --run <runDir>, or run inside a dispatch that injects it")
 	}
 	if st, err := os.Stat(run.Dir()); err != nil || !st.IsDir() {
-		return 0, "", feov.Errorf(feov.NotFound,
+		return 0, "", "", feov.Errorf(feov.NotFound,
 			"record: no run directory at %s — a seat records into a run `setup` already made and never creates one",
 			run.Dir())
 	}
@@ -246,7 +259,7 @@ func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err e
 	// resolving here means the root is bound (and its pointer written) before any event exists.
 	db, err := openRun(run)
 	if err != nil {
-		return 0, "", err
+		return 0, "", "", err
 	}
 
 	// THERE IS NO POINTER FILE AND NO LOCK. Which sitting is live was a fact held in
@@ -286,19 +299,31 @@ func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err e
 	if hv := seatenv.HookVersion(); hv != "" {
 		reg.HookVersion = proto.String(hv)
 	}
+	// THE REPAIR IS NAMED HERE, NOT BY THE SEAT. The seat says it is repairing; which sitting it
+	// repairs is its latest, and checkRepair refuses the claim where the record does not bear it out.
+	if repair {
+		m, err := MergedEvents(run)
+		if err != nil {
+			return 0, "", "", err
+		}
+		if repairs, err = repairTarget(m.Events, seatID); err != nil {
+			return 0, "", "", err
+		}
+		reg.RepairsSitting = proto.String(repairs)
+	}
 	if _, err := recordpb.SetBody(ev, reg); err != nil {
-		return 0, "", err
+		return 0, "", "", err
 	}
 	// THE REGISTER IS NO LONGER A SPECIAL CASE. It used to be the one key deriveKey did not mint,
 	// because it carried the nonce — two registers for one seat are a legitimate re-dispatch and
 	// must not dedup into one. With the ordinal scoped to the seat, `red-merge-r1:register:#2` is
 	// what the general rule already produces, so the exception is gone rather than restated.
 	if err := insertNumbered(db, ev, seatID, recordpb.EventType_EVENT_TYPE_REGISTER, ev.GetRegister()); err != nil {
-		return 0, "", err
+		return 0, "", "", err
 	}
 	if err := db.QueryRow(`SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = 'register'`,
 		seatID).Scan(&dispatch); err != nil {
-		return 0, "", err
+		return 0, "", "", err
 	}
 	// THE TIER GATE FIRES AFTER THE WRITE, AND THAT ORDER IS THE POINT.
 	//
@@ -311,7 +336,7 @@ func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err e
 	// nothing with; it is the dispatch NUMBER, which is the thing that was actually being
 	// communicated ("this is your second dispatch"). The second was the shard path a seat wrote to
 	// — there is no shard, so it is the record's location.
-	return dispatch, dbName, nil
+	return dispatch, repairs, dbName, nil
 }
 
 // allowSubstitution reads the operator's standing decision from run-config.
@@ -722,6 +747,10 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		return err
 	}
 	switch b := body.(type) {
+	case *recordpb.Register:
+		if b.RepairsSitting != nil {
+			return requireRepairable(run, seatID, b.GetRepairsSitting())
+		}
 	case *recordpb.Correction:
 		// A CORRECTION IS NEVER APPENDED ON ITS OWN. It is written by appendCorrected in the same
 		// transaction as the replacement it names; one without the other is a strike with nothing

@@ -169,7 +169,7 @@ func exchangesOf(evs []*Event, ids []int64, p Params, when ReadWhen) map[string]
 		if !sat {
 			continue // engaged, never sat: no exchange yet, and rule 1 keeps readying it
 		}
-		end, closed := closer.end(d.seat, start) // unclosed: the window runs to the end of the record
+		_, end, closed := closer.bounds(d.seat, start) // unclosed: the window runs to the end of the record
 		for _, g := range d.gaps {
 			switch {
 			case d.seat == minted[g]:

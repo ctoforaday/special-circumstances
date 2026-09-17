@@ -650,6 +650,12 @@ const takeFriction = (who, env) => { if (env && env.log) for (const f of env.log
 // recounts it post-hoc) instead of a fatal error. Only a genuine unrecoverable integrity violation
 // aborts. #251 dissolves this entirely by making a revision a recorded op rather than an
 // attestation; until then this is the recovery, not a second rule.
+//
+// THE REPAIR REGISTERS AS A REPAIR (#1002). The re-prompt is a new agent, and its register would open
+// a sitting of its own: under this engine the first agent's stop has already closed the sitting it
+// repairs, so the position and revision it files belonged to no sitting and record-parity could fail
+// the sitting they repaired. The prompt names the act; the register records which sitting it repairs
+// as a field, and refuses a repair the record does not bear out.
 const SITTING_RECORD = {
   type: 'object',
   required: ['sitting_record_appended'],
@@ -664,7 +670,7 @@ async function ensureSittingRecord(env, who, owed, opts) {
   if (env && env.sitting_record_appended === true) return true
   log(`sitting-record (W1.7): ${who} did not attest ${owed} — re-prompting once before continuing (#249 recovery)`)
   const retry = await agent(
-    `Sitting-record repair for ${who}. Your last sitting did not attest what it put on the record, so the run cannot yet show ${owed}. Put it on the record NOW — nothing else. ${owed}. Do NOT re-do your substantive work and do NOT edit the report again; this turn exists only to close the parity gap. If you genuinely cannot (the duty does not apply, or a tool refuses you), say in the log exactly why, and return sitting_record_appended false with a one-line note. Return the attestation.`,
+    `Sitting-record repair for ${who}. Your last sitting did not attest what it put on the record, so the run cannot yet show ${owed}. Put it on the record NOW — nothing else. REGISTER AS THE REPAIR OF YOUR LAST SITTING, not as a sitting of your own: your register's help names how, and what you then put on the record counts as that sitting's. If that register is refused, your last sitting owes nothing a repair files — register as a sitting of your own, quote the refusal in the log, and return the attestation the record supports. ${owed}. Do NOT re-do your substantive work and do NOT edit the report again; this turn exists only to close the parity gap. If you genuinely cannot (the duty does not apply, or a tool refuses you), say in the log exactly why, and return sitting_record_appended false with a one-line note. Return the attestation.`,
     { ...(opts || {}), label: `${who}-sitting-record · ${slug}`, phase: 'Debate', schema: SITTING_RECORD })
   if (retry && retry.sitting_record_appended === true) {
     log(`sitting-record: ${who} attested on the retry — continuing`)

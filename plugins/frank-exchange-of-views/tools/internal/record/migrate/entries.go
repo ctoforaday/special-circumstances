@@ -18,6 +18,7 @@ func Entries() Registry {
 		"friction_none": {Translate: frictionNoneEntry},
 		"opinion":       {Translate: opinionEntry},
 		"cite":          {Translate: citeEntry},
+		"register":      {Translate: registerEntry},
 	}
 	for w, e := range eraEntries() {
 		reg[w] = e
@@ -82,6 +83,23 @@ func citeEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 		c.SourceTextOrigin = recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NOT_RECORDED.Enum()
 	}
 	return []proto.Message{c}, nil
+}
+
+// registerEntry: a register is kept word for word and repairs no sitting. No run before epoch 8
+// could say that a register was a sitting-record repair, so every archived register opens a sitting
+// of its own; inferring a repair from the stream would put a claim on the record no seat made and
+// no writer checked.
+func registerEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
+	body, err := identityBody(old)
+	if err != nil {
+		return nil, err
+	}
+	r, ok := body.(*recordpb.Register)
+	if !ok {
+		return nil, fmt.Errorf("migrate: register translated to %T, not a Register", body)
+	}
+	r.RepairsSitting = nil
+	return []proto.Message{r}, nil
 }
 
 // frictionNoneEntry: the explicit empty form became the POSITIVE nominal entry — "none" is

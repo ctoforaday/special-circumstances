@@ -783,21 +783,9 @@ func RecordParityAudit(run record.Run) Audit {
 			continue
 		}
 		owed++
-		var position, revision bool
-		for _, e := range s.Acts {
-			switch e.GetType() {
-			case recordpb.EventType_EVENT_TYPE_POSITION:
-				position = true
-			case recordpb.EventType_EVENT_TYPE_REVISION:
-				revision = true
-			}
-		}
 		var missing []string
-		if !position {
-			missing = append(missing, "no position")
-		}
-		if !revision {
-			missing = append(missing, "no revision")
+		for _, typ := range s.Owes() {
+			missing = append(missing, "no "+recordpb.Word(typ))
 		}
 		switch {
 		case len(missing) == 0:
