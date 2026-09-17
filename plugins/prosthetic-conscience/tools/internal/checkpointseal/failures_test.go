@@ -304,3 +304,49 @@ func TestAHealthyPruneClearsAPruneFailure(t *testing.T) {
 		t.Errorf("a healthy prune left the entry: %+v", sealRecord(t))
 	}
 }
+
+// THE FALSE ALARM, DRIVEN THROUGH THE REAL HOOK. Found live on 2026-09-17, the day this record shipped:
+// a main-agent turn end fires SubagentStop with no agent_type and a predicted transcript nothing writes
+// (#189), and the drift check recorded "cannot check the note" on every one — shown every ten
+// minutes, about nothing. A turn end records no note-check at all; a typed seat whose transcript is
+// missing is still recorded, because that one is real.
+func TestATurnEndIsNotANoteCheckFailureButAMissingSeatTranscriptIs(t *testing.T) {
+	goodLoop := noteWith("1. `go test` → ok · re-armed by: tools/\n   last run: pass")
+	for name, tc := range map[string]struct {
+		agentType string
+		recorded  bool
+	}{
+		"turn end":                      {"", false},
+		"seat whose transcript is gone": {"frank-exchange-of-views:red-lens-logic", true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir := sealProject(t, goodLoop)
+			predicted := filepath.ToSlash(filepath.Join(dir, "subagents", "agent-never-written.jsonl"))
+			payload := `{"session_id":"s1","agent_id":"a1","agent_type":"` + tc.agentType + `","agent_transcript_path":"` + predicted + `"}`
+			stdout, _, code := call(t, payload, dir, noon, "-event", evSubagentStop)
+			if code != 0 || stdout != "" {
+				t.Fatalf("SubagentStop must stay silent and never block: exit %d, stdout %q", code, stdout)
+			}
+			if _, got := hasStage(sealRecord(t), StageNoteCheck); got != tc.recorded {
+				t.Errorf("note-check recorded = %v, want %v: %+v", got, tc.recorded, sealRecord(t))
+			}
+		})
+	}
+}
+
+// A TURN END CLEARS NOTHING. Its path is empty, and an empty path reads as "no transcript" — which
+// the check would otherwise take as passing, and clear a real note-check failure recorded by an
+// earlier seal with no evidence the check works now.
+func TestATurnEndDoesNotClearARealNoteCheckFailure(t *testing.T) {
+	dir := sealProject(t, noteWith("1. `go test` → ok · re-armed by: tools/\n   last run: pass"))
+	seed := hookfailures.New("prosthetic-conscience", "sc-precompact", evPreCompact, noon, io.Discard)
+	seed.FailIn(StageNoteCheck, dir, "a real failure from an earlier seal")
+	seed.Persist()
+
+	predicted := filepath.ToSlash(filepath.Join(dir, "subagents", "agent-never-written.jsonl"))
+	call(t, `{"session_id":"s1","agent_id":"a1","agent_transcript_path":"`+predicted+`"}`, dir, noon, "-event", evSubagentStop)
+	f, ok := hasStage(sealRecord(t), StageNoteCheck)
+	if !ok || f.Error != "a real failure from an earlier seal" {
+		t.Errorf("a turn end cleared or rewrote a real note-check failure: %+v", sealRecord(t))
+	}
+}

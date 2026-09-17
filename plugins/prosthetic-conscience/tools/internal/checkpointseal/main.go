@@ -391,17 +391,29 @@ func drift(bin, note string, written []string, within checkpoint.WithinRoot) str
 		bin, name(surfaces), name(written))
 }
 
-// driftTranscript picks whose work the drift check is about.
+// driftTranscript picks whose work the drift check is about, and reports a TURN END, for which there
+// is none to check.
 //
 // On SubagentStop the seat has its OWN transcript, and reading the parent's would blame a
 // seat for every file the parent touched. gray-area measured this field in the Phase 0
 // spike and its capture hook has depended on it since; the fallback covers an event or a
 // client that does not send it.
-func driftTranscript(in hookInput) string {
+//
+// NOT EVERY SubagentStop IS A SEAT (#189). The client also fires it at the MAIN agent's turn end,
+// with a freshly minted agent id, no agent_type, and an agent_transcript_path it predicts and nothing
+// ever writes — 71 of this repository's 190 manifest rows in one session. The drift check then failed
+// to open that path on every turn end. That was a stderr line nobody saw until failures were
+// recorded; recorded, it became a "note-check failing" alarm every ten minutes about nothing. The
+// classification is gray-area's, and by the same CONJUNCTION: no type AND no file. A typed seat whose
+// transcript is missing stays a seat, and its failure stays an alarm.
+func driftTranscript(in hookInput, exists func(string) bool) (path string, turnEnd bool) {
 	if in.AgentTranscriptPath != "" {
-		return in.AgentTranscriptPath
+		if in.AgentType == "" && !exists(in.AgentTranscriptPath) {
+			return "", true
+		}
+		return in.AgentTranscriptPath, false
 	}
-	return in.TranscriptPath
+	return in.TranscriptPath, false
 }
 
 // notePath returns the live checkpoint location, or "" when none exists.
@@ -605,13 +617,19 @@ func runWith(fixedEvent string, args []string, stdin io.Reader, stdout, stderr i
 		// context. It costs the session no tokens: the finding goes to the record, which a
 		// displaying event reads out to the HUMAN, never into the transcript.
 		within, closeRoot := checkpoint.RootedWithin(projectDir)
-		written, unreadable := transcript.Read(driftTranscript(in), projectDir)
-		if unreadable != "" {
+		path, turnEnd := driftTranscript(in, func(p string) bool { _, err := os.Stat(p); return err == nil })
+		switch written, unreadable := transcript.Read(path, projectDir); {
+		case turnEnd:
+			// FIRST, because a turn end's path is empty and its read is therefore "unreadable" — the
+			// false alarm this case exists to stop. Nothing is recorded either way: a turn end is
+			// neither the check failing nor the check passing, and an OK here would clear a real
+			// failure with no evidence the check works.
+		case unreadable != "":
 			// The check cannot run, and MUST NOT read as "no drift". A broken reader
 			// that stays quiet is indistinguishable from a healthy session, which is
 			// the flattering direction and the one nobody investigates.
 			rec.FailIn(StageNoteCheck, projectDir, bin+": cannot check the note against this session's work — "+unreadable)
-		} else {
+		default:
 			rec.OKIn(StageNoteCheck, projectDir)
 			if line := drift(bin, body, written, within); line != "" {
 				rec.FailIn(StageDrift, projectDir, line)
