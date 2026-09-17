@@ -203,14 +203,41 @@ func TestDriftReachesStderrOnEveryEventAndNeverBlocks(t *testing.T) {
 // for every file the parent touched, and would report drift against a loop the seat never
 // owned. gray-area measured this field in the Phase 0 spike; this pins that we use it.
 func TestDriftPrefersTheSeatsOwnTranscript(t *testing.T) {
-	if got := driftTranscript(hookInput{TranscriptPath: "parent.jsonl", AgentTranscriptPath: "seat.jsonl"}); got != "seat.jsonl" {
+	everything := func(string) bool { return true }
+	if got, _ := driftTranscript(hookInput{TranscriptPath: "parent.jsonl", AgentTranscriptPath: "seat.jsonl", AgentType: "x"}, everything); got != "seat.jsonl" {
 		t.Errorf("SubagentStop must read the seat's own transcript, got %q", got)
 	}
-	if got := driftTranscript(hookInput{TranscriptPath: "parent.jsonl"}); got != "parent.jsonl" {
+	if got, _ := driftTranscript(hookInput{TranscriptPath: "parent.jsonl"}, everything); got != "parent.jsonl" {
 		t.Errorf("without a per-seat path, fall back to the session's own, got %q", got)
 	}
-	if got := driftTranscript(hookInput{}); got != "" {
+	if got, _ := driftTranscript(hookInput{}, everything); got != "" {
 		t.Errorf("no transcript at all must stay empty, got %q", got)
+	}
+}
+
+// A TURN END IS NOT A SEAT (#189), and it is classified by gray-area's CONJUNCTION — no type AND no
+// file — because either half alone is wrong: a typed seat whose file is missing is a real failure,
+// and an untyped event whose file exists is a real transcript.
+func TestOnlyNoTypeAndNoFileIsATurnEnd(t *testing.T) {
+	missing := func(string) bool { return false }
+	present := func(string) bool { return true }
+	for _, tc := range []struct {
+		name    string
+		in      hookInput
+		exists  func(string) bool
+		turnEnd bool
+		path    string
+	}{
+		{"no type, no file: a turn end", hookInput{TranscriptPath: "p.jsonl", AgentTranscriptPath: "predicted.jsonl"}, missing, true, ""},
+		{"a type, no file: a seat whose transcript is missing", hookInput{AgentTranscriptPath: "seat.jsonl", AgentType: "blue"}, missing, false, "seat.jsonl"},
+		{"no type, a file: a real transcript", hookInput{AgentTranscriptPath: "seat.jsonl"}, present, false, "seat.jsonl"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path, turnEnd := driftTranscript(tc.in, tc.exists)
+			if turnEnd != tc.turnEnd || path != tc.path {
+				t.Errorf("driftTranscript = (%q, %v), want (%q, %v)", path, turnEnd, tc.path, tc.turnEnd)
+			}
+		})
 	}
 }
 
