@@ -25,6 +25,15 @@ package seat
 // That distinction is a judgement, not a gate: no test can tell a useful precondition from a
 // redundant warning, and pretending otherwise would be a check that fires on the wrong half.
 //
+// ONE PAGE MAY CARRY ANOTHER'S TEXT, BY INCLUDING IT. Every document is a named template in one
+// set, keyed as its verb is, so `{{template "register" .}}` renders register's whole document into
+// the page that names it. A keyed variant that says everything its base says and more — blue's
+// register, which alone carries the repair flag — includes the base and adds its own paragraphs.
+// Each page still teaches its verb on its own, and the shared text has one source, so the two
+// pages cannot drift. The include lands the base's sections in place, so the variant's own text
+// continues whichever section the base ends in; an addition that lands in the menu makes the menu
+// more than one line, which is a panic below.
+//
 // A FILE LOOKED UP BY NAME IS A PATTERN STANDING IN FOR A SCHEMA, so every seam here is loud. A
 // missing file, a missing section, an empty section, or a file no verb claims is a PANIC at
 // construction — these commands are built at process start, so the binary fails immediately and
@@ -99,17 +108,27 @@ func mustLoadHelp() map[string]string {
 	return out
 }
 
-// render substitutes the values a document may name, and refuses one it cannot resolve.
-func render(file, src string) string {
-	t, err := template.New(file).Option("missingkey=error").Parse(src)
-	if err != nil {
-		panic("seat: help/" + file + ": " + err.Error())
+// helpSet is every document parsed as a template named by its key, so one document can include
+// another. Built on first render, under helpMu.
+var helpSet *template.Template
+
+// render substitutes the values and documents a document may name, and refuses one it cannot
+// resolve.
+func render(key string) string {
+	if helpSet == nil {
+		set := template.New("").Option("missingkey=error")
+		for k, src := range helpSrc {
+			if _, err := set.New(k).Parse(src); err != nil {
+				panic("seat: help/" + k + ".md: " + err.Error())
+			}
+		}
+		helpSet = set
 	}
 	var b strings.Builder
-	if err := t.Execute(&b, HelpValues); err != nil {
-		panic("seat: help/" + file + ": " + err.Error() +
-			" — a help document names a value nothing supplies, and rendering it blank would put the tool's" +
-			" name on a sentence with a hole in it")
+	if err := helpSet.ExecuteTemplate(&b, key, HelpValues); err != nil {
+		panic("seat: help/" + key + ".md: " + err.Error() +
+			" — a help document names a value or a document nothing supplies, and rendering it blank would put" +
+			" the tool's name on a sentence with a hole in it")
 	}
 	return b.String()
 }
@@ -171,11 +190,10 @@ func helpFor(name string) helpDoc {
 	if d, ok := helpCache[name]; ok {
 		return d
 	}
-	src, ok := helpSrc[name]
-	if !ok {
+	if _, ok := helpSrc[name]; !ok {
 		panic("seat: no help/" + name + ".md — every verb owns a help document, and a verb without one would render a blank entry in the listing that a seat cannot distinguish from a verb with nothing to say")
 	}
-	d, err := parseHelp(render(name+".md", src))
+	d, err := parseHelp(render(name))
 	if err != nil {
 		panic(fmt.Sprintf("seat: help/%s.md: %v", name, err))
 	}

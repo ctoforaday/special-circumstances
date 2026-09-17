@@ -29,9 +29,10 @@ import (
 // copies to drift apart, and the drift would be silent because each copy would
 // still pass its own tests.
 //
-// The help lives in help/<key>.md. `register` and `friction` mean the same thing in every chair and
-// are ONE document each; `position` and `closing` genuinely differ — a RED section is not a BLUE one
-// — and are keyed by role.
+// The help lives in help/<key>.md. `register` means the same thing in every chair and is ONE
+// document; blue's page includes it and adds the repair, which only blue's surface carries.
+// `position` and `closing` genuinely differ — a RED section is not a BLUE one — and are keyed by
+// role.
 
 // Register is the register every red seat and the bench mounts.
 func Register() *cobra.Command { return NewKeyed("register", "register", register) }
