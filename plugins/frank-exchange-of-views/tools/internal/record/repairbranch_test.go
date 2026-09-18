@@ -140,4 +140,18 @@ func TestTheRepairRefusalTableCoversEverySite(t *testing.T) {
 	if sites != rows {
 		t.Errorf("repair.go refuses in %d places and TestEveryRepairRefusalStatesOneOfTheTwoBranches holds %d — a refusal with no row is one the re-prompt was never checked against", sites, rows)
 	}
+	// COUNTING THE HELPER'S CALLS ONLY MEASURES THE REFUSALS THAT USE IT. Every refusal here was
+	// a bare feov.Errorf before the outcome class existed, and one written that way again leaves
+	// the count at ten: the table passes while the new refusal states no branch and the re-prompt
+	// has nothing to read. So the file may not refuse any other way.
+	// refuseRepair builds the error itself, so its own body is the one place feov.Errorf belongs.
+	rest := string(src)
+	if i := strings.Index(rest, "func refuseRepair("); i >= 0 {
+		if j := strings.Index(rest[i:], "\n}\n"); j >= 0 {
+			rest = rest[:i] + rest[i+j:]
+		}
+	}
+	if n := strings.Count(rest, "feov.Errorf("); n != 0 {
+		t.Errorf("repair.go refuses %d time(s) outside refuseRepair — such a refusal carries no branch, so the seat cannot tell whether to register plainly or report a failure", n)
+	}
 }

@@ -51,6 +51,13 @@ func TestASingletonActIsRefusedASecondTimeInsideARepair(t *testing.T) {
 			if want := "blue-respond has already recorded a " + c.word + " this sitting"; !strings.Contains(err.Error(), want) {
 				t.Errorf("the refusal does not say what was wrong:\n%v", err)
 			}
+			// AND WHAT TO DO INSTEAD. A correctable act's refusal carries the correction pointer,
+			// which is the seat's only route from "you already answered this" to a changed answer.
+			// This branch is the singleton refusal's own copy of that tail: nothing else reads it,
+			// so deleting it left the whole suite green.
+			if !strings.Contains(err.Error(), "--corrects") {
+				t.Errorf("the refusal names no way to change the answer already on the record:\n%v", err)
+			}
 			n := 0
 			for _, e := range events(t, runDir) {
 				if e.GetType() == c.typ {
