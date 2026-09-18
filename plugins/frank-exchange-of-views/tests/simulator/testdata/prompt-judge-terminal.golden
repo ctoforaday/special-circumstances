@@ -1,4 +1,4 @@
-prompt sha256: 10f18c1d98ec66b7e862e523e30e942e64fbc9b7551502cc661c58938e4d70f7
+prompt sha256: 23982611fe8df418ebd102cf247a3b2fa2dbc7630e99392009e131af65fe8007
 
 Terminal disposition for topic "the seat prompt contract" (debate ended VERIFIED after 3 chair sitting(s); this sitting fires at the exit boundary). 1 motion(s) stand unruled on the record — read them back from the record's motions projection, read the transcript in full and the board back, and rule each with a reason.
 NOTHING CAN BE REMANDED AT A TERMINAL EXIT — there is no next sitting to remand it to.
@@ -21,7 +21,8 @@ READ YOUR WHOLE SURFACE BEFORE YOU CHOOSE, NOT THE ONE PAGE FOR THE VERB YOU ALR
 Do it ONCE, IMMEDIATELY AFTER `register` — before you have decided what to do, because deciding first is what makes the reading pointless:
 
   "/opt/feov/bin/feov-record" --seat-id judge-terminal manual — every command on your surface, each under a header naming it and followed by that command's own help, run live.
-It is long: send it to a file under your session scratchpad (an ABSOLUTE path, never under the run directory) and read that file whole — in consecutive windows if Read refuses it at once.
+It is long: send it to `<your scratchpad>/judge-terminal-manual.txt` (an ABSOLUTE path, never under the run directory) and read that file whole, in consecutive windows if Read refuses it at once.
+Seats share this scratchpad: name every file you write with your seat id.
 A single command's own page is still there when you want to re-check one: "/opt/feov/bin/feov-record" --seat-id judge-terminal <command> --help.
 MEASURED, WHICH IS WHY IT IS ONE CALL, FIRST.
 Across nine sittings seats opened 6 of 51 group pages — twelve per cent — and 90% of the commands they ran were run without ever reading that command's own page.

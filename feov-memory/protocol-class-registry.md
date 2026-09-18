@@ -338,6 +338,28 @@ than one record, which is the case nobody has yet.
   source and got a projection, that is lossy-channel-substitution. If the stream is
   complete and the count is simply over the wrong thing, it is this.
 
+### shared-namespace-no-discriminator
+Several writers are pointed at ONE shared location by an instruction that names no
+discriminator, so each independently derives the same obvious name and they overwrite
+one another. The instruction is followed exactly and is still wrong, because it was
+written as though one writer would read it. The reader then cannot tell another
+writer's file from its own — and an overwritten file and a stale one look the same.
+- **Instances**: nine seats of the 2026-09-17 smoke run were told to send the manual
+  "to a file under your session scratchpad" with no naming rule, and wrote a single
+  `manual.txt`, `report.txt`, `board.json` and `loi.txt` between them. It surfaced as
+  a FALSE DEFECT REPORT, which is how it cost twice: red-lens-logic diffed what it took
+  to be its own earlier manual, found a banner naming red-lens-voice, and filed a tool
+  defect against a tool that was correct. The read side is the part that is not
+  cosmetic — those files are re-read INSTEAD of re-running a projection, so a seat can
+  read another seat's board and act on it as its own.
+- **Sweep question**: who ELSE writes to this location, and does the NAME say which
+  writer? Where the answer is "the instruction does not say", assume they collide.
+- **Neighbour**: `adjacent-seat-omission` — there a duty is fixed at one seat and its
+  siblings are left behind.
+- **Distinguisher**: did the fix reach every seat? If some seats carry the new duty and
+  others do not, that is adjacent-seat-omission. If EVERY seat follows the same
+  instruction correctly and they still destroy each other's output, it is this.
+
 ## Minting a new class
 
 Same discipline as the gap registry: a new class needs a slug, a one-line

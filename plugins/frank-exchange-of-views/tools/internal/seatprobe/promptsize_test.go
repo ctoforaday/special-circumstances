@@ -57,11 +57,23 @@ import (
 // run's cache, landed under the 11,700 ceiling on main; with the last-sitting clause beside them the
 // lens measured 12,166 (+320 over the lens bar's 11,846). The two are separate duties, both the JOB;
 // the ceiling moved to 12,300.
+// Raised 2026-09-18 for the shared scratchpad: the manual instruction every seat reads now names
+// the file with the seat's own id and says why — the seats of a run share ONE scratchpad, so an
+// unseated name is a name another seat is also writing. Measured on the 2026-09-17 smoke run,
+// where nine seats wrote one manual.txt, one report.txt and one board.json between them; a lens
+// diffed what it took to be its own earlier manual, found another seat's banner, and filed a tool
+// defect against a tool that was correct. The read side is the cost that is not cosmetic: these
+// files are re-read INSTEAD of re-running a projection, so a seat can read another seat's board.
+//
+// It is the JOB by this comment's own test — it teaches no verb, flag, refusal or rendering, it
+// states the discipline and the property of the environment the discipline follows from. The
+// instruction is shared by every seat, so every prompt pays it; only the judge had less than 39
+// characters of headroom. 7,800 -> 7,850, the ratchet kept tight rather than +10%.
 var ceilings = map[string]int{
 	"blue-respond":      15200,
 	"red-chair":         10200,
 	"red-lens-evidence": 12300,
-	"judge":             7800,
+	"judge":             7850,
 }
 
 func TestNoSeatPromptGrowsPastItsCeiling(t *testing.T) {

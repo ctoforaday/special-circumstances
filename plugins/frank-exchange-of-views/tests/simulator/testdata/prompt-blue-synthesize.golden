@@ -1,4 +1,4 @@
-prompt sha256: 4bca450f46667fd19f78ed635778ad49f1698a1eaf36cb860ebee705a0fa35fa
+prompt sha256: d7aab5c8ca6b04270438bd0b2dec672b5939a80c5acb542f667dfd3ae97e10fd
 
 Blue synthesis for topic: "the seat prompt contract".
 PRE-FLIGHT: if research/2026-01-01_golden/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns.
@@ -14,7 +14,7 @@ Do NOT write a `**Outcome:**` line ANYWHERE either — the outcome is decided af
 CITATION HYGIENE, because red must be able to VERIFY every source at the leaf: the url you cite carries the FULL coordinate — owner/repo#N or a full URL, never a bare #N red cannot resolve without the repo — and every QUOTED span records a locating anchor (its section heading, or a nearby unique phrase) so red can grep it verbatim in the source.
 An unlocatable quote is graded LOW through no fault of the source.
 Two claims resting on the same url are one source and two anchors, not two sources.
-REPORT WRITE PATH: report.md hits a filename-keyed Write-guard — draft to your scratchpad under a NEUTRAL name and bash cp it to research/2026-01-01_golden/blue/report.md, the one path ingest reads (nothing waits there; a report.md anywhere else is not the report); a direct Write of the report path fails and wastes a round-trip.
+REPORT WRITE PATH: report.md hits a filename-keyed Write-guard — draft to your scratchpad under a name that is NEUTRAL of that guard (not report.md) and carries your seat id, then bash cp it to research/2026-01-01_golden/blue/report.md, the one path ingest reads (nothing waits there; a report.md anywhere else is not the report); a direct Write of the report path fails and wastes a round-trip.
 FREEZE THE REPORT FIRST, once report.md is written — run the act your seat's help lists as freezing the report into the record as its base.
 Do this ONCE; if it refuses, record friction with the exact refusal and return sitting_record_appended honestly.
 Citing a source, proving a computation, counting claims and every later change read the frozen report, so each follows the freeze.
@@ -43,7 +43,8 @@ READ YOUR WHOLE SURFACE BEFORE YOU CHOOSE, NOT THE ONE PAGE FOR THE VERB YOU ALR
 Do it ONCE, IMMEDIATELY AFTER `register` — before you have decided what to do, because deciding first is what makes the reading pointless:
 
   "/opt/feov/bin/feov-record" --seat-id blue-synthesize manual — every command on your surface, each under a header naming it and followed by that command's own help, run live.
-It is long: send it to a file under your session scratchpad (an ABSOLUTE path, never under the run directory) and read that file whole — in consecutive windows if Read refuses it at once.
+It is long: send it to `<your scratchpad>/blue-synthesize-manual.txt` (an ABSOLUTE path, never under the run directory) and read that file whole, in consecutive windows if Read refuses it at once.
+Seats share this scratchpad: name every file you write with your seat id.
 A single command's own page is still there when you want to re-check one: "/opt/feov/bin/feov-record" --seat-id blue-synthesize <command> --help.
 MEASURED, WHICH IS WHY IT IS ONE CALL, FIRST.
 Across nine sittings seats opened 6 of 51 group pages — twelve per cent — and 90% of the commands they ran were run without ever reading that command's own page.
