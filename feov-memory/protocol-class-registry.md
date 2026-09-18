@@ -234,6 +234,23 @@ discounts every other rule in it.
   defect is one rule aimed at the wrong altitude, it is invariant-at-wrong-level.
   If two rules collide, it is this.
 
+### contract-changed-caller-unchanged
+A verb's CALLING CONTRACT gains a requirement — an identity, a flag, an order —
+and the surfaces that script that verb keep the old call, so the instruction they
+give is refused at the door. The runtime is the right one and the arguments are
+the old ones; what moved is what the verb demands before it will answer.
+- **Instance**: `#1019`-era `skills/research/SKILL.md` scripted
+  `feov-record setup <run> --topic ...` after b0a2797e made identity select the
+  surface. A lead running it verbatim gets an EMPTY command tree — `setup` is not
+  on it to mistype — and must know to add `--seat-id operator`. All three commands
+  the skill gave (setup, capture, the dashboard watcher) carried the omission,
+  and `seatenv/identity.go` still said the empty id "builds the operator tree".
+- **Sweep question**: which other surfaces script this verb, and does each call
+  satisfy the requirement the contract gained — including the comments that
+  describe the old behaviour?
+- **Neighbour**: `port-retarget` — there the RUNTIME moved and the caller names
+  the old one; here the runtime is right and demands more than the caller gives.
+
 ### port-retarget
 A caller still invokes the runtime a port has replaced — a spawn/invocation site
 names the old script while the new implementation is the contract — so the pointer

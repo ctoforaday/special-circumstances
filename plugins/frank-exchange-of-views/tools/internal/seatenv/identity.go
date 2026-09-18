@@ -158,8 +158,10 @@ func ResolveSeat(flagSeatID string, bound func() (string, error)) (Seat, error) 
 // The RECORD is the real channel: the hook injects an agent handle, `register` binds it, and bound
 // resolves the pair. The os.Args scan is for the bootstrap call and for a human or test driving the
 // binary by hand with --seat-id; it is a bounded read of two spellings and is not a second flag
-// parser. Anything it cannot find yields "", which builds the operator tree — the honest answer for
-// a process with no seat.
+// parser. Anything it cannot find yields "", and "" builds the NO-SEAT tree: the operator's verbs
+// are reached by saying so — `--seat-id operator` — not by saying nothing. The refusal names both
+// ways to identify yourself, because a process with no seat is not an operator by default; it is
+// unidentified, and the surface is scoped to whoever is asking.
 // THE FLAG WINS HERE, AND THE BINDING WINS AT EXECUTION. They answer different questions.
 //
 // Tree selection asks WHICH SURFACE AM I LOOKING AT; execution asks WHO IS ACTING. Letting the
