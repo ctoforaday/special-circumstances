@@ -94,6 +94,15 @@
       ]
     },
     {
+      "term": "sitting-record repair",
+      "definition": "A sitting-record repair is a sitting that puts on the record what your last sitting owed and did not file, and everything it records counts as that sitting's.",
+      "seats": ["blue"],
+      "bans": [],
+      "collisions": [
+        {"word": "repair", "resolution": "blue REPAIRS the report by editing it to answer a gap, and files a manifest row for each; a SITTING-RECORD repair files what a sitting of blue's own owed. The first is about the report, the second about the record"}
+      ]
+    },
+    {
       "term": "exchange",
       "definition": "An exchange is a red sitting followed by a blue sitting on one gap, and k-max counts them.",
       "seats": ["lens", "chair", "blue", "bench", "operator"],

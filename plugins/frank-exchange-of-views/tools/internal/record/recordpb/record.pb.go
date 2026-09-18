@@ -5816,9 +5816,25 @@ type Register struct {
 	//
 	// ABSENT IS NOT "": a run whose hook never fired carries no attestation on any register event,
 	// and that stays legible as NOT MEASURED rather than as an agent configured as nothing.
-	AgentType     *string `protobuf:"bytes,6,opt,name=agent_type,json=agentType,proto3,oneof" json:"agent_type,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	AgentType *string `protobuf:"bytes,6,opt,name=agent_type,json=agentType,proto3,oneof" json:"agent_type,omitempty"`
+	// THE SITTING THIS REGISTER REPAIRS: the key of the register that opened it.
+	//
+	// The engine re-prompts a seat whose sitting did not put its record on the record (the
+	// sitting-record repair). The re-prompted agent registers again, and a register opens a sitting —
+	// so the repair turn's position and revision belonged to no sitting, and a parity audit could
+	// fail the very sitting whose repair filed them. Under the shipped Workflow engine the first
+	// agent's stop has already closed that sitting when the re-prompt runs, so nothing in the stream
+	// joins the two.
+	//
+	// A FIELD, WRITTEN AT THE REGISTER AND REFUSABLE THERE. The seat asserts it is repairing; the
+	// write names its latest sitting and refuses one that is not this seat's, is not its latest, was
+	// dispatched past, or owes nothing. Readers attribute the repair's acts to the sitting named
+	// here, never by inferring the join from dispatch rows, which are the chair's writes.
+	//
+	// ABSENT is a register that opens a sitting of its own.
+	RepairsSitting *string `protobuf:"bytes,8,opt,name=repairs_sitting,json=repairsSitting,proto3,oneof" json:"repairs_sitting,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Register) Reset() {
@@ -5882,6 +5898,13 @@ func (x *Register) GetRunVia() string {
 func (x *Register) GetAgentType() string {
 	if x != nil && x.AgentType != nil {
 		return *x.AgentType
+	}
+	return ""
+}
+
+func (x *Register) GetRepairsSitting() string {
+	if x != nil && x.RepairsSitting != nil {
+		return *x.RepairsSitting
 	}
 	return ""
 }
@@ -7390,20 +7413,22 @@ const file_record_proto_rawDesc = "" +
 	"_motion_idB\n" +
 	"\n" +
 	"\b_subjectB\t\n" +
-	"\a_reason\"\xb1\x02\n" +
+	"\a_reason\"\xf3\x02\n" +
 	"\bRegister\x12&\n" +
 	"\ftool_version\x18\x01 \x01(\tH\x00R\vtoolVersion\x88\x01\x01\x12&\n" +
 	"\fhook_version\x18\a \x01(\tH\x01R\vhookVersion\x88\x01\x01\x12\x1e\n" +
 	"\bagent_id\x18\x02 \x01(\tH\x02R\aagentId\x88\x01\x01\x12\x1c\n" +
 	"\arun_via\x18\x03 \x01(\tH\x03R\x06runVia\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"agent_type\x18\x06 \x01(\tH\x04R\tagentType\x88\x01\x01B\x0f\n" +
+	"agent_type\x18\x06 \x01(\tH\x04R\tagentType\x88\x01\x01\x12,\n" +
+	"\x0frepairs_sitting\x18\b \x01(\tH\x05R\x0erepairsSitting\x88\x01\x01B\x0f\n" +
 	"\r_tool_versionB\x0f\n" +
 	"\r_hook_versionB\v\n" +
 	"\t_agent_idB\n" +
 	"\n" +
 	"\b_run_viaB\r\n" +
-	"\v_agent_typeJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\fserved_modelR\x0frequested_model\"m\n" +
+	"\v_agent_typeB\x12\n" +
+	"\x10_repairs_sittingJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\fserved_modelR\x0frequested_model\"m\n" +
 	"\vSittingOpen\x12\x1e\n" +
 	"\bagent_id\x18\x01 \x01(\tH\x00R\aagentId\x88\x01\x01\x12\"\n" +
 	"\n" +

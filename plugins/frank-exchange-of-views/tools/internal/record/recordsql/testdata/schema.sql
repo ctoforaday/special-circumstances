@@ -293,7 +293,8 @@ CREATE TABLE "register" (
   "hook_version" TEXT,
   "agent_id" TEXT,
   "run_via" TEXT,
-  "agent_type" TEXT
+  "agent_type" TEXT,
+  "repairs_sitting" TEXT
 ) STRICT;
 
 CREATE TABLE "gate" (

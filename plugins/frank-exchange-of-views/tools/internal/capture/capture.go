@@ -758,45 +758,50 @@ func StrayRecordsAudit(repoRoot, runDir string) Audit {
 //
 // THE REVISION IS COUNTED FROM `revision` EVENTS, never from a hand-authored file: a run once
 // carried a 6,847-byte CHANGELOG and one revision event, from one of three eligible seats (#268).
+//
+// THE SITTINGS ARE READ AFTER THE RUN (record.AfterTheRun). Capture reads a finished run, so no
+// sitting is still in flight and the end of the record closes every sitting nothing else closed: a
+// last sitting that filed no revision before the run ended filed none. B9's last blue sitting,
+// engaged on G4 still open, filed no revision, and its headless agent left no stop to close it.
+//
+// A SITTING READ AS UNRESOLVED IS NEVER JUDGED. Its missing act may belong to a sitting still in
+// flight, so it is NOT MEASURED, never a finding: with no closed sitting short, the audit is SKIP
+// and names it, and a FAIL names it too. Read after the run, no sitting is unresolved.
 func RecordParityAudit(run record.Run) Audit {
 	fam, err := record.FamilyOf(run)
 	if err != nil {
 		return Audit{Check: "record-parity", Verdict: "FAIL", Detail: "the record could not be read: " + err.Error()}
 	}
-	sittings := record.BlueSittings(fam.Events)
+	sittings := record.BlueSittings(fam.Events, record.AfterTheRun)
 	if len(sittings) == 0 {
 		return Audit{Check: "record-parity", Verdict: "SKIP", Detail: "no blue sitting for a dispatch on record"}
 	}
 	owed := 0
-	var short []string
+	var short, unmeasured []string
 	for k, s := range sittings {
 		if len(s.Open) == 0 {
 			continue
 		}
 		owed++
-		var position, revision bool
-		for _, e := range s.Acts {
-			switch e.GetType() {
-			case recordpb.EventType_EVENT_TYPE_POSITION:
-				position = true
-			case recordpb.EventType_EVENT_TYPE_REVISION:
-				revision = true
-			}
-		}
 		var missing []string
-		if !position {
-			missing = append(missing, "no position")
+		for _, typ := range s.Owes() {
+			missing = append(missing, "no "+recordpb.Word(typ))
 		}
-		if !revision {
-			missing = append(missing, "no revision")
-		}
-		if len(missing) > 0 {
+		switch {
+		case len(missing) == 0:
+		case s.Unresolved:
+			unmeasured = append(unmeasured, fmt.Sprintf("blue sitting %d, engaged on %s still open when it sat, shows %s so far — NOT MEASURED: the record cannot close it (blue has not registered since and its agent's stop is not on the record)",
+				k+1, strings.Join(s.Open, ", "), strings.Join(missing, " and ")))
+		default:
 			short = append(short, fmt.Sprintf("blue sitting %d, engaged on %s still open when it sat, filed %s",
 				k+1, strings.Join(s.Open, ", "), strings.Join(missing, " and ")))
 		}
 	}
 	if len(short) > 0 {
-		return Audit{Check: "record-parity", Verdict: "FAIL", Detail: strings.Join(short, "; ")}
+		return Audit{Check: "record-parity", Verdict: "FAIL", Detail: strings.Join(append(short, unmeasured...), "; ")}
+	}
+	if len(unmeasured) > 0 {
+		return Audit{Check: "record-parity", Verdict: "SKIP", Detail: strings.Join(unmeasured, "; ")}
 	}
 	return Audit{Check: "record-parity", Verdict: "PASS",
 		Detail: fmt.Sprintf("%d blue sitting(s) for a dispatch: %d owed an answer and each carries a position and a revision; %d found every gap it was engaged on closed first",
@@ -1579,7 +1584,7 @@ func WriteScorecards(run record.Run, results []map[string]any, memoryDir string,
 	if _, err := os.Stat(memoryDir); err != nil {
 		return ScorecardResult{Written: false, Reason: fmt.Sprintf("no %s — scorecards need the tracked memory dir", memoryDir)}
 	}
-	cards := scorecard.Compute(run, results, fam)
+	cards := scorecard.Compute(run, results, fam, record.AfterTheRun)
 	label := labelOf(run)
 	rows := 0
 	written := 0

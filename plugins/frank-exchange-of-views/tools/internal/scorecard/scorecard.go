@@ -300,7 +300,7 @@ func BucketFindingsByRole(findings []record.FindingJSON) (objJSON, bool) {
 
 // ---- row builders ----
 
-func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.TelemetryLine, fam *record.Family) []Row {
+func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.TelemetryLine, fam *record.Family, when record.ReadWhen) []Row {
 	var rows []Row
 
 	// repair_regression_ratio
@@ -344,7 +344,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	// no row and is not counted against blue.
 	manifested := 0
 	manifestedGaps := map[string]bool{}
-	var owed []string
+	var owing record.ManifestOwing
 	if fam != nil {
 		for _, e := range fam.Live() {
 			// COUNTED BY EVENT TYPE, not by a readable body. `manifested` is the value this row
@@ -359,8 +359,9 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 				manifestedGaps[mr.GetGapId()] = true
 			}
 		}
-		owed = record.ManifestOwed(fam.Events)
+		owing = record.ManifestOwed(fam.Events, when)
 	}
+	owed := owing.Gaps
 	switch {
 	case fam == nil:
 		// A record that could not be read has no count to fall back to: a 0 here would read as
@@ -374,13 +375,22 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 				missing = append(missing, g)
 			}
 		}
-		note := ""
+		var notes []string
 		if len(missing) > 0 {
-			note = fmt.Sprintf("%d of %d owed gap(s) carry no row: %s", len(missing), len(owed), strings.Join(missing, ", "))
+			notes = append(notes, fmt.Sprintf("%d of %d owed gap(s) carry no row: %s", len(missing), len(owed), strings.Join(missing, ", ")))
 		}
+		if nm := owing.NotMeasured(); nm != "" {
+			notes = append(notes, nm)
+		}
+		note := strings.Join(notes, "; ")
 		rows = append(rows, Row{Clause: "Correctness manifest", Metric: "manifest_coverage", Cls: "benchmark",
 			Value: float64(len(owed)-len(missing)) / float64(len(owed)), Note: note,
 			Joint: "manifest-row EVENTS over OWED gaps — repaired by blue's edit in a sitting that found them open; distinct gaps, so two rows on one gap is not coverage of two"})
+	case owing.Unresolved > 0:
+		// NOT "NO GAP WAS OWED". The sittings the record closes owed nothing, and one it cannot close
+		// may still owe — the count stands, and the note says the denominator is not measured.
+		rows = append(rows, Row{Clause: "Correctness manifest", Metric: "manifest_coverage", Cls: "benchmark",
+			Value: manifested, Note: "no gap is owed a row as far as the record reaches, and " + owing.NotMeasured() + " — so this is a COUNT of manifest-row events, not a ratio"})
 	default:
 		rows = append(rows, Row{Clause: "Correctness manifest", Metric: "manifest_coverage", Cls: "benchmark",
 			Value: manifested, Note: "no gap was owed a row — blue repaired no gap it was dispatched onto while that gap was open — so this is a COUNT of manifest-row events, not a ratio"})
@@ -412,21 +422,28 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	// 8 of 9 in the other, so one seat in each run never did and nothing noticed.
 	//
 	// A SITTING is the unit, because the duty is per sitting: a seat that sat four times and filed
-	// one entry discharged it once. The sitting ordinal is the record's (events_w), so this counts
-	// registers as the denominator and the distinct (seat, sitting) pairs that carry a log entry
-	// as the numerator — never the raw entry count, which two entries in one sitting would inflate.
+	// one entry discharged it once. So this counts sittings as the denominator and the distinct
+	// (seat, sitting) pairs that carry a log entry as the numerator — never the raw entry count,
+	// which two entries in one sitting would inflate.
+	//
+	// THIS METRIC ATTRIBUTES, so it reads record.ActClock: every bucket here is a sitting acts are
+	// filed INTO, and a sitting-record repair's acts are the repaired sitting's. A repair therefore
+	// opens no bucket — it re-names the one it repairs — and the log entry it files discharges that
+	// sitting's duty. Bucketing by the turn count instead would leave the repaired sitting scored
+	// as having closed nothing while charging the repair for a duty no act of its own can discharge:
+	// two false findings from one repair, on the detector built to catch a real one.
 	if fam != nil {
 		sat := map[string]bool{}
 		closed := map[string]bool{}
-		seen := map[string]int{}
+		var clk record.ActClock
 		for _, e := range fam.Live() {
-			seat := e.GetSeatId()
+			w := clk.Advance(e)
+			key := fmt.Sprintf("%s#%d", e.GetSeatId(), w.Sitting)
 			switch e.GetType() {
 			case recordpb.EventType_EVENT_TYPE_REGISTER:
-				seen[seat]++
-				sat[fmt.Sprintf("%s#%d", seat, seen[seat])] = true
+				sat[key] = true
 			case recordpb.EventType_EVENT_TYPE_LOG:
-				closed[fmt.Sprintf("%s#%d", seat, seen[seat])] = true
+				closed[key] = true
 			}
 		}
 		if len(sat) > 0 {
@@ -833,11 +850,13 @@ func benchRows(results []map[string]any, fam *record.Family) []Row {
 var Cards = []string{"red", "blue", "bench"}
 
 // Compute assembles all three cards. fam may be nil (the record could not be read → record rows
-// "needs the tool"); telemetry is read from runDir; results are the journal envelopes.
-func Compute(run record.Run, results []map[string]any, fam *record.Family) map[string][]Row {
+// "needs the tool"); telemetry is read from runDir; results are the journal envelopes. when is the
+// caller's: capture scores a finished run after it ends, and the dashboard, a seat's own scorecard
+// and the operator's `scorecard` read a run that may still be sitting.
+func Compute(run record.Run, results []map[string]any, fam *record.Family, when record.ReadWhen) map[string][]Row {
 	telemetry := ReadTelemetry(run)
 	return map[string][]Row{
-		"blue":  append(blueRows(run, results, telemetry, fam), correctionsRow(fam, "blue")),
+		"blue":  append(blueRows(run, results, telemetry, fam, when), correctionsRow(fam, "blue")),
 		"red":   append(redRows(run, results, telemetry, fam), correctionsRow(fam, "chair", "lens")),
 		"bench": append(benchRows(results, fam), correctionsRow(fam, "bench")),
 	}

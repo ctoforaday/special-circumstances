@@ -124,6 +124,11 @@ const (
 	As   = "as"
 	None = "none"
 
+	// RepairSitting makes a register the repair of the seat's latest sitting rather than a sitting
+	// of its own. A BOOL, NOT A KEY: the seat says it is repairing, and the tool names which sitting
+	// — its latest — so the seat has nothing to look up and nothing to get wrong.
+	RepairSitting = "repair-sitting"
+
 	// ExpectError says a proof's subject IS a failing command, so `blue prove` records the
 	// environment error rather than refusing it. Without it, an error signature in a proof's
 	// output is a refusal: two proofs shipped as evidence in the 2026-08-23 plan run had run
@@ -308,7 +313,7 @@ func All() []string {
 		Reason,
 		ID, IDs, Areas, Key, Corrects, CorrectionWhy, Quote, New, Answers, Accept, URL, Title, Format, Window,
 		Sitting, Trajectory,
-		As, None, Confidence,
+		As, None, RepairSitting, Confidence,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class, Definition, Neighbor, Distinguisher, MaterialDefault,
 		Problem, Fix, Check, CheckKind, Type, SourceText, OCRQuote, Page, Via, At, About, AboutKind, Hypothesis, Script, Cites, ExpectError,

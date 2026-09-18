@@ -769,6 +769,21 @@ func blueSatOn(t *testing.T, engaged []string, repaired ...string) []*record.Eve
 	return evs
 }
 
+// THE REPORT NEVER SAYS NOT MEASURED (#1002, ruling 3). blueSatOn's sitting has neither a later
+// register nor a stop, so a reader while the run runs cannot close it — and whether a sitting could
+// be closed is the process's state, which the scorecard carries. The report's section renders what
+// blue owed and receipted, and nothing about the reading.
+func TestTheManifestSectionCarriesNoNotMeasuredLine(t *testing.T) {
+	g := &record.Gap{ID: "G1"}
+	withEdit := correctnessManifest((&boardT{GapOrder: []string{"G1"}, Gaps: map[string]*record.Gap{"G1": g}, Events: blueSatOn(t, []string{"G1"}, "G1")}).fam())
+	if !strings.Contains(withEdit, "**1 repaired gap(s) carry no manifest row (G1).**") || strings.Contains(withEdit, "NOT MEASURED") {
+		t.Errorf("an unreceipted repair in a sitting nothing closed renders its line and no not-measured line:\n%s", withEdit)
+	}
+	if got := correctnessManifest((&boardT{GapOrder: []string{"G1"}, Gaps: map[string]*record.Gap{"G1": g}, Events: blueSatOn(t, []string{"G1"})}).fam()); got != "" {
+		t.Errorf("a sitting nothing closed that owed no row renders no section, got:\n%s", got)
+	}
+}
+
 // A GAP BLUE REBUTTED IS NOT AN UNAUDITED REPAIR. The constitutions owe one row per REPAIRED gap;
 // a gap blue argued against without an edit answering it was not repaired, whatever later closed it.
 func TestARebuttedGapIsNotChargedAsAnUnauditedRepair(t *testing.T) {

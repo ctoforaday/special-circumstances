@@ -18,6 +18,7 @@ func Entries() Registry {
 		"friction_none": {Translate: frictionNoneEntry},
 		"opinion":       {Translate: opinionEntry},
 		"cite":          {Translate: citeEntry},
+		"register":      {Translate: registerEntry},
 	}
 	for w, e := range eraEntries() {
 		reg[w] = e
@@ -82,6 +83,31 @@ func citeEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 		c.SourceTextOrigin = recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NOT_RECORDED.Enum()
 	}
 	return []proto.Message{c}, nil
+}
+
+// registerEntry: a register is kept word for word and opens a sitting of its own. An epoch-7
+// register table holds event_id, tool_version, hook_version, agent_id, run_via and agent_type, so
+// no archived register can say it repairs a sitting; inferring a repair from the stream would put a
+// claim on the record no seat made and no writer checked.
+//
+// A ROW THAT CARRIES THE COLUMN IS REFUSED, NOT REWRITTEN. Dropping the value silently is the move
+// that reads identically whether the source was an honest epoch-7 run or a record claiming a field
+// its epoch could not hold — and a translation that cannot fail on any real row is a comment. The
+// refusal names what it found, which is how this repository turns away data by its content.
+func registerEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
+	if v, ok := old.Fields["repairs_sitting"]; ok {
+		return nil, fmt.Errorf("migrate: register %s carries repairs_sitting (%v), which no run before epoch 8 could record — "+
+			"this row did not come from the epoch this step reads, and translating it would put a repair on the record no writer checked", old.Key, v)
+	}
+	body, err := identityBody(old)
+	if err != nil {
+		return nil, err
+	}
+	r, ok := body.(*recordpb.Register)
+	if !ok {
+		return nil, fmt.Errorf("migrate: register translated to %T, not a Register", body)
+	}
+	return []proto.Message{r}, nil
 }
 
 // frictionNoneEntry: the explicit empty form became the POSITIVE nominal entry — "none" is

@@ -27,7 +27,7 @@ func TestEveryCardCountsItsSeatsCorrections(t *testing.T) {
 		correctionBy(t, "red-lens-evidence", "red-lens-evidence:regrade:#1:G1"),
 		correctionBy(t, "judge", "judge:outcome:#1"),
 	})
-	cards := Compute(record.Run{}, nil, fam)
+	cards := Compute(record.Run{}, nil, fam, record.WhileRunning)
 	for card, want := range map[string]map[string]int{
 		"blue":  {"blue-respond": 2},
 		"red":   {"red-chair": 1, "red-lens-evidence": 1},
@@ -51,7 +51,7 @@ func TestEveryCardCountsItsSeatsCorrections(t *testing.T) {
 		}
 	}
 
-	for card, rows := range Compute(record.Run{}, nil, nil) {
+	for card, rows := range Compute(record.Run{}, nil, nil, record.WhileRunning) {
 		r := rowByMetric(rows, "corrections")
 		if r == nil || r.Value != nil || !strings.Contains(r.Note, "not measured") {
 			t.Errorf("an unreadable record must leave the %s card's corrections not measured, got %+v", card, r)
@@ -59,7 +59,7 @@ func TestEveryCardCountsItsSeatsCorrections(t *testing.T) {
 	}
 
 	none := famOfEventsT([]*record.Event{recordtest.Event(t, "blue-respond", &recordpb.Register{})})
-	if r := rowByMetric(Compute(record.Run{}, nil, none)["blue"], "corrections"); r == nil || r.Value != objJSON("{}") {
+	if r := rowByMetric(Compute(record.Run{}, nil, none, record.WhileRunning)["blue"], "corrections"); r == nil || r.Value != objJSON("{}") {
 		t.Errorf("a readable record with no correction is measured and none: %+v", r)
 	}
 }

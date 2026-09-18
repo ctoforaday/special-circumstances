@@ -44,6 +44,9 @@ var needles = []struct {
 	{"Blue lane", "blue-lane"},
 	{"frontier hypotheses", "frontier"},
 	{"Final assembly", "assemble"},
+	// The sitting-record repair (ensureSittingRecord) re-prompts the seat it names, at that seat's tier.
+	{"Sitting-record repair for blue-respond", "blue-respond"},
+	{"Sitting-record repair for blue-synthesize", "blue-synthesize"},
 	// The heads the epoch-shaped engine wrote, kept for the archive.
 	{"Red audit, round", "red-lens"},
 	{"Red chair, round", "red-chair"},

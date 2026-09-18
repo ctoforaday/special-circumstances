@@ -167,7 +167,7 @@ func scorecardSection(run record.Run) string {
 	if f, err := record.FamilyOf(run); err == nil {
 		fam = &f
 	}
-	cards := scorecard.Compute(run, scorecard.ReadResults(run), fam)
+	cards := scorecard.Compute(run, scorecard.ReadResults(run), fam, record.WhileRunning)
 	names := make([]string, 0, len(cards))
 	for c := range cards {
 		names = append(names, c)
@@ -192,9 +192,17 @@ func scorecardSection(run record.Run) string {
 			case r.Cls == "diagnostic":
 				style = "opacity:.65"
 			}
+			// THE NOTE RIDES WITH THE NUMBER, as it does on the markdown card. Shown only when the
+			// value was missing, a row whose note says the number is a FLOOR printed the floor
+			// alone: manifest_coverage rendering a bare 0 for a sitting the record cannot close,
+			// on the one page that exists to be read WHILE that sitting may still be running. A
+			// live view that folds "not measured" into a number is the plausible zero, in HTML.
 			shown := val
-			if shown == "" {
+			switch {
+			case shown == "":
 				shown = r.Note
+			case r.Note != "":
+				shown += " (" + r.Note + ")"
 			}
 			if shown == "" {
 				shown = "not computed"

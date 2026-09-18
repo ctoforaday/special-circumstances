@@ -39,6 +39,47 @@ func (c *Clock) Advance(e *Event) recordsql.Window {
 	return recordsql.Window{Epoch: c.epoch, Sitting: c.sittings[e.GetSeatId()]}
 }
 
+// ActClock is the OTHER half of the ruling, and the two halves are a pair: Clock COUNTS TURNS, and
+// ActClock says WHICH SITTING AN ACT BELONGS TO. A sitting-record repair is a sitting — the seat was
+// handed a prompt — so Clock counts it, and its tool-call cap, its dispatch number and the events_w
+// ordinal are its own. But a repair exists to complete the record ANOTHER sitting owes, so its acts
+// are that sitting's, and every reader that attributes an act to a sitting reads them here.
+//
+// A REPAIR REGISTER OPENS NONE, which is the whole difference: this counts only the registers that
+// open a sitting (repairs_sitting absent), so a repair and everything after it carries the number of
+// the sitting it repairs. That is exact rather than approximate — a repair may name only its seat's
+// LATEST sitting (checkRepair), so the sitting it completes is always the one this counter is on.
+// It is the same set of registers dispatchLedger opens a sitting from, so the number a reader
+// renders and the span sittingCloser bounds cannot disagree about which sittings exist.
+//
+// THE EPOCH IS THE SAME NUMBER, and by construction, not by luck: only a blue seat may repair
+// (checkRepair refuses every other role), and the epoch counts red-chair's registers. So a caller
+// that wants the epoch may read it off either clock, and TestTheTwoClocksDifferOnlyOnARepairsSeat
+// holds that.
+//
+// Advance once per event, in order, exactly as Clock's contract says. A REGISTER WHOSE BODY DID NOT
+// DECODE OPENS A SITTING: the repair is a claim the body carries, so a register that cannot be read
+// has not claimed one, and counting it as a turn is the degradation that invents nothing — the
+// alternative folds two sittings into one and reads exactly like a record with one fewer.
+type ActClock struct {
+	epoch    int
+	sittings map[string]int
+}
+
+// Advance folds one event in and returns the window its acts belong to.
+func (c *ActClock) Advance(e *Event) recordsql.Window {
+	if b, ok := recordpb.BodyAs[*recordpb.Register](e); e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER && (!ok || b.RepairsSitting == nil) {
+		if c.sittings == nil {
+			c.sittings = map[string]int{}
+		}
+		c.sittings[e.GetSeatId()]++
+		if e.GetSeatId() == "red-chair" {
+			c.epoch++
+		}
+	}
+	return recordsql.Window{Epoch: c.epoch, Sitting: c.sittings[e.GetSeatId()]}
+}
+
 // CurrentEpochOf is the epoch the debate's work has reached: the epoch of the last event that
 // is not a register. A chair that has just sat opens a new epoch on the record, but until
 // something is done in it the current one is still the last with work in it — which is what

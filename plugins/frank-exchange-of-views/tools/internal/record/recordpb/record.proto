@@ -1777,6 +1777,23 @@ message Register {
   // ABSENT IS NOT "": a run whose hook never fired carries no attestation on any register event,
   // and that stays legible as NOT MEASURED rather than as an agent configured as nothing.
   optional string agent_type = 6;
+
+  // THE SITTING THIS REGISTER REPAIRS: the key of the register that opened it.
+  //
+  // The engine re-prompts a seat whose sitting did not put its record on the record (the
+  // sitting-record repair). The re-prompted agent registers again, and a register opens a sitting —
+  // so the repair turn's position and revision belonged to no sitting, and a parity audit could
+  // fail the very sitting whose repair filed them. Under the shipped Workflow engine the first
+  // agent's stop has already closed that sitting when the re-prompt runs, so nothing in the stream
+  // joins the two.
+  //
+  // A FIELD, WRITTEN AT THE REGISTER AND REFUSABLE THERE. The seat asserts it is repairing; the
+  // write names its latest sitting and refuses one that is not this seat's, is not its latest, was
+  // dispatched past, or owes nothing. Readers attribute the repair's acts to the sitting named
+  // here, never by inferring the join from dispatch rows, which are the chair's writes.
+  //
+  // ABSENT is a register that opens a sitting of its own.
+  optional string repairs_sitting = 8;
 }
 
 // SittingOpen and SittingClose are the two ends of ONE DISPATCH of one harness agent, each

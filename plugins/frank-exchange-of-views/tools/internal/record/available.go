@@ -72,7 +72,11 @@ func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item 
 		// A repair with no receipt is one nobody audited, including its author. THE PREDICATE IS
 		// ManifestOwed, the one the report and the scorecard read: a gap blue was dispatched onto,
 		// open when it sat, and answered by its edit that sitting.
-		for _, id := range ManifestUnreceipted(evs) {
+		//
+		// NO NOT-MEASURED LINE HERE. A later register closes every earlier blue sitting, so the only
+		// sitting the record can leave unresolved is the latest — and while this list is read, that
+		// is the sitting reading it. Its unreceipted edits are the receipts it can still file.
+		for _, id := range ManifestUnreceipted(evs, WhileRunning).Gaps {
 			add("gap " + id + " was answered by an edit and carries no manifest row — the report names a gap YOU repaired that carries no row as a repair nobody audited, including its author")
 		}
 	case "chair":

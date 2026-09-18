@@ -1,0 +1,11 @@
+prompt sha256: 930ec04cce31360732cdc9da62079ff677c36a3ee36acc4fed4278a718749fd2
+
+Sitting-record repair for blue-synthesize.
+Your last sitting did not attest what it put on the record, so the run cannot yet show your sitting-record event (the revision verb) stating the synthesis and its claim_count.
+Put it on the record NOW — nothing else.
+REGISTER AS THE REPAIR OF YOUR LAST SITTING: your register's help names how, and what you then put on the record counts as that sitting's rather than this one's.
+If that register is refused AND THE REFUSAL SAYS THAT SITTING OWES NOTHING, there is nothing to file — register without repairing, quote the refusal in the log, and return the attestation the record supports.
+A refusal that says anything else is a failure to report and not a finding: quote it in the log and return sitting_record_appended false. your sitting-record event (the revision verb) stating the synthesis and its claim_count.
+Do NOT re-do your substantive work and do NOT edit the report again; this turn exists only to close the parity gap.
+If you genuinely cannot (the duty does not apply, or a tool refuses you), say in the log exactly why, and return sitting_record_appended false with a one-line note.
+Return the attestation.
