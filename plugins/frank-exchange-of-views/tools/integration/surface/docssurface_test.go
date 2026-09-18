@@ -15,7 +15,7 @@ import (
 //
 // Three sweeps cover the ways a retired command name reaches a reader, and until now they covered
 // two: TestNoStringLiteralNamesARetiredSurface walks Go string literals — text a program EMITS at a
-// seat — and the prompt gates walk skills/, agents/ and commands/. The root README and docs/ sit
+// seat — and the prompt gates walk skills/ and agents/. The root README and docs/ sit
 // outside both.
 //
 // MEASURED 2026-08-22. README.md:67 described the projections as rendered on read "(`show --view

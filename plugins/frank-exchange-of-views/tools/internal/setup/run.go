@@ -149,7 +149,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	//
 	// It used to be armed by INTENT (`!pre.OK && cfg.BinDir != ""`), and `--bin-dir` was never
 	// passed on the documented launch — `grep -rn "bin-dir"` across the plugin returned
-	// nothing. So the guarantee `commands/research.md` states ("setup preflights the binary's
+	// nothing. So the guarantee `skills/research/SKILL.md` states ("setup preflights the binary's
 	// version before the run exists, so a missing or skewed one fails there rather than
 	// mid-round") was false: the real path printed a WARNING and proceeded, and the 2026-08-05
 	// smoke's first setup did exactly that. A run would then take the legacy prompt set,
@@ -220,7 +220,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	// --memory-dir ADDS a source; it does NOT replace the promoted corpus.
 	//
 	// MEASURED, and it cost a whole run's memory. It used to replace, and
-	// `commands/research.md` documents passing it as the remedy when gap-patterns reports "no
+	// `skills/research/SKILL.md` documents passing it as the remedy when gap-patterns reports "no
 	// memory dir" — so an operator following the documented advice silently discarded the
 	// curated corpus (57 files, 55 classified) in favour of the raw accrual (60 files, 1
 	// classified). The 2026-08-05 run's inputs/gap-patterns-by-class.json: 0 classes, 0

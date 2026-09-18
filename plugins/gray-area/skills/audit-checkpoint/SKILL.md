@@ -1,4 +1,5 @@
 ---
+name: audit-checkpoint
 description: Put the checkpoint's validation-loop claims against what this session actually ran. Reports CITED / STALE / NO-EVIDENCE / UNCHECKABLE with provenance on both sides. `--json` for rows, or pass a transcript path to audit a different session.
 ---
 

@@ -61,9 +61,9 @@ Plugins resolve when a session starts, so a mid-session install applies to the *
 ## Try it
 
 - **`/prosthetic-conscience:doctor`** — check the environment before anything assumes a toolchain.
-- **`/research <topic>`** — run a full research debate and watch the argument happen.
-- **`/plan-audit <file>`** — put an implementation plan through a PASS/FAIL gate before you build from it.
-- **`/checkpoint`** and **`/resume`** — write and re-read the note that carries your work across a context compaction.
+- **`/frank-exchange-of-views:research <topic>`** — run a full research debate and watch the argument happen.
+- **`/prosthetic-conscience:plan-audit <file>`** — put an implementation plan through a PASS/FAIL gate before you build from it.
+- **`/prosthetic-conscience:checkpoint`** and **`/prosthetic-conscience:resume`** — write and re-read the note that carries your work across a context compaction.
 - **`/gray-area:audit-checkpoint`** — check that note's claims against what the session actually ran.
 
 Everything else is ambient: once installed, the rules apply to every session without being invoked.
@@ -72,7 +72,7 @@ Everything else is ambient: once installed, the rules apply to every session wit
 
 ### prosthetic-conscience — the working discipline
 
-The base plugin: 22 skills, of which **eleven load in every session**. Each is a short contract written in a `BEFORE / During / AFTER · YOU MUST` grammar, so it says exactly when it applies.
+The base plugin: 27 skills, of which **eleven load in every session**. Each is a short contract written in a `BEFORE / During / AFTER · YOU MUST` grammar, so it says exactly when it applies.
 
 | Rule | In one line |
 |---|---|
@@ -88,9 +88,9 @@ The base plugin: 22 skills, of which **eleven load in every session**. Each is a
 | **facts-are-fields** | Facts other parties act on belong in a field something can refuse, not in a filename or a regex. |
 | **context-checkpointing** | Keep one checkpoint note; when the context grows heavy, write it, then tell the human and let them choose when to compact. |
 
-The other eleven load on demand by description: pair-programming, spec-driven-development, test-driven-development, refactoring-safety, project-memory, critical-stance, scratch-policy, design-by-contract, and proficiency guides for git, markdown and qlty.
+Five are slash commands (`/prosthetic-conscience:checkpoint` · `/prosthetic-conscience:resume` · `/prosthetic-conscience:doctor` · `/prosthetic-conscience:plan-audit` · `/prosthetic-conscience:probe`); the other eleven load on demand by description: pair-programming, spec-driven-development, test-driven-development, refactoring-safety, project-memory, critical-stance, scratch-policy, design-by-contract, and proficiency guides for git, markdown and qlty.
 
-It also ships `/plan-audit` — a binary PASS/FAIL auditor that puts an implementation plan against a five-section standard — and a set of Go hook binaries that enforce the mechanically checkable rules even where prompts never fire. See [Under the hood](#under-the-hood) for how those two halves fit together.
+It also ships `/prosthetic-conscience:plan-audit` — a binary PASS/FAIL auditor that puts an implementation plan against a five-section standard — and a set of Go hook binaries that enforce the mechanically checkable rules even where prompts never fire. See [Under the hood](#under-the-hood) for how those two halves fit together.
 
 ### frank-exchange-of-views — the research debate engine
 
@@ -135,7 +135,7 @@ The learning plugin, designed to improve the suite while you sleep: a `/self-imp
 
 ## Anatomy of a research run
 
-Run `/research <topic>` (or `/frank-exchange-of-views:research <topic> [--lanes N] [--lens-areas a,b,c] [--k-max N] [--mint-budget N] [--max-epochs N]`). One end-to-end run:
+Run `/frank-exchange-of-views:research <topic>` (or `/frank-exchange-of-views:research <topic> [--lanes N] [--lens-areas a,b,c] [--k-max N] [--mint-budget N] [--max-epochs N]`). One end-to-end run:
 
 1. **Blue builds.** Parallel lanes research the topic, one method each; blue synthesizes them additively into the report, carrying a frontier of hypotheses and preserving the lane drafts.
 2. **Red audits at the leaf.** Red opens each citation at its source, grades trust and risk, and files every defect as a gap. Red owns the verdict.
@@ -188,7 +188,7 @@ Every hook is wrapped in a bootstrap guard: a fresh plugin version ships from gi
 
 Compaction replaces the transcript with a summary. The summary is good at what happened and worst at **what you were about to do**: the exact validation commands, the ordered next actions, the handles to work still running in the background.
 
-So the agent keeps one `CHECKPOINT.md`, overwritten in place and sealed at every seam. `SessionStart` hands it back on the far side; `/checkpoint` writes it and `/resume` prints it in full. Two things measurement settled, not design:
+So the agent keeps one `CHECKPOINT.md`, overwritten in place and sealed at every seam. `SessionStart` hands it back on the far side; `/prosthetic-conscience:checkpoint` writes it and `/prosthetic-conscience:resume` prints it in full. Two things measurement settled, not design:
 
 - **Restore runs on `SessionStart`, on every source including `compact`.** Routing the compaction boundary through `PostCompact` looked better — that event actually receives the summary — but it cannot inject anything into the model at all, and it runs *after* `SessionStart` besides.
 - **The resumed agent treats the restored note as a claim, not a fact.** In testing it recovered every value exactly, attributed them honestly to the hook, and flagged the payload as injection-shaped anyway. Provenance framing does not prevent that, and the design no longer pretends to. What it buys is that the suspicion attaches only to the note's real content, because the hook adds no instruction of its own.
@@ -229,7 +229,7 @@ An agent asked to read a transcript and report what it sees is a summarizer — 
 
 | Path | Role |
 |---|---|
-| `plugins/<name>/` | The product: everything a consumer installs — skills, agents, commands, hooks, Go tools |
+| `plugins/<name>/` | The product: everything a consumer installs — skills, agents, hooks, Go tools |
 | `.claude-plugin/marketplace.json` | Marketplace manifest listing the four plugins |
 | `plans/` | Design artifacts under review — each arrives as a pull request, graduates into the plugins |
 | `research/` | Completed debate runs |

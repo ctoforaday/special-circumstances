@@ -1,4 +1,5 @@
 ---
+name: research
 description: Run the research debate engine — an additive blue side against a gate-keeping red side, judged termination, the full record preserved.
 argument-hint: <topic> --model sonnet|haiku|opus --judgment-model sonnet|haiku|opus [--lanes N] [--lens-areas a,b,c] [--k-max N] [--mint-budget N] [--max-epochs N] [--smoke]
 ---

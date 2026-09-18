@@ -1,4 +1,5 @@
 ---
+name: checkpoint
 description: Write the session checkpoint now — the validation loop, ordered next actions, and in-flight handles, before compaction takes them. `--show` prints the current note instead of writing.
 ---
 

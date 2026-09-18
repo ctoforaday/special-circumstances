@@ -13,7 +13,7 @@ import (
 
 // A SURFACE A SEAT READS IS AGENT-FACING WHEREVER IT LIVES — INCLUDING IN A GO STRING.
 //
-// The prompt gates walk `skills/`, `agents/` and `commands/`. The help gates walk the cobra tree.
+// The prompt gates walk `skills/` and `agents/`. The help gates walk the cobra tree.
 // Between them sits a third kind of carrier nobody was looking at: text a Go constant writes into
 // a file the seat then opens.
 //

@@ -118,8 +118,8 @@ func Constitutions() ([]string, error) {
 	return Glob("plugins", "frank-exchange-of-views", "agents", "*.md")
 }
 
-// Plugin is the frank-exchange-of-views plugin directory — the parent of agents/, skills/,
-// commands/ and docs/. Six test packages computed it by counting `..` from wherever their own file
+// Plugin is the frank-exchange-of-views plugin directory — the parent of agents/, skills/
+// and docs/. Six test packages computed it by counting `..` from wherever their own file
 // sat, which made the depth a property of where a file lived rather than of what it wanted.
 // Anchoring it here means moving a test between packages cannot silently repoint it.
 //

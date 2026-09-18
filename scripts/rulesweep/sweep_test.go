@@ -136,7 +136,7 @@ func TestTouchesProtocol(t *testing.T) {
 		"plugins/x/skills/y/SKILL.md",
 		"plugins/x/agents/red.md",
 		"plugins/x/skills/y/references/CHEATSHEET.md",
-		"plugins/x/commands/doctor.md",
+		"plugins/x/skills/doctor/SKILL.md",
 		"plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js",
 		"plugins/x/hooks/hooks.json",
 		// The REVIEWED statute, which humans author and promote. This is where the rule-patch

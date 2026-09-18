@@ -10,20 +10,20 @@
 
 In the [`special-circumstances`](file:///home/gblock_ctoforaday_com/projects/special-circumstances) repository, capabilities are split into two distinct tiers:
 
-1. **User-Facing Commands (`commands/*.md`)**:
+1. **User-Facing Commands (`skills/<name>/SKILL.md`)**:
    Interactive verbs intended for the human operator to type directly in the chat prompt:
-   - `/doctor` (`commands/doctor.md`)
-   - `/checkpoint` (`commands/checkpoint.md`)
-   - `/resume` (`commands/resume.md`)
-   - `/plan-audit` (`commands/plan-audit.md`)
-   - `/probe` (`commands/probe.md`)
+   - `/prosthetic-conscience:doctor` (`skills/doctor/SKILL.md`)
+   - `/prosthetic-conscience:checkpoint` (`skills/checkpoint/SKILL.md`)
+   - `/prosthetic-conscience:resume` (`skills/resume/SKILL.md`)
+   - `/prosthetic-conscience:plan-audit` (`skills/plan-audit/SKILL.md`)
+   - `/prosthetic-conscience:probe` (`skills/probe/SKILL.md`)
 
 2. **Agent Cognitive Skills (`skills/*/SKILL.md`)**:
    The **22 procedural runbooks and guardrails** in [`plugins/prosthetic-conscience/skills/`](file:///home/gblock_ctoforaday_com/projects/special-circumstances/plugins/prosthetic-conscience/skills):
    `agent-guardrails`, `anti-spinning`, `complete-the-concept`, `context-checkpointing`, `context-efficiency`, `critical-stance`, `design-by-contract`, `facts-are-fields`, `git-proficiency`, `markdown-proficiency`, `pair-programming`, `plan-act-reflect`, `project-memory`, `qlty-proficiency`, `refactoring-safety`, `scratch-policy`, `semantic-consent`, `spec-driven-development`, `terse-communication`, `test-driven-development`, `think-around-problem`, `validation-loop`.
 
 ### The Command Palette Flooding Defect
-- In **Claude Code**, skills are model-facing instructions. They do not automatically populate the human operator's `/` command autocomplete menu unless explicitly declared in `commands/`.
+- In **Claude Code**, every skill registers as `/<plugin>:<name>` in the human operator's `/` autocomplete menu, which is what `user-invocable: false` suppresses. Measured 2026-09-17 on 2.1.274: a session registered `prosthetic-conscience:checkpoint` and its siblings, and no BARE `/checkpoint`, `/resume`, `/plan-audit` or `/probe` — the namespaced form is the one that resolves.
 - In **Antigravity (Jetski)**, the engine's default behavior (`rebuildDynamicCommandsWithSkills`) scans all discovered skills in `skills/` and **automatically registers each one as an interactive slash command**.
 - **Defect**: When an operator types `/` in Antigravity, the menu is flooded with 22 procedural engineering rules (`/agent-guardrails`, `/anti-spinning`, etc.). The actual operator commands (`/doctor`, `/checkpoint`) are buried under noise, creating cognitive friction and accidental execution risks.
 
@@ -161,15 +161,15 @@ Skills to update:
 
 ### Phase 2: CI Frontmatter Gate
 Add a check in `scripts/frontmatter` or `scripts/check` asserting that:
-- Any skill in `plugins/prosthetic-conscience/skills/` has `disable-slash-command: true`.
+- Any COGNITIVE skill in `plugins/prosthetic-conscience/skills/` has `disable-slash-command: true`. The five operator skills below are the exemption, and a gate must name them: since the command migration they are skills too, so "everything under `skills/` is hidden" would hide the command palette entirely.
 - Verifies that new cognitive skills added in the future do not accidentally pollute the command palette.
 
 ### Phase 3: Operator Command Parity
-Keep `commands/*.md` as the exclusive definitions for operator slash commands:
-- `/doctor`
-- `/checkpoint`
-- `/resume`
-- `/plan-audit`
-- `/probe`
+Keep these five skills as the only operator slash commands, each carrying neither flag:
+- `/prosthetic-conscience:doctor`
+- `/prosthetic-conscience:checkpoint`
+- `/prosthetic-conscience:resume`
+- `/prosthetic-conscience:plan-audit`
+- `/prosthetic-conscience:probe`
 
 Antigravity will cleanly present only these 5 commands to the user, while the model retains seamless access to all 22 procedural skills.

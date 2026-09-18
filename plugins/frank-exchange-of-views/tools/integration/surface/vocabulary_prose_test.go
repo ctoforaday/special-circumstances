@@ -150,7 +150,7 @@ func vocabularySources(t *testing.T) []vocabSource {
 		{plugin, "skills", "adversarial-audit", "SKILL.md"},
 		{plugin, "skills", "research-protocol", "SKILL.md"},
 		{plugin, "skills", "research-protocol", "references", "*.md"},
-		{plugin, "commands", "research.md"},
+		{plugin, "skills", "research", "SKILL.md"},
 		{plugin, "tools", "internal", "cli", "seat", "help", "*.md"},
 		{"README.md"},
 		{plugin, "README.md"},

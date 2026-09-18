@@ -1,4 +1,5 @@
 ---
+name: doctor
 description: Environment preflight — runs the tested sc-doctor binary for a deterministic table + READY / DEGRADED / BLOCKED verdict. `--fix` (with consent) builds or fetches missing hook binaries.
 ---
 
