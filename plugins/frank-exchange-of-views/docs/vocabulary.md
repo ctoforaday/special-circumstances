@@ -14,6 +14,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [run](#run) | lens, chair, blue, bench, operator |
 | [epoch](#epoch) | lens, chair, blue, bench, operator |
 | [sitting](#sitting) | lens, chair, blue, bench, operator |
+| [sitting-record repair](#sitting-record-repair) | blue |
 | [exchange](#exchange) | lens, chair, blue, bench, operator |
 | [seat](#seat) | lens, chair, blue, bench, operator |
 | [side](#side) | lens, chair, blue, bench, operator |
@@ -145,6 +146,16 @@ A sitting is one seat's dispatch, from the prompt the engine hands it to the env
 **Collisions:**
 
 - **turn** — a NULL TURN (a sitting that moved nothing on a gap) and an API turn (one model call inside a sitting) keep the word
+
+## sitting-record repair
+
+A sitting-record repair is a sitting that puts on the record what your last sitting owed and did not file, and everything it records counts as that sitting's.
+
+**Delivered to:** blue
+
+**Collisions:**
+
+- **repair** — blue REPAIRS the report by editing it to answer a gap, and files a manifest row for each; a SITTING-RECORD repair files what a sitting of blue's own owed. The first is about the report, the second about the record
 
 ## exchange
 

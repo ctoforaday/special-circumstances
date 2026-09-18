@@ -43,7 +43,7 @@ func Register() *cobra.Command { return NewKeyed("register", "register", registe
 // on it and always refused.
 func BlueRegister() *cobra.Command {
 	c := NewKeyed("register", "register-blue", register)
-	c.Flags().Bool(flags.RepairSitting, false, "this sitting repairs your latest sitting: it puts on the record the position or revision that sitting owed and did not file, and its acts count as that sitting's. The tool names the sitting, and refuses when your latest sitting owes nothing, or you were dispatched again since it began")
+	c.Flags().Bool(flags.RepairSitting, false, "this sitting completes your latest sitting's record: it puts on the record the position or revision that sitting owed and did not file, and everything you record from here counts as that sitting's rather than this one's. The tool names the sitting, and refuses when your latest sitting owes nothing, or you were dispatched again since it began")
 	return c
 }
 

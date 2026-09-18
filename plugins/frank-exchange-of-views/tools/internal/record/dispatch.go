@@ -254,9 +254,10 @@ type dispatchRow struct {
 // events."id" where the reader has them, the position where it holds only the stream. The
 // predicate compares order and nothing else, so either answers it the same.
 //
-// THE REGISTERS ARE THE ONES THAT OPEN A SITTING. A register naming the sitting it repairs
-// (repairs_sitting) opens none: it neither sits for a dispatch nor ends the sitting it repairs,
-// and sittingCloser adds its acts to that sitting.
+// THE REGISTERS ARE THE ONES THAT OPEN A SITTING FOR A DISPATCH. A register naming the sitting it
+// repairs (repairs_sitting) opens none of those: the seat is handed a prompt, so it IS sitting and
+// Clock counts the turn, but it sits for no dispatch and ends no sitting — sittingCloser adds its
+// acts to the sitting it repairs, and ActClock gives them that sitting's number.
 func dispatchLedger(evs []*Event, seq []int64) ([]dispatchRow, map[string][]int64) {
 	var ds []dispatchRow
 	registers := map[string][]int64{}
@@ -308,7 +309,7 @@ func sittingFor(registers []int64, d dispatchRow) (int64, bool) {
 //     harness's observation of this seat, not an act of another seat.
 //
 // A REPAIR OF THE SITTING IS PART OF IT. A register naming the sitting it repairs (repairs_sitting)
-// opens no sitting of its own: from it to where that register's own sitting would end — the seat's
+// opens no span of its own: from it to where that register's own sitting would end — the seat's
 // next opening register, or the stop of the agent on the repair — its acts are the repaired
 // sitting's. Under the shipped Workflow engine the first agent's stop has already closed the
 // sitting when the re-prompt registers, so the repair is a second span, and the sitting ends where
