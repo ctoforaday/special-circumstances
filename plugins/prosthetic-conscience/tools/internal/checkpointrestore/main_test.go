@@ -94,11 +94,19 @@ func TestRestoreFiresOnCompact(t *testing.T) {
 	}
 }
 
-// Every source, not a list of blessed ones. A source-specific carve-out is the
-// exact shape of the error that was just withdrawn, so it is tested as a class.
+// Every source that CONTINUES THE WORK, not a list of blessed ones. A source-specific
+// carve-out is the exact shape of the error that was withdrawn, so it is tested as a class.
+//
+// `fork` left this list when it became pointer-only, and the distinction is the one the
+// withdrawn carve-out failed to make. That one removed restore from `compact` — a seam where
+// the SAME session continues, and the only boundary this hook exists for. A fork is a different
+// session holding a copy, while the original stays live and keeps the cursor; it is carved out
+// for the same reason `clear` is, by INTENT rather than by mechanism. The name of this test is
+// the rule: if a source continues the work, it gets the digest, and no argument about tidiness
+// takes one off this list.
 func TestRestoreFiresOnEverySourceThatContinuesWork(t *testing.T) {
 	dir := withNote(t, note)
-	for _, src := range []string{"startup", "resume", "compact", "fork", ""} {
+	for _, src := range []string{"startup", "resume", "compact", ""} {
 		stdout, _, code := call(t, dir, `{"source":"`+src+`"}`)
 		if code != 0 {
 			t.Fatalf("source %q: exit %d", src, code)
@@ -106,6 +114,51 @@ func TestRestoreFiresOnEverySourceThatContinuesWork(t *testing.T) {
 		if injected(t, stdout) == "" {
 			t.Errorf("source %q: silent, want the digest", src)
 		}
+	}
+}
+
+// A FORK IS A COPY, AND THE ORIGINAL STILL OWNS THE CURSOR. Handing the fork the ordered next
+// actions puts two live sessions on one piece of work. Measured: both fork-elicitation interviews
+// of the 2026-09-17 smoke run answered checkpoint duty instead of the interview questions.
+func TestForkGetsAPointerNotTheDigest(t *testing.T) {
+	dir := withNote(t, note)
+	stdout, _, _ := call(t, dir, `{"source":"fork"}`)
+	got := injected(t, stdout)
+	if got == "" {
+		t.Fatal("a fork should still learn that a note exists")
+	}
+	if strings.Contains(got, "go test ./...") {
+		t.Errorf("a fork was handed the original's digest:\n%s", got)
+	}
+	// The instruction is the harmful half — the digest is quotable, "take its first next
+	// action" is what made the interview fork do someone else's work.
+	if strings.Contains(got, "take its first next action") {
+		t.Errorf("a fork was told to act on the original's next action:\n%s", got)
+	}
+	if !strings.Contains(got, "CHECKPOINT.md") {
+		t.Errorf("pointer does not name the note:\n%s", got)
+	}
+	// It must say WHY, and must not borrow `done`'s reason — the note is not finished work.
+	if strings.Contains(got, "status: done") {
+		t.Errorf("a fork was told the note was finished work:\n%s", got)
+	}
+	if !strings.Contains(got, "fork") {
+		t.Errorf("the pointer does not say why it is a pointer:\n%s", got)
+	}
+}
+
+// THE BOUNDARY THIS FIX MUST NOT CROSS. `compact` is the one seam the whole design exists for,
+// and an earlier revision derived "restore MUST no-op on source == compact" and was wrong.
+// Adding a second pointer-only source is exactly when that could be re-derived by accident.
+func TestCompactStillGetsTheWholeDigest(t *testing.T) {
+	dir := withNote(t, note)
+	stdout, _, _ := call(t, dir, `{"source":"compact"}`)
+	got := injected(t, stdout)
+	if !strings.Contains(got, "go test ./...") {
+		t.Errorf("compact lost the digest — the seam restore exists for:\n%s", got)
+	}
+	if !strings.Contains(got, "take its first next action") {
+		t.Errorf("compact lost its resume instruction:\n%s", got)
 	}
 }
 
@@ -252,8 +305,9 @@ func TestCompactDigestEndsWithTheResumeLine(t *testing.T) {
 	}
 }
 
-// On startup, resume and fork the note may be stale or another session's, so the digest
-// stays a claim with no instruction. /clear and a done note get the pointer, and no line.
+// On startup and resume the note may be stale, so the digest stays a claim with no
+// instruction. /clear, a fork and a done note get the pointer, and no line either — a fork is
+// here precisely because its copy of the cursor belongs to a session that is still using it.
 func TestOnlyACompactionGetsTheResumeLine(t *testing.T) {
 	cases := []struct{ body, source string }{
 		{note, "startup"},

@@ -180,9 +180,28 @@ func selectSections(n checkpoint.Note) []string {
 // withdrawn compact carve-out failed: that one claimed a second injector existed.
 const clearIsPointerOnly = "clear"
 
+// forkIsPointerOnly: a fork is a COPY, and a copy is not the session continuing the work.
+//
+// Every other source — startup, resume, compact — is one agent picking its own cursor back up,
+// which is the whole design. `--fork-session` is different in kind: the original session is
+// still live and still holds that cursor, so handing the fork the ordered next actions puts TWO
+// sessions on ONE cursor, each believing it is the one doing the work.
+//
+// MEASURED, not reasoned: both `fork-elicitation` interviews of the 2026-09-17 smoke run were
+// hijacked by this. The skill interviews a `--resume <sid> --fork-session` copy with every tool
+// disallowed; the fork received the digest, read "take its first next action", and answered
+// checkpoint duty instead of the interview — twice, and once with `--settings '{"hooks":{}}'`,
+// which does not suppress a PLUGIN hook. The interview is the one view of intent this suite has
+// where reasoning text is withheld, and this was silently overwriting it.
+//
+// Pointer-only, not silent: the fork still learns a note exists and where. What it does not get
+// is an instruction to act on work another session owns.
+const forkIsPointerOnly = "fork"
+
 // pointerOnly decides between the digest and the one-line pointer.
 //
 //   - source == "clear": the human just wiped the context deliberately.
+//   - source == "fork": the session is a copy; the original still owns the cursor.
 //   - status == "done": the note describes finished work. The skill says to
 //     discard a completed note, but a forgotten one would otherwise re-impose
 //     dead state on every session start, forever — and a stale anchor is worse
@@ -192,7 +211,8 @@ const clearIsPointerOnly = "clear"
 // note is most valuable, and any threshold would be arbitrary where `status` is
 // a fact the note states about itself.
 func pointerOnly(source, status string) bool {
-	return source == clearIsPointerOnly || strings.EqualFold(statusWord(status), "done")
+	return source == clearIsPointerOnly || source == forkIsPointerOnly ||
+		strings.EqualFold(statusWord(status), "done")
 }
 
 // statusWord is the status value without the inline comment an agent writes after it
@@ -588,9 +608,15 @@ func compose(projectDir, source string, rec *hookfailures.Recorder) (string, []s
 
 	note := checkpoint.Parse(string(body))
 	if pointerOnly(source, note.Get("status")) {
-		why := "the context was cleared"
-		if source != clearIsPointerOnly {
-			why = "marked status: done"
+		// THE REASON IS PART OF THE POINTER, and it was a two-way choice over three reasons the
+		// moment `fork` joined: written as `!= clear -> done`, a fork was told the note was
+		// finished work, which is a false statement about someone else's live cursor.
+		why := "marked status: done"
+		switch source {
+		case clearIsPointerOnly:
+			why = "the context was cleared"
+		case forkIsPointerOnly:
+			why = "this session is a fork, and the session it copied still owns this work"
 		}
 		// No watch on a pointer: the session is not resuming this work, so
 		// registering its surfaces would collect re-arms nobody asked for.
