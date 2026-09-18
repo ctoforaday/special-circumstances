@@ -8,24 +8,32 @@
 
 ## 1. Problem Statement & Motivation
 
-In the [`special-circumstances`](file:///home/gblock_ctoforaday_com/projects/special-circumstances) repository, capabilities are split into two distinct tiers:
+In the [`special-circumstances`](file:///home/gblock_ctoforaday_com/projects/special-circumstances) repository, capabilities are split into two distinct tiers across all 37 skills in the tree:
 
-1. **User-Facing Commands (`skills/<name>/SKILL.md`)**:
-   Interactive verbs intended for the human operator to type directly in the chat prompt:
-   - `/prosthetic-conscience:doctor` (`skills/doctor/SKILL.md`)
-   - `/prosthetic-conscience:checkpoint` (`skills/checkpoint/SKILL.md`)
-   - `/prosthetic-conscience:resume` (`skills/resume/SKILL.md`)
-   - `/prosthetic-conscience:plan-audit` (`skills/plan-audit/SKILL.md`)
-   - `/prosthetic-conscience:probe` (`skills/probe/SKILL.md`)
+1. **User-Facing Operator & Entry-Point Skills (12 total)**:
+   Interactive verbs intended for the human operator to type directly in the chat prompt as slash commands across both Claude Code and Antigravity:
+   - **All 10 Migrated Former Commands** (ensuring unified cross-engine compatibility):
+     - `prosthetic-conscience` (5): `/prosthetic-conscience:checkpoint`, `/prosthetic-conscience:doctor`, `/prosthetic-conscience:plan-audit`, `/prosthetic-conscience:probe`, `/prosthetic-conscience:resume`
+     - `gray-area` (4): `/gray-area:audit-checkpoint`, `/gray-area:audit-pr-body`, `/gray-area:audit-repetition`, `/gray-area:audit-seat-coverage`
+     - `frank-exchange-of-views` (1): `/frank-exchange-of-views:research`
+   - **Core Operator Workflow Skills (2)**:
+     - `frank-exchange-of-views` (1): `/frank-exchange-of-views:adversarial-audit`
+     - `gray-area` (1): `/gray-area:elicitation-testing`
+   - **Visibility Policy**: Every skill that was a command, plus the core workflow skills, **is intended to be visible**. None of these 12 skills may carry `disable-slash-command: true` or `user-invocable: false`.
 
-2. **Agent Cognitive Skills (`skills/*/SKILL.md`)**:
-   The **22 procedural runbooks and guardrails** in [`plugins/prosthetic-conscience/skills/`](file:///home/gblock_ctoforaday_com/projects/special-circumstances/plugins/prosthetic-conscience/skills):
-   `agent-guardrails`, `anti-spinning`, `complete-the-concept`, `context-checkpointing`, `context-efficiency`, `critical-stance`, `design-by-contract`, `facts-are-fields`, `git-proficiency`, `markdown-proficiency`, `pair-programming`, `plan-act-reflect`, `project-memory`, `qlty-proficiency`, `refactoring-safety`, `scratch-policy`, `semantic-consent`, `spec-driven-development`, `terse-communication`, `test-driven-development`, `think-around-problem`, `validation-loop`.
+2. **Agent Cognitive & Internal Procedural Skills (25 total)**:
+   Internal cognitive runbooks, guardrails, and protocols meant for autonomous model discovery rather than human invocation:
+   - The **22 procedural runbooks and guardrails** in [`plugins/prosthetic-conscience/skills/`](file:///home/gblock_ctoforaday_com/projects/special-circumstances/plugins/prosthetic-conscience/skills):
+     `agent-guardrails`, `anti-spinning`, `complete-the-concept`, `context-checkpointing`, `context-efficiency`, `critical-stance`, `design-by-contract`, `facts-are-fields`, `git-proficiency`, `markdown-proficiency`, `pair-programming`, `plan-act-reflect`, `project-memory`, `qlty-proficiency`, `refactoring-safety`, `scratch-policy`, `semantic-consent`, `spec-driven-development`, `terse-communication`, `test-driven-development`, `think-around-problem`, `validation-loop`.
+   - `plugins/frank-exchange-of-views/skills/research-protocol/SKILL.md` (internal debate protocol).
+   - `plugins/gray-area/skills/restart-recovery/SKILL.md` (internal crash/reboot recovery runbook).
+   - `plugins/gray-area/skills/telepathy/SKILL.md` (internal trajectory query runbook).
+   - **Visibility Policy**: All 25 must carry both `disable-slash-command: true` and `user-invocable: false`.
 
 ### The Command Palette Flooding Defect
 - In **Claude Code**, every skill registers as `/<plugin>:<name>` in the human operator's `/` autocomplete menu, which is what `user-invocable: false` suppresses. Measured 2026-09-17 on 2.1.274: a session registered `prosthetic-conscience:checkpoint` and its siblings, and no BARE `/checkpoint`, `/resume`, `/plan-audit` or `/probe` — the namespaced form is the one that resolves.
 - In **Antigravity (Jetski)**, the engine's default behavior (`rebuildDynamicCommandsWithSkills`) scans all discovered skills in `skills/` and **automatically registers each one as an interactive slash command**.
-- **Defect**: When an operator types `/` in Antigravity, the menu is flooded with 22 procedural engineering rules (`/agent-guardrails`, `/anti-spinning`, etc.). The actual operator commands (`/doctor`, `/checkpoint`) are buried under noise, creating cognitive friction and accidental execution risks.
+- **Defect**: When an operator types `/` in Antigravity, the menu is flooded with 25 procedural engineering rules (`/agent-guardrails`, `/anti-spinning`, etc.). The actual operator commands (`/doctor`, `/checkpoint`, `/research`, etc.) are buried under noise, creating cognitive friction and accidental execution risks.
 
 ---
 
@@ -124,52 +132,49 @@ flowchart TD
 
 ## 5. Implementation Plan
 
-### Phase 1: Dual Frontmatter Annotation
-Annotate all 22 procedural skills in [`plugins/prosthetic-conscience/skills/`](file:///home/gblock_ctoforaday_com/projects/special-circumstances/plugins/prosthetic-conscience/skills):
+### Phase 1: Dual Frontmatter Annotation (25 Non-User-Facing Skills)
+Annotate all 25 internal procedural skills across all three plugins with dual frontmatter flags:
 ```yaml
 ---
-name: agent-guardrails
+name: <skill-name>
 description: ...
 disable-slash-command: true
 user-invocable: false
 ---
 ```
 
-Skills to update:
-1. `agent-guardrails`
-2. `anti-spinning`
-3. `complete-the-concept`
-4. `context-checkpointing`
-5. `context-efficiency`
-6. `critical-stance`
-7. `design-by-contract`
-8. `facts-are-fields`
-9. `git-proficiency`
-10. `markdown-proficiency`
-11. `pair-programming`
-12. `plan-act-reflect`
-13. `project-memory`
-14. `qlty-proficiency`
-15. `refactoring-safety`
-16. `scratch-policy`
-17. `semantic-consent`
-18. `spec-driven-development`
-19. `terse-communication`
-20. `test-driven-development`
-21. `think-around-problem`
-22. `validation-loop`
+Skills annotated (25 total):
+1. **`prosthetic-conscience` (22 procedural rules)**:
+   - `agent-guardrails`, `anti-spinning`, `complete-the-concept`, `context-checkpointing`, `context-efficiency`, `critical-stance`, `design-by-contract`, `facts-are-fields`, `git-proficiency`, `markdown-proficiency`, `pair-programming`, `plan-act-reflect`, `project-memory`, `qlty-proficiency`, `refactoring-safety`, `scratch-policy`, `semantic-consent`, `spec-driven-development`, `terse-communication`, `test-driven-development`, `think-around-problem`, `validation-loop`
+2. **`frank-exchange-of-views` (1 internal protocol)**:
+   - `research-protocol`
+3. **`gray-area` (2 internal runbooks)**:
+   - `restart-recovery`
+   - `telepathy`
 
-### Phase 2: CI Frontmatter Gate
-Add a check in `scripts/frontmatter` or `scripts/check` asserting that:
-- Any COGNITIVE skill in `plugins/prosthetic-conscience/skills/` has `disable-slash-command: true`. The five operator skills below are the exemption, and a gate must name them: since the command migration they are skills too, so "everything under `skills/` is hidden" would hide the command palette entirely.
-- Verifies that new cognitive skills added in the future do not accidentally pollute the command palette.
+### Phase 2: CI Frontmatter Gate & Invariant
+In `scripts/frontmatter` and `scripts/check`:
+- Ensure all 25 cognitive and procedural skills carry both `disable-slash-command: true` and `user-invocable: false`.
+- **Operator Command Exemption & Guard**: Assert that all 12 operator/workflow skills (the 10 former commands plus the 2 workflow skills) **do NOT** carry hiding flags. If someone marks any of the 10 migrated commands hidden, the gate must reject it:
+  *"Everything that was a command is intended to be visible — do not mark former commands hidden."*
 
-### Phase 3: Operator Command Parity
-Keep these five skills as the only operator slash commands, each carrying neither flag:
-- `/prosthetic-conscience:doctor`
-- `/prosthetic-conscience:checkpoint`
-- `/prosthetic-conscience:resume`
-- `/prosthetic-conscience:plan-audit`
-- `/prosthetic-conscience:probe`
+### Phase 3: Operator Command & Workflow Parity (12 Visible Skills)
+Retain these 12 skills as visible, user-invocable slash commands across both Claude Code and Antigravity, carrying neither hiding flag:
 
-Antigravity will cleanly present only these 5 commands to the user, while the model retains seamless access to all 22 procedural skills.
+1. **`prosthetic-conscience` (5 migrated entry points)**:
+   - `/prosthetic-conscience:checkpoint`
+   - `/prosthetic-conscience:doctor`
+   - `/prosthetic-conscience:plan-audit`
+   - `/prosthetic-conscience:probe`
+   - `/prosthetic-conscience:resume`
+2. **`gray-area` (4 migrated entry points + 1 operator workflow)**:
+   - `/gray-area:audit-checkpoint`
+   - `/gray-area:audit-pr-body`
+   - `/gray-area:audit-repetition`
+   - `/gray-area:audit-seat-coverage`
+   - `/gray-area:elicitation-testing`
+3. **`frank-exchange-of-views` (1 migrated entry point + 1 operator workflow)**:
+   - `/frank-exchange-of-views:research`
+   - `/frank-exchange-of-views:adversarial-audit`
+
+Both Claude Code and Antigravity cleanly present all 12 operator entry points in the interactive `/` palette, while the model retains 100% autonomous access to all 25 procedural cognitive skills.
