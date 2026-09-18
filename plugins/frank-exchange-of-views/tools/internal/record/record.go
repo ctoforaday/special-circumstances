@@ -376,12 +376,14 @@ func envelope(ev *Event, ts, seatID string, key string) {
 // singleton verbs key on seat+verb+SITTING; multi-instance verbs on their stable labels; the rest on
 // a per-seat ordinal.
 //
-// SINGLETON MEANS ONCE PER SITTING, AND THE KEY NOW SAYS SO. A seat id used to name one sitting —
-// `red-chair-r2` could record one position, and the key `red-chair-r2:position` held that. Roundless
-// there is one chair sitting many times (plans/roundless.md §III.A.1), so `red-chair:position` would
-// have made a position once per RUN — and the refusal that fires on the collision says "this
-// sitting", which the key then did not mean. The sitting ordinal is the count of this seat's
-// registers on the record, the same count events_w exposes, taken inside the writing transaction.
+// SINGLETON MEANS ONCE PER SITTING, AND THE DUTY IS NOT THE KEY. A seat id used to name one sitting
+// — `red-chair-r2` could record one position, and the key `red-chair-r2:position` held that.
+// Roundless there is one chair sitting many times (plans/roundless.md §III.A.1), so
+// `red-chair:position` would have made a position once per RUN. The ordinal below is the count of
+// this seat's registers on the record, the same count events_w exposes, taken inside the writing
+// transaction — a TURN identifier, so a repair's acts do not collide with the keys of the sitting it
+// repairs. The duty itself is asked of the ATTRIBUTED sitting, in requireOncePerSitting
+// (oncepersitting.go), which is what makes the refusal's "this sitting" true.
 //
 // REGISTER IS NOT ONE, and it never really was. It sat here and then had its key overridden in
 // RegisterSeat to carry the nonce, precisely because two registers for one seat are a legitimate
@@ -649,13 +651,21 @@ func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType
 	if err != nil {
 		return err
 	}
+	// THE ONCE-PER-SITTING DUTY IS ASKED HERE, NOT LEFT TO THE KEY. The key counts TURNS, so a
+	// repair's second position lands on a free ordinal; this asks which SITTING the act is
+	// attributed to (oncepersitting.go). It runs before the insert and inside the same
+	// transaction, which holds the write lock from its BEGIN.
+	if err := requireOncePerSitting(tx, seatID, typ, body); err != nil {
+		return err
+	}
 	envelope(ev, Now().UTC().Format(stampLayout), seatID, key)
 	if _, err := recordsql.InsertTx(tx, ev); err != nil {
-		// A KEY COLLISION IS A SEAT REPEATING A ONCE-PER-SITTING ACT, and the raw constraint text
-		// teaches nothing about that. The shard record met this by DEDUPING — two events with one
-		// key, one of them silently discarded on read — so a seat that stated its position twice
-		// never learned that only one survived. Refusing is the better answer and it has to say
-		// what was refused.
+		// A KEY COLLISION IS A SEAT REPEATING A LABELLED ACT, and the raw constraint text teaches
+		// nothing about that. The shard record met this by DEDUPING — two events with one key, one
+		// of them silently discarded on read — so a seat that filed the same row twice never
+		// learned that only one survived. Refusing is the better answer and it has to say what was
+		// refused. A SINGLETON NEVER ARRIVES HERE: equal keys mean equal turn counts, so no
+		// register at all stands between the two acts and the duty above has already refused it.
 		if isDuplicateKey(err) {
 			// THE TAIL DEPENDS ON THE TIER. A correctable act gets the key of the act that stands
 			// and the invocation that corrects it — the act that "supersedes" a manifest row or a
@@ -664,12 +674,6 @@ func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType
 			tail := "If the first was wrong, say so in the act that supersedes it; the record is append-only and both stay visible"
 			if Correctable(typ, body) {
 				tail = correctionPointer(tx, key)
-			}
-			if singleton[typ] {
-				return feov.Errorf(feov.Validation,
-					"record: %s has already recorded a %s this sitting, and it is a once-per-sitting act — "+
-						"the record keeps your first one rather than quietly replacing it. %s",
-					seatID, recordpb.Word(typ), tail)
 			}
 			return feov.Errorf(feov.Validation,
 				"record: %s has already recorded a %s on %q this sitting — the record keeps your first one "+
