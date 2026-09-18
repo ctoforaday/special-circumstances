@@ -1,6 +1,8 @@
 ---
 name: scratch-policy
 description: Use when a task needs working files or large intermediate data — scratch artifacts are compression insurance; keep them current, self-evident, and out of the repo.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # scratch-policy

@@ -1,6 +1,8 @@
 ---
 name: test-driven-development
 description: Use when building or changing behaviour that can be tested — red/green/refactor discipline, test-first contracts, and the ping-pong variant for pairing.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # test-driven-development

@@ -1,6 +1,8 @@
 ---
 name: markdown-proficiency
 description: Use when producing documentation, reports, or structured artifacts — advanced Markdown and GitHub-flavored features (collapsible sections, alerts, diff blocks, semantic footnotes, Mermaid), with the maintained cheatsheet.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # markdown-proficiency

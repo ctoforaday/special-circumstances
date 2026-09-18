@@ -1,6 +1,8 @@
 ---
 name: think-around-problem
 description: Always-on anti-satisficing — question everything (the human, docs, comments, research), explore alternatives in proportion to the stakes, never take the first workable answer.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # think-around-problem

@@ -1,6 +1,8 @@
 ---
 name: project-memory
 description: Use for any long-running or multi-session workstream — the four-artifact projects/<name>/ discipline that lets work survive compaction and restarts.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # project-memory

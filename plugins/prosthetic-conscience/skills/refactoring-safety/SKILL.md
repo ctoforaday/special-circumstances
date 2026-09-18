@@ -1,6 +1,8 @@
 ---
 name: refactoring-safety
 description: Use when refactoring, restructuring, or resolving a fault — behavior-preserving, green build and tests, class-of-problem fixes, uniform design over hacks.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # refactoring-safety

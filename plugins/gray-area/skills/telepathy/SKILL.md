@@ -1,6 +1,8 @@
 ---
 name: telepathy
 description: Before asking a peer agent what happened, or assuming nobody else is working on a file, use `telepathy` to query the host-wide trajectory catalogue — it answers from what agents DID rather than from what they remember.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # telepathy
@@ -124,7 +126,7 @@ telepathy sql "SELECT tool, target FROM v_action WHERE session_id LIKE '5627%' A
 
 - AFTER the catalogue has told you WHAT an agent did, and the open question is WHY — a rule it read and
   did not apply, a command it ran twice — YOU SHOULD interview a tool-less fork of its session with the
-  [[fork-elicitation]] skill. The catalogue supplies the cited acts that the interview asks about.
+  [[elicitation-testing]] skill. The catalogue supplies the cited acts that the interview asks about.
 
 ## The rule this exists to serve
 

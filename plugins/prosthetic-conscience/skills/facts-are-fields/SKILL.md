@@ -1,6 +1,8 @@
 ---
 name: facts-are-fields
 description: Always-on structural discipline — where a record already holds a fact, it belongs in a field a writer can REFUSE, never in a filename, a heading, a name segment, or a prose substring recovered by pattern. Both shapes fail by returning a plausible zero. Scoped to bypassing an existing record; where none exists, prefer generating the derived carrier over guarding two hand-written ones.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # facts-are-fields

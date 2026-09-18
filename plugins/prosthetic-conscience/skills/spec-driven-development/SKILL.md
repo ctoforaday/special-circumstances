@@ -1,6 +1,8 @@
 ---
 name: spec-driven-development
 description: Use when creating, reviewing, or auditing an implementation plan — the mandatory five-section plan structure (numbered I through V, from Summary & Goals to the Verification Plan), the TinySpec loop for small work, and the auditor gate.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # spec-driven-development

@@ -1,6 +1,8 @@
 ---
 name: research-protocol
 description: Use when performing or auditing deep research — the protocol (frontier hypotheses, saturation, disconfirming budget, semantic footnotes), the run-directory layout, and the debate envelopes.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # research-protocol

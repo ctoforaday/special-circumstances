@@ -1,6 +1,8 @@
 ---
 name: anti-spinning
 description: Always-on loop-breaker — stop repeating a failed approach, and honor a cancel/stop/undo request immediately. The 3-strike rule.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # anti-spinning

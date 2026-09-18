@@ -1,6 +1,8 @@
 ---
 name: validation-loop
 description: Always-on verification discipline — a written, executable validation loop that outlives the plan; run it before claiming anything works.
+disable-slash-command: true
+user-invocable: false
 ---
 
 # validation-loop
