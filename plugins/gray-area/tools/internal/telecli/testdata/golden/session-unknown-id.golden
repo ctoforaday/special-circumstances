@@ -1,0 +1,4 @@
+exit: 1
+--- stdout
+--- stderr
+telepathy: catalogue: no session ffffffff in the store, by full id or prefix — it may predate capture, which is not the same as a session that did nothing

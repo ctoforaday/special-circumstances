@@ -647,3 +647,21 @@ func TestTheRebuildWarningReachesEveryReadVerb(t *testing.T) {
 	}
 	check(0)
 }
+
+// THE SHORT ID EVERY VERB PRINTS IS ONE `session` ACCEPTS. It used to take only the full id, and
+// answered "may predate capture" about a session the store held — so a reader copying the id out
+// of `agents` or `find` was told the session was not there.
+func TestSessionTakesTheShortIDItPrints(t *testing.T) {
+	h := newHarness(t)
+	full, _, code := h.run(t, "session", alphaID)
+	if code != 0 {
+		t.Fatalf("session <full id> exited %d", code)
+	}
+	short, errOut, code := h.run(t, "session", catalogue.Short(alphaID))
+	if code != 0 || short != full {
+		t.Errorf("session <short id>: exit %d, stderr %q; output differs from the full id's:\n--- full ---\n%s--- short ---\n%s",
+			code, errOut, full, short)
+	}
+	out, errOut, code := h.run(t, "session", "ffffffff")
+	assertGoldenFull(t, "session-unknown-id", code, out, errOut)
+}

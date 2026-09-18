@@ -81,6 +81,14 @@ send to headless sessions, and slash-command and local-command text.
 
 Neither is the liveness word "unknown" that agents prints.
 
+A SESSION'S TITLE IS NOT IN ITS TRANSCRIPT. The name the app shows for a session
+is held by the cloud and never written to that session's own records, so a find
+for a title cannot return the titled session. It returns only sessions that
+printed a session list (IN result) or wrote the name down themselves (IN
+assistant), and an assistant row there is THAT session's claim about which id
+carries the title, not the record's. To find a session people know by name,
+search for something that was said in it.
+
 --in keeps a transcript if ANY of its hits is in that channel, and the row
 shows the most recent of those; on a term that appears in a seat prompt most
 unfiltered rows are exactly that:
