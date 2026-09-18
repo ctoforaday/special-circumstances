@@ -97,8 +97,8 @@ plugins/prosthetic-conscience/
 ├── hooks.json -> hooks-jetski.json # Symlink satisfying agy's hardcoded filename
 ├── rules/
 │   └── AGENTS.md              # Always-on behavioral guardrails for Antigravity
-├── skills/                    # 22 shared skills (identical markdown)
-│   └── */SKILL.md             # Added "disable-slash-command: true" for internal skills
+├── skills/                    # 27 skills (22 cognitive + 5 entry points, former commands)
+│   └── */SKILL.md             # Added "disable-slash-command: true" for 22 cognitive skills; 5 entry points remain visible
 └── tools/
     ├── internal/
     │   └── hookcore/          # Pure-Go normalized domain model (zero external dependencies)
@@ -123,9 +123,10 @@ plugins/prosthetic-conscience/
 
 ## 4. Implementation Checklist
 
-- [ ] **Phase 1: Skill Slash-Command Cleanliness**
-  - Add `disable-slash-command: true` to frontmatter of the 22 non-user-facing skills.
-  - Retain slash commands only for user actions (`/doctor`, `/checkpoint`, `/resume`).
+- [x] **Phase 1: Skill Slash-Command Cleanliness & Visibility Parity** (Landed in #1006 & #1019)
+  - All commands migrated to skills (`plugins/*/skills/*/SKILL.md`) ensuring unified platform parity.
+  - All 25 non-user-facing cognitive skills annotated with `disable-slash-command: true` and `user-invocable: false`.
+  - All 12 operator entry points and workflow skills (the 10 former commands: 5 in `prosthetic-conscience`, 4 in `gray-area`, 1 in `frank-exchange-of-views`; plus `adversarial-audit` and `elicitation-testing`) intentionally kept visible with neither hiding flag. Everything that was a command is intended to be visible.
 - [ ] **Phase 2: Hook Config Separation & Symlink**
   - Extract Claude hook definitions to `hooks-claude.json`.
   - Update `.claude-plugin/plugin.json` to reference `"hooks": "./hooks-claude.json"`.
