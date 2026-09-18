@@ -18,6 +18,7 @@ import (
 	"image"
 	"image/png"
 	"sort"
+	"strings"
 	"unicode"
 )
 
@@ -77,6 +78,11 @@ type PageEvidence struct {
 	SparseTSV string
 	// HeaderBand is the rotated-header band's re-OCR text, when a band was found.
 	HeaderBand string
+	// RefusedTable is the reconstruction the dropout gate refused: built, measured and not used
+	// as the page text. Kept because what the reconstructor made of a failing page — a Table 2
+	// whose level headers read and whose marks the OCR dropped (#933) — is exactly what the work
+	// that fixes the dropout needs to see.
+	RefusedTable string
 }
 
 // MinMarkPlacement is the first reconstruction fallback threshold: below this placed/total
@@ -229,7 +235,18 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThreshold
 		headers = ParseRotatedBandHeaders(band)
 	}
 
-	table, st, rerr := Reconstruct(tsv, headers)
+	// The page's rule geometry, read once: the level band's cells come from it (#933), and so do
+	// the text cells if the marks do not answer (#932).
+	lat, lerr := GridLines(pagePNG, thr)
+	if lerr != nil {
+		return PageResult{}, lerr
+	}
+	levels, verr := en.readLevels(pagePNG, lat, tsv)
+	if verr != nil {
+		return PageResult{}, verr
+	}
+
+	table, st, rerr := Reconstruct(tsv, headers, levels)
 	if rerr != nil && rerr != ErrNoMarks {
 		return PageResult{}, rerr
 	}
@@ -243,6 +260,9 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThreshold
 		out.Text = table
 		return out, nil
 	}
+	if rerr == nil {
+		out.Evidence.RefusedTable = table
+	}
 
 	// THE RULES' OWN CELLS, WHERE THE MARKS DID NOT ANSWER (#932). A ruled table whose cells hold
 	// TEXT has no marks to infer a grid from, and tesseract's plain reading serialises it column
@@ -250,10 +270,6 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThreshold
 	// read off the same two openings the detector measured, so it explains those counts rather
 	// than being a second opinion about the page. Tried only here: a page whose marks
 	// reconstructed keeps that reading byte for byte.
-	lat, lerr := GridLines(pagePNG, thr)
-	if lerr != nil {
-		return PageResult{}, lerr
-	}
 	cellText, cst, why := TextCells(lat, tsv, tsvSparse)
 	switch {
 	case why == "":
@@ -273,6 +289,37 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThreshold
 	}
 	out.Text = text
 	return out, nil
+}
+
+// readLevels reads a mark table's level header one cell at a time (#933): the cells the lattice
+// boxes under a repeated caption, each cropped inside its rules and read as a single character run.
+// It returns nothing on a page with no such band.
+func (en *Engine) readLevels(pagePNG []byte, lat Lattice, tsv string) ([]LevelBox, error) {
+	cells := LevelBandCells(lat, tsv)
+	if len(cells) == 0 {
+		return nil, nil
+	}
+	reads := make([]string, len(cells))
+	for i, c := range cells {
+		crop, err := CropCell(pagePNG, c)
+		if err != nil {
+			continue // a cell with nothing inside its rules reads as unread, never as a level
+		}
+		cellTSV, err := en.PageTSV(crop, PSMSingleChar)
+		if err != nil {
+			return nil, err
+		}
+		var parts []string
+		for _, w := range parseTSVWords(cellTSV) {
+			parts = append(parts, w.text)
+		}
+		reads[i] = strings.Join(parts, " ")
+	}
+	var centres []float64
+	for _, w := range repeatedCaption(parseTSVWords(tsv)) {
+		centres = append(centres, w.cx())
+	}
+	return AgreeWithTable(LevelBoxes(cells, reads), centres), nil
 }
 
 // fallbackReason is the whole acceptance decision for a reconstruction, a pure function of

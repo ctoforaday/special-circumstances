@@ -379,6 +379,7 @@ var evidenceKinds = []struct {
 	{"rotated.tsv", func(r tessocr.PageResult) string { return r.Evidence.RotatedTSV }},
 	{"sparse.tsv", func(r tessocr.PageResult) string { return r.Evidence.SparseTSV }},
 	{"band.txt", func(r tessocr.PageResult) string { return r.Evidence.HeaderBand }},
+	{"refused.md", func(r tessocr.PageResult) string { return r.Evidence.RefusedTable }},
 }
 
 // EvidencePath is one page's evidence file of the given kind (a suffix in evidenceKinds).

@@ -47,6 +47,11 @@ type Stats struct {
 	SubColumnsFound  int `json:"subcolumns_found"`
 	RowsFound        int `json:"rows_found"`
 	HeaderNamesFound int `json:"header_names_found"`
+	// LevelsRead and LevelsUnread count the level SUBCOLUMNS a mark table's header printed under
+	// its supercolumns (#933): each is a column of the emitted table, headed by the level read from
+	// its own header cell, or `L?` where that cell did not read. Zero on a table without levels.
+	LevelsRead   int `json:"levels_read,omitempty"`
+	LevelsUnread int `json:"levels_unread,omitempty"`
 	// MarksPlaced/MarksTotal is the plan's original fallback trigger — and it is NOT
 	// sufficient alone: when the OCR drops glyphs, MarksTotal drops with them and the ratio
 	// stays healthy (p0052: 33/36 placed on a page missing 55% of its marks). The dropout
@@ -107,9 +112,21 @@ func MarkTokenCount(tsv string) int {
 // non-nil, are the rotated-band recovery's column names in column order (see
 // ParseRotatedBandHeaders); without them column names fall back to supercolumn anchors.
 // The emitted table is |-separated rows in the corpus's own transcript format.
-func Reconstruct(tsv string, headers []string) (string, Stats, error) {
+//
+// levels, when non-nil, are the level SUBCOLUMNS read from the table's own header cells (see
+// ReadLevelBand): on a table whose supercolumns each carry printed levels, the output columns are
+// those subcolumns rather than the supercolumns, so a cell says which LEVEL a mark belongs to.
+func Reconstruct(tsv string, headers []string, levels []LevelBox) (string, Stats, error) {
 	words := parseTSVWords(tsv)
-	return reconstruct(words, headers)
+	return reconstruct(words, headers, levels)
+}
+
+// LevelBox is one level subcolumn of a mark table's header: its horizontal extent in page pixels,
+// and the level its header cell read. An empty Label is a cell that did not read — the column
+// still exists, and it is headed `L?` rather than given a level nobody saw.
+type LevelBox struct {
+	X0, X1 int
+	Label  string
 }
 
 // ParseRotatedBandHeaders reads the rotated-band re-OCR output: names separated by blank
@@ -323,7 +340,7 @@ type tableRow struct {
 	cells  map[int]int // column index -> mark count
 }
 
-func reconstruct(words []tsvWord, headers []string) (string, Stats, error) {
+func reconstruct(words []tsvWord, headers []string, levels []LevelBox) (string, Stats, error) {
 	var st Stats
 	colGap, rowGap := colGap300, rowGap300
 
@@ -596,6 +613,15 @@ func reconstruct(words []tsvWord, headers []string) (string, Stats, error) {
 		outColC = colC
 	}
 
+	// 7b. LEVEL SUBCOLUMNS (#933). Where each supercolumn prints its levels and the header cells
+	// read, the output columns are the levels, taken from the header rather than from the marks:
+	// a level no row marks leaves no mark to cluster (Table 2's marks reveal 9 to 31 of its ~40
+	// printed subcolumns), and the level is what the table is FOR. A mark lands in the level box
+	// holding its column's centre, else the nearest one.
+	if len(anchors) >= 3 && len(levels) > 0 {
+		return emitLevels(rows, colC, anchors, headers, levels, labelLines, top, st), levelStats(st, rows, colC, headers, levels), nil
+	}
+
 	// 8. emit
 	var b strings.Builder
 	corner := cornerLabel(labelLines, top)
@@ -634,6 +660,80 @@ func reconstruct(words []tsvWord, headers []string) (string, Stats, error) {
 	st.RowsFound = len(rows)
 	st.HeaderNamesFound = len(headers)
 	return b.String(), st, nil
+}
+
+// emitLevels writes the table one column per level subcolumn, each headed "<activity> L<level>".
+func emitLevels(rows []*tableRow, colC, anchors []float64, headers []string, levels []LevelBox, labelLines [][]tsvWord, top float64, st Stats) string {
+	boxes := append([]LevelBox(nil), levels...)
+	sort.Slice(boxes, func(i, j int) bool { return boxes[i].X0 < boxes[j].X0 })
+	centre := func(b LevelBox) float64 { return float64(b.X0+b.X1) / 2 }
+	boxCentres := make([]float64, len(boxes))
+	for i, bx := range boxes {
+		boxCentres[i] = centre(bx)
+	}
+	boxOf := make([]int, len(colC))
+	for ci, c := range colC {
+		boxOf[ci] = -1
+		for bi, bx := range boxes {
+			if c >= float64(bx.X0) && c < float64(bx.X1) {
+				boxOf[ci] = bi
+				break
+			}
+		}
+		if boxOf[ci] < 0 {
+			boxOf[ci], _ = nearest(boxCentres, c)
+		}
+	}
+	var b strings.Builder
+	hdr := make([]string, len(boxes))
+	for i, bx := range boxes {
+		activity := ""
+		if ai, _ := nearest(anchors, centre(bx)); ai >= 0 && ai < len(headers) {
+			activity = headers[ai]
+		}
+		level := "L?"
+		if bx.Label != "" {
+			level = "L" + bx.Label
+		}
+		hdr[i] = strings.TrimSpace(activity + " " + level)
+	}
+	b.WriteString("| " + cornerLabel(labelLines, top) + " | " + strings.Join(hdr, " | ") + " |\n")
+	b.WriteString("|" + strings.Repeat("---|", len(boxes)+1) + "\n")
+	for _, r := range rows {
+		cells := make([]string, len(boxes))
+		for ci, n := range r.cells {
+			if n > 0 && boxOf[ci] >= 0 {
+				cells[boxOf[ci]] = "X"
+			}
+		}
+		b.WriteString("| " + renderLabel(r.labels) + " | " + strings.Join(cells, " | ") + " |\n")
+	}
+	return b.String()
+}
+
+// levelStats is the reconstruction's measurements on the level path: the same row facts as the
+// supercolumn path, with the columns counted as the levels they are.
+func levelStats(st Stats, rows []*tableRow, colC []float64, headers []string, levels []LevelBox) Stats {
+	for _, r := range rows {
+		if renderLabel(r.labels) == "" {
+			st.LabellessRows++
+		}
+		if len(r.cells) == 0 {
+			st.EmptyRows++
+		}
+	}
+	for _, bx := range levels {
+		if bx.Label != "" {
+			st.LevelsRead++
+		} else {
+			st.LevelsUnread++
+		}
+	}
+	st.ColumnsFound = len(levels)
+	st.SubColumnsFound = len(colC)
+	st.RowsFound = len(rows)
+	st.HeaderNamesFound = len(headers)
+	return st
 }
 
 // findAnchors looks above the grid for a token repeated >=4 times at a near-uniform pitch

@@ -1,0 +1,25 @@
+table: true · rotated: false · grid h=133770 v=74611 intersections=4854
+path: marks (28 placed of 28, 16 columns, 9 subcolumns, 6 rows, levels read 16, unread 0)
+marks fell back: the detector measured 4854 grid intersections, 69.3 times the 70 the reconstruction accounts for (limit 4.0): the OCR dropped rows or columns the grid still shows; page kept as plain text
+cells fell back: the rules bound 129 cells holding 83 words (0.64 per cell, under 2.00): these cells carry marks rather than text, and reading them as text would drop what they mean
+--- the reconstruction the dropout gate refused (evidence, not the reading)
+| Hintesritylevel | L4 | L3 | L2 | L1 | L4 | L3 | L2 | L1 | L4 | L3 | L2 | L1 | L4 | L3 | L2 | L1 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Lagonmanayss |  | X |  |  | X |  |  | X |  | X |  |  |  |  | X |  |
+| favarportomance | X | X |  |  |  |  |  | X |  | X |  |  | X |  | X |  |
+| Ee |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| fracasanayss |  | X | X |  | X |  |  | X |  | X |  |  | X |  |  |  |
+| pecanayss | X | X | X |  |  |  |  | X |  | X |  |  | X |  | X | X |
+| frestwinessng |  | X |  |  | X |  |  |  |  |  |  |  |  |  |  |  |
+---
+Hintesritylevel level | Levels | | Levels | | Levels | | Levels |
+
+pts fs fe fa fs fs fe fo fs fs fo fs fia [is Pe
+Lagonmanayss x(x | | [xixixixix} | | | [xix]
+
+favarportomance Ix Ix ix|xfx] | | | [xix] [xix [x]
+Ee ee
+fracasanayss |x |x| [xixix} | | | fx ixix] |
+pecanayss xxx] | | | xix ix] | [x [x [x |x|
+frestwinessng LL xt x tx] | dx dxf dete? Td
+

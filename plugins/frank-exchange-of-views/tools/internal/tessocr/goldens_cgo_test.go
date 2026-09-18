@@ -88,7 +88,9 @@ func renderGolden(res PageResult) string {
 		res.Table, res.RotatedPage, res.Grid.HPix, res.Grid.VPix, res.Grid.Intersections)
 	switch {
 	case res.Reconstruction != nil:
-		fmt.Fprintf(&b, "path: marks (%d placed of %d)\n", res.Reconstruction.MarksPlaced, res.Reconstruction.MarksTotal)
+		st := res.Reconstruction
+		fmt.Fprintf(&b, "path: marks (%d placed of %d, %d columns, %d subcolumns, %d rows, levels read %d, unread %d)\n",
+			st.MarksPlaced, st.MarksTotal, st.ColumnsFound, st.SubColumnsFound, st.RowsFound, st.LevelsRead, st.LevelsUnread)
 	case res.TextCells != nil:
 		st := *res.TextCells
 		fmt.Fprintf(&b, "path: text cells (%d columns, %d ruled bands, %d rows, %d cells, %d words placed, %d from the sparse pass, %d around the table, %d loose)\n",
@@ -101,6 +103,10 @@ func renderGolden(res PageResult) string {
 	}
 	if res.TextCellFallback != "" {
 		fmt.Fprintf(&b, "cells fell back: %s\n", res.TextCellFallback)
+	}
+	if res.Evidence.RefusedTable != "" {
+		b.WriteString("--- the reconstruction the dropout gate refused (evidence, not the reading)\n")
+		b.WriteString(res.Evidence.RefusedTable)
 	}
 	b.WriteString("---\n")
 	b.WriteString(res.Text)

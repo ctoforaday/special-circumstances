@@ -117,8 +117,9 @@ func onePage(content string) []byte {
 		"<< /Type /Catalog /Pages 2 0 R >>",
 		"<< /Type /Pages /Kids [4 0 R] /Count 1 >>",
 		"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-		fmt.Sprintf("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %.0f %.0f] /Contents 5 0 R /Resources << /Font << /F1 3 0 R >> >> >>", pageW, pageH),
+		fmt.Sprintf("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %.0f %.0f] /Contents 5 0 R /Resources << /Font << /F1 3 0 R /F2 6 0 R >> >> >>", pageW, pageH),
 		fmt.Sprintf("<< /Length %d >>\nstream\n%s\nendstream", len(content), content),
+		"<< /Type /Font /Subtype /Type1 /BaseFont /Times-Bold >>",
 	}
 	var b strings.Builder
 	b.WriteString("%PDF-1.4\n")
