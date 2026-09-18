@@ -302,8 +302,11 @@ func TestLiveGateCarryingMigrationAdmissionRefused(t *testing.T) {
 	board := func(severity string) Run {
 		b := chairBoard(t, true)
 		b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, severity))
-		openChairSitting(b)
+		// THE EARLIER SITTING'S FAIL, and it sits before this sitting's register because a verdict
+		// is a once-per-sitting act: recorded after it, the live PASS below is the chair's SECOND
+		// verdict in one sitting and requireOncePerSitting refuses it for that instead.
 		b.add("red-chair", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)})
+		openChairSitting(b)
 		return b.seed()
 	}
 	claim := func(v recordpb.Verdict) *recordpb.Gate {

@@ -446,12 +446,28 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 				closed[key] = true
 			}
 		}
+		// THE NUMERATOR IS AN INTERSECTION, NOT A CARDINALITY. Two set sizes divided is a ratio only
+		// while every `closed` key is a `sat` key, and nothing made that true: a log entry filed by a
+		// seat with no register of its own — the harness's, or a seat whose register is not on this
+		// stream — buckets under a key `sat` never holds, and the division then reports a closure
+		// rate ABOVE 1 and a negative count of sittings that closed nothing (measured: 2 and -1).
+		// Both are impossible readings of the duty, and a detector that can go negative is one whose
+		// sign nobody can act on. So the numerator counts the buckets present on BOTH sides, which
+		// makes key identity load-bearing rather than incidental: bucket `closed` by turns while
+		// `sat` buckets by acts and a repair's entry matches nothing, which is a visible 0 instead
+		// of an invisible 1.
 		if len(sat) > 0 {
+			discharged := 0
+			for key := range closed {
+				if sat[key] {
+					discharged++
+				}
+			}
 			rows = append(rows, Row{Clause: "The log", Metric: "channel_closure", Cls: "benchmark",
-				Value: float64(len(closed)) / float64(len(sat)),
+				Value: float64(discharged) / float64(len(sat)),
 				Joint: "sittings that filed at least one log entry over sittings dispatched; the unit is the SITTING because the duty is per sitting, so a seat that sat four times and logged once discharged it once"})
 			rows = append(rows, Row{Clause: "The log", Metric: "sittings_never_closed", Cls: "detector",
-				Value: len(sat) - len(closed),
+				Value: len(sat) - discharged,
 				Note:  "a sitting that recorded acts and closed no operator entry — the shape the duty exists to prevent, and the one nothing counted until now"})
 		}
 		// TYPE COVERAGE, because the channel's worth is what a reader can FILTER on. An untyped

@@ -657,6 +657,12 @@ const takeFriction = (who, env) => { if (env && env.log) for (const f of env.log
 // already closed the sitting they belong to, so they belonged to no sitting at all and record-parity
 // could fail the sitting they completed. The prompt names the act; the register records which sitting
 // it repairs as a field, and refuses a repair the record does not bear out.
+// THE RE-PROMPT BRANCHES ON A SENTENCE THE TOOL PLACES, NOT ON EACH REFUSAL'S OWN WORDS (#1026).
+// A refused repair means one of exactly two things: the sitting owes a repair nothing, or the record
+// does not bear the claim out. This is record.RepairNothingToFile verbatim — the tool ends every
+// refusal of the first kind with it, and Go's TestTheRePromptNamesEveryRepairRefusalsBranch fails
+// when the two copies disagree or when a refusal falls outside both branches.
+const SITTING_RECORD_NOTHING_TO_FILE = 'There is nothing here for a repair to file: register without repairing, and report what the record supports.'
 const SITTING_RECORD = {
   type: 'object',
   required: ['sitting_record_appended'],
@@ -671,7 +677,7 @@ async function ensureSittingRecord(env, who, owed, opts) {
   if (env && env.sitting_record_appended === true) return true
   log(`sitting-record (W1.7): ${who} did not attest ${owed} — re-prompting once before continuing (#249 recovery)`)
   const retry = await agent(
-    `Sitting-record repair for ${who}. Your last sitting did not attest what it put on the record, so the run cannot yet show ${owed}. Put it on the record NOW — nothing else. REGISTER AS THE REPAIR OF YOUR LAST SITTING: your register's help names how, and what you then put on the record counts as that sitting's rather than this one's. If that register is refused AND THE REFUSAL SAYS THAT SITTING OWES NOTHING, there is nothing to file — register without repairing, quote the refusal in the log, and return the attestation the record supports. A refusal that says anything else is a failure to report and not a finding: quote it in the log and return sitting_record_appended false. ${owed}. Do NOT re-do your substantive work and do NOT edit the report again; this turn exists only to close the parity gap. If you genuinely cannot (the duty does not apply, or a tool refuses you), say in the log exactly why, and return sitting_record_appended false with a one-line note. Return the attestation.`,
+    `Sitting-record repair for ${who}. Your last sitting did not attest what it put on the record, so the run cannot yet show ${owed}. Put it on the record NOW — nothing else. REGISTER AS THE REPAIR OF YOUR LAST SITTING: your register's help names how, and what you then put on the record counts as that sitting's rather than this one's. If that register is refused, the refusal itself says which of two things happened, and there are only these two. A refusal ENDING WITH THE TOOL'S OWN SENTENCE "${SITTING_RECORD_NOTHING_TO_FILE}" means the sitting you would repair owes a repair nothing: do exactly what that sentence says, quote the refusal in the log, and return the attestation the record supports — this is a success, not a failure. A refusal WITHOUT that sentence means the record does not bear out the repair you claimed; that is a failure to report and not a finding: quote it in the log and return sitting_record_appended false. ${owed}. Do NOT re-do your substantive work and do NOT edit the report again; this turn exists only to close the parity gap. If you genuinely cannot (the duty does not apply, or a tool refuses you), say in the log exactly why, and return sitting_record_appended false with a one-line note. Return the attestation.`,
     { ...(opts || {}), label: `${who}-sitting-record · ${slug}`, phase: 'Debate', schema: SITTING_RECORD })
   if (retry && retry.sitting_record_appended === true) {
     log(`sitting-record: ${who} attested on the retry — continuing`)

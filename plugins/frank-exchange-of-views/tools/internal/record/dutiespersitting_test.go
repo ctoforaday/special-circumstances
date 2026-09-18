@@ -141,3 +141,38 @@ func TestRevisionOwedReadsWhatTheSittingFoundOpenWhetherOrNotItHasEnded(t *testi
 		})
 	}
 }
+
+// A REPAIR DOES NOT RE-OPEN A DUTY THE SITTING IT REPAIRS DISCHARGED (#1026). seatDidThisSitting is
+// a reader that ATTRIBUTES — it answers "did this sitting file its log", not "has this turn" — so
+// its window opens at the register that OPENED the sitting, never at a repair's own. Starting it at
+// the seat's latest register of any kind told a re-prompted seat that the log channel was open
+// while scorecard.channel_closure, reading the same attribution, scored that duty discharged: the
+// prompt says "put it on the record NOW — nothing else" and the work list then named something the
+// sitting did not owe.
+//
+// THE REVISION IS STILL OWED, which is the half that must not move with it: the repair exists
+// because that duty is outstanding, and a window that swallowed it would report the sitting complete.
+func TestARepairDoesNotReopenTheDutiesTheSittingDischarged(t *testing.T) {
+	sat := func(t *testing.T) (*stage, string) {
+		b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+			register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "medium").
+			register("red-chair").dispatch(2, "blue-respond", "G1").registerAs("blue-respond", "blue-a")
+		opened := b.lastKey()
+		return b.logNominal("blue-respond").position("blue-respond").stop("blue-a"), opened
+	}
+
+	b, opened := sat(t)
+	s := sittingOfRunT(t, b.repairs("blue-respond", "blue-b", opened).seed(), "blue", "blue-respond")
+	if hasItem(s, "the log is open") {
+		t.Error("inside the repair the work list asks for a log the sitting it repairs already filed")
+	}
+	if !hasItem(s, "this sitting's revision is missing") {
+		t.Error("inside the repair the work list does not name the revision the repair exists to file")
+	}
+
+	// THE CONTROL: a plain register is a real second sitting, and every per-sitting duty is owed again.
+	again, _ := sat(t)
+	if !hasItem(sittingOfRunT(t, again.register("blue-respond").seed(), "blue", "blue-respond"), "the log is open") {
+		t.Error("a genuine second sitting has filed no log, and the work list does not say so")
+	}
+}

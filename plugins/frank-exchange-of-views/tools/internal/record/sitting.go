@@ -315,17 +315,25 @@ func revisionOwed(evs []*Event, seatID string) bool {
 	return len(ss[len(ss)-1].Open) > 0
 }
 
-// seatDidThisSitting is seatDid for a duty the seat owes EVERY SITTING: only its acts since its
-// latest register count — the sitting as same-sitting correction counts it (correction.go, F6).
-// seatDid reads the whole record, so the first sitting's act discharged every later one: in B9
-// blue sat in epoch 5 with G4 open, filed no revision, and read `complete` because its epoch-4
-// revision was on the record. A seat that has not registered has no earlier sitting to borrow
-// from, so the whole record is its sitting.
+// seatDidThisSitting is seatDid for a duty the seat owes EVERY SITTING: only its acts since the
+// register that OPENED the sitting its acts are attributed to count. seatDid reads the whole record,
+// so the first sitting's act discharged every later one: in B9 blue sat in epoch 5 with G4 open,
+// filed no revision, and read `complete` because its epoch-4 revision was on the record. A seat that
+// has not registered has no earlier sitting to borrow from, so the whole record is its sitting.
+//
+// IT ATTRIBUTES, SO A REPAIR OPENS NO WINDOW (#1026). This is a reader of "which sitting does this
+// act belong to", which is record.ActClock's question, not Clock's: a sitting-record repair is a
+// turn of its own and its acts are the repaired sitting's. Starting the window at the seat's latest
+// register of ANY kind put the repair's own register there, so inside a repair the work list said
+// the log channel was open — a duty the repaired sitting had already discharged, and which
+// scorecard.channel_closure, reading the same attribution, scored as discharged. The seat was told
+// to file something it did not owe, on the one surface it reads to find out what it owes.
 func seatDidThisSitting(evs []*Event, seatID string, typ recordpb.EventType) bool {
 	live := Live(evs)
 	start := 0
 	for i, e := range live {
-		if e.GetSeatId() == seatID && e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER {
+		if b, ok := recordpb.BodyAs[*recordpb.Register](e); e.GetSeatId() == seatID &&
+			e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER && (!ok || b.RepairsSitting == nil) {
 			start = i
 		}
 	}

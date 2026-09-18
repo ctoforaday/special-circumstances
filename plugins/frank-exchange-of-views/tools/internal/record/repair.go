@@ -1,6 +1,7 @@
 package record
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
@@ -26,6 +27,49 @@ import (
 // a crashed sitting dispatched again, so a writer that inferred the repair would record one nobody
 // claimed.
 
+// A REFUSED REPAIR HAS TWO MEANINGS AND THE REFUSAL SAYS WHICH (#1026).
+//
+// The engine's re-prompt branches on what it is told: either there is nothing for a repair to file
+// — and the seat then opens a sitting of its own and reports what the record supports — or the claim
+// is one the record does not bear out, which is a failure to report. It keyed that branch on one
+// refusal's prose, and four refusals that meant the first said something else; the worst left a
+// re-prompted seat filing NOTHING when it had no sitting to repair, so the record it was sent to
+// complete stayed incomplete.
+//
+// So the outcome is stated at every refusal site rather than recovered from the sentence. The class
+// is a compile-time argument, so a refusal cannot be added without choosing a branch, and the
+// "nothing to file" class ends with RepairNothingToFile — one sentence this package writes, which
+// the re-prompt names verbatim (TestTheRePromptNamesEveryRepairRefusalsBranch).
+
+// repairOutcome is which branch a refused repair puts the seat on. The set is CLOSED: the re-prompt
+// states both, and a third would be a branch no prompt holds.
+type repairOutcome int
+
+const (
+	// nothingToFile: the sitting the seat would repair owes a repair nothing, so the honest next
+	// act is a register that opens a sitting of the seat's own.
+	nothingToFile repairOutcome = iota
+	// claimUnfounded: the register names a sitting the record does not bear out as this seat's
+	// latest. Reachable only where the key comes from somewhere other than repairTarget, which
+	// reads it off the record — a forged register, or another write path.
+	claimUnfounded
+)
+
+// RepairNothingToFile is the sentence every nothingToFile refusal ends with. It is the anchor the
+// engine's re-prompt keys on: a tool-placed sentence in a refusal a seat reads, rather than each
+// refusal's own wording, which is what the prompt was matching and mostly missing.
+const RepairNothingToFile = "There is nothing here for a repair to file: register without repairing, and report what the record supports."
+
+// refuseRepair is the one place a repair refusal is written, so the class and the sentence cannot
+// drift apart.
+func refuseRepair(out repairOutcome, format string, a ...any) error {
+	msg := "record: register refused — " + fmt.Sprintf(format, a...)
+	if out == nothingToFile {
+		msg += " " + RepairNothingToFile
+	}
+	return feov.Errorf(feov.Validation, "%s", msg)
+}
+
 // repairTarget is the sitting a register by seat repairs — the key of the register that opened
 // the seat's latest sitting — once checkRepair admits it.
 func repairTarget(evs []*Event, seat string) (string, error) {
@@ -37,8 +81,8 @@ func repairTarget(evs []*Event, seat string) (string, error) {
 		}
 	}
 	if latest == nil {
-		return "", feov.Errorf(feov.Validation,
-			"record: register refused — %s has no sitting to repair: no register of yours opened one. Register without repairing to open this sitting", seat)
+		return "", refuseRepair(nothingToFile,
+			"%s has no sitting to repair: no register of yours opened one.", seat)
 	}
 	key := latest.GetKey()
 	return key, checkRepair(evs, seat, key)
@@ -55,9 +99,6 @@ func checkRepair(evs []*Event, seat, key string) error {
 		seq[i] = int64(i)
 	}
 	ds, registers := dispatchLedger(evs, seq)
-	refuse := func(format string, a ...any) error {
-		return feov.Errorf(feov.Validation, "record: register refused — "+format, a...)
-	}
 	named := int64(-1)
 	for i, e := range evs {
 		if e.GetKey() == key {
@@ -65,21 +106,21 @@ func checkRepair(evs []*Event, seat, key string) error {
 		}
 	}
 	if named < 0 {
-		return refuse("%q names no act on the record, so it names no sitting of yours to repair", key)
+		return refuseRepair(claimUnfounded, "%q names no act on the record, so it names no sitting of yours to repair", key)
 	}
 	if b, ok := recordpb.BodyAs[*recordpb.Register](evs[named]); !ok || evs[named].GetSeatId() != seat || b.RepairsSitting != nil {
-		return refuse("%q is not a register that opened a sitting of %s, so it names no sitting of yours to repair", key, seat)
+		return refuseRepair(claimUnfounded, "%q is not a register that opened a sitting of %s, so it names no sitting of yours to repair", key, seat)
 	}
 	opens := registers[seat]
 	if latest := opens[len(opens)-1]; latest != named {
-		return refuse("%q opened an earlier sitting of %s; a repair puts on the record what your LATEST sitting owes, and that sitting was opened by %q", key, seat, evs[latest].GetKey())
+		return refuseRepair(claimUnfounded, "%q opened an earlier sitting of %s; a repair puts on the record what your LATEST sitting owes, and that sitting was opened by %q", key, seat, evs[latest].GetKey())
 	}
 	if roleOfSeat(seat) != "blue" {
-		return refuse("%s owes no position or revision a repair can file: only a blue sitting owes them", seat)
+		return refuseRepair(nothingToFile, "%s owes no position or revision a repair can file: only a blue sitting owes them.", seat)
 	}
 	for _, d := range ds {
 		if d.seat == seat && d.at > named {
-			return refuse("%s was dispatched again after the sitting %q opened, so this is a new sitting and not a repair of that one — register without repairing", seat, key)
+			return refuseRepair(nothingToFile, "%s was dispatched again after the sitting %q opened, so this is a new sitting and not a repair of that one.", seat, key)
 		}
 	}
 	if seat == blueRespondSeat {
@@ -88,21 +129,21 @@ func checkRepair(evs []*Event, seat, key string) error {
 				continue
 			}
 			if len(s.Open) == 0 {
-				return refuse("the sitting %q opened owes nothing: every gap it was engaged on was closed before it sat, so it owes no position and no revision", key)
+				return refuseRepair(nothingToFile, "the sitting %q opened owes nothing: every gap it was engaged on was closed before it sat, so it owes no position and no revision.", key)
 			}
 			owes := s.Owes()
 			if len(owes) == 0 {
-				return refuse("the sitting %q opened already carries its position and its revision: there is nothing to repair", key)
+				return refuseRepair(nothingToFile, "the sitting %q opened already carries its position and its revision: there is nothing to repair.", key)
 			}
 			return nil
 		}
-		return refuse("the sitting %q opened was dispatched onto no gap, so it owes no position and no revision", key)
+		return refuseRepair(nothingToFile, "the sitting %q opened was dispatched onto no gap, so it owes no position and no revision.", key)
 	}
 	closer := sittingCloserOf(evs, seq, registers, WhileRunning)
 	spans, end, _ := closer.bounds(seat, named)
 	for i := named; i < end; i++ {
 		if evs[i].GetSeatId() == seat && evs[i].GetType() == recordpb.EventType_EVENT_TYPE_REVISION && holds(spans, i) {
-			return refuse("the sitting %q opened already carries its revision: there is nothing to repair", key)
+			return refuseRepair(nothingToFile, "the sitting %q opened already carries its revision: there is nothing to repair.", key)
 		}
 	}
 	return nil
