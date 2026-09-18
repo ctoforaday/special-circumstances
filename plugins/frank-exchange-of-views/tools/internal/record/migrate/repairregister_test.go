@@ -11,26 +11,54 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
-// AN ARCHIVED REGISTER REPAIRS NO SITTING (epoch 7 -> 8). No run before epoch 8 could say a register
-// was a sitting-record repair, so the translation writes every register as one that opens a sitting
-// of its own, whatever its row carries.
-func TestAnArchivedRegisterRepairsNoSitting(t *testing.T) {
+// AN ARCHIVED REGISTER OPENS A SITTING (epoch 7 -> 8).
+//
+// THE ROW IS THE ARCHIVE'S. is-91-prime-b's register table is
+// `event_id, tool_version, agent_id, run_via, agent_type` — there is no repairs_sitting column and
+// no run before epoch 8 could record one, so the shape a real row arrives in is the shape this
+// asserts on. Fed a column no epoch-7 row can carry, the earlier form of this test measured the
+// translation against data migrate will never see.
+//
+// A ROW THAT DOES CARRY IT IS REFUSED, and that arm is what makes the step more than a comment: a
+// silent drop reads identically whether the source was an honest archive or a record claiming a
+// field its epoch could not hold. It is not an epoch-7 row — that is the point of refusing it.
+func TestAnArchivedRegisterOpensASitting(t *testing.T) {
 	dst := runtest.New(t, recordtest.TmpRun(t))
 	entry, ok := migrate.Entries()["register"]
 	if !ok {
 		t.Fatal("no register translation: epoch 8 moved the register's shape and migrate has no step for it")
 	}
-	bodies, err := entry.Translate(migrate.OldEvent{ID: 1, SeatID: "blue-respond", TS: ts1, Word: "register",
-		Fields: map[string]any{"agent_id": "agent_blue_respond_sitting_record", "repairs_sitting": "blue-respond:register:#3"}}, dst)
+
+	archived := migrate.OldEvent{ID: 1, SeatID: "blue-respond", TS: ts1, Word: "register", Key: "blue-respond:register:#1",
+		Fields: map[string]any{
+			"tool_version": "e6b33cf+dirty",
+			"agent_id":     "agent_blue_respond_sitting_record",
+			"run_via":      "injected",
+			"agent_type":   "frank-exchange-of-views:blue-researcher",
+		}}
+	bodies, err := entry.Translate(archived, dst)
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, ok := bodies[0].(*recordpb.Register)
-	if !ok || len(bodies) != 1 {
+	r, isRegister := bodies[0].(*recordpb.Register)
+	if !isRegister || len(bodies) != 1 {
 		t.Fatalf("a register translated to %d bodies, the first %T", len(bodies), bodies[0])
 	}
-	if r.RepairsSitting != nil || r.GetAgentId() != "agent_blue_respond_sitting_record" {
-		t.Errorf("translated register = %v, want its agent kept and no repair", r)
+	if r.RepairsSitting != nil {
+		t.Errorf("an archived register claims to repair %q — every one of them opens a sitting of its own", r.GetRepairsSitting())
+	}
+	if r.GetToolVersion() != "e6b33cf+dirty" || r.GetAgentId() != "agent_blue_respond_sitting_record" ||
+		r.GetRunVia() != "injected" || r.GetAgentType() != "frank-exchange-of-views:blue-researcher" {
+		t.Errorf("translated register = %v, want every archived column kept word for word", r)
+	}
+
+	forged := archived
+	forged.Fields = map[string]any{"agent_id": "a", "repairs_sitting": "blue-respond:register:#3"}
+	switch _, err := entry.Translate(forged, dst); {
+	case err == nil:
+		t.Error("a row carrying a column its epoch could not hold was translated rather than refused")
+	case !strings.Contains(err.Error(), "repairs_sitting") || !strings.Contains(err.Error(), "blue-respond:register:#1"):
+		t.Errorf("the refusal must name the field it found and the row it found it on: %v", err)
 	}
 }
 
