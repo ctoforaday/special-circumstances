@@ -72,3 +72,25 @@ func TestTheFirstWinsOfferSurvivesARepair(t *testing.T) {
 		t.Fatalf("the second appeal's refusal = %v, want the offer to correct the appeal this sitting filed", err)
 	}
 }
+
+// AN ACT FILED INSIDE THE REPAIR IS CORRECTED INSIDE IT TOO (#1026). Both arms of the shared SQL
+// constant have to skip the repair register, and only the SECOND was held: every test corrected an
+// act written BEFORE the repair, so the `before` subquery's filter could be dropped outright with
+// the suite green. Here the act is written inside the repair — `before` counts the registers ahead
+// of it, the repair's included — and an unfiltered count makes it sitting 2 against a current
+// sitting 1, refusing the correction of an act the seat wrote moments earlier.
+func TestAnActFiledInsideTheRepairIsCorrectedInsideIt(t *testing.T) {
+	runDir := corrFixture(t)
+	blueDispatchedOnG1(t, runDir)
+	must(t, runDir, "register", "--seat-id", "blue-respond")
+	must(t, runDir, "register", "--seat-id", "blue-respond", "--repair-sitting")
+
+	k := correctionKeyOf(t, runDir, "blue-respond", []string{"manifest-row", "--id", "G1", "--reason", "recomputed the  figure"})
+	if _, err := run(t, "manifest-row", "--run", runDir, "--seat-id", "blue-respond", "--id", "G1",
+		"--reason", "recomputed the figure", "--corrects", k, "--correction-why", "the shell deleted a word"); err != nil {
+		t.Fatalf("an act filed inside the repair was refused its own correction: %v", err)
+	}
+	if c := lastBody(t, runDir, &recordpb.Correction{}); c.GetCorrects() != k {
+		t.Errorf("the correction on the record = %v, want it striking %s", c, k)
+	}
+}
