@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -28,10 +29,17 @@ import (
 // never fetched. Nothing in this module refuses an outside host — offline-ness here is the absence
 // of any other address, not a promise.
 //
-// Regenerate (goldens and STATUS.md together):
+// THIS SUITE IS EXPENSIVE AND DOES NOT RIDE THE ORDINARY ONE. Eight scans at 12-24 s each is
+// minutes of engine time, and CI pays for it on every leg that compiles it. It runs only where
+// FEOV_OCR_CORPUS=1 is set — the `ocr-corpus` job, Linux only, since a Windows minute costs twice a
+// Linux one and a macOS minute ten times, and these pages measure the engine, not the platform.
+// The env gate is the repository's existing idiom for a costly gate (FEOV_RELEASE_GATE), and it
+// keeps the file COMPILED everywhere, so it cannot rot behind a build tag.
 //
-//	go test -tags tessocr -count=1 -ldflags '-linkmode external -extldflags "-static"' \
-//	  ./internal/fetchcache/ -run TestCorpusGoldens -update
+// Run it, or regenerate (goldens and STATUS.md together):
+//
+//	FEOV_OCR_CORPUS=1 go test -tags tessocr -count=1 -ldflags '-linkmode external -extldflags "-static"' \
+//	  ./internal/fetchcache/ -run TestCorpusGoldens [-update]
 const corpusRoot = "../tessocr/testdata/corpus"
 
 // update regenerates the goldens and STATUS.md together: a golden without the meter beside it is
@@ -39,34 +47,48 @@ const corpusRoot = "../tessocr/testdata/corpus"
 var update = flag.Bool("update", false, "rewrite the corpus goldens and STATUS.md from this run")
 
 func TestCorpusGoldens(t *testing.T) {
+	if os.Getenv("FEOV_OCR_CORPUS") != "1" && !*update {
+		t.Skip("the corpus reads eight scans through the real engine; set FEOV_OCR_CORPUS=1 (the " +
+			"ocr-corpus job does) or pass -update")
+	}
 	cases, err := corpus.Load(corpusRoot)
 	if err != nil {
 		t.Fatal(err)
 	}
+	var mu sync.Mutex
 	var results []corpus.Result
-	for _, c := range cases {
-		c := c
-		t.Run(c.Slug, func(t *testing.T) {
-			got, observed := readCorpusPage(t, c)
-			results = append(results, corpus.Result{Slug: c.Slug, Failed: c.Prov.Expect.Check(observed)})
+	// The pages run in parallel, and the ceiling is stated rather than assumed: the shipped engine
+	// serializes every read on one process-wide mutex (TessocrPageEngine.ReadPage), so what actually
+	// overlaps here is the PDFium render, the fetch and the comparison. Wall-clock parallelism across
+	// the whole corpus is a CI-level fan-out, not a -parallel flag.
+	t.Run("pages", func(t *testing.T) {
+		for _, c := range cases {
+			c := c
+			t.Run(c.Slug, func(t *testing.T) {
+				t.Parallel()
+				got, observed := readCorpusPage(t, c)
+				mu.Lock()
+				results = append(results, corpus.Result{Slug: c.Slug, Failed: c.Prov.Expect.Check(observed)})
+				mu.Unlock()
 
-			path := filepath.Join(c.Dir, corpus.FileGolden)
-			if *update {
-				if werr := os.WriteFile(path, []byte(got), 0o644); werr != nil {
-					t.Fatal(werr)
+				path := filepath.Join(c.Dir, corpus.FileGolden)
+				if *update {
+					if werr := os.WriteFile(path, []byte(got), 0o644); werr != nil {
+						t.Fatal(werr)
+					}
+					return
 				}
-				return
-			}
-			want, rerr := os.ReadFile(path)
-			if rerr != nil {
-				t.Fatal(rerr)
-			}
-			if string(want) != got {
-				t.Errorf("%s: the reading moved. Read the diff line by line, then regenerate with "+
-					"-update.\n--- golden\n%s\n--- now\n%s", c.Slug, want, got)
-			}
-		})
-	}
+				want, rerr := os.ReadFile(path)
+				if rerr != nil {
+					t.Fatal(rerr)
+				}
+				if string(want) != got {
+					t.Errorf("%s: the reading moved. Read the diff line by line, then regenerate "+
+						"with -update.\n--- golden\n%s\n--- now\n%s", c.Slug, want, got)
+				}
+			})
+		}
+	})
 	if t.Failed() {
 		return
 	}

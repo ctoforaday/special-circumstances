@@ -176,6 +176,21 @@ kind the corpus lacks; `defect_class` names what it is a specimen OF, and a page
 all covered needs a reason in review. gblock's rule, kept in `testdata/corpus/README.md`: keep the
 complex one-shots, not the simplistic ones.
 
+**D11. An expensive suite does not ride a cheap one.** gblock, 2026-09-18: do not bury expensive
+tests in the existing CI suites; parallelize them, and run them on Linux only to keep the bill down.
+So the corpus skips unless `FEOV_OCR_CORPUS=1`, and one job sets it — `ocr-corpus`, `ubuntu-latest`,
+outside the `feov-record` matrix that would otherwise have charged it on two operating systems and
+put minutes on the critical path of the suite everything else waits for. Linux only is a price
+decision with a reason: a Windows minute bills at twice a Linux one and a macOS minute at ten times,
+and these pages measure the ENGINE — the same pinned tesseract and leptonica — not the platform.
+The env gate keeps the file COMPILED everywhere, so it cannot rot the way a build tag lets a file
+rot.
+
+The pages run with `t.Parallel()`, and the ceiling is stated rather than implied: the shipped engine
+serializes every read on one process-wide mutex, so what overlaps is the render, the fetch and the
+comparison. **Measured: 125 s parallel against 190 s sequential** for the eight. Real fan-out across
+the corpus would be a CI-level split, not a `-parallel` flag.
+
 **D10. The old policy statement is swept.** The three comments saying "nothing licensed is checked
 in" state the new rule: pages are generated OR admitted under D4's closed licence set. No gate reads
 a comment and `archaeology` does not cover Go comments, so this is a manual sweep — listed in the
@@ -212,9 +227,9 @@ with the leads that were tried.
 - `[NEW] internal/tessocr/corpus_cgo_test.go` (`tessocr` tag) — `TestCorpusGoldens` (D5, D6), reusing
   the package's existing `-update` flag rather than declaring a second.
 - `[NEW] internal/tessocr/testdata/corpusadd/main.go` — D7.
-- `scripts/check/gates.go` — NOT MODIFIED, and the plan was wrong to expect it: CI's tagged step
-  (`hooks.yml:558`) already runs `go test -tags tessocr … ./internal/tessocr/ ./internal/fetchcache/`,
-  which is where these goldens live, so the corpus is covered by the job that exists.
+- `[MODIFY] .github/workflows/hooks.yml` — the `ocr-corpus` job (D11).
+- `[MODIFY] scripts/check/gates.go` — the `ocr-corpus` gate, declared and skipped locally (it needs
+  the C stack), because a gate that cannot run here must still appear in the report.
 - `[MODIFY] .gitattributes` — `*.gz binary` and `*.pdf binary`; the repo's one committed PDF
   survives on Git's auto-detection alone today.
 - `[MODIFY] internal/tessocr/goldens_cgo_test.go:17`, `testdata/gen/main.go:7`,
