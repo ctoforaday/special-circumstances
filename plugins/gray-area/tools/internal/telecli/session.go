@@ -15,7 +15,9 @@ func newSessionCmd(env *Env) *cobra.Command {
 		Short: "one session's shape: calls and errors by tool",
 		Long: `Summarises what one session did, by tool, with its error count beside each.
 
-The id may be the full session id. Run 'telepathy agents' for the ones running now
+The id may be the full session id or any prefix naming exactly one session, so
+the eight characters agents and find print are enough; a prefix naming several
+is refused with the candidates, never resolved by guessing. Run 'telepathy agents' for the ones running now
 and, after a restart, 'telepathy agents --lost' for the ones it cut off, or query
 v_session for the ones that have ended.
 

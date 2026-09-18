@@ -97,14 +97,60 @@ type SessionShape struct {
 	Skipped map[string]int
 }
 
-// Shape summarises a single session.
-func Shape(ctx context.Context, db *sql.DB, sessionID string) (SessionShape, error) {
+// ResolveSession turns what a reader typed into the one session id it names: the full id, or any
+// prefix of exactly one — Short's eight characters being the form every verb here prints.
+//
+// A FULL-ID-ONLY LOOKUP REFUSED THE IDS THIS TOOL HANDS OUT. `agents` and `find` print Short, and
+// `session <that>` answered "no session in the store — it may predate capture" about a session the
+// store held: a worded absence naming the wrong cause, which sent a reader off to backfill and
+// then to conclude the session was gone. A prefix naming several is refused with the candidates,
+// never resolved by guessing one.
+func ResolveSession(ctx context.Context, db *sql.DB, id string) (string, error) {
+	if id == "" {
+		return "", fmt.Errorf("catalogue: an empty session id names nothing")
+	}
+	rows, err := db.QueryContext(ctx,
+		`SELECT session_id FROM v_session WHERE substr(session_id, 1, length(?1)) = ?1 ORDER BY session_id`, id)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var sid string
+		if err := rows.Scan(&sid); err != nil {
+			return "", err
+		}
+		if sid == id {
+			return sid, nil
+		}
+		ids = append(ids, sid)
+	}
+	if err := rows.Err(); err != nil {
+		return "", err
+	}
+	switch len(ids) {
+	case 0:
+		return "", fmt.Errorf("catalogue: no session %s in the store, by full id or prefix — it may "+
+			"predate capture, which is not the same as a session that did nothing", id)
+	case 1:
+		return ids[0], nil
+	}
+	return "", fmt.Errorf("catalogue: %q is a prefix of %d sessions (%s) — give more of the id",
+		id, len(ids), strings.Join(ids, ", "))
+}
+
+// Shape summarises a single session, named by its full id or a unique prefix (ResolveSession).
+func Shape(ctx context.Context, db *sql.DB, id string) (SessionShape, error) {
+	sessionID, err := ResolveSession(ctx, db, id)
+	if err != nil {
+		return SessionShape{SessionID: id}, err
+	}
 	s := SessionShape{SessionID: sessionID, ByTool: map[string]int{}, Failures: map[string]int{}, Skipped: map[string]int{}}
 	if err := db.QueryRowContext(ctx,
 		`SELECT project_dir, closed_at FROM v_session WHERE session_id = ?`, sessionID).
 		Scan(&s.ProjectDir, &s.ClosedAt); err != nil {
-		return s, fmt.Errorf("catalogue: no session %s in the store — it may predate capture, "+
-			"which is not the same as a session that did nothing", sessionID)
+		return s, err
 	}
 	rows, err := db.QueryContext(ctx,
 		`SELECT tool, outcome, count(*) FROM v_action WHERE session_id = ? GROUP BY tool, outcome`, sessionID)

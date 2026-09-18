@@ -53,6 +53,14 @@ sessions back when they are opened; `past` means it may not, and opening is stil
   without asking. The human's choice stands.
 - A row reading `MODE unknown — the resume starts in whatever mode the CLI chooses` carries no mode
   flag: say so in the choice rather than naming a mode it may not get.
+- **The human names sessions by app title; the record holds ids.** The title never reaches the
+  session's transcript, so the translation is the step with nothing under it. IF the human names a
+  session, YOU MUST find its id from words that were SAID in it (`telepathy find '<a phrase they
+  remember>' --in assistant`, or `--in user`), never from a name→id table another session wrote —
+  on 2026-09-15 such a table sent "report speed" to the wrong id, and the reattach connected
+  cleanly to the wrong session. AFTER a reattach, YOU MUST read the title in its banner
+  (`tmux capture-pane`) against the name the human gave; a banner showing the host name instead
+  has no title and confirms nothing.
 - A `RESUME FROM` marked `(unverified)` is a hint — the session moved folders, or its path was
   long. Say so; the resume attempt will confirm or refute it.
 
