@@ -109,6 +109,51 @@ func TestRestoreFiresOnEverySourceThatContinuesWork(t *testing.T) {
 	}
 }
 
+// A FORK IS A COPY, AND THE ORIGINAL STILL OWNS THE CURSOR. Handing the fork the ordered next
+// actions puts two live sessions on one piece of work. Measured: both fork-elicitation interviews
+// of the 2026-09-17 smoke run answered checkpoint duty instead of the interview questions.
+func TestForkGetsAPointerNotTheDigest(t *testing.T) {
+	dir := withNote(t, note)
+	stdout, _, _ := call(t, dir, `{"source":"fork"}`)
+	got := injected(t, stdout)
+	if got == "" {
+		t.Fatal("a fork should still learn that a note exists")
+	}
+	if strings.Contains(got, "go test ./...") {
+		t.Errorf("a fork was handed the original's digest:\n%s", got)
+	}
+	// The instruction is the harmful half — the digest is quotable, "take its first next
+	// action" is what made the interview fork do someone else's work.
+	if strings.Contains(got, "take its first next action") {
+		t.Errorf("a fork was told to act on the original's next action:\n%s", got)
+	}
+	if !strings.Contains(got, "CHECKPOINT.md") {
+		t.Errorf("pointer does not name the note:\n%s", got)
+	}
+	// It must say WHY, and must not borrow `done`'s reason — the note is not finished work.
+	if strings.Contains(got, "status: done") {
+		t.Errorf("a fork was told the note was finished work:\n%s", got)
+	}
+	if !strings.Contains(got, "fork") {
+		t.Errorf("the pointer does not say why it is a pointer:\n%s", got)
+	}
+}
+
+// THE BOUNDARY THIS FIX MUST NOT CROSS. `compact` is the one seam the whole design exists for,
+// and an earlier revision derived "restore MUST no-op on source == compact" and was wrong.
+// Adding a second pointer-only source is exactly when that could be re-derived by accident.
+func TestCompactStillGetsTheWholeDigest(t *testing.T) {
+	dir := withNote(t, note)
+	stdout, _, _ := call(t, dir, `{"source":"compact"}`)
+	got := injected(t, stdout)
+	if !strings.Contains(got, "go test ./...") {
+		t.Errorf("compact lost the digest — the seam restore exists for:\n%s", got)
+	}
+	if !strings.Contains(got, "take its first next action") {
+		t.Errorf("compact lost its resume instruction:\n%s", got)
+	}
+}
+
 // /clear is the human wiping context deliberately. Re-imposing the full digest
 // fights that instruction; a pointer keeps continuity reachable without it.
 // This carve-out is by INTENT, which is what the withdrawn one was not.
