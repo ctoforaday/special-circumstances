@@ -476,7 +476,14 @@ func reportTelemetry(run record.Run, p func(string)) {
 		p("\n## Board telemetry\n\n(no telemetry epochs on the record — pre-telemetry run, or no gaps minted yet)")
 		return
 	}
-	p("\n## Board telemetry (per epoch)\n")
+	// THE HEADING IS CONSTANT, AND THE QUALIFIER LIVES IN THE BODY. It read "Board telemetry (per
+	// epoch)" on this arm and "Board telemetry" on the empty one, so the SAME section had two names
+	// depending on what the run contained — and capture's fold routes by heading. A run with
+	// telemetry (any run that minted a gap) therefore produced a heading costRoutes had no home for,
+	// and the whole fold was REFUSED: cost, tier check, telemetry and the integrity audits never
+	// reached run.md. Measured on the 2026-09-17 smoke, where every audit passed and the run
+	// document got none of them.
+	p("\n## Board telemetry\n\nPer epoch:\n")
 	// `accepted deltas` was a column here. It read a telemetry key NOTHING WRITES, so it printed
 	// 0 on every row of every run — a measurement whose miss is indistinguishable from its honest
 	// answer. The engine is unaffected: debate.js computes its own accepted-delta magnitude in
