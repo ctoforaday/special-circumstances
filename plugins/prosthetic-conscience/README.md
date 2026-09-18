@@ -41,7 +41,7 @@ Every hook is wrapped in a bootstrap guard: a fresh plugin version ships from gi
 
 Compaction replaces the transcript with a summary. The summary is good at what happened and worst at **what you were about to do**: the exact validation commands, what re-arms each one, the ordered next actions, and the handles to work still running in the background.
 
-So the agent maintains one `CHECKPOINT.md`, overwritten in place. `SessionStart` hands it back on the far side of any seam. `/checkpoint` writes it, `/resume` prints it in full and re-verifies its claims.
+So the agent maintains one `CHECKPOINT.md`, overwritten in place. `SessionStart` hands it back on the far side of any seam. `/prosthetic-conscience:checkpoint` writes it, `/prosthetic-conscience:resume` prints it in full and re-verifies its claims.
 
 **Compaction is not the only seam**, so the seal fires on three events. `PreCompact` snapshots the note and asks the summarizer to preserve what it already carries. `SessionEnd` catches a session that ends without ever compacting — on *every* reason, because a headless `claude -p` run reports `other` rather than one of the interactive reasons, and those are exactly the sessions with no human watching. `SubagentStop` seals a seat's note keyed by `agent_id`, since every subagent shares its parent's `session_id` and a name without it has concurrent seats overwriting each other.
 
@@ -72,12 +72,12 @@ An explicit `/clear` gets a pointer rather than the digest. That carve-out is by
 
 ## Slash commands
 
-`/checkpoint` · `/resume` · `/doctor` · `/plan-audit` · `/probe`
+`/prosthetic-conscience:checkpoint` · `/prosthetic-conscience:resume` · `/prosthetic-conscience:doctor` · `/prosthetic-conscience:plan-audit` · `/prosthetic-conscience:probe`
 
 ## Honest limits
 
-- **Hook events are version-unstable.** Several events this plugin uses postdate its own design. The load-bearing path is deliberately built on `SessionStart`, the oldest of them: an older client loses observability and the seal's instruction fold-in, never continuity. `/doctor` reports what the installed client supports.
-- **The note is a claim, not a fact.** Restore hands back what the session *wrote down*, which may already be stale. `/resume` re-verifies before acting; the digest says so in its own text.
+- **Hook events are version-unstable.** Several events this plugin uses postdate its own design. The load-bearing path is deliberately built on `SessionStart`, the oldest of them: an older client loses observability and the seal's instruction fold-in, never continuity. `/prosthetic-conscience:doctor` reports what the installed client supports.
+- **The note is a claim, not a fact.** Restore hands back what the session *wrote down*, which may already be stale. `/prosthetic-conscience:resume` re-verifies before acting; the digest says so in its own text.
 - **The quality gate depends on qlty being installed.** Absent, the `sc-posttooluse` unit degrades to silence rather than to a false pass.
 
 Design: [`plans/context-checkpointing.md`](../../plans/context-checkpointing.md) · [`plans/claude-port-plan.md`](../../plans/claude-port-plan.md) §3a. Measured hook payloads: [`plans/hook-surface-spike.md`](../../plans/hook-surface-spike.md).
