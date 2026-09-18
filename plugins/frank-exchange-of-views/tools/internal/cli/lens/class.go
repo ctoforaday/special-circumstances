@@ -2,6 +2,7 @@ package lens
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
@@ -31,7 +32,69 @@ func newClass() *cobra.Command {
 		SilenceUsage: true,
 	}
 	c.AddCommand(newClassNew())
+	c.AddCommand(newClassList())
 	return c
+}
+
+// class list: the vocabulary `--class` and `--neighbor` are checked against.
+//
+// `class` had one subcommand, and coining was the only thing a seat could do with the registry —
+// so the check refused a `--neighbor` the seat had no way to look up. The remedy a lens actually
+// used was to leave the record tool, go outside the run directory, and grep the checked-in Go
+// source and feov-memory/class-registry.json for the vocabulary. Every other read on this surface
+// is a projection of the record; this was the one that was not, because it did not exist.
+//
+// READ-ONLY, and it records nothing: a seat asking what the words are has not yet done anything.
+func newClassList() *cobra.Command {
+	return seat.New("list", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		run, err := s.Run()
+		if err != nil {
+			return nil, err
+		}
+		rows, err := record.ClassRoster(run)
+		if err != nil {
+			return nil, err
+		}
+		return classListResult{Classes: rows}, nil
+	})
+}
+
+type classListResult struct {
+	Classes []record.ClassRow `json:"classes"`
+}
+
+func (r classListResult) Human() string {
+	// AN EMPTY ROSTER IS NOT A CLEAN BOARD. ClassRoster refuses a run with no registry staged
+	// rather than returning nothing, so reaching here empty would mean a registry that parsed and
+	// held no rows — which is a broken vocabulary, not an absent one, and is said as such.
+	if len(r.Classes) == 0 {
+		return "class list: the staged registry holds NO classes — every `--class` would have nothing to match, so this is a broken registry rather than an empty one"
+	}
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "class list: %d class(es) this run accepts for --class and --neighbor.", len(r.Classes))
+	sb.WriteString("\n  The material default decides whether a gap of that class holds the PASS gate.")
+	for _, c := range r.Classes {
+		md := c.MaterialDefault
+		if md == "" {
+			md = "—"
+		}
+		origin := ""
+		if c.Coined {
+			origin = "  (coined on this run)"
+		}
+		fmt.Fprintf(&sb, "\n  %-42s %-9s%s", c.Slug, md, origin)
+		// THE COINED ROWS CARRY WHAT A NEIGHBOUR CHOICE NEEDS, and the shipped rows do not — setup
+		// stages only the slug and the default. Printing the definition where it exists, and
+		// nothing where it does not, is the honest shape; a blank line under every shipped class
+		// would read as missing data rather than as data the registry never staged.
+		if c.Definition != "" {
+			fmt.Fprintf(&sb, "\n      %s", c.Definition)
+		}
+		if c.Neighbor != "" {
+			fmt.Fprintf(&sb, "\n      nearest: %s", c.Neighbor)
+		}
+	}
+	return sb.String()
 }
 
 func newClassNew() *cobra.Command {
