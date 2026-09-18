@@ -50,10 +50,12 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 	}
 	// THE GROUP IS THE SITTING, not an epoch: the record carries no epoch column, and what a reader
 	// catching up wants is "since this seat's previous sitting" — so the heading changes when the
-	// editing seat or its sitting ordinal does. Both come from the Clock, counted over the events
-	// in order, never read off the envelope. Advance is the first statement of the loop body:
-	// the clock must see every event, not only the edits.
-	var clk record.Clock
+	// editing seat or its sitting ordinal does. Both come from record.ActClock, counted over the
+	// events in order, never read off the envelope — the edits an edit BELONGS TO, so a revision
+	// filed in a sitting-record repair is grouped under the sitting it completes rather than under
+	// a heading of its own. Advance is the first statement of the loop body: the clock must see
+	// every event, not only the edits.
+	var clk record.ActClock
 	var group string
 	n, total := 0, 0
 	for _, e := range in.Events {
@@ -166,16 +168,17 @@ func changesForGap(in Input, gapID string) ([]byte, error) {
 		}
 	}
 
-	// The envelope carries the seat, the Clock counts its sitting, the body carries the spans —
-	// the render needs all three, so the assertion is made ONCE here rather than repeated (and
-	// possibly ignored) below.
+	// The envelope carries the seat, record.ActClock counts the sitting the edit BELONGS TO — a
+	// repair's edits are the repaired sitting's — and the body carries the spans; the render needs
+	// all three, so the assertion is made ONCE here rather than repeated (and possibly ignored)
+	// below.
 	type recordedEdit struct {
 		ev      *record.Event
 		sitting int
 		body    *recordpb.BlueEdit
 	}
 	var edits []recordedEdit
-	var clk record.Clock
+	var clk record.ActClock
 	for _, e := range in.Events {
 		w := clk.Advance(e)
 		if ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok && ed.GetAnswers() == gapID {

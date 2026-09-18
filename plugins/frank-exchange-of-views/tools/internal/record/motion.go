@@ -318,7 +318,11 @@ func MotionsOf(evs []*Event) []*Motion {
 	// rules it, so the two live in different shards and the ruling can replay first. Gathered
 	// inside pass 1 this map was read before it was filled, and a direction motion came out with
 	// no filer, no epoch and no ask — rendering as an answer to a question nobody asked.
-	var clk Clock
+	//
+	// ACTCLOCK, IN ALL THREE PASSES: a motion, a proposal and a ruling are ACTS, so each is
+	// attributed to the sitting it belongs to — a filing made in a sitting-record repair is the
+	// repaired sitting's. The epoch is the same number on either clock (only blue may repair).
+	var clk ActClock
 	for _, e := range evs {
 		w := clk.Advance(e)
 		av, ok := recordpb.BodyAs[*recordpb.Avenue](e)
@@ -334,7 +338,7 @@ func MotionsOf(evs []*Event) []*Motion {
 		}
 	}
 
-	clk = Clock{}
+	clk = ActClock{}
 	for _, e := range evs {
 		w := clk.Advance(e)
 		body, ok := recordpb.Body(e)
@@ -445,7 +449,7 @@ func MotionsOf(evs []*Event) []*Motion {
 	// identifies what it is about — no gap id, no avenue id — so this lookup IS the attribution.
 	// Reading a ruling's subject matter from the ruling event alone would key every one of them on
 	// the empty string and report a board with no rulings on it.
-	clk = Clock{}
+	clk = ActClock{}
 	for _, e := range evs {
 		w := clk.Advance(e)
 		id, ok := motionIDOf(e)
@@ -604,10 +608,7 @@ func correctionOffer(run Run, asker, by, key string, seq sql.NullInt64, noun str
 		return ""
 	}
 	var before, now int
-	found, err := queryRow(run, []any{&before, &now}, `SELECT
-	    (SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = 'register' AND "id" < ?),
-	    (SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = 'register')`,
-		asker, seq.Int64, asker)
+	found, err := queryRow(run, []any{&before, &now}, sittingBeforeAndNowSQL, asker, seq.Int64, asker)
 	if err != nil || !found || before != now {
 		return ""
 	}

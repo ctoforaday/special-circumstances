@@ -729,9 +729,14 @@ func inquiries(fam record.Family, heading string, want func(string) bool) string
 // why it went, and what replaced it — and the reader of the finished report saw none of it. A
 // claim that was argued, weighed and then withdrawn is part of what the debate decided; dropping
 // it makes the report indistinguishable from one where the claim was never made.
+//
+// THE SITTING IT NAMES IS THE SITTING THE RETIREMENT BELONGS TO (record.ActClock), which a
+// sitting-record repair makes a different number from the one the clock counts: the repair is a
+// sitting of its own and its acts are the repaired sitting's, so a retirement filed in one is
+// shown under the sitting whose report it completes.
 func withdrawnClaims(evs []*record.Event) string {
 	var rows []string
-	var clk record.Clock
+	var clk record.ActClock
 	for _, e := range evs {
 		w := clk.Advance(e)
 		r, ok := recordpb.BodyAs[*recordpb.Retire](e)
@@ -932,7 +937,11 @@ func correctnessManifest(fam record.Family) string {
 		sitting           int
 	}
 	var rows []row
-	var clk record.Clock
+	// THE SITTING EACH ROW IS FILED UNDER IS THE SITTING IT BELONGS TO (record.ActClock), never the
+	// count of the seat's turns: a row filed in a sitting-record repair completes the record the
+	// repaired sitting owes, so it renders under that sitting — the one the closer bounds and the
+	// one the manifest's owed set is computed for.
+	var clk record.ActClock
 	// A CORRECTED ROW IS SHOWN STRUCK, beside the row that replaced it, and counted once: the
 	// heading counts the receipts that stand.
 	standing := 0

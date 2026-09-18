@@ -422,21 +422,28 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	// 8 of 9 in the other, so one seat in each run never did and nothing noticed.
 	//
 	// A SITTING is the unit, because the duty is per sitting: a seat that sat four times and filed
-	// one entry discharged it once. The sitting ordinal is the record's (events_w), so this counts
-	// registers as the denominator and the distinct (seat, sitting) pairs that carry a log entry
-	// as the numerator — never the raw entry count, which two entries in one sitting would inflate.
+	// one entry discharged it once. So this counts sittings as the denominator and the distinct
+	// (seat, sitting) pairs that carry a log entry as the numerator — never the raw entry count,
+	// which two entries in one sitting would inflate.
+	//
+	// THIS METRIC ATTRIBUTES, so it reads record.ActClock: every bucket here is a sitting acts are
+	// filed INTO, and a sitting-record repair's acts are the repaired sitting's. A repair therefore
+	// opens no bucket — it re-names the one it repairs — and the log entry it files discharges that
+	// sitting's duty. Bucketing by the turn count instead would leave the repaired sitting scored
+	// as having closed nothing while charging the repair for a duty no act of its own can discharge:
+	// two false findings from one repair, on the detector built to catch a real one.
 	if fam != nil {
 		sat := map[string]bool{}
 		closed := map[string]bool{}
-		seen := map[string]int{}
+		var clk record.ActClock
 		for _, e := range fam.Live() {
-			seat := e.GetSeatId()
+			w := clk.Advance(e)
+			key := fmt.Sprintf("%s#%d", e.GetSeatId(), w.Sitting)
 			switch e.GetType() {
 			case recordpb.EventType_EVENT_TYPE_REGISTER:
-				seen[seat]++
-				sat[fmt.Sprintf("%s#%d", seat, seen[seat])] = true
+				sat[key] = true
 			case recordpb.EventType_EVENT_TYPE_LOG:
-				closed[fmt.Sprintf("%s#%d", seat, seen[seat])] = true
+				closed[key] = true
 			}
 		}
 		if len(sat) > 0 {

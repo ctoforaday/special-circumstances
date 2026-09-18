@@ -93,7 +93,11 @@ func SpotCheckAudit(f Family) (checks []SpotCheck, debt []int, falseEmpty []Spot
 	// epoch-number keying W1.8 replaced, in a new spelling.
 	mergeSat := map[int]bool{}
 	discharged := map[int]bool{}
-	var clk Clock
+	// ACTCLOCK, because the number goes on a recorded ACT (the spot-check the chair filed), and an
+	// act belongs to the sitting it completes. The chair cannot repair — checkRepair admits only a
+	// blue role — so the two clocks agree here today; this is the reading that stays right if that
+	// gate ever moves, and it costs nothing to be the one already written.
+	var clk ActClock
 	for _, e := range f.Live() {
 		w := clk.Advance(e)
 		// REGISTERING IS NOT SITTING. A seat announces itself before it does anything, and a

@@ -334,7 +334,9 @@ func RecordedProofs(run Run) ([]Proof, error) {
 	// one that stands — in its place, never a later act by position alone — is Verified.
 	verified := map[string]*ProofVerification{}
 	struck := map[string][]ProofVerification{}
-	var clk Clock
+	// ACTCLOCK: the sitting stamped here is the one red's re-run BELONGS TO. Only a blue role may
+	// repair, so red's two clocks agree today — this is the reading that survives that gate moving.
+	var clk ActClock
 	for _, l := range Listing(m.Events) {
 		e := l.Event
 		w := clk.Advance(e)
