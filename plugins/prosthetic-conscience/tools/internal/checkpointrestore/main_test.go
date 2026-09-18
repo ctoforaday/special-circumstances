@@ -94,11 +94,19 @@ func TestRestoreFiresOnCompact(t *testing.T) {
 	}
 }
 
-// Every source, not a list of blessed ones. A source-specific carve-out is the
-// exact shape of the error that was just withdrawn, so it is tested as a class.
+// Every source that CONTINUES THE WORK, not a list of blessed ones. A source-specific
+// carve-out is the exact shape of the error that was withdrawn, so it is tested as a class.
+//
+// `fork` left this list when it became pointer-only, and the distinction is the one the
+// withdrawn carve-out failed to make. That one removed restore from `compact` — a seam where
+// the SAME session continues, and the only boundary this hook exists for. A fork is a different
+// session holding a copy, while the original stays live and keeps the cursor; it is carved out
+// for the same reason `clear` is, by INTENT rather than by mechanism. The name of this test is
+// the rule: if a source continues the work, it gets the digest, and no argument about tidiness
+// takes one off this list.
 func TestRestoreFiresOnEverySourceThatContinuesWork(t *testing.T) {
 	dir := withNote(t, note)
-	for _, src := range []string{"startup", "resume", "compact", "fork", ""} {
+	for _, src := range []string{"startup", "resume", "compact", ""} {
 		stdout, _, code := call(t, dir, `{"source":"`+src+`"}`)
 		if code != 0 {
 			t.Fatalf("source %q: exit %d", src, code)
@@ -297,8 +305,9 @@ func TestCompactDigestEndsWithTheResumeLine(t *testing.T) {
 	}
 }
 
-// On startup, resume and fork the note may be stale or another session's, so the digest
-// stays a claim with no instruction. /clear and a done note get the pointer, and no line.
+// On startup and resume the note may be stale, so the digest stays a claim with no
+// instruction. /clear, a fork and a done note get the pointer, and no line either — a fork is
+// here precisely because its copy of the cursor belongs to a session that is still using it.
 func TestOnlyACompactionGetsTheResumeLine(t *testing.T) {
 	cases := []struct{ body, source string }{
 		{note, "startup"},
