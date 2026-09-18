@@ -1,0 +1,31 @@
+{
+  "slug": "usfs-birds-markgrid",
+  "source_url": "https://upload.wikimedia.org/wikipedia/commons/6/61/Birds_of_the_Apache-Sitgreaves_National_Forest_-_a_checklist_%28IA_CAT91957677%29.pdf",
+  "source_page": 8,
+  "publisher": "USDA Forest Service, Southwestern Region",
+  "date": "1991-04",
+  "rights": "us-government-work",
+  "rights_evidence": "Wikimedia Commons file record: LicenseShortName 'Public domain', Copyrighted: False \u2014 https://commons.wikimedia.org/wiki/File:Birds_of_the_Apache-Sitgreaves_National_Forest_-_a_checklist_(IA_CAT91957677).pdf",
+  "local_file_sha256": "6e199df37cfdf441279e616e98e39f596db64d0bf9218dce590f6b8ece805f26",
+  "page_sha256": "6762f2a820b8dd1a688f1cd79a7f466d36640d4dacfd58736ad7e4124b94c232",
+  "text_objects_removed": 516,
+  "added_at": "2026-09-18",
+  "defect_class": [
+    "mark-grid-not-ieee",
+    "rotated-headers",
+    "shaded-columns"
+  ],
+  "why": "A species-by-habitat tick grid with its column headers set vertically and its mark columns shaded: the only mark grid in the corpus that is not IEEE 1012, which is the document every mark constant was fitted to.",
+  "expect": {
+    "table": true,
+    "must_contain": [
+      "Hairy Woodpecker",
+      "Purple Martin",
+      "Black-capped Chickadee",
+      "Horned Lark",
+      "Riparian",
+      "Ponderosa",
+      "Spruce-Fir"
+    ]
+  }
+}

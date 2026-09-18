@@ -11,3 +11,8 @@
 # testdata/schema.sql` with no change to the schema. Same reason the five above are pinned.
 *.sql text eol=lf
 *.golden text eol=lf
+# The corpus pages are compressed scans: bytes, not text. Git's auto-detection has carried the
+# repository's one other binary fixture, but a corpus page mangled by an eol rule would be invisible
+# to the default build — only the tagged Linux leg reads them.
+*.gz binary
+*.pdf binary

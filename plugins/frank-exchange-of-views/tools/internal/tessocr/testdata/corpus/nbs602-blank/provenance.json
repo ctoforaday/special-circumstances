@@ -1,0 +1,20 @@
+{
+  "slug": "nbs602-blank",
+  "source_url": "https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nbsspecialpublication602.pdf",
+  "source_page": 57,
+  "publisher": "National Bureau of Standards",
+  "date": "1981-04",
+  "rights": "us-government-work",
+  "rights_evidence": "US Government work, 17 U.S.C. 105",
+  "local_file_sha256": "7673300d85b1b4b3616c6541b74ee60c3a0d1a47cb589258f6c7bb943f16a5ce",
+  "page_sha256": "90a936bbe90304c0340bf221321804c19ac217a9667333bd29387c9ce30b4892",
+  "text_objects_removed": 3,
+  "added_at": "2026-09-18",
+  "defect_class": [
+    "blank-page"
+  ],
+  "why": "A blank page: the receipt says length 0, which is also what a collapsed read says.",
+  "expect": {
+    "table": false
+  }
+}

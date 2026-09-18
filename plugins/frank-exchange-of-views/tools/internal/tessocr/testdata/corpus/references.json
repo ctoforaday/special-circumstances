@@ -1,0 +1,65 @@
+[
+  {
+    "name": "ieee-1012-table2",
+    "url": "https://people.eecs.ku.edu/~hossein/Teaching/Stds/1012.pdf",
+    "why_wanted": "the mark grid every mark and level constant was fitted to (four integrity-level subcolumns per activity), and the page whose marks the engine still drops",
+    "rights": "copyrighted \u2014 IEEE Std 1012-1998",
+    "blocked_reason": "a copyrighted standard. It stays in the measurement runs (~/ocr-runs/932/e2e, ~/ocr-runs/644-real) and out of the repository; usfs-birds-markgrid is the committable mark grid."
+  },
+  {
+    "name": "nara-1950-census-handwriting",
+    "url": "https://nara-1950-census.s3.us-east-2.amazonaws.com/1950census/43290879-Alabama/43290879-Alabama-005563/43290879-Alabama-005563-0005.jpg",
+    "why_wanted": "handwriting inside ruled form fields, on microfilm \u2014 a class no committed page covers, since commons-typescript-handwriting carries interlineations rather than filled fields",
+    "rights": "us-government-work \u2014 AWS Registry of Open Data states 'License: US Government work'",
+    "blocked_reason": "one frame is 3960x4830 and 5.7 MB, over fetch's own 5242880-byte cap, so the harness could not read it even if it were committed. Cropping a region would re-encode the publisher's pixels; that trade has not been taken."
+  },
+  {
+    "name": "funsd",
+    "url": "https://guillaumejaume.github.io/FUNSD/",
+    "why_wanted": "the best available source of handwriting in form fields",
+    "rights": "UNKNOWN for redistribution",
+    "blocked_reason": "'for non-commercial, research purposes only', and it disclaims having cleared the images at all: 'Licensees are solely responsible for determining what additional licenses, clearances, consents and releases, if any, must be obtained'."
+  },
+  {
+    "name": "rvl-cdip",
+    "url": "https://adamharley.com/rvl-cdip/",
+    "why_wanted": "faxes, dot-matrix and handwriting at scale \u2014 the widest defect coverage in existence",
+    "rights": "UNKNOWN",
+    "blocked_reason": "no licence of its own; it defers to IIT-CDIP and the UCSF Legacy Tobacco Document Library, which grant no redistribution."
+  },
+  {
+    "name": "unlv-isri-full-sets",
+    "url": "https://sourceforge.net/projects/isri-ocr-evaluation-tools-alt/files/",
+    "why_wanted": "the 1995 UNLV/ISRI OCR test pages: business letters, magazines, newspapers, DOE reports",
+    "rights": "UNKNOWN",
+    "blocked_reason": "neither the SourceForge mirror nor tesseract's unlvtests/README.md states a licence. Only the handful vendored into tesseract-ocr/test carries one, and that grant is the tesseract project's Apache-2.0, not UNLV's."
+  },
+  {
+    "name": "chronicling-america",
+    "url": "https://chroniclingamerica.loc.gov/",
+    "why_wanted": "faint multi-column newspaper pages with halftones \u2014 public domain, and the strongest lead for that class",
+    "rights": "public domain (Library of Congress)",
+    "blocked_reason": "unreachable from this container: chroniclingamerica.loc.gov redirects to www.loc.gov, which answers 403, as does tile.loc.gov, with and without a browser user agent. Fetch it from a browser and add it."
+  },
+  {
+    "name": "landscape-table",
+    "url": "https://www.govinfo.gov/",
+    "why_wanted": "a table printed landscape on a portrait page \u2014 the case that defeats the orientation probe, which keys on a confident-word count and does not fire when rotated headers read horizontally",
+    "rights": "us-government-work, once a specific document is chosen",
+    "blocked_reason": "no verified specimen yet. Leads tried and failed: USGS WSP 365 (its one oversize plate is portrait), a GPO hearing PDF (no inserted exhibit pages). A page whose width exceeds its height is the cheap detector for finding one."
+  },
+  {
+    "name": "skewed-scan",
+    "url": "https://github.com/tesseract-ocr/test",
+    "why_wanted": "a genuinely skewed or warped scan, as opposed to a synthetic rotation",
+    "rights": "apache-2.0 for the synthetic rotations in that repository",
+    "blocked_reason": "the committable files there (phototestrot.tif, deslant.tif) are synthetic controls, not real skew. A real specimen has not been found."
+  },
+  {
+    "name": "commons-typescript-handwriting",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/3/32/MS220_Log_296%2C_Charlotte_Coffin_Gardner_trading_journal_%28IA_ms220log296%29.pdf",
+    "why_wanted": "a typescript carrying handwritten interlineations, carets and struck-through words",
+    "rights": "public-domain-expired",
+    "blocked_reason": "its content IS the PDF's text layer, not pixels: removing the layer leaves 0.53% ink, speckle and a few stamped fragments. It looked like a scan in a thumbnail because the thumbnail rendered the text. corpusadd now refuses a page like this, and the 1% threshold was measured against it."
+  }
+]

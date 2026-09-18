@@ -1,0 +1,27 @@
+{
+  "slug": "doe-dotmatrix-listing",
+  "source_url": "https://www.osti.gov/servlets/purl/5923435",
+  "source_page": 9,
+  "publisher": "US Department of Energy / Los Alamos National Laboratory",
+  "date": "1985",
+  "rights": "us-government-work",
+  "rights_evidence": "Work of the US Department of Energy, distributed by OSTI with no licence asserting otherwise",
+  "local_file_sha256": "912e34b064456d08dae64fea63e82cbba7068be758cb6166ccb60ed2cc8a9cee",
+  "page_sha256": "5eedb896388a31dd9a9b2836d0dfd1a359623f09eb028d4939154b16057b8e88",
+  "text_objects_removed": 278,
+  "added_at": "2026-09-18",
+  "defect_class": [
+    "dot-matrix",
+    "photo-reduced"
+  ],
+  "why": "A BASIC program listing in impact print, photo-reduced: broken strokes and a numeric left column, which is the print class the reader has never met.",
+  "expect": {
+    "table": false,
+    "must_contain": [
+      "SUBROUTINES",
+      "RECT TO POLAR",
+      "PURE CONDUCTANCE",
+      "NEXT I"
+    ]
+  }
+}

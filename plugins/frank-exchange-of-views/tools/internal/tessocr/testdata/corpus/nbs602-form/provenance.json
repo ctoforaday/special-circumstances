@@ -1,0 +1,28 @@
+{
+  "slug": "nbs602-form",
+  "source_url": "https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nbsspecialpublication602.pdf",
+  "source_page": 56,
+  "publisher": "National Bureau of Standards",
+  "date": "1981-04",
+  "rights": "us-government-work",
+  "rights_evidence": "US Government work, 17 U.S.C. 105",
+  "local_file_sha256": "7673300d85b1b4b3616c6541b74ee60c3a0d1a47cb589258f6c7bb943f16a5ce",
+  "page_sha256": "b75b230f3c26606bc6ce08c65a453b5f91126842dd7568e464abfb6cad84a83d",
+  "text_objects_removed": 379,
+  "added_at": "2026-09-18",
+  "defect_class": [
+    "control-solid-rules"
+  ],
+  "why": "The CONTROL: the NBS-114A form, solid rules and two ticked boxes, which the reader reconstructs correctly and the dropout gate refuses at ratio 84.",
+  "expect": {
+    "table": true,
+    "must_contain": [
+      "NBS-114A",
+      "BIBLIOGRAPHIC DATA",
+      "NBS SP 602",
+      "April 1981",
+      "80-600192",
+      "$3.75"
+    ]
+  }
+}
