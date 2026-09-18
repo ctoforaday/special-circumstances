@@ -14,10 +14,12 @@ import (
 
 // EVERY LAYOUT CASE, READ BY THE REAL ENGINE, PINNED BYTE FOR BYTE.
 //
-// The pages are generated (testdata/gen) so nothing licensed is checked in and the bytes are
-// reproducible; the goldens are the WHOLE reading plus what the page measured, so a regression
-// arrives as a diff a human reads rather than as a judgement somebody has to make. The cases are
-// the ones this corpus actually contains — a ruled table of text, rows separated by space inside
+// The pages here are generated (testdata/gen), so their bytes are reproducible from one file. They
+// prove the rules we WROTE; the scans that beat us are the other half of the evidence and live in
+// testdata/corpus, committed under the closed licence set in internal/tessocr/corpus. The goldens
+// are the WHOLE reading plus what the page measured, so a regression arrives as a diff a human
+// reads rather than as a judgement somebody has to make. The layout cases are
+// a ruled table of text, rows separated by space inside
 // a band, rules the scan broke, a grid of marks, a boxed paragraph, prose with a table in it, two
 // tables on one page, and a faint photocopy.
 //

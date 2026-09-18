@@ -4,7 +4,8 @@
 //
 // Each page is drawn as a PDF (rules as filled rectangles, text in Helvetica), rendered with
 // PDFium at RenderDPI and written as grayscale PNG. The bytes are reproducible from this program,
-// and no licensed page is checked in. Run from the tools module:
+// and no page is checked in that testdata/corpus's licence gate would not admit. Run from the
+// tools module:
 //
 //	go run ./internal/tessocr/testdata/gen
 //
