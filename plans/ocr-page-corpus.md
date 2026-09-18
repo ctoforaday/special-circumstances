@@ -28,15 +28,19 @@ Generated goldens (#932) prove the rules we wrote. They cannot produce the thing
 4. Each page records what a CORRECT reader would do (D6's `expect` block), the harness checks the
    reading against it, and the meter is **derived from that check** — never from a hand-set status.
 
-**Quantitative targets.** 10 pages at first commit, spanning at least 6 defect classes and at least
-5 source documents; ≤ 90 s added to the tagged suite; the meter's opening number stated in the
-commit message.
+**Quantitative targets, and what was actually landed.** The target was 10 pages over 5 documents in
+≤ 90 s. Landed: **8 pages over 3 documents** (NBS SP 602, a Forest Service bird checklist, a DOE
+report), 11 defect classes, and the tagged harness measured at **95–190 s** for the 8 — 12–24 s a
+page, not the 4–8 s §II estimated from a single-page read, and it varies with box load. Two
+candidates were refused rather than forced: a NARA census frame (5.7 MB, over fetch's own cap) and
+an Internet Archive journal whose content turned out to BE its text layer. Both are in
+`references.json`. The meter's opening number is **7 of 8 pages do not yet read as they should**.
 
 **What of #1004 this discharges, and what it does not.** #1004 asked for a pinned corpus harness
 that FETCHES by hash at test time, and for breadth across UNLV/ISRI, PubTables-1M, DocLayNet and
 tesseract's own test images. gblock's ruling of 2026-09-18 **supersedes the fetch-at-test-time
 half**: pages live in the repo and are served from loopback. The breadth half is NOT discharged
-here — this plan lands 10 pages from 5 documents plus the admission rule that grows them. #1004
+here — this plan lands 8 pages from 3 documents plus the admission rule that grows them. #1004
 stays open for breadth, and `testdata/corpus/references.json` (D8) carries the leads already found
 with the reason each is or is not committable.
 
@@ -64,7 +68,8 @@ Measured 2026-09-18 while sizing this:
   the page images are JPEG 2000 streams, already compressed. They are stored gzipped by gblock's
   ruling, for one convention with `run-archive/` — this line exists so nobody later reads the `.gz`
   as a saving.
-- A page read costs about 4–8 s of tagged-suite time.
+- A page read costs 12–24 s of tagged-suite time (8 pages ran in 95 s once and 190 s twice; the
+  first estimate of 4–8 s came from a single-page read and was wrong).
 
 Facts the audit established, which the design now rests on rather than assuming:
 
@@ -207,9 +212,9 @@ with the leads that were tried.
 - `[NEW] internal/tessocr/corpus_cgo_test.go` (`tessocr` tag) — `TestCorpusGoldens` (D5, D6), reusing
   the package's existing `-update` flag rather than declaring a second.
 - `[NEW] internal/tessocr/testdata/corpusadd/main.go` — D7.
-- `[MODIFY] scripts/check/gates.go` — a gate entry with its `ciJob` (matched against
-  `.github/workflows/hooks.yml` by `scripts/check/parity_test.go`) and a `skip:` for a box with no
-  C stack.
+- `scripts/check/gates.go` — NOT MODIFIED, and the plan was wrong to expect it: CI's tagged step
+  (`hooks.yml:558`) already runs `go test -tags tessocr … ./internal/tessocr/ ./internal/fetchcache/`,
+  which is where these goldens live, so the corpus is covered by the job that exists.
 - `[MODIFY] .gitattributes` — `*.gz binary` and `*.pdf binary`; the repo's one committed PDF
   survives on Git's auto-detection alone today.
 - `[MODIFY] internal/tessocr/goldens_cgo_test.go:17`, `testdata/gen/main.go:7`,
@@ -224,8 +229,9 @@ with the leads that were tried.
   says which direction is right.
 - **R2. Licence error (low × high).** D4's closed set refused at the write, plus `references.json`
   for what may not be committed. Residue stated in D4.
-- **R3. Suite cost (medium × low).** 4–8 s per page, tagged suite only; 10 pages ≈ 60–80 s, inside
-  the ≤ 90 s target. Past that the corpus takes its own gate rather than losing pages.
+- **R3. Suite cost (medium × low), measured higher than estimated.** 12–24 s per page, tagged suite
+  only: 8 pages ran in 95 s once and 190 s twice on a loaded box. The ≤ 90 s target is already
+  missed, and the corpus will grow. Past ~20 pages it takes its own gate rather than losing pages.
 - **R4. The corpus becomes a junk drawer (medium × medium).** D9's admission rule and
   `defect_class`.
 - **R5. A page's `expect` is wrong (medium × medium).** It is transcribed from the image by a human
