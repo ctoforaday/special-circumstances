@@ -1,8 +1,6 @@
 package setup
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -303,9 +301,18 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	// anything at all (#299).
 	registry := StageClassRegistry(filepath.Join(cfg.Cwd, "feov-memory"), run)
 
-	// The index was built and GATED above, before any run state existed; this only mirrors the
-	// files into the run and writes the class join the engine hands to a repairing seat.
-	mirror := MirrorGapPatterns(memDirs, run)
+	// THE WHOLE CORPUS IS NOT STAGED, and the skill recorded why before this deleted it: "staging
+	// the whole corpus was measured worthless — run 5's lanes read it and committed the warned
+	// patterns anyway". The by-class index below replaced it, delivering only the patterns matching
+	// the gap in front of a repairing seat — which is the fix for `staged-not-delivered`, the class
+	// this instance is catalogued under: content staged where a seat COULD read it, at seat start,
+	// where it competes with everything else for salience.
+	//
+	// The replacement shipped and the thing it replaced kept shipping beside it: 174,919 bytes
+	// concatenated into inputs/red-gap-patterns.md every run, with two prompt clauses ordering
+	// seats to read it. Deleted rather than kept for provenance — feov-memory/ is git-tracked, and
+	// the archive records each corpus file's sha256, so the bytes a run saw stay identifiable
+	// without any run staging them.
 
 	// THE CLASS JOIN IS THE DELIVERY CHANNEL, so a failure to write it is the same condition the
 	// unclassified gate forty lines up refuses the run over: red opens blind while its memory
@@ -367,7 +374,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	}
 
 	law := MirrorLaw(filepath.Join(cfg.Cwd, "law"), run)
-	cards := MirrorScorecards(filepath.Join(cfg.Cwd, "feov-memory"), run)
 	pinnedPaths := []string{}
 	for _, c := range cfg.Cites {
 		p, _ := splitPin(c)
@@ -402,8 +408,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	} else {
 		fmt.Fprintf(stdout, "  class registry: NOT STAGED — %s\n", registry.Reason)
 	}
-	if mirror.Written {
-		fmt.Fprintf(stdout, "  gap-patterns: %d pattern(s) mirrored from %d source(s) (promoted corpus first)\n", mirror.Files, mirror.Sources)
+	if len(patternIndex.ByClass) > 0 {
 		// THE JOIN'S HEALTH, stated rather than assumed. Patterns are delivered by matching the
 		// class of the gap in front of a seat, so a corpus indexed by classes the registry does
 		// not contain reaches nobody however well it is composed — which is what both
@@ -424,7 +429,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 			}
 		}
 	} else {
-		fmt.Fprintf(stdout, "  gap-patterns: %s\n", mirror.Reason)
+		fmt.Fprintln(stdout, "  gap-patterns: no class-indexed patterns — red opens with no prior memory")
 	}
 	if law.Written {
 		fmt.Fprintf(stdout, "  law: %d file(s) mirrored (statute > precedent > argument)\n", law.Files)
@@ -439,18 +444,17 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		idxLine += fmt.Sprintf(" (%d harness-limit, classless by design)", len(patternIndex.HarnessLimit))
 	}
 	fmt.Fprintln(stdout, idxLine)
-	if cards.Written {
-		fmt.Fprintf(stdout, "  scorecards: %s staged into inputs/\n", strings.Join(cards.Cards, ", "))
-	} else {
-		fmt.Fprintf(stdout, "  scorecards: %s\n", cards.Reason)
-	}
-	if len(cards.Headlines) > 0 {
-		if b, err := marshalJSON(cards.Headlines); err == nil {
-			os.WriteFile(filepath.Join(run.Dir(), "inputs", "scorecards.json"), b, 0o644)
-		}
-		fmt.Fprintln(stdout, `  scorecards arg: pass inputs/scorecards.json as the workflow's "scorecards" arg`)
-		fmt.Fprintf(stdout, "    %s\n", compactJSON(cards.Headlines))
-	}
+	// NO SCORECARDS ARE STAGED INTO THE RUN, because nothing read them.
+	//
+	// Three things went together here. inputs/scorecards.json existed so the skill could tell the
+	// lead to paste its parsed contents into the Workflow args, and the engine destructured that
+	// arg without ever reading it. The headline extraction that filled it computed a value with no
+	// consumer. And the per-side <card>-scorecard.md copies mirrored into inputs/ had no reader
+	// either: no prompt names them, and a seat reads its OWN scorecard through `show scorecard`,
+	// computed live from THIS run's record — a prior run's numbers are Goodhart bait.
+	//
+	// The corpus still lives where it is written: capture's WriteScorecards keeps each card in
+	// feov-memory/, which is the durable home and the next run's input.
 	// Reached only when the preflight PASSED — it refuses above now, so there is no
 	// "NOT AVAILABLE" line any more. That line used to be the whole failure mode: it told the
 	// operator the run would not record through the tool and then created the run anyway.
@@ -565,15 +569,4 @@ func gitHead(git GitFunc) string {
 		return "unknown"
 	}
 	return h
-}
-
-// compactJSON matches JS `JSON.stringify(x)` — no indent, no HTML escaping.
-func compactJSON(v any) string {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	if enc.Encode(v) != nil {
-		return ""
-	}
-	return strings.TrimRight(buf.String(), "\n")
 }

@@ -86,26 +86,6 @@ func TestBuildPinned(t *testing.T) {
 	}
 }
 
-// MirrorGapPatterns: concatenates memory files; absent/empty memory is a stated no-op.
-func TestMirrorGapPatterns(t *testing.T) {
-	dir := t.TempDir()
-	BuildSkeleton(runOf(t, dir))
-	mem := t.TempDir()
-	write(t, filepath.Join(mem, "pattern_a.md"), "# pattern A\n")
-	write(t, filepath.Join(mem, "pattern_b.md"), "# pattern B\n")
-	r := MirrorGapPatterns([]string{mem}, runOf(t, dir))
-	if r.Files != 2 {
-		t.Fatalf("files = %d, want 2", r.Files)
-	}
-	out := read(t, filepath.Join(dir, "inputs", "red-gap-patterns.md"))
-	if !has(out, "pattern A") || !has(out, "pattern B") || !has(out, "read-only copy") {
-		t.Error("mirror content wrong")
-	}
-	if none := MirrorGapPatterns([]string{filepath.Join(mem, "nope")}, runOf(t, t.TempDir())); none.Written {
-		t.Error("absent memory should be a no-op")
-	}
-}
-
 // WriteRunLiveMarker: commitment-as-state with the pinned paths for hook guards.
 func TestWriteRunLiveMarker(t *testing.T) {
 	project := t.TempDir()
@@ -245,53 +225,6 @@ func TestPreflightRecordBinary(t *testing.T) {
 	})
 	if absent.OK || !has(absent.Reason, "not runnable") {
 		t.Errorf("absent: %+v", absent)
-	}
-}
-
-// MirrorScorecards: empty corpus explains itself instead of an undefined reason.
-func TestMirrorScorecardsEmptyCorpus(t *testing.T) {
-	mem, runDir := t.TempDir(), t.TempDir()
-	os.MkdirAll(filepath.Join(runDir, "inputs"), 0o755)
-	r := MirrorScorecards(mem, runOf(t, runDir))
-	if r.Written {
-		t.Error("empty corpus should not be written")
-	}
-	if r.Reason == "" || !has(r.Reason, "capture") {
-		t.Errorf("reason should explain where scorecards come from: %q", r.Reason)
-	}
-}
-
-// MirrorScorecards: the emitted HEADLINE line is the ranked authority (detector leads).
-func TestMirrorScorecardsHeadlineRanked(t *testing.T) {
-	mem, runDir := t.TempDir(), t.TempDir()
-	os.MkdirAll(filepath.Join(runDir, "inputs"), 0o755)
-	// A card whose emitted HEADLINE puts the tripped detector first.
-	write(t, filepath.Join(mem, "blue-scorecard.md"),
-		"# blue scorecard\n\n## run-6\n\n- `x` [benchmark] — A: **1**\n\nHEADLINE: tripped 7 [DETECTOR] · bench_one 1 [BENCHMARK] · bench_two 2 [BENCHMARK]\n")
-	r := MirrorScorecards(mem, runOf(t, runDir))
-	if len(r.Headlines["blue"]) != 3 || !strings.HasPrefix(r.Headlines["blue"][0], "tripped 7") {
-		t.Errorf("headline not ranked from the emitted line: %v", r.Headlines["blue"])
-	}
-}
-
-// MirrorScorecards: a pre-HEADLINE card still yields a prompt headline via the fallback,
-// and a colon in the clause does not hide the metric.
-func TestMirrorScorecardsFallbackParsesColonClause(t *testing.T) {
-	mem, runDir := t.TempDir(), t.TempDir()
-	os.MkdirAll(filepath.Join(runDir, "inputs"), 0o755)
-	write(t, filepath.Join(mem, "red-scorecard.md"), strings.Join([]string{
-		"# red scorecard", "", "## run-5", "",
-		"- `unrecorded_claim_loss` [detector] — LOSS: additive violations: **4** (6 lost, 2 retired)",
-		"- `anchored_closures_pct` [benchmark] — Attestation-format invariant: **89**",
-		"",
-	}, "\n"))
-	r := MirrorScorecards(mem, runOf(t, runDir))
-	joined := strings.Join(r.Headlines["red"], " | ")
-	if !has(joined, "unrecorded_claim_loss 4") {
-		t.Errorf("colon-bearing clause not read by the fallback: %v", r.Headlines["red"])
-	}
-	if !has(joined, "anchored_closures_pct 89") {
-		t.Errorf("second row missing: %v", r.Headlines["red"])
 	}
 }
 
