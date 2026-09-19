@@ -1,12 +1,12 @@
-prompt sha256: 3d6376a306674098427565b03790e809d6a427408a9edc35260f305093619f8d
+prompt sha256: c97f46d2632a9a325466482246101d2709a3901e519116325b5aae4563e840cb
 
 Sitting-record repair for blue-respond.
 Your last sitting did not attest what it put on the record, so the run cannot yet show your position event for this sitting (it renders as the "### BLUE" section) AND your revision event.
 Put it on the record NOW — nothing else.
 REGISTER AS THE REPAIR OF YOUR LAST SITTING: your register's help names how, and what you then put on the record counts as that sitting's rather than this one's.
-If that register is refused, the refusal itself says which of two things happened, and there are only these two.
+If that register is refused, ONE SENTENCE THE TOOL PLACES tells you which case you are in — judge the refusal by that sentence and by nothing else in its wording.
 A refusal ENDING WITH THE TOOL'S OWN SENTENCE "There is nothing here for a repair to file: register without repairing, and report what the record supports." means the sitting you would repair owes a repair nothing: do exactly what that sentence says, quote the refusal in the log, and return the attestation the record supports — this is a success, not a failure.
-A refusal WITHOUT that sentence means the record does not bear out the repair you claimed; that is a failure to report and not a finding: quote it in the log and return sitting_record_appended false. your position event for this sitting (it renders as the "### BLUE" section) AND your revision event.
+ANY OTHER REFUSAL is a failure to report and not a finding, whether the record does not bear out the repair you claimed or the refusal is about something else entirely: quote it in the log word for word and return sitting_record_appended false. your position event for this sitting (it renders as the "### BLUE" section) AND your revision event.
 Do NOT re-do your substantive work and do NOT edit the report again; this turn exists only to close the parity gap.
 If you genuinely cannot (the duty does not apply, or a tool refuses you), say in the log exactly why, and return sitting_record_appended false with a one-line note.
 Return the attestation.

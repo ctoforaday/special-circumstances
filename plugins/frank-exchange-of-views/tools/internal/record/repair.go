@@ -40,6 +40,14 @@ import (
 // is a compile-time argument, so a refusal cannot be added without choosing a branch, and the
 // "nothing to file" class ends with RepairNothingToFile — one sentence this package writes, which
 // the re-prompt names verbatim (TestTheRePromptNamesEveryRepairRefusalsBranch).
+//
+// THE TWO ARE CLOSED OVER THIS CHECK, NOT OVER THE REGISTER (#1041). registerSeat refuses a repair
+// register in places this file never sees — the seat id's shape, the roster, the cast, the attested
+// role, the run directory, the database, and the write itself — and none of those carry a branch or
+// this sentence. They are correct as failures, and the re-prompt sends every refusal that does not
+// end with RepairNothingToFile to the failure side for exactly that reason; what it must not do is
+// tell the seat those are the only two things a refusal can mean. See
+// TestARepairRefusedBeforeTheRepairCheckCarriesNoAnchorSentence.
 
 // repairOutcome is which branch a refused repair puts the seat on. The set is CLOSED: the re-prompt
 // states both, and a third would be a branch no prompt holds.
