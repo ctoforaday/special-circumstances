@@ -69,11 +69,24 @@ import (
 // states the discipline and the property of the environment the discipline follows from. The
 // instruction is shared by every seat, so every prompt pays it; only the judge had less than 39
 // characters of headroom. 7,800 -> 7,850, the ratchet kept tight rather than +10%.
+// Raised 2026-09-19 because the previous wording is REFUSED, which makes this the one entry here
+// that is not discretionary growth. The paragraph read "YOUR REASONING IS PART OF EVERY ACT ...
+// write your THINKING", and every blue lane dispatched on sonnet-5 returned stop_reason=refusal
+// with zero output tokens, the API naming its own classifier: [reasoning_extraction]. The same
+// text ran on the same model two days earlier, so the prompt did not change into a refusal — the
+// guard tightened under it. Paired at one moment: the old wording refuses in five seconds, the new
+// one runs; haiku-4.5 accepts both.
+//
+// What the seat is asked for is its CASE TO THE OTHER SEATS — grounds an opponent can answer — and
+// never an account of how the model thinks. The old phrasing asked for the second while meaning the
+// first. Every instruction survives; only the words naming the model's interior do not, and saying
+// it takes more of them. red-lens-evidence absorbed the change inside its existing ceiling; the
+// judge measured 7,879 (+29), so 7,850 -> 7,900.
 var ceilings = map[string]int{
 	"blue-respond":      15200,
 	"red-chair":         10200,
 	"red-lens-evidence": 12300,
-	"judge":             7850,
+	"judge":             7900,
 }
 
 func TestNoSeatPromptGrowsPastItsCeiling(t *testing.T) {

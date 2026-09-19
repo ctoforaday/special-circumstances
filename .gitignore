@@ -99,3 +99,4 @@ plugins/*/tools/*
 # reading. Ignoring the run directories makes keeping one a deliberate `git add -f`, which is the
 # same shape as the .claude/agent-memory -> feov-memory promotion directly above.
 research/*/
+__pycache__/

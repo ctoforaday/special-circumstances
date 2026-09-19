@@ -1,8 +1,6 @@
 package setup
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -12,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -40,6 +39,10 @@ type Config struct {
 	// operator passed it, and a value the operator passed below 1 is refused.
 	MaxEpochs    int
 	MaxEpochsSet bool
+	// LensAreaReason is why this run narrows the cast. Required when LensAreas drops an area and
+	// empty otherwise; recorded in run-config.json beside the other terms, so a reader of an
+	// archived run can see what the narrowing was for without the launcher that made it.
+	LensAreaReason string
 	// LensAreas are the red lens areas this run dispatches; empty means record.DefaultCastAreas.
 	// They go on the record as the CAST (plans/roundless.md §III.B.1), which register and the
 	// dispatch verb check every seat against.
@@ -106,6 +109,41 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	// run at its first chair sitting with nothing audited, and record.RunParams refuses to read it.
 	if cfg.MaxEpochs < 0 || (cfg.MaxEpochsSet && cfg.MaxEpochs < 1) {
 		fmt.Fprintf(stderr, "run-setup: --max-epochs %d refused — the run's epoch limit is 1 or more (default %d); refusing to create the run\n", cfg.MaxEpochs, record.DefaultParams.MaxEpochs)
+		return 2
+	}
+
+	// NARROWING THE CAST IS A DECISION, AND A DECISION NOBODY WROTE DOWN IS ONE NOBODY MADE.
+	//
+	// `--lens-area` drops audit DIMENSIONS, and the skill has always said to narrow "only with a
+	// reason" — advice the tool did not hold anyone to. Measured across the nine archived
+	// is-91-prime runs: every one was narrowed to evidence, logic and voice, all seven lens agents
+	// having existed since 2026-09-08, and no run states why. Five shipped VERIFIED. The cost is
+	// legible in the output — of 34 gaps minted across those runs, exactly ONE is a defect in the
+	// mathematics, on nine runs whose entire subject is an arithmetic claim, and the LOGIC lens
+	// found it because `computation` was never in the room.
+	//
+	// The reason is required only when the cast is actually narrowed: a full cast needs no
+	// justification, and demanding one for the default would teach the operator to type a word to
+	// get past a prompt. It joins the run's other TERMS in run-config.json rather than the event
+	// record — the terms are config, they are archived with the run, and this needs no epoch bump
+	// to carry a fact that is settled before any seat registers.
+	if len(cfg.LensAreas) > 0 && len(cfg.LensAreas) < len(record.DefaultCastAreas) && strings.TrimSpace(cfg.LensAreaReason) == "" {
+		seated := append([]string{}, cfg.LensAreas...)
+		sort.Strings(seated)
+		dropped := []string{}
+		for _, a := range record.DefaultCastAreas {
+			if !slices.Contains(seated, a) {
+				dropped = append(dropped, a)
+			}
+		}
+		fmt.Fprintf(stderr, "run-setup: this cast seats %d of %d lens areas and gives no reason — refusing to create the run\n", len(seated), len(record.DefaultCastAreas))
+		fmt.Fprintf(stderr, "  seating: %s\n", strings.Join(seated, ", "))
+		fmt.Fprintf(stderr, "  dropping: %s\n", strings.Join(dropped, ", "))
+		fmt.Fprintln(stderr, "  A dropped area is an audit dimension nobody performs, and the terminal verdict then states")
+		fmt.Fprintln(stderr, "  that it was never performed rather than that it was clear. Name what the TOPIC does not need")
+		fmt.Fprintln(stderr, "  — a product question may have no figure for computation to re-derive.")
+		fmt.Fprintln(stderr, "  remedy: pass --lens-area-reason \"<why these areas and not the others>\", or drop --lens-area")
+		fmt.Fprintln(stderr, "  and let the run seat every area.")
 		return 2
 	}
 
@@ -303,9 +341,18 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	// anything at all (#299).
 	registry := StageClassRegistry(filepath.Join(cfg.Cwd, "feov-memory"), run)
 
-	// The index was built and GATED above, before any run state existed; this only mirrors the
-	// files into the run and writes the class join the engine hands to a repairing seat.
-	mirror := MirrorGapPatterns(memDirs, run)
+	// THE WHOLE CORPUS IS NOT STAGED, and the skill recorded why before this deleted it: "staging
+	// the whole corpus was measured worthless — run 5's lanes read it and committed the warned
+	// patterns anyway". The by-class index below replaced it, delivering only the patterns matching
+	// the gap in front of a repairing seat — which is the fix for `staged-not-delivered`, the class
+	// this instance is catalogued under: content staged where a seat COULD read it, at seat start,
+	// where it competes with everything else for salience.
+	//
+	// The replacement shipped and the thing it replaced kept shipping beside it: 174,919 bytes
+	// concatenated into inputs/red-gap-patterns.md every run, with two prompt clauses ordering
+	// seats to read it. Deleted rather than kept for provenance — feov-memory/ is git-tracked, and
+	// the archive records each corpus file's sha256, so the bytes a run saw stay identifiable
+	// without any run staging them.
 
 	// THE CLASS JOIN IS THE DELIVERY CHANNEL, so a failure to write it is the same condition the
 	// unclassified gate forty lines up refuses the run over: red opens blind while its memory
@@ -360,6 +407,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	}
 	rc := runConfig{Topic: topic, RunDir: run.Dir(), Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect, AllowModelSubstitution: cfg.AllowSubstitution,
 		K: terms.K, KMax: terms.KMax, MintBudget: terms.MintBudget, ConvergenceFraction: terms.ConvergenceFraction, MaxEpochs: terms.MaxEpochs,
+		LensAreas: cfg.LensAreas, LensAreaReason: cfg.LensAreaReason,
 		MaxSittingCalls: maxCalls,
 		Hooks:           hookProvenanceAt(homeDir(), "frank-exchange-of-views")}
 	if b, err := marshalJSON(rc); err == nil {
@@ -367,7 +415,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	}
 
 	law := MirrorLaw(filepath.Join(cfg.Cwd, "law"), run)
-	cards := MirrorScorecards(filepath.Join(cfg.Cwd, "feov-memory"), run)
 	pinnedPaths := []string{}
 	for _, c := range cfg.Cites {
 		p, _ := splitPin(c)
@@ -402,8 +449,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	} else {
 		fmt.Fprintf(stdout, "  class registry: NOT STAGED — %s\n", registry.Reason)
 	}
-	if mirror.Written {
-		fmt.Fprintf(stdout, "  gap-patterns: %d pattern(s) mirrored from %d source(s) (promoted corpus first)\n", mirror.Files, mirror.Sources)
+	if len(patternIndex.ByClass) > 0 {
 		// THE JOIN'S HEALTH, stated rather than assumed. Patterns are delivered by matching the
 		// class of the gap in front of a seat, so a corpus indexed by classes the registry does
 		// not contain reaches nobody however well it is composed — which is what both
@@ -424,7 +470,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 			}
 		}
 	} else {
-		fmt.Fprintf(stdout, "  gap-patterns: %s\n", mirror.Reason)
+		fmt.Fprintln(stdout, "  gap-patterns: no class-indexed patterns — red opens with no prior memory")
 	}
 	if law.Written {
 		fmt.Fprintf(stdout, "  law: %d file(s) mirrored (statute > precedent > argument)\n", law.Files)
@@ -439,18 +485,17 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		idxLine += fmt.Sprintf(" (%d harness-limit, classless by design)", len(patternIndex.HarnessLimit))
 	}
 	fmt.Fprintln(stdout, idxLine)
-	if cards.Written {
-		fmt.Fprintf(stdout, "  scorecards: %s staged into inputs/\n", strings.Join(cards.Cards, ", "))
-	} else {
-		fmt.Fprintf(stdout, "  scorecards: %s\n", cards.Reason)
-	}
-	if len(cards.Headlines) > 0 {
-		if b, err := marshalJSON(cards.Headlines); err == nil {
-			os.WriteFile(filepath.Join(run.Dir(), "inputs", "scorecards.json"), b, 0o644)
-		}
-		fmt.Fprintln(stdout, `  scorecards arg: pass inputs/scorecards.json as the workflow's "scorecards" arg`)
-		fmt.Fprintf(stdout, "    %s\n", compactJSON(cards.Headlines))
-	}
+	// NO SCORECARDS ARE STAGED INTO THE RUN, because nothing read them.
+	//
+	// Three things went together here. inputs/scorecards.json existed so the skill could tell the
+	// lead to paste its parsed contents into the Workflow args, and the engine destructured that
+	// arg without ever reading it. The headline extraction that filled it computed a value with no
+	// consumer. And the per-side <card>-scorecard.md copies mirrored into inputs/ had no reader
+	// either: no prompt names them, and a seat reads its OWN scorecard through `show scorecard`,
+	// computed live from THIS run's record — a prior run's numbers are Goodhart bait.
+	//
+	// The corpus still lives where it is written: capture's WriteScorecards keeps each card in
+	// feov-memory/, which is the durable home and the next run's input.
 	// Reached only when the preflight PASSED — it refuses above now, so there is no
 	// "NOT AVAILABLE" line any more. That line used to be the whole failure mode: it told the
 	// operator the run would not record through the tool and then created the run anyway.
@@ -513,6 +558,11 @@ type runConfig struct {
 	MintBudget          int     `json:"mintBudget"`
 	ConvergenceFraction float64 `json:"convergenceFraction"`
 	MaxEpochs           int     `json:"maxEpochs"`
+	// LensAreas and LensAreaReason are written only when the cast was narrowed. Their absence is
+	// the full cast, which is why they are omitempty rather than always-present: an empty reason
+	// on a full cast would read as a narrowing nobody justified.
+	LensAreas      []string `json:"lensAreas,omitempty"`
+	LensAreaReason string   `json:"lensAreaReason,omitempty"`
 	// MaxSittingCalls is read by the PreToolUse hook through sittingcap.Limit, not by
 	// record.Params: the hook may not link the record. The key is sittingcap.ConfigKey.
 	MaxSittingCalls int `json:"maxSittingCalls"`
@@ -565,15 +615,4 @@ func gitHead(git GitFunc) string {
 		return "unknown"
 	}
 	return h
-}
-
-// compactJSON matches JS `JSON.stringify(x)` — no indent, no HTML escaping.
-func compactJSON(v any) string {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	if enc.Encode(v) != nil {
-		return ""
-	}
-	return strings.TrimRight(buf.String(), "\n")
 }

@@ -296,13 +296,18 @@ test('blue is engaged on named gaps, told the board is authoritative, and files 
   await world.run(script, ARGS)
   const [first, second] = labelsOf(world, 'blue-respond').map((c) => c.prompt)
   assert.ok(/You are engaged on: G1, G2/.test(first))
-  for (const want of ['YOUR FIRST READ COMES AFTER THE MANUAL', 'red-gap-patterns.md', 'in one pass rather than three', 'lossy summary', "bench's latest dispositions",
+  for (const want of ['YOUR FIRST READ COMES AFTER THE MANUAL', 'in one pass rather than two', 'lossy summary', "bench's latest dispositions",
     'REMANDED comes with a stated research direction you owe', 'which patterns you checked', 'YOU MAY COMPUTE AN ANSWER', 'DOCUMENT-PROBE', 'deferred acceptance test',
     'LINES OF INQUIRY ARE A LIVING RECORD', 'THREE paths', 'ESTOPS', 'OWNERSHIP BINDS, AS IT DID AT SYNTHESIS', 'each edit naming the gap it answers', 'a grade motion on the axis', 'Compact and reorganize prose', 'retired on the record',
     'PROPAGATE EVERY CORRECTION TO ALL SITES', 'NULL TURN', 'AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP', 'manifest array', 'claim_count', 'never hand-count',
     'where the gap changes no reader decision or asks for complexity that does not pay, argue `defect_accepted` with that reason', "materiality is the class's default: always, never, or by grade from medium"]) {
     assert.ok(first.includes(want), `blue lost: ${want}`)
   }
+  // THE WHOLE CORPUS IS NOT IN THE WORKING SET, and asserting its ABSENCE is the point: the
+  // by-class index replaced it because staging the corpus was measured worthless (run 5's lanes
+  // read it and committed the warned patterns anyway), and a prompt that still names the file
+  // would send a seat after something setup no longer stages.
+  assert.ok(!first.includes('red-gap-patterns.md'), 'blue is still sent to the deleted whole corpus')
   assert.ok(/CLOSING ARGUMENTS: the following are DOCKETED for adjudication AFTER your response this sitting: G2/.test(first) && /argue in ~120 words/.test(first))
   assert.ok(!/CLOSING ARGUMENTS/.test(second), 'no docket this sitting, no closing demanded')
   assert.ok(!/round \d/.test(first), 'no round is named to blue')
