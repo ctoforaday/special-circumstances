@@ -103,6 +103,19 @@ def main() -> int:
     if raw:
         raw.close()
     say(f"summary: {len(seats)} dispatch(es) seen")
+
+    # A RUN THAT DISPATCHED NOTHING IS A FAILED RUN, and it is the one failure this whole script
+    # exists to make visible, so it must not be reported as a zero to be read past. `claude -p`
+    # exits 0 whenever the assistant produced an answer — including when the plugins did not load
+    # and `/frank-exchange-of-views:research <topic>` reached the model as ordinary prose. That run
+    # printed `DONE success turns=1 $0.05` above a `0 dispatch(es)` line, and the wrapper agreed.
+    # The engine cannot research anything without dispatching the workflow, so the absence of one
+    # is decidable here and is stated as an error rather than left in the summary's arithmetic.
+    if "workflow" not in seats:
+        say("FAILED: no Workflow was dispatched — the engine never ran, whatever the exit code says")
+        say("  most likely the plugins did not load; check that the marketplace path in the")
+        say("  universe's settings.json still exists, then rebuild")
+        return 2
     return 0
 
 

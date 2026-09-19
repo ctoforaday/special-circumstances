@@ -179,15 +179,25 @@ cmd_build() {
   # the tree alone silently edited committed state. $WORKDIR is outside the repo, so project
   # settings are not found and only the universe's own config is touched.
   mkdir -p "$WORKDIR"
-  # THE STAGING DIR LIVES OUTSIDE THE UNIVERSE AND IS REMOVED AFTER INSTALL. It was $WORKDIR/
-  # marketplace, holding a `plugins` symlink into the checkout — and a run's lead, exploring its own
-  # WORKDIR with bypassPermissions, found it and ran
+  # THE STAGING DIR LIVES BESIDE THE UNIVERSE AND OUTLIVES THE BUILD, and both halves of that are
+  # load-bearing in opposite directions.
+  #
+  # OUTSIDE, because it holds a `plugins` symlink into the checkout. It was $WORKDIR/marketplace,
+  # and a run's lead exploring its own WORKDIR with bypassPermissions found it and ran
   # $WORKDIR/marketplace/plugins/frank-exchange-of-views/bin/feov-record: the CHECKOUT's binaries,
-  # which are whatever a previous build left there, instead of the cache this script just built.
-  # A universe that contains a door back to the working tree is not isolated, and the failure is
-  # silent — the run works, with the wrong binary.
-  local mkt; mkt="$(mktemp -d)"
-  trap 'rm -rf "$mkt"' RETURN
+  # whatever a previous build left there, instead of the cache this script just built. A universe
+  # containing a door back to the working tree is not isolated, and it fails silently — the run
+  # works, with the wrong binary.
+  #
+  # OUTLIVES, because `extraKnownMarketplaces` in the universe's settings.json records this PATH,
+  # and Claude re-reads it at every session start. Staged in `mktemp -d` and deleted on return, the
+  # config pointed at a directory that no longer existed: the plugins silently failed to load, so
+  # `/frank-exchange-of-views:research` was not a command, and the lead — asked to research a topic
+  # with a slash command it did not have — simply ANSWERED THE TOPIC. One turn, five cents, exit 0.
+  # Deleting it also put it in /tmp, which this repo's scratch rule forbids for exactly this class
+  # of "it worked when I ran it" failure.
+  local mkt; mkt="${WORKDIR%/}.marketplace"
+  rm -rf "$mkt"
   mkdir -p "$mkt/.claude-plugin"
   ln -sfn "$REPO/plugins" "$mkt/plugins"
   python3 "$REPO/scripts/universe-manifest.py" \
@@ -245,7 +255,27 @@ os.makedirs(os.path.dirname(p), exist_ok=True)
 json.dump(d, open(p, "w"), indent=2)
 print(f"[universe] enabled {len(d['enabledPlugins'])} plugin(s) in {p}")
 PY
+
+  # THE CONFIG'S MARKETPLACE PATH MUST STILL EXIST, asserted here rather than discovered by a run.
+  # A dangling path does not fail the build, the install, or `doctor` — the cache is fully
+  # populated and every binary is there. It fails at SESSION START, by the plugins not loading,
+  # which presents as a lead that answers the topic instead of researching it.
+  python3 - "$settings" "$mkt" <<'PY' || die "the universe's marketplace path is not the one just staged"
+import json, os, sys
+settings, staged = sys.argv[1], sys.argv[2]
+d = json.load(open(settings))
+src = (d.get("extraKnownMarketplaces", {}).get("special-circumstances", {}).get("source") or {})
+path = src.get("path")
+if path != staged:
+    print(f"[universe] settings.json names {path!r}, not the staged {staged!r}")
+    raise SystemExit(1)
+if not os.path.isdir(path):
+    print(f"[universe] settings.json names {path!r}, which does not exist")
+    raise SystemExit(1)
+print(f"[universe] marketplace source resolves: {path}")
+PY
   cmd_doctor
+  log "the marketplace source lives at $mkt — removing the universe means removing BOTH paths"
 }
 
 cmd_doctor() {
@@ -297,7 +327,13 @@ cmd_run() {
       "/frank-exchange-of-views:research $topic --model $MODEL --judgment-model $JUDGMENT_MODEL --lanes $LANES $*" \
       --output-format stream-json --verbose --permission-mode "$PERMISSION_MODE" </dev/null ) \
     | python3 "$REPO/scripts/universe-stream.py" --raw "$raw" | tee "$out"
-  local rc=${PIPESTATUS[0]}
+  # BOTH ARMS, because they fail differently and the second one is the one that matters. claude's
+  # status says the process produced an answer; the renderer's says the ENGINE RAN. A universe whose
+  # plugins did not load exits 0 on the first and 2 on the second. Reading only PIPESTATUS[0] is the
+  # same defect as reading a pipeline's exit code and getting `tee`'s.
+  local claude_rc=${PIPESTATUS[0]} render_rc=${PIPESTATUS[1]}
+  local rc=$claude_rc
+  [ "$claude_rc" -eq 0 ] && rc=$render_rc
   log "exit $rc — $out"
   log "load at end: $(cut -d' ' -f1-3 /proc/loadavg)"
   log "the Workflow outlives this process: watch it with  $0 --dir $WORKDIR watch"

@@ -38,9 +38,14 @@ scripts/universe.sh doctor           # what is installed, binaries per plugin, s
 ```
 
 `build` is isolated by default: `CLAUDE_CONFIG_DIR` and `CLAUDE_CODE_PLUGIN_CACHE_DIR` point inside
-`WORKDIR` (default `~/.claude/scratch/universe`), so nothing touches `~/.claude`, other sessions on
-the box are unaffected, and the whole thing is one `rm -rf`. Use `--live` only when you want the
-change in *your* next session, and remember it is shared state.
+`WORKDIR` (default `~/.claude/scratch/universe`), so nothing touches `~/.claude` and other sessions
+on the box are unaffected. Use `--live` only when you want the change in *your* next session, and
+remember it is shared state.
+
+Tearing one down is **two** paths, not one: `$WORKDIR` and `$WORKDIR.marketplace`. The staged
+manifest sits beside the universe rather than inside it because it holds a symlink into the
+checkout, and a lead exploring its own `WORKDIR` under `bypassPermissions` will find such a door and
+run the checkout's binaries through it. `build` prints both paths when it finishes.
 
 ### The manifest has to be restaged, and the reason is not obvious
 
@@ -56,6 +61,14 @@ every sign of success.
 `universe.sh` therefore stages its own manifest whose every source is `./plugins/<name>`, over a
 symlink into the checkout (`scripts/universe-manifest.py`). Same four plugins, same names; only the
 content resolves differently.
+
+The path that manifest is staged at is recorded in the universe's `settings.json` and re-read at
+**every session start**, not just at install. Staged in a temp directory and cleaned up after the
+build, it left a config naming a directory that no longer existed: cache fully populated, every
+binary present, `doctor` clean — and the plugins silently not loading. What that looks like from
+outside is a lead that receives `/frank-exchange-of-views:research <topic>` as ordinary prose,
+because the command does not exist in that session, and **answers the topic**: one turn, five
+cents, `DONE success`. `build` now asserts that the recorded path exists and is the one it staged.
 
 **After any `build`, prove the universe carries your change** rather than trusting the summary:
 
@@ -92,6 +105,11 @@ errors as they happen:
 [  341s]   ERROR   refused: --quote is required
 [  902s] DONE  success  turns=42  $1.23
 ```
+
+**A run that dispatched no `Workflow` fails, and says so.** The engine cannot research anything
+without one, so its absence is decidable from the stream — and `claude -p` exits 0 for it, because
+the assistant did produce an answer. `run` returns the renderer's status when claude's is clean, so
+"the plugins did not load" cannot arrive as a success with a quiet `0 dispatch(es)` line above it.
 
 **The debate view** — `universe.sh watch` reads the record (SQLite `mode=ro`, so it cannot take a
 write lock on a live run) and prints the board: seats and their sitting counts, gaps minted and
