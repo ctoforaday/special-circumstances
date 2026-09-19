@@ -313,6 +313,28 @@ cmd_run() {
   guard_no_live_run "run"
   local src="$WORKDIR/src"
   mkdir -p "$src"
+
+  # THE PROMOTED GAP-PATTERN CORPUS, because without it the SECOND run in a universe refuses.
+  #
+  # `setup` reads the memory sources and indexes the corpus by class, since delivery is
+  # class-indexed and an unclassified pattern reaches no seat. A fresh universe's project has no
+  # promoted corpus at all — and a run's lenses ACCRUE patterns into
+  # .claude/agent-memory/<seat>/, unclassified by default. So run one leaves three unclassified
+  # files behind and run two refuses: "3 unclassified pattern(s) against 0 delivered class(es)",
+  # red would open the run substantially blind while its memory directory looks full.
+  #
+  # The refusal is right. What was wrong is that the universe never had the classified corpus this
+  # repo's own runs read, so red was being seated with less memory than a real run gives it — which
+  # would have made every universe smoke a weaker audit than the thing it stands for, silently.
+  # Copied, not symlinked: a run accrues INTO this directory, and the checkout is not a scratch pad.
+  if [ -d "$REPO/feov-memory/red-gap-patterns" ]; then
+    mkdir -p "$src/feov-memory"
+    cp -r "$REPO/feov-memory/red-gap-patterns" "$src/feov-memory/" 2>/dev/null
+    log "staged the promoted corpus: $(find "$src/feov-memory/red-gap-patterns" -name '*.md' | wc -l) pattern(s)"
+  else
+    log "WARNING: no promoted corpus at $REPO/feov-memory/red-gap-patterns — red opens with accrued memory only"
+  fi
+
   local stamp; stamp="$(date -u +%Y%m%dT%H%M%SZ)"
   local out="$WORKDIR/run-$stamp.log"
 
