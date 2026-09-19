@@ -37,6 +37,14 @@ Eleven load on every session, the rest by description. `design-by-contract` is t
 
 Every hook is wrapped in a bootstrap guard: a fresh plugin version ships from git *without* binaries, and an unguarded hook crash-storms every tool call in that window. The guard hands a missing binary to `hooks/fetch-bin.sh`, which installs the plugin's binaries from its own release in the background and tells you it is doing so. If that fails it says why, and `/prosthetic-conscience:doctor --fix` installs them by hand.
 
+### If you launch sessions whose reply is parsed — `SC_FINAL_MESSAGE_CONTRACTED`
+
+A headless session is still a *main* session, so `Stop` fires in it and the freshness nudge asks the agent to write its note and talk to the human. Where the agent's final message is an envelope your program parses, that request is an interruption with nowhere to go: the agent answers it in prose and your envelope is lost.
+
+**Set `SC_FINAL_MESSAGE_CONTRACTED` in the session's environment** and `sc-stop` declines — exit 0, nothing said on either channel, no state written. Any non-empty value asserts it; leave it unset to mean no. Nothing in the hook payload distinguishes such a session from one a person is reading, so this is a signal you send rather than a condition the plugin can detect: a launcher that does not set it gets the nudge. `hooks/README.md` carries the measurement behind it.
+
+Every other session keeps the nudge, agent included — the agent is the one who has to write the note.
+
 ## Compaction survival — the Memento problem
 
 Compaction replaces the transcript with a summary. The summary is good at what happened and worst at **what you were about to do**: the exact validation commands, what re-arms each one, the ordered next actions, and the handles to work still running in the background.

@@ -48,8 +48,15 @@ func drive(t *testing.T, dir, payload string) (stdout, stderr string) {
 
 func driveWith(t *testing.T, dir, payload string, th Thresholds) (stdout, stderr string) {
 	t.Helper()
+	return driveMarked(t, dir, payload, "", th)
+}
+
+// driveMarked passes the machine-reader marker's value, which is what Main reads from the
+// environment. "" is an unset variable — every other driver here uses it.
+func driveMarked(t *testing.T, dir, payload, contracted string, th Thresholds) (stdout, stderr string) {
+	t.Helper()
 	var o, e bytes.Buffer
-	run(nil, strings.NewReader(payload), &o, &e, dir, time.Date(2026, 8, 23, 1, 0, 0, 0, time.UTC), th)
+	run(nil, strings.NewReader(payload), &o, &e, dir, contracted, time.Date(2026, 8, 23, 1, 0, 0, 0, time.UTC), th)
 	return o.String(), e.String()
 }
 
@@ -283,7 +290,7 @@ func TestTheEmitPathProducesTheMeasuredResponseShape(t *testing.T) {
 func TestVersionIsParsedLikeAFlagAndNamesThisBinary(t *testing.T) {
 	for _, args := range [][]string{{"-version"}, {"--version"}} {
 		var o, e bytes.Buffer
-		if code := run(args, strings.NewReader("{}"), &o, &e, t.TempDir(),
+		if code := run(args, strings.NewReader("{}"), &o, &e, t.TempDir(), "",
 			time.Date(2026, 8, 23, 1, 0, 0, 0, time.UTC), Thresholds{}); code != 0 {
 			t.Errorf("%v exited %d", args, code)
 		}
@@ -316,7 +323,7 @@ func TestTheProjectRootFallsBackToThePayloadWhenTheEnvIsUnset(t *testing.T) {
 	var o, e bytes.Buffer
 	in := payload(t, map[string]any{"session_id": "s1", "cwd": dir, "transcript_path": tp})
 	// projectDir EMPTY: exactly what Main now passes when CLAUDE_PROJECT_DIR is unset.
-	run(nil, strings.NewReader(in), &o, &e, "",
+	run(nil, strings.NewReader(in), &o, &e, "", "",
 		time.Date(2026, 8, 23, 1, 0, 0, 0, time.UTC),
 		Thresholds{TurnsNotice: 30, TurnsWarn: 60, TurnsUrgent: 120})
 

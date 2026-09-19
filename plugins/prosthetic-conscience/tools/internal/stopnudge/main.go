@@ -13,6 +13,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/machinereader"
 )
 
 // hookInput is the Stop payload. Every field here was MEASURED on client 2.1.240
@@ -101,9 +102,25 @@ const (
 	StageStateRemove hookfailures.Stage = "nudge-state-remove"
 )
 
-func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time, th Thresholds) int {
+func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir, contracted string, now time.Time, th Thresholds) int {
 	if hookmain.Preamble(args, stdout, stderr, hookmain.Named("sc-stop")) {
 		return 0 // a bad flag is never worth disturbing the session over
+	}
+	// THE FINAL MESSAGE IS CONTRACTED TO A MACHINE READER, so anything injected into it is an
+	// answer that reader cannot parse. This hook re-invokes the model with a sentence addressed
+	// to a person — write the note, then tell the human and propose a moment to compact — and a
+	// session whose caller is waiting for one JSON object has nowhere to put it: measured on the
+	// 2026-09-17 smoke run, four seats sent the answer instead of the envelope and the corrective
+	// turns cost 23% of the run's wall clock (#1025).
+	//
+	// SILENCE, ON BOTH CHANNELS AND BEFORE ANY STATE IS TOUCHED. The failure record is not
+	// written either: it travels to the human as a systemMessage on this same document, and there
+	// is no human here to read it — the next session with one says it instead.
+	//
+	// It sits AFTER the preamble because -version is not a hook invocation: sc-doctor asks every
+	// binary its version, and a contracted session is not a reason to stop answering.
+	if machinereader.Contracted(contracted) {
+		return 0
 	}
 	raw, _ := io.ReadAll(stdin)
 	var in hookInput
@@ -186,5 +203,5 @@ func newest(n checkpoint.Note) time.Time {
 // code, so cmd/ stays a three-line shim and this stays testable.
 func Main() int {
 	return run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr,
-		os.Getenv("CLAUDE_PROJECT_DIR"), time.Now(), configured())
+		os.Getenv("CLAUDE_PROJECT_DIR"), os.Getenv(machinereader.Var), time.Now(), configured())
 }
