@@ -17,13 +17,15 @@ import (
 // of identity the binding could not close: register is the one call that takes a seat's word for
 // who it is, so what it accepts had better be an id a dispatch could have created.
 //
-// THIS IS THE `roleSeats` COMMENT, PROMOTED FROM PROSE TO A PATTERN. That comment has always
-// carried the real vocabulary —
+// THIS IS THE `roleSeats` COMMENT, PROMOTED FROM PROSE TO A PATTERN. The vocabulary is —
 //
-//	lens   red-lens-r<N>-<area>
+//	lens   red-lens-<area>
 //	chair  red-chair
-//	blue   blue-lane-<N>, blue-respond-r<N>, blue-synthesize, frontier
-//	bench  judge-r<N>, judge-petition-<petitioner>, judge-terminal, assemble
+//	blue   blue-lane-<N>, blue-respond, blue-synthesize, frontier
+//	bench  judge, judge-petition-<petitioner>, judge-terminal, assemble
+//
+// The petition suffix is WHO FILED, never a number: `judge-petition-blue-synthesize` is the bench
+// sitting convened to hear blue-synthesize's petition before the debate continues.
 //
 // — and nothing could refuse anything against it, because a comment is not a check. Every id below
 // is verified against debate.js's own dispatch sites by TestTheRosterMatchesWhatTheEngineActuallyDispatches,
