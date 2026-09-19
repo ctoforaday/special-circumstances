@@ -116,10 +116,27 @@ when you want the new code, and the next `run` picks it up.
 It isolates the other way too: the run's source tree is `$WORKDIR/src`, so its `.claude/run-live.json`
 sits there and cannot claim the subagents of the session you are developing in.
 
-**The exception, and it does bite: do not `build` while a run is in flight.** Hooks execute from the
-cache, spawned fresh per tool call, so a rebuild swaps the hook binaries underneath a running
-engine. Editing the checkout is safe; reinstalling over a live run is not. Use a second `WORKDIR`
-if you need a second universe at once.
+Hooks are universe-local, and completely so: `${CLAUDE_PLUGIN_ROOT}` resolves to *this* universe's
+cache, and the `hooks.json` there points at that cache's own `bin/`. Nothing reaches outside the
+`WORKDIR`.
+
+**The exception is narrower than it first looks: `build` mutates the universe IN PLACE.** It
+reinstalls over the same version directory, and hooks spawn fresh from that directory on every tool
+call — so rebuilding under a live run swaps its binaries mid-sitting. Editing the checkout is
+always safe; reinstalling over a running engine is not. `universe.sh build` now REFUSES when a run
+is in flight in that `WORKDIR` rather than leaving it to this paragraph; use a second `WORKDIR` for
+a second universe.
+
+A rebuild does propagate — verified with a probe marker, installed and then changed and reinstalled,
+both edits landing in the cache. There is no stale-universe trap.
+
+### Run the plugin commands from outside the checkout
+
+`universe.sh` runs every `claude plugin …` call with cwd set to `$WORKDIR`, and that is load-bearing.
+Run from inside the repo, `claude plugin marketplace remove` resolved the PROJECT's
+`.claude/settings.json` — a **tracked** file — and stripped its `extraKnownMarketplaces` and
+`enabledPlugins`. A tool built to leave the tree alone silently edited committed state, and it
+showed up only as an unexplained entry in `git status`.
 
 ## Smoke runs
 

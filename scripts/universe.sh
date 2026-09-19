@@ -54,12 +54,81 @@ PLUGINS=(prosthetic-conscience frank-exchange-of-views sleeper-service gray-area
 MODEL="${MODEL:-haiku}"
 JUDGMENT_MODEL="${JUDGMENT_MODEL:-haiku}"
 LANES="${LANES:-1}"
+# dontAsk, NOT bypassPermissions. `--bg` refuses bypassPermissions until its disclaimer has been
+# accepted in an interactive session, and a universe has its own config dir where that acceptance
+# does not exist — so the headless path cannot use it without a manual step that defeats the point.
+# dontAsk proceeds without prompting and needs no disclaimer.
+PERMISSION_MODE="${PERMISSION_MODE:-dontAsk}"
 
 LIVE=0
-for a in "$@"; do [ "$a" = "--live" ] && LIVE=1; done
 
 log()  { printf '[universe] %s\n' "$*"; }
 die()  { printf '[universe] ERROR: %s\n' "$*" >&2; exit 1; }
+
+# --dir MAKES THE UNIVERSE EXPLICIT. A default that is silently reused is how two experiments end
+# up in one directory; naming it is cheap and the name is what every guard below is about.
+DIR_GIVEN=0
+FORCE=0
+ARGS=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -d|--dir)   WORKDIR="${2:?--dir needs a path}"; DIR_GIVEN=1; shift 2 ;;
+    --dir=*)    WORKDIR="${1#--dir=}"; DIR_GIVEN=1; shift ;;
+    --live)     LIVE=1; shift ;;
+    --force)    FORCE=1; shift ;;
+    *)          ARGS+=("$1"); shift ;;
+  esac
+done
+set -- "${ARGS[@]+"${ARGS[@]}"}"
+
+# THE IN-FLIGHT REPORT IS THE THING WORTH PROTECTING, and it is protected proactively rather than
+# by a note. `setup` writes .claude/run-live.json and the run's own dashboard treats that marker as
+# the signal to keep watching; while it is there, something claims this directory.
+#
+# Refusing is the DEFAULT because the two failures are not symmetric. Refusing a stale universe
+# costs one `--force`. Rebuilding over a live one swaps the hook binaries a running engine spawns
+# per tool call, and starting a second run in the same tree writes two debates into one record —
+# and a half-overwritten report does not announce itself, it just reads wrong later.
+#
+# Staleness is REPORTED, never decided here. The engine derives it from the run's own cadence
+# (3x the p90 gap between its events); a shell script inventing a rival threshold would be a second
+# answer to a question the record already answers. So this prints how long the record has been
+# quiet and lets the human rule.
+guard_no_live_run() {
+  local what="$1"
+  local marker="$WORKDIR/src/.claude/run-live.json"
+  [ -f "$marker" ] || return 0
+
+  # THE WAL IS WHAT MOVES, NOT THE DATABASE. SQLite in WAL mode appends to record.db-wal and
+  # leaves record.db's mtime almost untouched, so a guard that stats the database reports a busy
+  # run as long dead. Measured: a run writing events at 16:32:33 showed a record.db mtime of
+  # 16:20:04 — twelve minutes of writes invisible — and this guard called it stale on that basis.
+  # Every candidate is considered and the NEWEST wins, so the answer cannot depend on which file
+  # the engine happened to touch last.
+  local newest quiet=""
+  newest="$(find "$WORKDIR/src/research" \( -name 'record.db' -o -name 'record.db-wal' -o -name 'record.db-shm' \) -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1)"
+  if [ -n "$newest" ]; then
+    local mtime; mtime="${newest%% *}"
+    quiet="$(( ( $(date +%s) - ${mtime%.*} ) / 60 )) min since the record was last written"
+  else
+    quiet="no record written yet"
+  fi
+
+  if [ "$FORCE" = "1" ]; then
+    log "WARNING: a run claims $WORKDIR ($quiet) — proceeding because --force was given"
+    return 0
+  fi
+  printf '[universe] REFUSING to %s\n' "$what" >&2
+  printf '  A run claims %s\n' "$WORKDIR" >&2
+  printf '  marker: %s\n' "$marker" >&2
+  printf '  %s\n' "$quiet" >&2
+  printf '\n  A rebuild swaps the hook binaries a live engine spawns per tool call; a second run\n' >&2
+  printf '  writes two debates into one record. Neither failure announces itself.\n\n' >&2
+  printf '  If the run is FINISHED or dead:   rm %s\n' "$marker" >&2
+  printf '  For a separate experiment:        %s --dir <other> %s\n' "${BASH_SOURCE[0]}" "$what" >&2
+  printf '  If you are certain:               add --force\n' >&2
+  exit 3
+}
 
 # THE ENVIRONMENT IS THE UNIVERSE. Everything below runs under these, and `--live` is the one
 # path that does not set them — which is the whole difference between the two modes.
@@ -81,6 +150,7 @@ clear_seat_env() {
 
 cmd_build() {
   command -v claude >/dev/null || die "claude CLI not on PATH"
+  guard_no_live_run "build"
   command -v go >/dev/null     || die "go not on PATH — the hook binaries cannot be built"
   universe_env; clear_seat_env
 
@@ -100,6 +170,12 @@ cmd_build() {
   # So the universe gets its own manifest whose every source is a local path, over a `plugins`
   # symlink into this checkout. Same four plugins, same names; the only difference is that the
   # content resolves to the working tree, which is the entire point of building one.
+  # EVERY `claude plugin` CALL RUNS FROM OUTSIDE THE CHECKOUT, and this is not fussiness. Run with
+  # cwd inside the repo, `marketplace remove` resolved the PROJECT's .claude/settings.json — a
+  # TRACKED file — and stripped its extraKnownMarketplaces and enabledPlugins. A tool meant to leave
+  # the tree alone silently edited committed state. $WORKDIR is outside the repo, so project
+  # settings are not found and only the universe's own config is touched.
+  mkdir -p "$WORKDIR"
   local mkt="$WORKDIR/marketplace"
   rm -rf "$mkt"; mkdir -p "$mkt/.claude-plugin"
   ln -sfn "$REPO/plugins" "$mkt/plugins"
@@ -107,15 +183,15 @@ cmd_build() {
     "$REPO/.claude-plugin/marketplace.json" "$mkt/.claude-plugin/marketplace.json" \
     || die "could not stage the local-path manifest"
 
-  if claude plugin marketplace list --json 2>/dev/null | grep -q "\"$MARKETPLACE_NAME\""; then
+  if ( cd "$WORKDIR" && claude plugin marketplace list --json 2>/dev/null ) | grep -q "\"$MARKETPLACE_NAME\""; then
     log "marketplace known — refreshing it from this checkout"
-    claude plugin marketplace remove "$MARKETPLACE_NAME" >/dev/null 2>&1
+    ( cd "$WORKDIR" && claude plugin marketplace remove "$MARKETPLACE_NAME" ) >/dev/null 2>&1
   fi
-  claude plugin marketplace add "$mkt" || die "could not add marketplace from $mkt"
+  ( cd "$WORKDIR" && claude plugin marketplace add "$mkt" ) || die "could not add marketplace from $mkt"
 
   for p in "${PLUGINS[@]}"; do
     log "installing $p"
-    claude plugin install "$p@$MARKETPLACE_NAME" >/dev/null || log "WARNING: install failed: $p"
+    ( cd "$WORKDIR" && claude plugin install "$p@$MARKETPLACE_NAME" ) >/dev/null || log "WARNING: install failed: $p"
   done
 
   # Binaries are built IN THE CACHE, because that is where ${CLAUDE_PLUGIN_ROOT} resolves. A build
@@ -177,41 +253,46 @@ cmd_doctor() {
   done
 }
 
-# ONE CLAUDE PROCESS, AND IT INVOKES THE SKILL THE WAY A USER DOES. The seats it dispatches are
-# real subagents of this process, so SubagentStart/Stop fire, sitting spans are written, capture
-# has transcripts, and the Workflow tool enforces each seat's schema itself.
+# ONE BACKGROUND SESSION, BECAUSE THE ENGINE OUTLIVES A TURN.
+#
+# `claude -p` exits when the model ends its turn. The skill dispatches the debate through the
+# Workflow tool, which RETURNS IMMEDIATELY and runs in the background — so the lead invokes it,
+# says "I'll relay the envelope when the debate returns", ends its turn, and the process exits
+# taking the workflow with it. Measured: the record stopped at eight sitting spans and went stale
+# thirteen minutes before anyone noticed, with `subtype: success` and no error anywhere.
+#
+# `--bg` starts a session that persists and prints an id. The workflow runs under it to completion;
+# `claude logs <id>` shows its output, `claude stop <id>` ends it, and the board view below reads
+# the record while it works.
 cmd_run() {
   local topic="${1:-}"; shift || true
   [ -n "$topic" ] || die "usage: universe.sh run \"<topic>\" [extra /research flags]"
   universe_env; clear_seat_env
 
+  guard_no_live_run "run"
   local src="$WORKDIR/src"
   mkdir -p "$src"
   local stamp; stamp="$(date -u +%Y%m%dT%H%M%SZ)"
   local out="$WORKDIR/run-$stamp.log"
-  local raw="$WORKDIR/stream-$stamp.jsonl"
 
   log "topic: $topic"
   log "tiers: model=$MODEL judgment=$JUDGMENT_MODEL lanes=$LANES"
   log "cwd:   $src"
-  log "log:   $out"
   log "load at start: $(cut -d' ' -f1-3 /proc/loadavg)"
 
-  # STREAM, NOT A FINAL OBJECT. `--output-format json` returns one object when the process exits,
-  # so a forty-minute run shows the operator nothing until it ends and a wedged run is
-  # indistinguishable from a working one. stream-json emits an event per message; universe-stream.py
-  # keeps the raw JSONL (nothing is lost) and prints the dispatches, the record verbs and the
-  # errors. `--verbose` is required for stream-json under --print.
-  ( cd "$src" && claude -p \
+  local id
+  id="$( cd "$src" && claude --bg \
       "/frank-exchange-of-views:research $topic --model $MODEL --judgment-model $JUDGMENT_MODEL --lanes $LANES $*" \
-      --output-format stream-json --verbose --permission-mode bypassPermissions ) \
-    | python3 "$REPO/scripts/universe-stream.py" --raw "$raw" | tee "$out"
-  local rc=${PIPESTATUS[0]}
-  log "exit $rc"
-  log "  progress: $out"
-  log "  raw stream: $raw"
-  log "load at end: $(cut -d' ' -f1-3 /proc/loadavg)"
-  return $rc
+      --permission-mode "$PERMISSION_MODE" 2>&1 | tee "$out" | grep -oE '\b[0-9a-f]{8}\b' | head -1 )"
+  if [ -z "$id" ]; then
+    log "could not read a session id — see $out"; sed -n '1,20p' "$out"; return 1
+  fi
+  printf '%s' "$id" > "$WORKDIR/session-id"
+  log "background session: $id"
+  log "  logs:   claude logs $id"
+  log "  stop:   claude stop $id"
+  log "  board:  scripts/universe.sh watch"
+  log "  log file: $out"
 }
 
 # WHAT THE DEBATE ITSELF IS DOING, as against what the harness is doing. The stream shows dispatch
