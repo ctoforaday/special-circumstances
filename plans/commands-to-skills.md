@@ -1,5 +1,7 @@
 # Plugin commands become skills
 
+> STATUS 2026-09-17: shipped — historical record (merged in PR #1019). All ten plugin commands migrated to `plugins/<plugin>/skills/<name>/SKILL.md`, retiring `commands/` directories and establishing platform-agnostic slash command entry points.
+
 Written 2026-09-16T09:28:49Z against `cc6b0f7e`.
 
 ## I. Summary & Goals
