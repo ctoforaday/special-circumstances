@@ -89,3 +89,37 @@ func TestAnEntryOutsideEverySittingCannotPushTheRatioAboveOne(t *testing.T) {
 		t.Errorf("no sitting went unlogged = %+v, want 0 — a detector must never go negative", r)
 	}
 }
+
+// A REGISTER OPENS THE BUCKET AND A LOG ENTRY CLOSES IT — NOTHING ELSE DOES EITHER (#1042). The two
+// fixtures above reason about which events make a bucket but hold only the keys, so the arms
+// themselves were free: adding `case EVENT_TYPE_POSITION: sat[key] = true` beside the register arm
+// passed the package, and the metric then reads a denominator inflated by every act a seat files —
+// half the channels scored as never closed, on a dashboard nobody re-derives. The same hole is open
+// on the other arm: any act type added beside LOG discharges a duty no operator entry paid.
+//
+// The fixture holds both arms at once. The chair's position and the harness's sitting-close are
+// acts by seats with no register on this stream, so opening a bucket on them ADDS one (0.5 becomes
+// a third). Blue's first sitting files a position and an edit and NO entry, so closing a bucket on
+// either act discharges it (0.5 becomes 1). An act by a registered seat inside its own sitting
+// carries the key its register already opened, so it cannot inflate the denominator — the acts that
+// can are exactly the ones here.
+func TestOnlyARegisterOpensASittingBucketAndOnlyAnEntryCloses(t *testing.T) {
+	evs := []*record.Event{
+		blueDispatch(t, "G1"),
+		recordtest.At(t, "red-chair", "red-chair:position:p1", &recordpb.Position{Text: proto.String("G1 stands")}),
+		recordtest.At(t, "blue-respond", "blue-respond:register:#1", &recordpb.Register{AgentId: proto.String("blue-a")}),
+		recordtest.At(t, "blue-respond", "blue-respond:position:p1", &recordpb.Position{Text: proto.String("G1 is repaired")}),
+		recordtest.At(t, "blue-respond", "blue-respond:blue_edit:e1", &recordpb.BlueEdit{Answers: proto.String("G1")}),
+		recordtest.At(t, record.HarnessSeat, "harness:sitting_close:s1", &recordpb.SittingClose{AgentId: proto.String("blue-a")}),
+		blueDispatch(t, "G2"),
+		recordtest.At(t, "blue-respond", "blue-respond:register:#2", &recordpb.Register{AgentId: proto.String("blue-b")}),
+		logEntry(t, "blue-respond:log:l1"),
+	}
+	rows := blueRows(record.Run{}, nil, nil, famOfEventsT(evs), record.WhileRunning)
+	if r := rowByMetric(rows, "channel_closure"); r == nil || r.Value != 0.5 {
+		t.Errorf("two registers open two buckets and one entry closes one of them = %+v, want 0.5 — an act that is not a register opens no bucket, and an act that is not a log entry closes none", r)
+	}
+	if r := rowByMetric(rows, "sittings_never_closed"); r == nil || r.Value != 1 {
+		t.Errorf("one of the two sittings filed no entry = %+v, want 1 — the position and the edit it did file discharge nothing", r)
+	}
+}
