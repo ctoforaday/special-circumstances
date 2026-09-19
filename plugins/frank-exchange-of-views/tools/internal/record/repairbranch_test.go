@@ -45,6 +45,11 @@ func TestEveryRepairRefusalStatesOneOfTheTwoBranches(t *testing.T) {
 			return "blue-respond", b.lastKey()
 		}, "is not a register that opened a sitting of", false},
 
+		{"the key names a register whose body does not decode", func(b *stage) (string, string) {
+			chairSat(b).dispatch(2, "blue-respond", "G1").forgedRegister("blue-respond")
+			return "blue-respond", b.lastKey()
+		}, "whose body this binary cannot read", false},
+
 		{"the key names the seat's own earlier sitting", func(b *stage) (string, string) {
 			chairSat(b).dispatch(2, "blue-respond", "G1").register("blue-respond")
 			first := b.lastKey()
@@ -136,8 +141,8 @@ func TestTheRepairRefusalTableCoversEverySite(t *testing.T) {
 	if sites == 0 {
 		t.Fatal("no refuseRepair call sites in repair.go — the refusals were renamed or reshaped and this guard is measuring nothing, which reads exactly like a pass")
 	}
-	// One row per site: the table's ten rows and repair.go's ten refusals are the same set.
-	const rows = 10
+	// One row per site: the table's rows and repair.go's refusals are the same set.
+	const rows = 11
 	if sites != rows {
 		t.Errorf("repair.go refuses in %d places and TestEveryRepairRefusalStatesOneOfTheTwoBranches holds %d — a refusal with no row is one the re-prompt was never checked against", sites, rows)
 	}

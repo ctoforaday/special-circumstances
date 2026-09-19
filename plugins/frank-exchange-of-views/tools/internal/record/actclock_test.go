@@ -50,16 +50,12 @@ func TestTheTwoClocksDifferOnlyOnARepairsSeat(t *testing.T) {
 	}
 }
 
-// A REGISTER NOTHING CAN READ OPENS A SITTING. The repair is a claim the body carries, so a register
-// whose body did not decode has claimed nothing — counting it as a turn invents no repair, while
-// the other reading folds two sittings into one and reads exactly like a record with one fewer.
+// A REGISTER NOTHING CAN READ OPENS A SITTING — the degradation rule and its reason live at
+// opensASitting, which every attribution reader shares. This is that rule on the seat's FIRST event,
+// where there is no earlier sitting to fold it into; the readers are held level with each other by
+// TestEveryAttributionReaderAgreesAnUnreadableRegisterOpensASitting.
 func TestARegisterWithNoBodyOpensASitting(t *testing.T) {
-	bodiless := &recordpb.Event{
-		SeatId: proto.String("blue-respond"),
-		Ts:     proto.String("2026-09-18T00:00:00Z"),
-		Type:   recordpb.EventType_EVENT_TYPE_REGISTER.Enum(),
-		Key:    proto.String("blue-respond:register:#1"),
-	}
+	bodiless := forgedRegister("blue-respond", "blue-respond:register:#1", "2026-09-18T00:00:00Z")
 	if _, ok := recordpb.BodyAs[*recordpb.Register](bodiless); ok {
 		t.Fatal("the fixture carries a body, so it tests nothing")
 	}

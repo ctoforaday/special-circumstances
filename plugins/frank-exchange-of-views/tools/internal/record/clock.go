@@ -57,10 +57,9 @@ func (c *Clock) Advance(e *Event) recordsql.Window {
 // that wants the epoch may read it off either clock, and TestTheTwoClocksDifferOnlyOnARepairsSeat
 // holds that.
 //
-// Advance once per event, in order, exactly as Clock's contract says. A REGISTER WHOSE BODY DID NOT
-// DECODE OPENS A SITTING: the repair is a claim the body carries, so a register that cannot be read
-// has not claimed one, and counting it as a turn is the degradation that invents nothing — the
-// alternative folds two sittings into one and reads exactly like a record with one fewer.
+// Advance once per event, in order, exactly as Clock's contract says. WHICH REGISTERS THOSE ARE IS
+// opensASitting's, not this file's: it is the one definition every attribution reader shares, in Go
+// and in SQL, and it carries the rule for a register whose body does not decode.
 type ActClock struct {
 	epoch    int
 	sittings map[string]int
@@ -68,7 +67,7 @@ type ActClock struct {
 
 // Advance folds one event in and returns the window its acts belong to.
 func (c *ActClock) Advance(e *Event) recordsql.Window {
-	if b, ok := recordpb.BodyAs[*recordpb.Register](e); e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER && (!ok || b.RepairsSitting == nil) {
+	if opensASitting(e) {
 		if c.sittings == nil {
 			c.sittings = map[string]int{}
 		}

@@ -201,7 +201,7 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 // inherits, so those are read when the payload has none. An agent that never registered as a
 // seat has no sitting open and is never counted — the main session, an operator, anything else.
 //
-// The one call a limited sitting lets through is a register (hookgate.OpensASitting), because
+// The one call a limited sitting lets through is a register (hookgate.InvokesRegister), because
 // that is what opens the next sitting's count.
 func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfailures.Recorder) (denied bool, err error) {
 	agentID, agentType := in.AgentID, in.AgentType
@@ -221,7 +221,7 @@ func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfail
 		runDir = os.Getenv(seatenv.VarWrapper)
 	}
 	d, counted, err := sittingcap.Count(runDir, agentID)
-	if err != nil || !counted || !d.Over || hookgate.OpensASitting(in) {
+	if err != nil || !counted || !d.Over || hookgate.InvokesRegister(in) {
 		return false, err
 	}
 	if d.MarkErr != nil {

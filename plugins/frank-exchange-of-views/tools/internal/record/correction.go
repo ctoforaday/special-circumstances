@@ -36,19 +36,18 @@ type Correct struct {
 // sittingBeforeAndNowSQL is "which sitting was this act filed in, and which sitting is the seat in
 // now" — the two numbers both first-wins refusals compare, bound as (seat, event id, seat).
 //
-// IT COUNTS THE REGISTERS THAT OPEN A SITTING, which is record.ActClock's rule in SQL: a
-// sitting-record repair's acts are the repaired sitting's, so a seat correcting in its repair is
-// still in the sitting that wrote the act — the correction it is being offered is the one the repair
-// exists to make. Counting the repair as a turn here would refuse the correction with "that was an
-// earlier sitting" at the one moment the seat is back on the record precisely to finish it.
+// IT COUNTS THE REGISTERS THAT OPEN A SITTING, and it counts them by wrapping
+// openingRegistersOfSeatSQL rather than by restating the predicate: a sitting-record repair's acts
+// are the repaired sitting's, so a seat correcting in its repair is still in the sitting that wrote
+// the act — the correction it is being offered is the one the repair exists to make. Counting the
+// repair as a turn here would refuse the correction with "that was an earlier sitting" at the one
+// moment the seat is back on the record precisely to finish it.
 //
 // ONE SOURCE FOR BOTH READERS. The same two subqueries sat inline in the correction gate and in the
 // sentence the ruling refusal offers, and either could have moved without the other.
 const sittingBeforeAndNowSQL = `SELECT
-    (SELECT count(*) FROM "events" e LEFT JOIN "register" r ON r."event_id" = e."id"
-      WHERE e."seat_id" = ? AND e."type" = 'register' AND r."repairs_sitting" IS NULL AND e."id" < ?),
-    (SELECT count(*) FROM "events" e LEFT JOIN "register" r ON r."event_id" = e."id"
-      WHERE e."seat_id" = ? AND e."type" = 'register' AND r."repairs_sitting" IS NULL)`
+    (SELECT count(*) FROM (` + openingRegistersOfSeatSQL + `) WHERE "id" < ?),
+    (SELECT count(*) FROM (` + openingRegistersOfSeatSQL + `))`
 
 // CorrectionKeyPrefix is the key segment every Correction event carries: `<seat>:correction:<K>`.
 // A retry of the same correction collides on it, which is what makes the retry idempotent.

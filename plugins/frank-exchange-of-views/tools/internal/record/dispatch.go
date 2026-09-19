@@ -254,20 +254,19 @@ type dispatchRow struct {
 // events."id" where the reader has them, the position where it holds only the stream. The
 // predicate compares order and nothing else, so either answers it the same.
 //
-// THE REGISTERS ARE THE ONES THAT OPEN A SITTING FOR A DISPATCH. A register naming the sitting it
-// repairs (repairs_sitting) opens none of those: the seat is handed a prompt, so it IS sitting and
-// Clock counts the turn, but it sits for no dispatch and ends no sitting — sittingCloser adds its
-// acts to the sitting it repairs, and ActClock gives them that sitting's number.
+// THE REGISTERS ARE THE ONES THAT OPEN A SITTING FOR A DISPATCH, which is opensASitting's question
+// and is asked there: a register naming the sitting it repairs opens none of those — the seat is
+// handed a prompt, so it IS sitting and Clock counts the turn, but it sits for no dispatch and ends
+// no sitting; sittingCloser adds its acts to the sitting it repairs, and ActClock gives them that
+// sitting's number.
 func dispatchLedger(evs []*Event, seq []int64) ([]dispatchRow, map[string][]int64) {
 	var ds []dispatchRow
 	registers := map[string][]int64{}
 	for i, e := range evs {
-		switch b := mustBody(e).(type) {
-		case *recordpb.Register:
-			if b.RepairsSitting == nil {
-				registers[e.GetSeatId()] = append(registers[e.GetSeatId()], seq[i])
-			}
-		case *recordpb.Dispatch:
+		if opensASitting(e) {
+			registers[e.GetSeatId()] = append(registers[e.GetSeatId()], seq[i])
+		}
+		if b, ok := recordpb.BodyAs[*recordpb.Dispatch](e); ok {
 			ds = append(ds, dispatchRow{at: seq[i], pin: b.GetPin(), seat: b.GetSeatId(), gaps: b.GetGapIds()})
 		}
 	}
@@ -376,14 +375,22 @@ func sittingCloserOf(evs []*Event, seq []int64, registers map[string][]int64, wh
 			if a := b.GetAgentId(); a != "" {
 				c.agentOf[seq[i]] = a
 			}
-			if b.RepairsSitting == nil {
-				openedBy[e.GetKey()] = opening{seat: e.GetSeatId(), place: seq[i]}
-			} else if o, ok := openedBy[b.GetRepairsSitting()]; ok && o.seat == e.GetSeatId() {
-				c.repairs[o.place] = append(c.repairs[o.place], seq[i])
-			}
 		case *recordpb.SittingClose:
 			if a := b.GetAgentId(); a != "" {
 				c.stops[a] = append(c.stops[a], seq[i])
+			}
+		}
+		// WHICH REGISTERS OPEN A SPAN IS opensASitting's, the same predicate dispatchLedger read
+		// for where a sitting begins — so the spans this bounds and the sittings that exist cannot
+		// come from two different answers. An agent id is read above and a span opened here
+		// because they are different facts: a body nothing can read carries no agent, and still
+		// opens a sitting.
+		switch repaired, repairs := sittingRepairedBy(e); {
+		case opensASitting(e):
+			openedBy[e.GetKey()] = opening{seat: e.GetSeatId(), place: seq[i]}
+		case repairs:
+			if o, ok := openedBy[repaired]; ok && o.seat == e.GetSeatId() {
+				c.repairs[o.place] = append(c.repairs[o.place], seq[i])
 			}
 		}
 	}
