@@ -1,7 +1,6 @@
-prompt sha256: 9f48948c9715ba1ed41ba9c83d56340546d698131f9a6546f486e60cd535f777
+prompt sha256: 319e0ef4695f5d67f69c259276c177d57c9a84b13bb7d0b2851cd0f42b557c67
 
 Blue synthesis for topic: "the seat prompt contract".
-PRE-FLIGHT: if research/2026-01-01_golden/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns.
 Read every draft in research/2026-01-01_golden/blue/candidates/ and synthesize research/2026-01-01_golden/blue/report.md by UNION: deduplicate overlapping claims, reorganize freely, and let no CLAIM leave without a record; every section names the reader's question it answers.
 Compacting and reorganizing prose is not subtraction — rewriting for density is encouraged; losing a claim in the rewrite is the failure, and substance leaves only by being retired on the record, which names the claim, why it goes, and what replaces it.
 THE REPORT'S CONTENT RULE — what may be in it at all, and where everything else goes — is on the verbs that write report text: edit, ingest, line-of-inquiry's propose and move, and prove and cite, whose proof note and source title the report prints.
