@@ -22,7 +22,7 @@ func TestTheEngineBuildReturnsTextItActuallyRead(t *testing.T) {
 		t.Fatal(err)
 	}
 	eng := &TessocrPageEngine{}
-	res, err := eng.ReadPage(png)
+	res, err := eng.ReadPage(png, DefaultRenderDPI)
 	if err != nil {
 		t.Fatalf("the engine build failed to read a known-good page: %v", err)
 	}

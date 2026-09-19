@@ -10,9 +10,11 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/klippa-app/go-pdfium"
+	"github.com/klippa-app/go-pdfium/enums"
 	"github.com/klippa-app/go-pdfium/references"
 	"github.com/klippa-app/go-pdfium/requests"
 
@@ -40,10 +42,103 @@ import (
 // recovery, where 200 loses half the grid (plans/local-ocr.md; the measured cost is
 // prose WER 0.40%→0.80%, ruled acceptable there).
 const (
-	MinRenderDPI     = 72
-	MaxRenderDPI     = 400
+	MinRenderDPI = 72
+	// MaxRenderDPI is also the cap on following a scan's own resolution (RenderDPIFor): past it a
+	// long document renders to gigabytes for nothing, and rendering ABOVE a scan's native
+	// resolution was measured to gain no text and to cost a false table on a boundary page (#1031).
+	MaxRenderDPI     = 600
 	DefaultRenderDPI = tessocr.RenderDPI
 )
+
+// RenderDPIFor is the resolution to render a scan at, given the resolution its own images carry.
+//
+// MEASURED (#1031), three regimes, and the reader was on the wrong side of two of them:
+//
+//   - BELOW 300 the page is read small and content is lost: a 150-DPI page recovered 2 of 4 printed
+//     strings, and at 300 it recovered 4 of 4 and its table verdict with them. So a low-resolution
+//     scan is rendered UP to the floor.
+//   - AT the scan's own resolution nothing is resampled and nothing is thrown away. Rendering the
+//     corpus at native instead of 300 took its expect-failures from 13 to 10, recovering a contents
+//     page's page numbers and a cover's publisher line — content a fixed 300 was destroying, since
+//     these scans are natively 350 and 501.
+//   - ABOVE native there is nothing to recover: 400 and 600 renders read flat to worse, and at 600
+//     the tuning document's closest clean rejection flipped to a false table.
+//
+// So: the scan's own resolution, floored at the engine's comfort zone and capped for memory.
+func RenderDPIFor(nativeDPI int) int {
+	switch {
+	case nativeDPI < DefaultRenderDPI:
+		return DefaultRenderDPI
+	case nativeDPI > MaxRenderDPI:
+		return MaxRenderDPI
+	default:
+		return nativeDPI
+	}
+}
+
+// NativeDPI is the resolution the scan itself carries: for each page, the highest resolution of any
+// image on it, and across pages the MEDIAN.
+//
+// The median rather than the max or the min, because a real document is uniform to within a pixel
+// and the outliers are rounding: measured over four scans, NBS SP 602 runs 350–351 across 60 pages,
+// IEEE 1012 runs 320–328 across 80, a Forest Service checklist 500–501, a DOE report 300 exactly.
+// A max would let one stray page upsample the other 79; a min would let one downsample them.
+//
+// Zero means the document carries no images to measure — a born-digital PDF, or one whose pages are
+// drawn rather than scanned. The caller renders at the floor, which is what it did before this
+// existed.
+func NativeDPI(run record.Run, body []byte) (int, error) {
+	inst, closer, err := pdfiumInstance(Dir(run))
+	if err != nil {
+		return 0, err
+	}
+	defer closer()
+	doc, err := inst.OpenDocument(&requests.OpenDocument{File: &body})
+	if err != nil {
+		return 0, fmt.Errorf("pdf could not be opened: %w", err)
+	}
+	defer inst.FPDF_CloseDocument(&requests.FPDF_CloseDocument{Document: doc.Document})
+	pc, err := inst.FPDF_GetPageCount(&requests.FPDF_GetPageCount{Document: doc.Document})
+	if err != nil {
+		return 0, fmt.Errorf("pdf page count unavailable: %w", err)
+	}
+	var perPage []int
+	for i := 0; i < pc.PageCount; i++ {
+		page := requests.Page{ByIndex: &requests.PageByIndex{Document: doc.Document, Index: i}}
+		n, cerr := inst.FPDFPage_CountObjects(&requests.FPDFPage_CountObjects{Page: page})
+		if cerr != nil {
+			return 0, fmt.Errorf("page %d: %w", i+1, cerr)
+		}
+		best := 0
+		for j := 0; j < n.Count; j++ {
+			o, gerr := inst.FPDFPage_GetObject(&requests.FPDFPage_GetObject{Page: page, Index: j})
+			if gerr != nil {
+				return 0, fmt.Errorf("page %d object %d: %w", i+1, j, gerr)
+			}
+			ty, terr := inst.FPDFPageObj_GetType(&requests.FPDFPageObj_GetType{PageObject: o.PageObject})
+			if terr != nil || ty.Type != enums.FPDF_PAGEOBJ_IMAGE {
+				continue
+			}
+			md, merr := inst.FPDFImageObj_GetImageMetadata(&requests.FPDFImageObj_GetImageMetadata{
+				ImageObject: o.PageObject, Page: page,
+			})
+			if merr != nil {
+				continue
+			}
+			if d := int(md.ImageMetadata.HorizontalDPI + 0.5); d > best {
+				best = d
+			}
+		}
+		if best > 0 {
+			perPage = append(perPage, best)
+		}
+	}
+	if len(perPage) == 0 {
+		return 0, nil
+	}
+	sort.Ints(perPage)
+	return perPage[len(perPage)/2], nil
+}
 
 // RenderRecord is what a render leaves behind: one JSON document per source document,
 // written beside the images it describes.

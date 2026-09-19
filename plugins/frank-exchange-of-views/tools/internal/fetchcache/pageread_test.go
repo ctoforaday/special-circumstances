@@ -35,7 +35,7 @@ func (f *fakeEngine) Identity() string {
 	return f.id
 }
 
-func (f *fakeEngine) ReadPage(_ []byte) (tessocr.PageResult, error) {
+func (f *fakeEngine) ReadPage(_ []byte, _ int) (tessocr.PageResult, error) {
 	f.calls++
 	return f.perCall(f.calls)
 }
@@ -250,9 +250,12 @@ func TestReadingRefusesARenderAtAnotherResolution(t *testing.T) {
 
 	_, err := ReadRenderedPages(run, sha, rd)
 	if err == nil {
-		t.Fatal("a 200-DPI render was read with 300-DPI constants")
+		t.Fatal("a 200-DPI render was read, and 200 is below the band the constants are derived over")
 	}
-	for _, want := range []string{"tuned", "re-render", "300"} {
+	// The refusal names the render's resolution, the band, and the way out. The BAND rather than one
+	// number since #1031: a scan is read at its own resolution, and what stays refused is a render
+	// outside the range that derivation was measured over.
+	for _, want := range []string{"200", "300", "600", "derived over", "re-render"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal = %q, want it to mention %q", err, want)
 		}
