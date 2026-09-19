@@ -59,8 +59,12 @@ func seatOfGolden(name string) string {
 		return "red-lens"
 	case strings.HasPrefix(name, "blue-lane-"):
 		return "blue-lane"
-	case name == "judge-terminal":
-		return "judge-terminal"
+	// THE BENCH IS ONE SEAT ASKED FOUR QUESTIONS, and a golden is named for the QUESTION — the
+	// terminal disposition, the petition sitting, the assembly — because that is what makes the
+	// rendered prompts distinguishable on disk. All of them classify to `judge`, which is the
+	// point of the collapse: the head tells you which question, the seat tells you who answered.
+	case name == "judge-terminal" || name == "assemble" || strings.HasPrefix(name, "judge-petition"):
+		return "judge"
 	case strings.HasSuffix(name, "-sitting-record"):
 		return strings.TrimSuffix(name, "-sitting-record")
 	}

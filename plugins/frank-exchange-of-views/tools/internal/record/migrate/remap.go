@@ -80,12 +80,17 @@ func (r *remap) seat(old string) (string, error) {
 		}
 		return m[1], nil
 	}
-	if petitioner, ok := strings.CutPrefix(old, "judge-petition-"); ok {
-		p, err := r.seat(petitioner)
-		if err != nil {
-			return "", err
-		}
-		return "judge-petition-" + p, nil
+	// THE BENCH WAS FOUR SEAT IDS AND IS ONE. `judge-terminal`, `assemble` and
+	// `judge-petition-<petitioner>` had identical surfaces, tier and role, and no refusal turned
+	// on which one a seat claimed to be — what differed was the question the engine asked, which
+	// now travels on the dispatch rather than in the identity. An archived run carries the old
+	// ids on its registers and on every act attributed to them, so they are brought forward here:
+	// a record that cannot be read is a record that is gone, and the roster refuses these now.
+	//
+	// The petitioner is DROPPED rather than preserved. It said WHO FILED, and who filed is on the
+	// petition the sitting ruled — recovering it from a seat id was the string-shaped copy.
+	if strings.HasPrefix(old, "judge-petition-") || old == "judge-terminal" || old == "assemble" {
+		return "judge", nil
 	}
 	return old, nil
 }

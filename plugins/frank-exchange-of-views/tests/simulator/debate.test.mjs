@@ -56,7 +56,9 @@ test('the plan is what dispatches: the parties it names sit, in role order — l
     chair: [chairEnv({ plan: plan([party('blue-respond', 'G1'), party('judge', 'G2'), party('red-lens-logic', 'G1'), party('red-lens-evidence')], { docket: ['G2'] }) }), passChair()],
   }))
   const out = await world.run(script, ARGS)
-  const debate = world.calls.filter((c) => /^(red-lens|blue-respond|judge |judge#|judge ·|judge \#)/.test(c.opts.label) || c.opts.label.startsWith('judge #'))
+  // The bench's closing sittings head with `judge` as well now, so the debate filter names the
+  // docket sitting by its ordinal form and excludes `judge · terminal` / `judge · assemble`.
+  const debate = world.calls.filter((c) => /^(red-lens|blue-respond|judge #)/.test(c.opts.label))
   const order = debate.map((c) => c.opts.label.split(' ')[0])
   assert.deepEqual(order, ['red-lens-logic', 'red-lens-evidence', 'blue-respond', 'judge'], 'red parties first, then blue, then the bench — an exchange is red followed by blue')
   assert.equal(out.verdict, 'VERIFIED')
@@ -124,7 +126,7 @@ test('VERIFIED: the chair records PASS on a plan that permits it; phases in orde
   assert.deepEqual(world.phases, ['Frontier', 'Blue', 'Red', 'Assemble'])
   assert.equal(labelsOf(world, 'blue-lane').length, 3)
   assert.ok(world.logs.some((m) => m.includes('researching: test topic')))
-  assert.ok(!world.calls.some((c) => c.opts.label.startsWith('judge-terminal')), 'no unruled motion, no terminal sitting')
+  assert.ok(!world.calls.some((c) => c.opts.label.startsWith('judge · terminal')), 'no unruled motion, no terminal sitting')
 })
 
 test('CEILING: nobody ready and every open material gap at its limit — the stamp says so and names no deadlock', async () => {
@@ -132,7 +134,7 @@ test('CEILING: nobody ready and every open material gap at its limit — the sta
   const out = await world.run(script, ARGS)
   assert.equal(out.verdict, 'CEILING')
   assert.equal(out.termination.ceiling, true)
-  const asm = firstPrompt(world, 'assemble')
+  const asm = firstPrompt(world, 'judge · assemble')
   assert.ok(/it is CEILING/.test(asm) && /NOT a judged failure to verify/.test(asm), asm.slice(0, 600))
   assert.ok(/Record it as the run's outcome — CEILING, ended at the ceiling/.test(asm), 'the bench is told the exact stamp, as an act and not a command line')
   assert.ok(!/deadlock/i.test(asm) || /not a judged/i.test(asm), 'deadlock is per gap and on the record, not a run-level stamp')
@@ -143,7 +145,7 @@ test('UNVERIFIED: nobody ready, neither PASS nor CEILING — the plan\'s reasons
   const out = await world.run(script, ARGS)
   assert.equal(out.verdict, 'UNVERIFIED')
   assert.deepEqual(out.termination, { pass_permitted: false, ceiling: false, epoch_limit_reached: false, why: ['G1: docketed, the bench sat and ruled nothing'], no_progress: null })
-  const asm = firstPrompt(world, 'assemble')
+  const asm = firstPrompt(world, 'judge · assemble')
   assert.ok(/ended UNVERIFIED/.test(asm) && /the bench sat and ruled nothing/.test(asm), 'the reason reaches the stamp')
 })
 
@@ -167,10 +169,11 @@ test('NO PROGRESS: a plan identical for NO_PROGRESS_EPOCHS epochs stops the deba
   assert.equal(out.termination.ceiling, false)
   const line = world.logs.find((m) => /NO PROGRESS/.test(m))
   assert.ok(line && line.includes(`NO_PROGRESS_EPOCHS = ${NO_PROGRESS_EPOCHS}`) && /head 144/.test(line) && /red-lens-voice/.test(line), `the log names the constant, the head and the stuck party: ${line}`)
-  const asm = firstPrompt(world, 'assemble')
+  const asm = firstPrompt(world, 'judge · assemble')
   assert.ok(/ended UNVERIFIED/.test(asm) && /no progress/.test(asm) && /head 144/.test(asm) && /red-lens-voice/.test(asm) && /not CEILING/.test(asm), asm.slice(0, 900))
   const lastChair = world.calls.map((c) => c.opts.label).lastIndexOf(labelsOf(world, 'red-chair').at(-1).opts.label)
-  assert.deepEqual(world.calls.slice(lastChair + 1).map((c) => c.opts.label.split(' ')[0]), ['assemble'], 'nobody sits after the stop but the assembly')
+  assert.deepEqual(world.calls.slice(lastChair + 1).map((c) => c.opts.label.replace(/ · [^·]+$/, '')), ['judge · assemble'],
+    'nobody sits after the stop but the assembly, which is the bench')
 })
 
 test('a plan that changes keeps going — the head moving, the exchange count in the reasons advancing, or a repeat that is not consecutive', async () => {
@@ -198,7 +201,7 @@ test('EPOCH LIMIT: the plan at the last epoch ends the debate CEILING with the l
   const out = await world.run(script, ARGS)
   assert.deepEqual([out.verdict, out.epochs, out.termination.epoch_limit_reached, out.termination.ceiling], ['CEILING', 4, true, true])
   assert.ok(out.termination.why.some((w) => /epoch limit 4 reached/.test(w)), 'the record\'s reason travels in the termination')
-  const asm = firstPrompt(world, 'assemble')
+  const asm = firstPrompt(world, 'judge · assemble')
   assert.ok(/it is CEILING/.test(asm) && /epoch limit 4 reached/.test(asm) && !/every open material gap reached its limit/.test(asm), asm.slice(0, 900))
   assert.ok(world.logs.some((m) => /epoch 4: the epoch limit \(4\) is reached/.test(m)))
 
@@ -228,8 +231,8 @@ test('a chair that records PASS ends the debate even if it relayed parties; a FA
 test('the terminal bench sitting fires only when the chair reports unruled motions, and before assembly', async () => {
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: ceilingPlan(), unruled_motions: 2 })] }))
   await world.run(script, ARGS)
-  const terminal = labelsOf(world, 'judge-terminal')[0]
-  const asm = labelsOf(world, 'assemble')[0]
+  const terminal = labelsOf(world, 'judge · terminal')[0]
+  const asm = labelsOf(world, 'judge · assemble')[0]
   assert.ok(terminal, 'the terminal sitting fired')
   assert.ok(terminal.n < asm.n, 'disposition precedes assembly')
   assert.ok(/2 motion\(s\) stand unruled/.test(terminal.prompt) && /NOTHING CAN BE REMANDED AT A TERMINAL EXIT/.test(terminal.prompt))
@@ -334,7 +337,7 @@ test('W1.9: defect_owed_elsewhere ships as a named infra debt with the epoch it 
   }))
   const out = await world.run(script, ARGS)
   assert.deepEqual(out.infra_debts, [{ gap_id: 'G1', owed_fix: 'setup tooling must stage it', epoch: 1 }])
-  assert.ok(firstPrompt(world, 'assemble').includes('setup tooling must stage it'), 'assembly is handed the named debts')
+  assert.ok(firstPrompt(world, 'judge · assemble').includes('setup tooling must stage it'), 'assembly is handed the named debts')
 })
 
 test('no seat prompt names a command path or spells a flag — the help page is the only page', async () => {
@@ -371,7 +374,7 @@ test('the bench\'s rulings travel to both parties, with blue told its duty and r
 test('the assembler authors nothing, stamps the outcome the record derives, and is told an open gap that is not material stays on the board', async () => {
   const world = makeWorld(makeResponder({ chair: [passChair()] }))
   await world.run(script, ARGS)
-  const asm = firstPrompt(world, 'assemble')
+  const asm = firstPrompt(world, 'judge · assemble')
   assert.ok(/you author NOTHING, you copy NOTHING/.test(asm) && /do not copy anything into it yourself/.test(asm) && /cannot mis-author a synthesis surface/.test(asm))
   assert.ok(/it is VERIFIED/.test(asm) && /Record it as the run's outcome — VERIFIED/.test(asm) && !/ended at the ceiling/.test(asm))
   // THE REASON IS A JUDGEMENT, NOT A RECAP. `--reason` carries why this outcome is the right read
@@ -443,7 +446,7 @@ test('priors-are-poison: no cross-run scorecard seed reaches any chair, even whe
   const scorecards = { 'blue-synthesize': { repair_regression_ratio: 0.63 }, 'red-chair': { anchored_closures_pct: 89 }, assemble: { remanded_share: 0.98 } }
   const world = makeWorld(makeResponder({ chair: [passChair()] }))
   await world.run(script, { ...ARGS, scorecards })
-  assert.ok(!firstPrompt(world, 'blue-synthesize').includes('0.63') && !firstPrompt(world, 'red-chair').includes('89') && !firstPrompt(world, 'assemble').includes('0.98'))
+  assert.ok(!firstPrompt(world, 'blue-synthesize').includes('0.63') && !firstPrompt(world, 'red-chair').includes('89') && !firstPrompt(world, 'judge · assemble').includes('0.98'))
   assert.ok(!world.calls.some((c) => /YOUR CHAIR'S SCORECARD/.test(c.prompt)))
   for (const c of world.calls.filter((c) => /YOUR IN-RUN SCORECARD/.test(c.prompt))) {
     assert.ok(/projection of this run's record/.test(c.prompt))
@@ -456,7 +459,7 @@ test('every seat prompt carries the log clause, the speed clause and the record 
     chair: [chairEnv({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G1'), party('judge', 'G1')], { docket: ['G1'] }) }), passChair({ unruled_motions: 1 })],
   }))
   await world.run(script, ARGS)
-  for (const seat of ['blue-synthesize', 'red-chair', 'red-lens-evidence', 'blue-respond', 'judge #', 'judge-terminal', 'assemble']) {
+  for (const seat of ['blue-synthesize', 'red-chair', 'red-lens-evidence', 'blue-respond', 'judge #', 'judge · terminal', 'judge · assemble']) {
     const c = labelsOf(world, seat)[0]
     assert.ok(c, `${seat} sat`)
     assert.ok(c.prompt.includes("envelope's log field") && /AUDIENCE IS THE OPERATOR/.test(c.prompt) && /JUDGEMENT rather than for want of occasion/.test(c.prompt), `${seat} lost the operator channel`)
@@ -464,7 +467,7 @@ test('every seat prompt carries the log clause, the speed clause and the record 
     assert.ok(c.prompt.includes('SPEED:') && c.prompt.includes('batch INDEPENDENT tool calls'), `${seat} lost the speed clause`)
     assert.ok(c.prompt.includes('SEAT_ID:') && c.prompt.includes('/opt/feov/bin/feov-record'), `${seat} lost the record contract`)
   }
-  for (const seat of ['judge #', 'judge-terminal', 'assemble']) {
+  for (const seat of ['judge #', 'judge · terminal', 'judge · assemble']) {
     const p = labelsOf(world, seat)[0].prompt
     assert.ok(p.includes('PRECEDENT IS ARGUMENT, NOT EVIDENCE') && p.includes('the leaf wins') && p.includes('only AFFIRMED ones bind'), `${seat} lost the law clause`)
     assert.ok(!/DECLARE:/.test(p), `${seat} re-teaches declare beside its help page`)
@@ -482,8 +485,16 @@ test('the record contract binds each seat to the id it hands the tool, petition 
     blueRespond: [blueEnv({ petitions: [{ class: 'procedural', ask: 'y', relief: 'z' }] })],
   }))
   await world.run(script, ARGS)
-  const ids = labelsOf(world, 'judge-petition').map((c) => c.opts.label.split(' ')[0])
-  assert.deepEqual(ids, ['judge-petition-red-chair', 'judge-petition-blue-respond'], 'each petition sitting is named for its filer')
+  // A PETITION SITTING IS THE BENCH, AND ITS FILER IS ON THE LABEL, NOT IN THE SEAT ID. The id
+  // used to be `judge-petition-<filer>`, which made who asked part of who answered. Both sittings
+  // are now `judge`; the label still says which petition each one heard, for a human reading a
+  // dashboard, and the filer is on the petition the sitting rules.
+  const petitions = labelsOf(world, 'judge · petition')
+  assert.deepEqual(petitions.map((c) => c.opts.label.split(' ')[0]), ['judge', 'judge'],
+    'a petition sitting is the bench, whoever filed')
+  assert.deepEqual(petitions.map((c) => c.opts.label.replace(/ · [^·]+$/, '')),
+    ['judge · petition from red-chair', 'judge · petition from blue-respond'],
+    'the label still says which petition the sitting heard')
   for (const c of world.calls) {
     const seat = c.opts.label.split(' ')[0]
     if (/^(frontier|blue-lane)/.test(seat)) continue
@@ -497,7 +508,7 @@ test('W2c: a petition dispatches a bench sitting before the next seat; denied co
   }))
   const out = await denied.run(script, ARGS)
   assert.equal(out.verdict, 'VERIFIED')
-  const sitting = denied.calls.findIndex((c) => c.opts.label.startsWith('judge-petition'))
+  const sitting = denied.calls.findIndex((c) => c.opts.label.startsWith('judge · petition'))
   const blue = denied.calls.findIndex((c) => c.opts.label.startsWith('blue-respond'))
   assert.ok(sitting >= 0 && sitting < blue, 'the sitting fired before the parties sat')
   assert.equal(out.petitions.length, 1)
@@ -511,14 +522,14 @@ test('W2c: a petition dispatches a bench sitting before the next seat; denied co
   assert.equal(out2.halted, true)
   assert.ok(out2.halt_opinion.includes('the human must decide'))
   assert.ok(!halting.calls.some((c) => c.opts.label.startsWith('blue-respond')), 'nothing sat past the halt')
-  const asm = firstPrompt(halting, 'assemble')
+  const asm = firstPrompt(halting, 'judge · assemble')
   assert.ok(asm.includes('it is HALTED') && asm.includes('the human must decide'))
 })
 
 test('W2c: no petitions, no sitting; granted relief binds the party it names', async () => {
   const quiet = makeWorld(makeResponder({ chair: [passChair()] }))
   await quiet.run(script, ARGS)
-  assert.ok(!quiet.calls.some((c) => c.opts.label.startsWith('judge-petition')))
+  assert.ok(!quiet.calls.some((c) => c.opts.label.startsWith('judge · petition')))
   const world = makeWorld(makeResponder({
     chair: [chairEnv({ plan: plan([party('blue-respond', 'G1')]), petitions: [{ class: 'procedural', ask: 'x', relief: 'scope narrowed to §3' }] }), passChair()],
     petition: [petitionRulingEnv({ rulings: [{ petitioner: 'red-chair', class: 'procedural', ruling: 'granted', relief: 'scope narrowed to §3', binds: 'blue' }] })],
@@ -534,7 +545,7 @@ test('W2j: a bench holding binds every seat that follows it, across sittings', a
     judge: [judgeEnv({ holdings: [{ term: 'material', construed: 'medium or above on current severity' }] })],
   }))
   await world.run(script, ARGS)
-  for (const seat of ['red-chair #2', 'red-lens-evidence', 'blue-respond', 'assemble']) {
+  for (const seat of ['red-chair #2', 'red-lens-evidence', 'blue-respond', 'judge · assemble']) {
     assert.ok(labelsOf(world, seat)[0].prompt.includes('BENCH HOLDINGS IN EFFECT'), `${seat} was not bound by the holding`)
   }
   assert.ok(!labelsOf(world, 'red-chair #1')[0].prompt.includes('BENCH HOLDINGS IN EFFECT'), 'nothing binds before it is held')
@@ -603,7 +614,7 @@ test('the log aggregates from every seat with attribution, and assembly receives
   }))
   const out = await world.run(script, ARGS)
   assert.ok(out.friction.includes('red-chair: no PDF extraction') && out.friction.includes('blue-respond: rate-limited on WebFetch') && out.friction.includes('blue-synthesize: write-block on blue/report.md'))
-  assert.ok(firstPrompt(world, 'assemble').includes('no PDF extraction'))
+  assert.ok(firstPrompt(world, 'judge · assemble').includes('no PDF extraction'))
 })
 
 test('per-role models: bulk seats get `model`, judgment seats get `judgmentModel`; unset either throws; binDir is required', async () => {

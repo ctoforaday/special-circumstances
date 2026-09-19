@@ -13,9 +13,9 @@ func TestClassifySeat(t *testing.T) {
 		{"Blue synthesis", "blue-synthesize"},
 		{"Blue lane 2", "blue-lane"},
 		{"…formulate frontier hypotheses", "frontier"},
-		{"Final assembly", "assemble"},
-		{"Terminal dispute disposition on G1", "judge-terminal"},
-		{`Petition sitting, topic "x"`, "judge-petition"},
+		{"Final assembly", "judge"},
+		{"Terminal dispute disposition on G1", "judge"},
+		{`Petition sitting, topic "x"`, "judge"},
 		{"unrecognized", "other"},
 		// A round-bearing prompt that mentions a round-0 marker is still its own seat.
 	}

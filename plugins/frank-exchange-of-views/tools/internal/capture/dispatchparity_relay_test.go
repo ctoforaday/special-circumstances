@@ -38,7 +38,7 @@ func relayRecord(t *testing.T, groups ...[]row) record.Run {
 	}
 	reg := func(seat string) *record.Event { return at(seat, &recordpb.Register{}) }
 	evs := []*record.Event{
-		at("harness", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-lens-logic", "red-chair", "blue-respond", "judge", "judge-terminal", "assemble"}}),
+		at("harness", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-lens-logic", "red-chair", "blue-respond", "judge"}}),
 		at("harness", &recordpb.BaseIngest{Text: proto.String("# r")}),
 	}
 	for _, g := range groups {
@@ -56,7 +56,7 @@ func relayRecord(t *testing.T, groups ...[]row) record.Run {
 			evs = append(evs, reg(s))
 		}
 	}
-	evs = append(evs, reg("red-chair"), reg("judge-terminal"), reg("assemble"))
+	evs = append(evs, reg("red-chair"), reg("judge"), reg("judge"))
 	dir := t.TempDir()
 	recordtest.Seed(t, dir, evs...)
 	return runtest.Open(t, dir)

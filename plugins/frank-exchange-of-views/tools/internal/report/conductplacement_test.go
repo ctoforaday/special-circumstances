@@ -133,7 +133,7 @@ func assembleWithOutcome(t *testing.T, outcome *recordpb.Outcome) (report, runmd
 	}
 	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(blue)})
 	if outcome != nil {
-		add("judge-terminal", outcome)
+		add("judge", outcome)
 	}
 	if _, err := Assemble(runtest.Open(t, runDir)); err != nil {
 		t.Fatalf("assemble: %v", err)

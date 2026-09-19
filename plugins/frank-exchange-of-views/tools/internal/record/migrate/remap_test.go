@@ -21,8 +21,12 @@ func TestArchivedSeatIdsBecomeRoundless(t *testing.T) {
 		"red-chair-r2":                "red-chair",
 		"blue-respond-r4":             "blue-respond",
 		"judge-r3":                    "judge",
-		"judge-petition-red-merge-r5": "judge-petition-red-chair",
-		"judge-terminal":              "judge-terminal",
+		// THE BENCH COLLAPSED TO ONE SEAT, so every bench id an archive carries lands on `judge`.
+		// The petitioner is dropped rather than translated: it said WHO FILED, and who filed is on
+		// the petition the sitting ruled.
+		"judge-petition-red-merge-r5": "judge",
+		"judge-terminal":              "judge",
+		"assemble":                    "judge",
 		"blue-lane-2":                 "blue-lane-2",
 		"frontier":                    "frontier",
 		"red-lens-evidence":           "red-lens-evidence",

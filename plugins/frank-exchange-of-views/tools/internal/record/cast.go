@@ -20,7 +20,7 @@ var DefaultCastAreas = LensAreas
 // CastFor is the run's admissible seats for a lens-area selection and a lane count
 // (plans/roundless.md §III.B.1): a lens per area, the chair, the blue lanes, the synthesizer and
 // responder, the frontier, the bench in its three sittings. Petition sittings are not listed —
-// InCast admits `judge-petition-<s>` for any cast seat s.
+// InCast admits exactly the seat ids the cast names.
 func CastFor(areas []string, lanes int) []string {
 	if len(areas) == 0 {
 		areas = DefaultCastAreas
@@ -38,7 +38,7 @@ func CastFor(areas []string, lanes int) []string {
 	for i := 1; i <= lanes; i++ {
 		out = append(out, fmt.Sprintf("blue-lane-%d", i))
 	}
-	return append(out, "blue-synthesize", "blue-respond", "frontier", "judge", "judge-terminal", "assemble")
+	return append(out, "blue-synthesize", "blue-respond", "frontier", "judge")
 }
 
 // castOfEvents is CastOf read off a stream already in hand: the seats of the LAST cast event, or
@@ -92,8 +92,12 @@ func InCast(run Run, seatID string) (member, hasCast bool, err error) {
 	if cast == nil {
 		return false, false, nil
 	}
+	// THE CAST ADMITS A SEAT ID AND NOTHING DERIVED FROM ONE. It used to also admit
+	// "judge-petition-"+s, because a petition sitting was its own seat id named for the petitioner.
+	// The bench is one seat now: a petition is a question put to `judge`, and who filed is on the
+	// petition rather than in the identity of the seat ruling it.
 	for _, s := range cast {
-		if s == seatID || "judge-petition-"+s == seatID {
+		if s == seatID {
 			return true, true, nil
 		}
 	}

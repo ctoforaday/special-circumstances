@@ -167,10 +167,10 @@ func TestAppendDerivesTheEpochFromTheRecord(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, dir), SeatID: "judge-terminal"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, dir), SeatID: "judge"}, ""); err != nil {
 		t.Fatal(err)
 	}
-	ev, err := Append(Identity{Run: mustRun(t, dir), SeatID: "judge-terminal"}, &recordpb.Observe{Text: proto.String("x")})
+	ev, err := Append(Identity{Run: mustRun(t, dir), SeatID: "judge"}, &recordpb.Observe{Text: proto.String("x")})
 	if err != nil {
 		t.Fatal(err)
 	}

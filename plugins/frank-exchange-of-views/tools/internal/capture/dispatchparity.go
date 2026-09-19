@@ -19,7 +19,8 @@ import (
 // or the seat that authors D+1 (the chair registering to run the verb is exempt BY RULE, not by
 // allowlist), and every party named in D SAT for it — record.DispatchGroup's Sat, the one "has this
 // seat sat" predicate — before D+1. The bookends register outside the window by position: the base
-// phase before the first dispatch, judge-terminal and assemble after the last chair sitting.
+// phase before the first dispatch, and the bench's terminal and assembly sittings after the last
+// chair sitting.
 //
 // RELAYED FIELDS AGAINST DISPATCH ROWS. A chair result in the journal is the one whose `plan` is an
 // object with a `parties` array — the chair envelope is the only one carrying a plan, and it is how
@@ -71,7 +72,13 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 			regs = append(regs, reg{pos: i, seat: e.GetSeatId()})
 		}
 	}
-	terminal := map[string]bool{"judge-terminal": true, "assemble": true}
+	// THE BOOKENDS ARE THE BENCH, and since the bench collapsed to one seat they are no longer
+	// separable from it by id. This exempts a bench register in the FINAL dispatch group only,
+	// which is where the terminal disposition and the assembly sit. The discrimination lost is
+	// narrow and real: a genuinely stray bench register in that last group now reads as a bookend.
+	// It cannot be recovered from an id that four sittings share — position is what distinguishes
+	// them, and position is already what this test uses.
+	terminal := map[string]bool{"judge": true}
 	var strays, absent []string
 	for k, g := range groups {
 		end := len(fam.Events)

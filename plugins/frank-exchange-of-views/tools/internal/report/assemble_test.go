@@ -353,8 +353,8 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 			Relief:   proto.String("strike the demand from the docket"),
 			Filing:   &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_INTEGRITY)}},
 		}),
-		recordtest.Event(t, "judge-terminal", &recordpb.Halt{Opinion: proto.String("safety gate tripped")}),
-		recordtest.Event(t, "judge-terminal", &recordpb.Certify{Statement: proto.String("re-examine the cost model")}),
+		recordtest.Event(t, "judge", &recordpb.Halt{Opinion: proto.String("safety gate tripped")}),
+		recordtest.Event(t, "judge", &recordpb.Certify{Statement: proto.String("re-examine the cost model")}),
 	}
 	d := debate((record.NewFamily(nil, evs)), evs)
 	for _, want := range []string{

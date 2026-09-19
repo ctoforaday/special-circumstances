@@ -88,12 +88,17 @@ export function makeResponder({ chair = [chairEnv(), passChair()], judge = [judg
   const take = (q) => (q.length > 1 ? q.shift() : q[0])
   return (prompt, opts) => {
     const label = opts.label || ''
+    // ROUTE ON THE QUESTION, NOT THE SEAT. The bench is one seat now, so `judge` heads the label
+    // of four different sittings and a prefix match cannot tell them apart. What distinguishes
+    // them is what the engine ASKED — which the label carries after the head, and which the real
+    // dispatch carries as the envelope schema it demands back. Matching the head alone sent the
+    // assembly sitting a judge envelope with no open_gaps in it, and the run reported null.
     if (label.startsWith('red-chair')) return take(chair)
-    if (label.startsWith('judge-petition')) return take(petition)
+    if (/^judge · petition/.test(label)) return take(petition)
+    if (/^judge · assemble/.test(label)) return take(assemble)
     if (label.startsWith('judge')) return take(judge)
     if (label.startsWith('blue-synthesize')) return take(blueSynth)
     if (label.startsWith('blue-respond')) return take(blueRespond)
-    if (label.startsWith('assemble')) return take(assemble)
     return 'synopsis'
   }
 }

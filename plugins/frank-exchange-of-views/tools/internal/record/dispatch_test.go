@@ -403,7 +403,7 @@ func TestTheDispatchVerbRefusesASeatOutsideTheCast(t *testing.T) {
 	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "red-lens-voice"}, ""); err == nil || !strings.Contains(err.Error(), "not in this run's cast") {
 		t.Fatalf("a seat outside the cast registered: %v", err)
 	}
-	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "judge-petition-red-chair"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "judge"}, ""); err != nil {
 		t.Fatalf("a petition sitting by a cast seat was refused: %v", err)
 	}
 	if _, err := Append(Identity{Run: run, SeatID: "harness"}, &recordpb.Cast{SeatIds: []string{"judge"}}); err == nil || !strings.Contains(err.Error(), "written ONCE") {

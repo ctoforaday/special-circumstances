@@ -144,7 +144,7 @@ func TestGolden(t *testing.T) {
 			// blue/report.md cannot assemble, so it contributes no section — the same
 			// degenerate-run rule RENDERS already follows, and the reason this could be added to
 			// every scenario rather than needing a fixture of its own.
-			if inv := runGo(bin, runDir, cmd{verb: "assemble", args: []string{"--run", runDir, "--seat-id", "judge-terminal"}}); inv.code == 0 {
+			if inv := runGo(bin, runDir, cmd{verb: "assemble", args: []string{"--run", runDir, "--seat-id", "judge"}}); inv.code == 0 {
 				body, err := os.ReadFile(filepath.Join(runDir, "report.md"))
 				if err != nil {
 					t.Fatalf("bench assemble exited 0 but wrote no report.md: %v", err)

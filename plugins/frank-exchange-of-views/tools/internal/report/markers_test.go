@@ -39,7 +39,7 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte("# Title\n\nClean prose.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	for _, s := range []string{"red-chair", "blue-respond", "judge-terminal"} {
+	for _, s := range []string{"red-chair", "blue-respond", "judge"} {
 		if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: s}, ""); err != nil {
 			t.Fatal(err)
 		}
@@ -61,7 +61,7 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "red-chair"}, mint); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "judge-terminal"}, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING), Prose: proto.String("the round ceiling arrived before red could pass the final revision")}); err != nil {
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "judge"}, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING), Prose: proto.String("the round ceiling arrived before red could pass the final revision")}); err != nil {
 		t.Fatal(err)
 	}
 

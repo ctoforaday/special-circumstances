@@ -112,7 +112,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 	add("blue-respond", &recordpb.Position{
 		Text: proto.String("the interleaving is model-checked<!--proof:p-1--> and G1 does not stand"),
 	})
-	add("judge-terminal", &recordpb.Outcome{
+	add("judge", &recordpb.Outcome{
 		Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),
 		Prose:   proto.String("the round ceiling arrived before red could pass the final revision"),
 	})

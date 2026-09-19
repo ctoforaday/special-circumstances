@@ -167,24 +167,10 @@ func TestTheRosterMatchesWhatTheEngineActuallyDispatches(t *testing.T) {
 // Go composes nothing here — it CUTS the prefix and recurses on the tail — so the two sides can
 // disagree silently: rename the sitting in debate.js and every petition seat is refused at
 // register, with a message about an id the engine does not dispatch, for an id it just did.
-func TestThePetitionPrefixMatchesTheOneDebateComposes(t *testing.T) {
-	src, err := os.ReadFile(debateSource)
-	if err != nil {
-		t.Fatalf("cannot read debate.js: %v", err)
-	}
-
-	re := regexp.MustCompile("const petitionSeatID = \\([^)]*\\) => `([^`]*)`")
-	m := re.FindStringSubmatch(string(src))
-	if m == nil {
-		t.Fatal("debate.js no longer defines petitionSeatID as a single template literal — the " +
-			"petition sitting id is composed some other way now, and petitionPrefix is bound to nothing")
-	}
-	head := interpolation.Split(m[1], 2)[0]
-	if head != petitionPrefix {
-		t.Errorf("debate.js names petition sittings %q; petitionPrefix is %q, so every petition seat "+
-			"is refused at register", m[1], petitionPrefix)
-	}
-}
+// THE PETITION PREFIX BIND IS GONE WITH THE PREFIX. It held Go's `judge-petition-` against the
+// head debate.js composed, so a rename over there refused every petition seat over here. There is
+// no prefix now: the bench is one seat and a petition is a question put to it, so who filed is on
+// the petition rather than in the id of the seat ruling it.
 
 // areaKey captures each strategic area debate.js declares.
 // areaKey reads the RED_AREAS array out of debate.js. It matches the whole declaration and then

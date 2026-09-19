@@ -38,12 +38,12 @@ var needles = []struct {
 	{"Red chair, topic", "red-chair"},
 	{"Blue response, topic", "blue-respond"},
 	{"Adjudication, topic", "judge"},
-	{"Terminal disposition", "judge-terminal"},
-	{"Petition sitting", "judge-petition"},
+	{"Terminal disposition", "judge"},
+	{"Petition sitting", "judge"},
 	{"Blue synthesis", "blue-synthesize"},
 	{"Blue lane", "blue-lane"},
 	{"frontier hypotheses", "frontier"},
-	{"Final assembly", "assemble"},
+	{"Final assembly", "judge"},
 	// The sitting-record repair (ensureSittingRecord) re-prompts the seat it names, at that seat's tier.
 	{"Sitting-record repair for blue-respond", "blue-respond"},
 	{"Sitting-record repair for blue-synthesize", "blue-synthesize"},
@@ -52,7 +52,7 @@ var needles = []struct {
 	{"Red chair, round", "red-chair"},
 	{"Blue response, round", "blue-respond"},
 	{"Adjudication, round", "judge"},
-	{"Terminal dispute disposition", "judge-terminal"},
+	{"Terminal dispute disposition", "judge"},
 }
 
 // ClassifySeat resolves a prompt head to its seat. An unrecognized head is `other` —
@@ -91,9 +91,6 @@ var SeatClass = map[string]string{
 	"blue-synthesize": "judgment",
 	"red-chair":       "judgment",
 	"judge":           "judgment",
-	"judge-petition":  "judgment",
-	"judge-terminal":  "judgment",
-	"assemble":        "judgment",
 }
 
 // ClassOf returns a seat's tier class, or "" for other/unknown seats (not tier-bound).

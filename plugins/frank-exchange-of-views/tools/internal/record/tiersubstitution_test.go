@@ -145,9 +145,10 @@ func TestEverySeatShapeJoinsToATierClass(t *testing.T) {
 			t.Errorf("seat %s (base %q) has no tier class — that class of seat would never be gated", s.sample, s.base)
 		}
 	}
-	// The petition sitting is named for the seat that petitioned and is handled apart from the
-	// table; it is a judgment seat like the rest of the bench.
-	if got := TierClassOfSeat("judge-petition-red-chair"); got != "judgment" {
-		t.Errorf("petition sitting: got %q", got)
+	// A PETITION SITTING IS NO LONGER ITS OWN SEAT, so there is nothing handled apart from the
+	// table any more: it is the bench answering a different question, and the loop above already
+	// covers `judge`. An id derived from a seat is not a seat.
+	if got := TierClassOfSeat("judge-petition-red-chair"); got != "" {
+		t.Errorf("a derived petition id resolves to tier %q — it is not a seat the engine dispatches", got)
 	}
 }

@@ -81,9 +81,9 @@ func TestReportBindsEachTranscriptToItsEpochFromTheRecord(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	recordtest.Seed(t, runDir,
 		register(t, "red-chair", "C1"),
-		register(t, "judge-terminal", "J1"),
+		register(t, "judge", "J1"),
 		register(t, "red-chair", "C2"),
-		register(t, "judge-terminal", "J2"),
+		register(t, "judge", "J2"),
 	)
 	run, err := record.NewRun(runDir)
 	if err != nil {
@@ -102,7 +102,7 @@ func TestReportBindsEachTranscriptToItsEpochFromTheRecord(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := b.String()
-	for _, want := range []string{"## Per seat-epoch", "| epoch | seat |", "| 1 | judge-terminal | haiku | 1 |", "| 2 | judge-terminal | haiku | 1 |", "| — | judge-terminal | haiku | 1 |"} {
+	for _, want := range []string{"## Per seat-epoch", "| epoch | seat |", "| 1 | judge | haiku | 1 |", "| 2 | judge | haiku | 1 |", "| — | judge | haiku | 1 |"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("cost.md lacks %q:\n%s", want, out)
 		}

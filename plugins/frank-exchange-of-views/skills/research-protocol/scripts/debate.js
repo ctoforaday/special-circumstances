@@ -797,30 +797,36 @@ const reliefFor = (party) => {
 }
 let halted = false
 let haltOpinion = null
-// A PETITION SITTING IS NAMED FOR ITS PETITIONER.
+// THE BENCH IS ONE SEAT, AND A PETITION IS A QUESTION PUT TO IT.
 //
-// A seat id is what every act is attributed to. Deriving it from the PETITIONER — `judge-petition-`
-// plus the filer's own seat id — means the bench sitting that hears blue-synthesize's petition and
-// the one that hears red-chair's are different seats, without a counter anyone has to remember to
-// increment. When the same petitioner petitions again, the id is the same and WHICH occasion this
-// was is the sitting ordinal the record computes from the registers (plans/roundless.md §III.A.0)
-// — the same answer every other seat gets, and nothing a regex has to recover from the name.
-const petitionSeatID = (who) => `judge-petition-${who}`
+// The bench rules a docket, rules what still stands at the exit, hears a petition and assembles
+// the report. Those are four QUESTIONS, not four seats: one surface, one tier, one role, and no
+// refusal anywhere that turns on which of them is being asked. A petition names who filed on the
+// petition itself, which is where it belongs — not in the identity of the seat ruling it.
+//
+// WHICH occasion a sitting was is the sitting ordinal the record computes from the registers
+// (plans/roundless.md §III.A.0) — the same answer every other seat gets, and nothing a regex has
+// to recover from a name.
+//
+// THE SEAT ID IS WRITTEN OUT AT EVERY SITE, never lifted to a constant. The roster bind
+// (TestTheRosterMatchesWhatTheEngineActuallyDispatches) reads this file as SOURCE and reduces each
+// recordClause argument to a seat id; a constant reduces to nothing, and its own failure says what
+// that costs — "an unread argument is a seat the roster is no longer checked against". Lifting it
+// cost exactly that, and the bind caught it.
 
 async function hearPetitions(env, who) {
   const petitions = (env && env.petitions) || []
   if (!petitions.length) return false
-  const seatID = petitionSeatID(who)
+  const seatID = 'judge'
   log(`petition(s) filed by ${who} (${petitions.map((x) => x.class).join(', ')}) — bench sitting before the debate continues`)
   const sitting = await agent(
     `Petition sitting, topic "${topic}". ${who} has petitioned the bench: ${JSON.stringify(petitions)}. Petitions are heard BEFORE the debate continues; they are never sanctioned, and a pattern of overruled petitions is at most a craft note for the petitioner. For EACH petition rule granted | denied. TWO THINGS, AND THEY GO TO DIFFERENT PLACES (#330): your OPINION is the reasoning — the principle applied, the values in tension, why a human should or should not look — and it belongs on the record beside the filing it answers. The envelope's \`relief\` is the OPERATIVE part of a granted ruling: the instruction as it will BIND the coming seats, written as a DIRECTIVE a seat can act on without reading your argument, not as a summary of your opinion. A denied ruling carries no relief. Read the transcript for context. A HALT IS A DIFFERENT DECISION FROM A RULING: it is you ending the RUN, not disposing of a petition, and both can be true at once — rule the petition on its merits and halt as well where continuing would itself compromise safety, consent gates, corpus integrity, or participant integrity. Record the halt, and ALSO return the envelope's \`halt\` object carrying that same opinion, which is what stops the engine.${lawClause}${declareClause}${inspectionClause}${frictionClause(seatID, 'bench')}${speedClause}${recordClause(seatID)} Return the petition-ruling envelope.`,
-    // The label spells `judge-petition-` OUT rather than interpolating seatID, and that is
-    // load-bearing: TestDebateDispatchBindsToSeatClass reads this file as SOURCE and prefix-
-    // matches the label template's literal head against the SeatClass map to prove every
-    // dispatch spreads its seat's model tier. A bare `${seatID}` has no literal head, so the
-    // gate resolved nothing and failed — correctly. Keep the prefix literal; it is the same
-    // string petitionSeatID builds.
-    { ...judgment, label: `judge-petition-${who} · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:lead-judge', schema: PETITION_RULING })
+    // THE LABEL HEADS WITH THE SEAT, LITERALLY. TestDebateDispatchBindsToSeatClass reads this
+    // file as SOURCE and prefix-matches the label template's head — everything before the first
+    // `·` — against the SeatClass map, to prove every dispatch spreads its seat's model tier. A
+    // bare `${seatID}` has no literal head and resolves nothing. What follows the head is for a
+    // human reading a dashboard, and carries which question this sitting was.
+    { ...judgment, label: `judge · petition from ${who} · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:lead-judge', schema: PETITION_RULING })
   if (!sitting) throw new Error('petition sitting returned null (agent failed) — a filed petition is never dropped; aborting cleanly')
   takeFriction(seatID, sitting)
   for (const r of sitting.rulings) {
@@ -1084,9 +1090,9 @@ log(`debate ended: ${verdict} after ${epoch} chair sitting(s)${halted ? ' (JUDIC
 // motions, directions, a petition) is disposed of before assembly — the chair reported the count.
 if (!halted && chairEnv && chairEnv.unruled_motions > 0) {
   const terminalJudge = await agent(
-    `Terminal disposition for topic "${topic}" (debate ended ${verdict} after ${epoch} chair sitting(s); this sitting fires at the exit boundary). ${chairEnv.unruled_motions} motion(s) stand unruled on the record — read them back from the record's motions projection, read the transcript in full and the board back, and rule each with a reason. NOTHING CAN BE REMANDED AT A TERMINAL EXIT — there is no next sitting to remand it to. Each grade motion either moves to a corrected grade, which you state, or ships CONTESTED and the report records it as contested.${holdingsClause()}${lawClause}${declareClause}${inspectionClause}${frictionClause('judge-terminal', 'bench')}${speedClause}${recordClause('judge-terminal')} Return your envelope.`,
-    { ...judgment, label: `judge-terminal · ${slug}`, phase: 'Assemble', agentType: 'frank-exchange-of-views:lead-judge', schema: JUDGE_ENVELOPE })
-  if (terminalJudge) takeFriction('judge-terminal', terminalJudge)
+    `Terminal disposition for topic "${topic}" (debate ended ${verdict} after ${epoch} chair sitting(s); this sitting fires at the exit boundary). ${chairEnv.unruled_motions} motion(s) stand unruled on the record — read them back from the record's motions projection, read the transcript in full and the board back, and rule each with a reason. NOTHING CAN BE REMANDED AT A TERMINAL EXIT — there is no next sitting to remand it to. Each grade motion either moves to a corrected grade, which you state, or ships CONTESTED and the report records it as contested.${holdingsClause()}${lawClause}${declareClause}${inspectionClause}${frictionClause('judge', 'bench')}${speedClause}${recordClause('judge')} Return your envelope.`,
+    { ...judgment, label: `judge · terminal · ${slug}`, phase: 'Assemble', agentType: 'frank-exchange-of-views:lead-judge', schema: JUDGE_ENVELOPE })
+  if (terminalJudge) takeFriction('judge', terminalJudge)
 }
 
 const ASSEMBLE_ENVELOPE = {
@@ -1107,8 +1113,8 @@ FIRST, STAMP HOW THIS RUN ENDED: it is ${verdict}${halted ? `, ended by JUDICIAL
 
 THEN, TWO THINGS YOU MAY HOLD AND THIS IS YOUR LAST CHANCE TO RECORD EITHER. If you hold something that binds how the RECORD IS READ but moves no gap — a construction of a term, a correction of what the record MEANS rather than what it says, a holding worth offering as precedent — state it, and state it in its own right rather than folding it into an unrelated rationale. And if anything in this run needs A HUMAN to re-examine it — an unresolved tension, a claim that held only because nobody could reach the source, a boundary you ruled close to — say so. You keep no memory between runs, so this is the whole of your continuity.
 
-THEN ASSEMBLE. It writes a SET — ${runDir}/report.md (the research), docket.md, debate.md, judgments.md, lines-of-inquiry.md, evidence.md, run.md, CHANGELOG.md, a README.md index and a tabbed report.html — and a document with nothing in it is not written at all, so a missing judgments.md means no motions were filed rather than a failure. Verify ${runDir}/report.md exists and reads correctly at the top: the verdict stamp is the outcome's, the sections are blue's and the record's. A tool cannot mis-author a synthesis surface — the TL;DR and the catechism are blue's, inside the audited report. An open gap that is not material stays open on the board and in the risk matrix; the chair's PASS listed it by class, on the record. THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: read it back and report it as open_gaps in your envelope. Infra debts the bench named: ${JSON.stringify(infraDebts)}. Collated friction so far (report any of your own as well): ${JSON.stringify(friction)}.${holdingsClause()}${lawClause}${frictionClause('assemble', 'bench')}${speedClause}${recordClause('assemble')} Return your envelope: a 5-line synopsis, open_gaps from the board, and your own friction if any.`,
-  { ...judgment, label: `assemble · ${slug}`, agentType: 'frank-exchange-of-views:lead-judge', schema: ASSEMBLE_ENVELOPE })
+THEN ASSEMBLE. It writes a SET — ${runDir}/report.md (the research), docket.md, debate.md, judgments.md, lines-of-inquiry.md, evidence.md, run.md, CHANGELOG.md, a README.md index and a tabbed report.html — and a document with nothing in it is not written at all, so a missing judgments.md means no motions were filed rather than a failure. Verify ${runDir}/report.md exists and reads correctly at the top: the verdict stamp is the outcome's, the sections are blue's and the record's. A tool cannot mis-author a synthesis surface — the TL;DR and the catechism are blue's, inside the audited report. An open gap that is not material stays open on the board and in the risk matrix; the chair's PASS listed it by class, on the record. THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: read it back and report it as open_gaps in your envelope. Infra debts the bench named: ${JSON.stringify(infraDebts)}. Collated friction so far (report any of your own as well): ${JSON.stringify(friction)}.${holdingsClause()}${lawClause}${frictionClause('judge', 'bench')}${speedClause}${recordClause('judge')} Return your envelope: a 5-line synopsis, open_gaps from the board, and your own friction if any.`,
+  { ...judgment, label: `judge · assemble · ${slug}`, agentType: 'frank-exchange-of-views:lead-judge', schema: ASSEMBLE_ENVELOPE })
 return {
   runDir,
   verdict,

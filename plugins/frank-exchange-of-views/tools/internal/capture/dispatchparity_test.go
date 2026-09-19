@@ -26,14 +26,14 @@ func TestDispatchedPartiesAndRegistersAgree(t *testing.T) {
 		return at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String(seat), GapIds: gaps})
 	}
 	head := []*record.Event{
-		at("harness", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-lens-logic", "red-chair", "blue-respond", "judge", "judge-terminal", "assemble"}}),
+		at("harness", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-lens-logic", "red-chair", "blue-respond", "judge"}}),
 		at("harness", &recordpb.BaseIngest{Text: proto.String("# r")}),
 		reg("frontier"), // the base phase: before the first dispatch, outside the window
 		reg("red-chair"), dispatch("red-lens-evidence"), dispatch("red-lens-logic"),
 		reg("red-lens-evidence"), reg("red-lens-logic"),
 		reg("red-chair"), dispatch("blue-respond", "G1"),
 	}
-	clean := append(append([]*record.Event{}, head...), reg("blue-respond"), reg("red-chair"), reg("judge-terminal"), reg("assemble"))
+	clean := append(append([]*record.Event{}, head...), reg("blue-respond"), reg("red-chair"), reg("judge"), reg("judge"))
 	dir := t.TempDir()
 	recordtest.Seed(t, dir, clean...)
 	if a := DispatchParityAudit(runtest.Open(t, dir), nil, false); a.Verdict != "PASS" {
@@ -79,7 +79,7 @@ func TestAWarmChairsDispatchesAreGroupedByWhoSat(t *testing.T) {
 	lenses := []string{"red-lens-evidence", "red-lens-logic", "red-lens-voice"}
 	warm := func(voiceSits, voiceLate bool) []*record.Event {
 		evs := []*record.Event{
-			at("harness", &recordpb.Cast{SeatIds: append([]string{"red-chair", "blue-respond", "judge", "assemble"}, lenses...)}),
+			at("harness", &recordpb.Cast{SeatIds: append([]string{"red-chair", "blue-respond", "judge"}, lenses...)}),
 			at("harness", &recordpb.BaseIngest{Text: proto.String("# r")}),
 			reg("red-chair"), // the chair's only register, all run
 		}
@@ -102,7 +102,7 @@ func TestAWarmChairsDispatchesAreGroupedByWhoSat(t *testing.T) {
 		if voiceLate {
 			evs = append(evs, reg("red-lens-voice")) // it sat, but for nothing it was dispatched to since
 		}
-		return append(evs, reg("assemble"))
+		return append(evs, reg("judge"))
 	}
 
 	dir := t.TempDir()

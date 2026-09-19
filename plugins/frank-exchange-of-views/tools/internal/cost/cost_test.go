@@ -58,8 +58,8 @@ func TestScanTranscript(t *testing.T) {
 	}
 	// No usage at all still produces a row; no model → dearest tier.
 	bare := ScanTranscript(`{"message":{"role":"user","content":"Final assembly"}}`)
-	if bare.Seat != "assemble" || bare.Turns != 0 || bare.Cost != 0 || bare.T != "fable" {
-		t.Errorf("bare = %+v (want assemble, 0 turns, $0, fable)", bare)
+	if bare.Seat != "judge" || bare.Turns != 0 || bare.Cost != 0 || bare.T != "fable" {
+		t.Errorf("bare = %+v (want judge, 0 turns, $0, fable)", bare)
 	}
 	// The model is remembered across turns: a later usage record without a model belongs to
 	// the model already seen, not the unknown-model fallback.
