@@ -2,12 +2,15 @@ package cli
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
@@ -138,11 +141,21 @@ func probeEntity(t *testing.T, e entityProbe) (edges []stateEdge, deadEnds, over
 	t.Helper()
 	for _, from := range e.states {
 		out := 0
-		for _, act := range e.acts {
+		// A FRESH BOARD PER ATTEMPT — the invariant, unchanged: an act that succeeds moves the
+		// entity, and the next act would then be probed from somewhere else entirely.
+		//
+		// It is now RESTORED rather than rebuilt. Building a board replays a chain of commands
+		// through the whole tree; restoring copies a small directory back over ITS OWN PATH, so
+		// the board an act meets is byte-identical to the one it would have been built, absolute
+		// paths inside the record included. Measured on this test: the rebuild was 12% of the
+		// package's time under -race.
+		dir := e.buildTo(t, from)
+		restore := snapshotRun(t, dir)
+		for i, act := range e.acts {
 			attempts++
-			// A FRESH BOARD PER ATTEMPT. An act that succeeds moves the entity, and the next act
-			// would then be probed from somewhere else entirely.
-			dir := e.buildTo(t, from)
+			if i > 0 {
+				restore()
+			}
 			if got := e.read(t, dir); got != from {
 				t.Fatalf("%s: built for state %q and the record reads %q — the probe would report transitions out of a state it is not in", e.name, from, got)
 			}
@@ -780,5 +793,39 @@ func TestNoEntityCanReachAStateNothingCanLeave(t *testing.T) {
 			"Either the state is terminal — say so in the probe's `terminal` map with the reason, "+
 			"the way gap/closed and motion/grade/appealed do — or an entity can reach a position "+
 			"the protocol has no way out of, which is the defect this gate exists to find.", d)
+	}
+}
+
+// snapshotRun copies a run directory and returns a function that puts it back, in place.
+//
+// The test that uses this needs a pristine board per attempt and used to get one by building a new
+// one every time. Restoring is the same board by construction: the same bytes at the same path,
+// which matters because a record may name its own run directory.
+func snapshotRun(t *testing.T, dir string) func() {
+	t.Helper()
+	snap := filepath.Join(t.TempDir(), "snapshot")
+	if err := os.CopyFS(snap, os.DirFS(dir)); err != nil {
+		t.Fatalf("snapshotting the board: %v", err)
+	}
+	return func() {
+		t.Helper()
+		// DROP THE CACHED HANDLE FIRST. recordsql keeps one *sql.DB per path, so replacing the
+		// files under a live handle leaves the process reading the database it already had —
+		// measured: the board restored on disk and the record still answered with the act.
+		if err := recordsql.CloseUnder(dir); err != nil {
+			t.Fatalf("restoring the board: releasing the record handle: %v", err)
+		}
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			t.Fatalf("restoring the board: %v", err)
+		}
+		for _, e := range entries {
+			if err := os.RemoveAll(filepath.Join(dir, e.Name())); err != nil {
+				t.Fatalf("restoring the board: %v", err)
+			}
+		}
+		if err := os.CopyFS(dir, os.DirFS(snap)); err != nil {
+			t.Fatalf("restoring the board: %v", err)
+		}
 	}
 }
