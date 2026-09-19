@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nonet"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
 	"os"
 	"path/filepath"
 	"strings"
@@ -183,6 +184,9 @@ func Main(m *testing.M) {
 	// Off the public internet, the same guard testbuild.Main installs — the two entry points
 	// between them cover every package in this module that shares a TestMain.
 	nonet.OnlyLoopback()
+	// The dispatch environment is outside this process too — see testbuild.ClearDispatch for the
+	// measured case. Both shared TestMains install it, because a package gets one or the other.
+	testbuild.ClearDispatch()
 	code := m.Run()
 	if err := CheckOrphanedHandles(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
