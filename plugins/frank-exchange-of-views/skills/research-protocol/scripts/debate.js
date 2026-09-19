@@ -229,6 +229,24 @@ const scorecardClause = () => (
 //
 // It renders to the empty string while no holding exists, which is every run until a bench
 // declares one, so the ordinary prompt is unchanged.
+// THE WORD IS ARGUMENT, NOT REASONING, AND THAT IS A CONSTRAINT RATHER THAN A STYLE CHOICE.
+//
+// The paragraph below read "YOUR REASONING IS PART OF EVERY ACT ... write your THINKING". On
+// 2026-09-19 every blue lane dispatched on sonnet-5 came back stop_reason=refusal with ZERO output
+// tokens, the API naming its own classifier: [reasoning_extraction]. The same text ran on the same
+// model two days earlier, so the prompt did not change into a refusal — the guard tightened under
+// it. Paired at one moment: the old wording refuses in five seconds, this wording runs. haiku-4.5
+// accepts both, so the engine's bulk tier was unusable on sonnet while its cheap tier was fine.
+//
+// What a seat is asked for is its CASE TO THE OTHER SEATS — the grounds an opponent can answer —
+// and never an account of how the model thinks. The old phrasing asked for the second while
+// meaning the first, so it read as an attempt at chain-of-thought extraction and was refused as
+// one. Every instruction survives the rewording; only the words naming the model's interior do not.
+//
+// Worth the comment because of HOW it failed. A refused lane returns nothing, and nothing is also
+// what a lane that found nothing returns. The run continues, blue synthesises a report over three
+// drafts that do not exist, and every gate passes — $7.86 of downstream work on an empty
+// foundation, in a run that would have reported itself complete.
 const recordClause = (seatId) =>
   `${holdingsClause()}${scorecardClause()} SEAT_ID: ${seatId}. THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "${binDir}/feov-record", and the tool's own board is the ONLY source of truth for status. Routing around it into markdown is the failure this contract exists to prevent.
 
@@ -244,7 +262,7 @@ A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS. Do not work from me
 
 EVERY READ IS A PROJECTION OF THE RECORD, never a file you open. The .md files under the run directory are for a HUMAN to verify against; a seat that reads one instead of the projection is reading a snapshot of a record that has moved.
 
-YOUR REASONING IS PART OF EVERY ACT, and the RECORD renders it — your position and closings in the transcript, your reasons beside the acts on the board. It is your argument to the other seats, where they can answer it. NEVER the research report: that document is addressed to a reader of the subject and carries no argument about the run. And write your THINKING, not a label for what you did — the record already holds every act of this sitting, in order, so an account of the verbs you ran narrates what the record reconstructs. An act you got wrong is corrected by the command that recorded it, before another seat acts.`
+YOUR ARGUMENT IS PART OF EVERY ACT, and the RECORD renders it — your position and closings in the transcript, your grounds beside the acts on the board. It is your case to the other seats, where they can answer it. NEVER the research report: that document is addressed to a reader of the subject and carries no argument about the run. And write the SUBSTANCE — what it rests on, and what answers it — not a label for what you did — the record already holds every act of this sitting, in order, so an account of the verbs you ran narrates what the record reconstructs. An act you got wrong is corrected by the command that recorded it, before another seat acts.`
 
 
 // Compound grades allowed: red's protocol grades finer than a 3-point scale
