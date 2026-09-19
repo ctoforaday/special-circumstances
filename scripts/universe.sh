@@ -54,11 +54,14 @@ PLUGINS=(prosthetic-conscience frank-exchange-of-views sleeper-service gray-area
 MODEL="${MODEL:-haiku}"
 JUDGMENT_MODEL="${JUDGMENT_MODEL:-haiku}"
 LANES="${LANES:-1}"
-# dontAsk, NOT bypassPermissions. `--bg` refuses bypassPermissions until its disclaimer has been
-# accepted in an interactive session, and a universe has its own config dir where that acceptance
-# does not exist — so the headless path cannot use it without a manual step that defeats the point.
-# dontAsk proceeds without prompting and needs no disclaimer.
-PERMISSION_MODE="${PERMISSION_MODE:-dontAsk}"
+# bypassPermissions, AND BOTH ALTERNATIVES FAIL. `dontAsk` does not mean "proceed without asking" —
+# it DENIES, so every Bash and Read a seat needs returns "Permission to use Bash has been denied
+# because Claude Code is running in don't ask mode" and the run writes no record at all. `--bg`
+# refuses bypassPermissions until its disclaimer is accepted interactively, which a universe's own
+# config dir has never seen. So the run is a foreground `-p`, which is also sufficient: the
+# Workflow the skill dispatches SURVIVES the process exit — measured, events kept landing for nine
+# minutes after `-p` returned — so the session ending is not the debate ending.
+PERMISSION_MODE="${PERMISSION_MODE:-bypassPermissions}"
 
 LIVE=0
 
@@ -176,8 +179,16 @@ cmd_build() {
   # the tree alone silently edited committed state. $WORKDIR is outside the repo, so project
   # settings are not found and only the universe's own config is touched.
   mkdir -p "$WORKDIR"
-  local mkt="$WORKDIR/marketplace"
-  rm -rf "$mkt"; mkdir -p "$mkt/.claude-plugin"
+  # THE STAGING DIR LIVES OUTSIDE THE UNIVERSE AND IS REMOVED AFTER INSTALL. It was $WORKDIR/
+  # marketplace, holding a `plugins` symlink into the checkout — and a run's lead, exploring its own
+  # WORKDIR with bypassPermissions, found it and ran
+  # $WORKDIR/marketplace/plugins/frank-exchange-of-views/bin/feov-record: the CHECKOUT's binaries,
+  # which are whatever a previous build left there, instead of the cache this script just built.
+  # A universe that contains a door back to the working tree is not isolated, and the failure is
+  # silent — the run works, with the wrong binary.
+  local mkt; mkt="$(mktemp -d)"
+  trap 'rm -rf "$mkt"' RETURN
+  mkdir -p "$mkt/.claude-plugin"
   ln -sfn "$REPO/plugins" "$mkt/plugins"
   python3 "$REPO/scripts/universe-manifest.py" \
     "$REPO/.claude-plugin/marketplace.json" "$mkt/.claude-plugin/marketplace.json" \
@@ -280,19 +291,17 @@ cmd_run() {
   log "cwd:   $src"
   log "load at start: $(cut -d' ' -f1-3 /proc/loadavg)"
 
-  local id
-  id="$( cd "$src" && claude --bg \
+  local raw="$WORKDIR/stream-$stamp.jsonl"
+  log "  progress below; raw stream -> $raw"
+  ( cd "$src" && claude -p \
       "/frank-exchange-of-views:research $topic --model $MODEL --judgment-model $JUDGMENT_MODEL --lanes $LANES $*" \
-      --permission-mode "$PERMISSION_MODE" 2>&1 | tee "$out" | grep -oE '\b[0-9a-f]{8}\b' | head -1 )"
-  if [ -z "$id" ]; then
-    log "could not read a session id — see $out"; sed -n '1,20p' "$out"; return 1
-  fi
-  printf '%s' "$id" > "$WORKDIR/session-id"
-  log "background session: $id"
-  log "  logs:   claude logs $id"
-  log "  stop:   claude stop $id"
-  log "  board:  scripts/universe.sh watch"
-  log "  log file: $out"
+      --output-format stream-json --verbose --permission-mode "$PERMISSION_MODE" </dev/null ) \
+    | python3 "$REPO/scripts/universe-stream.py" --raw "$raw" | tee "$out"
+  local rc=${PIPESTATUS[0]}
+  log "exit $rc — $out"
+  log "load at end: $(cut -d' ' -f1-3 /proc/loadavg)"
+  log "the Workflow outlives this process: watch it with  $0 --dir $WORKDIR watch"
+  return $rc
 }
 
 # WHAT THE DEBATE ITSELF IS DOING, as against what the harness is doing. The stream shows dispatch

@@ -387,7 +387,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, pluginDir, model, debatePat
 		}
 		// RED'S MEMORY, STAGED AS run-setup STAGES IT. This used to be an arm — `none` mounted
 		// nothing — and an arm is no longer available: debate.js's prompt names
-		// inputs/red-gap-patterns.md in blue's very first batched read, unconditionally, because
+		// the staged corpus in blue's very first batched read, unconditionally, because
 		// every real run has the file. A probe that withheld it would hand the seat a prompt whose
 		// opening instruction fails, and score what it did next.
 		mem, err := memoryDirs(memoryDir)
@@ -395,7 +395,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, pluginDir, model, debatePat
 			return "", err
 		}
 		// NO CORPUS PRECONDITION. This refused a probe whose gap-pattern corpus did not stage,
-		// because the dispatched prompt named inputs/red-gap-patterns.md in its first instruction.
+		// because the dispatched prompt named the staged corpus in its first instruction.
 		// Neither the staging nor that instruction exists now — the by-class index replaced both,
 		// and it is delivered per gap rather than read at seat start.
 		_ = mem

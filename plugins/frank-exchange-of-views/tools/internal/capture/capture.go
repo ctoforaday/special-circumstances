@@ -2060,9 +2060,8 @@ func ArchiveRecord(run record.Run, repoRoot string) (string, error) {
 	// different question) and this file was never considered at all.
 	//
 	// The bulky inputs stay out on the stated line: run-config.json is read to OPERATE on the
-	// record, while the gap-pattern corpus (175 KB) was read by seats during the run and is
-	// provenance rather than function. Carrying provenance is a separate decision, and naming it
-	// here is how it stays one.
+	// record, while the law mirror is read by seats during the run and is provenance rather than
+	// function. Carrying provenance is a separate decision, and naming it here is how it stays one.
 	if cfg := filepath.Join(run.Dir(), "inputs", "run-config.json"); func() bool { st, e := os.Stat(cfg); return e == nil && !st.IsDir() }() {
 		files = append(files, struct{ name, path string }{"inputs/run-config.json", cfg})
 	}
@@ -2071,8 +2070,8 @@ func ArchiveRecord(run record.Run, repoRoot string) (string, error) {
 	//
 	// gap-patterns-by-class.json (41 KB) is what the engine actually SELECTED from — patternsForGaps
 	// looks up a gap's class in it — so carrying it reconstructs the input red's audit was primed
-	// with. red-gap-patterns.md is 175 KB of prose nothing reads back, and the law mirror is the
-	// same shape: provenance rather than function.
+	// with. The law mirror is provenance rather than function: read by seats during the run, by
+	// nothing after it.
 	//
 	// Hashing is not a weaker answer here, because feov-memory/ is tracked in the repository. The
 	// digest names the bytes a run saw, and git already holds them; an audit that needs the prose
@@ -2318,7 +2317,9 @@ func corpusDigest(runDir string) ([]CorpusFile, error) {
 		sum := sha256.Sum256(b)
 		out = append(out, CorpusFile{Path: rel, SHA256: hex.EncodeToString(sum[:]), Bytes: st.Size()})
 	}
-	add("inputs/red-gap-patterns.md")
+	// NO GAP-PATTERN CORPUS TO HASH. setup no longer stages inputs/red-gap-patterns.md — the
+	// by-class index replaced it, and the skill had already recorded that staging the whole corpus
+	// was measured worthless. The digest covers what a run still stages and reads.
 	lawDir := filepath.Join(runDir, "inputs", "law")
 	if entries, err := os.ReadDir(lawDir); err == nil {
 		for _, e := range entries {

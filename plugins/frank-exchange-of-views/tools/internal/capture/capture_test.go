@@ -1107,8 +1107,13 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 		[]byte(`{"port-retarget":[{"file":"p.md"}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	// The PROSE corpus is bulky and read only during the run, so it is hashed, not carried.
-	if err := os.WriteFile(filepath.Join(run, "inputs", "red-gap-patterns.md"),
+	// The LAW mirror is read by seats during the run and by nothing after it, so it is hashed
+	// rather than carried. (The gap-pattern corpus used to sit here too; setup no longer stages
+	// it at all.)
+	if err := os.MkdirAll(filepath.Join(run, "inputs", "law"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(run, "inputs", "law", "precedents.md"),
 		[]byte("# patterns\n\nbody\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -1166,8 +1171,8 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 	for n := range names {
 		// THE PROSE CORPUS MUST NOT BE CARRIED. 175 KB on a real run against a ~49 KB archive,
 		// read by seats during the run and by nobody after it — the digest names its bytes instead.
-		if n == "inputs/red-gap-patterns.md" {
-			t.Errorf("archived the prose corpus (%s) — it is hashed in %s, not carried", n, "corpus-sha256.json")
+		if strings.HasPrefix(n, "inputs/law/") {
+			t.Errorf("archived the law mirror (%s) — it is hashed in %s, not carried", n, "corpus-sha256.json")
 		}
 		if strings.HasPrefix(n, "cache/") {
 			t.Errorf("the fetched-source cache was archived (%s) — it is re-fetchable and dwarfs the record", n)
@@ -1184,7 +1189,7 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 	want := sha256.Sum256([]byte("# patterns\n\nbody\n"))
 	found := false
 	for _, d := range digest {
-		if d.Path == "inputs/red-gap-patterns.md" {
+		if d.Path == "inputs/law/precedents.md" {
 			found = true
 			if d.SHA256 != hex.EncodeToString(want[:]) {
 				t.Errorf("digest sha256 = %s, want %s — the hash must name the bytes this run read", d.SHA256, hex.EncodeToString(want[:]))
@@ -1192,7 +1197,7 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Errorf("the digest does not name the prose corpus: %v", digest)
+		t.Errorf("the digest does not name the law mirror: %v", digest)
 	}
 }
 

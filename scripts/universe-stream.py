@@ -64,7 +64,17 @@ def main() -> int:
                 if block.get("type") != "tool_use":
                     continue
                 name = block.get("name", "?")
-                if name == "Task":
+                # THE ENGINE DISPATCHES THROUGH `Workflow`, NOT `Task`, and the first version of
+                # this renderer only knew about Task — so the single most important event in a run
+                # scrolled past unprinted and the view sat silent for minutes while the debate ran.
+                # Measured on the first universe smoke: 24 Bash calls and exactly one Workflow.
+                if name == "Workflow":
+                    inp = block.get("input") or {}
+                    seats.add("workflow")
+                    say("WORKFLOW DISPATCHED — the debate runs from here, and OUTLIVES this process")
+                    if inp.get("name"):
+                        say(f"  script  {inp['name']}")
+                elif name == "Task":
                     inp = block.get("input") or {}
                     label = inp.get("description") or inp.get("subagent_type") or "?"
                     seats.add(label)
