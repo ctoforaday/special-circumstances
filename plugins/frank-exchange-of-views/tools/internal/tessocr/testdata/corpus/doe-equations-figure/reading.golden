@@ -1,0 +1,120 @@
+doe-equations-figure · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@d241629b1816
+table: false · rotated: false · grid intersections: 0 · length: 3400
+---
+EXAMPLE CALCULATION
+
+Suppose 3 200 ft2 workshop is enclosed by ‘our
+walls (]80 ft4), a ceiling (200 ft2) and a floor
+
+(200 ft*), of which 1/2 is covered by furniture or
+carpet. The wall 1s 6-in. concrete and the ceiling is
+2-in. wood, each with insulation outside. The floor
+1s l-in, hardwood laid on a 4-in. concrete slab laid
+on earth. The room has 30 ft2 of direct gain win-
+dows facing south. Calculate the clear-day winter
+tempe, ature swing.
+
+Run the DHC program in order to determine DHC as
+Needed to calculate Eq. (5) for aT(swing). The com-
+puter printout is shown below, The first step is to
+select Menu 2 three times in succe: sion in order to
+calculate the dhc of each surface type. The layers
+are described working from the outside {nward. The
+dhc values shown on each line refer to the dic deter-
+mined at the inner surface of each successive layer so
+that the final answer on che last line is the cumula-
+tive dnc. The last line (airgap) refers to the inside
+film coefficient (h = 1.5 Btu/'F ft2 h) and is
+therefore the convective dhc. The line above this
+gives the radiative dhc. Lag refers to the phase,
+which is given ir hours. For example, the radiative
+dhc for the floor (surface type 3) is 3.6 Btu/'F fte
+with a phase lsy of 1.5 hours (22.5°). Note that the
+earth was represente? by adobe pruperties, The choice
+of a 24-in. thickness was chosen to represent an es-
+sentially infinite thickness for diurnal effects. The
+total heat capacity (HC) and total mass are also
+listed.
+
+ROOM TOTAL CER OED
+SUPPACE TPE l
+MHTEF LAL Thored flere. Cy 4
+WO RETO. 14 mt 14: eel 1. cys
+ALRGHF yy “ wy ey ee SM
+TOTAL BO
+SUPP RIE TYRE «
+MATEFTAL Thich Dene, ye i
+DOF TRU T et Be cee 0) 2?
+HIF GAR m0 OO. on a anes
+TOTAL 2.0
+SUPFALE VRE 2
+WATER DSL Thoth Dane. Nyy \
+ALORE ad, in ye tiny whe
+CMC RPE TE, tas 4.0 145 eed 1. ut
+HEE De L 1 qe 6 HO Was
+ALR RIF oO, GO
+TOTAL ats
+BOM Pe shee
+Shap fac’ Ares Kerr ce deny Mme =
+
+t bea 1. us bencd
+
+e eu 1,an bore
+
+3 pa 1.on eFhde
+Puodat acy aang
+
+The next step is to select Menu 3. The wall is
+Surface type 1, the ceiling is surface type 2, and the
+floor is surface type 3. The final DHC is 2751
+Btu/ F, indicating that the room surfaces will store
+and return 2751 Btu for each 1°F of sinusoidal. room
+temnerature swing.
+
+To complete the calculation of aT(swing}, we need
+to know Qs, the daily transmitted solar radiation
+per ft2 of direct gain glazing. At 40° latitude,
+this {s about 1440 Btu/ft2 per day. A is 30 ft2,
+Therefore, using Eq. (5):
+
+aT(swing) = (0.61)(1440)(30)/(2751) ,
+aT(swing) - 9.6°F
+
+This is the peak-to-peak temperature swing to be
+expected on a clear winter day.
+
+REFERENCES
+
+1. MM. G. Davies, "The Thermal Admittance of Layered
+Walls," Building Science, 8, 207-220 (1975).
+
+2. J. 0. Balcomb, "Heat Storage and Distribution
+Inside Passive Solar Buildings," Los Alamos
+National Laboratory Report LA-9694-MS (1984).
+
+3, J. 0. Balcomb, "Prediction of Internal Tempera-
+ture Swings in Direct Gain Passive Solar Build-
+ings," Proc. Solar World Congress, Pertn,
+Australia, August 14-19, 1983. (Los Alamos
+National Laboratory internal report
+LA-UR-83-2246, )
+
+F Mare He dhs Lag
+a] ve 1s. 11.4 4.0
+a a Os 4.4 lee
+lic ve As. a
+F Mast HC Dhar Lag
+af 5 1.8 Lik 4.0
+r a o.0 {.4 ie
+“ 5 1.6
+F Mig: Ht dhe Lag
+eo ean 4.0 bel cas)
+x 45; Lo.0 1O. 5 a.8
+3 4 i Bean 1,4
+uw a a. eve 13
+7.9 Pa | Sa
+Ht PHI Lag
+ers elsg du
+Bm fel 4.7
+Said 355 1,5
+Bae ers Be

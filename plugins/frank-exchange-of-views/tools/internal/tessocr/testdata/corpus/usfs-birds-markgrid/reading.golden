@@ -1,0 +1,6 @@
+usfs-birds-markgrid · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@d241629b1816
+table: true · rotated: false · grid intersections: 1251479 · length: 54
+fell back: grid detected but the TSV held no mark tokens; page kept as plain text — its words are read, but which row and column each belongs to is not preserved, so check a cell against the page image before relying on it
+text cells fell back: the page's rules bound no cells, so there is no row to recover
+---
+Aduapisay aaaa NNNNNNANHNNMNGEA NANNNNN SN noaoaosaaaa

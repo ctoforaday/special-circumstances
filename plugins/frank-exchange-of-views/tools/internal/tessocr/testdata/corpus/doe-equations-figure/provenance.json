@@ -1,0 +1,29 @@
+{
+  "slug": "doe-equations-figure",
+  "source_url": "https://www.osti.gov/servlets/purl/5923435",
+  "source_page": 6,
+  "publisher": "US Department of Energy / Los Alamos National Laboratory",
+  "date": "1985",
+  "rights": "us-government-work",
+  "rights_evidence": "Work of the US Department of Energy, distributed by OSTI with no licence asserting otherwise",
+  "local_file_sha256": "912e34b064456d08dae64fea63e82cbba7068be758cb6166ccb60ed2cc8a9cee",
+  "page_sha256": "686d643b36a328d593a2e67212c5fbc254e6ff62129b4f076e98466abb1187f7",
+  "text_objects_removed": 464,
+  "added_at": "2026-09-18",
+  "defect_class": [
+    "two-column-prose",
+    "unruled-columnar-printout",
+    "inline-equations"
+  ],
+  "why": "A two-column scientific page whose lower half is a faint dot-matrix printout in columns aligned by whitespace alone, with superscripts and Greek in the prose above it.",
+  "expect": {
+    "table": false,
+    "must_contain": [
+      "EXAMPLE CALCULATION",
+      "REFERENCES",
+      "SURFACE TYPE",
+      "SOFTWOOD",
+      "Balcomb"
+    ]
+  }
+}

@@ -312,6 +312,61 @@ jobs:
         env:
           CGO_ENABLED: "1"
 
+  ocr-corpus:
+    # THE EXPENSIVE PAGES, IN THEIR OWN JOB, ON LINUX ONLY.
+    #
+    # internal/tessocr/testdata/corpus holds real scans that beat the reader, read end to end
+    # through fetch, render and the real engine: eight pages at 12-24 s each. Burying that in the
+    # feov-record matrix would have charged it TWICE (ubuntu and windows are one matrix) and put
+    # minutes on the critical path of a suite everything else waits for.
+    #
+    # LINUX ONLY, deliberately: a Windows minute bills at twice a Linux one and a macOS minute at
+    # ten times, and these pages measure the ENGINE, not the platform — the same tesseract and
+    # leptonica, pinned, statically linked. What Windows must prove about this package (that it
+    # type-checks engineless) the default legs already prove.
+    #
+    # The suite skips unless FEOV_OCR_CORPUS=1, so no other job pays for it by accident.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plugins/frank-exchange-of-views/tools
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.25"
+          cache: false
+      - name: C stack for the OCR engine (cache)
+        if: github.event_name != 'push'
+        id: cstack
+        uses: actions/cache@v4  # zizmor: ignore[cache-poisoning]
+        with:
+          path: ${{ runner.temp }}/cstack
+          key: cstack-${{ runner.os }}-${{ hashFiles('plugins/frank-exchange-of-views/tools/third_party/pins/PINS.txt') }}
+      - name: C stack for the OCR engine (build on miss)
+        if: steps.cstack.outputs.cache-hit != 'true'
+        shell: bash
+        env:
+          CSTACK: ${{ runner.temp }}/cstack
+        run: ./third_party/pins/build-cstack.sh linux-amd64 "$CSTACK"
+      - name: the corpus, real engine, statically linked
+        shell: bash
+        env:
+          CSTACK: ${{ runner.temp }}/cstack
+          FEOV_OCR_CORPUS: "1"
+        run: |
+          eval "$(./third_party/pins/build-cstack.sh env linux-amd64 "$CSTACK")"
+          # -v so the per-page subtests are named in the log: a corpus page that starts or stops
+          # meeting its expect block is the finding, and a bare ok line hides which one moved.
+          # The pages run parallel, but the engine serializes every read on one mutex, so the
+          # overlap is the render and the comparison — stated so nobody raises -parallel expecting
+          # more.
+          go test -tags tessocr -count=1 -ldflags '-linkmode external -extldflags "-static"' -v \
+            -run '^TestCorpusGoldens$' ./internal/fetchcache/ | tee "$RUNNER_TEMP/corpus.txt"
+          grep -q '^--- PASS: TestCorpusGoldens ' "$RUNNER_TEMP/corpus.txt"
+
   feov-record:
     # The FEOV seat-side record runtime (plans/record-tool.md R2g). Its own Go
     # module, so the prosthetic-conscience job's working-directory does not reach

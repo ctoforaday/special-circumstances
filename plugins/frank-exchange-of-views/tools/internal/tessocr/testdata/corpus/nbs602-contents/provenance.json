@@ -1,0 +1,27 @@
+{
+  "slug": "nbs602-contents",
+  "source_url": "https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nbsspecialpublication602.pdf",
+  "source_page": 5,
+  "publisher": "National Bureau of Standards",
+  "date": "1981-04",
+  "rights": "us-government-work",
+  "rights_evidence": "US Government work, 17 U.S.C. 105",
+  "local_file_sha256": "7673300d85b1b4b3616c6541b74ee60c3a0d1a47cb589258f6c7bb943f16a5ce",
+  "page_sha256": "b7a4eaf171e45694ad1e10c914335264de0b369d95eb30547b30fb425b2dce2c",
+  "text_objects_removed": 82,
+  "added_at": "2026-09-18",
+  "defect_class": [
+    "columns-without-rules"
+  ],
+  "why": "A table of contents with no dot leaders: the page numbers are bound to their titles by whitespace alone, and every one of them is lost.",
+  "expect": {
+    "table": false,
+    "must_contain": [
+      "TABLE OF CONTENTS",
+      "Robot End Effectors",
+      "Research Properties",
+      "27",
+      "49"
+    ]
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "slug": "nbs602-dashed-matrix",
+  "source_url": "https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nbsspecialpublication602.pdf",
+  "source_page": 44,
+  "publisher": "National Bureau of Standards",
+  "date": "1981-04",
+  "rights": "us-government-work",
+  "rights_evidence": "US Government work, 17 U.S.C. 105 \u2014 https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nbsspecialpublication602.pdf",
+  "local_file_sha256": "7673300d85b1b4b3616c6541b74ee60c3a0d1a47cb589258f6c7bb943f16a5ce",
+  "page_sha256": "b6cee2a3db9fa13572b136f4b9a91616bb7e5704f331f985e6dc191875e5c0d0",
+  "text_objects_removed": 277,
+  "added_at": "2026-09-18",
+  "defect_class": [
+    "dashed-rules",
+    "two-line-cells"
+  ],
+  "why": "A 6x6 numeric matrix whose rules are typewriter dashes of 19-21 px with 4-6 px gaps: invisible to the 151 px opening at any DPI, and the opening that finds them calls prose a table.",
+  "expect": {
+    "table": true,
+    "must_contain": [
+      "Spot Welding",
+      "Machine Tool",
+      "Complex Vision",
+      "5.4",
+      "(5-6)",
+      "one axis"
+    ]
+  }
+}

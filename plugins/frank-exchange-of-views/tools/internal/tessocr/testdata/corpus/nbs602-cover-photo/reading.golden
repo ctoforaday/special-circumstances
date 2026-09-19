@@ -1,0 +1,17 @@
+nbs602-cover-photo · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@d241629b1816
+table: true · rotated: false · grid intersections: 1256009 · length: 278
+text cells: 1 tables, 4 bands, 6 rows, 5 columns, 13 cells, 28 words placed
+fell back: grid detected but the TSV held no mark tokens; page kept as plain text — its words are read, but which row and column each belongs to is not preserved, so check a cell against the page image before relying on it
+---
+| Reference =o
+cau wc
+11105 4? ?b?b
+89 so yb —
+
+| | | I. i NBS SPECIAL PUBLICATION | 602 % | a CReay 4 of 2 ||||
+|---|---|---|---|---|
+|  | U.S. DEPARTMENT OF COMMERCE / National Bureau of Standards ||||
+|  | | Research Workshop ||||
+|  |  |  |||
+|  |  |  |||
+|  | QC |  |  |  |

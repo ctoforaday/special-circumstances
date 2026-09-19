@@ -6,7 +6,8 @@ import (
 )
 
 // THE LAYOUT CASES, AS PAGES. Each is drawn here rather than cropped from a document: the bytes
-// are reproducible from this file, nothing licensed is checked in, and the case a page exists for
+// are reproducible from this file (a scan we may redistribute goes in testdata/corpus instead,
+// under its licence gate), and the case a page exists for
 // is stated beside it. A page is a PDF content stream at 612x792 points, rendered at the engine's
 // own resolution.
 //
