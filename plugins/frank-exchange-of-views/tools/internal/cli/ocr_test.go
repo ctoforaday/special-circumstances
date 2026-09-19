@@ -18,9 +18,9 @@ func scanPDF(t *testing.T) []byte {
 	objs := []string{
 		"<< /Type /Catalog /Pages 2 0 R >>",
 		"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-		"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R " +
+		"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 72 90] /Contents 4 0 R " +
 			"/Resources << /XObject << /Im1 5 0 R >> >> >>",
-		"<< /Length 31 >>\nstream\nq 612 0 0 792 0 0 cm /Im1 Do Q\nendstream",
+		"<< /Length 29 >>\nstream\nq 72 0 0 90 0 0 cm /Im1 Do Q\nendstream",
 		"<< /Type /XObject /Subtype /Image /Width 2 /Height 2 /ColorSpace /DeviceRGB " +
 			"/BitsPerComponent 8 /Filter /ASCIIHexDecode /Length 25 >>\nstream\n" + hexPixels + "\nendstream",
 	}
