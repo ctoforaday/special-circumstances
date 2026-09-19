@@ -70,6 +70,7 @@ func seedReferents(t *testing.T, runDir string) {
 }
 
 func TestVerbPayloads(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		role string
@@ -197,10 +198,19 @@ func TestVerbPayloads(t *testing.T) {
 		},
 	}
 
-	for _, tc := range cases {
+	// ONE SEEDED WORLD, RESTORED BETWEEN CASES. Every case needs the same board — two gaps, two
+	// motions, a closed archive entry — and seeding it costs more than the verb under test. The
+	// restore puts the same bytes back at the same path, so a case meets the board it would have
+	// been seeded, and the cases stay independent of each other's writes.
+	seeded := newRun(t)
+	seedReferents(t, seeded)
+	restore := snapshotRun(t, seeded)
+	for i, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			runDir := newRun(t)
-			seedReferents(t, runDir)
+			if i > 0 {
+				restore()
+			}
+			runDir := seeded
 			// THE VERB COMES FROM `typ`, NOT FROM THE TEST'S PROSE NAME.
 			//
 			// It was `strings.SplitN(tc.name, " ", 3)[1]` — the second word of a human-readable
@@ -258,6 +268,7 @@ func TestVerbPayloads(t *testing.T) {
 // spot-check's --ids is a CSV field, so it is ALWAYS present as an array — the
 // same "lineage none, not lineage unknown" rule the mint lists follow.
 func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
+	t.Parallel()
 	t.Run("with ids", func(t *testing.T) {
 		runDir := newRun(t)
 		seedReferents(t, runDir)
@@ -326,6 +337,7 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 // verb twice learned nothing about which sample stood. `events.key` is UNIQUE now, so the second
 // write fails and the seat is told why.
 func TestSpotCheckIsASingleton(t *testing.T) {
+	t.Parallel()
 	runDir := newRun(t)
 	seedReferents(t, runDir)
 	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair", "--ids", "G2",
@@ -353,6 +365,7 @@ func TestSpotCheckIsASingleton(t *testing.T) {
 
 // regrade moves only the grades it carries, and refuses without its basis.
 func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
+	t.Parallel()
 	runDir := newRun(t)
 	// The lens that minted the gap is the one that regrades it — the originator closes.
 	seatID := lensSeat
@@ -398,6 +411,7 @@ func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
 // The prose channel is available on the verbs that declare it, and each fills the field the
 // schema spells for it.
 func TestProseVerbsFillTheirProseField(t *testing.T) {
+	t.Parallel()
 	// THE FIELD, NOT THE FLAG. Every row said `reason` — the word a seat types — while the schema
 	// spells the prose field per verb: a halt stores `opinion`, a certification `statement`, a
 	// revision and a closing `text`. Read against a payload map the wrong name returned "" and the
@@ -415,10 +429,15 @@ func TestProseVerbsFillTheirProseField(t *testing.T) {
 		{"blue", "manifest-row", "blue-lane-1", "row", recordpb.EventType_EVENT_TYPE_MANIFEST_ROW, []string{"--id", "G1"}},
 	}
 	body := "a multi-line payload\nwith unicode — ✓ 日本語\nand <angle> & entities\n"
-	for _, tc := range cases {
+	seeded := newRun(t)
+	seedReferents(t, seeded)
+	restore := snapshotRun(t, seeded)
+	for i, tc := range cases {
 		t.Run(tc.seatID+"/"+tc.verb, func(t *testing.T) {
-			runDir := newRun(t)
-			seedReferents(t, runDir)
+			if i > 0 {
+				restore()
+			}
+			runDir := seeded
 			args := append([]string{tc.verb, "--run", runDir, "--seat-id", tc.seatID,
 				"--reason", body}, tc.extra...)
 			if _, err := run(t, args...); err != nil {
