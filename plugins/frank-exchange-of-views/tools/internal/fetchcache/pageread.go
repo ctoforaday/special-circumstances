@@ -39,7 +39,10 @@ import (
 // blank page) and must never be how a failure arrives. On a binary built without
 // `-tags tessocr` every call fails with the engine-absent error, loudly.
 type PageEngine interface {
-	ReadPage(png []byte) (tessocr.PageResult, error)
+	// ReadPage reads one page rendered at dpi. The resolution is a parameter because a scan is
+	// read at ITS OWN resolution (#1031), so the grid thresholds are derived per page through
+	// tessocr.GridFor rather than assumed to be the 300-DPI tune.
+	ReadPage(png []byte, dpi int) (tessocr.PageResult, error)
 	// Identity keys the reading record — the #636 extractor model. Same identity, same
 	// pixels, same bytes; a reading whose recorded identity matches this engine's is
 	// re-derivable by it.
@@ -61,7 +64,7 @@ type TessocrPageEngine struct {
 
 func (t *TessocrPageEngine) Identity() string { return tessocr.Identity() }
 
-func (t *TessocrPageEngine) ReadPage(png []byte) (tessocr.PageResult, error) {
+func (t *TessocrPageEngine) ReadPage(png []byte, dpi int) (tessocr.PageResult, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.en == nil {
@@ -71,7 +74,7 @@ func (t *TessocrPageEngine) ReadPage(png []byte) (tessocr.PageResult, error) {
 		}
 		t.en = en
 	}
-	res, err := t.en.ReadPage(png, tessocr.Grid300)
+	res, err := t.en.ReadPage(png, tessocr.GridFor(dpi))
 	if err != nil {
 		return tessocr.PageResult{}, engineAbsentLoudly(err)
 	}
@@ -127,6 +130,11 @@ type PageReading struct {
 	// Length is the reading's length in runes — a cheap shape check on a page that came
 	// back far shorter than its neighbours, which is what a truncation looks like.
 	Length int `json:"length"`
+	// DPI is the resolution THIS page was rendered and read at, and part of the re-derivation
+	// key: the grid constants are derived from it (tessocr.GridFor). It sits on the page rather
+	// than on the document because a scan is read at its own resolution (#1031), and a document
+	// that mixes them has no single number that is true of every page.
+	DPI int `json:"dpi"`
 	// Table reports the grid detector fired on this page. Kept even when reconstruction
 	// fell back: a grid that was seen and could not be rebuilt is a different fact from
 	// no grid.
@@ -188,7 +196,7 @@ type pageReceipt struct {
 // projection, used by both read loops, so the two cannot select different fields.
 func (r pageReceipt) pageReading() PageReading {
 	return PageReading{
-		Page: r.Page, TextSha: r.TextSha, Length: r.Length,
+		Page: r.Page, TextSha: r.TextSha, Length: r.Length, DPI: r.DPI,
 		Table: r.Table, RotatedPage: r.RotatedPage, GridIntersections: r.GridIntersections,
 		Reconstruction: r.Reconstruction, ReconstructionFallback: r.ReconstructionFallback,
 		TextCells: r.TextCells, TextCellFallback: r.TextCellFallback,
@@ -259,7 +267,7 @@ func readPageStep(run record.Run, sha string, page int, png []byte, dpi int) (pa
 		return r, string(b), nil
 	}
 
-	res, rerr := DefaultPageEngine.ReadPage(png)
+	res, rerr := DefaultPageEngine.ReadPage(png, dpi)
 	if rerr != nil {
 		// AN ENGINE ERROR IS AN ERROR, NOT AN EMPTY PAGE — including the stub build's
 		// engine-absent refusal, which must reach the operator as a sentence, never as a
@@ -292,6 +300,21 @@ func readPageStep(run record.Run, sha string, page int, png []byte, dpi int) (pa
 		return pageReceipt{}, "", err
 	}
 	return r, norm, nil
+}
+
+// DPIRange is the lowest and highest resolution any page of this reading was read at. Equal values
+// are the ordinary case — a scan is usually uniform — and a spread is the document that mixes,
+// which is the one a summary of a single number used to misreport.
+func (r ReadingRecord) DPIRange() (lo, hi int) {
+	for i, p := range r.Pages {
+		if i == 0 || p.DPI < lo {
+			lo = p.DPI
+		}
+		if p.DPI > hi {
+			hi = p.DPI
+		}
+	}
+	return lo, hi
 }
 
 // TablePages is how many pages of this reading carried a detected grid. Derived from the
@@ -345,12 +368,9 @@ type ReadingRecord struct {
 	// released as they were read and these hashes are the only identity the pixels have.
 	// A re-render at a new DPI makes the reading stale, and this is what lets a reader
 	// notice rather than assume.
-	RenderShas []string `json:"render_shas"`
-	// DPI the images were rendered at — part of the re-derivation key, since the engine's
-	// grid constants are per-DPI facts.
-	DPI     int           `json:"dpi"`
-	Pages   []PageReading `json:"pages"`
-	TextSha string        `json:"text_sha"`
+	RenderShas []string      `json:"render_shas"`
+	Pages      []PageReading `json:"pages"`
+	TextSha    string        `json:"text_sha"`
 }
 
 func readingRecordPath(run record.Run, sha string) string {
@@ -417,18 +437,22 @@ func ReadRenderedPages(run record.Run, sha string, rd RenderRecord) (ReadingReco
 	if rd.Pages() == 0 {
 		return ReadingRecord{}, fmt.Errorf("the render record for %s names no pages", sha)
 	}
-	if rd.DPI != tessocr.RenderDPI {
-		// The grid thresholds and reconstruction constants are per-DPI facts, tuned at
-		// tessocr.RenderDPI; applying them to other pixels would not fail, it would
-		// misdetect quietly — the worse outcome.
-		return ReadingRecord{}, fmt.Errorf("these pages were rendered at %d DPI and the engine's "+
-			"constants are tuned at %d — re-render with `ocr pages --sha %s --dpi %d` and read again",
-			rd.DPI, tessocr.RenderDPI, sha, tessocr.RenderDPI)
+	// THE RESOLUTION IS A BAND, AND IT IS CHECKED PER PAGE (#1031). The grid thresholds are derived
+	// from each page's own DPI (tessocr.GridFor), so pixels at 350 are read with a tune for 350.
+	// What stays refused is a page outside the band the derivation was measured over: below the
+	// floor a page is read small and content is lost, above the ceiling nothing is recovered and a
+	// boundary page was measured flipping to a false table.
+	for i, pr := range rd.Renders {
+		if pr.DPI < DefaultRenderDPI || pr.DPI > MaxRenderDPI {
+			return ReadingRecord{}, fmt.Errorf("page %d was rendered at %d DPI, outside the %d–%d "+
+				"the engine's constants are derived over — re-render with `ocr pages --sha %s` and read again",
+				i+1, pr.DPI, DefaultRenderDPI, MaxRenderDPI, sha)
+		}
 	}
 
 	out := ReadingRecord{
 		Sha: sha, Engine: DefaultPageEngine.Identity(), ReadAt: time.Now().UTC(),
-		RenderShas: rd.PageShas, DPI: rd.DPI,
+		RenderShas: rd.Shas(),
 	}
 	var texts []string
 
@@ -438,7 +462,7 @@ func ReadRenderedPages(run record.Run, sha string, rd RenderRecord) (ReadingReco
 			return ReadingRecord{}, fmt.Errorf("page %d image: %w", i, err)
 		}
 		// The shared per-page step: reuse a matching receipt, keep every error fatal.
-		r, norm, rerr := readPageStep(run, sha, i, png, rd.DPI)
+		r, norm, rerr := readPageStep(run, sha, i, png, rd.Renders[i-1].DPI)
 		if rerr != nil {
 			return ReadingRecord{}, fmt.Errorf("page %d: %w", i, rerr)
 		}

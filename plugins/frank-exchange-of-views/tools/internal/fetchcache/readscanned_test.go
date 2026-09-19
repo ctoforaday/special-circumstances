@@ -45,8 +45,10 @@ func TestReadScannedRendersAndReadsInOneCall(t *testing.T) {
 	if fe.calls != 1 {
 		t.Errorf("engine ran %d times, want 1 — one page, one run", fe.calls)
 	}
-	if rec.DPI != tessocr.RenderDPI {
-		t.Errorf("DPI = %d, want the engine's operative resolution %d", rec.DPI, tessocr.RenderDPI)
+	// The fixture's pages carry no measurable image resolution, so the policy renders them at the
+	// floor — and every page says so on its own row.
+	if lo, hi := rec.DPIRange(); lo != tessocr.RenderDPI || hi != tessocr.RenderDPI {
+		t.Errorf("DPI range = %d-%d, want every page at the floor %d", lo, hi, tessocr.RenderDPI)
 	}
 	if rec.Engine != "fake@test" {
 		t.Errorf("Engine = %q, want the identity of what read it", rec.Engine)

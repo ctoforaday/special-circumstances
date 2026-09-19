@@ -75,23 +75,46 @@ func (RenderAndRead) ReadScanned(ctx context.Context, run record.Run, e Entry) (
 		return ReadingRecord{}, fmt.Errorf("only application/pdf renders to pages, and sha %s is %s",
 			e.Sha, ContentTypeOrUnknown(e.ContentType))
 	}
-	if err := renderWithinDiskBudget(e.Pages, tessocr.RenderDPI); err != nil {
+	// The budget is checked at the FLOOR first, because the document has not been opened yet and a
+	// document over budget at 300 is over budget at any resolution this will choose.
+	if err := renderWithinDiskBudget(e.Pages, DefaultRenderDPI); err != nil {
 		return ReadingRecord{}, err
-	}
-
-	prev, had, err := ReadReadingRecord(run, e.Sha)
-	if err != nil {
-		return ReadingRecord{}, err
-	}
-	if had && prev.DPI == tessocr.RenderDPI && prev.Engine == DefaultPageEngine.Identity() && len(prev.Pages) > 0 {
-		return prev, nil
 	}
 
 	body, rerr := Read(run, e.Sha)
 	if rerr != nil {
 		return ReadingRecord{}, fmt.Errorf("the index names sha %s but its content file is unreadable: %w", e.Sha, rerr)
 	}
-	return renderAndReadPages(run, e.Sha, body)
+	natives, nerr := NativeDPIs(run, body)
+	if nerr != nil {
+		return ReadingRecord{}, nerr
+	}
+	dpis := make([]int, len(natives))
+	for i, n := range natives {
+		dpis[i] = RenderDPIFor(n)
+	}
+
+	prev, had, err := ReadReadingRecord(run, e.Sha)
+	if err != nil {
+		return ReadingRecord{}, err
+	}
+	// A STORED READING SERVES ONLY IF EVERY PAGE WAS READ AT THE RESOLUTION IT WOULD BE READ AT
+	// NOW. The resolution used to be one constant, so the check was an equality against it; it is
+	// each page's own, so the comparison is page by page and a reading made before this policy is
+	// stale by exactly the fact each row records.
+	if had && prev.Engine == DefaultPageEngine.Identity() && len(prev.Pages) == len(dpis) && len(prev.Pages) > 0 {
+		same := true
+		for i, p := range prev.Pages {
+			if p.DPI != dpis[i] {
+				same = false
+				break
+			}
+		}
+		if same {
+			return prev, nil
+		}
+	}
+	return renderAndReadPages(run, e.Sha, body, dpis)
 }
 
 // renderAndReadPages is the fused loop: one page rasterised, read, and released at a time.
@@ -113,11 +136,10 @@ func (RenderAndRead) ReadScanned(ctx context.Context, run record.Run, e Entry) (
 // The per-page texts and receipts are written as the loop runs and the record LAST, so a
 // crash leaves rows with no record — which reads as "not read", and the re-read validates
 // page by page instead of deriving again.
-func renderAndReadPages(run record.Run, sha string, body []byte) (ReadingRecord, error) {
-	// The resolution is the engine's own constant, not a parameter: the grid and
-	// reconstruction thresholds are per-DPI facts, and a caller-supplied DPI here would be
-	// an invitation to apply them to pixels they were not tuned for.
-	const dpi = tessocr.RenderDPI
+// dpis is one resolution per page, derived by the caller from the scan itself (RenderDPIFor over
+// NativeDPIs). A parameter rather than a constant because a page's resolution is a fact about that
+// PAGE, not about the engine — and the thresholds follow it through tessocr.GridFor.
+func renderAndReadPages(run record.Run, sha string, body []byte, dpis []int) (ReadingRecord, error) {
 
 	dir := PagesDir(run, sha)
 	if err := os.Remove(OCRTextPath(run, sha)); err != nil && !os.IsNotExist(err) {
@@ -156,14 +178,27 @@ func renderAndReadPages(run record.Run, sha string, body []byte) (ReadingRecord,
 	if pc.PageCount == 0 {
 		return ReadingRecord{}, fmt.Errorf("the document reports zero pages, so there is nothing to read")
 	}
-	if err := renderWithinDiskBudget(pc.PageCount, dpi); err != nil {
+	if len(dpis) != pc.PageCount {
+		return ReadingRecord{}, fmt.Errorf("the document has %d pages and %d resolutions were derived "+
+			"for it — the per-page policy cannot be applied to a page it has no measurement for",
+			pc.PageCount, len(dpis))
+	}
+	// THE BUDGET IS CHECKED AT THE HIGHEST RESOLUTION ANY PAGE WILL USE. Pages differ now, and a
+	// budget taken at the lowest would let a document through and then render a finer page past it.
+	worst := DefaultRenderDPI
+	for _, d := range dpis {
+		if d > worst {
+			worst = d
+		}
+	}
+	if err := renderWithinDiskBudget(pc.PageCount, worst); err != nil {
 		return ReadingRecord{}, err
 	}
 
-	out := ReadingRecord{Sha: sha, Engine: DefaultPageEngine.Identity(), ReadAt: time.Now().UTC(), DPI: dpi}
+	out := ReadingRecord{Sha: sha, Engine: DefaultPageEngine.Identity(), ReadAt: time.Now().UTC()}
 	var texts []string
 	for i := 0; i < pc.PageCount; i++ {
-		png, rerr := renderPagePNG(inst, doc.Document, i, dpi)
+		png, rerr := renderPagePNG(inst, doc.Document, i, dpis[i])
 		if rerr != nil {
 			// NAMED AND FATAL, exactly as in RenderPages: a page silently skipped would leave the
 			// assembled text a document with a hole nothing downstream could see.
@@ -172,7 +207,7 @@ func renderAndReadPages(run record.Run, sha string, body []byte) (ReadingRecord,
 		out.RenderShas = append(out.RenderShas, Sha(png))
 
 		// The shared per-page step: reuse a matching receipt, keep every error fatal.
-		r, norm, rerr := readPageStep(run, sha, i+1, png, dpi)
+		r, norm, rerr := readPageStep(run, sha, i+1, png, dpis[i])
 		if rerr != nil {
 			return ReadingRecord{}, fmt.Errorf("page %d: %w", i+1, rerr)
 		}

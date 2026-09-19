@@ -162,7 +162,49 @@ type GridThresholds struct {
 // does not either). It is pinned in the tests as FIRES-AND-DEGRADES-HONESTLY: the failure
 // direction is over-detection, which downstream degrades to plain text with the failure
 // stated on the record — never a fabricated grid.
-var Grid300 = GridThresholds{SEL: 151, MinHPix: 15000, MinVPix: 4500, MinIntersections: 100}
+// The tune in PHYSICAL units, which is what these numbers always were (#1031). Each constant is
+// one of three kinds, and they scale differently — folding them into one ratio is the mistake this
+// derivation exists to prevent:
+//
+//   - a LENGTH scales with DPI. SEL is half an inch of unbroken straight run.
+//   - an AREA-like pixel COUNT scales with DPI SQUARED: it counts the pixels of a shape whose
+//     physical size is fixed.
+//   - a count of THINGS (words, columns, rows) scales with neither, and none of those are here.
+//
+// Stated as fractions of the 300-DPI tune so GridFor(300) reproduces it exactly rather than
+// approximately: 151 px at 300 DPI IS the measurement, and 0.503 in is the rounding of it.
+const (
+	tuneDPI = 300 // the resolution every one of these was measured at
+
+	ruleRunInches      = 151.0 / tuneDPI // SEL
+	minHSquareInches   = 15000.0 / (tuneDPI * tuneDPI)
+	minVSquareInches   = 4500.0 / (tuneDPI * tuneDPI)
+	minCrossSquareInch = 100.0 / (tuneDPI * tuneDPI)
+)
+
+// GridFor derives the detector's thresholds for a render at dpi.
+//
+// MEASURED 2026-09-19, and the result is why the reader still renders at 300 (#1031). With these
+// constants scaled, the detector's verdict is stable across 300/400/600 on all 8 corpus pages and
+// on 5 of 6 tuning-document pages — against the collapse the same pages showed when the constants
+// were left at their 300-DPI values, which is the "unscaled math" this derivation removes.
+//
+// What did NOT follow is the reason for wanting higher DPI in the first place. Recognition does not
+// improve with resolution: 830 words at 300 DPI over the corpus, 816 at 400, 800 at 600; 1459,
+// 1464, 1438 over the tuning-document sample. And at 600 the corpus's closest clean rejection
+// (p0071, which fails only the h axis at 300) flips to TABLE — upscaling buys a false positive.
+func GridFor(dpi int) GridThresholds {
+	px := func(inches float64) int { return int(inches*float64(dpi) + 0.5) }
+	sq := func(squareInches float64) int { return int(squareInches*float64(dpi)*float64(dpi) + 0.5) }
+	return GridThresholds{
+		SEL:              px(ruleRunInches),
+		MinHPix:          sq(minHSquareInches),
+		MinVPix:          sq(minVSquareInches),
+		MinIntersections: sq(minCrossSquareInch),
+	}
+}
+
+var Grid300 = GridFor(tuneDPI)
 
 // Table reports whether the measured stats clear every threshold.
 func (t GridThresholds) Table(s GridStats) bool {
