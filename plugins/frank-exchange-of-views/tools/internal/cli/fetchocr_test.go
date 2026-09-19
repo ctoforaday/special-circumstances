@@ -35,8 +35,12 @@ func (s *stubScanReader) ReadScanned(_ context.Context, _ record.Run, e fetchcac
 	if r.Engine == "" {
 		r.Engine = "fake@test"
 	}
-	if r.DPI == 0 {
-		r.DPI = tessocr.RenderDPI
+	// Every page row carries its own resolution now, so a fake reading fills in the floor where a
+	// test did not care to state one.
+	for i := range r.Pages {
+		if r.Pages[i].DPI == 0 {
+			r.Pages[i].DPI = tessocr.RenderDPI
+		}
 	}
 	return r, nil
 }

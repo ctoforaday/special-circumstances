@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/klippa-app/go-pdfium"
+	"github.com/klippa-app/go-pdfium/enums"
 	"github.com/klippa-app/go-pdfium/references"
 	"github.com/klippa-app/go-pdfium/requests"
 
@@ -40,10 +41,98 @@ import (
 // recovery, where 200 loses half the grid (plans/local-ocr.md; the measured cost is
 // prose WER 0.40%→0.80%, ruled acceptable there).
 const (
-	MinRenderDPI     = 72
-	MaxRenderDPI     = 400
+	MinRenderDPI = 72
+	// MaxRenderDPI is also the cap on following a scan's own resolution (RenderDPIFor): past it a
+	// long document renders to gigabytes for nothing, and rendering ABOVE a scan's native
+	// resolution was measured to gain no text and to cost a false table on a boundary page (#1031).
+	MaxRenderDPI     = 600
 	DefaultRenderDPI = tessocr.RenderDPI
 )
+
+// RenderDPIFor is the resolution to render a scan at, given the resolution its own images carry.
+//
+// MEASURED (#1031), three regimes, and the reader was on the wrong side of two of them:
+//
+//   - BELOW 300 the page is read small and content is lost: a 150-DPI page recovered 2 of 4 printed
+//     strings, and at 300 it recovered 4 of 4 and its table verdict with them. So a low-resolution
+//     scan is rendered UP to the floor.
+//   - AT the scan's own resolution nothing is resampled and nothing is thrown away. Rendering the
+//     corpus at native instead of 300 took its expect-failures from 13 to 10, recovering a contents
+//     page's page numbers and a cover's publisher line — content a fixed 300 was destroying, since
+//     these scans are natively 350 and 501.
+//   - ABOVE native there is nothing to recover: 400 and 600 renders read flat to worse, and at 600
+//     the tuning document's closest clean rejection flipped to a false table.
+//
+// So: the scan's own resolution, floored at the engine's comfort zone and capped for memory.
+func RenderDPIFor(nativeDPI int) int {
+	switch {
+	case nativeDPI < DefaultRenderDPI:
+		return DefaultRenderDPI
+	case nativeDPI > MaxRenderDPI:
+		return MaxRenderDPI
+	default:
+		return nativeDPI
+	}
+}
+
+// NativeDPIs is the resolution each page carries: for every page, the highest resolution of any
+// image on it, in page order.
+//
+// PER PAGE, NOT PER DOCUMENT. A first cut took the median across pages on the grounds that real
+// scans are uniform — and they mostly are, SP 602 running 350-351 over 60 pages — but a median is a
+// statistic about a document, and the resolution is a fact about a PAGE. A document that mixes (a
+// fold-out plate scanned finer, an inserted exhibit scanned coarser) is exactly the case where the
+// summary is wrong, and it is wrong silently: every page but one renders at a resolution none of
+// them has.
+//
+// Zero for a page means it carries no image to measure — a born-digital page, or one drawn rather
+// than scanned. The caller renders that page at the floor.
+func NativeDPIs(run record.Run, body []byte) ([]int, error) {
+	inst, closer, err := pdfiumInstance(Dir(run))
+	if err != nil {
+		return nil, err
+	}
+	defer closer()
+	doc, err := inst.OpenDocument(&requests.OpenDocument{File: &body})
+	if err != nil {
+		return nil, fmt.Errorf("pdf could not be opened: %w", err)
+	}
+	defer inst.FPDF_CloseDocument(&requests.FPDF_CloseDocument{Document: doc.Document})
+	pc, err := inst.FPDF_GetPageCount(&requests.FPDF_GetPageCount{Document: doc.Document})
+	if err != nil {
+		return nil, fmt.Errorf("pdf page count unavailable: %w", err)
+	}
+	perPage := make([]int, 0, pc.PageCount)
+	for i := 0; i < pc.PageCount; i++ {
+		page := requests.Page{ByIndex: &requests.PageByIndex{Document: doc.Document, Index: i}}
+		n, cerr := inst.FPDFPage_CountObjects(&requests.FPDFPage_CountObjects{Page: page})
+		if cerr != nil {
+			return nil, fmt.Errorf("page %d: %w", i+1, cerr)
+		}
+		best := 0
+		for j := 0; j < n.Count; j++ {
+			o, gerr := inst.FPDFPage_GetObject(&requests.FPDFPage_GetObject{Page: page, Index: j})
+			if gerr != nil {
+				return nil, fmt.Errorf("page %d object %d: %w", i+1, j, gerr)
+			}
+			ty, terr := inst.FPDFPageObj_GetType(&requests.FPDFPageObj_GetType{PageObject: o.PageObject})
+			if terr != nil || ty.Type != enums.FPDF_PAGEOBJ_IMAGE {
+				continue
+			}
+			md, merr := inst.FPDFImageObj_GetImageMetadata(&requests.FPDFImageObj_GetImageMetadata{
+				ImageObject: o.PageObject, Page: page,
+			})
+			if merr != nil {
+				continue
+			}
+			if d := int(md.ImageMetadata.HorizontalDPI + 0.5); d > best {
+				best = d
+			}
+		}
+		perPage = append(perPage, best)
+	}
+	return perPage, nil
+}
 
 // RenderRecord is what a render leaves behind: one JSON document per source document,
 // written beside the images it describes.
@@ -62,14 +151,14 @@ const (
 type RenderRecord struct {
 	// Sha is the SOURCE document's hash — the thing rendered, not the rendering.
 	Sha string `json:"sha"`
-	// DPI is the resolution these images were rendered at. RECORDED BECAUSE IT DECIDES
-	// LEGIBILITY: without it, a reader who gets a poor reading back cannot tell a bad model
-	// from a page rendered too small to read.
-	DPI int `json:"dpi"`
-	// PageShas is one sha256 per page image, in page order. Its LENGTH is the rendered page
-	// count — a separate count field would be a second copy of the same fact, free to
-	// disagree with the slice beside it.
-	PageShas []string `json:"page_shas"`
+	// Renders is one row per page image, in page order, each carrying the resolution THAT PAGE
+	// was rendered at. Its LENGTH is the rendered page count — a separate count field would be a
+	// second copy of the same fact, free to disagree with the slice beside it.
+	//
+	// PER PAGE BECAUSE THE RESOLUTION IS A FACT ABOUT A PAGE (#1031): a scan is rendered at its
+	// own resolution, and a document that mixes them has no single number to record. A document
+	// field here would be that number, wrong for every page but one, and silent about it.
+	Renders []PageRender `json:"renders"`
 	// RenderedAt is when, so a render predating a change to this code is identifiable.
 	RenderedAt time.Time `json:"rendered_at"`
 	// Renderer is library@semver, the same identity key #636 chose for extraction and for
@@ -77,9 +166,40 @@ type RenderRecord struct {
 	Renderer string `json:"renderer"`
 }
 
+// PageRender is one rendered page: what it hashes to, and the resolution it was drawn at.
+//
+// RECORDED BECAUSE IT DECIDES LEGIBILITY: without it, a reader who gets a poor reading back cannot
+// tell a bad engine from a page rendered too small to read.
+type PageRender struct {
+	Sha string `json:"sha"`
+	DPI int    `json:"dpi"`
+}
+
 // Pages is the rendered page count. It is derived from the slice rather than stored, so the
 // two cannot drift.
-func (r RenderRecord) Pages() int { return len(r.PageShas) }
+func (r RenderRecord) Pages() int { return len(r.Renders) }
+
+// DPIRange is the lowest and highest resolution any page here was rendered at.
+func (r RenderRecord) DPIRange() (lo, hi int) {
+	for i, p := range r.Renders {
+		if i == 0 || p.DPI < lo {
+			lo = p.DPI
+		}
+		if p.DPI > hi {
+			hi = p.DPI
+		}
+	}
+	return lo, hi
+}
+
+// Shas is the page hashes in page order, for readers that only need identity.
+func (r RenderRecord) Shas() []string {
+	out := make([]string, len(r.Renders))
+	for i, p := range r.Renders {
+		out[i] = p.Sha
+	}
+	return out
+}
 
 // PagesDir holds one document's page images: <run>/cache/<sha>.pages/.
 //
@@ -201,7 +321,7 @@ func RenderPages(run record.Run, sha string, body []byte, dpi int) (RenderRecord
 		return RenderRecord{}, err
 	}
 
-	shas := make([]string, 0, pc.PageCount)
+	renders := make([]PageRender, 0, pc.PageCount)
 	for i := 0; i < pc.PageCount; i++ {
 		b, rerr := renderPagePNG(inst, doc.Document, i, dpi)
 		if rerr != nil {
@@ -213,13 +333,12 @@ func RenderPages(run record.Run, sha string, body []byte, dpi int) (RenderRecord
 		if err := writeAtomic(PagePath(run, sha, i+1), b); err != nil {
 			return RenderRecord{}, err
 		}
-		shas = append(shas, Sha(b))
+		renders = append(renders, PageRender{Sha: Sha(b), DPI: dpi})
 	}
 
 	rec := RenderRecord{
 		Sha:        sha,
-		DPI:        dpi,
-		PageShas:   shas,
+		Renders:    renders,
 		RenderedAt: time.Now().UTC(),
 		Renderer:   extractorIdentity(),
 	}

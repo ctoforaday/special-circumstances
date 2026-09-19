@@ -20,10 +20,14 @@ import (
 // path. `pages` is the rendered count and it is the LENGTH of the record's hash list, so the
 // count and the images cannot disagree.
 type ocrSummary struct {
-	Sha       string `json:"sha"`
-	PagesDir  string `json:"pages_dir"`
-	Pages     int    `json:"pages"`
-	DPI       int    `json:"dpi"`
+	Sha      string `json:"sha"`
+	PagesDir string `json:"pages_dir"`
+	Pages    int    `json:"pages"`
+	// DPILow and DPIHigh are the resolutions the pages were rendered at. Two fields rather than
+	// one because a scan is rendered at its OWN resolution (#1031) and a document that mixes has
+	// no single number; equal values are the ordinary case.
+	DPILow    int    `json:"dpi_low"`
+	DPIHigh   int    `json:"dpi_high"`
 	Renderer  string `json:"renderer"`
 	FirstPage string `json:"first_page"`
 	LastPage  string `json:"last_page"`
@@ -42,7 +46,7 @@ func (s ocrSummary) render() string {
 	line("sha", s.Sha)
 	line("pages_dir", s.PagesDir)
 	line("pages", fmt.Sprint(s.Pages))
-	line("dpi", fmt.Sprint(s.DPI))
+	line("dpi", dpiSpan(s.DPILow, s.DPIHigh))
 	line("renderer", s.Renderer)
 	line("first_page", s.FirstPage)
 	line("last_page", s.LastPage)
@@ -129,7 +133,8 @@ func newOCRPages() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			reused := have && rec.DPI == dpi && rec.Pages() > 0
+			lo, hi := rec.DPIRange()
+			reused := have && rec.Pages() > 0 && lo == dpi && hi == dpi
 			if !reused {
 				body, rerr := fetchcache.Read(run, sha)
 				if rerr != nil {
@@ -144,7 +149,8 @@ func newOCRPages() *cobra.Command {
 				Sha:       rec.Sha,
 				PagesDir:  fetchcache.PagesDir(run, sha),
 				Pages:     rec.Pages(),
-				DPI:       rec.DPI,
+				DPILow:    firstOf(rec.DPIRange()),
+				DPIHigh:   secondOf(rec.DPIRange()),
 				Renderer:  rec.Renderer,
 				FirstPage: fetchcache.PagePath(run, sha, 1),
 				LastPage:  fetchcache.PagePath(run, sha, rec.Pages()),
@@ -176,7 +182,8 @@ type ocrReadSummary struct {
 	Sha      string `json:"sha"`
 	Engine   string `json:"engine"`
 	Pages    int    `json:"pages"`
-	DPI      int    `json:"dpi"`
+	DPILow   int    `json:"dpi_low"`
+	DPIHigh  int    `json:"dpi_high"`
 	TextPath string `json:"text_path"`
 	TextSha  string `json:"text_sha"`
 	// OCRDerived is always true here and is printed anyway. It is the field that keeps text a
@@ -201,7 +208,7 @@ func (s ocrReadSummary) render() string {
 	line("sha", s.Sha)
 	line("engine", s.Engine)
 	line("pages", fmt.Sprint(s.Pages))
-	line("dpi", fmt.Sprint(s.DPI))
+	line("dpi", dpiSpan(s.DPILow, s.DPIHigh))
 	line("text_path", s.TextPath)
 	line("text_sha", s.TextSha)
 	line("ocr_derived", "true")
@@ -257,7 +264,7 @@ func newOCRRead() *cobra.Command {
 			// silently replacing a record a seat may already have cited from is not a thing to
 			// do as a side effect of re-running a verb — --force is the deliberate lever.
 			if prev, had, rerr := fetchcache.ReadReadingRecord(run, sha); rerr == nil && had && !force {
-				if fetchcache.SameRenders(prev.RenderShas, rd.PageShas) {
+				if fetchcache.SameRenders(prev.RenderShas, rd.Shas()) {
 					return printOCRRead(cmd, readSummaryOf(run, sha, prev, true))
 				}
 			}
@@ -286,7 +293,8 @@ func newOCRRead() *cobra.Command {
 
 func readSummaryOf(run record.Run, sha string, r fetchcache.ReadingRecord, reused bool) ocrReadSummary {
 	return ocrReadSummary{
-		Sha: r.Sha, Engine: r.Engine, Pages: len(r.Pages), DPI: r.DPI,
+		Sha: r.Sha, Engine: r.Engine, Pages: len(r.Pages),
+		DPILow: firstOf(r.DPIRange()), DPIHigh: secondOf(r.DPIRange()),
 		TextPath: fetchcache.OCRTextPath(run, sha), TextSha: r.TextSha,
 		OCRDerived: true, TablePages: r.TablePages(), Reused: reused,
 	}
@@ -304,3 +312,16 @@ func printOCRRead(cmd *cobra.Command, s ocrReadSummary) error {
 	fmt.Fprint(cmd.OutOrStdout(), s.render())
 	return nil
 }
+
+// dpiSpan prints one resolution when every page shares it and a range when they do not — a scan is
+// read at its own resolution, so a document that mixes says so rather than naming one of them.
+func dpiSpan(lo, hi int) string {
+	if lo == hi {
+		return fmt.Sprint(lo)
+	}
+	return fmt.Sprintf("%d-%d", lo, hi)
+}
+
+// firstOf and secondOf let a two-value range be used in a struct literal without a temporary.
+func firstOf(a, _ int) int  { return a }
+func secondOf(_, b int) int { return b }

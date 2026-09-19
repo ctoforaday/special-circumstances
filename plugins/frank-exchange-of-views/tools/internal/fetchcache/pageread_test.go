@@ -35,7 +35,7 @@ func (f *fakeEngine) Identity() string {
 	return f.id
 }
 
-func (f *fakeEngine) ReadPage(_ []byte) (tessocr.PageResult, error) {
+func (f *fakeEngine) ReadPage(_ []byte, _ int) (tessocr.PageResult, error) {
 	f.calls++
 	return f.perCall(f.calls)
 }
@@ -66,12 +66,12 @@ func fakeRender(t *testing.T, run record.Run, sha string, pages [][]byte, dpi in
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	rec := RenderRecord{Sha: sha, DPI: dpi, RenderedAt: time.Now().UTC(), Renderer: "test"}
+	rec := RenderRecord{Sha: sha, RenderedAt: time.Now().UTC(), Renderer: "test"}
 	for i, b := range pages {
 		if err := os.WriteFile(PagePath(run, sha, i+1), b, 0o644); err != nil {
 			t.Fatal(err)
 		}
-		rec.PageShas = append(rec.PageShas, Sha(b))
+		rec.Renders = append(rec.Renders, PageRender{Sha: Sha(b), DPI: dpi})
 	}
 	b, err := json.MarshalIndent(rec, "", "  ")
 	if err != nil {
@@ -119,10 +119,12 @@ func TestAPageIsReadOnceAndTheRecordKeysTheEngine(t *testing.T) {
 	}
 
 	// THE RE-DERIVATION KEY: engine identity, DPI, and the exact images read.
-	if got.Engine != "fake@test" || got.ReadAt.IsZero() || got.DPI != rd.DPI {
-		t.Errorf("re-derivation key incomplete: engine=%q readAt=%v dpi=%d", got.Engine, got.ReadAt, got.DPI)
+	gotLo, gotHi := got.DPIRange()
+	wantLo, wantHi := rd.DPIRange()
+	if got.Engine != "fake@test" || got.ReadAt.IsZero() || gotLo != wantLo || gotHi != wantHi {
+		t.Errorf("re-derivation key incomplete: engine=%q readAt=%v dpi=%d-%d", got.Engine, got.ReadAt, gotLo, gotHi)
 	}
-	if len(got.RenderShas) != 1 || got.RenderShas[0] != rd.PageShas[0] {
+	if len(got.RenderShas) != 1 || got.RenderShas[0] != rd.Renders[0].Sha {
 		t.Error("the reading does not name the exact images it read — a re-render would go unnoticed")
 	}
 
@@ -250,9 +252,12 @@ func TestReadingRefusesARenderAtAnotherResolution(t *testing.T) {
 
 	_, err := ReadRenderedPages(run, sha, rd)
 	if err == nil {
-		t.Fatal("a 200-DPI render was read with 300-DPI constants")
+		t.Fatal("a 200-DPI render was read, and 200 is below the band the constants are derived over")
 	}
-	for _, want := range []string{"tuned", "re-render", "300"} {
+	// The refusal names the render's resolution, the band, and the way out. The BAND rather than one
+	// number since #1031: a scan is read at its own resolution, and what stays refused is a render
+	// outside the range that derivation was measured over.
+	for _, want := range []string{"200", "300", "600", "derived over", "re-render"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal = %q, want it to mention %q", err, want)
 		}

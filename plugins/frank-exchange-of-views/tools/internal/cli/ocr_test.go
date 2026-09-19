@@ -186,7 +186,7 @@ type stubCLIEngine struct {
 
 func (s *stubCLIEngine) Identity() string { return "fake@test" }
 
-func (s *stubCLIEngine) ReadPage(_ []byte) (tessocr.PageResult, error) {
+func (s *stubCLIEngine) ReadPage(_ []byte, _ int) (tessocr.PageResult, error) {
 	s.n++
 	t, err := s.perCall(s.n)
 	return tessocr.PageResult{Text: t}, err
@@ -254,9 +254,9 @@ func TestOCRReadRefusesARenderAtAnotherResolution(t *testing.T) {
 
 	_, err := run(t, "ocr", "read", "--seat-id", "operator", "--sha", sha, "--run", dir)
 	if err == nil {
-		t.Fatal("a 72-DPI render was read with the 300-DPI tune")
+		t.Fatal("a 72-DPI render was read, and 72 is below the band the constants are derived over")
 	}
-	for _, want := range []string{"tuned", "re-render"} {
+	for _, want := range []string{"72", "derived over", "re-render"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal = %q, want it to mention %q", err, want)
 		}
@@ -295,11 +295,11 @@ func TestOCRReadReusesAnExistingReadingOfTheSameImages(t *testing.T) {
 // path, where a stored record's grid pages must still reach a summary-only reader — and
 // omits it when prose-only, which is what keeps the assertions above true.
 func TestOCRReadSummaryCountsTablePages(t *testing.T) {
-	tabled := ocrReadSummary{Sha: "s", Engine: "e", Pages: 3, DPI: 300, TextPath: "p", TextSha: "t", OCRDerived: true, TablePages: 2}
+	tabled := ocrReadSummary{Sha: "s", Engine: "e", Pages: 3, DPILow: 300, DPIHigh: 300, TextPath: "p", TextSha: "t", OCRDerived: true, TablePages: 2}
 	if out := tabled.render(); !strings.Contains(out, "table_pages: 2") {
 		t.Errorf("render does not count the table pages:\n%s", out)
 	}
-	clean := ocrReadSummary{Sha: "s", Engine: "e", Pages: 3, DPI: 300, TextPath: "p", TextSha: "t", OCRDerived: true}
+	clean := ocrReadSummary{Sha: "s", Engine: "e", Pages: 3, DPILow: 300, DPIHigh: 300, TextPath: "p", TextSha: "t", OCRDerived: true}
 	if out := clean.render(); strings.Contains(out, "table_pages") {
 		t.Errorf("a prose-only render printed a table count:\n%s", out)
 	}

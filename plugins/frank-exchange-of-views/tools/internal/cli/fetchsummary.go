@@ -79,7 +79,8 @@ type fetchSummary struct {
 	// A table page in neither count fell back to plain text, and the reading record says why.
 	TextCellPages int    `json:"text_cell_pages,omitempty"`
 	Engine        string `json:"engine,omitempty"`
-	DPI           int    `json:"dpi,omitempty"`
+	DPILow        int    `json:"dpi_low,omitempty"`
+	DPIHigh       int    `json:"dpi_high,omitempty"`
 }
 
 // applyReading folds the engine's reading of the page images into the summary.
@@ -104,7 +105,7 @@ func (s *fetchSummary) applyReading(run record.Run, r fetchcache.ReadingRecord) 
 	// the extractor's id it names a producer an audit CAN re-run for the same bytes.
 	s.Extractor = ""
 	s.Engine = r.Engine
-	s.DPI = r.DPI
+	s.DPILow, s.DPIHigh = r.DPIRange()
 	s.TablePages = r.TablePages()
 	s.TextCellPages = r.TextCellPages()
 }
@@ -244,7 +245,7 @@ func (s fetchSummary) render() string {
 	line("ocr_reason", s.OCRReason)
 	if s.OCRDerived {
 		line("engine", s.Engine)
-		line("dpi", fmt.Sprint(s.DPI))
+		line("dpi", dpiSpan(s.DPILow, s.DPIHigh))
 	}
 	return b.String()
 }
