@@ -266,6 +266,7 @@ const (
 	MaxSittingCalls     = "max-sitting-calls"
 	MaxEpochs           = "max-epochs"
 	LensArea            = "lens-area"
+	LensAreaReason      = "lens-area-reason"
 	BinDir              = "bin-dir"
 	MemoryDir           = "memory-dir"
 	RunID               = "run-id"
@@ -322,7 +323,7 @@ func All() []string {
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Settled, ReopensOn, Final,
 		Method, AccessDate,
-		Topic, Model, JudgmentModel, Cite, Lanes, K, KMax, MintBudget, ConvergenceFraction, MaxSittingCalls, MaxEpochs, LensArea, BinDir, MemoryDir, RunID, ScriptPath, AllowSubstitution,
+		Topic, Model, JudgmentModel, Cite, Lanes, K, KMax, MintBudget, ConvergenceFraction, MaxSittingCalls, MaxEpochs, LensArea, LensAreaReason, BinDir, MemoryDir, RunID, ScriptPath, AllowSubstitution,
 		Card, Watch, Now, Serve,
 		MigrateFrom, MigrateTo, AcceptLoss,
 		Sha, DPI, Force, OCR,
@@ -346,7 +347,7 @@ var closedForm = map[string]bool{
 	Run: true, SeatID: true, ID: true, Key: true, Corrects: true, Class: true, Neighbor: true, Anchor: true,
 	Format: true, URL: true, At: true, Via: true, Script: true, VerifiedBy: true,
 	VerifiedAgainst: true, CarriedFrom: true, Sitting: true, Trajectory: true, Sha: true,
-	Model: true, JudgmentModel: true, Cite: true, Lanes: true, LensArea: true,
+	Model: true, JudgmentModel: true, Cite: true, Lanes: true, LensArea: true, LensAreaReason: true,
 	BinDir: true, MemoryDir: true, RunID: true, ScriptPath: true, MigrateFrom: true, MigrateTo: true,
 	AcceptLoss: true, Card: true,
 }

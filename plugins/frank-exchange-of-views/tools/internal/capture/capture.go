@@ -22,6 +22,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -2304,8 +2305,13 @@ type CorpusFile struct {
 // one saying nothing was staged.
 func corpusDigest(runDir string) ([]CorpusFile, error) {
 	var out []CorpusFile
+	// THE RECORDED PATH IS RECORD CONTENT, NOT A FILESYSTEM PATH, so it is written with forward
+	// slashes on every platform. filepath.Join gives `inputs\\law\\precedents.md` on Windows, and a
+	// digest whose keys change shape with the OS cannot be compared across the machines that read
+	// an archive — the run that wrote it and the audit that re-reads it are rarely the same box.
+	// Caught by Windows CI, which is the only place the two forms differ.
 	add := func(rel string) {
-		p := filepath.Join(runDir, rel)
+		p := filepath.Join(runDir, filepath.FromSlash(rel))
 		st, err := os.Stat(p)
 		if err != nil || st.IsDir() {
 			return
@@ -2315,7 +2321,7 @@ func corpusDigest(runDir string) ([]CorpusFile, error) {
 			return
 		}
 		sum := sha256.Sum256(b)
-		out = append(out, CorpusFile{Path: rel, SHA256: hex.EncodeToString(sum[:]), Bytes: st.Size()})
+		out = append(out, CorpusFile{Path: filepath.ToSlash(rel), SHA256: hex.EncodeToString(sum[:]), Bytes: st.Size()})
 	}
 	// NO GAP-PATTERN CORPUS TO HASH. setup no longer stages inputs/red-gap-patterns.md — the
 	// by-class index replaced it, and the skill had already recorded that staging the whole corpus
@@ -2324,7 +2330,7 @@ func corpusDigest(runDir string) ([]CorpusFile, error) {
 	if entries, err := os.ReadDir(lawDir); err == nil {
 		for _, e := range entries {
 			if !e.IsDir() {
-				add(filepath.Join("inputs", "law", e.Name()))
+				add(path.Join("inputs", "law", e.Name()))
 			}
 		}
 	}

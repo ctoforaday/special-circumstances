@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -38,6 +39,10 @@ type Config struct {
 	// operator passed it, and a value the operator passed below 1 is refused.
 	MaxEpochs    int
 	MaxEpochsSet bool
+	// LensAreaReason is why this run narrows the cast. Required when LensAreas drops an area and
+	// empty otherwise; recorded in run-config.json beside the other terms, so a reader of an
+	// archived run can see what the narrowing was for without the launcher that made it.
+	LensAreaReason string
 	// LensAreas are the red lens areas this run dispatches; empty means record.DefaultCastAreas.
 	// They go on the record as the CAST (plans/roundless.md §III.B.1), which register and the
 	// dispatch verb check every seat against.
@@ -104,6 +109,41 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	// run at its first chair sitting with nothing audited, and record.RunParams refuses to read it.
 	if cfg.MaxEpochs < 0 || (cfg.MaxEpochsSet && cfg.MaxEpochs < 1) {
 		fmt.Fprintf(stderr, "run-setup: --max-epochs %d refused — the run's epoch limit is 1 or more (default %d); refusing to create the run\n", cfg.MaxEpochs, record.DefaultParams.MaxEpochs)
+		return 2
+	}
+
+	// NARROWING THE CAST IS A DECISION, AND A DECISION NOBODY WROTE DOWN IS ONE NOBODY MADE.
+	//
+	// `--lens-area` drops audit DIMENSIONS, and the skill has always said to narrow "only with a
+	// reason" — advice the tool did not hold anyone to. Measured across the nine archived
+	// is-91-prime runs: every one was narrowed to evidence, logic and voice, all seven lens agents
+	// having existed since 2026-09-08, and no run states why. Five shipped VERIFIED. The cost is
+	// legible in the output — of 34 gaps minted across those runs, exactly ONE is a defect in the
+	// mathematics, on nine runs whose entire subject is an arithmetic claim, and the LOGIC lens
+	// found it because `computation` was never in the room.
+	//
+	// The reason is required only when the cast is actually narrowed: a full cast needs no
+	// justification, and demanding one for the default would teach the operator to type a word to
+	// get past a prompt. It joins the run's other TERMS in run-config.json rather than the event
+	// record — the terms are config, they are archived with the run, and this needs no epoch bump
+	// to carry a fact that is settled before any seat registers.
+	if len(cfg.LensAreas) > 0 && len(cfg.LensAreas) < len(record.DefaultCastAreas) && strings.TrimSpace(cfg.LensAreaReason) == "" {
+		seated := append([]string{}, cfg.LensAreas...)
+		sort.Strings(seated)
+		dropped := []string{}
+		for _, a := range record.DefaultCastAreas {
+			if !slices.Contains(seated, a) {
+				dropped = append(dropped, a)
+			}
+		}
+		fmt.Fprintf(stderr, "run-setup: this cast seats %d of %d lens areas and gives no reason — refusing to create the run\n", len(seated), len(record.DefaultCastAreas))
+		fmt.Fprintf(stderr, "  seating: %s\n", strings.Join(seated, ", "))
+		fmt.Fprintf(stderr, "  dropping: %s\n", strings.Join(dropped, ", "))
+		fmt.Fprintln(stderr, "  A dropped area is an audit dimension nobody performs, and the terminal verdict then states")
+		fmt.Fprintln(stderr, "  that it was never performed rather than that it was clear. Name what the TOPIC does not need")
+		fmt.Fprintln(stderr, "  — a product question may have no figure for computation to re-derive.")
+		fmt.Fprintln(stderr, "  remedy: pass --lens-area-reason \"<why these areas and not the others>\", or drop --lens-area")
+		fmt.Fprintln(stderr, "  and let the run seat every area.")
 		return 2
 	}
 
@@ -367,6 +407,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	}
 	rc := runConfig{Topic: topic, RunDir: run.Dir(), Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect, AllowModelSubstitution: cfg.AllowSubstitution,
 		K: terms.K, KMax: terms.KMax, MintBudget: terms.MintBudget, ConvergenceFraction: terms.ConvergenceFraction, MaxEpochs: terms.MaxEpochs,
+		LensAreas: cfg.LensAreas, LensAreaReason: cfg.LensAreaReason,
 		MaxSittingCalls: maxCalls,
 		Hooks:           hookProvenanceAt(homeDir(), "frank-exchange-of-views")}
 	if b, err := marshalJSON(rc); err == nil {
@@ -517,6 +558,11 @@ type runConfig struct {
 	MintBudget          int     `json:"mintBudget"`
 	ConvergenceFraction float64 `json:"convergenceFraction"`
 	MaxEpochs           int     `json:"maxEpochs"`
+	// LensAreas and LensAreaReason are written only when the cast was narrowed. Their absence is
+	// the full cast, which is why they are omitempty rather than always-present: an empty reason
+	// on a full cast would read as a narrowing nobody justified.
+	LensAreas      []string `json:"lensAreas,omitempty"`
+	LensAreaReason string   `json:"lensAreaReason,omitempty"`
 	// MaxSittingCalls is read by the PreToolUse hook through sittingcap.Limit, not by
 	// record.Params: the hook may not link the record. The key is sittingcap.ConfigKey.
 	MaxSittingCalls int `json:"maxSittingCalls"`
