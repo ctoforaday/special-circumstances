@@ -82,7 +82,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatprobe"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/setup"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
@@ -388,16 +387,18 @@ func probe(b seatprobe.Board, runDir, bin, constDir, pluginDir, model, debatePat
 		}
 		// RED'S MEMORY, STAGED AS run-setup STAGES IT. This used to be an arm — `none` mounted
 		// nothing — and an arm is no longer available: debate.js's prompt names
-		// inputs/red-gap-patterns.md in blue's very first batched read, unconditionally, because
+		// the staged corpus in blue's very first batched read, unconditionally, because
 		// every real run has the file. A probe that withheld it would hand the seat a prompt whose
 		// opening instruction fails, and score what it did next.
 		mem, err := memoryDirs(memoryDir)
 		if err != nil {
 			return "", err
 		}
-		if r := setup.MirrorGapPatterns(mem, probeRun); !r.Written {
-			return "", fmt.Errorf("red's gap-pattern corpus did not stage (%s) — the dispatched prompt names the file in its first instruction, so a run without it is measuring a broken read", r.Reason)
-		}
+		// NO CORPUS PRECONDITION. This refused a probe whose gap-pattern corpus did not stage,
+		// because the dispatched prompt named the staged corpus in its first instruction.
+		// Neither the staging nor that instruction exists now — the by-class index replaced both,
+		// and it is delivered per gap rather than read at seat start.
+		_ = mem
 		// THE FIXTURE, AND NOTHING ELSE. A caller driving its own dispatch — the interview, which
 		// holds a session open across turns — needs the board this probe would have built, staged
 		// the same way, and then needs this binary to stop. Scoring a sitting that never happened

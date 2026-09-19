@@ -57,11 +57,23 @@ func DeriveVerdict(run Run) (verdict, why string, ok bool) {
 	if err != nil {
 		return "", "the record could not be read: " + err.Error(), false
 	}
+	// THE COVERAGE LIMIT RIDES ON THE BASIS, for every terminal verdict and not only a PASS.
+	//
+	// A run whose cast never seated an area did not audit that dimension, and until this the
+	// verdict read identically whether every lens sat or two of them did not. It is appended to
+	// the basis rather than changing the verdict WORD: the narrowing is often correct and is the
+	// operator's call, so the honest act is to state the limit, not to withhold the stamp.
+	// UnseatedAreas returns nothing when the record holds no cast, which is the state the
+	// CEILING arm below already distinguishes.
+	coverage := ""
+	if unseated, hasCast, cerr := UnseatedAreas(run); cerr == nil && hasCast && len(unseated) > 0 {
+		coverage = " (" + CoverageNote(unseated) + ")"
+	}
 	switch {
 	case halted:
-		return "HALTED", "a halt event is on the record", true
+		return "HALTED", "a halt event is on the record" + coverage, true
 	case passed:
-		return "VERIFIED", "the chair recorded a PASS verdict", true
+		return "VERIFIED", "the chair recorded a PASS verdict" + coverage, true
 	}
 	// CEILING IS THE DISPATCH PLAN'S (plans/roundless.md §III.B.2), for one of two reasons: every
 	// open material gap is at impasse and has had its bench ruling — carried, since it is still
@@ -74,9 +86,9 @@ func DeriveVerdict(run Run) (verdict, why string, ok bool) {
 		}
 		switch {
 		case plan.EpochLimitReached:
-			return "CEILING", fmt.Sprintf("epoch limit %d reached — the run's term; the parties still ready were not dispatched and PASS is not permitted", plan.MaxEpochs), true
+			return "CEILING", fmt.Sprintf("epoch limit %d reached — the run's term; the parties still ready were not dispatched and PASS is not permitted", plan.MaxEpochs) + coverage, true
 		case plan.Ceiling:
-			return "CEILING", "every open material gap is at its limit and the bench has ruled on each — nobody is ready and PASS is not permitted", true
+			return "CEILING", "every open material gap is at its limit and the bench has ruled on each — nobody is ready and PASS is not permitted" + coverage, true
 		}
 	}
 	return "", "no pass, no halt, and the board is not at its ceiling — the run ended before a terminal state was reached, and the record says so rather than guessing", false

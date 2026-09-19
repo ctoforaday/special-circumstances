@@ -1,7 +1,7 @@
 // Package setup ports setup-research-run.mjs — the mechanical half of /research
 // steps 1-3 — into the feov-record binary. It creates the run's blackboard
-// skeleton, pins the evidence base, mirrors red's gap-pattern + law + scorecard
-// memory into inputs/, writes the .run-live marker, and preflights the record
+// skeleton, pins the evidence base, mirrors red's gap-pattern and law memory into
+// inputs/, writes the .run-live marker, and preflights the record
 // binary. Behaviour is preserved byte-for-byte against the mjs it replaces
 // (the sole non-deterministic field is the marker's `started` timestamp, and the
 // marker lives outside the run dir).
@@ -137,147 +137,30 @@ func MirrorLaw(repoLawDir string, run record.Run) MirrorResult {
 	if repoLawDir == "" || !exists(repoLawDir) {
 		return MirrorResult{Written: false, Reason: "no law dir"}
 	}
-	os.MkdirAll(outDir, 0o755)
+	// THE DIRECTORY IS MADE HERE, AND EVERY WRITE IS CHECKED — the same fix MirrorGapPatterns got
+	// on 2026-08-16 and this sibling did not. Both discarded the MkdirAll error, discarded each
+	// WriteFile error, and incremented the count regardless, so a caller reading `Written: true,
+	// Files: 3` could not tell it from three files on disk. That was found by reusing the other
+	// mirror somewhere `inputs/` did not exist; nothing reused this one, so it kept the defect.
+	//
+	// A COUNT THAT OUTRUNS THE DISK IS THE FAILURE, not a missing law corpus: a run with no law is
+	// ordinary and says so, while a run that reports a staged corpus it does not have looks
+	// complete to every reader after it.
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return MirrorResult{Written: false, Reason: "could not create inputs/law: " + err.Error()}
+	}
 	files := 0
 	for _, f := range mdFiles(repoLawDir, nil) {
 		body, err := os.ReadFile(filepath.Join(repoLawDir, f))
 		if err != nil {
 			continue
 		}
-		os.WriteFile(filepath.Join(outDir, f), append([]byte("<!-- mirrored from law/ at run setup — read-only copy -->\n"), body...), 0o644)
+		if err := os.WriteFile(filepath.Join(outDir, f), append([]byte("<!-- mirrored from law/ at run setup — read-only copy -->\n"), body...), 0o644); err != nil {
+			return MirrorResult{Written: false, Reason: "could not write " + f + ": " + err.Error()}
+		}
 		files++
 	}
 	return MirrorResult{Written: files > 0, Files: files}
-}
-
-// MirrorGapPatterns concatenates red's gap-pattern memory into inputs/red-gap-patterns.md,
-// first-source-wins deduped by filename. dirs are tried in order (promoted before raw).
-func MirrorGapPatterns(memoryDirs []string, run record.Run) MirrorResult {
-	runDir := run.Dir()
-	out := filepath.Join(runDir, "inputs", "red-gap-patterns.md")
-	if exists(out) {
-		return MirrorResult{Written: false, Reason: "already staged"}
-	}
-	present := existingDirs(memoryDirs)
-	if len(present) == 0 {
-		return MirrorResult{Written: false, Reason: "no memory dir"}
-	}
-	var parts []string
-	seen := map[string]bool{}
-	for _, dir := range present {
-		for _, f := range mdFiles(dir, map[string]bool{"README.md": true}) {
-			if seen[f] {
-				continue
-			}
-			seen[f] = true
-			body, err := os.ReadFile(filepath.Join(dir, f))
-			if err != nil {
-				continue
-			}
-			parts = append(parts, fmt.Sprintf("\n<!-- mirrored from %s: %s -->\n%s", dir, f, string(body)))
-		}
-	}
-	if len(parts) == 0 {
-		return MirrorResult{Written: false, Reason: "memory dir empty"}
-	}
-	// THE DIRECTORY IS MADE HERE, AND THE WRITE IS CHECKED.
-	//
-	// It was neither. `out` is <runDir>/inputs/red-gap-patterns.md and nothing in this function
-	// created `inputs/`; the write's error was discarded; and the function then returned
-	// {Written: true, Files: 55} having written nothing at all.
-	//
-	// In a real run it is masked, because BuildSkeleton happens to create inputs/ earlier in
-	// run.go. Any other caller — a probe, a test, a reordering of setup — silently loses red's
-	// entire accumulated memory while the result says it staged fifty-five files. MEASURED
-	// 2026-08-16: found by reusing this function from seatprobe, where the directory does not
-	// exist; every dispatch reported a staged corpus and no file was ever on disk.
-	//
-	// This is the defect class the corpus itself catalogues: a write that fails, reports success,
-	// and hands back a count of work it did not do. A caller cannot tell the difference, which is
-	// why the count was believable.
-	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
-		return MirrorResult{Written: false, Reason: "could not create inputs/: " + err.Error()}
-	}
-	if err := os.WriteFile(out, []byte("# red gap-pattern inventory (mirrored at run setup — read-only copy)\n"+strings.Join(parts, "\n")), 0o644); err != nil {
-		return MirrorResult{Written: false, Reason: "could not write the mirror: " + err.Error()}
-	}
-	return MirrorResult{Written: true, Files: len(parts), Sources: len(present)}
-}
-
-// ScorecardResult reports the cards staged and each card's prompt headline.
-type ScorecardResult struct {
-	Written   bool
-	Reason    string
-	Cards     []string
-	Headlines map[string][]string
-}
-
-// MirrorScorecards stages each card's scorecard into inputs/ and extracts the
-// prompt headline — the emitted HEADLINE line where present, else the parsed rows.
-func MirrorScorecards(memoryDir string, run record.Run) ScorecardResult {
-	runDir := run.Dir()
-	if memoryDir == "" || !exists(memoryDir) {
-		return ScorecardResult{Written: false, Reason: "no feov-memory dir", Headlines: map[string][]string{}}
-	}
-	var staged []string
-	headlines := map[string][]string{}
-	for _, f := range scorecardFiles(memoryDir) {
-		card := strings.TrimSuffix(f, "-scorecard.md")
-		body, err := os.ReadFile(filepath.Join(memoryDir, f))
-		if err != nil {
-			continue
-		}
-		os.WriteFile(filepath.Join(runDir, "inputs", f), body, 0o644)
-		staged = append(staged, card)
-		latest := lastSection(string(body))
-		if h := emittedHeadline(latest); h != nil {
-			headlines[card] = h
-			continue
-		}
-		if picks := fallbackHeadline(latest); len(picks) > 0 {
-			headlines[card] = picks
-		}
-	}
-	if len(staged) == 0 {
-		return ScorecardResult{Written: false, Reason: "no scorecards yet — written at capture, consumed by the next run", Cards: []string{}, Headlines: map[string][]string{}}
-	}
-	return ScorecardResult{Written: true, Cards: staged, Headlines: headlines}
-}
-
-var sectionSplit = regexp.MustCompile(`(?m)^## `)
-
-// lastSection returns the text after the final "## " heading (the most recent run).
-func lastSection(body string) string {
-	parts := sectionSplit.Split(body, -1)
-	return parts[len(parts)-1]
-}
-
-var headlineLine = regexp.MustCompile(`(?m)^HEADLINE:\s*(.+)$`)
-
-func emittedHeadline(section string) []string {
-	m := headlineLine.FindStringSubmatch(section)
-	if m == nil {
-		return nil
-	}
-	var out []string
-	for _, s := range strings.Split(m[1], " · ") {
-		s = strings.TrimSpace(s)
-		if s != "" {
-			out = append(out, s)
-		}
-	}
-	return firstN(out, 3)
-}
-
-func fallbackHeadline(section string) []string {
-	var picks []string
-	for _, r := range ParseRenderedRows(section) {
-		if r.Value == nil || r.Cls == "measure" {
-			continue
-		}
-		picks = append(picks, fmt.Sprintf("%s %s [%s]", r.Metric, strings.TrimSpace(*r.Value), strings.ToUpper(r.Cls)))
-	}
-	return firstN(picks, 3)
 }
 
 // ---- rendered-row parser (shared markdown contract with scorecards.mjs) ----
@@ -614,22 +497,6 @@ func mdFiles(dir string, skip map[string]bool) []string {
 			continue
 		}
 		out = append(out, n)
-	}
-	sort.Strings(out)
-	return out
-}
-
-// scorecardFiles lists *-scorecard.md files in dir, SORTED.
-func scorecardFiles(dir string) []string {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil
-	}
-	var out []string
-	for _, e := range entries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), "-scorecard.md") {
-			out = append(out, e.Name())
-		}
 	}
 	sort.Strings(out)
 	return out

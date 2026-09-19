@@ -3,11 +3,15 @@ package capture
 import (
 	"archive/tar"
 	"compress/gzip"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"google.golang.org/protobuf/proto"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -643,8 +647,12 @@ func TestHarvestPrecedents(t *testing.T) {
 	})
 
 	r := HarvestPrecedents(runtest.New(t, runDir), nil, filepath.Join(repo, "law"), board.Events)
-	if r.Count != 4 {
-		t.Fatalf("want 4 rulings harvested (2 docket dispositions, 1 petition, 1 declaration), got %d", r.Count)
+	// ONLY THE DECLARATION. The board above also holds two docket dispositions and a granted
+	// petition, and none of them is a candidate holding: they dispose of something, they do not
+	// state a rule. Harvesting them produced a corpus of 76 entries in which 68 stated no rule at
+	// all, and a reviewer could not find the six that did.
+	if r.Count != 1 {
+		t.Fatalf("want 1 ruling harvested (the declaration alone), got %d", r.Count)
 	}
 	out, err := os.ReadFile(r.Path)
 	if err != nil {
@@ -654,18 +662,16 @@ func TestHarvestPrecedents(t *testing.T) {
 	if !strings.Contains(body, "[PERSUASIVE]") || strings.Contains(body, "[AFFIRMED") {
 		t.Errorf("everything starts persuasive")
 	}
-	// A DISPOSITION IS NOT A HOLDING. This used to assert `holding: defect_accepted` and
-	// `holding: granted` — docket statuses in the field law/README.md reserves for "the rule
-	// applied". Nine rulings harvested across two real runs all read "holding: closed", which no
-	// later bench could apply to anything, and the reasoning sat unextracted in `rationale`.
-	for _, want := range []string{"disposition: defect_accepted", "disposition: granted"} {
-		if !strings.Contains(body, want) {
-			t.Errorf("a docket ruling must state its disposition as one: missing %q", want)
+	// A DISPOSITION IS NOT A HOLDING, and it is no longer filed as one. The first repair made
+	// that visible — `holding: closed` became a placeholder, so an unpromotable ruling LOOKED
+	// unpromotable — which was the right fix at the wrong layer: legible noise is still noise, and
+	// it still buried the entries a reviewer could act on. Now the ruling simply is not harvested:
+	// it disposed of a gap, it is on the record, and `show debate` renders it.
+	for _, gone := range []string{"disposition: defect_accepted", "disposition: granted",
+		"holding: <reviewer: state the rule this ruling applied"} {
+		if strings.Contains(body, gone) {
+			t.Errorf("a ruling that states no rule was harvested as candidate law: %q", gone)
 		}
-	}
-	if !strings.Contains(body, "holding: <reviewer: state the rule this ruling applied") {
-		t.Errorf("a docket ruling's holding must be a placeholder the reviewer fills — the harvest " +
-			"cannot synthesise the rule without inventing it")
 	}
 	// ...except a declaration, whose whole purpose is to state a holding.
 	if !strings.Contains(body, "holding: verified means an act of looking") {
@@ -674,14 +680,18 @@ func TestHarvestPrecedents(t *testing.T) {
 	if !strings.Contains(body, "facts: <reviewer: fill from the cited record") {
 		t.Errorf("the harvest never invents facts")
 	}
-	if !strings.Contains(body, "source: 2026-07-18_law-test, G2") {
-		t.Errorf("holdings carry their source anchors")
+	if !strings.Contains(body, "source: 2026-07-18_law-test") {
+		t.Errorf("holdings carry their source anchor")
 	}
-	if !strings.Contains(body, "TRAILING_ACTIONABLE_TAIL") {
-		t.Errorf("full rationale preserved — no truncation")
+	// A DECLARATION DISPOSES OF NOTHING, so it is not framed as a disposition. This read
+	// "disposition of " with an empty gap id while docket rulings filled the file around it.
+	if strings.Contains(body, "disposition of \n") || strings.Contains(body, "source: 2026-07-18_law-test,\n") {
+		t.Errorf("a declaration carries a disposition's framing with nothing in it:\n%s", body)
 	}
-	if !strings.Contains(body, "petition by blue-respond") {
-		t.Errorf("the petitioner is joined from the motion event, not left blank:\n%s", body)
+	// Petitions are rulings on a request, not statements of a rule, so they are no longer
+	// harvested as candidate law.
+	if strings.Contains(body, "petition by blue-respond") {
+		t.Errorf("a petition ruling was harvested as candidate law:\n%s", body)
 	}
 	if !strings.Contains(body, "verified means an act of looking") {
 		t.Errorf("a declared holding must reach the harvest (#361):\n%s", body)
@@ -1083,6 +1093,30 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(run, "proofs", "abc", "script.py"), []byte("print(7)\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// The run's TERMS. Read at READ time by the dispatch verb, the write path, sittingcap, the
+	// tier report and cost — so an archive without them cannot operate on the record it keeps.
+	if err := os.MkdirAll(filepath.Join(run, "inputs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(run, "inputs", "run-config.json"),
+		[]byte(`{"kMax":6,"mintBudget":5,"maxEpochs":12,"model":"sonnet"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// The by-class INDEX is what patternsForGaps selects from, so the archive carries it.
+	if err := os.WriteFile(filepath.Join(run, "inputs", "gap-patterns-by-class.json"),
+		[]byte(`{"port-retarget":[{"file":"p.md"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// The LAW mirror is read by seats during the run and by nothing after it, so it is hashed
+	// rather than carried. (The gap-pattern corpus used to sit here too; setup no longer stages
+	// it at all.)
+	if err := os.MkdirAll(filepath.Join(run, "inputs", "law"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(run, "inputs", "law", "precedents.md"),
+		[]byte("# patterns\n\nbody\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	out, err := ArchiveRecord(runtest.Open(t, run), repo)
 	if err != nil {
@@ -1107,6 +1141,7 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	names := map[string]bool{}
+	digestBody := ""
 	tr := tar.NewReader(gz)
 	for {
 		h, err := tr.Next()
@@ -1114,18 +1149,55 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 			break
 		}
 		names[h.Name] = true
+		if h.Name == "inputs/corpus-sha256.json" {
+			b, _ := io.ReadAll(tr)
+			digestBody = string(b)
+		}
 	}
-	for _, want := range []string{"records/events-red-lens-evidence-aaaaaaaa.jsonl", "proofs/abc/script.py"} {
+	for _, want := range []string{"records/events-red-lens-evidence-aaaaaaaa.jsonl", "proofs/abc/script.py",
+		// WITHOUT THIS THE ARCHIVE IS BROKEN, NOT THIN. Measured on a real archived run against the
+		// same run live: `show tiers` printed configuredBulk/configuredJudgment from the live
+		// directory and omitted both from the archive — a run whose terms were discarded reads
+		// exactly like a run that never had any.
+		"inputs/run-config.json", "inputs/gap-patterns-by-class.json", "inputs/corpus-sha256.json"} {
 		if !names[want] {
 			t.Errorf("archive is missing %q — it holds %v", want, names)
 		}
 	}
 	// The cache is deliberately absent: 7.3 MB for a real run, re-fetchable, and every source's
 	// sha256 is on the record so its integrity stays checkable without it.
+	// The BULKY inputs stay out, on the stated line: run-config.json is read to OPERATE on the
+	// record; the gap-pattern corpus (175 KB) was read by seats during the run and is provenance.
 	for n := range names {
+		// THE PROSE CORPUS MUST NOT BE CARRIED. 175 KB on a real run against a ~49 KB archive,
+		// read by seats during the run and by nobody after it — the digest names its bytes instead.
+		if strings.HasPrefix(n, "inputs/law/") {
+			t.Errorf("archived the law mirror (%s) — it is hashed in %s, not carried", n, "corpus-sha256.json")
+		}
 		if strings.HasPrefix(n, "cache/") {
 			t.Errorf("the fetched-source cache was archived (%s) — it is re-fetchable and dwarfs the record", n)
 		}
+	}
+
+	// A DIGEST THAT NAMES NOTHING IS NOT A DIGEST. The file being present proves only that the
+	// hook ran; an empty list would pass that and claim, in the same bytes, that no corpus was
+	// staged. Assert the prose corpus is named AND that the hash is the real one.
+	var digest []CorpusFile
+	if err := json.Unmarshal([]byte(digestBody), &digest); err != nil {
+		t.Fatalf("corpus digest does not parse: %v\n%s", err, digestBody)
+	}
+	want := sha256.Sum256([]byte("# patterns\n\nbody\n"))
+	found := false
+	for _, d := range digest {
+		if d.Path == "inputs/law/precedents.md" {
+			found = true
+			if d.SHA256 != hex.EncodeToString(want[:]) {
+				t.Errorf("digest sha256 = %s, want %s — the hash must name the bytes this run read", d.SHA256, hex.EncodeToString(want[:]))
+			}
+		}
+	}
+	if !found {
+		t.Errorf("the digest does not name the law mirror: %v", digest)
 	}
 }
 

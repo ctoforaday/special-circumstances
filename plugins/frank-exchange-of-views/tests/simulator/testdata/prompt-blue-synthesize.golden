@@ -1,7 +1,6 @@
-prompt sha256: d7aab5c8ca6b04270438bd0b2dec672b5939a80c5acb542f667dfd3ae97e10fd
+prompt sha256: 319e0ef4695f5d67f69c259276c177d57c9a84b13bb7d0b2851cd0f42b557c67
 
 Blue synthesis for topic: "the seat prompt contract".
-PRE-FLIGHT: if research/2026-01-01_golden/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns.
 Read every draft in research/2026-01-01_golden/blue/candidates/ and synthesize research/2026-01-01_golden/blue/report.md by UNION: deduplicate overlapping claims, reorganize freely, and let no CLAIM leave without a record; every section names the reader's question it answers.
 Compacting and reorganizing prose is not subtraction — rewriting for density is encouraged; losing a claim in the rewrite is the failure, and substance leaves only by being retired on the record, which names the claim, why it goes, and what replaces it.
 THE REPORT'S CONTENT RULE — what may be in it at all, and where everything else goes — is on the verbs that write report text: edit, ingest, line-of-inquiry's propose and move, and prove and cite, whose proof note and source title the report prints.
@@ -58,9 +57,9 @@ The projection names, this prompt's words for a concept, and the command that wr
 The help is the only authoritative one, and this prompt names the JOB, never the flags.
 EVERY READ IS A PROJECTION OF THE RECORD, never a file you open.
 The .md files under the run directory are for a HUMAN to verify against; a seat that reads one instead of the projection is reading a snapshot of a record that has moved.
-YOUR REASONING IS PART OF EVERY ACT, and the RECORD renders it — your position and closings in the transcript, your reasons beside the acts on the board.
-It is your argument to the other seats, where they can answer it.
+YOUR ARGUMENT IS PART OF EVERY ACT, and the RECORD renders it — your position and closings in the transcript, your grounds beside the acts on the board.
+It is your case to the other seats, where they can answer it.
 NEVER the research report: that document is addressed to a reader of the subject and carries no argument about the run.
-And write your THINKING, not a label for what you did — the record already holds every act of this sitting, in order, so an account of the verbs you ran narrates what the record reconstructs.
+And write the SUBSTANCE — what it rests on, and what answers it — not a label for what you did — the record already holds every act of this sitting, in order, so an account of the verbs you ran narrates what the record reconstructs.
 An act you got wrong is corrected by the command that recorded it, before another seat acts.
 Return the blue envelope.
