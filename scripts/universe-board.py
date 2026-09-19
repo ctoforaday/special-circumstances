@@ -72,12 +72,33 @@ def main() -> int:
     except sqlite3.Error:
         pass
 
+    ended = False
     for table, label in (("gate", "chair verdict"), ("outcome", "run outcome")):
         try:
             for row in c.execute(f'SELECT "verdict" FROM "{table}"'):
                 print(f"  {label}: {row[0]}")
+                if table == "outcome":
+                    ended = True
         except sqlite3.Error:
             pass
+
+    # A TRUNCATED RUN AND A RUNNING ONE RENDER IDENTICALLY, and that is the whole defect: the board
+    # just stops. `claude -p` terminates its background tasks on a ceiling, so a research run is
+    # killed mid-debate and leaves exactly this — seats sat, gaps minted, no outcome. Measured on a
+    # run whose last event was a lens's `mint` with no `sitting_close` after it.
+    #
+    # The unbalanced span is the evidence, and it is decidable here: every sitting the harness opens
+    # it also closes, so opens > closes means a seat was cut off mid-sitting rather than a seat
+    # being slow — the record cannot tell you WHEN, but it can tell you the arithmetic does not
+    # balance, and that never happens on a healthy finished run.
+    opened = count(c, "sitting_open") or 0
+    closed = count(c, "sitting_close") or 0
+    if opened > closed:
+        print(f"  !! {opened - closed} sitting(s) opened and never closed"
+              f" — a seat is either still sitting, or was KILLED mid-sitting")
+    if not ended:
+        print("  !! no run outcome — this run did NOT finish. If nothing is writing to"
+              " records/record.db-wal, it was truncated, not slow.")
     return 0
 
 

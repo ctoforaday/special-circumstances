@@ -323,7 +323,20 @@ cmd_run() {
 
   local raw="$WORKDIR/stream-$stamp.jsonl"
   log "  progress below; raw stream -> $raw"
-  ( cd "$src" && claude -p \
+  # THE DEBATE DOES NOT OUTLIVE THIS PROCESS, and believing it did cost a truncated run that read
+  # as a finished one. `claude -p` waits a bounded time for background tasks and then TERMINATES
+  # them: "Background tasks still running after 600s; terminating". A research run is tens of
+  # minutes, so the workflow is killed mid-debate — measured on `is 91 prime`, which died with a
+  # lens's `mint` as its last event and no `sitting_close` after it: nine sitting spans opened,
+  # eight closed, no chair verdict, no outcome, three gaps left OPEN. Nothing in the stream says
+  # "truncated"; the board just stops, which is the same shape as a run that is still thinking.
+  #
+  # An earlier measurement found the workflow alive nine minutes after exit and concluded it
+  # survives. Nine minutes is 540s — INSIDE the ceiling. The measurement never reached the boundary
+  # it was taken to have tested.
+  #
+  # 0 means wait indefinitely, which is what a run that is the whole point of the process needs.
+  ( cd "$src" && CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0 claude -p \
       "/frank-exchange-of-views:research $topic --model $MODEL --judgment-model $JUDGMENT_MODEL --lanes $LANES $*" \
       --output-format stream-json --verbose --permission-mode "$PERMISSION_MODE" </dev/null ) \
     | python3 "$REPO/scripts/universe-stream.py" --raw "$raw" | tee "$out"
@@ -336,7 +349,7 @@ cmd_run() {
   [ "$claude_rc" -eq 0 ] && rc=$render_rc
   log "exit $rc — $out"
   log "load at end: $(cut -d' ' -f1-3 /proc/loadavg)"
-  log "the Workflow outlives this process: watch it with  $0 --dir $WORKDIR watch"
+  log "board: $0 --dir $WORKDIR watch   (a run with no outcome row was TRUNCATED, not slow)"
   return $rc
 }
 

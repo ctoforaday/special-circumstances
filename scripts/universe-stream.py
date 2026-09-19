@@ -71,7 +71,7 @@ def main() -> int:
                 if name == "Workflow":
                     inp = block.get("input") or {}
                     seats.add("workflow")
-                    say("WORKFLOW DISPATCHED — the debate runs from here, and OUTLIVES this process")
+                    say("WORKFLOW DISPATCHED — the debate runs from here")
                     if inp.get("name"):
                         say(f"  script  {inp['name']}")
                 elif name == "Task":

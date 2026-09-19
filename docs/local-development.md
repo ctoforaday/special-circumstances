@@ -106,6 +106,20 @@ errors as they happen:
 [  902s] DONE  success  turns=42  $1.23
 ```
 
+**The debate does not outlive the `claude -p` process.** Print mode waits a bounded time for
+background tasks and then terminates them — `Background tasks still running after 600s;
+terminating` — and a research run is tens of minutes, so the workflow is killed mid-debate. Measured
+on `is 91 prime`: last event a lens's `mint` with no `sitting_close` after it, nine sitting spans
+opened and eight closed, no chair verdict, no outcome, three gaps left open. An earlier measurement
+found the workflow alive nine minutes after exit and concluded it survives; nine minutes is 540s,
+*inside* the ceiling, so it never reached the boundary it was taken to have tested. `universe.sh`
+sets `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0` to wait indefinitely.
+
+**A truncated run and a running one look the same** — the board just stops. `watch` therefore
+reports the arithmetic that distinguishes them: every sitting the harness opens it also closes, so
+`opens > closes` means a seat was cut off, and a run with no outcome row did not finish. Check
+whether anything is still writing `records/record.db-wal` before reading a quiet board as progress.
+
 **A run that dispatched no `Workflow` fails, and says so.** The engine cannot research anything
 without one, so its absence is decidable from the stream — and `claude -p` exits 0 for it, because
 the assistant did produce an answer. `run` returns the renderer's status when claude's is clean, so
