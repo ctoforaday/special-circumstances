@@ -987,6 +987,26 @@ WHERE NOT EXISTS (SELECT 1 FROM "correction" c WHERE c."corrects" = e."key");
 -- medium (mass 2.0, record.material) and above. The inner select is the gap as the record holds it;
 -- the outer adds the column from the current severity that select already overlays, so the
 -- regrade overlay is written once.
+--
+-- THIS COLUMN LIST IS HAND-AUTHORED, AND IT IS WHERE A NEW GAP FIELD GOES MISSING. The table DDL
+-- is DERIVED from the protobuf descriptors, so a new field on Mint gets its column and its write
+-- for free. The READ is hand-written at every step: this list, and then each reader naming the
+-- columns again. A field that stops at either stores correctly and renders NOWHERE, with no error
+-- anywhere — the JSON simply omits it, which reads exactly like a gap with nothing to say there.
+-- Mint's about_kind/about_ref is the measured case: the row right in SQLite, the board printing
+-- an empty location.
+--
+-- A grep for this view's name in a FROM clause finds the readers. Widen the ones that ENUMERATE
+-- a gap's content — record/viewjson.go's BOARD query (its rows.Scan and its GapJSON literal) and
+-- WORK query (its Scan, WorkGapState, and the WorkGapJSON / ClosedIndexJSON assembly), and
+-- record/gapstates.go, which builds the Go Gap struct most other readers take. The rest ask one
+-- narrow question of the view (dispatch's open-gap fold, the convergence sums, estoppel's credit
+-- join) and are unaffected by
+-- a new descriptive field. Grep rather than trust the list above: readers of this view are added
+-- without touching it, and a count written here goes stale silently — which is this comment's own
+-- failure mode, not just the schema's.
+--
+-- A field added to Finding does not have this problem: the findings view reads the proto.
 CREATE VIEW "gap" AS
 SELECT
   gb.*,
