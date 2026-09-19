@@ -220,13 +220,17 @@ func passLensGateOf(evs []*Event, ids []int64, fresh map[string]bool) passLensGa
 	}
 	g.lenses = lensStates(evs, ids, g.head, fresh)
 	g.stale = staleAreasOf(g.lenses, g.head)
-	// THIS SITTING is the chair's: its spot-checks after its latest register.
+	// THIS SITTING is the chair's: its spot-checks after the register that OPENED its latest
+	// sitting. That is opensASitting's question — the window an act is attributed to — and asking
+	// it there rather than on the event type is what keeps this level with the other attribution
+	// readers. The chair cannot repair (checkRepair admits a blue role only), so the two readings
+	// agree on every record a verb can write; this is the one that stays right if that gate moves.
 	for i := len(evs) - 1; i >= 0; i-- {
 		e := evs[i]
 		if e.GetSeatId() != chairSeat {
 			continue
 		}
-		if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER {
+		if opensASitting(e) {
 			break
 		}
 		if sc, ok := recordpb.BodyAs[*recordpb.SpotCheck](e); ok {

@@ -34,18 +34,16 @@ import (
 
 // oncePerSittingSQL is the standing act of this word in the seat's attributed sitting, or no row.
 //
-// The window opens at the seat's latest register that OPENS A SITTING — repairs_sitting IS NULL,
-// which is ActClock's rule and correction.go's, in SQL. A seat with no opening register has no
-// earlier sitting to borrow from, so COALESCE gives it the whole record as its sitting, exactly as
-// seatDidThisSitting reads it.
+// The window opens at the seat's latest register that OPENS A SITTING, which is
+// openingRegistersOfSeatSQL — the one SQL spelling of opensASitting, shared with correction.go's
+// pair of subqueries. A seat with no opening register has no earlier sitting to borrow from, so
+// COALESCE gives it the whole record as its sitting, exactly as seatDidThisSitting reads it.
 //
 // It returns the FIRST such act rather than a count: the refusal points the seat at the act that
 // stands, and the correction chain is walked from there.
 const oncePerSittingSQL = `SELECT e."key" FROM "events" e
      WHERE e."seat_id" = ? AND e."type" = ?
-       AND e."id" > COALESCE((SELECT max(r2."id") FROM "events" r2
-             LEFT JOIN "register" g ON g."event_id" = r2."id"
-            WHERE r2."seat_id" = ? AND r2."type" = 'register' AND g."repairs_sitting" IS NULL), 0)
+       AND e."id" > COALESCE((SELECT max("id") FROM (` + openingRegistersOfSeatSQL + `)), 0)
      ORDER BY e."id" LIMIT 1`
 
 // requireOncePerSitting refuses a second singleton act of this word attributed to the seat's current

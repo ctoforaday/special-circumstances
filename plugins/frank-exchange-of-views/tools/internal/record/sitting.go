@@ -322,8 +322,9 @@ func revisionOwed(evs []*Event, seatID string) bool {
 // has not registered has no earlier sitting to borrow from, so the whole record is its sitting.
 //
 // IT ATTRIBUTES, SO A REPAIR OPENS NO WINDOW (#1026). This is a reader of "which sitting does this
-// act belong to", which is record.ActClock's question, not Clock's: a sitting-record repair is a
-// turn of its own and its acts are the repaired sitting's. Starting the window at the seat's latest
+// act belong to", so the window opens at opensASitting, the one definition every attribution reader
+// shares: a sitting-record repair is a turn of its own and its acts are the repaired sitting's,
+// which is not what Clock counts. Starting the window at the seat's latest
 // register of ANY kind put the repair's own register there, so inside a repair the work list said
 // the log channel was open — a duty the repaired sitting had already discharged, and which
 // scorecard.channel_closure, reading the same attribution, scored as discharged. The seat was told
@@ -332,8 +333,7 @@ func seatDidThisSitting(evs []*Event, seatID string, typ recordpb.EventType) boo
 	live := Live(evs)
 	start := 0
 	for i, e := range live {
-		if b, ok := recordpb.BodyAs[*recordpb.Register](e); e.GetSeatId() == seatID &&
-			e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER && (!ok || b.RepairsSitting == nil) {
+		if e.GetSeatId() == seatID && opensASitting(e) {
 			start = i
 		}
 	}

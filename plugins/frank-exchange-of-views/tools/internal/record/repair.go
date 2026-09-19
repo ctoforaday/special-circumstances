@@ -76,7 +76,7 @@ func repairTarget(evs []*Event, seat string) (string, error) {
 	evs = Live(evs)
 	var latest *Event
 	for _, e := range evs {
-		if b, ok := recordpb.BodyAs[*recordpb.Register](e); ok && e.GetSeatId() == seat && b.RepairsSitting == nil {
+		if opensASitting(e) && e.GetSeatId() == seat {
 			latest = e
 		}
 	}
@@ -89,9 +89,14 @@ func repairTarget(evs []*Event, seat string) (string, error) {
 }
 
 // checkRepair refuses a register by seat that names key as the sitting it repairs, unless key is
-// the register that opened seat's LATEST sitting, no dispatch has named the seat since, and that
-// sitting OWES what a repair files: a blue-respond sitting that found a gap open and lacks its
-// position or revision (BlueSitting.Owes), or any other blue seat's sitting that lacks its revision.
+// the register that opened seat's LATEST sitting, that register's body READS, no dispatch has named
+// the seat since, and that sitting OWES what a repair files: a blue-respond sitting that found a gap
+// open and lacks its position or revision (BlueSitting.Owes), or any other blue seat's sitting that
+// lacks its revision.
+//
+// WHICH register opened a sitting is opensASitting's question, shared with every reader that
+// attributes an act. WHETHER a claim may be admitted against it is this function's, and the two
+// answer an unreadable body differently on purpose — opensASitting states the rule and the reason.
 func checkRepair(evs []*Event, seat, key string) error {
 	evs = Live(evs)
 	seq := make([]int64, len(evs))
@@ -108,8 +113,20 @@ func checkRepair(evs []*Event, seat, key string) error {
 	if named < 0 {
 		return refuseRepair(claimUnfounded, "%q names no act on the record, so it names no sitting of yours to repair", key)
 	}
-	if b, ok := recordpb.BodyAs[*recordpb.Register](evs[named]); !ok || evs[named].GetSeatId() != seat || b.RepairsSitting != nil {
+	if !opensASitting(evs[named]) || evs[named].GetSeatId() != seat {
 		return refuseRepair(claimUnfounded, "%q is not a register that opened a sitting of %s, so it names no sitting of yours to repair", key, seat)
+	}
+	// THE CLAIM CHECK REQUIRES A READABLE TARGET, AND THIS IS WHERE IT PARTS FROM ATTRIBUTION.
+	// opensASitting above answers the attribution question, which fails OPEN on a body nothing can
+	// decode — a reader must invent no sitting boundary out of a decode failure. A CLAIM is the
+	// other direction: admitting one against a register this binary cannot read would write onto
+	// the record a repair of a sitting no reader can bound, and the claim's whole basis (what that
+	// sitting owes) is unreadable with it. The reason is stated once, at opensASitting.
+	//
+	// claimUnfounded, not nothingToFile: "nothing to file" tells the seat to open a sitting of its
+	// own, which asserts the unreadable sitting owed nothing — the very fact that cannot be read.
+	if !registerIsReadable(evs[named]) {
+		return refuseRepair(claimUnfounded, "%q is a register of %s whose body this binary cannot read, so the record cannot bear out that its sitting owes what a repair files", key, seat)
 	}
 	opens := registers[seat]
 	if latest := opens[len(opens)-1]; latest != named {
