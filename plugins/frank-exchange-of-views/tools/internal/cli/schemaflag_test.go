@@ -25,6 +25,11 @@ import (
 // THE ASSERTIONS ARE setup's OWN READS, in order, because a test that merely checked for
 // non-empty output would pass on prose the Atoi rejects.
 func TestSchemaFlagPrintsTheEpochSetupCompares(t *testing.T) {
+	// NOT PARALLEL, AND IT CANNOT BE. This test assigns os.Args to drive the pre-cobra scan, and
+	// os.Args is process-global: InvokedAs reads it on every command the tool builds, so a
+	// parallel test doing that races every other parallel test in the package through production
+	// code. The race detector reported it three times once the suite got fast enough for the
+	// windows to overlap. The test costs 0.03 s; parallelism buys nothing here.
 	// THROUGH ExecuteRoot AND os.Args, because that is where the flag lives. It is answered by a
 	// scan of os.Args BEFORE cobra dispatches — deliberately, so a binary setup does not yet
 	// trust still answers even when the argv would otherwise be refused. Driving cobra instead

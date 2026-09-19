@@ -22,6 +22,11 @@ const (
 )
 
 // scanPDFPages is scanPDF with n image-only pages sharing one image.
+//
+// THE PAGE IS 72x90 POINTS, NOT US LETTER, AND THAT IS THE POINT. These tests ask which PAGE a
+// quote sits on; nothing here reads a pixel. A 612x792 page renders 2550x3300 px per page at the
+// reader's 300 DPI, 74x the pixels, and the engine that would look at them is stubbed out. The
+// fixture is sized to what is under test.
 func scanPDFPages(n int) []byte {
 	kids := make([]string, n)
 	objs := []string{"<< /Type /Catalog /Pages 2 0 R >>", ""}
@@ -30,11 +35,11 @@ func scanPDFPages(n int) []byte {
 	}
 	objs[1] = "<< /Type /Pages /Kids [" + strings.Join(kids, " ") + "] /Count " + itoa(n) + " >>"
 	objs = append(objs,
-		"<< /Length 31 >>\nstream\nq 612 0 0 792 0 0 cm /Im1 Do Q\nendstream",
+		"<< /Length 29 >>\nstream\nq 72 0 0 90 0 0 cm /Im1 Do Q\nendstream",
 		"<< /Type /XObject /Subtype /Image /Width 2 /Height 2 /ColorSpace /DeviceRGB "+
 			"/BitsPerComponent 8 /Filter /ASCIIHexDecode /Length 25 >>\nstream\n000000FFFFFF000000FFFFFF>\nendstream")
 	for i := 0; i < n; i++ {
-		objs = append(objs, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 3 0 R "+
+		objs = append(objs, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 72 90] /Contents 3 0 R "+
 			"/Resources << /XObject << /Im1 4 0 R >> >> >>")
 	}
 	var out strings.Builder
