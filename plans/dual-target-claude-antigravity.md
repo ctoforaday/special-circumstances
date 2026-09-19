@@ -260,7 +260,47 @@ type ToolInput struct {
 
 ---
 
-## 4. Implementation Checklist
+## 4. Skills Compatibility Audit & Platform Parity
+
+An exhaustive audit of all 37 skills across the repository (`prosthetic-conscience`, `gray-area`, and `frank-exchange-of-views`) was conducted to ensure cross-platform compatibility between Claude Code and Google Antigravity.
+
+### 4.1 Skill Census & Visibility Invariants (37 Skills Total)
+
+1. **Visible Operator Entry Points (12 Total)** — Invocable via `/` slash command palette; carry neither `disable-slash-command` nor `user-invocable`:
+   - **10 Migrated Former Commands**:
+     - `plugins/prosthetic-conscience`: `/checkpoint`, `/doctor`, `/plan-audit`, `/probe`, `/resume`
+     - `plugins/gray-area`: `/audit-checkpoint`, `/audit-pr-body`, `/audit-repetition`, `/audit-seat-coverage`
+     - `plugins/frank-exchange-of-views`: `/research`
+   - **2 Operator Workflow Skills**:
+     - `plugins/frank-exchange-of-views`: `/adversarial-audit`
+     - `plugins/gray-area`: `/elicitation-testing`
+2. **Hidden Cognitive Runbooks (25 Total)** — Hidden from interactive slash command palette via dual frontmatter flags (`disable-slash-command: true` for Antigravity, `user-invocable: false` for Claude Code):
+   - `plugins/prosthetic-conscience` (22 procedural rules): `agent-guardrails`, `anti-spinning`, `complete-the-concept`, `context-checkpointing`, `context-efficiency`, `critical-stance`, `design-by-contract`, `facts-are-fields`, `git-proficiency`, `markdown-proficiency`, `pair-programming`, `plan-act-reflect`, `project-memory`, `qlty-proficiency`, `refactoring-safety`, `scratch-policy`, `semantic-consent`, `spec-driven-development`, `terse-communication`, `test-driven-development`, `think-around-problem`, `validation-loop`.
+   - `plugins/frank-exchange-of-views` (1 internal protocol): `research-protocol`.
+   - `plugins/gray-area` (2 internal runbooks): `restart-recovery`, `telepathy`.
+
+### 4.2 Structural and Frontmatter Compliance
+- **Schema & Formatting**: All 37 skills adhere to pure YAML frontmatter blocks delimited by `---`.
+- **Quality Gates**: Every skill passes `scripts/frontmatter` validation (`name` matches parent directory name, descriptions within 1,536-character ceiling).
+- **Internal Cross-References**: Wiki-links (e.g., `[[elicitation-testing]]`) resolve cleanly to existing skill directories; zero dead links to `commands/` exist.
+
+### 4.3 Runtime Variable Expansion Variance (`${CLAUDE_PLUGIN_ROOT}`)
+Six skills reference `${CLAUDE_PLUGIN_ROOT}`:
+- `plugins/frank-exchange-of-views/skills/research/SKILL.md` (references `${CLAUDE_PLUGIN_ROOT}/skills/research-protocol/scripts/debate.js` and Claude's `Workflow` tool).
+- `plugins/prosthetic-conscience/skills/doctor/SKILL.md` (references `${CLAUDE_PLUGIN_ROOT}/bin/sc-doctor`).
+- `plugins/gray-area/skills/{audit-checkpoint, audit-pr-body, audit-repetition, audit-seat-coverage}/SKILL.md` (references `${CLAUDE_PLUGIN_ROOT}/bin/gray-area`).
+
+**Platform Behavior Differences**:
+- **Claude Code**: Interpolates `${CLAUDE_PLUGIN_ROOT}` with the installed plugin's filesystem path before prompt injection into model context.
+- **Google Antigravity**: Does not perform `${CLAUDE_PLUGIN_ROOT}` substitution in skill bodies.
+
+**Dual-Target Resolution Strategy**:
+- **Compiled Binaries**: `bin/sc-doctor` and `bin/gray-area` are built into the plugin directory. In Antigravity environments, skills and rules invoke binaries via repository-relative paths (`./bin/...`), user PATH (when installed via `/doctor`), or plugin path fallback (`~/.gemini/config/plugins/.../bin`).
+- **FEOV Swarm Orchestration**: Claude Code invokes `debate.js` using Claude's proprietary `Workflow` tool and `agent()` JS API. Antigravity does not support the `Workflow` tool; instead, it executes the multi-agent research debate through its native subagent runtime (`invoke_subagent` launching `lead`, `researcher`, `auditor`) or standalone CLI execution.
+
+---
+
+## 5. Implementation Checklist
 
 - [x] **Phase 1: Skill Slash-Command Cleanliness & Visibility Parity** (Landed in #1006 & #1019)
   - All commands migrated to skills (`plugins/*/skills/*/SKILL.md`) ensuring unified platform parity.
