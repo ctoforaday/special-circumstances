@@ -58,9 +58,10 @@ LANES="${LANES:-1}"
 # it DENIES, so every Bash and Read a seat needs returns "Permission to use Bash has been denied
 # because Claude Code is running in don't ask mode" and the run writes no record at all. `--bg`
 # refuses bypassPermissions until its disclaimer is accepted interactively, which a universe's own
-# config dir has never seen. So the run is a foreground `-p`, which is also sufficient: the
-# Workflow the skill dispatches SURVIVES the process exit — measured, events kept landing for nine
-# minutes after `-p` returned — so the session ending is not the debate ending.
+# config dir has never seen. So the run is a foreground `-p`, and the process must be kept alive
+# for the whole debate: the Workflow does NOT survive it. Print mode terminates background tasks on
+# a ceiling, which killed a run mid-sitting. `cmd_run` sets CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0
+# and says why.
 PERMISSION_MODE="${PERMISSION_MODE:-bypassPermissions}"
 
 LIVE=0
@@ -70,13 +71,12 @@ die()  { printf '[universe] ERROR: %s\n' "$*" >&2; exit 1; }
 
 # --dir MAKES THE UNIVERSE EXPLICIT. A default that is silently reused is how two experiments end
 # up in one directory; naming it is cheap and the name is what every guard below is about.
-DIR_GIVEN=0
 FORCE=0
 ARGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    -d|--dir)   WORKDIR="${2:?--dir needs a path}"; DIR_GIVEN=1; shift 2 ;;
-    --dir=*)    WORKDIR="${1#--dir=}"; DIR_GIVEN=1; shift ;;
+    -d|--dir)   WORKDIR="${2:?--dir needs a path}"; shift 2 ;;
+    --dir=*)    WORKDIR="${1#--dir=}"; shift ;;
     --live)     LIVE=1; shift ;;
     --force)    FORCE=1; shift ;;
     *)          ARGS+=("$1"); shift ;;
@@ -199,7 +199,26 @@ cmd_build() {
   local mkt; mkt="${WORKDIR%/}.marketplace"
   rm -rf "$mkt"
   mkdir -p "$mkt/.claude-plugin"
-  ln -sfn "$REPO/plugins" "$mkt/plugins"
+
+  # A COPY WITHOUT `bin/`, BECAUSE MOVING THE DOOR DID NOT CLOSE IT. This was a `plugins` symlink
+  # into the checkout, first inside WORKDIR and then beside it — and on the very next run the lead
+  # explored, found $WORKDIR.marketplace/plugins/frank-exchange-of-views/bin/feov-record, and ran
+  # `setup` with it. That is the CHECKOUT's binary, whatever a previous build happened to leave
+  # there: a 16:18 build against a 17:58 cache. The run then staged inputs/red-gap-patterns.md, the
+  # file whose deletion the run was meant to be verifying, and everything downstream read as fine.
+  #
+  # A path a lead can reach is a path a lead will use, and it is right to — it was looking for the
+  # tool and it found one. So the fix is not a better hiding place. The staging tree carries no
+  # binaries at all, and the only feov-record on disk is the cache's, which is the one
+  # ${CLAUDE_PLUGIN_ROOT} resolves to and the one the seats are told about.
+  #
+  # Excluding bin/ also means the cache's bin/ holds ONLY what the build below puts there, instead
+  # of install-time copies of the checkout's that a failed build would leave standing.
+  mkdir -p "$mkt/plugins"
+  for p in "${PLUGINS[@]}"; do
+    cp -r "$REPO/plugins/$p" "$mkt/plugins/$p" || die "could not stage plugin $p"
+    rm -rf "$mkt/plugins/$p/bin"
+  done
   python3 "$REPO/scripts/universe-manifest.py" \
     "$REPO/.claude-plugin/marketplace.json" "$mkt/.claude-plugin/marketplace.json" \
     || die "could not stage the local-path manifest"
@@ -284,12 +303,11 @@ cmd_doctor() {
   log "cache: $cache_root"
   for plugin_dir in "$cache_root"/*/*/; do
     [ -d "$plugin_dir" ] || continue
-    local n; n=$(ls "$plugin_dir/bin" 2>/dev/null | wc -l)
+    local n; n=$(find "$plugin_dir/bin" -maxdepth 1 -type f 2>/dev/null | wc -l)
     printf '  %-56s binaries=%s\n' "${plugin_dir#"$cache_root"/}" "$n"
   done
-  local rec="$cache_root/frank-exchange-of-views"/*/bin/feov-record
-  # shellcheck disable=SC2086
-  for r in $rec; do
+  local rec=("$cache_root/frank-exchange-of-views"/*/bin/feov-record)
+  for r in "${rec[@]}"; do
     [ -x "$r" ] && log "feov-record: schema epoch $("$r" --schema 2>/dev/null), build $("$r" --version 2>/dev/null | awk '{print $NF}')"
   done
 }
@@ -372,7 +390,7 @@ cmd_run() {
   log "exit $rc — $out"
   log "load at end: $(cut -d' ' -f1-3 /proc/loadavg)"
   log "board: $0 --dir $WORKDIR watch   (a run with no outcome row was TRUNCATED, not slow)"
-  return $rc
+  return "$rc"
 }
 
 # WHAT THE DEBATE ITSELF IS DOING, as against what the harness is doing. The stream shows dispatch
