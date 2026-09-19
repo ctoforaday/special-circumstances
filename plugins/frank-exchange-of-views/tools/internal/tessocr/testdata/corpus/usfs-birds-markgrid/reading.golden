@@ -1,6 +1,14 @@
-usfs-birds-markgrid · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@d241629b1816
-table: true · rotated: false · grid intersections: 1251479 · length: 54
-fell back: grid detected but the TSV held no mark tokens; page kept as plain text — its words are read, but which row and column each belongs to is not preserved, so check a cell against the page image before relying on it
-text cells fell back: the page's rules bound no cells, so there is no row to recover
+usfs-birds-markgrid · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@724b9e1f4c82
+table: true · rotated: false · grid intersections: 2250 · length: 1069
+marks: 1 columns, 1 subcolumns, 1 rows, 1 of 1 placed, psm disagreement 1.00
+text cells: 1 tables, 2 bands, 7 rows, 8 columns, 16 cells, 121 words placed
+fell back: the detector measured 2250 grid intersections, 562.5 times the 4 the reconstruction accounts for (limit 4.0): the OCR dropped rows or columns the grid still shows; page kept as plain text
 ---
-Aduapisay aaaa NNNNNNANHNNMNGEA NANNNNN SN noaoaosaaaa
+|  |  | ~ Residency | | — Abundancy Aquatic | — Scrub Riparian Desert Grassland | Pinon-Juniper Pond | x Conifer Mixed |  |
+|---|---|---|---|---|---|---|---|
+|  | ___ Downey Woodpecker __Hairy Woodpecker __Three-toed Woodpecker __Northern Flicker (“Red-shafted") |  | |} C 7 ~ 0 |  | eis | -| |  |
+| | | Flycatchers & Larks __Olive-sided Flycatcher __ Western Wood-Pewee __Willow Flycatcher __Dusky Flycatcher __Western Flycatcher __Black Phoebe __Say’s Phoebe | __Ash-throated Flycatcher __Cassin’s Kingbird __ Western Kingbird __ Horned Lark | TWTMHUNANANTWTANUNANNUNAN | Coon 6 Oo. LG ALO |  |  |  | ¢ |
+|  | Swallows __Purple Martin __ Tree Swallow __Violet-green Swallow __N. Rough-winged Swallow __ Bank Swallow __Cliff Swallow __Cave Swallow __ Barn Swallow | nNZTununnnnn | O CC ARRAN |  |  |  |  |
+|  | Jays & Crows __Gray fay __Steller’s Jay __ Scrub Jay __Gray-breasted Jay __Pifion Jay __Clark’s Nutcracker __American Crow __Common Raven | ee een | Aamnraan |  |  |  |  |
+|  | Chickadees |  |  |  |  |  |  |
+|  | __Black-capped Chickadee |  |  |  |  |  |  |

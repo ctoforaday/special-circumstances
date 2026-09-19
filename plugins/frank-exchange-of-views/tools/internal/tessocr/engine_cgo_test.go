@@ -43,9 +43,13 @@ func TestDetectGridOnRealCrop(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DetectGrid: %v", err)
 	}
-	want := GridStats{HPix: 23375, VPix: 21440, Intersections: 367}
+	// MOVED BY #1032, and the direction is the point: background normalization runs before the
+	// detector binarizes, so a rule that was greyer than the fixed threshold now survives it.
+	// 23375/21440/367 was this crop before that change; more rule pixels is what recovering a
+	// faint rule LOOKS like, and the verdict below is unchanged.
+	want := GridStats{HPix: 32364, VPix: 25284, Intersections: 594}
 	if got != want {
-		t.Errorf("DetectGrid = %+v, want %+v (measured at SEL=151 when the fixture was cut)", got, want)
+		t.Errorf("DetectGrid = %+v, want %+v (measured at SEL=151 on the normalized page)", got, want)
 	}
 	if !Grid300.Table(got) {
 		t.Errorf("the grid crop must clear the 300-DPI thresholds")

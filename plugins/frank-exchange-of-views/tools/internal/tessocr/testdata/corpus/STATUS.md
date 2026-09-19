@@ -11,7 +11,7 @@ harness. GENERATED — edit a record or fix the reader, not this file.
 | doe-equations-figure | **no** | must_contain: "SURFACE TYPE" is printed on the page and is not in the reading; must_contain: "SOFTWOOD" is printed on the page and is not in the reading |
 | nbs602-blank | yes | — |
 | nbs602-contents | **no** | must_contain: "27" is printed on the page and is not in the reading; must_contain: "49" is printed on the page and is not in the reading |
-| nbs602-cover-photo | **no** | table: want false, got true |
+| nbs602-cover-photo | **no** | must_contain: "U.S. DEPARTMENT OF COMMERCE" is printed on the page and is not in the reading |
 | nbs602-dashed-matrix | **no** | table: want true, got false; must_contain: "Complex Vision" is printed on the page and is not in the reading; must_contain: "5.4" is printed on the page and is not in the reading; must_contain: "one axis" is printed on the page and is not in the reading |
 | nbs602-form | **no** | must_contain: "NBS-114A" is printed on the page and is not in the reading |
-| usfs-birds-markgrid | **no** | must_contain: "Hairy Woodpecker" is printed on the page and is not in the reading; must_contain: "Purple Martin" is printed on the page and is not in the reading; must_contain: "Black-capped Chickadee" is printed on the page and is not in the reading; must_contain: "Horned Lark" is printed on the page and is not in the reading; must_contain: "Riparian" is printed on the page and is not in the reading; must_contain: "Ponderosa" is printed on the page and is not in the reading; must_contain: "Spruce-Fir" is printed on the page and is not in the reading |
+| usfs-birds-markgrid | **no** | must_contain: "Ponderosa" is printed on the page and is not in the reading; must_contain: "Spruce-Fir" is printed on the page and is not in the reading |

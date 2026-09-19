@@ -39,8 +39,37 @@ struct stderr_silencer {
 	stderr_silencer() { leptSetStderrHandler(discard_stderr); }
 } silencer;
 
+// normalize flattens the page's background to a constant, so a shaded band stops reading as ink.
+//
+// pixBackgroundNormSimple estimates the background over tiles and maps it to 200. Leptonica states
+// the assumption it rests on: there must BE a local background, lighter than the print. That holds
+// for a tinted column and fails for a photograph, which is why what it does to the whole corpus is
+// measured rather than assumed.
+//
+// It runs before EVERYTHING — the pixels it returns are what tesseract's SetImage receives and what
+// the grid detector binarizes. That is the point, and it is why the knob tesseract ships is not the
+// answer: thresholding_method reaches layout only, because recognition reads the image handed to
+// SetImage (BestPix returns pix_original_ whenever its width matches the page).
+//
+// MEASURED BEFORE IT WAS MADE UNCONDITIONAL (#1032). Over the 8-page corpus: the shaded mark grid
+// went from 56 characters of upside-down garbage to 1084 with 5 of its 7 printed strings recovered,
+// and the photographic cover stopped reading as a table. Over the 80 pages of the tuning document:
+// the detector called the same 35 pages tables with normalization on as with it off, zero flips,
+// and recognition was a wash — 18763 alphabetic words became 18769, with the losses in noise on
+// sideways pages and the gains real (a contents page whose leaders had eaten its section titles).
+PIX *normalize(PIX *pix) {
+	if (pix == nullptr) return nullptr;
+	PIX *gray = pixConvertTo8(pix, 0);
+	if (gray == nullptr) return pix;
+	PIX *normed = pixBackgroundNormSimple(gray, nullptr, nullptr);
+	pixDestroy(&gray);
+	if (normed == nullptr) return pix;
+	pixDestroy(&pix);
+	return normed;
+}
+
 PIX *read_png(const unsigned char *buf, size_t len) {
-	return pixReadMem(buf, static_cast<l_uint32>(len));
+	return normalize(pixReadMem(buf, static_cast<l_uint32>(len)));
 }
 
 char *ocr_pix(tesseract::TessBaseAPI *api, PIX *pix, int psm, bool tsv) {

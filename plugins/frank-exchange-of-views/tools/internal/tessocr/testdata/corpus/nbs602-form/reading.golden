@@ -1,18 +1,18 @@
-nbs602-form · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@d241629b1816
-table: true · rotated: false · grid intersections: 252 · length: 2582
+nbs602-form · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@724b9e1f4c82
+table: true · rotated: false · grid intersections: 319 · length: 2577
 marks: 1 columns, 1 subcolumns, 3 rows, 2 of 6 placed, psm disagreement 0.00
 text cells: 1 tables, 11 bands, 18 rows, 2 columns, 15 cells, 354 words placed
 fell back: reconstruction placed 2 of 6 marks, below the 0.80 placement threshold; page kept as plain text
 ---
 NBS-II4A (REV. 2-86)
 
-| U.S. DEPT. OF COMM. 1, PUBLICATION OR 2. Performing Organ. Report No.J 3. Publication Date BIBLIOGRAPHIC DATA REPORT NO. SHEET . (See instructions) NBS SP 602 April 1981 ||
+| U.S. DEPT. OF COMM. 1, PUBLICATION OR 2. Performing Organ. Report No. 3. Publication Date BIBLIOGRAPHIC DATA REPORT NO. SHEET ; i (See instructions) NBS SP 602 April 1981 ||
 |---|---|
 | 4. TITLE AND SUBTITLE NBS/RIA Robotics Research Workshop Proceedings of a Workshop Held at the National Bureau of Standards, Gaithersburg, MD, November 13~15, 1979 ||
-| ‘Editors: James S. Albus, G.J. VanderBrug, Anthony J. Barbera, M.L. Fitzgerald. Thoma Wheat’ ||
+| ‘Editors: James S. Albus, G.J. VanderBrug, Anthony J. Barbera, M.L. Fitzgerald. Thoma Wheat! ||
 | 6. PERFORMING ORGANIZATION (If joint or other than NBS, see instructions) | 7. Contract/Grant No. |
 | NATIONAL BUREAU OF STANDARDS |  |
-| DEPARTMENT OF COMMERCE WASHINGTON, D.C. 20234 | 8. Type of Report & Period Coverec Final |
+| DEPARTMENT OF COMMERCE WASHINGTON, D.C. 20234 | 8. Type of Report & Period Covere: Final |
 | 9. SPONSORING ORGANIZATION NAME AND COMPLETE ADDRESS (Street, City, State, ZIP) National Bureau of Standards and The Robot Institute of America 20501 Ford Road, P.O. Box 930 Dearborn, MI 48128 ||
 | 10. SUPPLEMENTARY NOTES ||
 | Library of Congress Catalog Number: 80-600192 ||
@@ -22,8 +22,8 @@ NBS-II4A (REV. 2-86)
 | The 3-day workshop brought together 31 researchers, manufacturers, and users of industrial robots in order to determine the needs and priorities for future research in sensors and control techniques for industrial robots. There were no formal papers; instead, small group discussions and presentations and the preparation of a Delphi Forecast were used to address research needs and priorities. ||
 | 12. KEY WORDS (Six to twelve entries; alphabetical order; capitalize only proper names; and separate key words by semicolons) ||
 | Delphi Forecast; robot control; robot vision; robotic assembly; robotic standards; robotics research ||
-| 13. AVAILABILITY (x] Unlimited {_] For Official Distribution. Do Not Release to NTIS | 14. NO, OF PRINTED PAGES 54 |
+| 13. AVAILABILITY (x] Unlimited For Official Distribution. Do Not Release to NTIS | 14. NO, OF PRINTED PAGES 54 |
 | [x] Order From Sup. of Doc., U.S. Government Printing Office, Washington, DC 20402. | 15. Pri . Price |
-| {| Order From National Technical Information Service (NTIS), Springfield, VA, 2216! | $3.75 |
+| | Order From National Technical Information Service (NTIS), Springfield, VA. 2216! | $3.75 |
 
-U.S. GOVERNMENT PRINTING OFFICE: 1981-340" 997/1580 USCOMM-DC 6043-
+U.S. GOVERNMENT PRINTING OFFICE: 1981-340-997/1580 USCOMM=OC 6043-
