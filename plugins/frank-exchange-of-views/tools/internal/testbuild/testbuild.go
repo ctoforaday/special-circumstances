@@ -45,6 +45,7 @@ package testbuild
 import (
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nonet"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -88,6 +89,7 @@ func Main(m *testing.M, after ...func() error) {
 	// a test that reaches something outside this process reports someone else's problem as its
 	// own. See internal/nonet for the measured case.
 	nonet.OnlyLoopback()
+	ClearDispatch()
 	restore, err := sandboxHome()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "testbuild:", err)
@@ -135,6 +137,33 @@ var realHome, realHomeSet = os.LookupEnv(homeKey())
 // behaviour is untouched, and the goldens still record a real run-mirror path for the
 // harness's normalizer to match — which is why this is done here rather than by teaching
 // verdict.go to skip the mirror for temp run directories.
+// ClearDispatch removes the seat-dispatch variables from the suite's environment.
+//
+// THE SAME PRINCIPLE AS sandboxHome AND nonet, AND IT WAS MISSED. A seat is told which run it
+// belongs to through FEOV_RUN, injected by the PreToolUse hook from the project's live-run marker.
+// A developer's shell is a session like any other, so while ANY run is open anywhere in the
+// project — another agent's, in another worktree — every `go test` inherits that run, the
+// in-process CLI resolves it as the dispatched run, and every test that passes its own --run is
+// refused for disagreeing with a stranger's.
+//
+// Measured on 2026-09-19: 299 subtests red in one worktree from a live run in another, with a
+// message that reads like a test bug and is not one. Production behaviour is untouched — a real
+// seat gets the variable from the hook, per call.
+//
+// Exported so recordtest.Main, the module's other shared TestMain, installs the same guard rather
+// than keeping a second copy of this list.
+func ClearDispatch() {
+	for _, v := range []string{
+		seatenv.Var,        // FEOV_RUN — the dispatched run
+		seatenv.VarWrapper, // FEOV_RUN_FROM_WRAPPER — the run baked at setup
+		seatenv.VarHookVersion,
+		seatenv.AgentVar, // FEOV_AGENT_ID — whose seat the caller is
+		seatenv.TypeVar,
+	} {
+		_ = os.Unsetenv(v)
+	}
+}
+
 func sandboxHome() (func(), error) {
 	h, err := os.MkdirTemp("", "sc-testhome-")
 	if err != nil {
