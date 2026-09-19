@@ -1,6 +1,8 @@
 # Checkpoint freshness — making the note's staleness measurable
 
-> STATUS 2026-09-02: in progress (Phase 1 and the Phase 2 build slices are merged to main — the 01CQ worktree branch's commits landed as patch-equivalent twins via the cf-1…cf-4 branch line, bracketed by pull requests #536 and #539; a 64-row baseline exists in that worktree's `seals.jsonl`, all three triggers present; thresholds are still unset — `stopnudge.configured()` returns the zero value — so the nudge is inert and Phase 3 has not started)
+> STATUS 2026-09-02: in progress (Phase 1 and the Phase 2 build slices are merged to main — the 01CQ worktree branch's commits landed as patch-equivalent twins via the cf-1…cf-4 branch line, bracketed by pull requests #536 and #539; a 64-row baseline exists in that worktree's `seals.jsonl`, all three triggers present; thresholds are still unset — `stopnudge.configured()` returns the zero value — so the nudge is inert and Phase 3 has not started. 2026-09-19: the nudge declines in a session whose
+final message is contracted to a machine reader — `SC_FINAL_MESSAGE_CONTRACTED`, published by
+prosthetic-conscience and set by the launcher (#1025); the channel section records the measurement)
 
 > Phase 5 of [`context-checkpointing.md`](context-checkpointing.md) §13, which reads in full:
 > *"Staleness **nudge** (non-blocking), preferring `PostToolUseFailure` over a mutation counter,
@@ -99,6 +101,25 @@ injects nothing at all while still re-arming the seat's turn nine times.
 are the same mechanism.** A guarded single emission hands the model exactly one extra turn in which
 to act on what it was told. No other event does that: `PostToolUse` injects into a turn already
 committed to its next action; `Stop` injects at a boundary and then creates a turn.
+
+### The turn it creates belongs to someone, and sometimes that someone is a machine
+
+The extra turn is the feature where a human reads the reply, and the defect where a machine does.
+A seat launched headless is a MAIN session, so `Stop` fires and the nudge lands at the boundary of a
+turn whose final message is contracted to be exactly one JSON object. Measured on the
+`2026-09-17_is-91-prime-c1` smoke run: four of 35 sittings answered the nudge in prose and lost the
+envelope, costing **34.6 of 147.4 sitting-minutes — 23% of the run's wall clock**, with the first
+attempts un-billed so the true share is higher. Two seats, interviewed with no tools and
+independently, each said the injection read as a fresh human-directed instruction that superseded
+the return-format contract (#1025).
+
+No payload field distinguishes the two readers. `Stop` carries no `agent_id`, no mode and no
+entrypoint, and the harness's own `CLAUDE_CODE_SESSION_ATTENDED` draws a different line — it reads
+`0` for a Remote Control session, which has a human. So the fact has to be asserted by whoever
+knows it: `SC_FINAL_MESSAGE_CONTRACTED`, published by prosthetic-conscience, set by the launcher,
+and the nudge declines when it is present. The signal is **cooperative** — a launcher that does not
+set it gets the behaviour measured above — and that is the accepted cost of having no harness fact
+to read.
 
 ### The numerator is exact, and there is no denominator — so nothing is divided
 
