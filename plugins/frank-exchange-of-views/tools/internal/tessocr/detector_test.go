@@ -152,3 +152,24 @@ func readGridFixture(t *testing.T) map[string]GridStats {
 	}
 	return out
 }
+
+// THE DERIVATION MUST REPRODUCE THE TUNE, EXACTLY. Grid300 is no longer a table of numbers; it is
+// GridFor(300), and every threshold in testdata/grid300-sel151.txt was measured against the table.
+// A derivation that lands a pixel away silently re-tunes the detector.
+func TestTheDerivedTuneIsTheMeasuredTuneAt300(t *testing.T) {
+	want := GridThresholds{SEL: 151, MinHPix: 15000, MinVPix: 4500, MinIntersections: 100}
+	if got := GridFor(300); got != want {
+		t.Fatalf("GridFor(300) = %+v, want the Wave 0 tune %+v", got, want)
+	}
+	// A length goes with DPI and an area with its square: at twice the resolution the run is twice
+	// as long and the pixel minima four times as many. Stated as a test because the two kinds are
+	// what a future edit is most likely to collapse into one ratio.
+	d := GridFor(600)
+	if d.SEL != 302 {
+		t.Errorf("SEL at 600 DPI = %d, want 302 — a length scales with DPI", d.SEL)
+	}
+	if d.MinHPix != 60000 || d.MinVPix != 18000 || d.MinIntersections != 400 {
+		t.Errorf("pixel minima at 600 DPI = %d/%d/%d, want 60000/18000/400 — an area scales with the square",
+			d.MinHPix, d.MinVPix, d.MinIntersections)
+	}
+}
