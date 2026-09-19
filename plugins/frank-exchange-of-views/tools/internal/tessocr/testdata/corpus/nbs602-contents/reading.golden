@@ -1,56 +1,41 @@
-nbs602-contents · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@d241629b1816
-table: false · rotated: false · grid intersections: 0 · length: 425
+nbs602-contents · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@724b9e1f4c82
+table: false · rotated: false · grid intersections: 0 · length: 421
 ---
 TABLE OF CONTENTS
 
 I. INTRODUCTION
+Address List of Workshop Participants
+II. DISCUSSION GROUPS
 
-} Address List of Workshop Participants
+1. Assembly
 
-| II. DISCUSSION GROUPS
+2. Control Systems Architecture and Implementation
+3. Robot End Effectors
 
-1.
-Bc
-3.
-4.
-De
-6.
-7.
-8.
-9.
-10.
+4. Welding
 
-Assembly
+5. Programming Languages
 
-Control Systems Architecture and Implementation
-Robot End Effectors
+6. Manufacturing Systems
 
-Welding
+7. Inspection Systems
 
-Programming Languages
+8. Touch and Force
 
-Manufacturing Systems
+9. Vision I
 
-Inspection Systems
-
-Touch and Force
-
-Vision I
-
-Vision II
+10. Vision II
 
 IIT. DELPHI FORECAST
 
-Mm FWD Fe
-ee
+1. Introduction
 
-Introduction
-Sensors
+2. Sensors
 
-Control
+3. Control
 
-Market
+4. Market
 
-Research Properties
+5. Research Properties
 
-Lii
+Llii
