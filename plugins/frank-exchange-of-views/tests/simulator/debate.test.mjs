@@ -689,3 +689,37 @@ test('the default cast is every lens area', async () => {
   const types = labelsOf(world, 'red-lens').map((c) => c.opts.agentType).sort()
   assert.deepEqual(types, areas.map((a) => `frank-exchange-of-views:red-lens-${a}`).sort(), 'seven lens sittings, one per area')
 })
+
+// THE PATTERN DUTY REACHES THE SEAT THAT OWES IT, and nothing pinned that until now.
+//
+// The clause had no call site: defined, never invoked, so red's accumulated memory never reached a
+// repairing seat at all. `grep -rl 'PATTERN DUTY' --include='*.golden'` returned nothing, because a
+// clause that never renders cannot move a golden — the same plausible zero this engine keeps
+// finding, here in the delivery path of a duty both constitutions advertise as the one that works.
+test('the pattern duty reaches blue-respond, names the act, and inlines no corpus', async () => {
+  const world = makeWorld(makeResponder({
+    chair: [chairEnv({ plan: plan([party('blue-respond', 'G1')]) }), passChair()],
+  }))
+  await world.run(script, ARGS)
+  const p = firstPrompt(world, 'blue-respond')
+  assert.ok(p.includes('PATTERN DUTY'), 'the repairing seat was not given the pattern duty')
+  assert.ok(/take its class from the board/.test(p), 'the duty does not tell the seat where the class comes from')
+  assert.ok(/read that class's entries/.test(p), 'the duty does not tell the seat to read the patterns')
+})
+
+// THE CORPUS IS NOT RELAYED THROUGH THE WORKFLOW ARGUMENT. Passing the parsed index cost 38,473
+// characters of `args` and 125 seconds of generation on one smoke — the lead retyping a file that
+// was already on disk beside the seat that needed it. A reintroduced relay would not fail any other
+// test: it would just make every run slower, which is exactly the kind of regression nothing
+// notices.
+test('a gapPatterns argument is ignored: the corpus never travels through args', async () => {
+  const withCorpus = { ...ARGS, gapPatterns: { 'unproven-claim': [{ file: 'f.md', title: 'T', hook: 'H' }] } }
+  const world = makeWorld(makeResponder({
+    chair: [chairEnv({ plan: plan([party('blue-respond', 'G1')]) }), passChair()],
+  }))
+  await world.run(script, withCorpus)
+  for (const c of world.calls) {
+    assert.ok(!c.prompt.includes('f.md'), `a relayed pattern filename reached ${c.opts.label}`)
+    assert.ok(!c.prompt.includes('T — H'), `a relayed pattern body reached ${c.opts.label}`)
+  }
+})
