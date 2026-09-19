@@ -109,15 +109,154 @@ plugins/prosthetic-conscience/
 
 ## 3. Toolchain Normalization (`hookcore`)
 
-### Design Principles
-1. **Zero External Dependencies:** Preserve `prosthetic-conscience/tools/go.mod` invariant (standard library only; no Protobuf runtimes or heavy code generators).
-2. **Single Ingestion Pass:** Single function `hookcore.DecodeInvocation(r io.Reader) (*hookcore.Invocation, error)` that detects payload shape:
-   - Claude Code: `tool_name`, `tool_input` (nested snake_case).
-   - Antigravity: `toolCall.name`, `toolCall.args` (nested camelCase).
-3. **Fail-Closed Security:** Unparseable payloads or unmapped tools default to `Decision: Deny` in `sc-pretooluse`.
+### 3.1 Design Principles & Invariants
+1. **Zero External Dependencies:** Preserve the strict [`plugins/prosthetic-conscience/tools/go.mod`](file:///home/gblock_ctoforaday_com/projects/special-circumstances/plugins/prosthetic-conscience/tools/go.mod) invariant (pure Go 1.25 standard library; no Protobuf runtimes, reflection bloat, or external packages).
+2. **Single Ingestion Pass:** A single decoder `hookcore.DecodeInvocation(r io.Reader) (*hookcore.Invocation, error)` that detects the payload structure by sniffing discriminator fields:
+   - Claude Code: `tool_name`, `tool_input` (nested snake_case), `session_id`.
+   - Antigravity: `stepIdx`, `toolCall.name`, `toolCall.args` (nested PascalCase), `conversationId`.
+3. **Fail-Closed Security:** Unparseable payloads or unmapped outbound tools default to `Decision: Deny` in `sc-pretooluse`.
 4. **Clean Exit Code Mapping:**
-   - Claude Code: Exit 2 with stderr feedback for denies/rejections.
-   - Antigravity: Exit 0 with JSON `{"decision": "deny", "deny_reason": "..."}` or `{"injectSteps": [...]}`.
+   - Claude Code: Exit 0 for allow/deny decisions (`permissionDecision: "deny"` in JSON); Exit 2 with stderr feedback for linter/policy failures in `PostToolUse`.
+   - Antigravity: Exit 0 with JSON `{"decision": "deny", "deny_reason": "..."}` for `PreToolUse`; Exit 0 with `{}` for `PostToolUse` while caching findings to inject on `PreInvocation` via `{"injectSteps": [...]}`.
+
+---
+
+### 3.2 Complete Lifecycle Event & Execution Matrix
+
+| Lifecycle Event | Anthropic Claude Code | Google Antigravity (`agy` / Jetski) | Normalization Strategy |
+| :--- | :--- | :--- | :--- |
+| **`SessionStart`** | Stdin: `session_id`, `transcript_path`, `cwd`. Output: exit 0, `additionalContext`. | Stdin: `conversationId`, `transcriptPath`, `workspacePaths` (array). Output: exit 0, `injectSteps`. | Ingest project root via `hookenv.ProjectDir`. Emit engine-specific context injection schema. |
+| **`PreToolUse`** | Stdin: `tool_name`, `tool_input` (snake_case). Output: exit 0, `permissionDecision`. | Stdin: `stepIdx`, `toolCall: { name, args }` (PascalCase). Output: exit 0, `decision: "deny"`, `deny_reason`. | Canonicalize tool name & args into `hookcore.Invocation`. Output dual-target denial schema. |
+| **`PostToolUse`** | Stdin: `tool_name`, `tool_input`, `tool_result`. Output: exit 2 (stderr feedback). | Stdin: `toolCall: { name, args }`, `error`. Output: exit 0 (stdout `{}`). | On Antigravity, write lint findings to `.findings_${conversationId}.json`; bridge to model turn via `PreInvocation`. |
+| **`PreInvocation`** | *Unsupported / N/A*. | Stdin: `invocationNum`, `initialNumSteps`. Output: `injectSteps: [...]`. | Consumes `.findings_${conversationId}.json` cache and injects ephemeral quality-gate advisories. |
+| **`PostInvocation`**| *Unsupported / N/A*. | Stdin: `invocationNum`, `fullyIdle`. Output: `{}`. | Resets per-turn telemetry and caches. |
+| **`Stop`** | Stdin: `session_id`, `transcript_path`. Output: exit 0. | Stdin: `conversationId`, `transcriptPath`, `terminationReason`. Output: exit 0. | Route both to session archive and trajectory capture. |
+| **`PostToolUseFailure`** | Stdin: `tool_name`, `tool_input`, `error`. | *Merged into `PostToolUse`* (passed as `error: string`). | `sc-strike-counter` reads `error != ""` on Antigravity's `PostToolUse`. |
+| **Claude-Only Events** | `SubagentStop`, `PreCompact`, `PostCompact`, `FileChanged`, `SessionEnd`. | *Unsupported by engine*. | Claude hook wrapper runs natively; Antigravity manifest omits them. |
+
+---
+
+### 3.3 Tool Arguments Normalization (PascalCase ↔ snake_case)
+
+Antigravity uses **PascalCase** inside `toolCall.args`, while Claude Code uses flat **snake_case** in `tool_input`:
+
+| Tool Category | Claude Tool | Antigravity Tool | Claude Key (`tool_input`) | Antigravity Key (`toolCall.args`) | Canonical `Invocation` Field |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Shell Command** | `Bash` | `run_command` | `command` | `CommandLine` | `ToolInput.Command` |
+| | | | `description` | `Description` / `toolAction` | `ToolInput.Description` |
+| | | | *(ambient)* | `Cwd` | `ToolInput.Cwd` |
+| **Write File** | `Write` | `write_to_file` | `file_path` / `path` | `TargetFile` | `ToolInput.FilePath` |
+| | | | `content` | `CodeContent` | `ToolInput.Content` |
+| **Edit File** | `Edit` | `replace_file_content` | `file_path` / `path` | `TargetFile` | `ToolInput.FilePath` |
+| | | | `old_string` | `TargetContent` | `ToolInput.OldContent` |
+| | | | `new_string` | `ReplacementContent` | `ToolInput.NewContent` |
+| | | | `replace_all` | `AllowMultiple` | `ToolInput.AllowMultiple` |
+| **Read File** | `Read` | `view_file` | `file_path` | `AbsolutePath` | `ToolInput.FilePath` |
+| **Web Search** | `WebSearch` | `search_web` | `query` | `query` / `Query` | `ToolInput.Query` |
+| **Web Fetch** | `WebFetch` | `read_url_content` | `url` | `Url` | `ToolInput.URL` |
+| **Directory Search**| `LS` / `GlobTool`| `find_by_name` | `path` | `DirectoryPath` / `SearchDirectory` | `ToolInput.DirectoryPath` |
+| **Grep Search** | `Grep` | `grep_search` | `path`, `pattern` | `SearchPath`, `Query` | `ToolInput.SearchPath`, `ToolInput.Query` |
+
+---
+
+### 3.4 Output Contracts & Exit Codes
+
+| Action | Platform | Exit Code | Stdout Payload | Stderr Payload |
+| :--- | :--- | :--- | :--- | :--- |
+| **Allow** | Both | `0` | `{}` | Empty |
+| **Deny (`PreToolUse`)** | Claude Code | `0` | `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"<msg>"},"systemMessage":"<msg>"}` | Empty |
+| | Antigravity | `0` | `{"decision":"deny","deny_reason":"<msg>","reason":"<msg>"}` | Empty |
+| **Feedback (`PostToolUse`)**| Claude Code | `2` | Empty | `<lint/policy message>` (injected directly to model context) |
+| | Antigravity | `0` | `{}` (findings written to `.findings_${conversationId}.json`) | Empty |
+| **Feedback (`PreInvocation`)**| Claude Code | *N/A* | *N/A* | *N/A* |
+| | Antigravity | `0` | `{"injectSteps":[{"ephemeralMessage":"Quality Gate Notice:\n<feedback>"}]}` | Empty |
+| **Context Injection (`SessionStart`)**| Claude Code | `0` | `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"<msg>","watchPaths":[...]}}` | Empty |
+| | Antigravity | `0` | `{"injectSteps":[{"ephemeralMessage":"<msg>"}]}` | Empty |
+
+---
+
+### 3.5 Special Circumstances Hook Audit & Root Defects Discovered
+
+1. **`sc-pretooluse`**:
+   - *Existing Defect*: `hookunit.NewCtx` read only `tool_name`. Under Antigravity, `c.ToolName` became `""`, causing `secretsgate.Unit().Applies` to evaluate to `false`. **Secrets checking was silently bypassed.**
+   - *Fix*: `hookcore.DecodeInvocation` normalizes `toolCall.name` (`run_command` → `Bash`, `search_web` → `WebSearch`, `read_url_content` → `WebFetch`) and extracts `CommandLine` → `Command`.
+2. **`sc-posttooluse`**:
+   - *Existing Defect*: `qualitygate.Unit()` applies on `Write` or `Edit`. Antigravity's `write_to_file` and `replace_file_content` were ignored, and `TargetFile` was missing from `tool_input`. Gate returned `"no file in payload"`.
+   - *Fix*: Normalize tools to `Write`/`Edit`, extract `TargetFile` to `FilePath`. Write findings cache on Antigravity; exit 0.
+3. **`sc-sessionstart`**:
+   - *Existing Defect*: `hookenv.Explain` expects `CLAUDE_PROJECT_DIR` and payload `cwd`. Under Antigravity, `CLAUDE_PROJECT_DIR` is unset and `cwd` is omitted (`workspacePaths` is provided). Hook exited with 0 output.
+   - *Fix*: `hookenv.ProjectDir` inspects `workspacePaths[0]`. Outputs `injectSteps` for Antigravity.
+4. **`sc-strike-counter`**:
+   - *Existing Defect*: Relied exclusively on Claude's `PostToolUseFailure`.
+   - *Fix*: On Antigravity, registers on `PostToolUse` and evaluates `error != ""`.
+5. **`go.mod` Invariant Maintained**:
+   - Package `tools/internal/hookcore` uses strictly pure Go 1.25 standard library (`encoding/json`, `io`, `strings`, `path/filepath`, `errors`, `fmt`).
+   - [`plugins/prosthetic-conscience/tools/go.mod`](file:///home/gblock_ctoforaday_com/projects/special-circumstances/plugins/prosthetic-conscience/tools/go.mod) remains at 0 external dependencies.
+
+---
+
+### 3.6 Architecture of `tools/internal/hookcore`
+
+```go
+package hookcore
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+type Harness string
+
+const (
+	HarnessClaudeCode  Harness = "claude"
+	HarnessAntigravity Harness = "antigravity"
+)
+
+type CanonicalTool string
+
+const (
+	ToolBash      CanonicalTool = "Bash"
+	ToolWrite     CanonicalTool = "Write"
+	ToolEdit      CanonicalTool = "Edit"
+	ToolRead      CanonicalTool = "Read"
+	ToolWebSearch CanonicalTool = "WebSearch"
+	ToolWebFetch  CanonicalTool = "WebFetch"
+	ToolListDir   CanonicalTool = "ListDir"
+	ToolGrep      CanonicalTool = "Grep"
+	ToolOther     CanonicalTool = "Other"
+)
+
+type Invocation struct {
+	Harness        Harness
+	Event          string
+	SessionID      string
+	ProjectDir     string
+	Tool           CanonicalTool
+	RawToolName    string
+	Input          ToolInput
+	ToolResult     string
+	Error          string
+	RawPayload     []byte
+}
+
+type ToolInput struct {
+	Command       string
+	FilePath      string
+	Content       string
+	OldContent    string
+	NewContent    string
+	Query         string
+	URL           string
+	DirectoryPath string
+	SearchPath    string
+	AllowMultiple bool
+}
+```
 
 ---
 
@@ -135,6 +274,7 @@ plugins/prosthetic-conscience/
 - [ ] **Phase 3: `hookcore` Ingestion Engine**
   - Implement `tools/internal/hookcore` package in Go.
   - Update `sc-pretooluse` and `sc-posttooluse` to consume `hookcore.Invocation`.
+  - Update `sc-sessionstart` and `sc-strike-counter` for dual-harness payload handling.
   - Verify with unit tests across both mock Claude and Antigravity payloads.
 - [ ] **Phase 4: Multi-Harness Validation**
   - Run `scripts/validatejson` and `scripts/pluginparity`.
