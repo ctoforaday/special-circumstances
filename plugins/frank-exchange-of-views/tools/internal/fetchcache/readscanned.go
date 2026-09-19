@@ -75,23 +75,33 @@ func (RenderAndRead) ReadScanned(ctx context.Context, run record.Run, e Entry) (
 		return ReadingRecord{}, fmt.Errorf("only application/pdf renders to pages, and sha %s is %s",
 			e.Sha, ContentTypeOrUnknown(e.ContentType))
 	}
-	if err := renderWithinDiskBudget(e.Pages, tessocr.RenderDPI); err != nil {
+	// The budget is checked at the FLOOR first, because the document has not been opened yet and a
+	// document over budget at 300 is over budget at any resolution this will choose.
+	if err := renderWithinDiskBudget(e.Pages, DefaultRenderDPI); err != nil {
 		return ReadingRecord{}, err
-	}
-
-	prev, had, err := ReadReadingRecord(run, e.Sha)
-	if err != nil {
-		return ReadingRecord{}, err
-	}
-	if had && prev.DPI == tessocr.RenderDPI && prev.Engine == DefaultPageEngine.Identity() && len(prev.Pages) > 0 {
-		return prev, nil
 	}
 
 	body, rerr := Read(run, e.Sha)
 	if rerr != nil {
 		return ReadingRecord{}, fmt.Errorf("the index names sha %s but its content file is unreadable: %w", e.Sha, rerr)
 	}
-	return renderAndReadPages(run, e.Sha, body)
+	native, nerr := NativeDPI(run, body)
+	if nerr != nil {
+		return ReadingRecord{}, nerr
+	}
+	dpi := RenderDPIFor(native)
+
+	prev, had, err := ReadReadingRecord(run, e.Sha)
+	if err != nil {
+		return ReadingRecord{}, err
+	}
+	// A STORED READING SERVES ONLY AT THE RESOLUTION THIS DOCUMENT WOULD NOW BE READ AT. The
+	// resolution used to be one constant, so the check was an equality against it; it is now the
+	// scan's own, so a reading made before this policy is stale by exactly the fact it records.
+	if had && prev.DPI == dpi && prev.Engine == DefaultPageEngine.Identity() && len(prev.Pages) > 0 {
+		return prev, nil
+	}
+	return renderAndReadPages(run, e.Sha, body, dpi)
 }
 
 // renderAndReadPages is the fused loop: one page rasterised, read, and released at a time.
@@ -113,11 +123,10 @@ func (RenderAndRead) ReadScanned(ctx context.Context, run record.Run, e Entry) (
 // The per-page texts and receipts are written as the loop runs and the record LAST, so a
 // crash leaves rows with no record — which reads as "not read", and the re-read validates
 // page by page instead of deriving again.
-func renderAndReadPages(run record.Run, sha string, body []byte) (ReadingRecord, error) {
-	// The resolution is the engine's own constant, not a parameter: the grid and
-	// reconstruction thresholds are per-DPI facts, and a caller-supplied DPI here would be
-	// an invitation to apply them to pixels they were not tuned for.
-	const dpi = tessocr.RenderDPI
+// dpi is the resolution the CALLER derived from the scan itself (RenderDPIFor over NativeDPI). It
+// is a parameter rather than a constant because a scan's own resolution is a fact about the
+// document, not about the engine — and the thresholds follow it through tessocr.GridFor.
+func renderAndReadPages(run record.Run, sha string, body []byte, dpi int) (ReadingRecord, error) {
 
 	dir := PagesDir(run, sha)
 	if err := os.Remove(OCRTextPath(run, sha)); err != nil && !os.IsNotExist(err) {

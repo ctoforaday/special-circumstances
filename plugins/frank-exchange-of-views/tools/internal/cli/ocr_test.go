@@ -186,7 +186,7 @@ type stubCLIEngine struct {
 
 func (s *stubCLIEngine) Identity() string { return "fake@test" }
 
-func (s *stubCLIEngine) ReadPage(_ []byte) (tessocr.PageResult, error) {
+func (s *stubCLIEngine) ReadPage(_ []byte, _ int) (tessocr.PageResult, error) {
 	s.n++
 	t, err := s.perCall(s.n)
 	return tessocr.PageResult{Text: t}, err
@@ -254,9 +254,9 @@ func TestOCRReadRefusesARenderAtAnotherResolution(t *testing.T) {
 
 	_, err := run(t, "ocr", "read", "--seat-id", "operator", "--sha", sha, "--run", dir)
 	if err == nil {
-		t.Fatal("a 72-DPI render was read with the 300-DPI tune")
+		t.Fatal("a 72-DPI render was read, and 72 is below the band the constants are derived over")
 	}
-	for _, want := range []string{"tuned", "re-render"} {
+	for _, want := range []string{"72", "derived over", "re-render"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal = %q, want it to mention %q", err, want)
 		}

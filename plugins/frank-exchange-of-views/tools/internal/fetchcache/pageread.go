@@ -39,7 +39,10 @@ import (
 // blank page) and must never be how a failure arrives. On a binary built without
 // `-tags tessocr` every call fails with the engine-absent error, loudly.
 type PageEngine interface {
-	ReadPage(png []byte) (tessocr.PageResult, error)
+	// ReadPage reads one page rendered at dpi. The resolution is a parameter because a scan is
+	// read at ITS OWN resolution (#1031), so the grid thresholds are derived per page through
+	// tessocr.GridFor rather than assumed to be the 300-DPI tune.
+	ReadPage(png []byte, dpi int) (tessocr.PageResult, error)
 	// Identity keys the reading record — the #636 extractor model. Same identity, same
 	// pixels, same bytes; a reading whose recorded identity matches this engine's is
 	// re-derivable by it.
@@ -61,7 +64,7 @@ type TessocrPageEngine struct {
 
 func (t *TessocrPageEngine) Identity() string { return tessocr.Identity() }
 
-func (t *TessocrPageEngine) ReadPage(png []byte) (tessocr.PageResult, error) {
+func (t *TessocrPageEngine) ReadPage(png []byte, dpi int) (tessocr.PageResult, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.en == nil {
@@ -71,7 +74,7 @@ func (t *TessocrPageEngine) ReadPage(png []byte) (tessocr.PageResult, error) {
 		}
 		t.en = en
 	}
-	res, err := t.en.ReadPage(png, tessocr.Grid300)
+	res, err := t.en.ReadPage(png, tessocr.GridFor(dpi))
 	if err != nil {
 		return tessocr.PageResult{}, engineAbsentLoudly(err)
 	}
@@ -259,7 +262,7 @@ func readPageStep(run record.Run, sha string, page int, png []byte, dpi int) (pa
 		return r, string(b), nil
 	}
 
-	res, rerr := DefaultPageEngine.ReadPage(png)
+	res, rerr := DefaultPageEngine.ReadPage(png, dpi)
 	if rerr != nil {
 		// AN ENGINE ERROR IS AN ERROR, NOT AN EMPTY PAGE — including the stub build's
 		// engine-absent refusal, which must reach the operator as a sentence, never as a
@@ -417,13 +420,15 @@ func ReadRenderedPages(run record.Run, sha string, rd RenderRecord) (ReadingReco
 	if rd.Pages() == 0 {
 		return ReadingRecord{}, fmt.Errorf("the render record for %s names no pages", sha)
 	}
-	if rd.DPI != tessocr.RenderDPI {
-		// The grid thresholds and reconstruction constants are per-DPI facts, tuned at
-		// tessocr.RenderDPI; applying them to other pixels would not fail, it would
-		// misdetect quietly — the worse outcome.
-		return ReadingRecord{}, fmt.Errorf("these pages were rendered at %d DPI and the engine's "+
-			"constants are tuned at %d — re-render with `ocr pages --sha %s --dpi %d` and read again",
-			rd.DPI, tessocr.RenderDPI, sha, tessocr.RenderDPI)
+	// THE RESOLUTION IS NOW A RANGE, NOT ONE NUMBER (#1031). The grid thresholds are derived from
+	// the render's own DPI (tessocr.GridFor), so pixels at 350 are read with a tune for 350. What
+	// stays refused is a resolution outside the band the derivation was measured over: below the
+	// floor a page is read small and content is lost, above the ceiling nothing is recovered and a
+	// boundary page was measured flipping to a false table.
+	if rd.DPI < DefaultRenderDPI || rd.DPI > MaxRenderDPI {
+		return ReadingRecord{}, fmt.Errorf("these pages were rendered at %d DPI, outside the %d–%d "+
+			"the engine's constants are derived over — re-render with `ocr pages --sha %s --dpi %d` and read again",
+			rd.DPI, DefaultRenderDPI, MaxRenderDPI, sha, DefaultRenderDPI)
 	}
 
 	out := ReadingRecord{

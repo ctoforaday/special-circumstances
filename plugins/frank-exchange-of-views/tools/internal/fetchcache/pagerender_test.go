@@ -280,3 +280,26 @@ func TestRenderedPixelsHonourTheRecordedDPI(t *testing.T) {
 		prev = rec.PageShas[0]
 	}
 }
+
+// THE POLICY, AT ITS THREE BOUNDARIES (#1031). A scan is read at its own resolution, floored where
+// reading small loses content and capped where reading big recovers none.
+func TestRenderDPIFollowsTheScanBetweenAFloorAndACap(t *testing.T) {
+	for _, tc := range []struct {
+		native, want int
+		why          string
+	}{
+		{0, DefaultRenderDPI, "a document with no images to measure is rendered at the floor, as it always was"},
+		{72, DefaultRenderDPI, "a fax is rendered UP: at 150 a page lost 2 of 4 printed strings and its table verdict"},
+		{299, DefaultRenderDPI, "just under the floor is still the floor"},
+		{300, 300, "a scan at the floor is rendered 1:1"},
+		{324, 324, "IEEE 1012's own resolution, which a fixed 300 was downsampling"},
+		{350, 350, "NBS SP 602: rendering this at 300 cost a contents page its page numbers"},
+		{501, 501, "a Forest Service checklist"},
+		{600, 600, "the cap is inclusive"},
+		{1200, MaxRenderDPI, "past the cap nothing is recovered and a long document renders to gigabytes"},
+	} {
+		if got := RenderDPIFor(tc.native); got != tc.want {
+			t.Errorf("RenderDPIFor(%d) = %d, want %d — %s", tc.native, got, tc.want, tc.why)
+		}
+	}
+}
