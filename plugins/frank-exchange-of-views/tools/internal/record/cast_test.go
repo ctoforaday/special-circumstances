@@ -26,10 +26,10 @@ func TestTheCastIsReadOffTheRecordAndAdmitsItsMembers(t *testing.T) {
 		t.Fatalf("CastOf = (%v, %v)", cast, err)
 	}
 	for seat, want := range map[string]bool{
-		"red-chair":                true,
-		"judge": true, // a petition sitting by a cast seat
-		"red-lens-voice":           false,
-		"judge-petition-frontier":  false, // frontier is not in this cast
+		"red-chair":               true,
+		"judge":                   true, // a petition sitting by a cast seat
+		"red-lens-voice":          false,
+		"judge-petition-frontier": false, // frontier is not in this cast
 	} {
 		member, has, err := InCast(run, seat)
 		if err != nil || !has || member != want {

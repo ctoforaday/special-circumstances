@@ -1,4 +1,4 @@
-prompt sha256: 9493556e063ca19dd1860223363d9e79f15bbd321931a51f71e62e2c2adb1c01
+prompt sha256: 6ad12953829e0a5c53043701ec088c637986126db5f2379affb18300470e961a
 
 Final assembly for topic "the seat prompt contract", run directory research/2026-01-01_golden.
 Debate outcome: VERIFIED after 3 chair sitting(s) — the chair recorded PASS with the board permitting it.
@@ -19,7 +19,7 @@ THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: rea
 Infra debts the bench named: [].
 Collated friction so far (report any of your own as well): [].
 LAW: if research/2026-01-01_golden/inputs/law/ exists, read it before ruling — statute > precedent > case-local argument; PRECEDENT IS ARGUMENT, NOT EVIDENCE (the artifact and the leaf are the only evidence; where a precedent conflicts with the leaf, the leaf wins and you flag the conflict for human review); a precedent either party cites MUST be addressed in your opinion; PERSUASIVE holdings persuade, only AFFIRMED ones bind; your rulings this run are harvested as PERSUASIVE proposals for human review — you propose law, you never enact it.
-LOG (assemble) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's log field.
+LOG (judge) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's log field.
 YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU, not the other seats: what you reached for, what it did, and what you wanted instead.
 Where you set an act aside as a JUDGEMENT rather than for want of occasion, give that one sentence — the record shows what you ran, never what you weighed and declined.
 Where nothing impeded the work, say that instead.
@@ -28,17 +28,17 @@ Peek and search files with the native Read (offset/limit), Grep, and Glob tools 
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
 YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, read YOUR SCORECARD for the question in front of you so far.
 It is a projection of this run's record on your own surface, it needs no selector because your scorecard is the one your registered seat is measured on, and its own page says what the rows mean.
-SEAT_ID: assemble.
+SEAT_ID: judge.
 THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 Routing around it into markdown is the failure this contract exists to prevent.
 THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND READING IT IS REQUIRED — not a suggestion, not for when you are stuck, and not once per run.
 READ YOUR WHOLE SURFACE BEFORE YOU CHOOSE, NOT THE ONE PAGE FOR THE VERB YOU ALREADY PICKED.
 Do it ONCE, IMMEDIATELY AFTER `register` — before you have decided what to do, because deciding first is what makes the reading pointless:
 
-  "/opt/feov/bin/feov-record" --seat-id assemble manual — every command on your surface, each under a header naming it and followed by that command's own help, run live.
-It is long: send it to `<your scratchpad>/assemble-manual.txt` (an ABSOLUTE path, never under the run directory) and read that file whole, in consecutive windows if Read refuses it at once.
+  "/opt/feov/bin/feov-record" --seat-id judge manual — every command on your surface, each under a header naming it and followed by that command's own help, run live.
+It is long: send it to `<your scratchpad>/judge-manual.txt` (an ABSOLUTE path, never under the run directory) and read that file whole, in consecutive windows if Read refuses it at once.
 Seats share this scratchpad: name every file you write with your seat id.
-A single command's own page is still there when you want to re-check one: "/opt/feov/bin/feov-record" --seat-id assemble <command> --help.
+A single command's own page is still there when you want to re-check one: "/opt/feov/bin/feov-record" --seat-id judge <command> --help.
 MEASURED, WHICH IS WHY IT IS ONE CALL, FIRST.
 Across nine sittings seats opened 6 of 51 group pages — twelve per cent — and 90% of the commands they ran were run without ever reading that command's own page.
 The rule they were following said to open a group "before using any command in it", so a seat that obeyed it perfectly still only ever opened the page for a verb it had already chosen: eighteen of the twenty-three pages opened were for verbs the seat went on to run.
