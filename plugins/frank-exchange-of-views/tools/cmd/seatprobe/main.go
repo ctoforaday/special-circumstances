@@ -499,6 +499,61 @@ func probe(b seatprobe.Board, runDir, bin, constDir, pluginDir, model, debatePat
 	return report, nil
 }
 
+// finalMessageContracted is prosthetic-conscience's marker for a session whose final message is an
+// envelope a caller parses. That plugin owns the spelling and publishes it; this harness is one of
+// its launchers, and sets it because every seat it dispatches returns a parsed reply.
+const finalMessageContracted = "SC_FINAL_MESSAGE_CONTRACTED"
+
+// seatEnv is the environment a dispatched seat runs with.
+//
+// IT IS A FUNCTION SO THE VARIABLES CAN BE ASSERTED. What a seat's process actually carries is
+// not visible in a test of anything else here, and one of these is a contract with another
+// plugin — a silent one, whose failure looks exactly like not having set it.
+func seatEnv(runDir, agentID string) []string {
+	// THE RUN IS INJECTED BECAUSE PRODUCTION INJECTS IT. The PreToolUse hook prefixes a seat's
+	// feov-record calls with FEOV_RUN (#281), and the probe does not load the plugin's hooks —
+	// so without this it told seats to type an absolute path on every call: a HARDER surface
+	// than any real run presents, and every mistyped path it measured was friction production
+	// had already designed away.
+	//
+	// THE IDENTITY IS INJECTED AS AN AGENT HANDLE, which is what production injects — and it
+	// arrives UNBOUND. Build registers the fixture's seats as the harness, without this handle, so
+	// nothing on the record ties it to a seat until the seat itself calls `register`.
+	//
+	// THAT IS THE POINT, AND IT USED TO BE THE DIVERGENCE. Build bound the handle in advance, so a
+	// seat arrived already registered and `register` stopped being its first act. The 2026-08-20
+	// run measured the cost: one seat in nine never called it, made 22 tool calls, and recorded
+	// events anyway — a first write production would have refused. An instrument that satisfies
+	// the guard it is measuring cannot tell a compliant seat from an untested guard.
+	//
+	// What remains uncontrolled is smaller and is stated here rather than left to be discovered:
+	// production's dispatcher never learns an agent handle at all (Workflow's agent() returns a
+	// result, not one), so the handle a production seat carries is minted by the hook rather than
+	// by the caller. The BINDING path is now identical; only the handle's provenance differs.
+	return append(os.Environ(),
+		seatenv.Var+"="+runDir,
+		seatenv.AgentVar+"="+agentID,
+		// THE SEAT'S REPLY IS PARSED, SO NOTHING MAY BE INJECTED INTO ITS FINAL MESSAGE. A seat
+		// launched here is the MAIN session of a `claude -p` process, so main-session turn-boundary
+		// hooks fire in it — prosthetic-conscience's Stop nudge among them, since that plugin is
+		// installed in the environment this probe inherits. Measured on the 2026-09-17 smoke run
+		// (#1025): four of 35 sittings answered the nudge in prose instead of sending their
+		// envelope, and the corrective turns cost 23% of the run's wall clock.
+		//
+		// The variable is prosthetic-conscience's published contract, documented in that plugin's
+		// hooks/README.md. It is spelled out rather than imported because the constant lives in
+		// another module's internal tree; contracted_test.go holds this literal against the
+		// documentation so the two cannot drift.
+		finalMessageContracted+"=1",
+	// THE EPOCH IS NO LONGER INJECTED, because it is no longer a guess. Every probe seat id
+	// carries its round (see seatprobe.Seats — three sit round 1, and the bench sits round 2,
+	// which is the first epoch a judge can sit at all), so the derivation answers it. FEOV_ROUND
+	// existed because the old derivation could not tell "round 0" from "no round in this name";
+	// it can now, and the variable is gone rather than left set to a value the tool would
+	// compute anyway.
+	)
+}
+
 // dispatch runs one seat at the board through the `claude` CLI.
 func dispatch(b seatprobe.Board, runDir, bin, constDir, pluginDir, model, debatePath string, ask bool) error {
 	role := ""
@@ -619,36 +674,7 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, pluginDir, model, debate
 	}
 	cmd := exec.Command("claude", args...)
 	cmd.Dir = runDir
-	// THE RUN IS INJECTED BECAUSE PRODUCTION INJECTS IT. The PreToolUse hook prefixes a seat's
-	// feov-record calls with FEOV_RUN (#281), and the probe does not load the plugin's hooks —
-	// so without this it told seats to type an absolute path on every call: a HARDER surface
-	// than any real run presents, and every mistyped path it measured was friction production
-	// had already designed away.
-	//
-	// THE IDENTITY IS INJECTED AS AN AGENT HANDLE, which is what production injects — and it
-	// arrives UNBOUND. Build registers the fixture's seats as the harness, without this handle, so
-	// nothing on the record ties it to a seat until the seat itself calls `register`.
-	//
-	// THAT IS THE POINT, AND IT USED TO BE THE DIVERGENCE. Build bound the handle in advance, so a
-	// seat arrived already registered and `register` stopped being its first act. The 2026-08-20
-	// run measured the cost: one seat in nine never called it, made 22 tool calls, and recorded
-	// events anyway — a first write production would have refused. An instrument that satisfies
-	// the guard it is measuring cannot tell a compliant seat from an untested guard.
-	//
-	// What remains uncontrolled is smaller and is stated here rather than left to be discovered:
-	// production's dispatcher never learns an agent handle at all (Workflow's agent() returns a
-	// result, not one), so the handle a production seat carries is minted by the hook rather than
-	// by the caller. The BINDING path is now identical; only the handle's provenance differs.
-	cmd.Env = append(os.Environ(),
-		seatenv.Var+"="+runDir,
-		seatenv.AgentVar+"="+seatprobe.ProbeAgentID(b.Seat),
-		// THE EPOCH IS NO LONGER INJECTED, because it is no longer a guess. Every probe seat id
-		// carries its round (see seatprobe.Seats — three sit round 1, and the bench sits round 2,
-		// which is the first epoch a judge can sit at all), so the derivation answers it. FEOV_ROUND
-		// existed because the old derivation could not tell "round 0" from "no round in this name";
-		// it can now, and the variable is gone rather than left set to a value the tool would
-		// compute anyway.
-	)
+	cmd.Env = seatEnv(runDir, seatprobe.ProbeAgentID(b.Seat))
 	// The directory is created HERE, by the function that owns the path, rather than by the
 	// caller. Moving the trajectory out of the run directory and leaving its mkdir behind in
 	// probe() failed all nine boards at once — loudly and in seconds, which is the good version

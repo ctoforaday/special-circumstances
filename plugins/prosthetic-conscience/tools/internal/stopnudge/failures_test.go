@@ -258,7 +258,7 @@ func TestASuccessfulBandSaveClearsAWriteFailure(t *testing.T) {
 func TestNoRootIsRecordedAndNotMarkedSaid(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	var o, e bytes.Buffer
-	run(nil, strings.NewReader(`{"session_id":"s1"}`), &o, &e, "", time.Now(), configured())
+	run(nil, strings.NewReader(`{"session_id":"s1"}`), &o, &e, "", "", time.Now(), configured())
 	if o.Len() != 0 {
 		t.Fatalf("no project root, and stdout was written: %q", o.String())
 	}

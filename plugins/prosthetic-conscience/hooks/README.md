@@ -86,3 +86,29 @@ passes every command the plan names. Reviewed by hand, deliberately. The command
 degradation wrapper as every other hook here, and that shape is not decoration: a bare path to a
 missing binary made the plugin disable every session it was installed into (1082275). A hook that
 cannot find its binary must say so and exit, not fail the event.
+
+### `SC_FINAL_MESSAGE_CONTRACTED` — for launcher authors
+
+A session launched headlessly is still a MAIN session, so `Stop` fires in it. When that session's
+final message is an envelope its caller parses — "your FINAL message must be exactly ONE JSON
+object and nothing else" — the nudge is a sentence with nowhere to go: the agent answers it in
+prose, the envelope is lost, and the caller sees a malformed reply. Measured on a research smoke
+run, four of 35 sittings answered the nudge instead, and the corrective turns cost 23% of the run's
+wall clock.
+
+**A launcher that puts a machine reader on the other end of the final message sets
+`SC_FINAL_MESSAGE_CONTRACTED` in the session's environment**, and `sc-stop` then declines: exit 0,
+nothing on stdout, nothing on stderr, no state written. Any non-empty value asserts it — presence,
+not truthiness, so `0` asserts it too and the way to say "no" is to leave the variable unset. It is
+the launcher's to set, never the agent's: only the caller knows what it will do with what it
+receives.
+
+**The signal is COOPERATIVE and the cost is stated rather than hidden: a launcher that does not set
+it gets the behaviour above.** Nothing in the `Stop` payload distinguishes a session with a human
+reader — it carries no agent id, no mode, no entrypoint — and the client's own
+`CLAUDE_CODE_SESSION_ATTENDED` is 0 for a Remote Control session, which has a human reading every
+word, so gating on it would silence the nudge exactly where it is most wanted. The condition cannot
+be detected; it can only be declared.
+
+Every other session keeps the nudge. It reaches the AGENT, on `additionalContext`, because the
+agent is the one who has to write the note.
