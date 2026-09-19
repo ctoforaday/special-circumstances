@@ -30,9 +30,15 @@
 #   --live              install into ~/.claude instead. Use when you want the change in YOUR next
 #                       session. It is shared state: other sessions on this box see it.
 #
-# The plugin content is COPIED into a versioned cache at install time and ${CLAUDE_PLUGIN_ROOT}
-# resolves there, never to a checkout — so the binaries are built in the cache, after install.
-# That ordering is bootstrap-plugins.sh's and is kept here.
+# The plugin content is COPIED into a versioned cache at install time, and the binaries are built
+# there, after install — that ordering is bootstrap-plugins.sh's and is kept here.
+#
+# BUT THE CACHE IS NOT THE ONLY PLUGIN ROOT. The staged marketplace is one too, and an empty bin/
+# in it is filled BY DESIGN: hooks.json execs hooks/fetch-bin.sh when a binary is missing, which
+# downloads that plugin's RELEASE and installs it there. A build that deleted those binaries had
+# them back, from the release, forty seconds later — and the run used them. So the build mirrors
+# what it compiled into the staging tree as well: every feov-record on disk is this checkout's,
+# and which one gets used stops being a question the result depends on.
 #
 # Usage:
 #   scripts/universe.sh build                     # make the universe from this checkout
@@ -200,20 +206,26 @@ cmd_build() {
   rm -rf "$mkt"
   mkdir -p "$mkt/.claude-plugin"
 
-  # A COPY WITHOUT `bin/`, BECAUSE MOVING THE DOOR DID NOT CLOSE IT. This was a `plugins` symlink
-  # into the checkout, first inside WORKDIR and then beside it — and on the very next run the lead
-  # explored, found $WORKDIR.marketplace/plugins/frank-exchange-of-views/bin/feov-record, and ran
-  # `setup` with it. That is the CHECKOUT's binary, whatever a previous build happened to leave
-  # there: a 16:18 build against a 17:58 cache. The run then staged inputs/red-gap-patterns.md, the
-  # file whose deletion the run was meant to be verifying, and everything downstream read as fine.
+  # A COPY, AND EVERY `bin/` IT CONTAINS IS BUILT FROM THIS CHECKOUT BELOW.
   #
-  # A path a lead can reach is a path a lead will use, and it is right to — it was looking for the
-  # tool and it found one. So the fix is not a better hiding place. The staging tree carries no
-  # binaries at all, and the only feov-record on disk is the cache's, which is the one
-  # ${CLAUDE_PLUGIN_ROOT} resolves to and the one the seats are told about.
+  # Three attempts at this, and the first two were the same mistake in different places. It began
+  # as a `plugins` symlink into the checkout, inside WORKDIR and then beside it; both times the
+  # lead explored, found $mkt/plugins/frank-exchange-of-views/bin/feov-record, and ran `setup` with
+  # it — the CHECKOUT's binary, whatever a previous build happened to leave there. A 16:18 build
+  # drove a run against a 17:58 cache and staged the very file that run existed to prove deleted.
   #
-  # Excluding bin/ also means the cache's bin/ holds ONLY what the build below puts there, instead
-  # of install-time copies of the checkout's that a failed build would leave standing.
+  # So the third attempt removed bin/ entirely, and that was WORSE, because it created a vacuum the
+  # plugin fills by design. hooks.json runs ${CLAUDE_PLUGIN_ROOT}/bin/<hook>, and when that is
+  # missing it execs hooks/fetch-bin.sh, which downloads the binaries FROM THE RELEASE TAG and
+  # installs them into that same bin/. Measured: bin/ reappeared 40 seconds after a build that had
+  # deleted it, holding `feov-record version babd3ea` — the 1.72.0 release, predating every change
+  # the run was built to exercise. The lead's first act was `ls -la bin/`, and it found them.
+  #
+  # A path a lead can reach is a path a lead will use, and it is right to — it went looking for the
+  # tool and found one. Hiding the tool is not the fix and neither is removing it: the fix is that
+  # EVERY feov-record on disk is this checkout's, so which one gets used stops being a question
+  # the result depends on. A populated bin/ also means the self-heal never fires, so a universe
+  # cannot silently downgrade itself to the last release.
   mkdir -p "$mkt/plugins"
   for p in "${PLUGINS[@]}"; do
     cp -r "$REPO/plugins/$p" "$mkt/plugins/$p" || die "could not stage plugin $p"
@@ -259,6 +271,23 @@ cmd_build() {
     done
   done
   log "built $built hook binaries into the cache"
+
+  # THE STAGING TREE GETS THE SAME BINARIES, because it is a plugin root too and the hooks will
+  # fill it from the RELEASE if it is empty (see the staging comment above). Copied from what was
+  # just built rather than rebuilt, so the two roots cannot diverge even by a recompile: whichever
+  # one a hook or a curious lead reaches, it is this checkout's code.
+  local staged=0
+  for plugin_dir in "$cache_root"/*/*/; do
+    [ -d "$plugin_dir/bin" ] || continue
+    local pname; pname="$(basename "$(dirname "$plugin_dir")")"
+    [ -d "$mkt/plugins/$pname" ] || continue
+    mkdir -p "$mkt/plugins/$pname/bin"
+    for b in "$plugin_dir"/bin/*; do
+      [ -f "$b" ] || continue
+      cp -f "$b" "$mkt/plugins/$pname/bin/" && staged=$((staged + 1))
+    done
+  done
+  log "mirrored $staged binaries into the staging tree, so the self-heal never reaches for a release"
 
   # Enable the plugins for this universe. Without this the content is installed and nothing loads
   # it, which presents as a session with no skills and no hooks.
