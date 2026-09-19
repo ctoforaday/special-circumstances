@@ -374,12 +374,21 @@ cmd_run() {
   # repo's own runs read, so red was being seated with less memory than a real run gives it — which
   # would have made every universe smoke a weaker audit than the thing it stands for, silently.
   # Copied, not symlinked: a run accrues INTO this directory, and the checkout is not a scratch pad.
-  if [ -d "$REPO/feov-memory/red-gap-patterns" ]; then
+  #
+  # THE WHOLE feov-memory DIRECTORY, not just the corpus. Staging red-gap-patterns/ alone left out
+  # class-registry.json, which setup reads from the same directory — and without it setup says
+  # "nothing constrains --class, so every mint this run will be REFUSED". Measured: the lead hit
+  # that refusal, read setup.go to work out why, searched the filesystem for a class-registry.json,
+  # found one under ~/.claude/plugins/marketplaces/ and hand-copied it in. Twenty-one tool calls
+  # and 256 SECONDS before the workflow dispatched, against 91s for a universe that never staged a
+  # corpus at all. Half a memory directory is slower than none, because none refuses cleanly and
+  # half sends the lead looking for the other half.
+  if [ -d "$REPO/feov-memory" ]; then
     mkdir -p "$src/feov-memory"
-    cp -r "$REPO/feov-memory/red-gap-patterns" "$src/feov-memory/" 2>/dev/null
-    log "staged the promoted corpus: $(find "$src/feov-memory/red-gap-patterns" -name '*.md' | wc -l) pattern(s)"
+    cp -r "$REPO/feov-memory/." "$src/feov-memory/" 2>/dev/null
+    log "staged feov-memory: $(find "$src/feov-memory/red-gap-patterns" -name '*.md' 2>/dev/null | wc -l) pattern(s), registry $([ -f "$src/feov-memory/class-registry.json" ] && echo present || echo MISSING)"
   else
-    log "WARNING: no promoted corpus at $REPO/feov-memory/red-gap-patterns — red opens with accrued memory only"
+    log "WARNING: no $REPO/feov-memory — red opens with accrued memory only, and mints may be refused"
   fi
 
   local stamp; stamp="$(date -u +%Y%m%dT%H%M%SZ)"
