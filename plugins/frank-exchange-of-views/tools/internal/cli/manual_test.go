@@ -69,6 +69,7 @@ func everySurface() map[string]string {
 // EVERY COMMAND ON THE SURFACE, EVERY SURFACE, IN TREE ORDER — and the opening line says how many,
 // and says the pages are lean on purpose.
 func TestManualListsEveryCommandOnEachSurface(t *testing.T) {
+	t.Parallel()
 	for role, seatID := range everySurface() {
 		out, pages := manualOf(t, seatID)
 		want := surfaceOf(seatID)
@@ -111,6 +112,7 @@ func TestManualListsEveryCommandOnEachSurface(t *testing.T) {
 // group actually prints, not against the rule that dropped it. Every paragraph of a dropped group's
 // help must be its menu line, a heading section (usage, listing, flags) or cobra's closing pointer.
 func TestADroppedGroupPageHeldNothingButItsListing(t *testing.T) {
+	t.Parallel()
 	structural := regexp.MustCompile(`^(Usage:|Aliases:|Available Commands:|Command groups|Flags:|Global Flags:|Use ")`)
 	for role, seatID := range everySurface() {
 		var kept, dropped []string
@@ -144,6 +146,7 @@ func TestADroppedGroupPageHeldNothingButItsListing(t *testing.T) {
 // EVERY PAGE IS THAT COMMAND'S OWN HELP, BYTE FOR BYTE, once its SHARED blocks are put back —
 // under a header naming it. A block lifted to SHARED whose marker was dropped fails here.
 func TestEveryManualPageIsThatCommandsOwnHelp(t *testing.T) {
+	t.Parallel()
 	for _, seatID := range []string{record.SampleSeatOf("blue"), record.SampleSeatOf("lens")} {
 		out, pages := manualOf(t, seatID)
 		if len(pages) < 10 {
@@ -179,6 +182,7 @@ var sharedLabel = regexp.MustCompile(`^§(\d+) \(on (\d+) pages\):$`)
 // lifted block is marked on exactly as many pages as its label claims, and the manual comes out a
 // fraction of the pages it stands for.
 func TestTheManualLiftsEveryVerbatimRepeatAndMarksEachRemoval(t *testing.T) {
+	t.Parallel()
 	for role, seatID := range everySurface() {
 		out, expanded := manualOf(t, seatID)
 		raw := diagnostics.ManualPages(out, InvokedAs())
@@ -240,6 +244,7 @@ func TestTheManualLiftsEveryVerbatimRepeatAndMarksEachRemoval(t *testing.T) {
 // truncates any line past 2,000 characters — so a long line is the tail of a sentence the seat never
 // sees, with nothing on the page to say it was cut.
 func TestNoManualLineOutrunsARead(t *testing.T) {
+	t.Parallel()
 	const readLineCap = 2000
 	for role, seatID := range everySurface() {
 		out, _ := manualOf(t, seatID)
@@ -253,6 +258,7 @@ func TestNoManualLineOutrunsARead(t *testing.T) {
 
 // A SEAT'S MANUAL IS ITS OWN SURFACE AND NOBODY ELSE'S.
 func TestManualNamesOnlyThisSeatsCommands(t *testing.T) {
+	t.Parallel()
 	cases := []struct{ seat, has, hasNot string }{
 		{record.SampleSeatOf("blue"), "line-of-inquiry propose", "mint"},
 		{record.SampleSeatOf("lens"), "mint", "line-of-inquiry propose"},
@@ -283,6 +289,11 @@ func TestManualNamesOnlyThisSeatsCommands(t *testing.T) {
 
 // A PAGE THAT FAILS IS LISTED WITH ITS ERROR, AND THE COMMAND SAYS SO.
 func TestAManualPageThatFailsIsReportedNotSkipped(t *testing.T) {
+	// NOT PARALLEL, AND IT CANNOT BE. It stands a failing runHelp in, and runHelp is a
+	// package-level variable that production printManual reads on every manual page. A parallel
+	// test writing it races every other parallel test in this package through production code —
+	// reported three times by the detector once enough of the suite ran concurrently. The seam is
+	// the right design; taking it while others run is not.
 	orig := runHelp
 	t.Cleanup(func() { runHelp = orig })
 	runHelp = func(argv []string) (string, error) {
@@ -315,6 +326,7 @@ func TestAManualPageThatFailsIsReportedNotSkipped(t *testing.T) {
 }
 
 func TestManualRefusesJSONRatherThanIgnoringIt(t *testing.T) {
+	t.Parallel()
 	if _, err := run(t, manualName, "--seat-id", record.SampleSeatOf("bench"), "--json"); err == nil {
 		t.Error("manual --json succeeded — a flag that changes nothing must be refused, not dropped")
 	}
@@ -348,6 +360,7 @@ func writeTrajectory(t *testing.T, steps ...map[string]any) string {
 // from real output. The Bash call's own result is EMPTY in that shape, so a survey that looked only
 // there scored every later command as run blind.
 func TestTheSurveyReadsARedirectedManualThroughItsRead(t *testing.T) {
+	t.Parallel()
 	seatID := record.SampleSeatOf("blue")
 	out, _ := manualOf(t, seatID)
 	bin := "/tmp/x/" + InvokedAs()
