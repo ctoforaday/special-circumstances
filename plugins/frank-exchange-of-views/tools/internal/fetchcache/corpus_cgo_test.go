@@ -142,7 +142,14 @@ func readCorpusPage(t *testing.T, c corpus.Case) (string, corpus.Observed) {
 	if !strings.HasPrefix(e.URL, "http://127.0.0.1:") {
 		t.Fatalf("the reader was handed %q — this harness serves only what it decompressed", e.URL)
 	}
-	rd, err := RenderPages(run, e.Sha, body, DefaultRenderDPI)
+	// THE PAGE IS RENDERED THE WAY PRODUCTION RENDERS IT (#1031): at the scan's own resolution,
+	// floored and capped. A fixed 300 here would have the corpus prove a path the reader no longer
+	// takes — and these pages are natively 300, 350 and 501.
+	native, nerr := NativeDPI(run, body)
+	if nerr != nil {
+		t.Fatalf("native resolution: %v", nerr)
+	}
+	rd, err := RenderPages(run, e.Sha, body, RenderDPIFor(native))
 	if err != nil {
 		t.Fatalf("rendering: %v", err)
 	}
@@ -169,7 +176,7 @@ func readCorpusPage(t *testing.T, c corpus.Case) (string, corpus.Observed) {
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s · %s\n", c.Slug, DefaultPageEngine.Identity())
+	fmt.Fprintf(&b, "%s · %s · rendered at %d DPI (native %d)\n", c.Slug, DefaultPageEngine.Identity(), rd.DPI, native)
 	fmt.Fprintf(&b, "table: %v · rotated: %v · grid intersections: %d · length: %d\n",
 		p.Table, p.RotatedPage, p.GridIntersections, p.Length)
 	if p.Reconstruction != nil {
