@@ -2,6 +2,7 @@ package record
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -153,5 +154,81 @@ func TestTheRepairRefusalTableCoversEverySite(t *testing.T) {
 	}
 	if n := strings.Count(rest, "feov.Errorf("); n != 0 {
 		t.Errorf("repair.go refuses %d time(s) outside refuseRepair — such a refusal carries no branch, so the seat cannot tell whether to register plainly or report a failure", n)
+	}
+}
+
+// AND A REPAIR REGISTER IS REFUSED IN PLACES THE REPAIR CHECK NEVER REACHES (#1041).
+//
+// The table above is closed over checkRepair/repairTarget. registerSeat runs first: the seat id's
+// shape, the roster, the cast, the attested role, the run directory and the database are all checked
+// before the repair branch, and the event write comes after it. None of those refusals carries an
+// outcome class or the anchor sentence, and they are correct as failures — what was false was the
+// re-prompt telling the seat a refusal meant one of exactly two things.
+//
+// So the guarantee the prompt now states is the one asserted here: the anchor sentence marks the
+// "register plainly" case and NOTHING ELSE, so every other refusal falls to the failure side by
+// construction rather than by the seat reading its prose.
+func TestARepairRefusedBeforeTheRepairCheckCarriesNoAnchorSentence(t *testing.T) {
+	// THE CONTROL. Without it every row below passes on a build where RegisterRepair never reaches
+	// the anchor at all, which reads exactly like a clean board.
+	t.Run("the repair check's own refusal does carry it", func(t *testing.T) {
+		_, _, err := RegisterRepair(Identity{Run: mustRun(t, newRun(t)), SeatID: "blue-respond"}, "")
+		if err == nil {
+			t.Fatal("a repair register by a seat with no sitting to repair was admitted")
+		}
+		if !strings.Contains(err.Error(), RepairNothingToFile) {
+			t.Fatalf("the repair check's refusal does not reach the seat with the anchor sentence:\n%v", err)
+		}
+	})
+	for _, c := range []struct{ name, seat, runDir, says string }{
+		{"the seat id's shape", "blue respond", "", "invalid --seat-id"},
+		{"the roster", "blue-responder", "", "is not an id the engine dispatches"},
+		{"the run directory", "blue-respond", "absent", "no run directory at"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			dir := newRun(t)
+			if c.runDir == "absent" {
+				dir = filepath.Join(t.TempDir(), "never-made")
+			}
+			_, _, err := RegisterRepair(Identity{Run: mustRun(t, dir), SeatID: c.seat}, "")
+			if err == nil {
+				t.Fatalf("the repair register was admitted; this row exists because it must be refused for %q", c.says)
+			}
+			if !strings.Contains(err.Error(), c.says) {
+				t.Fatalf("the refusal is not this row's:\n%v", err)
+			}
+			if strings.Contains(err.Error(), RepairNothingToFile) {
+				t.Errorf("a refusal the repair check never produced carries the anchor sentence — the re-prompt reads it as `register plainly` and the seat files nothing:\n%v", err)
+			}
+		})
+	}
+}
+
+// AND THE ANCHOR IS THE TOOL'S OWN SENTENCE, WRITTEN IN ONE PLACE.
+//
+// The rows above are three of the refusals registerSeat can produce and the set is not generated
+// from anything, so a row-by-row table can never be complete. This is the statement that holds for
+// all of them: refuseRepair is the only writer of the sentence, so a refusal raised anywhere else
+// cannot acquire it and cannot be mistaken for the "register plainly" case.
+func TestOnlyTheRepairRefusalWritesTheAnchorSentence(t *testing.T) {
+	ents, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var carriers []string
+	for _, e := range ents {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
+			continue
+		}
+		b, err := os.ReadFile(e.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(b), RepairNothingToFile) {
+			carriers = append(carriers, e.Name())
+		}
+	}
+	if len(carriers) != 1 || carriers[0] != "repair.go" {
+		t.Errorf("the anchor sentence is written in %v, want only repair.go — a second writer puts it on a refusal the repair check never produced, and the re-prompt reads it as `register plainly`", carriers)
 	}
 }
