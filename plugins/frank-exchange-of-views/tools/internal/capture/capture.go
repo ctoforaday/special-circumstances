@@ -14,6 +14,8 @@ package capture
 import (
 	"archive/tar"
 	"compress/gzip"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1489,7 +1491,27 @@ func rulingsClaimedByEnvelopes(results []map[string]any) int {
 
 func HarvestPrecedents(run record.Run, results []map[string]any, lawDir string, evs []*record.Event) HarvestResult {
 	slug := slugOf(run)
-	rulings := rulingsFromRecord(evs)
+	// ONLY A `declare` IS A CANDIDATE HOLDING, and every other ruling is dropped here.
+	//
+	// The harvest used to file EVERY bench ruling into law/proposed as a PERSUASIVE candidate. The
+	// corpus that produced: 76 entries, of which 68 stated no rule at all — 35 whose `holding` was
+	// a disposition word (`closed`, `carried`) and 33 carrying a placeholder asking a reviewer to
+	// supply the rule the harvest could not invent. Six were real. A queue where nine of ten
+	// entries cannot be promoted is not a backlog; it is noise that hides the ones that can, and
+	// the review gate silts up behind it.
+	//
+	// The placeholder was itself a fix — it replaced `holding: closed` so an unpromotable ruling
+	// would LOOK unpromotable — and it was the right repair to the wrong layer. Making the noise
+	// legible does not stop it being filed. A ruling that disposes of a gap is on the record
+	// already, where `show debate` renders it; copying it into law/ adds a claim that it is
+	// candidate LAW, which is the part that was never true.
+	//
+	// `declare` is different and always was: that verb exists to state a construction, so its text
+	// IS the holding and no placeholder is honest there. New rules arrive that way, deliberately.
+	// Everything else a run learns about the law lands as a SCOPE-LIMIT proposal against an
+	// existing holding (law/README.md) — written by a human who read the case, because that is the
+	// one part of this the harvest genuinely cannot do.
+	rulings := declarationsOnly(rulingsFromRecord(evs))
 	claimed := rulingsClaimedByEnvelopes(results)
 	unmeasured := ""
 	if k := scorecard.LegacyKeys(results); slices.Contains(k, "resolutions") {
@@ -1513,16 +1535,19 @@ func HarvestPrecedents(run record.Run, results []map[string]any, lawDir string, 
 	var body []string
 	body = append(body, "# proposed holdings — "+slug+" [ALL PERSUASIVE — awaiting human review per law/README.md]",
 		"",
-		"Each entry below is a RULING the bench recorded, not yet a holding. `facts`, `holding` and",
-		"`scope-limits` are the reviewer's to write from the cited record: the harvest states what it",
-		"observed and never invents the rule. A ruling promoted with its placeholders intact is not",
-		"citable — law/README.md: a holding without its factual predicate is not citable.", "")
+		"Each entry is a `bench declare` — a construction the bench stated deliberately, so its text IS",
+		"the holding. `facts` and `scope-limits` remain the reviewer's to write from the cited record.",
+		"Ordinary rulings are NOT here: they dispose of a gap and are on the record, and a run's other",
+		"lessons about the law arrive as scope-limit proposals against an existing holding.", "")
 	for i, r := range rulings {
-		q := "disposition of " + r.gapID
-		src := slug + ", " + r.gapID
-		if r.kind == "petition" {
-			q = "petition by " + r.petitioner
-			src = slug + ", petition:" + r.petitioner
+		// A DECLARATION DISPOSES OF NOTHING, so it does not get a disposition's framing. This read
+		// "disposition of " with an empty gap id and a source ending in a bare comma — harmless
+		// while dispositions filled the file and the only visible shape once they stopped.
+		q := "construction declared this run"
+		src := slug
+		if r.gapID != "" {
+			q = "construction declared beside " + r.gapID
+			src = slug + ", " + r.gapID
 		}
 		// A DISPOSITION IS NOT A HOLDING, and writing one into that field made every harvested
 		// ruling unpromotable while looking complete.
@@ -2019,6 +2044,54 @@ func ArchiveRecord(run record.Run, repoRoot string) (string, error) {
 	}
 	shards := len(files)
 	_ = add(filepath.Join(run.Dir(), "proofs"), "proofs/")
+	// THE RUN'S TERMS, because without them the archive is BROKEN rather than merely thin.
+	//
+	// inputs/run-config.json is not staged reference material a seat read once. It is read at READ
+	// time by a dozen packages: record.RunParams hands k-max, mint-budget, max-epochs and the
+	// convergence fraction to the dispatch verb AND the write path; sittingcap reads the
+	// per-sitting call limit; modeltier and cost read the configured tiers; capture's own lane
+	// coverage reads the declared lane count. Measured on an archived run against the same run
+	// live: `show tiers` printed configuredBulk and configuredJudgment from the live directory and
+	// simply OMITTED both from the archive — so a run whose configuration was thrown away reads
+	// exactly like a run that had none.
+	//
+	// It is 1,886 bytes against 49 KB of records, so the cost is not the question. The reason it
+	// was missing is that the exclusions above were argued (cache/ re-fetchable, transcripts a
+	// different question) and this file was never considered at all.
+	//
+	// The bulky inputs stay out on the stated line: run-config.json is read to OPERATE on the
+	// record, while the gap-pattern corpus (175 KB) was read by seats during the run and is
+	// provenance rather than function. Carrying provenance is a separate decision, and naming it
+	// here is how it stays one.
+	if cfg := filepath.Join(run.Dir(), "inputs", "run-config.json"); func() bool { st, e := os.Stat(cfg); return e == nil && !st.IsDir() }() {
+		files = append(files, struct{ name, path string }{"inputs/run-config.json", cfg})
+	}
+
+	// THE INDEX IS CARRIED; THE PROSE CORPUS IS HASHED (gblock, 2026-09-19).
+	//
+	// gap-patterns-by-class.json (41 KB) is what the engine actually SELECTED from — patternsForGaps
+	// looks up a gap's class in it — so carrying it reconstructs the input red's audit was primed
+	// with. red-gap-patterns.md is 175 KB of prose nothing reads back, and the law mirror is the
+	// same shape: provenance rather than function.
+	//
+	// Hashing is not a weaker answer here, because feov-memory/ is tracked in the repository. The
+	// digest names the bytes a run saw, and git already holds them; an audit that needs the prose
+	// can recover it, and one that only needs to know WHICH corpus primed the run has the sha256
+	// without paying five times the archive for it. A pointer with no hash would not do — it would
+	// name a path whose content can change underneath the claim.
+	for _, rel := range []string{"inputs/gap-patterns-by-class.json"} {
+		if p := filepath.Join(run.Dir(), rel); func() bool { st, e := os.Stat(p); return e == nil && !st.IsDir() }() {
+			files = append(files, struct{ name, path string }{rel, p})
+		}
+	}
+	if dg, err := corpusDigest(run.Dir()); err == nil && len(dg) > 0 {
+		digestPath := filepath.Join(run.Dir(), "inputs", corpusDigestName)
+		if b, mErr := json.MarshalIndent(dg, "", "  "); mErr == nil {
+			if os.WriteFile(digestPath, b, 0o644) == nil {
+				files = append(files, struct{ name, path string }{"inputs/" + corpusDigestName, digestPath})
+			}
+		}
+	}
 	// AN EMPTY ARCHIVE IS A REFUSAL, not a small file. A tarball with no shards in it is exactly
 	// what a run whose record never resolved would produce, and it would sit in run-archive/
 	// looking like a kept run forever.
@@ -2207,4 +2280,70 @@ func famEvents(fam *record.Family) []*record.Event {
 		return nil
 	}
 	return fam.Events
+}
+
+// corpusDigestName is the file the archive carries INSTEAD of the bulky staged corpora.
+const corpusDigestName = "corpus-sha256.json"
+
+// CorpusFile is one staged corpus input, named by its run-relative path and its content hash.
+type CorpusFile struct {
+	Path   string `json:"path"`
+	SHA256 string `json:"sha256"`
+	Bytes  int64  `json:"bytes"`
+}
+
+// corpusDigest hashes the staged corpora an archive does not carry, so a reader can say WHICH
+// bytes primed a run without the archive paying for them.
+//
+// THE HASH IS THE CLAIM, AND THE PATH ALONE WOULD NOT BE. feov-memory/ is tracked in the
+// repository, so the content behind these paths is recoverable — but it also CHANGES between
+// runs, which is the whole reason a run's own copy was staged. A pointer would name a file whose
+// content can move underneath it; the sha256 pins the version this run actually read.
+//
+// Absent files are skipped rather than reported as empty: a run set up before a corpus existed
+// staged nothing, and an entry claiming a zero-byte corpus would be a different statement from
+// one saying nothing was staged.
+func corpusDigest(runDir string) ([]CorpusFile, error) {
+	var out []CorpusFile
+	add := func(rel string) {
+		p := filepath.Join(runDir, rel)
+		st, err := os.Stat(p)
+		if err != nil || st.IsDir() {
+			return
+		}
+		b, rErr := os.ReadFile(p)
+		if rErr != nil {
+			return
+		}
+		sum := sha256.Sum256(b)
+		out = append(out, CorpusFile{Path: rel, SHA256: hex.EncodeToString(sum[:]), Bytes: st.Size()})
+	}
+	add("inputs/red-gap-patterns.md")
+	lawDir := filepath.Join(runDir, "inputs", "law")
+	if entries, err := os.ReadDir(lawDir); err == nil {
+		for _, e := range entries {
+			if !e.IsDir() {
+				add(filepath.Join("inputs", "law", e.Name()))
+			}
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
+	return out, nil
+}
+
+// declarationsOnly keeps the rulings that STATE A RULE — the `bench declare` constructions — and
+// drops the rest.
+//
+// A disposition is not a holding. The distinction is the whole reason the law corpus silted up:
+// every ruling looked like a candidate because every ruling was filed as one, and a reviewer facing
+// 76 entries could not see the six that stated a rule. Filtering at the harvest is what makes the
+// queue's depth mean something again.
+func declarationsOnly(rs []ruling) []ruling {
+	out := rs[:0:0]
+	for _, r := range rs {
+		if r.kind == "declaration" {
+			out = append(out, r)
+		}
+	}
+	return out
 }
