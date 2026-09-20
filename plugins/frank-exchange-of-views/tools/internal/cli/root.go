@@ -16,6 +16,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -481,7 +482,7 @@ func ExecuteRoot(root *cobra.Command) error {
 	if err == nil || cmd == nil || seat.Taught(err) || seat.RecordType(cmd) == "" {
 		return err
 	}
-	return seat.RefuseAndTeach(cmd, err.Error())
+	return seat.RefuseAndTeach(cmd, translateUnknownFlag(cmd, err.Error()))
 }
 
 // EmitTopLevelError renders an error that never reached seat.Emit, and reports whether it did.
@@ -523,4 +524,46 @@ func jsonRequested(argv []string) bool {
 		}
 	}
 	return false
+}
+
+// unknownFlagName pulls the flag word out of cobra's refusal. Cobra has no typed error for this,
+// so the message is the only carrier; the pattern is anchored to the whole phrase rather than
+// scanning for a `--` so an unrelated message that happens to quote a flag cannot trigger a
+// suggestion.
+var unknownFlagName = regexp.MustCompile(`^unknown flag: --([A-Za-z0-9_-]+)`)
+
+// translateUnknownFlag answers the seat's ACTUAL mistake when it typed the record's word for a
+// field instead of the flag's.
+//
+// THE THREE VOCABULARIES ARE REAL AND THE SEAT IS TOLD SO. Its own contract says "the projection
+// names, this prompt's words for a concept, and the command that writes it are three different
+// vocabularies and they do not always agree". A seat that reads a gap's JSON, sees
+// `complexity_cost`, and types `--complexity_cost` has used the vocabulary the record just showed
+// it — the most defensible mistake available. It cost twelve turns in one run.
+//
+// IT SUGGESTS, IT DOES NOT ACCEPT. The no-aliases rule is right: one word per concept, and adding
+// `--complexity_cost` as a second spelling is the fork this repository refuses. Naming the correct
+// flag in the refusal respects the rule; accepting both would not.
+//
+// A key with no entry falls through untouched, because flags.FlagForPayloadKey reports the miss
+// instead of hyphenating a guess — a suggested spelling the parser rejects is worse than none.
+func translateUnknownFlag(cmd *cobra.Command, msg string) string {
+	m := unknownFlagName.FindStringSubmatch(msg)
+	if m == nil {
+		return msg
+	}
+	name, ok := flags.FlagForPayloadKey(m[1])
+	if !ok || name == m[1] {
+		return msg
+	}
+	// THE MAP IS GLOBAL AND PAYLOAD KEYS ARE NOT, which its own comment says plainly. `line` maps
+	// to --reason, and a verb with no --reason would be told to type one. The suggestion is
+	// therefore made only when the FAILING VERB actually has that flag — which turns a global
+	// table into a per-verb answer without a second table to keep.
+	if cmd == nil || cmd.Flags().Lookup(name) == nil {
+		return msg
+	}
+	return fmt.Sprintf("%s — the record stores that field as `%s`, and the flag that sets it is --%s. "+
+		"The field name and the flag word are not always the same; the flag is what you type.",
+		msg, m[1], name)
 }
