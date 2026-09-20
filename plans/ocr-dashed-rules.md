@@ -11,17 +11,35 @@ central fix repaired a gate this plan's pages never reach. Both verdicts stand a
 below is different because of them. **#1074 merged 2026-09-20 (PR #1096)** and settles what
 revision 2 was blocked on.
 
-**What #1074 changed for this plan.** The geometry layer now reads ONE coordinate space: the
-measurements crossing into it are converted to the 300-DPI space its constants were fitted in.
-That splits this plan's new constants across that boundary by which side they act on — and the
-split is the design, not a detail:
+**What #1074 changed for this plan, read off the code rather than assumed. [r3.1]** Revision 3
+said the repaired boxes "arrive already normalized". **That is false of every path that exists**,
+and three audits did not catch it because none of us had traced the one function that decides:
 
-- **Above it, in C, on real pixels:** the closing length, the opening length and the thinness cap
-  are morphology on the page as scanned, so they are DERIVED FOR THE PAGE'S DPI exactly as `SEL`
-  is (`GridFor`, #1031). They join `GridThresholds`.
-- **Below it, in Go, in the 300-DPI space:** the span requirement and the lattice-crossing test
-  read rule boxes that have already been normalized, so their constants are stated at 300 and
-  never scaled — like `ruleJoin` and `minBandHeight` beside them.
+```
+readPage           DetectGrid → if !thr.Table(grid) → PageText, RETURN      ← a dashed page exits
+HERE
+                   else → readGridPage
+readGridPage       TSV, rotation probe, headerBand (page pixels), GridLines
+                   ── THE BOUNDARY (page.go:257) ── normalize lattice + words
+                   levels, Reconstruct, TextCells
+```
+
+A dashed page is exactly a page the detector rejects, so it returns at `readPage`'s `!Table`
+branch and **never reaches the only normalization crossing there is.** The repair's call site is
+above the boundary and its boxes are in PAGE pixels when it gets them.
+
+**So the boundary moves, and it moves to one owner.** `readPage` acquires the lattice — from the
+detector, or from the repair when the detector rejected the page — normalizes it ONCE, and passes
+the normalized lattice and the scale into `readGridPage`, which then normalizes only the words.
+Today `readGridPage` fetches and normalizes its own lattice; after this it does neither, because a
+lattice normalized twice is a lattice scaled by `(300/dpi)²` and nothing would say so.
+
+That restructuring is the load-bearing part of this plan. It is what makes the constant split
+below true rather than aspirational:
+
+- **In C, on real pixels:** the closing length, derived for the page's DPI as `SEL` is (`GridFor`).
+- **In Go, after `readPage`'s crossing:** the thinness cap, the span requirement and D3's crossing
+  test, stated at 300 and never scaled.
 
 Revision 2 treated all three as one kind and stated them in 350-DPI pixels, which was the audit's
 finding about units. There is no third kind and no list to keep: the layer a constant acts in
@@ -131,8 +149,8 @@ that arrive normalized and belong with `ruleJoin`:
 | `minRepairedSpan` | Go, 300-DPI space | length, never scaled | 600 px at 350 = **514 px at 300** | a package constant beside `ruleJoin` |
 
 **Only the closing length is new in C**, because only it is morphology; the opening reuses `SEL`
-unchanged. The other two read rule boxes that arrive already normalized, so they are 300-DPI
-numbers and scaling them again would apply #1074's correction twice.
+unchanged. The other two run AFTER `readPage`'s crossing (§0), on boxes it has just normalized, so
+they are 300-DPI numbers and scaling them again would apply the correction twice.
 
 Step 3 is therefore a Go box test rather than a C morphological step — which costs a larger dump
 across the boundary and buys the thing §VI.6 needs: a filter that can be deleted in the default
@@ -212,11 +230,12 @@ fixed before the number is known:** p0022's actual `Text`, `TextCells`, `TextCel
 figure blocks the change. **[r3: revision 2 required
 only that the output be "recorded", which a fabricated table passes by being written down.]**
 
-**What #1074 changed about the odds here.** `CellStats.refuse()` now runs against normalized
-geometry, so its `MinWordsPerCell` test is being applied at the size it was fitted at rather than a
-sixth too small on a 350-DPI page. That moves p0022's likely direction toward refusal — a figure's
-dashed boxes bind cells holding almost no words — but *moves* is not *measured*, and §VI.5 is still
-the gate.
+**What #1074 changed about the odds here, corrected. [r3.1]** Revision 3 said `MinWordsPerCell` had
+been applied a sixth too small. **That is wrong:** `WordsPerCell()` is `WordsPlaced/Cells`, a ratio
+of COUNTS, and `normalize.go` states that counts and ratios do not cross the boundary — it was never
+scaled at all. What #1074 moved for `refuse()` is which CELLS EXIST, through `ruleJoin`,
+`minBandHeight` and `cellPad`, and therefore `Columns` and `Rows`. The conclusion is unchanged and
+the mechanism was invented; §VI.5 is the gate either way, which is why it is a gate.
 
 **D6. The record says which path found the rules, and no zero stands for a path. [r3]** This is
 what survives of revision 1's D6 after revision 2's audit took the gating half away. The duty left
@@ -230,9 +249,29 @@ and **its zero value is the empty string, which denotes NO PAGE-LEVEL VERDICT ra
 detector** — the inference-from-a-zero revision 2's audit called out. A page with `Table: true` and
 an empty `RuleSource` is a bug, and `TestEveryTablePageNamesItsRuleSource` fails on it.
 
-The repaired crossing count goes on the record beside it, in the space the reader needs: the
-receipt carries what the C repair measured, and the golden line prints the source so eight corpus
-goldens cannot read as if one path produced them.
+**The repaired crossing count names its field, its space and its basis. [r3.1]** Revision 3 said
+only that it "goes on the record", which left three things silent and each of them silent in the
+way this plan exists to stop. Stated:
+
+- **Field:** a new `RepairedCrossings`, NOT a reuse of `GridIntersections`, whose own doc comment
+  says it is "the detector's measured rule-crossing count AT THE PAGE'S OWN RESOLUTION". Reusing it
+  would make the field's documentation false on exactly the pages the field matters for.
+- **Space:** the 300-DPI space, stated on the field, because a reader divides it against
+  `ExpectedIntersections()` and that denominator is a count of lattice points.
+- **Basis:** computed in **Go, over the FILTERED boxes the published lattice was built from** — not
+  in C. D8 makes C filter nothing, so a C-measured count would be taken over components the Go
+  filters then discard: a number that does not measure the lattice it sits beside, which is the
+  defect D6 was re-aimed to remove. **[r3.1: revision 3 had C measure it, and D8 made that wrong.]**
+
+`RuleSource` travels receipt → reading so the corpus golden can print it; `renderGolden`
+(`goldens_cgo_test.go`) and the corpus golden line build from different structs and both need it,
+or eight goldens read as if one path produced them.
+
+**Where the invariant is enforced. [r3.1]** `Table: true ⇒ RuleSource != ""` is checked where the
+receipt is WRITTEN — the `pageReceipt` → `pageReading()` projection — and its test runs in the
+DEFAULT build. A unit over hand-built `PageResult` values passes on fixtures it constructs and never
+sees a page, and the corpus leg that would see one runs only under `FEOV_OCR_CORPUS=1`, which §VI.9
+states is not in `check`. That is the same projection that silently dropped `DPI` in #1058.
 
 **D7. Failure contract, covering the counts as well as the geometry. [r3]** `tessocr_repaired_rules`
 follows its siblings: `nullptr` is a failure (decode, binarize, morphology, allocation), an empty
@@ -293,7 +332,20 @@ were found by the audit re-running this plan's own command.
 - `[MODIFY] internal/tessocr/testdata/gen/pages.go` — **[r3]** the generated fixtures. A DASHED
   fixture belongs here: it is the only way the repair gets a page whose truth is known by
   construction rather than transcribed by eye.
-- `[NEW] internal/tessocr/testdata/repaired300.txt` — §VI.2's record, named for the space it is
+- `[MODIFY] internal/tessocr/normalize.go` — **[r3.1]** the crossing moves to `readPage` (§0) and
+  this file owns it; the header comment's "one boundary in readGridPage" becomes true again.
+- `[MODIFY] internal/tessocr/normalize_test.go` and `internal/tessocr/page_test.go` — **[r3.1]**
+  §VI.8's arm, and the pure-Go home of `readPage`'s decision.
+- `[MODIFY] internal/tessocr/engine_stub_test.go` — **[r3.1]** `TestStubRefusesLoudly` is a
+  HAND-KEPT roster of entry points (New, PageText, PageTSV, RotatedBand, DetectGrid, ReadPage). The
+  new one joins it, or a stub returning `(Lattice{}, nil)` compiles, passes every default-build
+  test, and reads on every untagged build as "this page has no repaired rules" instead of the named
+  refusal `engine_stub.go`'s own comment requires.
+- `[MODIFY] internal/tessocr/detector_test.go` — **[r3.1]**
+`TestTheDerivedTuneIsTheMeasuredTuneAt300`
+  compares `GridFor(300)` by struct equality against a literal, so adding `dashGapInches` to
+  `GridThresholds` turns it red until the literal carries it. That is the gate working.
+- `[NEW] internal/tessocr/testdata/repaired300.txt` — §VI.3's record, named for the space it is
   stated in. **[r3: revision 2 called it `repaired350.txt` and tagged it `[MODIFY]`.]**
 - `[MODIFY] internal/tessocr/detector_test.go` — p0022 joins the boundary set with its **measured**
   outcome (D5), not an asserted class.
@@ -302,8 +354,6 @@ were found by the audit re-running this plan's own command.
   carries `DefaultPageEngine.Identity()`, which hashes this package's source — **comments
   included, which is how PR #1096 went red on CI while passing locally. [r3]**
 
-- `[MODIFY] internal/cli/ocr.go:94` — `ocr pages --help` still says "The default 300 DPI is the OCR
-  engine's operative resolution". Stale since #1031, and wrong again here. **[r2]**
 
 ## VI. Verification Plan
 
@@ -324,13 +374,19 @@ from `plugins/frank-exchange-of-views/tools`, after
    The repaired **geometry** is itself committable — rule coordinates are not the document — so
    `testdata/repaired300.txt` records, for each of the 80 pages, the UNFILTERED closed-and-opened
    boxes (D8) in the 300-DPI space, and `TestRepairedFiringSet` runs D8's filters and D3's crossing
-   test over that record and demands the firing set equal a named set of page IDS, not a count.
+   test over that record and demands the firing set match the tune's own LABELS, not a named set of
+   page IDs — so a newly-firing page reads as a labeled false positive rather than as a set element
+   somebody updates. **[r3.1]**
    Because the record holds pre-filter boxes, §VI.6's deletions turn this red. **What it does not
    pin, stated:** the C half — a change to the closing length moves the boxes and the record is
    stale rather than wrong. `TestRepairedRecordIsCurrent` compares the record's header (which
-   carries the `shim.cpp` source hash and the constants it was generated under) against the build,
-   and fails when either moves; regenerating is a hand step and the command is in the header.
-4. **Tagged suite.** `eval "$(./third_party/pins/build-cstack.sh env linux-amd64 ~/ocr-runs/644-real/cstack)"`
+   carries the `shim.cpp` source hash, the closing length and the per-page DPI — the three things
+   the BOXES depend on) against the build, and fails when any moves. **It does NOT carry
+   `maxRuleThick` or `minRepairedSpan`: the record is pre-filter and those do not move a box, so
+   keying on them would call it stale and demand a C-stack regeneration that changes nothing.
+   [r3.1]** Regenerating is a hand step and the command is in the header.
+4. **Tagged suite.** `eval "$(./third_party/pins/build-cstack.sh env linux-amd64
+~/ocr-runs/644-real/cstack)"`
    then `go test -tags tessocr -count=1 -ldflags '-linkmode external -extldflags "-static"'
    ./internal/tessocr/ ./internal/fetchcache/` → ok ok.
 5. **What the repaired pages ACTUALLY produce, recorded before merge. [r3]** Revision 2 asserted
@@ -354,12 +410,16 @@ from `plugins/frank-exchange-of-views/tools`, after
    `must_contain` list is what measures that. Every *other* page's verdict and text unchanged —
    that is D4's property, and `nbs602-form` and `usfs-birds-markgrid` still detecting is its sharp
    end. Read every changed line; all eight goldens move on the identity hash alone (§V).
-8. **Resolution stability, on the gate #1074 built. [r3]** The repaired path's Go half is fed
-   normalized boxes, so it joins `TestGeometryIsResolutionInvariant`: the same dashed page expressed
-   at 450 and 600 must produce the same repaired verdict and the same table. Pure Go, every CI leg,
-   no engine time. Revision 2 proposed measuring this end-to-end on real renders, which #1074
-   established is the version that cannot hold — tesseract returns different words at different
-   resolutions.
+8. **Resolution stability, on the gate #1074 built.** The repaired path's Go half is fed normalized
+   boxes, so it joins `TestGeometryIsResolutionInvariant`: a synthetic repaired-box fixture
+   expressed at 450 and 600 must produce the same verdict and the same table. Pure Go, every CI leg,
+   no engine time. **What it pins and what it does not, stated: [r3.1]** it pins the FILTER AND
+   CROSSING ARITHMETIC, not "the same dashed page at two resolutions" — the merged test drives
+   `TextCells` over synthetic input by design, because tesseract returns different words at
+   different resolutions. And a threshold comparison after `round` is invariant only away from the
+   cap: a box within ~1 px of `maxRuleThick` flips between scales, so **the fixture is stated as
+   off-boundary and a second case sits deliberately ON the cap to record the ±1 px residue** rather
+   than a fixture quietly chosen to sit somewhere safe.
 9. `go -C scripts run ./check` → read the FAIL COUNT. **`ocr-corpus` does not run there**; step 7
    is run by hand and its result stated in the pull request.
 
