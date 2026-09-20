@@ -86,6 +86,14 @@ type GapJSON struct {
 
 	Class    string `json:"class"`
 	Location string `json:"location"`
+	// Passage is the report SECTION the location sits in — the challenged sentence in its context,
+	// which is what an auditor otherwise renders the whole report to get (#1091). Omitted when the
+	// quote cannot be located: a gap anchored to something that is not report text, a quote edited
+	// away, or a run with no ingested report. Absent means READ THE REPORT, never "no context".
+	//
+	// IT DOES NOT REPLACE THE REPORT. `show report` is unchanged and the constitution's full
+	// re-read stands; this removes the navigating, not the audit.
+	Passage string `json:"passage,omitempty"`
 	// AboutKind/AboutRef are the anchor for a gap about something that is NOT report text — the
 	// same pair a finding carries, because a gap is where that finding ends up. Omitted when
 	// unset, so a gap anchored by quote reads exactly as it did.
@@ -326,6 +334,20 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 		gapEdits = map[string][]GapEdit{}
 	}
 
+	// THE REPORT, RENDERED ONCE FOR THE WHOLE BOARD, so each gap can arrive with its passage
+	// (#1091). Once per board and not once per gap: replaying the mutations is the expensive part,
+	// and doing it per gap would trade an auditor's re-reads for the tool's.
+	//
+	// A FAILURE HERE IS NOT AN ERROR. A run before its base is ingested has no report, and that is
+	// the ordinary early state rather than a fault; every gap simply carries no passage and the
+	// auditor reads the report exactly as it did before.
+	report := ""
+	if reportRenderer != nil {
+		if md, err := reportRenderer(run); err == nil {
+			report = md
+		}
+	}
+
 	// The acts the projection embeds or attributes, one filtered typed read, grouped per gap.
 	evs, err := EventsOf(run,
 		recordpb.EventType_EVENT_TYPE_REGISTER, // for the fold's Clock (see record.Clock)
@@ -399,6 +421,7 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 			Regrades: []map[string]any{},
 			Severity: nullWord(sev), Likelihood: nullWord(lik), Impact: nullWord(imp), ComplexityCost: nullWord(cx),
 			Class: class.String, Location: currentLoc(loc.String, gapEdits[id]),
+			Passage:        PassageAround(report, currentLoc(loc.String, gapEdits[id])),
 			MintedLocation: mintedIfMoved(loc.String, gapEdits[id]), LocationEdits: gapEdits[id],
 			AboutKind: aboutKind.String, AboutRef: aboutRef.String, Problem: problem.String,
 			MintReason: reason.String, RequiredFix: fix.String, AcceptanceGate: gate.String,
@@ -640,6 +663,12 @@ type WorkGapJSON struct {
 	ComplexityCost any    `json:"complexity_cost"`
 	Class          string `json:"class"`
 	Location       string `json:"location"`
+	// Passage is the section Location sits in, so a seat scanning its work can judge the sentence
+	// in context without rendering the report (#1091). It is the one thing on this list that is NOT
+	// a synopsis, and deliberately: the leanness rule above exists because the BOARD grew
+	// monotonically with every closed gap's prose, and this rides the OPEN set only — which shrinks.
+	// Measured: the median report section is 372 characters against a 12,348-character report.
+	Passage string `json:"passage,omitempty"`
 	// The anchor for a gap about something NOT in the report. Without these a seat reading its
 	// own work list sees `location: ""` and no other pointer — the gap says where it is only
 	// when the where is a quote.
@@ -736,9 +765,15 @@ func synopsis(s string) string {
 // folded Board.
 type WorkGapState struct {
 	ID, Class, Location, Problem, CheckKind string
-	AboutKind, AboutRef                     string
-	Edits                                   []GapEdit
-	Open, AwaitingProof, ClosedByBench      bool
+	// Passage is the report section Location sits in — see GapJSON.Passage. It rides the WORK list
+	// as well as the board because the work list is the read a seat does first: measured across the
+	// empty sittings of eight runs, `show work` was called 19 times against `show board`'s 11 and
+	// `show report`'s 13, so context that arrives anywhere else arrives after the seat has already
+	// paid to go looking.
+	Passage                            string
+	AboutKind, AboutRef                string
+	Edits                              []GapEdit
+	Open, AwaitingProof, ClosedByBench bool
 	// AwaitingDocket: OPEN, the bench has carried it, and nothing is pending. Off the view, the
 	// same way AwaitingProof is — the alternative was a second Go fold of a question the SQL
 	// already answers, which is what #681's standing rule forbids.
@@ -784,6 +819,14 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 	if geErr != nil {
 		gapEdits = map[string][]GapEdit{}
 	}
+	// The report, once for the whole work list — see BoardJSONOfRun for why once and why a failure
+	// here is the ordinary early state rather than a fault.
+	report := ""
+	if reportRenderer != nil {
+		if md, rerr := reportRenderer(run); rerr == nil {
+			report = md
+		}
+	}
 	rows, err := db.Query(`SELECT "gap_id", "open", "awaiting_proof", "awaiting_docket", "docket_reopens_on",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
@@ -815,6 +858,7 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 		g.AboutKind, g.AboutRef = aboutKind.String, aboutRef.String
 		g.Edits = gapEdits[g.ID]
 		g.Location = CurrentLocation(g.Location, g.Edits)
+		g.Passage = PassageAround(report, g.Location)
 		g.FoundBy, g.Supersedes = foundBy[mintedEvent], supersedes[mintedEvent]
 		if c := closures[g.ID]; c != nil && c.hasClosed {
 			g.ClosedByBench, g.Fate = c.closedByBench, c.reason()
@@ -837,7 +881,7 @@ func workJSONOfGaps(gaps []WorkGapState, since int) WorkJSON {
 			out.Open = append(out.Open, WorkGapJSON{
 				ID:       g.ID,
 				Severity: g.Severity, Likelihood: g.Likelihood, Impact: g.Impact, ComplexityCost: g.Cx,
-				Class: g.Class, Location: g.Location,
+				Class: g.Class, Location: g.Location, Passage: g.Passage,
 				AboutKind: g.AboutKind, AboutRef: g.AboutRef,
 				EditedSince:     editsSince(g.Edits, since),
 				ProblemSynopsis: synopsis(g.Problem),
