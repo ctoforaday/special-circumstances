@@ -51,12 +51,43 @@ type Dispatch struct {
 	Prompt    string
 	// Phase is the progress group, kept because a seat id alone does not say which epoch it sat.
 	Phase string
+	// Occasion is what this sitting was convened to do — set for the BENCH only, whose four
+	// sittings share one seat id. Empty for every other seat, whose id already answers it.
+	Occasion string
 }
 
 // seatRe reads the seat id out of the prompt. recordClause writes `SEAT_ID: <id>.` into every
 // dispatched prompt; a dispatch without one is a dispatch no seat can register against, and Capture
 // keeps it with an empty SeatID rather than guessing from the label.
 var seatRe = regexp.MustCompile(`SEAT_ID:\s*([A-Za-z0-9-]+)`)
+
+// occasionRe reads WHAT THE SITTING WAS CONVENED TO DO out of the prompt. recordClause writes
+// `OCCASION: <word>` for the BENCH and for nobody else, because the bench is one seat asked four
+// different questions and its id cannot say which.
+//
+// READ FROM THE PROMPT BECAUSE THAT IS WHERE A SEAT READS IT. This is not the prose-recovery the
+// occasion field replaced: a real bench seat is TOLD its occasion in the prompt and types it at
+// `register`, so a harness standing in for one reads it from the same place and types the same
+// word. What the field replaced was the opposite direction — a LATER reader, with the record in
+// front of it, going back to the prompt head to work out what the sitting had been.
+var occasionRe = regexp.MustCompile(`OCCASION:\s*([a-z_]+)`)
+
+// OccasionOf reads what a sitting was convened to do out of the prompt it was given, for a backend
+// that is handed the prompt rather than the Dispatch. Empty when the prompt names none, which is
+// every seat but the bench.
+//
+// A BACKEND STANDING IN FOR A SEAT MUST BRANCH ON THIS, NOT ON THE PROMPT'S OPENING WORDS. The
+// bench's four sittings are one seat id and four questions; `seatclass.ClassifySeat` answers WHO
+// sat and deliberately no longer answers WHICH sitting it was. A backend that asks it the second
+// question gets `judge` for all four, returns one envelope shape for every one of them, and the
+// engine dies on the field the shape does not carry — measured twice now, both times as
+// "TypeError: Cannot convert undefined or null to object" with 40 of 40 fuzzed runs failing.
+func OccasionOf(prompt string) string {
+	if m := occasionRe.FindStringSubmatch(prompt); m != nil {
+		return m[1]
+	}
+	return ""
+}
 
 // Envelope is what a stubbed seat returns. debate.js branches on these fields — the verdict, the
 // gap list, the sitting record flags — so the backend supplying them decides which dispatch sites the
@@ -247,6 +278,9 @@ func drive(scriptPath string, cfg Config) (driven, error) {
 				}
 				if m := seatRe.FindStringSubmatch(d.Prompt); m != nil {
 					d.SeatID = m[1]
+				}
+				if m := occasionRe.FindStringSubmatch(d.Prompt); m != nil {
+					d.Occasion = m[1]
 				}
 				if len(call.Arguments) > 1 {
 					o := call.Argument(1).ToObject(vm)

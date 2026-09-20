@@ -59,11 +59,11 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/debatejs"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	reportdoc "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatprobe"
 )
 
@@ -125,6 +125,27 @@ var classDefaultTurn atomic.Int64
 type lockedRand struct {
 	mu sync.Mutex
 	r  *rand.Rand
+}
+
+// registerArgs is a seat's `register` argv. THE BENCH NAMES WHAT ITS SITTING IS FOR and no other
+// seat may, so this asks the write path's own question rather than keeping a list of which ids are
+// the bench. `docket` is the sitting the chair dispatches, which is what the fuzz drives.
+//
+// A bench register without one is REFUSED, and these call sites discard the error — so the miss
+// arrived many steps later as a TypeError out of the engine, on a run whose bench had simply never
+// sat. That discard is its own defect and is filed separately; this is the fix for the argv.
+func registerArgs(seatID, occasion string, extra ...string) []string {
+	args := []string{"register", "--seat-id", seatID}
+	if record.SeatOwesOccasion(seatID) {
+		// THE SITTING NAMES ITSELF. Hardcoding `docket` would register all four bench sittings as
+		// docket rulings, which is the fact this field exists to stop being guessed — and it would
+		// leave three of the four words undriven while the surface census counted the flag covered.
+		if occasion == "" {
+			occasion = "docket"
+		}
+		args = append(args, "--occasion", occasion)
+	}
+	return append(args, extra...)
 }
 
 func newLockedRand(seed int64) *lockedRand {
@@ -703,7 +724,13 @@ func (r *runner) exec(args ...string) (string, error) {
 // a chair that registered once sat forty times at sitting #1, every singleton act after the first
 // was refused as a duplicate, the epoch never advanced, `dispatch next` never saw a lens sit
 // against a moved head, and the loop ran until the ten-minute budget killed it — 29 of 40 runs.
-func (r *runner) sit(role, seatID string) {
+// sit registers a seat for a sitting. occasion is the BENCH's — what this sitting was convened to
+// do — and is variadic because only the bench has one; every other caller passes nothing.
+func (r *runner) sit(role, seatID string, occasion ...string) {
+	occ := ""
+	if len(occasion) > 0 {
+		occ = occasion[0]
+	}
 	r.mu.Lock()
 	if done, seen := r.registering[seatID]; seen {
 		select {
@@ -726,7 +753,7 @@ func (r *runner) sit(role, seatID string) {
 		r.chairRegisters++
 	}
 	r.mu.Unlock()
-	_, _ = r.exec("register", "--seat-id", seatID)
+	_, _ = r.exec(registerArgs(seatID, occ)...)
 	close(done)
 }
 
@@ -769,7 +796,10 @@ func (r *runner) register(role, seatID string) {
 	// OUTSIDE THE LOCK, deliberately: this is the invocation three concurrent lanes make against
 	// a run directory whose database may not exist yet, and holding the lock across it would
 	// serialize exactly the contention phase 3 exists to produce.
-	_, _ = r.exec("register", "--seat-id", seatID)
+	//
+	// No occasion: this path registers the concurrent LANES, which are blue and whose seat ids
+	// already say what their sittings are for.
+	_, _ = r.exec(registerArgs(seatID, "")...)
 	close(done)
 }
 
@@ -1809,8 +1839,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	// and attests what the refusal said. Listed first: the label also starts with the seat's id.
 	case strings.HasSuffix(seatID, "-sitting-record"):
 		seat := strings.TrimSuffix(seatID, "-sitting-record")
-		if _, err := r.exec("register", "--seat-id", seat, "--repair-sitting"); err != nil {
-			_, _ = r.exec("register", "--seat-id", seat)
+		if _, err := r.exec(registerArgs(seat, "", "--repair-sitting")...); err != nil {
+			_, _ = r.exec(registerArgs(seat, "")...)
 			r.do("log", seat).set("--type", "friction").set("--reason", "fuzz: the repair was refused — "+firstLine(err.Error())).run()
 			return map[string]any{"sitting_record_appended": false, "note": firstLine(err.Error())}
 		}
@@ -1941,15 +1971,21 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	// object". 40 of 40 fuzzed runs failed, and a plain `go test` SKIPS this suite, so it read green
 	// in PR CI and was red on a tag.
 	//
-	// The question is recoverable where every other consumer reads it: the prompt HEAD.
-	// seatclass.ClassifySeat is the one table mapping a head to its sitting kind, so the fuzz, the
-	// dashboard and cost.md now discriminate the same way, from the same table.
-	case seatclass.ClassifySeat(prompt).Seat == "judge-petition":
-		r.sit("bench", seatID)
+	// THE QUESTION IS IN THE PROMPT, WHERE THE SEAT READS IT. It was recovered from the prompt's
+	// opening WORDS through seatclass.ClassifySeat — which answered both "who sat" and "which
+	// sitting" from one table. It no longer answers the second: the bench is one seat id and the
+	// occasion is a field on its register (#1100), so ClassifySeat returns `judge` for all four
+	// sittings by design. A backend that kept asking it got one envelope shape for every bench
+	// sitting and reproduced this exact failure.
+	//
+	// This reads the OCCASION recordClause writes into the prompt — the same word a real bench seat
+	// is told and types at `register` — so the fuzz stands in for the seat instead of guessing at it.
+	case debatejs.OccasionOf(prompt) == "petition":
+		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
 		return r.rulePetitions(seatID) // rule every pending petition (petition-rule events + envelope rulings)
 
-	case strings.HasPrefix(seatID, "judge") && seatclass.ClassifySeat(prompt).Seat != "assemble": // adjudication + terminal
-		r.sit("bench", seatID)
+	case strings.HasPrefix(seatID, "judge") && debatejs.OccasionOf(prompt) != "assemble": // adjudication + terminal
+		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
 		r.extras("bench", seatID, nil)
 		// THE BENCH RULES ON WHAT HAPPENED, not on a coin. A gap reaches the docket because
 		// its scenario left it open, and the scenario says why: a LOST dispute is a contest
@@ -1981,8 +2017,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		}
 		return map[string]any{"dispositions": res, "log": arr()}
 
-	case seatclass.ClassifySeat(prompt).Seat == "assemble":
-		r.sit("bench", seatID)
+	case debatejs.OccasionOf(prompt) == "assemble":
+		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
 		// THE VERDICT IS READ, NOT INVENTED. debate.js computes the terminal outcome and TELLS
 		// the assembler ("Debate outcome: <verdict> after N round(s)") — exactly as a real seat
 		// is told. The fake used to ignore that and draw from a hat, so `bench outcome --as`
