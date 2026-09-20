@@ -324,7 +324,6 @@ cmd_build() {
   # background fetch exactly when it thinks a binary is missing; on a correctly stamped root it
   # says nothing. A universe whose binaries the release would overwrite mid-run is not a universe
   # that proves anything about this checkout, and that is a checkable condition, so it is checked.
-  local hook="$cache_root"
   for root in "$cache_root"/*/*/; do
     [ -f "$root/hooks/fetch-bin.sh" ] || continue
     local out
