@@ -119,6 +119,11 @@ type SeatMetric struct {
 	CacheRead     int
 	CacheCreation int
 	WallMillis    *int64
+	// Acts is what the sitting RECORDED, excluding bookkeeping — the denominator that turns a
+	// cost into an efficiency. Zero is a real answer and the interesting one: an empty sitting has
+	// no task complexity in it, so its turns and its wall clock are pure overhead and can be
+	// compared across runs without normalising for how hard the question was.
+	Acts int
 }
 
 // SeatMetrics reads the per-seat measurements a capture ingested, ordered by seat then agent so
@@ -133,7 +138,7 @@ func SeatMetrics(run Run) ([]SeatMetric, error) {
 		return nil, err
 	}
 	rows, err := db.Query(`SELECT "agent_id","seat_id","agent_type","turns","thinking_turns","tool_turns",
-	  "input_tokens","output_tokens","cache_read","cache_creation","wall_ms"
+	  "input_tokens","output_tokens","cache_read","cache_creation","wall_ms","acts"
 	  FROM "seat_metrics" ORDER BY COALESCE("seat_id", ''), "agent_id"`)
 	if err != nil {
 		return nil, fmt.Errorf("record: reading seat metrics: %w", err)
@@ -143,7 +148,7 @@ func SeatMetrics(run Run) ([]SeatMetric, error) {
 	for rows.Next() {
 		var m SeatMetric
 		if err := rows.Scan(&m.AgentID, &m.SeatID, &m.AgentType, &m.Turns, &m.ThinkingTurns, &m.ToolTurns,
-			&m.InputTokens, &m.OutputTokens, &m.CacheRead, &m.CacheCreation, &m.WallMillis); err != nil {
+			&m.InputTokens, &m.OutputTokens, &m.CacheRead, &m.CacheCreation, &m.WallMillis, &m.Acts); err != nil {
 			return nil, fmt.Errorf("record: scanning a seat metric: %w", err)
 		}
 		out = append(out, m)

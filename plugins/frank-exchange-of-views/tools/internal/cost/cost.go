@@ -444,13 +444,59 @@ func reportSeatMeasurements(run record.Run, p func(string)) {
 	}
 	p("\n## Per seat (measured)\n")
 	p("Read from the record's `seat_metrics` view — the turns `capture` ingested, not a re-scan of the transcripts.\n")
-	p("| seat | agent | turns | thinking | tool | wall | input | output | cache-read |")
-	p("|---|---|---|---|---|---|---|---|---|")
+	p("| seat | agent | turns | thinking | tool | acts | calls/act | wall | s/call | input | output | cache-read |")
+	p("|---|---|---|---|---|---|---|---|---|---|---|---|")
+	empty, emptyTool := 0, 0
 	for _, m := range metrics {
-		p(fmt.Sprintf("| %s | `%s` | %d | %d | %d | %s | %d | %d | %d |",
-			orDash(m.SeatID), m.AgentID, m.Turns, m.ThinkingTurns, m.ToolTurns,
-			durationOrDash(m.WallMillis), m.InputTokens, m.OutputTokens, m.CacheRead))
+		if m.Acts == 0 {
+			empty++
+			emptyTool += m.ToolTurns
+		}
+		p(fmt.Sprintf("| %s | `%s` | %d | %d | %d | %d | %s | %s | %s | %d | %d | %d |",
+			orDash(m.SeatID), m.AgentID, m.Turns, m.ThinkingTurns, m.ToolTurns, m.Acts,
+			perAct(m.ToolTurns, m.Acts), durationOrDash(m.WallMillis),
+			secondsPerCall(m.WallMillis, m.ToolTurns),
+			m.InputTokens, m.OutputTokens, m.CacheRead))
 	}
+	// THE TWO NUMBERS A COST QUESTION ACTUALLY TURNS ON, stated rather than left to be derived.
+	//
+	// Chair time confounds task complexity with efficiency: a run whose question got easier looks
+	// like a run whose seats got leaner. `calls/act` normalises by what the sitting produced, and
+	// an EMPTY sitting removes the confound entirely — it had nothing to do, so every call it made
+	// is overhead that no change in question difficulty can explain.
+	//
+	// Measured across eight runs before this was reported anywhere: 48% of sittings recorded
+	// nothing, and their median chair time (131.9s) was LONGER than a productive sitting's
+	// (128.1s). A barren sitting has no natural economy, which is the whole case for making one
+	// cost nothing.
+	if empty > 0 {
+		p(fmt.Sprintf("\n**Empty sittings: %d of %d (%d%%), %d tool call(s) between them.** "+
+			"An empty sitting recorded no act, so it carries no task complexity and its cost is "+
+			"overhead — the one efficiency number that needs no normalising.",
+			empty, len(metrics), 100*empty/len(metrics), emptyTool))
+	} else {
+		p(fmt.Sprintf("\n**Empty sittings: 0 of %d.** Every seat that sat recorded something.", len(metrics)))
+	}
+}
+
+// perAct is tool calls per recorded act — the efficiency the engine's design controls, as against
+// wall clock, which mostly reports the environment. A dash for an empty sitting: dividing by zero
+// acts would print an infinity, and "no acts" is already the more informative answer.
+func perAct(calls, acts int) string {
+	if acts <= 0 {
+		return "—"
+	}
+	return fmt.Sprintf("%.1f", float64(calls)/float64(acts))
+}
+
+// secondsPerCall is the environment's share of a sitting's duration — model latency, box load,
+// cache state. It is reported so a duration change can be ATTRIBUTED rather than claimed: if this
+// moves and calls/act does not, the engine did not get more efficient.
+func secondsPerCall(ms *int64, calls int) string {
+	if ms == nil || calls <= 0 {
+		return "—"
+	}
+	return fmt.Sprintf("%.1f", float64(*ms)/1000.0/float64(calls))
 }
 
 // orDash renders an absent seat id as a dash. An agent with no register event is a REAL row —
