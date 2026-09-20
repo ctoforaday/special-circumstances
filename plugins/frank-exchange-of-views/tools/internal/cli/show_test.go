@@ -197,9 +197,16 @@ func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 	if got, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "--json"); err != nil || got != bareShow {
 		t.Errorf("a bare `show --json` must be the same bytes as a bare `show` (err=%v)", err)
 	}
-	// --json on a markdown view with no JSON form is refused.
-	if _, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "lines-of-inquiry", "--json"); err == nil {
-		t.Error("show lines-of-inquiry --json was accepted; it has no JSON form and must refuse")
+	// --json on a view with no JSON form is still refused, and `report` is the one that means it:
+	// it is prose by nature and its structured answer is a QUERY over sections, not a dump (#1086).
+	// lines-of-inquiry used to be named here and now HAS a form, so the assertion moved rather than
+	// being deleted — the rule is unchanged, the set it applies to shrank.
+	if _, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "report", "--json"); err == nil {
+		t.Error("show report --json was accepted; it has no JSON form and must refuse")
+	}
+	// AND THE ONE THAT NOW ANSWERS, checked here so the two halves cannot drift apart.
+	if _, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "lines-of-inquiry", "--json"); err != nil {
+		t.Errorf("show lines-of-inquiry --json was refused: %v", err)
 	}
 }
 
