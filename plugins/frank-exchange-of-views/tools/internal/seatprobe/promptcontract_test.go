@@ -47,16 +47,17 @@ func TestTheDispatchedPromptTeachesTheBindingContract(t *testing.T) {
 		}
 		p := d.Prompt
 
-		// THE BOOTSTRAP: a worked call, carrying this seat's own id, that the seat can run before
-		// it has read anything. Without it there is no first call — the surface is scoped to
-		// whoever is asking, and nothing has said who that is.
+		// THE WORKED CALL, carrying this seat's own id. Its job used to be the BOOTSTRAP — the
+		// surface is scoped to whoever is asking, so a seat that had not yet named itself could
+		// not open its own help, and the dispatch had to show it how.
 		//
-		// That first call is now the manual — every command's own help on the seat's surface, in
-		// one call — which replaced the page-by-page walk that began at the root's `--help`. The
-		// gate follows the call the prompt actually directs first, rather than a call it no longer
-		// tells the seat to make.
-		if !strings.Contains(p, "--seat-id "+b.Seat+" manual") {
-			t.Errorf("%s: the dispatched prompt shows the seat no worked call naming itself — it cannot open its own help without one", name)
+		// That is no longer why it is here: scripts/agentgen writes the whole surface into the
+		// constitution, so the seat arrives holding it and fetches nothing. What survives the
+		// change is the other half of the same line — it is the ONLY place the seat sees its own
+		// id typed into a command, and an example outweighs prose on either side of it. The
+		// re-check call is now that example, so the gate follows it there.
+		if !strings.Contains(p, "--seat-id "+b.Seat+" <command> --help") {
+			t.Errorf("%s: the dispatched prompt shows the seat no worked call naming itself — nothing demonstrates the flag that binds its identity", name)
 		}
 		if !strings.Contains(p, "register") {
 			t.Errorf("%s: the dispatched prompt does not name register — the seat does not know which call binds its id", name)

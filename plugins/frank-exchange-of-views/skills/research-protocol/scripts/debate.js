@@ -234,6 +234,14 @@ const scorecardClause = () => (
 //
 // It renders to the empty string while no holding exists, which is every run until a bench
 // declares one, so the ordinary prompt is unchanged.
+// THE SURFACE ARRIVES WITH THE SEAT, SO THIS CLAUSE SENDS IT NOWHERE.
+//
+// scripts/agentgen inlines the whole manual into every constitution, so a seat holds its surface
+// before it acts and fetching it buys nothing: measured at 171 tool calls across one 69-seat run,
+// a tenth of every call made. What the clause states is the READING duty, which is what the
+// measurement is about — the defect is deciding first and opening one page to confirm it, and
+// that is independent of where the pages live.
+//
 // THE WORD IS ARGUMENT, NOT REASONING, AND THAT IS A CONSTRAINT RATHER THAN A STYLE CHOICE.
 //
 // The paragraph below read "YOUR REASONING IS PART OF EVERY ACT ... write your THINKING". On
@@ -255,13 +263,11 @@ const scorecardClause = () => (
 const recordClause = (seatId) =>
   `${holdingsClause()}${scorecardClause()} SEAT_ID: ${seatId}. THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "${binDir}/feov-record", and the tool's own board is the ONLY source of truth for status. Routing around it into markdown is the failure this contract exists to prevent.
 
-THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND READING IT IS REQUIRED — not a suggestion, not for when you are stuck, and not once per run. READ YOUR WHOLE SURFACE BEFORE YOU CHOOSE, NOT THE ONE PAGE FOR THE VERB YOU ALREADY PICKED. Do it ONCE, IMMEDIATELY AFTER \`register\` — before you have decided what to do, because deciding first is what makes the reading pointless:
-
-  "${binDir}/feov-record" --seat-id ${seatId} manual — every command on your surface, each under a header naming it and followed by that command's own help, run live. It is long: send it to \`<your scratchpad>/${seatId}-manual.txt\` (an ABSOLUTE path, never under the run directory) and read that file whole, in consecutive windows if Read refuses it at once. Seats share this scratchpad: name every file you write with your seat id.
+THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND YOU ARE ALREADY HOLDING IT. Your whole surface — every command you may run, each under a header naming it and followed by the help it prints — is part of your own configuration, in front of you before you act. READ IT BEFORE YOU CHOOSE, not the one entry for the verb you already picked, and read it before you have decided what to do: deciding first is what makes the reading pointless.
 
 A single command's own page is still there when you want to re-check one: "${binDir}/feov-record" --seat-id ${seatId} <command> --help.
 
-MEASURED, WHICH IS WHY IT IS ONE CALL, FIRST. Across nine sittings seats opened 6 of 51 group pages — twelve per cent — and 90% of the commands they ran were run without ever reading that command's own page. The rule they were following said to open a group "before using any command in it", so a seat that obeyed it perfectly still only ever opened the page for a verb it had already chosen: eighteen of the twenty-three pages opened were for verbs the seat went on to run. That is not surveying a surface, it is confirming a decision — and a decision made before reading is made from memory and from this prompt's vocabulary, which is not authoritative. Walking the surface a page at a time then cost 142 help turns across 26 sittings; the manual is the same pages in one.
+MEASURED, WHICH IS WHY IT ARRIVES WITH YOU RATHER THAN BEING FETCHED. Across nine sittings seats opened 6 of 51 group pages — twelve per cent — and 90% of the commands they ran were run without ever reading that command's own page. A seat obeying the old rule perfectly still only opened the page for a verb it had already chosen: eighteen of twenty-three pages opened were for verbs it went on to run. That is confirming a decision, not surveying a surface. Collapsing those pages into one document fixed the reading; what it did not fix was the FETCHING — across one completed run that cost 171 tool calls, a tenth of every call made, and 69% of everything a barren lens read before it reached the report. The document is identical for every seat of your role and changes only when the tool does, so it is delivered with your configuration and costs you nothing.
 
 A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS. Do not work from memory, do not carry a name from a previous sitting, and do not assume a command is named after the thing it writes. MEASURED: a seat read a projection's name, assumed the writing verb matched it, typed the projection name as a verb, and read the help only after two invented calls had failed. The projection names, this prompt's words for a concept, and the command that writes it are three different vocabularies and they do not always agree. The help is the only authoritative one, and this prompt names the JOB, never the flags.
 
@@ -395,7 +401,7 @@ const lawClause = ` LAW: if ${runDir}/inputs/law/ exists, read it before ruling 
 // carried a paragraph naming it, because for two releases no prompt and no constitution did and
 // the bench could not know it existed. The paragraph is gone: `declare --help` now carries what it
 // is for, when to reach for it, why a docket ruling cannot hold it, and the measured case — and the
-// manual puts that page in front of the bench before it chooses. A verb the HELP does not name
+// constitution carries that page, in front of the bench before it chooses. A verb the HELP does not name
 // is the capability nobody has; a verb only the PROMPT names is one the tool cannot be trusted for.
 const declareClause = ''
 

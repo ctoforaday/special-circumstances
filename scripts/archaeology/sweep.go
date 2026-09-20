@@ -40,6 +40,15 @@ var agentFacing = []string{
 	"plugins/*/skills/*/SKILL.md",
 	"plugins/*/skills/*/*.md",
 	"plugins/*/skills/*/scripts/*.js",
+	// THE CONSTITUTION SOURCES, which are where the authored prose actually lives now.
+	//
+	// scripts/agentgen generates plugins/*/agents/*.md from these, so a sentence written here is
+	// a sentence a seat reads — and the generated file it lands in is swept for it only until
+	// someone notices the source is the editable copy. Moving prose out of a policed path into an
+	// unpoliced one is the shape this repository keeps finding; it is not exempted by living under
+	// scripts/ and shipping nothing.
+	"scripts/agentgen/src/*.md",
+	"scripts/agentgen/src/fragments/*.md",
 	"CLAUDE.md",
 }
 
@@ -92,10 +101,31 @@ func isAgentFacing(path string) bool {
 func scan(diff string) []finding {
 	var out []finding
 	file := ""
+	// THE GENERATED SURFACE IS THE TOOL'S OWN HELP, not authored prose, so it is not swept.
+	//
+	// scripts/agentgen inlines each seat's whole `manual` into its constitution; that text is the
+	// help the tool prints, and it is held to the tool by `agentgen -check` rather than by this
+	// gate. Sweeping it would fail a constitution for a sentence in a verb's help page — which is
+	// reviewed where the verb lives, and cannot be fixed in the definition at all, because the
+	// next regeneration would put it straight back.
+	//
+	// FAIL-SAFE BY CONSTRUCTION: the flag only turns off inside a block whose BEGIN this diff
+	// actually carries. A hunk that lands between the markers without them is swept as before, so
+	// the failure mode is scanning too much rather than too little.
+	inGenerated := false
 	for _, line := range strings.Split(diff, "\n") {
 		switch {
 		case strings.HasPrefix(line, "+++ b/"):
 			file = strings.TrimPrefix(line, "+++ b/")
+			inGenerated = false
+			continue
+		case strings.Contains(line, "<!-- BEGIN GENERATED SURFACE"):
+			inGenerated = true
+			continue
+		case strings.Contains(line, "<!-- END GENERATED SURFACE -->"):
+			inGenerated = false
+			continue
+		case inGenerated:
 			continue
 		case strings.HasPrefix(line, "+++") || strings.HasPrefix(line, "---"):
 			continue

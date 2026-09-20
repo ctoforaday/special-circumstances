@@ -1,6 +1,8 @@
 package surface
 
 import (
+	"bytes"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -17,19 +19,24 @@ import (
 // where the verbs are. Removing the partial list is only safe alongside the instruction to go and
 // read the whole one; the strip without the directive leaves a seat with neither.
 //
-// FOUR HAND-KEPT COPIES ARE A FORK WAITING TO HAPPEN, which is what this gate is for. The text
-// cannot be generated — the constitutions are authored markdown the harness reads directly — so
-// the guard is the fallback the rules allow when generation is impossible, and this comment is
-// the statement of why.
+// THE COPIES ARE NO LONGER HAND-KEPT, and this gate changed shape when that happened. The duty is
+// authored once, at scripts/agentgen/src/fragments/surface-discovery.md; the bench and blue
+// definitions inline it at generation and the red skill is held byte-equal to it by the test
+// below. What remains here is the check generation cannot make — that the duty SAYS the four
+// things it exists to say, so a rewrite of the fragment cannot quietly drop one of them and
+// propagate the loss to every seat at once.
 func TestEveryConstitutionCarriesTheSurfaceDiscoveryDuty(t *testing.T) {
 	// The load-bearing sentences, not the whole block: a gate pinning every byte fails on a
 	// typo fix and teaches people to update it without reading it.
 	want := []string{
 		"Your surface comes from `--help`",
-		"what comes back IS your surface",
-		// THE ONE CALL THAT READS IT: `manual` prints every command's `--help`. A constitution still
-		// carrying the page-by-page walk it replaced would pass the two lines above and fail here.
-		"run the tool's `manual`",
+		"read your WHOLE SURFACE",
+		// WHERE THE SURFACE IS, which is the clause the design turns on. It used to say "run the
+		// tool's `manual`" — a fetch, 2–7 tool calls into a turn that re-reads the seat's whole
+		// context. scripts/agentgen now writes that same document into the definition, so the duty
+		// is to READ WHAT YOU HOLD. A constitution still carrying the fetch would pass every other
+		// line here and send the seat after a document it was already given.
+		"already in your configuration",
 		"A name you did not read in the help this sitting is a guess",
 	}
 	// AND THE CONSEQUENCE OF ABSENCE IS THE TOOL'S TO STATE, on the page where absence is
@@ -67,6 +74,72 @@ func TestEveryConstitutionCarriesTheSurfaceDiscoveryDuty(t *testing.T) {
 	}
 }
 
+// AND THE RED SEATS' COPY IS THE SAME BYTES AS THE ONE THAT IS GENERATED.
+//
+// Eight of the eleven constitutions — the seven lenses and the chair — take this duty from the
+// adversarial-audit SKILL rather than from their definition, because that is where their shared
+// duties live. agentgen writes agent definitions and does not write skills, so this one copy is
+// not generated, and prefer-generation's fallback applies: a guard, and a statement of why.
+//
+// Byte equality rather than a phrase list, because the failure this catches is the one that
+// already happened. When the fetch duty was replaced, the bench and blue definitions were
+// regenerated and the skill was not — so the two blue seats were told to read what they held
+// while every red seat was still told to go and fetch it, and the phrase gate above was satisfied
+// by the stale half. A per-phrase check cannot see a drift it has no phrase for; equality can.
+func TestTheRedSkillCarriesTheGeneratedDutyVerbatim(t *testing.T) {
+	// Glob, not a joined path: it REFUSES an empty match, so a renamed fragment fails here
+	// naming the pattern instead of leaving this gate reading a file that is not there.
+	found, err := repotree.Glob("scripts", "agentgen", "src", "fragments", "surface-discovery.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := found[0]
+	want, err := os.ReadFile(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	skill, err := repotree.Plugin("skills", "adversarial-audit", "SKILL.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(skill)
+	if err != nil {
+		t.Fatal(err)
+	}
+	i := bytes.Index(b, []byte("## Your surface comes from"))
+	if i < 0 {
+		t.Fatal("adversarial-audit/SKILL.md carries no surface-discovery duty at all — every red seat takes it from here")
+	}
+	// Bounded: a skill truncated mid-duty would otherwise panic here, and a gate that panics
+	// reports a crash where the answer is "the text was cut short".
+	got := b[i:min(i+len(want), len(b))]
+	if !bytes.Equal(got, want) {
+		t.Errorf("the red seats' copy of the surface-discovery duty has drifted from the authored one.\n\n"+
+			"authored at %s\nskill      at %s\n\nfirst difference at byte %d:\n  authored: %q\n  skill:    %q\n\n"+
+			"The bench and blue definitions inline this fragment at generation; the skill's copy is pasted, "+
+			"so a change to the duty has to be applied here by hand or red and blue are told different things.",
+			src, skill, firstDiff(got, want), excerpt(want, firstDiff(got, want)), excerpt(got, firstDiff(got, want)))
+	}
+}
+
+// firstDiff is where two byte slices part, so the failure above points at the edit rather than
+// printing two 1,200-byte blocks and leaving the reader to diff them.
+func firstDiff(a, b []byte) int {
+	for i := range a {
+		if i >= len(b) || a[i] != b[i] {
+			return i
+		}
+	}
+	return len(a)
+}
+
+func excerpt(b []byte, at int) string {
+	if at >= len(b) {
+		return "<end of text>"
+	}
+	return string(b[at:min(at+70, len(b))])
+}
+
 // AND IT STILL NAMES NO VERB. The directive is what replaces the list; a directive that grew a
 // list would be the thing it exists to remove, arriving through the same door.
 func TestTheDutyDoesNotSmuggleAVerbListBackIn(t *testing.T) {
@@ -83,7 +156,7 @@ func TestTheDutyDoesNotSmuggleAVerbListBackIn(t *testing.T) {
 			t.Fatal(err)
 		}
 		b := []byte(text0)
-		text := string(b)
+		text := withoutGeneratedSurface(string(b))
 		i := strings.Index(text, "Your surface comes from")
 		if i < 0 {
 			continue

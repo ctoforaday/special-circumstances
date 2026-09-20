@@ -473,9 +473,13 @@ test('every seat prompt carries the log clause, the speed clause and the record 
     assert.ok(!/DECLARE:/.test(p), `${seat} re-teaches declare beside its help page`)
   }
   const lens = firstPrompt(world, 'red-lens-evidence')
-  // ONE CALL READS THE SURFACE: `manual` prints every command's own --help, and a single page is the re-check.
-  assert.ok(/--seat-id red-lens-evidence manual — every command on your surface/.test(lens) && lens.includes('<command> --help') && /IMMEDIATELY AFTER `register`/.test(lens), 'the lens lost the manual directive')
+  // THE SURFACE ARRIVES WITH THE SEAT: the constitution carries every command's own --help, so
+  // the prompt directs a READ of what the seat holds, and a single page is still the re-check.
+  assert.ok(/YOU ARE ALREADY HOLDING IT/.test(lens) && /READ IT BEFORE YOU CHOOSE/.test(lens) && lens.includes('--seat-id red-lens-evidence <command> --help'), 'the lens lost the surface-reading directive')
+  // AND IT DOES NOT SEND THE SEAT AFTER A DOCUMENT IT WAS GIVEN. Both retired shapes: the
+  // page-by-page walk `manual` replaced, and the `manual` fetch the constitution replaced.
   assert.ok(!/for EVERY group that page listed/.test(lens) && !lens.includes('<group> --help'), 'the lens still carries the page-by-page walk the manual replaced')
+  assert.ok(!/manual\.txt/.test(lens) && !/ manual —/.test(lens) && !/IMMEDIATELY AFTER `register`/.test(lens), 'the lens is still told to fetch a manual its constitution already carries')
   assert.ok(/KNOWN HARNESS LIMIT/.test(lens) && /SANCTIONED fallback/.test(lens), 'the Glob/Grep fallback is sanctioned everywhere via the speed clause')
 })
 

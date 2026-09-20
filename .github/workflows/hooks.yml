@@ -1482,6 +1482,9 @@ jobs:
       - name: The engine's grade weights are the schema's (a second table drifted for six releases)
         run: go run ./massgen -check
         working-directory: scripts
+      - name: Each agent definition carries the surface the tool renders (a seat must not be taught a surface the binary lacks)
+        run: go run ./agentgen -check
+        working-directory: scripts
       - name: Hook bootstrap guards degrade gracefully (empty-bin window must never crash-storm)
         # Enumerates EVERY plugin's hooks.json, not just prosthetic-conscience's.
         # Naming one plugin was correct while it shipped the only hooks; a second

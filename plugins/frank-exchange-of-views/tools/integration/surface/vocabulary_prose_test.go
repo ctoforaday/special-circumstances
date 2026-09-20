@@ -128,7 +128,7 @@ func vocabularySources(t *testing.T) []vocabSource {
 		if err != nil {
 			t.Fatal(err)
 		}
-		text := string(b)
+		text := withoutGeneratedSurface(string(b))
 		if transform != nil {
 			text = transform(text)
 		}
