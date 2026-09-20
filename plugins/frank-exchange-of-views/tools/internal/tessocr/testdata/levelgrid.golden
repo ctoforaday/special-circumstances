@@ -1,6 +1,6 @@
 table: true · rotated: false · grid h=133770 v=74611 intersections=4854
 path: marks (33 placed of 33, 16 columns, 11 subcolumns, 6 rows, levels read 16, unread 0)
-marks fell back: the detector measured 4854 grid intersections, 57.8 times the 84 the reconstruction accounts for (limit 4.0): the OCR dropped rows or columns the grid still shows; page kept as plain text
+marks fell back: the detector measured 4854 rule crossings at the 300-DPI scale this limit is set in, 57.8 times the 84 the reconstruction accounts for (limit 4.0): the OCR dropped rows or columns the grid still shows; page kept as plain text
 cells fell back: the rules bound 129 cells holding 95 words (0.74 per cell, under 2.00): these cells carry marks rather than text, and reading them as text would drop what they mean
 --- the reconstruction the dropout gate refused (evidence, not the reading)
 | Fintesritylevel | L4 | L3 | L2 | L1 | L4 | L3 | L2 | L1 | L4 | L3 | L2 | L1 | L4 | L3 | L2 | L1 |

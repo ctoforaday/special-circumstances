@@ -96,7 +96,9 @@ type Table struct {
 	X0, Y0, X1, Y1 int
 }
 
-// Lattice geometry constants, in pixels at RenderDPI. A rule is a run of ink, not a
+// Lattice geometry constants, in pixels at 300 DPI — the space the rules and words reaching this
+// file are normalized into, whatever the page was scanned at (normalize.go). A rule is a run of
+// ink, not a
 // mathematical line: two segments of one table rule arrive as separate components with a
 // pixel or two of drift, and a cell border shared by two bands is one rule, not two.
 const (
@@ -590,12 +592,14 @@ func linesOf(words []tsvWord) string {
 // absent from the auto TSV and present in the sparse one — exactly as it drops isolated marks.
 // Filling only cells the first pass left empty takes those words back without letting the two
 // passes each contribute their own reading of the same cell.
-func TextCells(lat Lattice, tsv, sparse string) (string, CellStats, string) {
+// The words arrive PARSED AND NORMALIZED — the caller put them in the 300-DPI space every constant
+// below was fitted in (#1074, normalize.go), so nothing here re-parses a TSV or asks what the page
+// rendered at.
+func TextCells(lat Lattice, words, sparseWords []tsvWord) (string, CellStats, string) {
 	tables := lat.Tables()
 	if len(tables) == 0 {
 		return "", CellStats{}, "the page's rules bound no cells, so there is no row to recover"
 	}
-	words, sparseWords := parseTSVWords(tsv), parseTSVWords(sparse)
 	// THE BETTER WITNESS FILLS FIRST. Layout analysis reads a dense page best and drops words on a
 	// sparse one — measured on the generated two-table page, where it read 22 words and the sparse
 	// pass read the rest. Whichever pass read more words fills the cells; the other fills the cells

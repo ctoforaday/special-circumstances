@@ -11,7 +11,8 @@ package tessocr
 // against the grid, place marks, name columns from the rotated-band header recovery, emit
 // |-separated rows plus Stats.
 //
-// Every constant is an empirical fit to the 300-DPI corpus and says so. The mark grammar
+// Every constant is an empirical fit to the 300-DPI corpus and says so, and the geometry reaching
+// them has already been converted into that space (normalize.go, #1074). The mark grammar
 // only works because X-matrices have no other cell content; a numeric table needs a
 // different cell-content model, which the plan scopes out (non-ruled and content-bearing
 // tables are named future work).
@@ -24,7 +25,8 @@ import (
 	"strings"
 )
 
-// Reconstruction clustering gaps, px at 300 DPI (RenderDPI): x-centres closer than
+// Reconstruction clustering gaps, px at 300 DPI — the space this file's input is normalized into,
+// whatever the page was scanned at (normalize.go): x-centres closer than
 // colGap300 are one column, y-centres closer than rowGap300 are one row. Measured against
 // a column pitch of ~108 px and legitimate row pitches down to ~34 px.
 const (
@@ -116,8 +118,9 @@ func MarkTokenCount(tsv string) int {
 // levels, when non-nil, are the level SUBCOLUMNS read from the table's own header cells (see
 // ReadLevelBand): on a table whose supercolumns each carry printed levels, the output columns are
 // those subcolumns rather than the supercolumns, so a cell says which LEVEL a mark belongs to.
-func Reconstruct(tsv string, headers []string, levels []LevelBox) (string, Stats, error) {
-	words := parseTSVWords(tsv)
+// The words arrive PARSED AND NORMALIZED (#1074, normalize.go): every pixel constant in this file
+// was fitted at 300 DPI, and the caller has already put the geometry in that space.
+func Reconstruct(words []tsvWord, headers []string, levels []LevelBox) (string, Stats, error) {
 	return reconstruct(words, headers, levels)
 }
 

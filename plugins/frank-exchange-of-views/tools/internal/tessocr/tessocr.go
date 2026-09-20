@@ -101,12 +101,16 @@ func Identity() string {
 // from a blank page or a prose page, and the absent-engine case must stay loud.
 var ErrNotCompiledIn = errors.New("tessocr: engine not compiled in (build with -tags tessocr and the C stack from third_party/pins)")
 
-// RenderDPI is the resolution this engine's constants are tuned for. The plan renders 300
-// globally (ruled; §IV states the prose cost): 300 is where table geometry works — full
-// column coverage in word boxes and a perfect rotated-header recovery — where 200 loses
-// half the grid. Every pixel constant below is a 300-DPI fact; reusing one at another DPI
-// is exactly the mistake the Wave 0 spot-check caught (line-pixel counts do not scale
-// linearly with DPI, so thresholds are per-DPI, re-tuned rather than multiplied).
+// RenderDPI is the resolution this engine's constants are TUNED at. It is no longer the resolution
+// a page arrives at: since #1058 each page renders at its own, floored here and capped at 600.
+//
+// 300 is where table geometry works — full column coverage in word boxes and a perfect
+// rotated-header recovery — where 200 loses half the grid. Every pixel constant below is a 300-DPI
+// fact, and the two mechanisms that keep that safe are different by layer: the DETECTOR's
+// thresholds are re-derived for the page's DPI (GridFor, #1031), because line-pixel counts do not
+// scale linearly and a threshold is re-tuned rather than multiplied; the GEOMETRY below it is fed
+// measurements converted into this space instead (normalize.go, #1074), because there are twenty of
+// those constants and a list of them is a list somebody has to keep complete.
 const RenderDPI = 300
 
 // PSM is tesseract's page-segmentation mode, pinned here (values from publictypes.h) so
@@ -142,6 +146,12 @@ type GridStats struct {
 // GridThresholds decides table-or-not from GridStats. The zero value accepts nothing;
 // use Grid300.
 type GridThresholds struct {
+	// DPI is the resolution these thresholds were derived for, and therefore the resolution
+	// the page they judge was rendered at. It is carried rather than re-derived because the
+	// geometry BELOW the detector needs it too: every constant there was fitted at 300, and
+	// the measurements are converted into that space before they are compared (#1074,
+	// normalize.go). A zero means a hand-built fixture, and the conversion is then the identity.
+	DPI int
 	// SEL is the minimum run length in px for the morphological opening — a "rule" is a
 	// straight run at least this long.
 	SEL int
@@ -197,6 +207,7 @@ func GridFor(dpi int) GridThresholds {
 	px := func(inches float64) int { return int(inches*float64(dpi) + 0.5) }
 	sq := func(squareInches float64) int { return int(squareInches*float64(dpi)*float64(dpi) + 0.5) }
 	return GridThresholds{
+		DPI:              dpi,
 		SEL:              px(ruleRunInches),
 		MinHPix:          sq(minHSquareInches),
 		MinVPix:          sq(minVSquareInches),

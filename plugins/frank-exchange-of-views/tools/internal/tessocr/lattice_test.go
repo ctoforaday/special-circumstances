@@ -140,7 +140,7 @@ func TestTextCellsKeepsRowBindingAndThePageAroundIt(t *testing.T) {
 		"h 100 100 900 3", "h 100 200 900 3", "h 100 300 900 3",
 		"v 100 100 3 203", "v 400 100 3 203", "v 700 100 3 203", "v 1000 100 3 203",
 	))
-	text, st, why := TextCells(lat, tsv, "")
+	text, st, why := TextCells(lat, parseTSVWords(tsv), nil)
 	if why != "" {
 		t.Fatalf("refused: %s", why)
 	}
@@ -182,7 +182,7 @@ func TestTextCellsRefusesWhatIsNotATableOfText(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			text, _, why := TextCells(ParseLattice(tc.dump), tc.tsv, "")
+			text, _, why := TextCells(ParseLattice(tc.dump), parseTSVWords(tc.tsv), nil)
 			if why == "" {
 				t.Fatalf("accepted, want a refusal naming %q. text:\n%s", tc.want, text)
 			}
@@ -244,7 +244,7 @@ func TestTextCellsSplitsABandWhereNoWordCrosses(t *testing.T) {
 		"h 100 100 603 3", "h 100 320 603 3",
 		"v 100 100 3 223", "v 400 100 3 223", "v 700 100 3 223",
 	))
-	text, st, why := TextCells(lat, tsv, "")
+	text, st, why := TextCells(lat, parseTSVWords(tsv), nil)
 	if why != "" {
 		t.Fatalf("refused: %s", why)
 	}
