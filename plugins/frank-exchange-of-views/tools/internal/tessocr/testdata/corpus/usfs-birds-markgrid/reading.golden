@@ -1,5 +1,5 @@
-usfs-birds-markgrid · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@21fb73cc6b80 · rendered at 501 DPI (native 501)
-table: true · rotated: false · grid intersections: 2029 · length: 1057
+usfs-birds-markgrid · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@6ac8dfe32328 · rendered at 501 DPI (native 501)
+table: true · rules: detector · rotated: false · grid intersections: 2029 · repaired crossings: 0 · length: 1057
 marks: 1 columns, 1 subcolumns, 2 rows, 1 of 1 placed, psm disagreement 1.00
 text cells: 1 tables, 2 bands, 7 rows, 11 columns, 21 cells, 130 words placed
 fell back: the detector measured 728 rule crossings at the 300-DPI scale this limit is set in, 121.3 times the 6 the reconstruction accounts for (limit 4.0): the OCR dropped rows or columns the grid still shows; page kept as plain text

@@ -1,6 +1,7 @@
 # A rule drawn as dashes
 
-Status: revision 3, 2026-09-20. #1074 has merged and this is no longer blocked. Carries #1027.
+Status: revision 3, IMPLEMENTED and measured 2026-09-20. Carries #1027. §VIII holds the result,
+including a correction to §IV D5's central number.
 Revisions 1 and 2 each failed their audit; §0 says what those verdicts changed. **[r3]** marks
 what moved since revision 2.
 
@@ -451,3 +452,68 @@ Graded likelihood × impact × complexity-to-mitigate. **[r2: the third column i
   once and cannot be recomputed in CI. §VI.3's header check — the `shim.cpp` source hash and the
   constants it was generated under — is the loud miss; the residue, stated,
   is that a C-side change is caught by the corpus and not by the 80-page set.
+
+## VIII. What it did, measured
+
+Implemented 2026-09-20. Every number below is from the shipped code, not from the prototype §IV was
+written against.
+
+**§VI.5's accept/reject fired, and it blocked the change.** The gate was written before the number
+was known: *a page that PUBLISHES a |-separated table of a figure blocks this change.* On the first
+run, p0022 did exactly that — `TextCellFallback` empty, `TextCells` non-nil, so the page's text
+became a 7-column table with 165 words in 35 cells, built out of a V&V flow diagram's dashed boxes
+(`V&V Test Plan`, `V&V Test Design`, `V&V Test Case`…). That is the fabricated table this plan said
+it would not ship, and it is quotable through `cite --ocr-quote`.
+
+**D9, the fix, and it coins no constant.** A table's rules BOUND it; a figure's guides sit inside
+part of it. Measured, in the 300-DPI space:
+
+| | horizontal stack | tallest vertical | coverage |
+|---|---|---|---|
+| `nbs602-dashed-matrix`, a real dashed table | y 816–1968 (1152 px) | 1177 px | **102%** |
+| IEEE 1012 p0022, a flow diagram | y 675–2481 (1806 px) | 971 px | **54%** |
+
+The separation is not marginal, and the threshold already existed: `coverage = 0.8` in `lattice.go`
+is the repository's own constant for this exact idea — "how much of a band a vertical rule must span
+to bound its cells". Reusing it keeps one name for one concept and fits nothing to one page.
+
+**The tune, re-measured with the shipped code, at the 80 pages' native 324 DPI:**
+
+| | before | after |
+|---|---|---|
+| pages the repaired path fires on | p0022 only | **none** |
+| the tune's standing false positives | 1 (p0025) | **1 (p0025)** |
+
+**§IV D5 is therefore wrong and is corrected here rather than in place**, so the arithmetic that
+produced it stays visible: it predicted the repair would fire on 30 pages, 29 of them already
+tables, for a precision of 0.971 → 0.946. The shipped path fires on **zero of the 80**. The
+prototype it was measured with used native-pixel constants and no bounding test. **#1027's
+acceptance does not need amending after all** — TP=33 FP=1 FN=0 is unchanged — and §I goal 3's
+"exactly the pages named in D5 and no others" is met by the empty set.
+
+**The corpus, all eight pages:**
+
+| page | before | after |
+|---|---|---|
+| `nbs602-dashed-matrix` | `table: false`, read as prose | **`table: true · rules: repair · repaired crossings: 56`**, 1 table, 7 bands, 14 rows, 7 columns, 49 cells, 295 words |
+| `nbs602-form`, `usfs-birds-markgrid` | `table: true` | unchanged, `rules: detector` |
+| the other five | `table: false` | unchanged, `rules: none` |
+
+D4's property holds exactly: the seven pages this plan does not target changed one line each, the
+engine identity hash, and nothing else.
+
+**What the dashed page now reads.** Its row binding is recovered — `| Spot Welding … | 3.7 (2-6) |
+4.1 (3-5) | 4.9 (4-6) | 2.1 (1-3) | 2.1 (1-2) | 9.4 (5-6) |` is the matrix's real data, bound to its
+row and columns, where before the page read as prose and the binding was lost. Its `expect` block's
+`table: want true, got false` is gone.
+
+**What it does NOT read, stated.** The dashed rules are themselves read as text — `ee ee ee`,
+`cs cs co ces cee` — and land inside the cells beside the data. That is **#1030**, already open, and
+this measurement is its evidence rather than a defect introduced here. The corpus meter still reads
+5 of 8 for that reason.
+
+**Delete-the-row: six mutations, six killed.** The thinness cap, the span requirement, each half of
+the crossing test, the crossing threshold, and the bounding filter each turn a `repaired_test.go`
+case red — all in the default build, no C stack. Two more on the record path: dropping `RuleSource`
+from the projection, and never setting it on the receipt, both turn
+`TestEveryTablePageNamesItsRuleSource` red.

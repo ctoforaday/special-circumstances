@@ -1,44 +1,40 @@
-nbs602-dashed-matrix · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@21fb73cc6b80 · rendered at 350 DPI (native 350)
-table: false · rotated: false · grid intersections: 0 · length: 1667
+nbs602-dashed-matrix · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@6ac8dfe32328 · rendered at 350 DPI (native 350)
+table: true · rules: repair · rotated: false · grid intersections: 0 · repaired crossings: 56 · length: 2018
+text cells: 1 tables, 6 bands, 11 rows, 7 columns, 42 cells, 259 words placed
+fell back: grid detected but the TSV held no mark tokens; page kept as plain text — its words are read, but which row and column each belongs to is not preserved, so check a cell against the page image before relying on it
 ---
 SENSORS
-
 la) Using the matrix below, rank the listed sensors in
 order of importance (1 through 6) for immediate econom-—-
 ic benefit to the user. Fill in only the rows that
 correspond to the application area(s) you are familiar
-
 with. (You may give two or more sensors equal rank. )
-oy —_- oo vo i
-+ louch® i: Simple : Complexi Prox~- i! Simple | Complex
-y : Force : Force i: imity ! Vision ! Vision
-J ‘ 5 i 1) '
-PISS SSS 9 SS a —
-' ‘ ' H ' H
-Spot Welding i 3.7 i 4.1 + 4.9 it 2.4 i 2.1 i 3.4
-i (2-6) § (3-5) ¢ (4-6) ¢§ (1-3) ¢ (1-2) $f (5-6)
-ee I
-Arc Welding i 4.4 i 4.7 i 5.2 t 2.5 i 1.2 i 3.4
-+ (4-6) i (4-6) 1 (9-6) + (2-3) i (1-2) t (2-5)
-PPPS SSS SSIS OS 9 RIS YR 9389 J S83 SSS9 J SSS SESS JSS SSSSSe | ssRSsSas
-Drilling, Routing | 4.1 i: 2.4 i 2.9 i 4.4 i 1.8 : 3.9
-Grinding, etc. ' (3-5) ¢§ €1-3) | (2-3) | (3-6) ¢f (1-2) ¢$ (2-6)
-ee ee ee | ——-—————— | ——-—--—-—-— — — } —-—- —--— —- -—-—- - } —-— -— —-- - - - | — J
-H H ; H ; H
-Small Part i 3.8 i 2.6 i; 3.4 ' 3.9 i 1.7 i 2.1
-Assembly i (3-5) | (2-4) | (3-4) § (3-5) 1 (1-2) ¢ (1-3)
-DSSS IS ) SS SSSS 25 ||] SSS SS SSS ff SESS SSSS |] SSS SS SSS || SS SS SSS | cS SS SSS
-Machine Tool i; 2.8 i 3.4 i 4.6 i 3.1 i 2.3 i 3.6
-Loading/Unloading | (2-4) { (3-4) {! (4-6) { (2-3) ¢ (1-3) ¢ (2-6)
-Press i 2.5 i: 3.1 i 4.8 i 3.90 i 2.7 i 4.1
-Loading/Unloading | (2-3) | (2-4) t (4-5) + (2-3) 1 (1-4) t (3-6)
+ae ee eee Fe ee ee ee fF ee ee I eee ee !
+Be ee ee! ee ee ee!
+Touch* Simple Complex Prox- Simple Complex
+Force Force imity Vision Vision
+ee es ee ee ee ee | ee es | ee ee | ee ! ee oe
 
-% Touch - presence or absence of parts or displacement along
-one axis
+| ee ee ee ee ee | =e eee | a er | ee | ee | ee ee | ee |
+|---|---|---|---|---|---|---|
+| Spot Welding coe ee re cs cs co ces cee SS Se ee ee | 3. 7 (2-6) —-- ee | 4.1 (3-5) | 4.9 (4-6) | 2.1 (1-3) | 2.1 (1-2) | 9.4 (5-6) |
+| ee | eee | ee a ee | ae ee a we ee | ee me se | ee wr ee ee | | eee |
+| Arc Welding et | 4.4 (4-6) ee | 4.7 (4-6) me a cs ms | 9.2 (5-6) cs ee me ms ms | 2.5 (2-3) es cs eee | 1.2 (1-2) | 3.4 (2-5) ee ee es |
+| ee ee ee ee ee ee ee Drilling, Routing Grinding, etc. eS | -— ee 4.1 (3-5) | cc 2.4 (1-3) | cs 2.9 (2-3) | Fc 4.4 (3-6) | Fc ee 1.8 (1-2) | 3.9 (2-6) |
+| eee ee ee ee | a | on op |  | or | on | genes |
+| Small Part Assembly Oe ee ee ee ee | 3.8 (3-5) ae ee ee | 2.6 (2-4) am |! | 3. 4 (3-4) He ee eee S|! | 3.9 (3-5) ! | 1.7 (1-2) SS | 2.1 (1-3) SS |
+| ee | ee | em ee ee |  | Oe ee ee ee |  | eee |
+| Machine Tool Loading/Unloading Oe ee ee ee | 2.8 (2-4) ee ee ee ee | 3.4 (3-4) ems! | 4.6 (4-6) ee ee Se |! | 3.1 (2-3) ! | 2.3 (1-3) ee ee ee I | 3.6 (2-6) Oe ee |
+| eS | ee | See eee | See | oe ee ee ee |  |  |
+| Press Loading/Unloadina ee ee re re ee ee ee =|. | 2.5 (2-3) ee | 3.1 (2-4) eee ee | | 4.8 (4-5) ee | 3.0 (2-3) ! ee es | 2.7 (1-4) | ere ew ee ee | | 4.1 (3-6) ee ee |
+
+ee -~- <r ae we ere |
+% Touch along
+- presence or absence of parts or displacement
+one axit
 Simple force —- measure force along a Single axis
 Complex force — measure force along two or more axes
 Proximity ~ non-contact detection of part
 Simple vision —- detect edges, holes, corners, etc.
 Complex vision - recognize shapes
-
 -38--

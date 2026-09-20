@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/tessocr"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/tessocr/corpus"
 )
 
@@ -110,6 +111,15 @@ func TestCorpusGoldens(t *testing.T) {
 	}
 }
 
+// ruleSourceOrNone prints the empty RuleSource as the word it means. A blank in a golden column is
+// ambiguous between "no verdict" and "nobody wrote this yet"; the word is not.
+func ruleSourceOrNone(s tessocr.RuleSource) string {
+	if s == "" {
+		return "none"
+	}
+	return string(s)
+}
+
 // readCorpusPage runs ONE page through fetch, render and read, exactly as a citation would, and
 // returns the golden text and what a human's expect block is checked against.
 func readCorpusPage(t *testing.T, c corpus.Case) (string, corpus.Observed) {
@@ -180,8 +190,12 @@ func readCorpusPage(t *testing.T, c corpus.Case) (string, corpus.Observed) {
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s · %s · rendered at %d DPI (native %d)\n", c.Slug, DefaultPageEngine.Identity(), firstOf(rd.DPIRange()), native[0])
-	fmt.Fprintf(&b, "table: %v · rotated: %v · grid intersections: %d · length: %d\n",
-		p.Table, p.RotatedPage, p.GridIntersections, p.Length)
+	// The RULE SOURCE is on this line because eight goldens that do not name it read as if one
+	// path produced them, and on a repaired page the intersections beside it are the DETECTOR's
+	// zero — which is what a page carrying no rules at all also reads as (#1027).
+	fmt.Fprintf(&b, "table: %v · rules: %s · rotated: %v · grid intersections: %d · repaired crossings: %d · length: %d\n",
+		p.Table, ruleSourceOrNone(p.RuleSource), p.RotatedPage, p.GridIntersections,
+		p.RepairedCrossings, p.Length)
 	if p.Reconstruction != nil {
 		r := p.Reconstruction
 		fmt.Fprintf(&b, "marks: %d columns, %d subcolumns, %d rows, %d of %d placed, psm disagreement %.2f\n",

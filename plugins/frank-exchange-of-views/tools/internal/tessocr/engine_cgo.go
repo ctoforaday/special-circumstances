@@ -178,3 +178,21 @@ func GridLines(png []byte, t GridThresholds) (Lattice, error) {
 	defer C.tessocr_free_text(out)
 	return ParseLattice(C.GoString(out)), nil
 }
+
+// RepairedRules is GridLines for a rule drawn as DASHES (#1027): the page is closed by the dash gap
+// before the same opening, so a typewriter's hyphen rule survives morphology that would otherwise
+// delete it outright. Same contract — an error is a failure, an empty lattice is a page with no
+// such rules — and the boxes are UNFILTERED page-pixel components, prose among them. RepairedTable
+// is what tells the two apart, after the caller has converted them.
+func RepairedRules(png []byte, t GridThresholds) (Lattice, error) {
+	if len(png) == 0 {
+		return Lattice{}, errors.New("tessocr: empty image")
+	}
+	out := C.tessocr_repaired_rules((*C.uchar)(unsafe.Pointer(&png[0])), C.size_t(len(png)),
+		C.int(t.DashGap), C.int(t.DashGap), C.int(t.SEL))
+	if out == nil {
+		return Lattice{}, errors.New("tessocr: repaired rule geometry failed (decode, binarize, close or open)")
+	}
+	defer C.tessocr_free_text(out)
+	return ParseLattice(C.GoString(out)), nil
+}

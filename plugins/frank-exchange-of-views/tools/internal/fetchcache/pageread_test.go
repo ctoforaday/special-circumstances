@@ -392,3 +392,58 @@ func TestTableAndReconstructionFactsLandOnTheRecord(t *testing.T) {
 		t.Error("the stated fallback did not survive the receipt round-trip")
 	}
 }
+
+// EVERY TABLE PAGE NAMES THE PATH THAT FOUND ITS RULES (#1027), and the check lives at the
+// PROJECTION, where the fact crosses from the receipt to the record's row.
+//
+// That is the site this repository has already been bitten at: #1058 added a per-page DPI, the
+// projection did not carry it, and every page recorded dpi 0 while each row still read as complete.
+// A field nothing asserts is a field that can stop being written, so the assertion is here rather
+// than over hand-built values a unit test constructs and the engine never produces.
+//
+// The invariant itself is the one D6 exists for: RuleSource's zero value denotes NO VERDICT, never
+// the detector. A page with Table set and no RuleSource is a defect, and this refuses it.
+func TestEveryTablePageNamesItsRuleSource(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		res  tessocr.PageResult
+		want tessocr.RuleSource
+	}{
+		{"a prose page names no path", tessocr.PageResult{Text: "prose"}, ""},
+		{
+			"a detector page", tessocr.PageResult{
+				Text: "t", Table: true, RuleSource: tessocr.RuleSourceDetector,
+				Grid: tessocr.GridStats{Intersections: 432},
+			}, tessocr.RuleSourceDetector,
+		},
+		{
+			"a repaired page", tessocr.PageResult{
+				Text: "t", Table: true, RuleSource: tessocr.RuleSourceRepair, RepairedCrossings: 64,
+			}, tessocr.RuleSourceRepair,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res := tc.res
+			fe := &fakeEngine{perCall: func(int) (tessocr.PageResult, error) { return res, nil }}
+			withEngine(t, fe)
+			run, sha, rd := onePageRender(t)
+
+			rec, err := ReadRenderedPages(run, sha, rd)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := rec.Pages[0]
+			if got.RuleSource != tc.want {
+				t.Errorf("RuleSource = %q, want %q — the projection dropped it between the receipt "+
+					"and the row, which is how #1058 recorded dpi 0 on every page", got.RuleSource, tc.want)
+			}
+			if got.Table && got.RuleSource == "" {
+				t.Errorf("page reads as a table and names no path that found its rules: %+v — an "+
+					"empty RuleSource denotes NO VERDICT, so this row claims a table nobody detected", got)
+			}
+			if got.RepairedCrossings != res.RepairedCrossings {
+				t.Errorf("RepairedCrossings = %d, want %d", got.RepairedCrossings, res.RepairedCrossings)
+			}
+		})
+	}
+}

@@ -31,10 +31,18 @@ type PageResult struct {
 	// |-separated table for a grid page, or plain text again when the reconstruction
 	// fell back — in which case Fallback says so.
 	Text string
-	// Table reports that the grid detector fired. It is the detector's fact, kept even
-	// when reconstruction later fell back: "a grid was seen and could not be rebuilt" and
-	// "no grid" are different findings.
+	// Table reports that a grid was found. It is kept even when reconstruction later fell back:
+	// "a grid was seen and could not be rebuilt" and "no grid" are different findings. WHICH path
+	// found it is RuleSource, and since #1027 it is not always the detector.
 	Table bool
+	// RuleSource names the path whose rules the lattice was built from. Set on every page with a
+	// table verdict; empty means no verdict, never "the detector".
+	RuleSource RuleSource
+	// RepairedCrossings counts where the repaired rules MEET, in the 300-DPI space, over the
+	// filtered rules the lattice was built from. It is not GridStats.Intersections, which counts
+	// crossing PIXELS at the page's own resolution and, on a repaired page, is the detector's zero
+	// — a number that reads exactly like a page carrying no rules at all.
+	RepairedCrossings int
 	// RotatedPage reports that the page read better rotated 90° clockwise — a landscape
 	// table on a portrait scan (plan §VI amendment a) — and that Text, the TSV passes and
 	// the reconstruction all came from the rotated pixels.
@@ -109,6 +117,22 @@ const MinMarkPlacement = 0.8
 // from the columns that hold marks, so a sparse grid read correctly also scores high. Both
 // errors fall the safe way — to plain text with the reason stated — and a second document
 // (#934) is what tests where the boundary really sits.
+// RuleSource names which path found the rules a page's lattice was built from (#1027). It is a
+// FIELD because a reader acts on it — a citation's row and column come from that lattice, and
+// "the detector measured these" and "these were recovered by closing a dashed rule" are different
+// claims about the same table.
+//
+// THE ZERO VALUE DENOTES NO PAGE-LEVEL VERDICT, never the detector. A page with Table true and an
+// empty RuleSource is a bug rather than a detector page, which is what lets a test refuse it;
+// inferring the common case from a zero is how the absent case and the healthy case come to look
+// the same.
+type RuleSource string
+
+const (
+	RuleSourceDetector RuleSource = "detector"
+	RuleSourceRepair   RuleSource = "repair"
+)
+
 const MaxIntersectionRatio = 4.0
 
 // dropoutClause is the phrase that identifies the dropout gate inside its sentence, defined once
@@ -173,19 +197,50 @@ func (en *Engine) readPage(pagePNG []byte, thr GridThresholds) (PageResult, erro
 		return PageResult{}, err
 	}
 	if !thr.Table(grid) {
+		// THE SECOND OPINION, AND ONLY HERE (#1027). A rule drawn as dashes is invisible to the
+		// opening above, so the page the repair has anything to say about is exactly the page the
+		// detector just rejected. It can turn a false into a true and never the reverse: the two
+		// pages the detector finds by shading edges and by one-row form boxes are found by neither
+		// test in repaired.go, and a replacement would lose them.
+		repaired, rerr := en.repairedVerdict(pagePNG, thr)
+		if rerr != nil {
+			return PageResult{}, rerr
+		}
+		if repaired {
+			return en.readGridPage(pagePNG, grid, thr, RuleSourceRepair)
+		}
 		text, terr := en.PageText(pagePNG)
 		if terr != nil {
 			return PageResult{}, terr
 		}
 		return PageResult{Text: text, Grid: grid}, nil
 	}
-	return en.readGridPage(pagePNG, grid, thr)
+	return en.readGridPage(pagePNG, grid, thr, RuleSourceDetector)
+}
+
+// repairedVerdict asks whether the dashed-rule repair finds a lattice on a page the detector
+// rejected. It answers in the 300-DPI space, because that is where repaired.go's constants were
+// measured: the boxes come back from C in page pixels and are converted here, the same conversion
+// readGridPage makes on the lattice it goes on to use.
+//
+// The boxes it converts are ITS OWN, fetched for this question and discarded. readGridPage fetches
+// the lattice again, because by then the rotation probe may have replaced the page with its rotated
+// self and the rules have to be read off the pixels the words were read off. Converting one set of
+// boxes twice is the failure this shape avoids; fetching two sets once each is the cost of avoiding
+// it, on a path only a rejected page takes.
+func (en *Engine) repairedVerdict(pagePNG []byte, thr GridThresholds) (bool, error) {
+	lat, err := RepairedRules(pagePNG, thr)
+	if err != nil {
+		return false, err
+	}
+	_, ok := RepairedTable(normalizeLattice(lat, normScale(thr.DPI)))
+	return ok, nil
 }
 
 // readGridPage is the grid branch: orientation, TSV under both segmentation modes, the
 // rotated-header band, reconstruction, and the stated fallback.
-func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThresholds) (PageResult, error) {
-	out := PageResult{Table: true, Grid: grid}
+func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThresholds, src RuleSource) (PageResult, error) {
+	out := PageResult{Table: true, Grid: grid, RuleSource: src}
 
 	tsvAuto, err := en.PageTSV(pagePNG, PSMAuto)
 	if err != nil {
@@ -243,7 +298,9 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThreshold
 
 	// The page's rule geometry, read once: the level band's cells come from it (#933), and so do
 	// the text cells if the marks do not answer (#932).
-	lat, lerr := GridLines(pagePNG, thr)
+	// The rules come from whichever path found them, read off the pixels the words were read off —
+	// which is the ROTATED page when the probe above adopted it.
+	lat, lerr := en.ruleGeometry(pagePNG, thr, src)
 	if lerr != nil {
 		return PageResult{}, lerr
 	}
@@ -256,6 +313,12 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThreshold
 	// compared against a mixture of two spaces.
 	scale := normScale(thr.DPI)
 	lat = normalizeLattice(lat, scale)
+	if src == RuleSourceRepair {
+		// The repair filters nothing, so the prose its closing swept up is still in here; the cut
+		// happens after the conversion because repaired.go's thresholds are 300-DPI numbers.
+		lat, _ = RepairedTable(lat)
+		out.RepairedCrossings = RepairedCrossings(lat)
+	}
 	words := normalizeWords(parseTSVWords(tsv), scale)
 	sparseWords := normalizeWords(parseTSVWords(tsvSparse), scale)
 
@@ -315,6 +378,15 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThreshold
 	}
 	out.Text = text
 	return out, nil
+}
+
+// ruleGeometry fetches the page's rules from the path that found them. Both return page-pixel
+// boxes and the caller converts once.
+func (en *Engine) ruleGeometry(pagePNG []byte, thr GridThresholds, src RuleSource) (Lattice, error) {
+	if src == RuleSourceRepair {
+		return RepairedRules(pagePNG, thr)
+	}
+	return GridLines(pagePNG, thr)
 }
 
 // readLevels reads a mark table's level header one cell at a time (#933): the cells the lattice

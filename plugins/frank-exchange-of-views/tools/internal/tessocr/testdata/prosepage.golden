@@ -1,4 +1,4 @@
-table: true · rotated: false · grid h=49302 v=8070 intersections=342
+table: true · rules: detector · rotated: false · grid h=49302 v=8070 intersections=342
 path: text cells (2 columns, 3 ruled bands, 3 rows, 6 cells, 14 words placed, 0 from the sparse pass, 62 around the table, 0 loose)
 marks fell back: grid detected but the TSV held no mark tokens; page kept as plain text — its words are read, but which row and column each belongs to is not preserved, so check a cell against the page image before relying on it
 ---

@@ -86,8 +86,12 @@ func TestTextCellGoldens(t *testing.T) {
 // silently stopped reconstructing.
 func renderGolden(res PageResult) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "table: %v · rotated: %v · grid h=%d v=%d intersections=%d\n",
-		res.Table, res.RotatedPage, res.Grid.HPix, res.Grid.VPix, res.Grid.Intersections)
+	src := string(res.RuleSource)
+	if src == "" {
+		src = "none"
+	}
+	fmt.Fprintf(&b, "table: %v · rules: %s · rotated: %v · grid h=%d v=%d intersections=%d\n",
+		res.Table, src, res.RotatedPage, res.Grid.HPix, res.Grid.VPix, res.Grid.Intersections)
 	switch {
 	case res.Reconstruction != nil:
 		st := res.Reconstruction
