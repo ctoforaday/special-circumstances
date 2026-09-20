@@ -36,7 +36,7 @@ func newFetch() *cobra.Command {
 		Short: "cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes",
 		// WHAT THE LONG NO LONGER SAYS, AND WHERE IT LIVES. The share of cited PDFs that are scans
 		// (one in four, 2026-08-23 corpus) is at the OCR call below; the engine (tesseract +
-		// leptonica, statically linked) and its 300 DPI grayscale render are in
+		// leptonica, statically linked) and its per-page grayscale render are in
 		// fetchcache/pageread.go; the openai.com 403 that shipped a question "open rather than
 		// resolved" (#592) is at fetchcache/httpfetcher.go and egress_test.go. None of it changes
 		// what a seat does, so the page carries only the instruction each one produced.
