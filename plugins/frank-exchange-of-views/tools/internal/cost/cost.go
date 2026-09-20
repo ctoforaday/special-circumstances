@@ -444,7 +444,7 @@ func reportSeatMeasurements(run record.Run, p func(string)) {
 	}
 	p("\n## Per seat (measured)\n")
 	p("Read from the record's `seat_metrics` view — the turns `capture` ingested, not a re-scan of the transcripts.\n")
-	p("| seat | agent | turns | thinking | tool | acts | calls/act | wall | s/call | input | output | cache-read |")
+	p("| seat | agent | turns | thinking | tool | acts | calls/act | wall | s/turn | input | output | cache-read |")
 	p("|---|---|---|---|---|---|---|---|---|---|---|---|")
 	empty, emptyTool := 0, 0
 	for _, m := range metrics {
@@ -455,7 +455,7 @@ func reportSeatMeasurements(run record.Run, p func(string)) {
 		p(fmt.Sprintf("| %s | `%s` | %d | %d | %d | %d | %s | %s | %s | %d | %d | %d |",
 			orDash(m.SeatID), m.AgentID, m.Turns, m.ThinkingTurns, m.ToolTurns, m.Acts,
 			perAct(m.ToolTurns, m.Acts), durationOrDash(m.WallMillis),
-			secondsPerCall(m.WallMillis, m.ToolTurns),
+			secondsPerTurn(m.WallMillis, m.Turns),
 			m.InputTokens, m.OutputTokens, m.CacheRead))
 	}
 	// THE TWO NUMBERS A COST QUESTION ACTUALLY TURNS ON, stated rather than left to be derived.
@@ -489,14 +489,26 @@ func perAct(calls, acts int) string {
 	return fmt.Sprintf("%.1f", float64(calls)/float64(acts))
 }
 
-// secondsPerCall is the environment's share of a sitting's duration — model latency, box load,
-// cache state. It is reported so a duration change can be ATTRIBUTED rather than claimed: if this
-// moves and calls/act does not, the engine did not get more efficient.
-func secondsPerCall(ms *int64, calls int) string {
-	if ms == nil || calls <= 0 {
+// secondsPerTurn is the environment's share of a sitting's duration — model latency, box load,
+// cache state — and it is per TURN rather than per tool call because every turn is a round trip
+// whether or not it reaches for a tool. Measured on the 2026-09-20 run: 35 turns to 20 tool calls
+// in a median sitting, so a per-call figure understates the round trips by nearly half.
+//
+// IT IS THE MULTIPLIER, AND IT IS NOT OURS. A sitting is turns x this, with head and tail
+// (prompt to first turn, last turn to close) a median 5.0% of the whole — the tail is ~0.1s
+// because the hook closes the moment the seat stops. So turn COUNT is the lever the engine's
+// design owns and this is the rate it is paid at.
+//
+// Reported beside calls/act so a duration change can be ATTRIBUTED rather than claimed: if this
+// moves and calls/act does not, the engine did not get more efficient — the model or the box did.
+// It also says what a tier change will cost. At 3.4s/turn a 35-turn sitting is 118s; at 15s/turn
+// the SAME sitting is ~525s, which is why cutting turns matters more on an expensive thinker, not
+// less.
+func secondsPerTurn(ms *int64, turns int) string {
+	if ms == nil || turns <= 0 {
 		return "—"
 	}
-	return fmt.Sprintf("%.1f", float64(*ms)/1000.0/float64(calls))
+	return fmt.Sprintf("%.1f", float64(*ms)/1000.0/float64(turns))
 }
 
 // orDash renders an absent seat id as a dash. An agent with no register event is a REAL row —

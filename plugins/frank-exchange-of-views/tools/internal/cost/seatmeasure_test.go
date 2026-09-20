@@ -124,7 +124,7 @@ func TestTheMeasuredSectionSaysWhatTheSittingBoughtAndWhatItCost(t *testing.T) {
 	out := render(t, run)
 
 	// The columns must EXIST, or the decomposition is a comment rather than a measurement.
-	for _, want := range []string{"acts", "calls/act", "s/call"} {
+	for _, want := range []string{"acts", "calls/act", "s/turn"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the measured table has no %q column, so a reader cannot tell a hard sitting\nfrom a wasteful one:\n%s", want, out)
 		}
