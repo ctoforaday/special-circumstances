@@ -51,11 +51,14 @@ func TestSeatsAreLabelledFromTheRecordsRegisters(t *testing.T) {
 		label          string
 		epoch, sitting int
 	}{
-		"L1":      {"red-lens-evidence #1", 0, 1},
-		"C1":      {"red-chair #1", 1, 1},
-		"C2":      {"red-chair #2", 2, 2},
-		"L2":      {"red-lens-evidence #2", 2, 2},
-		"UNBOUND": {"assemble", 0, 0},
+		"L1": {"red-lens-evidence #1", 0, 1},
+		"C1": {"red-chair #1", 1, 1},
+		"C2": {"red-chair #2", 2, 2},
+		"L2": {"red-lens-evidence #2", 2, 2},
+		// AN AGENT THE RECORD NEVER BOUND falls back to the prompt head, which names the SEAT and
+		// not the sitting — `judge` for all four bench prompts. It carries no occasion because
+		// nothing measured one, and that absence is the honest answer rather than `assemble`.
+		"UNBOUND": {"judge", 0, 0},
 	}
 	if len(m.Seats) != len(want) {
 		t.Fatalf("seats = %d, want %d: %+v", len(m.Seats), len(want), m.Seats)

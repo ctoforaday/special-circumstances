@@ -36,6 +36,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
   - A grade motion is a side's motion contesting a gap's grade, ruled by the bench.
   - A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
+  - A sitting's occasion is what it was convened to do — the question put to the seat, as against the seat id, which says who was asked — and only the bench carries one, because its four sittings share a single id.
 
 SHARED BY THE COMMANDS BELOW — each block is printed ONCE here, and every page it was lifted from carries a marker line ending `→ SHARED §n` exactly where it was:
 §1 (on 7 pages):
@@ -567,13 +568,23 @@ It binds your seat to you on the record: every later call resolves it, and your 
 
 It also OPENS THE SITTING, and a sitting is every time you are handed a prompt — including one that resumes your earlier session. The record counts your sittings by your registers, so a sitting you did not open with one is not on it: a dispatched seat is readied again until it registers, and the chair is refused `dispatch next`. Your work list says when one is owed.
 
+NAME WHAT THIS SITTING IS FOR. You are one seat asked four different questions — rule the docket, hear a petition, dispose of what stands at the exit, assemble the report — and your seat id is the same for all four. Your prompt says which of them this sitting is; say so here. It is required of you and refused for every other seat, whose id already answers it. Once the run is archived this is the only thing that tells your sittings apart: without it they read as four identical registrations, and a reader cannot tell the sitting that assembled the report from the one that ruled a gap.
+
 (If you need a verb or a flag tha…) → SHARED §1
 
 Usage:
   feov-record register [flags]
 
 Flags:
-  -h, --help   help for register
+  -h, --help                      help for register
+      --occasion occasion-value   REQUIRED — what this sitting was convened to do. Your prompt says which; this is where it reaches the record, and once the run is archived it is the only thing telling your four sittings apart
+
+Enumerated values:
+  --occasion
+    docket    ruling the docket: the gaps that reached impasse and were docketed for adjudication. The chair dispatches this sitting
+    petition  hearing a petition filed by a seat, before the debate continues. The engine convenes it the moment one is filed
+    terminal  the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here
+    assemble  assembling the final report by union-copy. The last step of the run
 
 (Global Flags:) → SHARED §2
 ==============================================================================

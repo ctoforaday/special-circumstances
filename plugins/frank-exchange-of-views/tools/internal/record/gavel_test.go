@@ -54,7 +54,7 @@ func TestEveryMotionSubjectNamesItsRuler(t *testing.T) {
 func TestThePassRefusalNamesWhoHoldsTheGavel(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	for _, sid := range []string{"blue-respond", "red-chair"} {
-		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: sid}, ""); err != nil {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: sid}, "", ""); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -100,7 +100,7 @@ func TestThePassRefusalNamesWhoHoldsTheGavel(t *testing.T) {
 func TestTheSittingViewNamesTheGavelAndStillBlocks(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	for _, sid := range []string{"blue-respond", "red-chair"} {
-		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: sid}, ""); err != nil {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: sid}, "", ""); err != nil {
 			t.Fatal(err)
 		}
 	}

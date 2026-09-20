@@ -193,7 +193,7 @@ func thisBinaryRun(t *testing.T) string {
 		t.Fatal(err)
 	}
 	for _, s := range []string{lens, chair} {
-		if _, _, err := record.RegisterSeat(record.Identity{Run: run, SeatID: s}, ""); err != nil {
+		if _, _, err := record.RegisterSeat(record.Identity{Run: run, SeatID: s}, "", ""); err != nil {
 			t.Fatal(err)
 		}
 	}

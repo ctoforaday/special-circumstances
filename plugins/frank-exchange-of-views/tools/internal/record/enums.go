@@ -230,6 +230,16 @@ type EnumField struct {
 // entry: `petition-rule` carries two (the ruling and the petition's class), and keying by
 // verb alone is what made the first pass look complete when it covered one flag per verb.
 var EnumFields = map[string][]EnumField{
+	// Optional because only the BENCH carries one, and requiredness is a separate rule with a
+	// separate declaration — see the Optional comment above, and checkOccasion, which holds a
+	// register's occasion against the seat making it in both directions. Declaring it required
+	// here would refuse every lens and lane register in the run.
+	"register": {{
+		Key: "occasion", Flag: flags.Occasion, Optional: true,
+		Values: evsOf(recordpb.Occasion(0).Descriptor()),
+		Why: "the bench is ONE seat asked four different questions — rule the docket, hear a petition, dispose at the exit, assemble the report — so the seat id cannot say which sitting this is. " +
+			"It was recoverable only by matching the first words of the prompt, and that read has already returned the wrong answer once: every FINISHED run reported \"running\" forever on the dashboard, and the assembly's spend merged into a docket ruling's row",
+	}},
 	"verdict": {{
 		Key: "verdict", Flag: flags.As, Values: []EnumValue{
 			ev("PASS", "nothing on the board holds the gate — no material gap open, no lens ready, every stale area spot-checked — and this is CHECKED against the board, not taken on your word"),

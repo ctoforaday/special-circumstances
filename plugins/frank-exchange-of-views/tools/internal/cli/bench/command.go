@@ -16,7 +16,7 @@ const role = "bench"
 // Verbs is this seat's surface, mounted at the ROOT of its own tree. See seat.RoleVerbs.
 func Verbs() []*cobra.Command {
 	return seat.RoleVerbs(role,
-		seat.Register(),
+		seat.BenchRegister(),
 		newHalt(),
 		newCertify(),
 		newDeclare(),

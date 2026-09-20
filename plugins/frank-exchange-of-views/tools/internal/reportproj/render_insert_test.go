@@ -32,7 +32,7 @@ func insertHelper(t *testing.T, text, location, marker string) string {
 func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	for _, s := range []string{"blue-synthesize", "blue-respond", "red-lens-evidence"} {
-		if _, _, err := record.RegisterSeat(ident(t, runDir, s), ""); err != nil {
+		if _, _, err := record.RegisterSeat(ident(t, runDir, s), "", ""); err != nil {
 			t.Fatalf("register %s: %v", s, err)
 		}
 	}
@@ -91,7 +91,7 @@ func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 func TestRenderFromRecordDoesNotInsertFromFindingAlone(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	for _, s := range []string{"blue-synthesize", "red-lens-evidence"} {
-		if _, _, err := record.RegisterSeat(ident(t, runDir, s), ""); err != nil {
+		if _, _, err := record.RegisterSeat(ident(t, runDir, s), "", ""); err != nil {
 			t.Fatalf("register %s: %v", s, err)
 		}
 	}

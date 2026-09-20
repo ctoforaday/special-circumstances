@@ -28,7 +28,13 @@ var interpolation = regexp.MustCompile(`\$\{[^}]*\}`)
 // a different reader: `red-lens-${role}-r${round} · ${slug}` is what a dashboard shows, and it
 // does not match the seat id's own shape at all. Binding the roster to labels would compare it
 // against something no seat ever types.
-var recordClauseArg = regexp.MustCompile(`recordClause\(([^)]*)\)`)
+//
+// THE FIRST ARGUMENT ONLY. recordClause takes a second — the bench's OCCASION, what the sitting was
+// convened to do — and that is a different vocabulary with its own bind
+// (TestTheEngineDispatchesTheSchemasOccasions). Capturing to the closing paren swallowed it and
+// this reduction then refused every bench dispatch, which is the failure mode it was written to
+// have: an argument it cannot read is reported, never guessed at.
+var recordClauseArg = regexp.MustCompile(`recordClause\(([^,)]*)[^)]*\)`)
 
 // skeletonOfTemplate reduces a JS string or template literal to literal text with holes.
 //

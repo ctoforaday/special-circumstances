@@ -33,6 +33,11 @@ const (
 	// generator that writes a seat's constitution names the seat here.
 	For = "for"
 
+	// Occasion names WHAT A SITTING WAS CONVENED TO DO, on `register`. The bench is one seat
+	// asked four different questions, so its seat id cannot say which sitting this is and the
+	// engine tells it. Every other seat's id already says; passing it there is refused.
+	Occasion = "occasion"
+
 	// The event-schema epoch this binary writes, printed alone so `setup` can compare it
 	// with the plugin's without recovering a number from prose.
 	Schema = "schema"
@@ -318,7 +323,7 @@ func All() []string {
 		Reason,
 		ID, IDs, Areas, Key, Corrects, CorrectionWhy, Quote, New, Answers, Accept, URL, Title, Format, Window,
 		Sitting, Trajectory,
-		As, None, RepairSitting, Confidence,
+		As, None, RepairSitting, Confidence, Occasion,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class, Definition, Neighbor, Distinguisher, MaterialDefault,
 		Problem, Fix, Check, CheckKind, Type, SourceText, OCRQuote, Page, Via, At, About, AboutKind, Hypothesis, Script, Cites, ExpectError,
@@ -353,7 +358,7 @@ var closedForm = map[string]bool{
 	VerifiedAgainst: true, CarriedFrom: true, Sitting: true, Trajectory: true, Sha: true,
 	Model: true, JudgmentModel: true, Cite: true, Lanes: true, LensArea: true, LensAreaReason: true,
 	BinDir: true, MemoryDir: true, RunID: true, ScriptPath: true, MigrateFrom: true, MigrateTo: true,
-	AcceptLoss: true, Card: true,
+	AcceptLoss: true, Card: true, Occasion: true,
 }
 
 // ForPayloadKey maps a stored payload key back to the flag a seat types to set it.

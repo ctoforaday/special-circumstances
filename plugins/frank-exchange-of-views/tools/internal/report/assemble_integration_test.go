@@ -69,7 +69,13 @@ func TestAssembleEndToEnd(t *testing.T) {
 		t.Helper()
 		id := record.Identity{Run: runtest.Open(t, runDir), SeatID: seatID}
 		if !seen[seatID] {
-			if _, _, err := record.RegisterSeat(id, ""); err != nil {
+			// The bench owes an OCCASION and nobody else may pass one — ask the write path's own
+			// question rather than keeping a list of which ids are the bench.
+			occasion := ""
+			if record.SeatOwesOccasion(seatID) {
+				occasion = "docket"
+			}
+			if _, _, err := record.RegisterSeat(id, "", occasion); err != nil {
 				t.Fatalf("register %s: %v", seatID, err)
 			}
 			seen[seatID] = true
@@ -314,7 +320,13 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 		t.Helper()
 		id := record.Identity{Run: runtest.Open(t, runDir), SeatID: seatID}
 		if !seen[seatID] {
-			if _, _, err := record.RegisterSeat(id, ""); err != nil {
+			// The bench owes an OCCASION and nobody else may pass one — ask the write path's own
+			// question rather than keeping a list of which ids are the bench.
+			occasion := ""
+			if record.SeatOwesOccasion(seatID) {
+				occasion = "docket"
+			}
+			if _, _, err := record.RegisterSeat(id, "", occasion); err != nil {
 				t.Fatalf("register %s: %v", seatID, err)
 			}
 			seen[seatID] = true

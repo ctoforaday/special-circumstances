@@ -94,7 +94,14 @@ func Build(run record.Run, b Board, exec Exec) error {
 	// No handle is set here, so these registers carry no agent_id — which is exactly right: the
 	// harness staging a fixture is not a seat, and the record says so by the field's absence.
 	for _, s := range Seats {
-		if _, err := exec("register", "--run", run.Dir(), "--seat-id", s.ID); err != nil {
+		// THE BENCH OWES AN OCCASION and no other seat may pass one, so the fixture asks the write
+		// path's own question rather than carrying a list of which ids are the bench. `docket` is
+		// the sitting a probe board stands in for: the chair dispatched it onto gaps.
+		args := []string{"register", "--run", run.Dir(), "--seat-id", s.ID}
+		if record.SeatOwesOccasion(s.ID) {
+			args = append(args, "--occasion", "docket")
+		}
+		if _, err := exec(args...); err != nil {
 			return fmt.Errorf("register %s: %w", s.ID, err)
 		}
 	}

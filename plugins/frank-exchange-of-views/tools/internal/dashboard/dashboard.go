@@ -21,6 +21,15 @@ type Seat struct {
 	Result  any
 	Label   string
 	Seat    string
+	// Occasion is WHAT THIS SITTING WAS CONVENED TO DO, off the register — the bench's four
+	// sittings share one seat id, and this is what tells them apart. EMPTY for every other seat,
+	// whose id already says, and empty for a bench register written before the field existed.
+	//
+	// IT USED TO BE THE SEAT FIELD ITSELF, recovered by matching the first words of the prompt.
+	// When the bench collapsed to one id, `Seat == "assemble"` became unsatisfiable and every
+	// FINISHED run reported "running" forever — on this instrument. Reading it off the record is
+	// what makes that unrepresentable rather than repaired.
+	Occasion string
 	// Epoch and Sitting are the record's two windows at this agent's register (plans/roundless.md
 	// §III.A.0), read off the register event the journal's agentId joins to — NOT parsed out of the
 	// transcript head. Epoch is the chair's register count at that moment (the dispatch cycle the
@@ -65,7 +74,7 @@ func projectCompletion(seats []Seat, nowMs float64) Eta {
 
 	assembleDone := false
 	for _, s := range seats {
-		if s.Seat == "assemble" && s.Done {
+		if s.Occasion == "assemble" && s.Done {
 			assembleDone = true
 			break
 		}
@@ -122,7 +131,7 @@ func projectCompletion(seats []Seat, nowMs float64) Eta {
 	}
 	anyAssemble := false
 	for _, s := range seats {
-		if s.Seat == "assemble" {
+		if s.Occasion == "assemble" {
 			anyAssemble = true
 			break
 		}

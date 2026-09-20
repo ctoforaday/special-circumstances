@@ -20,7 +20,7 @@ import (
 // was satisfied. The answer was right, which is why nothing caught it.
 func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	// THE ID AND THE KIND ARE THE SUBJECT OF THIS TEST, and the earlier conversion dropped both
@@ -68,7 +68,7 @@ func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 // AN EMPTY FRICTION LOG IS TWO DIFFERENT RUNS, and only one of them is fine.
 func TestTheLogViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	b, err := FamilyOf(mustRun(t, runDir))
@@ -108,7 +108,7 @@ func TestTheLogViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	runDir := newRun(t)
 	for _, s := range []string{"red-chair", "blue-respond"} {
-		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s}, ""); err != nil {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s}, "", ""); err != nil {
 			t.Fatal(err)
 		}
 	}

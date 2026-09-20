@@ -87,7 +87,7 @@ func TestMigrationCarriesACorrectionChain(t *testing.T) {
 	srcDir := recordtest.TmpRun(t)
 	src := runtest.New(t, srcDir)
 	blue := record.Identity{Run: src, SeatID: "blue-respond"}
-	if _, _, err := record.RegisterSeat(blue, ""); err != nil {
+	if _, _, err := record.RegisterSeat(blue, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	k := appendOK(t, blue, seatLog("the tool  refused")).GetKey()
@@ -137,7 +137,7 @@ func TestAnOrphanCorrectionIsRefusedByName(t *testing.T) {
 	srcDir := recordtest.TmpRun(t)
 	src := runtest.New(t, srcDir)
 	blue := record.Identity{Run: src, SeatID: "blue-respond"}
-	if _, _, err := record.RegisterSeat(blue, ""); err != nil {
+	if _, _, err := record.RegisterSeat(blue, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	k := appendOK(t, blue, seatLog("an act")).GetKey()
@@ -171,7 +171,7 @@ func TestB3ArchiveRoundTripsWithACorrection(t *testing.T) {
 	}
 	run := runtest.Open(t, mid)
 	blue := record.Identity{Run: run, SeatID: "blue-respond"}
-	if _, _, err := record.RegisterSeat(blue, ""); err != nil {
+	if _, _, err := record.RegisterSeat(blue, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	k := appendOK(t, blue, &recordpb.ManifestRow{GapId: proto.String("G2"), Row: proto.String("G2 is reproducible via ")}).GetKey()

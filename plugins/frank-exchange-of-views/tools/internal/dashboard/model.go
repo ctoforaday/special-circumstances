@@ -230,8 +230,14 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		b, bound := bindings[id]
 		if bound {
 			label = b.SeatID + " #" + itoa(b.Sitting)
+			// THE OCCASION GOES IN THE LABEL, because that is the whole reason it is recorded: a
+			// bench sitting used to read as `judge #4` and a human could not tell which of the four
+			// questions it answered. It is empty for every seat whose id already says.
+			if b.Occasion != "" {
+				label += " · " + b.Occasion
+			}
 		}
-		seats = append(seats, Seat{AgentID: id, Done: s.done, Result: s.result, Label: label, Seat: c.Seat, Epoch: b.Epoch, Sitting: b.Sitting, StartedMs: startedMs, EndedMs: endedMs})
+		seats = append(seats, Seat{AgentID: id, Done: s.done, Result: s.result, Label: label, Seat: c.Seat, Occasion: b.Occasion, Epoch: b.Epoch, Sitting: b.Sitting, StartedMs: startedMs, EndedMs: endedMs})
 	}
 
 	// Cost from transcripts.
@@ -269,7 +275,10 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 				continue
 			}
 			row := cost.ScanTranscript(string(b))
-			row.Epoch = bindings[cost.AgentIDOfTranscript(f)].Epoch
+			// Both windows come from the record's binding — the epoch it always did, and the
+			// occasion, which keeps the assembly's spend out of a docket ruling's row.
+			bind := bindings[cost.AgentIDOfTranscript(f)]
+			row.Epoch, row.Occasion = bind.Epoch, bind.Occasion
 			crows = append(crows, row)
 			apiRounds += row.Turns
 			costTotal += row.Cost

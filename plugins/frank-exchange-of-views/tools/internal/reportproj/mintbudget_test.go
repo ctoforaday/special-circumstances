@@ -78,7 +78,7 @@ func TestTheB4MintBudgets(t *testing.T) {
 
 	// And through the write path: the voice lens mints six, and the seventh is refused.
 	voice := record.Identity{Run: run, SeatID: "red-lens-voice"}
-	if _, _, err := record.RegisterSeat(voice, ""); err != nil {
+	if _, _, err := record.RegisterSeat(voice, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	for i := 1; i <= 7; i++ {

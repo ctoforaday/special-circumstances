@@ -25,7 +25,7 @@ import (
 func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, "", "docket"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_HALTED), Prose: proto.String("ended on safety grounds")}); err != nil {

@@ -400,10 +400,10 @@ func TestTheDispatchVerbRefusesASeatOutsideTheCast(t *testing.T) {
 	if _, err := Append(chair, &recordpb.Dispatch{SeatId: proto.String(evLens)}); err == nil || !strings.Contains(err.Error(), "pin") {
 		t.Fatalf("a dispatch with no pin was written: %v", err)
 	}
-	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "red-lens-voice"}, ""); err == nil || !strings.Contains(err.Error(), "not in this run's cast") {
+	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "red-lens-voice"}, "", ""); err == nil || !strings.Contains(err.Error(), "not in this run's cast") {
 		t.Fatalf("a seat outside the cast registered: %v", err)
 	}
-	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "judge"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "judge"}, "", "docket"); err != nil {
 		t.Fatalf("a petition sitting by a cast seat was refused: %v", err)
 	}
 	if _, err := Append(Identity{Run: run, SeatID: "harness"}, &recordpb.Cast{SeatIds: []string{"judge"}}); err == nil || !strings.Contains(err.Error(), "written ONCE") {
@@ -414,7 +414,7 @@ func TestTheDispatchVerbRefusesASeatOutsideTheCast(t *testing.T) {
 	if _, err := Append(Identity{Run: bare, SeatID: "red-chair"}, &recordpb.Dispatch{Pin: proto.Int64(1), SeatId: proto.String(evLens)}); err == nil || !strings.Contains(err.Error(), "no cast") {
 		t.Fatalf("a dispatch on a record with no cast was written: %v", err)
 	}
-	if _, _, err := RegisterSeat(Identity{Run: bare, SeatID: "red-lens-voice"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: bare, SeatID: "red-lens-voice"}, "", ""); err != nil {
 		t.Fatalf("with no cast on the record, any dispatchable seat registers: %v", err)
 	}
 }
@@ -466,7 +466,7 @@ func TestAMintPastTheBudgetIsRefused(t *testing.T) {
 	writeRunConfig(t, runDir, `{"mintBudget":1}`)
 	run := mustRun(t, runDir)
 	lensID := Identity{Run: run, SeatID: evLens}
-	if _, _, err := RegisterSeat(lensID, ""); err != nil {
+	if _, _, err := RegisterSeat(lensID, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	mint := func(id string, supersedes ...string) *recordpb.Mint {
@@ -485,7 +485,7 @@ func TestAMintPastTheBudgetIsRefused(t *testing.T) {
 	}
 	// Another lens has its own budget.
 	other := Identity{Run: run, SeatID: "red-lens-logic"}
-	if _, _, err := RegisterSeat(other, ""); err != nil {
+	if _, _, err := RegisterSeat(other, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(other, mint("G4")); err != nil {
@@ -575,7 +575,7 @@ func TestOnlyTheMintingLensMayRegradeOrCloseItsGap(t *testing.T) {
 		t.Fatalf("the originator's close was refused: %v", err)
 	}
 	// The chair may carry the closure the archive now holds.
-	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "red-chair"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(Identity{Run: run, SeatID: "red-chair"}, &recordpb.Close{GapId: proto.String("G1"),

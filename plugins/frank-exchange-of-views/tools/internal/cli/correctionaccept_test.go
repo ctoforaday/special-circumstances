@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -38,7 +39,13 @@ func corrFixture(t *testing.T) string {
 	t.Helper()
 	runDir := newRun(t)
 	for _, id := range []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"} {
-		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
+		// The bench owes an OCCASION and no other seat may pass one — ask the same question the
+		// write path asks rather than keeping a list of which ids are the bench.
+		args := []string{"register", "--run", runDir, "--seat-id", id}
+		if record.SeatOwesOccasion(id) {
+			args = append(args, "--occasion", "docket")
+		}
+		if _, err := run(t, args...); err != nil {
 			t.Fatalf("register %s: %v", id, err)
 		}
 	}

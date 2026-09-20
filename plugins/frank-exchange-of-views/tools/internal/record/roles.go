@@ -30,10 +30,9 @@ import (
 // a hand-written restatement of the same vocabulary with no check under it, and a stale copy reads
 // exactly like a current one.
 //
-// The petition sitting carries its PETITIONER because one id must name one sitting: it used to
-// be the bare `judge-petition` for all of them, and replay kept one shard per seat id, so every
-// earlier sitting's rulings were dropped (#394). The prefix match is unaffected — `judge-` is
-// still position 0.
+// A petition sitting is `judge`, like the other three. Which of the four questions a sitting
+// answers rides on the register's `occasion` (see occasion.go) rather than on the id, and who filed
+// the petition rides on the petition. The prefix match is unaffected — `judge` is still position 0.
 // OPERATOR IS A SEAT ID, not the absence of one.
 //
 // The operator surface used to be what you got when NOTHING identified you, which made "no
@@ -56,7 +55,7 @@ var roleSeats = map[string][]string{
 	// seatShapes is what REFUSES at register. Removing every refusal and leaving the grant meant
 	// `--seat-id assemble-anything` still selected the whole bench tree — and `halt`, the safety
 	// stop capture relays verbatim to a human, recorded under an identity no dispatch can create.
-	"bench": {"judge"},
+	benchRole: {"judge"},
 }
 
 // scorecardOfRole maps a seat's ROLE to the CARD — the scorecard — that measures it.

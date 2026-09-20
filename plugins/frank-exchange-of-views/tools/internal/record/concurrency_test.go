@@ -41,7 +41,7 @@ func TestConcurrentSeatsRace(t *testing.T) {
 			defer wg.Done()
 			area := areas[s-1]
 			seatID := "red-lens-" + area
-			if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: seatID}, ""); err != nil {
+			if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: seatID}, "", ""); err != nil {
 				errs <- err
 				return
 			}
@@ -119,7 +119,7 @@ func TestAbandonedLockFileDoesNotBlock(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(runDir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	// An empty lock file for the per-seat pointer lock an append acquires, as a crashed
