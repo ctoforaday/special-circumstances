@@ -98,7 +98,7 @@ func engineAbsentLoudly(err error) error {
 // Disk-denominated render budget. The old cap was denominated in MODEL CALLS ("a page is
 // a model call") and left with the model; what remains bounded is the disk a render can
 // fill by typo. The arithmetic: a letter-size grayscale scan page measures ~350 KB of PNG
-// at the operative 300 DPI, so the 1 GB budget is ~3000 pages — the 534-page Unicode CJK
+// at 300 DPI, the floor a page renders at, so the 1 GB budget is ~3000 pages there — the 534-page Unicode CJK
 // chart that motivated the old cap estimates to ~187 MB and now renders, which is the
 // point: it was always a disk question wearing a billing cap. Cost scales with the square
 // of the resolution, so the estimate does too.

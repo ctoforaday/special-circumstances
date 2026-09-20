@@ -308,10 +308,13 @@ func scenarios() []scenario {
 			// with `<path> --help`. internal/cli's tests cannot reach it — their os.Executable() is the
 			// test binary — so this golden is where the real path is pinned. The bench's surface and
 			// blue's: the smallest seat tree, and the one the prompts send a seat to read first.
+			// RENDERED FROM THE OPERATOR SURFACE, because `manual` is not on a seat's: the seat is
+			// handed what it prints. --for names whose surface to walk, which is how agentgen writes
+			// a seat's constitution, so this golden pins the path the generator actually takes.
 			name: "manual_runs_every_help_page_live",
 			cmds: []cmd{
-				base("manual", "--seat-id", "judge"),
-				base("manual", "--seat-id", "blue-respond"),
+				base("manual", "--seat-id", "operator", "--for", "judge"),
+				base("manual", "--seat-id", "operator", "--for", "blue-respond"),
 			},
 		},
 		{

@@ -16,6 +16,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -226,9 +227,19 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		root.Long = InvokedAs() + " — " + short + "\n" + seat.FrictionFooter
 		root.AddCommand(verbs...)
 		root.AddCommand(motion.NewCommandFor(role))
-		root.AddCommand(newFetch())        // a lens reads the EXACT bytes blue read, from the run cache
-		root.AddCommand(newCountClaims())  // blue's claim_count is defined as what this prints
-		root.AddCommand(newManual(seatID)) // every command's own help on THIS surface, in one call
+		root.AddCommand(newFetch())       // a lens reads the EXACT bytes blue read, from the run cache
+		root.AddCommand(newCountClaims()) // blue's claim_count is defined as what this prints
+		// `manual` IS NOT ON A SEAT'S SURFACE, because a seat is already holding what it prints.
+		//
+		// scripts/agentgen writes every command's help into the seat's own constitution, so the
+		// document arrives with the system prompt and costs no turns. Leaving the verb here left an
+		// affordance with no job: measured on the 2026-09-20 run, the chair ran `manual` twice while
+		// its constitution carried the same text, and piped both through `head` — ending up with
+		// LESS of its surface than it was already given. Removing the need did not remove the
+		// reaching; removing the verb does.
+		//
+		// It stays on the operator surface with --for, which is how a generator renders a seat's
+		// surface without being that seat.
 		// AFTER every AddCommand: the split reads HasSubCommands, so a group registered before
 		// its children were attached would file itself under the leaves.
 		seat.SplitGroups(root)
@@ -471,7 +482,7 @@ func ExecuteRoot(root *cobra.Command) error {
 	if err == nil || cmd == nil || seat.Taught(err) || seat.RecordType(cmd) == "" {
 		return err
 	}
-	return seat.RefuseAndTeach(cmd, err.Error())
+	return seat.RefuseAndTeach(cmd, translateUnknownFlag(cmd, err.Error()))
 }
 
 // EmitTopLevelError renders an error that never reached seat.Emit, and reports whether it did.
@@ -513,4 +524,46 @@ func jsonRequested(argv []string) bool {
 		}
 	}
 	return false
+}
+
+// unknownFlagName pulls the flag word out of cobra's refusal. Cobra has no typed error for this,
+// so the message is the only carrier; the pattern is anchored to the whole phrase rather than
+// scanning for a `--` so an unrelated message that happens to quote a flag cannot trigger a
+// suggestion.
+var unknownFlagName = regexp.MustCompile(`^unknown flag: --([A-Za-z0-9_-]+)`)
+
+// translateUnknownFlag answers the seat's ACTUAL mistake when it typed the record's word for a
+// field instead of the flag's.
+//
+// THE THREE VOCABULARIES ARE REAL AND THE SEAT IS TOLD SO. Its own contract says "the projection
+// names, this prompt's words for a concept, and the command that writes it are three different
+// vocabularies and they do not always agree". A seat that reads a gap's JSON, sees
+// `complexity_cost`, and types `--complexity_cost` has used the vocabulary the record just showed
+// it — the most defensible mistake available. It cost twelve turns in one run.
+//
+// IT SUGGESTS, IT DOES NOT ACCEPT. The no-aliases rule is right: one word per concept, and adding
+// `--complexity_cost` as a second spelling is the fork this repository refuses. Naming the correct
+// flag in the refusal respects the rule; accepting both would not.
+//
+// A key with no entry falls through untouched, because flags.FlagForPayloadKey reports the miss
+// instead of hyphenating a guess — a suggested spelling the parser rejects is worse than none.
+func translateUnknownFlag(cmd *cobra.Command, msg string) string {
+	m := unknownFlagName.FindStringSubmatch(msg)
+	if m == nil {
+		return msg
+	}
+	name, ok := flags.FlagForPayloadKey(m[1])
+	if !ok || name == m[1] {
+		return msg
+	}
+	// THE MAP IS GLOBAL AND PAYLOAD KEYS ARE NOT, which its own comment says plainly. `line` maps
+	// to --reason, and a verb with no --reason would be told to type one. The suggestion is
+	// therefore made only when the FAILING VERB actually has that flag — which turns a global
+	// table into a per-verb answer without a second table to keep.
+	if cmd == nil || cmd.Flags().Lookup(name) == nil {
+		return msg
+	}
+	return fmt.Sprintf("%s — the record stores that field as `%s`, and the flag that sets it is --%s. "+
+		"The field name and the flag word are not always the same; the flag is what you type.",
+		msg, m[1], name)
 }

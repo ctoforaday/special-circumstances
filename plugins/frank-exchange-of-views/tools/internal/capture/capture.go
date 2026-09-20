@@ -35,6 +35,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatturn"
 	// Aliased: this package's own `Run` returns a named result called `report`, and the two
 	// spellings would shadow each other at exactly the call site that needs the constant.
@@ -2023,6 +2024,27 @@ func listAgentFiles(dir string) ([]string, error) {
 // mirrored into it, never run-archive/, and a gzipped tar is not prose a glob can wander into.
 func ArchiveRecord(run record.Run, repoRoot string) (string, error) {
 	recs := run.Records()
+	// SEAL BEFORE WALKING, because the archive is the copy nobody can re-derive. The record runs
+	// journal_mode=WAL and nothing checkpoints it during the run, so a third of a finished run's
+	// events sit in record.db-wal. Shipping the two files side by side means any later reader that
+	// takes only the database — the natural thing to do with a tarball — gets a run that is
+	// smaller, self-consistent and wrong. recordsql.Seal folds the log in; the check below refuses
+	// to write an archive where it did not take.
+	dbPath := filepath.Join(recs, "record.db")
+	if _, err := os.Stat(dbPath); err == nil {
+		if err := recordsql.Seal(dbPath); err != nil {
+			return "", err
+		}
+		n, err := recordsql.SealedSize(dbPath)
+		if err != nil {
+			return "", err
+		}
+		if n != 0 {
+			return "", fmt.Errorf("refusing to archive %s: %d bytes remain in the write-ahead log after sealing. "+
+				"An archive whose events are split across two files reads as a shorter, complete run to anyone "+
+				"who opens the database alone", dbPath, n)
+		}
+	}
 	var files []struct {
 		name string
 		path string
@@ -2035,6 +2057,12 @@ func ArchiveRecord(run record.Run, repoRoot string) (string, error) {
 			rel, rerr := filepath.Rel(root, p)
 			if rerr != nil {
 				return rerr
+			}
+			// -shm is SHARED MEMORY, not data: it is scratch for live connections and means nothing
+			// once the run is over. Shipping it suggests the files beside it are equally live, which
+			// is the confusion the seal above exists to end.
+			if strings.HasSuffix(p, "-shm") {
+				return nil
 			}
 			files = append(files, struct{ name, path string }{prefix + filepath.ToSlash(rel), p})
 			return nil

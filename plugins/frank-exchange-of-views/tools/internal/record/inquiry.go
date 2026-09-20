@@ -368,3 +368,47 @@ func InquiryReviewDueOf(evs []*Event) bool {
 	}
 	return true
 }
+
+// InquiryJSON is one line of inquiry as a machine reads it — the same fields the rendered
+// projection groups by fate, with their types intact.
+//
+// WHY THE SHAPE IS REPEATED HERE rather than tagging Inquiry itself: Inquiry is the internal fold,
+// and tagging it would publish every future field to the wire by default. The wire form is a
+// decision each time a field is added, which is what keeps `show lines-of-inquiry --json` a
+// contract rather than a dump of whatever the fold happens to carry.
+type InquiryJSON struct {
+	ID         string `json:"id"`
+	Line       string `json:"line"`
+	Hypothesis string `json:"hypothesis,omitempty"`
+	Method     string `json:"method,omitempty"`
+	Status     string `json:"status"`
+	// Reason belongs to the CURRENT status, not to the line: a reader pairing it with an earlier
+	// status in History would be reading the wrong justification for the wrong move.
+	Reason  string   `json:"reason,omitempty"`
+	Epoch   int      `json:"epoch"`
+	History []string `json:"history,omitempty"`
+	// EverPursued distinguishes "tried, then died" from "abandoned before it was ever tried" —
+	// which the fate word alone cannot, and which `move` does not refuse.
+	EverPursued bool   `json:"ever_pursued"`
+	SeatID      string `json:"seat_id"`
+	Ruling      string `json:"ruling,omitempty"`
+}
+
+// InquiriesJSON is the wire form of the exploration space.
+type InquiriesJSON struct {
+	Inquiries []InquiryJSON `json:"inquiries"`
+}
+
+// InquiriesJSONOf folds the events into the wire form, in the same order the rendered projection
+// walks them, so the two accounts of the same directions cannot disagree about order.
+func InquiriesJSONOf(evs []*Event) InquiriesJSON {
+	out := InquiriesJSON{Inquiries: []InquiryJSON{}}
+	for _, a := range InquiriesOf(evs) {
+		out.Inquiries = append(out.Inquiries, InquiryJSON{
+			ID: a.ID, Line: a.Line, Hypothesis: a.Hypothesis, Method: a.Method,
+			Status: a.Status, Reason: a.Reason, Epoch: a.Epoch, History: a.History,
+			EverPursued: a.EverPursued, SeatID: a.SeatID, Ruling: a.Ruling,
+		})
+	}
+	return out
+}

@@ -28,6 +28,10 @@ const (
 	// Seat context, on the root as persistent flags.
 	Run    = "run"
 	SeatID = "seat-id"
+	// For names WHOSE surface to render, on the operator's `manual`. A seat cannot render its own
+	// — the verb is not on a seat surface, because the seat is handed what it prints — so the
+	// generator that writes a seat's constitution names the seat here.
+	For = "for"
 
 	// The event-schema epoch this binary writes, printed alone so `setup` can compare it
 	// with the plugin's without recovering a number from prose.
@@ -310,7 +314,7 @@ const (
 // and the CLI spoke a vocabulary this file did not describe.
 func All() []string {
 	return []string{
-		Run, SeatID, Schema, JSON,
+		Run, SeatID, For, Schema, JSON,
 		Reason,
 		ID, IDs, Areas, Key, Corrects, CorrectionWhy, Quote, New, Answers, Accept, URL, Title, Format, Window,
 		Sitting, Trajectory,
@@ -344,7 +348,7 @@ func All() []string {
 func ClosedForm(name string) bool { return closedForm[name] }
 
 var closedForm = map[string]bool{
-	Run: true, SeatID: true, ID: true, Key: true, Corrects: true, Class: true, Neighbor: true, Anchor: true,
+	Run: true, SeatID: true, For: true, ID: true, Key: true, Corrects: true, Class: true, Neighbor: true, Anchor: true,
 	Format: true, URL: true, At: true, Via: true, Script: true, VerifiedBy: true,
 	VerifiedAgainst: true, CarriedFrom: true, Sitting: true, Trajectory: true, Sha: true,
 	Model: true, JudgmentModel: true, Cite: true, Lanes: true, LensArea: true, LensAreaReason: true,
@@ -366,6 +370,22 @@ var closedForm = map[string]bool{
 // LIMIT, stated because it is easy to over-trust this: the map is GLOBAL and payload keys
 // are NOT globally unique. A caller on a verb-specific key needs a per-verb lookup, not
 // another line here — adding one would make this function quietly wrong for the other verb.
+// FlagForPayloadKey is ForPayloadKey with the MISS reported rather than papered over.
+//
+// ForPayloadKey falls back to hyphenating an unknown key, which is right when the tool is naming a
+// field in its own message — a best guess beats nothing there. It is WRONG for a caller deciding
+// whether to make a suggestion at all: a hyphenated guess presented as "the flag you want" teaches
+// a spelling the parser rejects, which is the defect that map was built to stop.
+//
+// Measured on the 2026-09-20 smoke: a lens typed `--complexity_cost` at `mint` TWELVE times. That
+// is the key the record stores, shown to the seat in the gap's own JSON before it mints; the flag
+// is --complexity. The translation was already in this file and was consulted only when the TOOL
+// names a field, never when a SEAT does.
+func FlagForPayloadKey(key string) (string, bool) {
+	name, ok := payloadFlag[key]
+	return name, ok
+}
+
 func ForPayloadKey(key string) string {
 	if name, ok := payloadFlag[key]; ok {
 		return name

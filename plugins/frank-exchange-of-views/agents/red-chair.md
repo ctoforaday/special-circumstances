@@ -157,7 +157,6 @@ Available Commands:
   help            Help about any command
   inquiry-support your one read per sitting of the report's account of its lines of inquiry — required before a PASS
   log             an entry for the operator who can retool you — what it asserts, said in the positive
-  manual          every command on your surface, each with its own help, run live — read it once, first thing in a sitting
   position        your sitting's position — the argument the other side answers, rendered as this sitting's RED section
   register        your first act at EVERY sitting, and the one call that needs your seat id — nothing else runs until it does
   spot-check      sample the closure archive — a duty every chair sitting owes, including the sittings with nothing to sample
@@ -709,7 +708,9 @@ Flags:
 (Global Flags:) → SHARED §17
 ==============================================================================
 $ feov-record show lines-of-inquiry --help
-the exploration space: lines taken, deferred, declined and abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule` (red's ruling)
+the exploration space: lines taken, deferred, declined and abandoned, and the ones still undecided; --json gives the same lines with their types intact, each carrying the reason for its CURRENT status. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule` (red's ruling)
+
+OUTPUT (JSON, with --json — the bare call is the markdown form): {inquiries:[{id,line,hypothesis,method,status,reason,epoch,history:[string],ever_pursued,seat_id,ruling}]}
 
 Usage:
   feov-record show lines-of-inquiry [flags]
@@ -748,7 +749,9 @@ Flags:
 (Global Flags:) → SHARED §17
 ==============================================================================
 $ feov-record show scorecard --help
-YOUR IN-RUN SCORECARD — the numbers your seat is measured on (red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench), computed live from this run's record; no selector, because your scorecard follows from the seat you registered as. A bad number means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures: a gamed diagnostic is itself a defect, and a detector firing is a finding. Rows reading "not computed" are HONEST, not gaps to fill: envelope-derived rows fill in at capture. No verb fills it
+YOUR IN-RUN SCORECARD — the numbers your seat is measured on (red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench), computed live from this run's record; no selector, because your scorecard follows from the seat you registered as. A bad number means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures: a gamed diagnostic is itself a defect, and a detector firing is a finding. Rows reading "not computed" are HONEST, not gaps to fill: envelope-derived rows fill in at capture. --json gives the same rows with their types intact, a null value wherever a row is not computed. No verb fills it
+
+OUTPUT (JSON, with --json — the bare call is the markdown form): {clause,metric,class,value,note,joint}
 
 Usage:
   feov-record show scorecard [flags]

@@ -216,7 +216,7 @@ func TestOCRReadRefusesWhenNothingIsRendered(t *testing.T) {
 func TestOCRReadRecordsTheReadingAndMarksItOCRDerived(t *testing.T) {
 	no := false
 	dir, sha := cacheScan(t, &no, "application/pdf")
-	// Rendered at the default — the engine's operative resolution, the only one read accepts.
+	// Rendered at the default, the floor of the band read accepts.
 	if _, err := run(t, "ocr", "pages", "--seat-id", "operator", "--sha", sha, "--run", dir); err != nil {
 		t.Fatal(err)
 	}
