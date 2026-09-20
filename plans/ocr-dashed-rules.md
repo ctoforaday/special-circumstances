@@ -509,8 +509,16 @@ row and columns, where before the page read as prose and the binding was lost. I
 
 **The whole document, measured after the fact — and the number §I carried was wrong. [r3.2]**
 This plan said SP 602 has 12 dashed tables and implied the repair recovers them. Read end to end
-with the shipped code, the 60-page document gives: **detector 2, repair 8**. Two thirds, not all,
-and four tables are still missed. The claim was never measured before it was written down.
+with the shipped code, the 60-page document gives **detector 1, repair 10** — ten of twelve, and two
+still missed. The claim was never measured before it was written down.
+
+**[r3.3] That number was itself taken twice, and the first take was wrong.** The first run used
+`nbs602-stripped.pdf`, a 36 MB re-render of the document that differs from the publisher's file in
+**9.07% of its pixels** — a derivative I had made for another purpose, abandoned for that reason,
+and then picked up again by name without checking what it was. It gave detector 2, repair 8. Re-run
+against `nbs602-notext.pdf`, which renders pixel-identically to the original (0 of 9,058,416 pixels
+differ), the answer is 1 and 10. A measurement is only as good as the bytes under it, and the
+corpus's own page was clean the whole time — it was the scratch file that was not.
 
 All eight are genuine — checked against the page images, not inferred. Two of them (p47, p49) are
 recovered COARSELY: the lattice is found and the row segmentation collapses, so 6 rows report as
