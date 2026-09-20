@@ -51,6 +51,52 @@ and 2× smooth reads **16**. It invents text on an empty page.
 `nbs602-dashed-matrix` lose one each — but the total is unchanged and the cost is four times the
 raster on every page to find out.
 
+## The mechanism, as far as it is established
+
+**Why exact ties, and this part is verified rather than argued.** Tesseract's LSTM does not read the
+image at the resolution it is handed. `lstm/input.cpp` in the pinned source rescales every text line
+to a fixed height before recognition:
+
+    const int kMaxInputHeight = 48;
+    int target_height = network->NumInputs();
+    image_data.PreScale(target_height, kMaxInputHeight, ...);
+
+So a 2x image is normalised straight back down, and replication carries no information the 1x raster
+did not. A tie is what theory predicts, and a tie is what the measurement shows. This also explains
+why #1031 found the DPI sweep flat — scale per se was never the variable.
+
+It also sharpens what #1105 was about. That fix did not add resolution; it stopped a fractional
+resample DESTROYING a sub-pixel feature (a 1 px counter inside a 5). No downstream normalisation
+recovers a feature that is gone, so the prediction is a large LOCAL effect and a negligible global
+one — measured as one cell flipping and 135 characters across ten pages.
+
+**Why smooth loses is NOT established, and three explanations were tested and refuted.** The
+direction is consistent with bilinear low-passing the glyph before tesseract's own downscale, which
+costs high-frequency detail the 1x path would have kept. But the sharpest single observation — the
+near-blank page reading 16 characters under smooth and 0 under the other two — survived every
+mechanism proposed for it:
+
+1. *An edge bug in the bilinear.* Real, and found: clamping the index at the border while leaving
+   the weight negative extrapolates instead of interpolating. **Refuted as the cause:** these pages
+   have flat white margins, and on a flat field the bad weights cancel exactly (1.25 - 0.25 = 1).
+   Fixed anyway; the re-run is byte-identical on all thirty reads.
+2. *Bridging.* That smooth joins nearby marks into a stroke big enough to pass a blob filter — the
+   page carries a faint dashed scanner edge-shadow down its margin, which is the shape that would
+   do it. **Refuted by measurement:** on a synthetic dashed line, exact keeps 8 marks and so does
+   smooth. A 2x bilinear blends across half a source pixel and cannot close a 3 px gap.
+3. *More ink.* That smooth darkens the faint mark past a threshold. **Refuted by measurement** on
+   the real margin strip: at thresholds 160/200/230 exact reads 0.00%/4.65%/42.08% ink in 0/6/1
+   runs, and smooth reads 0.00%/4.39%/43.35% in 0/6/1. Indistinguishable, and slightly LESS ink
+   where it would have to be more.
+
+What is left is inside tesseract's own response to soft versus hard edges at equal scale, which
+cannot be attributed without instrumenting it. **Stated as unexplained rather than given a fourth
+story.**
+
+**The effect is also small.** Three expectations out of forty-five separate smooth from the other
+two arms. That is enough to decline a change that costs four times the raster and buys nothing, and
+it is not enough to support a claim about anti-aliasing in general.
+
 ## Decision
 
 Keep 1:1 native. Do not anti-alias. Do not upscale by default.
