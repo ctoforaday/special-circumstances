@@ -1,0 +1,29 @@
+{
+  "slug": "usgs-bibliography-jpeg",
+  "source_url": "https://pubs.usgs.gov/bul/0007/report.pdf",
+  "source_page": 21,
+  "publisher": "US Geological Survey",
+  "date": "1889",
+  "rights": "us-government-work",
+  "rights_evidence": "US Government work, 17 U.S.C. 105 — https://pubs.usgs.gov/bul/0007/report.pdf; also published 1889 and out of copyright",
+  "local_file_sha256": "b0e6092a68aedfdc5e3551ca6ce106a480a51a4bf289bf9236508693f873113a",
+  "page_sha256": "ffd368a80f7c2b837c1f8e7051afaf603e2c3bdc6b86258aa7930c3788fe1d5a",
+  "text_objects_removed": 337,
+  "added_at": "2026-09-20",
+  "defect_class": [
+    "jpeg-colour-scan",
+    "accented-characters",
+    "handwritten-marginalia"
+  ],
+  "why": "A JPEG-encoded 24-bit colour scan at 400 DPI: 1880s letterpress with accented and German text, hanging indents, and cursive marginalia bleeding across the foot of the page.",
+  "expect": {
+    "table": false,
+    "must_contain": [
+      "AMERICA IN GENERAL",
+      "Mercator projection",
+      "Kreide-Bildungen",
+      "géologique",
+      "Hitchcock"
+    ]
+  }
+}

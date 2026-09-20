@@ -1,13 +1,15 @@
-usfs-birds-markgrid · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@6ac8dfe32328 · rendered at 501.21 DPI (native 501.21), 1796x4358 px
-table: true · rules: detector · rotated: false · grid intersections: 2006 · repaired crossings: 0 · length: 1111
-text cells: 1 tables, 2 bands, 5 rows, 11 columns, 21 cells, 129 words placed
+usfs-birds-markgrid · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@6ac8dfe32328 · rendered at 501.21 DPI (native 501.21), 1794x4351 px
+table: true · rules: detector · rotated: false · grid intersections: 1662 · repaired crossings: 0 · length: 1207
+text cells: 1 tables, 2 bands, 9 rows, 13 columns, 25 cells, 138 words placed
 fell back: grid detected but the TSV held no mark tokens; page kept as plain text — its words are read, but which row and column each belongs to is not preserved, so check a cell against the page image before relying on it
 ---
-xf ? |
-
-| ~ Residency | Abunc | Aquatic rian Po R | Scrub os pumeenmemeneeel Ripa _ Desert | Grassland ~ | Pinton-Juni per | osa “[_Pon | Conifer Mixed | i |  ||
-|---|---|---|---|---|---|---|---|---|---|---|
-| __.Downey Woodpecker — __Hairy Woodpecker __Three-toed Woodpecker __Northern Flicker (“Red-shafted") Flycatchers & Larks | __ Olive-sided Flycatcher ___Western Wood-Pewee __ Willow Flycatcher __Dusky Flycatcher __Western Flycatcher __ Black Phoebe __Say’s Phoebe __Ash-throated Flycatcher __Cassin’s Kingbird __Western Kingbird -__Horned Lark | TANNDAUANNUNANMN | Cy} a 2 CO RS Ran |  | e |  | e | sh | ole |  |  |
-| Swallows __Purple Martin ___ Tree Swallow __ Violet-green Swallow / __N. Rough-winged Swallow ___Bank Swallow __Cliff Swallow __Cave Swallow __ Barn Swallow | NZTNNNMNAUNN | QAAAnAnAcc |  |  |  |  |  |  |  |  |
-| Jays & Crows __Gray Jay __Steller’s Jay __.5crub Jay __Gray-breasted Jay __Pifion Jay __Clark’s Nutcracker _.American Crow __.Common Raven | ha oY © eR © ee 2 Prag Reg To |  |  |  |  |  |  |  |  |  |
-| Chickadees | __Black-capped Chickadee |  |  |  |  |  |  |  |  |  |  |
+|  |  |  |  |  |  |  | ae | |  |  |  |  ||
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|  | Qo wT 53 —_ (7 oo 7Y { | & ££ | aetcte o.2 | = 2. | £n £ as A YO | | = COR 6 | wae Os «(Ot wre °| | BS | RS oQM ksh cia | ir |  ||
+|  | Downey Woodpecker Hairy Woodpecker Three-toed Woodpecker Northern Flicker (“Red-shafted”) |  |  |  |  | e |  | ee e® | es es | ee e@;|@ @ | @ |  |
+| | | Flycatchers & Larks Olive-sided Flycatcher Western Wood-Pewee Willow Flycatcher Dusky Flycatcher Western Flycatcher Black Phoebe Say’s Phoebe Ash-throated Flycatcher Cassin’s Kingbird Western Kingbird Horned Lark | wWTMHNHANTWGTANAUANANANUNAMNM |  |  |  |  |  |  |  | e668 e'e e668 |  |  |
+|  | Swallows |  |  |  |  |  |  |  |  |  |  |  |
+|  | Purple Martin Tree Swallow Violet-green Swallow N. Rough-winged Swallow Bank Swallow Cliff Swallow Cave Swallow Barn Swallow |  |  |  |  |  |  |  |  | e)|e |  |  |
+|  | Jays & Crows Gray jay Steller’s Jay Scrub jay Gray-breasted Jay Pifion Jay Clark’s Nutcracker American Crow Common Raven |  |  |  |  | e |  | 6 e | s e e e | e636 | 6.68 e686 ee |  |
+|  | Chickadees |  |  |  |  |  |  |  |  |  |  |  |
+|  | Black-capped Chickadee |  | PiU |  |  |  |  |  |  |  | e668 |  |

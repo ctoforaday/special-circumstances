@@ -1,28 +1,29 @@
-nbs602-form · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@6ac8dfe32328 · rendered at 350.07 DPI (native 350.07), 2645x3525 px
-table: true · rules: detector · rotated: false · grid intersections: 338 · repaired crossings: 0 · length: 2556
-marks: 1 columns, 1 subcolumns, 3 rows, 2 of 5 placed, psm disagreement 0.50
-text cells: 1 tables, 11 bands, 17 rows, 2 columns, 15 cells, 352 words placed
+nbs602-form · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@6ac8dfe32328 · rendered at 350.37 DPI (native 350.37), 2645x3526 px
+table: true · rules: detector · rotated: false · grid intersections: 351 · repaired crossings: 0 · length: 2573
+marks: 1 columns, 1 subcolumns, 3 rows, 2 of 5 placed, psm disagreement 0.00
+text cells: 1 tables, 11 bands, 18 rows, 2 columns, 15 cells, 353 words placed
 fell back: reconstruction placed 2 of 5 marks, below the 0.80 placement threshold; page kept as plain text
 ---
-NBS-I14A (REV. 2-8C)
+NBS-I14A (REV. 2-8)
 
-| U.S. OEPT. OF COMM. 1. PUBLICATION OR 2. Performing Organ. Report No. 3. Publication Date BIBLIOGRAPHIC DATA REPORT NO. SHEET (See instructions) NBS SP 602 April 1981 ||
+| U.S. DEPT. OF COMM. 1, PUBLICATION OR 2. Performing Organ. Report No. 3. Publication Date BIBLIOGRAPHIC DATA REPORT NO. SHEET ; (See instructions) NBS SP 602 April 1981 ||
 |---|---|
 | 4. TITLE AND SUBTITLE NBS/RIA Robotics Research Workshop Proceedings of a Workshop Held at the National Bureau of Standards, Gaithersburg, MD, November 13-15, 1979 ||
-| ‘Editors: James S. Albus, G.J. VanderBrug Anthon J. Barbera, M.L. Fitzgerald, Thoma whea 4 ||
-| 6 PERFORMING ORGANIZATION (If joint or other than NBS, see instructions) | 7. Contract/Grant No. |
+| ‘Editors: James S. Albus, G.J. VanderBrug, Anthony J. Barbera, M.L. Fitzgerald. Thoma Wheat! ||
+| 6. PERFORMING ORGANIZATION (If joint or other than NBS, see instructions) | 7. Contract/Grant No. |
 | NATIONAL BUREAU OF STANDARDS |  |
-| DEPARTMENT OF COMMERCE WASHINGTON, D.C. 20234 | 8. Type of Report & Period Coverec Final |
-| 9 SPONSORING ORGANIZATION NAME AND COMPLETE ADDRESS (Street, City, State, ZIP) National Bureau of Standards and The Robot Institute of America 20501 Ford Road, P.O. Box 930 Dearborn, MI 48128 ||
+| DEPARTMENT OF COMMERCE WASHINGTON, D.C. 20234 | 8. Type of Report & Period Coverex Final |
+| 9. SPONSORING ORGANIZATION NAME AND COMPLETE ADDRESS (Street, City, State, ZIP) National Bureau of Standards and The Robot Institute of America 20501 Ford Road, P.O. Box 930 Dearborn, MI 48128 ||
 | 10. SUPPLEMENTARY NOTES ||
 | Library of Congress Catalog Number: 80-600192 ||
 | [__] Document describes a computer program; SF-185, FIPS Software Summary, is attached, ||
-| 11. ABSTRACT (A 200-word or less factual summary of most significant information, If document includes a significant bibliography or literature survey, mention it here) ||
+| 11. ABSTRACT (A 200-word or less factual summary of most significant information. If document includes a significant bibliography or literature survey, mention it here) ||
 | The NBS/RIA Robotics Research Workshop had two objectives: 1) To provide a forum for structured discussions between researchers in robotics and manufacturers and users of robot systems and 2) To develop a consensus forecast of future developments in sensors and control systems for industrial robots. ||
 | The 3-day workshop brought together 31 researchers, manufacturers, and users of industrial robots in order to determine the needs and priorities for future research in sensors and control techniques for industrial robots. There were no formal papers; instead, small group discussions and presentations and the preparation of a Delphi Forecast were used to address research needs and priorities. ||
 | 12. KEY WORDS (Six to twelve entries; alphabetical order; capitalize only proper names; and separate key words by semicolons) ||
 | Delphi Forecast; robot control; robot vision; robotic assembly; robotic standards; robotics research ||
-| 13. AVAILABILITY x} Unlimited {| For Official Distribution. Do Not Release to NTIS | 14 NO, OF PRINTED PAGES 54 |
-| | Order From Sup. of Doc., U.S. Government Printing Office, Washington, DC 20402. {__] Order From National Technical Information Service (NTIS), Springfield, VA. 22161 | 15 Price $3.75 |
+| 13. AVAILABILITY {x] Untimited {| For Official Distribution. Do Not Release to NTIS | » NO, OF PRINTED PAGES 54 |
+| [x] Order From Sup. of Doc., U.S. Government Printing Office, Washington, DC 20402. | = . Price |
+| {__] Order From National Technical Information Service (NTIS), Springfield, VA. 2216! | $3.75 |
 
-us. GOVERNMENT PRINTING OFFICE: 1981-340- 997/1580 USCOMM-DC aye
+U.S. GOVERNMENT PRINTING OFFICE: 1981-340-997/1580 USCOMM-DOC 6043-

@@ -194,7 +194,7 @@ func readCorpusPage(t *testing.T, c corpus.Case) (string, corpus.Observed) {
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s · %s · rendered at %s DPI (native %s), %dx%d px\n", c.Slug,
-		DefaultPageEngine.Identity(), trimDPI(firstOf(rd.DPIRange())), trimDPI(native[0]),
+		DefaultPageEngine.Identity(), trimDPI(firstOf(rd.DPIRange())), trimDPI(native[0].Max()),
 		rd.Renders[0].WidthPx, rd.Renders[0].HeightPx)
 	// The RULE SOURCE is on this line because eight goldens that do not name it read as if one
 	// path produced them, and on a repaired page the intersections beside it are the DETECTOR's
