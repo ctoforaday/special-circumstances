@@ -24,7 +24,7 @@ func TestRenderPagesWritesOneImagePerPageAndRecordsTheirHashes(t *testing.T) {
 	body := pdfWithNoTextLayer()
 	sha := Sha(body)
 
-	rec, err := RenderPages(run, sha, body, 72)
+	rec, err := RenderPages(run, sha, body, AtDPI(72))
 	if err != nil {
 		t.Fatalf("RenderPages: %v", err)
 	}
@@ -32,7 +32,7 @@ func TestRenderPagesWritesOneImagePerPageAndRecordsTheirHashes(t *testing.T) {
 		t.Fatalf("Pages() = %d, want 1", rec.Pages())
 	}
 	if lo, hi := rec.DPIRange(); lo != 72 || hi != 72 {
-		t.Errorf("DPI = %d, want the resolution actually rendered at — a reader who gets a poor "+
+		t.Errorf("DPI = %g, want the resolution actually rendered at — a reader who gets a poor "+
 			"reading cannot otherwise tell a bad model from a page rendered too small", lo)
 	}
 	if rec.Sha != sha {
@@ -70,7 +70,7 @@ func TestRenderedPagesAreGrayscale(t *testing.T) {
 	run := runtest.New(t, t.TempDir())
 	body := pdfWithNoTextLayer()
 	sha := Sha(body)
-	if _, err := RenderPages(run, sha, body, DefaultRenderDPI); err != nil {
+	if _, err := RenderPages(run, sha, body, AtDPI(DefaultRenderDPI)); err != nil {
 		t.Fatal(err)
 	}
 	f, err := os.Open(PagePath(run, sha, 1))
@@ -144,7 +144,7 @@ func TestReadRenderRecordReportsAbsenceAndRefusesCorruption(t *testing.T) {
 
 	// And a record naming a DIFFERENT document is refused: a copied directory would otherwise
 	// hand a reader another document's page hashes.
-	other, _ := json.Marshal(RenderRecord{Sha: "someone-else", Renders: []PageRender{{Sha: "x", DPI: 200}}})
+	other, _ := json.Marshal(RenderRecord{Sha: "someone-else", Renders: []PageRender{{Sha: "x", DPI: AtDPI(200)}}})
 	if err := os.WriteFile(filepath.Join(PagesDir(run, sha), "render.json"), other, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -160,14 +160,14 @@ func TestRenderPagesRefusesADPIOutsideTheBounds(t *testing.T) {
 	run := runtest.New(t, t.TempDir())
 	body := pdfWithNoTextLayer()
 	for _, dpi := range []int{0, MinRenderDPI - 1, MaxRenderDPI + 1, 5000} {
-		if _, err := RenderPages(run, Sha(body), body, dpi); err == nil {
+		if _, err := RenderPages(run, Sha(body), body, AtDPI(float64(dpi))); err == nil {
 			t.Errorf("dpi %d was accepted; want a refusal naming the bounds", dpi)
 		}
 	}
 	// The bounds themselves are usable — a guard that refused its own limits would be a
 	// different bug wearing this one's clothes.
 	for _, dpi := range []int{MinRenderDPI, DefaultRenderDPI} {
-		if _, err := RenderPages(run, Sha(body), body, dpi); err != nil {
+		if _, err := RenderPages(run, Sha(body), body, AtDPI(float64(dpi))); err != nil {
 			t.Errorf("dpi %d was refused: %v", dpi, err)
 		}
 	}
@@ -179,7 +179,7 @@ func TestRenderPagesRefusesADPIOutsideTheBounds(t *testing.T) {
 func TestRenderPagesNamesWhatItCouldNotOpen(t *testing.T) {
 	run := runtest.New(t, t.TempDir())
 	body := []byte("this is not a PDF at all")
-	_, err := RenderPages(run, Sha(body), body, DefaultRenderDPI)
+	_, err := RenderPages(run, Sha(body), body, AtDPI(DefaultRenderDPI))
 	if err == nil {
 		t.Fatal("unparseable bytes rendered without error")
 	}
@@ -194,7 +194,7 @@ func TestRenderPagesNamesWhatItCouldNotOpen(t *testing.T) {
 func TestRenderPagesDoesNotItselfRefuseADocumentThatHasText(t *testing.T) {
 	run := runtest.New(t, t.TempDir())
 	body := pdfWithTextLayer()
-	rec, err := RenderPages(run, Sha(body), body, MinRenderDPI)
+	rec, err := RenderPages(run, Sha(body), body, AtDPI(MinRenderDPI))
 	if err != nil {
 		t.Fatalf("a text-layer PDF was refused by the renderer: %v", err)
 	}
@@ -248,7 +248,7 @@ func TestRenderedPixelsHonourTheRecordedDPI(t *testing.T) {
 
 	var prev string
 	for _, dpi := range []int{72, 150} {
-		rec, err := RenderPages(run, sha, body, dpi)
+		rec, err := RenderPages(run, sha, body, AtDPI(float64(dpi)))
 		if err != nil {
 			t.Fatalf("dpi %d: %v", dpi, err)
 		}
@@ -285,10 +285,16 @@ func TestRenderedPixelsHonourTheRecordedDPI(t *testing.T) {
 // reading small loses content and capped where reading big recovers none.
 func TestRenderDPIFollowsTheScanBetweenAFloorAndACap(t *testing.T) {
 	for _, tc := range []struct {
-		native, want int
+		native, want float64
 		why          string
 	}{
 		{0, DefaultRenderDPI, "a document with no images to measure is rendered at the floor, as it always was"},
+		// THE FRACTION SURVIVES INSIDE THE BAND (#1105). A scan's resolution is pixels over a page
+		// size in points and is almost never whole; rounding it before the render resampled the
+		// raster, so the policy has to be able to return it.
+		{350.207, 350.207, "NBS SP 602's true resolution: 2612 px over 537 pt, and it is not 350"},
+		{299.9, DefaultRenderDPI, "a hair under the floor is still floored"},
+		{600.4, MaxRenderDPI, "a hair over the cap is still capped"},
 		{72, DefaultRenderDPI, "a fax is rendered UP: at 150 a page lost 2 of 4 printed strings and its table verdict"},
 		{299, DefaultRenderDPI, "just under the floor is still the floor"},
 		{300, 300, "a scan at the floor is rendered 1:1"},
@@ -298,8 +304,8 @@ func TestRenderDPIFollowsTheScanBetweenAFloorAndACap(t *testing.T) {
 		{600, 600, "the cap is inclusive"},
 		{1200, MaxRenderDPI, "past the cap nothing is recovered and a long document renders to gigabytes"},
 	} {
-		if got := RenderDPIFor(tc.native); got != tc.want {
-			t.Errorf("RenderDPIFor(%d) = %d, want %d — %s", tc.native, got, tc.want, tc.why)
+		if got := RenderDPIFor(AtDPI(tc.native)); got.Max() != tc.want {
+			t.Errorf("RenderDPIFor(%g) = %g, want %g — %s", tc.native, got.Max(), tc.want, tc.why)
 		}
 	}
 }
@@ -309,24 +315,24 @@ func TestRenderDPIFollowsTheScanBetweenAFloorAndACap(t *testing.T) {
 // This is the case a median was wrong about: two pages scanned at different resolutions, where any
 // single number is wrong for at least one of them and silent about which.
 func TestEachPageIsRenderedAtItsOwnResolution(t *testing.T) {
-	natives := []int{150, 350, 900}
-	want := []int{DefaultRenderDPI, 350, MaxRenderDPI}
-	got := make([]int, len(natives))
+	natives := []float64{150, 350.207, 900}
+	want := []float64{DefaultRenderDPI, 350.207, MaxRenderDPI}
+	got := make([]float64, len(natives))
 	for i, n := range natives {
-		got[i] = RenderDPIFor(n)
+		got[i] = RenderDPIFor(AtDPI(n)).Max()
 	}
 	for i := range want {
 		if got[i] != want[i] {
-			t.Errorf("a page scanned at %d renders at %d, want %d", natives[i], got[i], want[i])
+			t.Errorf("a page scanned at %g renders at %g, want %g", natives[i], got[i], want[i])
 		}
 	}
 	// And the record says so per page rather than once for the document: a reader asking what a
 	// PAGE was read at gets that page's answer.
-	rec := RenderRecord{Renders: []PageRender{{Sha: "a", DPI: 300}, {Sha: "b", DPI: 350}, {Sha: "c", DPI: 600}}}
+	rec := RenderRecord{Renders: []PageRender{{Sha: "a", DPI: AtDPI(300)}, {Sha: "b", DPI: AtDPI(350)}, {Sha: "c", DPI: AtDPI(600)}}}
 	if lo, hi := rec.DPIRange(); lo != 300 || hi != 600 {
-		t.Errorf("DPIRange = %d-%d, want 300-600 — the span is what a mixed document has instead of a DPI", lo, hi)
+		t.Errorf("DPIRange = %g-%g, want 300-600 — the span is what a mixed document has instead of a DPI", lo, hi)
 	}
-	if rec.Renders[1].DPI != 350 {
+	if rec.Renders[1].DPI.Max() != 350 {
 		t.Error("the middle page's own resolution is not on its own row")
 	}
 }

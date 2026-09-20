@@ -60,7 +60,7 @@ func withEngine(t *testing.T, e PageEngine) {
 // render record binds them exactly as RenderPages would. DPI matters: the read path
 // refuses a page outside the 300-600 band its constants are derived over, so these
 // fixtures render inside it.
-func fakeRender(t *testing.T, run record.Run, sha string, pages [][]byte, dpi int) RenderRecord {
+func fakeRender(t *testing.T, run record.Run, sha string, pages [][]byte, dpi float64) RenderRecord {
 	t.Helper()
 	dir := PagesDir(run, sha)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -71,7 +71,7 @@ func fakeRender(t *testing.T, run record.Run, sha string, pages [][]byte, dpi in
 		if err := os.WriteFile(PagePath(run, sha, i+1), b, 0o644); err != nil {
 			t.Fatal(err)
 		}
-		rec.Renders = append(rec.Renders, PageRender{Sha: Sha(b), DPI: dpi})
+		rec.Renders = append(rec.Renders, PageRender{Sha: Sha(b), DPI: AtDPI(dpi), WidthPx: 1, HeightPx: 1})
 	}
 	b, err := json.MarshalIndent(rec, "", "  ")
 	if err != nil {
@@ -122,7 +122,7 @@ func TestAPageIsReadOnceAndTheRecordKeysTheEngine(t *testing.T) {
 	gotLo, gotHi := got.DPIRange()
 	wantLo, wantHi := rd.DPIRange()
 	if got.Engine != "fake@test" || got.ReadAt.IsZero() || gotLo != wantLo || gotHi != wantHi {
-		t.Errorf("re-derivation key incomplete: engine=%q readAt=%v dpi=%d-%d", got.Engine, got.ReadAt, gotLo, gotHi)
+		t.Errorf("re-derivation key incomplete: engine=%q readAt=%v dpi=%g-%g", got.Engine, got.ReadAt, gotLo, gotHi)
 	}
 	if len(got.RenderShas) != 1 || got.RenderShas[0] != rd.Renders[0].Sha {
 		t.Error("the reading does not name the exact images it read — a re-render would go unnoticed")

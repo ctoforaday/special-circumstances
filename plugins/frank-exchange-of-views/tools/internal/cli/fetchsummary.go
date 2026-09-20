@@ -77,10 +77,10 @@ type fetchSummary struct {
 	// TextCellPages counts those table pages rebuilt from the rules' own cells — a ruled table
 	// of TEXT, whose rows would otherwise arrive column by column with the row binding lost.
 	// A table page in neither count fell back to plain text, and the reading record says why.
-	TextCellPages int    `json:"text_cell_pages,omitempty"`
-	Engine        string `json:"engine,omitempty"`
-	DPILow        int    `json:"dpi_low,omitempty"`
-	DPIHigh       int    `json:"dpi_high,omitempty"`
+	TextCellPages int     `json:"text_cell_pages,omitempty"`
+	Engine        string  `json:"engine,omitempty"`
+	DPILow        float64 `json:"dpi_low,omitempty"`
+	DPIHigh       float64 `json:"dpi_high,omitempty"`
 }
 
 // applyReading folds the engine's reading of the page images into the summary.

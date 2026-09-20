@@ -1,0 +1,29 @@
+{
+  "slug": "gpo-record-threecolumn",
+  "source_url": "https://www.govinfo.gov/content/pkg/GPO-CRECB-1994-pt1/pdf/GPO-CRECB-1994-pt1-1-1.pdf",
+  "source_page": 9,
+  "publisher": "US Government Printing Office",
+  "date": "1994-01-25",
+  "rights": "us-government-work",
+  "rights_evidence": "US Government work, 17 U.S.C. 105 — Congressional Record, https://www.govinfo.gov/app/collection/CRECB",
+  "local_file_sha256": "2bdfd45e83fb3b3e4f59fc4516197c29110fbd62a4dc64dd95bb7b127f6980e0",
+  "page_sha256": "9de20dbd5c03f090a7176aad4e93744d62b811bccf2171069dfb12f9c6f6d6d7",
+  "text_objects_removed": 1443,
+  "added_at": "2026-09-20",
+  "defect_class": [
+    "low-resolution-scan",
+    "three-column",
+    "small-caps"
+  ],
+  "why": "A 152-DPI JPEG scan rendered UP to the 300 floor: three columns of dense text with small-caps names, the only page here that exercises the upsample path.",
+  "expect": {
+    "table": false,
+    "must_contain": [
+      "CONGRESSIONAL RECORD",
+      "CONSENSUS INTERIM HEALTH ACT",
+      "seismic retrofit",
+      "Santa Clarita",
+      "FEINSTEIN"
+    ]
+  }
+}

@@ -11,7 +11,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/tessocr"
 )
 
 // render-page: draw ONE page of a cached PDF, so a citation of OCR text can be checked against
@@ -44,14 +43,23 @@ func newRenderPage() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		path, renderSha, _, err := fetchcache.RenderOnePage(run, sha, body, page, tessocr.RenderDPI)
+		// AT THE RESOLUTION THE READING WAS MADE AT, NOT A CONSTANT. This verb exists so a lens can
+		// check a cited page against the pixels the quote came from, and that check is answered by
+		// comparing render shas. A scan is read at its own resolution (#1031) and now at its own
+		// exact pixel count (#1105), so rendering here at a fixed 300 made matches_reading false on
+		// every scanned page — the check reporting "these differ" for a document nobody had touched.
+		dpi, derr := fetchcache.PageRenderDPI(run, sha, body, page)
+		if derr != nil {
+			return nil, derr
+		}
+		path, renderSha, _, err := fetchcache.RenderOnePage(run, sha, body, page, dpi)
 		if errors.Is(err, fetchcache.ErrPageOutOfRange) {
 			return nil, feov.Errorf(feov.Validation, "lens render-page: %v", err)
 		}
 		if err != nil {
 			return nil, err
 		}
-		out := renderPageResult{Path: path, Page: page, DPI: tessocr.RenderDPI, RenderSha: renderSha, Reading: "none"}
+		out := renderPageResult{Path: path, Page: page, DPI: dpi.Max(), RenderSha: renderSha, Reading: "none"}
 		rec, had, err := fetchcache.ReadReadingRecord(run, sha)
 		if err != nil {
 			return nil, err
@@ -73,10 +81,10 @@ func newRenderPage() *cobra.Command {
 }
 
 type renderPageResult struct {
-	Path      string `json:"path"`
-	Page      int    `json:"page"`
-	DPI       int    `json:"dpi"`
-	RenderSha string `json:"render_sha"`
+	Path      string  `json:"path"`
+	Page      int     `json:"page"`
+	DPI       float64 `json:"dpi"`
+	RenderSha string  `json:"render_sha"`
 	// Reading is present or none: whether the tool holds an OCR reading of this document.
 	Reading          string `json:"reading"`
 	PageText         string `json:"page_text,omitempty"`
@@ -87,7 +95,7 @@ type renderPageResult struct {
 }
 
 func (r renderPageResult) Human() string {
-	s := fmt.Sprintf("page %d drawn at %d DPI: %s (sha256 %s)", r.Page, r.DPI, r.Path, r.RenderSha)
+	s := fmt.Sprintf("page %d drawn at %.2f DPI: %s (sha256 %s)", r.Page, r.DPI, r.Path, r.RenderSha)
 	if r.Reading == "none" {
 		return s + " — the tool holds no OCR reading of this document"
 	}
