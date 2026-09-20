@@ -157,7 +157,6 @@ Available Commands:
   help            Help about any command
   inquiry-support your one read per sitting of the report's account of its lines of inquiry — required before a PASS
   log             an entry for the operator who can retool you — what it asserts, said in the positive
-  manual          every command on your surface, each with its own help, run live — read it once, first thing in a sitting
   position        your sitting's position — the argument the other side answers, rendered as this sitting's RED section
   register        your first act at EVERY sitting, and the one call that needs your seat id — nothing else runs until it does
   spot-check      sample the closure archive — a duty every chair sitting owes, including the sittings with nothing to sample

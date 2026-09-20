@@ -28,6 +28,10 @@ const (
 	// Seat context, on the root as persistent flags.
 	Run    = "run"
 	SeatID = "seat-id"
+	// For names WHOSE surface to render, on the operator's `manual`. A seat cannot render its own
+	// — the verb is not on a seat surface, because the seat is handed what it prints — so the
+	// generator that writes a seat's constitution names the seat here.
+	For = "for"
 
 	// The event-schema epoch this binary writes, printed alone so `setup` can compare it
 	// with the plugin's without recovering a number from prose.
@@ -310,7 +314,7 @@ const (
 // and the CLI spoke a vocabulary this file did not describe.
 func All() []string {
 	return []string{
-		Run, SeatID, Schema, JSON,
+		Run, SeatID, For, Schema, JSON,
 		Reason,
 		ID, IDs, Areas, Key, Corrects, CorrectionWhy, Quote, New, Answers, Accept, URL, Title, Format, Window,
 		Sitting, Trajectory,
@@ -344,7 +348,7 @@ func All() []string {
 func ClosedForm(name string) bool { return closedForm[name] }
 
 var closedForm = map[string]bool{
-	Run: true, SeatID: true, ID: true, Key: true, Corrects: true, Class: true, Neighbor: true, Anchor: true,
+	Run: true, SeatID: true, For: true, ID: true, Key: true, Corrects: true, Class: true, Neighbor: true, Anchor: true,
 	Format: true, URL: true, At: true, Via: true, Script: true, VerifiedBy: true,
 	VerifiedAgainst: true, CarriedFrom: true, Sitting: true, Trajectory: true, Sha: true,
 	Model: true, JudgmentModel: true, Cite: true, Lanes: true, LensArea: true, LensAreaReason: true,

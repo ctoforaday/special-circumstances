@@ -186,7 +186,6 @@ Available Commands:
   finding      a defect in the TEXT, when the problem is the writing itself or there is nothing to go and fetch
   help         Help about any command
   log          an entry for the operator who can retool you — what it asserts, said in the positive
-  manual       every command on your surface, each with its own help, run live — read it once, first thing in a sitting
   mint         turn lens findings into a graded gap on the board, when a defect is real and belongs there
   near-match   screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
   register     your first act at EVERY sitting, and the one call that needs your seat id — nothing else runs until it does

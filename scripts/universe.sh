@@ -57,6 +57,18 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORKDIR="${WORKDIR:-$HOME/.claude/scratch/universe}"
 MARKETPLACE_NAME=special-circumstances
 PLUGINS=(prosthetic-conscience frank-exchange-of-views sleeper-service gray-area)
+# SMOKE IS THE DEFAULT, AND IT HAS TO BE SAID RATHER THAN IMPLIED.
+#
+# This script set the tiers and the lane count to smoke values and then left --mint-budget and
+# --k-max at the engine's defaults, so it produced something LABELLED a smoke in every log line
+# that was not one. Measured across two runs meant to be compared: the 2026-09-19 baseline ran
+# --mint-budget 1 --k-max 2 (launched --smoke by hand) and the 2026-09-20 run ran 5 and 6. Their
+# gap counts and epoch counts were then read as a result about the change under test.
+#
+# SMOKE=0 runs the development configuration, which is an order of magnitude more expensive and is
+# a deliberate act; either way the mode is printed beside the tiers, so a log says which experiment
+# it was.
+SMOKE="${SMOKE:-1}"
 MODEL="${MODEL:-haiku}"
 JUDGMENT_MODEL="${JUDGMENT_MODEL:-haiku}"
 LANES="${LANES:-1}"
@@ -442,7 +454,17 @@ cmd_run() {
   local out="$WORKDIR/run-$stamp.log"
 
   log "topic: $topic"
-  log "tiers: model=$MODEL judgment=$JUDGMENT_MODEL lanes=$LANES"
+  # --smoke SETS THE TIERS ITSELF, so asking for it alongside a different tier is two instructions
+  # and one of them has to lose silently. Refused instead: the operator says which experiment they
+  # meant. (Matching values are not a conflict — the defaults here ARE smoke's.)
+  smoke_flag=""
+  if [ "$SMOKE" = "1" ]; then
+    if [ "$MODEL" != "haiku" ] || [ "$JUDGMENT_MODEL" != "haiku" ] || [ "$LANES" != "1" ]; then
+      die "SMOKE=1 sets model=haiku judgment=haiku lanes=1 (and --mint-budget 1 --k-max 2), but this run asks for model=$MODEL judgment=$JUDGMENT_MODEL lanes=$LANES. Pass SMOKE=0 for the development configuration, or drop the overrides."
+    fi
+    smoke_flag=" --smoke"
+  fi
+  log "tiers: model=$MODEL judgment=$JUDGMENT_MODEL lanes=$LANES mode=$([ "$SMOKE" = "1" ] && echo smoke || echo development)"
   log "cwd:   $src"
   log "load at start: $(cut -d' ' -f1-3 /proc/loadavg)"
 
@@ -462,7 +484,7 @@ cmd_run() {
   #
   # 0 means wait indefinitely, which is what a run that is the whole point of the process needs.
   ( cd "$src" && CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0 claude -p \
-      "/frank-exchange-of-views:research $topic --model $MODEL --judgment-model $JUDGMENT_MODEL --lanes $LANES $*" \
+      "/frank-exchange-of-views:research $topic --model $MODEL --judgment-model $JUDGMENT_MODEL --lanes $LANES$smoke_flag $*" \
       --output-format stream-json --verbose --permission-mode "$PERMISSION_MODE" </dev/null ) \
     | python3 "$REPO/scripts/universe-stream.py" --raw "$raw" | tee "$out"
   # BOTH ARMS, because they fail differently and the second one is the one that matters. claude's

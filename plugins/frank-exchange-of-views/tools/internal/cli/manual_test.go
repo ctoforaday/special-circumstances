@@ -27,7 +27,7 @@ import (
 // to one grammar.
 func manualOf(t *testing.T, seatID string) (string, []diagnostics.ManualPage) {
 	t.Helper()
-	out, err := run(t, manualName, "--seat-id", seatID)
+	out, err := run(t, manualName, "--seat-id", "operator", "--for", seatID)
 	if err != nil {
 		t.Fatalf("manual on %s: %v\n%s", seatID, err, out)
 	}
@@ -303,7 +303,7 @@ func TestAManualPageThatFailsIsReportedNotSkipped(t *testing.T) {
 		return orig(argv)
 	}
 	seatID := record.SampleSeatOf("blue")
-	out, err := run(t, manualName, "--seat-id", seatID)
+	out, err := run(t, manualName, "--seat-id", "operator", "--for", seatID)
 	if err == nil || !strings.Contains(err.Error(), "1 of") || !strings.Contains(err.Error(), "cite") {
 		t.Fatalf("manual with one failing page returned %v — it must fail, naming the page", err)
 	}
@@ -327,7 +327,7 @@ func TestAManualPageThatFailsIsReportedNotSkipped(t *testing.T) {
 
 func TestManualRefusesJSONRatherThanIgnoringIt(t *testing.T) {
 	t.Parallel()
-	if _, err := run(t, manualName, "--seat-id", record.SampleSeatOf("bench"), "--json"); err == nil {
+	if _, err := run(t, manualName, "--seat-id", "operator", "--for", record.SampleSeatOf("bench"), "--json"); err == nil {
 		t.Error("manual --json succeeded — a flag that changes nothing must be refused, not dropped")
 	}
 }

@@ -44,20 +44,30 @@ const manualName = diagnostics.ManualCommand
 // as, exactly as every invocation resolves it — so seatID is captured at construction rather than
 // re-derived. It records nothing.
 func newManual(seatID string) *cobra.Command {
-	return &cobra.Command{
+	var forSeat string
+	c := &cobra.Command{
 		Use:   manualName,
-		Short: "every command on your surface, each with its own help, run live — read it once, first thing in a sitting",
+		Short: "render a surface's commands, each with its own help, run live — for generating a seat's constitution",
 		Long: manualName + " prints every command on this surface, in tree order, each under a header naming the command exactly, followed by the help that command prints. The help is produced now, by running this binary with that command and --help, so it cannot disagree with the tool you are running. It records nothing.\n\n" +
 			"It is lean on purpose. A block that repeats word for word on several pages — the flags every command inherits, a footer, a flag line several commands share — is printed ONCE, in a SHARED section before the first page, and each page carries a marker line ending `→ SHARED §n` where the block was. A group whose page only lists commands that have pages of their own is left out. Nothing a page said is lost: put each marked block back and you have that command's --help exactly.\n\n" +
 			"Before the pages it prints WORDS THIS SURFACE USES: each concept word your surface uses, defined once — the one word every page, prompt and constitution uses for that concept.\n\n" +
-			"Read it ONCE, at the start of a sitting and before you decide what to do: it is your whole surface in one call. The surface is your seat's — the seat you registered as, or the one this call names. A page whose help fails to run is printed with its error, never left out, and the command then exits non-zero.",
+			"THIS IS A GENERATOR'S COMMAND, NOT A SEAT'S. A seat does not run it and cannot: every command on a seat's surface, with this same help, is written into that seat's constitution by scripts/agentgen, so the seat is already holding what this prints. Pass --for <seat> to render a surface other than your own, which is how that generation is done. A page whose help fails to run is printed with its error, never left out, and the command then exits non-zero.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return printManual(cmd, seatID)
+			// --for RENDERS ANOTHER SEAT'S SURFACE, which is the whole reason this command still
+			// exists. Its readers are generators, not seats: scripts/agentgen writes each seat's
+			// surface into that seat's constitution, and it cannot ask the seat to render it —
+			// the seat has no `manual` to run.
+			if forSeat != "" {
+				return printManualFor(cmd, NewRootFor(forSeat), forSeat)
+			}
+			return printManualFor(cmd, cmd.Root(), seatID)
 		},
 	}
+	c.Flags().StringVar(&forSeat, flags.For, "", "render THIS seat's surface instead of your own — for generating a seat's documentation, since a seat cannot render its own")
+	return c
 }
 
 // leftOutOfManual says whether a command gets no page of its own: `manual` itself, and a GROUP
@@ -100,14 +110,13 @@ type manualPage struct {
 // printManual writes the manual: one line saying whose surface it is, how many commands it holds
 // and that it is lean on purpose, then the SHARED blocks, then the surface's own page and every
 // command's page in tree order.
-func printManual(cmd *cobra.Command, seatID string) error {
+func printManualFor(cmd *cobra.Command, root *cobra.Command, seatID string) error {
 	// NO JSON FORM, SAID RATHER THAN IGNORED. What this prints is help pages — text for a reader —
 	// and a --json that was quietly dropped would hand a machine consumer prose on a channel whose
 	// contract is that it parses.
 	if j, _ := cmd.Flags().GetBool(flags.JSON); j {
 		return feov.Errorf(feov.Validation, "%s: there is no JSON form — it prints help pages, which are text to read. Run it without the JSON flag", manualName)
 	}
-	root := cmd.Root()
 	// The surface's own page first: it carries what no command page does — what every inherited
 	// flag means, and the footer on what to do about a capability you cannot find.
 	pages := []manualPage{{}}

@@ -226,9 +226,19 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		root.Long = InvokedAs() + " — " + short + "\n" + seat.FrictionFooter
 		root.AddCommand(verbs...)
 		root.AddCommand(motion.NewCommandFor(role))
-		root.AddCommand(newFetch())        // a lens reads the EXACT bytes blue read, from the run cache
-		root.AddCommand(newCountClaims())  // blue's claim_count is defined as what this prints
-		root.AddCommand(newManual(seatID)) // every command's own help on THIS surface, in one call
+		root.AddCommand(newFetch())       // a lens reads the EXACT bytes blue read, from the run cache
+		root.AddCommand(newCountClaims()) // blue's claim_count is defined as what this prints
+		// `manual` IS NOT ON A SEAT'S SURFACE, because a seat is already holding what it prints.
+		//
+		// scripts/agentgen writes every command's help into the seat's own constitution, so the
+		// document arrives with the system prompt and costs no turns. Leaving the verb here left an
+		// affordance with no job: measured on the 2026-09-20 run, the chair ran `manual` twice while
+		// its constitution carried the same text, and piped both through `head` — ending up with
+		// LESS of its surface than it was already given. Removing the need did not remove the
+		// reaching; removing the verb does.
+		//
+		// It stays on the operator surface with --for, which is how a generator renders a seat's
+		// surface without being that seat.
 		// AFTER every AddCommand: the split reads HasSubCommands, so a group registered before
 		// its children were attached would file itself under the leaves.
 		seat.SplitGroups(root)
