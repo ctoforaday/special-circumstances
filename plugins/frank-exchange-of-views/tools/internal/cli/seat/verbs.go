@@ -251,7 +251,7 @@ var views = []struct {
 	{"debate", "WHAT EACH SIDE ARGUED, epoch by epoch — the transcript, in order. Written by `position`, `closing` and the bench's `motion docket rule`", "the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by `position`, `closing` and the bench's `motion docket rule`", "", false, record.DebateJSON{}},
 	{"changes", "HOW THE REPORT GOT THAT WAY — every edit in record order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by `edit`", "every recorded edit to the report (the blue_edit diff stack), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`", "", false, nil},
 	{"evidence", "WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading. Written by `cite`, `prove`, `verify` and `reproduce`", "WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` are the PDF pages the tool found its `ocr_quote` on: check it against one of those page images, not against the reading. Every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their confidence. THIS IS HOW YOU RESOLVE AN ANCHOR you are reading in the report. Written by `cite`, `prove`, `verify` and `reproduce`", "", true, record.EvidenceJSON{}},
-	{"lines-of-inquiry", "WHICH DIRECTIONS WERE TAKEN AND WHICH WERE NOT — pursued, deferred, declined, abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule`", "the exploration space: lines taken, deferred, declined and abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule` (red's ruling)", "", false, nil},
+	{"lines-of-inquiry", "WHICH DIRECTIONS WERE TAKEN AND WHICH WERE NOT — pursued, deferred, declined, abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule`", "the exploration space: lines taken, deferred, declined and abandoned, and the ones still undecided; --json gives the same lines with their types intact, each carrying the reason for its CURRENT status. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule` (red's ruling)", "", false, record.InquiriesJSON{}},
 	{"telemetry", "HOW THE NUMBERS MOVED ACROSS EPOCHS — a trend, not a snapshot: one line per epoch (chair sitting), and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it", "JSONL, one line per epoch (chair sitting): the trend the STOPPING judgment reads — the bench's signal for whether the findings are still changing character or merely recurring", "", true, view.TelemetryLineShape()},
 	{"scorecard", "YOUR SCORECARD ON THIS QUESTION — the numbers your seat is measured on, this run only. No selector: your scorecard follows from the seat you registered as. Computed from the record, so no verb fills it", "YOUR IN-RUN SCORECARD — the numbers your seat is measured on (red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench), computed live from this run's record; no selector, because your scorecard follows from the seat you registered as. A bad number means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures: a gamed diagnostic is itself a defect, and a detector firing is a finding. Rows reading \"not computed\" are HONEST, not gaps to fill: envelope-derived rows fill in at capture. --json gives the same rows with their types intact, a null value wherever a row is not computed. No verb fills it", "", false, scorecard.RowJSON{}},
 }
@@ -550,6 +550,19 @@ func renderView(cmd *cobra.Command, want string) error {
 		// being refused was the largest single source of failed commands in the 2026-09-20 run —
 		// 10 of 55, plus 7 more as seats fell back to grepping the rendered card. The card's rows
 		// were always structured; only the rendering was on offer.
+		// THE EXPLORATION SPACE IS STRUCTURED UNDERNEATH — InquiriesOf already folds it into typed
+		// lines; only the grouping-by-fate rendering was on offer.
+		case "lines-of-inquiry":
+			fam, err := record.FamilyOf(run)
+			if err != nil {
+				return err
+			}
+			b, err := json.MarshalIndent(record.InquiriesJSONOf(fam.Events), "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), string(b))
+			return nil
 		case "scorecard":
 			card, ok := record.ScorecardOf(role)
 			if !ok {
@@ -583,7 +596,7 @@ func renderView(cmd *cobra.Command, want string) error {
 			// THE SET IS NAMED, because a seat that is refused has to know where the line is. It is
 			// still a line, and #1088 argues it should not be: every reader of a seat's `show` is a
 			// machine, so prose-only views are the defect rather than the rule.
-			return fmt.Errorf("%s show: show %s has no --json form (debate and scorecard do; %s are JSON by name)",
+			return fmt.Errorf("%s show: show %s has no --json form (debate, scorecard and lines-of-inquiry do; %s are JSON by name)",
 				role, want, strings.Join(JSONByNameViews(), "/"))
 		}
 	}
