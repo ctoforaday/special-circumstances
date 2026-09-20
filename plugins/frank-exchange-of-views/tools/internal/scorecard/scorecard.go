@@ -910,3 +910,51 @@ func correctionsRow(fam *record.Family, parties ...string) Row {
 	}
 	return r
 }
+
+// RowJSON is one scorecard row as a machine reads it. The rendered card is prose for a human to
+// scan; this is the same rows with their types intact.
+//
+// WHY IT EXISTS. `show scorecard` had no structured form, and asking for one was the single largest
+// source of failed commands in the 2026-09-20 run: 10 of 55, with 7 more downstream as seats fell
+// back to grepping the rendered card or guessing at shapes. Every consumer of a seat's `show` is an
+// agent — the guidance tells them to pipe a projection into `jq` — so a view that answers only in
+// prose is a view they cannot use as instructed.
+type RowJSON struct {
+	Clause string `json:"clause"`
+	Metric string `json:"metric"`
+	Class  string `json:"class,omitempty"`
+	// Value is null exactly when the row is NOT COMPUTED, and Note then says why. A null here is
+	// an honest answer, never a missing field: see RenderCard, which prints the same rows as
+	// "not computed".
+	Value json.RawMessage `json:"value"`
+	Note  string          `json:"note,omitempty"`
+	Joint string          `json:"joint,omitempty"`
+}
+
+// CardJSON converts computed rows to their wire form.
+//
+// objJSON IS ALREADY JSON AND MUST NOT BE MARSHALLED AGAIN. It is a string type holding a rendered
+// object (citation yield by role, findings bucketed by role); json.Marshal would quote and escape
+// it, handing the reader a string that has to be parsed a second time to get at the numbers. It is
+// passed through as RawMessage instead, which is the one case that makes this function more than a
+// struct tag — and TestAnAlreadyJSONValuePassesThroughAsAnObject fails if it is lost.
+func CardJSON(rows []Row) ([]RowJSON, error) {
+	out := make([]RowJSON, 0, len(rows))
+	for _, r := range rows {
+		j := RowJSON{Clause: r.Clause, Metric: r.Metric, Class: r.Cls, Note: r.Note, Joint: r.Joint}
+		switch v := r.Value.(type) {
+		case nil:
+			j.Value = json.RawMessage("null")
+		case objJSON:
+			j.Value = json.RawMessage(v)
+		default:
+			b, err := json.Marshal(v)
+			if err != nil {
+				return nil, fmt.Errorf("scorecard row %q/%q: %w", r.Clause, r.Metric, err)
+			}
+			j.Value = b
+		}
+		out = append(out, j)
+	}
+	return out, nil
+}
