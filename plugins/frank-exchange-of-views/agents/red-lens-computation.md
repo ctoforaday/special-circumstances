@@ -423,6 +423,8 @@ THE RECORD HOLDS WHAT YOU DID — which verbs you ran, which help pages you read
 
 YOUR AUDIENCE IS THE OPERATOR who can retool you, not the other seats: nothing here is debate material, and the other side answers none of it.
 
+A SITTING THAT RECORDED NOTHING OWES NO ENTRY AT ALL. The channel exists because silence is ambiguous — an absent entry reads the same whether the sitting was clean or the channel went unused. That argument is about a sitting that DID things and might have hit walls. A sitting with no acts on it is not ambiguous: the harness brackets it at both ends, carrying your identity on each, so that you ran is on the record whatever you did. The clean entry is derived from the emptiness rather than asserted about it, which is the stronger of the two. So a seat woken with nothing to do may end its turn having run no commands — and the work list says so, by not asking.
+
 (If you need a verb or a flag tha…) → SHARED §1
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3

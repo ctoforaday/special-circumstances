@@ -3,6 +3,7 @@ package record
 import (
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -71,8 +72,8 @@ func TestEveryDispatchedAgentTypeIsAttestable(t *testing.T) {
 // EVERY ROLE A TYPE CLAIMS IS A ROLE THAT EXISTS. A typo'd role in the table is not a compile
 // error, and it would make the check pass every seat of that family forever.
 func TestEveryAttestedRoleIsARealRole(t *testing.T) {
-	for at, roles := range agentTypeRoles {
-		for _, r := range roles {
+	for at, a := range agentTypeRoles {
+		for _, r := range a.roles {
 			if _, ok := roleSeats[r]; !ok {
 				t.Errorf("agentTypeRoles[%q] admits role %q, which roleSeats does not define", at, r)
 			}
@@ -81,8 +82,8 @@ func TestEveryAttestedRoleIsARealRole(t *testing.T) {
 	// And every debating role is reachable from some attestation — otherwise a whole family
 	// registers unattested and nothing says so.
 	reachable := map[string]bool{}
-	for _, roles := range agentTypeRoles {
-		for _, r := range roles {
+	for _, a := range agentTypeRoles {
+		for _, r := range a.roles {
 			reachable[r] = true
 		}
 	}
@@ -128,5 +129,67 @@ func TestUnattestedAndUnknownTypesArePermitted(t *testing.T) {
 	}
 	if err := CheckAttestedRole("frank-exchange-of-views:some-future-seat", "red-chair"); err != nil {
 		t.Errorf("an unknown agent type was refused, which would break every run adding one: %v", err)
+	}
+}
+
+// A ONE-TO-ONE CONFIGURATION'S SEAT MUST BE A SEAT, OF ITS OWN ROLE, AND SPELLED THE SAME WAY.
+//
+// The `seat` field is what makes a no-op sitting free: where it is set, a `sitting_open` from the
+// hook identifies the seat with no command from the seat at all. A WRONG value there attributes one
+// seat's sitting to another, silently, because nothing else compares the two.
+//
+// PAIRING THIS AGAINST debate.js BY REGEX WAS TRIED AND REMOVED. `recordClause(...)` and
+// `agentType:` sit in different halves of a dispatch, so a span match runs past the end of one
+// site into the next: it paired red-chair's clause with the bench's type and reported the TABLE as
+// wrong. A bind that mis-reads its own input is worse than no bind, because its failure looks like
+// the thing it was watching for. The properties below need no source parsing, and the engine bind
+// that does exist — TestEveryDispatchedAgentTypeIsAttestable, plus roster.go's own
+// TestTheRosterMatchesWhatTheEngineActuallyDispatches — already hold the type set and the seat ids
+// to debate.js from their own ends.
+func TestAOneToOneAgentTypeNamesARealSeatOfItsOwnRole(t *testing.T) {
+	oneToOne := 0
+	for at, a := range agentTypeRoles {
+		if a.seat == "" {
+			continue
+		}
+		oneToOne++
+		// 1. It is a seat the engine could dispatch at all.
+		if !dispatchableSeatID(a.seat) {
+			t.Errorf("agentTypeRoles[%q].seat = %q, which requireDispatchableSeat refuses — a hook-derived "+
+				"sitting would name a seat that cannot register", at, a.seat)
+			continue
+		}
+		// 2. Its role is one this configuration may be seated as. This is the cross-check between
+		//    the two halves of the row, and it is what catches a seat pasted from the wrong line.
+		role := roleOfSeat(a.seat)
+		if !slices.Contains(a.roles, role) {
+			t.Errorf("agentTypeRoles[%q] seats %q (role %q) but admits roles %v — the row disagrees with itself",
+				at, a.seat, role, a.roles)
+		}
+		// 3. The two independently authored strings agree. This is an ASSERTION of agreement, not a
+		//    derivation: the seat is stored as a field precisely so it is not recovered from the type,
+		//    and this only refuses a row where the two have drifted apart.
+		if suffix := at[strings.LastIndex(at, ":")+1:]; suffix != a.seat && !strings.HasPrefix(suffix, "blue") && !strings.HasPrefix(suffix, "lead") {
+			t.Errorf("agentTypeRoles[%q] seats %q — the configuration name and the seat disagree, and one "+
+				"of them is a typo", at, a.seat)
+		}
+	}
+	if oneToOne < 7 {
+		t.Errorf("only %d one-to-one configuration(s) carry a seat; the seven lenses alone should — this "+
+			"test would pass on an empty table", oneToOne)
+	}
+}
+
+// AND THE AMBIGUOUS ROW IS AMBIGUOUS ON PURPOSE. blue-researcher seats blue-lane-N, blue-respond and
+// frontier, so nothing but the seat's own word says which registered. If that configuration is ever
+// split per seat, this test is the reminder that blue's no-op sittings become free too.
+func TestTheAmbiguousConfigurationIsNamedRatherThanForgotten(t *testing.T) {
+	a, ok := agentTypeRoles["frank-exchange-of-views:blue-researcher"]
+	if !ok {
+		t.Fatal("blue-researcher has no row at all")
+	}
+	if a.seat != "" {
+		t.Errorf("blue-researcher carries seat %q, but the engine dispatches blue-lane-N, blue-respond and "+
+			"frontier under it — a hook-derived sitting would attribute two of those three wrongly", a.seat)
 	}
 }

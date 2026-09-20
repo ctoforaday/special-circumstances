@@ -263,8 +263,13 @@ func dispatchLedger(evs []*Event, seq []int64) ([]dispatchRow, map[string][]int6
 	var ds []dispatchRow
 	registers := map[string][]int64{}
 	for i, e := range evs {
-		if opensASitting(e) {
-			registers[e.GetSeatId()] = append(registers[e.GetSeatId()], seq[i])
+		// A SITTING OPENS EITHER WAY, and the seat is whichever one this event opens a sitting for
+		// — the registering seat, or the seat a hook's sitting_open resolves to through its
+		// configuration. The second arm is how a no-op sitting costs nothing: every reader of "has
+		// this seat sat" comes through this map, so a hook-opened sitting satisfies the dispatch,
+		// the pin, the retirement fold and the work list without the seat running a command.
+		if seat, opens := SeatOpeningSitting(e); opens {
+			registers[seat] = append(registers[seat], seq[i])
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.Dispatch](e); ok {
 			ds = append(ds, dispatchRow{at: seq[i], pin: b.GetPin(), seat: b.GetSeatId(), gaps: b.GetGapIds()})

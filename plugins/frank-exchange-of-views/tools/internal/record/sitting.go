@@ -110,7 +110,18 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 	// was its own event type. It is now a `nominal` entry — an entry, not an absence — so any log
 	// event discharges the duty and the type says which case it was. The property is unchanged:
 	// an attested-clean sitting is still an EVENT, and still distinguishable from silence.
-	if !seatDidThisSitting(evs, seatID, recordpb.EventType_EVENT_TYPE_LOG) {
+	//
+	// A SITTING THAT RECORDED NOTHING IS ALREADY THE CLEAN CASE, AND SAYING SO COSTS A COMMAND FOR
+	// NO INFORMATION. The channel exists because silence is ambiguous — but that argument is about
+	// a sitting that DID things and might have hit walls. A sitting with no acts at all is not
+	// ambiguous: the hooks bracket it with sitting_open and sitting_close, both carrying the
+	// agent's id and type, so that the seat ran is on the record whatever it did. `nominal` there
+	// is derived from what happened rather than asserted about it, which is the stronger of the
+	// two (#1089).
+	//
+	// Measured across eight runs: 48% of wakeups recorded nothing and still cost as much as the
+	// productive ones — 46% of every command in the run.
+	if !seatDidThisSitting(evs, seatID, recordpb.EventType_EVENT_TYPE_LOG) && !sittingRecordedNothing(evs, seatID) {
 		add("the log is open — you have neither reported a missing capability nor said that nothing blocked you")
 	}
 
@@ -333,7 +344,7 @@ func seatDidThisSitting(evs []*Event, seatID string, typ recordpb.EventType) boo
 	live := Live(evs)
 	start := 0
 	for i, e := range live {
-		if e.GetSeatId() == seatID && opensASitting(e) {
+		if s, opens := SeatOpeningSitting(e); opens && s == seatID {
 			start = i
 		}
 	}
@@ -347,3 +358,43 @@ func seatDidThisSitting(evs []*Event, seatID string, typ recordpb.EventType) boo
 
 // gapsAwaitingProofOn is gone: the gap rows carry awaiting_proof off the view, the same join
 // the close gate reads, so the sitting and the gate cannot disagree about what is owed.
+
+// sittingRecordedNothing reports whether the seat's current sitting holds no ACTS — nothing but the
+// bookkeeping that brackets it.
+//
+// THE BOOKKEEPING IS NOT AN ACT. A register is the seat announcing itself, a log is the channel this
+// predicate exists to excuse, and sitting_open/sitting_close are the hooks' own. Counting any of
+// them would make every sitting look busy and the empty case unreachable.
+//
+// It reads the same window seatDidThisSitting does, so "this sitting" means one thing on this
+// surface: from the event that opened the seat's latest sitting — its register, or the hook's
+// sitting_open where the configuration names one seat — to the end of the record.
+func sittingRecordedNothing(evs []*Event, seatID string) bool {
+	live := Live(evs)
+	start := 0
+	opened := false
+	for i, e := range live {
+		if s, opens := SeatOpeningSitting(e); opens && s == seatID {
+			start, opened = i, true
+		}
+	}
+	if !opened {
+		// No sitting has opened for this seat at all, so there is no empty sitting to excuse —
+		// and saying "nothing recorded" here would discharge a duty the seat has not reached.
+		return false
+	}
+	for _, e := range live[start:] {
+		if e.GetSeatId() != seatID {
+			continue
+		}
+		switch e.GetType() {
+		case recordpb.EventType_EVENT_TYPE_REGISTER,
+			recordpb.EventType_EVENT_TYPE_LOG,
+			recordpb.EventType_EVENT_TYPE_SITTING_OPEN,
+			recordpb.EventType_EVENT_TYPE_SITTING_CLOSE:
+			continue
+		}
+		return false
+	}
+	return true
+}

@@ -98,7 +98,19 @@ log(`resolved tiers — bulk: ${model}, judgment: ${judgmentModel}`)
 
 // Friction must survive a mid-run throw (retrospective §3 row 24): the envelope copy feeds
 // this script's aggregate, the file copy survives an abort. Both, always.
-const frictionClause = (who, role) => ` LOG (${who}) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's log field. YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU, not the other seats: what you reached for, what it did, and what you wanted instead. Where you set an act aside as a JUDGEMENT rather than for want of occasion, give that one sentence — the record shows what you ran, never what you weighed and declined. Where nothing impeded the work, say that instead.`
+// THE EMPTY-SITTING AFFORDANCE IS STATED TO THE SEATS THAT HAVE IT, AND THE PROMPT CEILING IS WHY.
+// Measured across eight runs: of 96 sittings that recorded nothing, 93 were LENSES — the chair had
+// 0 of 42 and the bench 0 of 8. A lens is woken speculatively to look for a class of defect it may
+// not find; every other seat is dispatched to do a specific thing and nearly always does it. So the
+// sentence goes where it is true, rather than onto every prompt where it would cost bytes on every
+// turn of every sitting to tell the chair about a case it never reaches.
+//
+// THE MECHANICS ARE NOT HERE. How the tool derives the entry, and where the sitting is recorded
+// when the seat writes nothing, is the log verb's `--help` — which the constitution already
+// carries. TestNoSeatPromptGrowsPastItsCeiling asks exactly that question of new prompt text, and
+// it was right: the first draft of this put a refusal's mechanics in the prompt and pushed three
+// seats past their ceilings.
+const frictionClause = (who, role) => ` LOG (${who}) — CLOSE THIS CHANNEL BEFORE YOU FINISH${role === 'lens' ? ', UNLESS THIS SITTING RECORDED NOTHING AT ALL — then say so in the envelope and stop, having run no commands' : ''}: on the record, AND in the envelope's log field. YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU, not the other seats: what you reached for, what it did, and what you wanted instead. Where you set an act aside as a JUDGEMENT rather than for want of occasion, give that one sentence — the record shows what you ran, never what you weighed and declined. Where nothing impeded the work, say that instead.`
 
 // Wall-clock doctrine (run-4 forensics, 2026-07-17): 80% of run time is API rounds at ~24s
 // each, and the corpus showed ZERO batched tool calls — every peek paid a full round. A
