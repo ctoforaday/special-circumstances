@@ -81,3 +81,42 @@ func registerIsReadable(e *Event) bool {
 const openingRegistersOfSeatSQL = `SELECT reg."id" AS "id" FROM "events" reg
        LEFT JOIN "register" body ON body."event_id" = reg."id"
       WHERE reg."seat_id" = ? AND reg."type" = 'register' AND body."repairs_sitting" IS NULL`
+
+// SeatOpeningSitting is the seat whose sitting this event opens, and whether it opens one.
+//
+// TWO WAYS A SITTING OPENS, AND ONE OF THEM COSTS THE SEAT NOTHING.
+//
+//   - a REGISTER, which the seat types. The seat says who it is, and the record has always taken
+//     its word here and then held it to it.
+//   - a hook's SITTING_OPEN, where the configuration it names is dispatched as exactly one seat.
+//     The SubagentStart hook writes it with no command from the seat at all, and `agent_type` is a
+//     fact the seat cannot state or withhold — so for those configurations the record knows WHO
+//     SAT before the seat has done anything.
+//
+// That second arm is what makes a no-op sitting free. A lens woken with nothing to do had to run
+// `register` and `log --type nominal` to make its sitting exist and close the log channel; measured
+// across eight runs, 48% of wakeups recorded nothing and still cost as much as the productive ones.
+// Both of those writes restate what the hooks already captured at both ends of the sitting.
+//
+// THE SEAT ID IS NOT ON THE HOOK'S EVENT. It carries `harness`, because the hook cannot know which
+// seat an agent was dispatched as — only which CONFIGURATION. SeatOfAgentType is the join, and it
+// answers only where the configuration seats exactly one seat: `blue-researcher` covers
+// blue-lane-N, blue-respond and frontier, so blue keeps paying for its own register and says so.
+//
+// AN UNKNOWN CONFIGURATION OPENS NOTHING, which is also the safe answer for the hazard the run
+// harness has anyway: while `.claude/run-live.json` names a run, SubagentStart attributes every
+// subagent in that project to it, a dev session's included. A type this table has not been taught
+// resolves to no seat and is ignored rather than forging a sitting.
+func SeatOpeningSitting(e *Event) (string, bool) {
+	if opensASitting(e) {
+		return e.GetSeatId(), true
+	}
+	if e.GetType() != recordpb.EventType_EVENT_TYPE_SITTING_OPEN {
+		return "", false
+	}
+	b, ok := recordpb.BodyAs[*recordpb.SittingOpen](e)
+	if !ok {
+		return "", false
+	}
+	return SeatOfAgentType(b.GetAgentType())
+}

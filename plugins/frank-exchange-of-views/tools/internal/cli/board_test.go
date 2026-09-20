@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -248,3 +249,48 @@ func TestBoardCountsCiteEvents(t *testing.T) {
 // What survives is the write-path refusal, which has its own test: the CLI answers a `--id` naming
 // no mint with a message that says so. This one is deleted rather than pinned to a permanent zero,
 // because a green anomaly check for an anomaly that cannot occur reads as evidence and is not.
+
+// EVERY GAP ARRIVES WITH ITS PASSAGE, so an auditor is not made to render the report to find out
+// whether the dispute survives its surroundings (#1091).
+//
+// This is the end-to-end half: the board a seat actually reads, through the real command, off a
+// real ingested report. The unit tests in internal/record cover the section arithmetic; what this
+// asserts is that the field is POPULATED on the way out — a passage computed and dropped before the
+// seat sees it would pass every one of those and change nothing.
+func TestAGapOnTheBoardCarriesItsPassageInContext(t *testing.T) {
+	runDir := seatRun(t)
+	registerChairOnce(t, runDir)
+	registerLensOnce(t, runDir)
+	// Minted with a --quote, because the quote IS the location a passage is built around. mintGap's
+	// key is a mint key, not a location, so a gap minted through it has nothing to locate.
+	out, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+		"--quote", "§2 the finding prose lands in a quoted sentence.",
+		"--class", "scope-creep", "--problem", "the defect", "--fix", "the fix",
+		"--check-kind", "document", "--check", "the acceptance check red runs at re-audit",
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low")
+	if err != nil {
+		t.Fatalf("mint with a quote: %v\n%s", err, out)
+	}
+
+	b := board(t, runDir, "red-chair")
+	if len(b.Open) != 1 {
+		t.Fatalf("open = %v, want the one gap just minted", ids(b.Open))
+	}
+	p, _ := b.Open[0]["passage"].(string)
+	if p == "" {
+		t.Fatal("the gap carries no passage, so its auditor must render the whole report to read " +
+			"the sentence in context — which is 34% of every byte read in a measured run")
+	}
+	// IT IS THE SECTION, not the sentence back again: the heading is what tells an auditor where it
+	// is looking, and a passage equal to the quote would have saved nothing.
+	if !strings.Contains(p, "# §2") {
+		t.Errorf("the passage does not carry its own heading:\n%s", p)
+	}
+	if !strings.Contains(p, "quoted sentence") {
+		t.Errorf("the passage does not contain the challenged sentence:\n%s", p)
+	}
+	// AND IT STOPS AT ITS OWN SECTION. A passage that runs to the end of the report is the report.
+	if strings.Contains(p, "§3") || strings.Contains(p, "§1 first") {
+		t.Errorf("the passage spills into neighbouring sections, so it is the report under another name:\n%s", p)
+	}
+}

@@ -863,7 +863,32 @@ SELECT
   SUM(t."cache_creation")                                  AS "cache_creation",
   MIN(NULLIF(t."ts_ms", 0))                                AS "first_ts_ms",
   MAX(NULLIF(t."ts_ms", 0))                                AS "last_ts_ms",
-  MAX(NULLIF(t."ts_ms", 0)) - MIN(NULLIF(t."ts_ms", 0))    AS "wall_ms"
+  MAX(NULLIF(t."ts_ms", 0)) - MIN(NULLIF(t."ts_ms", 0))    AS "wall_ms",
+  -- WHAT THE SITTING BOUGHT, so its cost can be read against it.
+  --
+  -- turns, tool_turns and wall_ms say what a sitting SPENT. None of them says whether it
+  -- produced anything, and without that a reader cannot tell a hard sitting from a wasteful one:
+  -- chair time confounds task complexity with efficiency, and comparing two runs on duration
+  -- alone credits or blames the engine for a question that simply got easier.
+  --
+  -- With this column the decomposition is readable off one row:
+  --   tool_turns / acts   calls per recorded act — the part the engine's design controls
+  --   wall_ms / tool_turns   time per call — mostly the environment (model, box, cache)
+  --   acts = 0            an EMPTY sitting, which has no task complexity in it at all, so its
+  --                       cost is pure overhead and needs no normalising
+  --
+  -- BOOKKEEPING IS NOT AN ACT. register announces the seat, log is the channel a sitting closes,
+  -- and sitting_open/sitting_close are the harness's own brackets — counting any of them would
+  -- make every sitting look productive and the empty case unreachable, which is the plausible
+  -- zero this column exists to remove.
+  --
+  -- SCOPED TO THE SITTING, not the run: events_w carries the sitting ordinal and seat_of_agent
+  -- carries this agent's, so the count is what THIS sitting recorded rather than what the seat
+  -- has ever recorded. A seat's second sitting borrowing its first one's acts is the same
+  -- defect the work list had before duties were made per-sitting.
+  (SELECT COUNT(*) FROM "events_w" ew
+     WHERE ew."seat_id" = s."seat_id" AND ew."sitting" = s."sitting"
+       AND ew."type" NOT IN ('register','log','sitting_open','sitting_close'))  AS "acts"
 FROM "seat_turn" t
 LEFT JOIN "seat_of_agent" s ON s."agent_id" = t."agent_id"
 GROUP BY t."agent_id";
