@@ -86,7 +86,7 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synthesize"}, ""); err != nil {
+	if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synthesize"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	// The report is the record projection (#709): ingest the body so AssembleAll can render it. The

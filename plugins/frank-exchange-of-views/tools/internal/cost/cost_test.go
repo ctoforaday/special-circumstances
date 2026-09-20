@@ -57,9 +57,12 @@ func TestScanTranscript(t *testing.T) {
 		t.Errorf("epoch = %d from a bare transcript, want 0 — the scan must not scrape it from the prompt head", r.Epoch)
 	}
 	// No usage at all still produces a row; no model → dearest tier.
+	// The head names the SEAT, and the bench's four heads all name `judge`. Which of its four
+	// sittings this was is the register's occasion, bound by the caller — the scan must not
+	// invent one, exactly as it must not scrape the epoch.
 	bare := ScanTranscript(`{"message":{"role":"user","content":"Final assembly"}}`)
-	if bare.Seat != "assemble" || bare.Turns != 0 || bare.Cost != 0 || bare.T != "fable" {
-		t.Errorf("bare = %+v (want assemble, 0 turns, $0, fable)", bare)
+	if bare.Seat != "judge" || bare.Occasion != "" || bare.Turns != 0 || bare.Cost != 0 || bare.T != "fable" {
+		t.Errorf("bare = %+v (want judge, no occasion, 0 turns, $0, fable)", bare)
 	}
 	// The model is remembered across turns: a later usage record without a model belongs to
 	// the model already seen, not the unknown-model fallback.

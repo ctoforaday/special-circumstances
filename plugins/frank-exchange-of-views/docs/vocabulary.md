@@ -44,6 +44,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [disposition](#disposition) | lens, chair, blue, bench, operator |
 | [grade motion](#grade-motion) | lens, chair, blue, bench, operator |
 | [scorecard](#scorecard) | lens, chair, blue, bench, operator |
+| [occasion](#occasion) | bench |
 
 ## the report
 
@@ -481,3 +482,21 @@ A scorecard is the numbers a seat is measured on, computed from the record: red'
 **Collisions:**
 
 - **card** — a card is one of the three scorecards, red, blue or bench, and nothing else
+
+## occasion
+
+A sitting's occasion is what it was convened to do — the question put to the seat, as against the seat id, which says who was asked — and only the bench carries one, because its four sittings share a single id.
+
+**Delivered to:** bench
+
+**Not:**
+
+| variant | kind | pattern | masks | allowed in |
+|---|---|---|---|---|
+| sitting kind | GATED | `sitting[- ]kinds?\b` |  |  |
+| sitting type | GATED | `sitting[- ]types?\b` |  |  |
+| bench mode | REGISTRY-ONLY |  |  |  |
+
+**Collisions:**
+
+- **occasion (ordinary English)** — "for want of occasion" in the friction channel is the plain word and keeps it; the FIELD is the one a bench register carries

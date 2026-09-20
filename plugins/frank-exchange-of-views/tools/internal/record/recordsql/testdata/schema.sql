@@ -91,6 +91,15 @@ INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('spot_check'
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('verdict', 'the chair''s verdict for its epoch: PASS or FAIL against the open board', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('verify', 'a citation checked at the leaf: what the source did for the claim, and how sure the reader is', 'none');
 
+CREATE TABLE "enum_occasion" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_occasion" ("value", "means") VALUES ('assemble', 'assembling the final report by union-copy. The last step of the run');
+INSERT INTO "enum_occasion" ("value", "means") VALUES ('docket', 'ruling the docket: the gaps that reached impasse and were docketed for adjudication. The chair dispatches this sitting');
+INSERT INTO "enum_occasion" ("value", "means") VALUES ('petition', 'hearing a petition filed by a seat, before the debate continues. The engine convenes it the moment one is filed');
+INSERT INTO "enum_occasion" ("value", "means") VALUES ('terminal', 'the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here');
+
 CREATE TABLE "enum_verdict" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
@@ -294,7 +303,9 @@ CREATE TABLE "register" (
   "agent_id" TEXT,
   "run_via" TEXT,
   "agent_type" TEXT,
-  "repairs_sitting" TEXT
+  "repairs_sitting" TEXT,
+  "occasion" TEXT,
+  FOREIGN KEY ("occasion") REFERENCES "enum_occasion"("value")
 ) STRICT;
 
 CREATE TABLE "gate" (

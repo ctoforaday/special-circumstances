@@ -1685,6 +1685,29 @@ message MotionAppeal {
   optional string reason = 3 [(prose) = true];
 }
 
+// Occasion is WHAT A SITTING WAS CONVENED TO DO — the question put to the seat, as against the
+// seat's identity, which says who was asked.
+//
+// The two were one thing until the bench collapsed to a single seat. `judge-terminal`,
+// `judge-petition-<petitioner>` and `assemble` were separate ids, so the id answered both
+// questions at once — and made a petition's FILER part of who answered it, which is why the
+// collapse was right. What the collapse did not do was give the question somewhere else to live,
+// so four bench sittings a run archive as `judge`, `judge`, `judge`, `judge`.
+//
+// It was recoverable only by matching the first words of the seat's PROMPT — a fact composed into
+// prose at one end and pulled back out by `strings.Contains` at the other. That read has already
+// returned the wrong answer once: the kinds were deleted along with the seat ids, the dashboard's
+// `Seat == "assemble"` comparisons became unsatisfiable, and every FINISHED run reported "running"
+// forever on the engine's own instrument, while the assembly's spend merged into a docket ruling's
+// row.
+enum Occasion {
+  OCCASION_UNSPECIFIED = 0;
+  OCCASION_DOCKET = 1 [(means) = "ruling the docket: the gaps that reached impasse and were docketed for adjudication. The chair dispatches this sitting"];
+  OCCASION_PETITION = 2 [(means) = "hearing a petition filed by a seat, before the debate continues. The engine convenes it the moment one is filed"];
+  OCCASION_TERMINAL = 3 [(means) = "the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here"];
+  OCCASION_ASSEMBLE = 4 [(means) = "assembling the final report by union-copy. The last step of the run"];
+}
+
 // Register is every seat's FIRST record action, and the only event Append does not write —
 // RegisterSeat mints it directly, rotating the nonce so a re-dispatched seat writes its own
 // shard and the stale instance's shard stays inert.
@@ -1794,6 +1817,24 @@ message Register {
   //
   // ABSENT is a register that opens a sitting of its own.
   optional string repairs_sitting = 8;
+
+  // WHAT THIS SITTING WAS CONVENED TO DO, where the seat id does not already say.
+  //
+  // RECORDED WHERE IT IS NOT DERIVABLE, AND NOWHERE ELSE. For every seat but the bench, seat id
+  // determines the occasion — a lens sitting audits, a lane researches — so a field there would
+  // store a derivation the record already holds, which is its own defect. The bench is the one
+  // seat whose id stopped determining its question, so the bench is where the question is
+  // recorded. If another seat ever collapses the same way, this field is where its occasion goes.
+  //
+  // REFUSED IN BOTH DIRECTIONS, which is what makes it a fact rather than a hint: the bench MUST
+  // supply one, and any other seat supplying one is refused. Without the second half an occasion
+  // could be asserted anywhere and mean nothing.
+  //
+  // ABSENT ON A BENCH REGISTER IS NOT A DEFAULT. It is a record written before this field existed,
+  // and it stays legible as NOT MEASURED — never "probably a docket ruling". That distinction is
+  // the whole point: `dispatch-parity` reported the bench's own sitting NOT MEASURED rather than
+  // passing it, and a guess here would have turned that honest refusal into a quiet pass.
+  optional Occasion occasion = 9;
 }
 
 // SittingOpen and SittingClose are the two ends of ONE DISPATCH of one harness agent, each

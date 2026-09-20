@@ -30,7 +30,7 @@ import (
 func TestAnOutcomeWithoutAVerdictIsRefused(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	id := Identity{Run: mustRun(t, runDir), SeatID: "judge"}
-	if _, _, err := RegisterSeat(id, ""); err != nil {
+	if _, _, err := RegisterSeat(id, "", "docket"); err != nil {
 		t.Fatal(err)
 	}
 

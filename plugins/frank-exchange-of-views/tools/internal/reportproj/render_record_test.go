@@ -20,7 +20,7 @@ func ident(t *testing.T, runDir, seat string) record.Identity {
 func TestRenderFromRecordFoldsBasePlusDiffStack(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	for _, s := range []string{"blue-synthesize", "blue-respond"} {
-		if _, _, err := record.RegisterSeat(ident(t, runDir, s), ""); err != nil {
+		if _, _, err := record.RegisterSeat(ident(t, runDir, s), "", ""); err != nil {
 			t.Fatalf("register %s: %v", s, err)
 		}
 	}
@@ -68,7 +68,7 @@ func renderOneEdit(t *testing.T, base string, be *recordpb.BlueEdit) string {
 	t.Helper()
 	runDir := recordtest.TmpRun(t)
 	for _, s := range []string{"blue-synthesize", "blue-respond"} {
-		if _, _, err := record.RegisterSeat(ident(t, runDir, s), ""); err != nil {
+		if _, _, err := record.RegisterSeat(ident(t, runDir, s), "", ""); err != nil {
 			t.Fatalf("register %s: %v", s, err)
 		}
 	}

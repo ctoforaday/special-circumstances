@@ -31,7 +31,7 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
-$ register --run {RUN} --seat-id judge
+$ register --run {RUN} --seat-id judge --occasion docket
 exit 0
 stdout:
 registered judge
@@ -152,7 +152,7 @@ outcome recorded: UNVERIFIED (asserted) [key judge:outcome:#1~1]
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
 {"key":"blue-respond:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":4,"type":"EVENT_TYPE_REGISTER"}
-{"key":"judge:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":5,"type":"EVENT_TYPE_REGISTER"}
+{"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":5,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:mint:G1","mint":{"acceptance_check":"a","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"fix_basis":"proposed","gap_id":"G1","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"the first gap","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_MINT"}
 {"key":"red-lens-evidence:mint:G2","mint":{"acceptance_check":"b","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"fix_basis":"proposed","gap_id":"G2","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"the second gap","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_MINT"}
 {"key":"blue-respond:manifest_row:#1:G1","manifest_row":{"gap_id":"G1","row":"G1 is reproducible via "},"seat_id":"blue-respond","ts":8,"type":"EVENT_TYPE_MANIFEST_ROW"}

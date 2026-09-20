@@ -150,7 +150,7 @@ func TestRegisterSeatRejectsMalformedSeatIDs(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := newRun(t)
-			_, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: tc.id}, "")
+			_, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: tc.id}, "", "")
 			if err == nil {
 				t.Fatalf("RegisterSeat accepted %q — the id becomes a FILENAME", tc.id)
 			}
@@ -171,13 +171,16 @@ func TestRegisterSeatRejectsMalformedSeatIDs(t *testing.T) {
 }
 
 func TestRegisterSeatAcceptsTheEngineAssignedShapes(t *testing.T) {
-	for _, id := range []string{
-		"red-lens-evidence", "red-chair", "blue-lane-3", "blue-respond", "blue-synthesize",
-		"frontier", "judge", "operator",
+	// The bench is the one seat that owes an OCCASION — its id is the same for four different
+	// sittings — so its row carries one and every other row is empty. A blank here for `judge`
+	// would be refused, which is the point of the field rather than a wrinkle in this test.
+	for _, c := range []struct{ id, occasion string }{
+		{"red-lens-evidence", ""}, {"red-chair", ""}, {"blue-lane-3", ""}, {"blue-respond", ""},
+		{"blue-synthesize", ""}, {"frontier", ""}, {"judge", "docket"}, {"operator", ""},
 	} {
 		runDir := newRun(t)
-		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: id}, ""); err != nil {
-			t.Errorf("RegisterSeat(%q) = %v, want accepted", id, err)
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: c.id}, "", c.occasion); err != nil {
+			t.Errorf("RegisterSeat(%q, occasion %q) = %v, want accepted", c.id, c.occasion, err)
 		}
 	}
 }
@@ -200,7 +203,7 @@ func TestRegisterSeatRefusesAnIdNoDispatchProduces(t *testing.T) {
 		"Red-Merge-R1",                  // the right shape in the wrong case
 	} {
 		runDir := newRun(t)
-		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: id}, ""); err == nil {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: id}, "", ""); err == nil {
 			t.Errorf("RegisterSeat(%q) was accepted; it binds for the whole run and no dispatch created it", id)
 		}
 	}
@@ -335,7 +338,7 @@ func TestConcurrentWriteAtomicNeverPublishesAPartialFile(t *testing.T) {
 func TestReleaseHeldLocksIsSafeWhenNothingIsHeld(t *testing.T) {
 	releaseHeldLocks()
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	releaseHeldLocks()

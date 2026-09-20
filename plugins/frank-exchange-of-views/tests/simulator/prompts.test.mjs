@@ -140,6 +140,21 @@ test('seat prompt goldens: every seat class carries exactly its recorded contrac
   await captureSeats(await fullRun())
 })
 
+// THE FOURTH BENCH SITTING, WHICH NOTHING PINNED. The comment on the SEATS table said the bench is
+// "one seat asked four questions" and listed three: the petition sitting fires only when a petition
+// is filed, so the full run never reaches it and it had no golden at all. It carries its own OCCASION
+// like the other three, and a prompt nothing pins is a prompt whose clauses can move unobserved.
+test('the petition sitting prompt carries exactly its recorded contract', async () => {
+  const world = makeWorld(makeResponder({
+    chair: [chairEnv({ plan: plan([party('blue-respond', 'G1')]), petitions: [{ class: 'ethical', ask: 'x', relief: 'narrow' }] }), passChair()],
+  }))
+  await world.run(script, ARGS)
+  const call = world.calls.find((c) => c.opts.label.startsWith('judge · petition'))
+  assert.ok(call, 'no petition sitting was dispatched — the bench was never asked this question')
+  assertLossless('judge-petition', call.prompt)
+  assertGolden(import.meta.url, 'prompt-judge-petition', goldenBody(call.prompt))
+})
+
 // THE SITTING-RECORD REPAIR IS A SEAT PROMPT TOO. It is dispatched only when a sitting did not attest
 // its record, so the full run never reaches it; this run does, and the golden holds the act it names
 // — registering as the repair of the last sitting — where the prompt-naming check reads every golden.

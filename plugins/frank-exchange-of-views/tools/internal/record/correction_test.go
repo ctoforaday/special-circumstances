@@ -23,7 +23,13 @@ func corrRun(t *testing.T) Run {
 func sit(t *testing.T, run Run, seat string) Identity {
 	t.Helper()
 	id := Identity{Run: run, SeatID: seat}
-	if _, _, err := RegisterSeat(id, ""); err != nil {
+	// The bench owes an OCCASION and no other seat may pass one, so this helper asks the same
+	// question the write path does rather than carrying a list of which seats are the bench.
+	occasion := ""
+	if SeatOwesOccasion(seat) {
+		occasion = "docket"
+	}
+	if _, _, err := RegisterSeat(id, "", occasion); err != nil {
 		t.Fatal(err)
 	}
 	return id

@@ -24,10 +24,10 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 
 	// Two registers under one agent id: the binding is the most recent claim.
 	t.Setenv(seatenv.AgentVar, "agent-007")
-	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "red-chair"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "blue-respond"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "blue-respond"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if seat, found, err := SeatOfAgent(run, "agent-007"); err != nil || !found || seat != "blue-respond" {
@@ -88,7 +88,7 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 
 	// A new EPOCH does NOT restart the counter — ids are run-global, so the chair sitting again
 	// changes nothing about the next id.
-	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "red-chair"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if id, err := MintGapID(run); err != nil || id != "G3" {

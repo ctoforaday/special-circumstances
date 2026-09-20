@@ -61,7 +61,7 @@ func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 // offers it exactly where a seat that cannot produce an anchor will read it.
 func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	id, err := MintGapID(mustRun(t, runDir))
@@ -98,7 +98,7 @@ func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
 // And a GENUINE carry still works: close once with an anchor, then restate it.
 func TestAGenuineCarryIsStillAccepted(t *testing.T) {
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	id, err := MintGapID(mustRun(t, runDir))
@@ -168,7 +168,7 @@ func TestMintRequiresTheGradesThatMultiplyIntoMass(t *testing.T) {
 func TestARulingsReferentDependsOnItsSubject(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	id := Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}
-	if _, _, err := RegisterSeat(id, ""); err != nil {
+	if _, _, err := RegisterSeat(id, "", ""); err != nil {
 		t.Fatal(err)
 	}
 

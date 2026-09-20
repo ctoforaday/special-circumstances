@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -89,7 +90,11 @@ func recordOnce(t *testing.T, seatID string, args []string, prose string) string
 	// position, and a position is once per SITTING — so this register is what makes the act legal:
 	// a new register is a new sitting, which is exactly what a re-dispatched seat does. (It used to
 	// dodge the collision by acting as red-chair-r2, a second seat; there is one chair now.)
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", seatID); err != nil {
+	regArgs := []string{"register", "--run", runDir, "--seat-id", seatID}
+	if record.SeatOwesOccasion(seatID) { // the bench alone owes one; nobody else may pass one
+		regArgs = append(regArgs, "--occasion", "docket")
+	}
+	if _, err := run(t, regArgs...); err != nil {
 		t.Fatalf("register %s: %v", seatID, err)
 	}
 	full := append(append([]string{}, args...), "--run", runDir, "--seat-id", seatID, "--reason", prose)

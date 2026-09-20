@@ -59,7 +59,7 @@ func TestAStopTheHookRecordsClosesTheSittingItsAgentRegistered(t *testing.T) {
 		t.Helper()
 		identityFromTheRewrite(t, runDir, agentID, agentType)
 		id := record.Identity{Run: run, SeatID: seat}
-		if _, _, err := record.RegisterSeat(id, string(seatenv.RunFromEnv)); err != nil {
+		if _, _, err := record.RegisterSeat(id, string(seatenv.RunFromEnv), ""); err != nil {
 			t.Fatalf("%s registering as agent %s: %v", seat, agentID, err)
 		}
 		if acts != nil {

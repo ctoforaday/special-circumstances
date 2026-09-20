@@ -68,7 +68,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 		run := runtest.Open(t, runDir)
 		id := record.Identity{Run: run, SeatID: seatID}
 		if !seen[seatID] {
-			if _, _, err := record.RegisterSeat(id, ""); err != nil {
+			if _, _, err := record.RegisterSeat(id, "", benchOccasion(id.SeatID)); err != nil {
 				t.Fatalf("register %s: %v", seatID, err)
 			}
 			seen[seatID] = true

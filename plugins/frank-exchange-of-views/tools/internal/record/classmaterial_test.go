@@ -24,7 +24,7 @@ func liveRegistryRun(t *testing.T, defaults map[string]recordpb.ClassMaterial) (
 		t.Fatal(err)
 	}
 	lens := Identity{Run: run, SeatID: evLens}
-	if _, _, err := RegisterSeat(lens, ""); err != nil {
+	if _, _, err := RegisterSeat(lens, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	return run, lens
@@ -173,7 +173,7 @@ func TestStageForRunWritesByGrade(t *testing.T) {
 		}
 	}
 	lens := Identity{Run: run, SeatID: evLens}
-	if _, _, err := RegisterSeat(lens, ""); err != nil {
+	if _, _, err := RegisterSeat(lens, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	appendOK(t, lens, liveMint("G1", "a", recordpb.Grade_GRADE_LOW))

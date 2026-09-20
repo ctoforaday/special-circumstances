@@ -38,6 +38,21 @@ import (
 // Register is the register every red seat and the bench mounts.
 func Register() *cobra.Command { return NewKeyed("register", "register", register) }
 
+// BenchRegister is the bench's register: the same act, and the one seat whose id does not say what
+// the sitting is for. The bench is asked four different questions under one id — rule the docket,
+// hear a petition, dispose at the exit, assemble the report — so it alone names the occasion, and
+// the record refuses a bench register without one.
+//
+// The flag is on THIS surface only, never on a lens's or blue's and always refused there. That is
+// the same choice --repair-sitting makes one comment down, for the same reason: a flag a seat can
+// see and never legitimately use is an invitation to try it.
+func BenchRegister() *cobra.Command {
+	c := NewKeyed("register", "register-bench", register)
+	enumhelp.Flag(c, flags.Occasion, record.MustEnum("register", "occasion"),
+		"REQUIRED — what this sitting was convened to do. Your prompt says which; this is where it reaches the record, and once the run is archived it is the only thing telling your four sittings apart")
+	return c
+}
+
 // BlueRegister is blue's register: the same act, and the one seat family whose sitting owes a
 // position or a revision the engine re-prompts for — so it alone carries the repair. A lens, the
 // chair or the bench has no such re-prompt, so the flag is not on their surface at all rather than
@@ -55,7 +70,9 @@ func register(s Context, cmd *cobra.Command) (Result, error) {
 	if repair, _ := cmd.Flags().GetBool(flags.RepairSitting); repair { // absent on every surface but blue's: false
 		dispatch, repairs, err = record.RegisterRepair(s.Identity(), string(s.RunVia))
 	} else {
-		dispatch, _, err = record.RegisterSeat(s.Identity(), string(s.RunVia))
+		// Absent on every surface but the bench's, where the record REQUIRES it: Str reads "" and
+		// checkOccasion refuses that for a bench seat and accepts it for everyone else.
+		dispatch, _, err = record.RegisterSeat(s.Identity(), string(s.RunVia), Str(cmd, flags.Occasion))
 	}
 	if err != nil {
 		return nil, err

@@ -17,7 +17,7 @@ func TestACorrectedLogIsReadOnceAndIsNotAVerb(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	run := runtest.Open(t, runDir)
 	id := record.Identity{Run: run, SeatID: "blue-respond"}
-	if _, _, err := record.RegisterSeat(id, ""); err != nil {
+	if _, _, err := record.RegisterSeat(id, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	entry := func(text string) *recordpb.Log {
