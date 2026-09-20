@@ -370,6 +370,22 @@ var closedForm = map[string]bool{
 // LIMIT, stated because it is easy to over-trust this: the map is GLOBAL and payload keys
 // are NOT globally unique. A caller on a verb-specific key needs a per-verb lookup, not
 // another line here — adding one would make this function quietly wrong for the other verb.
+// FlagForPayloadKey is ForPayloadKey with the MISS reported rather than papered over.
+//
+// ForPayloadKey falls back to hyphenating an unknown key, which is right when the tool is naming a
+// field in its own message — a best guess beats nothing there. It is WRONG for a caller deciding
+// whether to make a suggestion at all: a hyphenated guess presented as "the flag you want" teaches
+// a spelling the parser rejects, which is the defect that map was built to stop.
+//
+// Measured on the 2026-09-20 smoke: a lens typed `--complexity_cost` at `mint` TWELVE times. That
+// is the key the record stores, shown to the seat in the gap's own JSON before it mints; the flag
+// is --complexity. The translation was already in this file and was consulted only when the TOOL
+// names a field, never when a SEAT does.
+func FlagForPayloadKey(key string) (string, bool) {
+	name, ok := payloadFlag[key]
+	return name, ok
+}
+
 func ForPayloadKey(key string) string {
 	if name, ok := payloadFlag[key]; ok {
 		return name
