@@ -239,6 +239,55 @@ void append_boxes(std::string &out, PIX *lines, char axis) {
 
 } // namespace
 
+// tessocr_repaired_rules is tessocr_grid_lines for a rule DRAWN AS DASHES (#1027). A typewriter
+// rules its tables with hyphens, and the opening deletes every run shorter than itself, so such a
+// rule is invisible to the detector rather than faint -- no threshold recovers it. Closing by the
+// dash gap first joins the dashes into a run the same opening then keeps.
+//
+// IT FILTERS NOTHING. The closing also joins the characters of a word, so this returns lines of
+// PROSE as well as rules; telling them apart is the caller's, in Go, where the test that does it
+// can be deleted to prove it was load-bearing. A C-side filter would also make the committed
+// 80-page record (plan §VI.3) a record of what the filters kept rather than of what the openings
+// left, and nothing could then show the filters mattered.
+//
+// close is in PAGE PIXELS at the page's own resolution, like sel: both are morphology on the scan
+// as it was made. The boxes come back in page pixels too, and the caller converts them once.
+char *tessocr_repaired_rules(const unsigned char *png, size_t len, int close_h, int close_v, int sel) {
+	PIX *pix = read_png(png, len);
+	if (pix == nullptr) return nullptr;
+	PIX *bin = pixConvertTo1(pix, 180);
+	pixDestroy(&pix);
+	if (bin == nullptr) return nullptr;
+
+	// Closed along the axis the rule runs in, so a horizontal rule's gaps are bridged without
+	// bridging the line of prose beneath it.
+	PIX *hc = pixCloseBrick(nullptr, bin, close_h, 1);
+	PIX *vc = pixCloseBrick(nullptr, bin, 1, close_v);
+	pixDestroy(&bin);
+	if (hc == nullptr || vc == nullptr) {
+		pixDestroy(&hc);
+		pixDestroy(&vc);
+		return nullptr;
+	}
+	PIX *hl = open_rules(hc, sel, true);
+	PIX *vl = open_rules(vc, sel, false);
+	pixDestroy(&hc);
+	pixDestroy(&vc);
+	if (hl == nullptr || vl == nullptr) {
+		pixDestroy(&hl);
+		pixDestroy(&vl);
+		return nullptr;
+	}
+	std::string out;
+	append_boxes(out, hl, 'h');
+	append_boxes(out, vl, 'v');
+	pixDestroy(&hl);
+	pixDestroy(&vl);
+	char *buf = new char[out.size() + 1];
+	std::memcpy(buf, out.c_str(), out.size() + 1);
+	return buf;
+}
+
 char *tessocr_grid_lines(const unsigned char *png, size_t len, int sel) {
 	PIX *pix = read_png(png, len);
 	if (pix == nullptr) return nullptr;

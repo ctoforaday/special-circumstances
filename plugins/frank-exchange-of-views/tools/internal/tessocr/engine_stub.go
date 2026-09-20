@@ -46,3 +46,11 @@ func DetectGrid(png []byte, t GridThresholds) (GridStats, error) {
 // other engine entry point rather than answering "no rules", which would read as a page
 // that carries none.
 func GridLines(png []byte, t GridThresholds) (Lattice, error) { return Lattice{}, ErrNotCompiledIn }
+
+// RepairedRules is the dashed-rule repair behind the second detection path; it refuses here for the
+// same reason GridLines does. Answering Lattice{}, nil would compile, pass every default-build test,
+// and read on an untagged build as "this page carries no dashed rules" — the one sentence this
+// entry point exists to be able to contradict.
+func RepairedRules(png []byte, t GridThresholds) (Lattice, error) {
+	return Lattice{}, ErrNotCompiledIn
+}

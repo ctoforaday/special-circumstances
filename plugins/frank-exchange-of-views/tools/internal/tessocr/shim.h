@@ -44,6 +44,13 @@ int tessocr_grid_stats(const unsigned char *png, size_t len, int sel,
  * failure — a page with no rules returns an empty string, which is a measurement. */
 char *tessocr_grid_lines(const unsigned char *png, size_t len, int sel);
 
+/* tessocr_repaired_rules is tessocr_grid_lines for a rule drawn as DASHES (#1027): the page is
+   closed by close_h/close_v before the same opening, so a rule made of hyphens survives it. Same
+   contract as tessocr_grid_lines -- nullptr is a FAILURE, an empty string is a MEASUREMENT (a page
+   with no such rules) -- and it filters nothing: the closing joins words as well as dashes, and
+   separating them is the caller's. */
+char *tessocr_repaired_rules(const unsigned char *png, size_t len, int close_h, int close_v, int sel);
+
 void tessocr_free_text(char *t);
 
 /* Point this process's stderr (file descriptor 2) at path until tessocr_diag_end, so

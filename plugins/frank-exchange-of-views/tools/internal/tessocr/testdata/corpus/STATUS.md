@@ -12,6 +12,6 @@ harness. GENERATED — edit a record or fix the reader, not this file.
 | nbs602-blank | yes | — |
 | nbs602-contents | yes | — |
 | nbs602-cover-photo | yes | — |
-| nbs602-dashed-matrix | **no** | table: want true, got false; must_contain: "Complex Vision" is printed on the page and is not in the reading; must_contain: "5.4" is printed on the page and is not in the reading |
+| nbs602-dashed-matrix | **no** | must_contain: "Complex Vision" is printed on the page and is not in the reading; must_contain: "5.4" is printed on the page and is not in the reading; must_contain: "one axis" is printed on the page and is not in the reading |
 | nbs602-form | **no** | must_contain: "NBS-114A" is printed on the page and is not in the reading |
 | usfs-birds-markgrid | **no** | must_contain: "Riparian" is printed on the page and is not in the reading; must_contain: "Ponderosa" is printed on the page and is not in the reading; must_contain: "Spruce-Fir" is printed on the page and is not in the reading |

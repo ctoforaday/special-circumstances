@@ -155,6 +155,11 @@ type GridThresholds struct {
 	// SEL is the minimum run length in px for the morphological opening — a "rule" is a
 	// straight run at least this long.
 	SEL int
+	// DashGap is how far apart two marks may sit and still be one rule drawn as DASHES (#1027):
+	// the closing applied before SEL's opening, so a typewriter's hyphen rule survives it. In page
+	// pixels like SEL, because both are morphology on the scan as it was made — the constants that
+	// judge the RESULT are in the 300-DPI space instead (repairedRuleThick, repairedRuleSpan).
+	DashGap int
 	// Minimum surviving pixel counts. ALL THREE MUST PASS: the conjunction is
 	// load-bearing, proven by the vertical-only pages (p0016 v=60983, p0022 v=33295,
 	// p0080 v=25196 — dense vertical rules, no table) that any single-axis test admits.
@@ -186,7 +191,12 @@ type GridThresholds struct {
 const (
 	tuneDPI = 300 // the resolution every one of these was measured at
 
-	ruleRunInches      = 151.0 / tuneDPI // SEL
+	ruleRunInches = 151.0 / tuneDPI // SEL
+	// dashGapInches is the widest gap inside a dashed rule on nbs602-dashed-matrix, measured at
+	// its native 350: dashes of 19-21 px with gaps whose p90 is 22 and whose max is 48. 25 px
+	// closes the rule without closing the 11 px median gap between the characters of a word — the
+	// two distributions OVERLAP, which is why closing alone cannot be the test (plan §IV D2).
+	dashGapInches      = 25.0 / 350.0
 	minHSquareInches   = 15000.0 / (tuneDPI * tuneDPI)
 	minVSquareInches   = 4500.0 / (tuneDPI * tuneDPI)
 	minCrossSquareInch = 100.0 / (tuneDPI * tuneDPI)
@@ -209,6 +219,7 @@ func GridFor(dpi int) GridThresholds {
 	return GridThresholds{
 		DPI:              dpi,
 		SEL:              px(ruleRunInches),
+		DashGap:          px(dashGapInches),
 		MinHPix:          sq(minHSquareInches),
 		MinVPix:          sq(minVSquareInches),
 		MinIntersections: sq(minCrossSquareInch),

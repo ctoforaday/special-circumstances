@@ -156,6 +156,16 @@ type PageReading struct {
 	// all, so the ratio is taken after converting the crossings to 300 DPI (#1074). This field is
 	// what the detector measured; ReconstructionFallback prints what the gate compared.
 	GridIntersections int `json:"grid_intersections,omitempty"`
+	// RuleSource names the path whose rules this page's lattice was built from: the detector, or
+	// the dashed-rule repair (#1027). A page with Table set and no RuleSource is a defect, not a
+	// detector page — the zero value denotes NO VERDICT, because inferring the common case from an
+	// empty field is how a missing fact comes to read like the ordinary one.
+	RuleSource tessocr.RuleSource `json:"rule_source,omitempty"`
+	// RepairedCrossings counts where the repaired rules MEET — crossing POINTS in the 300-DPI
+	// space, over the filtered rules the lattice was actually built from. It is not
+	// GridIntersections, which counts crossing PIXELS at the page's own resolution and, on a
+	// repaired page, is the detector's zero: a number indistinguishable from a page with no rules.
+	RepairedCrossings int `json:"repaired_crossings,omitempty"`
 	// Reconstruction is the grid branch's confidence, a FIELD rather than something
 	// inferred from the emitted table's shape (plan §II). Nil on prose pages and on grid
 	// pages whose TSV held no marks at all.
@@ -189,11 +199,13 @@ type pageReceipt struct {
 	TextSha   string    `json:"text_sha"`
 	Length    int       `json:"length"`
 
-	Table                  bool           `json:"table,omitempty"`
-	RotatedPage            bool           `json:"rotated_page,omitempty"`
-	GridIntersections      int            `json:"grid_intersections,omitempty"`
-	Reconstruction         *tessocr.Stats `json:"reconstruction,omitempty"`
-	ReconstructionFallback string         `json:"reconstruction_fallback,omitempty"`
+	Table                  bool               `json:"table,omitempty"`
+	RuleSource             tessocr.RuleSource `json:"rule_source,omitempty"`
+	RotatedPage            bool               `json:"rotated_page,omitempty"`
+	GridIntersections      int                `json:"grid_intersections,omitempty"`
+	RepairedCrossings      int                `json:"repaired_crossings,omitempty"`
+	Reconstruction         *tessocr.Stats     `json:"reconstruction,omitempty"`
+	ReconstructionFallback string             `json:"reconstruction_fallback,omitempty"`
 
 	TextCells        *tessocr.CellStats `json:"text_cells,omitempty"`
 	TextCellFallback string             `json:"text_cell_fallback,omitempty"`
@@ -204,7 +216,8 @@ type pageReceipt struct {
 func (r pageReceipt) pageReading() PageReading {
 	return PageReading{
 		Page: r.Page, TextSha: r.TextSha, Length: r.Length, DPI: r.DPI,
-		Table: r.Table, RotatedPage: r.RotatedPage, GridIntersections: r.GridIntersections,
+		Table: r.Table, RuleSource: r.RuleSource, RotatedPage: r.RotatedPage,
+		GridIntersections: r.GridIntersections, RepairedCrossings: r.RepairedCrossings,
 		Reconstruction: r.Reconstruction, ReconstructionFallback: r.ReconstructionFallback,
 		TextCells: r.TextCells, TextCellFallback: r.TextCellFallback,
 	}
@@ -298,6 +311,8 @@ func readPageStep(run record.Run, sha string, page int, png []byte, dpi int) (pa
 	}
 	if res.Table {
 		r.GridIntersections = res.Grid.Intersections
+		r.RuleSource = res.RuleSource
+		r.RepairedCrossings = res.RepairedCrossings
 	}
 	b, err := json.MarshalIndent(r, "", "  ")
 	if err != nil {

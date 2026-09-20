@@ -1,4 +1,4 @@
-table: true · rotated: false · grid h=73980 v=37764 intersections=1584
+table: true · rules: detector · rotated: false · grid h=73980 v=37764 intersections=1584
 path: plain text
 marks fell back: grid detected but the TSV held no mark tokens; page kept as plain text — its words are read, but which row and column each belongs to is not preserved, so check a cell against the page image before relying on it
 cells fell back: the rules bound 35 cells holding 24 words (0.69 per cell, under 2.00): these cells carry marks rather than text, and reading them as text would drop what they mean
