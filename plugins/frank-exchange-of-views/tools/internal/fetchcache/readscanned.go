@@ -41,9 +41,12 @@ import (
 // stack. The real implementation ships as the default (see DefaultExtractor for why a no-op
 // default would be the dangerous arrangement).
 type ScanReader interface {
-	// ReadScanned renders and reads e's document, at the engine's own operative resolution
-	// (tessocr.RenderDPI — the constants are per-DPI facts, so the resolution is the
-	// engine's to name, not a parameter to vary). It returns an error rather than an empty
+	// ReadScanned renders and reads e's document, each page at its own scan resolution
+	// (RenderDPIFor: floored at 300, capped at 600). The resolution is the scan's to state
+	// and the engine's to honour, never a parameter a caller varies; the DETECTOR's
+	// thresholds are derived from it per page (tessocr.GridFor), while the lattice and
+	// reconstruction constants below it are still 300-DPI pixels applied unscaled (#1074).
+	// It returns an error rather than an empty
 	// record when it could not: a reading nobody made and a reading that found nothing are
 	// different facts, and the caller states which in the reason it prints.
 	ReadScanned(ctx context.Context, run record.Run, e Entry) (ReadingRecord, error)

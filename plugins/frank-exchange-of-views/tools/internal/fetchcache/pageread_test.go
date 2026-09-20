@@ -57,9 +57,9 @@ func withEngine(t *testing.T, e PageEngine) {
 
 // fakeRender writes a render a test controls page by page: arbitrary bytes stand in for
 // images (nothing in the read loop decodes them; the receipt key is their hash), and the
-// render record binds them exactly as RenderPages would. DPI defaults matter: the read
-// path refuses anything but the engine's operative resolution, so these fixtures render
-// at it.
+// render record binds them exactly as RenderPages would. DPI matters: the read path
+// refuses a page outside the 300-600 band its constants are derived over, so these
+// fixtures render inside it.
 func fakeRender(t *testing.T, run record.Run, sha string, pages [][]byte, dpi int) RenderRecord {
 	t.Helper()
 	dir := PagesDir(run, sha)
