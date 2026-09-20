@@ -276,7 +276,7 @@ func gateSet() []gate {
 		// Linux-only job so no matrix leg pays for it twice. Declared here because a gate that
 		// cannot run on a stackless box must still appear in the report.
 		gate{id: "ocr-corpus", kind: kindExtern, dir: "plugins/frank-exchange-of-views/tools", ciJob: "ocr-corpus",
-			skip: "needs the OCR engine's C stack and FEOV_OCR_CORPUS=1; build it with third_party/pins/build-cstack.sh and run the tagged suite by hand",
+			skip: "needs the OCR engine's C stack and FEOV_OCR_CORPUS=1; build it with third_party/pins/build-cstack.sh and run the tagged suite by hand. ANY edit under internal/tessocr re-arms it, COMMENTS INCLUDED: each golden's first line carries DefaultPageEngine.Identity(), which hashes that package's source, so all eight fail together on a hash nothing else notices",
 			why:  "the committed scans that beat the reader, read end to end and pinned byte for byte"},
 		gate{id: "qlty", kind: kindExtern, dir: ".", ciJob: "qlty", needsBase: true,
 			skip: "qlty is not a dependency of this repo; CI installs it. Run it there, or install qlty locally.",
