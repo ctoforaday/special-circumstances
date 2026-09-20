@@ -293,6 +293,23 @@ func agentFacingFiles(t *testing.T) []string {
 		}
 		out = append(out, m...)
 	}
+
+	// THE CONSTITUTION SOURCES, which are outside the plugin and are where the prose is written.
+	//
+	// scripts/agentgen generates agents/*.md from these, so a verb named in a fragment is a verb
+	// in front of a seat — and checking only the generated file would police the OUTPUT of an
+	// editor nobody edits. The generated surface block inside those outputs is skipped by
+	// withoutGeneratedSurface; everything a human actually types is scanned, here and there.
+	for _, glob := range [][]string{
+		{"scripts", "agentgen", "src", "*.md"},
+		{"scripts", "agentgen", "src", "fragments", "*.md"},
+	} {
+		m, err := repotree.Glob(glob...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, m...)
+	}
 	return out
 }
 
@@ -558,7 +575,7 @@ func TestNoRenderedPromptSpellsAFlag(t *testing.T) {
 		// the verb gates. It was not needed while this gate read only rendered goldens, which have
 		// no comments; widening the scope to authored files brought debate.js's `// mint
 		// --supersedes` history into a gate that had never had to think about it.
-		text := anchorToken.ReplaceAllString(jsComment.ReplaceAllString(string(b), ""), "")
+		text := anchorToken.ReplaceAllString(jsComment.ReplaceAllString(withoutGeneratedSurface(string(b)), ""), "")
 		for _, m := range promptFlag.FindAllStringSubmatch(text, -1) {
 			if vocabulary[m[1]] {
 				spelled[m[1]] = true
@@ -638,6 +655,33 @@ var promptCatalogue = map[string]int{
 	"skills/research/SKILL.md": 0,
 }
 
+// withoutGeneratedSurface drops the block scripts/agentgen writes into each agent definition.
+//
+// THE HELP PAGE IS THE ONLY PAGE THAT INSTRUCTS — this gate's own words — and that block IS the
+// help page, rendered by the tool and inlined so a seat arrives holding its surface instead of
+// spending 2-7 tool calls and their turns fetching it. Counting its verbs here would be counting
+// the help against a rule written to keep help OUT of prose, and pinning a number instead would be
+// a hand-kept copy of a count the tool already owns; agentgen -check is what keeps it honest.
+//
+// What this does NOT relax: everything outside the markers is still scanned, so a verb name that
+// creeps into a constitution's AUTHORED prose fails exactly as before.
+func withoutGeneratedSurface(s string) string {
+	i := strings.Index(s, generatedSurfaceBegin)
+	if i < 0 {
+		return s
+	}
+	j := strings.Index(s[i:], generatedSurfaceEnd)
+	if j < 0 {
+		return s[:i]
+	}
+	return s[:i] + s[i+j+len(generatedSurfaceEnd):]
+}
+
+const (
+	generatedSurfaceBegin = "<!-- BEGIN GENERATED SURFACE"
+	generatedSurfaceEnd   = "<!-- END GENERATED SURFACE -->"
+)
+
 func TestNoPromptGrowsItsCommandCatalogue(t *testing.T) {
 	real := map[string]bool{}
 	for _, p := range cli.CommandPaths() {
@@ -650,7 +694,7 @@ func TestNoPromptGrowsItsCommandCatalogue(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		named := namedIn(jsComment.ReplaceAllString(string(b), ""), real, roleless)
+		named := namedIn(jsComment.ReplaceAllString(withoutGeneratedSurface(string(b)), ""), real, roleless)
 		base := pluginRel(t, path)
 		seen[base] = true
 		if strings.HasSuffix(base, ".golden") {
@@ -940,7 +984,7 @@ func TestEveryEnumValueNamedInAPromptIsAccepted(t *testing.T) {
 		}
 		// Code comments describe HISTORY — several name values that were removed precisely
 		// because they were wrong (`petition-rule --as halt`). A seat never reads them.
-		text := comment.ReplaceAllString(string(b), "")
+		text := comment.ReplaceAllString(withoutGeneratedSurface(string(b)), "")
 		for _, m := range pair.FindAllStringSubmatch(text, -1) {
 			flag, raw := m[1], m[2]
 			allowed, known := byFlag[flag]

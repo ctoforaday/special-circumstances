@@ -48,7 +48,7 @@ Always-on rules bind every session via the imports below; the rest load on deman
 
 - Present tense only; the why goes in a code comment at the source or in the commit. `archaeology` gates the pattern-matchable part.
 - Each `<verb> --help` page MUST teach its verb on its own: remove repetition only where that page keeps every instruction. One Go constant rendered on every page that needs it is fine; one *home* that removes the text from a page is not. Tool mechanics live in the tool; duties live in constitutions and prompts.
-- Seat prompts and constitutions name ACTS, never a command path or flag — CI pins this (`TestNoPromptGrowsItsCommandCatalogue`, `TestTheSeatPromptsNameNoVerb`, `TestTheShippedConstitutionsNameNoVerb`).
+- Seat **prompts** name ACTS, never a command path or flag — CI pins this (`TestNoPromptGrowsItsCommandCatalogue`, `TestTheSeatPromptsNameNoVerb`). A **constitution** carries its seat's whole surface: `scripts/agentgen` inlines the tool's own `manual` into every agent definition, and `agentgen -check` fails a stale one. The authored prose around that block is still held to the same rule — the catalogue gate scans everything outside the generated markers.
 - AFTER changing any of these surfaces, YOU MUST read every changed golden line, and each affected `--help` before and after, one command at a time, for semantic loss.
 
 ### Verification

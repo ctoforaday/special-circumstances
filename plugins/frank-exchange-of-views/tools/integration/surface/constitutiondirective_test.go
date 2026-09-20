@@ -83,7 +83,7 @@ func TestTheDutyDoesNotSmuggleAVerbListBackIn(t *testing.T) {
 			t.Fatal(err)
 		}
 		b := []byte(text0)
-		text := string(b)
+		text := withoutGeneratedSurface(string(b))
 		i := strings.Index(text, "Your surface comes from")
 		if i < 0 {
 			continue

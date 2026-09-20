@@ -5,43 +5,24 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
 
-// THE CONSTITUTIONS NAME NO VERB, AND THAT IS NOW THE INVARIANT.
+// THE SHIPPED CONSTITUTIONS NOW CARRY THEIR WHOLE SURFACE, and the gate that held them to naming
+// no verb is retired with the design it guarded.
 //
-// This asserted the opposite: that the redactor REMOVED names from files that carried them, back
-// when a constitution's hand-kept list was the shipped configuration. The finding it was built to
-// measure landed — the help page is the only page that instructs — so the shipped bytes ARE the
-// `none` arm, and the property worth holding is that they stay that way.
+// It rested on a real measurement: a PARTIAL list satisfied a seat's need to know what exists and
+// stopped it looking — 58% of the surface seen against 95% with the list removed. That was a
+// finding about a SLICE, under a design where a seat learned its surface by asking the tool for
+// help one verb at a time, and the constitutions were the `none` arm of it.
 //
-// The redactor is kept and still asserted below: it is what makes the arm total against a file
-// that acquires a name, and a treatment nobody exercises is one nobody would notice breaking.
-func TestTheShippedConstitutionsNameNoVerb(t *testing.T) {
-	sf := NewSurface(cli.CommandPaths())
-	for _, name := range []string{"red-lens-evidence.md", "red-chair.md", "blue-researcher.md", "blue-synthesizer.md", "lead-judge.md"} {
-		t.Run(name, func(t *testing.T) {
-			p, perr := repotree.Plugin("agents", name)
-			if perr != nil {
-				t.Fatal(perr)
-			}
-			b, err := os.ReadFile(p)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if named := NamesSurviving(string(b), sf); len(named) > 0 {
-				var left []string
-				for v, n := range named {
-					left = append(left, v+"×"+itoa(n))
-				}
-				t.Errorf("%s names %d verb(s): %s\n\nA constitution that names a slice of the surface does not under-inform a seat, it SATISFIES it — 58%% surface exposure against 95%% with the names removed (2026-08-15), and re-measured 2026-08-19 over two models the arm that names the WHOLE surface is the worst of the four. Name the ACT; the verb is the help's to state.",
-					name, len(named), strings.Join(left, ", "))
-			}
-		})
-	}
-}
+// scripts/agentgen inlines the COMPLETE surface instead — byte-identical to `manual`, held there
+// by `agentgen -check` — because the FETCH was the cost, not the content: 171 tool calls in one
+// run, 10% of every call made, and 69% of everything a barren lens read before it reached the
+// report. A whole surface cannot stop a seat looking at the part it was not shown.
+//
+// What still holds, and is asserted elsewhere: TestTheSeatPromptsNameNoVerb keeps debate.js clean,
+// and the surface package's gates scan every constitution and every agentgen source OUTSIDE the
+// generated markers, so a verb, flag or enum in AUTHORED prose fails exactly as it did.
 
 func itoa(n int) string {
 	if n == 0 {

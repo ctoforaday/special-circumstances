@@ -6,8 +6,6 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatprobe"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
 
 // THE SURVIVING-NAME COUNT IS PRINTED WITH THE RESULT, and these pin the line.
@@ -28,31 +26,19 @@ func TestNamingTreatmentSaysNotMeasuredRatherThanZero(t *testing.T) {
 	}
 }
 
-// THE SHIPPED CONSTITUTIONS NAME NO VERB, checked before a seat is ever dispatched. A partial
-// list in front of a seat satisfies its need to know what exists and stops it looking — measured
-// at 58% of the surface seen, against 95% with the list removed — so a name that has crept back
-// in is the defect, not an arm.
-func TestTheShippedConstitutionsNameNoVerbAtDispatch(t *testing.T) {
-	sf := seatprobe.NewSurface(cli.CommandPaths())
-	// The default now resolves through repotree and would be correct here too; this stays
-	// explicit so the gate names the directory it is asserting about rather than inheriting it
-	// from the code under test.
-	agents, err := repotree.Plugin("agents")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, role := range []string{"blue", "lens", "chair", "bench"} {
-		src, err := constitutionFor(role, agents)
-		if err != nil {
-			t.Fatalf("no constitution for %s: %v", role, err)
-		}
-		line := namingTreatment(role, agents, sf)
-		if strings.Contains(line, "NOT MEASURED") {
-			t.Errorf("%s (%s): %s", role, src, line)
-			continue
-		}
-		if strings.Contains(line, "NAMES") {
-			t.Errorf("%s: %s", role, line)
-		}
-	}
-}
+// THE CONSTITUTIONS NOW CARRY THEIR WHOLE SURFACE, and the gate that forbade it is retired here.
+//
+// It held that a constitution names no verb, on a measurement worth keeping in view: a PARTIAL
+// list in front of a seat satisfied its need to know what exists and stopped it looking — 58% of
+// the surface seen against 95% with the list removed. That finding was about a SLICE, under a
+// design where a seat learned its surface by asking the tool for help on one verb at a time.
+//
+// The design it guarded is the one being replaced. scripts/agentgen inlines the COMPLETE surface —
+// byte-identical to what `manual` returns, and kept so by `agentgen -check` — because the fetch,
+// not the content, was the cost: 171 tool calls in one run, 10% of every call made, and 69% of
+// everything a barren lens read before it looked at the report. A whole surface cannot satisfy a
+// seat into not looking at the part it was not shown; there is no such part.
+//
+// The prompt-side gates STAY and are unaffected: TestTheSeatPromptsNameNoVerb holds debate.js, and
+// TestNoPromptGrowsItsCommandCatalogue still scans every constitution OUTSIDE the generated block,
+// so a verb name creeping into authored prose fails exactly as it did.
