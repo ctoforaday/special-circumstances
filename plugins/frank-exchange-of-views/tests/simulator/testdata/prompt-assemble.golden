@@ -1,4 +1,4 @@
-prompt sha256: 427d557b2cdda5c581e54929828b6f3ff3833b65c31f12efb829951eaff600ff
+prompt sha256: d9faceb81bfe8bee9c8bc8492b9678b4cab0ba20bde50a8eb61a86c55a3fb150
 
 Final assembly for topic "the seat prompt contract", run directory research/2026-01-01_golden.
 Debate outcome: VERIFIED after 3 chair sitting(s) — the chair recorded PASS with the board permitting it.
@@ -29,6 +29,8 @@ KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction
 YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, read YOUR SCORECARD for the question in front of you so far.
 It is a projection of this run's record on your own surface, it needs no selector because your scorecard is the one your registered seat is measured on, and its own page says what the rows mean.
 SEAT_ID: judge.
+OCCASION: assemble — what this sitting was convened to do.
+Your seat id is the same for all four of your sittings, so this is the only thing that tells them apart on the record; it is required of you where it is required of nobody else.
 THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 Routing around it into markdown is the failure this contract exists to prevent.
 THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND YOU ARE ALREADY HOLDING IT.

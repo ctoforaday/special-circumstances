@@ -43,7 +43,7 @@ func TestBoardJSONHoldsTheFoldsEdges(t *testing.T) {
 		app(red, m)
 	}
 	// The chair sits: its mints, regrade and close below are epoch 1.
-	if _, _, err := RegisterSeat(red, ""); err != nil {
+	if _, _, err := RegisterSeat(red, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	mint("G1", func(m *recordpb.Mint) {
@@ -77,7 +77,7 @@ func TestBoardJSONHoldsTheFoldsEdges(t *testing.T) {
 			Filing:  &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}}})
 		// The chair sits again before the bench rules, so the ruling — and the closure attributed to
 		// it — lands in epoch 2, which is what "ruled by the bench in round 2" now means.
-		if _, _, err := RegisterSeat(red, ""); err != nil {
+		if _, _, err := RegisterSeat(red, "", ""); err != nil {
 			t.Fatal(err)
 		}
 		app(judge2, &recordpb.MotionRule{MotionId: proto.String(motionID),

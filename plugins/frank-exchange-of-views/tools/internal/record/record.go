@@ -187,20 +187,22 @@ type Identity struct {
 // runVia says which path supplied the run directory — see seatenv.RunSource. It is recorded on
 // the register event because a run whose seats all resolve by INFERENCE is a run the PreToolUse
 // hook is not reaching, and the hook records that nowhere (#512).
-func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err error) {
-	dispatch, _, where, err = registerSeat(id, runVia, false)
+func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where string, err error) {
+	dispatch, _, where, err = registerSeat(id, runVia, false, occasion)
 	return dispatch, where, err
 }
 
 // RegisterRepair is RegisterSeat for a sitting-record repair: the register names the seat's latest
 // sitting as the one it repairs (repairs_sitting), and is refused unless that sitting owes what a
 // repair files (checkRepair). It returns the key of the register that opened the repaired sitting.
+// A repair is BLUE's, and blue owes no occasion — the flag is not on the bench's repair surface
+// because the bench has no repair at all. The empty word is what checkOccasion expects there.
 func RegisterRepair(id Identity, runVia string) (dispatch int, repairs string, err error) {
-	dispatch, repairs, _, err = registerSeat(id, runVia, true)
+	dispatch, repairs, _, err = registerSeat(id, runVia, true, "")
 	return dispatch, repairs, err
 }
 
-func registerSeat(id Identity, runVia string, repair bool) (dispatch int, repairs, where string, err error) {
+func registerSeat(id Identity, runVia string, repair bool, occasion string) (dispatch int, repairs, where string, err error) {
 	run, seatID := id.Run, id.SeatID
 	if seatID == "" || !seatIDRe.MatchString(seatID) {
 		return 0, "", "", fmt.Errorf("record: invalid --seat-id %s", strconv.Quote(seatID))
@@ -226,6 +228,14 @@ func registerSeat(id Identity, runVia string, repair bool) (dispatch int, repair
 		return 0, "", "", fmt.Errorf("record: register refused — %q is not in this run's cast. The cast is the run's admissible seats, written by setup before any seat registered; a seat outside it is one the workflow was never told to dispatch", seatID)
 	}
 	if err := CheckAttestedRole(seatenv.AgentType(), seatID); err != nil {
+		return 0, "", "", err
+	}
+	// THE OCCASION IS CHECKED HERE, WITH THE OTHER IDENTITY GATES, because it answers the half of
+	// identity the seat id stopped answering when the bench collapsed to one seat: who was asked is
+	// the id, what they were asked is this. Refused before anything is written, in both directions —
+	// see occasion.go.
+	occ, err := checkOccasion(seatID, occasion)
+	if err != nil {
 		return 0, "", "", err
 	}
 	// A SEAT RECORDS INTO A RUN THAT EXISTS. IT NEVER CREATES ONE.
@@ -298,6 +308,12 @@ func registerSeat(id Identity, runVia string, repair bool) (dispatch int, repair
 	// injected its own environment.
 	if hv := seatenv.HookVersion(); hv != "" {
 		reg.HookVersion = proto.String(hv)
+	}
+	// TYPED BY THE SEAT, unlike the four fields above. The engine tells the bench which question
+	// this sitting answers and the bench says so here — the same shape as the seat id itself, which
+	// register has always taken the seat's word for and then held it to.
+	if occ != nil {
+		reg.Occasion = occ.Enum()
 	}
 	// THE REPAIR IS NAMED HERE, NOT BY THE SEAT. The seat says it is repairing; which sitting it
 	// repairs is its latest, and checkRepair refuses the claim where the record does not bear it out.

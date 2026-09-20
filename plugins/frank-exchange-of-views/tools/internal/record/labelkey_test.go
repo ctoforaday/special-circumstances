@@ -17,7 +17,7 @@ import (
 func TestALabelKeyedActRepeatsAcrossSittingsButNotWithinOne(t *testing.T) {
 	runDir := newRun(t)
 	lens := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}
-	if _, _, err := RegisterSeat(lens, ""); err != nil {
+	if _, _, err := RegisterSeat(lens, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	verify := func() *recordpb.Verify {
@@ -39,7 +39,7 @@ func TestALabelKeyedActRepeatsAcrossSittingsButNotWithinOne(t *testing.T) {
 	}
 
 	// The lens sits again and re-verifies the same anchor: new evidence, new act.
-	if _, _, err := RegisterSeat(lens, ""); err != nil {
+	if _, _, err := RegisterSeat(lens, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	second, err := Append(lens, verify())

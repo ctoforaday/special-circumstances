@@ -58,7 +58,12 @@ func TestProjectCompletionNamesUnmeasured(t *testing.T) {
 }
 
 func TestProjectCompletionCompleteOnAssembly(t *testing.T) {
-	p := projectCompletion([]Seat{{Seat: "assemble", Label: "assemble", Done: true, StartedMs: fmin(0), EndedMs: fmin(10)}}, *fmin(11))
+	// THE ASSEMBLY IS NOW AN OCCASION, NOT A SEAT ID. `Seat` is `judge` for all four bench
+	// sittings; what makes this one the assembly is the register's occasion, which is what
+	// projectCompletion reads. Setting only the seat used to be enough and is exactly the shape
+	// that broke: when the bench collapsed, `Seat == "assemble"` stopped matching anything and
+	// every finished run reported "running" forever.
+	p := projectCompletion([]Seat{{Seat: "judge", Occasion: "assemble", Label: "judge #1 · assemble", Done: true, StartedMs: fmin(0), EndedMs: fmin(10)}}, *fmin(11))
 	if p.State != "complete" {
 		t.Errorf("state = %q, want complete", p.State)
 	}

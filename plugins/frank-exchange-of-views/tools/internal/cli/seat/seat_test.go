@@ -52,7 +52,7 @@ func TestBeginRefusesASeatIdThatContradictsTheDispatch(t *testing.T) {
 	run := recordtest.TmpRun(t)
 	t.Setenv(seatenv.Var, run)
 	t.Setenv(seatenv.AgentVar, "agent_01")
-	if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, run), SeatID: "blue-respond"}, ""); err != nil {
+	if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, run), SeatID: "blue-respond"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 

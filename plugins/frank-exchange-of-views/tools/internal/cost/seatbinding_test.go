@@ -22,6 +22,18 @@ func register(t *testing.T, seat, agent string) *recordpb.Event {
 	return recordtest.Event(t, seat, reg)
 }
 
+// registerFor is register with an OCCASION — what the sitting was convened to do, which only the
+// bench carries and which the cost report keys on so the assembly's spend stays out of a docket
+// ruling's row.
+func registerFor(t *testing.T, seat, agent string, occ recordpb.Occasion) *recordpb.Event {
+	t.Helper()
+	reg := &recordpb.Register{Occasion: occ.Enum()}
+	if agent != "" {
+		reg.AgentId = proto.String(agent)
+	}
+	return recordtest.Event(t, seat, reg)
+}
+
 // THE EPOCH AND THE SITTING ARE COUNTED OFF THE REGISTERS, NOT STAMPED. A lens that sits before
 // the chair has ever sat is in epoch 0; the chair's own register opens the epoch it is in; a
 // seat's second register is its sitting 2 whatever epoch it lands in.
@@ -81,9 +93,9 @@ func TestReportBindsEachTranscriptToItsEpochFromTheRecord(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	recordtest.Seed(t, runDir,
 		register(t, "red-chair", "C1"),
-		register(t, "judge", "J1"),
+		registerFor(t, "judge", "J1", recordpb.Occasion_OCCASION_TERMINAL),
 		register(t, "red-chair", "C2"),
-		register(t, "judge", "J2"),
+		registerFor(t, "judge", "J2", recordpb.Occasion_OCCASION_TERMINAL),
 	)
 	run, err := record.NewRun(runDir)
 	if err != nil {
@@ -102,7 +114,11 @@ func TestReportBindsEachTranscriptToItsEpochFromTheRecord(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := b.String()
-	for _, want := range []string{"## Per seat-epoch", "| epoch | seat |", "| 1 | judge-terminal | haiku | 1 |", "| 2 | judge-terminal | haiku | 1 |", "| — | judge-terminal | haiku | 1 |"} {
+	// THE SEAT AND THE SITTING ARE TWO COLUMNS' WORTH OF FACT IN ONE CELL, and both come from the
+	// RECORD now. `judge · terminal` is the seat id the register named plus the occasion it
+	// carried; the STRAY agent the record never bound has neither an epoch nor an occasion, and
+	// reads as a bare `judge` under a dash — which is the honest answer, not a merged row.
+	for _, want := range []string{"## Per seat-epoch", "| epoch | seat |", "| 1 | judge · terminal | haiku | 1 |", "| 2 | judge · terminal | haiku | 1 |", "| — | judge | haiku | 1 |"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("cost.md lacks %q:\n%s", want, out)
 		}

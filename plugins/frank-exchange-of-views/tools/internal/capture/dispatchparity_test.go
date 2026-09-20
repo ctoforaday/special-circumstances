@@ -134,3 +134,69 @@ func TestAWarmChairsDispatchesAreGroupedByWhoSat(t *testing.T) {
 		t.Fatalf("a party that sat only after the next dispatch = %s: %s", a.Verdict, a.Detail)
 	}
 }
+
+// THE BENCH'S OWN SITTING IS MEASURABLE NOW, AND THIS IS THE TEST THAT SAYS SO.
+//
+// The case: the chair dispatches the bench onto a gap, and the bench never rules it — it only sits
+// for its two closing sittings, the terminal disposition and the assembly, which the ENGINE convenes
+// and which register in the same window. Before the register carried an occasion, those bookends
+// satisfied the dispatch: `Sat` is the party's first register after it, the bench is one seat id, and
+// nothing separated a docket ruling from a bookend. The audit reported that case NOT MEASURED rather
+// than passing it — an honest refusal, and a permanent blind spot on any run whose last dispatching
+// chair sitting engaged the bench.
+//
+// This is the acceptance check for the field. A dispatched bench that never rules must FAIL, and its
+// own closing sittings must not rescue it.
+func TestABenchThatOnlySatForItsBookendsDidNotAnswerItsDispatch(t *testing.T) {
+	n := 0
+	at := func(seat string, body proto.Message) *record.Event {
+		n++
+		return recordtest.At(t, seat, fmt.Sprintf("%s:%d", seat, n), body)
+	}
+	reg := func(seat string) *record.Event { return at(seat, &recordpb.Register{}) }
+	benchReg := func(occ recordpb.Occasion) *record.Event {
+		return at("judge", &recordpb.Register{Occasion: occ.Enum()})
+	}
+	head := []*record.Event{
+		at("harness", &recordpb.Cast{SeatIds: []string{"red-chair", "blue-respond", "judge"}}),
+		at("harness", &recordpb.BaseIngest{Text: proto.String("# r")}),
+		reg("red-chair"),
+		at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: []string{"G1"}}),
+	}
+
+	// The bench sits ONLY for its bookends. Both are its own, both are in the window, and neither
+	// answers the chair's dispatch.
+	bookends := append(append([]*record.Event{}, head...),
+		benchReg(recordpb.Occasion_OCCASION_TERMINAL), benchReg(recordpb.Occasion_OCCASION_ASSEMBLE))
+	dir := t.TempDir()
+	recordtest.Seed(t, dir, bookends...)
+	a := DispatchParityAudit(runtest.Open(t, dir), nil, false)
+	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "judge was named in dispatch 1 and recorded no docket sitting") {
+		t.Fatalf("a bench that never ruled its dispatch was satisfied by its own bookends: %s: %s", a.Verdict, a.Detail)
+	}
+	if strings.Contains(a.Detail, "NOT MEASURED") {
+		t.Errorf("the bench's sitting is still reported unmeasurable on a record that carries occasions: %s", a.Detail)
+	}
+
+	// AND THE HONEST CASE PASSES, or the check above would be satisfied by a bench that cannot sit
+	// at all. The same dispatch, with a docket sitting that answers it and the bookends after.
+	n = 100
+	ruled := append(append([]*record.Event{}, head...),
+		benchReg(recordpb.Occasion_OCCASION_DOCKET),
+		benchReg(recordpb.Occasion_OCCASION_TERMINAL), benchReg(recordpb.Occasion_OCCASION_ASSEMBLE))
+	dir2 := t.TempDir()
+	recordtest.Seed(t, dir2, ruled...)
+	if a := DispatchParityAudit(runtest.Open(t, dir2), nil, false); a.Verdict != "PASS" {
+		t.Fatalf("a bench that DID rule its dispatch was failed: %s: %s", a.Verdict, a.Detail)
+	}
+
+	// A RECORD THAT PREDATES THE FIELD STAYS NOT MEASURED — never a guess in either direction.
+	// Same shape as the failing case, with no occasion on any register.
+	n = 200
+	old := append(append([]*record.Event{}, head...), reg("judge"), reg("judge"))
+	dir3 := t.TempDir()
+	recordtest.Seed(t, dir3, old...)
+	if a := DispatchParityAudit(runtest.Open(t, dir3), nil, false); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "NOT MEASURED") {
+		t.Fatalf("a record with no occasions must say it could not measure the bench, not answer: %s: %s", a.Verdict, a.Detail)
+	}
+}

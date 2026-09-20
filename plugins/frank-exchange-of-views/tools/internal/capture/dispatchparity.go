@@ -65,20 +65,52 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 	type reg struct {
 		pos  int
 		seat string
+		// occasion is WHAT THE SITTING WAS CONVENED TO DO, off the register. Empty for every seat
+		// whose id already says, and empty on a record written before the field existed.
+		occasion string
 	}
 	var regs []reg
+	// How many of the bench's registers said what they were for, so a record that predates the
+	// field is reported as NOT MEASURED rather than read as though every bench sitting were a
+	// docket ruling.
+	var benchRegs, benchRegsWithOccasion int
 	for i, e := range fam.Events {
-		if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER {
-			regs = append(regs, reg{pos: i, seat: e.GetSeatId()})
+		if e.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER {
+			continue
 		}
+		r := reg{pos: i, seat: e.GetSeatId()}
+		if b, ok := recordpb.BodyAs[*recordpb.Register](e); ok {
+			r.occasion = recordpb.Word(b.GetOccasion())
+		}
+		if record.SeatOwesOccasion(r.seat) {
+			benchRegs++
+			if r.occasion != "" {
+				benchRegsWithOccasion++
+			}
+		}
+		regs = append(regs, r)
 	}
+	// THE OCCASION IS EITHER THERE FOR THE WHOLE BENCH OR IT IS NOT MEASURED. A record written
+	// before the field carries none; a half-carrying one is worse than either, because it would
+	// let some bench sittings be checked and others silently skipped under one verdict.
+	occasionsMeasured := benchRegs > 0 && benchRegs == benchRegsWithOccasion
 	// THE BOOKENDS ARE THE BENCH, and since the bench collapsed to one seat they are no longer
 	// separable from it by id. This exempts a bench register in the FINAL dispatch group only,
 	// which is where the terminal disposition and the assembly sit. The discrimination lost is
 	// narrow and real: a genuinely stray bench register in that last group now reads as a bookend.
 	// It cannot be recovered from an id that four sittings share — position is what distinguishes
 	// them, and position is already what this test uses.
-	terminal := map[string]bool{"judge": true}
+	// A BENCH SITTING THE ENGINE CONVENED IS NOT A STRAY. The terminal disposition, the assembly
+	// and a petition hearing are convened by the engine, not by the chair, so each lands in a
+	// dispatch window with no dispatch row naming it. `docket` is the one occasion the chair
+	// dispatches; any other bench register is a sitting no chair claimed to have dispatched.
+	//
+	// THIS USED TO BE POSITION — "a bench register in the FINAL group" — which let a genuinely
+	// stray bench register in that group read as a bookend. That was the discrimination the seat-id
+	// collapse lost, and it is recovered here: the exemption is now exact rather than a window.
+	engineConvened := func(seat, occasion string) bool {
+		return record.SeatOwesOccasion(seat) && occasion != "" && occasion != "docket"
+	}
 	var strays, absent, unmeasured []string
 	for k, g := range groups {
 		end := len(fam.Events)
@@ -93,28 +125,43 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 			if r.pos <= g.Last || r.pos >= end {
 				continue
 			}
-			if party[r.seat] || r.seat == "red-chair" || (k+1 == len(groups) && terminal[r.seat]) {
+			if party[r.seat] || r.seat == "red-chair" || engineConvened(r.seat, r.occasion) {
+				continue
+			}
+			// An unmeasured bench register keeps the old positional exemption: on a record
+			// carrying no occasions there is nothing better, and guessing would invent a stray.
+			if !occasionsMeasured && k+1 == len(groups) && record.SeatOwesOccasion(r.seat) {
 				continue
 			}
 			strays = append(strays, fmt.Sprintf("%s registered after dispatch %d and was not a party to it", r.seat, k+1))
 		}
 		for _, p := range g.Parties {
-			// THE BENCH'S OWN BOOKENDS CAN SATISFY THE BENCH, AND THAT IS NOT MEASURABLE HERE.
+			// A BENCH DISPATCHED ONTO A GAP MUST HAVE SAT FOR *THAT*, and the occasion is what
+			// makes the question answerable.
 			//
-			// `Sat` is the party's first register after the dispatch (record.sittingFor). In the
-			// FINAL group the bench's closing sittings — the terminal disposition and the assembly
-			// — register in that same window, and since the bench collapsed to one seat they are
-			// no longer separable from a docket ruling by id. So a bench dispatched onto a gap and
-			// never sitting is satisfied by its own bookend, and "the bench sat" becomes
-			// unfalsifiable on any run whose last dispatching chair sitting engaged it.
-			//
-			// This does NOT quietly pass. A pass a reader cannot distinguish from a real one is
-			// the defect this whole audit exists to refuse, so the case is reported as NOT
-			// MEASURED. Recovering it needs the sitting's QUESTION on the record — an occasion on
-			// the register, or a dispatch row for the engine-initiated bench sittings — which is a
-			// record change and not this function's to make.
-			if terminal[p] && k+1 == len(groups) {
-				unmeasured = append(unmeasured, fmt.Sprintf("%s was named in dispatch %d and its sitting is NOT MEASURED — the bench's closing sittings register in the same window and no longer carry which question they answered", p, k+1))
+			// `Sat` is the party's first register after the dispatch. In the FINAL group the
+			// bench's closing sittings — the terminal disposition and the assembly — register in
+			// that same window, and once the bench collapsed to one seat they were no longer
+			// separable from a docket ruling by id. So a bench dispatched onto a gap and never
+			// sitting was SATISFIED BY ITS OWN BOOKEND, and "the bench sat" became unfalsifiable
+			// on any run whose last dispatching chair sitting engaged it. That case was reported
+			// as NOT MEASURED rather than passed, and this is the change that measures it: the
+			// register that answers a chair's dispatch is the one whose occasion is `docket`.
+			if record.SeatOwesOccasion(p) {
+				if !occasionsMeasured {
+					unmeasured = append(unmeasured, fmt.Sprintf("%s was named in dispatch %d and its sitting is NOT MEASURED — this record predates the register's occasion, so the bench's closing sittings cannot be told from a docket ruling", p, k+1))
+					continue
+				}
+				sat := false
+				for _, r := range regs {
+					if r.seat == p && r.occasion == "docket" && r.pos > g.Last && r.pos < end {
+						sat = true
+						break
+					}
+				}
+				if !sat {
+					absent = append(absent, fmt.Sprintf("%s was named in dispatch %d and recorded no docket sitting before the next — its closing sittings do not answer a dispatch", p, k+1))
+				}
 				continue
 			}
 			if at, sat := g.Sat[p]; !sat || at >= end {

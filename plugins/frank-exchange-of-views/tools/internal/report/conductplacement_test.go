@@ -34,7 +34,7 @@ func TestWhatAnsweredTheSeatsIsInRunMdNotReportMd(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synthesize"}
-	if _, _, err := record.RegisterSeat(id, ""); err != nil {
+	if _, _, err := record.RegisterSeat(id, "", benchOccasion(id.SeatID)); err != nil {
 		t.Fatalf("register: %v", err)
 	}
 	if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String(blue)}); err != nil {
@@ -124,7 +124,7 @@ func assembleWithOutcome(t *testing.T, outcome *recordpb.Outcome) (report, runmd
 	add := func(seat string, body proto.Message) {
 		t.Helper()
 		id := record.Identity{Run: runtest.Open(t, runDir), SeatID: seat}
-		if _, _, err := record.RegisterSeat(id, ""); err != nil {
+		if _, _, err := record.RegisterSeat(id, "", benchOccasion(id.SeatID)); err != nil {
 			t.Fatalf("register %s: %v", seat, err)
 		}
 		if _, err := record.Append(id, body); err != nil {

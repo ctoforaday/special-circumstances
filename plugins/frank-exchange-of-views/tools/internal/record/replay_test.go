@@ -115,7 +115,7 @@ func TestGapMassAndGradeStr(t *testing.T) {
 func TestGapIdsAreRunGlobalAndNeverRoundShaped(t *testing.T) {
 	runDir := newRun(t)
 	seatID := "red-chair"
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: seatID}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: seatID}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	for i := 1; i <= 3; i++ {
@@ -133,7 +133,7 @@ func TestGapIdsAreRunGlobalAndNeverRoundShaped(t *testing.T) {
 		}
 	}
 	// The chair sits again. The counter continues; a fresh epoch is not a fresh namespace.
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: seatID}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: seatID}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	got, err := MintGapID(mustRun(t, runDir))
@@ -150,7 +150,7 @@ func TestGapIdsAreRunGlobalAndNeverRoundShaped(t *testing.T) {
 func TestExistingMintByKey(t *testing.T) {
 	runDir := newRun(t)
 	seatID := "red-chair"
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: seatID}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: seatID}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: seatID}, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), MintKey: proto.String("L1-F3"), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
@@ -369,7 +369,7 @@ func TestValidateVerbContracts(t *testing.T) {
 func docketRunDir(t *testing.T) string {
 	t.Helper()
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	id, err := MintGapID(mustRun(t, runDir))
@@ -830,14 +830,14 @@ func TestSingletonVerbsAreDeclaredForTheVerbsThatAreOnce(t *testing.T) {
 func TestTheSameLabelInALaterSittingIsRefusedAndTheNextLands(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}
-	if _, _, err := RegisterSeat(id, ""); err != nil {
+	if _, _, err := RegisterSeat(id, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(id, &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("x")}); err != nil {
 		t.Fatal(err)
 	}
 	// A second sitting of the same seat.
-	if _, _, err := RegisterSeat(id, ""); err != nil {
+	if _, _, err := RegisterSeat(id, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(id, &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("y")}); err == nil {
@@ -1031,7 +1031,7 @@ func TestACarryIsExemptFromTheClosureArgument(t *testing.T) {
 		AnchorTarget: proto.String("blue/report.md"),
 	}
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	// A real gap on the record, so the reference check passes and the ARGUMENT rule is what answers.
@@ -1090,7 +1090,7 @@ func TestTheBenchDemandsARuleButNotAnInventedTension(t *testing.T) {
 	// A REAL GAP AND A REAL FILING on the record, so the reference checks pass and the FIELD
 	// rules are what answer.
 	runDir := docketRunDir(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, "", "docket"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1129,7 +1129,7 @@ func TestTheBenchDemandsARuleButNotAnInventedTension(t *testing.T) {
 func TestAGradeMotionThatMovesNothingIsRefused(t *testing.T) {
 	runDir := newRun(t)
 	for _, s := range []string{"red-chair", "blue-respond"} {
-		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s}, ""); err != nil {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s}, "", ""); err != nil {
 			t.Fatal(err)
 		}
 	}

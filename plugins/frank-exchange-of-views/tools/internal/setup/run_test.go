@@ -66,6 +66,13 @@ func runCfg(t *testing.T, exec ExecFunc) (Config, string) {
 	}, runDir
 }
 
+// skewedEpoch is an epoch this binary CANNOT be writing, derived so it stays skewed.
+//
+// It was the literal "9", which stopped being a skew the day the schema reached 9: the preflight
+// agreed with the fixture, refused nothing, and three assertions about a refusal failed at once.
+// A test that hardcodes the value it is supposed to differ from has a shelf life.
+var skewedEpoch = strconv.Itoa(record.EventSchema + 1)
+
 func reports(epoch string) ExecFunc {
 	return func(string, []string) ExecResult {
 		// --schema answers with the epoch alone; the caller parses a number, not a sentence.
@@ -81,7 +88,7 @@ func reports(epoch string) ExecFunc {
 // shape the plugin beside it does not read, which is the only incompatibility that means
 // anything when nothing promises backwards compatibility.
 func TestSkewedBinaryRefusesEvenWithoutBinDirOptIn(t *testing.T) {
-	cfg, runDir := runCfg(t, reports("9"))
+	cfg, runDir := runCfg(t, reports(skewedEpoch))
 	var out, errb bytes.Buffer
 
 	if code := Run(cfg, &out, &errb); code != 2 {
@@ -121,7 +128,7 @@ func TestTheExpectedVersionComesFromTheManifestNotTheRunningBinary(t *testing.T)
 
 	// The binary reports 1 while the manifest reads 9. Under the old shape the expectation
 	// could fall back to the binary's own number, which made this a tautology.
-	cfg, _ := runCfg(t, reports("1"))
+	cfg, _ := runCfg(t, reports(skewedEpoch))
 	cfg.BinDir = binDir
 	var out, errb bytes.Buffer
 
@@ -149,7 +156,7 @@ func TestNoManifestIsRefusedRatherThanCheckedAgainstItself(t *testing.T) {
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	cfg, _ := runCfg(t, reports("1"))
+	cfg, _ := runCfg(t, reports(skewedEpoch))
 	cfg.BinDir = binDir
 	var out, errb bytes.Buffer
 

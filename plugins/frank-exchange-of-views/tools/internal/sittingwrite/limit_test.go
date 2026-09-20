@@ -14,7 +14,7 @@ func registerAs(t *testing.T, run, agent, seat string) {
 	t.Helper()
 	t.Setenv(seatenv.AgentVar, agent)
 	t.Setenv(seatenv.TypeVar, "")
-	if _, _, err := record.RegisterSeat(record.Identity{Run: mustRun(t, run), SeatID: seat}, ""); err != nil {
+	if _, _, err := record.RegisterSeat(record.Identity{Run: mustRun(t, run), SeatID: seat}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv(seatenv.AgentVar, "")

@@ -17,7 +17,7 @@ import (
 func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	runDir := newRun(t)
 	for _, s := range []string{"blue-respond", "red-chair"} {
-		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s}, ""); err != nil {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s}, "", ""); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -90,7 +90,7 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 func TestThePassRefusalNamesTheRead(t *testing.T) {
 	runDir := newRun(t)
 	for _, sid := range []string{"blue-respond", "red-chair"} {
-		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: sid}, ""); err != nil {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: sid}, "", ""); err != nil {
 			t.Fatal(err)
 		}
 	}

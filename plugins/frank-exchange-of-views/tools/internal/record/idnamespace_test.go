@@ -182,7 +182,7 @@ func TestEveryIDKindHasADistinctPrefixLetter(t *testing.T) {
 // writeSeat registers the seat every minter counts events from.
 func writeSeat(t *testing.T, runDir string) error {
 	t.Helper()
-	_, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, "")
+	_, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, "", "")
 	return err
 }
 

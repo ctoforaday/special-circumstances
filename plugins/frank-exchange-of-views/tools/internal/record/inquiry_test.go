@@ -30,7 +30,7 @@ import (
 func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	dir := newRun(t)
 	// The chair sits first so the acts below land in epoch 1 — the round this fixture's path names.
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, dir), SeatID: "red-chair"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, dir), SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	blue := Identity{Run: mustRun(t, dir), SeatID: "blue-respond"}
@@ -57,7 +57,7 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	}
 
 	// Now a LATER seat registers, and does nothing else.
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, dir), SeatID: "judge"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, dir), SeatID: "judge"}, "", "docket"); err != nil {
 		t.Fatal(err)
 	}
 	b, err = FamilyOf(mustRun(t, dir))
@@ -76,7 +76,7 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	// AND THE DUTY STILL BINDS. A round-2 seat doing real work advances the round, and the
 	// round-1 review no longer answers for it — or this removed the check rather than repairing it.
 	// The chair sits again: what follows is epoch 2, the "round 2" this fixture means.
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, dir), SeatID: "red-chair"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, dir), SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: "blue-respond"}, &recordpb.Avenue{

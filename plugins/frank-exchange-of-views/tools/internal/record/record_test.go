@@ -65,7 +65,7 @@ func TestEventStampsResolveSubMillisecondEvents(t *testing.T) {
 // And the whole path, end to end: an appended event carries a stamp at all.
 func TestAppendedEventCarriesAStamp(t *testing.T) {
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	ev, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}, &recordpb.Observe{Label: proto.String("L1-O1")})
@@ -114,7 +114,7 @@ func TestTheReadOrderIsTheWriteOrderWhateverTheClockDoes(t *testing.T) {
 
 			runDir := recordtest.TmpRun(t)
 			id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}
-			if _, _, err := RegisterSeat(id, ""); err != nil {
+			if _, _, err := RegisterSeat(id, "", ""); err != nil {
 				t.Fatal(err)
 			}
 			var wrote []string
@@ -163,11 +163,11 @@ func TestAppendDerivesTheEpochFromTheRecord(t *testing.T) {
 		t.Fatal(err)
 	}
 	for range 2 {
-		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, dir), SeatID: "red-chair"}, ""); err != nil {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, dir), SeatID: "red-chair"}, "", ""); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, dir), SeatID: "judge"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, dir), SeatID: "judge"}, "", "docket"); err != nil {
 		t.Fatal(err)
 	}
 	ev, err := Append(Identity{Run: mustRun(t, dir), SeatID: "judge"}, &recordpb.Observe{Text: proto.String("x")})
@@ -202,7 +202,7 @@ func TestARedispatchedSeatCanStillRecord(t *testing.T) {
 	id := Identity{Run: mustRun(t, runDir), SeatID: seat}
 
 	for dispatch := 1; dispatch <= 2; dispatch++ {
-		n, _, err := RegisterSeat(id, "")
+		n, _, err := RegisterSeat(id, "", "")
 		if err != nil {
 			t.Fatalf("dispatch %d could not register: %v", dispatch, err)
 		}
@@ -247,7 +247,7 @@ func TestARepeatedSingletonActIsRefusedInTheSeatsOwnTerms(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	seat := "red-chair"
 	id := Identity{Run: mustRun(t, runDir), SeatID: seat}
-	if _, _, err := RegisterSeat(id, ""); err != nil {
+	if _, _, err := RegisterSeat(id, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(id, &recordpb.Position{Text: proto.String("the board is clean going in")}); err != nil {

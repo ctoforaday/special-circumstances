@@ -54,7 +54,7 @@ func TestOutcomeAssertsOnlyUnverifiedAndAlwaysWithAnAccount(t *testing.T) {
 			// seat from that binding rather than from a flag. So the handle is set BEFORE the
 			// register that writes it — afterwards there would be nothing to bind.
 			t.Setenv(seatenv.AgentVar, "agent_bench")
-			if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: "judge"}, ""); err != nil {
+			if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: "judge"}, "", "docket"); err != nil {
 				t.Fatal(err)
 			}
 			t.Setenv(seatenv.Var, runDir)
@@ -107,7 +107,7 @@ func TestOutcomeRecordsWhyTheVerdictIsWhatItIs(t *testing.T) {
 	// does — two seats are two agents.
 	t.Setenv(seatenv.AgentVar, "agent_merge")
 	for _, s := range []string{"red-chair"} {
-		if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: s}, ""); err != nil {
+		if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: s}, "", ""); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -116,7 +116,7 @@ func TestOutcomeRecordsWhyTheVerdictIsWhatItIs(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv(seatenv.AgentVar, "agent_bench")
-	if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: "judge"}, ""); err != nil {
+	if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: "judge"}, "", "docket"); err != nil {
 		t.Fatal(err)
 	}
 	c := testRoot()

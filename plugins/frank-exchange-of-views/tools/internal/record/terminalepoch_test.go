@@ -32,11 +32,11 @@ func lastWindow(t *testing.T, runDir string) recordsql.Window {
 func TestATerminalSeatActsInTheEpochTheChairHasReached(t *testing.T) {
 	runDir := newRun(t)
 	for range 3 {
-		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, ""); err != nil {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, "", ""); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, "", "docket"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, &recordpb.Observe{Text: proto.String("closing")}); err != nil {
@@ -50,7 +50,7 @@ func TestATerminalSeatActsInTheEpochTheChairHasReached(t *testing.T) {
 func TestSynthesisSeatsAreEpochZeroBecauseNoChairHasSat(t *testing.T) {
 	runDir := newRun(t)
 	for _, s := range []string{"frontier", "blue-synthesize", "blue-lane-2"} {
-		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s}, ""); err != nil {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s}, "", ""); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: s}, &recordpb.Observe{Text: proto.String("x")}); err != nil {
@@ -60,7 +60,7 @@ func TestSynthesisSeatsAreEpochZeroBecauseNoChairHasSat(t *testing.T) {
 			t.Errorf("%s acts in epoch %d before any chair register; want 0 — the base phase is epoch 0", s, got)
 		}
 	}
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if w := lastWindow(t, runDir); w.Epoch != 1 || w.Sitting != 1 {
@@ -70,7 +70,7 @@ func TestSynthesisSeatsAreEpochZeroBecauseNoChairHasSat(t *testing.T) {
 
 func TestAnEmptyRunIsEpochZeroNotUnknown(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, "", "docket"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, &recordpb.Observe{Text: proto.String("x")}); err != nil {

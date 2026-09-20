@@ -45,7 +45,7 @@ func budgetRun(t *testing.T, floor, cites, proofs int, lens string) Identity {
 	}
 	recordtest.Seed(t, runDir, evs...)
 	id := Identity{Run: mustRun(t, runDir), SeatID: lens}
-	if _, _, err := RegisterSeat(id, ""); err != nil {
+	if _, _, err := RegisterSeat(id, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	return id

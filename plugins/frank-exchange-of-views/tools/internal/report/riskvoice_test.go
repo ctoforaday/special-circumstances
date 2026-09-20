@@ -28,7 +28,7 @@ func TestRiskMatrixCarriesOnlyWhatMintWrote(t *testing.T) {
 	add := func(seatID string, body proto.Message) {
 		t.Helper()
 		id := record.Identity{Run: runtest.Open(t, runDir), SeatID: seatID}
-		if _, _, err := record.RegisterSeat(id, ""); err != nil {
+		if _, _, err := record.RegisterSeat(id, "", benchOccasion(id.SeatID)); err != nil {
 			t.Fatalf("register %s: %v", seatID, err)
 		}
 		if _, err := record.Append(id, body); err != nil {

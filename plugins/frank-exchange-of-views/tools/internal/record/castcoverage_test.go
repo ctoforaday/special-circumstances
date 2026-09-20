@@ -90,7 +90,7 @@ func TestATerminalVerdictStatesTheDimensionsNobodyAudited(t *testing.T) {
 	halt := func(run Run) (string, string) {
 		t.Helper()
 		judge := Identity{Run: run, SeatID: "judge"}
-		if _, _, err := RegisterSeat(judge, ""); err != nil {
+		if _, _, err := RegisterSeat(judge, "", "docket"); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := Append(judge, &recordpb.Halt{Opinion: proto.String("consent gate")}); err != nil {

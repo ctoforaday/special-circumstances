@@ -59,15 +59,19 @@ func recognized(m string) bool { return modeltier.Recognized(m) }
 // also what a bookend seat (frontier, lanes, synthesis: before the first chair sitting) and an
 // agent the record never bound both carry, and the report prints it as a dash.
 type Row struct {
-	Seat  string
-	Epoch int
-	T     string
-	Turns int
-	Inp   int
-	Out   int
-	Cr    int
-	Cw    int
-	Cost  float64
+	Seat string
+	// Occasion separates the BENCH's four sittings, which share one seat id. Without it the
+	// assembly's spend merges into a docket ruling's row — which happened, and which cost.go's own
+	// comment records happening once before under a different cause. Empty for every other seat.
+	Occasion string
+	Epoch    int
+	T        string
+	Turns    int
+	Inp      int
+	Out      int
+	Cr       int
+	Cw       int
+	Cost     float64
 }
 
 func intOf(v any) int {
@@ -136,6 +140,11 @@ type SeatBinding struct {
 	SeatID  string
 	Epoch   int
 	Sitting int
+	// Occasion is WHAT THE SITTING WAS CONVENED TO DO, where the seat id does not say — the bench,
+	// whose four sittings share one id. EMPTY for every other seat, whose id already answers it,
+	// and empty for a bench register written before the field existed: that is NOT MEASURED, and
+	// a reader must not read it as a docket ruling.
+	Occasion string
 }
 
 // SeatBindingsOf folds the record once into agent_id → binding. It is the same join
@@ -153,7 +162,8 @@ func SeatBindingsOf(evs []*record.Event) map[string]SeatBinding {
 		if !ok || reg.GetAgentId() == "" {
 			continue
 		}
-		out[reg.GetAgentId()] = SeatBinding{SeatID: e.GetSeatId(), Epoch: w.Epoch, Sitting: w.Sitting}
+		out[reg.GetAgentId()] = SeatBinding{SeatID: e.GetSeatId(), Epoch: w.Epoch, Sitting: w.Sitting,
+			Occasion: recordpb.Word(reg.GetOccasion())}
 	}
 	return out
 }
@@ -191,7 +201,14 @@ type Bucket struct {
 func Aggregate(rows []Row) map[string]*Bucket {
 	agg := map[string]*Bucket{}
 	for _, r := range rows {
-		k := fmt.Sprintf("%02d|%s|%s", r.Epoch, r.Seat, r.T)
+		// THE OCCASION IS PART OF THE KEY, not decoration on the row. The bench's four sittings
+		// share a seat id and differ only in what they were convened to do, so a key without it
+		// sums the assembly, the terminal disposition and every docket ruling into one line.
+		seat := r.Seat
+		if r.Occasion != "" {
+			seat += " · " + r.Occasion
+		}
+		k := fmt.Sprintf("%02d|%s|%s", r.Epoch, seat, r.T)
 		a := agg[k]
 		if a == nil {
 			a = &Bucket{}
@@ -340,7 +357,11 @@ func Report(transcriptDir string, run record.Run, out io.Writer) error {
 			return err
 		}
 		row := ScanTranscript(string(b))
-		row.Epoch = bindings[AgentIDOfTranscript(f)].Epoch
+		// THE RECORD SAYS WHAT THE SITTING WAS FOR, and the transcript no longer has to be asked.
+		// Both fields come from the same binding: the epoch it always did, and now the occasion,
+		// which used to be recovered by matching the first words of the prompt.
+		bind := bindings[AgentIDOfTranscript(f)]
+		row.Epoch, row.Occasion = bind.Epoch, bind.Occasion
 		rows = append(rows, row)
 	}
 
