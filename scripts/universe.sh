@@ -158,6 +158,42 @@ universe_env() {
   export CLAUDE_CONFIG_DIR="$WORKDIR/config"
   export CLAUDE_CODE_PLUGIN_CACHE_DIR="$WORKDIR/plugins"
   mkdir -p "$CLAUDE_CONFIG_DIR" "$CLAUDE_CODE_PLUGIN_CACHE_DIR"
+  share_credentials
+}
+
+# PLUGINS AND SETTINGS ARE ISOLATED; AUTHENTICATION IS NOT, AND THAT DISTINCTION COST REAL MONEY.
+#
+# CLAUDE_CONFIG_DIR isolates the whole config, which is right for what this script is FOR — a
+# universe must not install its plugins into ~/.claude or be affected by what is already there.
+# But the credential lives in that directory too, so isolating it isolated the subscription as
+# well, and `claude -p` inside the universe fell through to whatever else it could authenticate
+# with: the console/API profile on this box, in a different organization, billed in CREDITS.
+#
+# MEASURED, and it went unnoticed because the number looked like telemetry rather than a bill.
+# Every run reports total_cost_usd whichever way it authenticated, so ~$21 a run read as an
+# interesting statistic for months (project memory: "$209/10 runs") and was actual spend. The
+# 2026-09-20 smoke then died mid-epoch-3 with "Credit balance is too low", which is the API's
+# message and not a subscription's, thirty-five minutes and $7.09 into a run that had to be thrown
+# away.
+#
+# A SYMLINK RATHER THAN A COPY, so a token refreshed in the real session is picked up here and
+# there is one source of truth. A copy goes stale at the next refresh and leaves a second credential
+# on disk under scratch.
+#
+# AN ABSENT CREDENTIAL IS LOUD. Falling back silently is the whole defect: the run still works, it
+# just bills somewhere else, and the only symptom arrives as an out-of-credit failure long after the
+# decision was made.
+share_credentials() {
+  local src="$HOME/.claude/.credentials.json"
+  local dst="$CLAUDE_CONFIG_DIR/.credentials.json"
+  if [ ! -e "$src" ]; then
+    printf '[universe] WARNING: no %s — the universe cannot see your subscription and will\n' "$src" >&2
+    printf '           authenticate however it can, which on this box means API CREDITS.\n' >&2
+    return
+  fi
+  [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ] && return
+  rm -f "$dst"
+  ln -s "$src" "$dst"
 }
 
 # A SEAT'S IDENTITY AND RUN MUST NOT LEAK IN FROM THE PARENT. A shell that has FEOV_RUN set —
