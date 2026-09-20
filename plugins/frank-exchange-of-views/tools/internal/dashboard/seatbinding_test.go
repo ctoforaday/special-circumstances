@@ -55,7 +55,7 @@ func TestSeatsAreLabelledFromTheRecordsRegisters(t *testing.T) {
 		"C1":      {"red-chair #1", 1, 1},
 		"C2":      {"red-chair #2", 2, 2},
 		"L2":      {"red-lens-evidence #2", 2, 2},
-		"UNBOUND": {"judge", 0, 0},
+		"UNBOUND": {"assemble", 0, 0},
 	}
 	if len(m.Seats) != len(want) {
 		t.Fatalf("seats = %d, want %d: %+v", len(m.Seats), len(want), m.Seats)

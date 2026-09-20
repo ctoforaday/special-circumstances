@@ -51,7 +51,12 @@ var roleSeats = map[string][]string{
 	// "merge" means only blue's union of the lane drafts.
 	"chair": {"red-chair"},
 	"blue":  {"blue-", "frontier"},
-	"bench": {"judge", "assemble"},
+	// THE BENCH IS ONE PREFIX, BECAUSE IT IS ONE SEAT. `assemble` stayed here after the bench
+	// collapsed, and this table is the GRANT: RoleOfSeat scopes the command surface from it, while
+	// seatShapes is what REFUSES at register. Removing every refusal and leaving the grant meant
+	// `--seat-id assemble-anything` still selected the whole bench tree — and `halt`, the safety
+	// stop capture relays verbatim to a human, recorded under an identity no dispatch can create.
+	"bench": {"judge"},
 }
 
 // scorecardOfRole maps a seat's ROLE to the CARD — the scorecard — that measures it.

@@ -230,6 +230,11 @@ cmd_build() {
   for p in "${PLUGINS[@]}"; do
     cp -r "$REPO/plugins/$p" "$mkt/plugins/$p" || die "could not stage plugin $p"
     rm -rf "$mkt/plugins/$p/bin"
+    # .fetch IS THE SELF-HEAL'S STATE, and staging the developer's copy of it is inheriting an
+    # accident. This checkout carries one from a release fetch that ran against it; `cp -r` put it
+    # in the universe, where its stamp happened to match and so happened to hold the self-heal shut.
+    # A universe on a clean clone has no such luck. Stripped here and written deliberately below.
+    rm -rf "$mkt/plugins/$p/.fetch"
   done
   python3 "$REPO/scripts/universe-manifest.py" \
     "$REPO/.claude-plugin/marketplace.json" "$mkt/.claude-plugin/marketplace.json" \
@@ -284,10 +289,53 @@ cmd_build() {
     mkdir -p "$mkt/plugins/$pname/bin"
     for b in "$plugin_dir"/bin/*; do
       [ -f "$b" ] || continue
-      cp -f "$b" "$mkt/plugins/$pname/bin/" && staged=$((staged + 1))
+      cp -f "$b" "$mkt/plugins/$pname/bin/" || die "could not mirror $(basename "$b") into the staging tree"
+      staged=$((staged + 1))
     done
   done
-  log "mirrored $staged binaries into the staging tree, so the self-heal never reaches for a release"
+
+  # THE SELF-HEAL TRIGGERS ON THE STAMP, NOT ON AN EMPTY bin/ — which is what the previous version
+  # of this comment got wrong, and it said "the self-heal never reaches for a release" over code
+  # that did not stop it. fetch-bin.sh lists a binary as MISSING when `.fetch/installed` does not
+  # name this plugin's tag, however present and executable the file is: "When the stamp names
+  # another release, or none, every binary is fetched." A `go build` writes no stamp, so a universe
+  # built on a clean clone is one SessionStart away from having its binaries replaced by the
+  # release's, mid-run, with `setup`'s version preflight already past.
+  #
+  # So the stamp is written for every root this script populates, naming that plugin's own version
+  # — the same string tag_of() computes — and the assertion below proves `ensure` then does nothing.
+  local stamped=0
+  for root in "$cache_root"/*/*/ "$mkt/plugins"/*/; do
+    [ -d "$root" ] || continue
+    local pj="$root/.claude-plugin/plugin.json"
+    [ -f "$pj" ] || pj="$root/plugin.json"
+    [ -f "$pj" ] || continue
+    local nm ver
+    nm=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['name'])" "$pj" 2>/dev/null) || continue
+    ver=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['version'])" "$pj" 2>/dev/null) || continue
+    [ -n "$nm" ] && [ -n "$ver" ] || continue
+    mkdir -p "$root/.fetch"
+    printf '%s\n' "$nm--v$ver" > "$root/.fetch/installed"
+    stamped=$((stamped + 1))
+  done
+  log "mirrored $staged binaries and stamped $stamped root(s) as installed"
+
+  # ASSERT IT, rather than assert it in a comment. `ensure` prints a systemMessage and spawns a
+  # background fetch exactly when it thinks a binary is missing; on a correctly stamped root it
+  # says nothing. A universe whose binaries the release would overwrite mid-run is not a universe
+  # that proves anything about this checkout, and that is a checkable condition, so it is checked.
+  local hook="$cache_root"
+  for root in "$cache_root"/*/*/; do
+    [ -f "$root/hooks/fetch-bin.sh" ] || continue
+    local out
+    out=$(CLAUDE_PLUGIN_ROOT="$root" sh "$root/hooks/fetch-bin.sh" ensure SessionStart 2>&1)
+    if [ -n "$out" ]; then
+      die "the self-heal still fires in $(basename "$(dirname "$root")"): $out
+  A stamped root must make \`ensure\` a no-op. If it does not, this universe's binaries can be
+  replaced by the release's at any session start, and the run would be measuring the release."
+    fi
+  done
+  log "self-heal checked: silent on every cache root"
 
   # Enable the plugins for this universe. Without this the content is installed and nothing loads
   # it, which presents as a session with no skills and no hooks.

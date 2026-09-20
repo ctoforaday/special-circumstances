@@ -102,7 +102,7 @@ func TestReportBindsEachTranscriptToItsEpochFromTheRecord(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := b.String()
-	for _, want := range []string{"## Per seat-epoch", "| epoch | seat |", "| 1 | judge | haiku | 1 |", "| 2 | judge | haiku | 1 |", "| — | judge | haiku | 1 |"} {
+	for _, want := range []string{"## Per seat-epoch", "| epoch | seat |", "| 1 | judge-terminal | haiku | 1 |", "| 2 | judge-terminal | haiku | 1 |", "| — | judge-terminal | haiku | 1 |"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("cost.md lacks %q:\n%s", want, out)
 		}

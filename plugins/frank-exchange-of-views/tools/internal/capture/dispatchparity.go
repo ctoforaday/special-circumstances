@@ -79,7 +79,7 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 	// It cannot be recovered from an id that four sittings share — position is what distinguishes
 	// them, and position is already what this test uses.
 	terminal := map[string]bool{"judge": true}
-	var strays, absent []string
+	var strays, absent, unmeasured []string
 	for k, g := range groups {
 		end := len(fam.Events)
 		if k+1 < len(groups) {
@@ -99,6 +99,24 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 			strays = append(strays, fmt.Sprintf("%s registered after dispatch %d and was not a party to it", r.seat, k+1))
 		}
 		for _, p := range g.Parties {
+			// THE BENCH'S OWN BOOKENDS CAN SATISFY THE BENCH, AND THAT IS NOT MEASURABLE HERE.
+			//
+			// `Sat` is the party's first register after the dispatch (record.sittingFor). In the
+			// FINAL group the bench's closing sittings — the terminal disposition and the assembly
+			// — register in that same window, and since the bench collapsed to one seat they are
+			// no longer separable from a docket ruling by id. So a bench dispatched onto a gap and
+			// never sitting is satisfied by its own bookend, and "the bench sat" becomes
+			// unfalsifiable on any run whose last dispatching chair sitting engaged it.
+			//
+			// This does NOT quietly pass. A pass a reader cannot distinguish from a real one is
+			// the defect this whole audit exists to refuse, so the case is reported as NOT
+			// MEASURED. Recovering it needs the sitting's QUESTION on the record — an occasion on
+			// the register, or a dispatch row for the engine-initiated bench sittings — which is a
+			// record change and not this function's to make.
+			if terminal[p] && k+1 == len(groups) {
+				unmeasured = append(unmeasured, fmt.Sprintf("%s was named in dispatch %d and its sitting is NOT MEASURED — the bench's closing sittings register in the same window and no longer carry which question they answered", p, k+1))
+				continue
+			}
 			if at, sat := g.Sat[p]; !sat || at >= end {
 				absent = append(absent, fmt.Sprintf("%s was named in dispatch %d and never registered before the next", p, k+1))
 			}
@@ -106,7 +124,9 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 	}
 	sort.Strings(strays)
 	sort.Strings(absent)
+	sort.Strings(unmeasured)
 	findings := append(strays, absent...)
+	findings = append(findings, unmeasured...)
 	compared := ""
 	if journalPresent {
 		if len(relays) != len(groups) {

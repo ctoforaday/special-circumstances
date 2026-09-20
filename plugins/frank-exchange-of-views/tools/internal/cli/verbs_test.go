@@ -190,7 +190,7 @@ func TestVerbPayloads(t *testing.T) {
 		},
 		{
 			name: "bench certify is the run-end statement",
-			role: "bench", seatID: "assemble",
+			role: "bench", seatID: "judge",
 			args: []string{"--reason", "what I would want a human to re-examine"},
 			typ:  recordpb.EventType_EVENT_TYPE_CERTIFY,
 			want: map[string]string{"statement": "what I would want a human to re-examine"},
@@ -423,7 +423,7 @@ func TestProseVerbsFillTheirProseField(t *testing.T) {
 		extra                     []string
 	}{
 		{"bench", "halt", "judge-terminal", "opinion", recordpb.EventType_EVENT_TYPE_HALT, nil},
-		{"bench", "certify", "assemble", "statement", recordpb.EventType_EVENT_TYPE_CERTIFY, nil},
+		{"bench", "certify", "judge", "statement", recordpb.EventType_EVENT_TYPE_CERTIFY, nil},
 		{"blue", "revision", "blue-lane-1", "text", recordpb.EventType_EVENT_TYPE_REVISION, nil},
 		{"chair", "closing", "red-chair", "text", recordpb.EventType_EVENT_TYPE_CLOSING, []string{"--id", "G1"}},
 		{"blue", "manifest-row", "blue-lane-1", "row", recordpb.EventType_EVENT_TYPE_MANIFEST_ROW, []string{"--id", "G1"}},

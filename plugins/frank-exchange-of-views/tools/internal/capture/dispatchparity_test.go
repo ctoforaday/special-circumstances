@@ -107,14 +107,19 @@ func TestAWarmChairsDispatchesAreGroupedByWhoSat(t *testing.T) {
 
 	dir := t.TempDir()
 	recordtest.Seed(t, dir, warm(true, false)...)
-	if a := DispatchParityAudit(runtest.Open(t, dir), nil, false); a.Verdict != "PASS" || !strings.HasPrefix(a.Detail, "3 dispatch(es)") {
-		t.Fatalf("a warm run whose parties all sat = %s: %s — want PASS over 3 dispatches", a.Verdict, a.Detail)
+	// THE BENCH IS DISPATCHED IN THE FINAL GROUP HERE, and since it collapsed to one seat its
+	// closing sittings register in that same window — so "the bench sat" cannot be established from
+	// the record, and the audit says NOT MEASURED rather than PASS. Asserting PASS would be
+	// asserting a fact the events do not carry: the bookend register and the ruling register are
+	// the same seat, and nothing on the record says which question either answered.
+	if a := DispatchParityAudit(runtest.Open(t, dir), nil, false); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "NOT MEASURED") {
+		t.Fatalf("a warm run whose bench sitting is unmeasurable = %s: %s — want the NOT MEASURED note", a.Verdict, a.Detail)
 	}
 
 	n = 400
 	dir2 := t.TempDir()
 	recordtest.Seed(t, dir2, warm(false, false)...)
-	if a := DispatchParityAudit(runtest.Open(t, dir2), nil, false); a.Verdict != "FAIL" || a.Detail != "red-lens-voice was named in dispatch 2 and never registered before the next"+noJournalNote {
+	if a := DispatchParityAudit(runtest.Open(t, dir2), nil, false); a.Verdict != "FAIL" || !strings.HasPrefix(a.Detail, "red-lens-voice was named in dispatch 2 and never registered before the next") {
 		t.Fatalf("a warm run whose voice lens never sat for dispatch 2 = %s: %s", a.Verdict, a.Detail)
 	}
 
