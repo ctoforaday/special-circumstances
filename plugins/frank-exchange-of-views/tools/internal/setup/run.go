@@ -409,10 +409,12 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		K: terms.K, KMax: terms.KMax, MintBudget: terms.MintBudget, ConvergenceFraction: terms.ConvergenceFraction, MaxEpochs: terms.MaxEpochs,
 		LensAreas: cfg.LensAreas, LensAreaReason: cfg.LensAreaReason,
 		MaxSittingCalls: maxCalls,
-		Hooks:           hookProvenanceAt(homeDir(), "frank-exchange-of-views")}
+		Hooks:           hookProvenanceAt(homeDir(), "frank-exchange-of-views"),
+		Billing:         ReadBillingIdentity()}
 	if b, err := marshalJSON(rc); err == nil {
 		os.WriteFile(filepath.Join(run.Dir(), "inputs", "run-config.json"), b, 0o644)
 	}
+	reportBilling(rc.Billing, stdout, stderr)
 
 	law := MirrorLaw(filepath.Join(cfg.Cwd, "law"), run)
 	pinnedPaths := []string{}
@@ -595,6 +597,12 @@ type runConfig struct {
 	// It is written here and read at `register` (record.allowSubstitution), which is what makes
 	// the consent a FIELD an operator set rather than a flag a seat could type for itself.
 	AllowModelSubstitution bool `json:"allowModelSubstitution,omitempty"`
+	// Billing is WHAT THIS RUN IS BILLED TO — the account, its organization and whether it is a
+	// subscription. See BillingIdentity for the measurement that put it here: a run had no way to
+	// say which bill it was on, so an isolated config silently authenticated against a different
+	// organization and spent credits for months while reporting a dollar figure that read as
+	// telemetry.
+	Billing BillingIdentity `json:"billing"`
 }
 
 func ptrOrNil(s string) *string {
@@ -615,4 +623,44 @@ func gitHead(git GitFunc) string {
 		return "unknown"
 	}
 	return h
+}
+
+// reportBilling says what the run will be billed to, BEFORE it runs.
+//
+// The failure this answers took thirty-five minutes and $7.09 to become visible, and then only as
+// "Credit balance is too low" with the debate abandoned mid-epoch and no outcome row. Every fact
+// needed to see it coming was on disk at setup; nothing read them aloud.
+//
+// A WARNING, NEVER A REFUSAL. An API-billed run is legitimate — CI, a second operator, a
+// deliberately isolated environment — and refusing it would break those to protect a wallet the
+// tool cannot see. What is not legitimate is doing it SILENTLY, so this makes the quiet case loud
+// and leaves the decision where it belongs.
+func reportBilling(b BillingIdentity, stdout, stderr io.Writer) {
+	if b.Subscription() {
+		where := "the default config"
+		if b.Isolated {
+			where = b.ConfigDir
+		}
+		fmt.Fprintf(stdout, "run-setup: billing to %s (%s), from %s\n",
+			orUnknown(b.BillingType), orUnknown(b.SubscriptionType), where)
+		return
+	}
+	fmt.Fprintln(stderr, "run-setup: THIS RUN IS NOT ON A SUBSCRIPTION.")
+	if b.Isolated {
+		fmt.Fprintf(stderr, "  The config directory is %s, which carries no subscription credential;\n", b.ConfigDir)
+		fmt.Fprintln(stderr, "  the CLI will authenticate however else it can, which may be an API profile billed in CREDITS.")
+	}
+	if b.Unreadable != "" {
+		fmt.Fprintf(stderr, "  %s\n", b.Unreadable)
+	}
+	fmt.Fprintln(stderr, "  A full run costs real money on that path. Point CLAUDE_CONFIG_DIR at a directory")
+	fmt.Fprintln(stderr, "  holding your credential, or accept the charge deliberately.")
+}
+
+// orUnknown keeps an absent field visible rather than rendering a confident blank.
+func orUnknown(s string) string {
+	if s == "" {
+		return "unknown"
+	}
+	return s
 }
