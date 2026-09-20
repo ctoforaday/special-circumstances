@@ -1,4 +1,4 @@
-$ manual --seat-id judge
+$ manual --seat-id operator --for judge
 exit 0
 stdout:
 feov-record manual — the bench surface, seat judge: 28 commands, each under a header naming it and followed by the help it prints, run live just now. LEAN ON PURPOSE: a block that repeats word for word on several pages is printed ONCE under SHARED below, and each page marks where it came out (`→ SHARED §n`); a group whose page would only list commands that have pages of their own is left out, and so is this command's own page. The surface's own page comes first.
@@ -129,7 +129,6 @@ Available Commands:
   halt         stop the run at a safety or consent boundary, when continuing would itself be the harm
   help         Help about any command
   log          an entry for the operator who can retool you — what it asserts, said in the positive
-  manual       every command on your surface, each with its own help, run live — read it once, first thing in a sitting
   outcome      stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
   register     your first act at EVERY sitting, and the one call that needs your seat id — nothing else runs until it does
 
@@ -768,7 +767,7 @@ Flags:
 
 (Global Flags:) → SHARED §16
 
-$ manual --seat-id blue-respond
+$ manual --seat-id operator --for blue-respond
 exit 0
 stdout:
 feov-record manual — the blue surface, seat blue-respond: 33 commands, each under a header naming it and followed by the help it prints, run live just now. LEAN ON PURPOSE: a block that repeats word for word on several pages is printed ONCE under SHARED below, and each page marks where it came out (`→ SHARED §n`); a group whose page would only list commands that have pages of their own is left out, and so is this command's own page. The surface's own page comes first.
@@ -922,7 +921,6 @@ Available Commands:
   ingest          freeze the synthesized report into the record and remove the file — done once, by its author
   log             an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
-  manual          every command on your surface, each with its own help, run live — read it once, first thing in a sitting
   position        your sitting's position — the argument the other side answers, rendered as this sitting's BLUE section
   prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
   register        your first act at EVERY sitting, and the one call that needs your seat id — nothing else runs until it does

@@ -248,7 +248,6 @@ Available Commands:
   halt         stop the run at a safety or consent boundary, when continuing would itself be the harm
   help         Help about any command
   log          an entry for the operator who can retool you — what it asserts, said in the positive
-  manual       every command on your surface, each with its own help, run live — read it once, first thing in a sitting
   outcome      stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
   register     your first act at EVERY sitting, and the one call that needs your seat id — nothing else runs until it does
 

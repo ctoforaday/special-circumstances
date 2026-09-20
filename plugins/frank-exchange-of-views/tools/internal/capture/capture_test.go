@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
@@ -1426,4 +1427,93 @@ func TestModelTierAuditSaysWhenTheServedModelWasNeverMeasured(t *testing.T) {
 	if got.Verdict == "FAIL" {
 		t.Errorf("not measured is not a failure either; got %s", got.Verdict)
 	}
+}
+
+// AN ARCHIVE IS ONE FILE THAT HOLDS THE WHOLE RUN, not a database beside a log that happens to
+// contain a third of it.
+//
+// The record runs journal_mode=WAL and nothing checkpoints it during a run, so a finished run is a
+// database plus a large write-ahead log. Shipping both means a later reader that opens only the
+// database — copying record.db out of the tarball, or opening it immutable — gets a shorter,
+// self-consistent, wrong run. Measured on the 2026-09-20 run: 186 events against 301, and no
+// outcome row where the run was `verified`.
+//
+// This asserts the two properties that make the archive safe to read: the log is empty, and the
+// shared-memory file (process scratch, meaningless once the run is over) is not shipped at all.
+func TestAnArchivedRecordIsSealedAndShipsNoSharedMemoryFile(t *testing.T) {
+	repo := t.TempDir()
+	run := filepath.Join(repo, "research", "2026-09-20_sealed")
+	recs := filepath.Join(run, "records")
+	if err := os.MkdirAll(recs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// A real database with enough rows that the log is certainly carrying some of them.
+	db, err := recordsql.Open(filepath.Join(recs, "record.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = recordsql.CloseUnder(run) })
+	if _, err := db.Exec(`CREATE TABLE ev (id INTEGER PRIMARY KEY, body TEXT)`); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 400; i++ {
+		if _, err := db.Exec(`INSERT INTO ev (body) VALUES (?)`, "padding so the log grows past one page"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n, err := recordsql.SealedSize(filepath.Join(recs, "record.db")); err != nil || n == 0 {
+		t.Fatalf("the log is empty before archiving (%d, %v), so this test cannot tell sealing from a no-op", n, err)
+	}
+	// A shard, because ArchiveRecord refuses a run with no events.
+	if err := os.WriteFile(filepath.Join(recs, "events-red-lens-evidence-aaaaaaaa.jsonl"),
+		[]byte(`{"seq":0,"ts":"2026-09-20T12:00:00.000000000Z","seatId":"red-lens-evidence","nonce":"aaaaaaaa","round":1,"role":"lens","type":"finding","key":"k","payload":{}}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := ArchiveRecord(runtest.Open(t, run), repo); err != nil {
+		t.Fatal(err)
+	}
+
+	if n, err := recordsql.SealedSize(filepath.Join(recs, "record.db")); err != nil {
+		t.Fatal(err)
+	} else if n != 0 {
+		t.Errorf("after archiving, %d bytes remain in the write-ahead log", n)
+	}
+
+	names := tarNames(t, filepath.Join(repo, "run-archive", "2026-09-20_sealed.tar.gz"))
+	for _, n := range names {
+		if strings.HasSuffix(n, "-shm") {
+			t.Errorf("the archive ships %s — shared memory is process scratch and means nothing once the run is over", n)
+		}
+		if strings.HasSuffix(n, "-wal") {
+			// A zero-length log is harmless, a populated one is the defect.
+			t.Logf("archive carries %s (must be empty)", n)
+		}
+	}
+}
+
+// tarNames lists the entries of a gzipped archive, for the assertions that are about WHICH files
+// were shipped rather than their contents.
+func tarNames(t *testing.T, path string) []string {
+	t.Helper()
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []string
+	tr := tar.NewReader(gz)
+	for {
+		h, err := tr.Next()
+		if err != nil {
+			break
+		}
+		out = append(out, h.Name)
+	}
+	return out
 }

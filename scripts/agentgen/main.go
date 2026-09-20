@@ -178,13 +178,16 @@ func buildTool(root string) (string, func(), error) {
 // therefore written here, naming the ROLE, which is the thing that is actually true of every seat
 // the block reaches.
 func renderSurface(bin, seat, role string) ([]byte, error) {
-	cmd := exec.Command(bin, "--seat-id", seat, "manual")
+	// RENDERED FROM THE OPERATOR SURFACE, because `manual` is no longer on a seat's. The seat is
+	// handed what this prints, so the verb that prints it was taken off the seat surface — which
+	// means the generator cannot ask the seat to render its own. --for names whose surface to walk.
+	cmd := exec.Command(bin, "--seat-id", "operator", "manual", "--for", seat)
 	// A SEAT'S ENVIRONMENT MUST NOT REACH THE GENERATOR. FEOV_RUN and friends make the tool answer
 	// as a seat inside a live run; the surface would then be rendered against that run's state.
 	cmd.Env = scrubbed(os.Environ())
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("`feov-record --seat-id %s manual` failed: %w", seat, err)
+		return nil, fmt.Errorf("`feov-record --seat-id operator manual --for %s` failed: %w", seat, err)
 	}
 	lines := bytes.SplitN(out, []byte("\n"), 2)
 	if len(lines) != 2 {

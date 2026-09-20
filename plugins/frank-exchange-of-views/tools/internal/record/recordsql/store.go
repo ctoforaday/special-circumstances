@@ -195,6 +195,63 @@ func OrphanedHandles() []string {
 	return out
 }
 
+// Seal folds the write-ahead log back into the database file and empties it, so the record is ONE
+// file that carries the whole run.
+//
+// THE RECORD RUNS journal_mode=WAL AND NOTHING EVER CHECKPOINTS IT. SQLite checkpoints on the last
+// connection close; a seat runs one command per process, so the handle dies with the process and
+// the log simply grows. A finished run is therefore a 766 KB database beside a 4.1 MB log, and
+// run-archive ships both.
+//
+// WHAT THAT COSTS IS A WRONG ANSWER, NOT A BIG DIRECTORY. A reader that opens the database without
+// the log — anyone who copies record.db out of the archive, or opens it `immutable=1`, which tells
+// SQLite the file cannot change and to skip the log — gets a SMALLER, INTERNALLY CONSISTENT,
+// ENTIRELY PLAUSIBLE run. Measured on the 2026-09-20 run, same file, same moment: 186 events
+// against 301, four gaps against five, zero verdicts against one, and NO OUTCOME ROW against
+// `verified`. An agent read the first column, concluded that runs do not record whether they
+// passed, surveyed five more runs the same way and filed it as a release blocker. The run had
+// passed and the record said so.
+//
+// The truncated read and the honest read are the same bytes, which is why this is sealed at the
+// source rather than documented as a caveat for every reader to remember.
+func Seal(path string) error {
+	db, err := Open(path)
+	if err != nil {
+		return err
+	}
+	// TRUNCATE rather than PASSIVE or FULL: PASSIVE gives up rather than wait for a reader, and
+	// FULL leaves the log file at its grown size with the frames still in it. TRUNCATE is the only
+	// mode that leaves a zero-length log, which is what makes the result CHECKABLE by size alone —
+	// see SealedSize, which is how a caller proves the seal took rather than trusting a nil error.
+	var busy, logFrames, checkpointed int
+	if err := db.QueryRow(`PRAGMA wal_checkpoint(TRUNCATE)`).Scan(&busy, &logFrames, &checkpointed); err != nil {
+		return fmt.Errorf("sealing %s: %w", path, err)
+	}
+	// busy=1 means a reader held the log open and the checkpoint did NOT complete. Returning nil
+	// here would be the same silent-partial this function exists to remove.
+	if busy != 0 {
+		return fmt.Errorf("sealing %s: a concurrent reader held the write-ahead log open, so it was not folded in "+
+			"(%d frames left). Seal a run that has ENDED; a live run's log is meant to be open", path, logFrames)
+	}
+	return nil
+}
+
+// SealedSize reports the bytes still sitting in a record's write-ahead log. Zero means sealed.
+//
+// The caller asks the FILESYSTEM rather than the database, because that is the question a later
+// reader's failure actually turns on: not "did a checkpoint run" but "is there a second file here
+// that holds events". A missing log is sealed by definition.
+func SealedSize(path string) (int64, error) {
+	st, err := os.Stat(path + "-wal")
+	if errors.Is(err, fs.ErrNotExist) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	return st.Size(), nil
+}
+
 // CloseAll releases every cached handle. For a process shutting down, not for a test cleanup.
 func CloseAll() error {
 	openMu.Lock()
