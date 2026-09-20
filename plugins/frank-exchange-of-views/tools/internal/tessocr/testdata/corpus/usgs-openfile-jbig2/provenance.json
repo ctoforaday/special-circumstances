@@ -1,0 +1,29 @@
+{
+  "slug": "usgs-openfile-jbig2",
+  "source_url": "https://pubs.usgs.gov/of/1995/0077/report.pdf",
+  "source_page": 6,
+  "publisher": "US Geological Survey",
+  "date": "1995",
+  "rights": "us-government-work",
+  "rights_evidence": "US Government work, 17 U.S.C. 105 — USGS Open-File Report 95-77, https://pubs.usgs.gov/of/1995/0077/report.pdf",
+  "local_file_sha256": "f95eb05dee1e22834eebc60c4f447222ceaa2251936149a47ea5f199f0a038ba",
+  "page_sha256": "f988496f747b79954eb5550cf395b52279685b644dc02c0671a3c357af5242c0",
+  "text_objects_removed": 384,
+  "added_at": "2026-09-20",
+  "defect_class": [
+    "clean-control",
+    "large-format",
+    "punctuated-numerals"
+  ],
+  "why": "A clean modern laser page as a CONTROL: single-encoding JBIG2, 1-bit, on a 10.5x14.4 inch sheet, with hanging indents and punctuated map scales (1:2,500,000) that a reader must not mangle.",
+  "expect": {
+    "table": false,
+    "must_contain": [
+      "Gravity and basin-depth maps",
+      "1:2,500,000",
+      "EROS Data Center",
+      "Lake Superior aeromagnetic grid",
+      "INDIVIDUAL STATES"
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 # Corpus status
 
-**7 of 10 pages do not yet read as they should.**
+**7 of 11 pages do not yet read as they should.**
 
 Derived from each page's `expect` block, checked against the reading by the tagged
 harness. GENERATED — edit a record or fix the reader, not this file.
@@ -17,3 +17,4 @@ harness. GENERATED — edit a record or fix the reader, not this file.
 | nbs602-form | **no** | must_contain: "NBS-114A" is printed on the page and is not in the reading |
 | usfs-birds-markgrid | **no** | must_contain: "Riparian" is printed on the page and is not in the reading; must_contain: "Ponderosa" is printed on the page and is not in the reading; must_contain: "Spruce-Fir" is printed on the page and is not in the reading |
 | usgs-bibliography-jpeg | yes | — |
+| usgs-openfile-jbig2 | yes | — |
