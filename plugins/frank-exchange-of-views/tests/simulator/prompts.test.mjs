@@ -112,9 +112,13 @@ const SEATS = [
   ['red-lens-evidence-engaged', (l) => l.startsWith('red-lens-evidence #2')],
   ['red-chair', (l) => l.startsWith('red-chair #1')],
   ['blue-respond', (l) => l.startsWith('blue-respond #1')],
+  // THE BENCH IS ONE SEAT ASKED FOUR QUESTIONS, and a golden is still recorded per SITTING —
+  // the docket, the terminal disposition, the assembly — because those prompts differ and each
+  // is worth pinning. The names stay; only the labels they match moved, from a seat id per
+  // sitting to one seat id and the question after it.
   ['judge', (l) => l.startsWith('judge #1')],
-  ['judge-terminal', (l) => l.startsWith('judge-terminal')],
-  ['assemble', (l) => l.startsWith('assemble')],
+  ['judge-terminal', (l) => l.startsWith('judge · terminal')],
+  ['assemble', (l) => l.startsWith('judge · assemble')],
 ]
 
 // captureSeats records one golden per seat class for a given world.

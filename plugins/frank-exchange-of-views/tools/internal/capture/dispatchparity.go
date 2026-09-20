@@ -19,7 +19,8 @@ import (
 // or the seat that authors D+1 (the chair registering to run the verb is exempt BY RULE, not by
 // allowlist), and every party named in D SAT for it — record.DispatchGroup's Sat, the one "has this
 // seat sat" predicate — before D+1. The bookends register outside the window by position: the base
-// phase before the first dispatch, judge-terminal and assemble after the last chair sitting.
+// phase before the first dispatch, and the bench's terminal and assembly sittings after the last
+// chair sitting.
 //
 // RELAYED FIELDS AGAINST DISPATCH ROWS. A chair result in the journal is the one whose `plan` is an
 // object with a `parties` array — the chair envelope is the only one carrying a plan, and it is how
@@ -71,8 +72,14 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 			regs = append(regs, reg{pos: i, seat: e.GetSeatId()})
 		}
 	}
-	terminal := map[string]bool{"judge-terminal": true, "assemble": true}
-	var strays, absent []string
+	// THE BOOKENDS ARE THE BENCH, and since the bench collapsed to one seat they are no longer
+	// separable from it by id. This exempts a bench register in the FINAL dispatch group only,
+	// which is where the terminal disposition and the assembly sit. The discrimination lost is
+	// narrow and real: a genuinely stray bench register in that last group now reads as a bookend.
+	// It cannot be recovered from an id that four sittings share — position is what distinguishes
+	// them, and position is already what this test uses.
+	terminal := map[string]bool{"judge": true}
+	var strays, absent, unmeasured []string
 	for k, g := range groups {
 		end := len(fam.Events)
 		if k+1 < len(groups) {
@@ -92,6 +99,24 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 			strays = append(strays, fmt.Sprintf("%s registered after dispatch %d and was not a party to it", r.seat, k+1))
 		}
 		for _, p := range g.Parties {
+			// THE BENCH'S OWN BOOKENDS CAN SATISFY THE BENCH, AND THAT IS NOT MEASURABLE HERE.
+			//
+			// `Sat` is the party's first register after the dispatch (record.sittingFor). In the
+			// FINAL group the bench's closing sittings — the terminal disposition and the assembly
+			// — register in that same window, and since the bench collapsed to one seat they are
+			// no longer separable from a docket ruling by id. So a bench dispatched onto a gap and
+			// never sitting is satisfied by its own bookend, and "the bench sat" becomes
+			// unfalsifiable on any run whose last dispatching chair sitting engaged it.
+			//
+			// This does NOT quietly pass. A pass a reader cannot distinguish from a real one is
+			// the defect this whole audit exists to refuse, so the case is reported as NOT
+			// MEASURED. Recovering it needs the sitting's QUESTION on the record — an occasion on
+			// the register, or a dispatch row for the engine-initiated bench sittings — which is a
+			// record change and not this function's to make.
+			if terminal[p] && k+1 == len(groups) {
+				unmeasured = append(unmeasured, fmt.Sprintf("%s was named in dispatch %d and its sitting is NOT MEASURED — the bench's closing sittings register in the same window and no longer carry which question they answered", p, k+1))
+				continue
+			}
 			if at, sat := g.Sat[p]; !sat || at >= end {
 				absent = append(absent, fmt.Sprintf("%s was named in dispatch %d and never registered before the next", p, k+1))
 			}
@@ -99,7 +124,9 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 	}
 	sort.Strings(strays)
 	sort.Strings(absent)
+	sort.Strings(unmeasured)
 	findings := append(strays, absent...)
+	findings = append(findings, unmeasured...)
 	compared := ""
 	if journalPresent {
 		if len(relays) != len(groups) {

@@ -53,7 +53,7 @@ export const meta = {
 // object destructures to undefined and every agent gets literal 'undefined' paths —
 // the exact harness defect red graded high/high/low in run 1. Parse, then guard.
 const a = typeof args === 'string' ? JSON.parse(args) : args
-const { topic, runDir, lanes = 3, lensAreas = null, model = null, judgmentModel = null, laneFloorOverride = null, binDir = null, gapPatterns = null, transcriptDir = null } = a
+const { topic, runDir, lanes = 3, lensAreas = null, model = null, judgmentModel = null, laneFloorOverride = null, binDir = null, transcriptDir = null } = a
 if (args && Object.prototype.hasOwnProperty.call(args, 'maxRounds')) {
   throw new Error(`debate: refusing dispatch — maxRounds is not a term of this engine any more (plans/roundless.md). A run ends on the record, not on a count:
 the chair's \`dispatch next\` says who sits, and the run ends when nobody is ready — PASS permitted, or every open material
@@ -164,26 +164,26 @@ const inquiryClause = binDir
 // and whether the stated reason survives contact.
 const steelmanClause = ` STEELMAN DUTY: read the exploration space via the \`lines-of-inquiry\` projection (the tool renders it fresh from the line of inquiry events on the record). Blue's DECLINED and ABANDONED lines of inquiry are the case AGAINST its own design, and the measured blind spot is that nobody audits them — a weak reason for declining a strong alternative survives untouched because it reads as humility. Attack the reasons, not just the conclusions: a declined line of inquiry whose stated reason does not hold is a finding, and so is an abandoned one whose obituary is wrong. RECONCILE THE RECORD AGAINST THE DOCUMENT: the directions the report actually took must be the ones on the line of inquiry record. A section built on a line of inquiry that was never proposed is undeclared scope; a line of inquiry still at \`proposed\`, or at \`pursued\` and NOT moved this sitting, is a decision nobody made. Both are findings. Re-recording \`pursued\` WITH what it learned is a legitimate reaffirmation and settles the line for that sitting — do not read it as neglect; \`deferred\` is likewise a decision (kept for a later run), not an omission. Measured over six runs: 83 of 86 lines of inquiry were declared in the first epoch and NONE was ever revisited, so 'pursued' meant 'I intend to' and nothing could falsify it.`
 
-const patternsForGaps = (gaps) => {
-  if (!gapPatterns || !gaps || !gaps.length) return []
-  const classes = [...new Set(gaps.map((g) => g && (g.class || g.gap_class)).filter(Boolean))]
-  const seen = new Set()
-  const out = []
-  for (const c of classes) {
-    for (const p of gapPatterns[c] || []) {
-      if (seen.has(p.file)) continue
-      seen.add(p.file)
-      out.push({ ...p, class: c })
-    }
-  }
-  return out
-}
-
-const patternDutyClause = (gaps) => {
-  const picks = patternsForGaps(gaps)
-  if (!picks.length) return ''
-  return ` PATTERN DUTY (red's accumulated memory, selected BY THE CLASS of the gaps you are repairing — not the whole corpus): ${picks.map((p) => `[${p.class}] ${p.title} — ${p.hook} (feov-memory/red-gap-patterns/${p.file})`).join(' | ')}. These are defects red has already caught in THIS class of gap. Check your repair against each one BEFORE you claim the gap closed, and record in that gap's manifest row which patterns you checked and what checking them showed. A pattern you were handed and did not check is an unaudited repair by your own standard — and the last run's lanes read this same memory as prose and committed the warned defects anyway, which is why it now arrives as a duty tied to the gap in front of you rather than as reading.`
-}
+// THE PATTERN DUTY, AND IT HAS NEVER ONCE FIRED.
+//
+// This was `patternDutyClause(gaps)`, selecting red's memory by `gaps[i].class`. Three things were
+// wrong with it at once. It had NO CALL SITE anywhere in this script — defined, never invoked. The
+// only place that could have called it, bluePrompt, receives `p.gap_ids`: bare id STRINGS, so
+// `g.class` could never have resolved even with a call. And red's envelope schema does not carry
+// `class` on a gap ref at all, which docs/seat-surface-naming.md had already noticed and filed as
+// "may never fire" — it was stronger than that.
+//
+// So the duty both constitutions advertise as the delivery that WORKS ("duty-embedded patterns
+// caught both warned classes in round 1; the mounted file prevented nothing") has never reached a
+// seat. Meanwhile the lead was reading inputs/gap-patterns-by-class.json, parsing it, and emitting
+// it back as a workflow argument to feed it: 38,473 characters — about 9,600 tokens — and 125
+// SECONDS of generation on one measured smoke, out of 256s to reach dispatch. The whole relay fed
+// a function with no caller.
+//
+// Now it is a DUTY NAMING AN ACT, which needs nothing the script does not have: the seat knows its
+// own gaps, the board carries their classes, and the class-indexed patterns are staged in the run's
+// own inputs beside PINNED.md and the law mirror, which seats already read the same way.
+const patternDutyClause = () => ` PATTERN DUTY (red's accumulated memory, selected BY THE CLASS of the gap in front of you — not the whole corpus): for each gap you are repairing, take its class from the board and read that class's entries in the run's class-indexed pattern file under the run's inputs. Read those classes and no others. These are defects red has already caught in THIS class of gap. Check your repair against each one BEFORE you claim the gap closed, and record in that gap's manifest row which patterns you checked and what checking them showed. A pattern you did not read is an unaudited repair by your own standard — an earlier run's lanes read this same memory as prose and committed the warned defects anyway, which is why it arrives as a duty tied to the gap in front of you rather than as reading.`
 
 // INTEGRITY INSPECTION (the bench's mind-reading, live half).
 //
@@ -797,30 +797,36 @@ const reliefFor = (party) => {
 }
 let halted = false
 let haltOpinion = null
-// A PETITION SITTING IS NAMED FOR ITS PETITIONER.
+// THE BENCH IS ONE SEAT, AND A PETITION IS A QUESTION PUT TO IT.
 //
-// A seat id is what every act is attributed to. Deriving it from the PETITIONER — `judge-petition-`
-// plus the filer's own seat id — means the bench sitting that hears blue-synthesize's petition and
-// the one that hears red-chair's are different seats, without a counter anyone has to remember to
-// increment. When the same petitioner petitions again, the id is the same and WHICH occasion this
-// was is the sitting ordinal the record computes from the registers (plans/roundless.md §III.A.0)
-// — the same answer every other seat gets, and nothing a regex has to recover from the name.
-const petitionSeatID = (who) => `judge-petition-${who}`
+// The bench rules a docket, rules what still stands at the exit, hears a petition and assembles
+// the report. Those are four QUESTIONS, not four seats: one surface, one tier, one role, and no
+// refusal anywhere that turns on which of them is being asked. A petition names who filed on the
+// petition itself, which is where it belongs — not in the identity of the seat ruling it.
+//
+// WHICH occasion a sitting was is the sitting ordinal the record computes from the registers
+// (plans/roundless.md §III.A.0) — the same answer every other seat gets, and nothing a regex has
+// to recover from a name.
+//
+// THE SEAT ID IS WRITTEN OUT AT EVERY SITE, never lifted to a constant. The roster bind
+// (TestTheRosterMatchesWhatTheEngineActuallyDispatches) reads this file as SOURCE and reduces each
+// recordClause argument to a seat id; a constant reduces to nothing, and its own failure says what
+// that costs — "an unread argument is a seat the roster is no longer checked against". Lifting it
+// cost exactly that, and the bind caught it.
 
 async function hearPetitions(env, who) {
   const petitions = (env && env.petitions) || []
   if (!petitions.length) return false
-  const seatID = petitionSeatID(who)
+  const seatID = 'judge'
   log(`petition(s) filed by ${who} (${petitions.map((x) => x.class).join(', ')}) — bench sitting before the debate continues`)
   const sitting = await agent(
     `Petition sitting, topic "${topic}". ${who} has petitioned the bench: ${JSON.stringify(petitions)}. Petitions are heard BEFORE the debate continues; they are never sanctioned, and a pattern of overruled petitions is at most a craft note for the petitioner. For EACH petition rule granted | denied. TWO THINGS, AND THEY GO TO DIFFERENT PLACES (#330): your OPINION is the reasoning — the principle applied, the values in tension, why a human should or should not look — and it belongs on the record beside the filing it answers. The envelope's \`relief\` is the OPERATIVE part of a granted ruling: the instruction as it will BIND the coming seats, written as a DIRECTIVE a seat can act on without reading your argument, not as a summary of your opinion. A denied ruling carries no relief. Read the transcript for context. A HALT IS A DIFFERENT DECISION FROM A RULING: it is you ending the RUN, not disposing of a petition, and both can be true at once — rule the petition on its merits and halt as well where continuing would itself compromise safety, consent gates, corpus integrity, or participant integrity. Record the halt, and ALSO return the envelope's \`halt\` object carrying that same opinion, which is what stops the engine.${lawClause}${declareClause}${inspectionClause}${frictionClause(seatID, 'bench')}${speedClause}${recordClause(seatID)} Return the petition-ruling envelope.`,
-    // The label spells `judge-petition-` OUT rather than interpolating seatID, and that is
-    // load-bearing: TestDebateDispatchBindsToSeatClass reads this file as SOURCE and prefix-
-    // matches the label template's literal head against the SeatClass map to prove every
-    // dispatch spreads its seat's model tier. A bare `${seatID}` has no literal head, so the
-    // gate resolved nothing and failed — correctly. Keep the prefix literal; it is the same
-    // string petitionSeatID builds.
-    { ...judgment, label: `judge-petition-${who} · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:lead-judge', schema: PETITION_RULING })
+    // THE LABEL HEADS WITH THE SEAT, LITERALLY. TestDebateDispatchBindsToSeatClass reads this
+    // file as SOURCE and prefix-matches the label template's head — everything before the first
+    // `·` — against the SeatClass map, to prove every dispatch spreads its seat's model tier. A
+    // bare `${seatID}` has no literal head and resolves nothing. What follows the head is for a
+    // human reading a dashboard, and carries which question this sitting was.
+    { ...judgment, label: `judge · petition from ${who} · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:lead-judge', schema: PETITION_RULING })
   if (!sitting) throw new Error('petition sitting returned null (agent failed) — a filed petition is never dropped; aborting cleanly')
   takeFriction(seatID, sitting)
   for (const r of sitting.rulings) {
@@ -945,7 +951,7 @@ YOUR POSITION IS YOUR ARGUMENT and the other side answers it: one position per s
 A CLOSURE IS A CLAIM, AND CLAIMS DECAY. Re-sample the archive every sitting it is not empty (the spot-check; its assertable empty form only when the archive was empty when you sat), name in it every stale area the plan lists before a PASS, and put what the sample FOUND in the spot-check's own prose — not in \`log\`, which is the operator's channel; a lens reopens a drifted closure of its own, and a closure resting on a volatile living source inherits that source's drift triggers.
 VOTE EVERY LINE OF INQUIRY THIS SITTING, ON ONE READ: read the report ONCE and answer every line against that pass, the way anyone checks a document against a list — not once per line, and from THIS read, because the report is rewritten between sittings. RULE ON BLUE'S DIRECTIONS: a ruling is an ARGUMENT, not a command — it needs a reason, and blue may appeal it. RULE THE GRADE MOTIONS blue filed: accept and the minting lens owes the regrade; reject and blue may re-dispute. Report what still stands unruled as unruled_motions, read from the record's motions projection and never counted by hand.
 NEVER RE-DERIVE THE BOARD IN YOUR HEAD: the board, work and motions projections are the reads, and the plan is the record's, not yours.${frictionClause('red-chair', 'chair')}${petitionClause('red-chair')}`
-const bluePrompt = (gaps, docket) => `Blue response, topic "${topic}". You are engaged on: ${gaps.join(', ')}.${reliefFor('blue')} YOUR FIRST READ COMES AFTER THE MANUAL BELOW, NOT BEFORE IT: pull your working set — the board and work projections and the transcript — in one pass rather than two, concatenating them into a single file under your session scratchpad (an ABSOLUTE path, never under ${runDir}, and with your seat id in the name) and reading that.${recordClause('blue-respond')}${speedClause}${holdingsClause()}${rulingsClause('blue')}${lawClause}
+const bluePrompt = (gaps, docket) => `Blue response, topic "${topic}". You are engaged on: ${gaps.join(', ')}.${reliefFor('blue')} YOUR FIRST READ COMES AFTER THE MANUAL BELOW, NOT BEFORE IT: pull your working set — the board and work projections and the transcript — in one pass rather than two, concatenating them into a single file under your session scratchpad (an ABSOLUTE path, never under ${runDir}, and with your seat id in the name) and reading that.${recordClause('blue-respond')}${patternDutyClause()}${speedClause}${holdingsClause()}${rulingsClause('blue')}${lawClause}
 READ THE BOARD FOR YOUR GAPS: each carries its lens's problem, required fix and acceptance check, and the transcript's RED section carries red's argument; the bench's latest dispositions are on the record too, and any gap the bench REMANDED comes with a stated research direction you owe. The gap list you were handed is a lossy summary of the record, and the record is authoritative. PRE-FLIGHT: re-check your planned repairs against red's gap patterns — the staged inventory names, per gap class, how this class of repair goes wrong — and say in each manifest row which patterns you checked. A row you got wrong is corrected in this sitting by the same act for that gap — never by a second row, and never by moving its text into a log.
 YOU MAY COMPUTE AN ANSWER, NOT ONLY COLLATE SOURCES. You have Bash, Write and Edit, and for a whole class of questions running something settles it faster and harder than arguing about it. WORKING IT OUT IN YOUR HEAD IS NOT THE EXCEPTION — IT IS THE CASE THIS EXISTS FOR: a correct figure with no derivation is indistinguishable from a confident guess. A gap can be WAITING ON A PROGRAM FROM YOU — it says so (a computation check), and where it does, no amount of prose will close it. DOCUMENT-PROBE checks you discharge now; a LIVE-PROBE you discharge by naming the deferred acceptance test and its pass condition.
 YOUR LINES OF INQUIRY ARE A LIVING RECORD, NOT AN OPENING PLAN. Every sitting, revisit what is still open and say what became of it. The hypothesis is what makes that honest — a line abandoned against its own stated claim is evidence of choosing; one abandoned on a shrug is not. Red rules on your proposals and you may APPEAL a ruling — appeal whether or not you go on to pursue the line, because the appeal is where your ARGUMENT is recorded.
@@ -1084,9 +1090,9 @@ log(`debate ended: ${verdict} after ${epoch} chair sitting(s)${halted ? ' (JUDIC
 // motions, directions, a petition) is disposed of before assembly — the chair reported the count.
 if (!halted && chairEnv && chairEnv.unruled_motions > 0) {
   const terminalJudge = await agent(
-    `Terminal disposition for topic "${topic}" (debate ended ${verdict} after ${epoch} chair sitting(s); this sitting fires at the exit boundary). ${chairEnv.unruled_motions} motion(s) stand unruled on the record — read them back from the record's motions projection, read the transcript in full and the board back, and rule each with a reason. NOTHING CAN BE REMANDED AT A TERMINAL EXIT — there is no next sitting to remand it to. Each grade motion either moves to a corrected grade, which you state, or ships CONTESTED and the report records it as contested.${holdingsClause()}${lawClause}${declareClause}${inspectionClause}${frictionClause('judge-terminal', 'bench')}${speedClause}${recordClause('judge-terminal')} Return your envelope.`,
-    { ...judgment, label: `judge-terminal · ${slug}`, phase: 'Assemble', agentType: 'frank-exchange-of-views:lead-judge', schema: JUDGE_ENVELOPE })
-  if (terminalJudge) takeFriction('judge-terminal', terminalJudge)
+    `Terminal disposition for topic "${topic}" (debate ended ${verdict} after ${epoch} chair sitting(s); this sitting fires at the exit boundary). ${chairEnv.unruled_motions} motion(s) stand unruled on the record — read them back from the record's motions projection, read the transcript in full and the board back, and rule each with a reason. NOTHING CAN BE REMANDED AT A TERMINAL EXIT — there is no next sitting to remand it to. Each grade motion either moves to a corrected grade, which you state, or ships CONTESTED and the report records it as contested.${holdingsClause()}${lawClause}${declareClause}${inspectionClause}${frictionClause('judge', 'bench')}${speedClause}${recordClause('judge')} Return your envelope.`,
+    { ...judgment, label: `judge · terminal · ${slug}`, phase: 'Assemble', agentType: 'frank-exchange-of-views:lead-judge', schema: JUDGE_ENVELOPE })
+  if (terminalJudge) takeFriction('judge', terminalJudge)
 }
 
 const ASSEMBLE_ENVELOPE = {
@@ -1107,8 +1113,8 @@ FIRST, STAMP HOW THIS RUN ENDED: it is ${verdict}${halted ? `, ended by JUDICIAL
 
 THEN, TWO THINGS YOU MAY HOLD AND THIS IS YOUR LAST CHANCE TO RECORD EITHER. If you hold something that binds how the RECORD IS READ but moves no gap — a construction of a term, a correction of what the record MEANS rather than what it says, a holding worth offering as precedent — state it, and state it in its own right rather than folding it into an unrelated rationale. And if anything in this run needs A HUMAN to re-examine it — an unresolved tension, a claim that held only because nobody could reach the source, a boundary you ruled close to — say so. You keep no memory between runs, so this is the whole of your continuity.
 
-THEN ASSEMBLE. It writes a SET — ${runDir}/report.md (the research), docket.md, debate.md, judgments.md, lines-of-inquiry.md, evidence.md, run.md, CHANGELOG.md, a README.md index and a tabbed report.html — and a document with nothing in it is not written at all, so a missing judgments.md means no motions were filed rather than a failure. Verify ${runDir}/report.md exists and reads correctly at the top: the verdict stamp is the outcome's, the sections are blue's and the record's. A tool cannot mis-author a synthesis surface — the TL;DR and the catechism are blue's, inside the audited report. An open gap that is not material stays open on the board and in the risk matrix; the chair's PASS listed it by class, on the record. THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: read it back and report it as open_gaps in your envelope. Infra debts the bench named: ${JSON.stringify(infraDebts)}. Collated friction so far (report any of your own as well): ${JSON.stringify(friction)}.${holdingsClause()}${lawClause}${frictionClause('assemble', 'bench')}${speedClause}${recordClause('assemble')} Return your envelope: a 5-line synopsis, open_gaps from the board, and your own friction if any.`,
-  { ...judgment, label: `assemble · ${slug}`, agentType: 'frank-exchange-of-views:lead-judge', schema: ASSEMBLE_ENVELOPE })
+THEN ASSEMBLE. It writes a SET — ${runDir}/report.md (the research), docket.md, debate.md, judgments.md, lines-of-inquiry.md, evidence.md, run.md, CHANGELOG.md, a README.md index and a tabbed report.html — and a document with nothing in it is not written at all, so a missing judgments.md means no motions were filed rather than a failure. Verify ${runDir}/report.md exists and reads correctly at the top: the verdict stamp is the outcome's, the sections are blue's and the record's. A tool cannot mis-author a synthesis surface — the TL;DR and the catechism are blue's, inside the audited report. An open gap that is not material stays open on the board and in the risk matrix; the chair's PASS listed it by class, on the record. THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: read it back and report it as open_gaps in your envelope. Infra debts the bench named: ${JSON.stringify(infraDebts)}. Collated friction so far (report any of your own as well): ${JSON.stringify(friction)}.${holdingsClause()}${lawClause}${frictionClause('judge', 'bench')}${speedClause}${recordClause('judge')} Return your envelope: a 5-line synopsis, open_gaps from the board, and your own friction if any.`,
+  { ...judgment, label: `judge · assemble · ${slug}`, agentType: 'frank-exchange-of-views:lead-judge', schema: ASSEMBLE_ENVELOPE })
 return {
   runDir,
   verdict,

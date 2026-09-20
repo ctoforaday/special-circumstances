@@ -162,11 +162,17 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 			// blue's to answer this sitting; whether the record would ever engage it is the record's
 			// question, and this test's is only that the loop settles on every schedule.
 			e["manifest"] = engaged
-		case strings.HasPrefix(seatID, "judge-petition"):
+		case strings.Contains(label, "· petition"):
 			e["rulings"] = []any{map[string]any{"class": "safety", "ruling": "denied", "opinion": "no"}}
 			if lastMove.halt {
 				e["halt"] = map[string]any{"opinion": "the run is halted for the schedule under test"}
 			}
+		// ROUTE THE BENCH ON THE QUESTION, NOT THE SEAT. One seat heads four sittings' labels, so
+		// a seat-id switch sends the assembly down the docket-ruling arm and open_gaps is never
+		// set — the run then reports 0 outstanding over a board holding 1. The question is in the
+		// label, which is where the collapse put it.
+		case strings.Contains(label, "· assemble"):
+			e["open_gaps"] = b.open()
 		case seatID == "judge":
 			res := []any{}
 			if lastMove.rules {
@@ -176,8 +182,6 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 				res = append(res, map[string]any{"gap_id": "G1", "disposition": "remanded", "rationale": "owed"})
 			}
 			e["dispositions"] = res
-		case seatID == "assemble":
-			e["open_gaps"] = b.open()
 		}
 		return e
 	}
@@ -293,7 +297,12 @@ func TestTheDispatchLoopTerminatesConsistentlyOnEverySchedule(t *testing.T) {
 		}
 		for _, d := range ds[lastChair+1:] {
 			switch {
-			case d.SeatID == "assemble", d.SeatID == "judge-terminal", strings.HasPrefix(d.SeatID, "judge-petition"):
+			// THE BENCH CLOSES THE RUN, and since it collapsed to one seat its closing sittings —
+			// the terminal disposition and the assembly — are no longer separable by id from the
+			// docket sittings that precede termination. The exemption is therefore the seat, not
+			// three ids. What it still catches is the substantive half: a lens, a lane, blue or
+			// the chair sitting after the chair has terminated.
+			case d.SeatID == "judge":
 			case term.halt && d.SeatID == "blue-respond":
 				t.Errorf("%s: blue sat after the halt", name)
 			default:

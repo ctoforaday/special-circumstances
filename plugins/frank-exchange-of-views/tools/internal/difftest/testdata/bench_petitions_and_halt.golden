@@ -14,10 +14,10 @@ exit 0
 stdout:
 motion M1 filed (petition)
 
-$ register --run {RUN} --seat-id judge-petition-red-chair
+$ register --run {RUN} --seat-id judge
 exit 0
 stdout:
-registered judge-petition-red-chair
+registered judge
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
@@ -25,24 +25,24 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
-$ motion petition rule --run {RUN} --seat-id judge-petition-red-chair --id M1 --as granted --binds both --reason the relief binds the coming seats
+$ motion petition rule --run {RUN} --seat-id judge --id M1 --as granted --binds both --reason the relief binds the coming seats
 exit 0
 stdout:
-motion M1 ruled granted [key judge-petition-red-chair:motion_rule:#1]
+motion M1 ruled granted [key judge:motion_rule:#1]
 
-$ halt --run {RUN} --seat-id judge-petition-red-chair --reason continuing would compromise the consent gate
+$ halt --run {RUN} --seat-id judge --reason continuing would compromise the consent gate
 exit 0
 stdout:
-JUDICIAL HALT recorded — capture relays this verbatim [key judge-petition-red-chair:halt:#1]
+JUDICIAL HALT recorded — capture relays this verbatim [key judge:halt:#1]
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-chair:motion:#1","motion":{"basis":"the design erodes a consent gate","motion_id":"M1","petition":{"class":"PETITION_CLASS_SAFETY"},"relief":"halt and escalate","subject":"MOTION_SUBJECT_PETITION"},"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_MOTION"}
-{"key":"judge-petition-red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"judge-petition-red-chair","ts":4,"type":"EVENT_TYPE_REGISTER"}
-{"key":"judge-petition-red-chair:motion_rule:#1","motion_rule":{"binds":"RULING_BINDS_BOTH","motion_id":"M1","opinion":"the relief binds the coming seats","petition":"PETITION_RULING_GRANTED","subject":"MOTION_SUBJECT_PETITION"},"seat_id":"judge-petition-red-chair","ts":5,"type":"EVENT_TYPE_MOTION_RULE"}
-{"halt":{"opinion":"continuing would compromise the consent gate"},"key":"judge-petition-red-chair:halt:#1","seat_id":"judge-petition-red-chair","ts":6,"type":"EVENT_TYPE_HALT"}
+{"key":"judge:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":4,"type":"EVENT_TYPE_REGISTER"}
+{"key":"judge:motion_rule:#1","motion_rule":{"binds":"RULING_BINDS_BOTH","motion_id":"M1","opinion":"the relief binds the coming seats","petition":"PETITION_RULING_GRANTED","subject":"MOTION_SUBJECT_PETITION"},"seat_id":"judge","ts":5,"type":"EVENT_TYPE_MOTION_RULE"}
+{"halt":{"opinion":"continuing would compromise the consent gate"},"key":"judge:halt:#1","seat_id":"judge","ts":6,"type":"EVENT_TYPE_HALT"}
 
 ═══ RENDERS ═══
 -- debate

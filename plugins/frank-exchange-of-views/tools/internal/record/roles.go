@@ -25,15 +25,15 @@ import (
 // The check is a PREFIX match on the seat id the engine assigns, taken from
 // debate.js's own recordClause dispatch so the two cannot drift silently:
 //
-//	lens   red-lens-r<N>-L<M>
-//	chair  red-chair
-//	blue   blue-lane-<N>, blue-respond-r<N>, blue-synthesize, frontier
-//	bench  judge-r<N>, judge-petition-<petitioner>, judge-terminal, assemble
+// The grammar lives ONCE, in roster.go's seatShapes: that table is what admits a seat id, and its
+// drift test is what holds it against debate.js's own dispatch sites. A second copy here would be
+// a hand-written restatement of the same vocabulary with no check under it, and a stale copy reads
+// exactly like a current one.
 //
 // The petition sitting carries its PETITIONER because one id must name one sitting: it used to
 // be the bare `judge-petition` for all of them, and replay kept one shard per seat id, so every
 // earlier sitting's rulings were dropped (#394). The prefix match is unaffected — `judge-` is
-// still position 0 — and `judge-petition-red-merge-r1` now reads as round 1 rather than 0.
+// still position 0.
 // OPERATOR IS A SEAT ID, not the absence of one.
 //
 // The operator surface used to be what you got when NOTHING identified you, which made "no
@@ -51,7 +51,12 @@ var roleSeats = map[string][]string{
 	// "merge" means only blue's union of the lane drafts.
 	"chair": {"red-chair"},
 	"blue":  {"blue-", "frontier"},
-	"bench": {"judge", "assemble"},
+	// THE BENCH IS ONE PREFIX, BECAUSE IT IS ONE SEAT. `assemble` stayed here after the bench
+	// collapsed, and this table is the GRANT: RoleOfSeat scopes the command surface from it, while
+	// seatShapes is what REFUSES at register. Removing every refusal and leaving the grant meant
+	// `--seat-id assemble-anything` still selected the whole bench tree — and `halt`, the safety
+	// stop capture relays verbatim to a human, recorded under an identity no dispatch can create.
+	"bench": {"judge"},
 }
 
 // scorecardOfRole maps a seat's ROLE to the CARD — the scorecard — that measures it.

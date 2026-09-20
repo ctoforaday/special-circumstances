@@ -9,7 +9,7 @@ import (
 
 // The cast is the record's, written once under harness; membership admits a seat and its
 // petition sitting, and "no cast" is told apart from "not in it".
-func TestTheCastIsReadOffTheRecordAndAdmitsPetitionSittings(t *testing.T) {
+func TestTheCastIsReadOffTheRecordAndAdmitsItsMembers(t *testing.T) {
 	runDir := newRun(t)
 	run := mustRun(t, runDir)
 	if cast, err := CastOf(run); err != nil || cast != nil {
@@ -26,10 +26,10 @@ func TestTheCastIsReadOffTheRecordAndAdmitsPetitionSittings(t *testing.T) {
 		t.Fatalf("CastOf = (%v, %v)", cast, err)
 	}
 	for seat, want := range map[string]bool{
-		"red-chair":                true,
-		"judge-petition-red-chair": true, // a petition sitting by a cast seat
-		"red-lens-voice":           false,
-		"judge-petition-frontier":  false, // frontier is not in this cast
+		"red-chair":               true,
+		"judge":                   true, // a petition sitting by a cast seat
+		"red-lens-voice":          false,
+		"judge-petition-frontier": false, // frontier is not in this cast
 	} {
 		member, has, err := InCast(run, seat)
 		if err != nil || !has || member != want {

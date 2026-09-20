@@ -2,7 +2,6 @@ package record
 
 import (
 	"regexp"
-	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 
@@ -17,13 +16,25 @@ import (
 // of identity the binding could not close: register is the one call that takes a seat's word for
 // who it is, so what it accepts had better be an id a dispatch could have created.
 //
-// THIS IS THE `roleSeats` COMMENT, PROMOTED FROM PROSE TO A PATTERN. That comment has always
-// carried the real vocabulary —
+// THIS IS THE `roleSeats` COMMENT, PROMOTED FROM PROSE TO A PATTERN. The vocabulary is —
 //
-//	lens   red-lens-r<N>-<area>
+//	lens   red-lens-<area>
 //	chair  red-chair
-//	blue   blue-lane-<N>, blue-respond-r<N>, blue-synthesize, frontier
-//	bench  judge-r<N>, judge-petition-<petitioner>, judge-terminal, assemble
+//	blue   blue-lane-<N>, blue-respond, blue-synthesize, frontier
+//	bench  judge
+//
+// ONE BENCH SEAT, BECAUSE THE SITTINGS DIFFERED ONLY IN THE QUESTION. `judge-terminal`,
+// `assemble` and `judge-petition-<petitioner>` were separate ids whose verb surfaces were
+// IDENTICAL to `judge`'s — same twelve verbs, same `judgment` tier, same `bench` role, and no
+// refusal anywhere keyed on which of them a seat claimed to be. What actually differed was the
+// question the engine asked: rule this docket, rule what still stands at the exit, hear this
+// petition, assemble the report. That is an instruction for a sitting, not an identity.
+//
+// The petitioner suffix existed for a reason that no longer holds. Replay kept one shard per seat
+// id, so a bare `judge-petition` lost every earlier sitting's rulings (#394) and the id had to
+// carry who filed. Under the store there is no losing shard — see DiscardedForSeat in
+// agentbinding.go, where that loss is now UNREPRESENTABLE — so the id stopped needing to carry it
+// and nobody went back to collapse it.
 //
 // — and nothing could refuse anything against it, because a comment is not a check. Every id below
 // is verified against debate.js's own dispatch sites by TestTheRosterMatchesWhatTheEngineActuallyDispatches,
@@ -64,8 +75,6 @@ var seatShapes = []seatShape{
 	{"blue", regexp.MustCompile(`^blue-synthesize$`), "blue-synthesize", "blue-synthesize"},
 	{"blue", regexp.MustCompile(`^frontier$`), "frontier", "frontier"},
 	{"bench", regexp.MustCompile(`^judge$`), "judge", "judge"},
-	{"bench", regexp.MustCompile(`^judge-terminal$`), "judge-terminal", "judge-terminal"},
-	{"bench", regexp.MustCompile(`^assemble$`), "assemble", "assemble"},
 	{OperatorRole, regexp.MustCompile(`^` + OperatorRole + `$`), "", OperatorRole},
 }
 
@@ -76,9 +85,6 @@ var seatShapes = []seatShape{
 // caller: there is no configured tier to hold this seat to. An unrecognised id is already refused
 // at the door by requireDispatchableSeat, so it cannot reach the tier check as a silent pass.
 func TierClassOfSeat(seatID string) string {
-	if petitioner, ok := strings.CutPrefix(seatID, petitionPrefix); ok && dispatchableSeatID(petitioner) {
-		return seatclass.ClassOf("judge-petition")
-	}
 	for _, s := range seatShapes {
 		if s.re.MatchString(seatID) {
 			return seatclass.ClassOf(s.base)
@@ -86,15 +92,6 @@ func TierClassOfSeat(seatID string) string {
 	}
 	return ""
 }
-
-// petitionPrefix is handled apart from the table because its tail is ITSELF a seat id — the
-// sitting is named for the seat that petitioned, so one id names one sitting (#394). Folding it
-// into the table would need a pattern matching every other pattern, which is the point at which a
-// regex stops being a schema and becomes a guess.
-//
-// Bound to the head debate.js actually composes by TestThePetitionPrefixMatchesTheOneDebateComposes:
-// Go CUTS this prefix where the engine COMPOSES it, so a rename over there refuses every petition
-// seat over here, in a message about an id the engine had just dispatched.
 
 // LensAreas are the strategic areas a lens seat can be dispatched for — one seat each, and the
 // name IS the identity (#791). ALIASED from internal/flags, which declares it: internal/record
@@ -121,15 +118,12 @@ func isLensArea(s string) bool {
 	return false
 }
 
-const petitionPrefix = "judge-petition-"
-
 // dispatchableSeatID reports whether an id is one the engine's naming scheme can produce.
+//
+// A PETITION IS NO LONGER A SEAT ID. It was `judge-petition-<petitioner>`, which made who filed
+// part of the bench's identity; it is now a question put to `judge` for one sitting, and who
+// filed is on the petition it rules. See the bench note above the shape table.
 func dispatchableSeatID(seatID string) bool {
-	if petitioner, ok := strings.CutPrefix(seatID, petitionPrefix); ok {
-		// A petition sitting is named for a real seat, and never for another petition sitting:
-		// there is no sitting about a sitting.
-		return !strings.HasPrefix(petitioner, petitionPrefix) && dispatchableSeatID(petitioner)
-	}
 	for _, s := range seatShapes {
 		if !s.re.MatchString(seatID) {
 			continue

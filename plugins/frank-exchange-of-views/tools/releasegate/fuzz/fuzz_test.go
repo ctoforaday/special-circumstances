@@ -63,6 +63,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	reportdoc "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatprobe"
 )
 
@@ -1933,11 +1934,21 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// the repair is admitted where the sitting owes one and refused where it owes nothing.
 		return map[string]any{"sitting_record_appended": !r.coin(20), "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_motions": disputes, "petitions": r.maybePetition("blue", seatID), "log": arr()}
 
-	case strings.HasPrefix(seatID, "judge-petition"):
+	// THE BENCH IS ONE SEAT ASKED FOUR QUESTIONS, so `seatID` no longer discriminates its sittings:
+	// every bench prompt renders `SEAT_ID: judge`. Routing on the id sent the petition sitting and
+	// the assembly down the adjudication arm, which returns `{dispositions, log}` — `hearPetitions`
+	// then iterated `sitting.rulings` and the engine died with "Cannot convert undefined or null to
+	// object". 40 of 40 fuzzed runs failed, and a plain `go test` SKIPS this suite, so it read green
+	// in PR CI and was red on a tag.
+	//
+	// The question is recoverable where every other consumer reads it: the prompt HEAD.
+	// seatclass.ClassifySeat is the one table mapping a head to its sitting kind, so the fuzz, the
+	// dashboard and cost.md now discriminate the same way, from the same table.
+	case seatclass.ClassifySeat(prompt).Seat == "judge-petition":
 		r.sit("bench", seatID)
 		return r.rulePetitions(seatID) // rule every pending petition (petition-rule events + envelope rulings)
 
-	case strings.HasPrefix(seatID, "judge"): // adjudication + terminal
+	case strings.HasPrefix(seatID, "judge") && seatclass.ClassifySeat(prompt).Seat != "assemble": // adjudication + terminal
 		r.sit("bench", seatID)
 		r.extras("bench", seatID, nil)
 		// THE BENCH RULES ON WHAT HAPPENED, not on a coin. A gap reaches the docket because
@@ -1970,7 +1981,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		}
 		return map[string]any{"dispositions": res, "log": arr()}
 
-	case strings.HasPrefix(seatID, "assemble"):
+	case seatclass.ClassifySeat(prompt).Seat == "assemble":
 		r.sit("bench", seatID)
 		// THE VERDICT IS READ, NOT INVENTED. debate.js computes the terminal outcome and TELLS
 		// the assembler ("Debate outcome: <verdict> after N round(s)") — exactly as a real seat
@@ -1996,7 +2007,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// CEILING is derived from the board, deadlock is per gap, and the verdict read from the
 		// prompt three lines up is the whole terminal fact.
 		_, _ = r.exec(oargs...)
-		_, _ = r.exec("assemble", "--seat-id", "assemble")
+		// THE ASSEMBLY IS THE BENCH. `--seat-id assemble` was the seat that ran this verb; the bench
+		// is one seat now and `assemble` is refused at the surface, so the call recorded nothing and
+		// every fuzzed run failed on the missing assembly.
+		_, _ = r.exec("assemble", "--seat-id", "judge")
 		open := len(r.openGaps())
 		return map[string]any{"synopsis": "fuzz", "open_gaps": open, "log": arr()}
 

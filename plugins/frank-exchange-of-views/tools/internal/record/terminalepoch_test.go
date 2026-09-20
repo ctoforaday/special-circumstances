@@ -36,10 +36,10 @@ func TestATerminalSeatActsInTheEpochTheChairHasReached(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge-terminal"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "judge-terminal"}, &recordpb.Observe{Text: proto.String("closing")}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, &recordpb.Observe{Text: proto.String("closing")}); err != nil {
 		t.Fatal(err)
 	}
 	if got := lastWindow(t, runDir).Epoch; got != 3 {
@@ -70,10 +70,10 @@ func TestSynthesisSeatsAreEpochZeroBecauseNoChairHasSat(t *testing.T) {
 
 func TestAnEmptyRunIsEpochZeroNotUnknown(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge-terminal"}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "judge-terminal"}, &recordpb.Observe{Text: proto.String("x")}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, &recordpb.Observe{Text: proto.String("x")}); err != nil {
 		t.Fatal(err)
 	}
 	if got := lastWindow(t, runDir).Epoch; got != 0 {

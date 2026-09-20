@@ -173,7 +173,7 @@ func TestRegisterSeatRejectsMalformedSeatIDs(t *testing.T) {
 func TestRegisterSeatAcceptsTheEngineAssignedShapes(t *testing.T) {
 	for _, id := range []string{
 		"red-lens-evidence", "red-chair", "blue-lane-3", "blue-respond", "blue-synthesize",
-		"frontier", "judge", "judge-terminal", "judge-petition-red-chair", "assemble", "operator",
+		"frontier", "judge", "operator",
 	} {
 		runDir := newRun(t)
 		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: id}, ""); err != nil {

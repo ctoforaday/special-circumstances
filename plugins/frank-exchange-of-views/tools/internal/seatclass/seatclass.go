@@ -91,10 +91,38 @@ var SeatClass = map[string]string{
 	"blue-synthesize": "judgment",
 	"red-chair":       "judgment",
 	"judge":           "judgment",
-	"judge-petition":  "judgment",
-	"judge-terminal":  "judgment",
-	"assemble":        "judgment",
+}
+
+// SittingKindClass is the TIER OF A SITTING KIND, and it is a second map on purpose.
+//
+// TWO VOCABULARIES RODE ONE MAP AND THE COLLAPSE DRAGGED ONE DOWN WITH THE OTHER. `ClassifySeat`
+// maps a prompt HEAD to the kind of sitting it opens — `assemble`, `judge-terminal`,
+// `judge-petition`. `seatShapes` maps an id to a SEAT, and the bench is one seat now. They were the
+// same table, so collapsing the seat ids deleted the kinds, and:
+//
+//   - the dashboard's five `s.Seat == "assemble"` comparisons became unsatisfiable, so every
+//     FINISHED run reported "running" forever — on `feov-record dashboard`, the engine's own
+//     instrument;
+//   - cost.md merged the assembly's spend into a docket ruling's row, which cost.go's own comment
+//     records happening once before ("cost-audit once lacked the terminal-disposition case and
+//     misattributed that seat's spend").
+//
+// They stay apart because their consumers differ and their BINDS differ: SeatClass is held against
+// debate.js's dispatch labels by TestDebateDispatchBindsToSeatClass, and a sitting kind is not a
+// dispatch label — it is a prompt head, held by the needles above.
+var SittingKindClass = map[string]string{
+	"judge-petition": "judgment",
+	"judge-terminal": "judgment",
+	"assemble":       "judgment",
 }
 
 // ClassOf returns a seat's tier class, or "" for other/unknown seats (not tier-bound).
-func ClassOf(seat string) string { return SeatClass[seat] }
+func ClassOf(seat string) string {
+	if c, ok := SeatClass[seat]; ok {
+		return c
+	}
+	// A SITTING KIND IS NOT A SEAT, and cost.go asks this question with one: it looks up whatever
+	// ClassifySeat returned for a transcript's prompt head. Answering "" there would put the
+	// assembly's spend in the `other` bucket.
+	return SittingKindClass[seat]
+}

@@ -81,9 +81,9 @@ func TestReportBindsEachTranscriptToItsEpochFromTheRecord(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	recordtest.Seed(t, runDir,
 		register(t, "red-chair", "C1"),
-		register(t, "judge-terminal", "J1"),
+		register(t, "judge", "J1"),
 		register(t, "red-chair", "C2"),
-		register(t, "judge-terminal", "J2"),
+		register(t, "judge", "J2"),
 	)
 	run, err := record.NewRun(runDir)
 	if err != nil {

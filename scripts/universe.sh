@@ -30,9 +30,15 @@
 #   --live              install into ~/.claude instead. Use when you want the change in YOUR next
 #                       session. It is shared state: other sessions on this box see it.
 #
-# The plugin content is COPIED into a versioned cache at install time and ${CLAUDE_PLUGIN_ROOT}
-# resolves there, never to a checkout — so the binaries are built in the cache, after install.
-# That ordering is bootstrap-plugins.sh's and is kept here.
+# The plugin content is COPIED into a versioned cache at install time, and the binaries are built
+# there, after install — that ordering is bootstrap-plugins.sh's and is kept here.
+#
+# BUT THE CACHE IS NOT THE ONLY PLUGIN ROOT. The staged marketplace is one too, and an empty bin/
+# in it is filled BY DESIGN: hooks.json execs hooks/fetch-bin.sh when a binary is missing, which
+# downloads that plugin's RELEASE and installs it there. A build that deleted those binaries had
+# them back, from the release, forty seconds later — and the run used them. So the build mirrors
+# what it compiled into the staging tree as well: every feov-record on disk is this checkout's,
+# and which one gets used stops being a question the result depends on.
 #
 # Usage:
 #   scripts/universe.sh build                     # make the universe from this checkout
@@ -200,24 +206,35 @@ cmd_build() {
   rm -rf "$mkt"
   mkdir -p "$mkt/.claude-plugin"
 
-  # A COPY WITHOUT `bin/`, BECAUSE MOVING THE DOOR DID NOT CLOSE IT. This was a `plugins` symlink
-  # into the checkout, first inside WORKDIR and then beside it — and on the very next run the lead
-  # explored, found $WORKDIR.marketplace/plugins/frank-exchange-of-views/bin/feov-record, and ran
-  # `setup` with it. That is the CHECKOUT's binary, whatever a previous build happened to leave
-  # there: a 16:18 build against a 17:58 cache. The run then staged inputs/red-gap-patterns.md, the
-  # file whose deletion the run was meant to be verifying, and everything downstream read as fine.
+  # A COPY, AND EVERY `bin/` IT CONTAINS IS BUILT FROM THIS CHECKOUT BELOW.
   #
-  # A path a lead can reach is a path a lead will use, and it is right to — it was looking for the
-  # tool and it found one. So the fix is not a better hiding place. The staging tree carries no
-  # binaries at all, and the only feov-record on disk is the cache's, which is the one
-  # ${CLAUDE_PLUGIN_ROOT} resolves to and the one the seats are told about.
+  # Three attempts at this, and the first two were the same mistake in different places. It began
+  # as a `plugins` symlink into the checkout, inside WORKDIR and then beside it; both times the
+  # lead explored, found $mkt/plugins/frank-exchange-of-views/bin/feov-record, and ran `setup` with
+  # it — the CHECKOUT's binary, whatever a previous build happened to leave there. A 16:18 build
+  # drove a run against a 17:58 cache and staged the very file that run existed to prove deleted.
   #
-  # Excluding bin/ also means the cache's bin/ holds ONLY what the build below puts there, instead
-  # of install-time copies of the checkout's that a failed build would leave standing.
+  # So the third attempt removed bin/ entirely, and that was WORSE, because it created a vacuum the
+  # plugin fills by design. hooks.json runs ${CLAUDE_PLUGIN_ROOT}/bin/<hook>, and when that is
+  # missing it execs hooks/fetch-bin.sh, which downloads the binaries FROM THE RELEASE TAG and
+  # installs them into that same bin/. Measured: bin/ reappeared 40 seconds after a build that had
+  # deleted it, holding `feov-record version babd3ea` — the 1.72.0 release, predating every change
+  # the run was built to exercise. The lead's first act was `ls -la bin/`, and it found them.
+  #
+  # A path a lead can reach is a path a lead will use, and it is right to — it went looking for the
+  # tool and found one. Hiding the tool is not the fix and neither is removing it: the fix is that
+  # EVERY feov-record on disk is this checkout's, so which one gets used stops being a question
+  # the result depends on. A populated bin/ also means the self-heal never fires, so a universe
+  # cannot silently downgrade itself to the last release.
   mkdir -p "$mkt/plugins"
   for p in "${PLUGINS[@]}"; do
     cp -r "$REPO/plugins/$p" "$mkt/plugins/$p" || die "could not stage plugin $p"
     rm -rf "$mkt/plugins/$p/bin"
+    # .fetch IS THE SELF-HEAL'S STATE, and staging the developer's copy of it is inheriting an
+    # accident. This checkout carries one from a release fetch that ran against it; `cp -r` put it
+    # in the universe, where its stamp happened to match and so happened to hold the self-heal shut.
+    # A universe on a clean clone has no such luck. Stripped here and written deliberately below.
+    rm -rf "$mkt/plugins/$p/.fetch"
   done
   python3 "$REPO/scripts/universe-manifest.py" \
     "$REPO/.claude-plugin/marketplace.json" "$mkt/.claude-plugin/marketplace.json" \
@@ -259,6 +276,65 @@ cmd_build() {
     done
   done
   log "built $built hook binaries into the cache"
+
+  # THE STAGING TREE GETS THE SAME BINARIES, because it is a plugin root too and the hooks will
+  # fill it from the RELEASE if it is empty (see the staging comment above). Copied from what was
+  # just built rather than rebuilt, so the two roots cannot diverge even by a recompile: whichever
+  # one a hook or a curious lead reaches, it is this checkout's code.
+  local staged=0
+  for plugin_dir in "$cache_root"/*/*/; do
+    [ -d "$plugin_dir/bin" ] || continue
+    local pname; pname="$(basename "$(dirname "$plugin_dir")")"
+    [ -d "$mkt/plugins/$pname" ] || continue
+    mkdir -p "$mkt/plugins/$pname/bin"
+    for b in "$plugin_dir"/bin/*; do
+      [ -f "$b" ] || continue
+      cp -f "$b" "$mkt/plugins/$pname/bin/" || die "could not mirror $(basename "$b") into the staging tree"
+      staged=$((staged + 1))
+    done
+  done
+
+  # THE SELF-HEAL TRIGGERS ON THE STAMP, NOT ON AN EMPTY bin/ — which is what the previous version
+  # of this comment got wrong, and it said "the self-heal never reaches for a release" over code
+  # that did not stop it. fetch-bin.sh lists a binary as MISSING when `.fetch/installed` does not
+  # name this plugin's tag, however present and executable the file is: "When the stamp names
+  # another release, or none, every binary is fetched." A `go build` writes no stamp, so a universe
+  # built on a clean clone is one SessionStart away from having its binaries replaced by the
+  # release's, mid-run, with `setup`'s version preflight already past.
+  #
+  # So the stamp is written for every root this script populates, naming that plugin's own version
+  # — the same string tag_of() computes — and the assertion below proves `ensure` then does nothing.
+  local stamped=0
+  for root in "$cache_root"/*/*/ "$mkt/plugins"/*/; do
+    [ -d "$root" ] || continue
+    local pj="$root/.claude-plugin/plugin.json"
+    [ -f "$pj" ] || pj="$root/plugin.json"
+    [ -f "$pj" ] || continue
+    local nm ver
+    nm=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['name'])" "$pj" 2>/dev/null) || continue
+    ver=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['version'])" "$pj" 2>/dev/null) || continue
+    [ -n "$nm" ] && [ -n "$ver" ] || continue
+    mkdir -p "$root/.fetch"
+    printf '%s\n' "$nm--v$ver" > "$root/.fetch/installed"
+    stamped=$((stamped + 1))
+  done
+  log "mirrored $staged binaries and stamped $stamped root(s) as installed"
+
+  # ASSERT IT, rather than assert it in a comment. `ensure` prints a systemMessage and spawns a
+  # background fetch exactly when it thinks a binary is missing; on a correctly stamped root it
+  # says nothing. A universe whose binaries the release would overwrite mid-run is not a universe
+  # that proves anything about this checkout, and that is a checkable condition, so it is checked.
+  for root in "$cache_root"/*/*/; do
+    [ -f "$root/hooks/fetch-bin.sh" ] || continue
+    local out
+    out=$(CLAUDE_PLUGIN_ROOT="$root" sh "$root/hooks/fetch-bin.sh" ensure SessionStart 2>&1)
+    if [ -n "$out" ]; then
+      die "the self-heal still fires in $(basename "$(dirname "$root")"): $out
+  A stamped root must make \`ensure\` a no-op. If it does not, this universe's binaries can be
+  replaced by the release's at any session start, and the run would be measuring the release."
+    fi
+  done
+  log "self-heal checked: silent on every cache root"
 
   # Enable the plugins for this universe. Without this the content is installed and nothing loads
   # it, which presents as a session with no skills and no hooks.
@@ -345,12 +421,21 @@ cmd_run() {
   # repo's own runs read, so red was being seated with less memory than a real run gives it — which
   # would have made every universe smoke a weaker audit than the thing it stands for, silently.
   # Copied, not symlinked: a run accrues INTO this directory, and the checkout is not a scratch pad.
-  if [ -d "$REPO/feov-memory/red-gap-patterns" ]; then
+  #
+  # THE WHOLE feov-memory DIRECTORY, not just the corpus. Staging red-gap-patterns/ alone left out
+  # class-registry.json, which setup reads from the same directory — and without it setup says
+  # "nothing constrains --class, so every mint this run will be REFUSED". Measured: the lead hit
+  # that refusal, read setup.go to work out why, searched the filesystem for a class-registry.json,
+  # found one under ~/.claude/plugins/marketplaces/ and hand-copied it in. Twenty-one tool calls
+  # and 256 SECONDS before the workflow dispatched, against 91s for a universe that never staged a
+  # corpus at all. Half a memory directory is slower than none, because none refuses cleanly and
+  # half sends the lead looking for the other half.
+  if [ -d "$REPO/feov-memory" ]; then
     mkdir -p "$src/feov-memory"
-    cp -r "$REPO/feov-memory/red-gap-patterns" "$src/feov-memory/" 2>/dev/null
-    log "staged the promoted corpus: $(find "$src/feov-memory/red-gap-patterns" -name '*.md' | wc -l) pattern(s)"
+    cp -r "$REPO/feov-memory/." "$src/feov-memory/" 2>/dev/null
+    log "staged feov-memory: $(find "$src/feov-memory/red-gap-patterns" -name '*.md' 2>/dev/null | wc -l) pattern(s), registry $([ -f "$src/feov-memory/class-registry.json" ] && echo present || echo MISSING)"
   else
-    log "WARNING: no promoted corpus at $REPO/feov-memory/red-gap-patterns — red opens with accrued memory only"
+    log "WARNING: no $REPO/feov-memory — red opens with accrued memory only, and mints may be refused"
   fi
 
   local stamp; stamp="$(date -u +%Y%m%dT%H%M%SZ)"
