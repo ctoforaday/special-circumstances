@@ -507,6 +507,18 @@ engine identity hash, and nothing else.
 row and columns, where before the page read as prose and the binding was lost. Its `expect` block's
 `table: want true, got false` is gone.
 
+**The whole document, measured after the fact — and the number §I carried was wrong. [r3.2]**
+This plan said SP 602 has 12 dashed tables and implied the repair recovers them. Read end to end
+with the shipped code, the 60-page document gives: **detector 2, repair 8**. Two thirds, not all,
+and four tables are still missed. The claim was never measured before it was written down.
+
+All eight are genuine — checked against the page images, not inferred. Two of them (p47, p49) are
+recovered COARSELY: the lattice is found and the row segmentation collapses, so 6 rows report as
+3 cells and the words pile into them. **A words-per-cell ceiling was proposed to reject those two
+and is WITHDRAWN**: the ratio that suggested it (41 words per cell) was read off a metric instead
+of off the page, and the pages are real tables. `MinWordsPerCell` having no ceiling remains true
+and is not a defect this change exposes.
+
 **What it does NOT read, stated.** The dashed rules are themselves read as text — `ee ee ee`,
 `cs cs co ces cee` — and land inside the cells beside the data. That is **#1030**, already open, and
 this measurement is its evidence rather than a defect introduced here. The corpus meter still reads
