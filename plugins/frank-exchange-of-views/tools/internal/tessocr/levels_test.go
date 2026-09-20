@@ -110,7 +110,7 @@ func TestReconstructEmitsOneColumnPerLevel(t *testing.T) {
 		levels = append(levels, LevelBox{X0: 260 + 400*a, X1: 400 + 400*a, Label: "2"},
 			LevelBox{X0: 400 + 400*a, X1: 600 + 400*a, Label: ""})
 	}
-	table, st, err := Reconstruct(fakeTSV(ws), nil, levels)
+	table, st, err := Reconstruct(parseTSVWords(fakeTSV(ws)), nil, levels)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +160,7 @@ func TestLevelBandCellsAreTheCellsUnderTheCaptions(t *testing.T) {
 		ws = append(ws, word{"Levels", 560 + 300*a, 150, 80, 24, 95})
 	}
 	ws = append(ws, word{"Software", 40, 220, 90, 24, 95})
-	cells := LevelBandCells(ParseLattice(ruleDump(rules...)), fakeTSV(ws))
+	cells := LevelBandCells(ParseLattice(ruleDump(rules...)), parseTSVWords(fakeTSV(ws)))
 	if len(cells) == 0 {
 		t.Fatal("no level band found under four repeated captions")
 	}

@@ -40,8 +40,9 @@ import (
 // `-tags tessocr` every call fails with the engine-absent error, loudly.
 type PageEngine interface {
 	// ReadPage reads one page rendered at dpi. The resolution is a parameter because a scan is
-	// read at ITS OWN resolution (#1031), so the grid thresholds are derived per page through
-	// tessocr.GridFor rather than assumed to be the 300-DPI tune.
+	// read at ITS OWN resolution (#1031): the grid thresholds are derived per page through
+	// tessocr.GridFor rather than assumed to be the 300-DPI tune, and the geometry below the
+	// detector is fed measurements converted into the space its constants were fitted in (#1074).
 	ReadPage(png []byte, dpi int) (tessocr.PageResult, error)
 	// Identity keys the reading record — the #636 extractor model. Same identity, same
 	// pixels, same bytes; a reading whose recorded identity matches this engine's is
@@ -142,12 +143,18 @@ type PageReading struct {
 	// RotatedPage reports the page read better rotated 90° clockwise — a landscape table
 	// on a portrait scan — and that the reading came from the rotated pixels.
 	RotatedPage bool `json:"rotated_page,omitempty"`
-	// GridIntersections is the detector's measured rule-crossing count, the
-	// OCR-independent denominator: compared against
+	// GridIntersections is the detector's measured rule-crossing count AT THE PAGE'S OWN
+	// RESOLUTION, the OCR-independent denominator: compared against
 	// Reconstruction.ExpectedIntersections(), a lattice far larger than the
 	// reconstruction accounts for means the OCR dropped grid content leptonica can still
 	// see — and past tessocr.MaxIntersectionRatio the reconstruction is discarded, which
 	// ReconstructionFallback then states.
+	//
+	// THE COMPARISON IS NOT MADE IN THESE UNITS, and the field says so rather than leaving a
+	// reader to divide two numbers that do not divide. Crossings are PIXELS and scale with the
+	// square of the resolution; ExpectedIntersections counts lattice POINTS and does not scale at
+	// all, so the ratio is taken after converting the crossings to 300 DPI (#1074). This field is
+	// what the detector measured; ReconstructionFallback prints what the gate compared.
 	GridIntersections int `json:"grid_intersections,omitempty"`
 	// Reconstruction is the grid branch's confidence, a FIELD rather than something
 	// inferred from the emitted table's shape (plan §II). Nil on prose pages and on grid
@@ -438,7 +445,8 @@ func ReadRenderedPages(run record.Run, sha string, rd RenderRecord) (ReadingReco
 		return ReadingRecord{}, fmt.Errorf("the render record for %s names no pages", sha)
 	}
 	// THE RESOLUTION IS A BAND, AND IT IS CHECKED PER PAGE (#1031). The grid thresholds are derived
-	// from each page's own DPI (tessocr.GridFor), so pixels at 350 are read with a tune for 350.
+	// from each page's own DPI (tessocr.GridFor), so pixels at 350 are read with a tune for 350; the
+	// geometry below the detector reaches its 300-DPI constants already converted (#1074).
 	// What stays refused is a page outside the band the derivation was measured over: below the
 	// floor a page is read small and content is lost, above the ceiling nothing is recovered and a
 	// boundary page was measured flipping to a false table.

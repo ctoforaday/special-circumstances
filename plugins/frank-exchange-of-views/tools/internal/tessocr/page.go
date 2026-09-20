@@ -7,10 +7,11 @@ package tessocr
 // under the default (stub) build every path here surfaces ErrNotCompiledIn rather than a
 // zero that reads like a blank page.
 //
-// Every pixel constant in this file is a 300-DPI empirical fit to the IEEE 1012 corpus
-// and says so where it is declared. Reusing one at another DPI is the mistake the Wave 0
-// spot-check caught; the read path refuses other resolutions rather than misapplying
-// these numbers quietly.
+// Every pixel constant in this file is a 300-DPI empirical fit to the IEEE 1012 corpus and says so
+// where it is declared. Reusing one at another DPI is the mistake the Wave 0 spot-check caught, and
+// since #1058 a page arrives at its own scan resolution — so the MEASUREMENTS are converted into
+// the 300-DPI space at one boundary inside readGridPage (normalize.go) and these numbers are never
+// applied to anything else.
 
 import (
 	"bytes"
@@ -109,6 +110,11 @@ const MinMarkPlacement = 0.8
 // errors fall the safe way — to plain text with the reason stated — and a second document
 // (#934) is what tests where the boundary really sits.
 const MaxIntersectionRatio = 4.0
+
+// dropoutClause is the phrase that identifies the dropout gate inside its sentence, defined once
+// because a test asserts WHICH gate fired by finding it. Two hand-kept copies of a phrase is a fact
+// nothing can refuse: reword the message and the test goes on passing, having stopped checking.
+const dropoutClause = " rule crossings at the 300-DPI scale this limit is set in, "
 
 // Rotation probe. A whole-page rotated table reads as near-silence under PSMAuto: the
 // portrait TSV of p0051/p0052 held 9 confident words each where ordinary pages of this
@@ -241,12 +247,24 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThreshold
 	if lerr != nil {
 		return PageResult{}, lerr
 	}
-	levels, verr := en.readLevels(pagePNG, lat, tsv)
+
+	// THE BOUNDARY (#1074). Above this line every coordinate is a page pixel at whatever resolution
+	// the scan carried; below it every coordinate is in the 300-DPI space the constants were fitted
+	// in. The TSV is parsed ONCE here rather than at each of the sites that used to re-parse it —
+	// seven of which would have kept reading page pixels if the conversion had been bolted on
+	// higher up, which is a half-applied normalization: worse than none, because a constant is then
+	// compared against a mixture of two spaces.
+	scale := normScale(thr.DPI)
+	lat = normalizeLattice(lat, scale)
+	words := normalizeWords(parseTSVWords(tsv), scale)
+	sparseWords := normalizeWords(parseTSVWords(tsvSparse), scale)
+
+	levels, verr := en.readLevels(pagePNG, lat, words, scale)
 	if verr != nil {
 		return PageResult{}, verr
 	}
 
-	table, st, rerr := Reconstruct(tsv, headers, levels)
+	table, st, rerr := Reconstruct(words, headers, levels)
 	if rerr != nil && rerr != ErrNoMarks {
 		return PageResult{}, rerr
 	}
@@ -255,7 +273,15 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThreshold
 		out.Reconstruction = &st
 	}
 
-	out.Fallback = fallbackReason(rerr, grid, st)
+	// The dropout gate compares crossing PIXELS against a count of lattice POINTS, so its limit is
+	// not unitless and does not survive a change of resolution: the numerator scales with DPI
+	// SQUARED and the denominator not at all. It is handed the crossings in the space the 4.0 was
+	// measured in; PageResult.Grid keeps what the detector actually measured.
+	out.Fallback = fallbackReason(rerr, GridStats{
+		HPix:          grid.HPix,
+		VPix:          grid.VPix,
+		Intersections: normalizeCrossings(grid.Intersections, scale),
+	}, st)
 	if out.Fallback == "" {
 		out.Text = table
 		return out, nil
@@ -270,7 +296,7 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThreshold
 	// read off the same two openings the detector measured, so it explains those counts rather
 	// than being a second opinion about the page. Tried only here: a page whose marks
 	// reconstructed keeps that reading byte for byte.
-	cellText, cst, why := TextCells(lat, tsv, tsvSparse)
+	cellText, cst, why := TextCells(lat, words, sparseWords)
 	switch {
 	case why == "":
 		out.TextCells = &cst
@@ -294,14 +320,18 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThreshold
 // readLevels reads a mark table's level header one cell at a time (#933): the cells the lattice
 // boxes under a repeated caption, each cropped inside its rules and read as a single character run.
 // It returns nothing on a page with no such band.
-func (en *Engine) readLevels(pagePNG []byte, lat Lattice, tsv string) ([]LevelBox, error) {
-	cells := LevelBandCells(lat, tsv)
+// The lattice and words are in the normalized space; scale is what takes a cell back to page
+// pixels, because CropCell addresses the page IMAGE and the image is at its own resolution.
+func (en *Engine) readLevels(pagePNG []byte, lat Lattice, words []tsvWord, scale float64) ([]LevelBox, error) {
+	cells := LevelBandCells(lat, words)
 	if len(cells) == 0 {
 		return nil, nil
 	}
 	reads := make([]string, len(cells))
 	for i, c := range cells {
-		crop, err := CropCell(pagePNG, c)
+		// BACK TO PAGE PIXELS FOR THIS ONE CALL. The cell came out of the normalized lattice; the
+		// image it crops is at the scan's own resolution.
+		crop, err := CropCell(pagePNG, pageCell(c, scale))
 		if err != nil {
 			continue // a cell with nothing inside its rules reads as unread, never as a level
 		}
@@ -316,7 +346,7 @@ func (en *Engine) readLevels(pagePNG []byte, lat Lattice, tsv string) ([]LevelBo
 		reads[i] = strings.Join(parts, " ")
 	}
 	var centres []float64
-	for _, w := range repeatedCaption(parseTSVWords(tsv)) {
+	for _, w := range repeatedCaption(words) {
 		centres = append(centres, w.cx())
 	}
 	return AgreeWithTable(LevelBoxes(cells, reads), centres), nil
@@ -342,9 +372,9 @@ func fallbackReason(rerr error, grid GridStats, st Stats) string {
 		return fmt.Sprintf("reconstruction placed %d of %d marks, below the %.2f "+
 			"placement threshold; page kept as plain text", st.MarksPlaced, st.MarksTotal, MinMarkPlacement)
 	case float64(grid.Intersections) > MaxIntersectionRatio*float64(st.ExpectedIntersections()):
-		return fmt.Sprintf("the detector measured %d grid intersections, %.1f times the %d the "+
-			"reconstruction accounts for (limit %.1f): the OCR dropped rows or columns the grid "+
-			"still shows; page kept as plain text", grid.Intersections,
+		return fmt.Sprintf("the detector measured %d rule crossings at the 300-DPI scale this limit "+
+			"is set in, %.1f times the %d the reconstruction accounts for (limit %.1f): the OCR "+
+			"dropped rows or columns the grid still shows; page kept as plain text", grid.Intersections,
 			float64(grid.Intersections)/float64(st.ExpectedIntersections()),
 			st.ExpectedIntersections(), MaxIntersectionRatio)
 	}

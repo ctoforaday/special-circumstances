@@ -34,8 +34,10 @@ const levelCaptionMin = 4
 // lattice merged across a missed rule is then split by the band's own cell width, so every digit
 // is read alone: read across the missing rule, a three-level cell of IEEE 1012 p51 returned
 // "3|2|4" for 3 2 1.
-func LevelBandCells(lat Lattice, tsv string) []Cell {
-	captions := repeatedCaption(parseTSVWords(tsv))
+// The words arrive PARSED AND NORMALIZED (#1074, normalize.go); the cells it returns are in that
+// same 300-DPI space, and the caller converts them back before cropping the page image.
+func LevelBandCells(lat Lattice, words []tsvWord) []Cell {
+	captions := repeatedCaption(words)
 	if len(captions) == 0 {
 		return nil
 	}
@@ -137,7 +139,8 @@ func splitWideCells(band []Cell) []Cell {
 	return out
 }
 
-// cellPad is how far inside its rules a header cell is cropped: a rule left in the crop is the ink
+// cellPad is how far inside its rules a header cell is cropped, in 300-DPI pixels like every
+// constant here; the cell is converted back to page pixels before the crop (normalize.go): a rule left in the crop is the ink
 // that defeats the read.
 const cellPad = 6
 

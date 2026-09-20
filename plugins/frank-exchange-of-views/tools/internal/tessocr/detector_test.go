@@ -157,7 +157,7 @@ func readGridFixture(t *testing.T) map[string]GridStats {
 // GridFor(300), and every threshold in testdata/grid300-sel151.txt was measured against the table.
 // A derivation that lands a pixel away silently re-tunes the detector.
 func TestTheDerivedTuneIsTheMeasuredTuneAt300(t *testing.T) {
-	want := GridThresholds{SEL: 151, MinHPix: 15000, MinVPix: 4500, MinIntersections: 100}
+	want := GridThresholds{DPI: 300, SEL: 151, MinHPix: 15000, MinVPix: 4500, MinIntersections: 100}
 	if got := GridFor(300); got != want {
 		t.Fatalf("GridFor(300) = %+v, want the Wave 0 tune %+v", got, want)
 	}

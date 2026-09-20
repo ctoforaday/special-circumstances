@@ -149,7 +149,7 @@ func TestFallbackReasonOnTheMeasuredPages(t *testing.T) {
 			t.Errorf("%s: held = %v (reason %q), want %v", p.page, held, reason, p.held)
 			continue
 		}
-		if !p.held && !strings.Contains(reason, "grid intersections") {
+		if !p.held && !strings.Contains(reason, dropoutClause) {
 			t.Errorf("%s fell back, but not on the dropout gate: %q", p.page, reason)
 		}
 	}
