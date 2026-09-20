@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -120,6 +121,9 @@ func ruleSourceOrNone(s tessocr.RuleSource) string {
 	return string(s)
 }
 
+// trimDPI prints a resolution without inventing precision it does not have.
+func trimDPI(d float64) string { return strconv.FormatFloat(d, 'f', 2, 64) }
+
 // readCorpusPage runs ONE page through fetch, render and read, exactly as a citation would, and
 // returns the golden text and what a human's expect block is checked against.
 func readCorpusPage(t *testing.T, c corpus.Case) (string, corpus.Observed) {
@@ -189,7 +193,9 @@ func readCorpusPage(t *testing.T, c corpus.Case) (string, corpus.Observed) {
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s · %s · rendered at %d DPI (native %d)\n", c.Slug, DefaultPageEngine.Identity(), firstOf(rd.DPIRange()), native[0])
+	fmt.Fprintf(&b, "%s · %s · rendered at %s DPI (native %s), %dx%d px\n", c.Slug,
+		DefaultPageEngine.Identity(), trimDPI(firstOf(rd.DPIRange())), trimDPI(native[0]),
+		rd.Renders[0].WidthPx, rd.Renders[0].HeightPx)
 	// The RULE SOURCE is on this line because eight goldens that do not name it read as if one
 	// path produced them, and on a repaired page the intersections beside it are the DETECTOR's
 	// zero — which is what a page carrying no rules at all also reads as (#1027).
@@ -217,4 +223,4 @@ func readCorpusPage(t *testing.T, c corpus.Case) (string, corpus.Observed) {
 	return b.String(), observed
 }
 
-func firstOf(a, _ int) int { return a }
+func firstOf(a, _ float64) float64 { return a }

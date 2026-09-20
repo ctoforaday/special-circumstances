@@ -92,7 +92,7 @@ func (RenderAndRead) ReadScanned(ctx context.Context, run record.Run, e Entry) (
 	if nerr != nil {
 		return ReadingRecord{}, nerr
 	}
-	dpis := make([]int, len(natives))
+	dpis := make([]NativeDPI, len(natives))
 	for i, n := range natives {
 		dpis[i] = RenderDPIFor(n)
 	}
@@ -108,7 +108,7 @@ func (RenderAndRead) ReadScanned(ctx context.Context, run record.Run, e Entry) (
 	if had && prev.Engine == DefaultPageEngine.Identity() && len(prev.Pages) == len(dpis) && len(prev.Pages) > 0 {
 		same := true
 		for i, p := range prev.Pages {
-			if p.DPI != dpis[i] {
+			if p.DPI != dpis[i].Max() {
 				same = false
 				break
 			}
@@ -142,7 +142,7 @@ func (RenderAndRead) ReadScanned(ctx context.Context, run record.Run, e Entry) (
 // dpis is one resolution per page, derived by the caller from the scan itself (RenderDPIFor over
 // NativeDPIs). A parameter rather than a constant because a page's resolution is a fact about that
 // PAGE, not about the engine — and the thresholds follow it through tessocr.GridFor.
-func renderAndReadPages(run record.Run, sha string, body []byte, dpis []int) (ReadingRecord, error) {
+func renderAndReadPages(run record.Run, sha string, body []byte, dpis []NativeDPI) (ReadingRecord, error) {
 
 	dir := PagesDir(run, sha)
 	if err := os.Remove(OCRTextPath(run, sha)); err != nil && !os.IsNotExist(err) {
@@ -188,10 +188,10 @@ func renderAndReadPages(run record.Run, sha string, body []byte, dpis []int) (Re
 	}
 	// THE BUDGET IS CHECKED AT THE HIGHEST RESOLUTION ANY PAGE WILL USE. Pages differ now, and a
 	// budget taken at the lowest would let a document through and then render a finer page past it.
-	worst := DefaultRenderDPI
+	worst := float64(DefaultRenderDPI)
 	for _, d := range dpis {
-		if d > worst {
-			worst = d
+		if d.Max() > worst {
+			worst = d.Max()
 		}
 	}
 	if err := renderWithinDiskBudget(pc.PageCount, worst); err != nil {
@@ -210,7 +210,7 @@ func renderAndReadPages(run record.Run, sha string, body []byte, dpis []int) (Re
 		out.RenderShas = append(out.RenderShas, Sha(png))
 
 		// The shared per-page step: reuse a matching receipt, keep every error fatal.
-		r, norm, rerr := readPageStep(run, sha, i+1, png, dpis[i])
+		r, norm, rerr := readPageStep(run, sha, i+1, png, dpis[i].Max())
 		if rerr != nil {
 			return ReadingRecord{}, fmt.Errorf("page %d: %w", i+1, rerr)
 		}

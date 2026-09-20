@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -26,11 +27,11 @@ type ocrSummary struct {
 	// DPILow and DPIHigh are the resolutions the pages were rendered at. Two fields rather than
 	// one because a scan is rendered at its OWN resolution (#1031) and a document that mixes has
 	// no single number; equal values are the ordinary case.
-	DPILow    int    `json:"dpi_low"`
-	DPIHigh   int    `json:"dpi_high"`
-	Renderer  string `json:"renderer"`
-	FirstPage string `json:"first_page"`
-	LastPage  string `json:"last_page"`
+	DPILow    float64 `json:"dpi_low"`
+	DPIHigh   float64 `json:"dpi_high"`
+	Renderer  string  `json:"renderer"`
+	FirstPage string  `json:"first_page"`
+	LastPage  string  `json:"last_page"`
 	// Reused is true when this render already existed at this resolution and nothing was
 	// re-rendered. A seat re-running the verb should be able to tell.
 	Reused bool `json:"reused"`
@@ -134,13 +135,13 @@ func newOCRPages() *cobra.Command {
 				return err
 			}
 			lo, hi := rec.DPIRange()
-			reused := have && rec.Pages() > 0 && lo == dpi && hi == dpi
+			reused := have && rec.Pages() > 0 && lo == float64(dpi) && hi == float64(dpi)
 			if !reused {
 				body, rerr := fetchcache.Read(run, sha)
 				if rerr != nil {
 					return fmt.Errorf("the index names sha %s but its content file is unreadable: %w", sha, rerr)
 				}
-				if rec, err = fetchcache.RenderPages(run, sha, body, dpi); err != nil {
+				if rec, err = fetchcache.RenderPages(run, sha, body, fetchcache.AtDPI(float64(dpi))); err != nil {
 					return err
 				}
 			}
@@ -179,13 +180,13 @@ func newOCRPages() *cobra.Command {
 // ocrReadSummary is what `ocr read` prints: what was read, by what, and what the grid
 // branch found.
 type ocrReadSummary struct {
-	Sha      string `json:"sha"`
-	Engine   string `json:"engine"`
-	Pages    int    `json:"pages"`
-	DPILow   int    `json:"dpi_low"`
-	DPIHigh  int    `json:"dpi_high"`
-	TextPath string `json:"text_path"`
-	TextSha  string `json:"text_sha"`
+	Sha      string  `json:"sha"`
+	Engine   string  `json:"engine"`
+	Pages    int     `json:"pages"`
+	DPILow   float64 `json:"dpi_low"`
+	DPIHigh  float64 `json:"dpi_high"`
+	TextPath string  `json:"text_path"`
+	TextSha  string  `json:"text_sha"`
 	// OCRDerived is always true here and is printed anyway. It is the field that keeps text a
 	// machine read off pixels distinguishable from text an author embedded, and a reader who
 	// does not see it stated has to infer it from the verb that produced the file.
@@ -315,13 +316,21 @@ func printOCRRead(cmd *cobra.Command, s ocrReadSummary) error {
 
 // dpiSpan prints one resolution when every page shares it and a range when they do not — a scan is
 // read at its own resolution, so a document that mixes says so rather than naming one of them.
-func dpiSpan(lo, hi int) string {
+// It prints the resolution as it was MEASURED, fraction and all: a scan's own resolution is pixels
+// over a page size in points and is almost never whole, and the rounding that used to hide that was
+// the rounding that resampled the raster (#1105).
+func dpiSpan(lo, hi float64) string {
 	if lo == hi {
-		return fmt.Sprint(lo)
+		return trimDPI(lo)
 	}
-	return fmt.Sprintf("%d-%d", lo, hi)
+	return trimDPI(lo) + "-" + trimDPI(hi)
 }
 
+// Two decimals, because the resolution comes from PDFium as a float32 and printing every digit it
+// can hold prints precision the measurement does not have. The RENDER uses the full value; this is
+// only how a human reads it.
+func trimDPI(d float64) string { return strconv.FormatFloat(d, 'f', 2, 64) }
+
 // firstOf and secondOf let a two-value range be used in a struct literal without a temporary.
-func firstOf(a, _ int) int  { return a }
-func secondOf(_, b int) int { return b }
+func firstOf(a, _ float64) float64  { return a }
+func secondOf(_, b float64) float64 { return b }

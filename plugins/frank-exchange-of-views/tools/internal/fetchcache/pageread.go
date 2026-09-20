@@ -109,12 +109,12 @@ const (
 
 // renderWithinDiskBudget refuses a document whose full render would exceed the budget,
 // by name and before any page is rasterised.
-func renderWithinDiskBudget(pages, dpi int) error {
+func renderWithinDiskBudget(pages int, dpi float64) error {
 	est := int64(pages) * approxPageBytesAt300DPI * int64(dpi) * int64(dpi) / (300 * 300)
 	if est <= MaxRenderBudgetBytes {
 		return nil
 	}
-	return fmt.Errorf("%d pages at %d DPI estimate to %d MB of page images (~%d KB a page at "+
+	return fmt.Errorf("%d pages at %g DPI estimate to %d MB of page images (~%d KB a page at "+
 		"300 DPI, scaled by resolution squared), over the %d MB render budget; nothing was "+
 		"rendered — render a subset, or raise the budget deliberately: this refuses rather "+
 		"than filling the disk and calling it the document",
@@ -135,7 +135,7 @@ type PageReading struct {
 	// key: the grid constants are derived from it (tessocr.GridFor). It sits on the page rather
 	// than on the document because a scan is read at its own resolution (#1031), and a document
 	// that mixes them has no single number that is true of every page.
-	DPI int `json:"dpi"`
+	DPI float64 `json:"dpi"`
 	// Table reports the grid detector fired on this page. Kept even when reconstruction
 	// fell back: a grid that was seen and could not be rebuilt is a different fact from
 	// no grid.
@@ -193,7 +193,7 @@ type PageReading struct {
 type pageReceipt struct {
 	Page      int       `json:"page"`
 	RenderSha string    `json:"render_sha"`
-	DPI       int       `json:"dpi"`
+	DPI       float64   `json:"dpi"`
 	Engine    string    `json:"engine"`
 	ReadAt    time.Time `json:"read_at"`
 	TextSha   string    `json:"text_sha"`
@@ -273,7 +273,7 @@ func ClearReceipts(run record.Run, sha string) error {
 // after verifying the text on disk still matches the receipt's hash; otherwise runs the
 // engine. Text first, receipt second, so a crash between the two leaves a page that
 // re-reads rather than a receipt naming text that was never written.
-func readPageStep(run record.Run, sha string, page int, png []byte, dpi int) (pageReceipt, string, error) {
+func readPageStep(run record.Run, sha string, page int, png []byte, dpi float64) (pageReceipt, string, error) {
 	renderSha := Sha(png)
 	if r, ok, err := readReceipt(run, sha, page); err != nil {
 		return pageReceipt{}, "", err
@@ -287,7 +287,12 @@ func readPageStep(run record.Run, sha string, page int, png []byte, dpi int) (pa
 		return r, string(b), nil
 	}
 
-	res, rerr := DefaultPageEngine.ReadPage(png, dpi)
+	// THE THRESHOLDS TAKE A WHOLE NUMBER AND THE RASTER DOES NOT (#1105). GridFor derives lengths
+	// and areas, and 350 against 350.207 moves SEL by a tenth of a pixel — immaterial. What was NOT
+	// immaterial was rounding before the RENDER, where the same tenth of a pixel resampled the
+	// scan. So the rounding happens here, where it costs nothing, and the record keeps the exact
+	// resolution the page was rasterised at.
+	res, rerr := DefaultPageEngine.ReadPage(png, int(dpi+0.5))
 	if rerr != nil {
 		// AN ENGINE ERROR IS AN ERROR, NOT AN EMPTY PAGE — including the stub build's
 		// engine-absent refusal, which must reach the operator as a sentence, never as a
@@ -327,7 +332,7 @@ func readPageStep(run record.Run, sha string, page int, png []byte, dpi int) (pa
 // DPIRange is the lowest and highest resolution any page of this reading was read at. Equal values
 // are the ordinary case — a scan is usually uniform — and a spread is the document that mixes,
 // which is the one a summary of a single number used to misreport.
-func (r ReadingRecord) DPIRange() (lo, hi int) {
+func (r ReadingRecord) DPIRange() (lo, hi float64) {
 	for i, p := range r.Pages {
 		if i == 0 || p.DPI < lo {
 			lo = p.DPI
@@ -466,10 +471,10 @@ func ReadRenderedPages(run record.Run, sha string, rd RenderRecord) (ReadingReco
 	// floor a page is read small and content is lost, above the ceiling nothing is recovered and a
 	// boundary page was measured flipping to a false table.
 	for i, pr := range rd.Renders {
-		if pr.DPI < DefaultRenderDPI || pr.DPI > MaxRenderDPI {
-			return ReadingRecord{}, fmt.Errorf("page %d was rendered at %d DPI, outside the %d–%d "+
+		if m := pr.DPI.Max(); m < DefaultRenderDPI || m > MaxRenderDPI {
+			return ReadingRecord{}, fmt.Errorf("page %d was rendered at %g DPI, outside the %d–%d "+
 				"the engine's constants are derived over — re-render with `ocr pages --sha %s` and read again",
-				i+1, pr.DPI, DefaultRenderDPI, MaxRenderDPI, sha)
+				i+1, m, DefaultRenderDPI, MaxRenderDPI, sha)
 		}
 	}
 
@@ -485,7 +490,7 @@ func ReadRenderedPages(run record.Run, sha string, rd RenderRecord) (ReadingReco
 			return ReadingRecord{}, fmt.Errorf("page %d image: %w", i, err)
 		}
 		// The shared per-page step: reuse a matching receipt, keep every error fatal.
-		r, norm, rerr := readPageStep(run, sha, i, png, rd.Renders[i-1].DPI)
+		r, norm, rerr := readPageStep(run, sha, i, png, rd.Renders[i-1].DPI.Max())
 		if rerr != nil {
 			return ReadingRecord{}, fmt.Errorf("page %d: %w", i, rerr)
 		}

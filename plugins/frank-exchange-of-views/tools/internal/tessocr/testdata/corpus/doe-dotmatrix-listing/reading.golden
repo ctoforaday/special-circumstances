@@ -1,10 +1,10 @@
-doe-dotmatrix-listing · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@6ac8dfe32328 · rendered at 300 DPI (native 300)
-table: false · rules: none · rotated: false · grid intersections: 0 · repaired crossings: 0 · length: 1792
+doe-dotmatrix-listing · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@6ac8dfe32328 · rendered at 300.00 DPI (native 300.00), 2833x3492 px
+table: false · rules: none · rotated: false · grid intersections: 0 · repaired crossings: 0 · length: 1777
 ---
 1448
-1438
-1468
-1476
+14358
+1466
+1478
 1468
 1498
 1368
@@ -12,12 +12,12 @@ table: false · rules: none · rotated: false · grid intersections: 0 · repair
 1326
 1338
 1548
-13568
-13568
-13578
+135
+1568
+1378
 1568
 1598
-1668
+1608
 1618
 1628
 1638
@@ -27,27 +27,27 @@ table: false · rules: none · rotated: false · grid intersections: 0 · repair
 1678
 1668
 1698
-17028
+1708
 1718
 1728
 1738
 1748
 1758
-176e
-1778
+i7é6e@
+177@
 1768
-1798
+1790
 680
 1618
-1620
+1628
 1630
-i)
+{5
 
 164@
-18se
+18Se
 1668
-1978
-1686
+1878
+ieee
 189
 1988
 1918
@@ -64,116 +64,116 @@ i968
 2028
 2030
 2e40
-2950
-2060
+£650
+e060
 cera
-«060
-2630
-«100
+e060
+2030
+< 100
 2116
-212d
+ci2d
 2130
-2140
+2iqd
 2158
-eléo
-<i7a
-2180
-2199
+eleo
+<cira
+<150
+2190
 2280
 2<i0
 ece0
-e230
-2240
+2230
+2040
 2250
 2268
-22708
+2270
 
-IF C<® THEN C=298
+IF C<@® THEN C=9
 IF C>1 THEN Cal
-xis¥i9@
-ReASFR1(S>#C
-P=mP1¢S)>
+Xis¥19@8
+ReASR1¢S>#C
+P=eP1¢S)
 GOSUB 1938 ! POLAR TO RECT
-MXlexi+x
-yisvit¢y
-R=A#R2°S)#.1-C>
-Pap2¢S>
-GOSUB 1938 !' POLAR TO RECT
-Maxi+x
-Yeyity
-GOSUB 1660 ' RECT TO POLAR
-XS=K3+K
-YSayvSer
-MSaeMSem4 (Sen
-HSsHS+H4(S)4A
-ASHAS+A
-PRINT USING 1640,;5,A,C, M465 °4AR,H4¢(S5 0A, RP ALS
-IMAGE 4D,110,7D. 20,120, 120,121, e0.0
+Xlexiex
+Yievity
+ReA#R2°S)#11-C>
+P=ap2¢s>
+GOSUB 1938 ! POLAR TO RECT
+Mani+x
+Yevity
+GOSUB 1860 ' RECT TO POLAR
+MS=kKS+K
+YSavSer
+MSaMS*m4¢So#A
+HSeHS+H4(S54A
+ASBAS+A
+PRINT USING 16404;5,A,C, M465 4A, H4(S5)4AR, RPL
+IMAGE 4D,110,70. 20,120, 120,120,e0.0
 NEXT I
-XexS
+Mex
 yas
-GOSUB 1668 1 RECT TO POLAR
-PRINT USING 1708; "TOTAL",AS,N5,HS,R,P-15
-IMAGE 6A, 9D,220D,12D,12D,680.0
-AGBAG+A5
+GOSUB 19628 1 RECT TO POLAR
+PRINT USING 1708; "TOTAL",AS,M5,HS,R,P-715
+IMAGE 6A,9D,22D,12D,120,60.0
+AGBAG+AS
 M6=M6+M5
-Ho=H6+HS
-M6axXG+K
-Yeuvé+7
+He=H6+HS
+M6axXG +x
+Yeuve+y
 GOTO 268
 ' TOTALS OF ALL ROOMS
 Mere
-Ys76é
-GOSUB 1686 ! RECT TO FOLAR
+Y=T6é
+GOSUB 1686 ! RECT TO POLAR
 PRINT
-PRINT "SUBTOGTAL OF ALL FooMS"
-FRINT USING 1940, "AFER®", AS." MASS=",Me." HC=",H6,"
+PRINT "SUBTOTAL OF ALL ROOMS"
+FRINT USING 1940, "AFER®". AG." MASSE", Me.* HC2", He,"
 
-THAGE 5A,60,7A,7D, 5A,70D,6A,7D,6A,40. 0
-GOTO 266
+THAGE 5A,6D,7A, 7D, 5A,70,6A,7D,6A,4D. 0
+GOTO 260
 END
-! SUBROUTINES
+' SUBROUTINES
 ! RECT TO POLAR
-PesaRexs2eY° 2)
-FeATNCY+X >
-IF ®«®@ THEN F=P+160
+ReSQReX*24Y° 2)
+FPeATNCY+% >
+IF ®«@ THEN F=P+160
 RETURN
 ! POLAR TO RECT
-YeReCOS cP,
-YeReSINc Ps
-RETURH
+MeReCOS Ps
+YeReSINGP»
+RETURN
 ' TRANSFEP MATRIX
-GOSUB 2168 ' Tanh
-NEAL-BI+Ci*#S0F: 2:
-YSAL+Bi+DLesor« 2:
-GOSUB 168@ ' ROCT TO POLAF
-Risk
-Pi aP
-SMALOCL-B)*DI+BleCleAl*+Di+sor: ss
-VeBLeDI+BleCi+AleDl-Ai+c)
-GOSUB 1988 ' FECT TO FOLAR
-Feri -F
-Papi-P
+GOSUB 2160 , Tanh
+NEAL -BI+Ci*SOR: 2%
+YeAL+Bi+D1LeSorc2:
+GOSUB 1680 ' RECT TO POLAR
+Riek
+Pil aP
+CMALOCL-BIeDi*BleCleAleniesor: cs
+VEBLeDI¢BleCi+AleDi-Ai+*c)
+GOSUB 1968 ' FECT TO FOLAR
+Perl -F
+Peri-PF
 GOSUB 1938
 PETURH
 ' PURE CONDUC TANCE
-DyeCi 2+2eCi+ieDs «
-emriCl) 2eCiep’' oo D3
-vspi- D3
-RETURN
-' Tanh€:141>82)
+DjeCi 2e2eCi+ieD &
+emrcd 2eChen!' a) D3
+Veni. Dg
+FETURH
+' Tanhl:i41.e2)
 PAD
-SfecEXPr sl --EMPi -2 9078
-CQmtEnP 2 :4+E i Pi-2 > 2
-S3esINiz
-CanCos- 2:
-Das Cg2eC 3) -2ec5s2e53: 2
-Alesctc2 D3
+Sf2ecEHPrs --EMP! -2 oe
+CQmCEnP 2 14+E Pi -2eo 2
+SoeSINe gs
+Cascos-c:
+Das Ca2eC a) -2ecs2e53a: 2
+Alescac]e Da
 BieS3ec3 D3
 DEG
-FETUFH
+RETUFH
 ! END SUBROUTINES
 
-DHc=",R, n
+DHce=" Rr,"
 
 Lag=",

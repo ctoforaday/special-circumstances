@@ -48,7 +48,7 @@ func TestReadScannedRendersAndReadsInOneCall(t *testing.T) {
 	// The fixture's pages carry no measurable image resolution, so the policy renders them at the
 	// floor — and every page says so on its own row.
 	if lo, hi := rec.DPIRange(); lo != tessocr.RenderDPI || hi != tessocr.RenderDPI {
-		t.Errorf("DPI range = %d-%d, want every page at the floor %d", lo, hi, tessocr.RenderDPI)
+		t.Errorf("DPI range = %g-%g, want every page at the floor %d", lo, hi, tessocr.RenderDPI)
 	}
 	if rec.Engine != "fake@test" {
 		t.Errorf("Engine = %q, want the identity of what read it", rec.Engine)
@@ -183,7 +183,7 @@ func TestARerenderClearsTheReadingOfTheOldPixels(t *testing.T) {
 		}
 	}
 
-	if _, err := RenderPages(run, e.Sha, pdfWithNoTextLayer(), 150); err != nil {
+	if _, err := RenderPages(run, e.Sha, pdfWithNoTextLayer(), AtDPI(150)); err != nil {
 		t.Fatal(err)
 	}
 	for _, p := range []string{OCRTextPath(run, e.Sha), PageTextPath(run, e.Sha, 1)} {

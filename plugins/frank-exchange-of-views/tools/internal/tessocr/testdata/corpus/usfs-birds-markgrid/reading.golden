@@ -1,14 +1,13 @@
-usfs-birds-markgrid · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@6ac8dfe32328 · rendered at 501 DPI (native 501)
-table: true · rules: detector · rotated: false · grid intersections: 2029 · repaired crossings: 0 · length: 1057
-marks: 1 columns, 1 subcolumns, 2 rows, 1 of 1 placed, psm disagreement 1.00
-text cells: 1 tables, 2 bands, 7 rows, 11 columns, 21 cells, 130 words placed
-fell back: the detector measured 728 rule crossings at the 300-DPI scale this limit is set in, 121.3 times the 6 the reconstruction accounts for (limit 4.0): the OCR dropped rows or columns the grid still shows; page kept as plain text
+usfs-birds-markgrid · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@6ac8dfe32328 · rendered at 501.21 DPI (native 501.21), 1796x4358 px
+table: true · rules: detector · rotated: false · grid intersections: 2006 · repaired crossings: 0 · length: 1111
+text cells: 1 tables, 2 bands, 5 rows, 11 columns, 21 cells, 129 words placed
+fell back: grid detected but the TSV held no mark tokens; page kept as plain text — its words are read, but which row and column each belongs to is not preserved, so check a cell against the page image before relying on it
 ---
-| > V9 5 Tw —_ a (77) f | 8 |c < & | OS} | i= “4 By / on wv A | on f o 26 | 5 ==) 3 a 1¢ | 86 = A | oM ols x | | i ” |  ||
+xf ? |
+
+| ~ Residency | Abunc | Aquatic rian Po R | Scrub os pumeenmemeneeel Ripa _ Desert | Grassland ~ | Pinton-Juni per | osa “[_Pon | Conifer Mixed | i |  ||
 |---|---|---|---|---|---|---|---|---|---|---|
-| Downey Wwodnerker __ __Hairy Woodpecker __Northern Three-toed Woodpecker Flicker (“Red-shafted”) Flycatchers & Larks __Olive-sided Flycatcher ___Western Wood-Pewee __Willow Flycatcher __Dusky Flycatcher __Western Flycatcher __ Black Phoebe __Say’s Phoebe __Ash-throated Flycatcher __Cassin’s Kingbird __Western Kingbird -__Horned Lark |  |  |  | e |  | e | es e | ee | e| |  |
-| Swallows |  |  |  |  |  |  |  |  |  |  |
-| __Purple Martin _. Tree Swallow __Violet-green Swallow __N. Rough-winged Swallow ___Bank Swallow __Cliff Swallow __Cave Swallow __ Barn Swallow |  |  |  |  |  |  |  | Cn |  |  |
-| Jays & Crows __Gray Jay __Steller’s Jay __. scrub Jay __Gray-breasted Jay __Pifion Jay __Clark’s Nutcracker __American Crow __Common Raven |  |  |  | e | oe) | 8 | e e |  |  |  |
-| Chickadees |  |  |  |  |  |  |  |  |  |  |
-| __Black-capped Chickadee |  | PU |  |  |  |  |  |  |  |  |
+| __.Downey Woodpecker — __Hairy Woodpecker __Three-toed Woodpecker __Northern Flicker (“Red-shafted") Flycatchers & Larks | __ Olive-sided Flycatcher ___Western Wood-Pewee __ Willow Flycatcher __Dusky Flycatcher __Western Flycatcher __ Black Phoebe __Say’s Phoebe __Ash-throated Flycatcher __Cassin’s Kingbird __Western Kingbird -__Horned Lark | TANNDAUANNUNANMN | Cy} a 2 CO RS Ran |  | e |  | e | sh | ole |  |  |
+| Swallows __Purple Martin ___ Tree Swallow __ Violet-green Swallow / __N. Rough-winged Swallow ___Bank Swallow __Cliff Swallow __Cave Swallow __ Barn Swallow | NZTNNNMNAUNN | QAAAnAnAcc |  |  |  |  |  |  |  |  |
+| Jays & Crows __Gray Jay __Steller’s Jay __.5crub Jay __Gray-breasted Jay __Pifion Jay __Clark’s Nutcracker _.American Crow __.Common Raven | ha oY © eR © ee 2 Prag Reg To |  |  |  |  |  |  |  |  |  |
+| Chickadees | __Black-capped Chickadee |  |  |  |  |  |  |  |  |  |  |

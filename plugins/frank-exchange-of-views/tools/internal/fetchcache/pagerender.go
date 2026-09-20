@@ -64,15 +64,32 @@ const (
 //     the tuning document's closest clean rejection flipped to a false table.
 //
 // So: the scan's own resolution, floored at the engine's comfort zone and capped for memory.
-func RenderDPIFor(nativeDPI int) int {
-	switch {
-	case nativeDPI < DefaultRenderDPI:
-		return DefaultRenderDPI
-	case nativeDPI > MaxRenderDPI:
-		return MaxRenderDPI
+// THE FRACTION IS KEPT, AND THAT IS THE POINT (#1105). A scan's resolution is pixels over a page
+// size in points and is almost never a whole number: the corpus's NBS page is 2612 px over 537 pt,
+// which is 350.207 DPI. Rounding that to 350 made PDFium RESAMPLE a bilevel scan by a factor of
+// 0.9994 -- and on a 1-bit source every stroke edge is then interpolated, which fills exactly the
+// thin white counter that separates a 5 from a 9. Measured on one cell of that page: resampled, the
+// engine read 9.4 with confidence 90; rendered 1:1 it read 3.4 with confidence 54. Both wrong, the
+// glyph being damaged -- but the resample also manufactured the CONFIDENCE, putting a wrong value
+// inside the distribution of correct ones where no threshold could find it.
+func RenderDPIFor(native NativeDPI) NativeDPI {
+	// THE BAND IS JUDGED ON ONE NUMBER AND APPLIED TO BOTH AXES, so a page is never stretched by
+	// the clamp: a scan that is 700x690 is a scan to be capped, not a scan to be made square.
+	switch m := native.Max(); {
+	case m < DefaultRenderDPI:
+		return scaleTo(native, DefaultRenderDPI/m)
+	case m > MaxRenderDPI:
+		return scaleTo(native, MaxRenderDPI/m)
 	default:
-		return nativeDPI
+		return native
 	}
+}
+
+func scaleTo(n NativeDPI, f float64) NativeDPI {
+	if n.H == 0 || n.V == 0 {
+		return NativeDPI{H: DefaultRenderDPI, V: DefaultRenderDPI}
+	}
+	return NativeDPI{H: n.H * f, V: n.V * f}
 }
 
 // NativeDPIs is the resolution each page carries: for every page, the highest resolution of any
@@ -87,7 +104,29 @@ func RenderDPIFor(nativeDPI int) int {
 //
 // Zero for a page means it carries no image to measure — a born-digital page, or one drawn rather
 // than scanned. The caller renders that page at the floor.
-func NativeDPIs(run record.Run, body []byte) ([]int, error) {
+// NativeDPI is one page's scan resolution, PER AXIS and unrounded.
+//
+// Both halves matter and both were wrong before #1105. Unrounded, because a scan's resolution is
+// pixels over a page size in points and is almost never whole — rounding it made PDFium resample a
+// raster it could have copied. Per axis, because a scan's horizontal and vertical resolutions
+// differ by a hair on half the corpus, and using one for both squeezes the other: on nbs602-form
+// that was 3 px of vertical scaling on an image nothing else was touching.
+type NativeDPI struct{ H, V float64 }
+
+// AtDPI is a square resolution — both axes the same. It is what a CALLER asking for a resolution
+// means (`ocr pages --dpi`), and what a fixture means; a SCAN's own resolution comes from the image
+// and is rarely square.
+func AtDPI(d float64) NativeDPI { return NativeDPI{H: d, V: d} }
+
+// Max is the larger of the two, for a policy that needs one number.
+func (n NativeDPI) Max() float64 {
+	if n.V > n.H {
+		return n.V
+	}
+	return n.H
+}
+
+func NativeDPIs(run record.Run, body []byte) ([]NativeDPI, error) {
 	inst, closer, err := pdfiumInstance(Dir(run))
 	if err != nil {
 		return nil, err
@@ -102,14 +141,14 @@ func NativeDPIs(run record.Run, body []byte) ([]int, error) {
 	if err != nil {
 		return nil, fmt.Errorf("pdf page count unavailable: %w", err)
 	}
-	perPage := make([]int, 0, pc.PageCount)
+	perPage := make([]NativeDPI, 0, pc.PageCount)
 	for i := 0; i < pc.PageCount; i++ {
 		page := requests.Page{ByIndex: &requests.PageByIndex{Document: doc.Document, Index: i}}
 		n, cerr := inst.FPDFPage_CountObjects(&requests.FPDFPage_CountObjects{Page: page})
 		if cerr != nil {
 			return nil, fmt.Errorf("page %d: %w", i+1, cerr)
 		}
-		best := 0
+		var best NativeDPI
 		for j := 0; j < n.Count; j++ {
 			o, gerr := inst.FPDFPage_GetObject(&requests.FPDFPage_GetObject{Page: page, Index: j})
 			if gerr != nil {
@@ -125,7 +164,10 @@ func NativeDPIs(run record.Run, body []byte) ([]int, error) {
 			if merr != nil {
 				continue
 			}
-			if d := int(md.ImageMetadata.HorizontalDPI + 0.5); d > best {
+			// The LARGEST image on the page decides, by its own pixel count: an MRC scan carries a
+			// full-resolution text layer over a low-resolution background, and the background's
+			// resolution would render the page at a third of the size the text was scanned at.
+			if d := (NativeDPI{H: float64(md.ImageMetadata.HorizontalDPI), V: float64(md.ImageMetadata.VerticalDPI)}); d.Max() > best.Max() {
 				best = d
 			}
 		}
@@ -172,7 +214,15 @@ type RenderRecord struct {
 // tell a bad engine from a page rendered too small to read.
 type PageRender struct {
 	Sha string `json:"sha"`
-	DPI int    `json:"dpi"`
+	// DPI is the resolution this page was rendered at, UNROUNDED — a scan's own resolution is
+	// pixels over a page size in points and is almost never a whole number (#1105). Rounding it
+	// before rendering resampled the raster; rounding it here would hide that it no longer does.
+	DPI NativeDPI `json:"dpi"`
+	// WidthPx and HeightPx are the raster that was actually written. They are the checkable fact:
+	// a reader can divide them by the page's size to recover the resolution, and a render that
+	// silently resampled would show pixel counts that do not match the source image.
+	WidthPx  int `json:"width_px"`
+	HeightPx int `json:"height_px"`
 }
 
 // Pages is the rendered page count. It is derived from the slice rather than stored, so the
@@ -180,13 +230,13 @@ type PageRender struct {
 func (r RenderRecord) Pages() int { return len(r.Renders) }
 
 // DPIRange is the lowest and highest resolution any page here was rendered at.
-func (r RenderRecord) DPIRange() (lo, hi int) {
+func (r RenderRecord) DPIRange() (lo, hi float64) {
 	for i, p := range r.Renders {
-		if i == 0 || p.DPI < lo {
-			lo = p.DPI
+		if i == 0 || p.DPI.Max() < lo {
+			lo = p.DPI.Max()
 		}
-		if p.DPI > hi {
-			hi = p.DPI
+		if p.DPI.Max() > hi {
+			hi = p.DPI.Max()
 		}
 	}
 	return lo, hi
@@ -260,10 +310,10 @@ func ReadRenderRecord(run record.Run, sha string) (RenderRecord, bool, error) {
 // The images are written first and the record last, so a crash leaves images with no record
 // — which reads as "not rendered" and re-renders cleanly. The opposite order would leave a
 // record naming images that do not exist, which is the failure that looks like success.
-func RenderPages(run record.Run, sha string, body []byte, dpi int) (RenderRecord, error) {
-	if dpi < MinRenderDPI || dpi > MaxRenderDPI {
-		return RenderRecord{}, fmt.Errorf("dpi %d is outside %d–%d: below the floor a page is "+
-			"illegible, above the ceiling a long document renders to gigabytes", dpi, MinRenderDPI, MaxRenderDPI)
+func RenderPages(run record.Run, sha string, body []byte, dpi NativeDPI) (RenderRecord, error) {
+	if m := dpi.Max(); m < MinRenderDPI || m > MaxRenderDPI {
+		return RenderRecord{}, fmt.Errorf("dpi %g is outside %d–%d: below the floor a page is "+
+			"illegible, above the ceiling a long document renders to gigabytes", dpi.Max(), MinRenderDPI, MaxRenderDPI)
 	}
 	// A RENDER REPLACES A RENDER, WHOLESALE, AND THE DIRECTORY IS CLEARED TO MAKE THAT TRUE.
 	//
@@ -317,7 +367,7 @@ func RenderPages(run record.Run, sha string, body []byte, dpi int) (RenderRecord
 	}
 	// The disk budget fires here, after the count is known and before the first raster:
 	// this is the verb that PERSISTS pixels, so it is the one the budget exists for.
-	if err := renderWithinDiskBudget(pc.PageCount, dpi); err != nil {
+	if err := renderWithinDiskBudget(pc.PageCount, dpi.Max()); err != nil {
 		return RenderRecord{}, err
 	}
 
@@ -333,7 +383,11 @@ func RenderPages(run record.Run, sha string, body []byte, dpi int) (RenderRecord
 		if err := writeAtomic(PagePath(run, sha, i+1), b); err != nil {
 			return RenderRecord{}, err
 		}
-		renders = append(renders, PageRender{Sha: Sha(b), DPI: dpi})
+		w, h, derr := pngSize(b)
+		if derr != nil {
+			return RenderRecord{}, fmt.Errorf("page %d of %d: %w", i+1, pc.PageCount, derr)
+		}
+		renders = append(renders, PageRender{Sha: Sha(b), DPI: dpi, WidthPx: w, HeightPx: h})
 	}
 
 	rec := RenderRecord{
@@ -359,13 +413,28 @@ func PageImagePath(run record.Run, sha string, page int) string {
 	return filepath.Join(Path(run, sha)+".page-images", fmt.Sprintf("p%04d.png", page))
 }
 
+// PageRenderDPI is the resolution ONE page would be read at: its own, floored and capped. It is the
+// answer a caller needs when it must reproduce the raster a reading was made from rather than make
+// a new one of its own — the lens's page check, which compares render hashes and is meaningless if
+// the two sides rasterise differently.
+func PageRenderDPI(run record.Run, sha string, body []byte, page int) (NativeDPI, error) {
+	natives, err := NativeDPIs(run, body)
+	if err != nil {
+		return NativeDPI{}, err
+	}
+	if page < 1 || page > len(natives) {
+		return NativeDPI{}, fmt.Errorf("%w: page %d of a %d-page document", ErrPageOutOfRange, page, len(natives))
+	}
+	return RenderDPIFor(natives[page-1]), nil
+}
+
 // ErrPageOutOfRange is a page number the document does not have.
 var ErrPageOutOfRange = errors.New("page out of range")
 
 // RenderOnePage draws ONE page of a PDF at dpi, the same grayscale raster the reader reads, and
 // writes it to PageImagePath, replacing an earlier image. page is 1-based. It returns the path,
 // the image's sha256 and the document's page count.
-func RenderOnePage(run record.Run, sha string, body []byte, page, dpi int) (string, string, int, error) {
+func RenderOnePage(run record.Run, sha string, body []byte, page int, dpi NativeDPI) (string, string, int, error) {
 	inst, closer, err := pdfiumInstance(Dir(run))
 	if err != nil {
 		return "", "", 0, err
@@ -408,10 +477,25 @@ func RenderOnePage(run record.Run, sha string, body []byte, page, dpi int) (stri
 //
 // index is 0-based, pdfium's own numbering; callers wrap errors with the 1-based page number
 // a citation would use.
-func renderPagePNG(inst pdfium.Pdfium, doc references.FPDF_DOCUMENT, index, dpi int) ([]byte, error) {
-	rendered, err := inst.RenderPageInDPI(&requests.RenderPageInDPI{
-		Page: requests.Page{ByIndex: &requests.PageByIndex{Document: doc, Index: index}},
-		DPI:  dpi,
+func renderPagePNG(inst pdfium.Pdfium, doc references.FPDF_DOCUMENT, index int, dpi NativeDPI) ([]byte, error) {
+	// RENDERED BY PIXEL COUNT, NOT BY DPI (#1105). RenderPageInDPI takes a whole number, so asking
+	// it for a scan's own 350.207 gets 350 and a resample of a raster that could have been copied.
+	// The page's size in points and the scan's unrounded resolution give the pixel count the source
+	// actually carries, and PDFium then blits rather than interpolates.
+	sz, err := inst.FPDF_GetPageSizeByIndex(&requests.FPDF_GetPageSizeByIndex{Document: doc, Index: index})
+	if err != nil {
+		return nil, fmt.Errorf("page size unavailable: %w", err)
+	}
+	w := int(sz.Width/72*dpi.H + 0.5)
+	h := int(sz.Height/72*dpi.V + 0.5)
+	if w <= 0 || h <= 0 {
+		return nil, fmt.Errorf("page measures %gx%g pt at %gx%g dpi, which is no image",
+			sz.Width, sz.Height, dpi.H, dpi.V)
+	}
+	rendered, err := inst.RenderPageInPixels(&requests.RenderPageInPixels{
+		Page:   requests.Page{ByIndex: &requests.PageByIndex{Document: doc, Index: index}},
+		Width:  w,
+		Height: h,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("did not render: %w", err)
@@ -425,6 +509,16 @@ func renderPagePNG(inst pdfium.Pdfium, doc references.FPDF_DOCUMENT, index, dpi 
 		return nil, fmt.Errorf("encoding: %w", err)
 	}
 	return buf.Bytes(), nil
+}
+
+// pngSize reads a rendered page's dimensions back out of the bytes that were written, so the record
+// carries the raster that EXISTS rather than the one the caller meant to make.
+func pngSize(b []byte) (int, int, error) {
+	cfg, err := png.DecodeConfig(bytes.NewReader(b))
+	if err != nil {
+		return 0, 0, fmt.Errorf("rendered page is not readable as png: %w", err)
+	}
+	return cfg.Width, cfg.Height, nil
 }
 
 // toGray converts a rendered page to a single-channel image.
