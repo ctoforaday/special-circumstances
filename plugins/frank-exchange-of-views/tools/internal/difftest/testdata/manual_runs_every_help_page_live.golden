@@ -279,6 +279,8 @@ THE RECORD HOLDS WHAT YOU DID — which verbs you ran, which help pages you read
 
 YOUR AUDIENCE IS THE OPERATOR who can retool you, not the other seats: nothing here is debate material, and the other side answers none of it.
 
+A SITTING THAT RECORDED NOTHING OWES NO ENTRY AT ALL. The channel exists because silence is ambiguous — an absent entry reads the same whether the sitting was clean or the channel went unused. That argument is about a sitting that DID things and might have hit walls. A sitting with no acts on it is not ambiguous: the harness brackets it at both ends, carrying your identity on each, so that you ran is on the record whatever you did. The clean entry is derived from the emptiness rather than asserted about it, which is the stronger of the two. So a seat woken with nothing to do may end its turn having run no commands — and the work list says so, by not asking.
+
 (If you need a verb or a flag tha…) → SHARED §1
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
@@ -625,7 +627,7 @@ THE BOARD — open and closed gaps with grades, closures, anchors, observations 
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §15
 
-OUTPUT (JSON): {open:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,minted_location,location_edits:[{epoch,edited_by,old,new}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],closed:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,minted_location,location_edits:[{epoch,edited_by,old,new}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],observations:[{id,seat_id,key,kind,label,text,credited}],counts:{open,closed,closed_by_bench,uncredited_findings,anomalies,total_observations,citations,citations_authored},anomalies:[string]}
+OUTPUT (JSON): {open:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location,passage,about_kind,about_ref,minted_location,location_edits:[{epoch,edited_by,old,new}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],closed:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location,passage,about_kind,about_ref,minted_location,location_edits:[{epoch,edited_by,old,new}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],observations:[{id,seat_id,key,kind,label,text,credited}],counts:{open,closed,closed_by_bench,uncredited_findings,anomalies,total_observations,citations,citations_authored},anomalies:[string]}
 
 Usage:
   feov-record show board [flags]
@@ -772,7 +774,7 @@ Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_wit
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §15
 
-OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}],last_sitting:{kind,pin,head}},open:[{id,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,edited_since:[{epoch,edited_by,old,new}],problem_synopsis,check_kind,awaiting_proof,awaiting_docket,docket_reopens_on,found_by:[string],material}],closed_index:[{id,location,about_kind,about_ref,class,fate,closed_by,artifact_state}],counts:{open,closed},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
+OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}],last_sitting:{kind,pin,head}},open:[{id,severity,likelihood,impact,complexity_cost,class,location,passage,about_kind,about_ref,edited_since:[{epoch,edited_by,old,new}],problem_synopsis,check_kind,awaiting_proof,awaiting_docket,docket_reopens_on,found_by:[string],material}],closed_index:[{id,location,about_kind,about_ref,class,fate,closed_by,artifact_state}],counts:{open,closed},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
 
 Usage:
   feov-record show work [flags]
@@ -1233,6 +1235,8 @@ THE RECORD HOLDS WHAT YOU DID — which verbs you ran, which help pages you read
 
 YOUR AUDIENCE IS THE OPERATOR who can retool you, not the other seats: nothing here is debate material, and the other side answers none of it.
 
+A SITTING THAT RECORDED NOTHING OWES NO ENTRY AT ALL. The channel exists because silence is ambiguous — an absent entry reads the same whether the sitting was clean or the channel went unused. That argument is about a sitting that DID things and might have hit walls. A sitting with no acts on it is not ambiguous: the harness brackets it at both ends, carrying your identity on each, so that you ran is on the record whatever you did. The clean entry is derived from the emptiness rather than asserted about it, which is the stronger of the two. So a seat woken with nothing to do may end its turn having run no commands — and the work list says so, by not asking.
+
 (If you need a verb or a flag tha…) → SHARED §1
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
@@ -1593,7 +1597,7 @@ THE BOARD — open and closed gaps with grades, closures, anchors, observations 
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §18
 
-OUTPUT (JSON): {open:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,minted_location,location_edits:[{epoch,edited_by,old,new}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],closed:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,minted_location,location_edits:[{epoch,edited_by,old,new}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],observations:[{id,seat_id,key,kind,label,text,credited}],counts:{open,closed,closed_by_bench,uncredited_findings,anomalies,total_observations,citations,citations_authored},anomalies:[string]}
+OUTPUT (JSON): {open:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location,passage,about_kind,about_ref,minted_location,location_edits:[{epoch,edited_by,old,new}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],closed:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location,passage,about_kind,about_ref,minted_location,location_edits:[{epoch,edited_by,old,new}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],observations:[{id,seat_id,key,kind,label,text,credited}],counts:{open,closed,closed_by_bench,uncredited_findings,anomalies,total_observations,citations,citations_authored},anomalies:[string]}
 
 Usage:
   feov-record show board [flags]
@@ -1740,7 +1744,7 @@ Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_wit
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §18
 
-OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}],last_sitting:{kind,pin,head}},open:[{id,severity,likelihood,impact,complexity_cost,class,location,about_kind,about_ref,edited_since:[{epoch,edited_by,old,new}],problem_synopsis,check_kind,awaiting_proof,awaiting_docket,docket_reopens_on,found_by:[string],material}],closed_index:[{id,location,about_kind,about_ref,class,fate,closed_by,artifact_state}],counts:{open,closed},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
+OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}],last_sitting:{kind,pin,head}},open:[{id,severity,likelihood,impact,complexity_cost,class,location,passage,about_kind,about_ref,edited_since:[{epoch,edited_by,old,new}],problem_synopsis,check_kind,awaiting_proof,awaiting_docket,docket_reopens_on,found_by:[string],material}],closed_index:[{id,location,about_kind,about_ref,class,fate,closed_by,artifact_state}],counts:{open,closed},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
 
 Usage:
   feov-record show work [flags]

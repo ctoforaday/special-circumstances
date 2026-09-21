@@ -39,8 +39,14 @@ func (b *stage) closeGap(lens, gap string) *stage {
 		ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Prose: proto.String("verified at the leaf")})
 }
 
-// THE LOG IS OWED EVERY SITTING. It read the whole record, so a seat's first log entry discharged
-// every later sitting's.
+// THE LOG IS OWED EVERY SITTING THAT DID ANYTHING. It read the whole record, so a seat's first log
+// entry discharged every later sitting's — that is the defect this pins.
+//
+// THE SECOND SITTING HERE MINTS, and that is load-bearing rather than scene-setting. A sitting with
+// no acts at all no longer owes a log: the hooks bracket it and `nominal` is derived from the
+// emptiness instead of asserted about it (#1089). So a second sitting that recorded NOTHING would
+// legitimately be complete, and this test would be asserting the old rule while appearing to
+// assert per-sitting duties. The mint makes it a sitting that genuinely owes an entry.
 func TestTheLogIsOwedEverySitting(t *testing.T) {
 	first := func() *stage {
 		return newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
@@ -49,9 +55,25 @@ func TestTheLogIsOwedEverySitting(t *testing.T) {
 	if hasItem(sittingOfRunT(t, first().seed(), "lens", evLens), "the log is open") {
 		t.Fatal("a lens that logged this sitting is told its log is open")
 	}
-	again := first().register("red-chair").dispatch(2, evLens).register(evLens)
+	again := first().register("red-chair").dispatch(2, evLens).register(evLens).add(evLens, &recordpb.Finding{Label: proto.String("evidence-F9"), Text: proto.String("something this sitting actually did")})
 	if !hasItem(sittingOfRunT(t, again.seed(), "lens", evLens), "the log is open") {
-		t.Fatal("a lens in its second sitting, with only its first sitting's log on the record, is not told the log is open")
+		t.Fatal("a lens in its second sitting, which acted and filed no log, is not told the log is open")
+	}
+}
+
+// AND A SITTING THAT DID NOTHING OWES NOTHING. This is the other half of the rule above, and the
+// whole point of #1089: a woken seat with no work should be able to end its turn having run no
+// commands at all. Its sitting is on the record either way — the hooks write sitting_open and
+// sitting_close around it, each carrying the agent's id and type.
+func TestASittingThatRecordedNothingOwesNoLog(t *testing.T) {
+	st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").dispatch(2, evLens).register(evLens)
+	s := sittingOfRunT(t, st.seed(), "lens", evLens)
+	if hasItem(s, "the log is open") {
+		t.Error("a sitting that recorded nothing is told to file a log saying it recorded nothing")
+	}
+	if !s.Complete {
+		t.Errorf("a sitting that recorded nothing is not complete, so the seat cannot end its turn: %+v", s.Open)
 	}
 }
 
@@ -170,9 +192,13 @@ func TestARepairDoesNotReopenTheDutiesTheSittingDischarged(t *testing.T) {
 		t.Error("inside the repair the work list does not name the revision the repair exists to file")
 	}
 
-	// THE CONTROL: a plain register is a real second sitting, and every per-sitting duty is owed again.
+	// THE CONTROL: a plain register is a real second sitting, and every per-sitting duty is owed
+	// again — for a sitting that DID something. An empty second sitting owes no log (#1089), so the
+	// act here is what makes this a control on the repair window rather than on that rule.
 	again, _ := sat(t)
-	if !hasItem(sittingOfRunT(t, again.register("blue-respond").seed(), "blue", "blue-respond"), "the log is open") {
-		t.Error("a genuine second sitting has filed no log, and the work list does not say so")
+	second := again.register("blue-respond").
+		add("blue-respond", &recordpb.Position{Text: proto.String("this sitting took a position")}).seed()
+	if !hasItem(sittingOfRunT(t, second, "blue", "blue-respond"), "the log is open") {
+		t.Error("a genuine second sitting acted, filed no log, and the work list does not say so")
 	}
 }

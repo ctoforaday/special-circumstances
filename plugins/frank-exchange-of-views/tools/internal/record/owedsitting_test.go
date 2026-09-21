@@ -69,12 +69,21 @@ func TestADispatchedLensThatHasNotRegisteredOwesItsSitting(t *testing.T) {
 		t.Fatalf("the work list says the sitting is owed but dispatch does not ready the lens: %+v", plan)
 	}
 
-	// It registers: the sitting is on the record, so the owed-sitting item goes — and the new
-	// sitting owes its own log, which its first sitting's entry does not discharge.
+	// It registers and does nothing else: the sitting is on the record, the owed-sitting item goes,
+	// and NOTHING is owed. A sitting with no acts does not owe a log — the emptiness is the clean
+	// case, derived rather than asserted (#1089), and this is the state a woken lens with no work
+	// should be able to end its turn in.
 	registered := b5Shape(t).register(voiceLens).seed()
 	s = sittingOfRunT(t, registered, "lens", voiceLens)
-	if len(owedItems(s)) != 0 || !hasItem(s, "the log is open") {
-		t.Fatalf("after its register: want no owed sitting and the log open, got complete=%v open=%+v", s.Complete, s.Open)
+	if len(owedItems(s)) != 0 || !s.Complete {
+		t.Fatalf("after its register an empty sitting still owes: complete=%v open=%+v", s.Complete, s.Open)
+	}
+	// But a sitting that ACTED owes its log, and its first sitting's entry does not discharge it.
+	acted := b5Shape(t).register(voiceLens).
+		add(voiceLens, &recordpb.Finding{Label: proto.String("voice-F9"), Text: proto.String("an act this sitting made")}).seed()
+	s = sittingOfRunT(t, acted, "lens", voiceLens)
+	if !hasItem(s, "the log is open") {
+		t.Fatalf("a sitting that acted and filed no log is not told: complete=%v open=%+v", s.Complete, s.Open)
 	}
 	// It logs: the work list is complete, and dispatch agrees.
 	sat := b5Shape(t).register(voiceLens).logNominal(voiceLens).seed()
