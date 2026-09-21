@@ -115,17 +115,21 @@ type Entry struct {
 	TextReason string `json:"text_reason,omitempty"`
 	// Pages is the document's page count where the format has one, else 0.
 	Pages int `json:"pages,omitempty"`
-	// NotRenderable marks a response that arrived as an unrendered app skeleton rather than a
-	// document — bytes, a 200, a sha, and no prose, because nothing here runs JavaScript. A seat
-	// verifying a citation against one of these is checking the skeleton, and the miss reads
-	// exactly like an honest check.
+	// NotRenderable marks a response that arrived as something other than the document its url
+	// names — bytes, a 200, a sha, and no paper. Three causes, distinguished by the reason below
+	// because they license different next acts: an ACCESS CHALLENGE, which usually means the host
+	// publishes a sanctioned machine route to the same text; an unrendered client-side app, which
+	// means nothing will render without a browser; and a page too starved of prose to be the
+	// document either way. A seat verifying a citation against one of these is checking the
+	// furniture, and the miss reads exactly like an honest check.
 	//
 	// A POINTER, for the reason TextExtracted is one: nil means nobody asked (an older index
 	// line, or a content type the question does not apply to) and false means asked and
 	// answered no. A plain bool collapses those into the reading that flatters.
 	NotRenderable *bool `json:"not_renderable,omitempty"`
-	// NotRenderableReason states what the detector saw, whenever NotRenderable is true — the
-	// ratio or the empty mount point. A flag with no reason is a verdict a reader cannot check.
+	// NotRenderableReason states what the detector saw, whenever NotRenderable is true — which of
+	// the three it was, with the measurement. A flag with no reason is a verdict a reader cannot
+	// check, and here it is also the only place the three causes are told apart.
 	NotRenderableReason string `json:"not_renderable_reason,omitempty"`
 
 	// HTTPStatus is the status the origin (or whatever answered for it) returned. It is here
