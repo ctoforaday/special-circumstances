@@ -1,6 +1,7 @@
 # Upscaling and anti-aliasing, measured in a correct regime
 
-Status: measured 2026-09-20, REJECTED. Record so it is not re-run.
+Status: measured 2026-09-20, REJECTED. Revised 2026-09-21 with the published record, which
+explains what the measurement alone could not. Recorded so it is not run a fourth time.
 
 ## Why it was asked again
 
@@ -57,9 +58,13 @@ raster on every page to find out.
 image at the resolution it is handed. `lstm/input.cpp` in the pinned source rescales every text line
 to a fixed height before recognition:
 
-    const int kMaxInputHeight = 48;
     int target_height = network->NumInputs();
     image_data.PreScale(target_height, kMaxInputHeight, ...);
+
+`NumInputs()` is the network's own input height, read out of the VGSL spec string in the
+`eng.traineddata` THIS REPOSITORY SHIPS: `[1,36,0,1 Ct3,3,16 Mp3,3 Lfys48 ...]` — **36 px**.
+(`kMaxInputHeight = 48` is only a cap for variable-height input; an earlier draft of this plan
+quoted 48 as the target and that was wrong.)
 
 So a 2x image is normalised straight back down, and replication carries no information the 1x raster
 did not. A tie is what theory predicts, and a tie is what the measurement shows. This also explains
@@ -70,11 +75,36 @@ resample DESTROYING a sub-pixel feature (a 1 px counter inside a 5). No downstre
 recovers a feature that is gone, so the prediction is a large LOCAL effect and a negligible global
 one — measured as one cell flipping and 135 characters across ten pages.
 
-**Why smooth loses is NOT established, and three explanations were tested and refuted.** The
-direction is consistent with bilinear low-passing the glyph before tesseract's own downscale, which
-costs high-frequency detail the 1x path would have kept. But the sharpest single observation — the
-near-blank page reading 16 characters under smooth and 0 under the other two — survived every
-mechanism proposed for it:
+**Why smooth loses IS established, and it was in the literature the whole time.** Three strands,
+none of them mine:
+
+1. **Two low-passes where the pipeline budgets one.** Leptonica's `pixScale` is not one filter but
+   five, chosen by the scale factor (`scale1.c`): 0.2-0.7 is area-map subsampling with sharpening,
+   0.7-1.4 is linear interpolation with sharpening, >=1.4 is linear interpolation with none. A
+   300-DPI 10 pt line strip is ~45-55 px, so the reduction to 36 runs at ~0.7 — LI with sharpening.
+   Pre-upscale 2x and the strip is ~100 px, so the reduction runs at ~0.36 — area-map. The bilinear
+   arm therefore pays a low-pass of ours AND a low-pass of Leptonica's, where the 1x arm pays one.
+2. **The documented LSTM x-height ceiling.** Tesseract's own FAQ, scoped explicitly to LSTM: *"there
+   seems also to be a maximum x-height somewhere around 30 px. Above that, Tesseract doesn't produce
+   accurate results. The legacy engine seems to be less prone to this."* At 300 DPI / 10 pt the
+   x-height is ~20 px; doubling it overshoots. The figure is hedged and its only citation is a
+   Google Groups thread that no longer resolves, so treat it as a maintainer's prior, not a
+   benchmark.
+3. **The confidence inversion is a measured, named effect.** Gilbey & Schoenlieb (arXiv:2105.04515)
+   measured Tesseract 4.1.1's word confidence against correctness over 20,000 lines and found the
+   relationship breaks under resampling — their recalibration curve puts a REPORTED 80 at about 71%
+   actually correct. The general law is calibration degradation under dataset shift (Ovadia et al.,
+   NeurIPS 2019, whose corruption set includes blur). The reason this recogniser is the worst case
+   is CTC: the loss drives posteriors to be peaked as a corollary of training, not as evidence
+   (Zeyer et al., arXiv:2105.14849). **"Most characters, highest confidence, fewest correct" is the
+   predicted signature of a smoothing operation, not a paradox.**
+
+**The consequence for how we choose anything.** Mean reported confidence is the metric that picked
+the losing arm here, and the literature says it will keep doing so off-distribution. It must not be
+used as a preprocessing selection signal.
+
+**What remains unexplained is narrower than it was.** The near-blank page reading 16 characters
+under smooth and 0 under the other two survived every mechanism proposed for it locally:
 
 1. *An edge bug in the bilinear.* Real, and found: clamping the index at the border while leaving
    the weight negative extrapolates instead of interpolating. **Refuted as the cause:** these pages
@@ -89,9 +119,20 @@ mechanism proposed for it:
    runs, and smooth reads 0.00%/4.39%/43.35% in 0/6/1. Indistinguishable, and slightly LESS ink
    where it would have to be more.
 
-What is left is inside tesseract's own response to soft versus hard edges at equal scale, which
-cannot be attributed without instrumenting it. **Stated as unexplained rather than given a fourth
-story.**
+What is left is inside tesseract's own response to soft versus hard edges at equal scale. The
+calibration literature above explains why a smoothed input yields confident errors; it does not
+explain why THIS page yields characters from a margin artefact. **Stated as unexplained rather than
+given a fourth story.**
+
+**One published result points the other way, and it should be on the record.** Gilbey & Schoenlieb,
+same engine, 990 pages of real 300-DPI scans, report in passing that *"reducing the 300 dpi images
+by a factor of 2 and then enlarging them back to 300 dpi using bicubic interpolation resulted in
+slightly better recognition results"*, and call an analysis of it out of scope. That is a low-pass
+HELPING, the opposite sign to this plan's result. Reasons it may not transfer: their scans were
+printed at 600 and scanned at 300, so they carry sensor noise a low-pass removes; their operation is
+down-then-up (one band-limiting filter) where ours is up-then-tesseract's-down (two); and it is an
+aside with no numbers. **The cheap test, if anyone wants to close it, is the one they ran: down-2x
+then bicubic-up on these ten pages against the 1x baseline, on the same 45 expectations.**
 
 **The effect is also small.** Three expectations out of forty-five separate smooth from the other
 two arms. That is enough to decline a change that costs four times the raster and buys nothing, and
@@ -101,11 +142,29 @@ it is not enough to support a claim about anti-aliasing in general.
 
 Keep 1:1 native. Do not anti-alias. Do not upscale by default.
 
+**If a sub-300 page is ever upscaled, use bicubic, not bilinear.** The one study that compared seven
+kernels for Tesseract (Gilbey & Schoenlieb, 20,000 lines) found nearest-neighbour plus a Gaussian
+best at 60 DPI and bicubic best at 75; bilinear won nothing at any resolution. Our 300-DPI floor
+already sits inside the regime they measured as recoverable — they report 150 DPI upscaled to 300 as
+"still excellent" — so the floor is defensible and a 300-DPI TARGET is not.
+
 **What this does NOT close:** that one page improved markedly under exact 2× suggests a
 page-shaped question rather than a document-shaped one — a dense mark grid may genuinely want
 more pixels. Any future attempt should be a per-page decision made on a measured property, not a
 global policy, and should use an INTEGER multiplier bounded by an absolute pixel budget rather
 than a DPI cap. The old conclusion (upscaling is worthless) was right; the old reasoning was not,
 and a reader of #1031 should come here before trusting its numbers.
+
+## Sources
+
+- Tesseract 5.5.3 pinned source: `src/lstm/input.cpp`, `src/ccstruct/imagedata.cpp`,
+  `src/ccmain/linerec.cpp`; the VGSL spec string inside this repository's own `eng.traineddata`.
+- Leptonica 1.87.0 `src/scale1.c`, the `pixScale` doc block, for which kernel runs at which factor.
+- Tesseract FAQ, "Is there a Minimum / Maximum Text Size?", for the LSTM x-height ceiling.
+- Gilbey & Schoenlieb, arXiv:2105.04515 — Tesseract 4.1.1, 990 pages, 20,000 lines: the confidence
+  calibration curve, the seven-kernel comparison, the 150-DPI-upscaled result, and the down-then-up
+  aside.
+- Ovadia et al., NeurIPS 2019, arXiv:1906.02530 — calibration under dataset shift.
+- Zeyer, Schlueter & Ney, arXiv:2105.14849 — why CTC posteriors are peaked by construction.
 
 Harness: `zz_res_cgo_test.go`, scratch, in `~/ocr-runs/resolution.log`.
