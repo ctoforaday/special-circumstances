@@ -331,6 +331,19 @@ func wrapJPEG(jpg []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("not a JPEG this can wrap: %w", err)
 	}
+	// THE COLOUR SPACE IS THE FILE'S, NOT AN ASSUMPTION. A scanned page is very often single-
+	// component grayscale, and declaring /DeviceRGB over one component gives a PDF that opens,
+	// reports a page, and renders NOTHING — which arrives here as "0.00% ink", i.e. as the message
+	// for a page whose content was its text layer. The wrong diagnosis for the wrong reason.
+	space := "/DeviceRGB"
+	if _, gray := cfg.ColorModel.(interface {
+		Convert(c color.Color) color.Color
+	}); gray {
+		switch cfg.ColorModel {
+		case color.GrayModel, color.Gray16Model:
+			space = "/DeviceGray"
+		}
+	}
 	w := float64(cfg.Width) * 72 / 300
 	h := float64(cfg.Height) * 72 / 300
 	content := fmt.Sprintf("q %.2f 0 0 %.2f 0 0 cm /Im0 Do Q\n", w, h)
@@ -339,8 +352,8 @@ func wrapJPEG(jpg []byte) ([]byte, error) {
 		"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
 		fmt.Sprintf("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %.2f %.2f] /Contents 4 0 R /Resources << /XObject << /Im0 5 0 R >> >> >>", w, h),
 		fmt.Sprintf("<< /Length %d >>\nstream\n%sendstream", len(content), content),
-		fmt.Sprintf("<< /Type /XObject /Subtype /Image /Width %d /Height %d /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length %d >>\nstream\n%s\nendstream",
-			cfg.Width, cfg.Height, len(jpg), jpg),
+		fmt.Sprintf("<< /Type /XObject /Subtype /Image /Width %d /Height %d /ColorSpace %s /BitsPerComponent 8 /Filter /DCTDecode /Length %d >>\nstream\n%s\nendstream",
+			cfg.Width, cfg.Height, space, len(jpg), jpg),
 	}
 	var b bytes.Buffer
 	b.WriteString("%PDF-1.4\n")

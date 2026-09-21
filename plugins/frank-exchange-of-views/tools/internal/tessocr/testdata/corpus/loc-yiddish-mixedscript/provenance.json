@@ -1,0 +1,29 @@
+{
+  "slug": "loc-yiddish-mixedscript",
+  "source_url": "https://www.loc.gov/resource/sn86063496/1918-10-14/ed-1/?sp=2",
+  "source_page": 1,
+  "publisher": "Yidishes Tageblatt / The Jewish Daily News (New York)",
+  "date": "1918-10-14",
+  "rights": "public-domain-expired",
+  "rights_evidence": "Library of Congress, Chronicling America: \"Newspapers published in the United States more than 95 years ago are in the public domain in their entirety.\" — https://www.loc.gov/collections/chronicling-america/about-this-collection/rights-and-access/",
+  "local_file_sha256": "ec20c67151308033b2c093f5f1c462c45030b635e4ae3339d92ac0376c4a39c7",
+  "page_sha256": "21127e899750adc5fd297fa361bcd00694477459f68d11431935db19ee27ec28",
+  "text_objects_removed": 0,
+  "added_at": "2026-09-21",
+  "defect_class": [
+    "non-latin-script",
+    "right-to-left",
+    "mixed-direction"
+  ],
+  "why": "A Liberty Loan advertisement in Hebrew-script Yiddish: a right-to-left headline and body with Latin numerals and dates set inline, over a three-column Latin list of ninety bank names. We ship an eng model only, so this records what the reader DOES with a script it cannot read.",
+  "expect": {
+    "table": false,
+    "must_contain": [
+      "OCTOBER 14, 1918",
+      "AMERICAN EXCHANGE NATIONAL BANK",
+      "LIBERTY LOAN COMMITTEE",
+      "Second Federal Reserve District",
+      "CHEMICAL BANK"
+    ]
+  }
+}
