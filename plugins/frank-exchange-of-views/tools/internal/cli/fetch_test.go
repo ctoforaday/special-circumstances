@@ -285,3 +285,47 @@ func TestANamedBackendRecordsWhichOneAnswered(t *testing.T) {
 			e.Backend, fetchcache.ViaArchive)
 	}
 }
+
+// A REFUSAL THAT WAS RECOVERED FROM MUST STILL REACH THE SEAT. Both facts were recorded on the
+// index entry and rendered by nothing: a seat handed an archive snapshot after a 403 learned
+// where the bytes came from and never that the live source had refused, nor whether the refusal
+// was the origin's or this container's egress proxy. The bare-failure path already says this on
+// the error; the recovery path is where it matters more, because the fetch looks like a success.
+func TestARecoveredFetchStillReportsTheLiveRefusal(t *testing.T) {
+	t.Setenv("HTTPS_PROXY", "http://proxy.invalid:3128") // a proxy is configured, so WHO refused is unknown
+	dir := recordtest.TmpRun(t)
+	cdx := `[["timestamp","original","digest"],["20190520000000","https://ex/a","D1"]]`
+	f := &fakeFetcher{resp: map[string][]byte{
+		"https://web.archive.org/cdx/search/cdx?output=json&fl=timestamp,original,digest" +
+			"&filter=statuscode:200&collapse=digest&limit=200&url=ex%2Fa": []byte(cdx),
+		"https://web.archive.org/web/20190520000000id_/https://ex/a": []byte("<html>what it said in 2019</html>"),
+	}, contentType: "text/html"}
+	// The live url must be refused with a *Refusal, which is the shape Resolve's fallback keys on.
+	withFetcher(t, refusingFetcher{inner: f, refuse: "https://ex/a", status: 403})
+	withExtractor(t, stubExtractor{})
+
+	out, err := run(t, "fetch", "--seat-id", "operator", "--run", dir, "--url", "https://ex/a")
+	if err != nil {
+		t.Fatalf("fetch: %v\n%s", err, out)
+	}
+	for _, want := range []string{"live_fetch_refused: HTTP 403", "refusal_class: unknown", "UNREACHABLE FROM HERE"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the recovered fetch does not carry %q — it reads as an ordinary success:\n%s", want, out)
+		}
+	}
+}
+
+// refusingFetcher answers one url with a *Refusal, which is the shape Resolve's recovery path
+// keys on, and delegates everything else.
+type refusingFetcher struct {
+	inner  fetchcache.Fetcher
+	refuse string
+	status int
+}
+
+func (r refusingFetcher) Fetch(u string) (*fetchcache.Response, error) {
+	if u == r.refuse {
+		return nil, &fetchcache.Refusal{URL: u, Status: r.status}
+	}
+	return r.inner.Fetch(u)
+}

@@ -35,6 +35,14 @@ type fetchSummary struct {
 	// those onto one entry that satisfies "fetch-once, hash-verified" perfectly while the hash
 	// certifies the BLOCKADE rather than the source.
 	SharedBodyWith []string `json:"shared_body_with,omitempty"`
+	// HTTPStatus and RefusalClass carry a REFUSAL THAT WAS THEN RECOVERED FROM. Both were
+	// recorded on the index entry and rendered by nothing, so a seat handed an archive snapshot
+	// after a 403 learned where the bytes came from and never that the live source had refused,
+	// still less whether the refusal was the origin's or this container's proxy. The bare-failure
+	// path already tells a seat this, on the error; the recovery path dropped it, which is the
+	// path where it matters more, because the fetch looks like a success.
+	HTTPStatus   int    `json:"http_status,omitempty"`
+	RefusalClass string `json:"refusal_class,omitempty"`
 	// RetrievedVia is the SENTENCE naming where these bytes came from, when the live source
 	// refused and a backend recovered them. Empty means the bytes are the live source's own.
 	RetrievedVia string `json:"retrieved_via,omitempty"`
@@ -128,6 +136,8 @@ func summarize(run record.Run, e fetchcache.Entry, bodyLen int, hit bool) fetchS
 		Bytes:          bodyLen,
 		CacheHit:       hit,
 		SharedBodyWith: shared,
+		HTTPStatus:     e.HTTPStatus,
+		RefusalClass:   e.RefusalClass,
 		RetrievedVia:   e.RetrievedVia,
 		Backend:        e.Backend,
 		TextRetrieved:  e.TextRetrieved,
@@ -179,6 +189,20 @@ func (s fetchSummary) render() string {
 	line("cache_hit", fmt.Sprint(s.CacheHit))
 	// PROVENANCE FIRST: these bytes may not be the live source, and every later judgement about
 	// what the source SAYS depends on knowing that before reading a word of it.
+	// THE LIVE SOURCE'S REFUSAL, ABOVE WHERE THE RECOVERY IS NAMED, because a seat that reads no
+	// further has still been told the bytes below are not the source's own answer.
+	if s.HTTPStatus != 0 {
+		line("live_fetch_refused", fmt.Sprintf("HTTP %d", s.HTTPStatus))
+		if s.RefusalClass == "unknown" {
+			fmt.Fprintf(&b, "refusal_class: unknown\n"+
+				"  ^ WHO REFUSED IS NOT KNOWN. An egress proxy refusing the host and the origin refusing this client\n"+
+				"    are the same status line, and a proxy is configured here. One is a fact about this container, the\n"+
+				"    other a fact about the source, and they license different next acts. Do not record an unreached\n"+
+				"    source as evidence of absence: say it was UNREACHABLE FROM HERE, not that the question is open.\n")
+		} else {
+			line("refusal_class", s.RefusalClass)
+		}
+	}
 	if s.RetrievedVia != "" {
 		fmt.Fprintf(&b, "retrieved_via: %s\n", s.RetrievedVia)
 		if !s.TextRetrieved {

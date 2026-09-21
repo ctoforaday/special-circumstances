@@ -186,12 +186,26 @@ func OpenAccessURL(f Fetcher, doi string) (loc string, answered bool) {
 	}
 	if resp, err := f.Fetch("https://api.openalex.org/works/doi:" + doi); err == nil {
 		var w struct {
+			// ID IS THE DISCRIMINATOR, AND WITHOUT IT THIS DECODE CANNOT FAIL. A struct carrying
+			// only `open_access` unmarshals successfully from ANY json object — an error envelope,
+			// a metering message, a response whose shape has moved — and the zero value that comes
+			// back is indistinguishable from a work that genuinely has no open copy. The caller
+			// turns the second into "NO OPEN COPY EXISTS anywhere the OA indexes know of… a fact
+			// about the WORLD", so an unguarded decode can publish a determinate claim about a
+			// paper from a payload that was never about that paper.
+			//
+			// It has not fired: OpenAlex answers 404 for a doi it does not hold, which is a refusal
+			// this never sees. That makes it a latent defect rather than a live one, and the reason
+			// to close it anyway is that nothing about the current behaviour is load-bearing — the
+			// service is now metered, and a budget or shape change is exactly the kind of 200 this
+			// would swallow.
+			ID         string `json:"id"`
 			OpenAccess struct {
 				IsOA  bool   `json:"is_oa"`
 				OAURL string `json:"oa_url"`
 			} `json:"open_access"`
 		}
-		if json.Unmarshal(resp.Body, &w) == nil {
+		if json.Unmarshal(resp.Body, &w) == nil && w.ID != "" {
 			return w.OpenAccess.OAURL, true
 		}
 	}
