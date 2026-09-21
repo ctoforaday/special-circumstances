@@ -1,0 +1,20 @@
+usgs-landscape-table · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@6ac8dfe32328 · rendered at 400.00 DPI (native 400.00), 2176x3550 px
+table: true · rules: repair · rotated: true · grid intersections: 0 · repaired crossings: 179 · length: 3101
+text cells: 1 tables, 10 bands, 10 rows, 16 columns, 152 cells, 643 words placed
+fell back: grid detected but the TSV held no mark tokens; page kept as plain text — its words are read, but which row and column each belongs to is not preserved, so check a cell against the page image before relying on it
+---
+TABLE 2.—Drainage basins in the United States—Continued.
+I. NORTHERN ATLANTIC—Continued.
+J
+
+|  | New Jersey. | Delaware. | Pennsylvania. | Maryland. | Virginia. | West Virginia. | District of Columbia. Total. |||||||||
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Drainage basins. | Wheels, | | Horse- power. | | wheels} | H°r8¢- power. |) | | wheels. | Horse- power. | | wheeis,| | | Horse power. | | wheels,| | H°F8e- power. | | wheels, | Horse-| power. | :heets,| | Horse power. | | wheels. | Horse- power. |
+|  | i 902 | | 38, 011 | | 277 | 7, 976 | 5, 046 | | 273, 426 |__| | 679 S| | | 21, 403 || | 1, 440 | | 59,129 | 143 8, 928 | 6 | 1 000 | 21, 864 | | 1, 746, 303 |
+| St. Johns River and | | |  | | Ge |  | | |  |  | SSS | | SS | SS | | SS Se lin | SS. Seen | _——————— Dn | | 147 | ee 13, 681 |
+| St. Croix River re | Gere | Ge | ed | enn | nd | i ed | nein’ | fe | Dit nr Pe ed | in | er ng nn | eg | a Sd Dn | 89 | 20, 500 |
+| Penobscot River Ned Kennebec River Cee ee | (eed i ined ed | ee ins | ed hin ii. | Derr ini ide | ed nites | Gr (ini iit | ns ini in | as i i niet DO eg | inn iin | Se (iin | id Bee In i iain nin iii in | oe aad Gein ine | ror ae inna aan | 518 659 | 70, 454 63, 936 |
+| Androscoggin River ee Presumpscot River Sees Saco River Se es | err er ad eee | ed bes es | ed Be ed | Pe eee | ed PS in | Ded id en 8 | ee Dee ind Sn i ns | en ne ed a ns ed | i ee De eos bid | ed Dn aed Gn iS Se | DS eed De nn ie i ed a iii a i nan dg | ed ee Sed ne nd ed | Ded ee ee] ena cn | 179 237 | 123, 455 20, 569 25, 332 |
+| Connecticut River See Blackstone River en ed | re ed ines errr ied | ne (ie ni ied | ed Si ih | ee in (ii ii ann | ini ihn S| | iin it iii i ini Eien nn | I in ia ini hii in | aon in i in ii | i nn any hi ii iii Eien | Genin ii ihn i i iti | Gi tS ki ind ii ihn ini il ini ii iio IO | iin ie an ii hi ii ci. in and | eer an ani iii i i iii ear | 3,110 | 292, 899 31, 435 |
+| Thames River Si Housatonic River ee rs | er rrr as | ee Pe re | iene Pee) | in Bed | a i | i nd i | Ian ii a nd | inn inn et ering | Cid Wa id | Ein en ns | ei ins i inne en ei ed | iia | Deanne | 567 519 | 53, 738 46, 350 |
+| Hudson River Passaic River Ree ener wee eee ee See Raritan River es eee reese Delaware River ee ee ese en River iy Potomac Susquehanna River Sees James River i a ns Minor Ser ae streams(Chesapeake Bay) Minor streams (northern Atilan- ic po ce ccc s550c900000e659000"0 | 17 179 204 427 Pee a ers ee Sind 75 | 630 12, 805 6, 309 15, 327 ed ed eee ae ey 2,890 | See ee ees 167 ns ee eS eS 75 | eee eer ee 5,314 i aad ed De ed 901 1,761 | ee red ee 1,616 4 33 197 re Ss ees ed | ee eed ed 47, 649 222, 530 3,247 ee rer ay | i 0 een 71 260 346 es | init re ed 2,217 4, 766 14, 389 31 | ini iran ed i rr errs 462 607 363 | ii Sd ae ny lin 11, ied 457 40,165 7, 429 78 | i rina ae id ed ed es Ge ee ee ed Beinn 142 Bid 8, 920 1 eed ees es | i a ord Se Bn Da es ee nd Sees bere a ned | ei i iS ee a aac ea 1, 000 ad eee ar ay | 2,272 204 2, 418 3, 949 1, 067 744 1,881 | 286, 210 13, 580 74, 214 244, 934 29, 390 40,173 22, 719 105, 092 |

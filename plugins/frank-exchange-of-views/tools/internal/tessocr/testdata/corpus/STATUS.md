@@ -1,6 +1,6 @@
 # Corpus status
 
-**7 of 10 pages do not yet read as they should.**
+**9 of 13 pages do not yet read as they should.**
 
 Derived from each page's `expect` block, checked against the reading by the tagged
 harness. GENERATED — edit a record or fix the reader, not this file.
@@ -10,6 +10,7 @@ harness. GENERATED — edit a record or fix the reader, not this file.
 | doe-dotmatrix-listing | **no** | must_contain: "PURE CONDUCTANCE" is printed on the page and is not in the reading |
 | doe-equations-figure | **no** | must_contain: "SURFACE TYPE" is printed on the page and is not in the reading; must_contain: "SOFTWOOD" is printed on the page and is not in the reading |
 | gpo-record-threecolumn | yes | — |
+| loc-yiddish-mixedscript | **no** | table: want false, got true; must_contain: "OCTOBER 14, 1918" is printed on the page and is not in the reading; must_contain: "Second Federal Reserve District" is printed on the page and is not in the reading; must_contain: "CHEMICAL BANK" is printed on the page and is not in the reading |
 | nbs602-blank | yes | — |
 | nbs602-contents | **no** | must_contain: "27" is printed on the page and is not in the reading |
 | nbs602-cover-photo | **no** | must_contain: "U.S. DEPARTMENT OF COMMERCE" is printed on the page and is not in the reading |
@@ -17,3 +18,5 @@ harness. GENERATED — edit a record or fix the reader, not this file.
 | nbs602-form | **no** | must_contain: "NBS-114A" is printed on the page and is not in the reading |
 | usfs-birds-markgrid | **no** | must_contain: "Riparian" is printed on the page and is not in the reading; must_contain: "Ponderosa" is printed on the page and is not in the reading; must_contain: "Spruce-Fir" is printed on the page and is not in the reading |
 | usgs-bibliography-jpeg | yes | — |
+| usgs-landscape-table | **no** | must_contain: "CONSERVATION OF WATER RESOURCES" is printed on the page and is not in the reading; must_contain: "Horse-power" is printed on the page and is not in the reading; must_contain: "1,746,303" is printed on the page and is not in the reading |
+| usgs-openfile-jbig2 | yes | — |
