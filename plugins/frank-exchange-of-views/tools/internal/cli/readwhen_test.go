@@ -17,7 +17,8 @@ import (
 // run they would call the in-flight sitting closed and print what it owed as settled.
 //
 // scorecard.Compute takes the mode from its caller, so the library is tested at both readings and
-// nothing held THE CALL: flipping the word at either verb left every test green.
+// nothing holds THE CALL: flipping the word at the verb leaves every other test green. The card is
+// the operator's only — a seat reads its situation from its work list.
 func TestTheLiveScorecardVerbsReadTheRunAsStillRunning(t *testing.T) {
 	runDir := newRun(t)
 	recordtest.Seed(t, runDir,
@@ -29,7 +30,6 @@ func TestTheLiveScorecardVerbsReadTheRunAsStillRunning(t *testing.T) {
 		name string
 		argv []string
 	}{
-		{"the seat's own card", []string{"show", "scorecard", "--seat-id", "blue-respond"}},
 		{"the operator's", []string{"scorecard", "--seat-id", "operator", "--card", "blue"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

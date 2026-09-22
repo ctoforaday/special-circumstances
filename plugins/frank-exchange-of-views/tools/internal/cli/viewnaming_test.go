@@ -54,10 +54,7 @@ var viewWriters = map[string][]string{
 	"evidence":         {"cite", "prove", "verify", "reproduce"},
 	"lines-of-inquiry": {"line-of-inquiry", "propose"},
 	"telemetry":        {},
-	// Computed from the record at read time, not written by any verb — same as telemetry. The
-	// description says so in as many words, so a seat cannot go looking for a `scorecard` verb.
-	"scorecard": {},
-	"board":     {"mint", "close", "regrade", "retire"},
+	"board":            {"mint", "close", "regrade", "retire"},
 }
 
 // EVERY VIEW'S HELP NAMES THE VERB THAT FILLS IT.
