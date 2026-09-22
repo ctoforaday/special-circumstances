@@ -209,3 +209,34 @@ func TestAStatedArxivFailureDoesNotEndTheAutoChain(t *testing.T) {
 		t.Fatalf("Backend = %q (via %q), want the chain to have carried on past arxiv to oa", att.Backend, att.Via)
 	}
 }
+
+// A 200 THAT IS NOT A WORK IS NOT AN ANSWER. OpenAccessURL's second return licenses the caller's
+// determinate world-claim — "no open copy exists anywhere the OA indexes know of" — and the
+// struct it decodes into carries only `open_access`, which unmarshals from any json object at
+// all. Without a discriminator an error envelope, a metering message or a moved response shape
+// becomes a published fact about a paper the payload was never about.
+func TestAnOpenAccessAnswerRequiresAWork(t *testing.T) {
+	for _, tc := range []struct {
+		name, openalex string
+		wantAnswered   bool
+	}{
+		{"a work with no open copy", `{"id":"https://openalex.org/W1","open_access":{"is_oa":false,"oa_url":""}}`, true},
+		{"an error envelope", `{"error":"Not found","message":"the doi is unknown"}`, false},
+		{"a metering message", `{"detail":"daily budget exhausted"}`, false},
+		{"an empty object", `{}`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := fake(func(u string) (*Response, error) {
+				if strings.Contains(u, "openalex") {
+					return &Response{Body: []byte(tc.openalex)}, nil
+				}
+				return nil, &Refusal{URL: u, Status: 403} // unpaywall silent, so openalex decides
+			})
+			_, answered := OpenAccessURL(f, "10.1234/x")
+			if answered != tc.wantAnswered {
+				t.Errorf("answered = %v, want %v — this value is what lets the caller say NO OPEN "+
+					"COPY EXISTS anywhere, which is a claim about the world", answered, tc.wantAnswered)
+			}
+		})
+	}
+}
