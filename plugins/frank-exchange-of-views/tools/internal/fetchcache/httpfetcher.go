@@ -1,6 +1,7 @@
 package fetchcache
 
 import (
+	"context"
 	"fmt"
 	"html"
 	"io"
@@ -18,9 +19,20 @@ import (
 // depth, and sends no credentials — enough that a hostile URL cannot hang the run, exhaust
 // memory, or bounce the client through an unbounded redirect chain.
 const (
+	// fetchTimeout bounds how long ONE HOP may take to start answering — not how long the whole
+	// fetch may take.
+	//
+	// OUR OWN PACING MUST NOT COUNT AGAINST THE NETWORK'S PATIENCE. http.Client.Timeout covers
+	// everything including redirects, so once each hop began waiting its turn a paced chain blew
+	// the budget before it blew the redirect cap: an endless-redirect fixture failed with a
+	// deadline instead of the cap it was written for. A hop that sleeps 15 seconds by our choice
+	// has not been slow, and treating it as slow would make politeness look like a broken host.
 	fetchTimeout  = 15 * time.Second
 	maxFetchBytes = 5 << 20 // 5 MiB — a source document, not a download
-	maxRedirects  = 5
+	// maxRedirects is the real bound on a paced fetch. Five is generous for the web and
+	// pathological for a citation: a doi.org link reaches its publisher in one or two hops, and
+	// the deadline in Fetch is sized from this number rather than guessed at.
+	maxRedirects = 5
 	// maxMetaRefresh bounds the OTHER kind of redirect — the one a page expresses in its markup
 	// instead of its status line. It is deliberately smaller than maxRedirects: a header redirect
 	// chain is routine, whereas a page that bounces twice through HTML is already unusual.
@@ -79,10 +91,34 @@ type httpFetcher struct {
 func NewHTTPFetcher() Fetcher {
 	return &httpFetcher{
 		client: &http.Client{
-			Timeout: fetchTimeout,
-			CheckRedirect: func(_ *http.Request, via []*http.Request) error {
+			// NO OVERALL DEADLINE HERE. Liveness is enforced per hop by the transport below, and
+			// the whole-fetch bound is a context in Fetch sized to include the pacing this client
+			// deliberately does.
+			Transport: &http.Transport{
+				Proxy:                 http.ProxyFromEnvironment,
+				ResponseHeaderTimeout: fetchTimeout,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ExpectContinueTimeout: time.Second,
+			},
+			// EVERY HOP IS PACED, NOT JUST THE FIRST. Go follows 3xx inside client.Do, so a floor
+			// applied before the call governs only the url that was typed. Nearly every scholarly
+			// citation is a doi.org link that redirects to a publisher, which meant doi.org was
+			// paced politely and the publisher — the host that actually serves the bytes, and the
+			// one that rate-limits — was hit with no floor at all. CheckRedirect runs before each
+			// hop, which is the only place this can be enforced.
+			//
+			// A saturated host stops the chain rather than being joined, for the same reason it
+			// does on a first request.
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				if len(via) >= maxRedirects {
 					return fmt.Errorf("stopped after %d redirects", maxRedirects)
+				}
+				w, ok := reserveSlot(req.URL.Host, 0)
+				if !ok {
+					return fmt.Errorf("redirect to %s refused: that host is saturated", req.URL.Host)
+				}
+				if w > 0 {
+					time.Sleep(w)
 				}
 				return nil
 			},
@@ -154,7 +190,17 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, retried bool) (*Response, *u
 	if u.Scheme != "http" && u.Scheme != "https" {
 		return nil, nil, fmt.Errorf("fetch: refused scheme %q — only http and https are fetched", u.Scheme)
 	}
-	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
+	// THE CHAIN LENGTH IS THE BOUND; THIS DEADLINE IS A BACKSTOP DERIVED FROM IT.
+	//
+	// What actually limits a paced fetch is maxRedirects — five hops, each waiting at most one
+	// jittered floor. The deadline is computed from that cap rather than chosen as a time budget,
+	// so the two cannot disagree: raise the cap and this follows. It exists only to stop a
+	// connection that never returns from holding a seat open, which is the job Client.Timeout did
+	// before our own waiting made that number mean two different things.
+	ctx, cancel := context.WithTimeout(context.Background(),
+		fetchTimeout+time.Duration(maxRedirects+1)*2*defaultHostInterval)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("fetch: %w", err)
 	}
@@ -208,7 +254,11 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, retried bool) (*Response, *u
 	if isOverloadStatus(resp.StatusCode) && !retried {
 		wait := retryAfter(resp.Header)
 		if wait <= 0 {
-			wait = defaultHostInterval
+			// THIS HOST'S FLOOR, not the global default. A host with a published Crawl-delay or a
+			// learned floor has already told us what "a while" means for it, and waiting the
+			// generic default instead would be slower than it asked in one direction and faster
+			// in the other.
+			wait = intervalFor(u.Host)
 		}
 		backoffHost(u.Host, wait)
 		if wait <= retryAfterCap {

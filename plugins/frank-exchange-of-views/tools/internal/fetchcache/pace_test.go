@@ -23,6 +23,28 @@ func mustReserve(t *testing.T, host string) time.Duration {
 	return w
 }
 
+// pacedLoopback turns the loopback exemption off for one test, so a fixture server on this
+// machine is treated as an origin. Only the tests that must drive the real transport use it.
+func pacedLoopback(t *testing.T) {
+	t.Helper()
+	prev := paceLoopback
+	paceLoopback = true
+	t.Cleanup(func() { paceLoopback = prev })
+}
+
+// fastHost gives one host a short published floor for the duration of a test. The behaviour under
+// test is whether a floor is APPLIED and whether it MOVES, never how many seconds the production
+// default happens to be — and a test that sleeps the real default is a test nobody will run.
+func fastHost(t *testing.T, rawURL string) {
+	t.Helper()
+	host := strings.TrimPrefix(strings.TrimPrefix(rawURL, "http://"), "https://")
+	if i := strings.Index(host, "/"); i >= 0 {
+		host = host[:i]
+	}
+	hostIntervals[host] = 50 * time.Millisecond
+	t.Cleanup(func() { delete(hostIntervals, host) })
+}
+
 func tempPaceDir(t *testing.T) {
 	t.Helper()
 	prev := paceDir
@@ -330,6 +352,7 @@ func TestTheDefaultFloorIsSlowerThanAnyPublishedCrawlDelay(t *testing.T) {
 // This drives a real 503 through the real fetcher and asks whether the host's floor moved.
 func TestA503ThroughTheFetcherActuallyRaisesTheFloor(t *testing.T) {
 	tempPaceDir(t)
+	pacedLoopback(t)
 	var hits int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/robots.txt" {
@@ -341,6 +364,7 @@ func TestA503ThroughTheFetcherActuallyRaisesTheFloor(t *testing.T) {
 		_, _ = w.Write([]byte("<center>nginx</center>"))
 	}))
 	defer srv.Close()
+	fastHost(t, srv.URL)
 
 	h := NewHTTPFetcher()
 	host := strings.TrimPrefix(srv.URL, "http://")
@@ -351,12 +375,15 @@ func TestA503ThroughTheFetcherActuallyRaisesTheFloor(t *testing.T) {
 	if hits < 2 {
 		t.Errorf("the fetcher hit the overloaded service %d time(s); it should honour one retry", hits)
 	}
-	// AND THE FLOOR FOR THAT HOST IS NOW ABOVE THE DEFAULT, so the next request — in this process
-	// or any other — does not leave at the rate that just failed.
+	// AND THE FLOOR FOR THAT HOST HAS MOVED, so the next request — in this process or any other
+	// — does not leave at the rate that just failed. Measured against THIS host's floor, not the
+	// production default: the test registered a short one so it does not sleep fifteen seconds,
+	// and what is under test is that the floor moved at all.
+	base := hostIntervals[host]
 	mustReserve(t, host)
-	if w := mustReserve(t, host); w <= defaultHostInterval {
-		t.Errorf("after a 503 the next slot waits %v, no more than the %v default — the overload "+
-			"was reported and not learned from", w, defaultHostInterval)
+	if w := mustReserve(t, host); w <= base {
+		t.Errorf("after a 503 the next slot waits %v, no more than this host's %v floor — the "+
+			"overload was reported and not learned from", w, base)
 	}
 }
 
@@ -385,5 +412,65 @@ func TestTheFloorIsJitteredAndNeverShorterThanItself(t *testing.T) {
 	// A zero or negative floor is returned untouched rather than panicking in rand.
 	if got := jittered(0); got != 0 {
 		t.Errorf("jittered(0) = %v", got)
+	}
+}
+
+// EVERY HOP IS PACED, NOT JUST THE ONE THAT WAS TYPED. Go follows 3xx inside client.Do, so a
+// floor taken before the call governs the first host only. Nearly every scholarly citation is a
+// doi.org link that redirects to a publisher, so the resolver was paced and the publisher — the
+// host that serves the bytes and the one that rate-limits — was hit with no floor at all.
+func TestARedirectTargetIsPacedToo(t *testing.T) {
+	tempPaceDir(t)
+	pacedLoopback(t)
+	var dest *httptest.Server
+	dest = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte("<html><body>" + strings.Repeat("the paper. ", 200) + "</body></html>"))
+	}))
+	defer dest.Close()
+	resolver := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			http.NotFound(w, r)
+			return
+		}
+		http.Redirect(w, r, dest.URL+"/article", http.StatusFound)
+	}))
+	defer resolver.Close()
+	fastHost(t, resolver.URL)
+	fastHost(t, dest.URL)
+
+	h := NewHTTPFetcher()
+	if _, err := h.Fetch(resolver.URL + "/10.1234/x"); err != nil {
+		t.Fatalf("fetch through a redirect: %v", err)
+	}
+	// THE DESTINATION'S QUEUE MOVED. If only the resolver were paced, the destination's slot
+	// would still be unclaimed and a later request to it would depart immediately.
+	destHost := strings.TrimPrefix(dest.URL, "http://")
+	if w, ok := reserveSlot(destHost, 0); !ok || w == 0 {
+		t.Errorf("a later request to the redirect TARGET waits %v (ok=%v) — the hop was never paced, "+
+			"so the host that actually served the bytes had no floor", w, ok)
+	}
+}
+
+// A FLOOR IS A COURTESY TO SOMEONE ELSE'S SERVER, and localhost is not someone else. Pacing it
+// protects a host in the same process tree at the caller's expense — and it is how a fifteen
+// second floor turned this repository's own suites into a ten minute timeout, every loopback
+// fixture waiting its turn as though it were a publisher.
+func TestLoopbackIsNotPaced(t *testing.T) {
+	tempPaceDir(t)
+	for _, host := range []string{"127.0.0.1:8080", "localhost:3000", "[::1]:9999", "127.0.0.1"} {
+		for i := 0; i < 3; i++ {
+			if w, ok := reserveSlot(host, 0); !ok || w != 0 {
+				t.Errorf("%s waited %v (ok=%v) — this machine is not an origin we owe pacing", host, w, ok)
+			}
+		}
+	}
+	// AND A REAL HOST STILL IS PACED, so this is an exemption rather than a hole.
+	mustReserve(t, "example.org")
+	if w, ok := reserveSlot("example.org", 0); !ok || w == 0 {
+		t.Errorf("a real host waited %v (ok=%v); the exemption is too wide", w, ok)
 	}
 }

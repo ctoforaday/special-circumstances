@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"math/rand/v2"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -181,6 +182,37 @@ func intervalFor(host string) time.Duration {
 	return iv
 }
 
+// paceLoopback lets a test exercise the paced path against a loopback fixture server. It is the
+// one seam here, and it exists because the alternative is worse: the tests that matter most —
+// does a 503 raise the floor, is a redirect TARGET paced — can only be driven through the real
+// transport, and the real transport can only reach a server on this machine.
+var paceLoopback bool
+
+// isLoopback reports a host we owe no politeness to, because it is this machine.
+//
+// A FLOOR IS A COURTESY TO SOMEONE ELSE'S SERVER. Localhost is not someone else, and pacing it
+// buys nobody anything: it slows a caller down to protect a host that is the same process tree.
+// It is also how a fifteen-second floor turned this repository's own suites into a ten-minute
+// timeout — every loopback fixture server waiting its turn as though it were a publisher — which
+// is the tell that the rule was aimed at the wrong thing rather than merely tuned high.
+func isLoopback(host string) bool {
+	// net.SplitHostPort, not a hand-rolled split on the last colon: a bracketed IPv6 authority
+	// like `[::1]:9999` defeats that, and the hand-rolled version silently left the brackets on
+	// and reported a loopback address as a stranger.
+	h := host
+	if only, _, err := net.SplitHostPort(host); err == nil {
+		h = only
+	}
+	h = strings.Trim(h, "[]")
+	if strings.EqualFold(h, "localhost") {
+		return true
+	}
+	if ip := net.ParseIP(h); ip != nil {
+		return ip.IsLoopback()
+	}
+	return false
+}
+
 // hashHost names a host's state files. A hash, so that a host with a colon, a slash or a case
 // difference cannot produce a path that collides with another host's or escapes the directory.
 func hashHost(host string) string {
@@ -194,7 +226,7 @@ func slotFile(host string) string { return filepath.Join(paceDir, hashHost(host)
 // long the caller must wait for it. ok is false when the queue for this host is longer than
 // maxPaceWait, in which case NOTHING is claimed and the caller must not proceed.
 func reserveSlot(host string, extra time.Duration) (time.Duration, bool) {
-	if host == "" {
+	if host == "" || (!paceLoopback && isLoopback(host)) {
 		return 0, true
 	}
 	mu := hostMutex(host)
