@@ -44,17 +44,12 @@ status: <in-progress|blocked|validating|done>
   time it probably is. Take the reading before you open the file, not after you close it: the
   time you began is honest and knowable, the time you finished is neither, and a note that took
   ten minutes to write is not ten minutes fresher than it says.
-  **An agent has no clock.** Every other falsifiable field here names the command that produces it
-  — `head:` says `git rev-parse --short HEAD` — and this one said only `<UTC ISO>`, which is an
-  invitation to invent. Measured on a real session: four consecutive notes claimed `06:45` three
-  times and then `07:55`, against seal times of `07:02`–`07:27` — one of them seven minutes in the
-  FUTURE. The age this design is built on was being fed round numbers.
-  **`reaffirmed_at` is the same duty and takes the same reading** — it is the sibling this fix
-  nearly missed, and a re-affirmation stamped from a guess is a note claiming to have been
-  re-checked at a time nobody checked it.
-  A future-dated `written_at` is IMPOSSIBLE and the sealer now says so at the next seam, on the
-  channel measured to reach an agent — so an invented timestamp fails loudly instead of silently
-  becoming the age everything is measured from.
+  **An agent has no clock.** A stamp typed from a sense of the time is a round number, and the age
+  everything else here is measured from is then an invention.
+  **`reaffirmed_at` is the same duty and takes the same reading**: a re-affirmation stamped from a
+  guess is a note claiming to have been re-checked at a time nobody checked it.
+  A future-dated `written_at` is IMPOSSIBLE and the sealer says so at the next seam, so an invented
+  timestamp fails loudly instead of silently becoming the age everything is measured from.
   YOU MUST also record `head:`. **A re-affirmation is
   different from a write and MUST touch only `reaffirmed_at`** — not `written_at`, not `head`.
   Confirming a note is still accurate is not doing the work again, and moving the content fields

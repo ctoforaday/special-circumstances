@@ -10,10 +10,10 @@ Reconcile recorded seats against seats on disk. Model [[terse-communication]]: r
 
 **Read the exit code as written.** `1` means it could **not** measure — not that it found problems. `0` means it measured, whatever it found. That split is the point: unnamed transcripts are a finding for a human to act on, while an unmeasurable board is a broken instrument, and an instrument reporting a clean board when it cannot see is the failure this plugin exists to prevent.
 
-**Two directions, and only one was ever established.**
+**Two directions, and only one of them holds.**
 
-- **No phantom seats** — every seat row names a file that exists. Confirmed at 19/19 (#189).
-- **No missed seats** — every transcript on disk is named by a row. **Not established**: measured against transcripts rather than rows, the hook saw 19 of 20 (#469).
+- **No phantom seats** — every seat row names a file that exists. Established.
+- **No missed seats** — every transcript on disk is named by a row. **Not established**: the hook can miss a seat, so a transcript can exist that no row names.
 
 **An `UNNAMED` row is a seat nothing in the manifest can lead a reader to.** YOU MUST NOT report it as a bug in the harness or as a lost subagent. Two benign explanations exist and neither is measured: the subagent may have been killed before `SubagentStop` fired, or it may not have been spawned through the `Agent` tool at all.
 
@@ -23,4 +23,4 @@ Reconcile recorded seats against seats on disk. Model [[terse-communication]]: r
 
 **A count of lines that are not JSON is a count of interrupted appends.** When that line is present, treat any `UNNAMED` row below it as UNEXPLAINED rather than as a hook that never fired: a seat row cut short by a kill is lost from the manifest and its transcript then looks unnamed. The two faults have different fixes and the line is what separates them.
 
-**A `MISSING` row** — a seat row naming a file that is not there — is the alarming direction and was measured at zero. It is reported so that stays a measurement rather than an assumption the tool cannot contradict.
+**A `MISSING` row** — a seat row naming a file that is not there — is the alarming direction. It is reported so that stays a measurement rather than an assumption the tool cannot contradict.
