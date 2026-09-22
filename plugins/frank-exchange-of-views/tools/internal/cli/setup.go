@@ -32,7 +32,7 @@ func newSetup() *cobra.Command {
 		convergenceFraction         float64
 		lensAreas                   []string
 		lensAreaReason              string
-		binDir, memoryDir           string
+		binDir                      string
 		runID, scriptPath           string
 		cites                       []string
 		allowSubstitution           bool
@@ -40,7 +40,7 @@ func newSetup() *cobra.Command {
 	c := &cobra.Command{
 		Use:           "setup <runDir>",
 		Short:         "build a research run's blackboard: skeleton, pins, memory mirrors, and the .run-live marker (operator; writes files)",
-		Long:          "setup creates <runDir>'s blackboard skeleton (idempotent — pre-staged files are kept), pins the evidence base at HEAD, mirrors red's gap-pattern + law + scorecard memory into inputs/, writes the .run-live marker hook guards consult, and preflights the record binary. The four fail-fast gates (a runDir, both model tiers, valid cites, and — with --bin-dir — a matching record binary) run BEFORE any state is created, so a bad launch costs a re-run, not a seat mid-sitting.",
+		Long:          "setup creates <runDir>'s blackboard skeleton (idempotent — pre-staged files are kept), pins the evidence base at HEAD, mirrors the law memory into inputs/, writes the .run-live marker hook guards consult, and preflights the record binary. The four fail-fast gates (a runDir, both model tiers, valid cites, and — with --bin-dir — a matching record binary) run BEFORE any state is created, so a bad launch costs a re-run, not a seat mid-sitting.",
 		Args:          cobra.ArbitraryArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -68,13 +68,11 @@ func newSetup() *cobra.Command {
 				LensAreas:           lensAreas,
 				LensAreaReason:      lensAreaReason,
 				BinDir:              binDir,
-				MemoryDir:           memoryDir,
 				RunID:               runID,
 				ScriptPath:          scriptPath,
 				AllowSubstitution:   allowSubstitution,
 				Cwd:                 cwd,
 				Home:                home,
-				ProjectDir:          os.Getenv("CLAUDE_PROJECT_DIR"),
 			}
 			if code := setup.Run(cfg, cmd.OutOrStdout(), cmd.ErrOrStderr()); code != 0 {
 				os.Exit(code)
@@ -101,7 +99,6 @@ func newSetup() *cobra.Command {
 	f.Float64Var(&convergenceFraction, flags.ConvergenceFraction, 0, "fraction of the run's peak board mass below which a FAIL over a board with nothing material is refused (default 0.25)")
 	f.IntVar(&maxEpochs, flags.MaxEpochs, 0, fmt.Sprintf("the chair sittings the run gets, 1 or more; the sitting that opens the last epoch dispatches nobody, and a run with parties still ready there ends CEILING (default %d; recorded in run-config.json)", record.DefaultParams.MaxEpochs))
 	f.StringVar(&binDir, flags.BinDir, "", "where the feov-record binary the SEATS will call lives (default: this executable's own directory); the version preflight always runs and always refuses on a miss")
-	f.StringVar(&memoryDir, flags.MemoryDir, "", "override the gap-pattern memory source (default: promoted corpus, then raw accrual)")
 	f.BoolVar(&allowSubstitution, flags.AllowSubstitution, false, "accept a run whose environment answers with a model other than the configured tier — recorded on the run, so every seat's register stops refusing it and the substitution stays visible on the record")
 	// THE MARKER OUTLIVES THE WORKFLOW THAT WROTE IT, so it has to name how to continue.
 	// A workflow killed by an idle SIGTERM never lifts .claude/run-live.json — it cannot, it is

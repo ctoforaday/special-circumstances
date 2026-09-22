@@ -623,10 +623,8 @@ func TestValidateClassRegistry(t *testing.T) {
 	//
 	// It is the plausible zero in its purest form: a check that no-ops when its input is absent
 	// returns exactly what a passing check returns. Measured downstream, the cost was not a tidy-
-	// taxonomy complaint — red's accumulated gap patterns are delivered CLASS-INDEXED, and across
-	// both record-era runs the seats coined 10 and 14 classes with ZERO overlap with the 37 the
-	// corpus is indexed by. The corpus was built, the index was written, and the join never once
-	// delivered a pattern.
+	// taxonomy complaint: across both record-era runs the seats coined 10 and 14 classes with ZERO
+	// overlap between them, so no board could be read against any other.
 	t.Run("no registry staged is refused, not waved through", func(t *testing.T) {
 		err := validate(mustRun(t, recordtest.TmpRun(t)), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("anything-at-all")}))
 		if err == nil {

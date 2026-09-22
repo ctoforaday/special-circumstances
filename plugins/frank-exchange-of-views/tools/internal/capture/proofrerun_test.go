@@ -50,9 +50,8 @@ func seedProofEvents(t *testing.T, runDir string, rs ...*proof.Result) {
 // THE ACCEPTANCE CASE, seeded: a proof whose recorded output no longer reproduces.
 //
 // The script reads a file, so its output is a measurement of state rather than a computation.
-// Changing that state after the proof is recorded is exactly `pattern_ephemeral_instrument` — the
-// pattern staged in the 2026-08-23 run's own gap-pattern memory and applied to none of its three
-// instances, because nothing re-ran a proof.
+// Changing that state after the proof is recorded is the ephemeral instrument — a failure the
+// 2026-08-23 run made three times, because nothing re-ran a proof.
 func TestProofRerunCatchesARecordedOutputThatNoLongerReproduces(t *testing.T) {
 	run := t.TempDir()
 	if err := os.WriteFile(filepath.Join(run, "corpus.txt"), []byte("three\nfiles\nhere\n"), 0o644); err != nil {

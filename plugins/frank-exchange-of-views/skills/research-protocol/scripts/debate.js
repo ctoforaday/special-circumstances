@@ -140,20 +140,6 @@ const speedClause = ` SPEED: every message you send costs a ~20s round-trip rega
 // DIAGNOSTIC says this explains you and optimizing it is a defect — red driving
 // its grade stability up is stubbornness, not rigour, and a bare number invites
 // exactly that.
-// MEMORY AS DUTY, delivered by CLASS JOIN (rulebook audit item 8).
-//
-// Patterns reach a seat by CLASS JOIN, matched to the gap in front of it. Staging the
-// whole corpus does not work: reading is not binding, and fifty patterns at seat start
-// is a salience problem no amount of instruction fixes.
-//
-// So the patterns arrive at the DECISION POINT instead, selected by the class of
-// the gap actually being repaired. A join, not a search: deterministic, small,
-// and auditable — the manifest row records which patterns applied and what
-// checking them showed, so a skipped duty is visible rather than assumed.
-//
-// The index arrives as an argument because this script cannot read files
-// (verified: require, process and fetch are undefined and import() is refused
-// outright). Setup writes inputs/gap-patterns-by-class.json for the launcher.
 // LINES OF INQUIRY (rulebook audit item 3). think-around-problem mandates
 // exploring genuinely distinct alternatives; terse-communication forbids
 // narrating them. Required, invisible, unverifiable — the same dead-letter shape
@@ -971,7 +957,7 @@ A CLOSURE IS A CLAIM, AND CLAIMS DECAY. Re-sample the archive every sitting it i
 VOTE EVERY LINE OF INQUIRY THIS SITTING, ON ONE READ: read the report ONCE and answer every line against that pass, the way anyone checks a document against a list — not once per line, and from THIS read, because the report is rewritten between sittings. RULE ON BLUE'S DIRECTIONS: a ruling is an ARGUMENT, not a command — it needs a reason, and blue may appeal it. RULE THE GRADE MOTIONS blue filed: accept and the minting lens owes the regrade; reject and blue may re-dispute. Report what still stands unruled as unruled_motions, read from the record's motions projection and never counted by hand.
 NEVER RE-DERIVE THE BOARD IN YOUR HEAD: the board, work and motions projections are the reads, and the plan is the record's, not yours.${frictionClause('red-chair', 'chair')}${petitionClause('red-chair')}`
 const bluePrompt = (gaps, docket) => `Blue response, topic "${topic}". You are engaged on: ${gaps.join(', ')}.${reliefFor('blue')} YOUR FIRST READ COMES AFTER THE MANUAL BELOW, NOT BEFORE IT: pull your working set — the board and work projections and the transcript — in one pass rather than two, concatenating them into a single file under your session scratchpad (an ABSOLUTE path, never under ${runDir}, and with your seat id in the name) and reading that.${recordClause('blue-respond')}${speedClause}${holdingsClause()}${rulingsClause('blue')}${lawClause}
-READ THE BOARD FOR YOUR GAPS: each carries its lens's problem, required fix and acceptance check, and the transcript's RED section carries red's argument; the bench's latest dispositions are on the record too, and any gap the bench REMANDED comes with a stated research direction you owe. The gap list you were handed is a lossy summary of the record, and the record is authoritative. PRE-FLIGHT: re-check your planned repairs against red's gap patterns — the staged inventory names, per gap class, how this class of repair goes wrong — and say in each manifest row which patterns you checked. A row you got wrong is corrected in this sitting by the same act for that gap — never by a second row, and never by moving its text into a log.
+READ THE BOARD FOR YOUR GAPS: each carries its lens's problem, required fix and acceptance check, and the transcript's RED section carries red's argument; the bench's latest dispositions are on the record too, and any gap the bench REMANDED comes with a stated research direction you owe. The gap list you were handed is a lossy summary of the record, and the record is authoritative. A row you got wrong is corrected in this sitting by the same act for that gap — never by a second row, and never by moving its text into a log.
 YOU MAY COMPUTE AN ANSWER, NOT ONLY COLLATE SOURCES. You have Bash, Write and Edit, and for a whole class of questions running something settles it faster and harder than arguing about it. WORKING IT OUT IN YOUR HEAD IS NOT THE EXCEPTION — IT IS THE CASE THIS EXISTS FOR: a correct figure with no derivation is indistinguishable from a confident guess. A gap can be WAITING ON A PROGRAM FROM YOU — it says so (a computation check), and where it does, no amount of prose will close it. DOCUMENT-PROBE checks you discharge now; a LIVE-PROBE you discharge by naming the deferred acceptance test and its pass condition.
 YOUR LINES OF INQUIRY ARE A LIVING RECORD, NOT AN OPENING PLAN. Every sitting, revisit what is still open and say what became of it. The hypothesis is what makes that honest — a line abandoned against its own stated claim is evidence of choosing; one abandoned on a shrug is not. Red rules on your proposals and you may APPEAL a ruling — appeal whether or not you go on to pursue the line, because the appeal is where your ARGUMENT is recorded.
 WHERE RED PROPOSED EXACT TEXT you have THREE paths and you are not obliged to take the first: apply it verbatim, counter-edit with your own fix, or dispute it. Say plainly which path you took and why. A sitting in which you never decline is not agreement, it is capitulation. Applying red's exact text ESTOPS red from re-raising that text as a fresh gap, so verbatim application is a real settlement, not a surrender.

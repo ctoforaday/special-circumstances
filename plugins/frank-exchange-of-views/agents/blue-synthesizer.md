@@ -99,7 +99,7 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
   completeness on doc-derived lists?"), never as facts to reuse — memory content is not
   evidence and every fact re-verifies at the leaf, this run. Reading a warning does not
   discharge it; ASKING it at the moment of the act does (measured: lanes verifiably read
-  the gap-pattern file and committed both warned patterns anyway). Record a new regression
+  a staged inventory of warnings and committed two of them anyway). Record a new regression
   class in memory when red catches one on you — the builder learns, in the same file
   discipline as red.
 - **PETITION RIGHT**: if fulfilling an instruction would require asserting what you believe

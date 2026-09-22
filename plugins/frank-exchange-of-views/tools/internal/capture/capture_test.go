@@ -1103,14 +1103,8 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 		[]byte(`{"kMax":6,"mintBudget":5,"maxEpochs":12,"model":"sonnet"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	// The by-class INDEX is what patternsForGaps selects from, so the archive carries it.
-	if err := os.WriteFile(filepath.Join(run, "inputs", "gap-patterns-by-class.json"),
-		[]byte(`{"port-retarget":[{"file":"p.md"}]}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
 	// The LAW mirror is read by seats during the run and by nothing after it, so it is hashed
-	// rather than carried. (The gap-pattern corpus used to sit here too; setup no longer stages
-	// it at all.)
+	// rather than carried.
 	if err := os.MkdirAll(filepath.Join(run, "inputs", "law"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -1160,7 +1154,7 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 		// same run live: `show tiers` printed configuredBulk/configuredJudgment from the live
 		// directory and omitted both from the archive — a run whose terms were discarded reads
 		// exactly like a run that never had any.
-		"inputs/run-config.json", "inputs/gap-patterns-by-class.json", "inputs/corpus-sha256.json"} {
+		"inputs/run-config.json", "inputs/corpus-sha256.json"} {
 		if !names[want] {
 			t.Errorf("archive is missing %q — it holds %v", want, names)
 		}
@@ -1168,10 +1162,10 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 	// The cache is deliberately absent: 7.3 MB for a real run, re-fetchable, and every source's
 	// sha256 is on the record so its integrity stays checkable without it.
 	// The BULKY inputs stay out, on the stated line: run-config.json is read to OPERATE on the
-	// record; the gap-pattern corpus (175 KB) was read by seats during the run and is provenance.
+	// record; the law mirror was read by seats during the run and is provenance.
 	for n := range names {
-		// THE PROSE CORPUS MUST NOT BE CARRIED. 175 KB on a real run against a ~49 KB archive,
-		// read by seats during the run and by nobody after it — the digest names its bytes instead.
+		// THE PROSE CORPUS MUST NOT BE CARRIED. Read by seats during the run and by nobody after
+		// it — the digest names its bytes instead.
 		if strings.HasPrefix(n, "inputs/law/") {
 			t.Errorf("archived the law mirror (%s) — it is hashed in %s, not carried", n, "corpus-sha256.json")
 		}

@@ -37,7 +37,6 @@ var flagExemptions = map[string]string{
 	// coverage denominator entirely.
 	"schema":         "printed by the root before dispatch and shelled by setup's epoch guard, not by a seat; asserted in internal/cli by TestSchemaFlagPrintsTheEpochSetupCompares",
 	"bin-dir":        "setup's flag, and setup is exempt from the sweep (it CREATES a run; the harness builds its own)",
-	"memory-dir":     "setup's flag, as above",
 	"topic":          "setup's flag, as above",
 	"cite":           "setup's flag, as above",
 	"lanes":          "setup's flag, as above",

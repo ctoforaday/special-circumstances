@@ -2095,23 +2095,14 @@ func ArchiveRecord(run record.Run, repoRoot string) (string, error) {
 		files = append(files, struct{ name, path string }{"inputs/run-config.json", cfg})
 	}
 
-	// THE INDEX IS CARRIED; THE PROSE CORPUS IS HASHED (gblock, 2026-09-19).
+	// THE STAGED CORPUS IS HASHED, NOT CARRIED (gblock, 2026-09-19).
 	//
-	// gap-patterns-by-class.json (41 KB) is what the engine actually SELECTED from — patternsForGaps
-	// looks up a gap's class in it — so carrying it reconstructs the input red's audit was primed
-	// with. The law mirror is provenance rather than function: read by seats during the run, by
-	// nothing after it.
-	//
-	// Hashing is not a weaker answer here, because feov-memory/ is tracked in the repository. The
-	// digest names the bytes a run saw, and git already holds them; an audit that needs the prose
-	// can recover it, and one that only needs to know WHICH corpus primed the run has the sha256
-	// without paying five times the archive for it. A pointer with no hash would not do — it would
-	// name a path whose content can change underneath the claim.
-	for _, rel := range []string{"inputs/gap-patterns-by-class.json"} {
-		if p := filepath.Join(run.Dir(), rel); func() bool { st, e := os.Stat(p); return e == nil && !st.IsDir() }() {
-			files = append(files, struct{ name, path string }{rel, p})
-		}
-	}
+	// The law mirror is provenance rather than function: read by seats during the run, by nothing
+	// after it. Hashing is not a weaker answer here, because feov-memory/ is tracked in the
+	// repository. The digest names the bytes a run saw, and git already holds them; an audit that
+	// needs the prose can recover it, and one that only needs to know WHICH corpus primed the run
+	// has the sha256 without paying five times the archive for it. A pointer with no hash would not
+	// do — it would name a path whose content can change underneath the claim.
 	if dg, err := corpusDigest(run.Dir()); err == nil && len(dg) > 0 {
 		digestPath := filepath.Join(run.Dir(), "inputs", corpusDigestName)
 		if b, mErr := json.MarshalIndent(dg, "", "  "); mErr == nil {
@@ -2351,9 +2342,6 @@ func corpusDigest(runDir string) ([]CorpusFile, error) {
 		sum := sha256.Sum256(b)
 		out = append(out, CorpusFile{Path: filepath.ToSlash(rel), SHA256: hex.EncodeToString(sum[:]), Bytes: st.Size()})
 	}
-	// NO GAP-PATTERN CORPUS TO HASH. setup no longer stages inputs/red-gap-patterns.md — the
-	// by-class index replaced it, and the skill had already recorded that staging the whole corpus
-	// was measured worthless. The digest covers what a run still stages and reads.
 	lawDir := filepath.Join(runDir, "inputs", "law")
 	if entries, err := os.ReadDir(lawDir); err == nil {
 		for _, e := range entries {

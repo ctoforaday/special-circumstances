@@ -198,32 +198,12 @@ production a round-2 bench would read round-2 closings. Closing that gap means r
 distinction the bench's own prompt does not draw — it rules on the docket's closings, and on a
 re-raised gap those are the arguments it has. Left as a known approximation.
 
-## A finding that fell out of doing this
-
-**The PATTERN DUTY clause may never fire in production.** `patternDutyClause(openGaps)` selects red's
-memory by the `class` of the gaps blue is repairing — and `openGaps` comes from red's ENVELOPE, whose
-schema declares gap items as refs only: `id`, `severity`, `likelihood`, `impact`, `complexity_cost`,
-`supersedes`. `class` is not among them. `patternsForGaps` reads `g.class || g.gap_class`, finds
-neither, returns `[]`, and the clause renders as the empty string.
-
-So the duty arrives only if a red seat volunteers a field the schema does not ask for. Both
-constitutions cite the duty form as the one that *works* — "duty-embedded patterns caught both warned
-classes in round 1; the mounted file prevented nothing" — and the delivery it rests on is gated on an
-optional field nobody is told to send. An empty clause and a clause with nothing to say are the same
-bytes: this is the plausible zero again, in the delivery path of the mechanism the constitutions
-advertise. Not fixed here — the probe's capture emits the declared shape, so it is measuring the
-guaranteed case. Filed as its own question.
-
-Two consequences worth stating:
+## What else this changed
 
 - **`blocked` no longer asserts its own blocker.** It said "you have NO network access" in a sentence
   the harness wrote; a seat can believe a sentence, work around it, or ignore it, and the three are
   indistinguishable in the transcript. The board now withholds `WebSearch`/`WebFetch`, so the seat
   discovers the block by reaching for it.
-- **Red's gap-pattern corpus is staged unconditionally**, as `run-setup` stages it. It stopped being
-  an arm: `debate.js` names `inputs/red-gap-patterns.md` in blue's first batched read, so a probe
-  that withheld it would hand the seat a prompt whose opening instruction fails and then score what
-  it did next.
 
 ---
 

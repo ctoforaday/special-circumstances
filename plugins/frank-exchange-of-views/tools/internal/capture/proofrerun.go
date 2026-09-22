@@ -19,8 +19,8 @@ import (
 //
 // Across the 2026-08-23 programme that gap cost the run three defective artifacts. Red recorded
 // four archive spot-checks and none of them re-ran a proof — the spot-check reconciles COUNTS, and
-// a count cannot see that a recorded output is wrong. `pattern_ephemeral_instrument` was staged in
-// that run's own gap-pattern memory, describing this exact failure, and was not applied to it.
+// a count cannot see that a recorded output is wrong. The ephemeral-instrument failure was already
+// a known one when that run made three of it.
 //
 // So this is the mechanical half, and it is deliberately not a duty on a seat: a duty discharged
 // by the party whose work is under audit is the shape W1.8 already had to be rescued from.
