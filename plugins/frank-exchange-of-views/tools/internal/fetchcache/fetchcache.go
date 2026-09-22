@@ -23,7 +23,6 @@ package fetchcache
 
 import (
 	"bufio"
-	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -64,16 +63,6 @@ type Response struct {
 	// filename chain. Measured across the cited corpus: not one source sent it, which is
 	// exactly why it is a rung and not the rule.
 	Disposition string
-	// TDMReserved and TDMPolicy carry a text-and-data-mining reservation declared by ANY hop of
-	// this fetch, not only the last one.
-	//
-	// THE DECLARATION IS USUALLY MADE ON A PAGE WE PASS THROUGH. Elsevier puts it on the
-	// markup-redirect bouncer, so once the fetcher began following those, the reservation stopped
-	// reaching the cache entirely — the entry that lands is the article, or a metadata record
-	// after the article refuses, and neither carries the tag. A rights signal that the follow
-	// silently drops is worse than one never read, because the absence looks like an answer.
-	TDMReserved bool
-	TDMPolicy   string
 }
 
 // Default is the process-wide Fetcher `fetch`/`blue cite` use. It is a variable for the
@@ -143,17 +132,6 @@ type Entry struct {
 	// check, and here it is also the only place the three causes are told apart.
 	NotRenderableReason string `json:"not_renderable_reason,omitempty"`
 
-	// TDMReserved says the source reserved text-and-data-mining rights in its own markup (the
-	// W3C TDM Reservation Protocol), and TDMPolicy is where it says it states the terms.
-	//
-	// A THREE-STATE POINTER, like TextExtracted: nil means nobody asked — a content type the
-	// question does not apply to — and false means the page was read and reserved nothing. A
-	// plain bool would report every PDF and every JSON record as unreserved, which is a claim
-	// about a document nobody examined. See TDMReservation for what the reservation covers, and
-	// what it does not: not reading, and not quotation.
-	TDMReserved *bool  `json:"tdm_reserved,omitempty"`
-	TDMPolicy   string `json:"tdm_policy,omitempty"`
-
 	// HTTPStatus is the status the origin (or whatever answered for it) returned. It is here
 	// because a REFUSED fetch used to leave no trace at all: the error went back to the seat and
 	// the index recorded nothing, so "we could not read this" survived only as prose in a
@@ -204,34 +182,6 @@ type Refusal struct {
 
 func (r *Refusal) Error() string {
 	return fmt.Sprintf("fetch: %s returned HTTP %d%s", r.URL, r.Status, r.Note)
-}
-
-// SniffedMediaType is the media type a response ACTUALLY carries, preferring the bytes over the
-// header whenever the header declines to say.
-//
-// THE HEADER IS AN OPINION AND THE MAGIC BYTES ARE THE DOCUMENT. PubMed Central's open-access
-// bucket serves its PDFs as `binary/octet-stream`; measured, a 983,106-byte body beginning
-// `%PDF-1.4` was cached with that type, which meant the PDF extractor never ran and the OCR path
-// could not fire either — `applicableToOCR` asks for `application/pdf`. The tool had gone to the
-// trouble of finding a paper three indexes had hidden, and then could not read it.
-//
-// It only ever overrides a type that declines to be specific. A source calling its bytes
-// `text/html` is making a claim this does not second-guess; a source saying `octet-stream` is
-// saying it does not know, and here we do.
-func SniffedMediaType(declared string, body []byte) string {
-	mt := MediaType(declared)
-	switch mt {
-	case "", "application/octet-stream", "binary/octet-stream", "application/force-download", "application/download":
-	default:
-		return mt
-	}
-	switch {
-	case bytes.HasPrefix(body, []byte("%PDF")):
-		return "application/pdf"
-	case bytes.HasPrefix(bytes.TrimLeft(body, " \t\r\n"), []byte("<?xml")):
-		return "application/xml"
-	}
-	return mt
 }
 
 // Sha is the lowercase-hex sha256 of b — the cache key and the hash a citation records.
@@ -421,7 +371,7 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		}
 		return entry, att.Body, false, nil
 	}
-	entry := Entry{URL: url, ContentType: SniffedMediaType(resp.ContentType, resp.Body)}
+	entry := Entry{URL: url, ContentType: MediaType(resp.ContentType)}
 	entry.Sha = Sha(resp.Body)
 
 	ex := DefaultExtractor.Extract(Dir(run), entry.ContentType, resp.Body)
@@ -456,18 +406,6 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		notRenderable := shell != ""
 		entry.NotRenderable = &notRenderable
 		entry.NotRenderableReason = shell
-	}
-	// READ OFF THE RESPONSE, NOT THE FINAL BODY, so a reservation declared on a hop this fetch
-	// passed through is still recorded — Elsevier declares it on the markup-redirect bouncer,
-	// which the fetcher now follows past.
-	//
-	// THE POINTER IS SET ONLY WHERE THE QUESTION WAS ASKABLE, which is what its three states
-	// mean: a PDF or a JSON record leaves it nil, because nothing looked, and writing `false`
-	// there would report a document nobody examined as declaring nothing.
-	if resp.TDMReserved || strings.Contains(entry.ContentType, "html") {
-		reserved := resp.TDMReserved
-		entry.TDMReserved = &reserved
-		entry.TDMPolicy = resp.TDMPolicy
 	}
 	stored, serr := Store(run, entry, resp.Body)
 	if serr != nil {
