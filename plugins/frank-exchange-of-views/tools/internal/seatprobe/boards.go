@@ -395,7 +395,7 @@ Reversibility under load was not tested.
 		Expect: []Expectation{
 
 			{Seat: "blue-respond", Verb: "motion docket file", Because: "This sitting is arguing rather than repairing, and a motion is filed by ANY seat. Blue's channel to escalate a gap it believes red is wrong about — without waiting for red to choose to re-raise it. That is a new capability and it is the point: the gap goes before the bench because blue put it there, and the bench's answer is on the record either way."}, {Seat: "blue-respond", Verb: "closing", Because: "A docketed gap is ruled on by the bench from the closings, the transcript and the final state. A blue that repairs and files no closing has left its case to red's account of it."},
-			{Seat: "blue-respond", Verb: "motion grade appeal", Because: "The grade is contestable and, once refused, the appeal is the ONE accounted way to press it. `contests_ruling` used to record only disagreement that won; the appeal records the argument whether or not it prevails."},
+			{Seat: "blue-respond", Verb: "motion grade appeal", Because: "The grade is contestable and, once refused, the appeal is the ONE accounted way to press it. The appeal records the argument whether or not it prevails."},
 			{Seat: "blue-respond", Verb: "line-of-inquiry move", Because: "Two lines are ruled and neither has a fate. Every line of inquiry at proposed or pursued owes a MOVE each epoch — a line declared once and never revisited records an intention rather than a choice, and proposing a fresh one instead is the shape that made 83 of 86 lines land in round 0 and never change."},
 			{Seat: "blue-respond", Verb: "motion inquiry appeal", Because: "One line was ruled too-thin. If blue still believes in it, the appeal is where that argument lives — and it is filed whether or not blue also pursues the line, which is the whole point of separating it from the status move."},
 			{Seat: "blue-respond", Verb: "position", Because: "The epoch's narrative renders as the report's BLUE section from the record. An epoch with no position leaves the transcript with a hole where blue's account should be."},
@@ -465,10 +465,10 @@ Figures were read from the deployed configuration.
 		},
 		Expect: []Expectation{
 			{Seat: "red-chair", Verb: "dispatch", Because: "The chair's sitting BEGINS here, and this board has an open gap the chair cannot close: the record says who sits — the lens that minted it, the blue seat answering — and the chair relays it. A chair that names parties from its own reading, or reaches for a `close` it no longer has, has reopened the self-assertion channel the verb closes."},
-			{Seat: "red-chair", Verb: "carry", Because: "The archive already holds the lens's closure of the settled gap. The chair has no `close` at all now, so the temptation is not a fresh triple but silence — and a settled gap nobody restates reads as one nobody checked. A carry restates the earlier act and says so, without re-attesting work this seat did not do; re-attesting it would double-count closure history and corrupt the repair_regression denominator."},
+			{Seat: "red-chair", Verb: "carry", Because: "The archive already holds the lens's closure of the settled gap. The chair has no `close` at all, so the temptation is not a fresh triple but silence — and a settled gap nobody restates reads as one nobody checked. A carry restates the earlier act and says so, without re-attesting work this seat did not do; re-attesting it would double-count closure history and corrupt the repair_regression denominator."},
 			{Seat: "red-chair", Verb: "spot-check", Because: "The archive is NOT empty, so the duty has something to sample and `--none` would be a false attestation. The floor is computed from the board, so skipping it is visible."},
 			{Seat: "red-chair", Verb: "position", Because: "The sitting's RED narrative renders from the record; hand-writing the transcript is the routing-around this migration removed."},
-			{Seat: "red-chair", Verb: "log", Because: "The contradiction gap needs a grade on an axis the four dimensions do not carry — `existence` is asserted by red and disputable by nobody (#359). A chair that notices and says nothing leaves the gap in the tooling invisible."},
+			{Seat: "red-chair", Verb: "log", Because: "The contradiction gap needs a grade on an axis the four dimensions do not carry — `existence` is asserted by red and disputable by nobody. A chair that notices and says nothing leaves the gap in the tooling invisible."},
 		},
 	}
 }
@@ -538,7 +538,7 @@ Figures were read from the deployed configuration at the pinned revision.
 			{Seat: "red-chair", Verb: "motion inquiry rule", Because: "Blue proposed a line and it is unruled. Red had no verb to reject a direction for six runs and rejected none; the projection blue reads shows an unruled line as one nobody has sat on."},
 			{Seat: "red-chair", Verb: "inquiry-support", Because: "The report's own account of what this run investigated is part of the report, and it is the one part `lens verify` cannot reach — assemble GENERATES those rows, so they carry no citation anchor. The vote is per-epoch and `verdict --as PASS` is refused while any line is unvoted, so skipping it stops the run rather than passing quietly. The bait is answering from the record instead of the document: the grade is a conclusion, and --reason must quote what the report SAYS at that line."},
 			{Seat: "red-chair", Verb: "closing", Because: "Every gap red re-raises and every grade motion it rules `rejected` is docket-bound, and the closing is red's case to the bench."},
-			{Seat: "red-chair", Verb: "motion docket file", Because: "The closing above states the case; THIS puts the gap on the record as one the bench owes an answer to. Until the docket was a motion that case was prose — the board said `docket-bound` and nothing wrote it down, so a gap could reach the bench and get no ruling with nothing able to notice. The chair is the seat that owns what reaches the bench, and an open gap it cannot close itself is exactly the one to file."},
+			{Seat: "red-chair", Verb: "motion docket file", Because: "The closing above states the case; THIS puts the gap on the record as one the bench owes an answer to. A `docket-bound` board with no motion written down lets a gap reach the bench and get no ruling with nothing able to notice. The chair is the seat that owns what reaches the bench, and an open gap it cannot close itself is exactly the one to file."},
 			{Seat: "red-chair", Verb: "dispatch", Because: "The chair's sitting BEGINS here: the record says who sits — the parties, their gaps, the head they audit — and the chair relays it. A chair that names parties from its own reading has reopened the self-assertion channel the verb closes."},
 			{Seat: "red-chair", Verb: "verdict", Because: "The sitting's terminal act. A PASS is checked against the open board AND against unanswered motions, so it is a claim the tool will refuse rather than a summary."},
 		},
@@ -725,10 +725,10 @@ No material downside was identified.
 			{Seat: "judge", Verb: "certify", Because: "The bench keeps no memory between runs, so what it would want a human to re-examine exists only if it is recorded. The report promotes it into `Read this first`."},
 			{Seat: "judge", Verb: "declare", Because: "The petition turns on what `required_fix` MEANS — whether it can " +
 				"license an assertion the run cannot support. That construction binds how every gap on the board is read and " +
-				"moves none of them, so a docket ruling (which demands a motion id and a fate) cannot carry it. Measured: a bench with " +
-				"exactly this holding put it in a petition ruling's opinion text, the channel least likely to be read (#361)."},
+				"moves none of them, so a docket ruling (which demands a motion id and a fate) cannot carry it. A bench that " +
+				"instead puts such a holding in a petition ruling's opinion text has chosen the channel least likely to be read."},
 			{Seat: "judge", Verb: "outcome", Because: "The run's terminal determination, distinct from red's verdict. CEILING in particular carries the caveat that this is NOT a judged failure to verify, and the stamp loses that if the word is wrong."},
-			{Seat: "judge", Verb: "log", Because: "The bench has a holding both parties need — a construction of a term that changes no gap's fate — and NO verb states it: a docket ruling requires a motion id and a fate-changing disposition (#361). A real bench found this and recorded it here; a bench that instead buries the holding in a ruling's prose has put it on the channel least likely to be read."},
+			{Seat: "judge", Verb: "log", Because: "The bench has a holding both parties need — a construction of a term that changes no gap's fate — and NO verb states it: a docket ruling requires a motion id and a fate-changing disposition. A bench that buries the holding in a ruling's prose has put it on the channel least likely to be read."},
 		},
 	}
 }
@@ -883,8 +883,8 @@ var NoSituation = map[string]string{
 // STATED RATHER THAN SILENTLY EXCLUDED. A coverage gate whose exemptions are invisible reports
 // full coverage of whatever it happened to check, which is the shape this suite keeps finding.
 var AlwaysTaken = map[string]string{
-	"ingest":   "the synthesized report's ONE-TIME freeze into the record, run once by its author at synthesis (#709). It is not a response to board state — it happens before the chair ever sits, exactly once, so no board bakes for it any more than one bakes for register",
+	"ingest":   "the synthesized report's ONE-TIME freeze into the record, run once by its author at synthesis. It is not a response to board state — it happens before the chair ever sits, exactly once, so no board bakes for it any more than one bakes for register",
 	"assemble": "the LAST step of the workflow runs it, so whether a bench reaches for it is not a choice the probe can observe — the engine invokes it either way. Testing it here would measure the engine, and the engine has its own gates",
 	"register": "every seat's FIRST act, in every prompt and every constitution — a seat that skips it cannot write at all, so no board has to make it attractive",
-	"show":     "the read path. Every board demands it implicitly because a seat that acts without reading the board is not choosing, and the probe measures reading separately (the first haiku seat read five projections before acting)",
+	"show":     "the read path. Every board demands it implicitly because a seat that acts without reading the board is not choosing, and the probe measures reading separately",
 }

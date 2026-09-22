@@ -73,7 +73,7 @@ func (s ocrSummary) render() string {
 func newOCR() *cobra.Command {
 	c := &cobra.Command{
 		Use:           "ocr",
-		Short:         "render a scanned document's pages and read them with the local OCR engine (#644)",
+		Short:         "render a scanned document's pages and read them with the local OCR engine",
 		Long:          "ocr operates on a document `fetch` has already cached. `ocr pages` rasterises the document and names the images; `ocr read` runs the local OCR engine over them and records the reading. A document whose text layer was already extracted is refused unless --force, because reading pixels re-derives, less accurately, what a file already says.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,

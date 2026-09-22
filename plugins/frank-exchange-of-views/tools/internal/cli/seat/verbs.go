@@ -645,7 +645,7 @@ func renderView(cmd *cobra.Command, want string) error {
 			return nil
 		default:
 			return feov.Errorf(feov.Validation, "show board: unknown --format %q (json | markdown) — "+
-				"an unrecognised format used to render JSON and exit 0, so a seat could not tell a typo from the default", f)
+				"name one of the two; an unrecognised format is refused rather than rendered as the default, where a typo would be invisible", f)
 		}
 		// The role and seat are passed so the board CAN carry the sitting; whether it does is
 		// the duty arm's decision, and unset means the board is exactly what it always was.

@@ -1216,7 +1216,7 @@ func recordTierFindings(run record.Run, model, judgmentModel string) (findings [
 func ModelTierAudit(run record.Run, transcriptDir string, agentFiles []string) Audit {
 	model, judgmentModel := cost.TierConfig(run)
 	if model == "" && judgmentModel == "" {
-		return Audit{Check: "model-tier", Verdict: "SKIP", Detail: "no run-config models (pre-#111 run)"}
+		return Audit{Check: "model-tier", Verdict: "SKIP", Detail: "the run config names no models, so there is no configured tier to check the served one against"}
 	}
 	// THE EPOCH COMES FROM THE RECORD, per transcript: the agent id in the file name joins to the
 	// register that named the seat, and the register's window says which chair sitting it sat

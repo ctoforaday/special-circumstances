@@ -293,7 +293,7 @@ func emitPreRewrite(stdout io.Writer, toolInput json.RawMessage, command string)
 		"hookSpecificOutput": map[string]any{
 			"hookEventName":            "PreToolUse",
 			"permissionDecision":       "allow",
-			"permissionDecisionReason": "feov-record: the run directory is injected by the engine, not typed by the seat (#281)",
+			"permissionDecisionReason": "feov-record: the run directory is injected by the engine, not typed by the seat",
 			"updatedInput":             updated,
 		},
 	})

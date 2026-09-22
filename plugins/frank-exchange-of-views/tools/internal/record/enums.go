@@ -279,7 +279,7 @@ var EnumFields = map[string][]EnumField{
 			ev("inquiry", "a line of inquiry, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned"),
 			ev("gap", "a gap already on the docket, by its id — a defect in the record rather than in the report"),
 		},
-		Why: "an absence has no sentence to quote, so it used to borrow an innocent one as a handle and the gap list pointed a reader at good prose. These targets are references the record can CHECK: an avenue id either names a line this run proposed or it does not",
+		Why: "an absence has no sentence to quote, and borrowing an innocent one as a handle points a reader of the gap list at prose the finding itself calls fine. These targets are references the record can CHECK: an avenue id either names a line this run proposed or it does not",
 	}},
 	// `cite`, and the READING is the half a citation could not previously state. A citation says
 	// a source backs a sentence; it never said whether anyone had read the source. That gap was
@@ -337,7 +337,7 @@ var EnumFields = map[string][]EnumField{
 				ev("computation", "RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind"),
 				ev("source", "verifying an external source settles it — the claim stands or falls on what the cited material actually says"),
 			},
-			Why: "the kind says WHAT WOULD SETTLE the acceptance check, and it is the lever the 2026-08-05 smoke measured missing: blue wrote zero programs across the run, not because it ignored the invitation but because NOTHING ASKED — all ten of red's checks were document probes, and R1-1 was literally \"execute the assembly step\". Red could only ever ask whether the report SAYS something. A `computation` check is a demand that cannot be answered in prose",
+			Why: "the kind says WHAT WOULD SETTLE the acceptance check, and it is the lever that asks blue for a program. A run whose checks are all document probes can only ever ask whether the report SAYS something; a `computation` check is a demand that cannot be answered in prose",
 		},
 		// THE SAME SET `finding` CARRIES, WORD FOR WORD, because it is the same question asked at
 		// the next step of one act. Mint's help used to send an omission back to a borrowed quote —
@@ -372,14 +372,14 @@ var EnumFields = map[string][]EnumField{
 			ev("absent", "you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was"),
 			ev("unreachable", "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit"),
 		},
-		Why: "THE NEGATIVE HALF, WHICH DID NOT EXIST. Red could say how a citation held and had no way whatever to record that it did NOT — so the strongest adversarial finding available on this axis had to leave as prose, and the capture audit built to catch a report shipping a refuted citation went looking for a verdict no field could carry: it reported PASS over an empty file on every record-mode run (#296). This is WHAT THE SOURCE DID, and it is a different question from how sure you are of it, which is --confidence",
+		Why: "THE NEGATIVE HALF IS THE POINT. A citation that does NOT hold is recorded here — `refutes`, `absent`, `unreachable` — and not left as prose, because the audit that catches a report shipping a refuted citation reads this field and nothing else. This is WHAT THE SOURCE DID, and it is a different question from how sure you are of it, which is --confidence",
 	}, {
 		Key: "confidence", Flag: flags.Confidence, Values: []EnumValue{
 			ev("high", "you read the source at the leaf and would defend this determination as it stands"),
 			ev("medium", "you are reasonably sure, but the reading bridges something — a summary, a secondary source, a near-restatement rather than the exact statement"),
 			ev("low", "your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further"),
 		},
-		Why: "CONFIDENCE IS IN THE DETERMINATION, WHATEVER THE DETERMINATION WAS. It is orthogonal to --outcome and always has been: `refutes` at low confidence (this source may contradict the claim, I am not certain) and `refutes` at high confidence (I read it, it says the opposite) are different facts, and a reader who cannot tell them apart cannot decide what to do about either.\n\nThe original plan specified exactly this — \"for each statement ↔ reference pair it assigns a confidence that the source actually corroborates the statement (facts are rarely black and white); low confidence → needs more evidence, blue digs further, not an automatic fail\" — and this field is what shipped from it.\n\nIt spent time called `--trust`, a rename made in #341 to dodge a collision with `blue confidence` (one word carrying two questions). That verb was DELETED in 0.54.0, so the collision has not existed for six releases while the dodge did — and the substitute word invited its own misreading: `trust` sounds like a property of the SOURCE, so its own value descriptions drifted into a support scale (\"the source supports the claim but you had to bridge something\"), and the axis read as a positive-only outcome. It is not one; it is how sure you are",
+		Why: "CONFIDENCE IS IN THE DETERMINATION, WHATEVER THE DETERMINATION IS. It is orthogonal to --outcome: `refutes` at low confidence (this source may contradict the claim, I am not certain) and `refutes` at high confidence (I read it, it says the opposite) are different facts, and a reader who cannot tell them apart cannot decide what to do about either.\n\nIt is NOT a property of the source and NOT a support scale — how well the source backs the claim is --outcome, and this axis is not a positive-only one. Low confidence is a call for more evidence, so blue digs further; it is not an automatic fail",
 	}},
 }
 
