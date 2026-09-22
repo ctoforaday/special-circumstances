@@ -180,7 +180,14 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, retried bool) (*Response, *u
 	}
 	// WAIT OUR TURN FOR THIS HOST. The floor is enforced here, at the only place a request
 	// leaves, so no caller can forget it and no new backend has to remember.
-	if w := reserveSlot(u.Host, 0); w > 0 {
+	w, ok := reserveSlot(u.Host, 0)
+	if !ok {
+		return nil, nil, fmt.Errorf("fetch: %s is saturated — this machine already has more than %v "+
+			"of queued requests waiting for that host, so this one is refused rather than added to the "+
+			"queue. It is a fact about how much this box is asking of one origin, not about the source",
+			u.Host, maxPaceWait)
+	}
+	if w > 0 {
 		time.Sleep(w)
 	}
 	resp, err := h.client.Do(req)

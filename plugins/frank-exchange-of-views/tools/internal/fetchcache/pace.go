@@ -44,20 +44,32 @@ import (
 const (
 	// defaultHostInterval paces a host that publishes no limit of its own.
 	//
-	// FIVE SECONDS, WHICH IS SLOWER THAN ANY SUCH HOST WOULD DEMAND, AND DELIBERATELY SO. The
+	// FIFTEEN SECONDS, WHICH IS SLOWER THAN ANY SUCH HOST WOULD DEMAND, AND DELIBERATELY SO. The
 	// asymmetry is not close: being too slow costs this run some latency, while being too fast
 	// costs it the source, can cost every later run the same source, and spends someone else's
 	// server to do it. A host that publishes a number gets that number; a host that publishes
 	// nothing has not consented to anything, and the floor should read as caution rather than as
 	// the fastest rate we think we can get away with.
 	//
-	// It is above the Crawl-delay range robots.txt files commonly carry (1–10s) on purpose: where
-	// a host does state a delay, that value wins, so this only ever governs hosts that have said
-	// nothing at all.
-	defaultHostInterval = 5 * time.Second
-	// maxPaceWait bounds a single request's wait. A slot far in the future means a queue that is
-	// long, or a state file that is wrong; neither is a reason to hang a run indefinitely.
-	maxPaceWait = 60 * time.Second
+	// It is well above the Crawl-delay range robots.txt files commonly carry (1–10s) on purpose:
+	// where a host does state a delay, that value wins in either direction, so this only ever
+	// governs hosts that have said nothing at all — and a host that has said nothing has agreed
+	// to nothing. Fifteen seconds is the pace of a person reading, which is the traffic this tool
+	// is supposed to look like.
+	defaultHostInterval = 15 * time.Second
+	// maxPaceWait bounds a single request's wait. Beyond it the request is REFUSED rather than
+	// made to wait, and that distinction is the whole of it.
+	//
+	// TRUNCATING THE WAIT RECREATES THE BURST THE FLOOR EXISTS TO PREVENT. This used to clamp:
+	// a caller whose slot fell past the cap was told to wait the cap instead. Raising the default
+	// floor to 15s made it visible — eight callers queueing on one host produced waits of 0, 15,
+	// 30, 45, 60, 60, 60, 60, and the last four would have departed together, at the one moment
+	// the host is already saturated. A cap that collapses a queue is worse than no cap.
+	//
+	// So a slot beyond this is not a slot. The fetch fails, the seat is told the host is
+	// saturated, and nothing is claimed — because claiming and then refusing would push the queue
+	// out for a request that never went.
+	maxPaceWait = 120 * time.Second
 	// paceLockWait bounds contention on the lock itself, which is held only for a read-modify-
 	// write and so should never be contended for long.
 	paceLockWait = 10 * time.Second
@@ -113,7 +125,7 @@ var hostIntervals = map[string]time.Duration{
 	// answering a bare nginx 503 with no Retry-After. A service that falls over is telling you
 	// something whether or not it means to, so this one is paced SLOWER than the default rather
 	// than at it.
-	"www.ebi.ac.uk": 8 * time.Second,
+	"www.ebi.ac.uk": 15 * time.Second,
 	// The PMC open-access bucket is plain S3 and NCBI names it a sanctioned automated route. Its
 	// stated ceiling without a key is 3 requests a second; taken at a third of that, because a
 	// sanctioned route is a courtesy to keep rather than a budget to spend.
@@ -178,17 +190,18 @@ func hashHost(host string) string {
 func slotFile(host string) string { return filepath.Join(paceDir, hashHost(host)) }
 
 // reserveSlot claims this host's next slot across every process on the machine and returns how
-// long the caller must wait for it.
-func reserveSlot(host string, extra time.Duration) time.Duration {
+// long the caller must wait for it. ok is false when the queue for this host is longer than
+// maxPaceWait, in which case NOTHING is claimed and the caller must not proceed.
+func reserveSlot(host string, extra time.Duration) (time.Duration, bool) {
 	if host == "" {
-		return 0
+		return 0, true
 	}
 	mu := hostMutex(host)
 	mu.Lock()
 	defer mu.Unlock()
 
 	if err := os.MkdirAll(paceDir, 0o755); err != nil {
-		return defaultHostInterval // cannot coordinate: pace conservatively rather than freely
+		return defaultHostInterval, true // cannot coordinate: pace conservatively rather than freely
 	}
 	path := slotFile(host)
 	fl := flock.New(path + ".lock")
@@ -201,7 +214,7 @@ func reserveSlot(host string, extra time.Duration) time.Duration {
 		// FAILING OPEN WOULD BE THE ONE UNACCEPTABLE OUTCOME. Unlike the record's lock, where
 		// proceeding unlocked risks a lost write, proceeding unpaced here sends traffic at an
 		// origin that has no say in it. Wait the full interval instead.
-		return intervalFor(host)
+		return intervalFor(host), true
 	}
 
 	now := time.Now()
@@ -212,9 +225,9 @@ func reserveSlot(host string, extra time.Duration) time.Duration {
 	}
 	wait := at.Sub(now)
 	if wait > maxPaceWait {
-		// A slot this far out is a queue gone wrong or a file gone wrong. Take the cap, and
-		// rewrite the slot from now so the bad value does not outlive this request.
-		at, wait = now.Add(maxPaceWait), maxPaceWait
+		// REFUSE, AND CLAIM NOTHING. The queue stays as it was, so the requests already in it are
+		// unaffected and this one simply does not join.
+		return 0, false
 	}
 	iv := intervalFor(host)
 	if l := time.Duration(cur.LearnedNanos); l > iv {
@@ -223,9 +236,9 @@ func reserveSlot(host string, extra time.Duration) time.Duration {
 	cur.NextNanos = at.Add(iv + extra).UnixNano()
 	writeSlot(path, cur)
 	if wait < 0 {
-		return 0
+		return 0, true
 	}
-	return wait
+	return wait, true
 }
 
 // backoffHost pushes a host's next slot out by d, so a 429 slows every later request to that host

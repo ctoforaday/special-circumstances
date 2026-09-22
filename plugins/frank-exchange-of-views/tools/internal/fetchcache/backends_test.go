@@ -8,6 +8,32 @@ import (
 
 type fake func(string) (*Response, error)
 
+// emptyIndexAnswer answers EVERY open-access index with a well-formed "I know of no copy".
+//
+// IT EXISTS BECAUSE ADDING A SOURCE KEPT BREAKING EVERY FAKE. Each index reports separately
+// whether it ANSWERED, and one silence withdraws the determinate "no open copy exists anywhere"
+// — correctly. But a fake that does not know about a newly added index refuses it, which reads
+// as a silence, which turns unrelated tests red for the right reason in the wrong place. A test
+// that means "the indexes all answered, and none had anything" should say that once.
+//
+// The second return says whether this url was an index lookup at all, so a caller can tell a
+// candidate fetch from a directory query.
+func isIndexLookup(u string) bool { _, ok := emptyIndexAnswer(u); return ok }
+
+func emptyIndexAnswer(u string) (*Response, bool) {
+	switch {
+	case strings.Contains(u, "ebi.ac.uk"):
+		return &Response{Body: []byte(`{"resultList":{"result":[]}}`)}, true
+	case strings.Contains(u, "semanticscholar"):
+		return &Response{Body: []byte(`{"paperId":"abc","openAccessPdf":null,"externalIds":{}}`)}, true
+	case strings.Contains(u, "doaj.org"):
+		return &Response{Body: []byte(`{"total":0,"results":[]}`)}, true
+	case strings.Contains(u, "pmc-oa-opendata"):
+		return &Response{Body: []byte(`<ListBucketResult><KeyCount>0</KeyCount></ListBucketResult>`)}, true
+	}
+	return nil, false
+}
+
 func (f fake) Fetch(u string) (*Response, error) { return f(u) }
 
 // CDX, NOT THE AVAILABILITY API — and the date bound is why. The measured run's load-bearing
@@ -40,8 +66,8 @@ func TestACaptureIsChosenByDateNotByRecency(t *testing.T) {
 // is a fact about the WORLD, where the run could only say "unreachable from this container".
 func TestAnAnsweredNoOpenCopyIsAFindingNotAMiss(t *testing.T) {
 	f := fake(func(u string) (*Response, error) {
-		if strings.Contains(u, "ebi.ac.uk") {
-			return &Response{Body: []byte(`{"resultList":{"result":[]}}`)}, nil
+		if r, isIndex := emptyIndexAnswer(u); isIndex {
+			return r, nil
 		}
 		if strings.Contains(u, "openalex") {
 			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","open_access":{"is_oa":false,"oa_url":null},"locations":[]}`)}, nil
@@ -196,8 +222,8 @@ func TestAStatedArxivFailureDoesNotEndTheAutoChain(t *testing.T) {
 		if strings.Contains(u, "arxiv.org") {
 			return nil, errors.New("boom")
 		}
-		if strings.Contains(u, "ebi.ac.uk") {
-			return &Response{Body: []byte(`{"resultList":{"result":[]}}`)}, nil
+		if r, isIndex := emptyIndexAnswer(u); isIndex {
+			return r, nil
 		}
 		if strings.Contains(u, "openalex") {
 			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","locations":[{"pdf_url":"https://ex.org/open.pdf","is_oa":true}]}`)}, nil
@@ -232,14 +258,17 @@ func TestAnOpenAccessAnswerRequiresAWork(t *testing.T) {
 		{"an empty object", `{}`, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			// EVERY OTHER INDEX ANSWERS CLEANLY, so `answered` turns on OpenAlex's payload alone
+			// — which is what this test is about. The flag is a conjunction across the union, and
+			// letting a second index be silent here would test the conjunction instead.
 			f := fake(func(u string) (*Response, error) {
-				if strings.Contains(u, "ebi.ac.uk") {
-					return &Response{Body: []byte(`{"resultList":{"result":[]}}`)}, nil
+				if r, isIndex := emptyIndexAnswer(u); isIndex {
+					return r, nil
 				}
 				if strings.Contains(u, "openalex") {
 					return &Response{Body: []byte(tc.openalex)}, nil
 				}
-				return nil, &Refusal{URL: u, Status: 403} // only openalex is asked
+				return nil, &Refusal{URL: u, Status: 403}
 			})
 			_, answered := OpenAccessCandidates(f, "10.1234/x")
 			if answered != tc.wantAnswered {
@@ -290,8 +319,8 @@ func TestAnArchiveOutageDoesNotEndTheAutoChain(t *testing.T) {
 		if strings.Contains(u, "web.archive.org") {
 			return &Response{Body: []byte("<html><title>Internet Archive: Temporarily Offline</title></html>"), ContentType: "text/html"}, nil
 		}
-		if strings.Contains(u, "ebi.ac.uk") {
-			return &Response{Body: []byte(`{"resultList":{"result":[]}}`)}, nil
+		if r, isIndex := emptyIndexAnswer(u); isIndex {
+			return r, nil
 		}
 		if strings.Contains(u, "openalex") {
 			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","locations":[{"pdf_url":"https://ex.org/open.pdf","is_oa":true}]}`)}, nil
@@ -331,8 +360,9 @@ func TestEveryListedOpenAccessLocationIsTried(t *testing.T) {
 	var tried []string
 	f := fake(func(u string) (*Response, error) {
 		switch {
-		case strings.Contains(u, "ebi.ac.uk"):
-			return &Response{Body: []byte(`{"resultList":{"result":[]}}`)}, nil
+		case isIndexLookup(u):
+			r, _ := emptyIndexAnswer(u)
+			return r, nil
 		case strings.Contains(u, "openalex"):
 			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","open_access":{"oa_url":null},
 				"locations":[{"pdf_url":"https://walled.example/a.pdf","is_oa":true},
@@ -365,8 +395,9 @@ func TestALocationThatAnswersWithAWallIsNotAccepted(t *testing.T) {
 	wall := []byte(`<html><head><title>Just a moment...</title></head><body>checking</body></html>`)
 	f := fake(func(u string) (*Response, error) {
 		switch {
-		case strings.Contains(u, "ebi.ac.uk"):
-			return &Response{Body: []byte(`{"resultList":{"result":[]}}`)}, nil
+		case isIndexLookup(u):
+			r, _ := emptyIndexAnswer(u)
+			return r, nil
 		case strings.Contains(u, "openalex"):
 			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","locations":[{"pdf_url":"https://pub.example/a.pdf","is_oa":true}]}`)}, nil
 		}
@@ -395,8 +426,8 @@ func TestALocationThatAnswersWithAWallIsNotAccepted(t *testing.T) {
 // anywhere" cannot be assembled out of a timeout.
 func TestNoLocationsFromEitherIndexIsStillAnAnsweredNo(t *testing.T) {
 	f := fake(func(u string) (*Response, error) {
-		if strings.Contains(u, "ebi.ac.uk") {
-			return &Response{Body: []byte(`{"resultList":{"result":[]}}`)}, nil
+		if r, isIndex := emptyIndexAnswer(u); isIndex {
+			return r, nil
 		}
 		if strings.Contains(u, "unpaywall") {
 			return &Response{Body: []byte(`{"doi":"10.1234/x","best_oa_location":null,"oa_locations":[]}`)}, nil

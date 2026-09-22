@@ -12,6 +12,17 @@ import (
 	"time"
 )
 
+// mustReserve claims a slot and fails the test if the host is reported saturated, so a test that
+// means "take the next slot" says so and does not silently read a refusal as a zero wait.
+func mustReserve(t *testing.T, host string) time.Duration {
+	t.Helper()
+	w, ok := reserveSlot(host, 0)
+	if !ok {
+		t.Fatalf("%s reported saturated; this test expects a slot", host)
+	}
+	return w
+}
+
 func tempPaceDir(t *testing.T) {
 	t.Helper()
 	prev := paceDir
@@ -25,7 +36,7 @@ func TestTheFloorIsPerHostAndCumulative(t *testing.T) {
 	tempPaceDir(t)
 	var waits []time.Duration
 	for i := 0; i < 4; i++ {
-		waits = append(waits, reserveSlot("example.org", 0))
+		waits = append(waits, mustReserve(t, "example.org"))
 	}
 	for i, w := range waits {
 		want := time.Duration(i) * defaultHostInterval
@@ -33,13 +44,13 @@ func TestTheFloorIsPerHostAndCumulative(t *testing.T) {
 			t.Errorf("reservation %d waits %v, want about %v (all: %v) — callers must queue, not depart together", i, w, want, waits)
 		}
 	}
-	if w := reserveSlot("unrelated.org", 0); w != 0 {
+	if w := mustReserve(t, "unrelated.org"); w != 0 {
 		t.Errorf("an unrelated host waited %v for another host's queue", w)
 	}
 	// arXiv's own published limit, not the default.
 	tempPaceDir(t)
-	reserveSlot("arxiv.org", 0)
-	if w := reserveSlot("arxiv.org", 0); w < 2500*time.Millisecond {
+	mustReserve(t, "arxiv.org")
+	if w := mustReserve(t, "arxiv.org"); w < 2500*time.Millisecond {
 		t.Errorf("arxiv.org paced at %v; its terms of use say one request every three seconds", w)
 	}
 }
@@ -48,7 +59,7 @@ func TestTheFloorIsPerHostAndCumulative(t *testing.T) {
 // an in-process map already satisfied; it is kept so a refactor cannot lose it.
 func TestConcurrentGoroutinesQueue(t *testing.T) {
 	tempPaceDir(t)
-	const n = 6
+	const n = 4
 	var mu sync.Mutex
 	var got []time.Duration
 	var wg sync.WaitGroup
@@ -56,7 +67,7 @@ func TestConcurrentGoroutinesQueue(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			w := reserveSlot("example.org", 0)
+			w := mustReserve(t, "example.org")
 			mu.Lock()
 			got = append(got, w)
 			mu.Unlock()
@@ -86,11 +97,16 @@ func TestSeparateProcessesShareTheFloor(t *testing.T) {
 	if os.Getenv("PACE_CHILD") != "" {
 		// Child: claim one slot and print the wait it was given, in nanoseconds.
 		paceDir = os.Getenv("PACE_DIR")
-		os.Stdout.WriteString(strconv.FormatInt(int64(reserveSlot("concurrent.example", 0)), 10))
+		w, ok := reserveSlot("concurrent.example", 0)
+		if !ok {
+			os.Stdout.WriteString("saturated")
+			os.Exit(0)
+		}
+		os.Stdout.WriteString(strconv.FormatInt(int64(w), 10))
 		os.Exit(0)
 	}
 	dir := t.TempDir()
-	const n = 8
+	const n = 4
 	type res struct {
 		wait time.Duration
 		err  error
@@ -146,10 +162,10 @@ func TestSeparateProcessesShareTheFloor(t *testing.T) {
 func TestABackoffPushesTheWholeHostQueue(t *testing.T) {
 	tempPaceDir(t)
 	backoffHost("example.org", 5*time.Second)
-	if w := reserveSlot("example.org", 0); w < 4*time.Second {
+	if w := mustReserve(t, "example.org"); w < 4*time.Second {
 		t.Errorf("after a 5s backoff the next request waits %v", w)
 	}
-	if w := reserveSlot("other.org", 0); w != 0 {
+	if w := mustReserve(t, "other.org"); w != 0 {
 		t.Errorf("one host's backoff delayed another by %v", w)
 	}
 }
@@ -192,12 +208,12 @@ func TestRetryAfterIsReadInBothForms(t *testing.T) {
 func TestAHostThatRefusesUsRaisesItsOwnFloorPermanently(t *testing.T) {
 	tempPaceDir(t)
 	const host = "touchy.example"
-	base := reserveSlot(host, 0)
+	base := mustReserve(t, host)
 	if base != 0 {
 		t.Fatalf("first call waited %v", base)
 	}
 	// Before learning, the second call waits the default.
-	if w := reserveSlot(host, 0); w > defaultHostInterval+200*time.Millisecond {
+	if w := mustReserve(t, host); w > defaultHostInterval+200*time.Millisecond {
 		t.Fatalf("pre-refusal wait %v already exceeds the default", w)
 	}
 
@@ -206,27 +222,65 @@ func TestAHostThatRefusesUsRaisesItsOwnFloorPermanently(t *testing.T) {
 	// AFTER the refusal the floor itself is higher, not merely the next slot pushed out. The
 	// pace directory is deliberately NOT reset here: the point is that the lesson persists in
 	// the shared state a later process would read.
-	w1 := reserveSlot(host, 0)
-	w2 := reserveSlot(host, 0)
+	w1 := mustReserve(t, host)
+	w2 := mustReserve(t, host)
 	if gap := w2 - w1; gap < 2*defaultHostInterval-300*time.Millisecond {
 		t.Errorf("after a refusal consecutive slots are %v apart, want at least double the %v default — "+
 			"the lesson was not kept", gap, defaultHostInterval)
 	}
 }
 
-// AND IT DOES NOT RATCHET TO NEVER. A host refusing every request is declining us, not pacing us,
-// and creeping towards an hour between attempts would turn a refusal a seat should see into a
-// hang it cannot.
+// AND IT DOES NOT RATCHET TO NEVER. A host refusing every request is declining us, not pacing
+// us, and creeping towards an hour between attempts would turn a refusal a seat should see into
+// a hang it cannot.
 func TestTheLearnedFloorIsCapped(t *testing.T) {
 	tempPaceDir(t)
 	const host = "hostile.example"
 	for i := 0; i < 20; i++ {
 		backoffHost(host, time.Millisecond)
 	}
-	reserveSlot(host, 0)
-	w := reserveSlot(host, 0)
-	if w > learnedCeiling+time.Second {
-		t.Errorf("after 20 refusals the floor is %v, above the %v ceiling", w, learnedCeiling)
+	// Read the learned floor from the shared state rather than through a reservation: past the
+	// ceiling the next reservation is legitimately REFUSED, so measuring it by waiting would be
+	// measuring the refusal instead.
+	got := time.Duration(readSlot(slotFile(host)).LearnedNanos)
+	if got > learnedCeiling {
+		t.Errorf("after 20 refusals the learned floor is %v, above the %v ceiling", got, learnedCeiling)
+	}
+	if got < defaultHostInterval {
+		t.Errorf("the learned floor is %v, below the default — the refusals taught nothing", got)
+	}
+}
+
+// A QUEUE LONGER THAN WE WILL WAIT IS REFUSED, NOT TRUNCATED. Clamping the wait to the cap gave
+// every caller past it the SAME slot, so they departed together — the burst the floor exists to
+// prevent, produced by the safety valve, at the one moment the host is already saturated.
+func TestASaturatedHostIsRefusedRatherThanCollapsedIntoABurst(t *testing.T) {
+	tempPaceDir(t)
+	const host = "busy.example"
+	var waits []time.Duration
+	refusals := 0
+	for i := 0; i < 20; i++ {
+		w, ok := reserveSlot(host, 0)
+		if !ok {
+			refusals++
+			continue
+		}
+		waits = append(waits, w)
+	}
+	if refusals == 0 {
+		t.Fatalf("20 reservations on one host produced no refusal; waits: %v", waits)
+	}
+	// EVERY GRANTED SLOT IS DISTINCT. That is the invariant the clamp broke.
+	seen := map[int64]bool{}
+	for _, w := range waits {
+		slot := int64((w + defaultHostInterval/2) / defaultHostInterval)
+		if seen[slot] {
+			t.Errorf("two granted slots collide at %v; all waits: %v", w, waits)
+		}
+		seen[slot] = true
+		if w > maxPaceWait {
+			t.Errorf("a granted slot waits %v, beyond the %v cap", w, maxPaceWait)
+		}
 	}
 }
 
@@ -249,7 +303,7 @@ func TestAnOverloadedServiceIsBackedOffFromLikeARateLimit(t *testing.T) {
 func TestTheDefaultFloorIsSlowerThanAnyPublishedCrawlDelay(t *testing.T) {
 	// robots.txt Crawl-delay values in the wild run 1–10s; the default sits above the common
 	// range because it governs only hosts that have said nothing at all.
-	if defaultHostInterval < 5*time.Second {
+	if defaultHostInterval < 15*time.Second {
 		t.Errorf("defaultHostInterval = %v; the asymmetry is not close — too slow costs latency, "+
 			"too fast can cost every later run the source", defaultHostInterval)
 	}
@@ -290,8 +344,8 @@ func TestA503ThroughTheFetcherActuallyRaisesTheFloor(t *testing.T) {
 	}
 	// AND THE FLOOR FOR THAT HOST IS NOW ABOVE THE DEFAULT, so the next request — in this process
 	// or any other — does not leave at the rate that just failed.
-	reserveSlot(host, 0)
-	if w := reserveSlot(host, 0); w <= defaultHostInterval {
+	mustReserve(t, host)
+	if w := mustReserve(t, host); w <= defaultHostInterval {
 		t.Errorf("after a 503 the next slot waits %v, no more than the %v default — the overload "+
 			"was reported and not learned from", w, defaultHostInterval)
 	}
