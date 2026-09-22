@@ -17,8 +17,8 @@ import (
 	"time"
 )
 
-// Config is the parsed setup invocation. The environment fields (Cwd/Home/ProjectDir/
-// ExpectVersion) and the injectables (Git/Exec/Now) are resolved by the command from os;
+// Config is the parsed setup invocation. The environment fields (Cwd/Home/ExpectVersion)
+// and the injectables (Git/Exec/Now) are resolved by the command from os;
 // tests may supply them directly.
 type Config struct {
 	RunDir        string
@@ -48,7 +48,6 @@ type Config struct {
 	// dispatch verb check every seat against.
 	LensAreas []string
 	BinDir    string
-	MemoryDir string
 	// RunID and ScriptPath travel into the run-live marker so a STALE marker names how to
 	// resume rather than only where something once ran. Optional: a launcher that does not
 	// know them leaves them empty, and the marker omits the fields rather than carrying "".
@@ -59,12 +58,11 @@ type Config struct {
 	// party whose adversary strength is in question, so the decision cannot be its to make.
 	AllowSubstitution bool
 
-	Cwd        string
-	Home       string
-	ProjectDir string // CLAUDE_PROJECT_DIR
-	Git        GitFunc
-	Exec       ExecFunc
-	Now        time.Time
+	Cwd  string
+	Home string
+	Git  GitFunc
+	Exec ExecFunc
+	Now  time.Time
 }
 
 // Run reproduces the mjs main(): the four fail-fast gates (runDir→1; model tiers→2;
@@ -82,7 +80,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	}
 
 	if cfg.RunDir == "" || strings.HasPrefix(cfg.RunDir, "--") {
-		fmt.Fprintln(stderr, `usage: feov-record setup <runDir> --topic "<topic>" --model <m> --judgment-model <m> [--cite <path>[@pin]]... [--bin-dir <dir>] [--memory-dir <dir>]`)
+		fmt.Fprintln(stderr, `usage: feov-record setup <runDir> --topic "<topic>" --model <m> --judgment-model <m> [--cite <path>[@pin]]... [--bin-dir <dir>]`)
 		return 1
 	}
 	topic := cfg.Topic
@@ -224,76 +222,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	// RED'S RAW ACCRUAL IS NOW SPREAD ACROSS SEATS, so it is globbed rather than named.
-	//
-	// The harness gives each agent configuration its own memory home, keyed on the agent's name.
-	// While every red seat was `red-auditor` there was one directory and this named it. Since each
-	// area got its own configuration there are eight, and a reader that still named the old one
-	// would find nothing — then report exactly what an agent with no memory yet reports, which is
-	// the plausible zero: red would open the run on the promoted corpus alone and the summary
-	// would say nothing was wrong.
-	//
-	// EVERY red home is unioned because a pattern is red's, not one lens's: the seat that learns
-	// "check for X" is rarely the seat that needs it next, and BuildPatternIndex already merges
-	// sources with the promoted copy winning.
-	memHomes := func(d string) []string {
-		hits, _ := filepath.Glob(filepath.Join(d, ".claude", "agent-memory", "frank-exchange-of-views-red-*"))
-		return hits
-	}
-	promoted := filepath.Join(cfg.Cwd, "feov-memory", "red-gap-patterns")
-	var raw []string
-	for _, d := range []string{cfg.ProjectDir, cfg.Cwd} {
-		if d == "" {
-			continue
-		}
-		for _, h := range memHomes(d) {
-			if exists(h) {
-				raw = append(raw, h)
-			}
-		}
-		if len(raw) > 0 {
-			break
-		}
-	}
-	// --memory-dir ADDS a source; it does NOT replace the promoted corpus.
-	//
-	// MEASURED, and it cost a whole run's memory. It used to replace, and
-	// `skills/research/SKILL.md` documents passing it as the remedy when gap-patterns reports "no
-	// memory dir" — so an operator following the documented advice silently discarded the
-	// curated corpus (57 files, 55 classified) in favour of the raw accrual (60 files, 1
-	// classified). The 2026-08-05 run's inputs/gap-patterns-by-class.json: 0 classes, 0
-	// entries. Red opened that run with nothing, and the setup summary said so in one line
-	// nobody read.
-	//
-	// Promoted stays FIRST: BuildPatternIndex dedupes by filename, so the reviewed copy of a
-	// pattern wins over the raw one it was promoted from.
-	memDirs := append([]string{promoted}, raw...)
-	if cfg.MemoryDir != "" {
-		memDirs = append(memDirs, cfg.MemoryDir)
-	}
-	patternIndex := BuildPatternIndex(memDirs)
-	// A corpus that is MOSTLY unclassified is a composition failure, not sloppy authoring.
-	//
-	// The count was already printed — "(59 UNCLASSIFIED, not delivered)" — and it is one line
-	// in a long summary, so it read as a nag rather than as "red is starting this run blind".
-	// Delivery is class-indexed: an unclassified pattern reaches no seat at all. A handful is
-	// normal accrual; a majority means the sources are wrong, which is exactly what the old
-	// replacing --memory-dir produced.
-	if delivered := len(patternIndex.ByClass); len(patternIndex.Unclassified) > 0 && len(patternIndex.Unclassified) > delivered {
-		fmt.Fprintln(stderr, "run-setup: GAP-PATTERN CORPUS MOSTLY UNCLASSIFIED — refusing to create the run:")
-		fmt.Fprintf(stderr, "  %d unclassified pattern(s) against %d delivered class(es).\n", len(patternIndex.Unclassified), delivered)
-		fmt.Fprintln(stderr, "  Delivery is class-indexed, so an unclassified pattern reaches no seat: red would open this run")
-		fmt.Fprintln(stderr, "  substantially blind while its memory directory looks full. Sources read, in order:")
-		for _, d := range memDirs {
-			if d != "" {
-				fmt.Fprintf(stderr, "    - %s\n", d)
-			}
-		}
-		fmt.Fprintln(stderr, "  remedy: check the promoted corpus is among them (feov-memory/red-gap-patterns), or classify")
-		fmt.Fprintln(stderr, "  the accrued files by adding `classes: [<slug>, ...]` to their frontmatter.")
-		return 2
-	}
-	// THE CLASS REGISTRY IS VALIDATED HERE, BESIDE THE CORPUS GATE AND BEFORE ANY RUN STATE: it is
+	// THE CLASS REGISTRY IS VALIDATED BEFORE ANY RUN STATE: it is
 	// the caller's copy, it can be older than this binary, and a row without its material default
 	// would leave every gap of that class with no materiality to start from.
 	if err := ValidateClassRegistry(filepath.Join(cfg.Cwd, "feov-memory")); err != nil {
@@ -340,50 +269,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	// The registry is staged BEFORE any seat can mint, because it is what makes `--class` mean
 	// anything at all (#299).
 	registry := StageClassRegistry(filepath.Join(cfg.Cwd, "feov-memory"), run)
-
-	// THE WHOLE CORPUS IS NOT STAGED, and the skill recorded why before this deleted it: "staging
-	// the whole corpus was measured worthless — run 5's lanes read it and committed the warned
-	// patterns anyway". The by-class index below replaced it, delivering only the patterns matching
-	// the gap in front of a repairing seat — which is the fix for `staged-not-delivered`, the class
-	// this instance is catalogued under: content staged where a seat COULD read it, at seat start,
-	// where it competes with everything else for salience.
-	//
-	// The replacement shipped and the thing it replaced kept shipping beside it: 174,919 bytes
-	// concatenated into inputs/red-gap-patterns.md every run, with two prompt clauses ordering
-	// seats to read it. Deleted rather than kept for provenance — feov-memory/ is git-tracked, and
-	// the archive records each corpus file's sha256, so the bytes a run saw stay identifiable
-	// without any run staging them.
-
-	// THE CLASS JOIN IS THE DELIVERY CHANNEL, so a failure to write it is the same condition the
-	// unclassified gate forty lines up refuses the run over: red opens blind while its memory
-	// looks full.
-	//
-	// This used to be `if b, err := marshalJSON(...); err == nil { os.WriteFile(...) }` — the
-	// marshal error skipped the write silently, and the write error was discarded outright. The
-	// summary below then printed `gap-pattern index: N class(es) -> inputs/gap-patterns-by-class.json`
-	// regardless, because N comes from the in-memory index and never from the file. A run whose
-	// join never landed and a run whose join landed perfectly printed the same line.
-	//
-	// Same defect, same package, one commit apart: MirrorGapPatterns returned `Written: true,
-	// Files: 55` on a discarded write error. That one was caught by reusing it somewhere the
-	// caller had not already created `inputs/`; this one sits on the line that actually feeds a
-	// seat, and nothing was reusing it.
-	joinPath := filepath.Join(run.Dir(), "inputs", "gap-patterns-by-class.json")
-	b, err := marshalJSON(patternIndex.ByClass)
-	if err != nil {
-		fmt.Fprintf(stderr, "run-setup: could not encode the gap-pattern class join: %v\n", err)
-		fmt.Fprintln(stderr, "  Delivery is class-indexed, so without this file red opens the run with no patterns at all.")
-		return 2
-	}
-	if err := os.MkdirAll(filepath.Dir(joinPath), 0o755); err != nil {
-		fmt.Fprintf(stderr, "run-setup: could not create inputs/ for the gap-pattern class join: %v\n", err)
-		return 2
-	}
-	if err := os.WriteFile(joinPath, b, 0o644); err != nil {
-		fmt.Fprintf(stderr, "run-setup: could not write the gap-pattern class join to %s: %v\n", joinPath, err)
-		fmt.Fprintln(stderr, "  Delivery is class-indexed, so without this file red opens the run with no patterns at all.")
-		return 2
-	}
 
 	terms := record.DefaultParams
 	if cfg.K > 0 {
@@ -444,49 +329,17 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	} else {
 		fmt.Fprintf(stdout, "  pin validation: %d cite(s) verified at their pins\n", pv.Checked)
 	}
-	// The registry decides whether `--class` means anything this run, so it is reported before
-	// the corpus that joins on it.
+	// The registry decides whether `--class` means anything this run.
 	if registry.Written {
 		fmt.Fprintf(stdout, "  class registry: %d class(es) staged — `--class` is validated; `--class-new` extends it\n", registry.Files)
 	} else {
 		fmt.Fprintf(stdout, "  class registry: NOT STAGED — %s\n", registry.Reason)
-	}
-	if len(patternIndex.ByClass) > 0 {
-		// THE JOIN'S HEALTH, stated rather than assumed. Patterns are delivered by matching the
-		// class of the gap in front of a seat, so a corpus indexed by classes the registry does
-		// not contain reaches nobody however well it is composed — which is what both
-		// record-era runs did, at zero overlap.
-		if slugs := RegistrySlugs(filepath.Join(cfg.Cwd, "feov-memory")); len(slugs) > 0 {
-			joinable, orphaned := 0, []string{}
-			for class := range patternIndex.ByClass {
-				if slugs[class] {
-					joinable++
-				} else {
-					orphaned = append(orphaned, class)
-				}
-			}
-			sort.Strings(orphaned)
-			fmt.Fprintf(stdout, "    class join: %d of %d indexed class(es) exist in the registry\n", joinable, len(patternIndex.ByClass))
-			if len(orphaned) > 0 {
-				fmt.Fprintf(stdout, "    NOT joinable (indexed by a class no gap can carry): %s\n", strings.Join(firstN(orphaned, 8), ", "))
-			}
-		}
-	} else {
-		fmt.Fprintln(stdout, "  gap-patterns: no class-indexed patterns — red opens with no prior memory")
 	}
 	if law.Written {
 		fmt.Fprintf(stdout, "  law: %d file(s) mirrored (statute > precedent > argument)\n", law.Files)
 	} else {
 		fmt.Fprintf(stdout, "  law: %s\n", law.Reason)
 	}
-	idxLine := fmt.Sprintf("  gap-pattern index: %d class(es) -> inputs/gap-patterns-by-class.json", len(patternIndex.ByClass))
-	if len(patternIndex.Unclassified) > 0 {
-		idxLine += fmt.Sprintf(" (%d UNCLASSIFIED, not delivered — classify them to make them bind)", len(patternIndex.Unclassified))
-	}
-	if len(patternIndex.HarnessLimit) > 0 {
-		idxLine += fmt.Sprintf(" (%d harness-limit, classless by design)", len(patternIndex.HarnessLimit))
-	}
-	fmt.Fprintln(stdout, idxLine)
 	// NO SCORECARDS ARE STAGED INTO THE RUN, because nothing read them.
 	//
 	// Three things went together here. inputs/scorecards.json existed so the skill could tell the

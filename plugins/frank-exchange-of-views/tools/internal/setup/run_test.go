@@ -28,7 +28,7 @@ import (
 // gate green — while `skills/research/SKILL.md` promised the opposite in writing.
 
 // runCfg is a Config with the environment injected, so no test touches real git or a real
-// binary. Cwd/Home/ProjectDir point at t.TempDir() so mirrors and markers land in the sandbox.
+// binary. Cwd/Home point at t.TempDir() so mirrors and markers land in the sandbox.
 func runCfg(t *testing.T, exec ExecFunc) (Config, string) {
 	t.Helper()
 	home := t.TempDir()
@@ -59,7 +59,6 @@ func runCfg(t *testing.T, exec ExecFunc) (Config, string) {
 		JudgmentModel: "haiku",
 		Cwd:           home,
 		Home:          home,
-		ProjectDir:    home,
 		Git:           func([]string) GitResult { return GitResult{Status: 0, Stdout: "abc1234\n"} },
 		Exec:          exec,
 		Now:           time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -256,87 +255,12 @@ func TestUnrunnableBinaryRefuses(t *testing.T) {
 	}
 }
 
-// A MOSTLY-UNCLASSIFIED CORPUS REFUSES THE RUN.
-//
-// Delivery is class-indexed, so an unclassified pattern reaches no seat. The count was already
-// printed — "(59 UNCLASSIFIED, not delivered)" — and it read as a nag in a long summary rather
-// than as "red is starting blind". The 2026-08-05 run shipped with 0 classes delivered.
-func TestMostlyUnclassifiedCorpusRefuses(t *testing.T) {
-	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
-	mem := filepath.Join(t.TempDir(), "patterns")
-	if err := os.MkdirAll(mem, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	// One classified, three not — the shape a raw accrual has.
-	write := func(name, body string) {
-		if err := os.WriteFile(filepath.Join(mem, name), []byte(body), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	write("good.md", "---\nclasses: [figure-recount-fails]\ndescription: a hook\n---\n# t\n")
-	for _, n := range []string{"a.md", "b.md", "c.md"} {
-		write(n, "# untitled pattern\nprose with no frontmatter\n")
-	}
-	cfg.MemoryDir = mem
-
-	var out, errb bytes.Buffer
-	if code := Run(cfg, &out, &errb); code != 2 {
-		t.Fatalf("exit %d, want 2 — a corpus that mostly cannot be delivered must stop the run", code)
-	}
-	if !strings.Contains(errb.String(), "MOSTLY UNCLASSIFIED") {
-		t.Errorf("the refusal did not name itself:\n%s", errb.String())
-	}
-	// The sources must be listed: the measured cause was the WRONG SOURCES, not bad authoring.
-	if !strings.Contains(errb.String(), mem) {
-		t.Errorf("the refusal must list the directories it read, so a composition bug is visible:\n%s", errb.String())
-	}
-	if _, err := os.Stat(runDir); !os.IsNotExist(err) {
-		t.Error("the run was created despite the refusal")
-	}
-}
-
-// --memory-dir ADDS a source. It used to REPLACE, and skills/research/SKILL.md documents passing it as the
-// remedy when gap-patterns reports "no memory dir" — so following the documented advice
-// discarded the curated corpus (57 files, 55 classified) for the raw accrual (60, 1).
-func TestMemoryDirAddsRatherThanReplaces(t *testing.T) {
-	cfg, _ := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
-	promoted := filepath.Join(cfg.Cwd, "feov-memory", "red-gap-patterns")
-	if err := os.MkdirAll(promoted, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	for _, n := range []string{"p1.md", "p2.md", "p3.md"} {
-		if err := os.WriteFile(filepath.Join(promoted, n),
-			[]byte("---\nclasses: [figure-recount-fails]\ndescription: h\n---\n# t\n"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	// An extra source with one unclassified file: alone it would be mostly-unclassified and
-	// refuse; combined with the promoted corpus it is a minority and the run proceeds.
-	extra := filepath.Join(t.TempDir(), "extra")
-	if err := os.MkdirAll(extra, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(extra, "raw.md"), []byte("# unclassified\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	cfg.MemoryDir = extra
-
-	var out, errb bytes.Buffer
-	if code := Run(cfg, &out, &errb); code != 0 {
-		t.Fatalf("exit %d, want 0 — --memory-dir must ADD to the promoted corpus, not replace it:\n%s", code, errb.String())
-	}
-	if !strings.Contains(out.String(), "gap-patterns") {
-		t.Errorf("the summary did not report the corpus:\n%s", out.String())
-	}
-}
-
 // THE REGISTRY IS STAGED, so `--class` means something (#299).
 //
 // Nothing wrote records/class-registry.json until this. loadRegistry always returned nil,
 // validateClass always took its advisory branch, and --class accepted any string on every run
-// there has ever been. The cost was not tidiness: gap-pattern delivery is CLASS-INDEXED, red
-// invented a fresh vocabulary each run, and both record-era runs had ZERO overlap between the
-// classes minted and the classes the memory corpus is indexed by.
+// there has ever been. The cost was not tidiness: red invented a fresh vocabulary each run, and
+// both record-era runs had ZERO overlap between the classes each minted.
 func TestClassRegistryIsStagedIntoTheRun(t *testing.T) {
 	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
 	mem := filepath.Join(cfg.Cwd, "feov-memory")
@@ -420,38 +344,6 @@ func TestAbsentRegistryIsAnnounced(t *testing.T) {
 	if strings.Contains(out.String(), "ANY string") {
 		t.Errorf("the summary still describes the advisory branch, which no longer exists — an operator "+
 			"reading it would expect a run that mints loosely rather than one that cannot mint:\n%s", out.String())
-	}
-}
-
-// THE JOIN'S HEALTH IS STATED. A corpus indexed by classes the registry does not contain
-// reaches no seat however well it is composed — which is exactly what both record-era runs
-// did, at zero overlap, while every summary line looked healthy.
-func TestUnjoinablePatternClassesAreNamed(t *testing.T) {
-	cfg, _ := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
-	mem := filepath.Join(cfg.Cwd, "feov-memory")
-	patterns := filepath.Join(mem, "red-gap-patterns")
-	if err := os.MkdirAll(patterns, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(mem, "class-registry.json"),
-		[]byte(`{"classes":[{"slug":"false-universal","material_default":"by_grade"}]}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	for name, class := range map[string]string{"ok.md": "false-universal", "orphan.md": "invented-last-run"} {
-		if err := os.WriteFile(filepath.Join(patterns, name),
-			[]byte("---\nclasses: ["+class+"]\ndescription: h\n---\n# t\n"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	var out, errb bytes.Buffer
-	if code := Run(cfg, &out, &errb); code != 0 {
-		t.Fatalf("exit %d: %s", code, errb.String())
-	}
-	if !strings.Contains(out.String(), "1 of 2 indexed class(es) exist in the registry") {
-		t.Errorf("the join ratio must be reported:\n%s", out.String())
-	}
-	if !strings.Contains(out.String(), "invented-last-run") {
-		t.Errorf("an unjoinable class must be NAMED, or the corpus looks healthy while reaching nobody:\n%s", out.String())
 	}
 }
 

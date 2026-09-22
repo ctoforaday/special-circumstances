@@ -100,7 +100,6 @@ func main() {
 		printSit   = flag.Bool("print-sitting", false, "print the named board's SITTING text and exit — the situation a seat is dispatched into. For a harness that drives the dispatch itself (the interview) and must hand the seat the same situation this probe would")
 		ask        = flag.Bool("ask", false, "do not dispatch a seat to ACT — ask it to ENUMERATE and ASSESS its options instead. A verb used zero times cannot say whether the seat never perceived it, weighed it and declined, or wanted it and could not reach it; this asks")
 		inRun      = flag.Bool("records-in-run", false, "leave the event record under the run directory, where the seat can read it without the tool — the CONTROL arm, for measuring what the separation changes")
-		memoryDir  = flag.String("memory", "", "directory holding red's accumulated gap patterns, staged into inputs/red-gap-patterns.md as run-setup stages it (default: the repo's feov-memory/red-gap-patterns, located by searching upward for the repository rather than by counting up from the working directory — pass this to stage a corpus from somewhere else)")
 		debatePath = flag.String("debate", "", "path to the shipped debate.js the probe takes its prompts from (default: the plugin's skills/research-protocol/scripts/debate.js)")
 		pluginDir  = flag.String("plugin-dir", "", "directory holding the frank-exchange-of-views plugin the dispatched seat LOADS — its agent definitions and the skills they declare (default: this repository's own plugins/frank-exchange-of-views)")
 	)
@@ -207,7 +206,7 @@ func main() {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *pluginDir, *model, *debatePath, *memoryDir, *reportOnly, *keep, *inRun, *ask, *buildOnly, surface)
+			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *pluginDir, *model, *debatePath, *reportOnly, *keep, *inRun, *ask, *buildOnly, surface)
 			if errors.Is(err, seatprobe.ErrEngineRequired) {
 				// NOT A SEAT MISS AND NOT A DISPATCH FAILURE: this binary cannot build the board's
 				// citation. Stated, and the run goes on with the boards it can build.
@@ -322,7 +321,7 @@ func trajectoryPath(runDir string) string {
 	return filepath.Join(filepath.Dir(runDir), ".probe", filepath.Base(runDir)+".jsonl")
 }
 
-func probe(b seatprobe.Board, runDir, bin, constDir, pluginDir, model, debatePath, memoryDir string, reportOnly, keep, recordsInRun, ask, buildOnly bool, surface seatprobe.Surface) (string, error) {
+func probe(b seatprobe.Board, runDir, bin, constDir, pluginDir, model, debatePath string, reportOnly, keep, recordsInRun, ask, buildOnly bool, surface seatprobe.Surface) (string, error) {
 	recordRoot := ""
 	// Declared before the branch and resolved inside it: the directory the handle names is
 	// created a few lines down, so there is no one point that serves both paths.
@@ -385,20 +384,6 @@ func probe(b seatprobe.Board, runDir, bin, constDir, pluginDir, model, debatePat
 		if err := seatprobe.Build(probeRun, b, run); err != nil {
 			return "", fmt.Errorf("build: %w", err)
 		}
-		// RED'S MEMORY, STAGED AS run-setup STAGES IT. This used to be an arm — `none` mounted
-		// nothing — and an arm is no longer available: debate.js's prompt names
-		// the staged corpus in blue's very first batched read, unconditionally, because
-		// every real run has the file. A probe that withheld it would hand the seat a prompt whose
-		// opening instruction fails, and score what it did next.
-		mem, err := memoryDirs(memoryDir)
-		if err != nil {
-			return "", err
-		}
-		// NO CORPUS PRECONDITION. This refused a probe whose gap-pattern corpus did not stage,
-		// because the dispatched prompt named the staged corpus in its first instruction.
-		// Neither the staging nor that instruction exists now — the by-class index replaced both,
-		// and it is delivered per gap rather than read at seat start.
-		_ = mem
 		// THE FIXTURE, AND NOTHING ELSE. A caller driving its own dispatch — the interview, which
 		// holds a session open across turns — needs the board this probe would have built, staged
 		// the same way, and then needs this binary to stop. Scoring a sitting that never happened
@@ -888,30 +873,6 @@ func readAnswer(path string) string {
 		return "_(the seat produced no prose — an answer of silence, which is itself a result)_"
 	}
 	return strings.Join(out, "\n\n")
-}
-
-// memoryDirs is where red's accumulated gap patterns live, as run-setup reads them.
-//
-// THE DEFAULT USED TO BE RELATIVE TO THE WORKING DIRECTORY, and that was a real constraint rather
-// than a detail: it walked up four levels on the assumption the probe had been launched from the
-// tools module. Run from anywhere else, the corpus did not stage — which fails the board loudly
-// (the dispatched prompt names inputs/red-gap-patterns.md in blue's first instruction, so a run
-// without it is measuring a broken read) but tells the caller nothing about how to fix it. The
-// interview harness, running from its own scratch directory, hit exactly that; the -memory flag
-// was the workaround. It is now an override rather than a requirement.
-func memoryDirs(flagValue string) ([]string, error) {
-	if flagValue != "" {
-		return []string{flagValue}, nil
-	}
-	root, err := repotree.Root()
-	if err != nil {
-		// NAMED, NOT SWALLOWED. Returning nil here reached MirrorGapPatterns as "no memory dir",
-		// which is what an EMPTY corpus also says — the operator saw a board fail and no reason
-		// to look at where the probe was launched from.
-		return nil, fmt.Errorf("cannot locate the repository to find red's gap-pattern corpus (%w) — "+
-			"pass -memory with the directory to stage", err)
-	}
-	return []string{filepath.Join(root, "feov-memory", "red-gap-patterns")}, nil
 }
 
 // promptNamesTheBinary refuses a prompt that sends the seat somewhere other than the binary this

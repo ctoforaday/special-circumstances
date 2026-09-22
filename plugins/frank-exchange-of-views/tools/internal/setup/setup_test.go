@@ -156,38 +156,6 @@ func TestMirrorLaw(t *testing.T) {
 	}
 }
 
-// BuildPatternIndex dedups promoted-first (order is the policy).
-func TestBuildPatternIndexDedupsPromotedFirst(t *testing.T) {
-	promoted, raw := t.TempDir(), t.TempDir()
-	write(t, filepath.Join(promoted, "p.md"), "---\nmetadata:\n  classes: [false-universal]\ndescription: hook\n---\n# P\n")
-	write(t, filepath.Join(raw, "p.md"), "---\ndescription: pre-promotion copy\n---\n# P\n")
-	r := BuildPatternIndex([]string{promoted, raw})
-	if len(r.Unclassified) != 0 {
-		t.Errorf("the raw copy resurrected as a backlog item: %v", r.Unclassified)
-	}
-	if len(r.ByClass["false-universal"]) != 1 {
-		t.Errorf("double-delivered: %v", r.ByClass["false-universal"])
-	}
-	rev := BuildPatternIndex([]string{raw, promoted})
-	if len(rev.Unclassified) != 1 || rev.Unclassified[0] != "p.md" {
-		t.Errorf("raw-first should surface the unclassified copy: %v", rev.Unclassified)
-	}
-}
-
-// BuildPatternIndex keeps harness-limit distinct from unclassified.
-func TestBuildPatternIndexHarnessLimitDistinct(t *testing.T) {
-	d := t.TempDir()
-	write(t, filepath.Join(d, "h.md"), "---\nmetadata:\n  classes: []\n  class_note: harness-limit — a tooling constraint\n---\n# H\n")
-	write(t, filepath.Join(d, "u.md"), "---\nmetadata:\n  classes: []\n---\n# U\n")
-	r := BuildPatternIndex([]string{d})
-	if len(r.HarnessLimit) != 1 || r.HarnessLimit[0] != "h.md" {
-		t.Errorf("harnessLimit = %v, want [h.md]", r.HarnessLimit)
-	}
-	if len(r.Unclassified) != 1 || r.Unclassified[0] != "u.md" {
-		t.Errorf("unclassified = %v, want [u.md]", r.Unclassified)
-	}
-}
-
 // PreflightRecordBinary compares EPOCHS: not runnable refuses, a different shape refuses, an
 // equal one passes. There is no "how far behind" — nothing promises backwards compatibility,
 // so the only answers are same shape or different shape.

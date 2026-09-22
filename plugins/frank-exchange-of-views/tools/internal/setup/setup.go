@@ -1,6 +1,6 @@
 // Package setup ports setup-research-run.mjs — the mechanical half of /research
 // steps 1-3 — into the feov-record binary. It creates the run's blackboard
-// skeleton, pins the evidence base, mirrors red's gap-pattern and law memory into
+// skeleton, pins the evidence base, mirrors the law memory into
 // inputs/, writes the .run-live marker, and preflights the record
 // binary. Behaviour is preserved byte-for-byte against the mjs it replaces
 // (the sole non-deterministic field is the marker's `started` timestamp, and the
@@ -45,8 +45,8 @@ var dirs = []string{"blue/candidates", "red", "trajectories", "inputs"}
 
 // marshalJSON matches JS `JSON.stringify(x, null, 2) + '\n'`: two-space indent, a
 // trailing newline, and — critically — NO HTML escaping. Go's default escapes
-// <, >, & to \u00xx; JS does not, and the law banner ("statute > precedent") and
-// gap-pattern hooks carry '>'. json.Encoder.Encode already appends the newline.
+// <, >, & to \u00xx; JS does not, and the law banner ("statute > precedent")
+// carries '>'. json.Encoder.Encode already appends the newline.
 func marshalJSON(v any) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
@@ -137,11 +137,9 @@ func MirrorLaw(repoLawDir string, run record.Run) MirrorResult {
 	if repoLawDir == "" || !exists(repoLawDir) {
 		return MirrorResult{Written: false, Reason: "no law dir"}
 	}
-	// THE DIRECTORY IS MADE HERE, AND EVERY WRITE IS CHECKED — the same fix MirrorGapPatterns got
-	// on 2026-08-16 and this sibling did not. Both discarded the MkdirAll error, discarded each
-	// WriteFile error, and incremented the count regardless, so a caller reading `Written: true,
-	// Files: 3` could not tell it from three files on disk. That was found by reusing the other
-	// mirror somewhere `inputs/` did not exist; nothing reused this one, so it kept the defect.
+	// THE DIRECTORY IS MADE HERE, AND EVERY WRITE IS CHECKED. This discarded the MkdirAll error,
+	// discarded each WriteFile error, and incremented the count regardless, so a caller reading
+	// `Written: true, Files: 3` could not tell it from three files on disk.
 	//
 	// A COUNT THAT OUTRUNS THE DISK IS THE FAILURE, not a missing law corpus: a run with no law is
 	// ordinary and says so, while a run that reports a staged corpus it does not have looks
@@ -190,87 +188,6 @@ func ParseRenderedRows(section string) []RenderedRow {
 		out = append(out, row)
 	}
 	return out
-}
-
-// ---- pattern index ----
-
-// PatternEntry is one classified gap pattern under a class key.
-type PatternEntry struct {
-	File  string `json:"file"`
-	Title string `json:"title"`
-	Hook  string `json:"hook"`
-}
-
-// PatternIndex is the class-join lookup table plus the two classless buckets.
-type PatternIndex struct {
-	ByClass      map[string][]PatternEntry
-	Unclassified []string
-	HarnessLimit []string
-}
-
-var (
-	frontmatterRe  = regexp.MustCompile(`(?s)^---\n(.*?)\n---`)
-	titleRe        = regexp.MustCompile(`(?m)^#\s+(.+)$`)
-	descRe         = regexp.MustCompile(`(?m)^description:\s*(.+)$`)
-	classesRe      = regexp.MustCompile(`(?m)^\s*classes:\s*\[([^\]]*)\]`)
-	harnessLimitRe = regexp.MustCompile(`(?m)^\s*class_note:\s*harness-limit`)
-	quoteTrimRe    = regexp.MustCompile(`^["']|["']$`)
-)
-
-func BuildPatternIndex(memoryDirs []string) PatternIndex {
-	idx := PatternIndex{ByClass: map[string][]PatternEntry{}, Unclassified: []string{}, HarnessLimit: []string{}}
-	seen := map[string]bool{}
-	skip := map[string]bool{"README.md": true, "MEMORY.md": true}
-	for _, dir := range existingDirs(memoryDirs) {
-		for _, f := range mdFiles(dir, skip) {
-			if seen[f] {
-				continue
-			}
-			seen[f] = true
-			body, err := os.ReadFile(filepath.Join(dir, f))
-			if err != nil {
-				continue
-			}
-			s := string(body)
-			var fm string
-			if m := frontmatterRe.FindStringSubmatch(s); m != nil {
-				fm = m[1]
-			}
-			desc := ""
-			if fm != "" {
-				if m := descRe.FindStringSubmatch(fm); m != nil {
-					desc = quoteTrimRe.ReplaceAllString(strings.TrimSpace(m[1]), "")
-				}
-			}
-			title := f
-			if m := titleRe.FindStringSubmatch(s); m != nil {
-				title = m[1]
-			}
-			var classes []string
-			if fm != "" {
-				if m := classesRe.FindStringSubmatch(fm); m != nil {
-					for _, c := range strings.Split(m[1], ",") {
-						c = quoteTrimRe.ReplaceAllString(strings.TrimSpace(c), "")
-						if c != "" {
-							classes = append(classes, c)
-						}
-					}
-				}
-			}
-			if len(classes) == 0 {
-				if fm != "" && harnessLimitRe.MatchString(fm) {
-					idx.HarnessLimit = append(idx.HarnessLimit, f)
-				} else {
-					idx.Unclassified = append(idx.Unclassified, f)
-				}
-				continue
-			}
-			for _, c := range classes {
-				idx.ByClass[c] = append(idx.ByClass[c], PatternEntry{File: f, Title: title, Hook: desc})
-			}
-		}
-	}
-	return idx
 }
 
 // ---- pin validation ----
@@ -457,30 +374,12 @@ func (r ExecResult) errored() bool { return r.Err != nil || r.Status != 0 }
 
 // ---- small helpers ----
 
-func firstN[T any](s []T, n int) []T {
-	if len(s) > n {
-		return s[:n]
-	}
-	return s
-}
-
 func lastField(s string) string {
 	fields := strings.Fields(s)
 	if len(fields) == 0 {
 		return ""
 	}
 	return fields[len(fields)-1]
-}
-
-// existingDirs filters to the memory dirs that exist, preserving order (promoted first).
-func existingDirs(memoryDirs []string) []string {
-	var out []string
-	for _, d := range memoryDirs {
-		if d != "" && exists(d) {
-			out = append(out, d)
-		}
-	}
-	return out
 }
 
 // mdFiles lists *.md files in dir, SORTED (deterministic — the JS used readdir order),
@@ -510,12 +409,10 @@ func mdFiles(dir string, skip map[string]bool) []string {
 // nil, `validateClass` always took its advisory branch, and `--class` accepted ANY STRING on
 // every run there has ever been.
 //
-// The cost was not a tidy-taxonomy complaint. Delivery of red's accumulated gap patterns is
-// CLASS-INDEXED — the design that replaced whole-corpus staging after run 5 measured that
-// worthless — and with nothing constraining the key, red invented a fresh vocabulary each
-// run. Measured across both record-era runs: 10 and 14 minted classes, and ZERO overlap with
-// the 37 classes the memory corpus is indexed by. The corpus was built, the index was
-// written, and the join has never once delivered a pattern.
+// The cost was not a tidy-taxonomy complaint. The class is what makes one run's board
+// comparable to another's, and with nothing constraining the key red invented a fresh
+// vocabulary each run: measured across both record-era runs, 10 and 14 minted classes with
+// ZERO overlap between them.
 //
 // Staging the file is what makes the key shared. A class not in it is UNDECLARED rather than
 // forbidden: `--class-new` introduces one with its definition, neighbour and distinguisher,
@@ -593,25 +490,4 @@ func ValidateClassRegistry(repoMemoryDir string) error {
 		}
 	}
 	return nil
-}
-
-// RegistrySlugs reads the staged registry's slugs, for the memory-join report.
-func RegistrySlugs(repoMemoryDir string) map[string]bool {
-	out := map[string]bool{}
-	b, err := os.ReadFile(filepath.Join(repoMemoryDir, "class-registry.json"))
-	if err != nil {
-		return out
-	}
-	var reg struct {
-		Classes []struct {
-			Slug string `json:"slug"`
-		} `json:"classes"`
-	}
-	if json.Unmarshal(b, &reg) != nil {
-		return out
-	}
-	for _, c := range reg.Classes {
-		out[c.Slug] = true
-	}
-	return out
 }
