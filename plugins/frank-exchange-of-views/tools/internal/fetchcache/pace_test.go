@@ -38,11 +38,18 @@ func TestTheFloorIsPerHostAndCumulative(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		waits = append(waits, mustReserve(t, "example.org"))
 	}
+	// EACH GAP IS JITTERED OVER [X, 2X), so the assertion is bounds and monotonicity rather than
+	// exact multiples: the i-th wait lies in [i*X, i*2X], and no two callers share a slot.
+	var prev time.Duration
 	for i, w := range waits {
-		want := time.Duration(i) * defaultHostInterval
-		if w < want-200*time.Millisecond || w > want+200*time.Millisecond {
-			t.Errorf("reservation %d waits %v, want about %v (all: %v) — callers must queue, not depart together", i, w, want, waits)
+		lo, hi := time.Duration(i)*defaultHostInterval, time.Duration(i)*2*defaultHostInterval
+		if w < lo-200*time.Millisecond || w > hi+200*time.Millisecond {
+			t.Errorf("reservation %d waits %v, want within [%v, %v] (all: %v)", i, w, lo, hi, waits)
 		}
+		if i > 0 && w <= prev {
+			t.Errorf("reservation %d waits %v, not after the previous %v — callers must queue, not depart together (all: %v)", i, w, prev, waits)
+		}
+		prev = w
 	}
 	if w := mustReserve(t, "unrelated.org"); w != 0 {
 		t.Errorf("an unrelated host waited %v for another host's queue", w)
@@ -74,14 +81,14 @@ func TestConcurrentGoroutinesQueue(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	seen := map[int64]bool{}
+	// DISTINCT WAITS, which is the invariant jitter must not break: two callers departing at the
+	// same instant is the burst, whatever the spacing between slots happens to be.
+	seen := map[time.Duration]bool{}
 	for _, w := range got {
-		// Rounded, not truncated: a wait of 1.9999s is slot 1, and integer division calls it 0.
-		slot := int64((w + defaultHostInterval/2) / defaultHostInterval)
-		if seen[slot] {
-			t.Errorf("two goroutines were given the same slot (%v); waits: %v", slot, got)
+		if seen[w] {
+			t.Errorf("two goroutines were given the same wait (%v); all: %v", w, got)
 		}
-		seen[slot] = true
+		seen[w] = true
 	}
 }
 
@@ -130,14 +137,14 @@ func TestSeparateProcessesShareTheFloor(t *testing.T) {
 	}
 	wg.Wait()
 
-	seen := map[int64]bool{}
+	seen := map[time.Duration]bool{}
 	var waits []time.Duration
 	for i, r := range out {
 		if r.err != nil {
 			t.Fatalf("child %d: %v", i, r.err)
 		}
 		waits = append(waits, r.wait)
-		slot := int64((r.wait + 200*time.Millisecond) / defaultHostInterval)
+		slot := r.wait
 		if seen[slot] {
 			t.Errorf("TWO PROCESSES WERE GIVEN THE SAME SLOT. %d processes claimed slots for one host "+
 				"and at least two were told to wait the same %v — they would hit the origin together. "+
@@ -153,7 +160,7 @@ func TestSeparateProcessesShareTheFloor(t *testing.T) {
 		}
 	}
 	if want := time.Duration(n-1) * defaultHostInterval; max < want-500*time.Millisecond {
-		t.Errorf("the longest wait among %d processes was %v, want about %v — they are not queueing (all: %v)",
+		t.Errorf("the longest wait among %d processes was %v, want at least %v — they are not queueing (all: %v)",
 			n, max, want, waits)
 	}
 }
@@ -207,26 +214,29 @@ func TestRetryAfterIsReadInBothForms(t *testing.T) {
 // has to mean for a host that never said what the limit was.
 func TestAHostThatRefusesUsRaisesItsOwnFloorPermanently(t *testing.T) {
 	tempPaceDir(t)
+	// A HOST WITH A SHORT PUBLISHED FLOOR, so this measures the LEARNING rather than the
+	// saturation cap. At the 15s default a doubled, jittered floor runs past maxPaceWait and the
+	// second reservation is legitimately refused — which is correct behaviour and the wrong thing
+	// for this test to be asserting.
 	const host = "touchy.example"
-	base := mustReserve(t, host)
-	if base != 0 {
-		t.Fatalf("first call waited %v", base)
+	hostIntervals[host] = time.Second
+	t.Cleanup(func() { delete(hostIntervals, host) })
+
+	if w := mustReserve(t, host); w != 0 {
+		t.Fatalf("first call waited %v", w)
 	}
-	// Before learning, the second call waits the default.
-	if w := mustReserve(t, host); w > defaultHostInterval+200*time.Millisecond {
-		t.Fatalf("pre-refusal wait %v already exceeds the default", w)
+	if w := mustReserve(t, host); w > 2*time.Second+200*time.Millisecond {
+		t.Fatalf("pre-refusal wait %v exceeds one jittered second", w)
 	}
 
-	backoffHost(host, time.Second) // the host says 429
+	backoffHost(host, time.Millisecond) // the host says 429
 
 	// AFTER the refusal the floor itself is higher, not merely the next slot pushed out. The
-	// pace directory is deliberately NOT reset here: the point is that the lesson persists in
-	// the shared state a later process would read.
-	w1 := mustReserve(t, host)
-	w2 := mustReserve(t, host)
-	if gap := w2 - w1; gap < 2*defaultHostInterval-300*time.Millisecond {
-		t.Errorf("after a refusal consecutive slots are %v apart, want at least double the %v default — "+
-			"the lesson was not kept", gap, defaultHostInterval)
+	// pace directory is deliberately NOT reset: the point is that the lesson persists in the
+	// shared state a later process would read.
+	if learned := time.Duration(readSlot(slotFile(host)).LearnedNanos); learned < 2*time.Second {
+		t.Errorf("after a refusal the learned floor is %v, want at least double the %v published "+
+			"interval — the lesson was not kept", learned, time.Second)
 	}
 }
 
@@ -271,13 +281,12 @@ func TestASaturatedHostIsRefusedRatherThanCollapsedIntoABurst(t *testing.T) {
 		t.Fatalf("20 reservations on one host produced no refusal; waits: %v", waits)
 	}
 	// EVERY GRANTED SLOT IS DISTINCT. That is the invariant the clamp broke.
-	seen := map[int64]bool{}
+	seen := map[time.Duration]bool{}
 	for _, w := range waits {
-		slot := int64((w + defaultHostInterval/2) / defaultHostInterval)
-		if seen[slot] {
+		if seen[w] {
 			t.Errorf("two granted slots collide at %v; all waits: %v", w, waits)
 		}
-		seen[slot] = true
+		seen[w] = true
 		if w > maxPaceWait {
 			t.Errorf("a granted slot waits %v, beyond the %v cap", w, maxPaceWait)
 		}
@@ -348,5 +357,33 @@ func TestA503ThroughTheFetcherActuallyRaisesTheFloor(t *testing.T) {
 	if w := mustReserve(t, host); w <= defaultHostInterval {
 		t.Errorf("after a 503 the next slot waits %v, no more than the %v default — the overload "+
 			"was reported and not learned from", w, defaultHostInterval)
+	}
+}
+
+// JITTER SPREADS A QUEUE INSTEAD OF MARCHING IT. Every process computes its spacing from the same
+// shared file, so a fixed interval keeps callers in lockstep and the origin sees a pulse rather
+// than a trickle — the shape that trips a rate limiter even when the average rate is well inside
+// it.
+func TestTheFloorIsJitteredAndNeverShorterThanItself(t *testing.T) {
+	const iv = 4 * time.Second
+	var sawLonger bool
+	for i := 0; i < 60; i++ {
+		got := jittered(iv)
+		if got < iv {
+			t.Fatalf("jittered(%v) = %v, SHORTER than the floor — jitter may only ever add", iv, got)
+		}
+		if got >= 2*iv {
+			t.Fatalf("jittered(%v) = %v, beyond [X,2X)", iv, got)
+		}
+		if got > iv {
+			sawLonger = true
+		}
+	}
+	if !sawLonger {
+		t.Error("60 draws never exceeded the floor; the interval is not actually being spread")
+	}
+	// A zero or negative floor is returned untouched rather than panicking in rand.
+	if got := jittered(0); got != 0 {
+		t.Errorf("jittered(0) = %v", got)
 	}
 }

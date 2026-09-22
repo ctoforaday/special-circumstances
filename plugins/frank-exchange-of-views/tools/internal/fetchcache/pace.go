@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"math/rand/v2"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -233,12 +234,34 @@ func reserveSlot(host string, extra time.Duration) (time.Duration, bool) {
 	if l := time.Duration(cur.LearnedNanos); l > iv {
 		iv = l
 	}
-	cur.NextNanos = at.Add(iv + extra).UnixNano()
+	cur.NextNanos = at.Add(jittered(iv) + extra).UnixNano()
 	writeSlot(path, cur)
 	if wait < 0 {
 		return 0, true
 	}
 	return wait, true
+}
+
+// jittered spreads a floor over [iv, 2*iv).
+//
+// A FIXED INTERVAL SYNCHRONISES CALLERS RATHER THAN SEPARATING THEM. Every process on this
+// machine computes the same slot spacing from the same shared file, so a queue that forms on one
+// host marches in lockstep — and several hosts whose queues started together stay together, which
+// turns a polite per-host floor into a machine-wide pulse. The origin sees a burst every interval
+// and quiet in between, which is the shape that trips a rate limiter even when the average rate
+// is well inside its limit.
+//
+// Randomising the GAP rather than the start also means the spread compounds down a queue instead
+// of shifting it: the tenth slot is scattered across a much wider window than the second, which
+// is exactly where a long queue would otherwise be most regular.
+//
+// It only ever adds. The floor stays a floor — a jittered interval is never shorter than the
+// number the host published or we chose.
+func jittered(iv time.Duration) time.Duration {
+	if iv <= 0 {
+		return iv
+	}
+	return iv + time.Duration(rand.Int64N(int64(iv)))
 }
 
 // backoffHost pushes a host's next slot out by d, so a 429 slows every later request to that host
