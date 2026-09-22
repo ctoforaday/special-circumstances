@@ -682,7 +682,7 @@ It binds your seat to you on the record: every later call resolves it, and your 
 
 A SITTING WITH NOTHING IN IT NEEDS NO OPENING. The harness brackets every dispatch with your identity, so where one agent type seats one seat the record knows you sat. Look, find nothing owed, and end the turn having run nothing — this included.
 
-It also OPENS THE SITTING, and a sitting is every time you are handed a prompt — including one that resumes your earlier session. The record counts your sittings by your registers, so a sitting you did not open with one is not on it: a dispatched seat is readied again until it registers, and the chair is refused `dispatch next`. Your work list says when one is owed.
+It also OPENS THE SITTING, and a sitting is every time you are handed a prompt — including one that resumes your earlier session. Where the harness brackets your dispatch, that bracket opens the sitting and the record counts you as having sat whether or not you register. Where there is no bracket — a resumed dispatch carries none — the record sees no sitting until you register, and a dispatched seat is readied again until one exists. Your work list says when one is owed.
 
 NAME WHAT THIS SITTING IS FOR. You are one seat asked four different questions — rule the docket, hear a petition, dispose of what stands at the exit, assemble the report — and your seat id is the same for all four. Your prompt says which of them this sitting is; say so here. It is required of you and refused for every other seat, whose id already answers it. Once the run is archived this is the only thing that tells your sittings apart: without it they read as four identical registrations, and a reader cannot tell the sitting that assembled the report from the one that ruled a gap.
 
