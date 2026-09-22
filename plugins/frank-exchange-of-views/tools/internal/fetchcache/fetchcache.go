@@ -63,6 +63,16 @@ type Response struct {
 	// filename chain. Measured across the cited corpus: not one source sent it, which is
 	// exactly why it is a rung and not the rule.
 	Disposition string
+	// TDMReserved and TDMPolicy carry a text-and-data-mining reservation declared by ANY hop of
+	// this fetch, not only the last one.
+	//
+	// THE DECLARATION IS USUALLY MADE ON A PAGE WE PASS THROUGH. Elsevier puts it on the
+	// markup-redirect bouncer, so once the fetcher began following those, the reservation stopped
+	// reaching the cache entirely — the entry that lands is the article, or a metadata record
+	// after the article refuses, and neither carries the tag. A rights signal that the follow
+	// silently drops is worse than one never read, because the absence looks like an answer.
+	TDMReserved bool
+	TDMPolicy   string
 }
 
 // Default is the process-wide Fetcher `fetch`/`blue cite` use. It is a variable for the
@@ -131,6 +141,17 @@ type Entry struct {
 	// the three it was, with the measurement. A flag with no reason is a verdict a reader cannot
 	// check, and here it is also the only place the three causes are told apart.
 	NotRenderableReason string `json:"not_renderable_reason,omitempty"`
+
+	// TDMReserved says the source reserved text-and-data-mining rights in its own markup (the
+	// W3C TDM Reservation Protocol), and TDMPolicy is where it says it states the terms.
+	//
+	// A THREE-STATE POINTER, like TextExtracted: nil means nobody asked — a content type the
+	// question does not apply to — and false means the page was read and reserved nothing. A
+	// plain bool would report every PDF and every JSON record as unreserved, which is a claim
+	// about a document nobody examined. See TDMReservation for what the reservation covers, and
+	// what it does not: not reading, and not quotation.
+	TDMReserved *bool  `json:"tdm_reserved,omitempty"`
+	TDMPolicy   string `json:"tdm_policy,omitempty"`
 
 	// HTTPStatus is the status the origin (or whatever answered for it) returned. It is here
 	// because a REFUSED fetch used to leave no trace at all: the error went back to the seat and
@@ -406,6 +427,18 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		notRenderable := shell != ""
 		entry.NotRenderable = &notRenderable
 		entry.NotRenderableReason = shell
+	}
+	// READ OFF THE RESPONSE, NOT THE FINAL BODY, so a reservation declared on a hop this fetch
+	// passed through is still recorded — Elsevier declares it on the markup-redirect bouncer,
+	// which the fetcher now follows past.
+	//
+	// THE POINTER IS SET ONLY WHERE THE QUESTION WAS ASKABLE, which is what its three states
+	// mean: a PDF or a JSON record leaves it nil, because nothing looked, and writing `false`
+	// there would report a document nobody examined as declaring nothing.
+	if resp.TDMReserved || strings.Contains(entry.ContentType, "html") {
+		reserved := resp.TDMReserved
+		entry.TDMReserved = &reserved
+		entry.TDMPolicy = resp.TDMPolicy
 	}
 	stored, serr := Store(run, entry, resp.Body)
 	if serr != nil {

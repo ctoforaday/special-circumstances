@@ -2,10 +2,12 @@ package fetchcache
 
 import (
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -19,13 +21,52 @@ const (
 	fetchTimeout  = 15 * time.Second
 	maxFetchBytes = 5 << 20 // 5 MiB — a source document, not a download
 	maxRedirects  = 5
+	// maxMetaRefresh bounds the OTHER kind of redirect — the one a page expresses in its markup
+	// instead of its status line. It is deliberately smaller than maxRedirects: a header redirect
+	// chain is routine, whereas a page that bounces twice through HTML is already unusual.
+	maxMetaRefresh = 3
 
-	// userAgent identifies the tool to the sources it reads (see Fetch). Contact-bearing by
-	// convention so a site operator can attribute and complain rather than only block.
-	userAgent = "feov-record/" + fetchUAVersion + " (Special Circumstances research debate; +https://github.com/ctoforaday/special-circumstances)"
+	// userAgent identifies the tool to the sources it reads (see Fetch): who we are, what we are
+	// doing, where to read about it, and how to reach a human.
+	//
+	// THE mailto IS NOT DECORATION — IT IS THE POLITE POOL. Measured against api.crossref.org on
+	// 2026-09-22: this agent string without a mailto is answered `x-api-pool: public-single` with
+	// `x-rate-limit-limit: 5`, and with one it is `polite-single` at `10`. The public pool is the
+	// one that gets shed first under load, and it is the one where an operator who dislikes our
+	// traffic has no way to tell us so and must simply block us. A contactable client is both
+	// better mannered and better served.
+	//
+	// Crossref reads it from the User-Agent OR a mailto= query parameter; the header covers every
+	// host at once, so it is the one that belongs here. OpenAlex, measured the same day, returns
+	// identical headers with and without — its polite pool is gone, replaced by metering — so the
+	// mailto it is sent buys nothing measurable and is sent anyway, because identifying yourself
+	// is not a trade.
+	// WHAT IS IN THIS STRING IS LOAD-BEARING, AND SO IS WHAT IS ABSENT FROM IT.
+	//
+	// Anubis — the proof-of-work gate in front of PubMed Central, SciPost and DOAB — SCORES the
+	// user agent against its shipped policy and challenges anything over zero. Read from its
+	// source at v1.28.0-pre2: `Mozilla` or `Opera` in the string adds +10, which is a challenge;
+	// a commented-out catch-all that operators do enable hard-denies `bot` or `crawler` at
+	// "difficulty: 16 # impossible". This agent matches none of them and passes at weight zero.
+	//
+	// So making ourselves LOOK like a browser is the one change guaranteed to get us gated, and
+	// the honest string is also the one that works. Cloudflare's Verified Bots policy says the
+	// same from the other end: it auto-rejects generic agents (`Go-http-client`, `python-requests`)
+	// and asks for "honest self-identification" plus a contact.
+	//
+	// YOU MUST NOT add `Mozilla`, `bot`, `crawler`, or a browser version triple to this string.
+	// TestTheAgentDoesNotImpersonateOrTripAGate holds it.
+	userAgent = "feov-record/" + fetchUAVersion + " (Special Circumstances research debate; " +
+		"+https://github.com/ctoforaday/special-circumstances; mailto:" + ContactEmail + ")"
+	// ContactEmail is the one address this tool gives out, to every source and every API that
+	// asks. It was three copies of a literal before, one per backend, which is how a contact
+	// address silently stops matching the one a site operator would actually reach.
+	ContactEmail = "feov@ctoforaday.com"
 	// fetchUAVersion is kept separate from cli.Version to avoid an import cycle (cli imports
-	// fetchcache). It moves when the fetch behaviour changes, not with every tool release.
-	fetchUAVersion = "1.0"
+	// fetchcache). It moves when the FETCH BEHAVIOUR changes, not with every tool release: 1.1
+	// follows redirects expressed in markup and paces itself per host, both of which a site
+	// operator reading their logs would notice.
+	fetchUAVersion = "1.1"
 )
 
 type httpFetcher struct {
@@ -50,17 +91,63 @@ func NewHTTPFetcher() Fetcher {
 	}
 }
 
+// Fetch GETs a url, following redirects — INCLUDING THE ONES EXPRESSED IN MARKUP.
+//
+// A `<meta http-equiv="refresh">` is a redirect that Go's client does not follow, because it is
+// not a status line. Measured over the top-cited works of 26 fields, one url in five landed on
+// one: Elsevier bounces a cookie-less client through `<title>Redirecting</title>` with eleven
+// characters of visible text, and the article sits one hop further on. The tool reported those as
+// "something stands between this container and the source", which was true and useless — the
+// source had said where to go and nothing followed it.
+//
+// IT IS FOLLOWED ONLY FROM A PAGE WITH NO PROSE OF ITS OWN. A document that happens to carry a
+// refresh — a live-updating dashboard, an article with a stale meta tag — must be returned, not
+// abandoned for whatever it points at. The prose floor that decides is the same one ShellReason
+// uses, so the two rules cannot drift apart: below it the page is a bouncer, above it the page is
+// the answer.
 func (h *httpFetcher) Fetch(rawURL string) (*Response, error) {
+	seen := map[string]bool{rawURL: true}
+	cur := rawURL
+	var reserved bool
+	var policy string
+	for hop := 0; ; hop++ {
+		out, final, err := h.fetchOnce(cur)
+		if err != nil {
+			return nil, err
+		}
+		// A RESERVATION SURVIVES THE HOP THAT DECLARED IT. Keep the first one seen, because the
+		// page that states it is usually the one being redirected away from.
+		if out.TDMReserved {
+			reserved, policy = true, out.TDMPolicy
+		}
+		out.TDMReserved, out.TDMPolicy = reserved, policy
+		next := metaRefreshTarget(out.ContentType, out.Body, final)
+		// THE LAST HOP RETURNS WHAT IT HAS rather than failing: a bouncer is still a fact about
+		// the source, and ShellReason will say so. Refusing here would turn a describable page
+		// into no answer at all.
+		if next == "" || hop >= maxMetaRefresh || seen[next] {
+			return out, nil
+		}
+		seen[next] = true
+		cur = next
+	}
+}
+
+func (h *httpFetcher) fetchOnce(rawURL string) (*Response, *url.URL, error) {
+	return h.fetchOnceRetry(rawURL, false)
+}
+
+func (h *httpFetcher) fetchOnceRetry(rawURL string, retried bool) (*Response, *url.URL, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
-		return nil, fmt.Errorf("fetch: unparseable url %q: %w", rawURL, err)
+		return nil, nil, fmt.Errorf("fetch: unparseable url %q: %w", rawURL, err)
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
-		return nil, fmt.Errorf("fetch: refused scheme %q — only http and https are fetched", u.Scheme)
+		return nil, nil, fmt.Errorf("fetch: refused scheme %q — only http and https are fetched", u.Scheme)
 	}
 	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("fetch: %w", err)
+		return nil, nil, fmt.Errorf("fetch: %w", err)
 	}
 	// IDENTIFY OURSELVES OR BE REFUSED. Go sends "Go-http-client/1.1" by default, which major
 	// sources block outright. Measured on the 2026-08-04 smoke: blue tried to cite the Fundamental
@@ -71,13 +158,60 @@ func (h *httpFetcher) Fetch(rawURL string) (*Response, error) {
 	// which does not care. A descriptive agent string is also simply what a well-behaved fetcher
 	// owes the sites it reads: who we are and how to complain.
 	req.Header.Set("User-Agent", userAgent)
+	// THE OPERATOR'S OWN INSTRUCTION, READ BEFORE WE ASK FOR ANYTHING ELSE.
+	//
+	// Reading robots.txt is itself a fetch, so it is exempted by path — otherwise checking the
+	// rules would need the rules. The exemption is the standard's own: robots.txt is never
+	// governed by robots.txt.
+	if !strings.EqualFold(u.Path, "/robots.txt") {
+		rules := robotsFor(h, u.Host)
+		if rule := robotsBlocks(rules, u); rule != "" {
+			return nil, nil, &RobotsRefusal{URL: rawURL, Rule: rule}
+		}
+	}
+	// WAIT OUR TURN FOR THIS HOST. The floor is enforced here, at the only place a request
+	// leaves, so no caller can forget it and no new backend has to remember.
+	if w := reserveSlot(u.Host, 0); w > 0 {
+		time.Sleep(w)
+	}
 	resp, err := h.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("fetch: %w", err)
+		return nil, nil, fmt.Errorf("fetch: %w", err)
 	}
 	defer resp.Body.Close()
+	// A 429 IS THE HOST TELLING US THE PACE WAS WRONG, and it is the one refusal worth obeying
+	// rather than merely reporting. Honour its own Retry-After once, and push the whole host's
+	// queue out by it so every later request slows too — backing off only the refused request
+	// would keep the pressure that caused it. A second 429 is returned: at that point the answer
+	// is not "wait a little longer", it is that this host does not want this traffic now.
+	if resp.StatusCode == http.StatusTooManyRequests && !retried {
+		wait := retryAfter(resp.Header)
+		if wait <= 0 {
+			wait = defaultHostInterval
+		}
+		backoffHost(u.Host, wait)
+		if wait <= retryAfterCap {
+			time.Sleep(wait)
+			return h.fetchOnceRetry(rawURL, true)
+		}
+	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, &Refusal{URL: rawURL, Status: resp.StatusCode, Note: egressNote(resp.StatusCode)}
+		// A REFUSAL STILL HAS A BODY, AND IT OFTEN SAYS WHAT IT IS. Challenge detection ran only
+		// on a 200 until now, so a wall that refuses with a status — Cloudflare, Anubis — reached
+		// a seat as the bare number. Measured 2026-09-22: DOAB's book pages answer 403 with
+		// `<title>Making sure you're not a bot!</title>` and Anubis cookies, while DOAB's own API
+		// is open and hands out the DOI and an OAPEN handle for the same book. "403" sends a seat
+		// away from a book it could have read; "a proof-of-work wall, and this index publishes an
+		// API" sends it one rung further.
+		note := egressNote(resp.StatusCode)
+		if lim := int64(1 << 20); resp.ContentLength <= lim {
+			if b, rerr := io.ReadAll(io.LimitReader(resp.Body, lim)); rerr == nil {
+				if why := ShellReason(resp.Header.Get("Content-Type"), b); why != "" {
+					note = " — " + why + note
+				}
+			}
+		}
+		return nil, nil, &Refusal{URL: rawURL, Status: resp.StatusCode, Note: note}
 	}
 	// THE HEADERS ARE READ HERE OR NEVER. Content-Type is the source's own statement of what it
 	// just sent, available for exactly the length of this function and previously discarded at
@@ -91,13 +225,17 @@ func (h *httpFetcher) Fetch(rawURL string) (*Response, error) {
 	// into a citation.
 	b, err := io.ReadAll(io.LimitReader(resp.Body, h.maxBytes+1))
 	if err != nil {
-		return nil, fmt.Errorf("fetch: reading %s: %w", rawURL, err)
+		return nil, nil, fmt.Errorf("fetch: reading %s: %w", rawURL, err)
 	}
 	if int64(len(b)) > h.maxBytes {
-		return nil, fmt.Errorf("fetch: %s exceeds the %d-byte cap — cite a smaller source or a specific page", rawURL, h.maxBytes)
+		return nil, nil, fmt.Errorf("fetch: %s exceeds the %d-byte cap — cite a smaller source or a specific page", rawURL, h.maxBytes)
 	}
 	out.Body = b
-	return out, nil
+	out.TDMReserved, out.TDMPolicy = TDMReservation(out.ContentType, b)
+	// resp.Request.URL is the url AFTER any header redirects, which is what a relative refresh
+	// target must resolve against — resolving against the ORIGINAL would build a url on the
+	// wrong host the moment a doi.org link is involved, which is most of them.
+	return out, resp.Request.URL, nil
 }
 
 // AN EGRESS BLOCK IS NOT AN EPISTEMIC RESULT, and telling them apart is the seat's job the
@@ -155,4 +293,54 @@ func proxyEnv() string {
 		}
 	}
 	return ""
+}
+
+// metaRefreshRe matches `<meta http-equiv="refresh" content="2; url=...">`.
+//
+// THE TWO QUOTE STYLES ARE SPELLED OUT because RE2 has no backreference, and a pattern that
+// accepts either quote and closes on either one gets this wrong on the page it was written for:
+// Elsevier sends content="2; url='/retrieve/…'", so a `["']([^"']*)["']` capture stops at the
+// inner apostrophe and yields `2; url=` with the target discarded. It matched, so it looked like
+// a parse rather than a miss.
+var metaRefreshRe = regexp.MustCompile(`(?is)<meta[^>]+http-equiv\s*=\s*["']?refresh["']?[^>]*?content\s*=\s*(?:"([^"]*)"|'([^']*)')`)
+
+// metaRefreshURL pulls the target out of a refresh directive's content value: `2; url=/next`.
+var metaRefreshURL = regexp.MustCompile(`(?is)^\s*[\d.]*\s*;?\s*url\s*=\s*['"]?([^'"\s]+)`)
+
+// metaRefreshTarget returns the absolute url a bouncer page points at, or "" where this response
+// is not one.
+//
+// THREE CONDITIONS, AND EACH REMOVES A WAY TO GO WRONG. It must be HTML, or the pattern is
+// matching something that merely looks like markup. It must carry no prose of its own, or it is a
+// document that happens to refresh and following it would discard the answer. And the target must
+// resolve to http or https, so a `data:` or `javascript:` refresh cannot move the fetch somewhere
+// the scheme check at the top of fetchOnce exists to forbid.
+func metaRefreshTarget(contentType string, body []byte, base *url.URL) string {
+	if !strings.Contains(strings.ToLower(contentType), "html") || base == nil {
+		return ""
+	}
+	if len(visibleText(body)) >= shellProseFloor {
+		return ""
+	}
+	m := metaRefreshRe.FindSubmatch(body)
+	if m == nil {
+		return ""
+	}
+	content := m[1]
+	if len(content) == 0 {
+		content = m[2] // the single-quoted alternative
+	}
+	t := metaRefreshURL.FindSubmatch(content)
+	if t == nil {
+		return ""
+	}
+	ref, err := url.Parse(strings.TrimSpace(html.UnescapeString(string(t[1]))))
+	if err != nil {
+		return ""
+	}
+	abs := base.ResolveReference(ref)
+	if abs.Scheme != "http" && abs.Scheme != "https" {
+		return ""
+	}
+	return abs.String()
 }

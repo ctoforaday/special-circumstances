@@ -96,9 +96,27 @@ const (
 // What the name buys is the seat's next act, and it is not cosmetic — an app skeleton means
 // nothing will render without a browser, while a challenge usually means the host publishes a
 // sanctioned machine route to the same text, and those license opposite decisions.
+// challengeTitle and powMarker are DECISIVE: a page carrying either is a wall whatever its shape.
+// weakChallengeMarker is not, and the difference is measured rather than assumed.
+//
+// A CHALLENGE PAGE CAN BE WORDY. Anubis — the proof-of-work gate now in front of PubMed Central,
+// SciPost and DOAB's book pages — explains itself at length: DOAB's 403 carries 1,459 visible
+// characters, which clears a prose floor and a ratio both. Subordinating attribution to shape
+// therefore let a wall through whenever the wall was talkative.
+//
+// So the signals are split by whether they can appear on a page that IS the document. Across the
+// captured corpus challengeTitle fires on all three walls carrying one and on NONE of the five
+// real documents, so a title stands on its own. The Cloudflare script marker cannot: Cloudflare
+// serves `/cdn-cgi/challenge-platform` INSIDE pages it has decided to deliver, which is how
+// bioRxiv's article page — 116,233 bytes, 8,619 characters of real paper — was once flagged as a
+// wall. That marker only ever names a verdict the shape reached first.
 var (
-	challengeTitle = regexp.MustCompile(`(?is)<title[^>]*>[^<]*(client challenge|just a moment|verifying your browser|checking your browser|attention required|human verification|access denied|one moment)`)
-	challengeBody  = regexp.MustCompile(`(?i)POW_CHALLENGE|/cdn-cgi/challenge-platform|__cf_chl|g-recaptcha|hcaptcha|turnstile`)
+	challengeTitle = regexp.MustCompile(`(?is)<title[^>]*>[^<]*(client challenge|just a moment|verifying your browser|checking your browser|attention required|human verification|access denied|one moment|making sure you)`)
+	// powMarker names a proof-of-work gate by a token no served document carries: the challenge
+	// variable PubMed Central emits, and the cookie Anubis sets on three unrelated hosts.
+	powMarker = regexp.MustCompile(`(?i)POW_CHALLENGE|techaro\.lol-anubis|Protected by Anubis`)
+	// weakChallengeMarker appears on challenge pages AND on ordinary pages behind the same edge.
+	weakChallengeMarker = regexp.MustCompile(`(?i)/cdn-cgi/challenge-platform|__cf_chl|g-recaptcha|hcaptcha|turnstile`)
 )
 
 // rootDivOnly matches a body whose entire content is one empty mount point — the canonical
@@ -139,7 +157,13 @@ func ShellReason(contentType string, body []byte) string {
 	}
 	text := visibleText(body)
 
-	// THE SHAPE DECIDES, AND IT DECIDES FIRST. Three ways a response can fail to be the document
+	// THE DECISIVE SIGNALS OVERRIDE THE SHAPE, because a wall that explains itself at length is
+	// still a wall and the shape test reads its explanation as prose.
+	if challengeTitle.Match(body) || powMarker.Match(body) {
+		return challengeReason(len(body), len(text))
+	}
+
+	// OTHERWISE THE SHAPE DECIDES. Three ways a response can fail to be the document
 	// its url names, in the order of how certain each is.
 	mount := rootDivOnly.Match(body)
 	starved := len(text) < shellProseFloor && float64(len(text))/float64(len(body)) < shellDenseRatio
@@ -152,13 +176,8 @@ func ShellReason(contentType string, body []byte) string {
 	}
 
 	// REFUSED. Now say which wall, where the page says so itself.
-	if challengeTitle.Match(body) || challengeBody.Match(body) {
-		return fmt.Sprintf("this is an ACCESS CHALLENGE, not the document — a wall asking for a browser to run its "+
-			"script, solve its puzzle or set its cookie, which nothing here does (%d bytes delivered, %d characters "+
-			"of text). It is a fact about how this host treats automated clients, NOT about whether the source exists "+
-			"or is open: many hosts that challenge a browser path publish a sanctioned machine route to the same "+
-			"text. Look for one before recording this source as unreachable, and never solve the challenge",
-			len(body), len(text))
+	if weakChallengeMarker.Match(body) {
+		return challengeReason(len(body), len(text))
 	}
 	if mount {
 		return fmt.Sprintf("the page body is an empty mount point with no prose in it — the markup a client-side app "+
@@ -176,4 +195,49 @@ func ShellReason(contentType string, body []byte) string {
 		"an app that renders client-side and a page behind a paywall arrive looking the same; either way "+
 		"these bytes are a record that the source EXISTS, not its text",
 		len(text), len(body), float64(len(text))/float64(len(body))*100)
+}
+
+// tdmReservationRe and tdmPolicyRe read the W3C TDM Reservation Protocol's two meta tags, which a
+// publisher uses to reserve text-and-data-mining rights machine-readably.
+var (
+	tdmReservationRe = regexp.MustCompile(`(?is)<meta[^>]+name\s*=\s*["']?tdm-reservation["']?[^>]*content\s*=\s*["']?\s*1`)
+	tdmPolicyRe      = regexp.MustCompile(`(?is)<meta[^>]+name\s*=\s*["']?tdm-policy["']?[^>]*content\s*=\s*["']([^"']+)["']`)
+)
+
+// TDMReservation reports whether this page reserves text-and-data-mining rights, and where its
+// policy is stated.
+//
+// WHAT IT DOES AND DOES NOT COVER, because the field is useless if a reader guesses. The
+// reservation is the EU DSM Directive's Article 4 opt-out: TDM for any purpose, which a
+// rightsholder may reserve. It is NOT Article 3 — TDM for scientific research, which cannot be
+// reserved — and it is not the quotation right, which is a separate exception and not the
+// rightsholder's to withhold. Elsevier's own machine-readable policy, read 2026-09-22, carries
+// `prohibition: null` and permits `tdm:mine` over all content under exactly one constraint,
+// `purpose = stm:eu-dsm-article3`.
+//
+// So it does not bear on what this tool does: fetching a cited source, extracting its text, and a
+// seat reading it and quoting at the leaf are reading and quotation, neither of which is mining.
+// It would bear on keeping the bodies as a corpus, redistributing them, or training on them —
+// none of which happens here, and all of which would be a decision rather than a drift.
+//
+// IT IS RECORDED BECAUSE IT IS A FACT ABOUT THE SOURCE THAT THE SOURCE TOOK THE TROUBLE TO STATE.
+// Discarding a machine-readable rights signal because today's use does not engage it leaves the
+// question unanswerable on the day something does, and the cost of carrying it is two fields.
+func TDMReservation(contentType string, body []byte) (reserved bool, policy string) {
+	if !strings.Contains(strings.ToLower(contentType), "html") {
+		return false, ""
+	}
+	if m := tdmPolicyRe.FindSubmatch(body); m != nil {
+		policy = strings.TrimSpace(string(m[1]))
+	}
+	return tdmReservationRe.Match(body), policy
+}
+
+func challengeReason(nbytes, nchars int) string {
+	return fmt.Sprintf("this is an ACCESS CHALLENGE, not the document — a wall asking for a browser to run its "+
+		"script, solve its puzzle or set its cookie, which nothing here does (%d bytes delivered, %d characters "+
+		"of text). It is a fact about how this host treats automated clients, NOT about whether the source exists "+
+		"or is open: many hosts that gate a browser path publish a sanctioned machine route to the same text — "+
+		"DOAB's book pages are gated while DOAB's own API hands out the DOI. Look for one before recording this "+
+		"source as unreachable, and never solve the challenge", nbytes, nchars)
 }

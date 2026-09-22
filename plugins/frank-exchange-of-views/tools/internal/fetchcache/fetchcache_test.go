@@ -1,6 +1,8 @@
 package fetchcache
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -246,15 +248,18 @@ type fixedExtractor struct{ out Extraction }
 func (f fixedExtractor) Extract(_, _ string, _ []byte) Extraction { return f.out }
 
 // sameEntry compares two entries by value, dereferencing the three-state TextExtracted.
+// sameEntry compares two entries BY THEIR SERIALISED FORM, which is the round-trip the caller is
+// actually testing.
+//
+// IT USED TO NIL OUT TextExtracted AND COMPARE THE STRUCTS, and that quietly compared every other
+// pointer field BY ADDRESS. NotRenderable never caught it because both sides were nil in the one
+// test that used this; adding a third pointer field made two entries with identical contents
+// compare unequal, and the failure read as a cache defect. An enumerating helper that has to be
+// widened for each new field is the same shape as the bug it was guarding against.
 func sameEntry(a, b Entry) bool {
-	if (a.TextExtracted == nil) != (b.TextExtracted == nil) {
-		return false
-	}
-	if a.TextExtracted != nil && *a.TextExtracted != *b.TextExtracted {
-		return false
-	}
-	a.TextExtracted, b.TextExtracted = nil, nil
-	return a == b
+	ja, erra := json.Marshal(a)
+	jb, errb := json.Marshal(b)
+	return erra == nil && errb == nil && bytes.Equal(ja, jb)
 }
 
 func showEntry(e Entry) string {

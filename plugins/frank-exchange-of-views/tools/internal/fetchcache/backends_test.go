@@ -41,7 +41,7 @@ func TestACaptureIsChosenByDateNotByRecency(t *testing.T) {
 func TestAnAnsweredNoOpenCopyIsAFindingNotAMiss(t *testing.T) {
 	f := fake(func(u string) (*Response, error) {
 		if strings.Contains(u, "unpaywall") {
-			return &Response{Body: []byte(`{"is_oa":false,"best_oa_location":null}`)}, nil
+			return &Response{Body: []byte(`{"doi":"10.5951/MT.82.1.0033","is_oa":false,"best_oa_location":null,"oa_locations":[]}`)}, nil
 		}
 		return nil, &Refusal{URL: u, Status: 403}
 	})
@@ -194,7 +194,7 @@ func TestAStatedArxivFailureDoesNotEndTheAutoChain(t *testing.T) {
 			return nil, errors.New("boom")
 		}
 		if strings.Contains(u, "unpaywall") {
-			return &Response{Body: []byte(`{"is_oa":true,"best_oa_location":{"url_for_pdf":"https://ex.org/open.pdf"}}`)}, nil
+			return &Response{Body: []byte(`{"doi":"10.4310/ATMP.1998.v2.n2.a1","is_oa":true,"best_oa_location":{"url_for_pdf":"https://ex.org/open.pdf"},"oa_locations":[]}`)}, nil
 		}
 		if u == "https://ex.org/open.pdf" {
 			return &Response{Body: []byte("%PDF-1.7 open copy"), ContentType: "application/pdf"}, nil
@@ -232,11 +232,165 @@ func TestAnOpenAccessAnswerRequiresAWork(t *testing.T) {
 				}
 				return nil, &Refusal{URL: u, Status: 403} // unpaywall silent, so openalex decides
 			})
-			_, answered := OpenAccessURL(f, "10.1234/x")
+			_, answered := OpenAccessCandidates(f, "10.1234/x")
 			if answered != tc.wantAnswered {
 				t.Errorf("answered = %v, want %v — this value is what lets the caller say NO OPEN "+
 					"COPY EXISTS anywhere, which is a claim about the world", answered, tc.wantAnswered)
 			}
 		})
+	}
+}
+
+// AN ARCHIVE THAT CANNOT ANSWER IS NOT AN ARCHIVE WITH NOTHING IN IT. Measured live on
+// 2026-09-22 while the source sweep was running: CDX served `<title>Internet Archive: Temporarily
+// Offline</title>` as HTML with a 200. The unmarshal failed, CapturesFor returned no captures and
+// no error, and a seat was told the url had never been archived — the outage and the honest zero
+// were the same bytes, at exactly the moment an outage is most likely, which is under the load
+// that caused it.
+func TestAnArchiveOutageIsNotAnEmptyArchive(t *testing.T) {
+	offline := []byte(`<html><head><title>Internet Archive: Temporarily Offline</title></head><body>…</body></html>`)
+	f := fake(func(string) (*Response, error) {
+		return &Response{Body: offline, ContentType: "text/html"}, nil
+	})
+	caps, err := CapturesFor(f, "https://ex.org/a")
+	if err == nil {
+		t.Fatal("an archive outage was reported as a clean lookup; a seat cannot tell it from 'never archived'")
+	}
+	if len(caps) != 0 {
+		t.Errorf("captures = %v, want none", caps)
+	}
+	// NAMED, IT SAYS SO. The seat asked this backend a question and is owed the real answer.
+	att := Recover(f, "https://ex.org/a", ViaArchive, "")
+	if att == nil {
+		t.Fatal("--via archive returned nothing for an archive that answered with an outage page")
+	}
+	if att.TextRetrieved {
+		t.Error("an outage report claims text was retrieved")
+	}
+	for _, want := range []string{"THE ARCHIVE DID NOT ANSWER", "not be recorded as absent"} {
+		if !strings.Contains(att.Via, want) {
+			t.Errorf("the refusal does not separate silence from absence (missing %q): %s", want, att.Via)
+		}
+	}
+}
+
+// AND UNDER auto IT DECLINES, so one backend's outage cannot end the search before the rungs that
+// would have answered.
+func TestAnArchiveOutageDoesNotEndTheAutoChain(t *testing.T) {
+	f := fake(func(u string) (*Response, error) {
+		if strings.Contains(u, "web.archive.org") {
+			return &Response{Body: []byte("<html><title>Internet Archive: Temporarily Offline</title></html>"), ContentType: "text/html"}, nil
+		}
+		if strings.Contains(u, "unpaywall") {
+			return &Response{Body: []byte(`{"doi":"10.4310/ATMP.1998.v2.n2.a1","is_oa":true,"best_oa_location":{"url_for_pdf":"https://ex.org/open.pdf"},"oa_locations":[]}`)}, nil
+		}
+		if u == "https://ex.org/open.pdf" {
+			return &Response{Body: []byte("%PDF-1.7 open copy"), ContentType: "application/pdf"}, nil
+		}
+		return nil, &Refusal{URL: u, Status: 403}
+	})
+	att := Recover(f, "https://doi.org/10.1234/x", ViaAuto, "")
+	if att == nil {
+		t.Fatal("the auto chain gave up when the archive was offline")
+	}
+	if att.Backend != ViaOA {
+		t.Fatalf("Backend = %q (via %q), want the chain to have carried on past the archive outage", att.Backend, att.Via)
+	}
+}
+
+// A WELL-FORMED EMPTY ANSWER IS STILL THE HONEST ZERO, and must not be dressed up as an outage.
+func TestAnEmptyCaptureListIsNotAnError(t *testing.T) {
+	f := fake(func(string) (*Response, error) {
+		return &Response{Body: []byte(`[["timestamp","original","digest"]]`), ContentType: "application/json"}, nil
+	})
+	caps, err := CapturesFor(f, "https://ex.org/never-archived")
+	if err != nil {
+		t.Errorf("a url the archive has simply never captured reported an error: %v", err)
+	}
+	if len(caps) != 0 {
+		t.Errorf("captures = %v, want none", caps)
+	}
+}
+
+// THE INDEXES NOMINATE ONE LOCATION AND LIST SEVERAL. This backend read only the nomination, and
+// measured over the sweep's own failures, 48% of the fetches that ended at a wall or a
+// bibliographic record had a fetchable pdf_url in a list nothing touched.
+func TestEveryListedOpenAccessLocationIsTried(t *testing.T) {
+	var tried []string
+	f := fake(func(u string) (*Response, error) {
+		switch {
+		case strings.Contains(u, "unpaywall"):
+			return &Response{Body: []byte(`{"doi":"10.1234/x","best_oa_location":null,
+				"oa_locations":[{"url_for_pdf":"https://walled.example/a.pdf","url":"https://walled.example/a"}]}`)}, nil
+		case strings.Contains(u, "openalex"):
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","open_access":{"oa_url":null},
+				"locations":[{"pdf_url":"https://repo.example/open.pdf","is_oa":true}]}`)}, nil
+		}
+		tried = append(tried, u)
+		if strings.Contains(u, "walled") {
+			return nil, &Refusal{URL: u, Status: 403}
+		}
+		return &Response{Body: []byte("%PDF-1.7 the paper"), ContentType: "application/pdf"}, nil
+	})
+	att := Recover(f, "https://doi.org/10.1234/x", ViaOA, "")
+	if att == nil || !att.TextRetrieved {
+		t.Fatalf("the second listed location was never reached: %+v", att)
+	}
+	if len(tried) != 2 || !strings.Contains(tried[1], "repo.example") {
+		t.Errorf("urls tried = %v, want the refused one then the one that works", tried)
+	}
+	// BOTH INDEXES CONTRIBUTE. Unpaywall's null best_oa_location used to short-circuit the whole
+	// lookup, so OpenAlex's list was never consulted at all.
+	if !strings.Contains(att.Via, "repo.example/open.pdf") {
+		t.Errorf("the winning location is not named: %s", att.Via)
+	}
+}
+
+// A PDF URL AN INDEX PUBLISHES IS NOT A COPY. Ten of fourteen such urls answered 403 from the
+// very publisher platform that listed them, so a location counts only once its bytes arrive and
+// pass the same wall test every other fetch passes.
+func TestALocationThatAnswersWithAWallIsNotAccepted(t *testing.T) {
+	wall := []byte(`<html><head><title>Just a moment...</title></head><body>checking</body></html>`)
+	f := fake(func(u string) (*Response, error) {
+		switch {
+		case strings.Contains(u, "unpaywall"):
+			return &Response{Body: []byte(`{"doi":"10.1234/x","best_oa_location":{"url_for_pdf":"https://pub.example/a.pdf"}}`)}, nil
+		case strings.Contains(u, "openalex"):
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","locations":[]}`)}, nil
+		}
+		return &Response{Body: wall, ContentType: "text/html"}, nil
+	})
+	att := Recover(f, "https://doi.org/10.1234/x", ViaOA, "")
+	if att == nil {
+		t.Fatal("a named backend returned nothing")
+	}
+	if att.TextRetrieved {
+		t.Error("a challenge page was accepted as the open-access copy")
+	}
+	// AND IT IS NOT REPORTED AS "no open copy exists" — the copy exists, we could not take it.
+	for _, want := range []string{"COULD NOT TAKE IT", "NOT", "browser can open them"} {
+		if !strings.Contains(att.Via, want) {
+			t.Errorf("located-but-blocked reads as closed (missing %q): %s", want, att.Via)
+		}
+	}
+	if !strings.Contains(string(att.Body), "pub.example") {
+		t.Error("the urls a human could open are not carried")
+	}
+}
+
+// AND A GENUINE ABSENCE IS STILL A DETERMINATE FINDING — now on two silences rather than one.
+func TestNoLocationsFromEitherIndexIsStillAnAnsweredNo(t *testing.T) {
+	f := fake(func(u string) (*Response, error) {
+		if strings.Contains(u, "unpaywall") {
+			return &Response{Body: []byte(`{"doi":"10.1234/x","best_oa_location":null,"oa_locations":[]}`)}, nil
+		}
+		if strings.Contains(u, "openalex") {
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","open_access":{"oa_url":null},"locations":[]}`)}, nil
+		}
+		return nil, &Refusal{URL: u, Status: 404}
+	})
+	att := Recover(f, "https://doi.org/10.1234/x", ViaOA, "")
+	if att == nil || !strings.Contains(att.Via, "NO OPEN COPY EXISTS") {
+		t.Fatalf("a genuine absence stopped being a finding: %+v", att)
 	}
 }

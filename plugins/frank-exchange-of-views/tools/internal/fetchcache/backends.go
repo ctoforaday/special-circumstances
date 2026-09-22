@@ -122,10 +122,26 @@ func CapturesFor(f Fetcher, rawURL string) ([]Capture, error) {
 		"&filter=statuscode:200&collapse=digest&limit=200&url=" + url.QueryEscape(strings.TrimPrefix(strings.TrimPrefix(rawURL, "https://"), "http://"))
 	resp, err := f.Fetch(q)
 	if err != nil {
-		return nil, nil // the archive being unreachable is a fact about this container, not a failure of the source
+		return nil, fmt.Errorf("the archive did not answer: %w", err)
 	}
+	// AN ARCHIVE THAT CANNOT ANSWER IS NOT AN ARCHIVE WITH NOTHING IN IT, and until this
+	// distinction existed the two were the same bytes. Measured live on 2026-09-22: CDX served
+	// `<title>Internet Archive: Temporarily Offline</title>` as HTML with a 200, this function
+	// failed to unmarshal it, returned no captures and no error, and a seat was told the url had
+	// never been archived. The honest zero and the outage are indistinguishable at exactly the
+	// moment the outage is most likely — under the load that caused it.
 	var rows [][]string
-	if json.Unmarshal(resp.Body, &rows) != nil || len(rows) < 2 {
+	if uerr := json.Unmarshal(resp.Body, &rows); uerr != nil {
+		head := strings.TrimSpace(string(resp.Body))
+		if len(head) > 120 {
+			head = head[:120] + "…"
+		}
+		return nil, fmt.Errorf("the archive answered with something that is not a capture list "+
+			"(%d bytes, %s): %s", len(resp.Body), ContentTypeOrUnknown(resp.ContentType), head)
+	}
+	// A WELL-FORMED EMPTY LIST IS THE HONEST ZERO, and it keeps the nil error: CDX returns just
+	// the header row, or nothing at all, for a url it has never captured.
+	if len(rows) < 2 {
 		return nil, nil
 	}
 	out := make([]Capture, 0, len(rows)-1)
@@ -159,57 +175,107 @@ func PickCapture(cs []Capture, at string) (Capture, bool) {
 
 // ---------- open access ----------
 
-// OpenAccessURL asks whether a legal open copy exists, and where. The second return says whether
-// the question was ANSWERED: false means no backend could speak to it, which is different from
-// an answered "there is none" and must not be reported as one.
-func OpenAccessURL(f Fetcher, doi string) (loc string, answered bool) {
+// OpenAccessCandidates gathers EVERY location the open-access indexes know of, ranked, rather
+// than the single one each index nominates.
+//
+// WHY A LIST AND NOT A BEST. Both providers publish a chosen location and a full list, and this
+// backend read only the chosen one — Unpaywall's `best_oa_location`, or OpenAlex's `oa_url`.
+// Measured over the sweep's own failures: of the fetches that ended at a wall or a bibliographic
+// record, 48% had a fetchable `pdf_url` sitting in a list neither read path touched. Of those
+// candidates 4 in 14 actually returned a PDF at the leaf, the rest being publisher platforms
+// advertising a PDF they then refuse — so the list is worth trying and worth VERIFYING, and
+// neither is worth doing from a single nomination.
+//
+// IT COSTS NOTHING EXTRA. Both documents were already being fetched; only the fields read change.
+//
+// answered is false when NEITHER index could speak. It is the flag that licenses the caller's
+// determinate "no open copy exists anywhere", so it must never be true on the strength of one
+// provider's silence: Unpaywall's null `best_oa_location` used to short-circuit the whole
+// function, which asserted a fact about the world without asking the second index at all.
+func OpenAccessCandidates(f Fetcher, doi string) (locs []string, answered bool) {
 	if doi == "" {
-		return "", false
+		return nil, false
 	}
-	if resp, err := f.Fetch("https://api.unpaywall.org/v2/" + doi + "?email=feov@ctoforaday.com"); err == nil {
+	seen := map[string]bool{}
+	var pdfs, pages []string
+	add := func(u string, isPDF bool) {
+		u = strings.TrimSpace(u)
+		// A doi.org url is an identifier, not a copy: following it returns to the publisher this
+		// lookup exists to get around.
+		if u == "" || seen[u] || strings.Contains(u, "doi.org/") {
+			return
+		}
+		seen[u] = true
+		if isPDF {
+			pdfs = append(pdfs, u)
+			return
+		}
+		pages = append(pages, u)
+	}
+
+	if resp, err := f.Fetch("https://api.unpaywall.org/v2/" + doi + "?email=" + ContactEmail); err == nil {
 		var u struct {
-			IsOA           bool `json:"is_oa"`
-			BestOALocation *struct {
-				URLForPDF string `json:"url_for_pdf"`
-				URL       string `json:"url"`
-			} `json:"best_oa_location"`
+			DOI       string  `json:"doi"` // the discriminator: an error envelope decodes without it
+			Best      *oaLoc  `json:"best_oa_location"`
+			Locations []oaLoc `json:"oa_locations"`
 		}
-		if json.Unmarshal(resp.Body, &u) == nil {
-			if u.BestOALocation != nil {
-				if u.BestOALocation.URLForPDF != "" {
-					return u.BestOALocation.URLForPDF, true
-				}
-				return u.BestOALocation.URL, true
+		if json.Unmarshal(resp.Body, &u) == nil && u.DOI != "" {
+			answered = true
+			if u.Best != nil {
+				add(u.Best.URLForPDF, true)
+				add(u.Best.URL, false)
 			}
-			return "", true // answered: there is no open copy
+			for _, l := range u.Locations {
+				add(l.URLForPDF, true)
+				add(l.URL, false)
+			}
 		}
 	}
-	if resp, err := f.Fetch("https://api.openalex.org/works/doi:" + doi); err == nil {
+	if resp, err := f.Fetch("https://api.openalex.org/works/doi:" + doi + "?mailto=" + ContactEmail); err == nil {
 		var w struct {
 			// ID IS THE DISCRIMINATOR, AND WITHOUT IT THIS DECODE CANNOT FAIL. A struct carrying
-			// only `open_access` unmarshals successfully from ANY json object — an error envelope,
-			// a metering message, a response whose shape has moved — and the zero value that comes
-			// back is indistinguishable from a work that genuinely has no open copy. The caller
-			// turns the second into "NO OPEN COPY EXISTS anywhere the OA indexes know of… a fact
-			// about the WORLD", so an unguarded decode can publish a determinate claim about a
-			// paper from a payload that was never about that paper.
-			//
-			// It has not fired: OpenAlex answers 404 for a doi it does not hold, which is a refusal
-			// this never sees. That makes it a latent defect rather than a live one, and the reason
-			// to close it anyway is that nothing about the current behaviour is load-bearing — the
-			// service is now metered, and a budget or shape change is exactly the kind of 200 this
-			// would swallow.
+			// only the fields we want unmarshals successfully from ANY json object — an error
+			// envelope, a metering message, a response whose shape has moved — and the zero value
+			// is indistinguishable from a work with no open copy. The caller turns the second into
+			// a fact about the WORLD.
 			ID         string `json:"id"`
 			OpenAccess struct {
-				IsOA  bool   `json:"is_oa"`
 				OAURL string `json:"oa_url"`
 			} `json:"open_access"`
+			Locations []struct {
+				PDFURL  string `json:"pdf_url"`
+				Landing string `json:"landing_page_url"`
+				IsOA    bool   `json:"is_oa"`
+			} `json:"locations"`
 		}
 		if json.Unmarshal(resp.Body, &w) == nil && w.ID != "" {
-			return w.OpenAccess.OAURL, true
+			answered = true
+			add(w.OpenAccess.OAURL, strings.Contains(w.OpenAccess.OAURL, ".pdf"))
+			for _, l := range w.Locations {
+				add(l.PDFURL, true)
+				if l.IsOA {
+					add(l.Landing, false)
+				}
+			}
 		}
 	}
-	return "", false
+	// A DIRECT PDF BEFORE A LANDING PAGE, because the landing page is the thing that walls us and
+	// the pdf is the thing a citation can be checked against. Beyond that the order is the
+	// indexes' own: neither publishes a ranking this could improve on, and the measured predictor
+	// of success was not source type — every location that worked in the sample was typed
+	// `journal`, including the ones that did not.
+	return append(pdfs, pages...), answered
+}
+
+// maxOACandidates bounds how many listed locations one lookup will try. The indexes list up to
+// nine; each attempt is a paced request against a different host, and a seat waiting on a ninth
+// long-shot has already lost more than the ninth was worth.
+const maxOACandidates = 4
+
+// oaLoc is Unpaywall's location shape, shared by best_oa_location and the oa_locations list.
+type oaLoc struct {
+	URLForPDF string `json:"url_for_pdf"`
+	URL       string `json:"url"`
 }
 
 // ---------- metadata ----------
@@ -224,7 +290,7 @@ func MetadataRecord(f Fetcher, doi string) (*Attempt, error) {
 	if doi == "" {
 		return nil, nil
 	}
-	resp, err := f.Fetch("https://api.crossref.org/works/" + doi)
+	resp, err := f.Fetch("https://api.crossref.org/works/" + doi + "?mailto=" + ContactEmail)
 	if err != nil {
 		return nil, nil
 	}
@@ -297,7 +363,23 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 	try := func(name string, named bool) *Attempt {
 		switch name {
 		case ViaArchive:
-			caps, _ := CapturesFor(f, rawURL)
+			caps, cerr := CapturesFor(f, rawURL)
+			if cerr != nil {
+				// THE SAME RULE AS arxiv's STATED FAILURE. Asked for by name, say the archive
+				// could not answer, because "no captures" would be a claim about the world drawn
+				// from the archive's silence. Reached as a rung of auto, decline so the chain runs
+				// on — an outage at one backend must not end the search.
+				if !named {
+					return nil
+				}
+				return &Attempt{
+					Body:        []byte(fmt.Sprintf("the web archive could not be consulted for %s\n", rawURL)),
+					ContentType: "text/plain", TextRetrieved: false,
+					Via: fmt.Sprintf("archive lookup for %s: THE ARCHIVE DID NOT ANSWER — %v. This is NOT "+
+						"'there are no captures': nothing was learned about whether this url was ever archived, "+
+						"and it must not be recorded as absent. Try again later, or ask a different backend", rawURL, cerr),
+				}
+			}
 			c, ok := PickCapture(caps, at)
 			if !ok {
 				return nil
@@ -315,11 +397,14 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 					"article this is usually the landing page and not the text, so read it before citing it as read",
 					when, c.SnapshotURL())}
 		case ViaOA:
-			loc, answered := OpenAccessURL(f, doi)
-			if loc == "" {
+			locs, answered := OpenAccessCandidates(f, doi)
+			if len(locs) == 0 {
 				if answered && doi != "" {
 					// AN ANSWERED "NO" IS A FINDING. It is the determinate half of #736: not
-					// "unreachable from this container" but "no open copy exists anywhere".
+					// "unreachable from this container" but "no open copy exists anywhere". It is
+					// now drawn from BOTH indexes' full location lists, so it takes two silences
+					// rather than one nomination — checked against the sweep's own verdicts, where
+					// 0 of 45 works we called closed had a usable location either index knew of.
 					return &Attempt{Body: []byte(fmt.Sprintf("no open-access copy of doi %s exists\n", doi)),
 						ContentType: "text/plain", TextRetrieved: false,
 						Via: fmt.Sprintf("open-access lookup for doi %s: NO OPEN COPY EXISTS anywhere the OA indexes know of. "+
@@ -327,12 +412,43 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 				}
 				return nil
 			}
-			resp, err := f.Fetch(loc)
-			if err != nil {
+			// EVERY CANDIDATE IS TRIED, AND EACH IS VERIFIED AT THE LEAF. An index naming a pdf_url
+			// is not a copy: measured, 10 of 14 such urls answered 403 from the publisher platform
+			// that published them. So a location counts only once its bytes arrive and pass the
+			// same test any other fetch passes.
+			var refused []string
+			for i, loc := range locs {
+				if i >= maxOACandidates {
+					break
+				}
+				resp, ferr := f.Fetch(loc)
+				if ferr != nil {
+					refused = append(refused, loc)
+					continue
+				}
+				if why := ShellReason(resp.ContentType, resp.Body); why != "" {
+					refused = append(refused, loc)
+					continue
+				}
+				return &Attempt{Body: resp.Body, ContentType: MediaType(resp.ContentType), TextRetrieved: true,
+					Via: fmt.Sprintf("open-access copy, located by doi %s at %s (candidate %d of %d the OA indexes listed)",
+						doi, loc, i+1, len(locs))}
+			}
+			// LOCATED BUT BLOCKED IS NOT "NO OPEN COPY". The indexes say a copy exists and named
+			// where; this container could not take it from any of them. That is a fact about the
+			// fetch, and it is ACTIONABLE — a human with a browser can open these urls — so the
+			// urls travel with the refusal rather than being summarised away.
+			if !named {
 				return nil
 			}
-			return &Attempt{Body: resp.Body, ContentType: MediaType(resp.ContentType), TextRetrieved: true,
-				Via: "open-access copy, located by doi " + doi + " at " + loc}
+			return &Attempt{
+				Body:        []byte(strings.Join(refused, "\n") + "\n"),
+				ContentType: "text/plain", TextRetrieved: false,
+				Via: fmt.Sprintf("open-access lookup for doi %s: A COPY EXISTS AND THIS CONTAINER COULD NOT TAKE IT. "+
+					"The indexes list %d location(s) and every one tried refused us or answered with a wall. This is NOT "+
+					"'no open copy exists' — do not record the source as closed. The urls are in the body: a human with a "+
+					"browser can open them", doi, len(locs)),
+			}
 		case ViaArxiv:
 			id := ArxivIDOf(rawURL)
 			if id == "" {
