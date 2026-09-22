@@ -48,7 +48,17 @@ type fetchSummary struct {
 	RetrievedVia string `json:"retrieved_via,omitempty"`
 	// Backend is which backend that was, as a value rather than a sentence to match on.
 	Backend string `json:"backend,omitempty"`
-	// TextRetrieved false means these bytes are a RECORD THAT THE SOURCE EXISTS, not its text.
+	// TextRetrieved says THESE BYTES ARE THE SOURCE'S TEXT. False means they are a record that
+	// the source exists — a bibliographic entry, or an answered "no open copy exists" — and
+	// nothing about what the source SAYS may rest on them.
+	//
+	// IT USED TO BE FALSE ON EVERY LIVE FETCH, which inverted it exactly where it is most often
+	// read. The field was populated only by the recovery path, so a 240 KB article fetched
+	// straight from its publisher and passed by the shell detector was published to `--json` as
+	// `"text_retrieved": false` — by this field's own documented meaning, "not its text". The
+	// human summary was spared because it prints the warning only alongside a recovery, so the
+	// defect lived entirely in the machine-readable surface, where nothing would question it. It
+	// cost three wrong readings of one sweep before the field was doubted rather than the data.
 	TextRetrieved bool `json:"text_retrieved"`
 	Pages         int  `json:"pages,omitempty"`
 
@@ -81,6 +91,11 @@ type fetchSummary struct {
 	// would verify a citation against the furniture.
 	NotRenderable       *bool  `json:"not_renderable,omitempty"`
 	NotRenderableReason string `json:"not_renderable_reason,omitempty"`
+	// TDMReserved says the source reserved text-and-data-mining rights in its markup. It bears on
+	// KEEPING this content, not on reading or quoting it, so it is reported and nothing is gated
+	// on it — see fetchcache.TDMReservation.
+	TDMReserved *bool  `json:"tdm_reserved,omitempty"`
+	TDMPolicy   string `json:"tdm_policy,omitempty"`
 	// TablePages counts pages whose ruled grid the engine detected — their reconstruction
 	// stats live on the reading record. Present only when nonzero, so a prose-only reading
 	// renders without it.
@@ -140,12 +155,15 @@ func summarize(run record.Run, e fetchcache.Entry, bodyLen int, hit bool) fetchS
 		RefusalClass:   e.RefusalClass,
 		RetrievedVia:   e.RetrievedVia,
 		Backend:        e.Backend,
-		TextRetrieved:  e.TextRetrieved,
-		Pages:          e.Pages,
-		TextExtracted:  e.TextExtracted,
-		TextSha256:     e.TextSha,
-		TextReason:     e.TextReason,
-		NotRenderable:  e.NotRenderable, NotRenderableReason: e.NotRenderableReason,
+		// A LIVE FETCH THAT YIELDED A DOCUMENT HAS THE SOURCE'S TEXT. The entry's own flag speaks
+		// only for the recovery path, so it is the wrong answer for the common one.
+		TextRetrieved: e.TextRetrieved || liveTextRetrieved(e),
+		Pages:         e.Pages,
+		TextExtracted: e.TextExtracted,
+		TextSha256:    e.TextSha,
+		TextReason:    e.TextReason,
+		NotRenderable: e.NotRenderable, NotRenderableReason: e.NotRenderableReason,
+		TDMReserved: e.TDMReserved, TDMPolicy: e.TDMPolicy,
 		Extractor: e.Extractor,
 	}
 	// THE PATH IS NAMED ONLY WHEN THE FILE IS THERE. A text_path pointing at a file that was
@@ -274,6 +292,20 @@ func (s fetchSummary) render() string {
 	// navigation, a cookie banner — so this arrives on the `text_extracted: true` arm, which is
 	// the arm a seat reads as success. Printed there or not at all, the flag would be absent in
 	// exactly the case it exists for.
+	// STATED, NEVER ENFORCED. A reservation is the Article 4 opt-out: it covers mining, not
+	// reading and not quotation, so it changes nothing this tool does today and would change
+	// everything about keeping a corpus. Reporting it is what makes that a decision later rather
+	// than a thing nobody noticed.
+	if s.TDMReserved != nil && *s.TDMReserved {
+		line("tdm_reserved", "true")
+		if s.TDMPolicy != "" {
+			line("tdm_policy", s.TDMPolicy)
+		}
+		fmt.Fprintf(&b, "  ^ THE SOURCE RESERVES TEXT-AND-DATA-MINING RIGHTS over this page. That reservation covers\n"+
+			"    MINING — analysing a body of works to derive patterns — and not READING it or QUOTING it, which\n"+
+			"    are separate rights it does not reach. Read and cite this source as you would any other. What it\n"+
+			"    forbids is keeping a corpus of it or training on it, neither of which this tool does.\n")
+	}
 	if s.NotRenderable != nil && *s.NotRenderable {
 		line("not_renderable", "true")
 		line("not_renderable_reason", s.NotRenderableReason)
@@ -288,4 +320,17 @@ func (s fetchSummary) render() string {
 		line("dpi", dpiSpan(s.DPILow, s.DPIHigh))
 	}
 	return b.String()
+}
+
+// liveTextRetrieved answers whether a fetch that reached the source itself came back with the
+// document, rather than with a wall or an empty answer. It is deliberately conservative: a page
+// the shell detector refused is not the source's text however many bytes it carried.
+func liveTextRetrieved(e fetchcache.Entry) bool {
+	if e.RetrievedVia != "" || e.Sha == "" {
+		return false // a recovery speaks for itself through the entry's own flag
+	}
+	if e.NotRenderable != nil && *e.NotRenderable {
+		return false
+	}
+	return true
 }

@@ -39,3 +39,32 @@ func TestOnlyAnArchiveAnswerIsCalledASnapshot(t *testing.T) {
 		t.Errorf("a live fetch carries a provenance warning:\n%s", out)
 	}
 }
+
+// A LIVE FETCH THAT RETURNED THE DOCUMENT MUST SAY SO. `text_retrieved` is populated by the
+// recovery path, so for years every live fetch published `false` to --json — which by this
+// field's own documented meaning says the bytes are a record that the source exists rather than
+// its text. The human summary hid it, printing the warning only beside a recovery, so the lie
+// lived entirely on the machine-readable surface where nothing would question it. It produced
+// three contradictory readings of one source sweep before the field was doubted.
+func TestALiveDocumentReportsItsTextAsRetrieved(t *testing.T) {
+	no := false
+	yes := true
+	for _, tc := range []struct {
+		name string
+		e    fetchcache.Entry
+		want bool
+	}{
+		{"a live article", fetchcache.Entry{Sha: "abc", URL: "https://ex/a", ContentType: "text/html", NotRenderable: &no}, true},
+		{"a live PDF", fetchcache.Entry{Sha: "abc", URL: "https://ex/a", ContentType: "application/pdf"}, true},
+		{"a wall", fetchcache.Entry{Sha: "abc", URL: "https://ex/a", ContentType: "text/html", NotRenderable: &yes}, false},
+		{"a bibliographic record", fetchcache.Entry{Sha: "abc", URL: "https://ex/a", RetrievedVia: "Crossref record", TextRetrieved: false}, false},
+		{"a recovered document", fetchcache.Entry{Sha: "abc", URL: "https://ex/a", RetrievedVia: "an open copy", TextRetrieved: true}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := (fetchSummary{TextRetrieved: tc.e.TextRetrieved || liveTextRetrieved(tc.e)}).TextRetrieved; got != tc.want {
+				t.Errorf("text_retrieved = %v, want %v — this is what a machine reading --json believes about "+
+					"whether it holds the source's text", got, tc.want)
+			}
+		})
+	}
+}
