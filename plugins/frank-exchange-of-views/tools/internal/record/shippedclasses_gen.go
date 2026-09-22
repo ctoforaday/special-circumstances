@@ -42,6 +42,7 @@ var ShippedMaterialDefaults = map[string]recordpb.ClassMaterial{
 	"report-voice":                           recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE,
 	"risk-coverage-omission":                 recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE,
 	"self-attestation":                       recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS,
+	"self-defeating-mitigation":              recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE,
 	"spec-underspecification":                recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE,
 	"structure-noncompliance":                recordpb.ClassMaterial_CLASS_MATERIAL_NEVER,
 	"undecided-disjunction":                  recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE,
