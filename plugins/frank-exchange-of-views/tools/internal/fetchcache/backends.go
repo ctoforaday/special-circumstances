@@ -186,13 +186,22 @@ func PickCapture(cs []Capture, at string) (Capture, bool) {
 // advertising a PDF they then refuse — so the list is worth trying and worth VERIFYING, and
 // neither is worth doing from a single nomination.
 //
-// IT COSTS NOTHING EXTRA. Both documents were already being fetched; only the fields read change.
+// ONE REQUEST, NOT TWO, AND UNPAYWALL IS NOT THE ONE. This function used to ask Unpaywall first
+// and OpenAlex second, on the belief that two indexes were two opinions. They are one:
+// OurResearch states that "Unpaywall is kept as a legacy-compatible wrapper and format over
+// OpenAlex", and measured across five works its `oa_locations` is a STRICT SUBSET of OpenAlex's
+// `locations` every time — 0 urls unique to Unpaywall, and 2 to 33 unique to OpenAlex. So the
+// second call added no location this one does not have, and cost a request against a service
+// that asks callers to limit their use.
 //
-// answered is false when NEITHER index could speak. It is the flag that licenses the caller's
-// determinate "no open copy exists anywhere", so it must never be true on the strength of one
-// provider's silence: Unpaywall's null `best_oa_location` used to short-circuit the whole
-// function, which asserted a fact about the world without asking the second index at all.
+// The consequence for the caller matters more than the saved request. `answered` licenses the
+// determinate "no open copy exists anywhere", and while two calls were being made it looked as
+// though that claim rested on two silences. It never did. It rests on OpenAlex, which is why the
+// `ID` discriminator below is load-bearing rather than belt-and-braces. A GENUINE second opinion
+// has to come from a different organisation — Semantic Scholar, CORE or DOAJ — and none is
+// consulted here yet.
 func OpenAccessCandidates(f Fetcher, doi string) (locs []string, answered bool) {
+	var indexFailed bool
 	if doi == "" {
 		return nil, false
 	}
@@ -213,24 +222,6 @@ func OpenAccessCandidates(f Fetcher, doi string) (locs []string, answered bool) 
 		pages = append(pages, u)
 	}
 
-	if resp, err := f.Fetch("https://api.unpaywall.org/v2/" + doi + "?email=" + ContactEmail); err == nil {
-		var u struct {
-			DOI       string  `json:"doi"` // the discriminator: an error envelope decodes without it
-			Best      *oaLoc  `json:"best_oa_location"`
-			Locations []oaLoc `json:"oa_locations"`
-		}
-		if json.Unmarshal(resp.Body, &u) == nil && u.DOI != "" {
-			answered = true
-			if u.Best != nil {
-				add(u.Best.URLForPDF, true)
-				add(u.Best.URL, false)
-			}
-			for _, l := range u.Locations {
-				add(l.URLForPDF, true)
-				add(l.URL, false)
-			}
-		}
-	}
 	if resp, err := f.Fetch("https://api.openalex.org/works/doi:" + doi + "?mailto=" + ContactEmail); err == nil {
 		var w struct {
 			// ID IS THE DISCRIMINATOR, AND WITHOUT IT THIS DECODE CANNOT FAIL. A struct carrying
@@ -259,12 +250,36 @@ func OpenAccessCandidates(f Fetcher, doi string) (locs []string, answered bool) 
 			}
 		}
 	}
+	// EUROPE PMC, AND THROUGH IT PUBMED CENTRAL, WHICH IS THE ADDITION THAT PAID.
+	//
+	// Measured on eight works whose OpenAlex pdf_url answered 403 from the publisher that listed
+	// it: four carry a PMCID that OpenAlex's locations did not surface, and three of those four
+	// serve a real PDF from PMC's open-access bucket — 615 KB, 767 KB, 983 KB. Papers this tool
+	// had recorded as unreachable are sitting in an archive whose machine routes NCBI publishes.
+	//
+	// One index's list is not the world. Taking OpenAlex's alone was the same mistake in miniature
+	// as taking Unpaywall's best nomination: a union of everything each index knows, tried and
+	// verified, is the only shape that survives a publisher refusing the copy it advertises.
+	epmc, epmcOK := europePMCCandidates(f, doi)
+	if !epmcOK {
+		// AN INDEX THAT DID NOT ANSWER IS NOT AN INDEX WITH NOTHING IN IT. Europe PMC is visibly
+		// flaky — it answers a bare nginx 503 under load — and losing it loses the PubMed Central
+		// route, which is where the copies a publisher refuses actually live. Measured: the same
+		// doi returned a 983 KB PDF on one call and "no open copy exists anywhere" on the next,
+		// which is a claim about the WORLD produced by a timeout. Whatever else this function
+		// says, it must not say that.
+		indexFailed = true
+	}
+	for _, u := range epmc {
+		add(u, strings.HasSuffix(u, ".pdf"))
+	}
+
 	// A DIRECT PDF BEFORE A LANDING PAGE, because the landing page is the thing that walls us and
 	// the pdf is the thing a citation can be checked against. Beyond that the order is the
 	// indexes' own: neither publishes a ranking this could improve on, and the measured predictor
 	// of success was not source type — every location that worked in the sample was typed
 	// `journal`, including the ones that did not.
-	return append(pdfs, pages...), answered
+	return append(pdfs, pages...), answered && !indexFailed
 }
 
 // maxOACandidates bounds how many listed locations one lookup will try. The indexes list up to
@@ -272,11 +287,76 @@ func OpenAccessCandidates(f Fetcher, doi string) (locs []string, answered bool) 
 // long-shot has already lost more than the ninth was worth.
 const maxOACandidates = 4
 
-// oaLoc is Unpaywall's location shape, shared by best_oa_location and the oa_locations list.
-type oaLoc struct {
-	URLForPDF string `json:"url_for_pdf"`
-	URL       string `json:"url"`
+// europePMCCandidates asks Europe PMC what it holds for a doi, and turns a PMCID into the
+// sanctioned PubMed Central route rather than the browser one.
+//
+// THE PMC BUCKET IS THE POINT. NCBI names the Cloud Service as one of the "only services that may
+// be used for automated retrieval of PMC content", and the `/articles/PMC…/pdf/` path a browser
+// would take is not among them — it is the one behind the proof-of-work challenge. So a PMCID is
+// resolved to `pmc-oa-opendata.s3.amazonaws.com`, which answers anonymously with no challenge,
+// and a miss there is a positive `KeyCount 0` rather than an error.
+func europePMCCandidates(f Fetcher, doi string) (locs []string, answered bool) {
+	if doi == "" {
+		return nil, true // nothing to ask about is not a failure to ask
+	}
+	resp, err := f.Fetch("https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:%22" +
+		url.QueryEscape(doi) + "%22&resultType=core&format=json&pageSize=1")
+	if err != nil {
+		return nil, false
+	}
+	var r struct {
+		ResultList struct {
+			Result []struct {
+				PMCID        string `json:"pmcid"`
+				FullTextURLs struct {
+					URL []struct {
+						Availability  string `json:"availability"`
+						DocumentStyle string `json:"documentStyle"`
+						URL           string `json:"url"`
+					} `json:"fullTextUrl"`
+				} `json:"fullTextUrlList"`
+			} `json:"result"`
+		} `json:"resultList"`
+	}
+	if json.Unmarshal(resp.Body, &r) != nil {
+		return nil, false // a body that is not a result list means the service did not answer
+	}
+	if len(r.ResultList.Result) == 0 {
+		return nil, true // an answered "we hold nothing for this doi"
+	}
+	rec := r.ResultList.Result[0]
+	var out []string
+	if rec.PMCID != "" {
+		if k := pmcOpenAccessPDF(f, rec.PMCID); k != "" {
+			out = append(out, k)
+		}
+	}
+	for _, u := range rec.FullTextURLs.URL {
+		// Europe PMC types each location, which is the field that separates a copy we may read
+		// from a publisher page that will refuse us.
+		if u.Availability == "Free" || u.Availability == "Open access" {
+			out = append(out, u.URL)
+		}
+	}
+	return out, true
 }
+
+// pmcOpenAccessPDF returns the bucket url for a PMCID's pdf, or "" where the open-access subset
+// does not hold one — which the bucket states positively, as a zero key count.
+func pmcOpenAccessPDF(f Fetcher, pmcid string) string {
+	resp, err := f.Fetch("https://pmc-oa-opendata.s3.amazonaws.com/?list-type=2&max-keys=40&prefix=" +
+		url.QueryEscape(pmcid))
+	if err != nil {
+		return ""
+	}
+	m := pmcPDFKey.FindSubmatch(resp.Body)
+	if m == nil {
+		return ""
+	}
+	return "https://pmc-oa-opendata.s3.amazonaws.com/" + string(m[1])
+}
+
+var pmcPDFKey = regexp.MustCompile(`<Key>([^<]+\.pdf)</Key>`)
 
 // ---------- metadata ----------
 
@@ -392,7 +472,7 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 			if len(when) >= 8 {
 				when = fmt.Sprintf("%s-%s-%s", when[0:4], when[4:6], when[6:8])
 			}
-			return &Attempt{Body: resp.Body, ContentType: MediaType(resp.ContentType), TextRetrieved: true,
+			return &Attempt{Body: resp.Body, ContentType: SniffedMediaType(resp.ContentType, resp.Body), TextRetrieved: true,
 				Via: fmt.Sprintf("archive.org capture of %s (%s) — a snapshot, NOT the live source; for a subscription "+
 					"article this is usually the landing page and not the text, so read it before citing it as read",
 					when, c.SnapshotURL())}
@@ -430,7 +510,7 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 					refused = append(refused, loc)
 					continue
 				}
-				return &Attempt{Body: resp.Body, ContentType: MediaType(resp.ContentType), TextRetrieved: true,
+				return &Attempt{Body: resp.Body, ContentType: SniffedMediaType(resp.ContentType, resp.Body), TextRetrieved: true,
 					Via: fmt.Sprintf("open-access copy, located by doi %s at %s (candidate %d of %d the OA indexes listed)",
 						doi, loc, i+1, len(locs))}
 			}
@@ -457,7 +537,7 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 			_, pdf, eprint, html := ArxivURLs(id)
 			resp, err := f.Fetch(pdf)
 			if err == nil {
-				return &Attempt{Body: resp.Body, ContentType: MediaType(resp.ContentType), TextRetrieved: true,
+				return &Attempt{Body: resp.Body, ContentType: SniffedMediaType(resp.ContentType, resp.Body), TextRetrieved: true,
 					Via: "arXiv " + id + " (" + pdf + "); the LaTeX source is at " + eprint}
 			}
 			// A REFUSED PDF IS NOT AN ABSENT PAPER, and returning nil here said it was. arXiv

@@ -101,9 +101,15 @@ var hostIntervals = map[string]time.Duration{
 	// reached" — measured 2026-09-22, while this very sweep was running. Both the CDX endpoint
 	// and the snapshot host are the same service.
 	"web.archive.org": time.Second,
-	// Unpaywall asks callers to "limit use to 100,000 calls per day" — a daily budget rather than
-	// a rate, so this is the default's caution, stated rather than inferred.
-	"api.unpaywall.org": defaultHostInterval,
+	// EBI publishes no rate for the Europe PMC REST service; it is also visibly flaky under load,
+	// answering a bare nginx 503. Paced at the default.
+	"www.ebi.ac.uk": defaultHostInterval,
+	// The PMC open-access bucket is plain S3 and NCBI names it a sanctioned automated route, but
+	// it is still NCBI, whose stated ceiling without a key is 3 requests a second.
+	"pmc-oa-opendata.s3.amazonaws.com": 334 * time.Millisecond,
+	// api.openalex.org is the open-access index this tool asks. Its singleton lookups cost no
+	// credits, but the budget is per IP and shared with anything else on this box.
+	"api.openalex.org": 500 * time.Millisecond,
 }
 
 // paceDir is where the shared slots live. A package var so a test can point it somewhere

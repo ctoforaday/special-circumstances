@@ -40,8 +40,11 @@ func TestACaptureIsChosenByDateNotByRecency(t *testing.T) {
 // is a fact about the WORLD, where the run could only say "unreachable from this container".
 func TestAnAnsweredNoOpenCopyIsAFindingNotAMiss(t *testing.T) {
 	f := fake(func(u string) (*Response, error) {
-		if strings.Contains(u, "unpaywall") {
-			return &Response{Body: []byte(`{"doi":"10.5951/MT.82.1.0033","is_oa":false,"best_oa_location":null,"oa_locations":[]}`)}, nil
+		if strings.Contains(u, "ebi.ac.uk") {
+			return &Response{Body: []byte(`{"resultList":{"result":[]}}`)}, nil
+		}
+		if strings.Contains(u, "openalex") {
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","open_access":{"is_oa":false,"oa_url":null},"locations":[]}`)}, nil
 		}
 		return nil, &Refusal{URL: u, Status: 403}
 	})
@@ -193,8 +196,11 @@ func TestAStatedArxivFailureDoesNotEndTheAutoChain(t *testing.T) {
 		if strings.Contains(u, "arxiv.org") {
 			return nil, errors.New("boom")
 		}
-		if strings.Contains(u, "unpaywall") {
-			return &Response{Body: []byte(`{"doi":"10.4310/ATMP.1998.v2.n2.a1","is_oa":true,"best_oa_location":{"url_for_pdf":"https://ex.org/open.pdf"},"oa_locations":[]}`)}, nil
+		if strings.Contains(u, "ebi.ac.uk") {
+			return &Response{Body: []byte(`{"resultList":{"result":[]}}`)}, nil
+		}
+		if strings.Contains(u, "openalex") {
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","locations":[{"pdf_url":"https://ex.org/open.pdf","is_oa":true}]}`)}, nil
 		}
 		if u == "https://ex.org/open.pdf" {
 			return &Response{Body: []byte("%PDF-1.7 open copy"), ContentType: "application/pdf"}, nil
@@ -227,10 +233,13 @@ func TestAnOpenAccessAnswerRequiresAWork(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := fake(func(u string) (*Response, error) {
+				if strings.Contains(u, "ebi.ac.uk") {
+					return &Response{Body: []byte(`{"resultList":{"result":[]}}`)}, nil
+				}
 				if strings.Contains(u, "openalex") {
 					return &Response{Body: []byte(tc.openalex)}, nil
 				}
-				return nil, &Refusal{URL: u, Status: 403} // unpaywall silent, so openalex decides
+				return nil, &Refusal{URL: u, Status: 403} // only openalex is asked
 			})
 			_, answered := OpenAccessCandidates(f, "10.1234/x")
 			if answered != tc.wantAnswered {
@@ -281,8 +290,11 @@ func TestAnArchiveOutageDoesNotEndTheAutoChain(t *testing.T) {
 		if strings.Contains(u, "web.archive.org") {
 			return &Response{Body: []byte("<html><title>Internet Archive: Temporarily Offline</title></html>"), ContentType: "text/html"}, nil
 		}
-		if strings.Contains(u, "unpaywall") {
-			return &Response{Body: []byte(`{"doi":"10.4310/ATMP.1998.v2.n2.a1","is_oa":true,"best_oa_location":{"url_for_pdf":"https://ex.org/open.pdf"},"oa_locations":[]}`)}, nil
+		if strings.Contains(u, "ebi.ac.uk") {
+			return &Response{Body: []byte(`{"resultList":{"result":[]}}`)}, nil
+		}
+		if strings.Contains(u, "openalex") {
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","locations":[{"pdf_url":"https://ex.org/open.pdf","is_oa":true}]}`)}, nil
 		}
 		if u == "https://ex.org/open.pdf" {
 			return &Response{Body: []byte("%PDF-1.7 open copy"), ContentType: "application/pdf"}, nil
@@ -319,12 +331,12 @@ func TestEveryListedOpenAccessLocationIsTried(t *testing.T) {
 	var tried []string
 	f := fake(func(u string) (*Response, error) {
 		switch {
-		case strings.Contains(u, "unpaywall"):
-			return &Response{Body: []byte(`{"doi":"10.1234/x","best_oa_location":null,
-				"oa_locations":[{"url_for_pdf":"https://walled.example/a.pdf","url":"https://walled.example/a"}]}`)}, nil
+		case strings.Contains(u, "ebi.ac.uk"):
+			return &Response{Body: []byte(`{"resultList":{"result":[]}}`)}, nil
 		case strings.Contains(u, "openalex"):
 			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","open_access":{"oa_url":null},
-				"locations":[{"pdf_url":"https://repo.example/open.pdf","is_oa":true}]}`)}, nil
+				"locations":[{"pdf_url":"https://walled.example/a.pdf","is_oa":true},
+				             {"pdf_url":"https://repo.example/open.pdf","is_oa":true}]}`)}, nil
 		}
 		tried = append(tried, u)
 		if strings.Contains(u, "walled") {
@@ -339,8 +351,8 @@ func TestEveryListedOpenAccessLocationIsTried(t *testing.T) {
 	if len(tried) != 2 || !strings.Contains(tried[1], "repo.example") {
 		t.Errorf("urls tried = %v, want the refused one then the one that works", tried)
 	}
-	// BOTH INDEXES CONTRIBUTE. Unpaywall's null best_oa_location used to short-circuit the whole
-	// lookup, so OpenAlex's list was never consulted at all.
+	// THE LIST IS WHAT IS READ, not the index's nomination — `oa_url` here is null while two
+	// locations carry a pdf, which is exactly the shape that used to yield "no open copy".
 	if !strings.Contains(att.Via, "repo.example/open.pdf") {
 		t.Errorf("the winning location is not named: %s", att.Via)
 	}
@@ -353,10 +365,10 @@ func TestALocationThatAnswersWithAWallIsNotAccepted(t *testing.T) {
 	wall := []byte(`<html><head><title>Just a moment...</title></head><body>checking</body></html>`)
 	f := fake(func(u string) (*Response, error) {
 		switch {
-		case strings.Contains(u, "unpaywall"):
-			return &Response{Body: []byte(`{"doi":"10.1234/x","best_oa_location":{"url_for_pdf":"https://pub.example/a.pdf"}}`)}, nil
+		case strings.Contains(u, "ebi.ac.uk"):
+			return &Response{Body: []byte(`{"resultList":{"result":[]}}`)}, nil
 		case strings.Contains(u, "openalex"):
-			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","locations":[]}`)}, nil
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","locations":[{"pdf_url":"https://pub.example/a.pdf","is_oa":true}]}`)}, nil
 		}
 		return &Response{Body: wall, ContentType: "text/html"}, nil
 	})
@@ -378,9 +390,14 @@ func TestALocationThatAnswersWithAWallIsNotAccepted(t *testing.T) {
 	}
 }
 
-// AND A GENUINE ABSENCE IS STILL A DETERMINATE FINDING — now on two silences rather than one.
+// AND A GENUINE ABSENCE IS STILL A DETERMINATE FINDING — but only when every index ANSWERED.
+// Each one that fails to answer takes the world-claim with it, because "no open copy exists
+// anywhere" cannot be assembled out of a timeout.
 func TestNoLocationsFromEitherIndexIsStillAnAnsweredNo(t *testing.T) {
 	f := fake(func(u string) (*Response, error) {
+		if strings.Contains(u, "ebi.ac.uk") {
+			return &Response{Body: []byte(`{"resultList":{"result":[]}}`)}, nil
+		}
 		if strings.Contains(u, "unpaywall") {
 			return &Response{Body: []byte(`{"doi":"10.1234/x","best_oa_location":null,"oa_locations":[]}`)}, nil
 		}
@@ -392,5 +409,30 @@ func TestNoLocationsFromEitherIndexIsStillAnAnsweredNo(t *testing.T) {
 	att := Recover(f, "https://doi.org/10.1234/x", ViaOA, "")
 	if att == nil || !strings.Contains(att.Via, "NO OPEN COPY EXISTS") {
 		t.Fatalf("a genuine absence stopped being a finding: %+v", att)
+	}
+}
+
+// A FLAKY INDEX MUST NOT MANUFACTURE A FACT ABOUT THE WORLD. Europe PMC answers a bare nginx 503
+// under load, and losing it loses the PubMed Central route — which is where the copies a
+// publisher refuses actually live. Measured: one doi returned a 983 KB PDF on one call and "no
+// open copy exists anywhere" on the next.
+func TestAnIndexThatDidNotAnswerBlocksTheWorldClaim(t *testing.T) {
+	f := fake(func(u string) (*Response, error) {
+		if strings.Contains(u, "ebi.ac.uk") {
+			return nil, &Refusal{URL: u, Status: 503} // the shape EBI actually fails with
+		}
+		if strings.Contains(u, "openalex") {
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","open_access":{"oa_url":null},"locations":[]}`)}, nil
+		}
+		return nil, &Refusal{URL: u, Status: 404}
+	})
+	_, answered := OpenAccessCandidates(f, "10.1234/x")
+	if answered {
+		t.Error("an index that did not answer was counted as a silence — that licenses " +
+			"'no open copy exists anywhere', which would be a claim about the world built from a timeout")
+	}
+	// AND THE CALLER DECLINES rather than publishing the claim.
+	if att := Recover(f, "https://doi.org/10.1234/x", ViaOA, ""); att != nil && strings.Contains(att.Via, "NO OPEN COPY EXISTS") {
+		t.Errorf("a 503 from one index became a determinate absence: %s", att.Via)
 	}
 }

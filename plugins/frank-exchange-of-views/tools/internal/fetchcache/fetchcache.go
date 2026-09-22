@@ -23,6 +23,7 @@ package fetchcache
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -203,6 +204,34 @@ type Refusal struct {
 
 func (r *Refusal) Error() string {
 	return fmt.Sprintf("fetch: %s returned HTTP %d%s", r.URL, r.Status, r.Note)
+}
+
+// SniffedMediaType is the media type a response ACTUALLY carries, preferring the bytes over the
+// header whenever the header declines to say.
+//
+// THE HEADER IS AN OPINION AND THE MAGIC BYTES ARE THE DOCUMENT. PubMed Central's open-access
+// bucket serves its PDFs as `binary/octet-stream`; measured, a 983,106-byte body beginning
+// `%PDF-1.4` was cached with that type, which meant the PDF extractor never ran and the OCR path
+// could not fire either — `applicableToOCR` asks for `application/pdf`. The tool had gone to the
+// trouble of finding a paper three indexes had hidden, and then could not read it.
+//
+// It only ever overrides a type that declines to be specific. A source calling its bytes
+// `text/html` is making a claim this does not second-guess; a source saying `octet-stream` is
+// saying it does not know, and here we do.
+func SniffedMediaType(declared string, body []byte) string {
+	mt := MediaType(declared)
+	switch mt {
+	case "", "application/octet-stream", "binary/octet-stream", "application/force-download", "application/download":
+	default:
+		return mt
+	}
+	switch {
+	case bytes.HasPrefix(body, []byte("%PDF")):
+		return "application/pdf"
+	case bytes.HasPrefix(bytes.TrimLeft(body, " \t\r\n"), []byte("<?xml")):
+		return "application/xml"
+	}
+	return mt
 }
 
 // Sha is the lowercase-hex sha256 of b — the cache key and the hash a citation records.
@@ -392,7 +421,7 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		}
 		return entry, att.Body, false, nil
 	}
-	entry := Entry{URL: url, ContentType: MediaType(resp.ContentType)}
+	entry := Entry{URL: url, ContentType: SniffedMediaType(resp.ContentType, resp.Body)}
 	entry.Sha = Sha(resp.Body)
 
 	ex := DefaultExtractor.Extract(Dir(run), entry.ContentType, resp.Body)

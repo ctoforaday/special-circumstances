@@ -35,3 +35,32 @@ func TestNoReservationIsNotAReservation(t *testing.T) {
 		})
 	}
 }
+
+// THE HEADER IS AN OPINION AND THE MAGIC BYTES ARE THE DOCUMENT.
+//
+// PubMed Central's open-access bucket — the route NCBI names as sanctioned — serves its PDFs as
+// `binary/octet-stream`. Measured: a 983,106-byte body beginning `%PDF-1.4` was cached with that
+// type, so the PDF extractor never ran and the OCR path could not fire either, because both ask
+// for `application/pdf`. The tool found a paper three indexes had hidden and then could not read
+// it.
+func TestAGenericContentTypeIsSniffedFromTheBytes(t *testing.T) {
+	pdf := []byte("%PDF-1.4\nbody")
+	for _, declared := range []string{"binary/octet-stream", "application/octet-stream", "application/force-download", ""} {
+		if got := SniffedMediaType(declared, pdf); got != "application/pdf" {
+			t.Errorf("SniffedMediaType(%q, %%PDF…) = %q, want application/pdf", declared, got)
+		}
+	}
+	// A SOURCE THAT IS SPECIFIC IS BELIEVED. Saying `text/html` is a claim; saying octet-stream
+	// is saying it does not know. Overriding the first would be second-guessing the source about
+	// its own document.
+	if got := SniffedMediaType("text/html; charset=utf-8", []byte("<html>a page</html>")); got != "text/html" {
+		t.Errorf("a specific content type was overridden: %q", got)
+	}
+	if got := SniffedMediaType("application/pdf", pdf); got != "application/pdf" {
+		t.Errorf("a correct content type was changed: %q", got)
+	}
+	// AND AN UNRECOGNISED BODY KEEPS THE DECLARED TYPE rather than being guessed at.
+	if got := SniffedMediaType("binary/octet-stream", []byte("\x00\x01\x02 not a format we know")); got != "binary/octet-stream" {
+		t.Errorf("an unknown body was given a type: %q", got)
+	}
+}
