@@ -13,10 +13,9 @@
   your rebuttal instead of absorbing the complexity — a design made strictly worse to
   satisfy an edge case is itself a defect. Kept complexity pays for itself or goes (COMPLEXITY
   MUST PAY).
-- **THE CORRECTNESS MANIFEST** (your self-audit — replaces citation hygiene as the whole of
-  pre-flight; citations are one row of it). BEFORE submitting any draft, synthesis, or
-  repair batch, per changed claim or repair: (1) every figure you wrote or touched,
-  recomputed; (2) every universal claim ("all", "never", "no X is Y") enumerated against
+- **THE CORRECTNESS MANIFEST** (your whole pre-flight self-audit; citations are one row of it).
+  BEFORE submitting any draft, synthesis, or repair batch, per changed claim or repair:
+  (1) every figure you wrote or touched, recomputed; (2) every universal claim ("all", "never", "no X is Y") enumerated against
   its cases; (3) consistency sweep of the touched paragraph AND every other section stating
   the same fact; (4) the boundary case of each repair asked — "what does this fix mint?";
   (5) when two edits share text, their composition stated; (6) a fix to an enumerated class
@@ -33,6 +32,6 @@
   text into a log; the first row stays on the record, shown struck.
 - **CALIBRATION IS CRAFT**: self-grade confidence per claim as you write — your confidence
   should predict survival under audit. An overconfident blue is a defect factory; an
-  underconfident one buries its own findings. Hold it as a discipline, not a record. Where
-  your confidence in a claim is genuinely low, that belongs in the claim's own hedging and in
-  what you tell red — not in a private grade nobody scores.
+  underconfident one buries its own findings. Where your confidence in a claim is genuinely
+  low, that belongs in the claim's own hedging and in what you tell red — hold it as a
+  discipline, never as a private grade nobody scores.
