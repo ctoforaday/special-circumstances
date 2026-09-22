@@ -247,7 +247,7 @@ A BENCH-RULED MOTION (petition, docket) HAS NO APPEAL, and that absence is the d
 §18 (on 6 pages):
 THIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-for-byte the same. On an ERROR it prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
 
-§19 (on 11 pages):
+§19 (on 10 pages):
 Global Flags:
       --id string        scope the changes projection to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
       --json             emit a structured JSON result (and structured errors) instead of human text
@@ -279,7 +279,7 @@ Available Commands:
   manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
   position        your sitting's position — the argument the other side answers, rendered as this sitting's BLUE section
   prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
-  register        your first act at EVERY sitting, and the one call that needs your seat id — nothing else runs until it does
+  register        your first act in any sitting you record something in, and the one call that needs your seat id
   retire          take a claim out of the report, when it cannot stand and no edit will save it
   revision        your revision — what changed this sitting, once, after your edits have landed
 
@@ -570,11 +570,11 @@ SAY WHAT THE ENTRY ASSERTS: the operator triages this channel by FILTERING on it
 
 MOST REFUSALS ARE YOURS and belong in no entry — a wrong verb, flag or quote: take the correction and move on. A refusal naming a verb you cannot find, or a fact the record holds that no view shows you, IS what the log is for: report it rather than engineer around it, because a workaround leaves no trace and the missing capability then looks exactly like one nobody wanted.
 
-THE RECORD HOLDS WHAT YOU DID — which verbs you ran, which help pages you read, in what order — so an entry retelling it is a diary the operator must read through to find the one sentence meant for them. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a sitting. A clean sitting says so in one line and stops.
+THE RECORD HOLDS WHAT YOU DID — which verbs you ran, which help pages you read, in what order — so an entry retelling it is a diary the operator must read through to find the one sentence meant for them. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a sitting. A sitting with none of that writes no entry.
 
 YOUR AUDIENCE IS THE OPERATOR who can retool you, not the other seats: nothing here is debate material, and the other side answers none of it.
 
-A SITTING THAT RECORDED NOTHING OWES NO ENTRY AT ALL. The channel exists because silence is ambiguous — an absent entry reads the same whether the sitting was clean or the channel went unused. That argument is about a sitting that DID things and might have hit walls. A sitting with no acts on it is not ambiguous: the harness brackets it at both ends, carrying your identity on each, so that you ran is on the record whatever you did. The clean entry is derived from the emptiness rather than asserted about it, which is the stronger of the two. So a seat woken with nothing to do may end its turn having run no commands — and the work list says so, by not asking.
+A SITTING THAT RECORDED NOTHING OWES NO ENTRY. Silence is ambiguous only where the sitting DID things and might have hit walls. One with no acts is not: the harness brackets it with your identity, so that you ran is on the record. Deriving the clean case from the emptiness beats asserting it. Your work list says which case you are in, by not asking.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -827,11 +827,11 @@ Flags:
 (Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record register --help
-your first act at EVERY sitting, and the one call that needs your seat id — nothing else runs until it does
+your first act in any sitting you record something in, and the one call that needs your seat id
 
 It binds your seat to you on the record: every later call resolves it, and your run is injected on every call, so you type neither again.
 
-A SITTING WITH NOTHING IN IT DOES NOT NEED YOU TO OPEN IT. The harness brackets every dispatch with your identity at both ends, so where your configuration seats exactly one seat the record already knows you sat. If you look and there is nothing for you to do, you may end your turn having run no commands at all — this one included.
+A SITTING WITH NOTHING IN IT NEEDS NO OPENING. The harness brackets every dispatch with your identity, so where one agent type seats one seat the record knows you sat. Look, find nothing owed, and end the turn having run nothing — this included.
 
 It also OPENS THE SITTING, and a sitting is every time you are handed a prompt — including one that resumes your earlier session. The record counts your sittings by your registers, so a sitting you did not open with one is not on it: a dispatched seat is readied again until it registers, and the chair is refused `dispatch next`. Your work list says when one is owed.
 
@@ -921,7 +921,6 @@ Available Commands:
   lines-of-inquiry WHICH DIRECTIONS WERE TAKEN AND WHICH WERE NOT — pursued, deferred, declined, abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule`
   motions          WHAT HAS BEEN CONTESTED AND HOW IT WAS RULED — the ask in the filer's words, and the ruling if it has one. `debate` is what each side ARGUED; this is what was formally disputed. Written by `motion`, `rule` and `appeal`
   report           THE REPORT, as it stands now. `changes` says how it got that way. Written by the opening synthesis and every `edit`, with anchors from `cite`, `finding` and `prove`
-  scorecard        YOUR SCORECARD ON THIS QUESTION — the numbers your seat is measured on, this run only. No selector: your scorecard follows from the seat you registered as. Computed from the record, so no verb fills it
   telemetry        HOW THE NUMBERS MOVED ACROSS EPOCHS — a trend, not a snapshot: one line per epoch (chair sitting), and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it
   work             WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Run it first and again before you finish. Written by `mint`, `close` and the bench's `motion docket rule`
 
@@ -1041,19 +1040,6 @@ Flags:
       --anchor id    read the report AT one anchor id (f-…, c-…, p-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back
   -h, --help         help for report
       --window int   with --anchor: how many paragraphs of content either side of it (blank lines are kept, not counted) (default 3)
-
-(Global Flags:) → SHARED §19
-==============================================================================
-$ feov-record show scorecard --help
-YOUR IN-RUN SCORECARD — the numbers your seat is measured on (red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench), computed live from this run's record; no selector, because your scorecard follows from the seat you registered as. A bad number means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures: a gamed diagnostic is itself a defect, and a detector firing is a finding. Rows reading "not computed" are HONEST, not gaps to fill: envelope-derived rows fill in at capture. --json gives the same rows with their types intact, a null value wherever a row is not computed. No verb fills it
-
-OUTPUT (JSON, with --json — the bare call is the markdown form): {clause,metric,class,value,note,joint}
-
-Usage:
-  feov-record show scorecard [flags]
-
-Flags:
-  -h, --help   help for scorecard
 
 (Global Flags:) → SHARED §19
 ==============================================================================

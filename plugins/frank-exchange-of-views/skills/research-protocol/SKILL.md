@@ -137,8 +137,10 @@ All artifacts are git-tracked; nothing is summarized away. The payload is the fi
 There is no search index, and there are two access modes:
 
 1. **Full read for the report** — red reads blue's report whole, in
-   context, every sitting. A snippet NEVER substitutes: a decontextualized quote is how audits
-   go blind. This clause outranks any token saving.
+   context, every sitting THE REPORT HAS MOVED. A snippet NEVER substitutes: a decontextualized
+   quote is how audits go blind. This clause outranks any token saving, and the exception is not
+   one: where the report stands at the head red already read, the whole-document read it is owed
+   is the one already performed, and performing it again returns the same bytes to the same reader.
 2. **Leaf-node fetch for verification** — a citation is checked against its source, never against a
    summary. For a source BLUE CITED, read the exact bytes blue read from the run cache
    (a cache hit, so you audit the same artifact, not a page that may have drifted since). For a source you discover yourself, pull it verbatim (Bash `curl`, or the run's cached source read for a PDF).
@@ -168,7 +170,7 @@ in it opens with a link bar to the others.
 first*) → **the Catechism** (`references/catechism_template.md` — the worth-our-time decision,
 adapted from Heilmeier) → analytical core (foundations / analysis / risk matrix graded
 likelihood × impact × complexity, including risk-accepted items with rationale) → the three
-inquiry areas → **open questions, left open by this run** (authored by blue into the report's `## Open questions`, audited by red every sitting, lifted verbatim) →
+inquiry areas → **open questions, left open by this run** (authored by blue into the report's `## Open questions`, audited by red every sitting it has moved, lifted verbatim) →
 footnotes (with access dates; volatility noted for living sources).
 
 The debate's own documents are beside it, one per audience: `docket.md` (the board in

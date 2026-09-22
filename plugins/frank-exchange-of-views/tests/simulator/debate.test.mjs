@@ -252,7 +252,7 @@ test('the chair runs the debate: relays the plan verbatim, mints nothing, closes
   assert.ok(!/COALESCE/.test(p) && !/only writer/.test(p), 'the coalescing chair is gone with the mechanism')
   assert.ok(chair.opts.schema.properties.plan && chair.opts.schema.required.includes('plan'), 'the envelope carries the plan')
   assert.ok(!chair.opts.schema.properties.gaps, 'and no gap list — the record holds the board')
-  assert.ok(/YOUR IN-RUN SCORECARD/.test(p) && !/YOUR CHAIR'S SCORECARD/.test(p), 'the in-run self-read, never a cross-run seed')
+  assert.ok(!/SCORECARD/i.test(p), 'no prompt sends a seat to a scorecard: the card is retired and `show work` carries the situation (#1126)')
 })
 
 // THE CHAIR IS TOLD THE RETIREMENT MODEL IT RELAYS AND THE PASS IT MAY RECORD: a lens retires and is
@@ -290,6 +290,21 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
   assert.ok(evidence.includes(CITATION_CLAUSE) && /VERBATIM READS ONLY/.test(evidence) && /--comments/.test(evidence), 'the evidence lens carries the ledger clause')
   assert.ok(/STEELMAN DUTY/.test(firstPrompt(world, 'red-lens-logic')) && /STEELMAN DUTY/.test(firstPrompt(world, 'red-lens-dark-side')), 'logic and dark-side audit the declines')
   assert.ok(!/STEELMAN DUTY/.test(evidence) && !/take slice|instance \d+ of/.test(evidence), 'the evidence seat verifies sources and owns no slice')
+
+  // THE FULL RE-READ IS SCOPED TO THE KIND THAT ORDERS IT, and this is the measurement that put it
+  // there. #1089 made an empty sitting free, and across 13 empty sittings of the 2026-09-22 smoke
+  // the affordance was taken 0 times: 13 of 13 registered, logged, and re-read the whole report.
+  // The constitution had already been narrowed to excuse them; this prompt still said "RE-READ THE
+  // FULL REPORT IN CONTEXT" flat in its body, one sentence after the clause explaining `unchanged`,
+  // and the unconditional rule won. A seat obeys the strictest thing it is told.
+  assert.ok(!/RE-READ THE FULL REPORT IN CONTEXT/.test(evidence),
+    'the re-read must not be ordered unconditionally in the prompt body — scope it to `first` and `behind`')
+  assert.ok(/`first`: audit the report in full/.test(evidence) && /`behind`:[^`]*in full/.test(evidence),
+    'the kinds that DID move still order the full read')
+  assert.ok(/`unchanged`:[^`]*NOTHING TO AUDIT/.test(evidence),
+    'the kind that did not move must say there is nothing to audit')
+  assert.ok(/the sitting owes no entry/.test(evidence),
+    'an unchanged sitting with nothing engaging it owes no log entry')
 })
 
 test('blue is engaged on named gaps, told the board is authoritative, and files closings only when the plan docketed', async () => {
@@ -439,7 +454,11 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   assert.ok(/reorganize freely/i.test(synth) && /retired on the record/.test(synth))
   assert.ok(/LINES OF INQUIRY/.test(synth) && /dead ends matter most/.test(synth) && /CONSIDERED, not only the one you took/.test(synth))
   assert.ok(/what you weighed and rejected are three things a reader needs/.test(synth))
-  assert.ok(/YOUR IN-RUN SCORECARD/.test(synth) && /YOUR SCORECARD for/.test(synth) && /your registered seat/.test(synth) && !synth.includes('scorecards.mjs') && !/--bin\b/.test(synth))
+  // THE CARD IS RETIRED, VERB AND CLAUSE (#1126). `show work` and the scorecard were the same
+  // intent from two designs; work is the one that kept it. Measured 2026-09-22: 36 reads and 36 of
+  // 39 results carried the literal "not computed", which the verb's own help concedes — the rows
+  // fill in at capture, not in the sitting reading them. A prompt must not send a seat to it.
+  assert.ok(!/SCORECARD/i.test(synth) && !synth.includes('scorecards.mjs') && !/--bin\b/.test(synth))
 })
 
 test('priors-are-poison: no cross-run scorecard seed reaches any chair, even when scorecards are supplied', async () => {
@@ -447,11 +466,9 @@ test('priors-are-poison: no cross-run scorecard seed reaches any chair, even whe
   const world = makeWorld(makeResponder({ chair: [passChair()] }))
   await world.run(script, { ...ARGS, scorecards })
   assert.ok(!firstPrompt(world, 'blue-synthesize').includes('0.63') && !firstPrompt(world, 'red-chair').includes('89') && !firstPrompt(world, 'judge · assemble').includes('0.98'))
-  assert.ok(!world.calls.some((c) => /YOUR CHAIR'S SCORECARD/.test(c.prompt)))
-  for (const c of world.calls.filter((c) => /YOUR IN-RUN SCORECARD/.test(c.prompt))) {
-    assert.ok(/projection of this run's record/.test(c.prompt))
-    assert.ok(!/\d+\.\d\d/.test(c.prompt.match(/YOUR IN-RUN SCORECARD[^.]*\./)[0]), 'no prior number is seeded')
-  }
+  // STRONGER THAN IT WAS: the seat-side card is retired, so no prompt mentions a scorecard at all
+  // and a supplied seed has nowhere to land. The arg is still supplied here on purpose.
+  assert.ok(!world.calls.some((c) => /SCORECARD/i.test(c.prompt)), 'no prompt names a scorecard')
 })
 
 test('every seat prompt carries the log clause, the speed clause and the record contract; bench sittings carry the law clause', async () => {

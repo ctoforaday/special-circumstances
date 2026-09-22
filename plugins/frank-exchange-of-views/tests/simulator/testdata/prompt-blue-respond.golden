@@ -1,10 +1,8 @@
-prompt sha256: 4d94b2aa2b51e705c5d722c539abac0fdc984a7a041c0a56b5f2c8bd423711d6
+prompt sha256: c9b947d56c2bb8ffeced6629a035bb711c6af1f10cf8bfaa17c64e425be890ec
 
 Blue response, topic "the seat prompt contract".
 You are engaged on: G1.
 YOUR FIRST READ COMES AFTER THE MANUAL BELOW, NOT BEFORE IT: pull your working set — the board and work projections and the transcript — in one pass rather than two, concatenating them into a single file under your session scratchpad (an ABSOLUTE path, never under research/2026-01-01_golden, and with your seat id in the name) and reading that.
-YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, read YOUR SCORECARD for the question in front of you so far.
-It is a projection of this run's record on your own surface, it needs no selector because your scorecard is the one your registered seat is measured on, and its own page says what the rows mean.
 SEAT_ID: blue-respond.
 THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 Routing around it into markdown is the failure this contract exists to prevent.
