@@ -97,14 +97,11 @@ trajectories/       journal.jsonl (the HARNESS's lifecycle record, tracked)
 ```
 
 `setup` lays down directories and no file a seat fills. **A stub is not an artifact**: a
-placeholder reads as the real thing. Measured in the 2026-08-05 run, stubs for the transcript and
-the citation list finished at 36 and 46 bytes while the record held 122 events. In B7, setup still
-stubbed `report.md` and `blue/report.md`: the synthesizer copied its draft onto the first, and
-`ingest` froze the second — 40 bytes of heading — as the report's base. Anything under RECORD above
-has no file at all — read it with `show <name>`.
+placeholder reads as the real thing. Anything under RECORD above has no file at all — read it
+with `show <name>`.
 
 `blue/report.md` is the file the synthesizer writes and then FREEZES: the freeze records its
-text as the base of the record and DELETES the file (#709). From then it too is a projection —
+text as the base of the record and DELETES the file. From then it too is a projection —
 there is no `blue/report.md` to open; read the report through the tool and change it only
 through the tool's edit path, each change an event the report is replayed from. It cannot be
 raw-written or bypassed, which is the point: the report a seat reads and the report the record holds
