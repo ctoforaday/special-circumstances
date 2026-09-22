@@ -481,9 +481,9 @@ cmd_run() {
   if [ -d "$REPO/feov-memory" ]; then
     mkdir -p "$src/feov-memory"
     cp -r "$REPO/feov-memory/." "$src/feov-memory/" 2>/dev/null
-    log "staged feov-memory: $(find "$src/feov-memory/red-gap-patterns" -name '*.md' 2>/dev/null | wc -l) pattern(s), registry $([ -f "$src/feov-memory/class-registry.json" ] && echo present || echo MISSING)"
+    log "staged feov-memory: class registry $([ -f "$src/feov-memory/class-registry.json" ] && echo present || echo MISSING)"
   else
-    log "WARNING: no $REPO/feov-memory — red opens with accrued memory only, and mints may be refused"
+    log "WARNING: no $REPO/feov-memory — nothing constrains --class, so every mint this run is REFUSED"
   fi
 
   local stamp; stamp="$(date -u +%Y%m%dT%H%M%SZ)"

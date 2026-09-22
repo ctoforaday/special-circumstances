@@ -728,15 +728,18 @@ test('the default cast is every lens area', async () => {
 // repairing seat at all. `grep -rl 'PATTERN DUTY' --include='*.golden'` returned nothing, because a
 // clause that never renders cannot move a golden — the same plausible zero this engine keeps
 // finding, here in the delivery path of a duty both constitutions advertise as the one that works.
-test('the pattern duty reaches blue-respond, names the act, and inlines no corpus', async () => {
+// NO SEAT IS SENT TO A PATTERN CORPUS. The promoted corpus is retired: the class registry is the
+// vocabulary, it is enforced at mint, and a seat reads its situation from the record. Measured
+// before the removal: all three repairing seats carried the duty and none opened the file.
+test('no prompt sends a repairing seat to a gap-pattern corpus', async () => {
   const world = makeWorld(makeResponder({
     chair: [chairEnv({ plan: plan([party('blue-respond', 'G1')]) }), passChair()],
   }))
   await world.run(script, ARGS)
-  const p = firstPrompt(world, 'blue-respond')
-  assert.ok(p.includes('PATTERN DUTY'), 'the repairing seat was not given the pattern duty')
-  assert.ok(/take its class from the board/.test(p), 'the duty does not tell the seat where the class comes from')
-  assert.ok(/read that class's entries/.test(p), 'the duty does not tell the seat to read the patterns')
+  for (const c of world.calls) {
+    assert.ok(!/PATTERN DUTY/.test(c.prompt), `a pattern duty reached ${c.opts.label}`)
+    assert.ok(!/gap-patterns-by-class|red-gap-patterns/.test(c.prompt), `a corpus path reached ${c.opts.label}`)
+  }
 })
 
 // THE CORPUS IS NOT RELAYED THROUGH THE WORKFLOW ARGUMENT. Passing the parsed index cost 38,473
