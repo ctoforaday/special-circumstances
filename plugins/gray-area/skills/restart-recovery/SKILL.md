@@ -59,8 +59,8 @@ sessions back when they are opened; `past` means it may not, and opening is stil
   session's transcript, so the translation is the step with nothing under it. IF the human names a
   session, YOU MUST find its id from words that were SAID in it (`telepathy find '<a phrase they
   remember>' --in assistant`, or `--in user`), never from a name→id table another session wrote —
-  on 2026-09-15 such a table sent "report speed" to the wrong id, and the reattach connected
-  cleanly to the wrong session. AFTER a reattach, YOU MUST read the title in its banner
+  a table naming the wrong id fails silently, because the reattach then connects cleanly to the
+  wrong session. AFTER a reattach, YOU MUST read the title in its banner
   (`tmux capture-pane`) against the name the human gave; a banner showing the host name instead
   has no title and confirms nothing.
 - A `RESUME FROM` marked `(unverified)` is a hint — the session moved folders, or its path was
@@ -103,7 +103,7 @@ AFTER each session, YOU MUST report:
 - that each reattach holds its own single-session "at capacity" entry in the app until that session
   ends.
 
-## Traps (measured)
+## Traps
 
 - `claude rc --help` does not exit. Do not run it unattended.
 - The trust prompt for a directory the client has not seen defaults to *No, exit*: send Down, then

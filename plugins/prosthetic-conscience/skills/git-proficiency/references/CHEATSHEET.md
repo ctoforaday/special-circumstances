@@ -1,6 +1,6 @@
 # Git Surgical Recovery Cheatsheet
 
-Tactical commands for maintaining a healthy 138GB -> 2.5MB repository state.
+Tactical commands for keeping a repository small and recovering it surgically.
 
 ## 🔍 Investigation
 

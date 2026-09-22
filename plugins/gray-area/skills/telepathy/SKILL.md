@@ -17,8 +17,7 @@ asks the record what **happened**.
   editing one file is the cheapest coordination failure to prevent and the most expensive to
   discover at merge.
 - BEFORE relaying a claim you did not verify — "the peer says X merged", "that was fixed in #N" —
-  YOU MUST check it. On 2026-09-08 three such relays between sessions on this box were wrong, and
-  each was refutable from the record in one query.
+  YOU MUST check it. A relayed claim is refutable from the record in one query.
 - AFTER reading a zero from any verb, YOU MUST read WHICH zero it is. Every absence here is
   worded: *no store* names the path, *no rows for a path* is a statement about the catalogue and
   not the file, *no sessions advertised* means nothing is running. They are different facts and
@@ -43,8 +42,8 @@ is what agents *said*, `--in user` what the human said; `--paths` adds the trans
 citation.
 
 - AFTER a `find`, YOU MUST read the **IN** column before quoting anything. `find` searches the
-  whole transcript, so a hit may be a tool result or a file path — on `bench rul` across this box,
-  9 of the first 11 rows were prompt boilerplate. For text, IN is who spoke, read from the record's
+  whole transcript, so a hit may be a tool result, a file path, or prompt boilerplate, and those
+  can crowd out the rows you want. For text, IN is who spoke, read from the record's
   fields and never its text: `user` (the human), `peer` (another session's message),
   `notification` (a background task's), `lead` (the lead or a workflow coordinator prompting a
   seat), `harness` (text the client injects), `assistant`. Quoting a `peer` or `result` row back to
@@ -63,8 +62,8 @@ citation.
   no `v_word` rows.
 - `find` takes a **literal** by default; pass `--regex` for a pattern. IN is read from where ripgrep
   matched, so IN, SNIPPET and `--in` mean the same for a pattern as for a literal. Use it for word boundaries —
-  searching `roving` rather than `\broving\b` returns every occurrence of "p*roving*", which is how
-  this rule was earned. A substring match is the default failure mode of every search here,
+  searching `roving` rather than `\broving\b` returns every occurrence of "p*roving*".
+  A substring match is the default failure mode of every search here,
   including `touched` and `sql`'s `LIKE`.
 
 Every verb takes `--help`, and each one's help states what that verb cannot tell you. `sql` takes
@@ -90,8 +89,8 @@ telepathy sql "SELECT tool, target FROM v_action WHERE session_id LIKE '5627%' A
   never written to that session's transcript, so `find <title>` cannot return the titled session —
   only sessions that printed a session list, or wrote the name down. BEFORE acting on a session the
   human names, YOU MUST find it by something that was SAID in it, and YOU MUST NOT take a name→id
-  mapping from another session's `assistant` row: that is its claim, and on 2026-09-16 one such
-  table named the wrong session and a restore reattached it.
+  mapping from another session's `assistant` row: that is its claim, and a reattach to the wrong id
+  connects cleanly and says nothing.
 - **`unknown` liveness is not `ended`.** Liveness is exact on Linux only, and a session from
   another pid namespace is not ours to judge. YOU MUST NOT read `unknown` as "gone".
 - **`lost` is inferred, not measured.** `agents` lists, below the advertised sessions, each session
@@ -101,12 +100,11 @@ telepathy sql "SELECT tool, target FROM v_action WHERE session_id LIKE '5627%' A
   running Remote Control server bring its own sessions back first, and resumes only what the human
   chooses.
 - **A session's final turn may be missing** when its transcript lagged the last hook and no
-  closure pass read it. Measured residue, deliberately not engineered around.
+  closure pass read it. Known residue, deliberately not engineered around.
 - **Reasoning is mostly WITHHELD, and `v_skip` is where that fact lives.** The client emits
-  thinking blocks carrying a signature and no text. Measured on this box 2026-09-09: **15,503
-  such blocks across 99 sessions, against 248 thoughts actually stored**, and none with text at
-  all since 2026-09-08. Those blocks are now recorded as `thinking-empty` skips rather than
-  dropped, so the two states are finally distinguishable. YOU MUST check `v_skip` before reading
+  thinking blocks carrying a signature and no text, and they outnumber the thoughts actually
+  stored by orders of magnitude. Those blocks are recorded as `thinking-empty` skips rather than
+  dropped, so the two states are distinguishable. YOU MUST check `v_skip` before reading
   an empty `v_thought` as evidence an agent did not reason — for most sessions on this box it is
   evidence of nothing but the client's settings.
 - **A session that predates capture contributes nothing** until `backfill` has read it. Absence of
