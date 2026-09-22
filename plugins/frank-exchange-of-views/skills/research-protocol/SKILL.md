@@ -97,14 +97,11 @@ trajectories/       journal.jsonl (the HARNESS's lifecycle record, tracked)
 ```
 
 `setup` lays down directories and no file a seat fills. **A stub is not an artifact**: a
-placeholder reads as the real thing. Measured in the 2026-08-05 run, stubs for the transcript and
-the citation list finished at 36 and 46 bytes while the record held 122 events. In B7, setup still
-stubbed `report.md` and `blue/report.md`: the synthesizer copied its draft onto the first, and
-`ingest` froze the second — 40 bytes of heading — as the report's base. Anything under RECORD above
-has no file at all — read it with `show <name>`.
+placeholder reads as the real thing. Anything under RECORD above has no file at all — read it
+with `show <name>`.
 
 `blue/report.md` is the file the synthesizer writes and then FREEZES: the freeze records its
-text as the base of the record and DELETES the file (#709). From then it too is a projection —
+text as the base of the record and DELETES the file. From then it too is a projection —
 there is no `blue/report.md` to open; read the report through the tool and change it only
 through the tool's edit path, each change an event the report is replayed from. It cannot be
 raw-written or bypassed, which is the point: the report a seat reads and the report the record holds
@@ -137,8 +134,10 @@ All artifacts are git-tracked; nothing is summarized away. The payload is the fi
 There is no search index, and there are two access modes:
 
 1. **Full read for the report** — red reads blue's report whole, in
-   context, every sitting. A snippet NEVER substitutes: a decontextualized quote is how audits
-   go blind. This clause outranks any token saving.
+   context, every sitting THE REPORT HAS MOVED. A snippet NEVER substitutes: a decontextualized
+   quote is how audits go blind. This clause outranks any token saving, and the exception is not
+   one: where the report stands at the head red already read, the whole-document read it is owed
+   is the one already performed, and performing it again returns the same bytes to the same reader.
 2. **Leaf-node fetch for verification** — a citation is checked against its source, never against a
    summary. For a source BLUE CITED, read the exact bytes blue read from the run cache
    (a cache hit, so you audit the same artifact, not a page that may have drifted since). For a source you discover yourself, pull it verbatim (Bash `curl`, or the run's cached source read for a PDF).
@@ -168,7 +167,7 @@ in it opens with a link bar to the others.
 first*) → **the Catechism** (`references/catechism_template.md` — the worth-our-time decision,
 adapted from Heilmeier) → analytical core (foundations / analysis / risk matrix graded
 likelihood × impact × complexity, including risk-accepted items with rationale) → the three
-inquiry areas → **open questions, left open by this run** (authored by blue into the report's `## Open questions`, audited by red every sitting, lifted verbatim) →
+inquiry areas → **open questions, left open by this run** (authored by blue into the report's `## Open questions`, audited by red every sitting it has moved, lifted verbatim) →
 footnotes (with access dates; volatility noted for living sources).
 
 The debate's own documents are beside it, one per audience: `docket.md` (the board in
@@ -188,4 +187,4 @@ A subagent's only voice is its return value — so capability complaints travel 
 - AFTER any task where a missing tool, denied permission, or missing capability impeded you, YOU MUST report it in the envelope's `log` field: name the capability and what you would have done with it.
 - AFTER any task where the material did not fit the shape you were given — a template section that made no sense for the topic, a protocol step that fought the work, an envelope field you had nothing honest to put in, content with no home — YOU MUST report the misfit as friction: name the template/step/field and what shape the work actually wanted.
 - YOU MUST NOT silently work around a missing capability — the workaround destroys the signal that would get you retooled.
-- The log is on the RECORD through each role's `log` verb — every seat WRITES it, and the read is the OPERATOR's, on the operator's own surface and not on yours, because a missing capability is a report to the human who can retool the seat, not material for the debate; capture reconciles every envelope's `log` field against it, and the self-improvement loop consumes it. Complaints are how the system learns what its agents actually need.
+- The log is on the RECORD through each role's `log` verb — every seat that RECORDED SOMETHING writes it (a sitting with no acts owes no entry: the tool derives the clean case from the emptiness), and the read is the OPERATOR's, on the operator's own surface and not on yours, because a missing capability is a report to the human who can retool the seat, not material for the debate; capture reconciles every envelope's `log` field against it, and the self-improvement loop consumes it. Complaints are how the system learns what its agents actually need.
