@@ -35,9 +35,11 @@ type fetchSummary struct {
 	// those onto one entry that satisfies "fetch-once, hash-verified" perfectly while the hash
 	// certifies the BLOCKADE rather than the source.
 	SharedBodyWith []string `json:"shared_body_with,omitempty"`
-	// RetrievedVia names the archive snapshot these bytes came from, when the live source refused
-	// and the fallback recovered one. Empty means the bytes are the live source's own.
+	// RetrievedVia is the SENTENCE naming where these bytes came from, when the live source
+	// refused and a backend recovered them. Empty means the bytes are the live source's own.
 	RetrievedVia string `json:"retrieved_via,omitempty"`
+	// Backend is which backend that was, as a value rather than a sentence to match on.
+	Backend string `json:"backend,omitempty"`
 	// TextRetrieved false means these bytes are a RECORD THAT THE SOURCE EXISTS, not its text.
 	TextRetrieved bool `json:"text_retrieved"`
 	Pages         int  `json:"pages,omitempty"`
@@ -126,6 +128,7 @@ func summarize(run record.Run, e fetchcache.Entry, bodyLen int, hit bool) fetchS
 		CacheHit:       hit,
 		SharedBodyWith: shared,
 		RetrievedVia:   e.RetrievedVia,
+		Backend:        e.Backend,
 		TextRetrieved:  e.TextRetrieved,
 		Pages:          e.Pages,
 		TextExtracted:  e.TextExtracted,
@@ -183,13 +186,25 @@ func (s fetchSummary) render() string {
 				"    legitimate citation — as source-text `unread`. It is not a reading, and nothing about what the\n"+
 				"    source SAYS may rest on it.\n")
 		}
-		fmt.Fprintf(&b, "  ^ THE LIVE SOURCE REFUSED THIS CONTAINER AND THESE BYTES ARE AN ARCHIVE SNAPSHOT — what the\n"+
-			"    source said on that date, retrieved from a third party. Usable, and NOT the same artifact: say so\n"+
-			"    in any claim about what the source currently says.\n"+
-			"    READ IT BEFORE YOU CITE IT AS READ. Measured against the sources that actually failed in\n"+
-			"    2026-09-02_quadratic-formula, a snapshot of a SUBSCRIPTION article is usually the landing page —\n"+
-			"    title, abstract and analytics — not the text. That is a source you have NOT read at the leaf, and\n"+
-			"    a citation must say so rather than inherit the snapshot's apparent success.\n")
+		// THE WARNING IS TOLD ABOUT THE BACKEND THAT ACTUALLY ANSWERED. This paragraph used to
+		// print whenever anything at all was recovered, so a seat holding an arXiv PDF taken live
+		// from arxiv.org read that the live source had refused this container and that its bytes
+		// were a third party's snapshot. Neither was true, and a warning that misnames what
+		// happened spends the seat's attention on the wrong risk.
+		if s.Backend == fetchcache.ViaArchive {
+			fmt.Fprintf(&b, "  ^ THESE BYTES ARE AN ARCHIVE SNAPSHOT — what the source said on that date, retrieved from a\n"+
+				"    third party. Usable, and NOT the same artifact: say so in any claim about what the source\n"+
+				"    currently says.\n"+
+				"    READ IT BEFORE YOU CITE IT AS READ. Measured against the sources that actually failed in\n"+
+				"    2026-09-02_quadratic-formula, a snapshot of a SUBSCRIPTION article is usually the landing page —\n"+
+				"    title, abstract and analytics — not the text. That is a source you have NOT read at the leaf, and\n"+
+				"    a citation must say so rather than inherit the snapshot's apparent success.\n")
+		} else {
+			fmt.Fprintf(&b, "  ^ THESE BYTES DID NOT COME FROM THE URL YOU ASKED FOR — a backend found them elsewhere, and\n"+
+				"    the line above says where. It may be a different artifact from the one the url names: another\n"+
+				"    version, another format, or a record ABOUT the source rather than the source. READ IT BEFORE\n"+
+				"    YOU CITE IT AS READ, and let the citation say which artifact you actually read.\n")
+		}
 	}
 	// LOUD, AND ABOVE THE TEXT LINES, because a seat that reads no further has still been told the
 	// one thing that decides whether this is a source at all.

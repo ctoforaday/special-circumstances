@@ -153,6 +153,15 @@ type Entry struct {
 	// have read something it did not.
 	RetrievedVia string `json:"retrieved_via,omitempty"`
 
+	// Backend NAMES WHICH BACKEND PRODUCED THESE BYTES — one of the Via constants, empty for a
+	// plain live fetch. RetrievedVia beside it is a sentence for a human; this is the field a
+	// reader may branch on, and it exists because a reader WAS branching on the sentence's mere
+	// presence: fetch's summary printed "these bytes are an archive snapshot, retrieved from a
+	// third party" over every recovered fetch, including an arXiv PDF taken live from arxiv.org
+	// seconds earlier. The provenance duty is real for all of them; the archive's particular
+	// warning is true of exactly one.
+	Backend string `json:"backend,omitempty"`
+
 	// TextRetrieved says whether the bytes are the SOURCE'S TEXT or only a record that it exists.
 	// A metadata answer is a real finding and a legitimate citation — as `source_text_read:
 	// unread`. It is not a reading, and nothing may cite it as one.
@@ -350,7 +359,7 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		entry := Entry{
 			URL: url, ContentType: att.ContentType,
 			HTTPStatus: ref.Status, RefusalClass: refusalClass(ref.Status),
-			RetrievedVia: att.Via, TextRetrieved: att.TextRetrieved,
+			RetrievedVia: att.Via, Backend: att.Backend, TextRetrieved: att.TextRetrieved,
 		}
 		entry, serr := Store(run, entry, att.Body)
 		if serr != nil {

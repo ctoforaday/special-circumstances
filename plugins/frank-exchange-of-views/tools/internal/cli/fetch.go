@@ -93,7 +93,7 @@ func newFetch() *cobra.Command {
 				}
 				entry, serr := fetchcache.Store(run, fetchcache.Entry{
 					URL: url, ContentType: att.ContentType,
-					RetrievedVia: att.Via, TextRetrieved: att.TextRetrieved,
+					RetrievedVia: att.Via, Backend: att.Backend, TextRetrieved: att.TextRetrieved,
 				}, att.Body)
 				if serr != nil {
 					return serr
@@ -165,7 +165,7 @@ func newFetch() *cobra.Command {
 		strings.Join(fetchcache.Vias(), " | ")+". They answer DIFFERENT questions — live the URL itself (the same as omitting this); "+
 		"archive what the page said on a date (right for web pages, usually the landing page for a subscription article); "+
 		"oa whether a legal open copy exists; metadata only that the source exists and where (no text, and the honest answer "+
-		"when there is none to get); arxiv the preprint's PDF or LaTeX source; eric the US education index's record, with its "+
+		"when there is none to get); arxiv the preprint, in whichever form this tool can take — its PDF, or arXiv's own HTML rendering where the PDF is over the fetch cap, which HAS NO PAGE NUMBERS and must be quoted as the HTML; eric the US education index's record, with its "+
 		"full text where ERIC holds an authorised copy; auto tries "+strings.Join(fetchcache.AutoOrder(), ", ")+
 		" in that order. A refused live fetch falls back through that same order")
 	c.Flags().String(flags.At, "", "with --via archive: bound the capture to YYYYMMDD and take the latest at or before it. "+

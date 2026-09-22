@@ -250,3 +250,38 @@ func TestFetchJSONReportsCacheHit(t *testing.T) {
 		t.Errorf("second --json fetch = %s, want cache_hit true", second)
 	}
 }
+
+// THE COMMAND MUST CARRY THE BACKEND, not just the sentence. `fetch --via <name>` stores its own
+// entry, separately from the recovery path inside Resolve, and the first version of this fix
+// reached only the second. Nothing broke loudly: with no backend recorded, an ARCHIVE capture
+// stopped being called a snapshot — the one warning on this surface that a seat most needs, lost
+// on the path that exists to produce it. A test of the renderer would not have seen it, because
+// the renderer was right; the call site was not.
+func TestANamedBackendRecordsWhichOneAnswered(t *testing.T) {
+	dir := recordtest.TmpRun(t)
+	cdx := `[["timestamp","original","digest"],["20190520000000","https://ex/a","D1"]]`
+	f := &fakeFetcher{resp: map[string][]byte{
+		"https://web.archive.org/cdx/search/cdx?output=json&fl=timestamp,original,digest" +
+			"&filter=statuscode:200&collapse=digest&limit=200&url=ex%2Fa": []byte(cdx),
+		"https://web.archive.org/web/20190520000000id_/https://ex/a": []byte("<html>what it said in 2019</html>"),
+	}, contentType: "text/html"}
+	withFetcher(t, f)
+	withExtractor(t, stubExtractor{})
+
+	out, err := run(t, "fetch", "--seat-id", "operator", "--run", dir, "--via", "archive", "--url", "https://ex/a")
+	if err != nil {
+		t.Fatalf("fetch --via archive: %v", err)
+	}
+	if !strings.Contains(out, "ARCHIVE SNAPSHOT") {
+		t.Errorf("an archive capture is not called a snapshot — the backend never reached the summary. got:\n%s", out)
+	}
+	// AND THE FIELD IS ON THE RECORD, not only in the rendering: an audit reads the entry.
+	e, ok, lerr := fetchcache.LookupSha(runtest.Open(t, dir), fetchcache.Sha([]byte("<html>what it said in 2019</html>")))
+	if lerr != nil || !ok {
+		t.Fatalf("the entry is not in the index: %v %v", ok, lerr)
+	}
+	if e.Backend != fetchcache.ViaArchive {
+		t.Errorf("entry.Backend = %q, want %q — the sentence is for a human, the field is what a reader branches on",
+			e.Backend, fetchcache.ViaArchive)
+	}
+}

@@ -21,7 +21,9 @@ import (
 //	oa        is there a LEGAL OPEN COPY, and where. Right for scholarship.
 //	metadata  does this EXIST, in what venue, at what pages. Retrieves no text at all — and is
 //	          the honest answer when there is none to retrieve.
-//	arxiv     the preprint itself: abstract, PDF, or LaTeX source.
+//	arxiv     the preprint itself: abstract, PDF, LaTeX source, or arXiv's HTML rendering. The
+//	          forms differ in size by an order of magnitude in BOTH directions, so the backend
+//	          probes rather than picks — see ArxivURLs.
 //
 // THE MOST VALUABLE ANSWER IS OFTEN "NO". Measured: Crossref, OpenAlex and Unpaywall all agree
 // that 10.5951/MT.82.1.0033 — Sharing Teaching Ideas, The Mathematics Teacher 82(1) pp.33-35,
@@ -54,17 +56,28 @@ func AutoOrder() []string {
 // about them. TextRetrieved false means NO TEXT WAS FETCHED — a record that the source exists,
 // which is `source_text_read: unread` and must never be cited as a reading.
 type Attempt struct {
-	Body          []byte
-	ContentType   string
-	Via           string
+	Body        []byte
+	ContentType string
+	Via         string
+	// Backend is the Via constant that produced this answer — the fact a reader branches on,
+	// where Via is the sentence a seat reads. Recover sets it; a backend never does.
+	Backend       string
 	TextRetrieved bool
 }
 
 // ---------- identifiers ----------
 
 var (
-	doiRe   = regexp.MustCompile(`10\.\d{4,9}/[^\s"'<>&?#]+`)
-	arxivRe = regexp.MustCompile(`arxiv\.org/(?:abs|pdf|e-print)/([0-9]{4}\.[0-9]{4,5}(?:v[0-9]+)?)`)
+	doiRe = regexp.MustCompile(`10\.\d{4,9}/[^\s"'<>&?#]+`)
+	// BOTH arXiv SCHEMES, and the old one is the one that carries the literature. `YYMM.NNNNN`
+	// dates from April 2007; before it, identifiers were `archive/YYMMNNN` with an optional
+	// subject class — `hep-th/9711200`, `cond-mat.stat-mech/0605194`. Measured on INSPIRE, 75 of
+	// the 100 most-cited hep-th papers carry an old-scheme identifier and the top nine are all
+	// old, so a pattern that knows only the new scheme answers "no arXiv id here" for the most
+	// cited paper in the field and the `arxiv` backend returns nothing for it. Defunct archives
+	// (`q-alg`, `alg-geom`) still resolve, hence `[a-z-]+` rather than a list. Lowercasing the
+	// url first is safe because arxiv.org serves `math.ag/0611800` and `math.AG/0611800` alike.
+	arxivRe = regexp.MustCompile(`arxiv\.org/(?:abs|pdf|e-print)/([0-9]{4}\.[0-9]{4,5}(?:v[0-9]+)?|[a-z-]+(?:\.[a-z-]+)?/[0-9]{7}(?:v[0-9]+)?)`)
 )
 
 // DOIOf pulls a DOI out of a url — doi.org links, and publisher urls that embed one. Empty when
@@ -233,12 +246,21 @@ func MetadataRecord(f Fetcher, doi string) (*Attempt, error) {
 
 // ---------- arxiv ----------
 
-// ArxivURLs gives the abstract page, the PDF and the LaTeX source for an arXiv id. The e-print
-// form is the one the retired `arxiv-latex` tooling existed to reach, and it needs no MCP server.
-func ArxivURLs(id string) (abs, pdf, eprint string) {
+// ArxivURLs gives the abstract page, the PDF, the LaTeX source and the HTML rendering of an
+// arXiv id. The e-print form is the one the retired `arxiv-latex` tooling existed to reach, and
+// it needs no MCP server.
+//
+// THE FOUR FORMS ARE NOT INTERCHANGEABLE AND DIFFER IN SIZE BY AN ORDER OF MAGNITUDE EITHER WAY.
+// Measured: Maldacena's PDF is 246 KB and its e-print 24 KB, while CLIP's PDF is 6.8 MB and its
+// HTML 874 KB. The e-print wins on old TeX-only papers and LOSES on modern figure-heavy ones
+// (separate high-resolution figures do not compress the way one PDF does); HTML is the mirror
+// image — it exists for recent papers and 404s on every pre-2007 identifier tried. Neither is a
+// general answer, which is why the caller probes rather than picks.
+func ArxivURLs(id string) (abs, pdf, eprint, html string) {
 	return "https://arxiv.org/abs/" + id,
 		"https://arxiv.org/pdf/" + id,
-		"https://arxiv.org/e-print/" + id
+		"https://arxiv.org/e-print/" + id,
+		"https://arxiv.org/html/" + id
 }
 
 // Recover runs one backend, or tries them in order under ViaAuto, and returns the first answer
@@ -251,7 +273,14 @@ func ArxivURLs(id string) (abs, pdf, eprint string) {
 // which is the difference between "I could not reach it" and "there is nothing to reach".
 func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 	doi := DOIOf(rawURL)
-	try := func(name string) *Attempt {
+	// named SAYS WHETHER THE SEAT ASKED FOR THIS BACKEND BY NAME. It changes what a backend does
+	// with a failure it can describe: asked directly, `arxiv` states that the paper is there and
+	// this run could not take it, which is the answer to the question that was put. Reached as one
+	// rung of `auto`, that same stated failure would END the chain — the seat would never learn
+	// that an open-access copy was one rung further down — so under auto it declines instead and
+	// the next backend runs. A fact about THIS FETCH must not foreclose the other routes; a fact
+	// about the WORLD, as `oa`'s answered "no open copy exists" is, legitimately does.
+	try := func(name string, named bool) *Attempt {
 		switch name {
 		case ViaArchive:
 			caps, _ := CapturesFor(f, rawURL)
@@ -295,13 +324,38 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 			if id == "" {
 				return nil
 			}
-			_, pdf, _ := ArxivURLs(id)
+			_, pdf, eprint, html := ArxivURLs(id)
 			resp, err := f.Fetch(pdf)
-			if err != nil {
+			if err == nil {
+				return &Attempt{Body: resp.Body, ContentType: MediaType(resp.ContentType), TextRetrieved: true,
+					Via: "arXiv " + id + " (" + pdf + "); the LaTeX source is at " + eprint}
+			}
+			// A REFUSED PDF IS NOT AN ABSENT PAPER, and returning nil here said it was. arXiv
+			// answers 200 for CLIP and the bytes are 6.8 MB, over this tool's cap; the seat then
+			// read "that backend has no answer for this url" — the same sentence it gets for a
+			// url with no arXiv identifier in it at all. One of the most-cited papers in machine
+			// learning was reported as not being on arXiv.
+			//
+			// So: try the HTML rendering, which for that paper is 874 KB and under the cap, and
+			// where even that does not answer, say what happened rather than nothing. The HTML is
+			// a DIFFERENT DOCUMENT — it has no pages, so a citation of it cannot name one, and
+			// the Via says so where a seat will read it.
+			if hr, herr := f.Fetch(html); herr == nil {
+				return &Attempt{Body: hr.Body, ContentType: MediaType(hr.ContentType), TextRetrieved: true,
+					Via: fmt.Sprintf("arXiv %s as arXiv's OWN HTML RENDERING (%s), because the PDF at %s could not be "+
+						"taken: %v. This is not the PDF and HAS NO PAGE NUMBERS — quote it as the HTML, never as a page "+
+						"of the paper. The LaTeX source is at %s", id, html, pdf, err, eprint)}
+			}
+			if !named {
 				return nil
 			}
-			return &Attempt{Body: resp.Body, ContentType: MediaType(resp.ContentType), TextRetrieved: true,
-				Via: "arXiv " + id + " (" + pdf + "); the LaTeX source is at " + mustEprint(id)}
+			return &Attempt{
+				Body:        []byte(fmt.Sprintf("arXiv %s exists and neither form of it could be taken here\n", id)),
+				ContentType: "text/plain", TextRetrieved: false,
+				Via: fmt.Sprintf("arXiv %s: the paper IS on arXiv and THIS RUN COULD NOT TAKE IT — %v — and the HTML "+
+					"rendering at %s did not answer either (arXiv has none for pre-2007 identifiers). This is a fact "+
+					"about this fetch, NOT about the paper's existence: do not record the source as absent. The LaTeX "+
+					"source at %s is often far smaller and is not tried automatically", id, err, html, eprint)}
 		case ViaMetadata:
 			att, _ := MetadataRecord(f, doi)
 			return att
@@ -311,18 +365,22 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 		}
 		return nil
 	}
+	stamp := func(name string, a *Attempt) *Attempt {
+		if a != nil {
+			a.Backend = name
+		}
+		return a
+	}
 	if via != ViaAuto && via != "" {
-		return try(via)
+		return stamp(via, try(via, true))
 	}
 	for _, name := range AutoOrder() {
-		if a := try(name); a != nil {
+		if a := stamp(name, try(name, false)); a != nil {
 			return a
 		}
 	}
 	return nil
 }
-
-func mustEprint(id string) string { _, _, e := ArxivURLs(id); return e }
 
 // EricRecord answers from ERIC, the US Department of Education's index — the education literature,
 // which none of the other backends covers.
