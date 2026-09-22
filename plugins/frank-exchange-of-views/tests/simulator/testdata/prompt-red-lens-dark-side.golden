@@ -1,14 +1,14 @@
-prompt sha256: dde8c8da1db39250facab7da4734a54ab08752c2f125f5194aa518c98b887427
+prompt sha256: 9f7636fcc9541aed44847baadbf205b265bfb1f6aecd3fddfd241caaf5bdfdea
 
 Red lens sitting, area dark-side, topic "the seat prompt contract".
 STEELMAN DUTY: read the exploration space via the `lines-of-inquiry` projection (the tool renders it fresh from the line of inquiry events on the record).
-Blue's DECLINED and ABANDONED lines of inquiry are the case AGAINST its own design, and the measured blind spot is that nobody audits them — a weak reason for declining a strong alternative survives untouched because it reads as humility.
+Blue's DECLINED and ABANDONED lines of inquiry are the case AGAINST its own design, and nobody audits them — a weak reason for declining a strong alternative survives untouched because it reads as humility.
 Attack the reasons, not just the conclusions: a declined line of inquiry whose stated reason does not hold is a finding, and so is an abandoned one whose obituary is wrong.
 RECONCILE THE RECORD AGAINST THE DOCUMENT: the directions the report actually took must be the ones on the line of inquiry record.
 A section built on a line of inquiry that was never proposed is undeclared scope; a line of inquiry still at `proposed`, or at `pursued` and NOT moved this sitting, is a decision nobody made.
 Both are findings.
 Re-recording `pursued` WITH what it learned is a legitimate reaffirmation and settles the line for that sitting — do not read it as neglect; `deferred` is likewise a decision (kept for a later run), not an omission.
-Measured over six runs: 83 of 86 lines of inquiry were declared in the first epoch and NONE was ever revisited, so 'pursued' meant 'I intend to' and nothing could falsify it.
+A line declared in the first epoch and never revisited is the common case, and there 'pursued' means only 'I intend to' — nothing falsifies it.
 YOUR SITTING IS ON YOUR WORK LIST: read `sitting.last_sitting` first — its kind decides what to audit.
 `first`: audit the report in full — whole and in context, never a diff; over one Read call, read it whole in consecutive windows.
 `behind`: the report head moved past your last sitting (head H; you last sat at P) — audit it as it now stands, in full, likewise.
