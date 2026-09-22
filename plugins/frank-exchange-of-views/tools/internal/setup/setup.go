@@ -530,7 +530,7 @@ func StageClassRegistry(repoMemoryDir string, run record.Run) MirrorResult {
 	src := filepath.Join(repoMemoryDir, "class-registry.json")
 	b, err := os.ReadFile(src)
 	if err != nil {
-		return MirrorResult{Written: false, Reason: "no class-registry.json in " + repoMemoryDir + " — nothing constrains `--class`, so every mint this run will be REFUSED rather than waved through (#299)"}
+		return MirrorResult{Written: false, Reason: "no class-registry.json in " + repoMemoryDir + " — nothing constrains `--class`, so every mint this run will be REFUSED rather than waved through"}
 	}
 	if err := ValidateClassRegistry(repoMemoryDir); err != nil {
 		return MirrorResult{Written: false, Reason: err.Error()}
@@ -541,7 +541,7 @@ func StageClassRegistry(repoMemoryDir string, run record.Run) MirrorResult {
 		} `json:"classes"`
 	}
 	if json.Unmarshal(b, &reg) != nil || len(reg.Classes) == 0 {
-		return MirrorResult{Written: false, Reason: "class-registry.json is unreadable or declares no classes — nothing constrains `--class`, so every mint this run will be REFUSED rather than waved through (#299)"}
+		return MirrorResult{Written: false, Reason: "class-registry.json is unreadable or declares no classes — nothing constrains `--class`, so every mint this run will be REFUSED rather than waved through"}
 	}
 	// RESOLVED, NOT JOINED — and this is the same bug as the one documented above, one
 	// separation later. `loadRegistry` reads the record directory the RESOLVER returns; a

@@ -59,9 +59,9 @@ func newFinding() *cobra.Command {
 		case strings.TrimSpace(location) == "" && !aboutSet:
 			return nil, fmt.Errorf("lens finding needs an anchor: --quote for text that IS in the report, " +
 				"or --about-kind/--about for something that is not.\n\n" +
-				"An ABSENCE has no sentence to quote. Borrowing an innocent one as a handle is what this " +
-				"used to force — a missing line of inquiry pinned to a sentence the finding itself called " +
-				"fine — and a reader of the gap list then lands on good prose. Anchor it to the section it " +
+				"An ABSENCE has no sentence to quote. Borrowing an innocent one as a handle — a missing line of " +
+				"inquiry pinned to a sentence the finding itself calls fine — lands a reader of the gap list " +
+				"on good prose. Anchor it to the section it " +
 				"is missing from, the line of inquiry whose reason you are arguing against, or the gap it is about")
 		case strings.TrimSpace(location) != "" && aboutSet:
 			return nil, fmt.Errorf("lens finding takes --quote OR --about, not both: a finding has one subject, " +

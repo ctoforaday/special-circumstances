@@ -468,7 +468,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 				Joint: "sittings that filed at least one log entry over sittings dispatched; the unit is the SITTING because the duty is per sitting, so a seat that sat four times and logged once discharged it once"})
 			rows = append(rows, Row{Clause: "The log", Metric: "sittings_never_closed", Cls: "detector",
 				Value: len(sat) - discharged,
-				Note:  "a sitting that recorded acts and closed no operator entry — the shape the duty exists to prevent, and the one nothing counted until now"})
+				Note:  "a sitting that recorded acts and closed no operator entry — the shape the duty exists to prevent"})
 		}
 		// TYPE COVERAGE, because the channel's worth is what a reader can FILTER on. An untyped
 		// distribution is the reading the type field exists to replace, and a channel that only
@@ -543,7 +543,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 			Value: lost,
 			Note: strconv.Itoa(int(drop)) + " claim(s) lost across envelopes, " + strconv.Itoa(retires) + " retired on the record (" +
 				strconv.Itoa(events) + " retire event(s); each citation anchor a retire took out credits one)",
-			Joint: "a fall the retire events do not account for is substance leaving silently — the failure the old prose-level rule was written to stop"})
+			Joint: "a fall the retire events do not account for is substance leaving silently, which is what the additive rule forbids"})
 	} else {
 		rows = append(rows, Row{Clause: "LOSS: additive violations", Metric: "unrecorded_claim_loss", Cls: "detector",
 			Note: "needs at least two envelopes reporting claim_count"})

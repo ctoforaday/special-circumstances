@@ -599,7 +599,7 @@ func Append(id Identity, body proto.Message) (*Event, error) {
 	if !run.Valid() {
 		return nil, feov.Errorf(feov.MissingField,
 			"record: this write names no run — pass --run <runDir>, or run inside a dispatch that injects it. "+
-				"An unresolved run used to resolve to the WORKING DIRECTORY and the events landed beside the real board")
+				"A write with no run has no board to land on, and it is the one failure this tool cannot report after the fact")
 	}
 	ev := &Event{}
 	typ, err := recordpb.SetBody(ev, body)
@@ -806,7 +806,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// `!p.Has || == ""` pair asked in one question: a seat that passed no --check-kind and
 		// a seat that passed an empty one were both refused, and both land here.
 		if b.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_UNSPECIFIED {
-			return fmt.Errorf("record: mint requires --check-kind (document | computation | source) — what would SETTLE your acceptance check. A run where every check is a document probe can never ask for a computation, and measured across six runs no seat ever wrote one")
+			return fmt.Errorf("record: mint requires --check-kind (document | computation | source) — what would SETTLE your acceptance check. A run where every check is a document probe can never ask for a computation")
 		}
 		// LIKELIHOOD AND IMPACT ARE REQUIRED; severity and cx are not. The rule is not
 		// "grade everything" — it is that a field whose ABSENCE IS INDISTINGUISHABLE FROM
@@ -1413,7 +1413,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// express. What is enforced here is that the row says something: which claim, what the
 		// source did for it, and the reading behind that verdict.
 		if b.GetOutcome() == recordpb.SourceOutcome_SOURCE_OUTCOME_UNSPECIFIED {
-			return fmt.Errorf("record: verify requires --as (what the source ACTUALLY DID for the claim: supports | supports_with_bridge | weak | refutes | absent | unreachable — the negative half is the point, and until 0.60.0 there was no field for it)")
+			return fmt.Errorf("record: verify requires --as (what the source ACTUALLY DID for the claim: supports | supports_with_bridge | weak | refutes | absent | unreachable — the negative half is the point: a citation that does NOT hold is recorded here, not left as prose)")
 		}
 		if b.GetConfidence() == recordpb.Confidence_CONFIDENCE_UNSPECIFIED {
 			return fmt.Errorf("record: verify requires --confidence high|medium|low — how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different facts, and low confidence is a call for more evidence rather than a fail")

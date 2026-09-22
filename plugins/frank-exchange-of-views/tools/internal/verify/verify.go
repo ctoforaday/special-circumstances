@@ -392,7 +392,7 @@ func passClosesAllGaps(f record.Family) Check {
 	}
 	c := result("pass-closes-all-gaps",
 		"PASS and no material gap left open",
-		"the verdict is PASS but material gaps are still open (the #67 gate was violated)", open)
+		"the verdict is PASS but material gaps are still open — the PASS gate was violated", open)
 	if len(admittedOpen) > 0 {
 		sort.Strings(admittedOpen)
 		c.Admitted = admittedOpen
