@@ -916,6 +916,8 @@ your first act at EVERY sitting, and the one call that needs your seat id — no
 
 It binds your seat to you on the record: every later call resolves it, and your run is injected on every call, so you type neither again.
 
+A SITTING WITH NOTHING IN IT DOES NOT NEED YOU TO OPEN IT. The harness brackets every dispatch with your identity at both ends, so where your configuration seats exactly one seat the record already knows you sat. If you look and there is nothing for you to do, you may end your turn having run no commands at all — this one included.
+
 It also OPENS THE SITTING, and a sitting is every time you are handed a prompt — including one that resumes your earlier session. The record counts your sittings by your registers, so a sitting you did not open with one is not on it: a dispatched seat is readied again until it registers, and the chair is refused `dispatch next`. Your work list says when one is owed.
 
 A REPAIR IS A SITTING THAT COMPLETES ANOTHER SITTING'S RECORD. When your prompt asks you only to put on the record what your last sitting owed and did not file — its position or its revision — register as the repair of that sitting. You are handed a prompt, so this is a sitting of yours like any other and its own tool-call budget; what makes it a repair is that everything you put on the record afterwards counts as that sitting's, not as this one's. The tool names your latest sitting as the one you repair, and refuses when that sitting owes nothing, or when you were dispatched again after it began: that is a new sitting, so register as one.
