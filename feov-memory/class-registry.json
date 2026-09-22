@@ -166,6 +166,14 @@
       "neighbor": "risk-cross-term-ungraded",
       "distinguisher": "risk-cross-term-ungraded is two risks that ARE discussed but not jointly graded; structure-noncompliance is the ABSENCE of the required graded-matrix element entirely, for ALL risks, not just an interacting pair",
       "_promoted": "gblock, 2026-09-11"
+    },
+    {
+      "slug": "self-defeating-mitigation",
+      "material_default": "by_grade",
+      "definition": "a control credited with closing a gap cannot deliver that closure by its own operation \u2014 it fires after the decision it gates, acts on a variable that does not trigger the harm, erases the signal it was meant to distinguish, rests on an assumption the same document discredits, or is starved of its trigger by another control's short-circuit",
+      "neighbor": "policy-without-mechanism",
+      "distinguisher": "policy-without-mechanism is a policy asserted with NO enforcing artifact; self-defeating-mitigation is an enforcer that exists and runs and still cannot produce the credited closure. Against partial-control-coverage: that control works on part of the surface and misses the rest (coverage); this one fails on its own terms even where it does apply",
+      "_promoted": "gblock, 2026-09-22"
     }
   ]
 }

@@ -456,34 +456,24 @@ cmd_run() {
   local src="$WORKDIR/src"
   mkdir -p "$src"
 
-  # THE PROMOTED GAP-PATTERN CORPUS, because without it the SECOND run in a universe refuses.
+  # THE CLASS REGISTRY, because `setup` reads it from the CALLER's directory and the plugin does
+  # not ship one. `feov-memory/class-registry.json` is the vocabulary `mint --class` validates
+  # against: without it setup still creates the run, stages nothing, and refuses every mint for the
+  # whole run — so red can never put a gap on the board and the debate produces nothing. A real
+  # consumer installing this plugin hits exactly that; the universe only escapes it because this
+  # checkout has the file and the harness copies it in. #1134 moves the vocabulary into the binary,
+  # which is where an installable plugin keeps it, and then this staging goes away entirely.
   #
-  # `setup` reads the memory sources and indexes the corpus by class, since delivery is
-  # class-indexed and an unclassified pattern reaches no seat. A fresh universe's project has no
-  # promoted corpus at all — and a run's lenses ACCRUE patterns into
-  # .claude/agent-memory/<seat>/, unclassified by default. So run one leaves three unclassified
-  # files behind and run two refuses: "3 unclassified pattern(s) against 0 delivered class(es)",
-  # red would open the run substantially blind while its memory directory looks full.
-  #
-  # The refusal is right. What was wrong is that the universe never had the classified corpus this
-  # repo's own runs read, so red was being seated with less memory than a real run gives it — which
-  # would have made every universe smoke a weaker audit than the thing it stands for, silently.
-  # Copied, not symlinked: a run accrues INTO this directory, and the checkout is not a scratch pad.
-  #
-  # THE WHOLE feov-memory DIRECTORY, not just the corpus. Staging red-gap-patterns/ alone left out
-  # class-registry.json, which setup reads from the same directory — and without it setup says
-  # "nothing constrains --class, so every mint this run will be REFUSED". Measured: the lead hit
-  # that refusal, read setup.go to work out why, searched the filesystem for a class-registry.json,
-  # found one under ~/.claude/plugins/marketplaces/ and hand-copied it in. Twenty-one tool calls
-  # and 256 SECONDS before the workflow dispatched, against 91s for a universe that never staged a
-  # corpus at all. Half a memory directory is slower than none, because none refuses cleanly and
-  # half sends the lead looking for the other half.
+  # The whole directory, not one file: setup resolves several things from it, and half a memory
+  # directory is worse than none, because none refuses cleanly and half sends the lead looking for
+  # the other half. Copied, not symlinked: a run writes INTO this directory and the checkout is not
+  # a scratch pad.
   if [ -d "$REPO/feov-memory" ]; then
     mkdir -p "$src/feov-memory"
     cp -r "$REPO/feov-memory/." "$src/feov-memory/" 2>/dev/null
-    log "staged feov-memory: $(find "$src/feov-memory/red-gap-patterns" -name '*.md' 2>/dev/null | wc -l) pattern(s), registry $([ -f "$src/feov-memory/class-registry.json" ] && echo present || echo MISSING)"
+    log "staged feov-memory: class registry $([ -f "$src/feov-memory/class-registry.json" ] && echo present || echo MISSING)"
   else
-    log "WARNING: no $REPO/feov-memory — red opens with accrued memory only, and mints may be refused"
+    log "WARNING: no $REPO/feov-memory — nothing constrains --class, so every mint this run is REFUSED"
   fi
 
   local stamp; stamp="$(date -u +%Y%m%dT%H%M%SZ)"
