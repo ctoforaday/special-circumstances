@@ -186,3 +186,39 @@ func TestRobotsIsHonouredOnARedirectTarget(t *testing.T) {
 		t.Errorf("an allowed path on the same host was refused: %v", err)
 	}
 }
+
+// THE PUBLISHED DELAY MUST REACH THE FLOOR, end to end, through a real fetch.
+//
+// A unit test asserted this and passed while it was broken for every real host, because it
+// stored its fixture under a key robotsFor never writes. The cache is keyed `scheme://host`; the
+// lookup used the bare host; every entry missed; the override was dead code. arXiv publishes 15
+// seconds and was paced at the internal table's 3, with nothing failing and nothing logged.
+//
+// So this drives the fetcher, lets it read a real rules file, and then asks the pacer what it
+// learned — the only version of this test that could have caught it.
+func TestAPublishedCrawlDelayReachesThePacer(t *testing.T) {
+	tempPaceDir(t)
+	pacedLoopback(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			_, _ = w.Write([]byte("User-agent: *\nCrawl-delay: 30\n"))
+			return
+		}
+		_, _ = w.Write([]byte("<html><body>" + strings.Repeat("the paper. ", 200) + "</body></html>"))
+	}))
+	defer srv.Close()
+	host := strings.TrimPrefix(srv.URL, "http://")
+
+	// Before anything is read, the floor is whatever we chose.
+	if iv := intervalFor(host); iv != defaultHostInterval {
+		t.Fatalf("pre-read interval = %v, want the default %v", iv, defaultHostInterval)
+	}
+	if _, err := NewHTTPFetcher().Fetch(srv.URL + "/article"); err != nil {
+		t.Fatalf("fetch: %v", err)
+	}
+	// After: the host's own number, which is larger than ours and therefore wins.
+	if iv := intervalFor(host); iv != 30*time.Second {
+		t.Errorf("after reading a published Crawl-delay of 30s the floor is %v — the host's own "+
+			"number never reached the pacer", iv)
+	}
+}
