@@ -174,7 +174,17 @@ func intervalFor(host string) time.Duration {
 	if !ok {
 		iv = defaultHostInterval
 	}
-	if r, loaded := robotsMem.Load(strings.ToLower(host)); loaded {
+	// BOTH SCHEMES, BECAUSE THE CACHE IS KEYED ON ONE. robotsMem is keyed `scheme://host` — a
+	// host's rules differ by scheme in principle, and fetching them over the wrong one is how the
+	// http-only case was silently permissive. Looking up the bare host here therefore missed
+	// EVERY entry, which turned the Crawl-delay override into dead code: arXiv publishes 15
+	// seconds and was paced at this table's 3. Nothing failed, nothing logged, and the number the
+	// host published was simply not used.
+	for _, key := range [...]string{"https://" + strings.ToLower(host), "http://" + strings.ToLower(host)} {
+		r, loaded := robotsMem.Load(key)
+		if !loaded {
+			continue
+		}
 		if d := r.(*robotsRules).interval(); d > iv {
 			return d
 		}

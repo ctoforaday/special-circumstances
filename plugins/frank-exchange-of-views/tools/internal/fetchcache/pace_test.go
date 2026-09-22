@@ -339,12 +339,17 @@ func TestTheDefaultFloorIsSlowerThanAnyPublishedCrawlDelay(t *testing.T) {
 			"too fast can cost every later run the source", defaultHostInterval)
 	}
 	// A host that DOES publish a delay still wins, in either direction of our table.
+	//
+	// STORED UNDER THE KEY robotsFor ACTUALLY WRITES, which is the whole point. The first version
+	// of this stored a bare host and passed while the lookup was broken for every real host: the
+	// cache is keyed `scheme://host`, so a test that invents its own key tests nothing but
+	// itself. arXiv's published 15 seconds went unused behind exactly this.
 	tempPaceDir(t)
-	robotsMem.Store("slow.example", &robotsRules{CrawlDelay: 20, Fetched: time.Now()})
+	robotsMem.Store("https://slow.example", &robotsRules{CrawlDelay: 20, Fetched: time.Now()})
+	t.Cleanup(func() { robotsMem.Delete("https://slow.example") })
 	if iv := intervalFor("slow.example"); iv != 20*time.Second {
 		t.Errorf("a published Crawl-delay of 20s was paced at %v", iv)
 	}
-	robotsMem.Delete("slow.example")
 }
 
 // THE CALL SITE, NOT THE PREDICATE. A test of isOverloadStatus passes whether or not anything
