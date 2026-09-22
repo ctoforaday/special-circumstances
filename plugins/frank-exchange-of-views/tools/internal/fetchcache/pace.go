@@ -182,20 +182,26 @@ func intervalFor(host string) time.Duration {
 	return iv
 }
 
-// paceLoopback lets a test exercise the paced path against a loopback fixture server. It is the
+// paceLoopback lets a test exercise the paced path against a fixture server on this machine. It is the
 // one seam here, and it exists because the alternative is worse: the tests that matter most —
 // does a 503 raise the floor, is a redirect TARGET paced — can only be driven through the real
 // transport, and the real transport can only reach a server on this machine.
 var paceLoopback bool
 
-// isLoopback reports a host we owe no politeness to, because it is this machine.
+// isOurOwnNetwork reports a host we owe no pacing to, because it is not a stranger's server.
 //
-// A FLOOR IS A COURTESY TO SOMEONE ELSE'S SERVER. Localhost is not someone else, and pacing it
-// buys nobody anything: it slows a caller down to protect a host that is the same process tree.
-// It is also how a fifteen-second floor turned this repository's own suites into a ten-minute
-// timeout — every loopback fixture server waiting its turn as though it were a publisher — which
-// is the tell that the rule was aimed at the wrong thing rather than merely tuned high.
-func isLoopback(host string) bool {
+// A FLOOR IS A COURTESY TO SOMEONE ELSE. Loopback is this process tree. RFC1918 space
+// (10/8, 172.16/12, 192.168/16) is a network whose operator is whoever runs this box — a
+// development fixture, an internal mirror, a sidecar — and slowing down for it protects nobody
+// while making a local mirror slower than the public internet, which inverts the incentive to
+// run one. Link-local (169.254/16) is not a network at all; it is an address a machine gave
+// itself, and it includes the cloud metadata endpoint. Carrier-grade NAT space (100.64/10) is
+// the same argument as RFC1918.
+//
+// Pacing loopback is how a fifteen-second floor turned this repository's own suites into a
+// ten-minute timeout, every fixture server waiting its turn as though it were a publisher —
+// which was the tell that the rule was aimed at the wrong thing rather than merely tuned high.
+func isOurOwnNetwork(host string) bool {
 	// net.SplitHostPort, not a hand-rolled split on the last colon: a bracketed IPv6 authority
 	// like `[::1]:9999` defeats that, and the hand-rolled version silently left the brackets on
 	// and reported a loopback address as a stranger.
@@ -207,11 +213,19 @@ func isLoopback(host string) bool {
 	if strings.EqualFold(h, "localhost") {
 		return true
 	}
-	if ip := net.ParseIP(h); ip != nil {
-		return ip.IsLoopback()
+	ip := net.ParseIP(h)
+	if ip == nil {
+		return false // a name we cannot resolve here is assumed to be a stranger, which is the safe way to be wrong
 	}
-	return false
+	// IsPrivate covers RFC1918 and its IPv6 counterpart; the rest are named because Go has no
+	// single predicate for "not the public internet".
+	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
+		ip.IsUnspecified() || cgnat.Contains(ip)
 }
+
+// cgnat is 100.64.0.0/10, the shared address space carriers and cloud providers use between
+// their own equipment. Go has no predicate for it.
+var cgnat = &net.IPNet{IP: net.IPv4(100, 64, 0, 0), Mask: net.CIDRMask(10, 32)}
 
 // hashHost names a host's state files. A hash, so that a host with a colon, a slash or a case
 // difference cannot produce a path that collides with another host's or escapes the directory.
@@ -226,7 +240,7 @@ func slotFile(host string) string { return filepath.Join(paceDir, hashHost(host)
 // long the caller must wait for it. ok is false when the queue for this host is longer than
 // maxPaceWait, in which case NOTHING is claimed and the caller must not proceed.
 func reserveSlot(host string, extra time.Duration) (time.Duration, bool) {
-	if host == "" || (!paceLoopback && isLoopback(host)) {
+	if host == "" || (!paceLoopback && isOurOwnNetwork(host)) {
 		return 0, true
 	}
 	mu := hostMutex(host)

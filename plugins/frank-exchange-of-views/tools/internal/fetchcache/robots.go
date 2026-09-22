@@ -70,17 +70,21 @@ var robotsMem sync.Map // host -> *robotsRules, so one process reads a host's fi
 // treated as absent-and-permissive, which is what the standard says a 404 means — but a host that
 // answers a 5xx or times out is NOT saying yes, so that case is cached only briefly and paced at
 // the default rather than read as permission.
-func robotsFor(f Fetcher, host string) *robotsRules {
+// THE SCHEME COMES FROM THE URL BEING FETCHED, never assumed. This asked https:// for every
+// host, so an http-only origin's rules failed to fetch and were read as absent-and-permissive —
+// the one direction a rules file must never fail in. Most scholarly hosts are https, which is
+// exactly why it survived: it was wrong on the hosts nobody was looking at.
+func robotsFor(f Fetcher, scheme, host string) *robotsRules {
 	if host == "" {
 		return &robotsRules{Missing: true}
 	}
-	key := strings.ToLower(host)
+	key := strings.ToLower(scheme + "://" + host)
 	if v, ok := robotsMem.Load(key); ok {
 		if r := v.(*robotsRules); time.Since(r.Fetched) < robotsTTL {
 			return r
 		}
 	}
-	path := filepath.Join(paceDir, "robots-"+hashHost(key)+".json")
+	path := filepath.Join(paceDir, "robots-"+hashHost(scheme+"://"+key)+".json")
 	if b, err := os.ReadFile(path); err == nil {
 		var r robotsRules
 		if json.Unmarshal(b, &r) == nil && time.Since(r.Fetched) < robotsTTL {
@@ -88,7 +92,7 @@ func robotsFor(f Fetcher, host string) *robotsRules {
 			return &r
 		}
 	}
-	r := fetchRobots(f, host)
+	r := fetchRobots(f, scheme, host)
 	r.Fetched = time.Now()
 	robotsMem.Store(key, r)
 	if err := os.MkdirAll(paceDir, 0o755); err == nil {
@@ -99,8 +103,11 @@ func robotsFor(f Fetcher, host string) *robotsRules {
 	return r
 }
 
-func fetchRobots(f Fetcher, host string) *robotsRules {
-	resp, err := f.Fetch("https://" + host + "/robots.txt")
+func fetchRobots(f Fetcher, scheme, host string) *robotsRules {
+	if scheme != "http" && scheme != "https" {
+		scheme = "https"
+	}
+	resp, err := f.Fetch(scheme + "://" + host + "/robots.txt")
 	if err != nil {
 		// A refusal for robots.txt itself is the common case (404 = no rules) and is permissive.
 		return &robotsRules{Missing: true}

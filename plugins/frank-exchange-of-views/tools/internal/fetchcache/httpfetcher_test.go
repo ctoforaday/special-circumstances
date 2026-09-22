@@ -99,6 +99,13 @@ func TestHTTPFetcherCapsRedirects(t *testing.T) {
 func TestHTTPFetcherSendsDescriptiveUserAgent(t *testing.T) {
 	got := make(chan string, 1)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// THE FETCHER ASKS FOR THE RULES BEFORE IT ASKS FOR THE DOCUMENT, so a fixture that
+		// records every request sees two. This one has a 1-buffered channel and deadlocked on
+		// the second until it learned to answer the first.
+		if r.URL.Path == "/robots.txt" {
+			http.NotFound(w, r)
+			return
+		}
 		got <- r.UserAgent()
 		fmt.Fprint(w, "ok")
 	}))

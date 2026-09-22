@@ -474,3 +474,34 @@ func TestLoopbackIsNotPaced(t *testing.T) {
 		t.Errorf("a real host waited %v (ok=%v); the exemption is too wide", w, ok)
 	}
 }
+
+// THE EXEMPTION COVERS EVERY NETWORK THAT IS NOT A STRANGER'S, not just loopback. RFC1918 space
+// is a network whose operator is whoever runs this box; link-local is an address a machine gave
+// itself, and includes the cloud metadata endpoint; carrier-grade NAT is the same argument as
+// RFC1918. Pacing any of them protects nobody and makes an internal mirror slower than the
+// public internet, which inverts the reason to run one.
+func TestOnlyStrangersArePaced(t *testing.T) {
+	tempPaceDir(t)
+	for _, host := range []string{
+		"127.0.0.1:8080", "localhost:3000", "[::1]:9999",
+		"10.0.0.5", "10.1.2.3:443", "192.168.1.10:8080", "172.16.4.4", "172.31.255.1",
+		"169.254.169.254", // the cloud metadata endpoint
+		"100.64.0.1",      // carrier-grade NAT
+		"[fd00::1]:443",   // IPv6 unique local
+	} {
+		for i := 0; i < 3; i++ {
+			if w, ok := reserveSlot(host, 0); !ok || w != 0 {
+				t.Errorf("%s waited %v (ok=%v) — not a stranger's server", host, w, ok)
+			}
+		}
+	}
+	// AND PUBLIC SPACE IS STILL PACED, so this is an exemption rather than a hole. 172.32 is
+	// deliberately just outside RFC1918's 172.16/12.
+	for _, host := range []string{"example.org", "8.8.8.8", "172.32.0.1"} {
+		tempPaceDir(t)
+		mustReserve(t, host)
+		if w, ok := reserveSlot(host, 0); !ok || w == 0 {
+			t.Errorf("%s waited %v (ok=%v); the exemption is too wide", host, w, ok)
+		}
+	}
+}

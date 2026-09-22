@@ -1,6 +1,9 @@
 package fetchcache
 
 import (
+	"errors"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -142,5 +145,44 @@ func TestTheAgentDoesNotImpersonateOrTripAGate(t *testing.T) {
 		if !strings.Contains(ua, strings.ToLower(required)) {
 			t.Errorf("the user agent no longer carries %q, which is what makes it honest self-identification: %s", required, userAgent)
 		}
+	}
+}
+
+// A REDIRECT USED TO WALK STRAIGHT PAST robots.txt. The client followed 3xx internally, so the
+// rules were consulted for the url a seat typed and for no hop after it — and since nearly every
+// scholarly citation is a doi.org link that redirects to a publisher, the only host whose rules
+// were ever checked was a resolver that publishes none. An operator's instruction evaded by a 302.
+func TestRobotsIsHonouredOnARedirectTarget(t *testing.T) {
+	tempPaceDir(t)
+	var served int
+	dest := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			_, _ = w.Write([]byte("User-agent: *\nDisallow: /private/\n"))
+			return
+		}
+		served++
+		_, _ = w.Write([]byte("<html><body>" + strings.Repeat("the paper. ", 200) + "</body></html>"))
+	}))
+	defer dest.Close()
+	resolver := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			http.NotFound(w, r) // the resolver publishes nothing, exactly as doi.org does
+			return
+		}
+		http.Redirect(w, r, dest.URL+"/private/article", http.StatusFound)
+	}))
+	defer resolver.Close()
+
+	_, err := NewHTTPFetcher().Fetch(resolver.URL + "/10.1234/x")
+	var rr *RobotsRefusal
+	if !errors.As(err, &rr) {
+		t.Fatalf("a redirect into a disallowed path was followed; err = %v", err)
+	}
+	if served != 0 {
+		t.Errorf("the disallowed path was served %d time(s) — the refusal came too late", served)
+	}
+	// AND THE PERMITTED PATH ON THE SAME HOST STILL WORKS, so this refuses a path and not a host.
+	if _, err := NewHTTPFetcher().Fetch(dest.URL + "/public/article"); err != nil {
+		t.Errorf("an allowed path on the same host was refused: %v", err)
 	}
 }

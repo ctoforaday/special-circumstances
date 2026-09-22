@@ -100,27 +100,18 @@ func NewHTTPFetcher() Fetcher {
 				TLSHandshakeTimeout:   10 * time.Second,
 				ExpectContinueTimeout: time.Second,
 			},
-			// EVERY HOP IS PACED, NOT JUST THE FIRST. Go follows 3xx inside client.Do, so a floor
-			// applied before the call governs only the url that was typed. Nearly every scholarly
-			// citation is a doi.org link that redirects to a publisher, which meant doi.org was
-			// paced politely and the publisher — the host that actually serves the bytes, and the
-			// one that rate-limits — was hit with no floor at all. CheckRedirect runs before each
-			// hop, which is the only place this can be enforced.
+			// WE FOLLOW REDIRECTS OURSELVES. Returning ErrUseLastResponse hands each 3xx back
+			// as an ordinary response, which is the only way to treat a hop as what it is: a
+			// fetch of a different url, on a different host, that must clear the same gates as
+			// the first one.
 			//
-			// A saturated host stops the chain rather than being joined, for the same reason it
-			// does on a first request.
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				if len(via) >= maxRedirects {
-					return fmt.Errorf("stopped after %d redirects", maxRedirects)
-				}
-				w, ok := reserveSlot(req.URL.Host, 0)
-				if !ok {
-					return fmt.Errorf("redirect to %s refused: that host is saturated", req.URL.Host)
-				}
-				if w > 0 {
-					time.Sleep(w)
-				}
-				return nil
+			// Doing it inside CheckRedirect could pace a hop but nothing else. robots.txt was
+			// consulted for the url a seat typed and for no hop after it, so a redirect into a
+			// path the host disallows went through — the operator's instruction evaded by a
+			// 302. Sleeping in the callback also fought the client's own timeout, which counts
+			// our waiting as the network being slow.
+			CheckRedirect: func(*http.Request, []*http.Request) error {
+				return http.ErrUseLastResponse
 			},
 		},
 		maxBytes: maxFetchBytes,
@@ -169,7 +160,16 @@ func (h *httpFetcher) Fetch(rawURL string) (*Response, error) {
 	}
 }
 
-// isOverloadStatus reports the statuses that mean "not now" rather than "not ever".
+// isRedirect names the statuses that carry a Location worth following.
+func isRedirect(code int) bool {
+	switch code {
+	case http.StatusMovedPermanently, http.StatusFound, http.StatusSeeOther,
+		http.StatusTemporaryRedirect, http.StatusPermanentRedirect:
+		return true
+	}
+	return false
+}
+
 func isOverloadStatus(code int) bool {
 	switch code {
 	case http.StatusTooManyRequests, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
@@ -179,16 +179,58 @@ func isOverloadStatus(code int) bool {
 }
 
 func (h *httpFetcher) fetchOnce(rawURL string) (*Response, *url.URL, error) {
-	return h.fetchOnceRetry(rawURL, false)
+	return h.followRedirects(rawURL, false)
 }
 
-func (h *httpFetcher) fetchOnceRetry(rawURL string, retried bool) (*Response, *url.URL, error) {
+// robotsClient fetches a rules file WITHOUT consulting rules, for every hop of that fetch.
+//
+// EXEMPTING THE PATH WAS NOT ENOUGH. The gate skipped `/robots.txt`, but a host that REDIRECTS
+// its rules file sends the chain somewhere whose path is not `/robots.txt` — which triggers a
+// robots check, which fetches the rules file, which redirects. That recursed until the stack
+// overflowed, and it took a fixture that redirects everything to find it. The standard's
+// exemption is for the act of reading the rules, not for one url that happens to spell them.
+type robotsClient struct{ h *httpFetcher }
+
+func (r robotsClient) Fetch(u string) (*Response, error) {
+	out, _, err := r.h.followRedirects(u, true)
+	return out, err
+}
+
+// followRedirects walks a redirect chain by hand, so every hop is a full fetch: its host paced,
+// its path checked against that host's robots.txt, its status inspected.
+func (h *httpFetcher) followRedirects(rawURL string, skipRobots bool) (*Response, *url.URL, error) {
+	cur := rawURL
+	seen := map[string]bool{rawURL: true}
+	for hop := 0; ; hop++ {
+		resp, final, loc, err := h.fetchOnceRetry(cur, false, skipRobots)
+		if err != nil || loc == "" {
+			return resp, final, err
+		}
+		if hop >= maxRedirects {
+			return nil, nil, fmt.Errorf("fetch: stopped after %d redirects, last at %s", maxRedirects, cur)
+		}
+		next, rerr := final.Parse(loc)
+		if rerr != nil {
+			return nil, nil, fmt.Errorf("fetch: %s redirected to an unparseable location %q", cur, loc)
+		}
+		if next.Scheme != "http" && next.Scheme != "https" {
+			return nil, nil, fmt.Errorf("fetch: %s redirected out of the web, to %s", cur, next.Scheme)
+		}
+		if seen[next.String()] {
+			return nil, nil, fmt.Errorf("fetch: %s redirects in a loop, back to %s", rawURL, next)
+		}
+		seen[next.String()] = true
+		cur = next.String()
+	}
+}
+
+func (h *httpFetcher) fetchOnceRetry(rawURL string, retried, skipRobots bool) (out *Response, final *url.URL, location string, err error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
-		return nil, nil, fmt.Errorf("fetch: unparseable url %q: %w", rawURL, err)
+		return nil, nil, "", fmt.Errorf("fetch: unparseable url %q: %w", rawURL, err)
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
-		return nil, nil, fmt.Errorf("fetch: refused scheme %q — only http and https are fetched", u.Scheme)
+		return nil, nil, "", fmt.Errorf("fetch: refused scheme %q — only http and https are fetched", u.Scheme)
 	}
 	// THE CHAIN LENGTH IS THE BOUND; THIS DEADLINE IS A BACKSTOP DERIVED FROM IT.
 	//
@@ -202,7 +244,7 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, retried bool) (*Response, *u
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
-		return nil, nil, fmt.Errorf("fetch: %w", err)
+		return nil, nil, "", fmt.Errorf("fetch: %w", err)
 	}
 	// IDENTIFY OURSELVES OR BE REFUSED. Go sends "Go-http-client/1.1" by default, which major
 	// sources block outright. Measured on the 2026-08-04 smoke: blue tried to cite the Fundamental
@@ -218,17 +260,17 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, retried bool) (*Response, *u
 	// Reading robots.txt is itself a fetch, so it is exempted by path — otherwise checking the
 	// rules would need the rules. The exemption is the standard's own: robots.txt is never
 	// governed by robots.txt.
-	if !strings.EqualFold(u.Path, "/robots.txt") {
-		rules := robotsFor(h, u.Host)
+	if !skipRobots {
+		rules := robotsFor(robotsClient{h}, u.Scheme, u.Host)
 		if rule := robotsBlocks(rules, u); rule != "" {
-			return nil, nil, &RobotsRefusal{URL: rawURL, Rule: rule}
+			return nil, nil, "", &RobotsRefusal{URL: rawURL, Rule: rule}
 		}
 	}
 	// WAIT OUR TURN FOR THIS HOST. The floor is enforced here, at the only place a request
 	// leaves, so no caller can forget it and no new backend has to remember.
 	w, ok := reserveSlot(u.Host, 0)
 	if !ok {
-		return nil, nil, fmt.Errorf("fetch: %s is saturated — this machine already has more than %v "+
+		return nil, nil, "", fmt.Errorf("fetch: %s is saturated — this machine already has more than %v "+
 			"of queued requests waiting for that host, so this one is refused rather than added to the "+
 			"queue. It is a fact about how much this box is asking of one origin, not about the source",
 			u.Host, maxPaceWait)
@@ -238,7 +280,7 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, retried bool) (*Response, *u
 	}
 	resp, err := h.client.Do(req)
 	if err != nil {
-		return nil, nil, fmt.Errorf("fetch: %w", err)
+		return nil, nil, "", fmt.Errorf("fetch: %w", err)
 	}
 	defer resp.Body.Close()
 	// A 429 IS THE HOST TELLING US THE PACE WAS WRONG, and it is the one refusal worth obeying
@@ -263,8 +305,19 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, retried bool) (*Response, *u
 		backoffHost(u.Host, wait)
 		if wait <= retryAfterCap {
 			time.Sleep(wait)
-			return h.fetchOnceRetry(rawURL, true)
+			return h.fetchOnceRetry(rawURL, true, skipRobots)
 		}
+	}
+	// A REDIRECT IS NOT A REFUSAL. The client no longer follows them, so a 3xx arrives here with
+	// its Location and is handed back to followRedirects, which fetches it as a fresh url —
+	// paced on its own host, and checked against that host's robots.txt. Following inside the
+	// client meant neither happened for any hop after the first.
+	if isRedirect(resp.StatusCode) {
+		if loc := resp.Header.Get("Location"); loc != "" {
+			return nil, u, loc, nil
+		}
+		return nil, nil, "", &Refusal{URL: rawURL, Status: resp.StatusCode,
+			Note: " — the host sent a redirect with no Location to follow"}
 	}
 	if resp.StatusCode != http.StatusOK {
 		// A REFUSAL STILL HAS A BODY, AND IT OFTEN SAYS WHAT IT IS. Challenge detection ran only
@@ -282,31 +335,31 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, retried bool) (*Response, *u
 				}
 			}
 		}
-		return nil, nil, &Refusal{URL: rawURL, Status: resp.StatusCode, Note: note}
+		return nil, nil, "", &Refusal{URL: rawURL, Status: resp.StatusCode, Note: note}
 	}
 	// THE HEADERS ARE READ HERE OR NEVER. Content-Type is the source's own statement of what it
 	// just sent, available for exactly the length of this function and previously discarded at
 	// the end of it. Everything downstream then had to sniff magic bytes or read an extension
 	// off a URL that may not have one.
-	out := &Response{
+	out = &Response{
 		ContentType: resp.Header.Get("Content-Type"),
 		Disposition: resp.Header.Get("Content-Disposition"),
 	}
 	// Read one byte past the cap so an over-size body is DETECTED, not silently truncated
 	// into a citation.
-	b, err := io.ReadAll(io.LimitReader(resp.Body, h.maxBytes+1))
-	if err != nil {
-		return nil, nil, fmt.Errorf("fetch: reading %s: %w", rawURL, err)
+	b, rerr := io.ReadAll(io.LimitReader(resp.Body, h.maxBytes+1))
+	if rerr != nil {
+		return nil, nil, "", fmt.Errorf("fetch: reading %s: %w", rawURL, rerr)
 	}
 	if int64(len(b)) > h.maxBytes {
-		return nil, nil, fmt.Errorf("fetch: %s exceeds the %d-byte cap — cite a smaller source or a specific page", rawURL, h.maxBytes)
+		return nil, nil, "", fmt.Errorf("fetch: %s exceeds the %d-byte cap — cite a smaller source or a specific page", rawURL, h.maxBytes)
 	}
 	out.Body = b
 	out.TDMReserved, out.TDMPolicy = TDMReservation(out.ContentType, b)
 	// resp.Request.URL is the url AFTER any header redirects, which is what a relative refresh
 	// target must resolve against — resolving against the ORIGINAL would build a url on the
 	// wrong host the moment a doi.org link is involved, which is most of them.
-	return out, resp.Request.URL, nil
+	return out, u, "", nil
 }
 
 // AN EGRESS BLOCK IS NOT AN EPISTEMIC RESULT, and telling them apart is the seat's job the
