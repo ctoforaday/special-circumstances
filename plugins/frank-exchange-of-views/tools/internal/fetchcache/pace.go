@@ -42,11 +42,19 @@ import (
 // failing open under exactly the load it exists for. Claiming a slot is a short read-modify-write;
 // waiting for it is the caller's own business.
 const (
-	// defaultHostInterval paces a host that publishes no limit of its own. Two seconds is the
-	// conservative end of the Crawl-delay range robots.txt files commonly carry, and it is chosen
-	// against an asymmetry rather than a benchmark: being too slow costs this run some latency,
-	// while being too fast costs it the source, and can cost the next run the source too.
-	defaultHostInterval = 2 * time.Second
+	// defaultHostInterval paces a host that publishes no limit of its own.
+	//
+	// FIVE SECONDS, WHICH IS SLOWER THAN ANY SUCH HOST WOULD DEMAND, AND DELIBERATELY SO. The
+	// asymmetry is not close: being too slow costs this run some latency, while being too fast
+	// costs it the source, can cost every later run the same source, and spends someone else's
+	// server to do it. A host that publishes a number gets that number; a host that publishes
+	// nothing has not consented to anything, and the floor should read as caution rather than as
+	// the fastest rate we think we can get away with.
+	//
+	// It is above the Crawl-delay range robots.txt files commonly carry (1–10s) on purpose: where
+	// a host does state a delay, that value wins, so this only ever governs hosts that have said
+	// nothing at all.
+	defaultHostInterval = 5 * time.Second
 	// maxPaceWait bounds a single request's wait. A slot far in the future means a queue that is
 	// long, or a state file that is wrong; neither is a reason to hang a run indefinitely.
 	maxPaceWait = 60 * time.Second
@@ -101,12 +109,15 @@ var hostIntervals = map[string]time.Duration{
 	// reached" — measured 2026-09-22, while this very sweep was running. Both the CDX endpoint
 	// and the snapshot host are the same service.
 	"web.archive.org": time.Second,
-	// EBI publishes no rate for the Europe PMC REST service; it is also visibly flaky under load,
-	// answering a bare nginx 503. Paced at the default.
-	"www.ebi.ac.uk": defaultHostInterval,
-	// The PMC open-access bucket is plain S3 and NCBI names it a sanctioned automated route, but
-	// it is still NCBI, whose stated ceiling without a key is 3 requests a second.
-	"pmc-oa-opendata.s3.amazonaws.com": 334 * time.Millisecond,
+	// EBI publishes no rate for the Europe PMC REST service and is visibly flaky under load,
+	// answering a bare nginx 503 with no Retry-After. A service that falls over is telling you
+	// something whether or not it means to, so this one is paced SLOWER than the default rather
+	// than at it.
+	"www.ebi.ac.uk": 8 * time.Second,
+	// The PMC open-access bucket is plain S3 and NCBI names it a sanctioned automated route. Its
+	// stated ceiling without a key is 3 requests a second; taken at a third of that, because a
+	// sanctioned route is a courtesy to keep rather than a budget to spend.
+	"pmc-oa-opendata.s3.amazonaws.com": time.Second,
 	// api.openalex.org is the open-access index this tool asks. Its singleton lookups cost no
 	// credits, but the budget is per IP and shared with anything else on this box.
 	"api.openalex.org": 500 * time.Millisecond,

@@ -2,6 +2,7 @@ package fetchcache
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"strconv"
@@ -226,5 +227,72 @@ func TestTheLearnedFloorIsCapped(t *testing.T) {
 	w := reserveSlot(host, 0)
 	if w > learnedCeiling+time.Second {
 		t.Errorf("after 20 refusals the floor is %v, above the %v ceiling", w, learnedCeiling)
+	}
+}
+
+// A 5xx MEANS "NOT NOW", AND CONTINUING AT THE PACE THAT MET IT IS THE WRONG ANSWER. Europe PMC
+// falls over with a bare nginx 503 under load and sends no Retry-After; treated as an ordinary
+// refusal, the next request leaves at exactly the rate that just failed.
+func TestAnOverloadedServiceIsBackedOffFromLikeARateLimit(t *testing.T) {
+	for code, want := range map[int]bool{
+		429: true, 502: true, 503: true, 504: true,
+		403: false, 404: false, 200: false, 500: false,
+	} {
+		if got := isOverloadStatus(code); got != want {
+			t.Errorf("isOverloadStatus(%d) = %v, want %v", code, got, want)
+		}
+	}
+}
+
+// AND THE FLOOR FOR AN UNSPOKEN HOST IS CAUTION, NOT THE FASTEST RATE WE THINK WE CAN GET AWAY
+// WITH. A host that publishes nothing has consented to nothing.
+func TestTheDefaultFloorIsSlowerThanAnyPublishedCrawlDelay(t *testing.T) {
+	// robots.txt Crawl-delay values in the wild run 1–10s; the default sits above the common
+	// range because it governs only hosts that have said nothing at all.
+	if defaultHostInterval < 5*time.Second {
+		t.Errorf("defaultHostInterval = %v; the asymmetry is not close — too slow costs latency, "+
+			"too fast can cost every later run the source", defaultHostInterval)
+	}
+	// A host that DOES publish a delay still wins, in either direction of our table.
+	tempPaceDir(t)
+	robotsMem.Store("slow.example", &robotsRules{CrawlDelay: 20, Fetched: time.Now()})
+	if iv := intervalFor("slow.example"); iv != 20*time.Second {
+		t.Errorf("a published Crawl-delay of 20s was paced at %v", iv)
+	}
+	robotsMem.Delete("slow.example")
+}
+
+// THE CALL SITE, NOT THE PREDICATE. A test of isOverloadStatus passes whether or not anything
+// consults it: reverting the fetcher to back off on 429 alone left the predicate's own test green.
+// This drives a real 503 through the real fetcher and asks whether the host's floor moved.
+func TestA503ThroughTheFetcherActuallyRaisesTheFloor(t *testing.T) {
+	tempPaceDir(t)
+	var hits int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			http.NotFound(w, r)
+			return
+		}
+		hits++
+		w.WriteHeader(http.StatusServiceUnavailable) // no Retry-After, as EBI sends it
+		_, _ = w.Write([]byte("<center>nginx</center>"))
+	}))
+	defer srv.Close()
+
+	h := NewHTTPFetcher()
+	host := strings.TrimPrefix(srv.URL, "http://")
+	if _, err := h.Fetch(srv.URL + "/paper"); err == nil {
+		t.Fatal("a 503 was reported as success")
+	}
+	// IT RETRIED ONCE, because a 5xx means "not now" rather than "not ever".
+	if hits < 2 {
+		t.Errorf("the fetcher hit the overloaded service %d time(s); it should honour one retry", hits)
+	}
+	// AND THE FLOOR FOR THAT HOST IS NOW ABOVE THE DEFAULT, so the next request — in this process
+	// or any other — does not leave at the rate that just failed.
+	reserveSlot(host, 0)
+	if w := reserveSlot(host, 0); w <= defaultHostInterval {
+		t.Errorf("after a 503 the next slot waits %v, no more than the %v default — the overload "+
+			"was reported and not learned from", w, defaultHostInterval)
 	}
 }

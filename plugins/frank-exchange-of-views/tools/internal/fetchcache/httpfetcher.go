@@ -133,6 +133,15 @@ func (h *httpFetcher) Fetch(rawURL string) (*Response, error) {
 	}
 }
 
+// isOverloadStatus reports the statuses that mean "not now" rather than "not ever".
+func isOverloadStatus(code int) bool {
+	switch code {
+	case http.StatusTooManyRequests, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+		return true
+	}
+	return false
+}
+
 func (h *httpFetcher) fetchOnce(rawURL string) (*Response, *url.URL, error) {
 	return h.fetchOnceRetry(rawURL, false)
 }
@@ -182,9 +191,14 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, retried bool) (*Response, *u
 	// A 429 IS THE HOST TELLING US THE PACE WAS WRONG, and it is the one refusal worth obeying
 	// rather than merely reporting. Honour its own Retry-After once, and push the whole host's
 	// queue out by it so every later request slows too — backing off only the refused request
-	// would keep the pressure that caused it. A second 429 is returned: at that point the answer
+	// would keep the pressure that caused it. A second one is returned: at that point the answer
 	// is not "wait a little longer", it is that this host does not want this traffic now.
-	if resp.StatusCode == http.StatusTooManyRequests && !retried {
+	//
+	// A 5xx COUNTS AS THE SAME MESSAGE. A service answering 502, 503 or 504 is overloaded or
+	// broken, and either way continuing at the pace that met it is the wrong response — Europe
+	// PMC falls over this way under load, with no Retry-After to read. Treating a 5xx as an
+	// ordinary refusal means the next request goes out at exactly the rate that just failed.
+	if isOverloadStatus(resp.StatusCode) && !retried {
 		wait := retryAfter(resp.Header)
 		if wait <= 0 {
 			wait = defaultHostInterval
