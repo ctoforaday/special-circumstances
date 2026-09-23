@@ -107,7 +107,9 @@ type GapJSON struct {
 	// LocationEdits is every edit that moved it, in order. A pointer that had been repaired and
 	// said nothing would leave red re-auditing a sentence it never saw with no way to tell
 	// whether the text drifted or was rewritten under the gap.
-	LocationEdits []GapEdit `json:"location_edits,omitempty"`
+	// Never omitted: an empty list is the answer "the sentence has not moved", and omitted it is
+	// indistinguishable from a projection that does not track movement.
+	LocationEdits []GapEdit `json:"location_edits"`
 	Problem       string    `json:"problem"`
 	// MintReason is red's ARGUMENT for the gap, distinct from what is wrong with the text.
 	// A bench adjudicating what a required_fix may demand asked for exactly this and could not
@@ -422,7 +424,7 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 			Severity: nullWord(sev), Likelihood: nullWord(lik), Impact: nullWord(imp), ComplexityCost: nullWord(cx),
 			Class: class.String, Location: currentLoc(loc.String, gapEdits[id]),
 			Passage:        PassageAround(report, currentLoc(loc.String, gapEdits[id])),
-			MintedLocation: mintedIfMoved(loc.String, gapEdits[id]), LocationEdits: gapEdits[id],
+			MintedLocation: mintedIfMoved(loc.String, gapEdits[id]), LocationEdits: orEmptyEdits(gapEdits[id]),
 			AboutKind: aboutKind.String, AboutRef: aboutRef.String, Problem: problem.String,
 			MintReason: reason.String, RequiredFix: fix.String, AcceptanceGate: gate.String,
 			CheckKind: kind.String, AwaitingProof: awaiting,
@@ -676,9 +678,14 @@ type WorkGapJSON struct {
 	AboutRef  string `json:"about_ref,omitempty"`
 	// EditedSince is every edit that moved this gap's sentence SINCE THE READER'S LAST EPOCH —
 	// the change history red would otherwise have to reconstruct by diffing the report against a
-	// memory of it. A gap whose text blue rewrote is the commonest thing red re-audits, and
-	// before this the work list showed the sentence as minted and said nothing about the rewrite.
-	EditedSince     []GapEdit `json:"edited_since,omitempty"`
+	// memory of it. A gap whose text blue rewrote is the commonest thing red re-audits.
+	//
+	// IT IS NEVER OMITTED, and that is the whole point of the field. An empty list is the answer
+	// "blue has not moved this gap", which is what a lens dispatched to verify a repair most needs
+	// and the commonest state it finds. Omitted, that answer is indistinguishable from a projection
+	// that does not carry edits at all, and a seat that cannot tell the two apart spends a call on
+	// the changes projection to find out — which is the call this field exists to save.
+	EditedSince     []GapEdit `json:"edited_since"`
 	ProblemSynopsis string    `json:"problem_synopsis"`
 	// CheckKind rides the work list too, though nothing else about the acceptance check does.
 	// The comment above says required_fix and acceptance_check belong to the seat that OPENS
@@ -875,7 +882,10 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 // for. Zero means "no epoch known", and then every edit is shown rather than none: a reader whose
 // epoch could not be determined is better handed the whole history than silently handed none.
 func workJSONOfGaps(gaps []WorkGapState, since int) WorkJSON {
-	out := WorkJSON{Open: []WorkGapJSON{}, ClosedIndex: []ClosedIndexJSON{}}
+	// Sitting carries its own list, and it is initialised HERE as well as in SittingOf: a WorkJSON
+	// built without a sitting still marshals one, and a nil there renders `"open": null` — "not
+	// computed" where the truth is "nothing open".
+	out := WorkJSON{Open: []WorkGapJSON{}, ClosedIndex: []ClosedIndexJSON{}, Sitting: SittingJSON{Open: []Item{}}}
 	for _, g := range gaps {
 		if g.Open {
 			out.Open = append(out.Open, WorkGapJSON{
@@ -1481,11 +1491,19 @@ func mintedIfMoved(minted string, edits []GapEdit) string {
 // A seat sitting in epoch 3 is shown epoch 2 onward: the epochs it was not present for. Passing 0
 // shows everything, which is what a caller with no epoch context gets — handing back nothing there
 // would be the plausible zero this whole field exists to remove.
-func editsSince(edits []GapEdit, since int) []GapEdit {
-	if len(edits) == 0 {
-		return nil
+// orEmptyEdits keeps a never-omitted list out of `null`: nothing moved is [], not unknown.
+func orEmptyEdits(e []GapEdit) []GapEdit {
+	if e == nil {
+		return []GapEdit{}
 	}
-	var out []GapEdit
+	return e
+}
+
+// editsSince returns an EMPTY list, never nil, when nothing moved. The field it fills is never
+// omitted, so a nil here would render as `null` — and a seat reading `null` is told the answer is
+// unknown when the answer is "none". Empty is the finding.
+func editsSince(edits []GapEdit, since int) []GapEdit {
+	out := []GapEdit{}
 	for _, e := range edits {
 		if e.Epoch >= since {
 			out = append(out, e)
