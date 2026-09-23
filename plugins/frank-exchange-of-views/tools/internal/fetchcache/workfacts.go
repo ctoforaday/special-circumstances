@@ -134,3 +134,13 @@ func openAlexWork(f Fetcher, doi string) (WorkFacts, []OALocation, bool) {
 	}
 	return facts, locs, true
 }
+
+// Retraction is the index's retraction answer for the work these bytes are a copy of, or nil
+// where no index was consulted. A method rather than a reach into Work, because every caller
+// wants the three-state answer and a nil Work is one of the three.
+func (e Entry) Retraction() *bool {
+	if e.Work == nil {
+		return nil
+	}
+	return e.Work.Retracted
+}

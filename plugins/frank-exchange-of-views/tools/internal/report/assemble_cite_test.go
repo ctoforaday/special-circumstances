@@ -94,7 +94,7 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synthesize"}, &recordpb.BaseIngest{Text: proto.String(blue)}); err != nil {
 		t.Fatal(err)
 	}
-	cite := &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(),
+	cite := &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(),
 		Label:      proto.String("c-1"),
 		Url:        proto.String("https://ex/coherence"),
 		Sha256:     proto.String("deadbeef"),
@@ -143,5 +143,53 @@ func TestClaimCountIsAnchorBasedNotFootnoteBased(t *testing.T) {
 	post := weaveCitations(pre, []record.Source{{Label: "c-1", URL: "u1", Title: "t1"}, {Label: "c-2", URL: "u2", Title: "t2"}})
 	if got := claimcount.Count(post); got != 0 {
 		t.Errorf("post-weave Count = %d, want 0 (footnote refs are not claims; only anchors are)", got)
+	}
+}
+
+// A RETRACTED SOURCE SAYS SO WHERE THE READER IS, and that is BOTH places. Before this, the
+// retraction lived in `fetch`'s output as a paragraph asking the seat to remember it — a fact
+// nothing could refuse, whose miss rendered a withdrawn paper as an ordinary reference. The
+// footnote and the Bibliography are separate reading paths: a reader who follows the marker may
+// never scroll to the Bibliography, and one scanning the Bibliography never sees the note.
+func TestARetractedSourceIsMarkedInBothTheNoteAndTheBibliography(t *testing.T) {
+	sources := []record.Source{
+		{Label: "c-1", URL: "https://ex/withdrawn", Title: "The Withdrawn Study", AccessDate: "2026-08-03",
+			WorkStatus: recordpb.WorkStatus_WORK_STATUS_RETRACTED},
+		{Label: "c-2", URL: "https://ex/sound", Title: "A Sound Study", AccessDate: "2026-08-03",
+			WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING},
+	}
+	got := weaveCitations("Claim one<!--cite:c-1-->. Claim two<!--cite:c-2-->.", sources)
+	for _, want := range []string{
+		"[^1]: The Withdrawn Study. https://ex/withdrawn (accessed 2026-08-03) **[RETRACTED]**",
+		"- The Withdrawn Study. https://ex/withdrawn (accessed 2026-08-03) **[RETRACTED]**",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the reader is not told the work was retracted — missing %q:\n%s", want, got)
+		}
+	}
+	// AND A SOUND SOURCE CARRIES NO WORD. `standing` is the ordinary case; annotating it would
+	// spend the reader's attention on the tool rather than on the literature, and a warning that
+	// prints everywhere is one nobody reads.
+	if strings.Contains(got, "A Sound Study. https://ex/sound (accessed 2026-08-03) **") {
+		t.Errorf("a standing work is annotated:\n%s", got)
+	}
+}
+
+// THE WARNING IS NOT THE CHOSEN ROW'S TO WITHHOLD. One url can carry several citations — a blue
+// cite and red's corroboration of the same source — and the Bibliography picks ONE of them for
+// its title. Reading the status off that pick alone means a corroboration stamped RETRACTED goes
+// unprinted whenever a blue cite for the same url won the title, which is the common case.
+func TestARetractionOnAnyCitationOfAUrlReachesItsBibliographyLine(t *testing.T) {
+	sources := []record.Source{
+		// The blue cite wins the title and predates the stamp (an older run, migrated).
+		{Label: "c-1", URL: "https://ex/p", Title: "Blue's Title", AccessDate: "2026-08-03",
+			WorkStatus: recordpb.WorkStatus_WORK_STATUS_NOT_RECORDED},
+		// Red corroborated the same url later, and the index had the answer by then.
+		{Label: "c-2", URL: "https://ex/p", Title: "Red's Title", AccessDate: "2026-09-01",
+			Corroborated: true, WorkStatus: recordpb.WorkStatus_WORK_STATUS_RETRACTED},
+	}
+	got := weaveCitations("A claim<!--cite:c-1-->. The same source again<!--cite:c-2-->.", sources)
+	if !strings.Contains(got, "- Blue's Title. https://ex/p (accessed 2026-08-03) **[RETRACTED]**") {
+		t.Errorf("the Bibliography line drops a retraction recorded on another citation of the same url:\n%s", got)
 	}
 }

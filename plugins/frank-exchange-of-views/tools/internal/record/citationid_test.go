@@ -51,7 +51,7 @@ func TestCitationID_DistinctFromFindingID(t *testing.T) {
 // distinction depend on the absence of a field, so a blue cite written without a label silently
 // rejoined red's count. #341 makes it structural: two acts, two EVENT TYPES, nothing inferred.
 func TestCiteProvenanceIsTwoEventTypes(t *testing.T) {
-	authored := recordtest.Event(t, "", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), Label: proto.String("c-abc"), Url: proto.String("https://x"), Title: proto.String("T")})
+	authored := recordtest.Event(t, "", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), Label: proto.String("c-abc"), Url: proto.String("https://x"), Title: proto.String("T")})
 	verified := recordtest.Event(t, "", &recordpb.Verify{Claim: proto.String("c"), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH)})
 
 	if authored.Type == verified.Type {
@@ -59,7 +59,7 @@ func TestCiteProvenanceIsTwoEventTypes(t *testing.T) {
 	}
 	// The discriminator must not be recoverable from a payload field: a blue cite MISSING its
 	// label must still be a blue cite, which is exactly the case the old heuristic got wrong.
-	unlabelled := recordtest.Event(t, "", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), Url: proto.String("https://x")})
+	unlabelled := recordtest.Event(t, "", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), Url: proto.String("https://x")})
 	if unlabelled.GetType() != recordpb.EventType_EVENT_TYPE_CITE {
 		t.Error("a cite without a label is still a cite — provenance is the type, not a field's emptiness")
 	}
