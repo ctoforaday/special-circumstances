@@ -289,6 +289,21 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 	// one source may now corroborate several claims. Keyed on the source, only the first recorded.
 	var tells []string
 	if mayCite == cites && backsTheClaim(body.GetOutcome()) {
+		// WHAT THE LITERATURE SAYS ABOUT THE WORK RED FOUND. A labelled corroboration becomes an
+		// ordinary footnote, so it owes the reader the same stamp a blue cite does — and this is
+		// the worst case the field exists for: the strongest thing an adversarial process
+		// produces, a claim confirmed by a source its author never chose, resting on withdrawn
+		// work with nothing in the document saying so.
+		//
+		// READ FROM THE INDEX, NEVER FETCHED. Red is corroborating a source it has read, so the
+		// run cache already holds it; a source outside the cache stamps NOT_CHECKED, which is the
+		// honest answer and not a reassurance. A fetch here would make a write verb reach the
+		// network and turn an unreachable host into a refused corroboration.
+		if e, _, ok, lerr := fetchcache.Lookup(run, body.GetUrl()); lerr == nil && ok {
+			body.WorkStatus = record.WorkStatusOf(e.Retraction()).Enum()
+		} else {
+			body.WorkStatus = recordpb.WorkStatus_WORK_STATUS_NOT_CHECKED.Enum()
+		}
 		// THE TITLE IS RED'S TEXT IN THE REPORT. A labelled corroboration's --title prints in the
 		// source's note, "[^N]: <title>. <url> (accessed <date>)", where red's anchor is the first under
 		// that note, and in the Bibliography line "- <title>. <url> (accessed <date>)" where no blue cite

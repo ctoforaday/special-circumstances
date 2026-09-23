@@ -341,14 +341,14 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 	// replay as no-ops (skip-if-present).
 	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(blue)})
 
-	add("blue-synthesize", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(),
+	add("blue-synthesize", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(),
 		Label: proto.String("c-1"), Url: proto.String("https://ex/coherence"),
 		Sha256: proto.String("deadbeef"), Title: proto.String("Coherence Proof"),
 		AccessDate: proto.String("2026-08-03"),
 	})
 	// A SECOND source, cited only from red's board — so its reference lands in docket.md and
 	// nowhere else. This is the case a global weave gets wrong and a per-file weave gets right.
-	add("blue-synthesize", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(),
+	add("blue-synthesize", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(),
 		Label: proto.String("c-2"), Url: proto.String("https://ex/eviction"),
 		Sha256: proto.String("beefcafe"), Title: proto.String("Eviction Under Contention"),
 		AccessDate: proto.String("2026-08-04"),

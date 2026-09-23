@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/jimsmart/grobotstxt"
 )
 
 // ROBOTS.TXT IS THE OPERATOR'S OWN INSTRUCTION, AND IT IS THE ONE WE HAD NEVER READ.
@@ -181,6 +183,13 @@ func parseRobots(body string) *robotsRules {
 
 // allows answers whether a path may be fetched, by longest match, with Allow winning a tie — the
 // rule every major implementation follows.
+//
+// THE GROUP SELECTION IS OURS AND STAYS OURS, which is the other half of the grobotstxt decision.
+// Its AgentAllowed picks the group by Google's rule, and on the one case where the two differ we
+// are the more obedient: a file addressing `User-agent: feov` is applied to us, because `feov` is
+// a prefix of what we send, while Google's matcher requires a closer match and would ignore that
+// group entirely. A politeness-first tool takes the reading that obeys MORE rules, so the path
+// grammar is delegated and the question of whose rules these are is not.
 func (r *robotsRules) allows(path string) bool {
 	if r == nil || r.Missing {
 		return true
@@ -202,37 +211,23 @@ func (r *robotsRules) allows(path string) bool {
 	return allow
 }
 
-// matchRobotsPath handles the prefix match plus the two wildcards in common use: `*` for any run
-// of characters and `$` for end-of-path.
+// matchRobotsPath is Google's own matcher, and this is a deliberate dependency.
+//
+// WHAT THE DIFFERENTIAL FOUND, BEFORE THE SWAP. The hand-rolled matcher this replaced agreed with
+// grobotstxt on 25 of 25 path cases — every wildcard corner, `$` anchoring, query strings,
+// percent-encoding both ways, `/a` against `/abc`, `$` alone, a bare `*`. So this is NOT a
+// correctness fix and must not be remembered as one.
+//
+// It is taken for the cases NOT in that table. grobotstxt is a function-for-function port of
+// Google's C++ robots.txt matcher and carries 100% of its test suite, which is a great deal more
+// thought about this grammar than one afternoon of ours. The corners we did not think to test are
+// exactly the ones a reference implementation is for, and robots.txt is the one file here where
+// being wrong means disobeying an operator who wrote down what they wanted.
 func matchRobotsPath(pattern, path string) bool {
 	if pattern == "" {
 		return false
 	}
-	anchored := strings.HasSuffix(pattern, "$")
-	pattern = strings.TrimSuffix(pattern, "$")
-	parts := strings.Split(pattern, "*")
-	pos := 0
-	for i, part := range parts {
-		if part == "" {
-			continue
-		}
-		if i == 0 {
-			if !strings.HasPrefix(path[pos:], part) {
-				return false
-			}
-			pos += len(part)
-			continue
-		}
-		idx := strings.Index(path[pos:], part)
-		if idx < 0 {
-			return false
-		}
-		pos += idx + len(part)
-	}
-	if anchored {
-		return pos == len(path)
-	}
-	return true
+	return grobotstxt.Matches(path, pattern)
 }
 
 // robotsInterval is the host's own published pacing, or 0.

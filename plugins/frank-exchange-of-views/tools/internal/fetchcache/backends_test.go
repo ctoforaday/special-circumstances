@@ -28,6 +28,11 @@ func emptyIndexAnswer(u string) (*Response, bool) {
 		return &Response{Body: []byte(`{"paperId":"abc","openAccessPdf":null,"externalIds":{}}`)}, true
 	case strings.Contains(u, "doaj.org"):
 		return &Response{Body: []byte(`{"total":0,"results":[]}`)}, true
+	// A real work record with no registered text-mining link. The DOI is the discriminator the
+	// reader checks, so an empty object here would read as a FAILED lookup rather than an
+	// answered "this publisher registered nothing".
+	case strings.Contains(u, "api.crossref.org"):
+		return &Response{Body: []byte(`{"message":{"DOI":"10.1234/x","link":[]}}`)}, true
 	case strings.Contains(u, "pmc-oa-opendata"):
 		return &Response{Body: []byte(`<ListBucketResult><KeyCount>0</KeyCount></ListBucketResult>`)}, true
 	}
@@ -270,7 +275,7 @@ func TestAnOpenAccessAnswerRequiresAWork(t *testing.T) {
 				}
 				return nil, &Refusal{URL: u, Status: 403}
 			})
-			_, answered := OpenAccessCandidates(f, "10.1234/x")
+			_, _, _, answered := OpenAccessCandidates(f, "10.1234/x")
 			if answered != tc.wantAnswered {
 				t.Errorf("answered = %v, want %v — this value is what lets the caller say NO OPEN "+
 					"COPY EXISTS anywhere, which is a claim about the world", answered, tc.wantAnswered)
@@ -457,7 +462,7 @@ func TestAnIndexThatDidNotAnswerBlocksTheWorldClaim(t *testing.T) {
 		}
 		return nil, &Refusal{URL: u, Status: 404}
 	})
-	_, answered := OpenAccessCandidates(f, "10.1234/x")
+	_, _, _, answered := OpenAccessCandidates(f, "10.1234/x")
 	if answered {
 		t.Error("an index that did not answer was counted as a silence — that licenses " +
 			"'no open copy exists anywhere', which would be a claim about the world built from a timeout")
@@ -465,5 +470,227 @@ func TestAnIndexThatDidNotAnswerBlocksTheWorldClaim(t *testing.T) {
 	// AND THE CALLER DECLINES rather than publishing the claim.
 	if att := Recover(f, "https://doi.org/10.1234/x", ViaOA, ""); att != nil && strings.Contains(att.Via, "NO OPEN COPY EXISTS") {
 		t.Errorf("a 503 from one index became a determinate absence: %s", att.Via)
+	}
+}
+
+// OPEN ACCESS IS TRIED BEFORE THE ARCHIVE, because one returns the document and the other returns
+// a picture of the page you could not read.
+//
+// Measured on a Journal of Physics paper IOP disallows: the archive answered with a 220 KB
+// IOPscience landing page — 17,031 characters of navigation and abstract, classified renderable
+// and still not the paper — while open access returns the 633 KB arXiv PDF. Order decided which
+// one a seat got.
+func TestAutoPrefersTheDocumentOverASnapshotOfIt(t *testing.T) {
+	order := AutoOrder()
+	pos := map[string]int{}
+	for i, b := range order {
+		pos[b] = i
+	}
+	if pos[ViaOA] > pos[ViaArchive] {
+		t.Errorf("auto order is %v — the archive is tried before open access, so a snapshot of a "+
+			"paywalled landing page outranks the author's own copy", order)
+	}
+	if pos[ViaArxiv] != 0 {
+		t.Errorf("auto order is %v — arxiv is the preprint itself and the cheapest to check", order)
+	}
+	if pos[ViaMetadata] != len(order)-1 {
+		t.Errorf("auto order is %v — metadata is not the document and belongs last", order)
+	}
+
+	// AND THE CHAIN ACTUALLY FOLLOWS IT: an index with a copy wins over an archive that has a
+	// capture, rather than the other way round.
+	f := fake(func(u string) (*Response, error) {
+		switch {
+		case strings.Contains(u, "cdx/search"):
+			return &Response{Body: []byte(`[["timestamp","original","digest"],["20190520000000","https://ex/a","D1"]]`)}, nil
+		case strings.Contains(u, "web.archive.org/web/"):
+			return &Response{Body: []byte("<html><body>" + strings.Repeat("landing page. ", 100) + "</body></html>"), ContentType: "text/html"}, nil
+		case strings.Contains(u, "openalex"):
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","locations":[{"pdf_url":"https://repo.example/open.pdf","is_oa":true}]}`)}, nil
+		case u == "https://repo.example/open.pdf":
+			return &Response{Body: []byte("%PDF-1.7 the paper"), ContentType: "application/pdf"}, nil
+		}
+		if r, isIndex := emptyIndexAnswer(u); isIndex {
+			return r, nil
+		}
+		return nil, &Refusal{URL: u, Status: 403}
+	})
+	att := Recover(f, "https://doi.org/10.1234/x", ViaAuto, "")
+	if att == nil {
+		t.Fatal("the auto chain found nothing")
+	}
+	if att.Backend != ViaOA {
+		t.Errorf("Backend = %q (via %q), want the open-access copy rather than the archived landing page",
+			att.Backend, att.Via)
+	}
+}
+
+// A RETRACTION REACHES THE RECORD WHICHEVER RUNG ANSWERED. Only the `oa` rung read the work
+// record, so whether a seat heard that its paper was withdrawn depended on which backend happened
+// to have a copy — and arxiv is FIRST in AutoOrder, so the common case was the silent one.
+//
+// The assertion runs through EntryFor rather than off the Attempt, because the Attempt carrying
+// the fact and the index storing it are two different things and the second one is what a later
+// reader sees.
+func TestARetractionReachesTheRecordFromANonIndexBackend(t *testing.T) {
+	f := fake(func(u string) (*Response, error) {
+		switch {
+		case strings.Contains(u, "arxiv.org/pdf"):
+			return &Response{Body: []byte("%PDF-1.7 the preprint"), ContentType: "application/pdf"}, nil
+		case strings.Contains(u, "openalex"):
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","is_retracted":true,` +
+				`"type":"article","open_access":{"oa_status":"green"}}`)}, nil
+		}
+		return nil, &Refusal{URL: u, Status: 403}
+	})
+	att := Recover(f, "https://arxiv.org/abs/2101.00001?doi=10.1234/retracted", ViaAuto, "")
+	if att == nil || att.Backend != ViaArxiv {
+		t.Fatalf("wanted the arxiv rung to answer, got %+v", att)
+	}
+	e := EntryFor("https://arxiv.org/abs/2101.00001", att)
+	if e.Work == nil || e.Work.Retracted == nil || !*e.Work.Retracted {
+		t.Fatalf("the stored record does not say the work is retracted: %+v", e.Work)
+	}
+	if e.Work.OAStatus != "green" || e.Work.WorkType != "article" {
+		t.Errorf("the rest of the work record did not travel with it: %+v", e.Work)
+	}
+}
+
+// THE PUBLISHED COPY IS PREFERRED OVER A DRAFT OF IT. Both are pdfs and both answer, so nothing
+// about the fetch distinguishes them; the index's `version` is the only thing that does, and
+// before it was read the chain took whichever the index happened to list first. A quote from a
+// submitted preprint attributed to the published paper is a misquotation that no later check
+// catches.
+func TestThePublishedCopyOutranksASubmittedOne(t *testing.T) {
+	var got []string
+	f := fake(func(u string) (*Response, error) {
+		if r, isIndex := emptyIndexAnswer(u); isIndex {
+			return r, nil
+		}
+		if strings.Contains(u, "openalex") {
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","locations":[` +
+				`{"pdf_url":"https://repo.example/draft.pdf","is_oa":true,"version":"submittedVersion"},` +
+				`{"pdf_url":"https://publisher.example/final.pdf","is_oa":true,"version":"publishedVersion","license":"cc-by"}]}`)}, nil
+		}
+		if strings.HasSuffix(u, ".pdf") {
+			got = append(got, u)
+			return &Response{Body: []byte("%PDF-1.7 " + u), ContentType: "application/pdf"}, nil
+		}
+		return nil, &Refusal{URL: u, Status: 403}
+	})
+	att := Recover(f, "https://doi.org/10.1234/x", ViaOA, "")
+	if att == nil {
+		t.Fatal("the oa rung gave up with two open pdfs listed")
+	}
+	if len(got) == 0 || got[0] != "https://publisher.example/final.pdf" {
+		t.Fatalf("the first copy fetched was %v, want the published pdf — the draft was listed first", got)
+	}
+	if att.Version != "publishedVersion" || att.License != "cc-by" {
+		t.Errorf("the copy's own version/licence did not reach the attempt: %q / %q", att.Version, att.License)
+	}
+	if !strings.Contains(att.Via, "the published version") {
+		t.Errorf("the provenance sentence does not say which copy this is: %s", att.Via)
+	}
+}
+
+// A DOI URL GOES STRAIGHT TO THE REGISTERED PAGE. doi.org publishes no robots.txt and no rate
+// headers, so this tool's kind default applies to it — fifteen seconds per fetch, shared across
+// processes. Measured on the source sweep, 2,564 of 2,599 urls were doi.org urls: the whole scan
+// ran at one redirect service's floor. Crossref holds the same answer in a table.
+func TestADOIUrlIsResolvedThroughCrossrefRatherThanTheResolver(t *testing.T) {
+	var asked []string
+	f := fake(func(u string) (*Response, error) {
+		asked = append(asked, u)
+		switch {
+		case strings.Contains(u, "api.crossref.org"):
+			return &Response{Body: []byte(`{"message":{"DOI":"10.1234/x","resource":{"primary":{"URL":"https://publisher.example/article/1"}}}}`)}, nil
+		case u == "https://publisher.example/article/1":
+			return &Response{Body: []byte("<html><body>the article</body></html>"), ContentType: "text/html"}, nil
+		}
+		return nil, &Refusal{URL: u, Status: 403}
+	})
+	if got := RegisteredTarget(f, "https://doi.org/10.1234/x"); got != "https://publisher.example/article/1" {
+		t.Fatalf("RegisteredTarget = %q, want the publisher page", got)
+	}
+	for _, u := range asked {
+		if strings.Contains(u, "doi.org") {
+			t.Errorf("the resolver was asked anyway: %s", u)
+		}
+	}
+
+	// A NON-DOI URL IS LEFT ALONE, and so is a doi whose record Crossref does not hold: the
+	// caller follows the resolver's own redirect, which is what it did before this existed.
+	if got := RegisteredTarget(f, "https://publisher.example/article/1"); got != "" {
+		t.Errorf("a plain url was rewritten to %q", got)
+	}
+	silent := fake(func(u string) (*Response, error) { return &Response{Body: []byte(`{"error":"not found"}`)}, nil })
+	if got := RegisteredTarget(silent, "https://doi.org/10.1234/x"); got != "" {
+		t.Errorf("an error envelope was read as a target: %q", got)
+	}
+	// AND A TARGET THAT IS ITSELF A DOI URL IS NO SHORTCUT — it sends the next hop back to the
+	// resolver, which is the loop this exists to leave.
+	circular := fake(func(u string) (*Response, error) {
+		return &Response{Body: []byte(`{"message":{"DOI":"10.1234/x","resource":{"primary":{"URL":"https://dx.doi.org/10.1234/x"}}}}`)}, nil
+	})
+	if got := RegisteredTarget(circular, "https://doi.org/10.1234/x"); got != "" {
+		t.Errorf("a target back on the resolver was accepted: %q", got)
+	}
+}
+
+// THE PUBLISHER'S OWN REGISTERED ROUTE TO FULL TEXT, and the two limits measured on it.
+//
+// Crossref's `link[]` carries urls a publisher registered for machine reading. 136 of 300 corpus
+// works carry one, and 79 of those are works OpenAlex calls CLOSED — a sanctioned route on papers
+// the open-access indexes have nothing for, which is the whole reason this source earns a place
+// in the union.
+func TestCrossrefTextMiningLinksAreTakenButNotEveryLink(t *testing.T) {
+	f := fake(func(u string) (*Response, error) {
+		if strings.Contains(u, "api.crossref.org") {
+			return &Response{Body: []byte(`{"message":{"DOI":"10.1234/x","link":[
+				{"URL":"https://publisher.example/full.xml","content-type":"text/xml","intended-application":"text-mining"},
+				{"URL":"https://publisher.example/full.pdf","content-type":"application/pdf","intended-application":"text-mining"},
+				{"URL":"https://ithenticate.example/copy.pdf","content-type":"application/pdf","intended-application":"similarity-checking"},
+				{"URL":"https://api.elsevier.com/content/article/PII:S1","content-type":"text/plain","intended-application":"text-mining"},
+				{"URL":"https://api.wiley.com/onlinelibrary/tdm/v1/articles/10.1234","content-type":"application/pdf","intended-application":"text-mining"}
+			]}}`)}, nil
+		}
+		return nil, &Refusal{URL: u, Status: 403}
+	})
+	got, answered := crossrefTextMiningCandidates(f, "10.1234/x")
+	if !answered {
+		t.Fatal("a well-formed work record was read as an index failure")
+	}
+	want := []string{"https://publisher.example/full.xml", "https://publisher.example/full.pdf"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v, want exactly %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("candidate %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+
+	// A similarity-checking link is NOT a text-mining link. It is registered for plagiarism
+	// services under separate agreements, and the intent on the link is the publisher's statement
+	// of what it is offering — reading one as an invitation helps ourselves to a different
+	// permission from the one that was given.
+	for _, u := range got {
+		if strings.Contains(u, "ithenticate") {
+			t.Error("a similarity-checking link was taken as a text-mining one")
+		}
+		// And the two key-only hosts are skipped rather than merely allowed to fail. Measured
+		// 2026-09-23: api.elsevier.com returned HTTP 400 five times of five, api.wiley.com
+		// likewise, and between them they carry 133 of 136 registered links — so trying them
+		// costs a request per work to be told no by a host that will always say no.
+		if strings.Contains(u, "api.elsevier.com") || strings.Contains(u, "api.wiley.com") {
+			t.Errorf("a host that answers only with an api key was tried anyway: %s", u)
+		}
+	}
+
+	// AN ERROR ENVELOPE IS NOT AN ANSWER. `answered` false withdraws the union's determinate
+	// "no open copy exists anywhere" claim, and a body with no DOI cannot support it.
+	broken := fake(func(string) (*Response, error) { return &Response{Body: []byte(`{"error":"not found"}`)}, nil })
+	if _, ok := crossrefTextMiningCandidates(broken, "10.1234/x"); ok {
+		t.Error("an error envelope was read as an answered lookup")
 	}
 }

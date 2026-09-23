@@ -345,7 +345,7 @@ func screenRun(t *testing.T, outcome recordpb.SourceOutcome, url string) string 
 		recordtest.Seed(t, dir, recordtest.Event(t, seat, body))
 	}
 	seed("blue-r1",
-		&recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), Label: proto.String("c-1"), Url: proto.String(url), Title: proto.String("A Source")})
+		&recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), Label: proto.String("c-1"), Url: proto.String(url), Title: proto.String("A Source")})
 	seed("red-lens-evidence",
 		&recordpb.Verify{
 			Anchor:     proto.String("c-1"),

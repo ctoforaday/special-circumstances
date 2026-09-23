@@ -58,7 +58,7 @@ func TestTheB4MintBudgets(t *testing.T) {
 	}
 	evs := []*recordpb.Event{recordtest.At(t, "blue-synthesize", "base", &recordpb.BaseIngest{Text: proto.String(md)})}
 	for i := 0; i < 11; i++ {
-		evs = append(evs, recordtest.At(t, "blue-synthesize", fmt.Sprintf("cite:%d", i), &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), Label: proto.String(fmt.Sprintf("c-%x", i))}))
+		evs = append(evs, recordtest.At(t, "blue-synthesize", fmt.Sprintf("cite:%d", i), &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), Label: proto.String(fmt.Sprintf("c-%x", i))}))
 	}
 	for i := 0; i < 6; i++ {
 		evs = append(evs, recordtest.At(t, "blue-synthesize", fmt.Sprintf("proof:%d", i), &recordpb.Proof{ProofId: proto.String(fmt.Sprintf("p-%x", i))}))

@@ -154,3 +154,30 @@ func TestAnOldCiteStatesItsOriginWasNotRecorded(t *testing.T) {
 		}
 	}
 }
+
+// AND A CITE FROM BEFORE EPOCH 10 SAYS NOBODY ASKED WHETHER THE WORK STILL STANDS. `standing`
+// would be a reassurance no index gave, printed against a paper that may have been withdrawn
+// years before the run; `not_checked` is the right word for a live cite with no doi, and wrong
+// here, where the field did not exist. A cite that carries a status keeps it.
+func TestAnOldCiteStatesItsWorkStatusWasNotRecorded(t *testing.T) {
+	dst := runtest.New(t, recordtest.TmpRun(t))
+	for _, tc := range []struct {
+		fields map[string]any
+		want   recordpb.WorkStatus
+	}{
+		{map[string]any{"label": "c-1", "url": "https://x"}, recordpb.WorkStatus_WORK_STATUS_NOT_RECORDED},
+		{map[string]any{"label": "c-2", "url": "https://x", "work_status": "retracted"}, recordpb.WorkStatus_WORK_STATUS_RETRACTED},
+	} {
+		bodies, err := migrate.Entries()["cite"].Translate(migrate.OldEvent{ID: 1, SeatID: "blue-respond", TS: ts1, Word: "cite", Fields: tc.fields}, dst)
+		if err != nil {
+			t.Fatal(err)
+		}
+		c, ok := bodies[0].(*recordpb.Cite)
+		if !ok || len(bodies) != 1 {
+			t.Fatalf("a cite translated to %d bodies, the first %T", len(bodies), bodies[0])
+		}
+		if c.GetWorkStatus() != tc.want {
+			t.Errorf("%v: work_status = %v, want %v", tc.fields, c.GetWorkStatus(), tc.want)
+		}
+	}
+}

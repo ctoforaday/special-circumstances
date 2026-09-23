@@ -4,9 +4,12 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // arXiv's REAL robots.txt, trimmed to the groups that decide. The Crawl-delay is the point: this
@@ -220,5 +223,174 @@ func TestAPublishedCrawlDelayReachesThePacer(t *testing.T) {
 	if iv := intervalFor(host); iv != 30*time.Second {
 		t.Errorf("after reading a published Crawl-delay of 30s the floor is %v — the host's own "+
 			"number never reached the pacer", iv)
+	}
+}
+
+// A ROBOTS REFUSAL MUST STILL TRY THE OTHER ROUTES. The recovery chain keyed on *Refusal alone,
+// so a disallowed page ended the fetch — while the refusal's own text tells the seat to ask `oa`
+// whether a copy exists elsewhere. The tool named the route and declined to take it.
+//
+// IOP publishes `Disallow: /`, so every IOP paper was lost. Measured on one: `--via oa` returns a
+// 633 KB PDF from arXiv. Being told we may not read the publisher's copy says nothing about the
+// copy the author put in a repository.
+func TestARobotsRefusalStillReachesTheOpenAccessRung(t *testing.T) {
+	tempPaceDir(t)
+	run := runtest.New(t, t.TempDir())
+	pub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n")) // IOP's shape
+			return
+		}
+		t.Error("the disallowed host was fetched after all")
+	}))
+	defer pub.Close()
+
+	// The publisher is disallowed; a repository copy exists and is listed by the index.
+	repo := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte("%PDF-1.7 the author's copy"))
+	}))
+	defer repo.Close()
+
+	prev := Default
+	Default = fake(func(u string) (*Response, error) {
+		switch {
+		case strings.Contains(u, "openalex"):
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","locations":[{"pdf_url":"` +
+				repo.URL + `/copy.pdf","is_oa":true}]}`)}, nil
+		case strings.Contains(u, "ebi.ac.uk"):
+			return &Response{Body: []byte(`{"resultList":{"result":[]}}`)}, nil
+		case strings.Contains(u, "semanticscholar"):
+			return &Response{Body: []byte(`{"paperId":"a","openAccessPdf":null}`)}, nil
+		case strings.Contains(u, "doaj.org"):
+			return &Response{Body: []byte(`{"total":0,"results":[]}`)}, nil
+		}
+		return NewHTTPFetcher().Fetch(u)
+	})
+	t.Cleanup(func() { Default = prev })
+
+	entry, body, _, err := Resolve(run, pub.URL+"/article/10.1234/x", Default)
+	if err != nil {
+		t.Fatalf("a robots refusal ended the fetch instead of recovering: %v", err)
+	}
+	if !strings.HasPrefix(string(body), "%PDF") {
+		t.Errorf("recovered %q, want the repository copy", string(body[:min(24, len(body))]))
+	}
+	// AND THE RECORD SAYS WHY THE PUBLISHER WAS NOT USED — without inventing an HTTP status the
+	// origin never returned, because nothing was asked of it.
+	if entry.RefusalClass != "robots" {
+		t.Errorf("RefusalClass = %q, want robots", entry.RefusalClass)
+	}
+	if entry.HTTPStatus != 0 {
+		t.Errorf("HTTPStatus = %d — nothing was asked of the origin, so it refused nothing", entry.HTTPStatus)
+	}
+}
+
+// THE SHORTCUT IS TAKEN ON THE REAL FETCH PATH, not merely available to it. A test of
+// RegisteredTarget is a test of the function; deleting the call in followRedirects left the whole
+// suite green, which is the shape that lets a resolved path quietly stop being resolved.
+//
+// What this asserts is behavioural and not incidental: the resolver is NEVER ASKED. That is the
+// whole point — doi.org publishes no rate guidance, so it sits at this tool's fifteen-second kind
+// default, and the sweep that measured this spent 41 projected hours there.
+func TestTheFetchPathTakesTheRegisteredTargetAndNeverAsksTheResolver(t *testing.T) {
+	tempPaceDir(t)
+	prevPace := paceLoopback
+	paceLoopback = false // the fixture hosts are loopback; pacing them would only slow the test
+	t.Cleanup(func() { paceLoopback = prevPace })
+
+	var resolverHits int
+	publisher := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte("<html><body>" + strings.Repeat("the paper. ", 200) + "</body></html>"))
+	}))
+	defer publisher.Close()
+	crossref := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`{"message":{"DOI":"10.1234/x","resource":{"primary":{"URL":"` +
+			publisher.URL + `/article/1"}}}}`))
+	}))
+	defer crossref.Close()
+	resolver := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			http.NotFound(w, r)
+			return
+		}
+		resolverHits++
+		http.Redirect(w, r, publisher.URL+"/article/1", http.StatusFound)
+	}))
+	defer resolver.Close()
+
+	ru, err := url.Parse(resolver.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doiResolverHosts[ru.Hostname()+":"+ru.Port()] = true
+	prevCR := crossrefWorks
+	crossrefWorks = crossref.URL + "/works/"
+	t.Cleanup(func() {
+		crossrefWorks = prevCR
+		delete(doiResolverHosts, ru.Hostname()+":"+ru.Port())
+	})
+
+	resp, err := NewHTTPFetcher().Fetch(resolver.URL + "/10.1234/x")
+	if err != nil {
+		t.Fatalf("the doi fetch failed: %v", err)
+	}
+	if !strings.Contains(string(resp.Body), "the paper.") {
+		t.Errorf("the publisher page did not come back: %.120s", resp.Body)
+	}
+	if resolverHits != 0 {
+		t.Errorf("the resolver was asked %d time(s) — the registered target should have replaced it", resolverHits)
+	}
+}
+
+// THE HYBRID, PINNED: Google's path grammar, our group selection, our Crawl-delay.
+//
+// Each half is here because the other library does not have it, and the split is the decision
+// this test exists to keep. grobotstxt is a port of Google's matcher and carries its whole test
+// suite, so the path grammar is delegated. It has no Crawl-delay at all — Google's parser ignores
+// the directive by design — and its group selection is less obedient than ours.
+func TestRobotsUsesGooglesGrammarAndOurObedience(t *testing.T) {
+	for _, tc := range []struct {
+		name, body, path string
+		want             bool
+	}{
+		// The grammar, delegated. These agreed with the hand-rolled matcher too; they are kept as
+		// the contract, so a future swap back has something to fail against.
+		{"wildcard and anchor", "User-agent: *\nDisallow: /*.pdf$\n", "/x/y.pdf", false},
+		{"anchor does not reach a query", "User-agent: *\nDisallow: /*.pdf$\n", "/x/y.pdf?v=1", true},
+		{"allow wins the longer match", "User-agent: *\nDisallow: /\nAllow: /pdf/\n", "/pdf/a.pdf", true},
+		{"prefix is not a path boundary", "User-agent: *\nDisallow: /a\n", "/abc", false},
+		{"percent-encoding is not folded", "User-agent: *\nDisallow: /%7Ejoe/\n", "/~joe/index.html", true},
+
+		// The obedience, ours. A file naming a prefix of our token is applied to us; Google's own
+		// matcher requires a closer match and would let this through. On the single case where the
+		// two disagreed, this is the reading that obeys.
+		{"a group naming a prefix of us applies", "User-agent: feov\nDisallow: /prefixmatch\n", "/prefixmatch", false},
+		{"a named group beats the wildcard", "User-agent: feov-record\nDisallow: /x\nUser-agent: *\nDisallow: /\n", "/y", true},
+		{"consecutive agent lines share one group", "User-agent: googlebot\nUser-agent: feov-record\nDisallow: /both\n", "/both", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := parseRobots(tc.body).allows(tc.path); got != tc.want {
+				t.Errorf("allows(%q) = %v, want %v\n%s", tc.path, got, tc.want, tc.body)
+			}
+		})
+	}
+
+	// AND THE CRAWL-DELAY SURVIVES THE SWAP. It is the directive the whole politeness contract
+	// leans on — arXiv publishes 15 seconds, five times slower than the number this tool used to
+	// carry — and it is exactly what a Google-derived parser drops, because Google ignores it.
+	if d := parseRobots("User-agent: *\nCrawl-delay: 15\nDisallow: /x\n").CrawlDelay; d != 15 {
+		t.Errorf("Crawl-delay = %v, want 15 — the one directive grobotstxt does not carry", d)
 	}
 }

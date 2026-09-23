@@ -169,6 +169,9 @@ type Entry struct {
 	//
 	//	origin   — no proxy is configured, so the refusal is the source's own
 	//	unknown   — a proxy is configured and the two readings cannot be told apart
+	//	robots    — nothing was asked of the origin at all; this host's robots.txt disallows the
+	//	            path, so there is no HTTP status to record and inventing one would attribute a
+	//	            refusal to a source that never made it
 	RefusalClass string `json:"refusal_class,omitempty"`
 
 	// RetrievedVia names the archive snapshot these bytes came from, when the live source refused
@@ -192,6 +195,25 @@ type Entry struct {
 	// A metadata answer is a real finding and a legitimate citation — as `source_text_read:
 	// unread`. It is not a reading, and nothing may cite it as one.
 	TextRetrieved bool `json:"text_retrieved,omitempty"`
+	// TextRetrievedReason states WHY the bytes are not the source's text on a fetch that reached
+	// the source and got its real document — the paired reason this flag lacked, in the shape
+	// TextExtracted and NotRenderable already use here. A withdrawn claim with no reason is
+	// indistinguishable from a fetch that never happened.
+	TextRetrievedReason string `json:"text_retrieved_reason,omitempty"`
+
+	// Work carries WHAT THE INDEX SAYS ABOUT THE PAPER, as against every other field here, which
+	// says something about this url. Retraction is the reason it is on the record at all: it is a
+	// fact about the work that survives a perfect fetch, and a seat that read the pdf cleanly has
+	// no other way to learn it. Nil where no index was consulted — a plain live fetch of a url
+	// with no doi asks nobody, and an empty WorkFacts there would read as "asked, nothing found".
+	Work *WorkFacts `json:"work,omitempty"`
+
+	// CopyVersion and CopyLicense describe THESE BYTES, not the work: which of its copies this is
+	// (publishedVersion, acceptedVersion, submittedVersion) and under what licence that copy sits.
+	// They are separate from Work.License, which is the best open copy's — and the best open copy
+	// is often not the one that answered.
+	CopyVersion string `json:"copy_version,omitempty"`
+	CopyLicense string `json:"copy_license,omitempty"`
 }
 
 // Refusal is a fetch that was answered and REFUSED, carried as a typed error so the status
@@ -424,30 +446,44 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		// attempt — url, status, and who refused — so a later reader can tell a source that does
 		// not exist from one this container could not reach. The error still goes back: recording
 		// the refusal does not make it a success.
+		// A ROBOTS REFUSAL IS ALSO A REFUSAL TO RECOVER FROM, and it used not to be.
+		//
+		// The recovery chain keyed on *Refusal alone, so a page the operator disallows ended the
+		// fetch outright — while the refusal's own text tells the seat to "ask `metadata` whether
+		// it exists, or `oa` whether a copy that is meant to be read exists elsewhere". The tool
+		// named the route and declined to take it.
+		//
+		// It is not a corner case. IOP publishes `Disallow: /`, so every IOP paper was lost;
+		// measured on one of them, `--via oa` returns a 633 KB PDF from arXiv. Being told we may
+		// not read the publisher's copy says nothing about the copy the author put in a
+		// repository — which is the whole reason the open-access rung exists.
+		//
+		// Nothing here evades the instruction: the recovery chain fetches through the same client,
+		// so a candidate on the disallowed host is refused again by the same rule. What changes is
+		// that the OTHER hosts are now asked.
 		var ref *Refusal
-		if !errors.As(ferr, &ref) {
+		var rob *RobotsRefusal
+		isRefusal, isRobots := errors.As(ferr, &ref), errors.As(ferr, &rob)
+		if !isRefusal && !isRobots {
 			return Entry{}, nil, false, ferr
 		}
-		_ = appendIndexIfAbsent(run, Entry{
-			URL: url, HTTPStatus: ref.Status, RefusalClass: refusalClass(ref.Status),
-		})
+		stub := Entry{URL: url}
+		if isRefusal {
+			stub.HTTPStatus, stub.RefusalClass = ref.Status, refusalClass(ref.Status)
+		} else {
+			// NOT an HTTP status: nothing was asked of the origin. Recording one would invent a
+			// refusal the source never made.
+			stub.RefusalClass = "robots"
+		}
+		_ = appendIndexIfAbsent(run, stub)
 		// THE REFUSAL IS NOT THE END OF THE ATTEMPT, but the right next move depends on WHAT this
 		// source is — and choosing wrongly is how a run ends up citing a landing page.
 		att := Recover(f, url, ViaAuto, "")
 		if att == nil {
 			return Entry{}, nil, false, ferr
 		}
-		entry := Entry{
-			URL: url, ContentType: att.ContentType,
-			HTTPStatus: ref.Status, RefusalClass: refusalClass(ref.Status),
-			RetrievedVia: att.Via, Backend: att.Backend, TextRetrieved: att.TextRetrieved,
-		}
-		Classify(&entry, att.Body)
-		// A RECOVERED WALL IS NOT A RECOVERED DOCUMENT. Where the bytes turn out to be a landing
-		// page or an interstitial, the claim that text was retrieved is withdrawn with them.
-		if entry.NotRenderable != nil && *entry.NotRenderable {
-			entry.TextRetrieved = false
-		}
+		entry := EntryFor(url, att)
+		entry.HTTPStatus, entry.RefusalClass = stub.HTTPStatus, stub.RefusalClass
 		entry, serr := Store(run, entry, att.Body)
 		if serr != nil {
 			return Entry{}, nil, false, ferr
@@ -496,6 +532,13 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		reserved := resp.TDMReserved
 		entry.TDMReserved = &reserved
 		entry.TDMPolicy = resp.TDMPolicy
+	}
+	// AND THE LIVE PATH RECORDS WHY IT IS NOT TEXT, not just that it is not. The summary can
+	// derive the flag from the content type, but only the record outlives the run — an archived
+	// entry holding `text_retrieved: false` and nothing else cannot say whether the source
+	// refused, the page was a wall, or the bytes were a tarball.
+	if !TextBearing(entry.ContentType) {
+		entry.TextRetrievedReason = textBearingRefusal(entry.ContentType)
 	}
 	stored, serr := Store(run, entry, resp.Body)
 	if serr != nil {
@@ -578,3 +621,93 @@ func LookupSha(run record.Run, sha string) (Entry, bool, error) {
 	}
 	return Entry{}, false, sc.Err()
 }
+
+// EntryFor builds the index record for one backend attempt: every field the Attempt carries, the
+// classification of its bytes, and the withdrawal that follows from it.
+//
+// ONE FUNCTION BECAUSE THERE ARE TWO CALLERS AND THEY DRIFTED. Each route that stores an attempt
+// copied the same fields by hand, so the newest field reached whichever site was edited and the
+// other stored a record missing it — silently, because a missing field is indistinguishable from
+// a fact the backend did not learn.
+func EntryFor(url string, att *Attempt) Entry {
+	entry := Entry{
+		URL: url, ContentType: att.ContentType,
+		RetrievedVia: att.Via, Backend: att.Backend, TextRetrieved: att.TextRetrieved,
+		CopyVersion: att.Version, CopyLicense: att.License,
+	}
+	if att.Facts != (WorkFacts{}) {
+		facts := att.Facts
+		entry.Work = &facts
+	}
+	Classify(&entry, att.Body)
+	// AND BYTES NOTHING CAN READ ARE NOT THE SOURCE'S TEXT, however honestly they were fetched.
+	if entry.TextRetrieved && !TextBearing(entry.ContentType) {
+		entry.TextRetrieved = false
+		entry.TextRetrievedReason = textBearingRefusal(entry.ContentType)
+	}
+	// A RECOVERED WALL IS NOT A RECOVERED DOCUMENT. Where the bytes turn out to be a landing
+	// page or an interstitial, the claim that text was retrieved is withdrawn with them.
+	if entry.NotRenderable != nil && *entry.NotRenderable {
+		entry.TextRetrieved = false
+	}
+	return entry
+}
+
+// TextBearing says whether a media type can carry the SOURCE'S TEXT AT ALL, as against being a
+// container or a binary this tool has no reader for.
+//
+// MEASURED: jair.org's Crossref-registered text-mining link serves `jair.ps.Z` — a compressed
+// PostScript file, 337 KB, delivered as `application/zip`. The fetch reached the source, took its
+// real document, and recorded `text_retrieved: true`. Nothing in this tool can open it, so the
+// claim was false in the one field a citation's `leaf` reading rests on, and false in the
+// optimistic direction: a seat reading the summary is told the source's text is in hand.
+//
+// AN ALLOWLIST, DELIBERATELY. The unknown type is the interesting case and a denylist answers it
+// `true` — every new container this tool has never seen becomes a claim that its text was
+// retrieved. Listing what can be read makes the unknown answer `false`, which is also what a
+// reader can check by looking at the cached bytes.
+func TextBearing(contentType string) bool {
+	mt := MediaType(contentType)
+	if strings.HasPrefix(mt, "text/") {
+		return true
+	}
+	switch mt {
+	// Each of these is either plain text a seat reads directly, or a pdf, which is the one
+	// binary this tool has readers for — the extractor's text layer, and the OCR engine's
+	// reading of the page images when there is none.
+	case "application/pdf", "application/xml", "application/json", "application/xhtml+xml",
+		"application/x-tex", "application/ld+json":
+		return true
+	}
+	// POSTSCRIPT AND RTF ARE NOT ON THAT LIST, and the first draft of it had them. They carry
+	// text in a sense no reader here can act on: DefaultExtractor handles pdf alone, and a seat
+	// handed a .ps has the document and no way to quote it. Listing a format nothing reads
+	// recreates the exact claim this function exists to withdraw.
+	// A type that declines to say. SniffedMediaType has already looked at the magic bytes and
+	// found neither a pdf nor xml, so there is nothing further to go on, and the honest answer to
+	// "is the source's text in these bytes" is that nobody knows.
+	return false
+}
+
+// textBearingRefusal is the sentence recorded when the bytes cannot carry text. It names the
+// type, because "we could not read it" without saying what arrived is a dead end for whoever
+// reads the record next.
+func textBearingRefusal(contentType string) string {
+	return fmt.Sprintf("the source answered with %s — a container or binary this tool has no reader for, so these bytes are the document and NOT its text", MediaType(contentType))
+}
+
+// TRANSPORT COMPRESSION IS ALREADY HANDLED, AND THE WAY TO BREAK IT IS TO HELP.
+//
+// net/http adds `Accept-Encoding: gzip` itself and decompresses the response transparently —
+// but ONLY while the caller sets no Accept-Encoding header of its own. Setting one, even to the
+// same value, switches the transport to raw mode and hands back the compressed bytes with the
+// Content-Encoding header still attached. Every gzipped page would then arrive as binary, sniff
+// as a container, and be recorded as "not the source's text" with a plausible reason.
+//
+// So the invariant is a SILENCE, which is why it is written down here and pinned by a test: a
+// future edit adding an Accept-Encoding header, or DisableCompression, looks helpful and is not.
+//
+// This is a different question from a compressed ARTIFACT. `jair.ps.Z` served as
+// `application/zip` carries no Content-Encoding at all (measured, 2026-09-23: the response has
+// Content-Type and Content-Disposition and no encoding header). The compression is the document,
+// not the transport, and no Accept-Encoding would have changed what the server sent.
