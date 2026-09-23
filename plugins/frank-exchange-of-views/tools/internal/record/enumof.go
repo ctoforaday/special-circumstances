@@ -160,3 +160,18 @@ func SeatLogTypeEnum() EnumField {
 	e.Values = SeatFilable(e.Values)
 	return e
 }
+
+// WorkStatusOf turns the fetch index's retraction answer into the record's word for it.
+//
+// THREE ANSWERS, NOT TWO. A nil pointer means no index was consulted, which is a different fact
+// from an index reporting the work sound — and the whole reason this axis is a record field is
+// that a bool folds them together, so the fold must not be reintroduced here.
+func WorkStatusOf(retracted *bool) recordpb.WorkStatus {
+	switch {
+	case retracted == nil:
+		return recordpb.WorkStatus_WORK_STATUS_NOT_CHECKED
+	case *retracted:
+		return recordpb.WorkStatus_WORK_STATUS_RETRACTED
+	}
+	return recordpb.WorkStatus_WORK_STATUS_STANDING
+}

@@ -94,14 +94,7 @@ func newFetch() *cobra.Command {
 				// THE SAME CLASSIFICATION THE LIVE PATH GETS. A named --via stores its own entry,
 				// so without this the third route to the cache was the third one to skip the wall
 				// detector.
-				rec := fetchcache.Entry{
-					URL: url, ContentType: att.ContentType,
-					RetrievedVia: att.Via, Backend: att.Backend, TextRetrieved: att.TextRetrieved,
-				}
-				fetchcache.Classify(&rec, att.Body)
-				if rec.NotRenderable != nil && *rec.NotRenderable {
-					rec.TextRetrieved = false
-				}
+				rec := fetchcache.EntryFor(url, att)
 				entry, serr := fetchcache.Store(run, rec, att.Body)
 				if serr != nil {
 					return serr

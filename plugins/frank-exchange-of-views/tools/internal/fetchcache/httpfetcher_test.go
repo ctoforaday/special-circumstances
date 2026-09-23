@@ -1,7 +1,11 @@
 package fetchcache
 
 import (
+	"compress/flate"
+	"compress/gzip"
+	"compress/zlib"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -132,5 +136,119 @@ func TestHTTPFetcherRejectsNon200(t *testing.T) {
 
 	if _, err := NewHTTPFetcher().Fetch(srv.URL); err == nil || !strings.Contains(err.Error(), "404") {
 		t.Errorf("Fetch of a 404 = %v, want an HTTP-status error", err)
+	}
+}
+
+// TRANSPORT COMPRESSION ARRIVES DECOMPRESSED, and the way to break that is to try to help.
+//
+// net/http adds `Accept-Encoding: gzip` and decodes the response itself — but only while the
+// caller sets no Accept-Encoding header of its own. Setting one, even to the same value, puts the
+// transport in raw mode and hands back compressed bytes with the header still on. Every gzipped
+// page would then sniff as a container and be recorded as "not the source's text", with a reason
+// that reads entirely plausible.
+//
+// The invariant is therefore a SILENCE — a header we do NOT set — which nothing would notice
+// breaking. This asserts the behaviour rather than the absence, so it fails whether the cause is
+// an Accept-Encoding header, DisableCompression, or a hand-rolled transport.
+func TestAGzippedResponseArrivesDecompressed(t *testing.T) {
+	tempPaceDir(t)
+	body := "<html><body>" + strings.Repeat("the paper. ", 200) + "</body></html>"
+	var sawAcceptEncoding string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			http.NotFound(w, r)
+			return
+		}
+		sawAcceptEncoding = r.Header.Get("Accept-Encoding")
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Set("Content-Type", "text/html")
+		zw := gzip.NewWriter(w)
+		_, _ = zw.Write([]byte(body))
+		_ = zw.Close()
+	}))
+	defer srv.Close()
+
+	resp, err := NewHTTPFetcher().Fetch(srv.URL + "/article")
+	if err != nil {
+		t.Fatalf("a gzipped page failed to fetch: %v", err)
+	}
+	if !strings.Contains(sawAcceptEncoding, "gzip") {
+		t.Errorf("the transport did not offer gzip (Accept-Encoding: %q) — it does so only while we set no header of our own", sawAcceptEncoding)
+	}
+	if string(resp.Body) != body {
+		t.Errorf("the body arrived still compressed: %d bytes, starting %q", len(resp.Body), resp.Body[:min(8, len(resp.Body))])
+	}
+	// AND THE TYPE IS STILL THE DOCUMENT'S. A body left compressed would sniff as a container
+	// and be withdrawn as "not the source's text" — the failure this guards, one step on.
+	if !TextBearing(resp.ContentType) {
+		t.Errorf("content type %q no longer reads as the source's text", resp.ContentType)
+	}
+}
+
+// AN ENCODING WE DID NOT ASK FOR IS DECODED WHEN WE CAN READ IT, AND NAMED WHEN WE CANNOT.
+//
+// Servers are not supposed to send a coding that was never offered, and they do — a CDN
+// normalises to brotli, a proxy re-encodes, an origin answers `deflate` because it always has.
+// Refusing a body we could perfectly well read throws away a document over a header.
+//
+// The first version of this guard refused every coding alike. That was wrong for exactly the case
+// worth handling: one we support and did not request.
+func TestAnUnsolicitedCodingIsDecodedWhereWeHaveAReader(t *testing.T) {
+	tempPaceDir(t)
+	page := "<html><body>" + strings.Repeat("the paper. ", 200) + "</body></html>"
+
+	serve := func(enc string, encode func(w io.Writer)) (*Response, error) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/robots.txt" {
+				http.NotFound(w, r)
+				return
+			}
+			w.Header().Set("Content-Encoding", enc)
+			w.Header().Set("Content-Type", "text/html")
+			encode(w)
+		}))
+		defer srv.Close()
+		return NewHTTPFetcher().Fetch(srv.URL + "/a")
+	}
+
+	// zlib-wrapped deflate, which is what RFC 9110 defines `deflate` to be.
+	resp, err := serve("deflate", func(w io.Writer) {
+		zw := zlib.NewWriter(w)
+		_, _ = zw.Write([]byte(page))
+		_ = zw.Close()
+	})
+	if err != nil {
+		t.Fatalf("zlib-wrapped deflate was refused: %v", err)
+	}
+	if string(resp.Body) != page {
+		t.Errorf("zlib deflate did not round-trip: %d bytes", len(resp.Body))
+	}
+
+	// AND RAW DEFLATE, which a long tail of servers send under the same name. Guessing one of the
+	// two would drop half the responses, and the ambiguity is the wire's rather than ours.
+	resp, err = serve("deflate", func(w io.Writer) {
+		fw, _ := flate.NewWriter(w, flate.DefaultCompression)
+		_, _ = fw.Write([]byte(page))
+		_ = fw.Close()
+	})
+	if err != nil {
+		t.Fatalf("raw deflate was refused: %v", err)
+	}
+	if string(resp.Body) != page {
+		t.Errorf("raw deflate did not round-trip: %d bytes", len(resp.Body))
+	}
+
+	// A CODING WITH NO READER IS REFUSED BY NAME, so what is missing is a decoder and anyone
+	// reading the record can see which. Accepting it would keep the source's `text/html`, run the
+	// shell detector over undecoded data, and record "too little prose to be a document" — a
+	// confident diagnosis of the wrong thing.
+	for _, enc := range []string{"br", "zstd"} {
+		_, err := serve(enc, func(w io.Writer) { _, _ = w.Write([]byte("\x1b\x2e\x00\x00opaque")) })
+		if err == nil {
+			t.Fatalf("%s: an undecodable body was accepted as the document", enc)
+		}
+		if !strings.Contains(err.Error(), enc) {
+			t.Errorf("%s: the refusal does not name the coding: %v", enc, err)
+		}
 	}
 }

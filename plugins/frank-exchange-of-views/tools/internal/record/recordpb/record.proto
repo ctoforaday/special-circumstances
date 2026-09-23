@@ -1017,6 +1017,26 @@ enum SourceTextOrigin {
   SOURCE_TEXT_ORIGIN_NOT_RECORDED = 4 [(means) = "this citation predates the field; written only by migrate"];
 }
 
+// WorkStatus is WHAT THE LITERATURE NOW SAYS ABOUT THE CITED WORK, stamped by the tool; a seat
+// never types it. It is a third axis, distinct from the two beside it: SourceTextRead says how
+// much this seat read, SourceTextOrigin says whose reading the text is, and both describe THIS
+// RETRIEVAL. A retraction survives a flawless one. The pdf of a withdrawn paper is byte-identical
+// to what it was before the notice, the notice is a separate document nobody fetched, and so no
+// amount of fetch quality discovers it — only a maintained index does.
+//
+// IT IS AN ENUM AND NOT A BOOL, for the reason the fields around it give: `false` would fold "an
+// index was asked and reports the work standing" together with "nobody asked". A citation may
+// rest on the first and never on the second, and until this field existed the whole axis lived
+// as a sentence in `fetch`'s output asking the seat to remember — a fact nothing could refuse,
+// whose miss read exactly like a sound paper.
+enum WorkStatus {
+  WORK_STATUS_UNSPECIFIED = 0;
+  WORK_STATUS_NOT_CHECKED = 1 [(means) = "no index was consulted about this work — it carries no doi, or the index did not answer. It says NOTHING about whether the work stands, and must not be read as reassurance"];
+  WORK_STATUS_STANDING = 2 [(means) = "an index was asked and reports no retraction: the work stands in the literature as published"];
+  WORK_STATUS_RETRACTED = 3 [(means) = "an index reports the work RETRACTED. It may still be cited — as retracted, which the footnote and the Bibliography say for you — and its findings support no claim: a quotation from it is evidence of what the withdrawn paper said, and nothing more"];
+  WORK_STATUS_NOT_RECORDED = 4 [(means) = "this citation predates the field; written only by migrate"];
+}
+
 message Cite {
   optional string label = 1;
   optional string url = 2;
@@ -1048,6 +1068,11 @@ message Cite {
   repeated int32 pages = 13 [(prose) = false];
   optional string ocr_engine = 14 [(prose) = false];
   optional string ocr_text_sha = 15 [(prose) = false];
+
+  // WHAT THE LITERATURE SAYS ABOUT THE WORK, stamped from the fetch index the same way the origin
+  // above is. Not `(sql).required`: no seat types it, so `validate` refuses an unstamped value
+  // rather than a flag teaching one.
+  optional WorkStatus work_status = 16 [(prose) = false];
 
   // `claim` held the cited sentence a SECOND time, beside `location` which held it to place the
   // anchor. One span, one field.
@@ -1116,6 +1141,12 @@ message Verify {
   optional int32 page = 12;
   optional string page_render_sha = 13;
   optional string reading_render_sha = 14;
+
+  // A LABELLED CORROBORATION IS A FOOTNOTE, so it carries the same stamp a cite does. Red finding
+  // a supporting source for blue's claim and that source being retracted is the worst case this
+  // field exists for: the strongest thing an adversarial process produces, resting on withdrawn
+  // work, with nothing in the document saying so.
+  optional WorkStatus work_status = 15 [(prose) = false];
 
   reserved 2;
   reserved "reference";

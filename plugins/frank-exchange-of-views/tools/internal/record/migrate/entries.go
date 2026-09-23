@@ -128,6 +128,13 @@ func citeEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 	if c.SourceTextOrigin == nil {
 		c.SourceTextOrigin = recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NOT_RECORDED.Enum()
 	}
+	// AND NO RUN BEFORE EPOCH 10 ASKED AN INDEX WHETHER THE WORK STILL STANDS. NOT_CHECKED would
+	// be the answer for a live cite whose source carries no doi; here the truer word is that the
+	// field did not exist when this was written, which is what NOT_RECORDED says. Filled only
+	// where absent, so a cite that carries a status keeps it.
+	if c.WorkStatus == nil {
+		c.WorkStatus = recordpb.WorkStatus_WORK_STATUS_NOT_RECORDED.Enum()
+	}
 	return []proto.Message{c}, nil
 }
 

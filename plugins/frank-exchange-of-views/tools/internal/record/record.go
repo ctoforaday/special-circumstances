@@ -1400,6 +1400,14 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		if len(b.GetPages()) > 0 && (b.GetOcrQuote() == "" || b.GetOcrEngine() == "" || b.GetOcrTextSha() == "") {
 			return fmt.Errorf("record: cite carries pages without the quote and the reading (ocr_quote, ocr_engine, ocr_text_sha) they were found in — a page nobody can re-locate is a claim nothing can check")
 		}
+		// WHAT THE LITERATURE SAYS ABOUT THE WORK IS ALSO THE TOOL'S TO STAMP, and for the same
+		// reason the origin above is: no flag teaches it, so an unstamped value is a write path
+		// that skipped the index rather than a seat that forgot. The zero must not reach a
+		// reader — it renders as an ordinary source, which is exactly what a retracted one is
+		// not.
+		if b.GetWorkStatus() == recordpb.WorkStatus_WORK_STATUS_UNSPECIFIED {
+			return fmt.Errorf("record: cite carries no work_status — the tool stamps what the indexes say about the cited work (standing, retracted, or not_checked) before it writes, and this write skipped that")
+		}
 	case *recordpb.Verify:
 		// THE PAGE AND ITS TWO HASHES ARE ONE FACT: which image red checked, and which render the
 		// reading came from. One without the others is a check nobody can re-run.

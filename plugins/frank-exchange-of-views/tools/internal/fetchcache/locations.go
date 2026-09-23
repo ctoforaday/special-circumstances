@@ -165,3 +165,136 @@ func resolveWeb(base *url.URL, ref string) string {
 	}
 	return abs.String()
 }
+
+// ---------- the registered target of a doi ----------
+
+// doiResolverHosts are the DOI resolver's own names. A url on one of them is an IDENTIFIER
+// pointing at a publisher page, not a document.
+var doiResolverHosts = map[string]bool{
+	"doi.org": true, "dx.doi.org": true, "www.doi.org": true,
+}
+
+// crossrefWorks is where a work record is asked for. ONE HOME, because two verbs ask Crossref the
+// same question about the same doi and a second spelling of the endpoint is a second thing to get
+// wrong. It is a var so a test can point the whole path at a fixture server; nothing else writes it.
+var crossrefWorks = "https://api.crossref.org/works/"
+
+// RegisteredTarget asks Crossref where a doi's publisher page IS, so the fetch can go straight
+// there instead of through the resolver.
+//
+// WHY NOT JUST FOLLOW THE REDIRECT. doi.org publishes no robots.txt and no rate headers, so this
+// tool's kind default applies to it: fifteen seconds, jittered, per fetch, shared across every
+// process. Measured on the source sweep, 2,564 of 2,599 urls were doi.org urls — the whole scan
+// ran at one host's floor and projected to 41 hours, nearly all of it waiting on a redirect
+// service. Crossref answers the same question from a table, at 200ms, and it is an API built to
+// be asked. The registered target is also a REAL host, so its own robots.txt and its own floor
+// apply to the fetch that follows, which the resolver's hop obscured.
+//
+// A MISS IS THE RESOLVER'S CUE, NOT AN ERROR. Where Crossref does not answer — no record, an
+// error envelope, a doi it does not mint — this returns "" and the caller follows the doi.org
+// redirect exactly as before. Measured over 300 corpus works, `resource.primary.URL` was present
+// on 298; the two absences are the case this fallback is for.
+func RegisteredTarget(f Fetcher, rawURL string) string {
+	u, err := url.Parse(rawURL)
+	// Host() rather than Hostname() as a second key so a fixture server on a port can stand in
+	// for the resolver; a real doi.org url carries no port and matches on the bare name.
+	if err != nil || !(doiResolverHosts[strings.ToLower(u.Hostname())] || doiResolverHosts[strings.ToLower(u.Host)]) {
+		return ""
+	}
+	doi := DOIOf(rawURL)
+	if doi == "" {
+		return ""
+	}
+	resp, err := f.Fetch(crossrefWorks + doi + "?mailto=" + ContactEmail)
+	if err != nil {
+		return ""
+	}
+	var cr struct {
+		Message struct {
+			DOI      string `json:"DOI"` // the discriminator: an error envelope decodes without it
+			Resource struct {
+				Primary struct {
+					URL string `json:"URL"`
+				} `json:"primary"`
+			} `json:"resource"`
+		} `json:"message"`
+	}
+	if json.Unmarshal(resp.Body, &cr) != nil || cr.Message.DOI == "" {
+		return ""
+	}
+	target := strings.TrimSpace(cr.Message.Resource.Primary.URL)
+	// A TARGET THAT IS ITSELF A DOI URL BUYS NOTHING and would send the next hop back to the
+	// resolver — the loop this exists to leave.
+	if t, terr := url.Parse(target); terr != nil || t.Scheme == "" || doiResolverHosts[strings.ToLower(t.Hostname())] {
+		return ""
+	}
+	return target
+}
+
+// ---------- the publisher's own machine-readable copy ----------
+
+// keyOnlyTDMHosts are the text-mining endpoints that answer nothing without an API key.
+//
+// MEASURED, NOT ASSUMED: 55 Crossref-registered text-mining links were fetched on 2026-09-23,
+// five per host, interleaved. api.elsevier.com returned HTTP 400 five times out of five, and
+// api.wiley.com likewise. No other host in the sample refused for that reason.
+//
+// They are excluded rather than merely allowed to fail because of their SHARE. Across 300 corpus
+// works those two hosts carry 133 of the 136 registered text-mining links between them, so trying
+// them costs a request per work, on works whose publisher has already been asked once, to be told
+// no by a host that will always say no. Being a good citizen means not making that request.
+//
+// A KEY WOULD CHANGE THIS AND IS NOT OURS TO GET (see #1129): registering for a publisher API
+// credential makes this tool's traffic somebody's account.
+var keyOnlyTDMHosts = map[string]bool{
+	"api.elsevier.com": true,
+	"api.wiley.com":    true,
+}
+
+// crossrefTextMiningCandidates returns the full-text urls a PUBLISHER REGISTERED for machine
+// reading, which is the one location source that is the publisher's own statement rather than a
+// third party's crawl.
+//
+// WHAT IT IS WORTH, MEASURED. 136 of 300 corpus works (45%) carry at least one such link, and 79
+// of those works are ones OpenAlex calls CLOSED — a sanctioned route to full text on papers the
+// open-access indexes have nothing for. Of 45 links fetched outside the two key-only hosts, 19
+// yielded a readable document (42%), and the failures are per-host rather than scattered: three
+// hosts answered every time, and the rest fail for reasons that are facts about the host.
+//
+// `similarity-checking` links are NOT taken. They are registered for plagiarism services under
+// separate agreements, and the intent recorded on the link is the publisher's statement of what
+// it is offering; reading one as an invitation to fetch is helping ourselves to a different
+// permission from the one that was given.
+func crossrefTextMiningCandidates(f Fetcher, doi string) (locs []string, answered bool) {
+	if doi == "" {
+		return nil, true
+	}
+	resp, err := f.Fetch(crossrefWorks + doi + "?mailto=" + ContactEmail)
+	if err != nil {
+		return nil, false
+	}
+	var cr struct {
+		Message struct {
+			DOI  string `json:"DOI"` // the discriminator: an error envelope decodes without it
+			Link []struct {
+				URL                 string `json:"URL"`
+				ContentType         string `json:"content-type"`
+				IntendedApplication string `json:"intended-application"`
+			} `json:"link"`
+		} `json:"message"`
+	}
+	if json.Unmarshal(resp.Body, &cr) != nil || cr.Message.DOI == "" {
+		return nil, false
+	}
+	for _, l := range cr.Message.Link {
+		if l.IntendedApplication != "text-mining" || l.URL == "" {
+			continue
+		}
+		u, perr := url.Parse(l.URL)
+		if perr != nil || keyOnlyTDMHosts[strings.ToLower(u.Hostname())] {
+			continue
+		}
+		locs = append(locs, l.URL)
+	}
+	return locs, true
+}

@@ -80,6 +80,13 @@ type EvidenceSourceJSON struct {
 	// SourceTextOrigin is where the cited text came from — embedded, ocr, none or not_recorded —
 	// stamped by the tool. Empty on a corroboration, which red read itself.
 	SourceTextOrigin string `json:"source_text_origin,omitempty"`
+	// WorkStatus is what a maintained index says about the cited WORK — standing, retracted, or
+	// not_checked. Red reads this view to decide what to verify, and a retraction is the one
+	// thing here that no re-reading of the source can discover: the bytes are genuine and the
+	// paper is withdrawn. It is listed for every source, including the ones the report's own
+	// rendering stays silent about, because "nobody asked an index" is a lead for red and a
+	// distraction for a reader of the subject.
+	WorkStatus string `json:"work_status,omitempty"`
 	// OCRQuote and Pages are blue's span from an OCR reading and the PDF pages the tool found it
 	// on. A source with pages is checked against a page image, not against the reading;
 	// OCREngine and OCRTextSha name the reading the pages were found in.
@@ -187,6 +194,10 @@ type EvidenceVerificationJSON struct {
 	Page             int32  `json:"page,omitempty"`
 	PageRenderSha    string `json:"page_render_sha,omitempty"`
 	ReadingRenderSha string `json:"reading_render_sha,omitempty"`
+	// WorkStatus is what a maintained index says about the work red read. It is here as well as
+	// on the source row because a labelled corroboration is a source in its own right — red found
+	// it, blue never cited it, and it renders in `independent`, which reads no source row at all.
+	WorkStatus string `json:"work_status,omitempty"`
 }
 
 // Refuted reports whether this verification found AGAINST the claim — the two outcomes that
@@ -289,6 +300,7 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 			Page:             vf.GetPage(),
 			PageRenderSha:    vf.GetPageRenderSha(),
 			ReadingRenderSha: vf.GetReadingRenderSha(),
+			WorkStatus:       recordpb.Word(vf.GetWorkStatus()),
 		}
 		out.Counts.Verifications++
 		// THE SPLIT IS STILL ON THE ANCHOR, not on `Verify.independent`, and the empty string is
@@ -391,6 +403,7 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 				Verified:   checks,
 
 				SourceTextOrigin: recordpb.Word(bd.GetSourceTextOrigin()),
+				WorkStatus:       recordpb.Word(bd.GetWorkStatus()),
 				OCRQuote:         bd.GetOcrQuote(),
 				Pages:            bd.GetPages(),
 				OCREngine:        bd.GetOcrEngine(),

@@ -218,7 +218,7 @@ func TestFindingsAndCitations(t *testing.T) {
 		recordtest.At(t, "red-lens-adversary", "red-lens-adversary:anchor:f-00000002", &recordpb.Anchor{
 			Id: proto.String("f-00000002"), Location: proto.String("another"),
 		}),
-		recordtest.At(t, "blue-synthesize", "blue-synthesize:cite:c-aa000001", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(),
+		recordtest.At(t, "blue-synthesize", "blue-synthesize:cite:c-aa000001", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(),
 			Label: proto.String("c-aa000001"), Url: proto.String("https://example.org/a"),
 			Title: proto.String("A"), Location: proto.String("the cited sentence"),
 		}),

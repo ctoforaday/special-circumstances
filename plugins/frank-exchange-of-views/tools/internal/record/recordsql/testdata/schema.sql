@@ -264,6 +264,15 @@ INSERT INTO "enum_source_text_origin" ("value", "means") VALUES ('none', 'the to
 INSERT INTO "enum_source_text_origin" ("value", "means") VALUES ('not_recorded', 'this citation predates the field; written only by migrate');
 INSERT INTO "enum_source_text_origin" ("value", "means") VALUES ('ocr', 'machine-read off page images by the local engine — deterministic, and it can misread, so a quote from it is checked against the page''s pixels');
 
+CREATE TABLE "enum_work_status" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_work_status" ("value", "means") VALUES ('not_checked', 'no index was consulted about this work — it carries no doi, or the index did not answer. It says NOTHING about whether the work stands, and must not be read as reassurance');
+INSERT INTO "enum_work_status" ("value", "means") VALUES ('not_recorded', 'this citation predates the field; written only by migrate');
+INSERT INTO "enum_work_status" ("value", "means") VALUES ('retracted', 'an index reports the work RETRACTED. It may still be cited — as retracted, which the footnote and the Bibliography say for you — and its findings support no claim: a quotation from it is evidence of what the withdrawn paper said, and nothing more');
+INSERT INTO "enum_work_status" ("value", "means") VALUES ('standing', 'an index was asked and reports no retraction: the work stands in the literature as published');
+
 CREATE TABLE "enum_source_outcome" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
@@ -618,8 +627,10 @@ CREATE TABLE "cite" (
   "ocr_quote" TEXT,
   "ocr_engine" TEXT,
   "ocr_text_sha" TEXT,
+  "work_status" TEXT,
   FOREIGN KEY ("source_text_read") REFERENCES "enum_source_text_read"("value"),
-  FOREIGN KEY ("source_text_origin") REFERENCES "enum_source_text_origin"("value")
+  FOREIGN KEY ("source_text_origin") REFERENCES "enum_source_text_origin"("value"),
+  FOREIGN KEY ("work_status") REFERENCES "enum_work_status"("value")
 ) STRICT;
 
 CREATE TABLE "cite_pages" (
@@ -644,9 +655,11 @@ CREATE TABLE "verify" (
   "page" INTEGER,
   "page_render_sha" TEXT,
   "reading_render_sha" TEXT,
+  "work_status" TEXT,
   CHECK ("independent" IS NULL OR "independent" IN (0, 1)),
   FOREIGN KEY ("outcome") REFERENCES "enum_source_outcome"("value"),
-  FOREIGN KEY ("confidence") REFERENCES "enum_confidence"("value")
+  FOREIGN KEY ("confidence") REFERENCES "enum_confidence"("value"),
+  FOREIGN KEY ("work_status") REFERENCES "enum_work_status"("value")
 ) STRICT;
 
 CREATE TABLE "proof" (

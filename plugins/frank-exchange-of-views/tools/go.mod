@@ -7,6 +7,7 @@ require (
 	github.com/dop251/goja_nodejs v0.0.0-20260212111938-1f56ff5bcf14
 	github.com/gofrs/flock v0.13.1
 	github.com/google/go-cmp v0.7.0
+	github.com/jimsmart/grobotstxt v1.0.3
 	github.com/klippa-app/go-pdfium v1.19.8
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10

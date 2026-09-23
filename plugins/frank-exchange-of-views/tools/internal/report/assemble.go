@@ -160,7 +160,7 @@ func weaveCitations(md string, sources []record.Source) string {
 		if l := pageLocator(s.Pages); l != "" {
 			locator = ", " + l
 		}
-		fmt.Fprintf(&out, "[^%d]: %s%s. %s%s\n", n, citationTitle(s), locator, s.URL, accessed(s.AccessDate))
+		fmt.Fprintf(&out, "[^%d]: %s%s. %s%s%s\n", n, citationTitle(s), locator, s.URL, accessed(s.AccessDate), retractionNote(s.WorkStatus))
 		if !listed[s.URL] {
 			listed[s.URL] = true
 			bib = append(bib, "- "+bibliographyEntry(s.URL, sources))
@@ -181,16 +181,40 @@ func weaveCitations(md string, sources []record.Source) string {
 func bibliographyEntry(url string, sources []record.Source) string {
 	var pick record.Source
 	found, date := false, ""
+	// A RETRACTION IS A FACT ABOUT THE WORK, NOT ABOUT WHICH SEAT CITED IT. The title comes from
+	// one chosen row; the status is taken over EVERY row for this url, so a corroboration that
+	// carries the stamp still warns the reader when the blue cite whose title won did not.
+	status := recordpb.WorkStatus_WORK_STATUS_UNSPECIFIED
 	for _, src := range sources {
 		if src.URL != url {
 			continue
 		}
 		date = earliest(date, src.AccessDate)
+		if src.WorkStatus == recordpb.WorkStatus_WORK_STATUS_RETRACTED {
+			status = src.WorkStatus
+		}
 		if !found || (pick.Corroborated && !src.Corroborated) {
 			pick, found = src, true
 		}
 	}
-	return fmt.Sprintf("%s. %s%s", citationTitle(pick), url, accessed(date))
+	return fmt.Sprintf("%s. %s%s%s", citationTitle(pick), url, accessed(date), retractionNote(status))
+}
+
+// retractionNote is what the reader is told about a cited work that no longer stands.
+//
+// IT PRINTS IN BOTH PLACES, and the duplication is deliberate: a reader who follows the footnote
+// marker may never scroll to the Bibliography, and a reader scanning the Bibliography never sees
+// the note. A warning present in one of the two is a warning the reader can legitimately miss.
+//
+// Only RETRACTED prints. STANDING is the ordinary case and needs no word; NOT_CHECKED and
+// NOT_RECORDED are absences, and printing "not checked" beside every unindexed source would
+// spend the reader's attention on the tool rather than the literature — the record carries them
+// for red, which is a different audience with a different question.
+func retractionNote(s recordpb.WorkStatus) string {
+	if s == recordpb.WorkStatus_WORK_STATUS_RETRACTED {
+		return " **[RETRACTED]**"
+	}
+	return ""
 }
 
 // pageLocator is the Chicago locator for the PDF pages a quote was found on — "PDF p. 10",

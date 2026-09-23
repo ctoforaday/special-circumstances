@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // THE WARNING IS TOLD ABOUT THE BACKEND THAT ANSWERED. The archive paragraph used to print over
@@ -66,5 +67,68 @@ func TestALiveDocumentReportsItsTextAsRetrieved(t *testing.T) {
 					"whether it holds the source's text", got, tc.want)
 			}
 		})
+	}
+}
+
+// THE INDEX'S VERDICT ON THE PAPER REACHES THE SEAT. A retraction is invisible in the bytes: the
+// pdf of a withdrawn paper is the same file it always was, and the notice is a separate document
+// nobody fetched. It is on the record because OpenAlex already answers it in the call this tool
+// makes to find a url — and it is worth nothing there unless it is also rendered.
+//
+// The assertion goes through summarize, not through a hand-built fetchSummary. A field that is
+// written to the index and never copied into the summary stores perfectly and renders nowhere,
+// and a renderer test cannot see that gap because it supplies the value itself.
+func TestARetractionIsRenderedFromTheStoredRecord(t *testing.T) {
+	yes := true
+	e := fetchcache.Entry{
+		URL: "https://ex.org/p.pdf", ContentType: "application/pdf", TextRetrieved: true,
+		CopyVersion: "publishedVersion", CopyLicense: "cc-by",
+		Work: &fetchcache.WorkFacts{Retracted: &yes, WorkType: "article", OAStatus: "bronze", License: "cc-by"},
+	}
+	got := summarize(record.Run{}, e, 4096, false).render()
+	for _, want := range []string{"retracted: true", "THIS WORK IS RETRACTED", "AS RETRACTED",
+		"work_type: article", "oa_status: bronze", "copy_version: publishedVersion"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the summary does not carry %q:\n%s", want, got)
+		}
+	}
+
+	// AND A WORK NOBODY ASKED AN INDEX ABOUT SAYS NOTHING. A plain live fetch of a url with no doi
+	// consults no index, and printing `retracted: false` there would be a reassurance nobody
+	// earned — the difference between "checked, sound" and "never checked" is the whole reason
+	// the field is a pointer.
+	quiet := summarize(record.Run{}, fetchcache.Entry{URL: "https://ex.org/p", TextRetrieved: true}, 10, false).render()
+	if strings.Contains(quiet, "retracted") || strings.Contains(quiet, "oa_status") {
+		t.Errorf("a fetch that consulted no index reports on retraction anyway:\n%s", quiet)
+	}
+}
+
+// A CONTAINER IS THE DOCUMENT, NOT ITS TEXT. Measured live: jair.org's own Crossref-registered
+// text-mining link serves `jair.ps.Z`, 337 KB of compressed PostScript, delivered as
+// `application/zip`. The fetch was sound and the bytes are the real article — and the summary
+// said the source's text had been retrieved, which is the field a `leaf` reading rests on.
+//
+// The live path asked one question, "is this page a wall", and answered it for HTML only; every
+// other media type fell through to true.
+func TestBytesWithNoReaderAreNotTheSourcesText(t *testing.T) {
+	zipped := fetchcache.Entry{URL: "https://www.jair.org/x/download", Sha: "abc",
+		ContentType: "application/zip",
+		TextRetrievedReason: "the source answered with application/zip — a container or binary this tool has no reader for, " +
+			"so these bytes are the document and NOT its text"}
+	got := summarize(record.Run{}, zipped, 337428, false).render()
+	if strings.Contains(got, "text_retrieved: true") {
+		t.Errorf("a zip is reported as the source's text:\n%s", got)
+	}
+	if !strings.Contains(got, "^ the source answered with application/zip") {
+		t.Errorf("the withdrawal carries no reason — a false that cannot be told from a fetch that never happened:\n%s", got)
+	}
+
+	// AND A PDF STILL COUNTS. The extractor and the OCR engine both read one, so withdrawing the
+	// claim there would take the common case down with the container. The live path prints no
+	// `text_retrieved` line at all when the answer is yes, so this asserts on the field the
+	// machine-readable surface carries.
+	pdf := fetchcache.Entry{URL: "https://ex.org/p.pdf", Sha: "def", ContentType: "application/pdf"}
+	if got := summarize(record.Run{}, pdf, 4096, false); !got.TextRetrieved {
+		t.Error("a pdf is no longer reported as the source's text")
 	}
 }
