@@ -28,6 +28,11 @@ func emptyIndexAnswer(u string) (*Response, bool) {
 		return &Response{Body: []byte(`{"paperId":"abc","openAccessPdf":null,"externalIds":{}}`)}, true
 	case strings.Contains(u, "doaj.org"):
 		return &Response{Body: []byte(`{"total":0,"results":[]}`)}, true
+	// A real work record with no registered text-mining link. The DOI is the discriminator the
+	// reader checks, so an empty object here would read as a FAILED lookup rather than an
+	// answered "this publisher registered nothing".
+	case strings.Contains(u, "api.crossref.org"):
+		return &Response{Body: []byte(`{"message":{"DOI":"10.1234/x","link":[]}}`)}, true
 	case strings.Contains(u, "pmc-oa-opendata"):
 		return &Response{Body: []byte(`<ListBucketResult><KeyCount>0</KeyCount></ListBucketResult>`)}, true
 	}
@@ -629,5 +634,63 @@ func TestADOIUrlIsResolvedThroughCrossrefRatherThanTheResolver(t *testing.T) {
 	})
 	if got := RegisteredTarget(circular, "https://doi.org/10.1234/x"); got != "" {
 		t.Errorf("a target back on the resolver was accepted: %q", got)
+	}
+}
+
+// THE PUBLISHER'S OWN REGISTERED ROUTE TO FULL TEXT, and the two limits measured on it.
+//
+// Crossref's `link[]` carries urls a publisher registered for machine reading. 136 of 300 corpus
+// works carry one, and 79 of those are works OpenAlex calls CLOSED — a sanctioned route on papers
+// the open-access indexes have nothing for, which is the whole reason this source earns a place
+// in the union.
+func TestCrossrefTextMiningLinksAreTakenButNotEveryLink(t *testing.T) {
+	f := fake(func(u string) (*Response, error) {
+		if strings.Contains(u, "api.crossref.org") {
+			return &Response{Body: []byte(`{"message":{"DOI":"10.1234/x","link":[
+				{"URL":"https://publisher.example/full.xml","content-type":"text/xml","intended-application":"text-mining"},
+				{"URL":"https://publisher.example/full.pdf","content-type":"application/pdf","intended-application":"text-mining"},
+				{"URL":"https://ithenticate.example/copy.pdf","content-type":"application/pdf","intended-application":"similarity-checking"},
+				{"URL":"https://api.elsevier.com/content/article/PII:S1","content-type":"text/plain","intended-application":"text-mining"},
+				{"URL":"https://api.wiley.com/onlinelibrary/tdm/v1/articles/10.1234","content-type":"application/pdf","intended-application":"text-mining"}
+			]}}`)}, nil
+		}
+		return nil, &Refusal{URL: u, Status: 403}
+	})
+	got, answered := crossrefTextMiningCandidates(f, "10.1234/x")
+	if !answered {
+		t.Fatal("a well-formed work record was read as an index failure")
+	}
+	want := []string{"https://publisher.example/full.xml", "https://publisher.example/full.pdf"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v, want exactly %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("candidate %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+
+	// A similarity-checking link is NOT a text-mining link. It is registered for plagiarism
+	// services under separate agreements, and the intent on the link is the publisher's statement
+	// of what it is offering — reading one as an invitation helps ourselves to a different
+	// permission from the one that was given.
+	for _, u := range got {
+		if strings.Contains(u, "ithenticate") {
+			t.Error("a similarity-checking link was taken as a text-mining one")
+		}
+		// And the two key-only hosts are skipped rather than merely allowed to fail. Measured
+		// 2026-09-23: api.elsevier.com returned HTTP 400 five times of five, api.wiley.com
+		// likewise, and between them they carry 133 of 136 registered links — so trying them
+		// costs a request per work to be told no by a host that will always say no.
+		if strings.Contains(u, "api.elsevier.com") || strings.Contains(u, "api.wiley.com") {
+			t.Errorf("a host that answers only with an api key was tried anyway: %s", u)
+		}
+	}
+
+	// AN ERROR ENVELOPE IS NOT AN ANSWER. `answered` false withdraws the union's determinate
+	// "no open copy exists anywhere" claim, and a body with no DOI cannot support it.
+	broken := fake(func(string) (*Response, error) { return &Response{Body: []byte(`{"error":"not found"}`)}, nil })
+	if _, ok := crossrefTextMiningCandidates(broken, "10.1234/x"); ok {
+		t.Error("an error envelope was read as an answered lookup")
 	}
 }

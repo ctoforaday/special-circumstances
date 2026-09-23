@@ -1,6 +1,10 @@
 package fetchcache
 
 import (
+	"bytes"
+	"compress/flate"
+	"compress/gzip"
+	"compress/zlib"
 	"context"
 	"fmt"
 	"html"
@@ -247,6 +251,7 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, retried, skipRobots bool) (o
 	// so the two cannot disagree: raise the cap and this follows. It exists only to stop a
 	// connection that never returns from holding a seat open, which is the job Client.Timeout did
 	// before our own waiting made that number mean two different things.
+	var decodedAs string // the content coding this function decoded, for the read error below
 	ctx, cancel := context.WithTimeout(context.Background(),
 		fetchTimeout+time.Duration(maxRedirects+1)*2*defaultHostInterval)
 	defer cancel()
@@ -349,19 +354,29 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, retried, skipRobots bool) (o
 	// just sent, available for exactly the length of this function and previously discarded at
 	// the end of it. Everything downstream then had to sniff magic bytes or read an extension
 	// off a URL that may not have one.
-	// AN ENCODING WE DID NOT ASK FOR IS BYTES WE CANNOT READ, AND THE SIGNAL IS EXACT. net/http
-	// strips Content-Encoding when it decoded the body itself, so a header still present here
-	// names a coding nothing decoded — brotli or zstd from a sloppy CDN, or `deflate` a server
-	// sent unsolicited. The response then looks entirely ordinary: measured, a `Content-Encoding:
-	// br` body arrives with err nil and the source's own Content-Type still attached.
+	// AN ENCODING WE DID NOT ASK FOR, AND THE ANSWER DEPENDS ON WHETHER WE CAN READ IT.
 	//
-	// Refused rather than stored, because of what storing does NEXT. The bytes would keep the
-	// source's `text/html`, the shell detector would run on undecoded data, find no prose, and
-	// record `not_renderable` with the reason "too little prose to be a document" — a confident
-	// diagnosis of the wrong thing, which is worse than the failure. This names the coding.
+	// net/http strips Content-Encoding when it decoded the body itself, so a header still present
+	// here names a coding the transport left alone. Servers are not supposed to send one that was
+	// never offered, and they do: a CDN normalises to brotli, a proxy re-encodes, an origin
+	// answers `deflate` because it always has.
+	//
+	// DECODE WHAT WE HAVE A READER FOR. Refusing a body we could perfectly well read would throw
+	// away a document over a header — the server being non-compliant is not the document's fault,
+	// and gzip and deflate are both in the standard library. Only a coding with no reader here is
+	// refused, and the refusal names it, so what is missing is a decoder and everyone can see
+	// which one.
+	//
+	// Bounded like every other read on this path: a decompression bomb is a small response that
+	// becomes an unbounded one, so the decoded stream gets the same cap and the same
+	// one-byte-past detection as the wire body.
 	if enc := strings.TrimSpace(strings.ToLower(resp.Header.Get("Content-Encoding"))); enc != "" && enc != "identity" {
-		return nil, nil, "", fmt.Errorf("fetch: %s answered with Content-Encoding %q, which this client never offered and nothing decoded — "+
-			"the body is not the document and must not be read as one. gzip is negotiated and decoded transparently; %q is not", rawURL, enc, enc)
+		decoded, derr := decodeCoding(enc, resp.Body, h.maxBytes)
+		if derr != nil {
+			return nil, nil, "", fmt.Errorf("fetch: %s answered with Content-Encoding %q: %w", rawURL, enc, derr)
+		}
+		resp.Body = io.NopCloser(decoded)
+		decodedAs = enc
 	}
 	out = &Response{
 		ContentType: resp.Header.Get("Content-Type"),
@@ -371,6 +386,13 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, retried, skipRobots bool) (o
 	// into a citation.
 	b, rerr := io.ReadAll(io.LimitReader(resp.Body, h.maxBytes+1))
 	if rerr != nil {
+		// A STREAM THAT FAILS HALFWAY NAMES THE CODING TOO. gzip and deflate decode lazily, so a
+		// truncated or mislabelled body surfaces here rather than at the constructor — and
+		// "corrupt input before offset 3" with no coding named sends the reader looking at the
+		// network instead of at the header that lied.
+		if decodedAs != "" {
+			return nil, nil, "", fmt.Errorf("fetch: reading %s, which declared Content-Encoding %q: %w", rawURL, decodedAs, rerr)
+		}
 		return nil, nil, "", fmt.Errorf("fetch: reading %s: %w", rawURL, rerr)
 	}
 	if int64(len(b)) > h.maxBytes {
@@ -489,4 +511,39 @@ func metaRefreshTarget(contentType string, body []byte, base *url.URL) string {
 		return ""
 	}
 	return abs.String()
+}
+
+// decodeCoding returns a reader over a content coding the transport did not decode, or an error
+// naming the coding when there is no reader for it.
+//
+// gzip is here even though net/http normally handles it: it does so only for the request it added
+// the header to, and "normally" is not a guarantee to build a stored citation on.
+//
+// `deflate` is both things it is called. RFC 9110 defines it as zlib-wrapped, and a long tail of
+// servers send raw DEFLATE instead, so the zlib reader is tried first and a raw reader second —
+// the ambiguity is the wire's, and guessing one of the two would drop half the responses.
+func decodeCoding(enc string, body io.Reader, cap int64) (io.Reader, error) {
+	limited := io.LimitReader(body, cap+1)
+	switch enc {
+	case "gzip", "x-gzip":
+		zr, err := gzip.NewReader(limited)
+		if err != nil {
+			return nil, fmt.Errorf("the body is not a valid gzip stream: %w", err)
+		}
+		return zr, nil
+	case "deflate":
+		raw, err := io.ReadAll(limited)
+		if err != nil {
+			return nil, err
+		}
+		if zr, zerr := zlib.NewReader(bytes.NewReader(raw)); zerr == nil {
+			return zr, nil
+		}
+		return flate.NewReader(bytes.NewReader(raw)), nil
+	}
+	// NO READER HERE, AND THE REFUSAL NAMES THE CODING so the gap is countable rather than a
+	// mystery. brotli and zstd both need a dependency; whether that is worth taking is a question
+	// about how often this fires, which this message is what makes measurable.
+	return nil, fmt.Errorf("nothing here decodes it, and this client never offered it — "+
+		"the body is not the document and must not be read as one (gzip and deflate are decoded; %q is not)", enc)
 }

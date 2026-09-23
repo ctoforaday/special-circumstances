@@ -278,6 +278,10 @@ func OpenAccessCandidates(f Fetcher, doi string) (locs []string, facts WorkFacts
 	}{
 		{"semantic scholar", semanticScholarCandidates},
 		{"doaj", doajCandidates},
+		// THE PUBLISHER'S OWN STATEMENT, and the only one here that is not a third party's crawl.
+		// It reaches works the open-access indexes call closed, which is exactly where the other
+		// sources have nothing to offer.
+		{"crossref text-mining", crossrefTextMiningCandidates},
 	} {
 		got, ok := src.ask(f, doi)
 		if !ok {

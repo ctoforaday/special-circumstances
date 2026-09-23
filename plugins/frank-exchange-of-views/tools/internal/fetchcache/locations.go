@@ -230,3 +230,71 @@ func RegisteredTarget(f Fetcher, rawURL string) string {
 	}
 	return target
 }
+
+// ---------- the publisher's own machine-readable copy ----------
+
+// keyOnlyTDMHosts are the text-mining endpoints that answer nothing without an API key.
+//
+// MEASURED, NOT ASSUMED: 55 Crossref-registered text-mining links were fetched on 2026-09-23,
+// five per host, interleaved. api.elsevier.com returned HTTP 400 five times out of five, and
+// api.wiley.com likewise. No other host in the sample refused for that reason.
+//
+// They are excluded rather than merely allowed to fail because of their SHARE. Across 300 corpus
+// works those two hosts carry 133 of the 136 registered text-mining links between them, so trying
+// them costs a request per work, on works whose publisher has already been asked once, to be told
+// no by a host that will always say no. Being a good citizen means not making that request.
+//
+// A KEY WOULD CHANGE THIS AND IS NOT OURS TO GET (see #1129): registering for a publisher API
+// credential makes this tool's traffic somebody's account.
+var keyOnlyTDMHosts = map[string]bool{
+	"api.elsevier.com": true,
+	"api.wiley.com":    true,
+}
+
+// crossrefTextMiningCandidates returns the full-text urls a PUBLISHER REGISTERED for machine
+// reading, which is the one location source that is the publisher's own statement rather than a
+// third party's crawl.
+//
+// WHAT IT IS WORTH, MEASURED. 136 of 300 corpus works (45%) carry at least one such link, and 79
+// of those works are ones OpenAlex calls CLOSED — a sanctioned route to full text on papers the
+// open-access indexes have nothing for. Of 45 links fetched outside the two key-only hosts, 19
+// yielded a readable document (42%), and the failures are per-host rather than scattered: three
+// hosts answered every time, and the rest fail for reasons that are facts about the host.
+//
+// `similarity-checking` links are NOT taken. They are registered for plagiarism services under
+// separate agreements, and the intent recorded on the link is the publisher's statement of what
+// it is offering; reading one as an invitation to fetch is helping ourselves to a different
+// permission from the one that was given.
+func crossrefTextMiningCandidates(f Fetcher, doi string) (locs []string, answered bool) {
+	if doi == "" {
+		return nil, true
+	}
+	resp, err := f.Fetch(crossrefWorks + doi + "?mailto=" + ContactEmail)
+	if err != nil {
+		return nil, false
+	}
+	var cr struct {
+		Message struct {
+			DOI  string `json:"DOI"` // the discriminator: an error envelope decodes without it
+			Link []struct {
+				URL                 string `json:"URL"`
+				ContentType         string `json:"content-type"`
+				IntendedApplication string `json:"intended-application"`
+			} `json:"link"`
+		} `json:"message"`
+	}
+	if json.Unmarshal(resp.Body, &cr) != nil || cr.Message.DOI == "" {
+		return nil, false
+	}
+	for _, l := range cr.Message.Link {
+		if l.IntendedApplication != "text-mining" || l.URL == "" {
+			continue
+		}
+		u, perr := url.Parse(l.URL)
+		if perr != nil || keyOnlyTDMHosts[strings.ToLower(u.Hostname())] {
+			continue
+		}
+		locs = append(locs, l.URL)
+	}
+	return locs, true
+}
