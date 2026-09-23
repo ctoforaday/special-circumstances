@@ -36,10 +36,18 @@ package recordsql
 const ViewsDDL = `
 -- THE TWO WINDOWS THAT REPLACE THE ROUND (plans/roundless.md §III.A.0).
 --
--- "sitting" is the count of THIS ROW'S SEAT's register events at or before the row: which sitting
--- of that seat this act belongs to. Register-inclusive by construction — the register row is its
--- own first sitting — and per seat, so no sibling seat's acts can move it. It is what a seat id used
+-- "sitting" is the count of THIS ROW'S SEAT's OPENING events at or before the row: which sitting
+-- of that seat this act belongs to. Opening-inclusive by construction — the opening row is its own
+-- first sitting — and per seat, so no sibling seat's acts can move it. It is what a seat id used
 -- to carry as -r<N>, computed from the record instead of typed by the seat.
+--
+-- AN OPENING IS A REGISTER *OR* A HARNESS BRACKET, and counting only registers was the defect.
+-- Since #1089 a seat woken with nothing to do need not register: the SubagentStart hook brackets
+-- its sitting and the writer resolves the configuration to a seat. Counting registers alone left
+-- such a seat on sitting 0 forever — so its second sitting's singleton act keyed identically to its
+-- first and was refused by the unique index, and every per-sitting scope in every projection
+-- attributed the two sittings to one. The ordinal has to count what OPENS a sitting, not the one
+-- mechanism that used to be the only way to open one.
 --
 -- "epoch" is GLOBAL: the count of red-chair's register events at or before the row, whoever wrote
 -- the row. It is what the bucket readers were using the epoch for — which dispatch cycle was this
@@ -55,12 +63,24 @@ const ViewsDDL = `
 -- reader of this view gets the count the events themselves make, and a re-dispatched seat's third
 -- sitting is 3 because it registered three times, not because something told it to say so.
 CREATE VIEW "events_w" AS
-SELECT e.*,
-  count(*) FILTER (WHERE e."type" = 'register')
-    OVER (PARTITION BY e."seat_id" ORDER BY e."id")                        AS "sitting",
-  count(*) FILTER (WHERE e."type" = 'register' AND e."seat_id" = 'red-chair')
-    OVER (ORDER BY e."id")                                                 AS "epoch"
-FROM "events" e;
+SELECT "id", "seat_id", "ts", "type", "key",
+  CASE WHEN "_harness" = 1 THEN 0 ELSE
+    sum("_opens") OVER (PARTITION BY "_owner" ORDER BY "id")
+  END                                                                      AS "sitting",
+  sum(CASE WHEN "_opens" = 1 AND "_owner" = 'red-chair' THEN 1 ELSE 0 END)
+    OVER (ORDER BY "id")                                                   AS "epoch"
+FROM (
+  SELECT e."id", e."seat_id", e."ts", e."type", e."key",
+    -- The bracket's envelope says harness; its body says which seat it opened. The owner is the
+    -- seat whose sitting this row belongs to, which for every other row is the row's own seat.
+    COALESCE(NULLIF(o."seat_id", ''), e."seat_id")                         AS "_owner",
+    CASE WHEN e."type" = 'register'
+           OR (e."type" = 'sitting_open' AND NULLIF(o."seat_id", '') IS NOT NULL)
+         THEN 1 ELSE 0 END                                                 AS "_opens",
+    CASE WHEN e."seat_id" = 'harness' THEN 1 ELSE 0 END                    AS "_harness"
+  FROM "events" e
+  LEFT JOIN "sitting_open" o ON o."event_id" = e."id"
+);
 
 -- THE AGENT -> SEAT BINDING, AS SQL, so a telemetry view can name a seat without any reader
 -- re-deriving the rule. It is the same rule record.SeatOfAgent applies in Go and states in prose:

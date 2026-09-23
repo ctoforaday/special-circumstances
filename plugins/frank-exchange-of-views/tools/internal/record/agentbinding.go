@@ -67,12 +67,12 @@ func SeatOfAgent(run Run, agentID string) (string, bool, error) {
 	return "", false, nil
 }
 
-// SittingsOf is how many sittings a seat has opened: its register count, which is the number
+// SittingsOf is how many sittings a seat has opened — registers AND harness brackets, which is the number
 // Clock and events_w give its latest sitting.
 func SittingsOf(run Run, seatID string) (int, error) {
 	var n int
 	if _, err := queryRow(run, []any{&n},
-		`SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = 'register'`, seatID); err != nil {
+		`SELECT count(*) FROM (`+openingRegistersOfSeatSQL+`)`, seatID); err != nil {
 		return 0, err
 	}
 	return n, nil

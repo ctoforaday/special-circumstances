@@ -608,7 +608,7 @@ func correctionOffer(run Run, asker, by, key string, seq sql.NullInt64, noun str
 		return ""
 	}
 	var before, now int
-	found, err := queryRow(run, []any{&before, &now}, sittingBeforeAndNowSQL, asker, seq.Int64, asker)
+	found, err := queryRow(run, []any{&before, &now}, sittingBeforeAndNowSQL, asker, seq.Int64)
 	if err != nil || !found || before != now {
 		return ""
 	}

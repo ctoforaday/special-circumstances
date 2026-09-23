@@ -46,7 +46,7 @@ type Correct struct {
 // ONE SOURCE FOR BOTH READERS. The same two subqueries sat inline in the correction gate and in the
 // sentence the ruling refusal offers, and either could have moved without the other.
 const sittingBeforeAndNowSQL = `SELECT
-    (SELECT count(*) FROM (` + openingRegistersOfSeatSQL + `) WHERE "id" < ?),
+    (SELECT count(*) FROM (` + openingRegistersOfSeatSQL + `) WHERE "id" < ?2),
     (SELECT count(*) FROM (` + openingRegistersOfSeatSQL + `))`
 
 // CorrectionKeyPrefix is the key segment every Correction event carries: `<seat>:correction:<K>`.
@@ -363,7 +363,7 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 	// writer's current sitting is all of them.
 	var before, now int
 	if err := tx.QueryRow(sittingBeforeAndNowSQL,
-		seatID, target.ID, seatID).Scan(&before, &now); err != nil {
+		seatID, target.ID).Scan(&before, &now); err != nil {
 		return nil, fmt.Errorf("record: counting %s's sittings: %w", seatID, err)
 	}
 	if before != now {

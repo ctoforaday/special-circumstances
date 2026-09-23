@@ -42,7 +42,7 @@ import (
 // It returns the FIRST such act rather than a count: the refusal points the seat at the act that
 // stands, and the correction chain is walked from there.
 const oncePerSittingSQL = `SELECT e."key" FROM "events" e
-     WHERE e."seat_id" = ? AND e."type" = ?
+     WHERE e."seat_id" = ?1 AND e."type" = ?2
        AND e."id" > COALESCE((SELECT max("id") FROM (` + openingRegistersOfSeatSQL + `)), 0)
      ORDER BY e."id" LIMIT 1`
 
@@ -60,7 +60,7 @@ func requireOncePerSitting(q interface {
 	}
 	word := recordpb.Word(typ)
 	var stands string
-	switch err := q.QueryRow(oncePerSittingSQL, seatID, word, seatID).Scan(&stands); {
+	switch err := q.QueryRow(oncePerSittingSQL, seatID, word).Scan(&stands); {
 	case errors.Is(err, sql.ErrNoRows):
 		return nil
 	case err != nil:
