@@ -86,6 +86,13 @@ func TestAMissingDeclaredColumnIsNamedAsAnOlderRun(t *testing.T) {
 			t.Fatalf("%s: %v", stmt, err)
 		}
 	}
+	// THE VIEWS COME BACK, because an older run HAS them — its own, built from its own schema. They
+	// were dropped only so the table could be rebuilt beneath them, and the write path reads one of
+	// them (`sittings`) for every event: without this the envelope fails first and the body column
+	// this test is about is never reached.
+	if _, err := db.Exec(ViewsDDL); err != nil {
+		t.Fatal(err)
+	}
 	_, err = scanTable(db, "blue_edit", []string{`"exact_span"`})
 	for _, want := range []string{"older binary", `"exact_span"`, `"blue_edit"`, "`--seat-id operator migrate --from <runDir> --to <freshDir>`"} {
 		if err == nil || !strings.Contains(err.Error(), want) {

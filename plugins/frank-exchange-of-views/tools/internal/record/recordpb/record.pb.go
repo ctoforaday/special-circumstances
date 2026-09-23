@@ -6157,7 +6157,9 @@ func (x *SittingClose) GetAgentType() string {
 //
 // UNLIKE THE SPAN ENDS IT NAMES THE SEAT. A limit is counted from a register, so the agent is
 // already bound, and the writer resolves the seat from that binding rather than taking it from
-// the hook. The sitting is the seat's own sitting number: its register count, as events_w counts it.
+// the hook. The sitting is the seat's own sitting number, as events_w counts it: one per opening
+// — a register of its own, or a harness bracket that names it — and a sitting-record repair opens
+// none.
 type SittingLimit struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AgentId       *string                `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`

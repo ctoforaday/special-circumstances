@@ -7,11 +7,33 @@ CREATE TABLE "events" (
   -- The key is the fact that has to be unique, and the partial index below enforces it globally.
   -- This was UNIQUE (seat_id, nonce, seq): a counter nothing read, scoped by a sitting that no
   -- longer exists. Both are gone.
-  "key"     TEXT
+  "key"     TEXT,
+  -- THE SITTING IS A FIELD, NOT A NUMBER EACH READER RECOUNTS (#1151). It is the id of the event
+  -- that OPENED the sitting this act belongs to; an opening event's own id, for itself. NULL is
+  -- the honest answer for a row with no sitting open for its seat — the harness's own bookkeeping,
+  -- and anything a seat writes before it has registered.
+  --
+  -- It is stamped by recordpb.SeatOpeningSitting at the write, inside the inserting transaction,
+  -- and no reader re-derives it. Five readers used to recount openings for themselves and two of
+  -- the spellings had already drifted: the events_w window counted EVERY register while the
+  -- idempotency key's count excluded a repair, so one seat's repair sitting was 2 to the view and
+  -- 1 to the key. A stored id cannot disagree with itself.
+  --
+  -- It is not a value a SEAT can stamp wrong, which is the objection the two windows were built to
+  -- answer: nothing on the wire carries it, the foreign key requires the event it names to exist,
+  -- and the only thing a seat can do to move it is open a sitting.
+  "sitting_id" INTEGER REFERENCES "events" ("id"),
+  -- A REGISTER WITHOUT A SITTING IS UNREPRESENTABLE, and that is what retires the degradation rule
+  -- this column replaces. A register either opens a sitting (its own id) or repairs one (the id it
+  -- repairs), so NULL here means the row went in without the write path deciding — a forged event,
+  -- which the readers used to have to agree about in six places and disagreed about in three. It is
+  -- refused instead: the forger holds the file, but it does not hold the trigger.
+  CHECK ("type" <> 'register' OR "sitting_id" IS NOT NULL)
 ) STRICT;
 
 CREATE UNIQUE INDEX "events_key" ON "events" ("key") WHERE "key" IS NOT NULL;
 CREATE INDEX "events_type" ON "events" ("type");
+CREATE INDEX "events_sitting" ON "events" ("sitting_id");
 
 CREATE TRIGGER "events_are_append_only_update" BEFORE UPDATE ON "events" BEGIN
   SELECT RAISE(ABORT, 'the record is append-only: an event cannot be edited after it is written');
@@ -790,53 +812,58 @@ CREATE TABLE "correction" (
 
 CREATE INDEX "gate_verdict" ON "gate" ("verdict");
 
+-- A SITTING IS A ROW THAT NAMES ITSELF, and this view is the one place that says so.
+--
+-- events.sitting_id is the opening event of the sitting a row belongs to, stamped at the write
+-- (schema.go). An OPENING is therefore exactly a row whose sitting_id is its own id — there is no
+-- predicate here to keep level with the Go one, because the predicate ran once, at the insert.
+--
+-- The OWNER is the other half, and it is the reason this is a view rather than a WHERE clause
+-- repeated five times: a register's sitting belongs to the seat on its envelope, and a harness
+-- bracket's belongs to the seat its BODY names — the configuration resolved once by the writer
+-- (#1149). Every reader that asks "which sittings has this seat had" joins here and gets both.
+CREATE VIEW "sittings" AS
+SELECT e."id"                                                AS "id",
+       COALESCE(NULLIF(o."seat_id", ''), e."seat_id")         AS "seat_id",
+       e."ts"                                                AS "ts",
+       e."type"                                              AS "opened_by"
+FROM "events" e
+LEFT JOIN "sitting_open" o ON o."event_id" = e."id"
+WHERE e."sitting_id" = e."id";
+
 -- THE TWO WINDOWS THAT REPLACE THE ROUND (plans/roundless.md §III.A.0).
 --
--- "sitting" is the count of THIS ROW'S SEAT's OPENING events at or before the row: which sitting
--- of that seat this act belongs to. Opening-inclusive by construction — the opening row is its own
--- first sitting — and per seat, so no sibling seat's acts can move it. It is what a seat id used
--- to carry as -r<N>, computed from the record instead of typed by the seat.
+-- "sitting" is the rank of the row's own sitting among its seat's sittings: which sitting of that
+-- seat this act belongs to. Opening-inclusive by construction — an opening row's sitting_id is
+-- itself — and per seat, so no sibling seat's acts can move it. It is what a seat id used to carry
+-- as -r<N>, computed from the record instead of typed by the seat.
 --
--- AN OPENING IS A REGISTER *OR* A HARNESS BRACKET, and counting only registers was the defect.
--- Since #1089 a seat woken with nothing to do need not register: the SubagentStart hook brackets
--- its sitting and the writer resolves the configuration to a seat. Counting registers alone left
--- such a seat on sitting 0 forever — so its second sitting's singleton act keyed identically to its
--- first and was refused by the unique index, and every per-sitting scope in every projection
--- attributed the two sittings to one. The ordinal has to count what OPENS a sitting, not the one
--- mechanism that used to be the only way to open one.
+-- IT COUNTS THE STORED SITTING, NOT REGISTERS. This window used to run its own opening predicate
+-- over the events, and that predicate counted EVERY register — including a sitting-record repair,
+-- which opens no sitting and which every other reader excluded. The two numbers disagreed by one
+-- for any seat that ever repaired, which is the defect a stored sitting_id removes rather than
+-- fixes: there is nothing left to keep in step.
 --
--- "epoch" is GLOBAL: the count of red-chair's register events at or before the row, whoever wrote
--- the row. It is what the bucket readers were using the epoch for — which dispatch cycle was this
--- in — and it is defined for a bench close or a lane's draft because it asks about the chair's
--- registers, not the row's seat's. Everything before the first chair register is epoch 0, which is
--- the base phase (frontier, lanes, synthesis) and is a real answer rather than a missing one.
+-- "epoch" is GLOBAL: the count of red-chair's sittings at or before the row, whoever wrote the
+-- row. It is what the bucket readers were using the epoch for — which dispatch cycle was this in
+-- — and it is defined for a bench close or a lane's draft because it asks about the chair's
+-- sittings, not the row's seat's. Everything before the chair's first is epoch 0, which is the
+-- base phase (frontier, lanes, synthesis) and is a real answer rather than a missing one.
 --
--- Rows written under seat harness (sitting-open/close, cast) have sitting 0: the harness observes,
--- it does not sit.
---
--- BOTH ARE WINDOWS, NOT STORED, so neither can be stamped wrong by the seat writing the row. A
--- epoch used to be inferred from a regex over the seat id at register time and stamped forever; a
--- reader of this view gets the count the events themselves make, and a re-dispatched seat's third
--- sitting is 3 because it registered three times, not because something told it to say so.
+-- A row with no sitting — the harness's own bookkeeping, a cast, anything written before its seat
+-- opened one — has sitting 0. The harness observes; it does not sit.
 CREATE VIEW "events_w" AS
-SELECT "id", "seat_id", "ts", "type", "key",
-  CASE WHEN "_harness" = 1 THEN 0 ELSE
-    sum("_opens") OVER (PARTITION BY "_owner" ORDER BY "id")
-  END                                                                      AS "sitting",
-  sum(CASE WHEN "_opens" = 1 AND "_owner" = 'red-chair' THEN 1 ELSE 0 END)
-    OVER (ORDER BY "id")                                                   AS "epoch"
-FROM (
-  SELECT e."id", e."seat_id", e."ts", e."type", e."key",
-    -- The bracket's envelope says harness; its body says which seat it opened. The owner is the
-    -- seat whose sitting this row belongs to, which for every other row is the row's own seat.
-    COALESCE(NULLIF(o."seat_id", ''), e."seat_id")                         AS "_owner",
-    CASE WHEN e."type" = 'register'
-           OR (e."type" = 'sitting_open' AND NULLIF(o."seat_id", '') IS NOT NULL)
-         THEN 1 ELSE 0 END                                                 AS "_opens",
-    CASE WHEN e."seat_id" = 'harness' THEN 1 ELSE 0 END                    AS "_harness"
-  FROM "events" e
-  LEFT JOIN "sitting_open" o ON o."event_id" = e."id"
-);
+SELECT e."id"      AS "id",
+       e."seat_id" AS "seat_id",
+       e."ts"      AS "ts",
+       e."type"    AS "type",
+       e."key"     AS "key",
+       COALESCE((SELECT count(*) FROM "sittings" mine
+                  WHERE mine."seat_id" = s."seat_id" AND mine."id" <= s."id"), 0) AS "sitting",
+       (SELECT count(*) FROM "sittings" chair
+         WHERE chair."seat_id" = 'red-chair' AND chair."id" <= e."id")            AS "epoch"
+FROM "events" e
+LEFT JOIN "sittings" s ON s."id" = e."sitting_id";
 
 -- THE AGENT -> SEAT BINDING, AS SQL, so a telemetry view can name a seat without any reader
 -- re-deriving the rule. It is the same rule record.SeatOfAgent applies in Go and states in prose:

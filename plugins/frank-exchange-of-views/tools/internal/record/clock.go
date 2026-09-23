@@ -67,7 +67,7 @@ type ActClock struct {
 
 // Advance folds one event in and returns the window its acts belong to.
 func (c *ActClock) Advance(e *Event) recordsql.Window {
-	if opensASitting(e) {
+	if recordpb.OpensASitting(e) {
 		if c.sittings == nil {
 			c.sittings = map[string]int{}
 		}

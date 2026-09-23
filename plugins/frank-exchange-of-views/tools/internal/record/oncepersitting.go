@@ -11,22 +11,22 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// THE ONCE-PER-SITTING DUTY ASKS THE ATTRIBUTED SITTING, AND THE IDEMPOTENCY KEY COUNTS TURNS.
+// THE ONCE-PER-SITTING DUTY AND THE IDEMPOTENCY KEY NOW READ THE SAME FACT, AND THAT IS THE FIX.
 //
-// They were ONE query. A singleton act's key is `<seat>:<word>:#<register count>` (deriveKey) and
-// the duty was enforced only by that key colliding, so the two halves of #1002's ruling were being
-// read off one number: which act this IS (an identifier, and a turn) and which sitting it belongs to
-// (an attribution, and a repair is the sitting it repairs). A sitting-record repair moves the turn
-// count and not the attribution, so inside a repair the ordinal advanced and nothing refused a
-// second act. Measured through the CLI: two positions on one sitting, both attributed to
-// `blue-respond #2`, and neither refused — invisible on the report, the changes view and the motion
-// board, which now render them under one heading.
+// They were ONE query, then two, and the two drifted. The duty was enforced only by a singleton
+// act's key colliding, so both halves of #1002's ruling came off one number: which act this IS (an
+// identifier) and which sitting it belongs to (an attribution, and a repair is the sitting it
+// repairs). A sitting-record repair moved the identifier and not the attribution, so inside a
+// repair the ordinal advanced and nothing refused a second act. Measured through the CLI: two
+// positions on one sitting, both attributed to `blue-respond #2`, and neither refused — invisible
+// on the report, the changes view and the motion board, which render them under one heading.
 //
-// So the key keeps counting turns — a repair's acts must not collide with the keys of the sitting it
-// repairs — and the DUTY asks record.ActClock's question in SQL: has this seat already filed an act
-// of this word since the register that opened the sitting its acts belong to. The refusal's own
-// words ("has already recorded a %s this sitting") are true of that reading and were not true of the
-// other.
+// Splitting them gave each its own count of what opens a sitting, and the counts disagreed: the
+// key's excluded a repair register and the events_w window did not. Both now read `sitting_id`,
+// stamped once at the write (#1151), so the duty asks an equality and the key asks a rank over the
+// same rows. The refusal's own words ("has already recorded a %s this sitting") are true of that
+// reading, and a repair's acts belong to the sitting it repairs because the record says so rather
+// than because two queries happened to agree.
 //
 // THE ACTS THIS COVERS ARE THE `singleton` SET — position, revision, verdict and spot_check —
 // enumerated by TestTheOncePerSittingActsAreRefusedASecondTimeInOneSitting, which fails when a type
@@ -34,16 +34,21 @@ import (
 
 // oncePerSittingSQL is the standing act of this word in the seat's attributed sitting, or no row.
 //
-// The window opens at the seat's latest register that OPENS A SITTING, which is
-// openingRegistersOfSeatSQL — the one SQL spelling of opensASitting, shared with correction.go's
-// pair of subqueries. A seat with no opening register has no earlier sitting to borrow from, so
-// COALESCE gives it the whole record as its sitting, exactly as seatDidThisSitting reads it.
+// IT ASKS FOR THE SITTING ITSELF. Every act carries the opening it belongs to as a field
+// (schema.go), so "this sitting" is an equality on sitting_id rather than a window opened by
+// recounting what a register means.
+//
+// THE COMPARISON IS `IS`, NOT `=`, AND THAT IS THE SEAT THAT NEVER OPENED ONE. Its acts carry NULL,
+// and NULL = NULL is NULL — so a plain equality matches no row and the duty stops applying to
+// exactly the seat with no sitting boundary to hide behind. `IS` is null-safe, which gives that
+// seat the whole record as its sitting: the answer the old window reached by COALESCEing its start
+// to 0, kept here rather than lost to a cleaner-looking operator.
 //
 // It returns the FIRST such act rather than a count: the refusal points the seat at the act that
 // stands, and the correction chain is walked from there.
 const oncePerSittingSQL = `SELECT e."key" FROM "events" e
      WHERE e."seat_id" = ?1 AND e."type" = ?2
-       AND e."id" > COALESCE((SELECT max("id") FROM (` + openingRegistersOfSeatSQL + `)), 0)
+       AND e."sitting_id" IS (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?1)
      ORDER BY e."id" LIMIT 1`
 
 // requireOncePerSitting refuses a second singleton act of this word attributed to the seat's current
