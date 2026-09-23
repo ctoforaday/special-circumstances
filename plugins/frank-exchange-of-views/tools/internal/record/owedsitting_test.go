@@ -45,7 +45,7 @@ func planNames(p Plan, seat string) bool {
 func b5Shape(t *testing.T) *stage {
 	return newStage(t).cast(voiceLens, "red-chair", "blue-respond", "judge").ingest(). // head 2
 												register("red-chair").dispatch(2, voiceLens).register(voiceLens).logEntry(voiceLens). // it sat once
-												edit("", "a", "b").                                                                     // head 7
+												edit("", "a", "b").                                                                   // head 7
 												register("red-chair").dispatch(7, voiceLens).logEntry(voiceLens).
 												register("red-chair").dispatch(7, voiceLens).logEntry(voiceLens) // and again, unregistered
 }
