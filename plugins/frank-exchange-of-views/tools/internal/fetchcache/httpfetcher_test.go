@@ -1,6 +1,7 @@
 package fetchcache
 
 import (
+	"compress/gzip"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -132,5 +133,51 @@ func TestHTTPFetcherRejectsNon200(t *testing.T) {
 
 	if _, err := NewHTTPFetcher().Fetch(srv.URL); err == nil || !strings.Contains(err.Error(), "404") {
 		t.Errorf("Fetch of a 404 = %v, want an HTTP-status error", err)
+	}
+}
+
+// TRANSPORT COMPRESSION ARRIVES DECOMPRESSED, and the way to break that is to try to help.
+//
+// net/http adds `Accept-Encoding: gzip` and decodes the response itself — but only while the
+// caller sets no Accept-Encoding header of its own. Setting one, even to the same value, puts the
+// transport in raw mode and hands back compressed bytes with the header still on. Every gzipped
+// page would then sniff as a container and be recorded as "not the source's text", with a reason
+// that reads entirely plausible.
+//
+// The invariant is therefore a SILENCE — a header we do NOT set — which nothing would notice
+// breaking. This asserts the behaviour rather than the absence, so it fails whether the cause is
+// an Accept-Encoding header, DisableCompression, or a hand-rolled transport.
+func TestAGzippedResponseArrivesDecompressed(t *testing.T) {
+	tempPaceDir(t)
+	body := "<html><body>" + strings.Repeat("the paper. ", 200) + "</body></html>"
+	var sawAcceptEncoding string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			http.NotFound(w, r)
+			return
+		}
+		sawAcceptEncoding = r.Header.Get("Accept-Encoding")
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Set("Content-Type", "text/html")
+		zw := gzip.NewWriter(w)
+		_, _ = zw.Write([]byte(body))
+		_ = zw.Close()
+	}))
+	defer srv.Close()
+
+	resp, err := NewHTTPFetcher().Fetch(srv.URL + "/article")
+	if err != nil {
+		t.Fatalf("a gzipped page failed to fetch: %v", err)
+	}
+	if !strings.Contains(sawAcceptEncoding, "gzip") {
+		t.Errorf("the transport did not offer gzip (Accept-Encoding: %q) — it does so only while we set no header of our own", sawAcceptEncoding)
+	}
+	if string(resp.Body) != body {
+		t.Errorf("the body arrived still compressed: %d bytes, starting %q", len(resp.Body), resp.Body[:min(8, len(resp.Body))])
+	}
+	// AND THE TYPE IS STILL THE DOCUMENT'S. A body left compressed would sniff as a container
+	// and be withdrawn as "not the source's text" — the failure this guards, one step on.
+	if !TextBearing(resp.ContentType) {
+		t.Errorf("content type %q no longer reads as the source's text", resp.ContentType)
 	}
 }

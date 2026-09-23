@@ -672,10 +672,17 @@ func TextBearing(contentType string) bool {
 		return true
 	}
 	switch mt {
+	// Each of these is either plain text a seat reads directly, or a pdf, which is the one
+	// binary this tool has readers for — the extractor's text layer, and the OCR engine's
+	// reading of the page images when there is none.
 	case "application/pdf", "application/xml", "application/json", "application/xhtml+xml",
-		"application/x-tex", "application/postscript", "application/rtf", "application/ld+json":
+		"application/x-tex", "application/ld+json":
 		return true
 	}
+	// POSTSCRIPT AND RTF ARE NOT ON THAT LIST, and the first draft of it had them. They carry
+	// text in a sense no reader here can act on: DefaultExtractor handles pdf alone, and a seat
+	// handed a .ps has the document and no way to quote it. Listing a format nothing reads
+	// recreates the exact claim this function exists to withdraw.
 	// A type that declines to say. SniffedMediaType has already looked at the magic bytes and
 	// found neither a pdf nor xml, so there is nothing further to go on, and the honest answer to
 	// "is the source's text in these bytes" is that nobody knows.
@@ -688,3 +695,19 @@ func TextBearing(contentType string) bool {
 func textBearingRefusal(contentType string) string {
 	return fmt.Sprintf("the source answered with %s — a container or binary this tool has no reader for, so these bytes are the document and NOT its text", MediaType(contentType))
 }
+
+// TRANSPORT COMPRESSION IS ALREADY HANDLED, AND THE WAY TO BREAK IT IS TO HELP.
+//
+// net/http adds `Accept-Encoding: gzip` itself and decompresses the response transparently —
+// but ONLY while the caller sets no Accept-Encoding header of its own. Setting one, even to the
+// same value, switches the transport to raw mode and hands back the compressed bytes with the
+// Content-Encoding header still attached. Every gzipped page would then arrive as binary, sniff
+// as a container, and be recorded as "not the source's text" with a plausible reason.
+//
+// So the invariant is a SILENCE, which is why it is written down here and pinned by a test: a
+// future edit adding an Accept-Encoding header, or DisableCompression, looks helpful and is not.
+//
+// This is a different question from a compressed ARTIFACT. `jair.ps.Z` served as
+// `application/zip` carries no Content-Encoding at all (measured, 2026-09-23: the response has
+// Content-Type and Content-Disposition and no encoding header). The compression is the document,
+// not the transport, and no Accept-Encoding would have changed what the server sent.
