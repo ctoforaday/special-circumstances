@@ -8,6 +8,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -269,4 +270,78 @@ func showEntry(e Entry) string {
 	}
 	e.TextExtracted = nil
 	return fmt.Sprintf("%+v text_extracted=%s", e, extracted)
+}
+
+// A RECOVERED WALL IS NOT A RECOVERED DOCUMENT. The wall detector ran on the live path only, so
+// every archive snapshot, open-access copy and bibliographic record was stored unexamined — and
+// the archive is the rung MOST likely to hand back a landing page rather than a paper, which the
+// tool's own summary says in as many words.
+//
+// Measured on a 50-url scan: an archived Journal of Chemical Physics page was recorded as a
+// retrieved document at 1,525 bytes carrying ten visible characters. A seat would have read that
+// as the paper.
+func TestARecoveredWallIsClassifiedLikeALiveOne(t *testing.T) {
+	starved := []byte(`<html><head><title>x</title></head><body><div id="root"></div></body></html>`)
+	live := Entry{ContentType: "text/html"}
+	Classify(&live, starved)
+	if live.NotRenderable == nil || !*live.NotRenderable {
+		t.Fatal("the live path stopped refusing a starved page")
+	}
+
+	// The same bytes arriving by recovery must reach the same verdict.
+	rec := Entry{ContentType: "text/html", RetrievedVia: "archive.org capture of 2019-05-20",
+		Backend: ViaArchive, TextRetrieved: true}
+	Classify(&rec, starved)
+	if rec.NotRenderable == nil || !*rec.NotRenderable {
+		t.Error("a recovered page was stored without being classified — the route decided the " +
+			"verdict instead of the bytes")
+	}
+	if rec.NotRenderableReason == "" {
+		t.Error("a refusal with no reason is a verdict a reader cannot check")
+	}
+
+	// AND A REAL DOCUMENT IS STILL A DOCUMENT, whichever route it came by.
+	good := Entry{ContentType: "text/html", Backend: ViaArchive}
+	Classify(&good, []byte("<html><body><article><p>"+strings.Repeat("real prose here. ", 80)+"</p></article></body></html>"))
+	if good.NotRenderable == nil || *good.NotRenderable {
+		t.Error("an archived article was refused")
+	}
+}
+
+// THE CALL SITE, NOT THE FUNCTION. A test of Classify passes whether or not the recovery path
+// calls it — which is exactly how this shipped: the live path classified, the recovery path did
+// not, and the archive is the rung most likely to return a landing page.
+//
+// This drives Resolve: the live url is refused, the archive answers with a starved page, and the
+// question is what the stored entry says about it.
+func TestResolveClassifiesWhatTheRecoveryPathStored(t *testing.T) {
+	run := runtest.New(t, t.TempDir())
+	wall := []byte(`<html><head><title>x</title></head><body><div id="root"></div></body></html>`)
+	cdx := `[["timestamp","original","digest"],["20190520000000","https://ex/a","D1"]]`
+	f := fake(func(u string) (*Response, error) {
+		switch {
+		case strings.Contains(u, "cdx/search"):
+			return &Response{Body: []byte(cdx), ContentType: "application/json"}, nil
+		case strings.Contains(u, "web.archive.org/web/"):
+			return &Response{Body: wall, ContentType: "text/html"}, nil
+		}
+		return nil, &Refusal{URL: u, Status: 403}
+	})
+	prev := DefaultExtractor
+	DefaultExtractor = fixedExtractor{Extraction{}}
+	t.Cleanup(func() { DefaultExtractor = prev })
+
+	entry, _, _, err := Resolve(run, "https://ex/a", f)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if entry.NotRenderable == nil || !*entry.NotRenderable {
+		t.Errorf("the archive handed back a starved page and it was stored as a document: "+
+			"not_renderable=%v reason=%q", entry.NotRenderable, entry.NotRenderableReason)
+	}
+	// AND THE CLAIM THAT TEXT WAS RETRIEVED IS WITHDRAWN WITH IT. A seat reading `--json` must
+	// not be told a wall is the source's text.
+	if entry.TextRetrieved {
+		t.Error("a recovered wall still claims text_retrieved — that is what a seat branches on")
+	}
 }

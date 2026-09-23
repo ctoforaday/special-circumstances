@@ -91,10 +91,18 @@ func newFetch() *cobra.Command {
 					return fmt.Errorf("fetch --via %s: that backend has no answer for %s. The strategies answer "+
 						"different questions: try `metadata` to learn whether the source exists at all, or `live` for the source itself", via, url)
 				}
-				entry, serr := fetchcache.Store(run, fetchcache.Entry{
+				// THE SAME CLASSIFICATION THE LIVE PATH GETS. A named --via stores its own entry,
+				// so without this the third route to the cache was the third one to skip the wall
+				// detector.
+				rec := fetchcache.Entry{
 					URL: url, ContentType: att.ContentType,
 					RetrievedVia: att.Via, Backend: att.Backend, TextRetrieved: att.TextRetrieved,
-				}, att.Body)
+				}
+				fetchcache.Classify(&rec, att.Body)
+				if rec.NotRenderable != nil && *rec.NotRenderable {
+					rec.TextRetrieved = false
+				}
+				entry, serr := fetchcache.Store(run, rec, att.Body)
 				if serr != nil {
 					return serr
 				}

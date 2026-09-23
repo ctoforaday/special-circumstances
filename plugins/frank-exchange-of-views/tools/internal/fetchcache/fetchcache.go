@@ -206,6 +206,33 @@ func (r *Refusal) Error() string {
 	return fmt.Sprintf("fetch: %s returned HTTP %d%s", r.URL, r.Status, r.Note)
 }
 
+// Classify records what the stored bytes ARE, and is the one place that asks.
+//
+// IT EXISTS BECAUSE ONLY THE LIVE PATH ASKED. The wall detector ran where a fetch reached the
+// source directly, and every RECOVERED document — an archive snapshot, an open-access copy, a
+// bibliographic record — was stored without it. That is exactly backwards: the archive is the
+// rung most likely to hand back a landing page rather than a paper, and this tool's own summary
+// says so in as many words.
+//
+// Measured on a 50-url scan: an archived Journal of Chemical Physics page was recorded as a
+// retrieved document at 1,525 bytes carrying TEN visible characters. On the live path the same
+// bytes are refused as starved. A seat would have read that as the paper.
+//
+// So both paths call this, and a third path cannot silently skip it: there is one place that
+// decides, and it takes the bytes rather than the route they arrived by.
+func Classify(entry *Entry, body []byte) {
+	// HTML ONLY, and the answer is recorded either way — "we looked and it is a document" is the
+	// fact that makes the flag's ABSENCE mean something. DefaultExtractor is a PDF extractor and
+	// reports Attempted=false for HTML deliberately, so this cannot live inside the extraction
+	// block: it would be dead code on precisely the content type it is about.
+	if strings.Contains(entry.ContentType, "html") {
+		shell := ShellReason(entry.ContentType, body)
+		notRenderable := shell != ""
+		entry.NotRenderable = &notRenderable
+		entry.NotRenderableReason = shell
+	}
+}
+
 // SniffedMediaType is the media type a response ACTUALLY carries, preferring the bytes over the
 // header whenever the header declines to say.
 //
@@ -415,6 +442,12 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 			HTTPStatus: ref.Status, RefusalClass: refusalClass(ref.Status),
 			RetrievedVia: att.Via, Backend: att.Backend, TextRetrieved: att.TextRetrieved,
 		}
+		Classify(&entry, att.Body)
+		// A RECOVERED WALL IS NOT A RECOVERED DOCUMENT. Where the bytes turn out to be a landing
+		// page or an interstitial, the claim that text was retrieved is withdrawn with them.
+		if entry.NotRenderable != nil && *entry.NotRenderable {
+			entry.TextRetrieved = false
+		}
 		entry, serr := Store(run, entry, att.Body)
 		if serr != nil {
 			return Entry{}, nil, false, ferr
@@ -451,12 +484,7 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 	//
 	// The answer is recorded either way for HTML — "we looked and it is a document" is the fact
 	// that makes the flag's ABSENCE mean something.
-	if strings.Contains(entry.ContentType, "html") {
-		shell := ShellReason(entry.ContentType, resp.Body)
-		notRenderable := shell != ""
-		entry.NotRenderable = &notRenderable
-		entry.NotRenderableReason = shell
-	}
+	Classify(&entry, resp.Body)
 	// READ OFF THE RESPONSE, NOT THE FINAL BODY, so a reservation declared on a hop this fetch
 	// passed through is still recorded — Elsevier declares it on the markup-redirect bouncer,
 	// which the fetcher now follows past.
