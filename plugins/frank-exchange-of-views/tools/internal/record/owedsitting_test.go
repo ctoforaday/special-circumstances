@@ -11,9 +11,12 @@ import (
 
 const voiceLens = "red-lens-voice"
 
-func (b *stage) logNominal(seat string) *stage {
-	return b.add(seat, &recordpb.Log{Text: proto.String("verified again; nothing to regrade, close or mint"),
-		Type: recordpb.LogType_LOG_TYPE_NOMINAL.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()})
+// logEntry files a real entry. The type that asserted a clean sitting is retired — clean is
+// derived from a bracketed sitting that filed nothing — so a fixture that wants an ENTRY on the
+// record files one that asserts something.
+func (b *stage) logEntry(seat string) *stage {
+	return b.add(seat, &recordpb.Log{Text: proto.String("no verb renders a gap's lineage in one read"),
+		Type: recordpb.LogType_LOG_TYPE_REQUEST.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()})
 }
 
 // owedItems is the blocking items that name the owed sitting.
@@ -41,10 +44,10 @@ func planNames(p Plan, seat string) bool {
 // leaving without registering — so it never sat, its state never moved, and dispatch readied it again.
 func b5Shape(t *testing.T) *stage {
 	return newStage(t).cast(voiceLens, "red-chair", "blue-respond", "judge").ingest(). // head 2
-												register("red-chair").dispatch(2, voiceLens).register(voiceLens).logNominal(voiceLens). // it sat once
+												register("red-chair").dispatch(2, voiceLens).register(voiceLens).logEntry(voiceLens). // it sat once
 												edit("", "a", "b").                                                                     // head 7
-												register("red-chair").dispatch(7, voiceLens).logNominal(voiceLens).
-												register("red-chair").dispatch(7, voiceLens).logNominal(voiceLens) // and again, unregistered
+												register("red-chair").dispatch(7, voiceLens).logEntry(voiceLens).
+												register("red-chair").dispatch(7, voiceLens).logEntry(voiceLens) // and again, unregistered
 }
 
 // THE WORK LIST TELLS THE TRUTH THE DISPATCH ACTS ON. A lens dispatched and not registered since
@@ -86,7 +89,7 @@ func TestADispatchedLensThatHasNotRegisteredOwesItsSitting(t *testing.T) {
 		t.Fatalf("a sitting that acted and filed no log is not told: complete=%v open=%+v", s.Complete, s.Open)
 	}
 	// It logs: the work list is complete, and dispatch agrees.
-	sat := b5Shape(t).register(voiceLens).logNominal(voiceLens).seed()
+	sat := b5Shape(t).register(voiceLens).logEntry(voiceLens).seed()
 	s = sittingOfRunT(t, sat, "lens", voiceLens)
 	if !s.Complete || len(owedItems(s)) != 0 {
 		t.Fatalf("after its register and log the lens still owes: complete=%v open=%+v", s.Complete, s.Open)

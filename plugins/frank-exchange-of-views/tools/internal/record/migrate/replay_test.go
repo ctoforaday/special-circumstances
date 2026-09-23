@@ -43,7 +43,7 @@ func TestReplayLandsOldEventsUnderTheOriginalClock(t *testing.T) {
 	if len(res.Refusals) != 0 {
 		t.Fatalf("refusals on a fixture built to land: %+v", res.Refusals)
 	}
-	if res.In["friction"] != 1 || res.Out["log"] != 2 || res.Out["register"] != 1 || res.Out["cast"] != 1 {
+	if res.In["friction"] != 1 || res.Out["log"] != 1 || res.Out["register"] != 1 || res.Out["cast"] != 1 {
 		t.Fatalf("counts: in=%v out=%v", res.In, res.Out)
 	}
 
@@ -52,13 +52,15 @@ func TestReplayLandsOldEventsUnderTheOriginalClock(t *testing.T) {
 		t.Fatal(err)
 	}
 	evs := merged.Events
-	if len(evs) != 4 {
-		t.Fatalf("replayed %d events, want 4 — the three, behind the cast the migration synthesizes", len(evs))
+	// THREE, NOT FOUR: friction_none carries forward as an absence, so the register and the one
+	// friction land behind the cast the migration synthesizes.
+	if len(evs) != 3 {
+		t.Fatalf("replayed %d events, want 3 — the two, behind the cast the migration synthesizes", len(evs))
 	}
 	if evs[0].GetSeatId() != record.HarnessSeat || evs[0].GetTs() != ts1 {
 		t.Errorf("the synthesized cast = %s at %s, want the harness's, stamped with the first event's clock %s", evs[0].GetSeatId(), evs[0].GetTs(), ts1)
 	}
-	for i, want := range []string{ts1, ts2, ts3} {
+	for i, want := range []string{ts1, ts2} {
 		if got := evs[i+1].GetTs(); got != want {
 			t.Errorf("event %d ts %q, want the ORIGINAL %q — the replay clock leaked", i, got, want)
 		}
@@ -66,8 +68,11 @@ func TestReplayLandsOldEventsUnderTheOriginalClock(t *testing.T) {
 	if typ := evs[2].GetLog().GetType(); typ != recordpb.LogType_LOG_TYPE_DEFECT {
 		t.Errorf("friction kind=defect became %v, want LOG_TYPE_DEFECT", typ)
 	}
-	if typ := evs[3].GetLog().GetType(); typ != recordpb.LogType_LOG_TYPE_NOMINAL {
-		t.Errorf("friction_none became %v, want LOG_TYPE_NOMINAL — the positive empty form", typ)
+	// friction_none TRANSLATES TO NOTHING. The type that asserted a clean sitting is retired and
+	// clean is derived from a bracketed sitting that filed nothing, so the old row carries forward
+	// as an absence rather than as an event nobody can act on.
+	if len(evs) > 3 {
+		t.Errorf("friction_none produced event %v — it must translate to no event at all", evs[3].GetType())
 	}
 	if src := evs[2].GetLog().GetSource(); src != recordpb.LogSource_LOG_SOURCE_SEAT {
 		t.Errorf("a seat-filed friction became source %v, want SEAT", src)

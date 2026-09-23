@@ -117,8 +117,8 @@ func writeAsChild(t *testing.T, path, seat string) {
 	for i := 0; i < concEach; i++ {
 		ev := &recordpb.Event{}
 		if _, err := recordpb.SetBody(ev, &recordpb.Log{
-			Text:   proto.String("nothing blocked this sitting"),
-			Type:   recordpb.LogType_LOG_TYPE_NOMINAL.Enum(),
+			Text:   proto.String("the board view omitted a column this seat needed"),
+			Type:   recordpb.LogType_LOG_TYPE_FRICTION.Enum(),
 			Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum(),
 		}); err != nil {
 			t.Fatal(err)

@@ -94,7 +94,7 @@ const openingRegistersOfSeatSQL = `SELECT reg."id" AS "id" FROM "events" reg
 //     SAT before the seat has done anything.
 //
 // That second arm is what makes a no-op sitting free. A lens woken with nothing to do had to run
-// `register` and `log --type nominal` to make its sitting exist and close the log channel; measured
+// `register` and a log entry to make its sitting exist and close the log channel; measured
 // across eight runs, 48% of wakeups recorded nothing and still cost as much as the productive ones.
 // Both of those writes restate what the hooks already captured at both ends of the sitting.
 //

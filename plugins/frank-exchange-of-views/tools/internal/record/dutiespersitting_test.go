@@ -50,7 +50,7 @@ func (b *stage) closeGap(lens, gap string) *stage {
 func TestTheLogIsOwedEverySitting(t *testing.T) {
 	first := func() *stage {
 		return newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-			register("red-chair").dispatch(2, evLens).register(evLens).logNominal(evLens)
+			register("red-chair").dispatch(2, evLens).register(evLens).logEntry(evLens)
 	}
 	if hasItem(sittingOfRunT(t, first().seed(), "lens", evLens), "the log is open") {
 		t.Fatal("a lens that logged this sitting is told its log is open")
@@ -180,7 +180,7 @@ func TestARepairDoesNotReopenTheDutiesTheSittingDischarged(t *testing.T) {
 			register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "medium").
 			register("red-chair").dispatch(2, "blue-respond", "G1").registerAs("blue-respond", "blue-a")
 		opened := b.lastKey()
-		return b.logNominal("blue-respond").position("blue-respond").stop("blue-a"), opened
+		return b.logEntry("blue-respond").position("blue-respond").stop("blue-a"), opened
 	}
 
 	b, opened := sat(t)

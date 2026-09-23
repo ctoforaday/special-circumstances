@@ -25,8 +25,9 @@ func newShowLog() *cobra.Command {
 		Use:   "log",
 		Short: "read the run's log (operator; every missing capability a seat reported, and every seat that reported none)",
 		Long: "show log prints the entries seats filed in the log — missing capabilities, defects in the tooling, " +
-			"impediments and requests — and, separately, the seats that explicitly said nothing blocked them. The two " +
-			"counts are not interchangeable: no complaints and no nominal entries is a log nobody wrote.\n\n" +
+			"impediments and requests — and, separately, the seats that SAT AND FILED NOTHING, read off the harness " +
+			"brackets rather than asserted by the seat. The two counts are not interchangeable: no entries and no " +
+			"seated-and-silent is a run nobody sat in.\n\n" +
 			"Seats WRITE the log with their own `log --type <type> --reason \"...\"`, under their own --seat-id; " +
 			"this is the read, and it is yours, not theirs.",
 		Args:          cobra.NoArgs,

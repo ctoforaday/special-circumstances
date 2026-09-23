@@ -106,18 +106,15 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 	// same whether the sitting was clean or the channel went unused, and across eighteen recorded
 	// sittings it was the second every time.
 	//
-	// ONE DISJUNCT, NOT TWO. This used to test FRICTION or FRICTION_NONE, because the clean case
-	// was its own event type. It is now a `nominal` entry — an entry, not an absence — so any log
-	// event discharges the duty and the type says which case it was. The property is unchanged:
-	// an attested-clean sitting is still an EVENT, and still distinguishable from silence.
+	// ANY ENTRY DISCHARGES IT, and every surviving type asserts a problem, so the duty is to speak
+	// when something is wrong rather than to speak at all.
 	//
 	// A SITTING THAT RECORDED NOTHING IS ALREADY THE CLEAN CASE, AND SAYING SO COSTS A COMMAND FOR
 	// NO INFORMATION. The channel exists because silence is ambiguous — but that argument is about
 	// a sitting that DID things and might have hit walls. A sitting with no acts at all is not
 	// ambiguous: the hooks bracket it with sitting_open and sitting_close, both carrying the
-	// agent's id and type, so that the seat ran is on the record whatever it did. `nominal` there
-	// is derived from what happened rather than asserted about it, which is the stronger of the
-	// two (#1089).
+	// agent's id and type, so that the seat ran is on the record whatever it did. Clean is derived
+	// from what happened rather than asserted about it, which is the stronger of the two (#1089).
 	//
 	// Measured across eight runs: 48% of wakeups recorded nothing and still cost as much as the
 	// productive ones — 46% of every command in the run.
@@ -306,8 +303,8 @@ func seatDid(evs []*Event, seatID string, typ recordpb.EventType) bool {
 
 // revisionOwed says whether this blue sitting owes a revision. Every blue sitting does, except a
 // blue-respond sitting that found every gap it was dispatched on closed before it sat: it has
-// nothing to answer, and its nominal log entry is the whole record of the sitting (gblock's ruling,
-// 2026-09-11). The sitting is record.BlueSittings' — the reading capture's record-parity audit
+// nothing to answer, and the sitting the harness bracketed is the whole record of it (gblock's
+// ruling). The sitting is record.BlueSittings' — the reading capture's record-parity audit
 // holds it to — so the work list and the audit cannot disagree about it.
 //
 // IT HAS NO NOT-MEASURED ANSWER, AND NEEDS NONE. Whether a sitting owes is its Open set, which is

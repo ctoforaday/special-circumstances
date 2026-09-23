@@ -126,7 +126,7 @@
 
 ## The verdict's basis                   <!-- [RECORD] every verdict's gloss, and the ONLY place any of it lives — report.md keeps the stamp and its basis as state; with no outcome, it says the bench never recorded its terminal outcome -->
 
-## Log (what the run told the operator)   <!-- [RECORD] the log entries, each with what it asserts; nominal entries render apart -->
+## Log (what the run told the operator)   <!-- [RECORD] the log entries, each with what it asserts; the seats that sat and filed nothing are named apart -->
 
 ## Record verification                   <!-- [RECORD] the record's own invariant check — a section, never a gate -->
 

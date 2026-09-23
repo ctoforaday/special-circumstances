@@ -121,15 +121,14 @@ func register(s Context, cmd *cobra.Command) (Result, error) {
 	return r, nil
 }
 
-// Log records an entry addressed to the OPERATOR WHO CAN RETOOL THE SEAT — a defect, a request, an
-// impediment worth noting, or a nominal sitting. It is not material for the debate.
+// Log records an entry addressed to the OPERATOR WHO CAN RETOOL THE SEAT — a defect, a request, or
+// an impediment worth noting. It is not material for the debate.
 //
-// WHY THE CLEAN CASE IS STILL AN ENTRY. Across eighteen probed seat dispatches, not one entry was
-// ever recorded, and "nothing on the record" is equally consistent with a clean sitting and with a
-// seat that hit walls and never used the channel. Those are the same bytes, which is this
-// project's recurring defect and the reason nobody could tell which had happened. So the clean
-// case is logged in the POSITIVE, as `nominal`: an entry, not an absence, which silence cannot
-// imitate.
+// WHY THE CLEAN CASE IS NOT AN ENTRY. "Nothing on the record" was once equally consistent with a
+// clean sitting and with a seat that hit walls and never used the channel — the same bytes, which
+// is this project's recurring defect. The harness now brackets every dispatch at both ends, so the
+// record holds that a seat SAT; clean is derived from a sitting that filed nothing, and the seat
+// spends no call saying so.
 //
 // It is not that seats were unwilling. Most refusals they meet are their OWN errors, correctly
 // read as such — that is not a defect and should not be filed. But one seat, blocked by a motion

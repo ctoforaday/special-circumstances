@@ -1192,9 +1192,11 @@ type LogJSON struct {
 	Log    []LogEntryJSON `json:"log"`
 	Counts struct {
 		Total int `json:"total"`
-		// Attested is how many seats logged a NOMINAL entry. Total 0 with Attested 0 is a run
-		// nobody has spoken for; Total 0 with Attested 4 is four seats saying they looked.
-		Attested int `json:"attested"`
+		// Clean is how many seats SAT AND FILED NOTHING — derived from the harness brackets, not
+		// asserted by an entry. Total 0 with Clean 0 is a run nobody sat in; Total 0 with Clean 4
+		// is four seats that looked and found nothing to report. The distinction survives the
+		// retirement of the entry that used to carry it, and no longer costs a call per sitting.
+		Clean int `json:"clean"`
 	} `json:"counts"`
 }
 
@@ -1214,6 +1216,7 @@ type LogEntryJSON struct {
 // Board, for the reason FindingsJSONOf states.
 func LogJSONOf(evs []*Event) LogJSON {
 	out := LogJSON{Log: []LogEntryJSON{}}
+	spoke, sat := map[string]bool{}, map[string]bool{}
 	var clk Clock
 	for _, l := range Listing(evs) {
 		e := l.Event
@@ -1232,17 +1235,21 @@ func LogJSONOf(evs []*Event) LogJSON {
 			if l.Struck != nil {
 				continue
 			}
-			if f.GetType() == recordpb.LogType_LOG_TYPE_NOMINAL {
-				out.Counts.Attested++
-			} else {
-				// TOTAL COUNTS WHAT ASSERTS A PROBLEM, not every entry. Folding nominal entries in
-				// would make an attestation read as a complaint and destroy the distinction this
-				// view exists for: zero-with-an-attestation is a statement someone can be wrong
-				// about, zero-alone is the absence of one.
-				out.Counts.Total++
-			}
+			// EVERY ENTRY ASSERTS A PROBLEM NOW. The type that asserted cleanliness is retired, so
+			// there is no entry left that a total should exclude.
+			out.Counts.Total++
+			spoke[e.GetSeatId()] = true
 		}
 	}
+	// CLEAN IS DERIVED, and this is the whole reason the asserted form could go. A seat whose
+	// sitting the record holds and who filed no entry is a seat that looked and found nothing —
+	// the same statement the retired entry made, at no cost to the seat.
+	for _, l := range Listing(evs) {
+		if seat, opens := SeatOpeningSitting(l.Event); opens && !spoke[seat] {
+			sat[seat] = true
+		}
+	}
+	out.Counts.Clean = len(sat)
 	return out
 }
 

@@ -53,8 +53,8 @@ func TestEveryProjectionThatReportsAnEpochCanSeeMoreThanOne(t *testing.T) {
 		Severity:   recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		FoundBy: []string{"logic-F1"}})
-	app(chair, &recordpb.Log{Text: proto.String("nothing blocked me"),
-		Type: recordpb.LogType_LOG_TYPE_NOMINAL.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()})
+	app(chair, &recordpb.Log{Text: proto.String("no verb renders a gap's lineage in one read"),
+		Type: recordpb.LogType_LOG_TYPE_REQUEST.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()})
 	app(chair, &recordpb.Motion{MotionId: proto.String("M1"),
 		Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 		Basis:   proto.String("cannot settle R1-1"),

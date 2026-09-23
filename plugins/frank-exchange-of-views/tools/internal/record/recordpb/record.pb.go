@@ -1366,7 +1366,6 @@ type LogType int32
 
 const (
 	LogType_LOG_TYPE_UNSPECIFIED LogType = 0
-	LogType_LOG_TYPE_NOMINAL     LogType = 1
 	LogType_LOG_TYPE_DEFECT      LogType = 2
 	LogType_LOG_TYPE_REQUEST     LogType = 3
 	LogType_LOG_TYPE_FRICTION    LogType = 4
@@ -1377,7 +1376,6 @@ const (
 var (
 	LogType_name = map[int32]string{
 		0: "LOG_TYPE_UNSPECIFIED",
-		1: "LOG_TYPE_NOMINAL",
 		2: "LOG_TYPE_DEFECT",
 		3: "LOG_TYPE_REQUEST",
 		4: "LOG_TYPE_FRICTION",
@@ -1385,7 +1383,6 @@ var (
 	}
 	LogType_value = map[string]int32{
 		"LOG_TYPE_UNSPECIFIED": 0,
-		"LOG_TYPE_NOMINAL":     1,
 		"LOG_TYPE_DEFECT":      2,
 		"LOG_TYPE_REQUEST":     3,
 		"LOG_TYPE_FRICTION":    4,
@@ -7751,14 +7748,13 @@ const file_record_proto_rawDesc = "" +
 	"\tLogSource\x12\x1a\n" +
 	"\x16LOG_SOURCE_UNSPECIFIED\x10\x00\x12@\n" +
 	"\x0fLOG_SOURCE_SEAT\x10\x01\x1a+\x8a\xb5\x18'a seat filed this about its own sitting\x12S\n" +
-	"\x0fLOG_SOURCE_TOOL\x10\x02\x1a>\x8a\xb5\x18:the tool emitted this itself, rather than a seat filing it*\x9b\t\n" +
+	"\x0fLOG_SOURCE_TOOL\x10\x02\x1a>\x8a\xb5\x18:the tool emitted this itself, rather than a seat filing it*\xe9\a\n" +
 	"\aLogType\x12\x18\n" +
-	"\x14LOG_TYPE_UNSPECIFIED\x10\x00\x12\xc7\x01\n" +
-	"\x10LOG_TYPE_NOMINAL\x10\x01\x1a\xb0\x01\x8a\xb5\x18\xa7\x01the surface met the work — the sitting is clean, said in the positive. An entry exists, so an attested-clean sitting stays distinguishable from a channel nobody used\xb0\xb5\x18\x01\x12\xef\x01\n" +
+	"\x14LOG_TYPE_UNSPECIFIED\x10\x00\x12\xef\x01\n" +
 	"\x0fLOG_TYPE_DEFECT\x10\x02\x1a\xd9\x01\x8a\xb5\x18\xd0\x01something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on\xb0\xb5\x18\x01\x12\xcf\x01\n" +
 	"\x10LOG_TYPE_REQUEST\x10\x03\x1a\xb8\x01\x8a\xb5\x18\xaf\x01a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair\xb0\xb5\x18\x01\x12\xdb\x01\n" +
 	"\x11LOG_TYPE_FRICTION\x10\x04\x1a\xc3\x01\x8a\xb5\x18\xba\x01the work was impeded and you are noting it; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect\xb0\xb5\x18\x01\x12\x89\x02\n" +
-	"\x11LOG_TYPE_ESTOPPEL\x10\x05\x1a\xf1\x01\x8a\xb5\x18\xe8\x01the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit\xb0\xb5\x18\x00*\x96\x03\n" +
+	"\x11LOG_TYPE_ESTOPPEL\x10\x05\x1a\xf1\x01\x8a\xb5\x18\xe8\x01the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit\xb0\xb5\x18\x00\"\x04\b\x01\x10\x01*\x10LOG_TYPE_NOMINAL*\x96\x03\n" +
 	"\x0eGradeDimension\x12\x1f\n" +
 	"\x1bGRADE_DIMENSION_UNSPECIFIED\x10\x00\x12;\n" +
 	"\x18GRADE_DIMENSION_SEVERITY\x10\x01\x1a\x1d\x8a\xb5\x18\x19how bad it is if it bites\x12\x86\x01\n" +
