@@ -77,6 +77,14 @@ type Attempt struct {
 	Body        []byte
 	ContentType string
 	Via         string
+	// Facts are the index's statements about the WORK — retracted, paratext, open-access status,
+	// licence. They travel even on an answer that carries no text, because a retraction is a fact
+	// about the paper and not about whether this fetch reached it.
+	Facts WorkFacts
+	// Version and License describe the COPY this attempt actually took, which is not always the
+	// work's best: a submitted preprint and the version of record are different documents to quote.
+	Version string
+	License string
 	// Backend is the Via constant that produced this answer — the fact a reader branches on,
 	// where Via is the sentence a seat reads. Recover sets it; a backend never does.
 	Backend       string
@@ -218,10 +226,14 @@ func PickCapture(cs []Capture, at string) (Capture, bool) {
 // `ID` discriminator below is load-bearing rather than belt-and-braces. A GENUINE second opinion
 // has to come from a different organisation — Semantic Scholar, CORE or DOAJ — and none is
 // consulted here yet.
-func OpenAccessCandidates(f Fetcher, doi string) (locs []string, answered bool) {
+// OpenAccessCandidates also returns what the index says about the WORK, and the typing of each
+// location it offers, so a caller can record which VERSION it actually quoted.
+func OpenAccessCandidates(f Fetcher, doi string) (locs []string, facts WorkFacts, typed map[string]OALocation, answered bool) {
 	var indexFailed bool
+	var workFacts WorkFacts
+	chosen := map[string]OALocation{}
 	if doi == "" {
-		return nil, false
+		return nil, WorkFacts{}, nil, false
 	}
 	seen := map[string]bool{}
 	var pdfs, pages []string
@@ -240,44 +252,23 @@ func OpenAccessCandidates(f Fetcher, doi string) (locs []string, answered bool) 
 		pages = append(pages, u)
 	}
 
-	if resp, err := f.Fetch("https://api.openalex.org/works/doi:" + doi + "?mailto=" + ContactEmail); err == nil {
-		var w struct {
-			// ID IS THE DISCRIMINATOR, AND WITHOUT IT THIS DECODE CANNOT FAIL. A struct carrying
-			// only the fields we want unmarshals successfully from ANY json object — an error
-			// envelope, a metering message, a response whose shape has moved — and the zero value
-			// is indistinguishable from a work with no open copy. The caller turns the second into
-			// a fact about the WORLD.
-			ID         string `json:"id"`
-			OpenAccess struct {
-				OAURL string `json:"oa_url"`
-			} `json:"open_access"`
-			Locations []struct {
-				PDFURL  string `json:"pdf_url"`
-				Landing string `json:"landing_page_url"`
-				IsOA    bool   `json:"is_oa"`
-			} `json:"locations"`
-		}
-		if json.Unmarshal(resp.Body, &w) == nil && w.ID != "" {
-			answered = true
-			add(w.OpenAccess.OAURL, strings.Contains(w.OpenAccess.OAURL, ".pdf"))
-			for _, l := range w.Locations {
-				add(l.PDFURL, true)
-				if l.IsOA {
-					add(l.Landing, false)
-				}
-			}
+	// THE WHOLE RECORD, NOT ONE FIELD OF IT. openAlexWork reads the work's own facts — retracted,
+	// version per copy, licence, open-access status — alongside its locations, because those are
+	// what a citation turns on and they are already in the bytes this call returns.
+	facts, oaLocs, oaOK := openAlexWork(f, doi)
+	if !oaOK {
+		indexFailed = true
+	} else {
+		answered = true
+		workFacts = facts
+	}
+	for _, l := range rankLocations(oaLocs) {
+		add(l.URL, l.IsPDF)
+		if chosen[l.URL] == (OALocation{}) {
+			chosen[l.URL] = l
 		}
 	}
-	// EUROPE PMC, AND THROUGH IT PUBMED CENTRAL, WHICH IS THE ADDITION THAT PAID.
-	//
-	// Measured on eight works whose OpenAlex pdf_url answered 403 from the publisher that listed
-	// it: four carry a PMCID that OpenAlex's locations did not surface, and three of those four
-	// serve a real PDF from PMC's open-access bucket — 615 KB, 767 KB, 983 KB. Papers this tool
-	// had recorded as unreachable are sitting in an archive whose machine routes NCBI publishes.
-	//
-	// One index's list is not the world. Taking OpenAlex's alone was the same mistake in miniature
-	// as taking Unpaywall's best nomination: a union of everything each index knows, tried and
-	// verified, is the only shape that survives a publisher refusing the copy it advertises.
+
 	// EVERY SOURCE IS A DIFFERENT ORGANISATION WITH ITS OWN CRAWL, which is the only property
 	// that makes a second opinion worth asking for. Each reports separately whether it ANSWERED,
 	// and a single silence withdraws the determinate claim below.
@@ -316,7 +307,7 @@ func OpenAccessCandidates(f Fetcher, doi string) (locs []string, answered bool) 
 	// indexes' own: neither publishes a ranking this could improve on, and the measured predictor
 	// of success was not source type — every location that worked in the sample was typed
 	// `journal`, including the ones that did not.
-	return append(pdfs, pages...), answered && !indexFailed
+	return append(pdfs, pages...), workFacts, chosen, answered && !indexFailed
 }
 
 // maxOACandidates bounds how many listed locations one lookup will try. The indexes list up to
@@ -514,7 +505,7 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 					"article this is usually the landing page and not the text, so read it before citing it as read",
 					when, c.SnapshotURL())}
 		case ViaOA:
-			locs, answered := OpenAccessCandidates(f, doi)
+			locs, facts, typed, answered := OpenAccessCandidates(f, doi)
 			if len(locs) == 0 {
 				if answered && doi != "" {
 					// AN ANSWERED "NO" IS A FINDING. It is the determinate half of #736: not
@@ -523,7 +514,7 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 					// rather than one nomination — checked against the sweep's own verdicts, where
 					// 0 of 45 works we called closed had a usable location either index knew of.
 					return &Attempt{Body: []byte(fmt.Sprintf("no open-access copy of doi %s exists\n", doi)),
-						ContentType: "text/plain", TextRetrieved: false,
+						ContentType: "text/plain", TextRetrieved: false, Facts: facts,
 						Via: fmt.Sprintf("open-access lookup for doi %s: NO OPEN COPY EXISTS anywhere the OA indexes know of. "+
 							"This is a fact about the WORLD, not about this container — do not record it as unreachable-from-here", doi)}
 				}
@@ -557,14 +548,17 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 						hopped[pdf] = true
 						if hr, herr := f.Fetch(pdf); herr == nil && ShellReason(hr.ContentType, hr.Body) == "" {
 							return &Attempt{Body: hr.Body, ContentType: SniffedMediaType(hr.ContentType, hr.Body), TextRetrieved: true,
+								Facts: facts, Version: typed[loc].Version, License: firstNonEmpty(typed[loc].License, facts.License),
 								Via: fmt.Sprintf("open-access copy, located by doi %s at %s — the pdf the landing page %s names in its own citation_pdf_url",
 									doi, pdf, loc)}
 						}
 					}
 				}
+				t := typed[loc]
 				return &Attempt{Body: resp.Body, ContentType: SniffedMediaType(resp.ContentType, resp.Body), TextRetrieved: true,
-					Via: fmt.Sprintf("open-access copy, located by doi %s at %s (candidate %d of %d the OA indexes listed)",
-						doi, loc, i+1, len(locs))}
+					Facts: facts, Version: t.Version, License: firstNonEmpty(t.License, facts.License),
+					Via: fmt.Sprintf("open-access copy, located by doi %s at %s (%s, candidate %d of %d the OA indexes listed)",
+						doi, loc, versionWords(t.Version), i+1, len(locs))}
 			}
 			// LOCATED BUT BLOCKED IS NOT "NO OPEN COPY". The indexes say a copy exists and named
 			// where; this container could not take it from any of them. That is a fact about the
@@ -575,7 +569,7 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 			}
 			return &Attempt{
 				Body:        []byte(strings.Join(refused, "\n") + "\n"),
-				ContentType: "text/plain", TextRetrieved: false,
+				ContentType: "text/plain", TextRetrieved: false, Facts: facts,
 				Via: fmt.Sprintf("open-access lookup for doi %s: A COPY EXISTS AND THIS CONTAINER COULD NOT TAKE IT. "+
 					"The indexes list %d location(s) and every one tried refused us or answered with a wall. This is NOT "+
 					"'no open copy exists' — do not record the source as closed. The urls are in the body: a human with a "+
@@ -627,9 +621,26 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 		}
 		return nil
 	}
+	// ONE INDEX LOOKUP, EVERY RUNG. Whether the paper was retracted is a fact about the PAPER,
+	// and it does not depend on which route reached it: a seat handed a clean pdf by arXiv needs
+	// it exactly as much as one handed a repository copy by `oa`. Only the `oa` rung read the
+	// work record, so the fact arrived or not according to which backend happened to answer.
+	//
+	// Lazy and memoised: the rung that already read the record keeps its own answer, and no rung
+	// pays for a second call.
+	var facts WorkFacts
+	var asked bool
 	stamp := func(name string, a *Attempt) *Attempt {
-		if a != nil {
-			a.Backend = name
+		if a == nil {
+			return nil
+		}
+		a.Backend = name
+		if a.Facts == (WorkFacts{}) && doi != "" {
+			if !asked {
+				facts, _, _ = openAlexWork(f, doi)
+				asked = true
+			}
+			a.Facts = facts
 		}
 		return a
 	}
@@ -765,3 +776,24 @@ func ericQueryOf(rawURL string) string {
 
 // ericIDRe recognises an ERIC accession number, the identity this corpus is keyed on.
 var ericIDRe = regexp.MustCompile(`\b(E[JD]\d{6,})\b`)
+
+func firstNonEmpty(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
+}
+
+// versionWords says which copy this is in words a seat reads, because "submittedVersion" in a
+// summary is easy to skim past and "a submitted preprint, not the published version" is not.
+func versionWords(v string) string {
+	switch strings.ToLower(v) {
+	case "publishedversion":
+		return "the published version"
+	case "acceptedversion":
+		return "the accepted manuscript — same content as the published version, different pagination"
+	case "submittedversion":
+		return "a SUBMITTED PREPRINT, which may differ in substance from the published paper"
+	}
+	return "version unstated by the index"
+}

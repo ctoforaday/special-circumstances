@@ -96,6 +96,26 @@ type fetchSummary struct {
 	// on it — see fetchcache.TDMReservation.
 	TDMReserved *bool  `json:"tdm_reserved,omitempty"`
 	TDMPolicy   string `json:"tdm_policy,omitempty"`
+	// Retracted, Paratext, WorkType, OAStatus and WorkLicense are what the INDEX says about the
+	// paper — not about this url, and not about these bytes. They are on the summary because a
+	// perfect fetch cannot discover any of them: the pdf of a retracted paper reads exactly like
+	// the pdf of a sound one, and the retraction notice is a separate document the seat never
+	// asked for. OpenAlex answers all five in the record this tool already fetches to find a url.
+	//
+	// REPORTED, NEVER GATED. A retracted paper is a legitimate thing to cite — as retracted — and
+	// so is an editorial, a dataset or a book chapter. The tool's duty is to say what the thing
+	// is; what may be cited is the seat's judgement and the bench's.
+	Retracted   *bool  `json:"retracted,omitempty"`
+	Paratext    *bool  `json:"paratext,omitempty"`
+	WorkType    string `json:"work_type,omitempty"`
+	OAStatus    string `json:"oa_status,omitempty"`
+	WorkLicense string `json:"work_license,omitempty"`
+	// CopyVersion and CopyLicense describe THESE BYTES: which copy of the work arrived, and under
+	// what licence it sits. A submitted preprint and the version of record are different
+	// documents to quote from, and until this was recorded a quote could come from either with
+	// nothing in the summary saying which.
+	CopyVersion string `json:"copy_version,omitempty"`
+	CopyLicense string `json:"copy_license,omitempty"`
 	// TablePages counts pages whose ruled grid the engine detected — their reconstruction
 	// stats live on the reading record. Present only when nonzero, so a prose-only reading
 	// renders without it.
@@ -164,7 +184,12 @@ func summarize(run record.Run, e fetchcache.Entry, bodyLen int, hit bool) fetchS
 		TextReason:    e.TextReason,
 		NotRenderable: e.NotRenderable, NotRenderableReason: e.NotRenderableReason,
 		TDMReserved: e.TDMReserved, TDMPolicy: e.TDMPolicy,
+		CopyVersion: e.CopyVersion, CopyLicense: e.CopyLicense,
 		Extractor: e.Extractor,
+	}
+	if e.Work != nil {
+		s.Retracted, s.Paratext = e.Work.Retracted, e.Work.Paratext
+		s.WorkType, s.OAStatus, s.WorkLicense = e.Work.WorkType, e.Work.OAStatus, e.Work.License
 	}
 	// THE PATH IS NAMED ONLY WHEN THE FILE IS THERE. A text_path pointing at a file that was
 	// never written is worse than no field at all: a seat would Read it, get a not-found, and
@@ -309,6 +334,27 @@ func (s fetchSummary) render() string {
 	if s.NotRenderable != nil && *s.NotRenderable {
 		line("not_renderable", "true")
 		line("not_renderable_reason", s.NotRenderableReason)
+	}
+	// WHAT THE INDEX KNOWS THAT THE BYTES CANNOT TELL YOU.
+	line("work_type", s.WorkType)
+	line("oa_status", s.OAStatus)
+	line("work_license", s.WorkLicense)
+	line("copy_version", s.CopyVersion)
+	line("copy_license", s.CopyLicense)
+	if s.Paratext != nil && *s.Paratext {
+		line("paratext", "true")
+		fmt.Fprintf(&b, "  ^ THE INDEX CALLS THIS PARATEXT — an editorial, a masthead, a table of contents, rather than\n"+
+			"    the research article. Cite it for what it is; do not cite it as the study.\n")
+	}
+	// LAST, AND UNMISSABLE. A retraction is the one fact here that can void a citation outright,
+	// and it survives a flawless fetch: the pdf of a retracted paper is byte-identical to what it
+	// was before the retraction, and the notice is a different document nobody asked for.
+	if s.Retracted != nil && *s.Retracted {
+		line("retracted", "true")
+		fmt.Fprintf(&b, "  ^ THIS WORK IS RETRACTED. The bytes are genuine and the fetch was sound — retraction is a\n"+
+			"    judgement about the paper, not about this retrieval, so nothing upstream could have caught it.\n"+
+			"    You MAY cite it, and you MUST cite it AS RETRACTED: its findings do not support a claim, and a\n"+
+			"    quotation from it stands only as evidence of what the withdrawn paper said.\n")
 	}
 	// THE REASON IS PRINTED WHETHER OR NOT THERE IS TEXT. Where a reading succeeded it is
 	// empty and this line does not appear; where it did not — switched off, over the render

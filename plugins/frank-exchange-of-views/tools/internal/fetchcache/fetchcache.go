@@ -195,6 +195,20 @@ type Entry struct {
 	// A metadata answer is a real finding and a legitimate citation — as `source_text_read:
 	// unread`. It is not a reading, and nothing may cite it as one.
 	TextRetrieved bool `json:"text_retrieved,omitempty"`
+
+	// Work carries WHAT THE INDEX SAYS ABOUT THE PAPER, as against every other field here, which
+	// says something about this url. Retraction is the reason it is on the record at all: it is a
+	// fact about the work that survives a perfect fetch, and a seat that read the pdf cleanly has
+	// no other way to learn it. Nil where no index was consulted — a plain live fetch of a url
+	// with no doi asks nobody, and an empty WorkFacts there would read as "asked, nothing found".
+	Work *WorkFacts `json:"work,omitempty"`
+
+	// CopyVersion and CopyLicense describe THESE BYTES, not the work: which of its copies this is
+	// (publishedVersion, acceptedVersion, submittedVersion) and under what licence that copy sits.
+	// They are separate from Work.License, which is the best open copy's — and the best open copy
+	// is often not the one that answered.
+	CopyVersion string `json:"copy_version,omitempty"`
+	CopyLicense string `json:"copy_license,omitempty"`
 }
 
 // Refusal is a fetch that was answered and REFUSED, carried as a typed error so the status
@@ -463,17 +477,8 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		if att == nil {
 			return Entry{}, nil, false, ferr
 		}
-		entry := Entry{
-			URL: url, ContentType: att.ContentType,
-			HTTPStatus: stub.HTTPStatus, RefusalClass: stub.RefusalClass,
-			RetrievedVia: att.Via, Backend: att.Backend, TextRetrieved: att.TextRetrieved,
-		}
-		Classify(&entry, att.Body)
-		// A RECOVERED WALL IS NOT A RECOVERED DOCUMENT. Where the bytes turn out to be a landing
-		// page or an interstitial, the claim that text was retrieved is withdrawn with them.
-		if entry.NotRenderable != nil && *entry.NotRenderable {
-			entry.TextRetrieved = false
-		}
+		entry := EntryFor(url, att)
+		entry.HTTPStatus, entry.RefusalClass = stub.HTTPStatus, stub.RefusalClass
 		entry, serr := Store(run, entry, att.Body)
 		if serr != nil {
 			return Entry{}, nil, false, ferr
@@ -603,4 +608,30 @@ func LookupSha(run record.Run, sha string) (Entry, bool, error) {
 		return got, true, nil
 	}
 	return Entry{}, false, sc.Err()
+}
+
+// EntryFor builds the index record for one backend attempt: every field the Attempt carries, the
+// classification of its bytes, and the withdrawal that follows from it.
+//
+// ONE FUNCTION BECAUSE THERE ARE TWO CALLERS AND THEY DRIFTED. Each route that stores an attempt
+// copied the same fields by hand, so the newest field reached whichever site was edited and the
+// other stored a record missing it — silently, because a missing field is indistinguishable from
+// a fact the backend did not learn.
+func EntryFor(url string, att *Attempt) Entry {
+	entry := Entry{
+		URL: url, ContentType: att.ContentType,
+		RetrievedVia: att.Via, Backend: att.Backend, TextRetrieved: att.TextRetrieved,
+		CopyVersion: att.Version, CopyLicense: att.License,
+	}
+	if att.Facts != (WorkFacts{}) {
+		facts := att.Facts
+		entry.Work = &facts
+	}
+	Classify(&entry, att.Body)
+	// A RECOVERED WALL IS NOT A RECOVERED DOCUMENT. Where the bytes turn out to be a landing
+	// page or an interstitial, the claim that text was retrieved is withdrawn with them.
+	if entry.NotRenderable != nil && *entry.NotRenderable {
+		entry.TextRetrieved = false
+	}
+	return entry
 }

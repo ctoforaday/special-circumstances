@@ -270,7 +270,7 @@ func TestAnOpenAccessAnswerRequiresAWork(t *testing.T) {
 				}
 				return nil, &Refusal{URL: u, Status: 403}
 			})
-			_, answered := OpenAccessCandidates(f, "10.1234/x")
+			_, _, _, answered := OpenAccessCandidates(f, "10.1234/x")
 			if answered != tc.wantAnswered {
 				t.Errorf("answered = %v, want %v — this value is what lets the caller say NO OPEN "+
 					"COPY EXISTS anywhere, which is a claim about the world", answered, tc.wantAnswered)
@@ -457,7 +457,7 @@ func TestAnIndexThatDidNotAnswerBlocksTheWorldClaim(t *testing.T) {
 		}
 		return nil, &Refusal{URL: u, Status: 404}
 	})
-	_, answered := OpenAccessCandidates(f, "10.1234/x")
+	_, _, _, answered := OpenAccessCandidates(f, "10.1234/x")
 	if answered {
 		t.Error("an index that did not answer was counted as a silence — that licenses " +
 			"'no open copy exists anywhere', which would be a claim about the world built from a timeout")
@@ -517,5 +517,73 @@ func TestAutoPrefersTheDocumentOverASnapshotOfIt(t *testing.T) {
 	if att.Backend != ViaOA {
 		t.Errorf("Backend = %q (via %q), want the open-access copy rather than the archived landing page",
 			att.Backend, att.Via)
+	}
+}
+
+// A RETRACTION REACHES THE RECORD WHICHEVER RUNG ANSWERED. Only the `oa` rung read the work
+// record, so whether a seat heard that its paper was withdrawn depended on which backend happened
+// to have a copy — and arxiv is FIRST in AutoOrder, so the common case was the silent one.
+//
+// The assertion runs through EntryFor rather than off the Attempt, because the Attempt carrying
+// the fact and the index storing it are two different things and the second one is what a later
+// reader sees.
+func TestARetractionReachesTheRecordFromANonIndexBackend(t *testing.T) {
+	f := fake(func(u string) (*Response, error) {
+		switch {
+		case strings.Contains(u, "arxiv.org/pdf"):
+			return &Response{Body: []byte("%PDF-1.7 the preprint"), ContentType: "application/pdf"}, nil
+		case strings.Contains(u, "openalex"):
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","is_retracted":true,` +
+				`"type":"article","open_access":{"oa_status":"green"}}`)}, nil
+		}
+		return nil, &Refusal{URL: u, Status: 403}
+	})
+	att := Recover(f, "https://arxiv.org/abs/2101.00001?doi=10.1234/retracted", ViaAuto, "")
+	if att == nil || att.Backend != ViaArxiv {
+		t.Fatalf("wanted the arxiv rung to answer, got %+v", att)
+	}
+	e := EntryFor("https://arxiv.org/abs/2101.00001", att)
+	if e.Work == nil || e.Work.Retracted == nil || !*e.Work.Retracted {
+		t.Fatalf("the stored record does not say the work is retracted: %+v", e.Work)
+	}
+	if e.Work.OAStatus != "green" || e.Work.WorkType != "article" {
+		t.Errorf("the rest of the work record did not travel with it: %+v", e.Work)
+	}
+}
+
+// THE PUBLISHED COPY IS PREFERRED OVER A DRAFT OF IT. Both are pdfs and both answer, so nothing
+// about the fetch distinguishes them; the index's `version` is the only thing that does, and
+// before it was read the chain took whichever the index happened to list first. A quote from a
+// submitted preprint attributed to the published paper is a misquotation that no later check
+// catches.
+func TestThePublishedCopyOutranksASubmittedOne(t *testing.T) {
+	var got []string
+	f := fake(func(u string) (*Response, error) {
+		if r, isIndex := emptyIndexAnswer(u); isIndex {
+			return r, nil
+		}
+		if strings.Contains(u, "openalex") {
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","locations":[` +
+				`{"pdf_url":"https://repo.example/draft.pdf","is_oa":true,"version":"submittedVersion"},` +
+				`{"pdf_url":"https://publisher.example/final.pdf","is_oa":true,"version":"publishedVersion","license":"cc-by"}]}`)}, nil
+		}
+		if strings.HasSuffix(u, ".pdf") {
+			got = append(got, u)
+			return &Response{Body: []byte("%PDF-1.7 " + u), ContentType: "application/pdf"}, nil
+		}
+		return nil, &Refusal{URL: u, Status: 403}
+	})
+	att := Recover(f, "https://doi.org/10.1234/x", ViaOA, "")
+	if att == nil {
+		t.Fatal("the oa rung gave up with two open pdfs listed")
+	}
+	if len(got) == 0 || got[0] != "https://publisher.example/final.pdf" {
+		t.Fatalf("the first copy fetched was %v, want the published pdf — the draft was listed first", got)
+	}
+	if att.Version != "publishedVersion" || att.License != "cc-by" {
+		t.Errorf("the copy's own version/licence did not reach the attempt: %q / %q", att.Version, att.License)
+	}
+	if !strings.Contains(att.Via, "the published version") {
+		t.Errorf("the provenance sentence does not say which copy this is: %s", att.Via)
 	}
 }
