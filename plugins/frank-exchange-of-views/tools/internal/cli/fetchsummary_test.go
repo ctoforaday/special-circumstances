@@ -102,3 +102,33 @@ func TestARetractionIsRenderedFromTheStoredRecord(t *testing.T) {
 		t.Errorf("a fetch that consulted no index reports on retraction anyway:\n%s", quiet)
 	}
 }
+
+// A CONTAINER IS THE DOCUMENT, NOT ITS TEXT. Measured live: jair.org's own Crossref-registered
+// text-mining link serves `jair.ps.Z`, 337 KB of compressed PostScript, delivered as
+// `application/zip`. The fetch was sound and the bytes are the real article — and the summary
+// said the source's text had been retrieved, which is the field a `leaf` reading rests on.
+//
+// The live path asked one question, "is this page a wall", and answered it for HTML only; every
+// other media type fell through to true.
+func TestBytesWithNoReaderAreNotTheSourcesText(t *testing.T) {
+	zipped := fetchcache.Entry{URL: "https://www.jair.org/x/download", Sha: "abc",
+		ContentType: "application/zip",
+		TextRetrievedReason: "the source answered with application/zip — a container or binary this tool has no reader for, " +
+			"so these bytes are the document and NOT its text"}
+	got := summarize(record.Run{}, zipped, 337428, false).render()
+	if strings.Contains(got, "text_retrieved: true") {
+		t.Errorf("a zip is reported as the source's text:\n%s", got)
+	}
+	if !strings.Contains(got, "^ the source answered with application/zip") {
+		t.Errorf("the withdrawal carries no reason — a false that cannot be told from a fetch that never happened:\n%s", got)
+	}
+
+	// AND A PDF STILL COUNTS. The extractor and the OCR engine both read one, so withdrawing the
+	// claim there would take the common case down with the container. The live path prints no
+	// `text_retrieved` line at all when the answer is yes, so this asserts on the field the
+	// machine-readable surface carries.
+	pdf := fetchcache.Entry{URL: "https://ex.org/p.pdf", Sha: "def", ContentType: "application/pdf"}
+	if got := summarize(record.Run{}, pdf, 4096, false); !got.TextRetrieved {
+		t.Error("a pdf is no longer reported as the source's text")
+	}
+}

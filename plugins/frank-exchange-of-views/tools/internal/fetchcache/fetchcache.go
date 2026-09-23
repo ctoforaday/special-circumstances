@@ -195,6 +195,11 @@ type Entry struct {
 	// A metadata answer is a real finding and a legitimate citation — as `source_text_read:
 	// unread`. It is not a reading, and nothing may cite it as one.
 	TextRetrieved bool `json:"text_retrieved,omitempty"`
+	// TextRetrievedReason states WHY the bytes are not the source's text on a fetch that reached
+	// the source and got its real document — the paired reason this flag lacked, in the shape
+	// TextExtracted and NotRenderable already use here. A withdrawn claim with no reason is
+	// indistinguishable from a fetch that never happened.
+	TextRetrievedReason string `json:"text_retrieved_reason,omitempty"`
 
 	// Work carries WHAT THE INDEX SAYS ABOUT THE PAPER, as against every other field here, which
 	// says something about this url. Retraction is the reason it is on the record at all: it is a
@@ -528,6 +533,13 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		entry.TDMReserved = &reserved
 		entry.TDMPolicy = resp.TDMPolicy
 	}
+	// AND THE LIVE PATH RECORDS WHY IT IS NOT TEXT, not just that it is not. The summary can
+	// derive the flag from the content type, but only the record outlives the run — an archived
+	// entry holding `text_retrieved: false` and nothing else cannot say whether the source
+	// refused, the page was a wall, or the bytes were a tarball.
+	if !TextBearing(entry.ContentType) {
+		entry.TextRetrievedReason = textBearingRefusal(entry.ContentType)
+	}
 	stored, serr := Store(run, entry, resp.Body)
 	if serr != nil {
 		return Entry{}, nil, false, serr
@@ -628,10 +640,51 @@ func EntryFor(url string, att *Attempt) Entry {
 		entry.Work = &facts
 	}
 	Classify(&entry, att.Body)
+	// AND BYTES NOTHING CAN READ ARE NOT THE SOURCE'S TEXT, however honestly they were fetched.
+	if entry.TextRetrieved && !TextBearing(entry.ContentType) {
+		entry.TextRetrieved = false
+		entry.TextRetrievedReason = textBearingRefusal(entry.ContentType)
+	}
 	// A RECOVERED WALL IS NOT A RECOVERED DOCUMENT. Where the bytes turn out to be a landing
 	// page or an interstitial, the claim that text was retrieved is withdrawn with them.
 	if entry.NotRenderable != nil && *entry.NotRenderable {
 		entry.TextRetrieved = false
 	}
 	return entry
+}
+
+// TextBearing says whether a media type can carry the SOURCE'S TEXT AT ALL, as against being a
+// container or a binary this tool has no reader for.
+//
+// MEASURED: jair.org's Crossref-registered text-mining link serves `jair.ps.Z` — a compressed
+// PostScript file, 337 KB, delivered as `application/zip`. The fetch reached the source, took its
+// real document, and recorded `text_retrieved: true`. Nothing in this tool can open it, so the
+// claim was false in the one field a citation's `leaf` reading rests on, and false in the
+// optimistic direction: a seat reading the summary is told the source's text is in hand.
+//
+// AN ALLOWLIST, DELIBERATELY. The unknown type is the interesting case and a denylist answers it
+// `true` — every new container this tool has never seen becomes a claim that its text was
+// retrieved. Listing what can be read makes the unknown answer `false`, which is also what a
+// reader can check by looking at the cached bytes.
+func TextBearing(contentType string) bool {
+	mt := MediaType(contentType)
+	if strings.HasPrefix(mt, "text/") {
+		return true
+	}
+	switch mt {
+	case "application/pdf", "application/xml", "application/json", "application/xhtml+xml",
+		"application/x-tex", "application/postscript", "application/rtf", "application/ld+json":
+		return true
+	}
+	// A type that declines to say. SniffedMediaType has already looked at the magic bytes and
+	// found neither a pdf nor xml, so there is nothing further to go on, and the honest answer to
+	// "is the source's text in these bytes" is that nobody knows.
+	return false
+}
+
+// textBearingRefusal is the sentence recorded when the bytes cannot carry text. It names the
+// type, because "we could not read it" without saying what arrived is a dead end for whoever
+// reads the record next.
+func textBearingRefusal(contentType string) string {
+	return fmt.Sprintf("the source answered with %s — a container or binary this tool has no reader for, so these bytes are the document and NOT its text", MediaType(contentType))
 }

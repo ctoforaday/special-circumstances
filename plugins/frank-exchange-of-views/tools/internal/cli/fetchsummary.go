@@ -84,6 +84,11 @@ type fetchSummary struct {
 	// OCREngineAbsent says the automatic read failed because this binary was built without the
 	// engine — the fact behind one of OCRReason's sentences, as a field.
 	OCREngineAbsent bool `json:"ocr_engine_absent,omitempty"`
+	// TextRetrievedReason says why the bytes are not the source's text where the fetch reached the
+	// source and took its real document — a container or a binary with no reader here. It is the
+	// reason TextRetrieved never had: a bare false is indistinguishable from a fetch that never
+	// happened, and the two license different next moves.
+	TextRetrievedReason string `json:"text_retrieved_reason,omitempty"`
 	// NotRenderable says the bytes are not the document the url names — a challenge, an
 	// unrendered app, or a page with too little prose to be either. It is printed EVEN WHEN text
 	// was extracted, because all three yield a little text — the nav, a cookie banner, the
@@ -177,12 +182,13 @@ func summarize(run record.Run, e fetchcache.Entry, bodyLen int, hit bool) fetchS
 		Backend:        e.Backend,
 		// A LIVE FETCH THAT YIELDED A DOCUMENT HAS THE SOURCE'S TEXT. The entry's own flag speaks
 		// only for the recovery path, so it is the wrong answer for the common one.
-		TextRetrieved: e.TextRetrieved || liveTextRetrieved(e),
-		Pages:         e.Pages,
-		TextExtracted: e.TextExtracted,
-		TextSha256:    e.TextSha,
-		TextReason:    e.TextReason,
-		NotRenderable: e.NotRenderable, NotRenderableReason: e.NotRenderableReason,
+		TextRetrieved:       e.TextRetrieved || liveTextRetrieved(e),
+		TextRetrievedReason: e.TextRetrievedReason,
+		Pages:               e.Pages,
+		TextExtracted:       e.TextExtracted,
+		TextSha256:          e.TextSha,
+		TextReason:          e.TextReason,
+		NotRenderable:       e.NotRenderable, NotRenderableReason: e.NotRenderableReason,
 		TDMReserved: e.TDMReserved, TDMPolicy: e.TDMPolicy,
 		CopyVersion: e.CopyVersion, CopyLicense: e.CopyLicense,
 		Extractor: e.Extractor,
@@ -331,6 +337,14 @@ func (s fetchSummary) render() string {
 			"    are separate rights it does not reach. Read and cite this source as you would any other. What it\n"+
 			"    forbids is keeping a corpus of it or training on it, neither of which this tool does.\n")
 	}
+	// A LIVE FETCH THAT GOT BYTES NOBODY CAN READ SAYS SO IN THE HUMAN SUMMARY TOO. The
+	// `text_retrieved` line printed only under `retrieved_via`, so on the live path — the common
+	// one — the flag existed in `--json` and nowhere a seat reading the summary would see it. A
+	// container arrived, the fetch looked like every other success, and only the content type
+	// hinted otherwise.
+	if !s.TextRetrieved && s.RetrievedVia == "" && s.TextRetrievedReason != "" {
+		fmt.Fprintf(&b, "text_retrieved: false\n  ^ %s\n", s.TextRetrievedReason)
+	}
 	if s.NotRenderable != nil && *s.NotRenderable {
 		line("not_renderable", "true")
 		line("not_renderable_reason", s.NotRenderableReason)
@@ -374,6 +388,12 @@ func (s fetchSummary) render() string {
 func liveTextRetrieved(e fetchcache.Entry) bool {
 	if e.RetrievedVia != "" || e.Sha == "" {
 		return false // a recovery speaks for itself through the entry's own flag
+	}
+	// A CONTAINER IS NOT TEXT. The live path asked only whether the page was a wall, so every
+	// media type that is not html passed — a zip, a tarball, an image — and the flag a citation's
+	// `leaf` reading rests on said the source's text was in hand.
+	if !fetchcache.TextBearing(e.ContentType) {
+		return false
 	}
 	if e.NotRenderable != nil && *e.NotRenderable {
 		return false
