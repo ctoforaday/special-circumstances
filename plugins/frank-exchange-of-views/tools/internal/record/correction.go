@@ -36,18 +36,17 @@ type Correct struct {
 // sittingBeforeAndNowSQL is "which sitting was this act filed in, and which sitting is the seat in
 // now" — the two numbers both first-wins refusals compare, bound as (seat, event id, seat).
 //
-// IT COUNTS THE REGISTERS THAT OPEN A SITTING, and it counts them by wrapping
-// openingRegistersOfSeatSQL rather than by restating the predicate: a sitting-record repair's acts
-// are the repaired sitting's, so a seat correcting in its repair is still in the sitting that wrote
-// the act — the correction it is being offered is the one the repair exists to make. Counting the
-// repair as a turn here would refuse the correction with "that was an earlier sitting" at the one
-// moment the seat is back on the record precisely to finish it.
+// IT COUNTS THE SITTINGS THE RECORD HOLDS, which is the `sittings` view: a sitting-record repair
+// opens none, so its acts are the repaired sitting's and a seat correcting in its repair is still
+// in the sitting that wrote the act — the correction it is being offered is the one the repair
+// exists to make. Counting the repair as a turn here would refuse the correction with "that was an
+// earlier sitting" at the one moment the seat is back on the record precisely to finish it.
 //
 // ONE SOURCE FOR BOTH READERS. The same two subqueries sat inline in the correction gate and in the
 // sentence the ruling refusal offers, and either could have moved without the other.
 const sittingBeforeAndNowSQL = `SELECT
-    (SELECT count(*) FROM (` + openingRegistersOfSeatSQL + `) WHERE "id" < ?2),
-    (SELECT count(*) FROM (` + openingRegistersOfSeatSQL + `))`
+    (SELECT count(*) FROM "sittings" WHERE "seat_id" = ?1 AND "id" < ?2),
+    (SELECT count(*) FROM "sittings" WHERE "seat_id" = ?1)`
 
 // CorrectionKeyPrefix is the key segment every Correction event carries: `<seat>:correction:<K>`.
 // A retry of the same correction collides on it, which is what makes the retry idempotent.
@@ -359,7 +358,7 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 	case !errors.Is(err, sql.ErrNoRows):
 		return nil, err
 	}
-	// F6: THE SAME SITTING. The target's sitting is the writer's opening registers before it; the
+	// F6: THE SAME SITTING. The target's sitting is the writer's sittings opened before it; the
 	// writer's current sitting is all of them.
 	var before, now int
 	if err := tx.QueryRow(sittingBeforeAndNowSQL,

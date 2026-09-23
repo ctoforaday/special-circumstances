@@ -26,7 +26,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
 )
 
-// chairRegister opens an epoch: the epoch is the count of red-chair registers at or before an
+// chairRegister opens an epoch: the epoch is the count of red-chair sittings at or before an
 // event (record.Clock), so a fixture that means "in epoch N" must seat the chair N times. The
 // seat id used to carry the number (red-chair-r2); it carries nothing now, and a seat that does
 // not register is in epoch 0 whatever it is called.

@@ -53,7 +53,7 @@ func recognized(m string) bool { return modeltier.Recognized(m) }
 
 // Row is one agent's summed, priced usage.
 //
-// Epoch is the dispatch cycle the agent's sitting belongs to — the chair's register count at the
+// Epoch is the dispatch cycle the agent's sitting belongs to — the chair's sitting count at the
 // seat's own register (plans/roundless.md §III.A.0) — and it comes from the RECORD, never from
 // the transcript: ScanTranscript leaves it 0 and the caller binds it through SeatBindings. 0 is
 // also what a bookend seat (frontier, lanes, synthesis: before the first chair sitting) and an
@@ -135,7 +135,7 @@ func ScanTranscript(txt string) Row {
 
 // SeatBinding is what the record says about one harness agent: the seat its register named, and
 // the two windows that register sat in — the EPOCH (chair registers at or before it) and the
-// SITTING (this seat's own register count, that register included).
+// SITTING (this seat's own sitting count, the opening that began it included).
 type SeatBinding struct {
 	SeatID  string
 	Epoch   int

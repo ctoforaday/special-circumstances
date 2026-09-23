@@ -1513,7 +1513,7 @@ func logSection(evs []*record.Event) string {
 	// A SEAT THAT SAT AND FILED NOTHING LOOKED AND FOUND NOTHING. The harness brackets every
 	// dispatch, so this is read off the record rather than asserted by the seat.
 	for _, l := range record.Listing(evs) {
-		if seat, opens := record.SeatOpeningSitting(l.Event); opens && !spoke[seat] && !named[seat] {
+		if seat, opens := recordpb.SeatOpeningSitting(l.Event); opens && !spoke[seat] && !named[seat] {
 			named[seat] = true
 			attested = append(attested, fmt.Sprintf("- **%s**", seat))
 		}

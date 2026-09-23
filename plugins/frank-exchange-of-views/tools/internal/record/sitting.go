@@ -341,7 +341,7 @@ func seatDidThisSitting(evs []*Event, seatID string, typ recordpb.EventType) boo
 	live := Live(evs)
 	start := 0
 	for i, e := range live {
-		if s, opens := SeatOpeningSitting(e); opens && s == seatID {
+		if s, opens := recordpb.SeatOpeningSitting(e); opens && s == seatID {
 			start = i
 		}
 	}
@@ -371,7 +371,7 @@ func sittingRecordedNothing(evs []*Event, seatID string) bool {
 	start := 0
 	opened := false
 	for i, e := range live {
-		if s, opens := SeatOpeningSitting(e); opens && s == seatID {
+		if s, opens := recordpb.SeatOpeningSitting(e); opens && s == seatID {
 			start, opened = i, true
 		}
 	}

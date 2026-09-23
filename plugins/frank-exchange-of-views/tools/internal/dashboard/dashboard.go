@@ -32,8 +32,8 @@ type Seat struct {
 	Occasion string
 	// Epoch and Sitting are the record's two windows at this agent's register (plans/roundless.md
 	// §III.A.0), read off the register event the journal's agentId joins to — NOT parsed out of the
-	// transcript head. Epoch is the chair's register count at that moment (the dispatch cycle the
-	// sitting belongs to); Sitting is this seat's own register count (the ordinal the label
+	// transcript head. Epoch is the chair's sitting count at that moment (the dispatch cycle the
+	// sitting belongs to); Sitting is this seat's own sitting count (the ordinal the label
 	// carries). Both are 0 when the record never bound the agent — a run whose hook did not fire,
 	// or no record yet — and 0 is also the honest epoch of a bookend seat that sat before the
 	// chair ever did.

@@ -654,7 +654,7 @@ func TestLogSectionRendered(t *testing.T) {
 		recordtest.Event(t, "blue-respond", &recordpb.Log{Text: proto.String("manifest cap fights methodology gaps"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 		// A SEAT THAT SAT AND FILED NOTHING is named in its own section, not among the problems.
 		// It asserts nothing: the harness bracket is the whole evidence, so the seat spends no call.
-		recordtest.Event(t, record.HarnessSeat, &recordpb.SittingOpen{AgentId: proto.String("agent-judge-1"), AgentType: proto.String("frank-exchange-of-views:lead-judge")}),
+		recordtest.Event(t, record.HarnessSeat, &recordpb.SittingOpen{AgentId: proto.String("agent-judge-1"), AgentType: proto.String("frank-exchange-of-views:lead-judge"), SeatId: proto.String("judge")}),
 		recordtest.Event(t, "red-chair", &recordpb.Mint{Problem: proto.String("not a log entry")}),
 	}
 	f := logSection(evs)

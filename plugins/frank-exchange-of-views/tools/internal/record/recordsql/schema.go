@@ -47,11 +47,33 @@ CREATE TABLE "events" (
   -- The key is the fact that has to be unique, and the partial index below enforces it globally.
   -- This was UNIQUE (seat_id, nonce, seq): a counter nothing read, scoped by a sitting that no
   -- longer exists. Both are gone.
-  "key"     TEXT
+  "key"     TEXT,
+  -- THE SITTING IS A FIELD, NOT A NUMBER EACH READER RECOUNTS (#1151). It is the id of the event
+  -- that OPENED the sitting this act belongs to; an opening event's own id, for itself. NULL is
+  -- the honest answer for a row with no sitting open for its seat — the harness's own bookkeeping,
+  -- and anything a seat writes before it has registered.
+  --
+  -- It is stamped by recordpb.SeatOpeningSitting at the write, inside the inserting transaction,
+  -- and no reader re-derives it. Five readers used to recount openings for themselves and two of
+  -- the spellings had already drifted: the events_w window counted EVERY register while the
+  -- idempotency key's count excluded a repair, so one seat's repair sitting was 2 to the view and
+  -- 1 to the key. A stored id cannot disagree with itself.
+  --
+  -- It is not a value a SEAT can stamp wrong, which is the objection the two windows were built to
+  -- answer: nothing on the wire carries it, the foreign key requires the event it names to exist,
+  -- and the only thing a seat can do to move it is open a sitting.
+  "sitting_id" INTEGER REFERENCES "events" ("id"),
+  -- A REGISTER WITHOUT A SITTING IS UNREPRESENTABLE, and that is what retires the degradation rule
+  -- this column replaces. A register either opens a sitting (its own id) or repairs one (the id it
+  -- repairs), so NULL here means the row went in without the write path deciding — a forged event,
+  -- which the readers used to have to agree about in six places and disagreed about in three. It is
+  -- refused instead: the forger holds the file, but it does not hold the trigger.
+  CHECK ("type" <> 'register' OR "sitting_id" IS NOT NULL)
 ) STRICT;
 
 CREATE UNIQUE INDEX "events_key" ON "events" ("key") WHERE "key" IS NOT NULL;
 CREATE INDEX "events_type" ON "events" ("type");
+CREATE INDEX "events_sitting" ON "events" ("sitting_id");
 
 CREATE TRIGGER "events_are_append_only_update" BEFORE UPDATE ON "events" BEGIN
   SELECT RAISE(ABORT, 'the record is append-only: an event cannot be edited after it is written');

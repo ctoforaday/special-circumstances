@@ -29,7 +29,7 @@ func writeScript(t *testing.T, runDir, name, body string) {
 
 func mintComputation(t *testing.T, runDir, key string) {
 	t.Helper()
-	registerChairOnce(t, runDir) // the chair sits first: the epoch is its register count
+	registerChairOnce(t, runDir) // the chair sits first: the epoch is its sitting count
 	registerLensOnce(t, runDir)  // and the lens mints
 	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", key, "--class", "unverified-arithmetic",

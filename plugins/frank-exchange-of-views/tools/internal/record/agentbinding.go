@@ -49,30 +49,28 @@ func SeatOfAgent(run Run, agentID string) (string, bool, error) {
 	// never looking, and could only know it need not look BY looking. Measured: 8 of 9 sittings
 	// with nothing owed registered anyway, which is the tool's answer rather than the seat's.
 	//
-	// SubagentStart writes sitting_open with the agent's id and configuration, and one
-	// configuration seats exactly one seat for every role but blue's lanes — the same mapping
-	// dispatch readiness already trusts through SeatOpeningSitting. Where that mapping is
-	// ambiguous SeatOfAgentType returns false and the seat registers as before, so blue's
-	// register stays load-bearing rather than guessed at.
-	var agentType string
-	found, err = queryRow(run, []any{&agentType},
-		`SELECT "agent_type" FROM "sitting_open"
+	// SubagentStart writes sitting_open with the agent's id and configuration, and the WRITER
+	// resolves that configuration to a seat and stores it (#1149) — one seat for every role but
+	// blue's lanes. So the seat is READ here rather than re-derived: the roster join has exactly
+	// one caller, at the one moment it is knowable, and a bracket whose configuration seats
+	// several carries no seat, leaving blue's register load-bearing rather than guessed at.
+	var seatID string
+	found, err = queryRow(run, []any{&seatID},
+		`SELECT COALESCE("seat_id", '') FROM "sitting_open"
 		  WHERE "agent_id" = ? ORDER BY "event_id" DESC LIMIT 1`, agentID)
-	if err != nil || !found {
+	if err != nil || !found || seatID == "" {
 		return "", false, err
 	}
-	if s, ok := SeatOfAgentType(agentType); ok {
-		return s, true, nil
-	}
-	return "", false, nil
+	return seatID, true, nil
 }
 
-// SittingsOf is how many sittings a seat has opened — registers AND harness brackets, which is the number
-// Clock and events_w give its latest sitting.
+// SittingsOf is how many sittings a seat has opened — its own registers AND the harness brackets
+// that name it, less the registers that repair a sitting rather than open one. It is the number
+// events_w gives as its latest sitting, read off the same rows rather than counted a second way.
 func SittingsOf(run Run, seatID string) (int, error) {
 	var n int
 	if _, err := queryRow(run, []any{&n},
-		`SELECT count(*) FROM (`+openingRegistersOfSeatSQL+`)`, seatID); err != nil {
+		`SELECT count(*) FROM "sittings" WHERE "seat_id" = ?`, seatID); err != nil {
 		return 0, err
 	}
 	return n, nil

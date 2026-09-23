@@ -230,7 +230,7 @@ func passLensGateOf(evs []*Event, ids []int64, fresh map[string]bool) passLensGa
 		if e.GetSeatId() != chairSeat {
 			continue
 		}
-		if opensASitting(e) {
+		if recordpb.OpensASitting(e) {
 			break
 		}
 		if sc, ok := recordpb.BodyAs[*recordpb.SpotCheck](e); ok {

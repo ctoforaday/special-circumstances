@@ -67,7 +67,7 @@ func seatRunReport(t *testing.T, body string) string {
 // exercise it passes its own quote.
 func mintGap(t *testing.T, runDir, key, class string) string {
 	t.Helper()
-	// The chair sits before anyone mints: the epoch is the count of chair registers, and a gap's
+	// The chair sits before anyone mints: the epoch is the count of chair sittings, and a gap's
 	// minted_epoch is read by the convergence checks. Then the lens sits, because it is the seat
 	// that mints.
 	registerChairOnce(t, runDir)
@@ -231,7 +231,7 @@ func TestAllFourSeatsWriteIntoOneReadableRecord(t *testing.T) {
 const lensSeat = "red-lens-evidence"
 
 // registerChairOnce makes sure red-chair has registered on this run — ONCE, whatever path did it.
-// The epoch is the count of chair registers, so a fixture with no chair on the record writes every
+// The epoch is the count of chair sittings, so a fixture with no chair on the record writes every
 // gap into epoch 0, and one that registered blindly on a run whose staged board had already seated
 // the chair opened epoch 2. Both are wrong. The record is asked, not a Go map: the map cannot see a
 // register the board builder wrote.

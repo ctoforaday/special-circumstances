@@ -55,7 +55,7 @@ const ConfigKey = "maxSittingCalls"
 const Dir = ".sitting-calls"
 
 // Header is what register writes: which seat the agent sits as and which of that seat's sittings
-// is open. The sitting number is the record's own (the seat's register count).
+// is open. The sitting number is the record's own (the seat's sitting count).
 type Header struct {
 	SeatID  string `json:"seatId"`
 	Sitting int    `json:"sitting"`

@@ -478,11 +478,14 @@ func requireGradeMotionAsksForAChange(run Run, g *recordpb.GradeMotion) error {
 // refused rather than silently written twice.
 func deriveKey(tx *sql.Tx, seatID string, typ recordpb.EventType, body proto.Message) (string, error) {
 	slug := recordpb.Word(typ)
-	// COUNTS OPENINGS, NOT REGISTERS. A seat woken with nothing to do need not register (#1089), so
-	// counting registers alone left it on sitting 0 for every sitting it ever had — and a singleton
-	// act in its second sitting then keyed identically to its first and was refused as a duplicate.
+	// IT ASKS THE RECORD WHICH SITTING, IT DOES NOT WORK IT OUT. `sittings` is the stored fact
+	// (recordsql/views.go): one row per opening, register or harness bracket, stamped at the write.
+	// Counting registers here left a seat woken with nothing to do (#1089) on sitting 0 for every
+	// sitting it ever had, so a singleton act in its second sitting keyed identically to its first
+	// and was refused as a duplicate; counting openings here fixed that number and left the view
+	// counting a different one.
 	var sitting int
-	if err := tx.QueryRow(`SELECT count(*) FROM (`+openingRegistersOfSeatSQL+`)`,
+	if err := tx.QueryRow(`SELECT count(*) FROM "sittings" WHERE "seat_id" = ?`,
 		seatID).Scan(&sitting); err != nil {
 		return "", fmt.Errorf("record: counting %s's sittings for its key: %w", seatID, err)
 	}
