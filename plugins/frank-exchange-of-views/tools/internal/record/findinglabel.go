@@ -3,49 +3,40 @@ package record
 import (
 	"database/sql"
 	"fmt"
-	"regexp"
 )
 
-// A lens role segment in a seat id: "red-lens-adversary" -> "adversary". The role is the
-// stable identity of a lens across sittings — its AREA, which names what it audits — so a finding
-// label built from it stays comparable run-wide.
+// THE AREA IS A FIELD ON THE ROSTER, NOT A SEGMENT THIS FILE LIFTS BACK OFF THE ID.
 //
-// ONE SHAPE. Records written while lenses were numbered positions (`red-lens-r3-L2`, labelled
-// `L2-F1`) are MIGRATED to this shape (migrate/remap.go, plans/roundless.md §III.A.5) and never
-// read live, so there is no second arm here for them.
-var roleRe = regexp.MustCompile(`^red-lens-([a-z]+(?:-[a-z]+)*)$`)
+// It was `^red-lens-([a-z]+(?:-[a-z]+)*)$` here and `^red-lens-(.+)$` in roster.go: one fact,
+// two expressions, spelled differently and compared by nothing. The first refused
+// `red-lens-evidence-oops` and the second returned `evidence-oops` for it. Both are gone —
+// record.AreaOf reads the roster, whose lens rows are generated from the areas the engine
+// declares, so an area that is not one cannot be returned.
+//
+// Records written while lenses were numbered positions (`red-lens-r3-L2`, labelled `L2-F1`) are
+// MIGRATED to this shape (migrate/remap.go, plans/roundless.md §III.A.5) and never read live.
 
-// RoleOf extracts a lens role from a seat id ("red-lens-adversary" -> "adversary"); empty if the
-// seat id carries no role segment.
-func RoleOf(seatID string) string {
-	m := roleRe.FindStringSubmatch(seatID)
-	if m == nil {
-		return ""
-	}
-	return m[1]
-}
-
-// NextFindingLabel assigns the next run-unique finding label for a lens role:
+// NextFindingLabel assigns the next run-unique finding label for a lens area:
 // L2-F1, L2-F2, … The label is TOOL-assigned (a lens no longer invents it — that
 // produced colliding L5-F1s across lenses that made 39 of 60 disposals ambiguous
 // in run 3). The sequence spans ALL rounds so a `found_by` credit naming a label
-// is unambiguous run-wide; the scan mirrors MintGapID. A seat id with no role is
+// is unambiguous run-wide; the scan mirrors MintGapID. A seat id with no area is
 // an error — a finding that cannot name its lens cannot be attributed.
 func NextFindingLabel(run Run, seatID string) (string, error) {
-	role := RoleOf(seatID)
-	if role == "" {
-		return "", fmt.Errorf("finding label: seat id %q carries no lens role (expected red-lens-<area>)", seatID)
+	area := AreaOf(seatID)
+	if area == "" {
+		return "", fmt.Errorf("finding label: seat id %q carries no lens area (expected red-lens-<area>)", seatID)
 	}
 	// substr, not LIKE: a prefix compared byte-for-byte cannot be surprised by a metacharacter
 	// the way a pattern could, and HasPrefix was a byte compare.
-	prefix := role + "-F"
+	prefix := area + "-F"
 	var n int
 	if _, err := queryRow(run, []any{&n},
 		`SELECT count(*) FROM "finding" WHERE substr(COALESCE("label", ''), 1, ?) = ?`,
 		len(prefix), prefix); err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s-F%d", role, n+1), nil
+	return fmt.Sprintf("%s-F%d", area, n+1), nil
 }
 
 // existingFindingByKey returns the label of a prior finding this seat recorded

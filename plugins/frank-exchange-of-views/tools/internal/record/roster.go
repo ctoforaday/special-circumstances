@@ -1,7 +1,7 @@
 package record
 
 import (
-	"regexp"
+	"fmt"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 
@@ -55,28 +55,10 @@ import (
 // REJECTED — a resume legitimately reduces that ceiling (the standing stop-and-resume practice), so
 // the bound would refuse seats from the run's own earlier epochs. The shape is what can be checked
 // without a second copy of the engine's dispatch logic living over here and drifting.
-type seatShape struct {
-	role string
-	re   *regexp.Regexp
-	// base is the seat name internal/seatclass keys its tier class on. The shape table already
-	// owns the ID grammar, so this is where an id becomes a class — the alternative was a second
-	// regex ladder over seat ids living in seatclass, which is the same fact with two authors.
-	//
-	// EMPTY FOR THE OPERATOR, which is not a debating seat and rides no tier.
-	base   string
-	sample string // drives the drift test; never used at runtime
-}
-
-var seatShapes = []seatShape{
-	{"lens", regexp.MustCompile(`^red-lens-[a-z]+(?:-[a-z]+)*$`), "red-lens", "red-lens-evidence"},
-	{"chair", regexp.MustCompile(`^red-chair$`), "red-chair", "red-chair"},
-	{"blue", regexp.MustCompile(`^blue-lane-\d+$`), "blue-lane", "blue-lane-1"},
-	{"blue", regexp.MustCompile(`^blue-respond$`), "blue-respond", "blue-respond"},
-	{"blue", regexp.MustCompile(`^blue-synthesize$`), "blue-synthesize", "blue-synthesize"},
-	{"blue", regexp.MustCompile(`^frontier$`), "frontier", "frontier"},
-	{"bench", regexp.MustCompile(`^judge$`), "judge", "judge"},
-	{OperatorRole, regexp.MustCompile(`^` + OperatorRole + `$`), "", OperatorRole},
-}
+// THE ROSTER ITSELF LIVES IN internal/seatclass, one level down, because internal/reportvoice
+// needs the same list and this package imports reportvoice. The reason is stated there, at the
+// list. What stays here is what a seat may DO with an id: whether the engine could have produced
+// it, which tier it rides, and which area it audits.
 
 // TierClassOfSeat maps a dispatched seat id to the tier class the engine dispatched it on, or ""
 // for a seat that rides no tier (the operator) and for an id no dispatch could have produced.
@@ -85,57 +67,43 @@ var seatShapes = []seatShape{
 // caller: there is no configured tier to hold this seat to. An unrecognised id is already refused
 // at the door by requireDispatchableSeat, so it cannot reach the tier check as a silent pass.
 func TierClassOfSeat(seatID string) string {
-	for _, s := range seatShapes {
-		if s.re.MatchString(seatID) {
-			return seatclass.ClassOf(s.base)
-		}
+	if s, ok := seatclass.Seats[seatID]; ok {
+		return seatclass.ClassOf(s.Base)
+	}
+	if seatclass.LaneSeat.MatchString(seatID) {
+		return seatclass.ClassOf("blue-lane")
 	}
 	return ""
 }
+
+// AreaOf is the strategic area a lens seat audits, or "" for a seat that audits none.
+//
+// IT WAS CALLED RoleOf AND RETURNED AN AREA. `role` is a governed noun in the terms registry —
+// it is what selects a seat's SURFACE (lens, chair, blue, bench, operator) — so a function named
+// for it that hands back `evidence` was the same word in two senses, which reads as confirmation
+// to anyone checking. The area is a field now and the name says which fact it is.
+func AreaOf(seatID string) string { return seatclass.Seats[seatID].Area }
 
 // LensAreas are the strategic areas a lens seat can be dispatched for — one seat each, and the
 // name IS the identity (#791). ALIASED from internal/flags, which declares it: internal/record
 // imports that package, so a second copy here is the one thing this arrangement exists to stop.
 //
-// MEMBERSHIP, NOT JUST SHAPE. The pattern above bounds a lens id to a hyphenated word, which
-// would admit `red-lens-evidence-oops`. This list is what makes the id refusable: an area the
-// engine does not dispatch is not an area. TestTheLensAreasMatchWhatTheEngineDeclares holds it
-// against debate.js's own RED_AREAS, so adding an area there and not here fails.
+// It is what GENERATES the lens rows above, so membership and shape are no longer two questions
+// with two answers: an id is a lens seat exactly when this list named its area.
+// TestTheLensAreasMatchWhatTheEngineDeclares holds it against debate.js's own RED_AREAS, so
+// adding an area there and not here fails.
 var LensAreas = flags.LensAreas
-
-// lensAreaRe lifts the area off a lens seat id. It is a SECOND read of the shape the seat pattern
-// already matched, and deliberately so: the pattern answers "is this a lens id", this answers
-// "which area", and collapsing them would make the shape table carry seven alternatives that
-// skeletonOfPattern could not compare against debate.js.
-var lensAreaRe = regexp.MustCompile(`^red-lens-(.+)$`)
-
-func isLensArea(s string) bool {
-	for _, a := range LensAreas {
-		if a == s {
-			return true
-		}
-	}
-	return false
-}
 
 // dispatchableSeatID reports whether an id is one the engine's naming scheme can produce.
 //
 // A PETITION IS NO LONGER A SEAT ID. It was `judge-petition-<petitioner>`, which made who filed
 // part of the bench's identity; it is now a question put to `judge` for one sitting, and who
-// filed is on the petition it rules. See the bench note above the shape table.
+// filed is on the petition it rules. See the bench note above the roster.
 func dispatchableSeatID(seatID string) bool {
-	for _, s := range seatShapes {
-		if !s.re.MatchString(seatID) {
-			continue
-		}
-		// A lens id's tail is an AREA, and the shape alone cannot say whether it is one.
-		if s.role == "lens" {
-			m := lensAreaRe.FindStringSubmatch(seatID)
-			return m != nil && isLensArea(m[1])
-		}
+	if _, ok := seatclass.Seats[seatID]; ok {
 		return true
 	}
-	return false
+	return seatclass.LaneSeat.MatchString(seatID)
 }
 
 // requireDispatchableSeat refuses an id no dispatch could have produced.
@@ -153,4 +121,38 @@ func requireDispatchableSeat(seatID string) error {
 			"stated in your prompt as SEAT_ID; copy it exactly. If it IS what your prompt says, that is a defect "+
 			"in the dispatch rather than in your call, and the log is where it goes",
 		seatID)
+}
+
+// EVERY ROLE HAS A SAMPLE AND EVERY SAMPLE IS A REAL ID.
+//
+// roleSample is the one hand-written table left in this file, kept because which seat stands for
+// a role is a choice rather than a fact (see roles.go). A hand-written table with no gate is the
+// defect one level up, so this is the gate: a role on the roster with no sample builds no
+// command tree, and a sample no dispatch could produce walks a surface that does not exist.
+func rolesAndSamplesAgree() error {
+	for _, s := range seatclass.Seats {
+		if _, ok := roleSample[s.Role]; !ok {
+			return fmt.Errorf("role %q is on the roster and has no sample seat, so nothing can build its command tree", s.Role)
+		}
+	}
+	for role, id := range roleSample {
+		if !dispatchableSeatID(id) {
+			return fmt.Errorf("role %q samples %q, which is not an id the engine dispatches", role, id)
+		}
+		if r := roleOfSeatID(id); r != role {
+			return fmt.Errorf("role %q samples %q, whose own role is %q", role, id, r)
+		}
+	}
+	return nil
+}
+
+// roleOfSeatID is the role a seat id is dispatched under, or "" for an id that is not one.
+func roleOfSeatID(seatID string) string {
+	if s, ok := seatclass.Seats[seatID]; ok {
+		return s.Role
+	}
+	if seatclass.LaneSeat.MatchString(seatID) {
+		return "blue"
+	}
+	return ""
 }

@@ -115,7 +115,7 @@ func LensMintBudget(run Run, seatID string) (LensBudget, error) {
 	if err != nil {
 		return LensBudget{}, err
 	}
-	return lensBudgetAt(run, RoleOf(seatID), p.MintBudget)
+	return lensBudgetAt(run, AreaOf(seatID), p.MintBudget)
 }
 
 func lensBudgetAt(run Run, area string, floor int) (LensBudget, error) {
@@ -173,7 +173,17 @@ func requireMintWithinBudget(run Run, seatID string) error {
 	if roleOfSeat(seatID) != "lens" {
 		return nil
 	}
-	area := RoleOf(seatID)
+	// THE AREA IS A FIELD ON THE ROSTER, SO AN ID OFF THE ROSTER HAS NONE. It used to be cut off
+	// the seat id, which handed `red-lens-banana` the area "banana" and then refused THAT — a
+	// refusal naming an area the engine has never heard of, for a seat id no dispatch produces.
+	// requireDispatchableSeat refuses such an id at `register` and it should never reach here; if
+	// it does, the seat is what is wrong with it, not its area.
+	area := AreaOf(seatID)
+	if area == "" {
+		return feov.Errorf(feov.Validation,
+			"record: mint refused — %q is not a lens seat on the engine's roster, so there is no area to size a mint budget for",
+			seatID)
+	}
 	if _, err := mintScaleOf(area); err != nil {
 		return feov.Errorf(feov.Validation, "record: mint refused — %s: %v", seatID, err)
 	}

@@ -1,6 +1,7 @@
 package record
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"os"
 	"path/filepath"
 	"strings"
@@ -134,16 +135,21 @@ func TestConsentIsNotInferredFromAnAbsentField(t *testing.T) {
 	}
 }
 
-// The seat-id grammar and the tier-class table are two lists, and TierClassOfSeat is the join.
-// A shape whose base is not a key in seatclass would silently make that whole seat class ungated.
+// The roster and the tier-class table are two lists, and TierClassOfSeat is the join. A seat
+// whose base is not a key in seatclass would silently make that whole seat class ungated.
 func TestEverySeatShapeJoinsToATierClass(t *testing.T) {
-	for _, s := range seatShapes {
-		if s.base == "" {
+	for id, s := range seatclass.Seats {
+		if s.Base == "" {
 			continue // the operator, deliberately
 		}
-		if got := TierClassOfSeat(s.sample); got != "bulk" && got != "judgment" {
-			t.Errorf("seat %s (base %q) has no tier class — that class of seat would never be gated", s.sample, s.base)
+		if got := TierClassOfSeat(id); got != "bulk" && got != "judgment" {
+			t.Errorf("seat %s (base %q) has no tier class — that class of seat would never be gated", id, s.Base)
 		}
+	}
+	// A lane is not on the roster — its id cannot be enumerated (#1153b) — so it is the one seat
+	// whose tier join would go unchecked by the loop above.
+	if got := TierClassOfSeat(SampleSeatOf("blue")); got != "bulk" {
+		t.Errorf("a lane seat has tier class %q, want bulk — lanes would never be gated", got)
 	}
 	// A PETITION SITTING IS NO LONGER ITS OWN SEAT, so there is nothing handled apart from the
 	// table any more: it is the bench answering a different question, and the loop above already

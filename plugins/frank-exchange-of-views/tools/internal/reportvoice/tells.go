@@ -22,6 +22,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // Class is what KIND of thing leaked, because the destinations differ. Process voice belongs on
@@ -70,8 +72,9 @@ var tells = []Tell{
 		"which party said it is the record's; say what is true of the subject", false},
 	{ProcessVoice, regexp.MustCompile(`(?i)\b(epoch|sitting) #?\d+\b`),
 		"when in the run it happened is the record's; the report says what holds now", false},
-	// SEAT AND LENS IDS. The roster's own spellings, which no subject uses.
-	{ProcessVoice, regexp.MustCompile(`\b(red-lens-[a-z-]+|red-chair|blue-(respond|synthesize|lane-\d+)|judge-terminal)\b`),
+	// SEAT AND LENS IDS. The roster's own spellings, which no subject uses. GENERATED — see
+	// seatIDTell.
+	{ProcessVoice, seatIDPattern(),
 		"a seat id names who acted in the run; say what is wrong with the subject", true},
 	// FINDING LABELS: an area joined to F<n>, the tool's label shape.
 	{ProcessVoice, regexp.MustCompile(`\b[a-z-]+-F\d+\b`),
@@ -95,6 +98,31 @@ var tells = []Tell{
 		"the proof store holds the program; the report carries what it SHOWED", false},
 	{Apparatus, regexp.MustCompile(`\bPDF pp?\. ?\d`),
 		"the tool renders a citation's PDF page at its marker from the record; a typed page is a second copy that nothing keeps true", false},
+}
+
+// seatIDPattern is the seat-id tell, BUILT FROM THE ROSTER rather than typed out beside it.
+//
+// IT WAS TYPED OUT BESIDE THE ROSTER, AND IT CARRIED A SEAT THE ROSTER NO LONGER HAS. The
+// alternation guarded `judge-terminal`, collapsed into `judge` by #1070 — a guard spent on a name
+// no dispatch can produce, for every run since. That is the cheap half of the cost. The
+// expensive half is that the same list omitted `judge` and `frontier` DELIBERATELY, because both
+// are ordinary English words, and nothing distinguished that omission from having forgotten them.
+// A hand-kept list holds its considered choices and its oversights in the same silence.
+//
+// Generated from the roster, a seat that leaves it leaves this gate too, and one that joins is
+// guarded from its first run. The ids that cannot be guarded by NAME say so on the roster
+// (seatclass.Seat.CommonWord) instead of being missing from here.
+func seatIDPattern() *regexp.Regexp {
+	ids := make([]string, 0, len(seatclass.Seats))
+	for _, id := range seatclass.SeatIDs() {
+		if seatclass.Seats[id].CommonWord {
+			continue
+		}
+		ids = append(ids, regexp.QuoteMeta(id))
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(ids))) // longest-first among shared prefixes
+	lane := strings.TrimSuffix(strings.TrimPrefix(seatclass.LaneSeat.String(), "^"), "$")
+	return regexp.MustCompile(`\b(` + strings.Join(ids, "|") + "|" + lane + `)\b`)
 }
 
 // Tells is the whole list, and the only way to get it.

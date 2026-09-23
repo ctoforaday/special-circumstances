@@ -1110,7 +1110,7 @@ func FindingsJSONOf(evs []*Event) FindingsJSON {
 			Anchor: f.GetFindingId(),
 			SeatID: e.GetSeatId(),
 			Epoch:  w.Epoch,
-			Role:   RoleOf(e.GetSeatId()),
+			Role:   AreaOf(e.GetSeatId()),
 			// `reason` WAS THE PAYLOAD KEY; `text` IS THE FIELD. Finding carries one prose
 			// channel and this is it — there is no Finding.reason.
 			Location:  f.GetLocation(),

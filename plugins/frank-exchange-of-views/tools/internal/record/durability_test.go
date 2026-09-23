@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"os"
 	"path/filepath"
 	"strings"
@@ -210,19 +211,21 @@ func TestRegisterSeatRefusesAnIdNoDispatchProduces(t *testing.T) {
 }
 
 // THE ROSTER AND THE ROLE TABLE MUST NOT FORK. roleSeats matches PREFIXES for role lookup and
-// seatShapes matches whole ids for legitimacy — two statements of one vocabulary, which is exactly
-// the shape that drifts. Each shape's sample must land in its own role, and every role must have at
-// least one shape, so a role added to one table without the other fails here.
+// the roster holds whole ids for legitimacy — two statements of one vocabulary, which is exactly
+// the shape that drifts. Every roster id must land in its own role, and every role must have at
+// least one id, so a role added to one table without the other fails here.
 func TestTheRosterAndTheRoleTableAgree(t *testing.T) {
 	covered := map[string]bool{}
-	for _, s := range seatShapes {
-		if got := roleOfSeat(s.sample); got != s.role {
-			t.Errorf("shape sample %q is role %q by the roster and %q by roleSeats", s.sample, s.role, got)
+	for id, s := range seatclass.Seats {
+		if got := roleOfSeat(id); got != s.Role {
+			t.Errorf("roster id %q is role %q by the roster and %q by roleSeats", id, s.Role, got)
 		}
-		if !s.re.MatchString(s.sample) {
-			t.Errorf("shape sample %q does not match its own pattern %s", s.sample, s.re)
-		}
-		covered[s.role] = true
+		covered[s.Role] = true
+	}
+	// The lane shape is the roster's one remaining pattern (#1153b retires it), so its sample
+	// carries it here rather than being the one id nothing reconciles.
+	if lane := SampleSeatOf("blue"); roleOfSeat(lane) != "blue" {
+		t.Errorf("lane sample %q is role %q by roleSeats, not blue", lane, roleOfSeat(lane))
 	}
 	for role := range roleSeats {
 		if !covered[role] {

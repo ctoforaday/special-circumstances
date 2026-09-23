@@ -22,8 +22,8 @@ func TestRoleOf(t *testing.T) {
 		"judge":       "",
 	}
 	for seat, want := range cases {
-		if got := RoleOf(seat); got != want {
-			t.Errorf("RoleOf(%q) = %q, want %q", seat, got, want)
+		if got := AreaOf(seat); got != want {
+			t.Errorf("AreaOf(%q) = %q, want %q", seat, got, want)
 		}
 	}
 }

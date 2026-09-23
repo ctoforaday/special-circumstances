@@ -1,6 +1,7 @@
 package record
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -61,19 +62,23 @@ func skeletonOfTemplate(arg string) (string, bool) {
 	return s, true
 }
 
-// skeletonOfPattern reduces a roster pattern to the same shape.
+// skeletonOfPattern reduces the roster's ONE remaining pattern to the same shape.
 //
-// IT REFUSES WHAT IT DOES NOT UNDERSTAND. `\d+` is the only construct the roster uses for an
-// interpolated segment; any other metacharacter appearing in a future pattern means this
-// reduction is no longer reading the pattern it thinks it is. Returning false there — rather
-// than a best-effort skeleton — is the difference between this gate failing loudly the day the
-// roster grows a construct it cannot handle, and it silently passing every id forever after.
+// IT USED TO REDUCE EIGHT. The roster holds whole ids now, so a dispatched lens is compared by
+// NAME — `red-lens-banana` no longer satisfies this bind by matching a shape, which is the
+// strength a table has and a pattern cannot.
+//
+// IT REFUSES WHAT IT DOES NOT UNDERSTAND. `\d+` is the only construct left; any other
+// metacharacter appearing here means this reduction is no longer reading the pattern it thinks
+// it is. Returning false there — rather than a best-effort skeleton — is the difference between
+// this gate failing loudly the day the lane shape grows a construct it cannot handle, and it
+// silently passing every id forever after.
 func skeletonOfPattern(p string) (string, bool) {
 	s := strings.TrimPrefix(strings.TrimSuffix(p, "$"), "^")
-	// The two interpolated shapes the roster uses, longest first so the compound one is not
-	// half-eaten by the atom inside it. A NUMBER is a round or an index; a HYPHENATED WORD is a
-	// lens area, which is a name rather than a position.
-	s = strings.ReplaceAll(s, `[a-z]+(?:-[a-z]+)*`, hole)
+	// CAPTURING OR NOT IS THE SAME SHAPE. The lane pattern captures its index because
+	// seatclass.LaneIndex reads it; a seat id is no different for the parentheses being there.
+	// Longest first, so the group is not half-eaten by the atom inside it.
+	s = strings.ReplaceAll(s, `(\d+)`, hole)
 	s = strings.ReplaceAll(s, `\d+`, hole)
 	if strings.ContainsAny(s, `\[]()*+?{}|.`) {
 		return "", false
@@ -108,22 +113,39 @@ func TestTheRosterMatchesWhatTheEngineActuallyDispatches(t *testing.T) {
 	}
 	js := string(src)
 
-	shapeSkeletons := map[string]seatShape{}
-	for _, s := range seatShapes {
-		sk, ok := skeletonOfPattern(s.re.String())
-		if !ok {
-			t.Fatalf("roster pattern %s uses a construct this bind does not understand; teach "+
-				"skeletonOfPattern about it rather than leaving the shape unbound", s.re)
-		}
-		shapeSkeletons[sk] = s
+	// The roster is whole ids, so a dispatched literal is looked up rather than matched. The one
+	// pattern left — the lane — is reduced to a skeleton and joins the same map, which is how a
+	// dispatch site that interpolates an index is still bound.
+	admits := map[string]string{} // skeleton or literal id -> the role it is admitted as
+	for id, s := range seatclass.Seats {
+		admits[id] = s.Role
 	}
+	laneSk, ok := skeletonOfPattern(seatclass.LaneSeat.String())
+	if !ok {
+		t.Fatalf("the lane pattern %s uses a construct this bind does not understand; teach "+
+			"skeletonOfPattern about it rather than leaving the shape unbound", seatclass.LaneSeat)
+	}
+	admits[laneSk] = "blue"
 
-	// The one argument that is not a literal, exempted by NAME and then verified rather than
-	// waved through. A petition sitting is named for the seat that petitioned, so its tail is
-	// itself a seat id and it lives outside seatShapes on purpose (see petitionPrefix).
+	// Arguments that are not literals, exempted by NAME and then covered above rather than waved
+	// through: a lens is handed its own id, and a petition sitting is the bench answering for the
+	// seat that petitioned.
 	const petitionVar = "seatID"
 
 	dispatched := map[string]bool{}
+
+	// LENS SEATS ARE DISPATCHED BY NAME, SO THEY BIND BY NAME. `recordClause(seatID)` hands the
+	// lens prompt a variable, which this reduction cannot read and must not guess at — but the
+	// engine declares those ids as the literal KEYS of LENS_DISPATCH, which is a stronger source
+	// than a skeleton: `red-lens-banana` would fail here instead of matching a shape.
+	for _, m := range lensDispatchKey.FindAllStringSubmatch(js, -1) {
+		dispatched[m[1]] = true
+		if _, known := admits[m[1]]; !known {
+			t.Errorf("debate.js seats %q in LENS_DISPATCH and the roster does not carry it — "+
+				"every sitting of that lens is refused at `register`, its first act", m[1])
+		}
+	}
+
 	ms := recordClauseArg.FindAllStringSubmatch(js, -1)
 	for _, m := range ms {
 		arg := strings.TrimSpace(m[1])
@@ -137,8 +159,8 @@ func TestTheRosterMatchesWhatTheEngineActuallyDispatches(t *testing.T) {
 				"seat the roster is no longer checked against", arg)
 			continue
 		}
-		if _, known := shapeSkeletons[sk]; !known {
-			t.Errorf("debate.js dispatches seat id %q and no roster shape matches it — "+
+		if _, known := admits[sk]; !known {
+			t.Errorf("debate.js dispatches seat id %q and the roster does not carry it — "+
 				"requireDispatchableSeat will refuse that seat at `register`, its first act",
 				strings.ReplaceAll(sk, hole, "<n>"))
 			continue
@@ -153,18 +175,18 @@ func TestTheRosterMatchesWhatTheEngineActuallyDispatches(t *testing.T) {
 			"this bind is reading the wrong thing and passing on an empty set", len(ms))
 	}
 
-	for sk, s := range shapeSkeletons {
+	for sk, role := range admits {
 		if dispatched[sk] {
 			continue
 		}
-		// The operator is the one shape with no dispatch, and that is what it IS: the identity a
+		// The operator is the one entry with no dispatch, and that is what it IS: the identity a
 		// human or a script acts under outside the debate. debate.js never seats it.
-		if s.role == OperatorRole {
+		if role == OperatorRole {
 			continue
 		}
-		t.Errorf("roster shape %s is admitted at `register` and debate.js dispatches no seat that "+
-			"matches it — either the dispatch was retired and the shape outlived it, or this bind "+
-			"stopped seeing it", s.re)
+		t.Errorf("the roster admits %q at `register` and debate.js dispatches no seat that matches "+
+			"it — either the dispatch was retired and the entry outlived it, or this bind stopped "+
+			"seeing it", strings.ReplaceAll(sk, hole, "<n>"))
 	}
 }
 
@@ -185,6 +207,11 @@ func TestTheRosterMatchesWhatTheEngineActuallyDispatches(t *testing.T) {
 // report areas the engine never dispatches — which fails this bind in the direction that reads
 // like a defect in the roster.
 var areaBlock = regexp.MustCompile(`(?s)const RED_AREAS = \[(.*?)\]`)
+
+// lensDispatchKey reads the literal seat ids LENS_DISPATCH declares — the engine's own list of
+// which lens seats exist, keyed by the id a lens is told to register as.
+var lensDispatchKey = regexp.MustCompile(`'(red-lens-[a-z-]+)':\s*\{`)
+
 var areaKey = regexp.MustCompile(`'([a-z]+(?:-[a-z]+)*)'`)
 
 // THE AREA LIST IS ONE FACT WITH TWO AUTHORS, so it is bound rather than trusted.
@@ -212,8 +239,11 @@ func TestTheLensAreasMatchWhatTheEngineDeclares(t *testing.T) {
 	declared := map[string]bool{}
 	for _, m := range ms {
 		declared[m[1]] = true
-		if !isLensArea(m[1]) {
-			t.Errorf("debate.js dispatches lens area %q and record.LensAreas does not list it — every seat "+
+		// Asked of the ROSTER, not of a second list: the lens rows are generated from LensAreas, so
+		// a row existing for this area is the same fact as the area being declared — and it is the
+		// fact `register` will actually consult.
+		if AreaOf("red-lens-"+m[1]) != m[1] {
+			t.Errorf("debate.js dispatches lens area %q and the roster carries no seat for it — every seat "+
 				"of that area is refused at register, its first act", m[1])
 		}
 	}
@@ -242,8 +272,8 @@ func TestTheLensAreasMatchWhatTheEngineDeclares(t *testing.T) {
 	}
 	for _, f := range files {
 		a := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(f), "red-lens-"), ".md")
-		if !isLensArea(a) {
-			t.Errorf("%s is a lens configuration for area %q, which record.LensAreas does not list — "+
+		if AreaOf("red-lens-"+a) != a {
+			t.Errorf("%s is a lens configuration for area %q, which the roster carries no seat for — "+
 				"every seat of that area is refused at register", f, a)
 		}
 	}

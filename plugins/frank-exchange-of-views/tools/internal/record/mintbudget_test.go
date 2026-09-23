@@ -68,7 +68,9 @@ func TestEveryLensAreaHasAMintScale(t *testing.T) {
 		}
 	}
 	id := budgetRun(t, 1, 0, 0, "red-lens-evidence")
-	if err := requireMintWithinBudget(id.Run, "red-lens-banana"); err == nil || !strings.Contains(err.Error(), `"banana"`) {
+	// The refusal names the SEAT, not an area cut off it: `banana` is not an area the engine has
+	// ever heard of, and quoting it as one read like a scale that had merely gone missing.
+	if err := requireMintWithinBudget(id.Run, "red-lens-banana"); err == nil || !strings.Contains(err.Error(), `"red-lens-banana"`) {
 		t.Errorf("a lens seat with no scale was not refused by name: %v", err)
 	}
 }

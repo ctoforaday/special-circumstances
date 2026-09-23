@@ -1,6 +1,8 @@
 package record
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
+
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
@@ -39,7 +41,9 @@ import (
 // identity" a MODE — and a mode nobody selects is one nobody can be refused from. Setup, capture,
 // dashboard and the hook backends are run by a party; that party now says so, and the tree is
 // chosen the same way for every caller: by the identity, never by its absence.
-const OperatorRole = "operator"
+// OperatorRole is ALIASED from internal/seatclass, which declares it beside the roster it keys.
+// A second const here would be the same string with two authors.
+const OperatorRole = seatclass.OperatorRole
 
 var roleSeats = map[string][]string{
 	OperatorRole: {OperatorRole},
@@ -99,10 +103,12 @@ func roleOfSeat(seatID string) string {
 
 // PartyOf answers "which party wrote this" from the EVENT, not from its seat id (#348).
 //
-// NOT named RoleOf: that name is taken by the LENS-INDEX reader (findinglabel.go), which
-// extracts "L2" from "red-lens-adversary" and is the concurrency namespace this change must not
-// touch — collapsing it once made 39 of 60 disposals ambiguous. Two different things were about
-// to share one name, which is the collision this whole exercise exists to prevent.
+// NOT named RoleOf, and that name is now free because nothing should take it. What used to hold
+// it read a lens's AREA off its seat id and is called AreaOf; `role` is what selects a seat's
+// SURFACE, which is this file's sense and the terms registry's. Two things were sharing one
+// word, which is the collision this whole exercise exists to prevent — and a seat's area is a
+// namespace whose collapse once made 39 of 60 disposals ambiguous, so it kept a name of its own
+// rather than losing one.
 //
 // The field is stamped at the write. The fallback re-derives from the id only for records
 // written before the field existed — a real corpus this tool still reads — and it is the
@@ -185,16 +191,28 @@ func CheckSeatRole(role, seatID string) error {
 		seatID, strings.Join(prefixes, ", "))
 }
 
-// SampleSeatOf is a seat id of the given role, for building that role's command tree in the gates
-// and the surface walk. Derived from roleSeats so a new role or a renamed prefix cannot leave a
-// hand-written sample pointing at a namespace that no longer exists.
-func SampleSeatOf(role string) string {
-	// From the roster's own example column, not prefix+"r1": a seat id carries no epoch, so the
-	// composition no longer produces an id any dispatch creates.
-	for _, s := range seatShapes {
-		if s.role == role {
-			return s.sample
-		}
-	}
-	return ""
+// roleSample is one seat id per role, for building that role's command tree in the gates and the
+// surface walk.
+//
+// IT IS A CHOICE, NOT A DERIVED FACT, which is why it is written down rather than generated.
+// Every seat of a role is handed the same tree, so which one stands for it changes only what the
+// goldens render — and picking the lowest id by sort would be a derivation that LOOKS principled
+// while quietly answering a question nobody asked.
+//
+// `blue` is a LANE on purpose. It is the one role whose sample can carry a lane id, and a surface
+// walk that never renders one stops covering the id shape that TierClassOfSeat and
+// dispatchableSeatID both still have to accept. TestEveryRoleHasADispatchableSample holds both
+// halves: every value here is an id the engine can produce, and every role on the roster has one.
+var roleSample = map[string]string{
+	"lens":       "red-lens-evidence",
+	"chair":      "red-chair",
+	"blue":       "blue-lane-1",
+	"bench":      "judge",
+	OperatorRole: OperatorRole,
 }
+
+// SampleSeatOf is a seat id of the given role, or "" for a role the roster does not carry.
+//
+// A seat id carries no epoch, so this is a roster id rather than prefix+"r1" — that composition
+// stopped producing an id any dispatch creates.
+func SampleSeatOf(role string) string { return roleSample[role] }
