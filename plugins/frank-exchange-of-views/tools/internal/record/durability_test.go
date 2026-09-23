@@ -20,7 +20,7 @@ import (
 //   - TestAppendAssignsGapFreePerShardSequence — `seq` was the seat's position in its own shard;
 //     nothing read it, and numbering it cost every write a query.
 //   - TestRegisterRotatesTheNonceAndRepointsTheSeat — the nonce named a shard file and the pointer
-//     said which was live. Both are gone; the sitting is the count of a seat's registers.
+//     said which was live. Both are gone; the sitting is the count of a seat's sittings.
 //   - TestAppendImplicitlyRegistersWhenThePointerIsAbsent — there is no pointer to be absent.
 //
 // What they protected is not unprotected: atomicity is the transaction (recordsql.InsertTx),

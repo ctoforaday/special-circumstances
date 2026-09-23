@@ -84,7 +84,7 @@ func repairTarget(evs []*Event, seat string) (string, error) {
 	evs = Live(evs)
 	var latest *Event
 	for _, e := range evs {
-		if opensASitting(e) && e.GetSeatId() == seat {
+		if recordpb.OpensASitting(e) && e.GetSeatId() == seat {
 			latest = e
 		}
 	}
@@ -121,7 +121,7 @@ func checkRepair(evs []*Event, seat, key string) error {
 	if named < 0 {
 		return refuseRepair(claimUnfounded, "%q names no act on the record, so it names no sitting of yours to repair", key)
 	}
-	if !opensASitting(evs[named]) || evs[named].GetSeatId() != seat {
+	if !recordpb.OpensASitting(evs[named]) || evs[named].GetSeatId() != seat {
 		return refuseRepair(claimUnfounded, "%q is not a register that opened a sitting of %s, so it names no sitting of yours to repair", key, seat)
 	}
 	// THE CLAIM CHECK REQUIRES A READABLE TARGET, AND THIS IS WHERE IT PARTS FROM ATTRIBUTION.
@@ -133,7 +133,7 @@ func checkRepair(evs []*Event, seat, key string) error {
 	//
 	// claimUnfounded, not nothingToFile: "nothing to file" tells the seat to open a sitting of its
 	// own, which asserts the unreadable sitting owed nothing — the very fact that cannot be read.
-	if !registerIsReadable(evs[named]) {
+	if !recordpb.RegisterIsReadable(evs[named]) {
 		return refuseRepair(claimUnfounded, "%q is a register of %s whose body this binary cannot read, so the record cannot bear out that its sitting owes what a repair files", key, seat)
 	}
 	opens := registers[seat]

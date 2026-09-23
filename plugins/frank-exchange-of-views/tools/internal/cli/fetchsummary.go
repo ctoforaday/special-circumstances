@@ -84,6 +84,11 @@ type fetchSummary struct {
 	// OCREngineAbsent says the automatic read failed because this binary was built without the
 	// engine — the fact behind one of OCRReason's sentences, as a field.
 	OCREngineAbsent bool `json:"ocr_engine_absent,omitempty"`
+	// TextRetrievedReason says why the bytes are not the source's text where the fetch reached the
+	// source and took its real document — a container or a binary with no reader here. It is the
+	// reason TextRetrieved never had: a bare false is indistinguishable from a fetch that never
+	// happened, and the two license different next moves.
+	TextRetrievedReason string `json:"text_retrieved_reason,omitempty"`
 	// NotRenderable says the bytes are not the document the url names — a challenge, an
 	// unrendered app, or a page with too little prose to be either. It is printed EVEN WHEN text
 	// was extracted, because all three yield a little text — the nav, a cookie banner, the
@@ -96,6 +101,26 @@ type fetchSummary struct {
 	// on it — see fetchcache.TDMReservation.
 	TDMReserved *bool  `json:"tdm_reserved,omitempty"`
 	TDMPolicy   string `json:"tdm_policy,omitempty"`
+	// Retracted, Paratext, WorkType, OAStatus and WorkLicense are what the INDEX says about the
+	// paper — not about this url, and not about these bytes. They are on the summary because a
+	// perfect fetch cannot discover any of them: the pdf of a retracted paper reads exactly like
+	// the pdf of a sound one, and the retraction notice is a separate document the seat never
+	// asked for. OpenAlex answers all five in the record this tool already fetches to find a url.
+	//
+	// REPORTED, NEVER GATED. A retracted paper is a legitimate thing to cite — as retracted — and
+	// so is an editorial, a dataset or a book chapter. The tool's duty is to say what the thing
+	// is; what may be cited is the seat's judgement and the bench's.
+	Retracted   *bool  `json:"retracted,omitempty"`
+	Paratext    *bool  `json:"paratext,omitempty"`
+	WorkType    string `json:"work_type,omitempty"`
+	OAStatus    string `json:"oa_status,omitempty"`
+	WorkLicense string `json:"work_license,omitempty"`
+	// CopyVersion and CopyLicense describe THESE BYTES: which copy of the work arrived, and under
+	// what licence it sits. A submitted preprint and the version of record are different
+	// documents to quote from, and until this was recorded a quote could come from either with
+	// nothing in the summary saying which.
+	CopyVersion string `json:"copy_version,omitempty"`
+	CopyLicense string `json:"copy_license,omitempty"`
 	// TablePages counts pages whose ruled grid the engine detected — their reconstruction
 	// stats live on the reading record. Present only when nonzero, so a prose-only reading
 	// renders without it.
@@ -157,14 +182,20 @@ func summarize(run record.Run, e fetchcache.Entry, bodyLen int, hit bool) fetchS
 		Backend:        e.Backend,
 		// A LIVE FETCH THAT YIELDED A DOCUMENT HAS THE SOURCE'S TEXT. The entry's own flag speaks
 		// only for the recovery path, so it is the wrong answer for the common one.
-		TextRetrieved: e.TextRetrieved || liveTextRetrieved(e),
-		Pages:         e.Pages,
-		TextExtracted: e.TextExtracted,
-		TextSha256:    e.TextSha,
-		TextReason:    e.TextReason,
-		NotRenderable: e.NotRenderable, NotRenderableReason: e.NotRenderableReason,
+		TextRetrieved:       e.TextRetrieved || liveTextRetrieved(e),
+		TextRetrievedReason: e.TextRetrievedReason,
+		Pages:               e.Pages,
+		TextExtracted:       e.TextExtracted,
+		TextSha256:          e.TextSha,
+		TextReason:          e.TextReason,
+		NotRenderable:       e.NotRenderable, NotRenderableReason: e.NotRenderableReason,
 		TDMReserved: e.TDMReserved, TDMPolicy: e.TDMPolicy,
+		CopyVersion: e.CopyVersion, CopyLicense: e.CopyLicense,
 		Extractor: e.Extractor,
+	}
+	if e.Work != nil {
+		s.Retracted, s.Paratext = e.Work.Retracted, e.Work.Paratext
+		s.WorkType, s.OAStatus, s.WorkLicense = e.Work.WorkType, e.Work.OAStatus, e.Work.License
 	}
 	// THE PATH IS NAMED ONLY WHEN THE FILE IS THERE. A text_path pointing at a file that was
 	// never written is worse than no field at all: a seat would Read it, get a not-found, and
@@ -306,9 +337,38 @@ func (s fetchSummary) render() string {
 			"    are separate rights it does not reach. Read and cite this source as you would any other. What it\n"+
 			"    forbids is keeping a corpus of it or training on it, neither of which this tool does.\n")
 	}
+	// A LIVE FETCH THAT GOT BYTES NOBODY CAN READ SAYS SO IN THE HUMAN SUMMARY TOO. The
+	// `text_retrieved` line printed only under `retrieved_via`, so on the live path — the common
+	// one — the flag existed in `--json` and nowhere a seat reading the summary would see it. A
+	// container arrived, the fetch looked like every other success, and only the content type
+	// hinted otherwise.
+	if !s.TextRetrieved && s.RetrievedVia == "" && s.TextRetrievedReason != "" {
+		fmt.Fprintf(&b, "text_retrieved: false\n  ^ %s\n", s.TextRetrievedReason)
+	}
 	if s.NotRenderable != nil && *s.NotRenderable {
 		line("not_renderable", "true")
 		line("not_renderable_reason", s.NotRenderableReason)
+	}
+	// WHAT THE INDEX KNOWS THAT THE BYTES CANNOT TELL YOU.
+	line("work_type", s.WorkType)
+	line("oa_status", s.OAStatus)
+	line("work_license", s.WorkLicense)
+	line("copy_version", s.CopyVersion)
+	line("copy_license", s.CopyLicense)
+	if s.Paratext != nil && *s.Paratext {
+		line("paratext", "true")
+		fmt.Fprintf(&b, "  ^ THE INDEX CALLS THIS PARATEXT — an editorial, a masthead, a table of contents, rather than\n"+
+			"    the research article. Cite it for what it is; do not cite it as the study.\n")
+	}
+	// LAST, AND UNMISSABLE. A retraction is the one fact here that can void a citation outright,
+	// and it survives a flawless fetch: the pdf of a retracted paper is byte-identical to what it
+	// was before the retraction, and the notice is a different document nobody asked for.
+	if s.Retracted != nil && *s.Retracted {
+		line("retracted", "true")
+		fmt.Fprintf(&b, "  ^ THIS WORK IS RETRACTED. The bytes are genuine and the fetch was sound — retraction is a\n"+
+			"    judgement about the paper, not about this retrieval, so nothing upstream could have caught it.\n"+
+			"    You MAY cite it, and you MUST cite it AS RETRACTED: its findings do not support a claim, and a\n"+
+			"    quotation from it stands only as evidence of what the withdrawn paper said.\n")
 	}
 	// THE REASON IS PRINTED WHETHER OR NOT THERE IS TEXT. Where a reading succeeded it is
 	// empty and this line does not appear; where it did not — switched off, over the render
@@ -328,6 +388,12 @@ func (s fetchSummary) render() string {
 func liveTextRetrieved(e fetchcache.Entry) bool {
 	if e.RetrievedVia != "" || e.Sha == "" {
 		return false // a recovery speaks for itself through the entry's own flag
+	}
+	// A CONTAINER IS NOT TEXT. The live path asked only whether the page was a wall, so every
+	// media type that is not html passed — a zip, a tarball, an image — and the flag a citation's
+	// `leaf` reading rests on said the source's text was in hand.
+	if !fetchcache.TextBearing(e.ContentType) {
+		return false
 	}
 	if e.NotRenderable != nil && *e.NotRenderable {
 		return false

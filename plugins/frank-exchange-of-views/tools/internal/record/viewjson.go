@@ -1245,7 +1245,7 @@ func LogJSONOf(evs []*Event) LogJSON {
 	// sitting the record holds and who filed no entry is a seat that looked and found nothing —
 	// the same statement the retired entry made, at no cost to the seat.
 	for _, l := range Listing(evs) {
-		if seat, opens := SeatOpeningSitting(l.Event); opens && !spoke[seat] {
+		if seat, opens := recordpb.SeatOpeningSitting(l.Event); opens && !spoke[seat] {
 			sat[seat] = true
 		}
 	}

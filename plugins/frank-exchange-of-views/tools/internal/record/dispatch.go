@@ -268,7 +268,7 @@ func dispatchLedger(evs []*Event, seq []int64) ([]dispatchRow, map[string][]int6
 		// configuration. The second arm is how a no-op sitting costs nothing: every reader of "has
 		// this seat sat" comes through this map, so a hook-opened sitting satisfies the dispatch,
 		// the pin, the retirement fold and the work list without the seat running a command.
-		if seat, opens := SeatOpeningSitting(e); opens {
+		if seat, opens := recordpb.SeatOpeningSitting(e); opens {
 			registers[seat] = append(registers[seat], seq[i])
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.Dispatch](e); ok {
@@ -390,8 +390,8 @@ func sittingCloserOf(evs []*Event, seq []int64, registers map[string][]int64, wh
 		// come from two different answers. An agent id is read above and a span opened here
 		// because they are different facts: a body nothing can read carries no agent, and still
 		// opens a sitting.
-		switch repaired, repairs := sittingRepairedBy(e); {
-		case opensASitting(e):
+		switch repaired, repairs := recordpb.SittingRepairedBy(e); {
+		case recordpb.OpensASitting(e):
 			openedBy[e.GetKey()] = opening{seat: e.GetSeatId(), place: seq[i]}
 		case repairs:
 			if o, ok := openedBy[repaired]; ok && o.seat == e.GetSeatId() {

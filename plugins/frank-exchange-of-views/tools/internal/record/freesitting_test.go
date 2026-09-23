@@ -97,6 +97,7 @@ func TestAHookOpenedSeatIsIdentifiedWithoutRegistering(t *testing.T) {
 		add(HarnessSeat, &recordpb.SittingOpen{
 			AgentId:   proto.String("agent-lens-1"),
 			AgentType: proto.String("frank-exchange-of-views:red-lens-evidence"),
+			SeatId:    proto.String(evLens),
 		}).seed()
 
 	seat, found, err := SeatOfAgent(run, "agent-lens-1")
@@ -122,6 +123,7 @@ func TestAWokenLensWithNothingToDoOwesNothingAndRunsNoCommands(t *testing.T) {
 			add(HarnessSeat, &recordpb.SittingOpen{
 				AgentId:   proto.String("agent-lens-1"),
 				AgentType: proto.String("frank-exchange-of-views:red-lens-evidence"),
+				SeatId:    proto.String(evLens),
 			})
 	}
 

@@ -483,8 +483,9 @@ type queryRower interface {
 	QueryRow(query string, args ...any) *sql.Row
 }
 
-// olderSchema names the fact behind a failure on a table this binary's schema has and the
-// database does not: the run was created by an older binary.
+// olderSchema names the fact behind a failure on a RELATION this binary's schema has and the
+// database does not: the run was created by an older binary. A view counts — `sittings` is one,
+// and the write path reads it for every event.
 //
 // A run's schema is fixed when its database is created — ensureSchema applies it once, and there
 // is no migration, on purpose — so every table added since is missing from an older run, and the
@@ -494,7 +495,7 @@ type queryRower interface {
 // an existing table is olderColumns' case: the table exists.
 func olderSchema(q queryRower, table string, err error) error {
 	var n int
-	if qerr := q.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&n); qerr == nil && n == 0 {
+	if qerr := q.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type IN ('table', 'view') AND name = ?`, table).Scan(&n); qerr == nil && n == 0 {
 		return fmt.Errorf("recordsql: this run's record has no %q table — %s: %w", table, olderRunAdvice, err)
 	}
 	return err

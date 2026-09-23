@@ -48,6 +48,12 @@ type Source struct {
 	// Corroborated marks a source red found itself (a supporting corroboration) rather than one
 	// blue cited. The Bibliography prefers blue's title for a URL both name.
 	Corroborated bool
+	// WorkStatus is what a maintained index says about the cited work — stamped by the tool at
+	// the cite, never typed. It reaches the reader: assembly prints a retraction in the source's
+	// note AND in its Bibliography line, because a reader who follows one may never see the
+	// other, and a retracted source presented as ordinary is the one defect a sound pipeline
+	// still publishes.
+	WorkStatus recordpb.WorkStatus
 }
 
 // citedSource reads a citable source off an event body, if it is one.
@@ -79,6 +85,7 @@ func citedSource(body proto.Message) (Source, bool) {
 			AccessDate: b.GetAccessDate(),
 			Location:   b.GetLocation(),
 			Pages:      b.GetPages(),
+			WorkStatus: b.GetWorkStatus(),
 		}, true
 	case *recordpb.Verify:
 		// No sha: red read the source itself rather than through the run cache, and the
@@ -91,6 +98,7 @@ func citedSource(body proto.Message) (Source, bool) {
 			AccessDate:   b.GetAccessDate(),
 			Location:     b.GetClaim(),
 			Corroborated: true,
+			WorkStatus:   b.GetWorkStatus(),
 		}, true
 	}
 	return Source{}, false

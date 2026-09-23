@@ -182,6 +182,13 @@ func newCite() *cobra.Command {
 
 			SourceTextOrigin: ocr.origin.Enum(),
 			Pages:            ocr.pages(),
+
+			// WHAT THE LITERATURE SAYS ABOUT THE WORK, stamped here for the same reason the
+			// origin above is: the seat cannot be asked to remember it. `fetch` prints the
+			// retraction in a paragraph addressed to whoever ran it, and a paragraph is not a
+			// carrier — the citation reaches the reader through the record, and until this line
+			// existed a retracted source made a footnote indistinguishable from a sound one.
+			WorkStatus: record.WorkStatusOf(entry.Retraction()).Enum(),
 		}
 		if len(ocr.loc.Pages) > 0 {
 			body.OcrQuote = proto.String(ocrQuote)

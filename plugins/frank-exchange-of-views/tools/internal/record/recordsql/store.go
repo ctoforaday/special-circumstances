@@ -604,6 +604,56 @@ func Insert(db *sql.DB, ev *recordpb.Event) (int64, error) {
 	return id, tx.Commit()
 }
 
+// sittingOf mints this event's id and answers which sitting it belongs to, in the transaction that
+// is about to insert it.
+//
+// THE ID IS MINTED RATHER THAN TAKEN FROM last_insert_rowid() BECAUSE AN OPENING NAMES ITSELF. An
+// event that opens a sitting carries its OWN id in sitting_id, and the events table is append-only
+// by trigger, so there is no second statement in which to fill the column in. Minting inside the
+// writing transaction is safe by the same property the idempotency ordinal already relies on: the
+// transaction holds the write lock from its BEGIN, so no other writer can take the id between the
+// max() and the insert.
+//
+// A NON-OPENING JOINS THE SEAT'S LATEST SITTING, or none. "Latest" is by id, which is append order;
+// a seat that has never opened one — the harness's own bookkeeping, a verb run before `register` —
+// gets NULL, and every reader that counts sittings then counts none rather than inventing one.
+func sittingOf(tx *sql.Tx, ev *recordpb.Event) (id int64, sitting any, err error) {
+	if err := tx.QueryRow(`SELECT COALESCE(max("id"), 0) + 1 FROM "events"`).Scan(&id); err != nil {
+		return 0, nil, fmt.Errorf("recordsql: minting the event's id: %w", err)
+	}
+	if seat, opens := recordpb.SeatOpeningSitting(ev); opens {
+		// A REGISTER UNDER AN AGENT THE HARNESS ALREADY BRACKETED JOINS THAT SITTING RATHER THAN
+		// OPENING A SECOND ONE. Both events are openings on their own terms — either can be the only
+		// one a dispatch gets — and in the live shape a dispatch has BOTH. The agent id is the join,
+		// and it is the harness's id for one subagent invocation, so a pair cannot span two
+		// dispatches; a resume carries no bracket and finds nothing here.
+		if agent := recordpb.AgentOpening(ev); agent != "" {
+			var bracket sql.NullInt64
+			if err := tx.QueryRow(
+				`SELECT max(e."id") FROM "events" e JOIN "sitting_open" o ON o."event_id" = e."id"
+				  WHERE o."agent_id" = ? AND o."seat_id" = ? AND e."sitting_id" = e."id"`,
+				agent, seat).Scan(&bracket); err != nil {
+				return 0, nil, olderSchema(tx, "sitting_open",
+					fmt.Errorf("recordsql: asking whether %s was already bracketed into a sitting: %w", agent, err))
+			}
+			if bracket.Valid {
+				return id, bracket.Int64, nil
+			}
+		}
+		return id, id, nil
+	}
+	var open sql.NullInt64
+	if err := tx.QueryRow(
+		`SELECT max("id") FROM "sittings" WHERE "seat_id" = ?`, ev.GetSeatId()).Scan(&open); err != nil {
+		return 0, nil, olderSchema(tx, "sittings",
+			fmt.Errorf("recordsql: asking which sitting of %s this act joins: %w", ev.GetSeatId(), err))
+	}
+	if !open.Valid {
+		return id, nil, nil
+	}
+	return id, open.Int64, nil
+}
+
 // InsertTx writes one event inside a transaction the CALLER owns.
 //
 // The write path needs that: an event's seq and its idempotency ordinal are counted from the rows
@@ -612,17 +662,17 @@ func Insert(db *sql.DB, ev *recordpb.Event) (int64, error) {
 // unit, which is a guarantee the shard layout got by giving each seat its own file and lost the
 // moment two processes shared one.
 func InsertTx(tx *sql.Tx, ev *recordpb.Event) (int64, error) {
-	res, err := tx.Exec(
-		`INSERT INTO events (seat_id, ts, type, key) VALUES (?, ?, ?, ?)`,
-		ev.GetSeatId(), ev.GetTs(),
-		recordpb.Word(ev.GetType()), nullable(ev.GetKey()),
-	)
-	if err != nil {
-		return 0, fmt.Errorf("recordsql: recording the event: %w", err)
-	}
-	id, err := res.LastInsertId()
+	id, sitting, err := sittingOf(tx, ev)
 	if err != nil {
 		return 0, err
+	}
+	if _, err := tx.Exec(
+		`INSERT INTO events (id, seat_id, ts, type, key, sitting_id) VALUES (?, ?, ?, ?, ?, ?)`,
+		id, ev.GetSeatId(), ev.GetTs(),
+		recordpb.Word(ev.GetType()), nullable(ev.GetKey()), sitting,
+	); err != nil {
+		return 0, olderRun(tx, "events", []string{`"sitting_id"`},
+			fmt.Errorf("recordsql: recording the event: %w", err))
 	}
 
 	body, ok := recordpb.Body(ev)
