@@ -169,6 +169,9 @@ type Entry struct {
 	//
 	//	origin   — no proxy is configured, so the refusal is the source's own
 	//	unknown   — a proxy is configured and the two readings cannot be told apart
+	//	robots    — nothing was asked of the origin at all; this host's robots.txt disallows the
+	//	            path, so there is no HTTP status to record and inventing one would attribute a
+	//	            refusal to a source that never made it
 	RefusalClass string `json:"refusal_class,omitempty"`
 
 	// RetrievedVia names the archive snapshot these bytes came from, when the live source refused
@@ -424,13 +427,36 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		// attempt — url, status, and who refused — so a later reader can tell a source that does
 		// not exist from one this container could not reach. The error still goes back: recording
 		// the refusal does not make it a success.
+		// A ROBOTS REFUSAL IS ALSO A REFUSAL TO RECOVER FROM, and it used not to be.
+		//
+		// The recovery chain keyed on *Refusal alone, so a page the operator disallows ended the
+		// fetch outright — while the refusal's own text tells the seat to "ask `metadata` whether
+		// it exists, or `oa` whether a copy that is meant to be read exists elsewhere". The tool
+		// named the route and declined to take it.
+		//
+		// It is not a corner case. IOP publishes `Disallow: /`, so every IOP paper was lost;
+		// measured on one of them, `--via oa` returns a 633 KB PDF from arXiv. Being told we may
+		// not read the publisher's copy says nothing about the copy the author put in a
+		// repository — which is the whole reason the open-access rung exists.
+		//
+		// Nothing here evades the instruction: the recovery chain fetches through the same client,
+		// so a candidate on the disallowed host is refused again by the same rule. What changes is
+		// that the OTHER hosts are now asked.
 		var ref *Refusal
-		if !errors.As(ferr, &ref) {
+		var rob *RobotsRefusal
+		isRefusal, isRobots := errors.As(ferr, &ref), errors.As(ferr, &rob)
+		if !isRefusal && !isRobots {
 			return Entry{}, nil, false, ferr
 		}
-		_ = appendIndexIfAbsent(run, Entry{
-			URL: url, HTTPStatus: ref.Status, RefusalClass: refusalClass(ref.Status),
-		})
+		stub := Entry{URL: url}
+		if isRefusal {
+			stub.HTTPStatus, stub.RefusalClass = ref.Status, refusalClass(ref.Status)
+		} else {
+			// NOT an HTTP status: nothing was asked of the origin. Recording one would invent a
+			// refusal the source never made.
+			stub.RefusalClass = "robots"
+		}
+		_ = appendIndexIfAbsent(run, stub)
 		// THE REFUSAL IS NOT THE END OF THE ATTEMPT, but the right next move depends on WHAT this
 		// source is — and choosing wrongly is how a run ends up citing a landing page.
 		att := Recover(f, url, ViaAuto, "")
@@ -439,7 +465,7 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		}
 		entry := Entry{
 			URL: url, ContentType: att.ContentType,
-			HTTPStatus: ref.Status, RefusalClass: refusalClass(ref.Status),
+			HTTPStatus: stub.HTTPStatus, RefusalClass: stub.RefusalClass,
 			RetrievedVia: att.Via, Backend: att.Backend, TextRetrieved: att.TextRetrieved,
 		}
 		Classify(&entry, att.Body)

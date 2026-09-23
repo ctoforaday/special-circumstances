@@ -18,6 +18,11 @@ import (
 //
 //	archive   what this URL SAID ON A DATE. Right for web pages. Wrong for subscription
 //	          articles, where the snapshot is usually the landing page and not the text.
+//	          IT IS A DIFFERENT HOST WITH ITS OWN RULES — gblock, 2026-09-23. A robots.txt
+//	          governs the server that publishes it, and archive.org publishes its own and holds
+//	          its captures under its own preservation mandate. Reading a capture of a host that
+//	          disallows us is therefore not the gate-circumvention this tool refuses elsewhere,
+//	          and the question is settled rather than open.
 //	oa        is there a LEGAL OPEN COPY, and where. Right for scholarship.
 //	metadata  does this EXIST, in what venue, at what pages. Retrieves no text at all — and is
 //	          the honest answer when there is none to retrieve.
@@ -48,8 +53,21 @@ func Vias() []string {
 // AutoOrder is the order `auto` — and a refused live fetch — tries the backends in. One list, read
 // by Recover and by fetch's help, so the page cannot state an order the code does not follow (it
 // did: the help said archive, oa, metadata, arxiv while this ran arxiv first).
+//
+// OPEN ACCESS BEFORE THE ARCHIVE, because one returns the document and the other returns a picture
+// of the page you could not read. Measured on a Journal of Physics paper IOP disallows: the
+// archive rung answered with a 220 KB IOPscience LANDING PAGE — 17,031 characters of navigation
+// and abstract, correctly classified as renderable and still not the paper — while the open-access
+// rung returns the 633 KB arXiv PDF. Trying the archive first meant a snapshot of a paywall
+// outranked an author's own copy.
+//
+// The order is otherwise one of diminishing claim: arXiv is the preprint itself and cheapest to
+// check; open access is the document wherever it legally sits; the archive is what a url SAID on a
+// date, which is a different question and usually a landing page for a subscription article;
+// metadata is not the document at all and says so. Ending on metadata means a run that cannot read
+// a source still learns whether it EXISTS.
 func AutoOrder() []string {
-	return []string{ViaArxiv, ViaArchive, ViaOA, ViaMetadata}
+	return []string{ViaArxiv, ViaOA, ViaArchive, ViaMetadata}
 }
 
 // Attempt is one backend's answer: the bytes it got, and what a citation is entitled to say

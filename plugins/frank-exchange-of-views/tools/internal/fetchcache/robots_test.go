@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // arXiv's REAL robots.txt, trimmed to the groups that decide. The Crawl-delay is the point: this
@@ -220,5 +222,68 @@ func TestAPublishedCrawlDelayReachesThePacer(t *testing.T) {
 	if iv := intervalFor(host); iv != 30*time.Second {
 		t.Errorf("after reading a published Crawl-delay of 30s the floor is %v — the host's own "+
 			"number never reached the pacer", iv)
+	}
+}
+
+// A ROBOTS REFUSAL MUST STILL TRY THE OTHER ROUTES. The recovery chain keyed on *Refusal alone,
+// so a disallowed page ended the fetch — while the refusal's own text tells the seat to ask `oa`
+// whether a copy exists elsewhere. The tool named the route and declined to take it.
+//
+// IOP publishes `Disallow: /`, so every IOP paper was lost. Measured on one: `--via oa` returns a
+// 633 KB PDF from arXiv. Being told we may not read the publisher's copy says nothing about the
+// copy the author put in a repository.
+func TestARobotsRefusalStillReachesTheOpenAccessRung(t *testing.T) {
+	tempPaceDir(t)
+	run := runtest.New(t, t.TempDir())
+	pub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n")) // IOP's shape
+			return
+		}
+		t.Error("the disallowed host was fetched after all")
+	}))
+	defer pub.Close()
+
+	// The publisher is disallowed; a repository copy exists and is listed by the index.
+	repo := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte("%PDF-1.7 the author's copy"))
+	}))
+	defer repo.Close()
+
+	prev := Default
+	Default = fake(func(u string) (*Response, error) {
+		switch {
+		case strings.Contains(u, "openalex"):
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","locations":[{"pdf_url":"` +
+				repo.URL + `/copy.pdf","is_oa":true}]}`)}, nil
+		case strings.Contains(u, "ebi.ac.uk"):
+			return &Response{Body: []byte(`{"resultList":{"result":[]}}`)}, nil
+		case strings.Contains(u, "semanticscholar"):
+			return &Response{Body: []byte(`{"paperId":"a","openAccessPdf":null}`)}, nil
+		case strings.Contains(u, "doaj.org"):
+			return &Response{Body: []byte(`{"total":0,"results":[]}`)}, nil
+		}
+		return NewHTTPFetcher().Fetch(u)
+	})
+	t.Cleanup(func() { Default = prev })
+
+	entry, body, _, err := Resolve(run, pub.URL+"/article/10.1234/x", Default)
+	if err != nil {
+		t.Fatalf("a robots refusal ended the fetch instead of recovering: %v", err)
+	}
+	if !strings.HasPrefix(string(body), "%PDF") {
+		t.Errorf("recovered %q, want the repository copy", string(body[:min(24, len(body))]))
+	}
+	// AND THE RECORD SAYS WHY THE PUBLISHER WAS NOT USED — without inventing an HTTP status the
+	// origin never returned, because nothing was asked of it.
+	if entry.RefusalClass != "robots" {
+		t.Errorf("RefusalClass = %q, want robots", entry.RefusalClass)
+	}
+	if entry.HTTPStatus != 0 {
+		t.Errorf("HTTPStatus = %d — nothing was asked of the origin, so it refused nothing", entry.HTTPStatus)
 	}
 }

@@ -467,3 +467,55 @@ func TestAnIndexThatDidNotAnswerBlocksTheWorldClaim(t *testing.T) {
 		t.Errorf("a 503 from one index became a determinate absence: %s", att.Via)
 	}
 }
+
+// OPEN ACCESS IS TRIED BEFORE THE ARCHIVE, because one returns the document and the other returns
+// a picture of the page you could not read.
+//
+// Measured on a Journal of Physics paper IOP disallows: the archive answered with a 220 KB
+// IOPscience landing page — 17,031 characters of navigation and abstract, classified renderable
+// and still not the paper — while open access returns the 633 KB arXiv PDF. Order decided which
+// one a seat got.
+func TestAutoPrefersTheDocumentOverASnapshotOfIt(t *testing.T) {
+	order := AutoOrder()
+	pos := map[string]int{}
+	for i, b := range order {
+		pos[b] = i
+	}
+	if pos[ViaOA] > pos[ViaArchive] {
+		t.Errorf("auto order is %v — the archive is tried before open access, so a snapshot of a "+
+			"paywalled landing page outranks the author's own copy", order)
+	}
+	if pos[ViaArxiv] != 0 {
+		t.Errorf("auto order is %v — arxiv is the preprint itself and the cheapest to check", order)
+	}
+	if pos[ViaMetadata] != len(order)-1 {
+		t.Errorf("auto order is %v — metadata is not the document and belongs last", order)
+	}
+
+	// AND THE CHAIN ACTUALLY FOLLOWS IT: an index with a copy wins over an archive that has a
+	// capture, rather than the other way round.
+	f := fake(func(u string) (*Response, error) {
+		switch {
+		case strings.Contains(u, "cdx/search"):
+			return &Response{Body: []byte(`[["timestamp","original","digest"],["20190520000000","https://ex/a","D1"]]`)}, nil
+		case strings.Contains(u, "web.archive.org/web/"):
+			return &Response{Body: []byte("<html><body>" + strings.Repeat("landing page. ", 100) + "</body></html>"), ContentType: "text/html"}, nil
+		case strings.Contains(u, "openalex"):
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","locations":[{"pdf_url":"https://repo.example/open.pdf","is_oa":true}]}`)}, nil
+		case u == "https://repo.example/open.pdf":
+			return &Response{Body: []byte("%PDF-1.7 the paper"), ContentType: "application/pdf"}, nil
+		}
+		if r, isIndex := emptyIndexAnswer(u); isIndex {
+			return r, nil
+		}
+		return nil, &Refusal{URL: u, Status: 403}
+	})
+	att := Recover(f, "https://doi.org/10.1234/x", ViaAuto, "")
+	if att == nil {
+		t.Fatal("the auto chain found nothing")
+	}
+	if att.Backend != ViaOA {
+		t.Errorf("Backend = %q (via %q), want the open-access copy rather than the archived landing page",
+			att.Backend, att.Via)
+	}
+}
