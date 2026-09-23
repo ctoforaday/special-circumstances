@@ -29,6 +29,38 @@ import (
 // and could only learn it need not look BY looking. Measured: 8 of 9 sittings with nothing owed
 // registered anyway. The sibling test above proved the RECORD owed nothing; nothing proved the
 // seat could find that out.
+// AND IT IS NOT ANONYMOUS IN THE VIEWS EITHER, which is what keeps the saving measurable.
+//
+// `seat_metrics` LEFT JOINs `seat_of_agent`, and that view read the register table alone. A seat
+// that takes the free sitting therefore appeared with a NULL seat_id — its turns counted, its
+// identity gone — so the per-seat cost table would name every seat except the cheapest ones, and
+// the acts subquery keyed on seat_id would find nothing. The saving would have made the run harder
+// to read, which is the opposite of the point.
+func TestABracketedSeatIsNamedInSeatOfAgent(t *testing.T) {
+	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").dispatch(2, evLens).
+		add(HarnessSeat, &recordpb.SittingOpen{
+			AgentId:   proto.String("agent-lens-1"),
+			AgentType: proto.String("frank-exchange-of-views:red-lens-evidence"),
+			SeatId:    proto.String(evLens),
+		}).seed()
+
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		t.Fatalf("open: %v", err)
+	}
+	var seat string
+	found, err := queryRow(run, []any{&seat},
+		`SELECT "seat_id" FROM "seat_of_agent" WHERE "agent_id" = ?`, "agent-lens-1")
+	if err != nil {
+		t.Fatalf("seat_of_agent: %v", err)
+	}
+	if !found || seat != evLens {
+		t.Errorf("a bracketed agent is %q (found=%v) in seat_of_agent — it must be %q, or every "+
+			"view joined to it reports the cheapest sittings as anonymous", seat, found, evLens)
+	}
+}
+
 func TestAHookOpenedSeatIsIdentifiedWithoutRegistering(t *testing.T) {
 	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").dispatch(2, evLens).

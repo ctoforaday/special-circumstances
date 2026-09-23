@@ -123,7 +123,15 @@ func Write(runDir string, phase Phase, agentID, agentType, transcriptPath string
 	var body proto.Message
 	switch phase {
 	case Open:
-		body = &recordpb.SittingOpen{AgentId: proto.String(agentID), AgentType: proto.String(agentType)}
+		// THE WRITER DOES THE JOIN THE HOOK CANNOT. SubagentStart carries the configuration, not the
+		// seat; this process links the record, so it resolves the one from the other and records it.
+		// Absent where the configuration seats several — blue's lanes — which is the honest answer
+		// and keeps blue's own register load-bearing.
+		open := &recordpb.SittingOpen{AgentId: proto.String(agentID), AgentType: proto.String(agentType)}
+		if seat, ok := record.SeatOfAgentType(agentType); ok {
+			open.SeatId = proto.String(seat)
+		}
+		body = open
 	case Close:
 		body = &recordpb.SittingClose{AgentId: proto.String(agentID), AgentType: proto.String(agentType)}
 	default:

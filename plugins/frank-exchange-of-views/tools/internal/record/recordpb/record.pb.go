@@ -6032,7 +6032,17 @@ type SittingOpen struct {
 	// record honest: SubagentStop fires at the MAIN agent's turn end as well, with a minted id and
 	// no type (19 seats against 50 turn ends in one measured session, zero exceptions either way —
 	// plans/hook-surface-spike.md §7a). An event with no type is not a sitting and is never written.
-	AgentType     *string `protobuf:"bytes,2,opt,name=agent_type,json=agentType,proto3,oneof" json:"agent_type,omitempty"`
+	AgentType *string `protobuf:"bytes,2,opt,name=agent_type,json=agentType,proto3,oneof" json:"agent_type,omitempty"`
+	// seat_id is the seat that CONFIGURATION is dispatched as, resolved by the writer — which links
+	// the record and can do the join the hook cannot. Present only where the configuration seats
+	// exactly one seat, so it is a declared mapping rather than the guess the comment above refuses:
+	// blue-researcher covers three seats and gets no seat_id here.
+	//
+	// It is on the body and NOT on the envelope, which still carries `harness`. The harness observed
+	// the sitting; it did not sit. Recording who sat is a different statement from claiming to be
+	// them, and a reader that needs the binding should not have to join through a register the seat
+	// may never write.
+	SeatId        *string `protobuf:"bytes,3,opt,name=seat_id,json=seatId,proto3,oneof" json:"seat_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6077,6 +6087,13 @@ func (x *SittingOpen) GetAgentId() string {
 func (x *SittingOpen) GetAgentType() string {
 	if x != nil && x.AgentType != nil {
 		return *x.AgentType
+	}
+	return ""
+}
+
+func (x *SittingOpen) GetSeatId() string {
+	if x != nil && x.SeatId != nil {
+		return *x.SeatId
 	}
 	return ""
 }
@@ -7521,13 +7538,16 @@ const file_record_proto_rawDesc = "" +
 	"\b_run_viaB\r\n" +
 	"\v_agent_typeB\x12\n" +
 	"\x10_repairs_sittingB\v\n" +
-	"\t_occasionJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\fserved_modelR\x0frequested_model\"m\n" +
+	"\t_occasionJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\fserved_modelR\x0frequested_model\"\x97\x01\n" +
 	"\vSittingOpen\x12\x1e\n" +
 	"\bagent_id\x18\x01 \x01(\tH\x00R\aagentId\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"agent_type\x18\x02 \x01(\tH\x01R\tagentType\x88\x01\x01B\v\n" +
+	"agent_type\x18\x02 \x01(\tH\x01R\tagentType\x88\x01\x01\x12\x1c\n" +
+	"\aseat_id\x18\x03 \x01(\tH\x02R\x06seatId\x88\x01\x01B\v\n" +
 	"\t_agent_idB\r\n" +
-	"\v_agent_type\"n\n" +
+	"\v_agent_typeB\n" +
+	"\n" +
+	"\b_seat_id\"n\n" +
 	"\fSittingClose\x12\x1e\n" +
 	"\bagent_id\x18\x01 \x01(\tH\x00R\aagentId\x88\x01\x01\x12\"\n" +
 	"\n" +

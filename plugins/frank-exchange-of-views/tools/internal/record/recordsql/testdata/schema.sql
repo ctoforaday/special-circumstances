@@ -738,7 +738,8 @@ CREATE TABLE "base_ingest" (
 CREATE TABLE "sitting_open" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "agent_id" TEXT,
-  "agent_type" TEXT
+  "agent_type" TEXT,
+  "seat_id" TEXT
 ) STRICT;
 
 CREATE TABLE "sitting_close" (
@@ -826,6 +827,14 @@ FROM "events" e;
 -- agent_type comes along because register records it too: it is what the HARNESS called the
 -- seat, beside what the seat called itself, and the two disagreeing is a thing worth being able
 -- to see rather than a thing to collapse here.
+-- A REGISTER IS NOT THE ONLY BINDING. A seat woken with nothing to do need not register — the
+-- SubagentStart hook brackets its sitting and the writer resolves the configuration to a seat — so
+-- a register-only view reports those agents as anonymous. Every total joined to it then drops their
+-- rows or reports a null seat, which is the failure the LEFT JOIN below already guards against for
+-- turns and would silently reintroduce for the seats that cost the least.
+--
+-- The register WINS where both exist: it is the seat's own word, and the two disagreeing is a thing
+-- worth being able to see rather than a thing to collapse here.
 CREATE VIEW "seat_of_agent" AS
 SELECT
   r."agent_id"   AS "agent_id",
@@ -836,7 +845,20 @@ SELECT
 FROM "register" r
 JOIN "events_w" e ON e."id" = r."event_id"
 WHERE r."agent_id" IS NOT NULL AND r."agent_id" != ''
-  AND r."event_id" = (SELECT MAX(r2."event_id") FROM "register" r2 WHERE r2."agent_id" = r."agent_id");
+  AND r."event_id" = (SELECT MAX(r2."event_id") FROM "register" r2 WHERE r2."agent_id" = r."agent_id")
+UNION ALL
+SELECT
+  o."agent_id"   AS "agent_id",
+  o."seat_id"    AS "seat_id",
+  o."agent_type" AS "agent_type",
+  e."epoch"      AS "registered_epoch",
+  e."sitting"    AS "sitting"
+FROM "sitting_open" o
+JOIN "events_w" e ON e."id" = o."event_id"
+WHERE o."agent_id" IS NOT NULL AND o."agent_id" != ''
+  AND o."seat_id" IS NOT NULL AND o."seat_id" != ''
+  AND NOT EXISTS (SELECT 1 FROM "register" r2 WHERE r2."agent_id" = o."agent_id")
+  AND o."event_id" = (SELECT MAX(o2."event_id") FROM "sitting_open" o2 WHERE o2."agent_id" = o."agent_id");
 
 -- WHAT A SEAT COST, from the turns ingested at capture (#684 F16).
 --
