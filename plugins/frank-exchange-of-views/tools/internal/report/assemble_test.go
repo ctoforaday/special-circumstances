@@ -652,9 +652,9 @@ func TestLogSectionRendered(t *testing.T) {
 	evs := []*record.Event{
 		recordtest.Event(t, "red-chair", &recordpb.Log{Text: proto.String("the --cx flag is missing from help"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 		recordtest.Event(t, "blue-respond", &recordpb.Log{Text: proto.String("manifest cap fights methodology gaps"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
-		// A NOMINAL entry renders in its own section, not among the problems: an attestation is
-		// not a complaint, and the split is by TYPE now rather than by message.
-		recordtest.Event(t, "judge", &recordpb.Log{Text: proto.String("the surface met the work"), Type: recordpb.LogType_LOG_TYPE_NOMINAL.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
+		// A SEAT THAT SAT AND FILED NOTHING is named in its own section, not among the problems.
+		// It asserts nothing: the harness bracket is the whole evidence, so the seat spends no call.
+		recordtest.Event(t, record.HarnessSeat, &recordpb.SittingOpen{AgentId: proto.String("agent-judge-1"), AgentType: proto.String("frank-exchange-of-views:lead-judge")}),
 		recordtest.Event(t, "red-chair", &recordpb.Mint{Problem: proto.String("not a log entry")}),
 	}
 	f := logSection(evs)
@@ -664,7 +664,8 @@ func TestLogSectionRendered(t *testing.T) {
 		"Log (what the run told the operator",
 		"**red-chair** (defect): the --cx flag is missing",
 		"**blue-respond** (defect): manifest cap fights",
-		"**judge**: the surface met the work",
+		"Seats that reported nothing blocked them",
+		"**judge**",
 	} {
 		if !strings.Contains(f, want) {
 			t.Errorf("log section missing %q:\n%s", want, f)

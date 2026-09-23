@@ -37,7 +37,7 @@ func cmMint(gap string, cm recordpb.ClassMaterial, severity string, supersedes .
 func openChairSitting(b *stage) *stage {
 	b.register("red-chair")
 	return b.add("red-chair", &recordpb.Log{Text: proto.String("nothing blocked"),
-		Type: recordpb.LogType_LOG_TYPE_NOMINAL.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()})
+		Type: recordpb.LogType_LOG_TYPE_REQUEST.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()})
 }
 
 var passGate = &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}

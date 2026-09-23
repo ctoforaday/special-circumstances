@@ -369,10 +369,10 @@ func TestAToolWrittenLogTypeIsOffTheSeatSurface(t *testing.T) {
 		}
 	}
 
-	// 2. THE SEAT'S WORD LIST OMITS IT — and still carries the four, which is the anti-vacuity
+	// 2. THE SEAT'S WORD LIST OMITS IT — and still carries the three, which is the anti-vacuity
 	// half: a list that narrowed to nothing would satisfy the omission check and break the verb.
 	words := SeatLogTypeWords()
-	for _, w := range []string{"nominal", "defect", "request", "friction"} {
+	for _, w := range []string{"defect", "request", "friction"} {
 		if !slices.Contains(words, w) {
 			t.Errorf("a seat may file %q and the surface does not offer it: %v", w, words)
 		}
@@ -418,9 +418,9 @@ func TestAToolOnlyLogTypeIsRefusedUnderASeatsName(t *testing.T) {
 		t.Errorf("the TOOL's own estoppel record was refused: %v", err)
 	}
 	// A seat-filable word under a seat's name is untouched.
-	nom := recordpb.LogType_LOG_TYPE_NOMINAL
+	nom := recordpb.LogType_LOG_TYPE_FRICTION
 	if _, err := Append(id, &recordpb.Log{
-		Text: proto.String("nothing blocked me"), Type: &nom, Source: &seat,
+		Text: proto.String("the board view paged awkwardly for this gap"), Type: &nom, Source: &seat,
 	}); err != nil {
 		t.Errorf("an ordinary seat log was refused: %v", err)
 	}

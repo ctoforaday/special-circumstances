@@ -20,6 +20,71 @@ import (
 // wrote `sitting_open` naming the configuration it was dispatched as, and that configuration seats
 // exactly one seat. So the dispatch is satisfied, the log is not owed, and the work list is
 // complete — at a cost of zero commands.
+// AND THE SEAT CAN READ ITS OWN WORK LIST WITHOUT REGISTERING, which is what makes the free
+// sitting reachable rather than merely permitted.
+//
+// The CLI scopes its surface to whoever is asking, and it asks the record. While that lookup read
+// only the register table, an unregistered agent had no identity and got the OPERATOR surface — on
+// which `show work` does not exist. A seat could therefore skip `register` only by never looking,
+// and could only learn it need not look BY looking. Measured: 8 of 9 sittings with nothing owed
+// registered anyway. The sibling test above proved the RECORD owed nothing; nothing proved the
+// seat could find that out.
+// AND IT IS NOT ANONYMOUS IN THE VIEWS EITHER, which is what keeps the saving measurable.
+//
+// `seat_metrics` LEFT JOINs `seat_of_agent`, and that view read the register table alone. A seat
+// that takes the free sitting therefore appeared with a NULL seat_id — its turns counted, its
+// identity gone — so the per-seat cost table would name every seat except the cheapest ones, and
+// the acts subquery keyed on seat_id would find nothing. The saving would have made the run harder
+// to read, which is the opposite of the point.
+func TestABracketedSeatIsNamedInSeatOfAgent(t *testing.T) {
+	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").dispatch(2, evLens).
+		add(HarnessSeat, &recordpb.SittingOpen{
+			AgentId:   proto.String("agent-lens-1"),
+			AgentType: proto.String("frank-exchange-of-views:red-lens-evidence"),
+			SeatId:    proto.String(evLens),
+		}).seed()
+
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		t.Fatalf("open: %v", err)
+	}
+	var seat string
+	found, err := queryRow(run, []any{&seat},
+		`SELECT "seat_id" FROM "seat_of_agent" WHERE "agent_id" = ?`, "agent-lens-1")
+	if err != nil {
+		t.Fatalf("seat_of_agent: %v", err)
+	}
+	if !found || seat != evLens {
+		t.Errorf("a bracketed agent is %q (found=%v) in seat_of_agent — it must be %q, or every "+
+			"view joined to it reports the cheapest sittings as anonymous", seat, found, evLens)
+	}
+}
+
+func TestAHookOpenedSeatIsIdentifiedWithoutRegistering(t *testing.T) {
+	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").dispatch(2, evLens).
+		add(HarnessSeat, &recordpb.SittingOpen{
+			AgentId:   proto.String("agent-lens-1"),
+			AgentType: proto.String("frank-exchange-of-views:red-lens-evidence"),
+		}).seed()
+
+	seat, found, err := SeatOfAgent(run, "agent-lens-1")
+	if err != nil {
+		t.Fatalf("SeatOfAgent: %v", err)
+	}
+	if !found || seat != evLens {
+		t.Errorf("a hook-opened agent resolved to (%q, %v) — it must resolve to %q, or the seat is "+
+			"handed the operator surface and has to register to see its own work list", seat, found, evLens)
+	}
+
+	// AN AGENT THE HARNESS NEVER BRACKETED IS STILL UNBOUND. The fallback reads a recorded
+	// bracket, never a guess from the ambient environment.
+	if _, found, err := SeatOfAgent(run, "agent-nobody"); err != nil || found {
+		t.Errorf("an agent with no register and no bracket resolved to a seat (found=%v, err=%v)", found, err)
+	}
+}
+
 func TestAWokenLensWithNothingToDoOwesNothingAndRunsNoCommands(t *testing.T) {
 	hookOpened := func() *stage {
 		return newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().

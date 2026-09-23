@@ -1025,7 +1025,7 @@ while (!halted) {
     const foundClosed = new Set((Array.isArray(blueEnv2.found_closed) ? blueEnv2.found_closed : []).filter((g) => p.gap_ids.includes(g)))
     const open = p.gap_ids.filter((g) => !foundClosed.has(g))
     // A SITTING THAT FOUND EVERY ENGAGED GAP CLOSED OWES NO POSITION AND NO REVISION (gblock's
-    // ruling, 2026-09-11): it had nothing to answer, and its nominal log entry is the attestation.
+    // ruling): it had nothing to answer, and the sitting the harness bracketed is the attestation.
     // The work list (record.revisionOwed) and capture's record-parity read the sitting the same way,
     // off the record's dispatch, close and register events.
     if (open.length) {

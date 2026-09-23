@@ -262,7 +262,6 @@ var EnumFields = map[string][]EnumField{
 	// mandated ceremony, and nothing on the entry said which was which.
 	"log": {{
 		Key: "type", Flag: flags.Type, Values: []EnumValue{
-			ev("nominal", "the surface met the work — the clean sitting, said in the POSITIVE: silence cannot say it"),
 			ev("defect", "something is broken: it did the wrong thing, or failed where it should have worked"),
 			ev("request", "a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong"),
 			ev("friction", "the work was impeded and you are NOTING it; NOT necessarily actionable and not necessarily advisable to change, which is why it has its own word rather than posing as a defect"),

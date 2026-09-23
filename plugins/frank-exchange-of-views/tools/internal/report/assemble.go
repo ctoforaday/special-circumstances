@@ -1468,8 +1468,9 @@ func debate(fam record.Family, evs []*record.Event) string {
 // who can retool the seat, instead of dying on an unread channel.
 func logSection(evs []*record.Event) string {
 	var rows, attested []string
-	// ONE MESSAGE, TYPED. The clean case used to be a second message; it is now a `nominal` entry,
-	// so the split below reads the TYPE rather than the message. Each entry renders with its type
+	spoke, named := map[string]bool{}, map[string]bool{}
+	// ONE MESSAGE, TYPED. Every entry asserts a problem, so each renders with its type
+	// and the clean seats are named below from their sittings rather than from an entry. Each entry renders with its type
 	// so the operator can triage by filtering instead of by reading.
 	for _, l := range record.Listing(evs) {
 		e := l.Event
@@ -1482,11 +1483,16 @@ func logSection(evs []*record.Event) string {
 			continue
 		}
 		t = l.Markdown(t)
-		if f.GetType() == recordpb.LogType_LOG_TYPE_NOMINAL {
-			attested = append(attested, fmt.Sprintf("- **%s**: %s", e.GetSeatId(), t))
-			continue
-		}
+		spoke[e.GetSeatId()] = true
 		rows = append(rows, fmt.Sprintf("- **%s** (%s): %s", e.GetSeatId(), recordpb.Word(f.GetType()), t))
+	}
+	// A SEAT THAT SAT AND FILED NOTHING LOOKED AND FOUND NOTHING. The harness brackets every
+	// dispatch, so this is read off the record rather than asserted by the seat.
+	for _, l := range record.Listing(evs) {
+		if seat, opens := record.SeatOpeningSitting(l.Event); opens && !spoke[seat] && !named[seat] {
+			named[seat] = true
+			attested = append(attested, fmt.Sprintf("- **%s**", seat))
+		}
 	}
 	if len(rows) == 0 && len(attested) == 0 {
 		return ""
@@ -1497,15 +1503,15 @@ func logSection(evs []*record.Event) string {
 	} else {
 		out += "No capability gap was reported.\n"
 	}
-	// THE ATTESTATIONS BELONG BESIDE THE COMPLAINTS, and that is the whole point of recording
-	// them. "No friction this run" is worth nothing alone: it reads identically whether the seats
-	// looked and found none or never used the channel, and across eighteen recorded sittings it
-	// was the second every time. A named seat saying what it reached for turns the zero into a
-	// statement someone can be wrong about.
+	// THE CLEAN SEATS BELONG BESIDE THE COMPLAINTS, and that is why the count is still here.
+	// "No friction this run" is worth nothing alone: it reads identically whether the seats looked
+	// and found none or never used the channel. The seats are now NAMED FROM THEIR SITTINGS rather
+	// than from an entry each had to file — the harness brackets every dispatch, so a seat that sat
+	// and said nothing is a seat that looked and found nothing.
 	if len(attested) > 0 {
 		out += "\n### Seats that reported nothing blocked them\n\n" + strings.Join(attested, "\n") + "\n"
 	} else if len(rows) > 0 {
-		out += "\nNo seat closed the channel explicitly, so the list above is what was volunteered rather than what was met.\n"
+		out += "\nNo seat sat without filing, so the list above is every seat that spoke.\n"
 	}
 	return strings.TrimRight(out, "\n")
 }

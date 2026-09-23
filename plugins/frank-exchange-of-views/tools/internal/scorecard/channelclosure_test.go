@@ -13,9 +13,9 @@ import (
 func logEntry(t *testing.T, key string) *record.Event {
 	t.Helper()
 	return recordtest.At(t, "blue-respond", key, &recordpb.Log{
-		Type:   recordpb.LogType_LOG_TYPE_NOMINAL.Enum(),
+		Type:   recordpb.LogType_LOG_TYPE_FRICTION.Enum(),
 		Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum(),
-		Text:   proto.String("nominal"),
+		Text:   proto.String("the changes projection paged awkwardly for this gap"),
 	})
 }
 
@@ -76,9 +76,9 @@ func TestAnEntryOutsideEverySittingCannotPushTheRatioAboveOne(t *testing.T) {
 		logEntry(t, "blue-respond:log:l1"),
 		// A seat that never registered on this stream, closing the channel anyway.
 		recordtest.At(t, "red-lens-logic", "red-lens-logic:log:l1", &recordpb.Log{
-			Type:   recordpb.LogType_LOG_TYPE_NOMINAL.Enum(),
+			Type:   recordpb.LogType_LOG_TYPE_REQUEST.Enum(),
 			Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum(),
-			Text:   proto.String("nominal"),
+			Text:   proto.String("no verb renders a gap's lineage in one read"),
 		}),
 	}
 	rows := blueRows(record.Run{}, nil, nil, famOfEventsT(evs), record.WhileRunning)

@@ -15,6 +15,7 @@ import (
 func Entries() Registry {
 	reg := Registry{
 		"friction":      {Translate: frictionEntry},
+		"log":           {Translate: logEntry},
 		"friction_none": {Translate: frictionNoneEntry},
 		"opinion":       {Translate: opinionEntry},
 		"cite":          {Translate: citeEntry},
@@ -24,6 +25,51 @@ func Entries() Registry {
 		reg[w] = e
 	}
 	return reg
+}
+
+// logEntry: the nominal type is retired, and an archived entry that asserted a clean sitting
+// carries forward as an ABSENCE. Clean is derived from a bracketed sitting that filed nothing, so
+// keeping the row would restate as data what the record already computes — and the word it carries
+// is no longer in the vocabulary, which is why the identity default refuses it.
+//
+// Every other type passes through by name. A log event is text, type, source and estopped_by; the
+// translation is explicit about all four rather than inheriting the identity path, because a word
+// this entry exists to DROP must not be able to reach that path by another column.
+func logEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
+	l := &recordpb.Log{}
+	for col, v := range old.Fields {
+		s, ok := v.(string)
+		if !ok {
+			return nil, fmt.Errorf("migrate: log.%s holds %T, not text", col, v)
+		}
+		switch col {
+		case "text", "reason":
+			l.Text = proto.String(s)
+		case "estopped_by":
+			l.EstoppedBy = proto.String(s)
+		case "source":
+			num, err := enumNumberOf(recordpb.LogSource(0).Descriptor(), s)
+			if err != nil {
+				return nil, fmt.Errorf("migrate: log.source: %w", err)
+			}
+			l.Source = recordpb.LogSource(num).Enum()
+		case "type":
+			if s == "nominal" {
+				return nil, nil
+			}
+			num, err := enumNumberOf(recordpb.LogType(0).Descriptor(), s)
+			if err != nil {
+				return nil, fmt.Errorf("migrate: log.type: %w", err)
+			}
+			l.Type = recordpb.LogType(num).Enum()
+		default:
+			return nil, fmt.Errorf("migrate: old column log.%s has no place on Log — extend the log entry", col)
+		}
+	}
+	if l.Source == nil {
+		l.Source = recordpb.LogSource_LOG_SOURCE_SEAT.Enum()
+	}
+	return []proto.Message{l}, nil
 }
 
 // frictionEntry: the friction channel became the typed log (#755). Old columns
@@ -110,21 +156,16 @@ func registerEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 	return []proto.Message{r}, nil
 }
 
-// frictionNoneEntry: the explicit empty form became the POSITIVE nominal entry — "none" is
-// an answer, and an entry that says so is still an entry.
+// frictionNoneEntry: the explicit empty form carried "none" as an entry. The type that said so is
+// retired and clean is derived from a bracketed sitting that filed nothing, so the row translates
+// to no event at all — the statement survives, computed rather than stored.
 func frictionNoneEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
-	l := &recordpb.Log{
-		Type:   recordpb.LogType_LOG_TYPE_NOMINAL.Enum(),
-		Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum(),
-	}
-	for col, v := range old.Fields {
-		s, ok := v.(string)
-		if !ok || (col != "text" && col != "reason") { // `reason` is the shard era's spelling
+	for col := range old.Fields {
+		if col != "text" && col != "reason" { // `reason` is the shard era's spelling
 			return nil, fmt.Errorf("migrate: old column friction_none.%s has no place on Log — extend the friction_none entry", col)
 		}
-		l.Text = proto.String(s)
 	}
-	return []proto.Message{l}, nil
+	return nil, nil
 }
 
 // opinionEntry is the one CONCEPT translation: the bench opinion was retired (fd9e6970) for

@@ -1366,7 +1366,6 @@ type LogType int32
 
 const (
 	LogType_LOG_TYPE_UNSPECIFIED LogType = 0
-	LogType_LOG_TYPE_NOMINAL     LogType = 1
 	LogType_LOG_TYPE_DEFECT      LogType = 2
 	LogType_LOG_TYPE_REQUEST     LogType = 3
 	LogType_LOG_TYPE_FRICTION    LogType = 4
@@ -1377,7 +1376,6 @@ const (
 var (
 	LogType_name = map[int32]string{
 		0: "LOG_TYPE_UNSPECIFIED",
-		1: "LOG_TYPE_NOMINAL",
 		2: "LOG_TYPE_DEFECT",
 		3: "LOG_TYPE_REQUEST",
 		4: "LOG_TYPE_FRICTION",
@@ -1385,7 +1383,6 @@ var (
 	}
 	LogType_value = map[string]int32{
 		"LOG_TYPE_UNSPECIFIED": 0,
-		"LOG_TYPE_NOMINAL":     1,
 		"LOG_TYPE_DEFECT":      2,
 		"LOG_TYPE_REQUEST":     3,
 		"LOG_TYPE_FRICTION":    4,
@@ -6035,7 +6032,17 @@ type SittingOpen struct {
 	// record honest: SubagentStop fires at the MAIN agent's turn end as well, with a minted id and
 	// no type (19 seats against 50 turn ends in one measured session, zero exceptions either way —
 	// plans/hook-surface-spike.md §7a). An event with no type is not a sitting and is never written.
-	AgentType     *string `protobuf:"bytes,2,opt,name=agent_type,json=agentType,proto3,oneof" json:"agent_type,omitempty"`
+	AgentType *string `protobuf:"bytes,2,opt,name=agent_type,json=agentType,proto3,oneof" json:"agent_type,omitempty"`
+	// seat_id is the seat that CONFIGURATION is dispatched as, resolved by the writer — which links
+	// the record and can do the join the hook cannot. Present only where the configuration seats
+	// exactly one seat, so it is a declared mapping rather than the guess the comment above refuses:
+	// blue-researcher covers three seats and gets no seat_id here.
+	//
+	// It is on the body and NOT on the envelope, which still carries `harness`. The harness observed
+	// the sitting; it did not sit. Recording who sat is a different statement from claiming to be
+	// them, and a reader that needs the binding should not have to join through a register the seat
+	// may never write.
+	SeatId        *string `protobuf:"bytes,3,opt,name=seat_id,json=seatId,proto3,oneof" json:"seat_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6080,6 +6087,13 @@ func (x *SittingOpen) GetAgentId() string {
 func (x *SittingOpen) GetAgentType() string {
 	if x != nil && x.AgentType != nil {
 		return *x.AgentType
+	}
+	return ""
+}
+
+func (x *SittingOpen) GetSeatId() string {
+	if x != nil && x.SeatId != nil {
+		return *x.SeatId
 	}
 	return ""
 }
@@ -7524,13 +7538,16 @@ const file_record_proto_rawDesc = "" +
 	"\b_run_viaB\r\n" +
 	"\v_agent_typeB\x12\n" +
 	"\x10_repairs_sittingB\v\n" +
-	"\t_occasionJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\fserved_modelR\x0frequested_model\"m\n" +
+	"\t_occasionJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\fserved_modelR\x0frequested_model\"\x97\x01\n" +
 	"\vSittingOpen\x12\x1e\n" +
 	"\bagent_id\x18\x01 \x01(\tH\x00R\aagentId\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"agent_type\x18\x02 \x01(\tH\x01R\tagentType\x88\x01\x01B\v\n" +
+	"agent_type\x18\x02 \x01(\tH\x01R\tagentType\x88\x01\x01\x12\x1c\n" +
+	"\aseat_id\x18\x03 \x01(\tH\x02R\x06seatId\x88\x01\x01B\v\n" +
 	"\t_agent_idB\r\n" +
-	"\v_agent_type\"n\n" +
+	"\v_agent_typeB\n" +
+	"\n" +
+	"\b_seat_id\"n\n" +
 	"\fSittingClose\x12\x1e\n" +
 	"\bagent_id\x18\x01 \x01(\tH\x00R\aagentId\x88\x01\x01\x12\"\n" +
 	"\n" +
@@ -7751,14 +7768,13 @@ const file_record_proto_rawDesc = "" +
 	"\tLogSource\x12\x1a\n" +
 	"\x16LOG_SOURCE_UNSPECIFIED\x10\x00\x12@\n" +
 	"\x0fLOG_SOURCE_SEAT\x10\x01\x1a+\x8a\xb5\x18'a seat filed this about its own sitting\x12S\n" +
-	"\x0fLOG_SOURCE_TOOL\x10\x02\x1a>\x8a\xb5\x18:the tool emitted this itself, rather than a seat filing it*\x9b\t\n" +
+	"\x0fLOG_SOURCE_TOOL\x10\x02\x1a>\x8a\xb5\x18:the tool emitted this itself, rather than a seat filing it*\xe9\a\n" +
 	"\aLogType\x12\x18\n" +
-	"\x14LOG_TYPE_UNSPECIFIED\x10\x00\x12\xc7\x01\n" +
-	"\x10LOG_TYPE_NOMINAL\x10\x01\x1a\xb0\x01\x8a\xb5\x18\xa7\x01the surface met the work — the sitting is clean, said in the positive. An entry exists, so an attested-clean sitting stays distinguishable from a channel nobody used\xb0\xb5\x18\x01\x12\xef\x01\n" +
+	"\x14LOG_TYPE_UNSPECIFIED\x10\x00\x12\xef\x01\n" +
 	"\x0fLOG_TYPE_DEFECT\x10\x02\x1a\xd9\x01\x8a\xb5\x18\xd0\x01something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on\xb0\xb5\x18\x01\x12\xcf\x01\n" +
 	"\x10LOG_TYPE_REQUEST\x10\x03\x1a\xb8\x01\x8a\xb5\x18\xaf\x01a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair\xb0\xb5\x18\x01\x12\xdb\x01\n" +
 	"\x11LOG_TYPE_FRICTION\x10\x04\x1a\xc3\x01\x8a\xb5\x18\xba\x01the work was impeded and you are noting it; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect\xb0\xb5\x18\x01\x12\x89\x02\n" +
-	"\x11LOG_TYPE_ESTOPPEL\x10\x05\x1a\xf1\x01\x8a\xb5\x18\xe8\x01the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit\xb0\xb5\x18\x00*\x96\x03\n" +
+	"\x11LOG_TYPE_ESTOPPEL\x10\x05\x1a\xf1\x01\x8a\xb5\x18\xe8\x01the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit\xb0\xb5\x18\x00\"\x04\b\x01\x10\x01*\x10LOG_TYPE_NOMINAL*\x96\x03\n" +
 	"\x0eGradeDimension\x12\x1f\n" +
 	"\x1bGRADE_DIMENSION_UNSPECIFIED\x10\x00\x12;\n" +
 	"\x18GRADE_DIMENSION_SEVERITY\x10\x01\x1a\x1d\x8a\xb5\x18\x19how bad it is if it bites\x12\x86\x01\n" +

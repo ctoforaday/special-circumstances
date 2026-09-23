@@ -1026,7 +1026,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 	// a test pinning it, and its --none --reason exists for the same distinction this makes.
 	case *recordpb.Log:
 		if b.GetText() == "" {
-			return fmt.Errorf("record: a log entry requires --reason. A clean sitting is logged in the POSITIVE — the nominal type, with a sentence saying so — because an empty discharge cannot be told from a skipped one")
+			return fmt.Errorf("record: a log entry requires --reason. Every entry asserts a problem, and an entry with no sentence is silence with an event attached — say what you hit")
 		}
 		// A TOOL-ONLY WORD MUST CARRY THE TOOL AS ITS SOURCE (#782).
 		//

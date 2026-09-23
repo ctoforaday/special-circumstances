@@ -104,7 +104,10 @@ func TestIs91PrimeBsReprompt(t *testing.T) {
 	for _, e := range ss[2].Acts {
 		types = append(types, recordpb.Word(e.GetType()))
 	}
-	if got := strings.Join(types, ","); got != "register,log" || len(ss[2].Open) != 0 {
-		t.Errorf("blue sitting 3 = open %v, acts %s; want nothing open and its own register and log — the re-prompt repairs nothing once migrated", ss[2].Open, got)
+	// ITS OWN REGISTER, AND NO LOG. The entry that sitting filed asserted a clean sitting, and
+	// that type is retired — clean is derived from a bracketed sitting that filed nothing — so the
+	// migration carries the register forward and drops the entry.
+	if got := strings.Join(types, ","); got != "register" || len(ss[2].Open) != 0 {
+		t.Errorf("blue sitting 3 = open %v, acts %s; want nothing open and its own register — the re-prompt repairs nothing once migrated", ss[2].Open, got)
 	}
 }

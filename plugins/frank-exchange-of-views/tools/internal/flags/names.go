@@ -185,7 +185,7 @@ const (
 	// computation, or verify a source. It is what lets red demand evidence prose cannot fake.
 	CheckKind = "check-kind"
 
-	// Type is what a log entry ASSERTS — defect, request, friction, nominal. The operator
+	// Type is what a log entry ASSERTS — defect, request, friction. The operator
 	// triages by filtering on it instead of reading every entry to find out which it was.
 	Type = "type"
 

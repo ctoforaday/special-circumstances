@@ -471,8 +471,9 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 				Note:  "a sitting that recorded acts and closed no operator entry — the shape the duty exists to prevent"})
 		}
 		// TYPE COVERAGE, because the channel's worth is what a reader can FILTER on. An untyped
-		// distribution is the reading the type field exists to replace, and a channel that only
-		// ever says `nominal` is not proof the system worked — it is proof nobody reported.
+		// distribution is the reading the type field exists to replace. Every surviving type
+		// asserts a problem, so the share below is 1.0 whenever anything was filed at all — what
+		// it now reports is the SPREAD across defect, request and friction.
 		byType := map[string]int{}
 		for _, e := range fam.Live() {
 			if l, ok := recordpb.BodyAs[*recordpb.Log](e); ok {
@@ -480,19 +481,14 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 			}
 		}
 		if len(byType) > 0 {
-			nonNominal := 0
-			for w, n := range byType {
-				if w != "nominal" {
-					nonNominal += n
-				}
-			}
 			total := 0
 			for _, n := range byType {
 				total += n
 			}
-			rows = append(rows, Row{Clause: "The log", Metric: "channel_signal_share", Cls: "diagnostic",
-				Value: float64(nonNominal) / float64(total),
-				Note:  fmt.Sprintf("%d entr(ies) by type %v — %d carry something to act on; a channel of nothing but nominal reported no defect, no request and no friction all run", total, byType, nonNominal)})
+			rows = append(rows, Row{Clause: "The log", Metric: "channel_types_used", Cls: "diagnostic",
+				Value: float64(len(byType)),
+				Note: fmt.Sprintf("%d entr(ies) across %d type(s) %v — every entry asserts a problem, so the "+
+					"question is the spread: a run that only ever files one kind is reporting through one lens", total, len(byType), byType)})
 		}
 	}
 

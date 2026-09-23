@@ -1372,7 +1372,14 @@ enum LogSource {
 // message would have reverted that fix silently.
 enum LogType {
   LOG_TYPE_UNSPECIFIED = 0;
-  LOG_TYPE_NOMINAL = 1 [(seat_may_file) = true, (means) = "the surface met the work — the sitting is clean, said in the positive. An entry exists, so an attested-clean sitting stays distinguishable from a channel nobody used"];
+  // 1 WAS NOMINAL, AND IT IS RETIRED. It asserted "the sitting is clean" so that an attested-clean
+  // sitting stayed distinguishable from a channel nobody used. The harness brackets every dispatch
+  // at both ends, so the record already holds that a seat sat, and clean is now DERIVED from
+  // "sat and filed nothing" rather than asserted. Measured before retirement: 40 of 40 entries in
+  // one run and 42 of 42 in another were nominal, and not one carried anything to act on — the
+  // channel cost a call per sitting and returned nothing an operator could triage.
+  reserved 1;
+  reserved "LOG_TYPE_NOMINAL";
   LOG_TYPE_DEFECT = 2 [(seat_may_file) = true, (means) = "something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on"];
   LOG_TYPE_REQUEST = 3 [(seat_may_file) = true, (means) = "a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair"];
   LOG_TYPE_FRICTION = 4 [(seat_may_file) = true, (means) = "the work was impeded and you are noting it; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect"];
@@ -1870,6 +1877,17 @@ message SittingOpen {
   // no type (19 seats against 50 turn ends in one measured session, zero exceptions either way —
   // plans/hook-surface-spike.md §7a). An event with no type is not a sitting and is never written.
   optional string agent_type = 2;
+
+  // seat_id is the seat that CONFIGURATION is dispatched as, resolved by the writer — which links
+  // the record and can do the join the hook cannot. Present only where the configuration seats
+  // exactly one seat, so it is a declared mapping rather than the guess the comment above refuses:
+  // blue-researcher covers three seats and gets no seat_id here.
+  //
+  // It is on the body and NOT on the envelope, which still carries `harness`. The harness observed
+  // the sitting; it did not sit. Recording who sat is a different statement from claiming to be
+  // them, and a reader that needs the binding should not have to join through a register the seat
+  // may never write.
+  optional string seat_id = 3;
 }
 
 message SittingClose {

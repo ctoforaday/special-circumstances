@@ -65,7 +65,9 @@ func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 	}
 }
 
-// AN EMPTY FRICTION LOG IS TWO DIFFERENT RUNS, and only one of them is fine.
+// AN EMPTY LOG IS TWO DIFFERENT RUNS, and only one of them is fine. The distinction survives the
+// retirement of the entry that used to carry it: a seat that SAT and filed nothing is clean, read
+// off the harness bracket, and a run nobody sat in is silent. Neither costs the seat a call.
 func TestTheLogViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 	runDir := newRun(t)
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, "", ""); err != nil {
@@ -75,27 +77,27 @@ func TestTheLogViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// THE SEAT HAS SAT, so it is already clean — it opened a sitting and has said nothing.
 	j := LogJSONOf(b.Events)
-	if j.Counts.Total != 0 || j.Counts.Attested != 0 {
-		t.Fatalf("a silent run: total=%d attested=%d, want 0/0", j.Counts.Total, j.Counts.Attested)
+	if j.Counts.Total != 0 || j.Counts.Clean != 1 {
+		t.Fatalf("a seat that sat and said nothing: total=%d clean=%d, want 0/1", j.Counts.Total, j.Counts.Clean)
 	}
 
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Log{Text: proto.String("read the board and my verb list; every refusal was my own error"), Type: recordpb.LogType_LOG_TYPE_NOMINAL.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Log{Text: proto.String("read the board and my verb list; every refusal was my own error"), Type: recordpb.LogType_LOG_TYPE_FRICTION.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}); err != nil {
 		t.Fatal(err)
 	}
 	b, _ = FamilyOf(mustRun(t, runDir))
 	j = LogJSONOf(b.Events)
-	// The counts must now DIFFER from the silent run. Same total, different meaning — which is
-	// the whole point: zero-with-an-attestation is a statement someone can be wrong about,
-	// zero-alone is the absence of one.
-	if j.Counts.Total != 0 {
-		t.Errorf("an attestation must not count as a complaint: total=%d", j.Counts.Total)
+	// ONCE IT SPEAKS IT IS NO LONGER CLEAN, and what it filed asserts a problem. Every surviving
+	// type does, so the entry counts toward the total and the seat leaves the clean set.
+	if j.Counts.Total != 1 {
+		t.Errorf("a filed entry must count: total=%d", j.Counts.Total)
 	}
-	if j.Counts.Attested != 1 || len(j.Log) != 1 {
-		t.Fatalf("the attestation did not reach the view: attested=%d entries=%d", j.Counts.Attested, len(j.Log))
+	if j.Counts.Clean != 0 || len(j.Log) != 1 {
+		t.Fatalf("a seat that spoke is not clean: clean=%d entries=%d", j.Counts.Clean, len(j.Log))
 	}
 	if j.Log[0].SeatID != "blue-respond" {
-		t.Error("the attestation must name the seat that made it — an unattributed one cannot be weighed")
+		t.Error("the entry must name the seat that made it — an unattributed one cannot be weighed")
 	}
 }
 

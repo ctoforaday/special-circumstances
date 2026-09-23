@@ -286,7 +286,6 @@ CREATE TABLE "enum_log_type" (
 INSERT INTO "enum_log_type" ("value", "means", "seat_may_file") VALUES ('defect', 'something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on', 1);
 INSERT INTO "enum_log_type" ("value", "means", "seat_may_file") VALUES ('estoppel', 'the TOOL refused a mint because the defect lives in text blue applied verbatim from red''s own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit', 0);
 INSERT INTO "enum_log_type" ("value", "means", "seat_may_file") VALUES ('friction', 'the work was impeded and you are noting it; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect', 1);
-INSERT INTO "enum_log_type" ("value", "means", "seat_may_file") VALUES ('nominal', 'the surface met the work — the sitting is clean, said in the positive. An entry exists, so an attested-clean sitting stays distinguishable from a channel nobody used', 1);
 INSERT INTO "enum_log_type" ("value", "means", "seat_may_file") VALUES ('request', 'a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair', 1);
 
 CREATE TABLE "enum_log_source" (
@@ -739,7 +738,8 @@ CREATE TABLE "base_ingest" (
 CREATE TABLE "sitting_open" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "agent_id" TEXT,
-  "agent_type" TEXT
+  "agent_type" TEXT,
+  "seat_id" TEXT
 ) STRICT;
 
 CREATE TABLE "sitting_close" (
@@ -827,6 +827,14 @@ FROM "events" e;
 -- agent_type comes along because register records it too: it is what the HARNESS called the
 -- seat, beside what the seat called itself, and the two disagreeing is a thing worth being able
 -- to see rather than a thing to collapse here.
+-- A REGISTER IS NOT THE ONLY BINDING. A seat woken with nothing to do need not register — the
+-- SubagentStart hook brackets its sitting and the writer resolves the configuration to a seat — so
+-- a register-only view reports those agents as anonymous. Every total joined to it then drops their
+-- rows or reports a null seat, which is the failure the LEFT JOIN below already guards against for
+-- turns and would silently reintroduce for the seats that cost the least.
+--
+-- The register WINS where both exist: it is the seat's own word, and the two disagreeing is a thing
+-- worth being able to see rather than a thing to collapse here.
 CREATE VIEW "seat_of_agent" AS
 SELECT
   r."agent_id"   AS "agent_id",
@@ -837,7 +845,20 @@ SELECT
 FROM "register" r
 JOIN "events_w" e ON e."id" = r."event_id"
 WHERE r."agent_id" IS NOT NULL AND r."agent_id" != ''
-  AND r."event_id" = (SELECT MAX(r2."event_id") FROM "register" r2 WHERE r2."agent_id" = r."agent_id");
+  AND r."event_id" = (SELECT MAX(r2."event_id") FROM "register" r2 WHERE r2."agent_id" = r."agent_id")
+UNION ALL
+SELECT
+  o."agent_id"   AS "agent_id",
+  o."seat_id"    AS "seat_id",
+  o."agent_type" AS "agent_type",
+  e."epoch"      AS "registered_epoch",
+  e."sitting"    AS "sitting"
+FROM "sitting_open" o
+JOIN "events_w" e ON e."id" = o."event_id"
+WHERE o."agent_id" IS NOT NULL AND o."agent_id" != ''
+  AND o."seat_id" IS NOT NULL AND o."seat_id" != ''
+  AND NOT EXISTS (SELECT 1 FROM "register" r2 WHERE r2."agent_id" = o."agent_id")
+  AND o."event_id" = (SELECT MAX(o2."event_id") FROM "sitting_open" o2 WHERE o2."agent_id" = o."agent_id");
 
 -- WHAT A SEAT COST, from the turns ingested at capture (#684 F16).
 --

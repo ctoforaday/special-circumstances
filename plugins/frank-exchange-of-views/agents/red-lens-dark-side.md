@@ -440,15 +440,14 @@ Usage:
   feov-record log [flags]
 
 Flags:
-      --correction-why string   → SHARED §6
-      --corrects string         → SHARED §7
-  -h, --help                    help for log
-      --reason string           the entry: what you concluded about the tooling
-      --type type-value         REQUIRED — what this entry asserts
+      --correction-why string          → SHARED §6
+      --corrects string                → SHARED §7
+  -h, --help                           help for log
+      --reason string                  the entry: what you concluded about the tooling
+      --type defect|request|friction   REQUIRED — what this entry asserts
 
 Enumerated values:
   --type
-    nominal   the surface met the work — the clean sitting, said in the POSITIVE: silence cannot say it
     defect    something is broken: it did the wrong thing, or failed where it should have worked
     request   a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong
     friction  the work was impeded and you are NOTING it; NOT necessarily actionable and not necessarily advisable to change, which is why it has its own word rather than posing as a defect

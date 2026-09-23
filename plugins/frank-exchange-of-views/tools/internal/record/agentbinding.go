@@ -39,7 +39,32 @@ func SeatOfAgent(run Run, agentID string) (string, bool, error) {
 	if err != nil {
 		return "", false, err
 	}
-	return seat, found, nil
+	if found {
+		return seat, true, nil
+	}
+	// THE HARNESS BRACKET BINDS TOO, and without it the free sitting cannot be taken.
+	//
+	// A seat that has not registered has no identity here, so the CLI hands it the OPERATOR
+	// surface — on which `show work` does not exist. It could therefore only skip `register` by
+	// never looking, and could only know it need not look BY looking. Measured: 8 of 9 sittings
+	// with nothing owed registered anyway, which is the tool's answer rather than the seat's.
+	//
+	// SubagentStart writes sitting_open with the agent's id and configuration, and one
+	// configuration seats exactly one seat for every role but blue's lanes — the same mapping
+	// dispatch readiness already trusts through SeatOpeningSitting. Where that mapping is
+	// ambiguous SeatOfAgentType returns false and the seat registers as before, so blue's
+	// register stays load-bearing rather than guessed at.
+	var agentType string
+	found, err = queryRow(run, []any{&agentType},
+		`SELECT "agent_type" FROM "sitting_open"
+		  WHERE "agent_id" = ? ORDER BY "event_id" DESC LIMIT 1`, agentID)
+	if err != nil || !found {
+		return "", false, err
+	}
+	if s, ok := SeatOfAgentType(agentType); ok {
+		return s, true, nil
+	}
+	return "", false, nil
 }
 
 // SittingsOf is how many sittings a seat has opened: its register count, which is the number
