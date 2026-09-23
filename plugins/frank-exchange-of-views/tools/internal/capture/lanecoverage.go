@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // A RUN THAT LOST A LANE LOOKS EXACTLY LIKE A RUN THAT ASKED FOR FEWER.
@@ -40,8 +40,6 @@ import (
 // how a gate stops being read. So the shortfall is named, counted, and its two readings are stated
 // — and the remedy is named too, because "this cannot be distinguished" is a defect report about
 // the record, not a permanent property.
-
-var laneSeat = regexp.MustCompile(`^blue-lane-(\d+)$`)
 
 // declaredLanes reads the lane count run-config declares.
 //
@@ -89,10 +87,11 @@ func registeredLanes(evs []*record.Event) []int {
 		if e.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER {
 			continue
 		}
-		if m := laneSeat.FindStringSubmatch(e.GetSeatId()); m != nil {
-			if n, err := strconv.Atoi(m[1]); err == nil {
-				seen[n] = true
-			}
+		// ASKED OF THE ROSTER, WHICH OWNS THE LANE ID SHAPE. This file carried its own copy of
+		// the pattern, so two spellings of "what a lane id looks like" sat in one tree with
+		// nothing comparing them. seatclass.LaneIndex is the one that also answers the tier join.
+		if n, ok := seatclass.LaneIndex(e.GetSeatId()); ok {
+			seen[n] = true
 		}
 	}
 	out := make([]int, 0, len(seen))

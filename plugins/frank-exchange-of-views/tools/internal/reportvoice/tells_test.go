@@ -92,7 +92,7 @@ func TestRefusedTellsAreUnambiguous(t *testing.T) {
 		"blue-respond overstates the bound",               // seat id
 		"red-lens-evidence could not open it",             // lens id
 		"the red-chair ruled it",                          // chair id
-		"judge-terminal certified it",                     // bench id
+		"blue-synthesize certified it",                    // a seat id
 		"blue-synthesize merged two drafts",               // synthesis seat id
 		"blue-lane-2 found the count",                     // lane seat id
 		"as evidence-F3 notes, the date is wrong",         // finding label

@@ -602,17 +602,22 @@ const RED_AREAS = ['evidence', 'logic', 'dark-side', 'voice', 'computation', 'ad
 // (agentTypeRoles) is bound to this script by READING these literals; a type composed from the
 // seat id at the dispatch site would dispatch correctly and be attested by nothing. The two lists
 // are checked against each other at load, below, so an area cannot be declared and undispatchable.
+// LENS_DISPATCH is the lens roster: the seat id the engine dispatches, and the two facts that
+// belong to the seat rather than to the spelling of its id — the area it audits, and the agent
+// configuration that seats it.
+//
+// A SEAT ID IS A NAME. Read a seat's area from its row here; never off its id.
 const LENS_DISPATCH = {
-  'red-lens-evidence': { agentType: 'frank-exchange-of-views:red-lens-evidence' },
-  'red-lens-logic': { agentType: 'frank-exchange-of-views:red-lens-logic' },
-  'red-lens-dark-side': { agentType: 'frank-exchange-of-views:red-lens-dark-side' },
-  'red-lens-voice': { agentType: 'frank-exchange-of-views:red-lens-voice' },
-  'red-lens-computation': { agentType: 'frank-exchange-of-views:red-lens-computation' },
-  'red-lens-adversary': { agentType: 'frank-exchange-of-views:red-lens-adversary' },
-  'red-lens-architecture': { agentType: 'frank-exchange-of-views:red-lens-architecture' },
+  'red-lens-evidence': { area: 'evidence', agentType: 'frank-exchange-of-views:red-lens-evidence' },
+  'red-lens-logic': { area: 'logic', agentType: 'frank-exchange-of-views:red-lens-logic' },
+  'red-lens-dark-side': { area: 'dark-side', agentType: 'frank-exchange-of-views:red-lens-dark-side' },
+  'red-lens-voice': { area: 'voice', agentType: 'frank-exchange-of-views:red-lens-voice' },
+  'red-lens-computation': { area: 'computation', agentType: 'frank-exchange-of-views:red-lens-computation' },
+  'red-lens-adversary': { area: 'adversary', agentType: 'frank-exchange-of-views:red-lens-adversary' },
+  'red-lens-architecture': { area: 'architecture', agentType: 'frank-exchange-of-views:red-lens-architecture' },
 }
 for (const area of RED_AREAS) if (!LENS_DISPATCH[`red-lens-${area}`]) throw new Error(`debate: lens area ${area} is declared and has no dispatch row — LENS_DISPATCH must name its agent type`)
-for (const seat of Object.keys(LENS_DISPATCH)) if (!RED_AREAS.includes(seat.replace(/^red-lens-/, ''))) throw new Error(`debate: LENS_DISPATCH names ${seat}, which RED_AREAS does not declare`)
+for (const [seat, row] of Object.entries(LENS_DISPATCH)) if (!RED_AREAS.includes(row.area)) throw new Error(`debate: LENS_DISPATCH seats ${seat} for area ${row.area}, which RED_AREAS does not declare`)
 
 // The areas a run dispatches. EVERY AREA SITS BY DEFAULT; the first sitting is seven lens sittings,
 // four waves against a concurrency cap measured at about two concurrent agents. A lens that finds nothing retires within two sittings (the record's
@@ -920,7 +925,6 @@ let blueEnv2 = null // the latest blue response, for claim_count in the result
 const infraDebts = [] // defect_owed_elsewhere rulings (W1.9) — the bench's named debts, surfaced at assembly and in the final envelope
 
 const ledgerClause = ` THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at. Read it FIRST. A claim blue backed with a source resolves to the url, title and sha256 of the bytes blue actually read, and THAT is what you re-fetch to audit the same artifact rather than a page that may have drifted since. A claim blue COMPUTED resolves to its script, and to whether anyone has re-run it — an unaudited proof looks exactly like a clean one until you check. A citation whose evidence entry lists pages is OCR text — a machine's reading of page images, which can misread: check it against one page's image and record which page. Your own verifications come back ATTACHED TO THE SOURCE you checked: an empty one is a citation NOBODY has checked yet, and that is where your next pass is worth most. WHAT NOT TO RE-CHECK, because it is the sitting's whole economy: a claim verified at HIGH confidence in a prior sitting STAYS verified — do not re-fetch it UNLESS its section changed since (read that off the recorded edits, not off blue's account of them), OR more than 2 epochs have elapsed since it was last verified, OR its access date and the source's volatility suggest drift (living documents, issue trackers, README stats). RECORD every claim you verify, naming the anchor you looked up and quoting the claim from the report. A SOURCE YOU FOUND YOURSELF IS A DIFFERENT ACT — blue never cited it, so there is no anchor to name — and it answers a different question: whether the claim is true in the WORLD, where verification asks only what blue's source did for it. VERBATIM READS ONLY — you have no WebFetch, by design: it returns a small model's SUMMARY, not the source. Read blue's cached bytes through the tool; for a source YOU discover, pull it verbatim yourself (\`curl -sL <url>\`, \`gh issue view <n> --comments\`, or the run's cached read for a PDF) and read it. WebSearch is for DISCOVERY — finding the url — never for the read that grades a citation. If a source is too large for your context, read it in SECTIONS and name the sections you read: A TRUNCATED READ IS NOT A READ, so state the truncation and never grade a body you could not fully read.`
-const areaOf = (seatID) => seatID.replace(/^red-lens-/, '')
 // THE LENS: it audits its area and puts what it finds on the board ITSELF (plans/roundless.md
 // §III.B.3). The duties of the seat that mints — asking for the answer to be PRODUCED, classing
 // the probe, reading the script, keeping lineage — sit here, with the minter.
@@ -934,7 +938,7 @@ const areaOf = (seatID) => seatID.replace(/^red-lens-/, '')
 // already been narrowed to excuse them, so the two rules disagreed and the unconditional one won.
 const lastSittingClause = ` YOUR SITTING IS ON YOUR WORK LIST: read \`sitting.last_sitting\` first — its kind decides what to audit. \`first\`: audit the report in full — whole and in context, never a diff; over one Read call, read it whole in consecutive windows. \`behind\`: the report head moved past your last sitting (head H; you last sat at P) — audit it as it now stands, in full, likewise. \`unchanged\`: the report is unchanged since your last sitting (head H) — NOTHING TO AUDIT: your earlier read stands, and where nothing engages you the sitting owes no entry. \`undispatched\`: the record holds no dispatch for you — log that and end the sitting. Whenever the kind is \`behind\` or \`unchanged\`, a FRESH gap on text you already read and passed at an earlier sitting states, in its mint reason, why you missed it then.`
 const lensPrompt = (seatID, gaps) => {
-  const area = areaOf(seatID)
+  const area = LENS_DISPATCH[seatID].area
   const extra = area === 'evidence' ? ledgerClause : (area === 'logic' || area === 'dark-side') ? steelmanClause : ''
   const engaged = gaps.length
     ? ` YOU ARE ENGAGED ON: ${gaps.join(', ')} — gaps you minted that are still open and below their limits. DID BLUE ACTUALLY DO WHAT YOU ASKED? YOUR WORK LIST SAYS WHETHER BLUE MOVED: each gap carries the edits that touched it since you last sat, and an empty list is the answer — unanswered, and nothing you read afterwards changes that, so say so and end. Otherwise re-read the report where each is anchored, put your required fix and blue's edits side by side rather than inferring, and act: regrade on what you now see, or close with the verification triple where the repair holds. A gap you neither move nor close this sitting is a NULL TURN on it, and null turns count toward its impasse — silence is a turn taken.`
@@ -943,7 +947,7 @@ const lensPrompt = (seatID, gaps) => {
 YOU MINT YOUR OWN GAPS. What you find that is real and belongs on the board goes there as YOUR gap: screen every candidate against the board first for a near match — a defect already closed is a REOPEN and arrives carrying that history or arrives lying; a duplicate minted fresh forks the lineage — then mint, one considered gap at a time, graded on every axis, registering a new class first where the registry lacks one. Nobody coalesces for you and nobody transcribes for you: a finding is your graded observation; a gap is your claim on the board. Your budget scales with the report: the larger of the run's floor (mintBudget in run-config.json) and one mint per so many units of what your area audits, read off the record at each mint — a refused mint states the arithmetic. Spend it on defects a reader would pay to have fixed, not on nitpicks — a trifle costs you a mint and holds nothing open, because a gap that is not material — by its class, or graded below medium — does not hold the gate.
 ASK FOR THE ANSWER TO BE PRODUCED, NOT ASSERTED. Where a claim is arithmetic, an enumeration, or a reproducible measurement, your acceptance check demands that it be computed, and says so in the check's kind; where it turns on what the document states or what a source says, say so plainly — there is no credit for inflating it. Say WHEN your demand can be discharged, in the two classes blue answers in: a DOCUMENT-PROBE is executable now against shipped artifacts; a LIVE-PROBE needs built artifacts and is DEFERRABLE in a design-phase debate, discharged by naming it as a deferred acceptance test with its pass condition. PRESCRIBE TEXT ONLY WHERE THE DEFECT IS TEXTUAL: the required fix is prose — what must become true — and stays the channel for substantive work.
 BELIEVE NO BYTES YOU DID NOT WATCH BEING PRODUCED. Where blue backed a sentence with a computation, RE-RUN IT — run it from the proof store; a clean exit or '0 failing' is not an output — then READ THE SCRIPT and say what it ACTUALLY COMPUTES: a script that re-runs clean and establishes nothing is the dangerous case, because it looks maximally credible.
-THE ORIGINATOR CLOSES, AND LINEAGE IS NEVER DROPPED. A gap you minted is yours for its whole life: only you regrade it, only you close it — with the triple (who verified, with what, against what) — and a successor you mint names the gaps it supersedes, a closure that regressed says so, and the docket follows those chains. The chair carries archived closures and dispatches you when your gap needs acting on; the bench disposes of a docketed gap through its ruling.${rulingsClause('red')}${reliefFor('red')}${speedClause}${frictionClause(seatID, 'lens')}${recordClause(`red-lens-${area}`)}${petitionClause(seatID)} Return a 3-line synopsis.`
+THE ORIGINATOR CLOSES, AND LINEAGE IS NEVER DROPPED. A gap you minted is yours for its whole life: only you regrade it, only you close it — with the triple (who verified, with what, against what) — and a successor you mint names the gaps it supersedes, a closure that regressed says so, and the docket follows those chains. The chair carries archived closures and dispatches you when your gap needs acting on; the bench disposes of a docketed gap through its ruling.${rulingsClause('red')}${reliefFor('red')}${speedClause}${frictionClause(seatID, 'lens')}${recordClause(seatID)}${petitionClause(seatID)} Return a 3-line synopsis.`
 }
 // THE CHAIR RUNS THE DEBATE. It mints nothing and closes nothing; the record says who sits and the
 // chair relays it; the verdict, the closings, the spot-check, the rulings on blue's motions and
@@ -1008,7 +1012,7 @@ while (!halted) {
   for (const p of lenses) if (!LENS_DISPATCH[p.seat_id]) throw new Error(`epoch ${epoch}: the plan names ${p.seat_id}, a lens area this workflow does not declare — the cast and the workflow disagree`)
 
   if (lenses.length) {
-    log(`epoch ${epoch}: dispatching ${lenses.length} red lens(es): ${lenses.map((p) => `${areaOf(p.seat_id)}${p.gap_ids.length ? `[${p.gap_ids.join(' ')}]` : ''}`).join(', ')}`)
+    log(`epoch ${epoch}: dispatching ${lenses.length} red lens(es): ${lenses.map((p) => `${LENS_DISPATCH[p.seat_id].area}${p.gap_ids.length ? `[${p.gap_ids.join(' ')}]` : ''}`).join(', ')}`)
     const envs = await parallel(lenses.map((p) => () => agent(lensPrompt(p.seat_id, p.gap_ids),
       { ...bulk, label: labelFor(p.seat_id), phase: 'Red', ...LENS_DISPATCH[p.seat_id] })))
     for (const [k, env] of envs.entries()) {
