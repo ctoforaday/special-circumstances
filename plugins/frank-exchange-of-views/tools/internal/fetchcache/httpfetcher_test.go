@@ -181,3 +181,50 @@ func TestAGzippedResponseArrivesDecompressed(t *testing.T) {
 		t.Errorf("content type %q no longer reads as the source's text", resp.ContentType)
 	}
 }
+
+// AN ENCODING WE NEVER OFFERED IS REFUSED BY NAME, because of what accepting it does next.
+//
+// net/http strips Content-Encoding when it decoded the body itself, so a header still present
+// names a coding nothing decoded. Measured before this guard: a `Content-Encoding: br` response
+// arrived with err nil, the source's own `text/html`, and 38 bytes of undecoded data. Stored,
+// the shell detector would have run on it, found no prose, and recorded `not_renderable` with
+// the reason "too little prose to be a document" — a confident diagnosis of the wrong thing.
+func TestAnEncodingWeNeverOfferedIsRefusedByName(t *testing.T) {
+	tempPaceDir(t)
+	for _, enc := range []string{"br", "zstd", "deflate"} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/robots.txt" {
+				http.NotFound(w, r)
+				return
+			}
+			w.Header().Set("Content-Encoding", enc)
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write([]byte("\x1b\x2e\x00\x00opaque"))
+		}))
+		_, err := NewHTTPFetcher().Fetch(srv.URL + "/a")
+		srv.Close()
+		if err == nil {
+			t.Fatalf("%s: an undecoded body was accepted as the document", enc)
+		}
+		if !strings.Contains(err.Error(), enc) {
+			t.Errorf("%s: the refusal does not name the coding, so nobody can act on it: %v", enc, err)
+		}
+	}
+	// AND gzip STILL PASSES, decoded by the transport with the header stripped. A guard that
+	// refused the one coding this client does negotiate would break every compressed page.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Set("Content-Type", "text/html")
+		zw := gzip.NewWriter(w)
+		_, _ = zw.Write([]byte("<html><body>" + strings.Repeat("the paper. ", 200) + "</body></html>"))
+		_ = zw.Close()
+	}))
+	defer srv.Close()
+	if _, err := NewHTTPFetcher().Fetch(srv.URL + "/a"); err != nil {
+		t.Errorf("a gzipped page was refused by the encoding guard: %v", err)
+	}
+}

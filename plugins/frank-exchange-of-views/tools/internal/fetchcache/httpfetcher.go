@@ -349,6 +349,20 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, retried, skipRobots bool) (o
 	// just sent, available for exactly the length of this function and previously discarded at
 	// the end of it. Everything downstream then had to sniff magic bytes or read an extension
 	// off a URL that may not have one.
+	// AN ENCODING WE DID NOT ASK FOR IS BYTES WE CANNOT READ, AND THE SIGNAL IS EXACT. net/http
+	// strips Content-Encoding when it decoded the body itself, so a header still present here
+	// names a coding nothing decoded — brotli or zstd from a sloppy CDN, or `deflate` a server
+	// sent unsolicited. The response then looks entirely ordinary: measured, a `Content-Encoding:
+	// br` body arrives with err nil and the source's own Content-Type still attached.
+	//
+	// Refused rather than stored, because of what storing does NEXT. The bytes would keep the
+	// source's `text/html`, the shell detector would run on undecoded data, find no prose, and
+	// record `not_renderable` with the reason "too little prose to be a document" — a confident
+	// diagnosis of the wrong thing, which is worse than the failure. This names the coding.
+	if enc := strings.TrimSpace(strings.ToLower(resp.Header.Get("Content-Encoding"))); enc != "" && enc != "identity" {
+		return nil, nil, "", fmt.Errorf("fetch: %s answered with Content-Encoding %q, which this client never offered and nothing decoded — "+
+			"the body is not the document and must not be read as one. gzip is negotiated and decoded transparently; %q is not", rawURL, enc, enc)
+	}
 	out = &Response{
 		ContentType: resp.Header.Get("Content-Type"),
 		Disposition: resp.Header.Get("Content-Disposition"),
