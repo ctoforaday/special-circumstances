@@ -345,3 +345,56 @@ func TestResolveClassifiesWhatTheRecoveryPathStored(t *testing.T) {
 		t.Error("a recovered wall still claims text_retrieved — that is what a seat branches on")
 	}
 }
+
+// THE PAPER WE COULD READ IS THE ONE THAT MOST NEEDS THE RETRACTION CHECK, and it was the one
+// not getting it.
+//
+// The index lookup lived in Recover's stamp, which runs only when the live fetch FAILED. Measured
+// over 47 works on 2026-09-23: all 28 rows carrying work facts were `metadata` or `oa` answers,
+// and all 8 rows that returned a readable document carried none. The fact that can void a
+// citation was present on exactly the documents nobody could quote.
+func TestASuccessfulLiveFetchStillAsksTheIndex(t *testing.T) {
+	run := runtest.New(t, t.TempDir())
+	yes := true
+	f := fake(func(u string) (*Response, error) {
+		switch {
+		case strings.Contains(u, "openalex"):
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","is_retracted":true,` +
+				`"type":"article","open_access":{"oa_status":"bronze"}}`)}, nil
+		case strings.Contains(u, "publisher.example"):
+			return &Response{Body: []byte("<html><body>" + strings.Repeat("the paper. ", 300) + "</body></html>"),
+				ContentType: "text/html"}, nil
+		}
+		return nil, &Refusal{URL: u, Status: 404}
+	})
+	e, _, _, err := Resolve(run, "https://publisher.example/doi/10.1234/withdrawn", f)
+	if err != nil {
+		t.Fatalf("the live fetch failed: %v", err)
+	}
+	if !e.TextRetrieved && e.Sha == "" {
+		t.Fatal("no document was stored, so this tests nothing")
+	}
+	if e.Work == nil || e.Work.Retracted == nil || *e.Work.Retracted != yes {
+		t.Fatalf("a successfully READ paper carries no retraction check: %+v", e.Work)
+	}
+	if e.Work.OAStatus != "bronze" {
+		t.Errorf("the rest of the work record did not travel: %+v", e.Work)
+	}
+
+	// AND A URL WITH NO DOI ASKS NOBODY. There is nothing to ask about, and a request per fetch
+	// on every non-scholarly url would be a cost paid for no possible answer.
+	var asked int
+	g := fake(func(u string) (*Response, error) {
+		if strings.Contains(u, "openalex") {
+			asked++
+		}
+		return &Response{Body: []byte("<html><body>" + strings.Repeat("plain. ", 300) + "</body></html>"),
+			ContentType: "text/html"}, nil
+	})
+	if _, _, _, err := Resolve(run, "https://example.org/a-page", g); err != nil {
+		t.Fatalf("the second fetch failed: %v", err)
+	}
+	if asked != 0 {
+		t.Errorf("an index was asked about a url carrying no doi (%d times)", asked)
+	}
+}

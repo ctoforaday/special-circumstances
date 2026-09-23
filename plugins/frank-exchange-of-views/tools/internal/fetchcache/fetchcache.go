@@ -533,6 +533,22 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		entry.TDMReserved = &reserved
 		entry.TDMPolicy = resp.TDMPolicy
 	}
+	// AND THE WORK'S OWN FACTS, ON THE PATH THAT SUCCEEDS.
+	//
+	// THIS WAS BACKWARDS AND A SWEEP SHOWED IT. The index lookup lived in Recover's stamp, which
+	// runs only when the live fetch FAILED — so every paper this tool actually read came back
+	// with no retraction check, and every paper it could not read came back with one. Measured
+	// over 47 works: all 28 rows carrying work facts were `metadata` or `oa` answers; all 8 rows
+	// that returned a readable document carried none. The flagship fact was present on exactly
+	// the documents nobody could quote.
+	//
+	// One request, to a host with a 500ms floor, on a path whose median is tens of seconds. It is
+	// the cheapest thing here and it is the one that can void a citation.
+	if doi := DOIOf(url); doi != "" {
+		if facts, _, ok := openAlexWork(f, doi); ok && facts != (WorkFacts{}) {
+			entry.Work = &facts
+		}
+	}
 	// AND THE LIVE PATH RECORDS WHY IT IS NOT TEXT, not just that it is not. The summary can
 	// derive the flag from the content type, but only the record outlives the run — an archived
 	// entry holding `text_retrieved: false` and nothing else cannot say whether the source
