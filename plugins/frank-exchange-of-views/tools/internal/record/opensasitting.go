@@ -78,9 +78,14 @@ func registerIsReadable(e *Event) bool {
 //
 // The aliases are deliberately not `e`: every query that wraps this already has an `e`, and a
 // derived table that shadows the caller's alias is a correlation waiting to be written by accident.
-const openingRegistersOfSeatSQL = `SELECT reg."id" AS "id" FROM "events" reg
-       LEFT JOIN "register" body ON body."event_id" = reg."id"
-      WHERE reg."seat_id" = ? AND reg."type" = 'register' AND body."repairs_sitting" IS NULL`
+//
+// THE SEAT BINDS AS ?1, so a wrapper that states this predicate twice binds the seat ONCE and the
+// two copies cannot be handed different seats. Wrappers number their own parameters from ?2.
+const openingRegistersOfSeatSQL = `SELECT ev."id" AS "id" FROM "events" ev
+       LEFT JOIN "register" body ON body."event_id" = ev."id"
+       LEFT JOIN "sitting_open" br ON br."event_id" = ev."id"
+      WHERE (ev."type" = 'register' AND ev."seat_id" = ?1 AND body."repairs_sitting" IS NULL)
+         OR (ev."type" = 'sitting_open' AND br."seat_id" = ?1)`
 
 // SeatOpeningSitting is the seat whose sitting this event opens, and whether it opens one.
 //

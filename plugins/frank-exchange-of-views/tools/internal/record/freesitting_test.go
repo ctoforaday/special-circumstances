@@ -29,6 +29,36 @@ import (
 // and could only learn it need not look BY looking. Measured: 8 of 9 sittings with nothing owed
 // registered anyway. The sibling test above proved the RECORD owed nothing; nothing proved the
 // seat could find that out.
+// AND ITS SECOND SITTING IS SITTING TWO, which is what keeps its acts writable.
+//
+// The idempotency key is `<seat>:<verb>:#<sitting>` under a globally unique index, and the sitting
+// ordinal counted REGISTERS. A seat that takes the free sitting never registers, so the ordinal
+// stayed 0 for every sitting it ever had — and its second singleton act (position, revision,
+// verdict, spot-check) keyed identically to its first and was refused as a duplicate. The affordance
+// would have been safe only for seats that never act, enforced by nothing but the prose that says so.
+func TestABracketedSeatsSittingsAreNumberedWithoutRegisters(t *testing.T) {
+	open := func(agent string) *recordpb.SittingOpen {
+		return &recordpb.SittingOpen{
+			AgentId:   proto.String(agent),
+			AgentType: proto.String("frank-exchange-of-views:red-lens-evidence"),
+			SeatId:    proto.String(evLens),
+		}
+	}
+	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").dispatch(2, evLens).
+		add(HarnessSeat, open("agent-1")).
+		add(HarnessSeat, open("agent-2")).seed()
+
+	n, err := SittingsOf(run, evLens)
+	if err != nil {
+		t.Fatalf("SittingsOf: %v", err)
+	}
+	if n != 2 {
+		t.Errorf("a seat bracketed twice has had %d sitting(s), want 2 — the ordinal counts what "+
+			"OPENS a sitting, and a register is only one of the two ways", n)
+	}
+}
+
 // AND IT IS NOT ANONYMOUS IN THE VIEWS EITHER, which is what keeps the saving measurable.
 //
 // `seat_metrics` LEFT JOINs `seat_of_agent`, and that view read the register table alone. A seat

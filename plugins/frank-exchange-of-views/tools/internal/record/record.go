@@ -478,8 +478,11 @@ func requireGradeMotionAsksForAChange(run Run, g *recordpb.GradeMotion) error {
 // refused rather than silently written twice.
 func deriveKey(tx *sql.Tx, seatID string, typ recordpb.EventType, body proto.Message) (string, error) {
 	slug := recordpb.Word(typ)
+	// COUNTS OPENINGS, NOT REGISTERS. A seat woken with nothing to do need not register (#1089), so
+	// counting registers alone left it on sitting 0 for every sitting it ever had — and a singleton
+	// act in its second sitting then keyed identically to its first and was refused as a duplicate.
 	var sitting int
-	if err := tx.QueryRow(`SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = 'register'`,
+	if err := tx.QueryRow(`SELECT count(*) FROM (`+openingRegistersOfSeatSQL+`)`,
 		seatID).Scan(&sitting); err != nil {
 		return "", fmt.Errorf("record: counting %s's sittings for its key: %w", seatID, err)
 	}
