@@ -1516,17 +1516,16 @@ func (r *runner) extras(role, seatID string, open []string) {
 	// nobody ships. It also left `bench friction --none` never passed across 60 runs: the bench
 	// sits rarely (5 frictions in the whole sweep), and 30% of rarely is a path the coverage gate
 	// reports as missing while the drive is right there.
-	// EVERY TYPE A SEAT MAY FILE, not two of them. This was a coin over `defect`/`nominal`, so
-	// `request` and `friction` were never once driven across the whole sweep — and `friction` is
-	// the one that used to BE a verb: `bench friction --none` was driven until the run-channels
-	// rename folded it into `log --type`, and the drive did not follow. The gate reported both as
-	// undriven enum values for however long that was, on a surface that only runs at a tag.
+	// EVERY TYPE A SEAT MAY FILE. The drive must carry all three or the coverage gate reports an
+	// undriven enum value on a surface that only runs at a tag. There is no clean-sitting type to
+	// drive: clean is derived from a bracketed sitting that filed nothing, so the fuzz exercises it
+	// by having seats sit without logging rather than by filing a word.
 	//
 	// `estoppel` is NOT here and its absence is a rule, not a gap: the enum's own text says it is
 	// recorded by the TOOL, not filed by a seat. Driving it from a seat would manufacture a
 	// refusal that never happened and teach the sweep an act the design forbids. It is driven
 	// where it is actually produced — see the estoppel scenario in blueRespondTo/mint.
-	switch pick(r.rng, []string{"defect", "defect", "defect", "nominal", "nominal", "request", "friction"}) {
+	switch pick(r.rng, []string{"defect", "defect", "defect", "request", "request", "friction", "friction"}) {
 	case "defect":
 		r.do("log", seatID).set("--type", "defect").set("--reason", "fuzz defect from "+seatID).run()
 	case "request":
@@ -1534,7 +1533,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 	case "friction":
 		r.do("log", seatID).set("--type", "friction").set("--reason", "fuzz: the work was impeded for "+seatID+", noted without a claim that it is actionable").run()
 	default:
-		r.do("log", seatID).set("--type", "nominal").set("--reason", "fuzz: nothing blocked "+seatID).run()
+		r.do("log", seatID).set("--type", "friction").set("--reason", "fuzz: the work was impeded for "+seatID+", noted without a claim that it is actionable").run()
 	}
 	// line of inquiry carries an optional --method; feed it sometimes so that flag is exercised too.
 	// #246: a line of inquiry now has an id and a LIFECYCLE. Propose, then sometimes move it — the
@@ -1846,7 +1845,6 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		}
 		_, _ = r.exec("position", "--seat-id", seat, "--reason", "repair: the position the sitting owed")
 		r.do("revision", seat).set("--reason", "repair: the revision the sitting owed").run()
-		r.do("log", seat).set("--type", "nominal").set("--reason", "fuzz: repaired the last sitting's record").run()
 		return map[string]any{"sitting_record_appended": true}
 
 	case strings.HasPrefix(seatID, "blue-synthesize"):
