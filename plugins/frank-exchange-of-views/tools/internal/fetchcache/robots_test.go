@@ -353,3 +353,44 @@ func TestTheFetchPathTakesTheRegisteredTargetAndNeverAsksTheResolver(t *testing.
 		t.Errorf("the resolver was asked %d time(s) — the registered target should have replaced it", resolverHits)
 	}
 }
+
+// THE HYBRID, PINNED: Google's path grammar, our group selection, our Crawl-delay.
+//
+// Each half is here because the other library does not have it, and the split is the decision
+// this test exists to keep. grobotstxt is a port of Google's matcher and carries its whole test
+// suite, so the path grammar is delegated. It has no Crawl-delay at all — Google's parser ignores
+// the directive by design — and its group selection is less obedient than ours.
+func TestRobotsUsesGooglesGrammarAndOurObedience(t *testing.T) {
+	for _, tc := range []struct {
+		name, body, path string
+		want             bool
+	}{
+		// The grammar, delegated. These agreed with the hand-rolled matcher too; they are kept as
+		// the contract, so a future swap back has something to fail against.
+		{"wildcard and anchor", "User-agent: *\nDisallow: /*.pdf$\n", "/x/y.pdf", false},
+		{"anchor does not reach a query", "User-agent: *\nDisallow: /*.pdf$\n", "/x/y.pdf?v=1", true},
+		{"allow wins the longer match", "User-agent: *\nDisallow: /\nAllow: /pdf/\n", "/pdf/a.pdf", true},
+		{"prefix is not a path boundary", "User-agent: *\nDisallow: /a\n", "/abc", false},
+		{"percent-encoding is not folded", "User-agent: *\nDisallow: /%7Ejoe/\n", "/~joe/index.html", true},
+
+		// The obedience, ours. A file naming a prefix of our token is applied to us; Google's own
+		// matcher requires a closer match and would let this through. On the single case where the
+		// two disagreed, this is the reading that obeys.
+		{"a group naming a prefix of us applies", "User-agent: feov\nDisallow: /prefixmatch\n", "/prefixmatch", false},
+		{"a named group beats the wildcard", "User-agent: feov-record\nDisallow: /x\nUser-agent: *\nDisallow: /\n", "/y", true},
+		{"consecutive agent lines share one group", "User-agent: googlebot\nUser-agent: feov-record\nDisallow: /both\n", "/both", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := parseRobots(tc.body).allows(tc.path); got != tc.want {
+				t.Errorf("allows(%q) = %v, want %v\n%s", tc.path, got, tc.want, tc.body)
+			}
+		})
+	}
+
+	// AND THE CRAWL-DELAY SURVIVES THE SWAP. It is the directive the whole politeness contract
+	// leans on — arXiv publishes 15 seconds, five times slower than the number this tool used to
+	// carry — and it is exactly what a Google-derived parser drops, because Google ignores it.
+	if d := parseRobots("User-agent: *\nCrawl-delay: 15\nDisallow: /x\n").CrawlDelay; d != 15 {
+		t.Errorf("Crawl-delay = %v, want 15 — the one directive grobotstxt does not carry", d)
+	}
+}
