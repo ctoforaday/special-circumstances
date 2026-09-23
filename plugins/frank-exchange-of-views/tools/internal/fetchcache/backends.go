@@ -398,7 +398,7 @@ func MetadataRecord(f Fetcher, doi string) (*Attempt, error) {
 	if doi == "" {
 		return nil, nil
 	}
-	resp, err := f.Fetch("https://api.crossref.org/works/" + doi + "?mailto=" + ContactEmail)
+	resp, err := f.Fetch(crossrefWorks + doi + "?mailto=" + ContactEmail)
 	if err != nil {
 		return nil, nil
 	}

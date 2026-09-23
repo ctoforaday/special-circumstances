@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -285,5 +286,70 @@ func TestARobotsRefusalStillReachesTheOpenAccessRung(t *testing.T) {
 	}
 	if entry.HTTPStatus != 0 {
 		t.Errorf("HTTPStatus = %d — nothing was asked of the origin, so it refused nothing", entry.HTTPStatus)
+	}
+}
+
+// THE SHORTCUT IS TAKEN ON THE REAL FETCH PATH, not merely available to it. A test of
+// RegisteredTarget is a test of the function; deleting the call in followRedirects left the whole
+// suite green, which is the shape that lets a resolved path quietly stop being resolved.
+//
+// What this asserts is behavioural and not incidental: the resolver is NEVER ASKED. That is the
+// whole point — doi.org publishes no rate guidance, so it sits at this tool's fifteen-second kind
+// default, and the sweep that measured this spent 41 projected hours there.
+func TestTheFetchPathTakesTheRegisteredTargetAndNeverAsksTheResolver(t *testing.T) {
+	tempPaceDir(t)
+	prevPace := paceLoopback
+	paceLoopback = false // the fixture hosts are loopback; pacing them would only slow the test
+	t.Cleanup(func() { paceLoopback = prevPace })
+
+	var resolverHits int
+	publisher := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte("<html><body>" + strings.Repeat("the paper. ", 200) + "</body></html>"))
+	}))
+	defer publisher.Close()
+	crossref := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`{"message":{"DOI":"10.1234/x","resource":{"primary":{"URL":"` +
+			publisher.URL + `/article/1"}}}}`))
+	}))
+	defer crossref.Close()
+	resolver := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			http.NotFound(w, r)
+			return
+		}
+		resolverHits++
+		http.Redirect(w, r, publisher.URL+"/article/1", http.StatusFound)
+	}))
+	defer resolver.Close()
+
+	ru, err := url.Parse(resolver.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doiResolverHosts[ru.Hostname()+":"+ru.Port()] = true
+	prevCR := crossrefWorks
+	crossrefWorks = crossref.URL + "/works/"
+	t.Cleanup(func() {
+		crossrefWorks = prevCR
+		delete(doiResolverHosts, ru.Hostname()+":"+ru.Port())
+	})
+
+	resp, err := NewHTTPFetcher().Fetch(resolver.URL + "/10.1234/x")
+	if err != nil {
+		t.Fatalf("the doi fetch failed: %v", err)
+	}
+	if !strings.Contains(string(resp.Body), "the paper.") {
+		t.Errorf("the publisher page did not come back: %.120s", resp.Body)
+	}
+	if resolverHits != 0 {
+		t.Errorf("the resolver was asked %d time(s) — the registered target should have replaced it", resolverHits)
 	}
 }

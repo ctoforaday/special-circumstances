@@ -587,3 +587,47 @@ func TestThePublishedCopyOutranksASubmittedOne(t *testing.T) {
 		t.Errorf("the provenance sentence does not say which copy this is: %s", att.Via)
 	}
 }
+
+// A DOI URL GOES STRAIGHT TO THE REGISTERED PAGE. doi.org publishes no robots.txt and no rate
+// headers, so this tool's kind default applies to it — fifteen seconds per fetch, shared across
+// processes. Measured on the source sweep, 2,564 of 2,599 urls were doi.org urls: the whole scan
+// ran at one redirect service's floor. Crossref holds the same answer in a table.
+func TestADOIUrlIsResolvedThroughCrossrefRatherThanTheResolver(t *testing.T) {
+	var asked []string
+	f := fake(func(u string) (*Response, error) {
+		asked = append(asked, u)
+		switch {
+		case strings.Contains(u, "api.crossref.org"):
+			return &Response{Body: []byte(`{"message":{"DOI":"10.1234/x","resource":{"primary":{"URL":"https://publisher.example/article/1"}}}}`)}, nil
+		case u == "https://publisher.example/article/1":
+			return &Response{Body: []byte("<html><body>the article</body></html>"), ContentType: "text/html"}, nil
+		}
+		return nil, &Refusal{URL: u, Status: 403}
+	})
+	if got := RegisteredTarget(f, "https://doi.org/10.1234/x"); got != "https://publisher.example/article/1" {
+		t.Fatalf("RegisteredTarget = %q, want the publisher page", got)
+	}
+	for _, u := range asked {
+		if strings.Contains(u, "doi.org") {
+			t.Errorf("the resolver was asked anyway: %s", u)
+		}
+	}
+
+	// A NON-DOI URL IS LEFT ALONE, and so is a doi whose record Crossref does not hold: the
+	// caller follows the resolver's own redirect, which is what it did before this existed.
+	if got := RegisteredTarget(f, "https://publisher.example/article/1"); got != "" {
+		t.Errorf("a plain url was rewritten to %q", got)
+	}
+	silent := fake(func(u string) (*Response, error) { return &Response{Body: []byte(`{"error":"not found"}`)}, nil })
+	if got := RegisteredTarget(silent, "https://doi.org/10.1234/x"); got != "" {
+		t.Errorf("an error envelope was read as a target: %q", got)
+	}
+	// AND A TARGET THAT IS ITSELF A DOI URL IS NO SHORTCUT — it sends the next hop back to the
+	// resolver, which is the loop this exists to leave.
+	circular := fake(func(u string) (*Response, error) {
+		return &Response{Body: []byte(`{"message":{"DOI":"10.1234/x","resource":{"primary":{"URL":"https://dx.doi.org/10.1234/x"}}}}`)}, nil
+	})
+	if got := RegisteredTarget(circular, "https://doi.org/10.1234/x"); got != "" {
+		t.Errorf("a target back on the resolver was accepted: %q", got)
+	}
+}

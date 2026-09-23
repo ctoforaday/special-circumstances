@@ -165,3 +165,68 @@ func resolveWeb(base *url.URL, ref string) string {
 	}
 	return abs.String()
 }
+
+// ---------- the registered target of a doi ----------
+
+// doiResolverHosts are the DOI resolver's own names. A url on one of them is an IDENTIFIER
+// pointing at a publisher page, not a document.
+var doiResolverHosts = map[string]bool{
+	"doi.org": true, "dx.doi.org": true, "www.doi.org": true,
+}
+
+// crossrefWorks is where a work record is asked for. ONE HOME, because two verbs ask Crossref the
+// same question about the same doi and a second spelling of the endpoint is a second thing to get
+// wrong. It is a var so a test can point the whole path at a fixture server; nothing else writes it.
+var crossrefWorks = "https://api.crossref.org/works/"
+
+// RegisteredTarget asks Crossref where a doi's publisher page IS, so the fetch can go straight
+// there instead of through the resolver.
+//
+// WHY NOT JUST FOLLOW THE REDIRECT. doi.org publishes no robots.txt and no rate headers, so this
+// tool's kind default applies to it: fifteen seconds, jittered, per fetch, shared across every
+// process. Measured on the source sweep, 2,564 of 2,599 urls were doi.org urls — the whole scan
+// ran at one host's floor and projected to 41 hours, nearly all of it waiting on a redirect
+// service. Crossref answers the same question from a table, at 200ms, and it is an API built to
+// be asked. The registered target is also a REAL host, so its own robots.txt and its own floor
+// apply to the fetch that follows, which the resolver's hop obscured.
+//
+// A MISS IS THE RESOLVER'S CUE, NOT AN ERROR. Where Crossref does not answer — no record, an
+// error envelope, a doi it does not mint — this returns "" and the caller follows the doi.org
+// redirect exactly as before. Measured over 300 corpus works, `resource.primary.URL` was present
+// on 298; the two absences are the case this fallback is for.
+func RegisteredTarget(f Fetcher, rawURL string) string {
+	u, err := url.Parse(rawURL)
+	// Host() rather than Hostname() as a second key so a fixture server on a port can stand in
+	// for the resolver; a real doi.org url carries no port and matches on the bare name.
+	if err != nil || !(doiResolverHosts[strings.ToLower(u.Hostname())] || doiResolverHosts[strings.ToLower(u.Host)]) {
+		return ""
+	}
+	doi := DOIOf(rawURL)
+	if doi == "" {
+		return ""
+	}
+	resp, err := f.Fetch(crossrefWorks + doi + "?mailto=" + ContactEmail)
+	if err != nil {
+		return ""
+	}
+	var cr struct {
+		Message struct {
+			DOI      string `json:"DOI"` // the discriminator: an error envelope decodes without it
+			Resource struct {
+				Primary struct {
+					URL string `json:"URL"`
+				} `json:"primary"`
+			} `json:"resource"`
+		} `json:"message"`
+	}
+	if json.Unmarshal(resp.Body, &cr) != nil || cr.Message.DOI == "" {
+		return ""
+	}
+	target := strings.TrimSpace(cr.Message.Resource.Primary.URL)
+	// A TARGET THAT IS ITSELF A DOI URL BUYS NOTHING and would send the next hop back to the
+	// resolver — the loop this exists to leave.
+	if t, terr := url.Parse(target); terr != nil || t.Scheme == "" || doiResolverHosts[strings.ToLower(t.Hostname())] {
+		return ""
+	}
+	return target
+}

@@ -200,7 +200,15 @@ func (r robotsClient) Fetch(u string) (*Response, error) {
 // its path checked against that host's robots.txt, its status inspected.
 func (h *httpFetcher) followRedirects(rawURL string, skipRobots bool) (*Response, *url.URL, error) {
 	cur := rawURL
-	seen := map[string]bool{rawURL: true}
+	// A DOI URL IS AN IDENTIFIER, AND CROSSREF HOLDS WHERE IT POINTS. Asking it replaces a hop
+	// through a resolver that publishes no rate guidance — and therefore sits at this tool's
+	// fifteen-second kind default — with a 200ms lookup against an API built to be asked. Where
+	// Crossref does not answer, cur is unchanged and the resolver's own redirect is followed, so
+	// this is a shortcut and never a dependency.
+	if target := RegisteredTarget(robotsClient{h}, cur); target != "" {
+		cur = target
+	}
+	seen := map[string]bool{rawURL: true, cur: true}
 	for hop := 0; ; hop++ {
 		resp, final, loc, err := h.fetchOnceRetry(cur, false, skipRobots)
 		if err != nil || loc == "" {
