@@ -2,6 +2,7 @@ package fetchcache
 
 import (
 	"errors"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"strings"
 	"testing"
 )
@@ -547,7 +548,7 @@ func TestARetractionReachesTheRecordFromANonIndexBackend(t *testing.T) {
 	if att == nil || att.Backend != ViaArxiv {
 		t.Fatalf("wanted the arxiv rung to answer, got %+v", att)
 	}
-	e := EntryFor("https://arxiv.org/abs/2101.00001", att)
+	e := EntryFor(runtest.New(t, t.TempDir()), "https://arxiv.org/abs/2101.00001", att)
 	if e.Work == nil || e.Work.Retracted == nil || !*e.Work.Retracted {
 		t.Fatalf("the stored record does not say the work is retracted: %+v", e.Work)
 	}
@@ -821,5 +822,35 @@ func TestEuropePMCFullTextComesFromTheAPIHostAndOnlyWhenOpen(t *testing.T) {
 				t.Errorf("the advertised url was dropped rather than ranked below a working one: %+v", locs)
 			}
 		})
+	}
+}
+
+// A RECOVERED PDF IS READ, NOT JUST STORED.
+//
+// MEASURED over 120 works: ten pdfs were retrieved, ALL TEN by the open-access chain, and all ten
+// were stored with no page count, no text, no extractor id and no reason. Extraction was inline
+// on the live path and EntryFor — which every backend answer goes through — never ran it. The
+// chain that exists to find a readable copy found ten and read none.
+//
+// The reason matters as much as the text: OCR keys on an ATTEMPTED extraction that found none, so
+// an unextracted pdf is not merely unread, it is invisible to the reader that would have read it.
+func TestARecoveredPDFIsExtractedLikeALiveOne(t *testing.T) {
+	run := runtest.New(t, t.TempDir())
+	att := &Attempt{
+		Body:        []byte("%PDF-1.7 not a real document"),
+		ContentType: "application/pdf",
+		Via:         "open-access copy",
+		Backend:     ViaOA,
+	}
+	e := EntryFor(run, "https://repo.example/paper.pdf", att)
+	if e.TextExtracted == nil {
+		t.Fatal("the extractor was never asked — 'not attempted' and 'no text found' are different " +
+			"states, and this one leaves the document invisible to the OCR path")
+	}
+	if !*e.TextExtracted && e.TextReason == "" {
+		t.Error("an extraction that found nothing recorded no reason, which is the silent zero")
+	}
+	if e.Extractor == "" {
+		t.Error("no extractor id on an attempted extraction: nothing can re-run it")
 	}
 }

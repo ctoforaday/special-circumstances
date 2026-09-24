@@ -492,7 +492,7 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		if att == nil {
 			return Entry{}, nil, false, ferr
 		}
-		entry := EntryFor(url, att)
+		entry := EntryFor(run, url, att)
 		entry.HTTPStatus, entry.RefusalClass = stub.HTTPStatus, stub.RefusalClass
 		entry, serr := Store(run, entry, att.Body)
 		if serr != nil {
@@ -505,31 +505,9 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 
 	ex := DefaultExtractor.Extract(Dir(run), entry.ContentType, resp.Body)
 	entry.Filename = Label(ex.Title, resp.Disposition, url)
-	entry.Pages = ex.Pages
-	if ex.Attempted {
-		extracted := ex.Text != ""
-		entry.TextExtracted = &extracted
-		entry.Extractor = ex.ExtractorID
-		if extracted {
-			textSha, terr := StoreText(run, entry.Sha, []byte(ex.Text))
-			if terr != nil {
-				return Entry{}, nil, false, terr
-			}
-			entry.TextSha = textSha
-		} else {
-			// NO .txt FILE IS WRITTEN. An empty extraction on disk is indistinguishable from a
-			// successful extraction of an empty document, and a seat that opens it learns
-			// nothing and concludes the wrong thing. The absence plus the stated reason is the
-			// honest record — [[facts-are-fields]] clause 3.
-			entry.TextReason = ex.Reason
-		}
+	if terr := foldExtraction(run, &entry, ex); terr != nil {
+		return Entry{}, nil, false, terr
 	}
-	// OUTSIDE THE EXTRACTION BLOCK, BECAUSE HTML NEVER ENTERS IT. DefaultExtractor is a PDF
-	// extractor and reports Attempted=false for HTML deliberately; a check placed inside would
-	// be dead code on precisely the content type it is about.
-	//
-	// The answer is recorded either way for HTML — "we looked and it is a document" is the fact
-	// that makes the flag's ABSENCE mean something.
 	Classify(&entry, resp.Body)
 	// READ OFF THE RESPONSE, NOT THE FINAL BODY, so a reservation declared on a hop this fetch
 	// passed through is still recorded — Elsevier declares it on the markup-redirect bouncer,
@@ -702,7 +680,39 @@ func LookupSha(run record.Run, sha string) (Entry, bool, error) {
 // copied the same fields by hand, so the newest field reached whichever site was edited and the
 // other stored a record missing it — silently, because a missing field is indistinguishable from
 // a fact the backend did not learn.
-func EntryFor(url string, att *Attempt) Entry {
+// foldExtraction folds an extraction's result onto the entry, and writes the text.
+//
+// ONE FUNCTION BECAUSE THE RECOVERY PATH DID NOT DO IT AT ALL. Extraction was inline on the live
+// path, and EntryFor — which every backend answer goes through — simply never ran it. Measured
+// over 120 works: ten PDFs were retrieved, ALL TEN by the open-access chain, and all ten were
+// stored with no page count, no text, no extractor id and no reason. The chain that exists to
+// find a readable copy found ten and read none of them, and because "not attempted" and "no text
+// found" are different states, the record said nothing rather than saying it had failed.
+func foldExtraction(run record.Run, entry *Entry, ex Extraction) error {
+	entry.Pages = ex.Pages
+	if !ex.Attempted {
+		return nil
+	}
+	extracted := ex.Text != ""
+	entry.TextExtracted = &extracted
+	entry.Extractor = ex.ExtractorID
+	if !extracted {
+		// NO .txt FILE IS WRITTEN. An empty extraction on disk is indistinguishable from a
+		// successful extraction of an empty document, and a seat that opens it learns nothing and
+		// concludes the wrong thing. The absence plus the stated reason is the honest record —
+		// [[facts-are-fields]] clause 3. It is also what marks the document as OCR's to try.
+		entry.TextReason = ex.Reason
+		return nil
+	}
+	textSha, terr := StoreText(run, entry.Sha, []byte(ex.Text))
+	if terr != nil {
+		return terr
+	}
+	entry.TextSha = textSha
+	return nil
+}
+
+func EntryFor(run record.Run, url string, att *Attempt) Entry {
 	entry := Entry{
 		URL: url, ContentType: att.ContentType,
 		RetrievedVia: att.Via, Backend: att.Backend, TextRetrieved: att.TextRetrieved,
@@ -711,6 +721,19 @@ func EntryFor(url string, att *Attempt) Entry {
 	if att.Facts != (WorkFacts{}) {
 		facts := att.Facts
 		entry.Work = &facts
+	}
+	// THE RECOVERED DOCUMENT IS READ TOO. A pdf found by the open-access chain is the same
+	// artifact as one fetched live and owes the same extraction — and without it nothing marks it
+	// as a scan for the OCR path either, because that path keys on an ATTEMPTED extraction that
+	// found no text.
+	ex := DefaultExtractor.Extract(Dir(run), entry.ContentType, att.Body)
+	if entry.Filename == "" {
+		entry.Filename = Label(ex.Title, "", url)
+	}
+	if err := foldExtraction(run, &entry, ex); err != nil {
+		// A FAILURE TO WRITE THE TEXT IS NOT A FAILURE TO FETCH. The bytes are in hand and the
+		// entry is still worth storing; what is lost is the extracted copy, and the reason says so.
+		entry.TextReason = "the extracted text could not be written: " + err.Error()
 	}
 	Classify(&entry, att.Body)
 	// AND BYTES NOTHING CAN READ ARE NOT THE SOURCE'S TEXT, however honestly they were fetched.
