@@ -804,6 +804,10 @@ func TestEveryVerbHasATriggerRow(t *testing.T) {
 		}
 		real[p] = true
 		// A row for the bare `<role> show` covers the read path; the projections have their own gate.
+		// `inquest` is NOT covered that way: `show` has ten projections a seat chooses between, and
+		// enumerating them in the map would restate a vocabulary that has its own gate. The bench's
+		// three are distinct ACTS with distinct triggers — what was argued, what was contested, how
+		// the numbers moved — so each gets its row.
 		if strings.Contains(p, " show ") {
 			continue
 		}
@@ -1031,7 +1035,7 @@ func TestTheCatalogueThatWalkedPastThreeGatesIsCaught(t *testing.T) {
 		"  show report     the artifact under audit, anchors intact (blue edit holds you to carrying them)\n" +
 		"  show board      open gaps with full grading; --format markdown adds the closure archive's prose\n" +
 		"  show worklist   your open set plus sitting.complete and every outstanding duty\n" +
-		"  show motions    the docket: every ask in the filer's words, and its ruling if it has one\n"
+		"  show evidence   what backs a claim, and what red made of it\n"
 
 	real := map[string]bool{}
 	for _, p := range cli.CommandPaths() {
@@ -1049,8 +1053,10 @@ func TestTheCatalogueThatWalkedPastThreeGatesIsCaught(t *testing.T) {
 			"page is always written in.")
 	}
 	// `show worklist` is deliberately NOT expected: that view is now `work`, and a gate that
-	// matched a name the tree no longer carries would be checking its own memory.
-	for _, want := range []string{"show report", "show board", "show motions"} {
+	// matched a name the tree no longer carries would be checking its own memory. `show motions`
+	// left for the same reason — it is `inquest motions`, on the bench's own group — and this
+	// fixture names a view that is still on `show`.
+	for _, want := range []string{"show report", "show board", "show evidence"} {
 		var hit bool
 		for p := range named {
 			if strings.HasSuffix(p, want) {

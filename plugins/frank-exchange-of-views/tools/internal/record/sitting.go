@@ -101,6 +101,29 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 		s.LastSitting = &ls
 	}
 	add := func(what string) { s.Open = append(s.Open, Item{What: what, Blocks: true}) }
+	may := func(what string) { s.Open = append(s.Open, Item{What: what, Blocks: false}) }
+
+	// THE AUDIT IS THE LENS'S WORK, AND IT WAS THE ONE THING THIS LIST DID NOT SAY.
+	//
+	// A lens is dispatched to find what is wrong with the report. That duty is not a gap, so it was
+	// in no item, so `open` was empty and `complete` was true for a lens whose report had just moved
+	// 116 rows. Measured on the 2026-09-23 run: the voice lens read `complete: true, open: []`,
+	// went to the report anyway, and minted two real defects. A seat that cannot trust the work list
+	// reads the rest of the surface to find the work — 531 `show` calls across two runs, 331 of them
+	// a lens, and the list's own counterparty line told it to go read the board.
+	//
+	// It is NON-BLOCKING on purpose: finding nothing is a legitimate audit, so this must not hold the
+	// turn open the way an owed register does. Present-but-not-blocking is what the Item.Blocks field
+	// is for, and the audit is the work it was added to be able to express.
+	if s.LastSitting != nil {
+		switch s.LastSitting.Kind {
+		case "first":
+			may("audit the report in full — this is your first sitting on it, so nothing of it is yet yours to have read")
+		case "behind":
+			may(fmt.Sprintf("audit what moved: the report was at %d when you last sat and is at %d now — the change is your surface, not the whole document",
+				s.LastSitting.Pin, s.LastSitting.Head))
+		}
+	}
 
 	// EVERY SEAT CLOSES THE LOG CHANNEL. Silence is not the empty case: an absent log reads the
 	// same whether the sitting was clean or the channel went unused, and across eighteen recorded
@@ -272,6 +295,19 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 	// THE AFFORDANCES GO ON THE SAME LIST, and they go on it LAST so the blocking items read
 	// first. They carry Blocks:false, so they are visible without being owed.
 	s.Open = append(s.Open, availableOf(evs, gaps, role, seatID)...)
+
+	// AN EMPTY LIST MUST SAY IT IS EMPTY. `complete: true, open: []` is the answer a seat with
+	// nothing to do gets, and it is indistinguishable from a command that failed to find anything —
+	// so the seat assumes the work is somewhere else and goes looking for it. Measured across two
+	// runs: 531 `show` calls, 331 of them a lens, against a work list that had already told several
+	// of them they were complete.
+	//
+	// The statement is an ITEM rather than a field because `open` is what a seat reads; a seat that
+	// checks one place and finds a sentence has been answered, where a seat that finds `[]` has not.
+	// It is non-blocking, because having nothing to do is not an obligation.
+	if len(s.Open) == 0 {
+		may("nothing is owed and nothing is available: this list is complete, not empty — no other projection holds work for you, and ending your turn now is the correct act")
+	}
 	s.Complete = !s.Blocked()
 	return s
 }

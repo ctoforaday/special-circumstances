@@ -18,12 +18,24 @@ import (
 // brute-force lexical pass over ≤~150 gaps is well within budget and stays deterministic.
 
 // NearMatchJSON is one ranked screen result: which gap, how strong the overlap, where it
-// sits, and whether it is still open.
+// sits, whether it is still open, and — where it is closed — WHO closed it.
+//
+// CLOSED_BY DECIDES THE ANSWER THIS SCREEN EXISTS TO INFORM, so it is on the row. The screen's
+// whole job is reopen-or-new, and those are not the same question for the two kinds of closure:
+// red may reopen its OWN closure on new evidence, while a bench ruling is ESTOPPED and re-raising
+// it is relitigation rather than diligence — new evidence there is a lineage successor that names
+// the ruled gap in `supersedes` and says what the ruling did not account for.
+//
+// Without it the screen returned `status: closed` for both and the seat had to go and find the
+// distinction somewhere else, which is a fact arriving after the decision it governs.
 type NearMatchJSON struct {
 	ID       string  `json:"id"`
 	Score    float64 `json:"score"`
 	Location string  `json:"location"`
 	Status   string  `json:"status"` // open | closed
+	// ClosedBy is "bench" or "red" on a closed gap, and empty on an open one — absent because
+	// there is nothing to say, not because it is unknown.
+	ClosedBy string `json:"closed_by,omitempty"`
 }
 
 // locationBonus nudges a candidate that shares its section with a gap: two defects in the
@@ -89,11 +101,13 @@ func NearMatch(f Family, candidate, location string, topN int) []NearMatchJSON {
 		if score > 1 {
 			score = 1
 		}
-		status := "closed"
+		status, closedBy := "closed", "red"
 		if g.Open {
-			status = "open"
+			status, closedBy = "open", ""
+		} else if g.ClosedByBench {
+			closedBy = "bench"
 		}
-		out = append(out, NearMatchJSON{ID: g.ID, Score: round2(score), Location: gapLoc, Status: status})
+		out = append(out, NearMatchJSON{ID: g.ID, Score: round2(score), Location: gapLoc, Status: status, ClosedBy: closedBy})
 	}
 
 	sort.SliceStable(out, func(i, j int) bool {

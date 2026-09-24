@@ -257,17 +257,25 @@ var views = []struct {
 	name, short, long, defaultFor string
 	jsonByName                    bool
 	shape                         any
+	// inquest moves this projection off `show` and onto the BENCH'S OWN GROUP.
+	//
+	// The bench rules between red and blue, so it may not take either side's account of what was
+	// argued or contested — it reads the record itself. That is a different act from a seat reading
+	// its own work, and it was under the same word: every seat saw `show debate` and `show motions`
+	// in its listing, and measured across two runs the lenses and blue spent 24 calls in projections
+	// that answer a question only the bench asks.
+	inquest bool
 }{
-	{"report", "THE REPORT, as it stands now. `changes` says how it got that way. Written by the opening synthesis and every `edit`, with anchors from `cite`, `finding` and `prove`", "THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the opening synthesis and every `edit`", "", false, nil},
-	{"board", "EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by `mint`, `close`, `regrade` and `retire`", "THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. JSON by default; --format markdown gives the human-verification rendering. Written by `mint`, `close`, `regrade` and `retire`", "", true, record.BoardJSON{}},
-	{"findings", "THE RAW LENS FINDINGS, BEFORE they are minted into gaps — several findings can become one gap, and this is where you see which. Written by `finding`", "Every lens finding on the record (label, seat, epoch, role, grades, location, text) — the minting lens coalesces these into gaps", "", true, record.FindingsJSON{}},
-	{"work", "WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Run it first and again before you finish. Written by `mint`, `close` and the bench's `motion docket rule`", "**RUN THIS FIRST AND AGAIN BEFORE YOU STOP.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left.\n\nAn item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran, a line of inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.\n\n`open` holds OPEN gaps only (grades, class, location, a problem synopsis, found_by); one with `awaiting_docket` was REMANDED by the bench — nothing is pending, and it returns only if you docket it again (`docket_reopens_on` says what would bring it back).\n\n`closed_index` IS THE ESTOPPEL REGISTER, NOT DEBRIS: each entry carries id, location, class, the `fate` that ended it, and `closed_by` (`bench` or `red`). THAT DISTINCTION IS LOAD-BEARING: red may reopen its OWN closure on new evidence, but a bench ruling is ESTOPPED and re-raising it is relitigation, not diligence. New evidence against a bench-ruled gap is a lineage successor — mint it under a new id naming the ruled gap in `supersedes`, and say what the ruling did not account for.\n\nFate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. The reasoning behind a fate is on the record: `show debate` carries the bench's opinions, `show board --format markdown` the closure archive with its prose — read the one you are about to rely on or work around. Bare `show` defaults here for every role. Written by `mint`, `close` and the bench's `motion docket rule`", "*", true, record.WorkJSON{}},
-	{"motions", "WHAT HAS BEEN CONTESTED AND HOW IT WAS RULED — the ask in the filer's words, and the ruling if it has one. `debate` is what each side ARGUED; this is what was formally disputed. Written by `motion`, `rule` and `appeal`", "Every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks a PASS verdict, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal`", "", true, record.MotionsJSON{}},
-	{"debate", "WHAT EACH SIDE ARGUED, epoch by epoch — the transcript, in order. Written by `position`, `closing` and the bench's `motion docket rule`", "the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by `position`, `closing` and the bench's `motion docket rule`", "", false, record.DebateJSON{}},
-	{"changes", "HOW THE REPORT GOT THAT WAY — every edit in record order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by `edit`", "every recorded edit to the report (the blue_edit diff stack), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`", "", false, nil},
-	{"evidence", "WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading. Written by `cite`, `prove`, `verify` and `reproduce`", "WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a finding to file however well it reads. `not_checked` is not reassurance; it says nobody asked. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` are the PDF pages the tool found its `ocr_quote` on: check it against one of those page images, not against the reading. Every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their confidence. THIS IS HOW YOU RESOLVE AN ANCHOR you are reading in the report. Written by `cite`, `prove`, `verify` and `reproduce`", "", true, record.EvidenceJSON{}},
-	{"lines-of-inquiry", "WHICH DIRECTIONS WERE TAKEN AND WHICH WERE NOT — pursued, deferred, declined, abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule`", "the exploration space: lines taken, deferred, declined and abandoned, and the ones still undecided; --json gives the same lines with their types intact, each carrying the reason for its CURRENT status. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule` (red's ruling)", "", false, record.InquiriesJSON{}},
-	{"telemetry", "HOW THE NUMBERS MOVED ACROSS EPOCHS — a trend, not a snapshot: one line per epoch (chair sitting), and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it", "JSONL, one line per epoch (chair sitting): the trend the STOPPING judgment reads — the bench's signal for whether the findings are still changing character or merely recurring", "", true, view.TelemetryLineShape()},
+	{"report", "THE REPORT, as it stands now. `changes` says how it got that way. Written by the opening synthesis and every `edit`, with anchors from `cite`, `finding` and `prove`", "THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the opening synthesis and every `edit`", "", false, nil, false},
+	{"board", "EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by `mint`, `close`, `regrade` and `retire`", "THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. JSON by default; --format markdown gives the human-verification rendering. Written by `mint`, `close`, `regrade` and `retire`", "", true, record.BoardJSON{}, false},
+	{"findings", "THE RAW LENS FINDINGS, BEFORE they are minted into gaps — several findings can become one gap, and this is where you see which. Written by `finding`", "Every lens finding on the record (label, seat, epoch, role, grades, location, text) — the minting lens coalesces these into gaps", "", true, record.FindingsJSON{}, false},
+	{"work", "WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Run it first and again before you finish. Written by `mint`, `close` and the bench's `motion docket rule`", "**RUN THIS FIRST AND AGAIN BEFORE YOU STOP.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left.\n\nAn item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran, a line of inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.\n\n`open` holds OPEN gaps only (grades, class, location, a problem synopsis, found_by); one with `awaiting_docket` was REMANDED by the bench — nothing is pending, and it returns only if you docket it again (`docket_reopens_on` says what would bring it back).\n\n`estopped` IS WHAT YOU MAY NOT RE-RAISE: the gaps the BENCH ruled, each with id, location, class and the `fate` that ended it. Re-raising one is relitigation, not diligence — new evidence against it is a lineage successor, minted under a new id naming the ruled gap in `supersedes` and saying what the ruling did not account for. YOUR OWN closures are not here and are not a bar: red may reopen what red closed, and `near-match` shows you those with `closed_by` at the moment you are deciding reopen-or-new.\n\nFate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. Written by `mint`, `close` and the bench's `motion docket rule`", "*", true, record.WorkJSON{}, false},
+	{"motions", "WHAT HAS BEEN CONTESTED AND HOW IT WAS RULED — the ask in the filer's words, and the ruling if it has one. `debate` is what each side ARGUED; this is what was formally disputed. Written by `motion`, `rule` and `appeal`", "Every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks a PASS verdict, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal`", "", true, record.MotionsJSON{}, true},
+	{"debate", "WHAT EACH SIDE ARGUED, epoch by epoch — the transcript, in order. Written by `position`, `closing` and the bench's `motion docket rule`", "the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by `position`, `closing` and the bench's `motion docket rule`", "", false, record.DebateJSON{}, true},
+	{"changes", "HOW THE REPORT GOT THAT WAY — every edit in record order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by `edit`", "every recorded edit to the report (the blue_edit diff stack), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`", "", false, nil, false},
+	{"evidence", "WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading. Written by `cite`, `prove`, `verify` and `reproduce`", "WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a finding to file however well it reads. `not_checked` is not reassurance; it says nobody asked. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` are the PDF pages the tool found its `ocr_quote` on: check it against one of those page images, not against the reading. Every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their confidence. THIS IS HOW YOU RESOLVE AN ANCHOR you are reading in the report. Written by `cite`, `prove`, `verify` and `reproduce`", "", true, record.EvidenceJSON{}, false},
+	{"lines-of-inquiry", "WHICH DIRECTIONS WERE TAKEN AND WHICH WERE NOT — pursued, deferred, declined, abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule`", "the exploration space: lines taken, deferred, declined and abandoned, and the ones still undecided; --json gives the same lines with their types intact, each carrying the reason for its CURRENT status. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule` (red's ruling)", "", false, record.InquiriesJSON{}, false},
+	{"telemetry", "HOW THE NUMBERS MOVED ACROSS EPOCHS — a trend, not a snapshot: one line per epoch (chair sitting), and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it", "JSONL, one line per epoch (chair sitting): the trend the STOPPING judgment reads — the bench's signal for whether the findings are still changing character or merely recurring", "", true, view.TelemetryLineShape(), true},
 }
 
 // ViewNames is the projection vocabulary — the single source behind the help text, the
@@ -286,6 +294,18 @@ func showGroup(c *cobra.Command) *cobra.Command {
 		return c.Parent()
 	}
 	return c
+}
+
+// GroupOf is the command group a projection lives under — `show` for a seat's own reads, `inquest`
+// for the bench's raw-record ones. Derived from the table so a caller cannot hold a stale opinion
+// about where a view moved to.
+func GroupOf(view string) string {
+	for _, v := range views {
+		if v.name == view && v.inquest {
+			return "inquest"
+		}
+	}
+	return "show"
 }
 
 // JSONByNameViews are the projections whose native form is already JSON. Derived from the
@@ -393,7 +413,26 @@ func ViewNames() []string {
 // As subcommands each projection is a first-class thing: `show board`, `show motions`, its own
 // --help, its own completion, and an unknown one gets the refusal that lists the whole surface
 // rather than a flag-parse error naming the value.
-func Show() *cobra.Command {
+func Show() *cobra.Command { return viewGroup(false) }
+
+// Inquest is the BENCH'S OWN READ SURFACE, and it is a group rather than three more entries on
+// `show` because it answers a different question.
+//
+// A seat reads `show` to learn what is open to IT. The bench reads the record to adjudicate
+// between two parties, neither of whose account it may take: what each side actually argued, what
+// was formally contested and how it was ruled, and how the numbers moved. Those are the raw
+// record, not a digest of it, and needing them is what distinguishes ruling from working.
+//
+// IT IS MOUNTED FOR THE SEATS THAT ADJUDICATE — the bench and the chair — and for no others.
+// Under `show` every seat saw these in its listing, and a name in a listing is a thing a seat
+// reaches for. A lens and blue are the parties being judged; the transcript of what each side
+// argued, the register of what was contested, and the convergence trend are not their work.
+func Inquest() *cobra.Command { return viewGroup(true) }
+
+func viewGroup(inquest bool) *cobra.Command {
+	if inquest {
+		return inquestGroup()
+	}
 	c := &cobra.Command{
 		Use: "show",
 		// THE NAME LIST CAME OFF THIS LINE when the root page started marking which entries hold
@@ -448,6 +487,9 @@ func Show() *cobra.Command {
 	c.PersistentFlags().String(flags.ID, "",
 		"scope the changes projection to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form")
 	for _, v := range views {
+		if v.inquest {
+			continue // the bench's own group; see Inquest
+		}
 		v := v
 		sub := &cobra.Command{
 			Use: v.name,
@@ -797,7 +839,16 @@ func RoleVerbs(role string, verbs ...*cobra.Command) []*cobra.Command {
 		markTree(v)
 		out = append(out, v)
 	}
-	return append(out, Show())
+	out = append(out, Show())
+	// THE SEATS THAT ADJUDICATE, WHICH IS NOT ONLY THE BENCH. The chair issues the verdict and
+	// rules grade motions; the bench rules the docket, petitions and inquiries. Both decide
+	// BETWEEN two parties and may take neither one's account, which is what this group is for —
+	// and a refusal that points the chair at `inquest motions` has to reach a chair that has it.
+	// A lens and blue do the work being judged, so they do not carry it.
+	if role == "bench" || role == "chair" {
+		out = append(out, Inquest())
+	}
+	return out
 }
 
 func join(names []string) string {
@@ -891,3 +942,30 @@ type closingResult struct {
 }
 
 func (r closingResult) Human() string { return "closing filed for " + r.ID }
+
+// inquestGroup builds the bench's raw-record surface from the same table `show` reads, so a
+// projection cannot be in both or in neither.
+func inquestGroup() *cobra.Command {
+	c := &cobra.Command{
+		Use:          "inquest",
+		Short:        "READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them",
+		Args:         cobra.NoArgs,
+		SilenceUsage: true,
+	}
+	for _, v := range views {
+		if !v.inquest {
+			continue
+		}
+		v := v
+		sub := &cobra.Command{
+			Use:          v.name,
+			Short:        v.short,
+			Long:         v.long + jsonByNameHelpSuffix(v.jsonByName) + shapeHelpSuffix(v.name, v.jsonByName, v.shape),
+			Args:         cobra.NoArgs,
+			SilenceUsage: true,
+			RunE:         func(cmd *cobra.Command, _ []string) error { return renderView(cmd, v.name) },
+		}
+		c.AddCommand(sub)
+	}
+	return c
+}

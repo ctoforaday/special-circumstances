@@ -40,9 +40,6 @@ feov-record: chair: record: carry claims gap G1 was closed in an earlier sitting
 {"key":"red-lens-evidence:mint:G1","mint":{"acceptance_check":"reread","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"fix_basis":"proposed","gap_id":"G1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"carried case","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_MINT"}
 
 ═══ RENDERS ═══
--- debate
-# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)
-
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
 

@@ -18,7 +18,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
-// `show diagnostics` — DID THE SEATS FIND THEIR SURFACE, answered as fields.
+// `ops diagnostics` — DID THE SEATS FIND THEIR SURFACE, answered as fields.
 //
 // THIS EXISTED, AND IT EXISTED AS THE DEFECT IT MEASURES. The exposure figure every naming
 // experiment turns on was computed by a scratchpad Python script that ran a regex over the
@@ -38,9 +38,14 @@ import (
 // AND IT IS NOT ONLY FOR PROBE RUNS. Every run has a trajectory, so the same question is askable
 // of production — which is the argument for it living in the tool rather than in the harness.
 func newShowDiagnostics() *cobra.Command {
+	// `ops`, NOT `show`. The operator's group held three projections a seat never sees
+	// (diagnostics, log, tiers) under the same word as the seat's read surface, so one name meant
+	// two unrelated sets depending on who typed it — and a seat reading about `show` in any shared
+	// prose could not tell which was meant. The seat's `show` is what a seat may READ of the run;
+	// `ops` is what an operator may ask ABOUT one.
 	show := &cobra.Command{
-		Use:          "show",
-		Short:        "read an operator projection over a run (read-only)",
+		Use:          "ops",
+		Short:        "ask an operator question about a run — how the seats behaved, what they reported, what answered them (read-only)",
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 	}
@@ -75,7 +80,7 @@ func newShowDiagnostics() *cobra.Command {
 			}
 			if traj == "" {
 				return feov.Errorf(feov.NotFound,
-					"show diagnostics: no trajectory found for %s, and it is what carries the help a seat RECEIVED — "+
+					"ops diagnostics: no trajectory found for %s, and it is what carries the help a seat RECEIVED — "+
 						"the record says what a seat wrote, never what it was shown. Pass --trajectory <path>", run.Dir())
 			}
 			report, err := diagnose(run, traj, sitting)
@@ -98,7 +103,7 @@ func newShowDiagnostics() *cobra.Command {
 				// REFUSED, not rendered as the default. An unknown --format that quietly emits
 				// JSON is the plausible-zero shape wearing a rendering hat: the caller asked for
 				// something the tool does not have and got something that parses.
-				return feov.Errorf(feov.Validation, "show diagnostics: unknown --format %q (json | markdown)", format)
+				return feov.Errorf(feov.Validation, "ops diagnostics: unknown --format %q (json | markdown)", format)
 			}
 		},
 	}
@@ -160,7 +165,7 @@ type RunDiagnostic struct {
 }
 
 // toolName is how the seat's shell commands name this binary. Taken from the running executable
-// rather than written down: `show diagnostics` IS the tool, so it already knows.
+// rather than written down: `ops diagnostics` IS the tool, so it already knows.
 func toolName() string {
 	exe, err := os.Executable()
 	if err != nil {
@@ -188,14 +193,14 @@ func diagnose(run record.Run, traj, seatID string) (RunDiagnostic, error) {
 	if seatID == "" {
 		sort.Strings(registered)
 		return out, feov.Errorf(feov.MissingField,
-			"show diagnostics: --sitting names whose sitting this trajectory is. A run's record carries every seat "+
+			"ops diagnostics: --sitting names whose sitting this trajectory is. A run's record carries every seat "+
 				"the BUILD registered (%s), and only one of them sat; reporting them all would credit the rest with "+
 				"an exposure of zero they were never given the chance to earn",
 			strings.Join(dedupeSeats(registered), ", "))
 	}
 	if !slices.Contains(registered, seatID) {
 		return out, feov.Errorf(feov.NotFound,
-			"show diagnostics: %q never registered in this run, so there is no sitting to report on", seatID)
+			"ops diagnostics: %q never registered in this run, so there is no sitting to report on", seatID)
 	}
 
 	for _, id := range ids {
@@ -217,7 +222,7 @@ func diagnose(run record.Run, traj, seatID string) (RunDiagnostic, error) {
 		}
 		if sv.ToolUnrecognised() {
 			return out, feov.Errorf(feov.Validation,
-				"show diagnostics: the trajectory has %d shell calls and none of them invoke %q, so every survey figure "+
+				"ops diagnostics: the trajectory has %d shell calls and none of them invoke %q, so every survey figure "+
 					"would read as a seat that ran nothing. Either this trajectory is not a sitting with this tool, or the "+
 					"tool was built under another name", sv.BashCalls, toolName())
 		}

@@ -10,9 +10,22 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
+// hasItem is a BLOCKING item carrying sub. It is named for what it asks rather than for `Open`,
+// because the list holds both kinds: an item may be present without blocking (Item.Blocks), which
+// is how a lens's audit is stated — work it owes that must not hold its turn open.
 func hasItem(s SittingJSON, sub string) bool {
 	for _, it := range s.Open {
 		if it.Blocks && strings.Contains(it.What, sub) {
+			return true
+		}
+	}
+	return false
+}
+
+// listsItem is any item carrying sub, blocking or not.
+func listsItem(s SittingJSON, sub string) bool {
+	for _, it := range s.Open {
+		if strings.Contains(it.What, sub) {
 			return true
 		}
 	}

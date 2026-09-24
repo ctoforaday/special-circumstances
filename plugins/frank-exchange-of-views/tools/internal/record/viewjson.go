@@ -611,12 +611,14 @@ func listValuesByEvent(db *sql.DB, table string) (map[int64][]string, error) {
 type WorkJSON struct {
 	// Sitting answers "may I end my turn" on the read a seat already does first. A separate
 	// command would be a second way to ask a question this view should have been answering.
-	Sitting     SittingJSON       `json:"sitting"`
-	Open        []WorkGapJSON     `json:"open"`
-	ClosedIndex []ClosedIndexJSON `json:"closed_index"`
-	Counts      struct {
-		Open   int `json:"open"`
-		Closed int `json:"closed"`
+	Sitting SittingJSON   `json:"sitting"`
+	Open    []WorkGapJSON `json:"open"`
+	// Estopped is what this seat may NOT re-raise. See EstoppedJSON.
+	Estopped []EstoppedJSON `json:"estopped"`
+	Counts   struct {
+		Open int `json:"open"`
+		// Estopped counts the bench rulings barred to this seat, not the gaps it has closed.
+		Estopped int `json:"estopped"`
 	} `json:"counts"`
 	// Counterparty answers "has the other side acted, and on what" — a question the record could
 	// always answer and no view would.
@@ -708,11 +710,18 @@ type WorkGapJSON struct {
 	Material bool `json:"material"`
 }
 
-// ClosedIndexJSON is a closed gap reduced to what a near-match screen needs — id, location,
-// class — with NO prose. The full closure record (with anchors and the problem) is behind
-// --view archive for the seat that has to audit a specific closure.
+// EstoppedJSON is a BENCH-RULED closure: a gap this seat may not re-raise.
 //
-// IT IS ALSO THE ESTOPPEL REGISTER, and it could not express estoppel.
+// IT IS THE ESTOPPEL REGISTER AND NOTHING ELSE NOW. It carried every closed gap, red's own
+// included — and a seat's own closure is not a bar on anything, because red may reopen it on new
+// evidence. Two thirds of a lens's work list was closures it was free to reopen and was not
+// working on: measured on the 2026-09-23 run, five entries, all `closed_by: red`, against a work
+// list whose open set was empty.
+//
+// A WORK LIST IS THE OPEN WORK, AND AN ESTOPPEL IS OPEN. It is not history a seat reads about; it
+// is a live constraint on its next act — the one thing it cannot find out safely anywhere else,
+// because `near-match` carries `closed_by` but nothing REQUIRES a seat to screen before minting.
+// Red's closures leave; the bar stays.
 //
 // Every seat reads this list — `show work` is the projection each one is told to run first and
 // again before it stops — so it is already the carrier that reaches every board. But it carried
@@ -730,7 +739,7 @@ type WorkGapJSON struct {
 // WHO closed it is not decoration: red may reopen its own closure on new evidence, while a bench
 // ruling is estopped and re-raising it is relitigation. A seat that cannot tell them apart cannot
 // obey either rule.
-type ClosedIndexJSON struct {
+type EstoppedJSON struct {
 	ID        string `json:"id"`
 	Location  string `json:"location"`
 	AboutKind string `json:"about_kind,omitempty"`
@@ -885,7 +894,7 @@ func workJSONOfGaps(gaps []WorkGapState, since int) WorkJSON {
 	// Sitting carries its own list, and it is initialised HERE as well as in SittingOf: a WorkJSON
 	// built without a sitting still marshals one, and a nil there renders `"open": null` — "not
 	// computed" where the truth is "nothing open".
-	out := WorkJSON{Open: []WorkGapJSON{}, ClosedIndex: []ClosedIndexJSON{}, Sitting: SittingJSON{Open: []Item{}}}
+	out := WorkJSON{Open: []WorkGapJSON{}, Estopped: []EstoppedJSON{}, Sitting: SittingJSON{Open: []Item{}}}
 	for _, g := range gaps {
 		if g.Open {
 			out.Open = append(out.Open, WorkGapJSON{
@@ -902,20 +911,22 @@ func workJSONOfGaps(gaps []WorkGapState, since int) WorkJSON {
 			})
 			continue
 		}
-		ci := ClosedIndexJSON{ID: g.ID, ClosedBy: "red", Location: g.Location,
-			AboutKind: g.AboutKind, AboutRef: g.AboutRef, Class: g.Class, Fate: g.Fate}
-		if g.ClosedByBench {
-			ci.ClosedBy = "bench"
+		// RED'S OWN CLOSURES ARE NOT A BAR, so they are not here. A seat may reopen what it closed;
+		// what it may not do is re-raise what the bench ruled.
+		if !g.ClosedByBench {
+			continue
 		}
+		ci := EstoppedJSON{ID: g.ID, ClosedBy: "bench", Location: g.Location,
+			AboutKind: g.AboutKind, AboutRef: g.AboutRef, Class: g.Class, Fate: g.Fate}
 		if s, ok := ArtifactStateOf(ci.Fate); ok {
 			ci.ArtifactState = string(s)
 		} else {
 			ci.ArtifactState = "inherits:" + strings.Join(g.Supersedes, ",")
 		}
-		out.ClosedIndex = append(out.ClosedIndex, ci)
+		out.Estopped = append(out.Estopped, ci)
 	}
 	out.Counts.Open = len(out.Open)
-	out.Counts.Closed = len(out.ClosedIndex)
+	out.Counts.Estopped = len(out.Estopped)
 	return out
 }
 
@@ -944,7 +955,10 @@ func WorkJSONOfRun(run Run) (WorkJSON, error) {
 func counterpartyOf(evs []*Event, role string, epoch int) CounterpartyJSON {
 	other := map[string]string{"chair": "blue", "blue": "chair"}[role]
 	if other == "" {
-		return CounterpartyJSON{Reading: "this seat waits on no single party — the lens and the bench read the board itself"}
+		// IT DOES NOT NAME ANOTHER COMMAND. This read "the lens and the bench read the board itself",
+		// which is the work list spending the seat's next call for it: a lens that has just been told
+		// it has no counterparty is then told where to go looking. Its work is on its own list.
+		return CounterpartyJSON{Reading: "this seat waits on no single party — your own list is the whole of what is open to you"}
 	}
 	c := CounterpartyJSON{Role: other}
 	var clk Clock

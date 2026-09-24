@@ -53,7 +53,7 @@ func newShowTiers() *cobra.Command {
 			}
 			fam, err := record.FamilyOf(run)
 			if err != nil {
-				return fmt.Errorf("show tiers: %w", err)
+				return fmt.Errorf("ops tiers: %w", err)
 			}
 			rep := tierReport(run, fam)
 			out := cmd.OutOrStdout()
@@ -67,14 +67,14 @@ func newShowTiers() *cobra.Command {
 			case "markdown":
 				fmt.Fprint(out, renderTiers(rep))
 			default:
-				// Refused rather than defaulted, for the reason `show diagnostics` gives: an
+				// Refused rather than defaulted, for the reason `ops diagnostics` gives: an
 				// unknown --format that quietly emits JSON hands back something that parses in
 				// answer to a question the tool does not have.
-				return feov.Errorf(feov.Validation, "show tiers: unknown --format %q (json | markdown)", format)
+				return feov.Errorf(feov.Validation, "ops tiers: unknown --format %q (json | markdown)", format)
 			}
 			if rep.Substituted > 0 {
 				return feov.Errorf(feov.Validation,
-					"show tiers: %d seat(s) were answered by a model other than their class's configured tier", rep.Substituted)
+					"ops tiers: %d seat(s) were answered by a model other than their class's configured tier", rep.Substituted)
 			}
 			return nil
 		},

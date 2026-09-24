@@ -35,9 +35,15 @@ func TestShowPrintsExactlyTheSharedProjection(t *testing.T) {
 
 	// The markdown views, which are the only ones this contract can hold: a JSON-by-name view is
 	// not a view.Markdown rendering, so there is no shared computation to diverge from.
-	for _, name := range []string{"debate", "lines-of-inquiry"} {
+	// `debate` is the BENCH'S, on its own group: it rules between two parties and takes neither
+	// one's account, so the raw transcript is not a working seat's read (see seat.Inquest).
+	for _, c := range []struct{ group, seat, name string }{
+		{"inquest", "judge", "debate"},
+		{"show", "red-chair", "lines-of-inquiry"},
+	} {
+		name, group := c.name, c.group
 		t.Run(name, func(t *testing.T) {
-			out, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", name)
+			out, err := run(t, group, "--run", runDir, "--seat-id", c.seat, name)
 			if err != nil {
 				t.Fatalf("show %s: %v", name, err)
 			}
@@ -138,9 +144,9 @@ func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 	}
 
 	// debate --json parses and carries the epochs structure.
-	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "debate", "--json")
+	out, err := run(t, "inquest", "--run", runDir, "--seat-id", "judge", "debate", "--json")
 	if err != nil {
-		t.Fatalf("show debate --json: %v", err)
+		t.Fatalf("inquest debate --json: %v", err)
 	}
 	var dj struct {
 		Epochs []struct {
@@ -171,13 +177,20 @@ func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 	// stale names (`friction`, `reason`) while `evidence` went unheld. A name cannot be here
 	// unless the table says so, and no marked view can be absent.
 	for _, v := range seat.JSONByNameViews() {
-		bare, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", v)
-		if err != nil {
-			t.Fatalf("show %s: %v", v, err)
+		// THE GROUP COMES FROM THE TABLE. A bench projection is not on a chair's surface, so driving
+		// every view as one seat would test a tree nobody has.
+		group := seat.GroupOf(v)
+		who := "red-chair"
+		if group == "inquest" {
+			who = "judge"
 		}
-		flagged, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", v, "--json")
+		bare, err := run(t, group, "--run", runDir, "--seat-id", who, v)
 		if err != nil {
-			t.Errorf("show %s --json was refused; that view is already JSON, so the flag must change nothing: %v", v, err)
+			t.Fatalf("%s %s: %v", group, v, err)
+		}
+		flagged, err := run(t, group, "--run", runDir, "--seat-id", who, v, "--json")
+		if err != nil {
+			t.Errorf("%s %s --json was refused; that view is already JSON, so the flag must change nothing: %v", group, v, err)
 			continue
 		}
 		if flagged != bare {

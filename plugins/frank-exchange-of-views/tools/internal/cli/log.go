@@ -15,7 +15,7 @@ import (
 // sitting. Nobody reads it back from a seat: a missing capability is a report addressed to the
 // human who can retool the seat, not material for the debate.
 //
-// # Why it is `show log`
+// # Why it is `ops log`
 //
 // `log` is the seats' write verb. A read at the operator's root under the same word made one
 // command name a write on four surfaces and a read on the fifth. Every operator read is under
@@ -24,7 +24,7 @@ func newShowLog() *cobra.Command {
 	return &cobra.Command{
 		Use:   "log",
 		Short: "read the run's log (operator; every missing capability a seat reported, and every seat that reported none)",
-		Long: "show log prints the entries seats filed in the log — missing capabilities, defects in the tooling, " +
+		Long: "ops log prints the entries seats filed in the log — missing capabilities, defects in the tooling, " +
 			"impediments and requests — and, separately, the seats that SAT AND FILED NOTHING, read off the harness " +
 			"brackets rather than asserted by the seat. The two counts are not interchangeable: no entries and no " +
 			"seated-and-silent is a run nobody sat in.\n\n" +

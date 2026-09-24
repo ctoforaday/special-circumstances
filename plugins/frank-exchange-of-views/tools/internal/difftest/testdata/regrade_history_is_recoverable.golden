@@ -99,9 +99,6 @@ feov-record: lens: record: red-lens-evidence has already recorded a regrade on "
 {"key":"red-lens-evidence:regrade:#1:G1","regrade":{"basis":"blue narrowed the scope; consequence shrank","gap_id":"G1","likelihood":"GRADE_LOW","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_REGRADE"}
 
 ═══ RENDERS ═══
--- debate
-# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)
-
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
 

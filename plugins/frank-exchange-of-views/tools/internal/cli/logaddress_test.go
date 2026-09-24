@@ -13,7 +13,7 @@ import (
 
 // `log` ONLY EVER WRITES.
 //
-// Each seat writes the log with its own `log`; the operator reads it with `show log`, beside every
+// Each seat writes the log with its own `log`; the operator reads it with `ops log`, beside every
 // other operator read. The channel for reporting that a capability is unreachable was once itself
 // unreachable: constitutions taught the write in its roleless form, and that form landed on an
 // operator read under the same word and died at cobra's parser. Eighteen probed sittings recorded
@@ -41,14 +41,14 @@ func TestASeatsRolelessLogReachesItsOwnWriteVerb(t *testing.T) {
 	}
 }
 
-// The operator's read is `show log`, and it returns the log projection.
+// The operator's read is `ops log`, and it returns the log projection.
 func TestTheOperatorReadsTheLogWithShowLog(t *testing.T) {
-	out, err := run(t, "show", "log", "--seat-id", "operator", "--run", recordtest.TmpRun(t))
+	out, err := run(t, "ops", "log", "--seat-id", "operator", "--run", recordtest.TmpRun(t))
 	if err != nil {
-		t.Fatalf("the operator's show log failed: %v", err)
+		t.Fatalf("the operator's ops log failed: %v", err)
 	}
 	if !strings.Contains(out, "log") || !strings.Contains(out, "counts") {
-		t.Errorf("show log did not return the log projection:\n%s", out)
+		t.Errorf("ops log did not return the log projection:\n%s", out)
 	}
 }
 
@@ -58,11 +58,11 @@ func TestTheOperatorRootHasNoLog(t *testing.T) {
 	op := NewRootFor("operator")
 	for _, c := range op.Commands() {
 		if c.Name() == "log" {
-			t.Fatalf("the operator's root carries `log` (%q) — `log` only ever writes, and the operator reads with `show log`", c.Short)
+			t.Fatalf("the operator's root carries `log` (%q) — `log` only ever writes, and the operator reads with `ops log`", c.Short)
 		}
 	}
 	if _, err := run(t, "log", "--seat-id", "operator", "--run", recordtest.TmpRun(t)); err == nil {
-		t.Error("`log` on the operator's surface was accepted; the read is `show log`")
+		t.Error("`log` on the operator's surface was accepted; the read is `ops log`")
 	}
 }
 

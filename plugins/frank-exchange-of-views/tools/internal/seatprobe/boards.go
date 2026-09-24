@@ -59,7 +59,7 @@ type Inquiry struct {
 	// RuledWhy is red's ARGUMENT for that fate, and a board is not honest without it.
 	//
 	// MEASURED 2026-08-16, by asking a seat instead of watching one. A blue seat on `docket` read
-	// `show motions` twice and `show debate` once and then reported: "the `ruling` field just says
+	// `inquest motions` twice and `inquest debate` once and then reported: "the `ruling` field just says
 	// 'endorsed' or 'too-thin' or 'rejected', but there might be elaboration in a red seat's
 	// transcript that I can't see from here." It was RIGHT. Build wrote every ruling with
 	// "ruled <verdict> on the line as it was proposed" — a reason that restates the verdict.
@@ -887,4 +887,5 @@ var AlwaysTaken = map[string]string{
 	"assemble": "the LAST step of the workflow runs it, so whether a bench reaches for it is not a choice the probe can observe — the engine invokes it either way. Testing it here would measure the engine, and the engine has its own gates",
 	"register": "every seat's FIRST act, in every prompt and every constitution — a seat that skips it cannot write at all, so no board has to make it attractive",
 	"show":     "the read path. Every board demands it implicitly because a seat that acts without reading the board is not choosing, and the probe measures reading separately",
+	"inquest":  "the bench's read path — the raw record it rules from. Exempt for the same reason as `show`, and additionally because what the bench READS to reach a ruling is not what a board can bait: the ruling is the accounted act",
 }

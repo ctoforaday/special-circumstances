@@ -92,9 +92,6 @@ motion M1 ruled rejected [key red-chair:motion_rule:#1]
 {"key":"red-chair:motion_rule:#1","motion_rule":{"grade":"GRADE_RULING_REJECTED","motion_id":"M1","opinion":"the consequence stands","subject":"MOTION_SUBJECT_GRADE"},"seat_id":"red-chair","ts":10,"type":"EVENT_TYPE_MOTION_RULE"}
 
 ═══ RENDERS ═══
--- debate
-# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)
-
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
 

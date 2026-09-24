@@ -137,11 +137,15 @@ func TestDebateJSONBytesIsValidJSON(t *testing.T) {
 	}
 }
 
-// TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse pins the chair's shrinking working set:
-// OPEN gaps only in a lean shape (grades + class + location + a TRUNCATED problem synopsis +
-// found_by, but NOT required_fix/acceptance_check), and closed gaps collapsed to a prose-free
-// {id, location, class} index. This is the once-per-turn read the full board is not.
-func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
+// TestWorkIsOpenOnlyLeanAndEstoppedIsBenchRulingsOnly pins the working set: OPEN gaps only, in a
+// lean shape (grades + class + location + a TRUNCATED problem synopsis + found_by, but NOT
+// required_fix/acceptance_check), and `estopped` carrying BENCH rulings alone.
+//
+// A SEAT'S OWN CLOSURE IS NOT A BAR. Red may reopen what red closed, so a red closure on this list
+// is history a seat is not working on — and `near-match` surfaces it with `closed_by` at the one
+// moment it decides reopen-or-new. What a seat cannot find out safely anywhere else is what the
+// BENCH ruled, because re-raising that is relitigation and nothing requires a screen before mint.
+func TestWorkIsOpenOnlyLeanAndEstoppedIsBenchRulingsOnly(t *testing.T) {
 	runDir := newRun(t)
 	m := "red-chair"
 	longProblem := strings.Repeat("word ", 60) // ~300 chars, well over the 140-rune synopsis budget
@@ -181,11 +185,12 @@ func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 	if len(w.Open) != 1 || w.Open[0].ID != "G1" {
 		t.Fatalf("work list Open = %+v, want the single open gap G1", w.Open)
 	}
-	if len(w.ClosedIndex) != 1 || w.ClosedIndex[0].ID != "G2" {
-		t.Fatalf("work list ClosedIndex = %+v, want the single closed gap G2", w.ClosedIndex)
+	// G2 is RED's closure, so it is not a bar and is not here.
+	if len(w.Estopped) != 0 {
+		t.Fatalf("work list estopped = %+v, want empty — G2 is red's own closure, which red may reopen", w.Estopped)
 	}
-	if w.Counts.Open != 1 || w.Counts.Closed != 1 {
-		t.Errorf("counts = %+v, want open 1 closed 1", w.Counts)
+	if w.Counts.Open != 1 || w.Counts.Estopped != 0 {
+		t.Errorf("counts = %+v, want open 1 estopped 0", w.Counts)
 	}
 	// The open gap's problem is TRUNCATED to the synopsis budget, and the full-prose fields
 	// (required_fix, acceptance_check) are absent from the JSON entirely.
@@ -208,9 +213,52 @@ func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 	if len(w.Open[0].FoundBy) != 1 || w.Open[0].FoundBy[0] != "L1-F1" {
 		t.Errorf("open gap lost found_by: %+v", w.Open[0].FoundBy)
 	}
-	// The closed index carries id/location/class only — no problem prose.
-	if w.ClosedIndex[0].Location != "§closed" || w.ClosedIndex[0].Class != "citation" {
-		t.Errorf("closed index lost id/location/class: %+v", w.ClosedIndex[0])
+}
+
+// AND A BENCH RULING IS ON IT, prose-free: id, location and class, which is what a seat needs to
+// recognise the bar without being handed the ruling's reasoning.
+func TestABenchRulingIsEstoppedOnTheWorkList(t *testing.T) {
+	runDir := newRun(t)
+	m := "red-chair"
+	writeShard(t, runDir, []*Event{
+		recordtest.At(t, m, m+":mint:G9", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_HIGH),
+			GapId: proto.String("G9"), Class: proto.String("citation"),
+			Problem: proto.String("SECRET_RULED_PROSE"), Location: proto.String("§ruled"),
+			RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("chk"),
+			CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH),
+			Impact:     recordtest.P(recordpb.Grade_GRADE_HIGH),
+		}),
+		recordtest.At(t, m, m+":motion:M1", &recordpb.Motion{
+			MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+			Basis:  proto.String("red cannot settle this one"),
+			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G9")}},
+		}),
+		recordtest.At(t, "judge", "judge:motion-rule:M1", &recordpb.MotionRule{
+			MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+			Opinion: proto.String("because"),
+			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
+				Principle:   proto.String("correctness first"),
+				Tension:     proto.String("speed against certainty"),
+				ReviewFlag:  proto.String("no"),
+				Settled:     proto.String("the claim as it stood may not be re-asserted"),
+				Final:       proto.Bool(true),
+			}},
+		}),
+	})
+	w, err := WorkJSONOfRun(mustRun(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(w.Estopped) != 1 || w.Estopped[0].ID != "G9" {
+		t.Fatalf("a bench ruling is not on the estoppel register: %+v", w.Estopped)
+	}
+	if w.Estopped[0].ClosedBy != "bench" {
+		t.Errorf("estopped %s says closed_by=%q, want bench", w.Estopped[0].ID, w.Estopped[0].ClosedBy)
+	}
+	if blob, _ := json.Marshal(w); strings.Contains(string(blob), "SECRET_RULED_PROSE") {
+		t.Errorf("the estoppel register carries the ruling's prose; it is a bar, not a reading:\n%s", blob)
 	}
 }
 

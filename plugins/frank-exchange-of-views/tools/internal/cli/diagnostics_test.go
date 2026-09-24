@@ -69,9 +69,9 @@ func TestASurfaceThatArrivesThroughARefusalStillCounts(t *testing.T) {
 		"  verify      adjudicate ONE citation\n"+
 		"\n")
 
-	out, err := run(t, "show", "diagnostics", "--seat-id", "operator", "--run", runDir, "--sitting", "red-lens-evidence")
+	out, err := run(t, "ops", "diagnostics", "--seat-id", "operator", "--run", runDir, "--sitting", "red-lens-evidence")
 	if err != nil {
-		t.Fatalf("show diagnostics: %v", err)
+		t.Fatalf("ops diagnostics: %v", err)
 	}
 	var got RunDiagnostic
 	if err := json.Unmarshal([]byte(out), &got); err != nil {
@@ -103,7 +103,7 @@ func TestWithoutASittingItRefusesRatherThanCreditingSeatsThatNeverSat(t *testing
 	}
 	trajectoryFor(t, runDir, "nothing here")
 
-	_, err := run(t, "show", "diagnostics", "--seat-id", "operator", "--run", runDir)
+	_, err := run(t, "ops", "diagnostics", "--seat-id", "operator", "--run", runDir)
 	if err == nil {
 		t.Fatal("it reported every registered seat; the ones that never sat get an exposure of zero they were never given the chance to earn")
 	}

@@ -45,15 +45,6 @@ JUDICIAL HALT recorded — capture relays this verbatim [key judge:halt:#1]
 {"halt":{"opinion":"continuing would compromise the consent gate"},"key":"judge:halt:#1","seat_id":"judge","ts":6,"type":"EVENT_TYPE_HALT"}
 
 ═══ RENDERS ═══
--- debate
-# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)
-
-## Epoch 1
-
-### LEAD
-- **PETITION GRANTED** — binds **both**
-the relief binds the coming seats
-
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
 

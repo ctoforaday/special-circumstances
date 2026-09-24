@@ -48,9 +48,6 @@ minted G2
 {"key":"red-lens-evidence:mint:G2","mint":{"acceptance_check":"y","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"fix_basis":"proposed","gap_id":"G2","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"L6-F1","problem":"a different key mints","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
 
 ═══ RENDERS ═══
--- debate
-# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)
-
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
