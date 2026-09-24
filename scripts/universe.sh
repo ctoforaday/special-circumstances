@@ -51,6 +51,9 @@
 #   WORKDIR   where the universe lives (default ~/.claude/scratch/universe)
 #   MODEL / JUDGMENT_MODEL   default haiku/haiku — the engine's own --smoke tier
 #   LANES     default 1
+#   CONCURRENT_AGENTS  default 8 — the Workflow tool's per-run concurrent agent limit. The engine's
+#             own default is min(16, cpu_cores - 2), which is 2 on a 4-core box and serialises the
+#             seven-lens fan-out into four waves.
 set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -72,6 +75,20 @@ SMOKE="${SMOKE:-1}"
 MODEL="${MODEL:-haiku}"
 JUDGMENT_MODEL="${JUDGMENT_MODEL:-haiku}"
 LANES="${LANES:-1}"
+# THE WORKFLOW ENGINE'S CONCURRENCY IS min(16, cpu_cores - 2), AND THAT HEURISTIC IS WRONG FOR
+# THIS WORKLOAD.
+#
+# Measured on two runs (universe-m7, universe-m8) on a 4-core box: peak concurrency 2, exactly
+# min(16, 4-2), with 38 of 38 sitting starts firing within 0.1s of another sitting ENDING — a hard
+# semaphore, not scheduling noise. Seven lenses are dispatched per epoch and run as four waves of
+# two, so the epoch-1 lens phase took 542s where its longest single lens took 214s.
+#
+# cpu_cores - 2 is the right denominator for CPU-bound agents. A seat is INFERENCE-bound: it waits
+# on the API and spends its own CPU only on the occasional feov-record spawn. Capping fan-out by
+# core count prices idle waiting as if it were compute.
+#
+# 8 covers the widest fan-out the debate has (seven lens sittings in one epoch) with a seat spare.
+CONCURRENT_AGENTS="${CONCURRENT_AGENTS:-8}"
 # bypassPermissions, AND BOTH ALTERNATIVES FAIL. `dontAsk` does not mean "proceed without asking" —
 # it DENIES, so every Bash and Read a seat needs returns "Permission to use Bash has been denied
 # because Claude Code is running in don't ask mode" and the run writes no record at all. `--bg`
@@ -491,6 +508,10 @@ cmd_run() {
     smoke_flag=" --smoke"
   fi
   log "tiers: model=$MODEL judgment=$JUDGMENT_MODEL lanes=$LANES mode=$([ "$SMOKE" = "1" ] && echo smoke || echo development)"
+  # PRINTED BESIDE THE TIERS because it changes the wall clock a run is compared on: two runs at
+  # different concurrency are not the same experiment, and the engine's own default depends on the
+  # BOX rather than on anything the run records.
+  log "concurrency: $CONCURRENT_AGENTS agent(s) (engine default here would be $(( $(nproc) - 2 )) on $(nproc) cores)"
   log "cwd:   $src"
   log "load at start: $(cut -d' ' -f1-3 /proc/loadavg)"
 
@@ -509,7 +530,8 @@ cmd_run() {
   # it was taken to have tested.
   #
   # 0 means wait indefinitely, which is what a run that is the whole point of the process needs.
-  ( cd "$src" && CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0 claude -p \
+  ( cd "$src" && CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0 \
+      CLAUDE_CODE_WORKFLOW_MAX_CONCURRENT_AGENTS="$CONCURRENT_AGENTS" claude -p \
       "/frank-exchange-of-views:research $topic --model $MODEL --judgment-model $JUDGMENT_MODEL --lanes $LANES$smoke_flag $*" \
       --output-format stream-json --verbose --permission-mode "$PERMISSION_MODE" </dev/null ) \
     | python3 "$REPO/scripts/universe-stream.py" --raw "$raw" | tee "$out"

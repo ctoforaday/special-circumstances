@@ -1,4 +1,4 @@
-prompt sha256: abbb48452c46e0d2e266b357e3bce145bb17ab4e887d8a878e14cb19a2a2e19f
+prompt sha256: 4e9ff38f721c6007c29321775f96f6be2c33011ecc1ff9578e41e6d2efd8b48d
 
 Red lens sitting, area evidence, topic "the seat prompt contract".
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -47,7 +47,11 @@ GAPS THE BENCH HAS RULED, AND WHAT EACH RULING OBLIGES OF YOU: [{"gap_id":"G1","
 YOU ARE ESTOPPED on each settled proposition: do not re-raise it as a fresh gap or a successor; a defect that survives the ruling arrives as the reopens_on condition or not at all.
 A ruling marked final does not reopen; one carrying a reopens_on condition reopens only on that condition and not on a re-reading.
 THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT — read the bench's opinion for any fate you are about to rely on or work around, because a fate you never read is one you can neither honour nor invoke.
-SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
+SPEED: ONE MESSAGE IS ONE ROUND TRIP, whatever it carries.
+Five independent tool calls in ONE message cost one round trip; the same five in five messages cost five, and a round trip is seconds.
+So batch every call that does not need a prior call's OUTPUT as its input: all your projections together, independent fetches together, several file reads together.
+Serialize only where the second call cannot be written until the first has answered.
+If you are about to send a message with one tool call in it, ask what else you already know you will need.
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
 LOG (red-lens-evidence) — CLOSE THIS CHANNEL BEFORE YOU FINISH, UNLESS THIS SITTING RECORDED NOTHING AT ALL — then say so in the envelope and stop, having run no commands: on the record, AND in the envelope's log field.

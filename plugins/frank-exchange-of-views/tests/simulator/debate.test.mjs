@@ -14,6 +14,24 @@ const labelsOf = (world, prefix) => world.calls.filter((c) => c.opts.label.start
 const firstPrompt = (world, prefix) => labelsOf(world, prefix)[0].prompt
 const CITATION_CLAUSE = 'THE REPORT DOES NOT NAME ITS SOURCES'
 
+// THE SPEED CLAUSE IS READ FROM ITS ONE DEFINITION, NOT RESTATED HERE.
+//
+// This test asserted `includes('batch INDEPENDENT tool calls')` — a phrase of the clause's PROSE —
+// so rewording the clause broke a test about whether seats CARRY it. That is the defect it is
+// meant to catch, one level up: a fact recovered from a string. Reading the literal means any
+// wording change is covered by construction and only a seat actually losing the clause reds.
+//
+// IT REFUSES WHAT IT CANNOT READ. The clause is a plain template literal today; an interpolation
+// added to it would make this text differ from what a prompt carries, so `${` here is a hard
+// failure rather than a silently weakened assertion.
+const speedClauseText = (() => {
+  const src = readFileSync(new URL('../../skills/research-protocol/scripts/debate.js', import.meta.url), 'utf8')
+  const m = /^const speedClause = `([^`]*)`/m.exec(src)
+  if (!m) throw new Error('debate.js no longer declares `const speedClause` as a single template literal — this bind cannot read it')
+  if (m[1].includes('${')) throw new Error('speedClause now interpolates; teach this bind to render it rather than comparing the literal')
+  return m[1]
+})()
+
 // ── founding regressions ────────────────────────────────────────────────────────────────────
 
 test('founding regression 1: JSON-stringified args parse; no undefined leaks into prompts', async () => {
@@ -476,7 +494,7 @@ test('every seat prompt carries the log clause, the speed clause and the record 
     assert.ok(c, `${seat} sat`)
     assert.ok(c.prompt.includes("envelope's log field") && /AUDIENCE IS THE OPERATOR/.test(c.prompt) && /JUDGEMENT rather than for want of occasion/.test(c.prompt), `${seat} lost the operator channel`)
     assert.ok(!/OWES THE SURVEY/.test(c.prompt) && !/SILENCE IS NOT THE EMPTY CASE/.test(c.prompt), `${seat} restates a retired rule`)
-    assert.ok(c.prompt.includes('SPEED:') && c.prompt.includes('batch INDEPENDENT tool calls'), `${seat} lost the speed clause`)
+    assert.ok(c.prompt.includes(speedClauseText), `${seat} lost the speed clause`)
     assert.ok(c.prompt.includes('SEAT_ID:') && c.prompt.includes('/opt/feov/bin/feov-record'), `${seat} lost the record contract`)
   }
   for (const seat of ['judge #', 'judge · terminal', 'judge · assemble']) {

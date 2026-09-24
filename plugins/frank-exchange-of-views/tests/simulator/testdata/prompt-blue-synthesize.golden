@@ -1,4 +1,4 @@
-prompt sha256: 905e84ec9854f3b522703b2c7305758c6a1b21a8a7a22d1fe601b880286e8eaa
+prompt sha256: 13be10ae3374646f025eea6e80845f4730287534b6aa245621195a32bddb42d8
 
 Blue synthesis for topic: "the seat prompt contract".
 Read every draft in research/2026-01-01_golden/blue/candidates/ and synthesize research/2026-01-01_golden/blue/report.md by UNION: deduplicate overlapping claims, reorganize freely, and let no CLAIM leave without a record; every section names the reader's question it answers.
@@ -29,7 +29,11 @@ LOG (blue-synthesize) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, A
 YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU, not the other seats: what you reached for, what it did, and what you wanted instead.
 Where you set an act aside as a JUDGEMENT rather than for want of occasion, give that one sentence — the record shows what you ran, never what you weighed and declined.
 Where nothing impeded the work, say that instead.
-SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
+SPEED: ONE MESSAGE IS ONE ROUND TRIP, whatever it carries.
+Five independent tool calls in ONE message cost one round trip; the same five in five messages cost five, and a round trip is seconds.
+So batch every call that does not need a prior call's OUTPUT as its input: all your projections together, independent fetches together, several file reads together.
+Serialize only where the second call cannot be written until the first has answered.
+If you are about to send a message with one tool call in it, ask what else you already know you will need.
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
 SEAT_ID: blue-synthesize.
