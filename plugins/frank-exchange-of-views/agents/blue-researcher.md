@@ -1098,13 +1098,13 @@ An item with `blocks: false` is work nobody will refuse you for skipping — a c
 
 `open` holds OPEN gaps only (grades, class, location, a problem synopsis, found_by); one with `awaiting_docket` was REMANDED by the bench — nothing is pending, and it returns only if you docket it again (`docket_reopens_on` says what would bring it back).
 
-`closed_index` IS THE ESTOPPEL REGISTER, NOT DEBRIS: each entry carries id, location, class, the `fate` that ended it, and `closed_by` (`bench` or `red`). THAT DISTINCTION IS LOAD-BEARING: red may reopen its OWN closure on new evidence, but a bench ruling is ESTOPPED and re-raising it is relitigation, not diligence. New evidence against a bench-ruled gap is a lineage successor — mint it under a new id naming the ruled gap in `supersedes`, and say what the ruling did not account for.
+`estopped` IS WHAT YOU MAY NOT RE-RAISE: the gaps the BENCH ruled, each with id, location, class and the `fate` that ended it. Re-raising one is relitigation, not diligence — new evidence against it is a lineage successor, minted under a new id naming the ruled gap in `supersedes` and saying what the ruling did not account for. YOUR OWN closures are not here and are not a bar: red may reopen what red closed, and `near-match` shows you those with `closed_by` at the moment you are deciding reopen-or-new.
 
-Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. The reasoning behind a fate is on the record: `show debate` carries the bench's opinions, `show board --format markdown` the closure archive with its prose — read the one you are about to rely on or work around. Bare `show` defaults here for every role. Written by `mint`, `close` and the bench's `motion docket rule`
+Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. Written by `mint`, `close` and the bench's `motion docket rule`
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §18
 
-OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}],last_sitting:{kind,pin,head}},open:[{id,severity,likelihood,impact,complexity_cost,class,location,passage,about_kind,about_ref,edited_since:[{epoch,edited_by,old,new}],problem_synopsis,check_kind,awaiting_proof,awaiting_docket,docket_reopens_on,found_by:[string],material}],closed_index:[{id,location,about_kind,about_ref,class,fate,closed_by,artifact_state}],counts:{open,closed},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
+OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}],last_sitting:{kind,pin,head}},open:[{id,severity,likelihood,impact,complexity_cost,class,location,passage,about_kind,about_ref,edited_since:[{epoch,edited_by,old,new}],problem_synopsis,check_kind,awaiting_proof,awaiting_docket,docket_reopens_on,found_by:[string],material}],estopped:[{id,location,about_kind,about_ref,class,fate,closed_by,artifact_state}],counts:{open,estopped},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
 
 Usage:
   feov-record show work [flags]

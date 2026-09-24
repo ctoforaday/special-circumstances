@@ -390,17 +390,25 @@ func Check(run record.Run) ([]string, error) {
 	if got, want := idsOfWork(wj), openIDs(gt); !sameSet(got, want) {
 		add("work-mirror", "work.open=%v, raw walk open=%v", got, want)
 	}
-	for _, ci := range wj.ClosedIndex {
-		g := gt.gaps[ci.ID]
-		if g == nil || g.open {
-			add("work-mirror", "closed index carries %s, which the raw walk holds open or unknown", ci.ID)
+	// THE CLOSER ATTRIBUTION IS CHECKED ON THE BOARD, WHICH IS WHERE IT IS PUBLISHED.
+	//
+	// It was checked on `work.closed_index`, a reduced copy of the closed gaps the work list
+	// carried for near-match screening. The screen carries `closed_by` itself now, so the work list
+	// holds only OPEN work and this invariant follows the fact to the projection that still states
+	// it. The check is the same one: the view's fold and the raw walk must agree about whose
+	// closing event was last, because red may reopen its own closure and a bench ruling is estopped.
+	for _, g := range bj.Closed {
+		raw := gt.gaps[g.ID]
+		if raw == nil || raw.open {
+			add("board-mirror", "board.closed carries %s, which the raw walk holds open or unknown", g.ID)
 			continue
 		}
-		if ci.ClosedBy != g.lastCloser {
-			add("closer-attribution", "closed index %s: closed_by=%q, last closing event was %s's", ci.ID, ci.ClosedBy, g.lastCloser)
+		was := "red"
+		if g.ClosedByBench {
+			was = "bench"
 		}
-		if ci.Fate != g.lastClass {
-			add("closer-attribution", "closed index %s: fate=%q, the LAST closing event carried %q", ci.ID, ci.Fate, g.lastClass)
+		if was != raw.lastCloser {
+			add("closer-attribution", "board.closed %s: closed_by=%q, last closing event was %s's", g.ID, was, raw.lastCloser)
 		}
 	}
 
