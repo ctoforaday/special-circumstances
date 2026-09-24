@@ -4,6 +4,7 @@ import (
 	"compress/flate"
 	"compress/gzip"
 	"compress/zlib"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -288,5 +289,40 @@ func TestTheLinkHeaderIsReadOffTheResponse(t *testing.T) {
 	base, _ := neturl.Parse(srv.URL + "/12345/")
 	if got := LandingPageFullText(resp.ContentType, resp.Body, resp.LinkHeader, base); got != "https://repo.example/12345/paper.pdf" {
 		t.Errorf("the signpost was not read end to end: %q", got)
+	}
+}
+
+// A 2xx THAT IS NOT 200 IS NOT A REFUSAL.
+//
+// MEASURED on doi 10.1109/5.18626 during the 2026-09-24 rerun: IEEE answered 202 Accepted and the
+// record said `refusal_class: origin` — the publisher turning us away, when what the publisher
+// said was "received, being processed". A seat reading that concludes the source is closed to it.
+// "403" and "202" license opposite next moves and the bare number reads the same either way.
+func TestANonOKSuccessIsNotRecordedAsARefusal(t *testing.T) {
+	tempPaceDir(t)
+	for _, status := range []int{http.StatusAccepted, http.StatusNoContent, http.StatusPartialContent} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/robots.txt" {
+				http.NotFound(w, r)
+				return
+			}
+			w.WriteHeader(status)
+		}))
+		_, err := NewHTTPFetcher().Fetch(srv.URL + "/a")
+		srv.Close()
+		var ref *Refusal
+		if !errors.As(err, &ref) {
+			t.Fatalf("%d: no typed refusal at all: %v", status, err)
+		}
+		if got := refusalClass(ref.Status); got != "incomplete" {
+			t.Errorf("%d recorded as %q, want incomplete — the host accepted the request", status, got)
+		}
+		if !strings.Contains(ref.Note, "NOT a refusal") {
+			t.Errorf("%d: the note does not say what happened: %q", status, ref.Note)
+		}
+	}
+	// AND A REAL REFUSAL IS STILL ONE. Widening this must not soften a 403 into "not yet".
+	if got := refusalClass(http.StatusForbidden); got != "origin" && got != "unknown" {
+		t.Errorf("a 403 is classed %q", got)
 	}
 }

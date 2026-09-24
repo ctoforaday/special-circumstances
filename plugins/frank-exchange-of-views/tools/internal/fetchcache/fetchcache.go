@@ -177,6 +177,9 @@ type Entry struct {
 	// different next actions. Where a proxy is configured the honest answer is `unknown`, and
 	// recording that is the point: an ambiguity carried is not an ambiguity resolved by guess.
 	//
+	//	incomplete — a 2xx that is not 200: the host ACCEPTED the request and returned no
+	//	            document with it. Not a refusal, and recording it as one told a seat the
+	//	            source was closed when the source had said "not yet"
 	//	origin   — no proxy is configured, so the refusal is the source's own
 	//	unknown   — a proxy is configured and the two readings cannot be told apart
 	//	robots    — nothing was asked of the origin at all; this host's robots.txt disallows the

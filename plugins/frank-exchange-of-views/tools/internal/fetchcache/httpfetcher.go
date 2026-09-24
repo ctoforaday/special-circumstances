@@ -357,6 +357,13 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, retried, skipRobots bool) (o
 		// away from a book it could have read; "a proof-of-work wall, and this index publishes an
 		// API" sends it one rung further.
 		note := egressNote(resp.StatusCode)
+		// A 2xx-not-200 gets its own sentence, because "403" and "202" license opposite next
+		// moves and the bare number reads the same to a seat scanning for a failure.
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			note = " — this is NOT a refusal: the host ACCEPTED the request and did not return the " +
+				"document with it. 202 usually means a check is running or the work is queued, so the " +
+				"source is not closed to us and asking again later may simply work" + note
+		}
 		if lim := int64(1 << 20); resp.ContentLength <= lim {
 			if b, rerr := io.ReadAll(io.LimitReader(resp.Body, lim)); rerr == nil {
 				if why := ShellReason(resp.Header.Get("Content-Type"), b); why != "" {
@@ -442,6 +449,16 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, retried, skipRobots bool) (o
 // is genuinely ambiguous between the container and the origin, and asserting either would trade
 // an honest unknown for an unfounded certainty.
 func refusalClass(status int) string {
+	// A 2xx THAT IS NOT 200 IS NOT A REFUSAL, AND CALLING IT ONE IS A FALSE STATEMENT ABOUT THE
+	// SOURCE.
+	//
+	// MEASURED on doi 10.1109/5.18626: IEEE answered 202 Accepted and this recorded
+	// `refusal_class: origin` — the record saying the publisher turned us away, when what the
+	// publisher said was "received, being processed". A seat reading that would conclude the
+	// source is closed to it. The status is the whole difference between "no" and "not yet".
+	if status >= 200 && status < 300 {
+		return "incomplete"
+	}
 	switch status {
 	case http.StatusForbidden, http.StatusMethodNotAllowed, http.StatusProxyAuthRequired:
 		if proxyEnv() != "" {
