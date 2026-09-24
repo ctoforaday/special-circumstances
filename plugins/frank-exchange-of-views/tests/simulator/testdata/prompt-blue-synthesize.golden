@@ -1,4 +1,4 @@
-prompt sha256: 13be10ae3374646f025eea6e80845f4730287534b6aa245621195a32bddb42d8
+prompt sha256: 9f6ae84876c50251cbf1c984fb9f8241aa139a5e912bc3182cc908260393be26
 
 Blue synthesis for topic: "the seat prompt contract".
 Read every draft in research/2026-01-01_golden/blue/candidates/ and synthesize research/2026-01-01_golden/blue/report.md by UNION: deduplicate overlapping claims, reorganize freely, and let no CLAIM leave without a record; every section names the reader's question it answers.
@@ -29,8 +29,8 @@ LOG (blue-synthesize) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, A
 YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU, not the other seats: what you reached for, what it did, and what you wanted instead.
 Where you set an act aside as a JUDGEMENT rather than for want of occasion, give that one sentence — the record shows what you ran, never what you weighed and declined.
 Where nothing impeded the work, say that instead.
-SPEED: ONE MESSAGE IS ONE ROUND TRIP, whatever it carries.
-Five independent tool calls in ONE message cost one round trip; the same five in five messages cost five, and a round trip is seconds.
+SPEED: ONE MESSAGE IS ONE ROUND-TRIP, whatever it carries.
+Five independent tool calls in ONE message cost one round-trip; the same five in five messages cost five, and a round-trip is seconds.
 So batch every call that does not need a prior call's OUTPUT as its input: all your projections together, independent fetches together, several file reads together.
 Serialize only where the second call cannot be written until the first has answered.
 If you are about to send a message with one tool call in it, ask what else you already know you will need.

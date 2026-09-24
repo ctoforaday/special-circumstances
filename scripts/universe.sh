@@ -51,7 +51,7 @@
 #   WORKDIR   where the universe lives (default ~/.claude/scratch/universe)
 #   MODEL / JUDGMENT_MODEL   default haiku/haiku — the engine's own --smoke tier
 #   LANES     default 1
-#   CONCURRENT_AGENTS  default 8 — the Workflow tool's per-run concurrent agent limit. The engine's
+#   CONCURRENT_AGENTS  default 16 — the Workflow tool's per-run concurrent agent limit. The engine's
 #             own default is min(16, cpu_cores - 2), which is 2 on a 4-core box and serialises the
 #             seven-lens fan-out into four waves.
 set -uo pipefail
@@ -87,8 +87,10 @@ LANES="${LANES:-1}"
 # on the API and spends its own CPU only on the occasional feov-record spawn. Capping fan-out by
 # core count prices idle waiting as if it were compute.
 #
-# 8 covers the widest fan-out the debate has (seven lens sittings in one epoch) with a seat spare.
-CONCURRENT_AGENTS="${CONCURRENT_AGENTS:-8}"
+# 16 is the engine's own ceiling and the operator's call (gblock, 2026-09-24). The widest fan-out the
+# debate has is seven lens sittings in one epoch, so 16 is headroom rather than a target: it stops
+# the cap being the thing that decides, and leaves the lane count free to grow.
+CONCURRENT_AGENTS="${CONCURRENT_AGENTS:-16}"
 # bypassPermissions, AND BOTH ALTERNATIVES FAIL. `dontAsk` does not mean "proceed without asking" —
 # it DENIES, so every Bash and Read a seat needs returns "Permission to use Bash has been denied
 # because Claude Code is running in don't ask mode" and the run writes no record at all. `--bg`

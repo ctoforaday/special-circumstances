@@ -944,7 +944,10 @@ func WorkJSONOfRun(run Run) (WorkJSON, error) {
 func counterpartyOf(evs []*Event, role string, epoch int) CounterpartyJSON {
 	other := map[string]string{"chair": "blue", "blue": "chair"}[role]
 	if other == "" {
-		return CounterpartyJSON{Reading: "this seat waits on no single party — the lens and the bench read the board itself"}
+		// IT DOES NOT NAME ANOTHER COMMAND. This read "the lens and the bench read the board itself",
+		// which is the work list spending the seat's next call for it: a lens that has just been told
+		// it has no counterparty is then told where to go looking. Its work is on its own list.
+		return CounterpartyJSON{Reading: "this seat waits on no single party — your own list is the whole of what is open to you"}
 	}
 	c := CounterpartyJSON{Role: other}
 	var clk Clock

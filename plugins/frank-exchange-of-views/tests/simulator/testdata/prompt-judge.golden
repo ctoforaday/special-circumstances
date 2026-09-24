@@ -1,4 +1,4 @@
-prompt sha256: f24cc8ba6572c3fc40bf9a2f288ce1491127cfdf53fcdf25c9a581a2b5dc4bb5
+prompt sha256: 9af9146892a47ef93da5c26d21997fa4ff7771653778e5a2cc7270d2ea5dacb0
 
 Adjudication, topic "the seat prompt contract".
 Docketed for you: G1 — each reached impasse under the run's terms and the record docketed it.
@@ -17,8 +17,8 @@ LOG (judge) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the 
 YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU, not the other seats: what you reached for, what it did, and what you wanted instead.
 Where you set an act aside as a JUDGEMENT rather than for want of occasion, give that one sentence — the record shows what you ran, never what you weighed and declined.
 Where nothing impeded the work, say that instead.
-SPEED: ONE MESSAGE IS ONE ROUND TRIP, whatever it carries.
-Five independent tool calls in ONE message cost one round trip; the same five in five messages cost five, and a round trip is seconds.
+SPEED: ONE MESSAGE IS ONE ROUND-TRIP, whatever it carries.
+Five independent tool calls in ONE message cost one round-trip; the same five in five messages cost five, and a round-trip is seconds.
 So batch every call that does not need a prior call's OUTPUT as its input: all your projections together, independent fetches together, several file reads together.
 Serialize only where the second call cannot be written until the first has answered.
 If you are about to send a message with one tool call in it, ask what else you already know you will need.

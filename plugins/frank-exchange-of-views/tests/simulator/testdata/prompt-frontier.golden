@@ -1,4 +1,4 @@
-prompt sha256: ba396ccb5cd0b6b9f06997dabfff5c90053095a514890656a193e7126d153806
+prompt sha256: c3677fcf74e6f259e3108200d0e71b009560869f77becc3cd72bdb1b4f348d39
 
 Research debate opening for topic: "the seat prompt contract".
 Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS A LINE OF INQUIRY — the verb is under a group of its own in your role's help, and it takes the approach you would follow and the hypothesis that would be true if it paid off.
@@ -6,8 +6,8 @@ ONE line of inquiry per hypothesis, and the tool assigns each an id (Q1, Q2 …)
 THEY ARE LINES OF INQUIRY, NOT A DOCUMENT, and that is the point: a hypothesis in a markdown file is something red cannot rule on, cannot grade too_thin or out_of_scope, and cannot hold you to when the run drifts.
 On the record it has an id, a fate, and an argument.
 The hypotheses opening a run are the ones that shape everything downstream and were until now the only ones nobody could contest.
-SPEED: ONE MESSAGE IS ONE ROUND TRIP, whatever it carries.
-Five independent tool calls in ONE message cost one round trip; the same five in five messages cost five, and a round trip is seconds.
+SPEED: ONE MESSAGE IS ONE ROUND-TRIP, whatever it carries.
+Five independent tool calls in ONE message cost one round-trip; the same five in five messages cost five, and a round-trip is seconds.
 So batch every call that does not need a prior call's OUTPUT as its input: all your projections together, independent fetches together, several file reads together.
 Serialize only where the second call cannot be written until the first has answered.
 If you are about to send a message with one tool call in it, ask what else you already know you will need.

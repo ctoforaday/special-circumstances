@@ -366,3 +366,70 @@ func TestDefaultCastListsAllSevenAreas(t *testing.T) {
 	}
 	_ = recordtest.P[int] // the package's fixture helpers stay imported for the tests above
 }
+
+// A LENS'S AUDIT IS ON ITS WORK LIST, AND FOR A LONG TIME IT WAS THE ONE THING MISSING FROM IT.
+//
+// A lens is dispatched to find what is wrong with the report. That is not a gap, so it was in no
+// item, so `open` came back EMPTY and `complete` came back TRUE for a lens whose report had just
+// moved. Rendered on the 2026-09-23 run, the voice lens read `complete: true, open: []` with
+// `last_sitting.kind: behind` — and went to the report anyway, where it found two real defects.
+//
+// A seat that cannot trust the work list reads the rest of the surface to find the work: 531 `show`
+// calls across two runs, 331 of them a lens. This is what makes the list answer the question the
+// seat actually has.
+func TestALensAuditIsAnItemOnItsWorkList(t *testing.T) {
+	// first sitting: nothing of the report is yet its own to have read
+	first := sittingOfRunT(t, retBoard(t).sit(2, evLens).seed(), "lens", evLens)
+	if !listsItem(first, "audit the report in full") {
+		t.Errorf("a lens on its FIRST sitting is not told to audit: %+v", first.Open)
+	}
+
+	// behind: the change is the surface, and the item names the range
+	b := retBoard(t).sit(2, evLens).add(evLens, freshHigh("G1")).
+		add("blue-respond", &recordpb.BlueEdit{Answers: proto.String("G1"), Old: proto.String("a"), New: proto.String("b"), EditKey: proto.String("E1")})
+	head := int64(b.n)
+	beh := sittingOfRunT(t, b.sit(head, evLens).seed(), "lens", evLens)
+	if !listsItem(beh, "audit what moved") {
+		t.Errorf("a lens whose report MOVED is not told what to audit: %+v", beh.Open)
+	}
+	if !listsItem(beh, "is at") {
+		t.Errorf("the item does not name the range the lens must audit: %+v", beh.Open)
+	}
+
+	// NON-BLOCKING, because finding nothing is a legitimate audit. The item must appear without
+	// holding the turn open the way an owed register does.
+	for _, it := range beh.Open {
+		if strings.Contains(it.What, "audit what moved") && it.Blocks {
+			t.Error("the audit item BLOCKS — finding nothing is a legitimate audit and must not hold the turn")
+		}
+	}
+
+	// unchanged: nothing moved, so there is nothing to audit and the list says so by silence.
+	un := sittingOfRunT(t, retBoard(t).sit(2, evLens).sit(2, evLens).seed(), "lens", evLens)
+	if listsItem(un, "audit") {
+		t.Errorf("a lens dispatched against an UNMOVED report is told to audit it: %+v", un.Open)
+	}
+}
+
+
+// AN EMPTY WORK LIST SAYS IT IS EMPTY, because `complete: true, open: []` is indistinguishable
+// from a command that found nothing — and a seat that reads it as broken goes looking for the work
+// in the rest of the surface. Measured across two runs: 531 `show` calls, 331 of them a lens,
+// several against a list that had already said they were complete.
+func TestAnEmptyWorkListSaysSoRatherThanReturningNothing(t *testing.T) {
+	// a lens re-dispatched at the same head: nothing moved, nothing owed
+	un := sittingOfRunT(t, retBoard(t).sit(2, evLens).sit(2, evLens).seed(), "lens", evLens)
+	if len(un.Open) == 0 {
+		t.Fatal("a seat with nothing to do got an EMPTY list, which reads as a broken command")
+	}
+	if !listsItem(un, "this list is complete, not empty") {
+		t.Errorf("the list does not state that it is complete rather than empty: %+v", un.Open)
+	}
+	if !listsItem(un, "no other projection holds work for you") {
+		t.Errorf("the list does not close off the hunt for work elsewhere: %+v", un.Open)
+	}
+	// AND IT STILL LETS THE SEAT STOP. Saying so must not become an obligation.
+	if !un.Complete {
+		t.Error("stating that the list is empty made the sitting incomplete — having nothing to do is not work")
+	}
+}
