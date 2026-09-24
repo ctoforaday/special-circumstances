@@ -794,6 +794,13 @@ CREATE TABLE "cast_seat_ids" (
   PRIMARY KEY ("event_id", "ord")
 ) STRICT;
 
+CREATE TABLE "cast_lane_seat_ids" (
+  "event_id" INTEGER NOT NULL REFERENCES "cast"("event_id"),
+  "ord"      INTEGER NOT NULL,
+  "value"    TEXT    NOT NULL,
+  PRIMARY KEY ("event_id", "ord")
+) STRICT;
+
 CREATE TABLE "dispatch" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "pin" INTEGER NOT NULL,

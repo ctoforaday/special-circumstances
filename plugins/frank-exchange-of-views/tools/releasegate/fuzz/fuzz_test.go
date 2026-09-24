@@ -810,7 +810,8 @@ func (r *runner) register(role, seatID string) {
 // budget text, which noteExec tallies.
 var fuzzLensSeats = func() []string {
 	var out []string
-	for _, s := range record.CastFor(nil, 1) {
+	seats, _ := record.CastFor(nil, 1)
+	for _, s := range seats {
 		if strings.HasPrefix(s, "red-lens-") {
 			out = append(out, s)
 		}
@@ -2636,7 +2637,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// THREE LANES, because the run dispatches three (args.lanes above): a cast of one lane refused
 	// blue-lane-2 and blue-lane-3 at register on every run — 80 refusals across 40 — and every act
 	// of two of the three lanes ran unregistered behind a green sweep.
-	if _, err := record.Append(record.Identity{Run: stageRun, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: record.CastFor(nil, 3)}); err != nil {
+	fuzzCast, fuzzLanes := record.CastFor(nil, 3)
+	if _, err := record.Append(record.Identity{Run: stageRun, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: fuzzCast, LaneSeatIds: fuzzLanes}); err != nil {
 		return outcome{seed: seed, runDir: runDir, err: "write the cast: " + err.Error()}
 	}
 	r := newRunner(bin, runDir, newLockedRand(seed))

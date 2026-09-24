@@ -68,7 +68,7 @@ func SeatModels(run Run, f Family) []SeatModel {
 		seat := e.GetSeatId()
 		row := bySeat[seat]
 		if row == nil {
-			row = &SeatModel{SeatID: seat, Class: TierClassOfSeat(seat)}
+			row = &SeatModel{SeatID: seat, Class: TierClassOfSeat(run, seat)}
 			bySeat[seat] = row
 			order = append(order, seat)
 		}

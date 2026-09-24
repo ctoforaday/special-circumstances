@@ -10,16 +10,25 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// laneRun declares `lanes` in run-config and registers the lane seats named.
+// laneRun declares `lanes` in run-config, writes the cast setup would write, and registers the
+// lane seats named.
+//
+// THE CAST IS PART OF THE FIXTURE NOW, because the lanes are a FIELD on it. A run whose record
+// never said which seats are lanes is a run this audit cannot check, and it says SKIP rather than
+// guessing from the shape of an id.
 func laneRun(t *testing.T, lanes string, registered ...int) string {
 	t.Helper()
 	run := t.TempDir()
 	write(t, filepath.Join(run, "inputs", "run-config.json"), `{"lanes":`+strconv.Quote(lanes)+`}`)
-	var evs []*recordpb.Event
+	castN, _ := strconv.Atoi(lanes)
+	seats, laneSeats := record.CastFor(nil, castN)
+	evs := []*recordpb.Event{recordtest.At(t, record.HarnessSeat, "harness:cast:1",
+		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats})}
 	for _, n := range registered {
 		seat := "blue-lane-" + strconv.Itoa(n)
 		evs = append(evs, recordtest.At(t, seat, seat+":register:#1",
@@ -71,8 +80,24 @@ func TestLaneCoveragePassesWhenEveryDeclaredLaneTookItsSeat(t *testing.T) {
 
 // AN EXCESS IS NOT AMBIGUOUS, so it is not a warning: no dispatch of this config could produce a
 // lane the config never asked for.
+//
+// THE DEFECT IS NOW A DISAGREEMENT BETWEEN TWO RECORDS, and that is the sharper statement of it.
+// It used to be arithmetic over names — an index above the declared count. It is the run's CAST
+// naming three lanes while its config asked for two: the engine and the config disagree about how
+// wide synthesis was, said by two things that both wrote it down.
 func TestLaneCoverageFailsOnALaneTheConfigNeverAskedFor(t *testing.T) {
-	got := LaneCoverageAudit(runtest.Open(t, laneRun(t, "2", 1, 2, 3)))
+	run := t.TempDir()
+	write(t, filepath.Join(run, "inputs", "run-config.json"), `{"lanes":"2"}`)
+	seats, laneSeats := record.CastFor(nil, 3)
+	evs := []*recordpb.Event{recordtest.At(t, record.HarnessSeat, "harness:cast:1",
+		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats})}
+	for _, n := range []int{1, 2, 3} {
+		seat := "blue-lane-" + strconv.Itoa(n)
+		evs = append(evs, recordtest.At(t, seat, seat+":register:#1",
+			&recordpb.Register{ToolVersion: proto.String("test")}))
+	}
+	recordtest.Seed(t, run, evs...)
+	got := LaneCoverageAudit(runtest.Open(t, run))
 	if got.Verdict != "FAIL" {
 		t.Fatalf("a lane beyond the declared count must FAIL: got %s — %s", got.Verdict, got.Detail)
 	}

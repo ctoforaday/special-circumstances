@@ -211,7 +211,7 @@ func registerSeat(id Identity, runVia string, repair bool, occasion string) (dis
 	// that takes a seat's word for who it is; everything after it reads the binding this call
 	// writes. So this is where an id no dispatch could have produced has to be refused — after
 	// it, the wrong id is not a claim any more, it is the record.
-	if err := requireDispatchableSeat(seatID); err != nil {
+	if err := requireDispatchableSeat(run, seatID); err != nil {
 		return 0, "", "", err
 	}
 	// AND THE MEMBERSHIP HALF, which the roster gate says outright that it cannot reach. The shape
@@ -1218,6 +1218,20 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 	case *recordpb.Cast:
 		if len(b.GetSeatIds()) == 0 {
 			return fmt.Errorf("record: a cast with no seats — setup writes the run's admissible seats, and a run nobody may sit in is not a run")
+		}
+		// A LANE THE CAST DOES NOT SEAT IS REFUSED AT THE WRITE, which is what makes lane_seat_ids a
+		// field rather than a second opinion. The tier join and the register gate both read it, so a
+		// lane named here and absent from seat_ids would be dispatchable and uncastable at once.
+		{
+			seated := map[string]bool{}
+			for _, id := range b.GetSeatIds() {
+				seated[id] = true
+			}
+			for _, id := range b.GetLaneSeatIds() {
+				if !seated[id] {
+					return fmt.Errorf("record: the cast names lane %q, which is not among its seats — a lane is a SUBSET of the cast, and one outside it would be admitted at register and absent from the run's own membership", id)
+				}
+			}
 		}
 		if existing, err := CastOf(run); err != nil {
 			return err

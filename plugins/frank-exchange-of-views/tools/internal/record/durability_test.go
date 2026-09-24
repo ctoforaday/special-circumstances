@@ -179,7 +179,15 @@ func TestRegisterSeatAcceptsTheEngineAssignedShapes(t *testing.T) {
 		{"red-lens-evidence", ""}, {"red-chair", ""}, {"blue-lane-3", ""}, {"blue-respond", ""},
 		{"blue-synthesize", ""}, {"frontier", ""}, {"judge", "docket"}, {"operator", ""},
 	} {
+		// A LANE NEEDS THE CAST AND THE OPERATOR MUST NOT HAVE ONE. A lane is dispatchable because
+		// the run's cast names it, not because its id looks like one — so `blue-lane-3` gets a run
+		// whose cast seats three lanes. The operator is not a cast member by design (CastFor never
+		// writes it), and on a run that HAS a cast the membership gate refuses it, which is a
+		// different gate from the shape one this loop is about.
 		runDir := newRun(t)
+		if c.id == "blue-lane-3" {
+			runDir = newRunWithLanes(t, 3)
+		}
 		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: c.id}, "", c.occasion); err != nil {
 			t.Errorf("RegisterSeat(%q, occasion %q) = %v, want accepted", c.id, c.occasion, err)
 		}

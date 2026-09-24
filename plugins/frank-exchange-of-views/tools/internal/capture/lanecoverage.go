@@ -1,17 +1,11 @@
 package capture
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // A RUN THAT LOST A LANE LOOKS EXACTLY LIKE A RUN THAT ASKED FOR FEWER.
@@ -41,70 +35,31 @@ import (
 // — and the remedy is named too, because "this cannot be distinguished" is a defect report about
 // the record, not a permanent property.
 
-// declaredLanes reads the lane count run-config declares.
+// laneSeatsThatSat is the lane seat IDS that opened a sitting, deduplicated.
 //
-// The three answers are kept apart: a declared count, a run that declared none (older runs, and
-// `--lanes` is optional), and a config that could not be read at all. Only the first can be
-// checked, and the other two must not read as agreement.
-func declaredLanes(run record.Run) (n int, declared bool) {
-	b, err := os.ReadFile(filepath.Join(run.Dir(), "inputs", "run-config.json"))
-	if err != nil {
-		return 0, false
+// IDS RATHER THAN INDEXES, AND THAT IS THE WHOLE CHANGE. This read the index back out of the seat
+// id by pattern, which made the audit the last reader in the tree recovering a fact from a name.
+// The ids are GENERATED from the declared lane count (record.LaneSeatIDs), so membership is a
+// comparison and the answer a reader wants — WHICH lane is missing — is a name already in hand.
+func laneSeatsThatSat(evs []*record.Event, lanes []string) map[string]bool {
+	want := map[string]bool{}
+	for _, id := range lanes {
+		want[id] = false
 	}
-	var cfg map[string]any
-	if json.Unmarshal(b, &cfg) != nil {
-		return 0, false
-	}
-	// setup writes it as a STRING (ptrOrNil over the flag), so that is what is read first; a
-	// number is accepted too rather than silently missed if the writer ever changes.
-	switch v := cfg["lanes"].(type) {
-	case string:
-		if v == "" {
-			return 0, false
-		}
-		n, err := strconv.Atoi(strings.TrimSpace(v))
-		if err != nil || n <= 0 {
-			return 0, false
-		}
-		return n, true
-	case float64:
-		if v <= 0 {
-			return 0, false
-		}
-		return int(v), true
-	}
-	return 0, false
-}
-
-// registeredLanes returns the lane INDEXES that registered, deduplicated and sorted.
-//
-// Indexes rather than a count, because which lane is missing is the actionable half: "lane 3 never
-// registered" sends a reader to that dispatch, where "2 of 3" sends them to the whole opening.
-func registeredLanes(evs []*record.Event) []int {
-	seen := map[int]bool{}
+	sat := map[string]bool{}
 	for i := range evs {
-		e := evs[i]
-		if e.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER {
-			continue
-		}
-		// ASKED OF THE ROSTER, WHICH OWNS THE LANE ID SHAPE. This file carried its own copy of
-		// the pattern, so two spellings of "what a lane id looks like" sat in one tree with
-		// nothing comparing them. seatclass.LaneIndex is the one that also answers the tier join.
-		if n, ok := seatclass.LaneIndex(e.GetSeatId()); ok {
-			seen[n] = true
+		if seat, opens := recordpb.SeatOpeningSitting(evs[i]); opens {
+			if _, isLane := want[seat]; isLane {
+				sat[seat] = true
+			}
 		}
 	}
-	out := make([]int, 0, len(seen))
-	for n := range seen {
-		out = append(out, n)
-	}
-	sort.Ints(out)
-	return out
+	return sat
 }
 
 // LaneCoverageAudit joins the declared lane count to the lane seats that actually registered.
 func LaneCoverageAudit(run record.Run) Audit {
-	want, declared := declaredLanes(run)
+	want, declared := record.LanesDeclared(run)
 	if !declared {
 		return Audit{Check: "lane-coverage", Verdict: "SKIP",
 			Detail: "this run declared no lane count in run-config, so there is nothing to hold its lanes to — NOT a run whose lanes were checked"}
@@ -114,19 +69,38 @@ func LaneCoverageAudit(run record.Run) Audit {
 		return Audit{Check: "lane-coverage", Verdict: "SKIP",
 			Detail: fmt.Sprintf("run-config declares %d lane(s) and the record could not be read, so none of them could be confirmed — NOT a run whose lanes all registered", want)}
 	}
-	got := registeredLanes(fam.Events)
+	// A LANE THAT WAS BRACKETED BUT NEVER REGISTERED STILL SAT. Since #1089 a seat woken with
+	// nothing to do need not register, so an audit that counted registers would report a lane that
+	// worked as absent. SeatOpeningSitting is the one predicate that answers what opened a sitting.
+	// THE CAST NAMES THE LANES; run-config says how many were ASKED FOR. Both are read, because the
+	// two disagreeing is exactly what this audit exists to report.
+	lanes := record.LaneSeatsOf(run)
+	if len(lanes) == 0 {
+		return Audit{Check: "lane-coverage", Verdict: "SKIP",
+			Detail: fmt.Sprintf("run-config declares %d lane(s) and the record's cast names none, so there is nothing to hold them to — NOT a run whose lanes were checked", want)}
+	}
+	sat := laneSeatsThatSat(fam.Events, lanes)
 
-	var missing, extra []string
-	present := map[int]bool{}
-	for _, n := range got {
-		present[n] = true
-		if n > want {
-			extra = append(extra, "blue-lane-"+strconv.Itoa(n))
+	var missing []string
+	for _, id := range lanes {
+		if !sat[id] {
+			missing = append(missing, id)
 		}
 	}
-	for n := 1; n <= want; n++ {
-		if !present[n] {
-			missing = append(missing, "blue-lane-"+strconv.Itoa(n))
+	// AN EXTRA LANE IS A CAST QUESTION NOW, NOT AN ARITHMETIC ONE. It used to be "an index above
+	// the declared count"; it is a lane seat the run's own cast does not name, which is the same
+	// defect said without recovering a number from a name.
+	// AN EXTRA LANE IS A COUNT DISAGREEMENT NOW, NOT AN ARITHMETIC ONE OVER NAMES. The cast names
+	// the lanes; run-config says how many the operator asked for. More named than asked for is the
+	// engine and the run's own config disagreeing about how wide synthesis was.
+	var extra []string
+	if len(lanes) > want {
+		extra = append(extra, lanes[want:]...)
+	}
+	got := make([]string, 0, len(sat))
+	for _, id := range lanes {
+		if sat[id] {
+			got = append(got, id)
 		}
 	}
 

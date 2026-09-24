@@ -154,7 +154,7 @@ func TestAOneToOneAgentTypeNamesARealSeatOfItsOwnRole(t *testing.T) {
 		}
 		oneToOne++
 		// 1. It is a seat the engine could dispatch at all.
-		if !dispatchableSeatID(a.seat) {
+		if !dispatchableSeatID(mustRun(t, t.TempDir()), a.seat) {
 			t.Errorf("agentTypeRoles[%q].seat = %q, which requireDispatchableSeat refuses — a hook-derived "+
 				"sitting would name a seat that cannot register", at, a.seat)
 			continue
