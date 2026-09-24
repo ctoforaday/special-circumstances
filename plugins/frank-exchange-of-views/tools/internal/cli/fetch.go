@@ -13,6 +13,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/tessocr"
 )
 
@@ -94,12 +95,16 @@ func newFetch() *cobra.Command {
 				// THE SAME CLASSIFICATION THE LIVE PATH GETS. A named --via stores its own entry,
 				// so without this the third route to the cache was the third one to skip the wall
 				// detector.
-				rec := fetchcache.EntryFor(url, att)
+				rec := fetchcache.EntryFor(run, url, att)
 				entry, serr := fetchcache.Store(run, rec, att.Body)
 				if serr != nil {
 					return serr
 				}
 				sv := summarize(run, entry, len(att.Body), false)
+				// A NAMED BACKEND'S SCAN IS READ TOO. This branch returned before the reading
+				// block, so `--via oa` on a scanned pdf cached it unread — and `oa` is the rung
+				// that finds most pdfs, because the live fetch is what publishers refuse.
+				readScanIfApplicable(cmd, run, entry, &sv)
 				if jsonMode, _ := cmd.Flags().GetBool(flags.JSON); jsonMode {
 					return json.NewEncoder(cmd.OutOrStdout()).Encode(sv)
 				}
@@ -115,42 +120,7 @@ func newFetch() *cobra.Command {
 			}
 			s := summarize(run, entry, len(body), hit)
 
-			// A SCANNED DOCUMENT IS READ HERE, rather than handed back as a dead end (#644).
-			//
-			// The reading is LOCAL — the OCR engine statically linked into this binary — and it
-			// is deliberately not left to the seat: the alternative was an INSTRUCTION telling a
-			// seat that `ocr pages` and `ocr read` exist, which is the weakest carrier available
-			// for a step the tool can simply take. It fires only where the extractor looked at a
-			// PDF and found no text layer — one document in four in the 2026-08-23 corpus — and
-			// it is bounded by the render disk budget and reused across fetches of the same
-			// document.
-			//
-			// A READ FAILURE IS NEVER A FETCH FAILURE, exactly as an extraction failure is not:
-			// the bytes are cached and the source is perfectly good, it is the READING that is
-			// missing. So the reason travels on the summary and the command still exits 0 — this
-			// is also how a binary built WITHOUT the engine states itself: ocr_reason carries the
-			// engine-absent sentence instead of an empty reading. What must not happen is the
-			// reason travelling nowhere — a document with no text and no stated cause reads
-			// identically whether reading was refused, off, or broken.
-			if applicableToOCR(entry) {
-				switch on, _ := cmd.Flags().GetBool(flags.OCR); {
-				case !on:
-					// No command a seat cannot run: `ocr` is the operator's tree, and every
-					// surface can fetch again.
-					s.OCRReason = fmt.Sprintf("automatic reading is off (--%s=false); fetch again without it to read the scan", flags.OCR)
-				default:
-					rec, rerr := fetchcache.DefaultScanReader.ReadScanned(cmd.Context(), run, entry)
-					if rerr != nil {
-						s.OCRReason = rerr.Error()
-						// THE FIELD IS WHAT A MACHINE READS; the sentence is for a human. A caller
-						// that must tell "this binary has no engine" from a read that failed would
-						// otherwise match the sentence.
-						s.OCREngineAbsent = errors.Is(rerr, tessocr.ErrNotCompiledIn)
-					} else {
-						s.applyReading(run, rec)
-					}
-				}
-			}
+			readScanIfApplicable(cmd, run, entry, &s)
 
 			if jsonMode, _ := cmd.Flags().GetBool(flags.JSON); jsonMode {
 				return json.NewEncoder(cmd.OutOrStdout()).Encode(s)
@@ -173,4 +143,50 @@ func newFetch() *cobra.Command {
 		"A priority question needs the FIRST time something was visible, which the newest capture cannot answer")
 	c.Flags().Bool(flags.OCR, true, "read a PDF that has no text layer with the local OCR engine; --ocr=false caches it unread")
 	return c
+}
+
+// readScanIfApplicable runs the local OCR engine over a cached PDF that has no text layer, and
+// records why it did not where it could not.
+//
+// ONE FUNCTION BECAUSE THERE ARE TWO WAYS OUT OF fetch AND ONLY ONE OF THEM DID THIS. A named
+// --via answer returned before the reading block entirely, so `--via oa` on a scanned pdf cached
+// it unread — and oa is the rung that finds most pdfs, since the live fetch is the one publishers
+// refuse.
+func readScanIfApplicable(cmd *cobra.Command, run record.Run, entry fetchcache.Entry, s *fetchSummary) {
+	// A SCANNED DOCUMENT IS READ HERE, rather than handed back as a dead end (#644).
+	//
+	// The reading is LOCAL — the OCR engine statically linked into this binary — and it
+	// is deliberately not left to the seat: the alternative was an INSTRUCTION telling a
+	// seat that `ocr pages` and `ocr read` exist, which is the weakest carrier available
+	// for a step the tool can simply take. It fires only where the extractor looked at a
+	// PDF and found no text layer — one document in four in the 2026-08-23 corpus — and
+	// it is bounded by the render disk budget and reused across fetches of the same
+	// document.
+	//
+	// A READ FAILURE IS NEVER A FETCH FAILURE, exactly as an extraction failure is not:
+	// the bytes are cached and the source is perfectly good, it is the READING that is
+	// missing. So the reason travels on the summary and the command still exits 0 — this
+	// is also how a binary built WITHOUT the engine states itself: ocr_reason carries the
+	// engine-absent sentence instead of an empty reading. What must not happen is the
+	// reason travelling nowhere — a document with no text and no stated cause reads
+	// identically whether reading was refused, off, or broken.
+	if applicableToOCR(entry) {
+		switch on, _ := cmd.Flags().GetBool(flags.OCR); {
+		case !on:
+			// No command a seat cannot run: `ocr` is the operator's tree, and every
+			// surface can fetch again.
+			s.OCRReason = fmt.Sprintf("automatic reading is off (--%s=false); fetch again without it to read the scan", flags.OCR)
+		default:
+			rec, rerr := fetchcache.DefaultScanReader.ReadScanned(cmd.Context(), run, entry)
+			if rerr != nil {
+				s.OCRReason = rerr.Error()
+				// THE FIELD IS WHAT A MACHINE READS; the sentence is for a human. A caller
+				// that must tell "this binary has no engine" from a read that failed would
+				// otherwise match the sentence.
+				s.OCREngineAbsent = errors.Is(rerr, tessocr.ErrNotCompiledIn)
+			} else {
+				s.applyReading(run, rec)
+			}
+		}
+	}
 }

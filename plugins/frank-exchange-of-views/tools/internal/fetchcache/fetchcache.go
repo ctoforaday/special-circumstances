@@ -29,8 +29,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	neturl "net/url"
 	"os"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"path/filepath"
 	"strings"
 )
@@ -64,6 +66,14 @@ type Response struct {
 	// filename chain. Measured across the cited corpus: not one source sent it, which is
 	// exactly why it is a rung and not the rule.
 	Disposition string
+	// LinkHeader is the raw `Link:` header, or "".
+	//
+	// IT IS SIGNPOSTING, AND IT WAS DEAD CODE. The parser for it existed and both callers passed
+	// an empty string, because nothing captured the header off the response — so the
+	// standards-track way for a repository to say "the document itself is over here" was read by
+	// this tool exactly never. Repository platforms are the hosts that emit it, and repositories
+	// are where green open-access copies live.
+	LinkHeader string
 	// TDMReserved and TDMPolicy carry a text-and-data-mining reservation declared by ANY hop of
 	// this fetch, not only the last one.
 	//
@@ -167,11 +177,11 @@ type Entry struct {
 	// different next actions. Where a proxy is configured the honest answer is `unknown`, and
 	// recording that is the point: an ambiguity carried is not an ambiguity resolved by guess.
 	//
+	//	incomplete — a 2xx that is not 200: the host ACCEPTED the request and returned no
+	//	            document with it. Not a refusal, and recording it as one told a seat the
+	//	            source was closed when the source had said "not yet"
 	//	origin   — no proxy is configured, so the refusal is the source's own
 	//	unknown   — a proxy is configured and the two readings cannot be told apart
-	//	robots    — nothing was asked of the origin at all; this host's robots.txt disallows the
-	//	            path, so there is no HTTP status to record and inventing one would attribute a
-	//	            refusal to a source that never made it
 	RefusalClass string `json:"refusal_class,omitempty"`
 
 	// RetrievedVia names the archive snapshot these bytes came from, when the live source refused
@@ -195,6 +205,12 @@ type Entry struct {
 	// A metadata answer is a real finding and a legitimate citation — as `source_text_read:
 	// unread`. It is not a reading, and nothing may cite it as one.
 	TextRetrieved bool `json:"text_retrieved,omitempty"`
+	// FollowedTo names the url this fetch ENDED at, when the page first asked for pointed at its
+	// own full text and that pointer was followed. It is deliberately not RetrievedVia: that one
+	// says the bytes may be a different artifact from the url's, which is true of an archive
+	// snapshot and false here — a publisher's abstract naming its own full text is the same work,
+	// at the place its publisher said to look.
+	FollowedTo string `json:"followed_to,omitempty"`
 	// TextRetrievedReason states WHY the bytes are not the source's text on a fetch that reached
 	// the source and got its real document — the paired reason this flag lacked, in the shape
 	// TextExtracted and NotRenderable already use here. A withdrawn claim with no reason is
@@ -462,19 +478,11 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		// so a candidate on the disallowed host is refused again by the same rule. What changes is
 		// that the OTHER hosts are now asked.
 		var ref *Refusal
-		var rob *RobotsRefusal
-		isRefusal, isRobots := errors.As(ferr, &ref), errors.As(ferr, &rob)
-		if !isRefusal && !isRobots {
+		if !errors.As(ferr, &ref) {
 			return Entry{}, nil, false, ferr
 		}
 		stub := Entry{URL: url}
-		if isRefusal {
-			stub.HTTPStatus, stub.RefusalClass = ref.Status, refusalClass(ref.Status)
-		} else {
-			// NOT an HTTP status: nothing was asked of the origin. Recording one would invent a
-			// refusal the source never made.
-			stub.RefusalClass = "robots"
-		}
+		stub.HTTPStatus, stub.RefusalClass = ref.Status, refusalClass(ref.Status)
 		_ = appendIndexIfAbsent(run, stub)
 		// THE REFUSAL IS NOT THE END OF THE ATTEMPT, but the right next move depends on WHAT this
 		// source is — and choosing wrongly is how a run ends up citing a landing page.
@@ -482,7 +490,7 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		if att == nil {
 			return Entry{}, nil, false, ferr
 		}
-		entry := EntryFor(url, att)
+		entry := EntryFor(run, url, att)
 		entry.HTTPStatus, entry.RefusalClass = stub.HTTPStatus, stub.RefusalClass
 		entry, serr := Store(run, entry, att.Body)
 		if serr != nil {
@@ -490,36 +498,69 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		}
 		return entry, att.Body, false, nil
 	}
+	// THE PAGE MAY BE THE ABSTRACT, AND IT USUALLY SAYS SO ITSELF.
+	//
+	// MEASURED over 120 works: of 25 html bodies this tool recorded as documents, ELEVEN were
+	// abstract or landing pages — 401 to 1,885 words of navigation, abstract and references, with
+	// none of the sections a paper has. `text_retrieved: true` on those is the same false claim
+	// as calling a zip the source's text, and it is worse, because an abstract reads like a
+	// paper: a seat quoting one would be quoting the summary and saying it read the study.
+	//
+	// The fix is not a word-count threshold. Of those sixteen short pages, TWELVE carried the
+	// publisher's own pointer to the readable copy — `citation_fulltext_html_url`,
+	// `citation_pdf_url` — which is a stated fact rather than a guess about length, and the page
+	// that emits it is the system serving the article.
+	//
+	// One hop, only when the first answer was html. A pdf or an xml body is already the document.
+	base, _ := neturl.Parse(url)
+	// FOLLOW IT, AND THEN FOLLOW THAT. A landing page names its full-text html; that html often
+	// names the pdf. One hop stopped at the middle of a two-step the publisher had signposted
+	// end to end, so the chain runs to a bounded depth rather than a fixed one.
+	//
+	// THE ABSTRACT IS KEPT WHEN IT IS ALL THERE IS. Nothing here refuses a page for being short —
+	// a record that the work exists is a legitimate citation as `unread`. What it refuses is
+	// STOPPING at that page when the publisher has said where the readable copy is.
+	var followedTo string
+	seenHop := map[string]bool{url: true}
+	for hops := 0; hops < maxFullTextHops; hops++ {
+		fullText := LandingPageFullText(SniffedMediaType(resp.ContentType, resp.Body), resp.Body, resp.LinkHeader, base)
+		if fullText == "" || seenHop[fullText] {
+			break
+		}
+		seenHop[fullText] = true
+		hop, herr := f.Fetch(fullText)
+		// A SHORTER ANSWER IS REFUSED. The pointer is the publisher's, so this is not deciding
+		// WHICH is the paper — it is refusing to trade a page for a smaller one, which is what a
+		// paywall stub or an error page would be.
+		if herr != nil || len(hop.Body) <= len(resp.Body) {
+			break
+		}
+		resp = hop
+		followedTo = fullText
+		if b, berr := neturl.Parse(fullText); berr == nil {
+			base = b
+		}
+		// A pdf or an xml body is the document; there is nothing further to follow.
+		if !strings.Contains(strings.ToLower(SniffedMediaType(resp.ContentType, resp.Body)), "html") {
+			break
+		}
+	}
+
 	entry := Entry{URL: url, ContentType: SniffedMediaType(resp.ContentType, resp.Body)}
 	entry.Sha = Sha(resp.Body)
+	// THE HOP IS PROVENANCE, NOT A RECOVERY. RetrievedVia means "these bytes did not come from
+	// the url you asked for and may be a different artifact" — an archive snapshot, another
+	// version — and it makes the summary withdraw the claim that the source's text was retrieved.
+	// Following a publisher's own pointer from its abstract to its full text is neither of those:
+	// it is the same work, at the place its publisher said to look. Recorded, and not as a
+	// recovery.
+	entry.FollowedTo = followedTo
 
 	ex := DefaultExtractor.Extract(Dir(run), entry.ContentType, resp.Body)
 	entry.Filename = Label(ex.Title, resp.Disposition, url)
-	entry.Pages = ex.Pages
-	if ex.Attempted {
-		extracted := ex.Text != ""
-		entry.TextExtracted = &extracted
-		entry.Extractor = ex.ExtractorID
-		if extracted {
-			textSha, terr := StoreText(run, entry.Sha, []byte(ex.Text))
-			if terr != nil {
-				return Entry{}, nil, false, terr
-			}
-			entry.TextSha = textSha
-		} else {
-			// NO .txt FILE IS WRITTEN. An empty extraction on disk is indistinguishable from a
-			// successful extraction of an empty document, and a seat that opens it learns
-			// nothing and concludes the wrong thing. The absence plus the stated reason is the
-			// honest record — [[facts-are-fields]] clause 3.
-			entry.TextReason = ex.Reason
-		}
+	if terr := foldExtraction(run, &entry, ex); terr != nil {
+		return Entry{}, nil, false, terr
 	}
-	// OUTSIDE THE EXTRACTION BLOCK, BECAUSE HTML NEVER ENTERS IT. DefaultExtractor is a PDF
-	// extractor and reports Attempted=false for HTML deliberately; a check placed inside would
-	// be dead code on precisely the content type it is about.
-	//
-	// The answer is recorded either way for HTML — "we looked and it is a document" is the fact
-	// that makes the flag's ABSENCE mean something.
 	Classify(&entry, resp.Body)
 	// READ OFF THE RESPONSE, NOT THE FINAL BODY, so a reservation declared on a hop this fetch
 	// passed through is still recorded — Elsevier declares it on the markup-redirect bouncer,
@@ -532,6 +573,22 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		reserved := resp.TDMReserved
 		entry.TDMReserved = &reserved
 		entry.TDMPolicy = resp.TDMPolicy
+	}
+	// AND THE WORK'S OWN FACTS, ON THE PATH THAT SUCCEEDS.
+	//
+	// THIS WAS BACKWARDS AND A SWEEP SHOWED IT. The index lookup lived in Recover's stamp, which
+	// runs only when the live fetch FAILED — so every paper this tool actually read came back
+	// with no retraction check, and every paper it could not read came back with one. Measured
+	// over 47 works: all 28 rows carrying work facts were `metadata` or `oa` answers; all 8 rows
+	// that returned a readable document carried none. The flagship fact was present on exactly
+	// the documents nobody could quote.
+	//
+	// One request, to a host with a 500ms floor, on a path whose median is tens of seconds. It is
+	// the cheapest thing here and it is the one that can void a citation.
+	if doi := DOIOf(url); doi != "" {
+		if facts, _, ok := openAlexWork(f, doi); ok && facts != (WorkFacts{}) {
+			entry.Work = &facts
+		}
 	}
 	// AND THE LIVE PATH RECORDS WHY IT IS NOT TEXT, not just that it is not. The summary can
 	// derive the flag from the content type, but only the record outlives the run — an archived
@@ -629,7 +686,39 @@ func LookupSha(run record.Run, sha string) (Entry, bool, error) {
 // copied the same fields by hand, so the newest field reached whichever site was edited and the
 // other stored a record missing it — silently, because a missing field is indistinguishable from
 // a fact the backend did not learn.
-func EntryFor(url string, att *Attempt) Entry {
+// foldExtraction folds an extraction's result onto the entry, and writes the text.
+//
+// ONE FUNCTION BECAUSE THE RECOVERY PATH DID NOT DO IT AT ALL. Extraction was inline on the live
+// path, and EntryFor — which every backend answer goes through — simply never ran it. Measured
+// over 120 works: ten PDFs were retrieved, ALL TEN by the open-access chain, and all ten were
+// stored with no page count, no text, no extractor id and no reason. The chain that exists to
+// find a readable copy found ten and read none of them, and because "not attempted" and "no text
+// found" are different states, the record said nothing rather than saying it had failed.
+func foldExtraction(run record.Run, entry *Entry, ex Extraction) error {
+	entry.Pages = ex.Pages
+	if !ex.Attempted {
+		return nil
+	}
+	extracted := ex.Text != ""
+	entry.TextExtracted = &extracted
+	entry.Extractor = ex.ExtractorID
+	if !extracted {
+		// NO .txt FILE IS WRITTEN. An empty extraction on disk is indistinguishable from a
+		// successful extraction of an empty document, and a seat that opens it learns nothing and
+		// concludes the wrong thing. The absence plus the stated reason is the honest record —
+		// [[facts-are-fields]] clause 3. It is also what marks the document as OCR's to try.
+		entry.TextReason = ex.Reason
+		return nil
+	}
+	textSha, terr := StoreText(run, entry.Sha, []byte(ex.Text))
+	if terr != nil {
+		return terr
+	}
+	entry.TextSha = textSha
+	return nil
+}
+
+func EntryFor(run record.Run, url string, att *Attempt) Entry {
 	entry := Entry{
 		URL: url, ContentType: att.ContentType,
 		RetrievedVia: att.Via, Backend: att.Backend, TextRetrieved: att.TextRetrieved,
@@ -638,6 +727,19 @@ func EntryFor(url string, att *Attempt) Entry {
 	if att.Facts != (WorkFacts{}) {
 		facts := att.Facts
 		entry.Work = &facts
+	}
+	// THE RECOVERED DOCUMENT IS READ TOO. A pdf found by the open-access chain is the same
+	// artifact as one fetched live and owes the same extraction — and without it nothing marks it
+	// as a scan for the OCR path either, because that path keys on an ATTEMPTED extraction that
+	// found no text.
+	ex := DefaultExtractor.Extract(Dir(run), entry.ContentType, att.Body)
+	if entry.Filename == "" {
+		entry.Filename = Label(ex.Title, "", url)
+	}
+	if err := foldExtraction(run, &entry, ex); err != nil {
+		// A FAILURE TO WRITE THE TEXT IS NOT A FAILURE TO FETCH. The bytes are in hand and the
+		// entry is still worth storing; what is lost is the extracted copy, and the reason says so.
+		entry.TextReason = "the extracted text could not be written: " + err.Error()
 	}
 	Classify(&entry, att.Body)
 	// AND BYTES NOTHING CAN READ ARE NOT THE SOURCE'S TEXT, however honestly they were fetched.
@@ -652,6 +754,12 @@ func EntryFor(url string, att *Attempt) Entry {
 	}
 	return entry
 }
+
+// maxFullTextHops bounds the walk from a landing page to the readable copy. Two is what the
+// measured shape needs — landing page names full-text html, that html names the pdf — and a
+// bound rather than a single step because each hop is the publisher's own statement, not a guess
+// this tool could chase forever.
+const maxFullTextHops = 2
 
 // TextBearing says whether a media type can carry the SOURCE'S TEXT AT ALL, as against being a
 // container or a binary this tool has no reader for.
