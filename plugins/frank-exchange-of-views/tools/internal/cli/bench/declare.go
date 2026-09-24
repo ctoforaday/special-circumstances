@@ -43,7 +43,7 @@ import (
 // that. The absence of the flag is the verb's whole content: this act is about the record as a whole, and forcing
 // it to name one gap would either falsify what it says or send the bench back to prose.
 //
-// It renders into `show debate` beside the bench's dispositions, because the surface a seat reads to catch up
+// It renders into `inquest debate` beside the bench's dispositions, because the surface a seat reads to catch up
 // is the surface a binding statement has to be on. A ruling that reaches no reader is decoration
 // — and the bench is this system's ethical and safety boundary, which makes an undelivered one
 // worse than an unread finding: an unread finding costs a reader, an undelivered ruling costs
@@ -60,6 +60,6 @@ func newDeclare() *cobra.Command {
 		if _, err := record.Append(s.Identity(), &recordpb.Declare{Holding: proto.String(text)}); err != nil {
 			return nil, err
 		}
-		return seat.Msg{Message: "declaration recorded — it renders under ### LEAD in `show debate`, where both seats read it"}, nil
+		return seat.Msg{Message: "declaration recorded — it renders under ### LEAD in `inquest debate`, where both seats read it"}, nil
 	})))
 }

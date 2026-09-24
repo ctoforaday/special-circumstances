@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -64,11 +65,16 @@ var viewWriters = map[string][]string{
 // failing twice, or — the expensive case — decides the capability is missing and works around it
 // in prose, which is a capability lost for the whole run and reported nowhere.
 func TestEveryViewNamesTheVerbThatFillsIt(t *testing.T) {
-	// ASKED OF A SEAT, because `show` only exists inside one. Any seat will do: the view table is
-	// shared, and this gate is about the DESCRIPTIONS, which do not vary by role.
-	help, err := run(t, "show", "--help", "--seat-id", record.SampleSeatOf("blue"))
+	// ASKED OF BOTH GROUPS, because a view lives in one or the other and this gate is about the
+	// DESCRIPTIONS. `show` is a seat's own reads; `inquest` is the bench's raw record. Asked of one
+	// only, every projection that moved would read as undescribed.
+	showHelp, err := run(t, "show", "--help", "--seat-id", record.SampleSeatOf("blue"))
 	if err != nil {
 		t.Fatalf("show --help: %v", err)
+	}
+	inquestHelp, err := run(t, "inquest", "--help", "--seat-id", record.SampleSeatOf("bench"))
+	if err != nil {
+		t.Fatalf("inquest --help: %v", err)
 	}
 
 	names := ViewNames()
@@ -84,6 +90,10 @@ func TestEveryViewNamesTheVerbThatFillsIt(t *testing.T) {
 		if len(writers) == 0 {
 			continue // telemetry and friends: written by the engine, not by a seat verb
 		}
+		help := showHelp
+		if seat.GroupOf(view) == "inquest" {
+			help = inquestHelp
+		}
 		var named bool
 		for _, w := range writers {
 			if strings.Contains(help, w) {
@@ -92,9 +102,9 @@ func TestEveryViewNamesTheVerbThatFillsIt(t *testing.T) {
 			}
 		}
 		if !named {
-			t.Errorf("`show --help` describes view %q without naming any verb that fills it (%s).\n"+
+			t.Errorf("`%s --help` describes view %q without naming any verb that fills it (%s).\n"+
 				"A seat reads the projection and builds a verb name out of it: measured, one read `--view lines-of-inquiry` and typed `blue line-of-inquiry`, which does not exist. Name the verb in the view's own description so the two arrive together.",
-				view, strings.Join(writers, ", "))
+				seat.GroupOf(view), view, strings.Join(writers, ", "))
 		}
 	}
 }

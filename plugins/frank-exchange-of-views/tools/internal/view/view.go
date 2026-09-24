@@ -162,7 +162,7 @@ func TelemetryJSONL(run record.Run) ([]byte, error) {
 	}
 	// THE BOUNDARY IS WHERE JSON BELONGS — and the shape it emits is NOT protojson's.
 	//
-	// `show telemetry` is a live seat-facing surface, so these bytes are a contract with whoever
+	// `inquest telemetry` is a live seat-facing surface, so these bytes are a contract with whoever
 	// reads them. protojson would have changed four things at once as a side effect of typing the
 	// producer: enum values would print as `GRADE_HIGH` where this wire has always said `high`,
 	// `by_severity` would become an array of {grade,count} objects where it has always been an
@@ -848,7 +848,7 @@ func InquiryBody(evs []*record.Event) string {
 // prose describing it (#684 F7). The type stays unexported: what leaves this package is a
 // SHAPE to reflect over, not a struct another package may construct.
 //
-// `show telemetry` is JSONL — one of these per epoch, not a document — so the tree describes
+// `inquest telemetry` is JSONL — one of these per epoch, not a document — so the tree describes
 // the LINE. A reader that parses the whole stdout as one object gets nothing, which is the
 // same plausible-zero the JSON-by-name warning was written for.
 func TelemetryLineShape() any { return telemetryLineJSON{} }

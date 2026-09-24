@@ -1505,7 +1505,7 @@ func HarvestPrecedents(run record.Run, results []map[string]any, lawDir string, 
 	// The placeholder was itself a fix — it replaced `holding: closed` so an unpromotable ruling
 	// would LOOK unpromotable — and it was the right repair to the wrong layer. Making the noise
 	// legible does not stop it being filed. A ruling that disposes of a gap is on the record
-	// already, where `show debate` renders it; copying it into law/ adds a claim that it is
+	// already, where `inquest debate` renders it; copying it into law/ adds a claim that it is
 	// candidate LAW, which is the part that was never true.
 	//
 	// `declare` is different and always was: that verb exists to state a construction, so its text
@@ -2080,7 +2080,7 @@ func ArchiveRecord(run record.Run, repoRoot string) (string, error) {
 	// convergence fraction to the dispatch verb AND the write path; sittingcap reads the
 	// per-sitting call limit; modeltier and cost read the configured tiers; capture's own lane
 	// coverage reads the declared lane count. Measured on an archived run against the same run
-	// live: `show tiers` printed configuredBulk and configuredJudgment from the live directory and
+	// live: `ops tiers` printed configuredBulk and configuredJudgment from the live directory and
 	// simply OMITTED both from the archive — so a run whose configuration was thrown away reads
 	// exactly like a run that had none.
 	//

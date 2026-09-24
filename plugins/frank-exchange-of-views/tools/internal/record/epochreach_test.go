@@ -90,7 +90,7 @@ func TestEveryProjectionThatReportsAnEpochCanSeeMoreThanOne(t *testing.T) {
 		{"show evidence", EvidenceJSONBytes},
 		{"show motions", MotionsJSONBytes},
 		{"show debate", DebateJSONBytes},
-		{"show log", LogJSONBytes},
+		{"ops log", LogJSONBytes},
 	} {
 		t.Run(p.name, func(t *testing.T) {
 			b, err := p.read(run)

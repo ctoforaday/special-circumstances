@@ -181,17 +181,6 @@ outcome recorded: UNVERIFIED (asserted) [key judge:outcome:#1~1]
 {"correction":{"corrects":"judge:outcome:#1","replacement":"judge:outcome:#1~1","why":"a word was lost"},"key":"judge:correction:judge:outcome:#1","seat_id":"judge","ts":31,"type":"EVENT_TYPE_CORRECTION"}
 
 ═══ RENDERS ═══
--- debate
-# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)
-
-## Epoch 1
-
-### LEAD
-- **PETITION DENIED**
-~~the gate  exists~~ (struck by judge: a word was lost)
-- **PETITION DENIED**
-the gate already exists
-
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
 

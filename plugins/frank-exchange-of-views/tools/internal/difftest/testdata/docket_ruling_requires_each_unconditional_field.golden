@@ -175,9 +175,6 @@ Global Flags:
 {"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":6,"type":"EVENT_TYPE_REGISTER"}
 
 ═══ RENDERS ═══
--- debate
-# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)
-
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
 

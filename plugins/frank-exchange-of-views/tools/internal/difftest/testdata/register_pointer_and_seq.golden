@@ -103,9 +103,6 @@ finding recorded: logic-F1 — the run-unique label a gap's found_by names (id F
 {"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-logic:anchor:FINDING001","seat_id":"red-lens-logic","ts":6,"type":"EVENT_TYPE_ANCHOR"}
 
 ═══ RENDERS ═══
--- debate
-# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)
-
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
 

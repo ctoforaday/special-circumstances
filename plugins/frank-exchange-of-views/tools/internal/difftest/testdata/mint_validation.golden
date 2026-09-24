@@ -323,9 +323,6 @@ minted G1
 {"key":"red-lens-evidence:mint:G1","mint":{"acceptance_check":"grep the sites","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"complexity_cost":"GRADE_LOW","fix_basis":"proposed","gap_id":"G1","impact":"GRADE_MEDIUM","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"a real one","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_MINT"}
 
 ═══ RENDERS ═══
--- debate
-# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)
-
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
 

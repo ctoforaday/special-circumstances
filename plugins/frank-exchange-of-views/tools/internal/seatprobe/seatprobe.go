@@ -89,8 +89,11 @@ func NewSurface(paths []string) Surface {
 			// `show` stays collapsed to the group: its projections are the READ path, covered by
 			// AlwaysTaken as one act, and expanding them would demand a board per projection.
 			verb := strings.Join(parts[1:], " ")
-			if parts[1] == "show" {
-				verb = "show"
+			// A READ GROUP COLLAPSES TO ITS GROUP NAME. `show` and the bench's `inquest` are both
+			// one act with a choice of projection, so a board baits the act; expanding them would
+			// demand a board per projection.
+			if parts[1] == "show" || parts[1] == "inquest" {
+				verb = parts[1]
 			}
 			byRole[parts[0]] = append(byRole[parts[0]], verb)
 		case len(parts) == 3 && parts[0] == "motion":

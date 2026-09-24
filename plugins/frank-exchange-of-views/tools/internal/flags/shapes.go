@@ -170,7 +170,7 @@ func FindingLabel() *ShapedValue {
 // MotionID refuses anything that is not M<n>.
 func MotionID() *ShapedValue {
 	return &ShapedValue{kind: "motion-id", re: motionIDShape,
-		hint: "a motion id looks like M1 and is assigned when the motion is filed; `show motions` lists them with what each one asks"}
+		hint: "a motion id looks like M1 and is assigned when the motion is filed; `inquest motions` lists them with what each one asks"}
 }
 
 // SHA refuses anything that is not a 64-character hex digest.

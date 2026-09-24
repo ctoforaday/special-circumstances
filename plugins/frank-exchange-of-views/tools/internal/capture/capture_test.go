@@ -1151,7 +1151,7 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 	}
 	for _, want := range []string{"records/events-red-lens-evidence-aaaaaaaa.jsonl", "proofs/abc/script.py",
 		// WITHOUT THIS THE ARCHIVE IS BROKEN, NOT THIN. Measured on a real archived run against the
-		// same run live: `show tiers` printed configuredBulk/configuredJudgment from the live
+		// same run live: `ops tiers` printed configuredBulk/configuredJudgment from the live
 		// directory and omitted both from the archive — a run whose terms were discarded reads
 		// exactly like a run that never had any.
 		"inputs/run-config.json", "inputs/corpus-sha256.json"} {

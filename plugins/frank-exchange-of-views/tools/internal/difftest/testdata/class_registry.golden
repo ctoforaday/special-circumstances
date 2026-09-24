@@ -253,9 +253,6 @@ feov-record: lens: record: unknown class attestation-inflation — use a registr
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
 
 ═══ RENDERS ═══
--- debate
-# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)
-
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
 

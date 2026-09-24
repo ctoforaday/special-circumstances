@@ -41,9 +41,6 @@ finding recorded: evidence-F2 — the run-unique label a gap's found_by names (i
 {"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-evidence:anchor:FINDING001","seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_ANCHOR"}
 
 ═══ RENDERS ═══
--- debate
-# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)
-
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
 

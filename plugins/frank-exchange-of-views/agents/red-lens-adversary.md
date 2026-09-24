@@ -154,10 +154,10 @@ TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade motion the ch
 §21 (on 2 pages):
 A BENCH-RULED MOTION (petition, docket) HAS NO APPEAL, and that absence is the design rather than an omission: the bench hears it BEFORE the debate continues, so there is nothing to escalate to.
 
-§22 (on 6 pages):
+§22 (on 4 pages):
 THIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-for-byte the same. On an ERROR it prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
 
-§23 (on 10 pages):
+§23 (on 7 pages):
 Global Flags:
       --id string        scope the changes projection to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
       --json             emit a structured JSON result (and structured errors) instead of human text
@@ -789,13 +789,10 @@ Usage:
 Available Commands:
   board            EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by `mint`, `close`, `regrade` and `retire`
   changes          HOW THE REPORT GOT THAT WAY — every edit in record order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by `edit`
-  debate           WHAT EACH SIDE ARGUED, epoch by epoch — the transcript, in order. Written by `position`, `closing` and the bench's `motion docket rule`
   evidence         WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading. Written by `cite`, `prove`, `verify` and `reproduce`
   findings         THE RAW LENS FINDINGS, BEFORE they are minted into gaps — several findings can become one gap, and this is where you see which. Written by `finding`
   lines-of-inquiry WHICH DIRECTIONS WERE TAKEN AND WHICH WERE NOT — pursued, deferred, declined, abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule`
-  motions          WHAT HAS BEEN CONTESTED AND HOW IT WAS RULED — the ask in the filer's words, and the ruling if it has one. `debate` is what each side ARGUED; this is what was formally disputed. Written by `motion`, `rule` and `appeal`
   report           THE REPORT, as it stands now. `changes` says how it got that way. Written by the opening synthesis and every `edit`, with anchors from `cite`, `finding` and `prove`
-  telemetry        HOW THE NUMBERS MOVED ACROSS EPOCHS — a trend, not a snapshot: one line per epoch (chair sitting), and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it
   work             WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Run it first and again before you finish. Written by `mint`, `close` and the bench's `motion docket rule`
 
 Flags:
@@ -830,19 +827,6 @@ Usage:
 
 Flags:
   -h, --help   help for changes
-
-(Global Flags:) → SHARED §23
-==============================================================================
-$ feov-record show debate --help
-the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by `position`, `closing` and the bench's `motion docket rule`
-
-OUTPUT (JSON, with --json — the bare call is the markdown form): {epochs:[{epoch,verdict,red:[string],blue:[string],lead:[{gap_id,disposition,principle,tension,review_flag,rationale}],red_closings:[{gap_id,text}],blue_closings:[{gap_id,text}],struck:[{type,seat_id,text,replacement,by,why}]}]}
-
-Usage:
-  feov-record show debate [flags]
-
-Flags:
-  -h, --help   help for debate
 
 (Global Flags:) → SHARED §23
 ==============================================================================
@@ -889,21 +873,6 @@ Flags:
 
 (Global Flags:) → SHARED §23
 ==============================================================================
-$ feov-record show motions --help
-Every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks a PASS verdict, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal`
-
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §22
-
-OUTPUT (JSON): {motions:[{id,subject,filer,epoch,basis,relief,ruled,ruling,ruling_by,ruling_epoch,opinion,appealed,appeal_reason,fields:{<key>:string},gap_id}],counts:{total,ruled,outstanding}}
-
-Usage:
-  feov-record show motions [flags]
-
-Flags:
-  -h, --help   help for motions
-
-(Global Flags:) → SHARED §23
-==============================================================================
 $ feov-record show report --help
 THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the opening synthesis and every `edit`
 
@@ -914,21 +883,6 @@ Flags:
       --anchor id    read the report AT one anchor id (f-…, c-…, p-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back
   -h, --help         help for report
       --window int   with --anchor: how many paragraphs of content either side of it (blank lines are kept, not counted) (default 3)
-
-(Global Flags:) → SHARED §23
-==============================================================================
-$ feov-record show telemetry --help
-JSONL, one line per epoch (chair sitting): the trend the STOPPING judgment reads — the bench's signal for whether the findings are still changing character or merely recurring
-
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §22
-
-OUTPUT (JSONL — one such line PER EPOCH, not one document): {epoch,mapping_version,open_count,max_severity,new_mint:{count,by_severity:[{grade,count}],by_class:{<key>:number},class_repeat_rate},mass,realized_open,repair_regression:{closures,lineage_mints,ratio},edge_deltas:{down_mass,up_mass}}
-
-Usage:
-  feov-record show telemetry [flags]
-
-Flags:
-  -h, --help   help for telemetry
 
 (Global Flags:) → SHARED §23
 ==============================================================================

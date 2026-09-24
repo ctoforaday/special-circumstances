@@ -91,8 +91,8 @@ var enforcedElsewhere = map[string]string{
 	"fetch --via": "refused in fetch's own RunE against fetchcache.Vias() before any backend runs — a route is chosen per call and never reaches a payload, so EnumFields cannot key it",
 
 	"graph --format":       "refused in graph's own RunE default arm — a read-side rendering choice never reaches a payload, so EnumFields cannot key it",
-	"diagnostics --format": "refused in show diagnostics' own RunE default arm — a read-side rendering choice never reaches a payload, so EnumFields cannot key it",
-	"tiers --format":       "refused in show tiers' own RunE default arm — same reason as its sibling on this group: a read-side rendering choice never reaches a payload, so EnumFields cannot key it",
+	"diagnostics --format": "refused in ops diagnostics' own RunE default arm — a read-side rendering choice never reaches a payload, so EnumFields cannot key it",
+	"tiers --format":       "refused in ops tiers' own RunE default arm — same reason as its sibling on this group: a read-side rendering choice never reaches a payload, so EnumFields cannot key it",
 	"board --format":       "refused in the show-board arm of seat.Show — same reason as graph: a rendering choice, not a payload field. It was NOT refused until this gate could see it",
 
 	// The motion verdicts are keyed on (SUBJECT, ruling), which record.EnumFields cannot express:

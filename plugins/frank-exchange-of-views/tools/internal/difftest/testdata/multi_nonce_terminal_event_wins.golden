@@ -61,9 +61,6 @@ verdict FAIL (2 open, 0 closed) and checkpointed to {MIRROR}
 {"key":"red-chair:verdict:#2","seat_id":"red-chair","ts":7,"type":"EVENT_TYPE_VERDICT","verdict":{"verdict":"VERDICT_FAIL"}}
 
 ═══ RENDERS ═══
--- debate
-# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)
-
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
 

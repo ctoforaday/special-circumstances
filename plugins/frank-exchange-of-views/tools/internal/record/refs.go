@@ -416,7 +416,7 @@ func requirePassClosesAllMaterialGaps(run Run) error {
 	if len(unruled) != 0 {
 		sort.Strings(unruled)
 		return fmt.Errorf("record: verdict PASS refused — %d motion(s) filed and never ruled: %s. "+
-			"Read what each one asks with `show motions` (its `basis` is the filer's argument, which your ruling answers), "+
+			"Read what each one asks with `inquest motions` (its `basis` is the filer's argument, which your ruling answers), "+
 			"then rule it with `motion <subject> rule --id <id> --as <verdict> --reason \"...\"` — IF THE GAVEL NAMED ABOVE IS YOURS. "+
 			"Where it is not, the ruling is not yours to make and not yours to wait for silently: issue `--as FAIL` so the sitting ends on the record and the seat that holds it can answer. "+
 			"A motion is answered before the debate moves on, so a PASS over an unanswered ask claims a settlement that did not happen",

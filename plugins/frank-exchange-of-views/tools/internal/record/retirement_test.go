@@ -411,7 +411,6 @@ func TestALensAuditIsAnItemOnItsWorkList(t *testing.T) {
 	}
 }
 
-
 // AN EMPTY WORK LIST SAYS IT IS EMPTY, because `complete: true, open: []` is indistinguishable
 // from a command that found nothing — and a seat that reads it as broken goes looking for the work
 // in the rest of the surface. Measured across two runs: 531 `show` calls, 331 of them a lens,
