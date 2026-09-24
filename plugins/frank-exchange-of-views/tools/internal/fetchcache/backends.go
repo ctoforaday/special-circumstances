@@ -263,7 +263,7 @@ func OpenAccessCandidates(f Fetcher, doi string) (locs []string, facts WorkFacts
 		workFacts = facts
 	}
 	for _, l := range rankLocations(oaLocs) {
-		add(l.URL, l.IsPDF)
+		add(l.URL, l.IsDocument)
 		if chosen[l.URL] == (OALocation{}) {
 			chosen[l.URL] = l
 		}
@@ -288,7 +288,7 @@ func OpenAccessCandidates(f Fetcher, doi string) (locs []string, facts WorkFacts
 			indexFailed = true
 		}
 		for _, u := range got {
-			add(u, strings.HasSuffix(u, ".pdf"))
+			add(u, looksLikePDF(u))
 		}
 	}
 
@@ -302,8 +302,11 @@ func OpenAccessCandidates(f Fetcher, doi string) (locs []string, facts WorkFacts
 		// says, it must not say that.
 		indexFailed = true
 	}
-	for _, u := range epmc {
-		add(u, strings.HasSuffix(u, ".pdf"))
+	// FIRST, AND TYPED BY THE INDEX ITSELF. Europe PMC states both whether a location is free and
+	// whether it is a pdf; every other source here is guessed at from a url. A stated fact goes
+	// ahead of an inferred one, which matters because the candidate list is capped.
+	for _, l := range epmc {
+		add(l.URL, l.IsDocument)
 	}
 
 	// A DIRECT PDF BEFORE A LANDING PAGE, because the landing page is the thing that walls us and
@@ -327,7 +330,7 @@ const maxOACandidates = 4
 // would take is not among them — it is the one behind the proof-of-work challenge. So a PMCID is
 // resolved to `pmc-oa-opendata.s3.amazonaws.com`, which answers anonymously with no challenge,
 // and a miss there is a positive `KeyCount 0` rather than an error.
-func europePMCCandidates(f Fetcher, doi string) (locs []string, answered bool) {
+func europePMCCandidates(f Fetcher, doi string) (locs []OALocation, answered bool) {
 	if doi == "" {
 		return nil, true // nothing to ask about is not a failure to ask
 	}
@@ -339,7 +342,11 @@ func europePMCCandidates(f Fetcher, doi string) (locs []string, answered bool) {
 	var r struct {
 		ResultList struct {
 			Result []struct {
-				PMCID        string `json:"pmcid"`
+				PMCID string `json:"pmcid"`
+				// IsOpenAccess is the field that decides whether the API's own full-text route
+				// answers. `inEPMC: Y` means Europe PMC holds the article for a BROWSER; only
+				// `isOpenAccess: Y` means the machine route serves it.
+				IsOpenAccess string `json:"isOpenAccess"`
 				FullTextURLs struct {
 					URL []struct {
 						Availability  string `json:"availability"`
@@ -357,18 +364,51 @@ func europePMCCandidates(f Fetcher, doi string) (locs []string, answered bool) {
 		return nil, true // an answered "we hold nothing for this doi"
 	}
 	rec := r.ResultList.Result[0]
-	var out []string
+	var out []OALocation
 	if rec.PMCID != "" {
 		if k := pmcOpenAccessPDF(f, rec.PMCID); k != "" {
-			out = append(out, k)
+			out = append(out, OALocation{URL: k, IsDocument: true})
+		}
+		// EUROPE PMC SERVES ITS OWN FULL TEXT ON THE API HOST, AND THAT IS THE ONLY ROUTE INTO IT
+		// THAT WORKS.
+		//
+		// Measured 2026-09-24. `europepmc.org` — the host every `fullTextUrl` in this record
+		// points at, including the ones the API itself labels `availability: Free` — is behind a
+		// Cloudflare managed challenge IN ITS ENTIRETY. Not the article pages: the whole origin,
+		// `/robots.txt` included, which answers with "Just a moment..." and a challenge script.
+		// So the rules file that would grant permission cannot be read, and every advertised free
+		// pdf there returns 403 to any client that does not run javascript.
+		//
+		// The REST host does not do that. `.../rest/<PMCID>/fullTextXML` returns JATS with a
+		// `<body>` — 70 to 164 KB on the three open-access articles measured, all three with the
+		// text present — over the same API this function is already talking to.
+		//
+		// GATED ON isOpenAccess AND NOT ON inEPMC, because they answer different questions and
+		// only one of them predicts this route. Measured: three articles with `inEPMC: Y` and
+		// `hasPDF: Y` but no open-access flag returned HTTP 500 from fullTextXML, all three,
+		// while three with `isOpenAccess: Y` returned the text. `inEPMC` means Europe PMC holds
+		// it for a browser; `isOpenAccess` means it may hand it to us.
+		if rec.IsOpenAccess == "Y" {
+			out = append(out, OALocation{
+				URL:        "https://www.ebi.ac.uk/europepmc/webservices/rest/" + url.PathEscape(rec.PMCID) + "/fullTextXML",
+				IsDocument: true, // JATS, not a pdf — and this field is about the tier, not the format
+			})
 		}
 	}
 	for _, u := range rec.FullTextURLs.URL {
 		// Europe PMC types each location, which is the field that separates a copy we may read
 		// from a publisher page that will refuse us.
-		if u.Availability == "Free" || u.Availability == "Open access" {
-			out = append(out, u.URL)
+		if u.Availability != "Free" && u.Availability != "Open access" {
+			continue
 		}
+		// AND IT TYPES THE DOCUMENT TOO — `documentStyle: pdf` is the index SAYING so. That was
+		// being thrown away and re-derived from whether the url ends in `.pdf`, which the one
+		// route that matters does not: Europe PMC serves its open pdfs at
+		// `/articles/PMC…?pdf=render`. The suffix test called that a landing page, it sorted
+		// behind every pdf the other indexes merely guessed at, and the four-candidate cap then
+		// ensured it was never reached. Measured over 120 works: three of the ten cases where an
+		// index said a free copy existed and this tool returned none were exactly that url.
+		out = append(out, OALocation{URL: u.URL, IsDocument: u.DocumentStyle == "pdf"})
 	}
 	return out, true
 }
@@ -548,7 +588,7 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 				// was generated by the system serving it. One hop only — a page reached this way
 				// that is itself a landing page is a loop, not a lead.
 				if base, perr := url.Parse(loc); perr == nil {
-					if pdf := LandingPagePDF(resp.ContentType, resp.Body, "", base); pdf != "" && !hopped[pdf] {
+					if pdf := LandingPageFullText(resp.ContentType, resp.Body, "", base); pdf != "" && !hopped[pdf] {
 						hopped[pdf] = true
 						if hr, herr := f.Fetch(pdf); herr == nil && ShellReason(hr.ContentType, hr.Body) == "" {
 							return &Attempt{Body: hr.Body, ContentType: SniffedMediaType(hr.ContentType, hr.Body), TextRetrieved: true,

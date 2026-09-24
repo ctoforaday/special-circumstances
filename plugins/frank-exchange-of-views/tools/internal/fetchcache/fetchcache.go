@@ -29,8 +29,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	neturl "net/url"
 	"os"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"path/filepath"
 	"strings"
 )
@@ -532,6 +534,31 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		reserved := resp.TDMReserved
 		entry.TDMReserved = &reserved
 		entry.TDMPolicy = resp.TDMPolicy
+	}
+	// THE PAGE MAY BE THE ABSTRACT, AND IT USUALLY SAYS SO ITSELF.
+	//
+	// MEASURED over 120 works: of 25 html bodies this tool recorded as documents, ELEVEN were
+	// abstract or landing pages — 401 to 1,885 words of navigation, abstract and references, with
+	// none of the sections a paper has. `text_retrieved: true` on those is the same false claim
+	// as calling a zip the source's text, and it is worse, because an abstract reads like a
+	// paper: a seat quoting one would be quoting the summary and saying it read the study.
+	//
+	// The fix is not a word-count threshold. Of those sixteen short pages, TWELVE carried the
+	// publisher's own pointer to the readable copy — `citation_fulltext_html_url`,
+	// `citation_pdf_url` — which is a stated fact rather than a guess about length, and the page
+	// that emits it is the system serving the article.
+	//
+	// One hop, only when the first answer was html. A pdf or an xml body is already the document.
+	base, _ := neturl.Parse(url)
+	if fullText := LandingPageFullText(entry.ContentType, resp.Body, "", base); fullText != "" {
+		if hop, herr := f.Fetch(fullText); herr == nil && len(hop.Body) > len(resp.Body) {
+			// LONGER IS THE TEST, AND IT IS DELIBERATELY CRUDE. The pointer is the publisher's, so
+			// this is not deciding WHICH is the paper — it is refusing to trade a page for a
+			// smaller one, which is what a paywall stub or an error page would be.
+			resp = hop
+			entry.ContentType = SniffedMediaType(hop.ContentType, hop.Body)
+			entry.RetrievedVia = fmt.Sprintf("the full text at %s, which the page at %s names in its own citation metadata", fullText, url)
+		}
 	}
 	// AND THE WORK'S OWN FACTS, ON THE PATH THAT SUCCEEDS.
 	//

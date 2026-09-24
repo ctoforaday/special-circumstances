@@ -94,10 +94,37 @@ func doajCandidates(f Fetcher, doi string) (locs []string, answered bool) {
 	return locs, true
 }
 
-// citationPDFRe reads the `citation_pdf_url` meta tag, in either attribute order.
-var citationPDFRe = regexp.MustCompile(`(?is)<meta[^>]+(?:name\s*=\s*["']?citation_pdf_url["']?[^>]*content\s*=\s*["']([^"']+)["']|content\s*=\s*["']([^"']+)["'][^>]*name\s*=\s*["']?citation_pdf_url["']?)`)
+// citationMetaRe reads a `citation_*_url` meta tag, in either attribute order, for whichever name
+// it is handed.
+//
+// THE PDF IS NOT THE GOAL — the CONTENT is. A publisher that serves its full text as html and its
+// abstract as another page says both in these tags, and taking only `citation_pdf_url` skipped
+// the case where the readable copy is the html one. The names are Google Scholar's inclusion
+// vocabulary, which is why they are almost universally present.
+func citationMetaRe(name string) *regexp.Regexp {
+	n := regexp.QuoteMeta(name)
+	return regexp.MustCompile(`(?is)<meta[^>]+(?:name\s*=\s*["']?` + n + `["']?[^>]*content\s*=\s*["']([^"']+)["']` +
+		`|content\s*=\s*["']([^"']+)["'][^>]*name\s*=\s*["']?` + n + `["']?)`)
+}
 
-// LandingPagePDF reads a landing page's own statement of where its PDF is.
+// fullTextMetaNames are the pointers a landing page may carry to its own readable copy, most
+// specific first.
+//
+// MEASURED 2026-09-24 over the pages this tool fetched and recorded as documents: of 16 that
+// turned out to be abstract or landing pages rather than the paper, 12 carried one of these.
+// The publisher states where its full text is; nothing here has to guess.
+var fullTextMetaNames = []string{
+	"citation_fulltext_html_url",
+	"citation_full_html_url",
+	"citation_xml_url",
+	"citation_pdf_url",
+}
+
+// LandingPageFullText reads a landing page's own statement of where its READABLE COPY is.
+//
+// It was LandingPagePDF and looked only at `citation_pdf_url`. The pdf is not the goal — the
+// content is, in whatever form arrives — and a page whose full text is html said so in a tag this
+// never read.
 //
 // THE PAGE IN FRONT OF US IS A SOURCE OF LOCATIONS TOO, and the cheapest one: it costs no request
 // at all, because the bytes are already in hand. Google Scholar's inclusion guidelines are why
@@ -109,7 +136,7 @@ var citationPDFRe = regexp.MustCompile(`(?is)<meta[^>]+(?:name\s*=\s*["']?citati
 //
 // Signposting (`Link: rel="item"`) is the standards-track version of the same idea and is read
 // from the header where a host sends one — repository platforms do, commercial publishers do not.
-func LandingPagePDF(contentType string, body []byte, linkHeader string, base *url.URL) string {
+func LandingPageFullText(contentType string, body []byte, linkHeader string, base *url.URL) string {
 	if base == nil {
 		return ""
 	}
@@ -121,15 +148,25 @@ func LandingPagePDF(contentType string, body []byte, linkHeader string, base *ur
 	if !strings.Contains(strings.ToLower(contentType), "html") {
 		return ""
 	}
-	m := citationPDFRe.FindSubmatch(body)
-	if m == nil {
-		return ""
+	for _, name := range fullTextMetaNames {
+		m := citationMetaRe(name).FindSubmatch(body)
+		if m == nil {
+			continue
+		}
+		raw := string(m[1])
+		if raw == "" {
+			raw = string(m[2])
+		}
+		u := resolveWeb(base, strings.TrimSpace(raw))
+		// A POINTER AT THE PAGE WE ARE ALREADY ON IS NOT A LEAD. Nature emits
+		// `citation_fulltext_html_url` naming the very url just fetched; following it would
+		// re-fetch the same abstract and spend a paced request to learn nothing.
+		if u == "" || u == base.String() {
+			continue
+		}
+		return u
 	}
-	raw := string(m[1])
-	if raw == "" {
-		raw = string(m[2])
-	}
-	return resolveWeb(base, strings.TrimSpace(raw))
+	return ""
 }
 
 // signpostItem pulls the FAIR Signposting `rel="item"` target out of a Link header, preferring a
@@ -297,4 +334,37 @@ func crossrefTextMiningCandidates(f Fetcher, doi string) (locs []string, answere
 		locs = append(locs, l.URL)
 	}
 	return locs, true
+}
+
+// notAPDFHosts are hosts whose pages an index sometimes files under `pdf_url` and which never
+// serve a pdf there. They are demoted to landing pages rather than dropped: the page may still
+// name the real pdf in its own `citation_pdf_url`, and dropping a location loses that lead.
+//
+// MEASURED: across ten works where an index said a free copy existed and this tool returned none,
+// OpenAlex listed a `pubmed.ncbi.nlm.nih.gov/<pmid>` abstract page as `pdf_url` on five of them.
+// Each one occupied a slot in a four-candidate budget ahead of a location that would have worked.
+var notAPDFHosts = map[string]bool{
+	"pubmed.ncbi.nlm.nih.gov": true,
+	"www.ncbi.nlm.nih.gov":    true, // the browser route into PMC, and the one behind the challenge
+	"europepmc.org":           false,
+}
+
+// looksLikePDF is the fallback for a source that does NOT type its locations — which is every one
+// of them except Europe PMC. It is a guess about a url and is labelled as one, because the
+// alternative is pretending a suffix is a content type.
+func looksLikePDF(u string) bool {
+	p, err := url.Parse(u)
+	if err != nil {
+		return false
+	}
+	if deny, known := notAPDFHosts[strings.ToLower(p.Hostname())]; known && deny {
+		return false
+	}
+	// `?pdf=render` and `/pdfdirect/…` are pdf routes that do not end in `.pdf`; the suffix test
+	// alone called them landing pages and sorted them behind every guessed pdf.
+	lower := strings.ToLower(u)
+	return strings.HasSuffix(p.Path, ".pdf") ||
+		strings.Contains(lower, "pdf=render") ||
+		strings.Contains(p.Path, "/pdfdirect/") ||
+		strings.HasSuffix(p.Path, "/pdf")
 }

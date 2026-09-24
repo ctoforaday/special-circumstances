@@ -694,3 +694,132 @@ func TestCrossrefTextMiningLinksAreTakenButNotEveryLink(t *testing.T) {
 		t.Error("an error envelope was read as an answered lookup")
 	}
 }
+
+// THE INDEX THAT STATES THE TYPE OUTRANKS THE ONES THAT GUESS IT, and the candidate cap is why
+// this is not cosmetic.
+//
+// Europe PMC serves its open pdfs at `/articles/PMC…?pdf=render` and SAYS SO — `documentStyle:
+// pdf`, `availability: Free`. That field was discarded and the type re-derived from whether the
+// url ends in `.pdf`, which this one does not. It therefore sorted behind every url another index
+// merely listed under `pdf_url`, and the four-candidate budget ensured it was never reached.
+//
+// Measured over 120 works: of the ten where an index said a free copy existed and this tool
+// returned none, three were exactly this url, and five wasted a slot on a
+// `pubmed.ncbi.nlm.nih.gov` abstract page that OpenAlex had filed as a pdf.
+func TestAStatedPDFOutranksAGuessedOne(t *testing.T) {
+	f := fake(func(u string) (*Response, error) {
+		switch {
+		case strings.Contains(u, "ebi.ac.uk"):
+			return &Response{Body: []byte(`{"resultList":{"result":[{"pmcid":"","fullTextUrlList":{"fullTextUrl":[
+				{"availability":"Free","documentStyle":"pdf","url":"https://europepmc.org/articles/PMC1?pdf=render"},
+				{"availability":"Free","documentStyle":"html","url":"https://europepmc.org/articles/PMC1"}
+			]}}]}}`)}, nil
+		case strings.Contains(u, "openalex"):
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","locations":[
+				{"pdf_url":"https://pubmed.ncbi.nlm.nih.gov/9862982","is_oa":true,"version":"publishedVersion"},
+				{"pdf_url":"https://www.ncbi.nlm.nih.gov/pmc/articles/148217","is_oa":true,"version":"submittedVersion"}
+			]}`)}, nil
+		}
+		if r, isIndex := emptyIndexAnswer(u); isIndex {
+			return r, nil
+		}
+		return nil, &Refusal{URL: u, Status: 403}
+	})
+	locs, _, _, _ := OpenAccessCandidates(f, "10.1234/x")
+	if len(locs) == 0 {
+		t.Fatal("no candidates at all")
+	}
+	if locs[0] != "https://europepmc.org/articles/PMC1?pdf=render" {
+		t.Errorf("first candidate is %q, want the pdf Europe PMC states it holds", locs[0])
+	}
+	// AND THE ABSTRACT PAGES ARE STILL TRIED, as the landing pages they are — a page can name the
+	// real pdf in its own citation_pdf_url, so demoting is right and dropping is not.
+	joined := strings.Join(locs, " ")
+	for _, want := range []string{"pubmed.ncbi.nlm.nih.gov/9862982", "ncbi.nlm.nih.gov/pmc/articles/148217"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("a demoted location was dropped rather than ranked lower: %v", locs)
+		}
+	}
+	// THE CONTRACT IS THE ORDER, not a fixed position: every location typed as a pdf comes before
+	// every one demoted to a landing page. With a four-candidate budget that is what decides
+	// whether the copy that works is ever asked for.
+	seenPage := false
+	for _, l := range locs {
+		isPDF := strings.Contains(l, "pdf=render")
+		if isPDF && seenPage {
+			t.Errorf("a stated pdf sorts behind a landing page: %v", locs)
+		}
+		if !isPDF {
+			seenPage = true
+		}
+	}
+}
+
+// EUROPE PMC'S OWN FULL TEXT, ON THE ONLY HOST THAT WILL HAND IT OVER.
+//
+// Measured 2026-09-24: `europepmc.org` is behind a Cloudflare managed challenge IN ITS ENTIRETY —
+// not the article pages, the whole origin, `/robots.txt` included, which answers "Just a
+// moment..." and a challenge script. Every `fullTextUrl` in an Europe PMC record points there,
+// including the ones it labels `availability: Free`, and all of them 403.
+//
+// The REST host does not. `.../rest/<PMCID>/fullTextXML` returns JATS with a `<body>`.
+//
+// GATED ON isOpenAccess, NOT inEPMC. Three articles with `inEPMC: Y` and `hasPDF: Y` but no
+// open-access flag returned HTTP 500 from that route, all three; three with `isOpenAccess: Y`
+// returned 70 to 164 KB of text. The two fields answer different questions and only one predicts
+// this route.
+func TestEuropePMCFullTextComesFromTheAPIHostAndOnlyWhenOpen(t *testing.T) {
+	record := func(openAccess string) []byte {
+		return []byte(`{"resultList":{"result":[{"pmcid":"PMC148217","isOpenAccess":"` + openAccess + `",` +
+			`"inEPMC":"Y","hasPDF":"Y","fullTextUrlList":{"fullTextUrl":[` +
+			`{"availability":"Free","documentStyle":"pdf","url":"https://europepmc.org/articles/PMC148217?pdf=render"}]}}]}}`)
+	}
+	for _, tc := range []struct {
+		name, openAccess string
+		wantAPIRoute     bool
+	}{
+		{"open access: the api serves the text", "Y", true},
+		{"in epmc but not open: it does not", "N", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := fake(func(u string) (*Response, error) {
+				if strings.Contains(u, "ebi.ac.uk") {
+					return &Response{Body: record(tc.openAccess)}, nil
+				}
+				if strings.Contains(u, "pmc-oa-opendata") {
+					return &Response{Body: []byte(`<ListBucketResult><KeyCount>0</KeyCount></ListBucketResult>`)}, nil
+				}
+				return nil, &Refusal{URL: u, Status: 403}
+			})
+			locs, ok := europePMCCandidates(f, "10.1234/x")
+			if !ok {
+				t.Fatal("a well-formed record read as an index failure")
+			}
+			const api = "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC148217/fullTextXML"
+			var got bool
+			for _, l := range locs {
+				if l.URL == api {
+					got = true
+					if !l.IsDocument {
+						t.Error("the api full-text route is ranked as a landing page")
+					}
+				}
+			}
+			if got != tc.wantAPIRoute {
+				t.Errorf("api route present = %v, want %v (locs %+v)", got, tc.wantAPIRoute, locs)
+			}
+			// THE WALLED URL IS STILL LISTED, deliberately. It is ranked, not denylisted: a host
+			// that gates today may not tomorrow, and a hand-kept list of the walled is the shape
+			// that rots. What changed is that something that works is tried first.
+			var sawWalled bool
+			for _, l := range locs {
+				if strings.Contains(l.URL, "europepmc.org") {
+					sawWalled = true
+				}
+			}
+			if !sawWalled {
+				t.Errorf("the advertised url was dropped rather than ranked below a working one: %+v", locs)
+			}
+		})
+	}
+}

@@ -398,3 +398,61 @@ func TestASuccessfulLiveFetchStillAsksTheIndex(t *testing.T) {
 		t.Errorf("an index was asked about a url carrying no doi (%d times)", asked)
 	}
 }
+
+// AN ABSTRACT PAGE IS NOT THE PAPER, AND THE PUBLISHER SAYS WHERE THE PAPER IS.
+//
+// MEASURED over 120 works: of 25 html bodies this tool recorded as documents, eleven were
+// abstract or landing pages — 401 to 1,885 words of navigation, abstract and references. That is
+// the same false claim as calling a zip the source's text and worse, because an abstract reads
+// like a paper: a seat quoting one would be quoting the summary while saying it read the study.
+//
+// Of the sixteen short pages, TWELVE carried the publisher's own pointer to the readable copy.
+// The fix is that stated fact, not a word-count threshold.
+func TestALandingPageIsFollowedToTheFullTextItNames(t *testing.T) {
+	run := runtest.New(t, t.TempDir())
+	const landing = "https://publisher.example/article/1"
+	const full = "https://publisher.example/article/1/fulltext"
+	abstract := `<html><head>` +
+		`<meta name="citation_pdf_url" content="https://publisher.example/article/1.pdf">` +
+		`<meta name="citation_fulltext_html_url" content="` + full + `">` +
+		`</head><body>` + strings.Repeat("the abstract. ", 40) + `</body></html>`
+	body := "<html><body>" + strings.Repeat("methods results discussion. ", 900) + "</body></html>"
+	f := fake(func(u string) (*Response, error) {
+		switch u {
+		case landing:
+			return &Response{Body: []byte(abstract), ContentType: "text/html"}, nil
+		case full:
+			return &Response{Body: []byte(body), ContentType: "text/html"}, nil
+		}
+		return nil, &Refusal{URL: u, Status: 404}
+	})
+	e, got, _, err := Resolve(run, landing, f)
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if len(got) != len(body) {
+		t.Fatalf("the abstract page was stored as the document (%d bytes, full text is %d)", len(got), len(body))
+	}
+	if !strings.Contains(e.RetrievedVia, "citation metadata") {
+		t.Errorf("the hop is not recorded as provenance: %q", e.RetrievedVia)
+	}
+
+	// A SHORTER ANSWER IS REFUSED. The pointer is the publisher's, so this is not deciding which
+	// is the paper — it is refusing to trade a page for a smaller one, which is what a paywall
+	// stub or an error page would be.
+	g := fake(func(u string) (*Response, error) {
+		switch u {
+		case landing:
+			return &Response{Body: []byte(abstract), ContentType: "text/html"}, nil
+		case full:
+			return &Response{Body: []byte("<html>register to continue</html>"), ContentType: "text/html"}, nil
+		}
+		return nil, &Refusal{URL: u, Status: 404}
+	})
+	run2 := runtest.New(t, t.TempDir())
+	if _, kept, _, err := Resolve(run2, landing, g); err != nil {
+		t.Fatalf("resolve: %v", err)
+	} else if len(kept) != len(abstract) {
+		t.Errorf("a smaller answer replaced the page we had: %d bytes", len(kept))
+	}
+}
