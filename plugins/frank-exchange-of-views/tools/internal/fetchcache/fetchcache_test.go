@@ -456,3 +456,106 @@ func TestALandingPageIsFollowedToTheFullTextItNames(t *testing.T) {
 		t.Errorf("a smaller answer replaced the page we had: %d bytes", len(kept))
 	}
 }
+
+// THE WHOLE WALK, AND THE THREE STATEMENTS IT FOLLOWS.
+//
+// A landing page names its full-text html; that html names the pdf. One hop stopped in the middle
+// of a two-step the publisher had signposted end to end. And a repository says the same thing a
+// different way — Signposting, `Link: <…>; rel="item"` — which this tool had a parser for and
+// never once used: both callers passed an empty string because nothing captured the header.
+func TestTheWalkToFullTextFollowsEverySignpostAndStops(t *testing.T) {
+	t.Run("landing to html to pdf", func(t *testing.T) {
+		run := runtest.New(t, t.TempDir())
+		const landing, htmlFull, pdf = "https://p.example/a", "https://p.example/a/full", "https://p.example/a.pdf"
+		pdfBody := "%PDF-1.7 " + strings.Repeat("the paper ", 4000)
+		f := fake(func(u string) (*Response, error) {
+			switch u {
+			case landing:
+				return &Response{ContentType: "text/html", Body: []byte(
+					`<html><head><meta name="citation_fulltext_html_url" content="` + htmlFull + `"></head><body>abstract</body></html>`)}, nil
+			case htmlFull:
+				return &Response{ContentType: "text/html", Body: []byte(
+					`<html><head><meta name="citation_pdf_url" content="` + pdf + `"></head><body>` +
+						strings.Repeat("methods results discussion ", 100) + `</body></html>`)}, nil
+			case pdf:
+				return &Response{ContentType: "application/pdf", Body: []byte(pdfBody)}, nil
+			}
+			return nil, &Refusal{URL: u, Status: 404}
+		})
+		e, got, _, err := Resolve(run, landing, f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != pdfBody {
+			t.Fatalf("the walk stopped short: %d bytes, content_type %q", len(got), e.ContentType)
+		}
+	})
+
+	t.Run("a repository signpost in the Link header", func(t *testing.T) {
+		run := runtest.New(t, t.TempDir())
+		const landing, item = "https://repo.example/12345/", "https://repo.example/12345/paper.pdf"
+		pdfBody := "%PDF-1.7 " + strings.Repeat("deposited copy ", 3000)
+		f := fake(func(u string) (*Response, error) {
+			switch u {
+			case landing:
+				return &Response{ContentType: "text/html", LinkHeader: `<` + item + `> ; rel="item" ; type="application/pdf"`,
+					Body: []byte("<html><body>" + strings.Repeat("record page ", 30) + "</body></html>")}, nil
+			case item:
+				return &Response{ContentType: "application/pdf", Body: []byte(pdfBody)}, nil
+			}
+			return nil, &Refusal{URL: u, Status: 404}
+		})
+		if _, got, _, err := Resolve(run, landing, f); err != nil {
+			t.Fatal(err)
+		} else if string(got) != pdfBody {
+			t.Fatalf("the Link header signpost was not followed: %d bytes", len(got))
+		}
+	})
+
+	t.Run("a link element in the markup", func(t *testing.T) {
+		run := runtest.New(t, t.TempDir())
+		const landing, item = "https://eprints.example/41183/", "https://eprints.example/41183/1/paper.pdf"
+		pdfBody := "%PDF-1.7 " + strings.Repeat("author manuscript ", 3000)
+		f := fake(func(u string) (*Response, error) {
+			switch u {
+			case landing:
+				return &Response{ContentType: "text/html", Body: []byte(
+					`<html><head><link rel="alternate" type="application/pdf" href="` + item + `"></head><body>` +
+						strings.Repeat("record page ", 30) + `</body></html>`)}, nil
+			case item:
+				return &Response{ContentType: "application/pdf", Body: []byte(pdfBody)}, nil
+			}
+			return nil, &Refusal{URL: u, Status: 404}
+		})
+		if _, got, _, err := Resolve(run, landing, f); err != nil {
+			t.Fatal(err)
+		} else if string(got) != pdfBody {
+			t.Fatalf("a rel=alternate pdf in the markup was not followed: %d bytes", len(got))
+		}
+	})
+
+	t.Run("an rss alternate is not a paper", func(t *testing.T) {
+		run := runtest.New(t, t.TempDir())
+		const landing = "https://p.example/b"
+		page := "<html><head><link rel=\"alternate\" type=\"application/rss+xml\" href=\"https://p.example/feed\"></head><body>" +
+			strings.Repeat("abstract text ", 40) + "</body></html>"
+		var asked []string
+		f := fake(func(u string) (*Response, error) {
+			asked = append(asked, u)
+			if u == landing {
+				return &Response{ContentType: "text/html", Body: []byte(page)}, nil
+			}
+			return &Response{ContentType: "application/rss+xml", Body: []byte(strings.Repeat("<item/>", 5000))}, nil
+		})
+		if _, got, _, err := Resolve(run, landing, f); err != nil {
+			t.Fatal(err)
+		} else if string(got) != page {
+			t.Errorf("a feed replaced the paper: %d bytes", len(got))
+		}
+		for _, u := range asked {
+			if strings.Contains(u, "/feed") {
+				t.Errorf("the feed was fetched at all: %v", asked)
+			}
+		}
+	})
+}

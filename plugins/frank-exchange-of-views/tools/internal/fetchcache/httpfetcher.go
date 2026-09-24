@@ -397,6 +397,7 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, retried, skipRobots bool) (o
 	out = &Response{
 		ContentType: resp.Header.Get("Content-Type"),
 		Disposition: resp.Header.Get("Content-Disposition"),
+		LinkHeader:  strings.Join(resp.Header.Values("Link"), ", "),
 	}
 	// Read one byte past the cap so an over-size body is DETECTED, not silently truncated
 	// into a citation.

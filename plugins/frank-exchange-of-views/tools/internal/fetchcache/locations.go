@@ -141,7 +141,15 @@ func LandingPageFullText(contentType string, body []byte, linkHeader string, bas
 		return ""
 	}
 	if rel := signpostItem(linkHeader); rel != "" {
-		if u := resolveWeb(base, rel); u != "" {
+		if u := resolveWeb(base, rel); u != "" && u != base.String() {
+			return u
+		}
+	}
+	// AND IN THE DOCUMENT, where a platform that does not send the header often puts the same
+	// statement. DSpace and EPrints emit `<link rel="item">`; publishers emit
+	// `<link rel="alternate" type="application/pdf">` beside the citation tags.
+	if bodyRel := signpostItem(linkElements(body)); bodyRel != "" {
+		if u := resolveWeb(base, bodyRel); u != "" && u != base.String() {
 			return u
 		}
 	}
@@ -367,4 +375,39 @@ func looksLikePDF(u string) bool {
 		strings.Contains(lower, "pdf=render") ||
 		strings.Contains(p.Path, "/pdfdirect/") ||
 		strings.HasSuffix(p.Path, "/pdf")
+}
+
+// linkElementRe reads `<link>` elements out of a document head, so a Signposting statement made
+// in the markup is read the same way as one made in the header.
+var linkElementRe = regexp.MustCompile(`(?is)<link\s[^>]*>`)
+
+// linkElements renders a document's <link> elements in the `Link:` header's own grammar, so one
+// parser serves both. A page that states where its full text is has said the same thing whether
+// it said it in a header or in its head, and reading only one of the two was reading half.
+func linkElements(body []byte) string {
+	var out []string
+	for _, el := range linkElementRe.FindAll(body, 40) {
+		href := attrRe("href").FindSubmatch(el)
+		rel := attrRe("rel").FindSubmatch(el)
+		if href == nil || rel == nil {
+			continue
+		}
+		typ := ""
+		if m := attrRe("type").FindSubmatch(el); m != nil {
+			typ = strings.ToLower(string(m[1]))
+		}
+		r := strings.ToLower(string(rel[1]))
+		// `item` is Signposting's word for the document itself. `alternate` only counts when the
+		// element says the alternative is a pdf — a page's alternate is usually an rss feed, and
+		// following that would trade a paper for a list of headlines.
+		if r != "item" && !(strings.Contains(r, "alternate") && strings.Contains(typ, "pdf")) {
+			continue
+		}
+		out = append(out, "<"+string(href[1])+`>; rel="item"`)
+	}
+	return strings.Join(out, ", ")
+}
+
+func attrRe(name string) *regexp.Regexp {
+	return regexp.MustCompile(`(?is)\b` + regexp.QuoteMeta(name) + `\s*=\s*["']([^"']*)["']`)
 }

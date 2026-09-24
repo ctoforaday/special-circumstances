@@ -66,6 +66,14 @@ type Response struct {
 	// filename chain. Measured across the cited corpus: not one source sent it, which is
 	// exactly why it is a rung and not the rule.
 	Disposition string
+	// LinkHeader is the raw `Link:` header, or "".
+	//
+	// IT IS SIGNPOSTING, AND IT WAS DEAD CODE. The parser for it existed and both callers passed
+	// an empty string, because nothing captured the header off the response — so the
+	// standards-track way for a repository to say "the document itself is over here" was read by
+	// this tool exactly never. Repository platforms are the hosts that emit it, and repositories
+	// are where green open-access copies live.
+	LinkHeader string
 	// TDMReserved and TDMPolicy carry a text-and-data-mining reservation declared by ANY hop of
 	// this fetch, not only the last one.
 	//
@@ -550,14 +558,36 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 	//
 	// One hop, only when the first answer was html. A pdf or an xml body is already the document.
 	base, _ := neturl.Parse(url)
-	if fullText := LandingPageFullText(entry.ContentType, resp.Body, "", base); fullText != "" {
-		if hop, herr := f.Fetch(fullText); herr == nil && len(hop.Body) > len(resp.Body) {
-			// LONGER IS THE TEST, AND IT IS DELIBERATELY CRUDE. The pointer is the publisher's, so
-			// this is not deciding WHICH is the paper — it is refusing to trade a page for a
-			// smaller one, which is what a paywall stub or an error page would be.
-			resp = hop
-			entry.ContentType = SniffedMediaType(hop.ContentType, hop.Body)
-			entry.RetrievedVia = fmt.Sprintf("the full text at %s, which the page at %s names in its own citation metadata", fullText, url)
+	// FOLLOW IT, AND THEN FOLLOW THAT. A landing page names its full-text html; that html often
+	// names the pdf. One hop stopped at the middle of a two-step the publisher had signposted
+	// end to end, so the chain runs to a bounded depth rather than a fixed one.
+	//
+	// THE ABSTRACT IS KEPT WHEN IT IS ALL THERE IS. Nothing here refuses a page for being short —
+	// a record that the work exists is a legitimate citation as `unread`. What it refuses is
+	// STOPPING at that page when the publisher has said where the readable copy is.
+	seenHop := map[string]bool{url: true}
+	for hops := 0; hops < maxFullTextHops; hops++ {
+		fullText := LandingPageFullText(entry.ContentType, resp.Body, resp.LinkHeader, base)
+		if fullText == "" || seenHop[fullText] {
+			break
+		}
+		seenHop[fullText] = true
+		hop, herr := f.Fetch(fullText)
+		// A SHORTER ANSWER IS REFUSED. The pointer is the publisher's, so this is not deciding
+		// WHICH is the paper — it is refusing to trade a page for a smaller one, which is what a
+		// paywall stub or an error page would be.
+		if herr != nil || len(hop.Body) <= len(resp.Body) {
+			break
+		}
+		resp = hop
+		entry.ContentType = SniffedMediaType(hop.ContentType, hop.Body)
+		entry.RetrievedVia = fmt.Sprintf("the full text at %s, which the page at %s names in its own citation metadata", fullText, url)
+		if b, berr := neturl.Parse(fullText); berr == nil {
+			base = b
+		}
+		// A pdf or an xml body is the document; there is nothing further to follow.
+		if !strings.Contains(strings.ToLower(entry.ContentType), "html") {
+			break
 		}
 	}
 	// AND THE WORK'S OWN FACTS, ON THE PATH THAT SUCCEEDS.
@@ -695,6 +725,12 @@ func EntryFor(url string, att *Attempt) Entry {
 	}
 	return entry
 }
+
+// maxFullTextHops bounds the walk from a landing page to the readable copy. Two is what the
+// measured shape needs — landing page names full-text html, that html names the pdf — and a
+// bound rather than a single step because each hop is the publisher's own statement, not a guess
+// this tool could chase forever.
+const maxFullTextHops = 2
 
 // TextBearing says whether a media type can carry the SOURCE'S TEXT AT ALL, as against being a
 // container or a binary this tool has no reader for.

@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	neturl "net/url"
 	"strings"
 	"testing"
 )
@@ -250,5 +251,42 @@ func TestAnUnsolicitedCodingIsDecodedWhereWeHaveAReader(t *testing.T) {
 		if !strings.Contains(err.Error(), enc) {
 			t.Errorf("%s: the refusal does not name the coding: %v", enc, err)
 		}
+	}
+}
+
+// THE Link HEADER IS CAPTURED OFF THE WIRE, which is the half a hand-built Response cannot test.
+//
+// Signposting had a parser here and no caller: both passed an empty string, because nothing read
+// the header off the response. Deleting the capture left the whole suite green — the tests
+// constructed their own Response and so exercised the parser while the plumbing was missing.
+func TestTheLinkHeaderIsReadOffTheResponse(t *testing.T) {
+	tempPaceDir(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Add("Link", `<https://repo.example/12345/paper.pdf>; rel="item"; type="application/pdf"`)
+		w.Header().Add("Link", `<https://repo.example/12345/>; rel="cite-as"`)
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte("<html><body>" + strings.Repeat("record page. ", 60) + "</body></html>"))
+	}))
+	defer srv.Close()
+
+	resp, err := NewHTTPFetcher().Fetch(srv.URL + "/12345/")
+	if err != nil {
+		t.Fatalf("fetch: %v", err)
+	}
+	if !strings.Contains(resp.LinkHeader, "rel=\"item\"") {
+		t.Fatalf("the Link header did not reach the Response: %q", resp.LinkHeader)
+	}
+	// BOTH VALUES, JOINED. A host may send several Link headers rather than one comma-joined
+	// value, and taking only the first would read whichever the server happened to put first.
+	if !strings.Contains(resp.LinkHeader, "cite-as") {
+		t.Errorf("a second Link header was dropped: %q", resp.LinkHeader)
+	}
+	base, _ := neturl.Parse(srv.URL + "/12345/")
+	if got := LandingPageFullText(resp.ContentType, resp.Body, resp.LinkHeader, base); got != "https://repo.example/12345/paper.pdf" {
+		t.Errorf("the signpost was not read end to end: %q", got)
 	}
 }
