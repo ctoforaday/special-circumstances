@@ -1380,6 +1380,7 @@ func TestModelTierAuditFailsOnASubstitutionTheRecordDeclares(t *testing.T) {
 	write(t, filepath.Join(run, "inputs", "run-config.json"),
 		`{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5"}`)
 	recordtest.Seed(t, run,
+		castWithOneLane(t),
 		recordtest.At(t, "blue-lane-1", "blue-lane-1:register:#1", &recordpb.Register{
 			ToolVersion: proto.String("test"),
 			AgentId:     proto.String(recordtest.ServedBy(t, "aaaa1111", "claude-opus-4-8", "claude-fable-5")),
@@ -1411,6 +1412,7 @@ func TestModelTierAuditSaysWhenTheServedModelWasNeverMeasured(t *testing.T) {
 	write(t, filepath.Join(run, "inputs", "run-config.json"),
 		`{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5"}`)
 	recordtest.Seed(t, run,
+		castWithOneLane(t),
 		recordtest.At(t, "blue-lane-1", "blue-lane-1:register:#1",
 			&recordpb.Register{ToolVersion: proto.String("test")}),
 	)
@@ -1510,4 +1512,17 @@ func tarNames(t *testing.T, path string) []string {
 		out = append(out, h.Name)
 	}
 	return out
+}
+
+// castWithOneLane is the cast setup writes for a one-lane run.
+//
+// A LANE IS TIER-BOUND BECAUSE THE CAST SAYS IT IS ONE. Its id carries no such fact — every other
+// seat's tier comes from the static roster, and a lane's cannot, because how many a run seats is a
+// run parameter. A fixture without this has a seat the tier audit correctly reports as not
+// tier-bound, which is the honest answer to a record that never said what the seat was.
+func castWithOneLane(t *testing.T) *recordpb.Event {
+	t.Helper()
+	seats, laneSeats := record.CastFor(nil, 1)
+	return recordtest.At(t, record.HarnessSeat, "harness:cast:1",
+		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats})
 }

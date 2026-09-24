@@ -6332,8 +6332,20 @@ func (x *SittingLimit) GetLimit() int32 {
 // for every cast seat s. `register` refuses a seat outside it and so does `dispatch next`. This
 // is the table derived-seat-identity.md §III.3 named and did not specify.
 type Cast struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SeatIds       []string               `protobuf:"bytes,1,rep,name=seat_ids,json=seatIds,proto3" json:"seat_ids,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	SeatIds []string               `protobuf:"bytes,1,rep,name=seat_ids,json=seatIds,proto3" json:"seat_ids,omitempty"`
+	// WHICH OF THOSE SEATS ARE LANES, AS A FIELD, because it cannot be recovered from the ids.
+	//
+	// Every other seat the engine dispatches has a fixed id and a row on the static roster
+	// (internal/seatclass), which carries its role and its tier. Lanes do not: how many a run seats
+	// is a run parameter, so no compiled table can name them. The roster carried a PATTERN for them
+	// instead, and the tier join, the register gate and the coverage audit each asked that pattern a
+	// question — the audit going as far as reading the lane's index back out of its name.
+	//
+	// A pattern bounds a shape and answers nothing about membership. This is the membership, written
+	// by setup, which knows: a subset of seat_ids, refused at the write if it names a seat the cast
+	// does not.
+	LaneSeatIds   []string `protobuf:"bytes,2,rep,name=lane_seat_ids,json=laneSeatIds,proto3" json:"lane_seat_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6371,6 +6383,13 @@ func (*Cast) Descriptor() ([]byte, []int) {
 func (x *Cast) GetSeatIds() []string {
 	if x != nil {
 		return x.SeatIds
+	}
+	return nil
+}
+
+func (x *Cast) GetLaneSeatIds() []string {
+	if x != nil {
+		return x.LaneSeatIds
 	}
 	return nil
 }
@@ -7665,9 +7684,10 @@ const file_record_proto_rawDesc = "" +
 	"\b_seat_idB\n" +
 	"\n" +
 	"\b_sittingB\b\n" +
-	"\x06_limit\"!\n" +
+	"\x06_limit\"E\n" +
 	"\x04Cast\x12\x19\n" +
-	"\bseat_ids\x18\x01 \x03(\tR\aseatIds\"\xe9\x02\n" +
+	"\bseat_ids\x18\x01 \x03(\tR\aseatIds\x12\"\n" +
+	"\rlane_seat_ids\x18\x02 \x03(\tR\vlaneSeatIds\"\xe9\x02\n" +
 	"\bDispatch\x12\xce\x01\n" +
 	"\x03pin\x18\x01 \x01(\x03B\xb6\x01\x82\xb5\x18\xb1\x01\b\x01\x1a\xac\x01the events.id of the report head this party audits — the text it anchors to, reconstructible from the record; a dispatch with no pin is a dispatch against a moving targetH\x00R\x03pin\x88\x01\x01\x12_\n" +
 	"\aseat_id\x18\x02 \x01(\tBA\x82\xb5\x18=\b\x01\x12\x04seat\x1a3the party engaged; refused unless it is in the castH\x01R\x06seatId\x88\x01\x01\x12\x17\n" +

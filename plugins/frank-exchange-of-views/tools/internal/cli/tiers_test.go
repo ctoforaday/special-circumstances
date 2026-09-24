@@ -27,6 +27,7 @@ func tierFixture(t *testing.T) (string, record.Family) {
 		t.Fatal(err)
 	}
 	recordtest.Seed(t, run,
+		castWithOneLane(t),
 		recordtest.At(t, "blue-lane-1", "blue-lane-1:register:#1", &recordpb.Register{
 			ToolVersion: proto.String("test"),
 			AgentId:     proto.String(recordtest.ServedBy(t, "aaaa1111", "claude-opus-4-8", "claude-fable-5")),
@@ -90,7 +91,7 @@ func TestTiersSaysWhenNothingLookedAtAll(t *testing.T) {
 		[]byte(`{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	recordtest.Seed(t, run, recordtest.At(t, "blue-lane-1", "blue-lane-1:register:#1",
+	recordtest.Seed(t, run, castWithOneLane(t), recordtest.At(t, "blue-lane-1", "blue-lane-1:register:#1",
 		&recordpb.Register{ToolVersion: proto.String("test")}))
 	b, err := record.FamilyOf(runtest.Open(t, run))
 	if err != nil {
@@ -100,4 +101,17 @@ func TestTiersSaysWhenNothingLookedAtAll(t *testing.T) {
 	if !strings.Contains(md, "NOTHING LOOKED") {
 		t.Errorf("a run where nothing was measured must say so as a run, not only per row; got:\n%s", md)
 	}
+}
+
+// castWithOneLane is the cast setup writes for a one-lane run.
+//
+// A LANE IS TIER-BOUND BECAUSE THE CAST SAYS IT IS ONE, since its id carries no such fact: every
+// other seat's tier comes from the static roster, and a lane's cannot — how many a run seats is a
+// run parameter. A fixture without this has a seat the tier view correctly reports as not
+// tier-bound.
+func castWithOneLane(t *testing.T) *recordpb.Event {
+	t.Helper()
+	seats, laneSeats := record.CastFor(nil, 1)
+	return recordtest.At(t, record.HarnessSeat, "harness:cast:1",
+		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats})
 }

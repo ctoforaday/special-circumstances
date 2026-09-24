@@ -1,9 +1,6 @@
 package seatclass
 
 import (
-	"regexp"
-	"strconv"
-
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 )
 
@@ -68,36 +65,19 @@ func roster() map[string]Seat {
 	return m
 }
 
-// LaneSeat is THE ONE PATTERN LEFT, and it is here for a reason that ends with #1153b.
+// LaneSeatPrefix is how a lane seat id is SPELLED, and the one place that says so.
 //
-// How many lanes a run has is a run PARAMETER (`--lanes`), so no table compiled into this binary
-// can enumerate them. The run's cast does, and `dispatchableSeatID` could read it — but the tier
-// join must answer `blue-lane` for a lane id, and the class is not a field on the cast yet.
-// Deciding lane-ness by ELIMINATION instead (in the cast, absent from Seats) is a negative rule,
-// and the one this tree already paid for was `benchClosesGap`: "everything except remanded"
-// classified a later deferring disposition as closing and retired a gap the bench had
-// deliberately kept alive.
-var LaneSeat = regexp.MustCompile(`^blue-lane-(\d+)$`)
+// record.LaneSeatIDs composes ids from it; internal/reportvoice builds a prose pattern from it.
+// Those are different acts and only one of them is the thing this change removed: SEARCHING TEXT
+// for a name is not RECOVERING A FACT FROM AN ID. A report that says "blue-lane-2 drafted this"
+// has named a seat to a reader of the subject, and a pattern is how prose gets searched; nothing
+// downstream learns what that seat IS from the match.
+const LaneSeatPrefix = "blue-lane-"
 
-// LaneIndex is the lane a seat id names, and whether it names one.
-//
-// THE INDEX IS STILL LOAD-BEARING, WHICH IS WHY THIS EXISTS RATHER THAN THE CALLER PARSING. The
-// lane-coverage audit reports WHICH lane never registered — "lane 3" sends a reader to that
-// dispatch, where "2 of 3" sends them to the whole opening — so the fact is wanted, and until the
-// cast carries it as a field (#1153b) it can only come off the id. What this removes is the
-// SECOND copy of the pattern: internal/capture had its own, free to disagree with this one about
-// what a lane id looks like.
-func LaneIndex(seatID string) (int, bool) {
-	m := LaneSeat.FindStringSubmatch(seatID)
-	if m == nil {
-		return 0, false
-	}
-	n, err := strconv.Atoi(m[1])
-	if err != nil {
-		return 0, false
-	}
-	return n, true
-}
+// THE LANE PATTERN IS GONE, AND SO IS THE LAST REGEX OVER A SEAT ID. Lane ids are GENERATED from
+// the run's lane count (record.LaneSeatIDs), so "is this a lane" is a comparison against that set
+// and "which lane" is a name the caller already holds. A pattern here could bound a shape and
+// never membership, and the coverage audit read the lane's INDEX back out of its name.
 
 // SeatIDs is every seat id this roster names, for a reader that needs the NAMES rather than the
 // facts behind them — reportvoice builds its tell from it, so a seat that leaves the roster

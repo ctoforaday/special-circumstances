@@ -3,6 +3,7 @@ package record
 import (
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
@@ -38,3 +39,26 @@ var fixtureClasses = append([]string{
 	// Descriptive placeholders: a fixture names the thing it is about, which reads better in
 	// a failure than "x" and costs nothing — the point is that the vocabulary is DECLARED.
 }, recordtest.ShippedClasses...)
+
+// newRunWithLanes is newRun plus the cast setup writes for a run with this many lanes.
+//
+// A LANE IS A LANE BECAUSE THE CAST SAYS SO — its id carries no such fact, since how many lanes a
+// run seats is a run parameter and no compiled table can name them. So a fixture that registers a
+// lane writes the cast; one testing the NO-CAST case still gets a bare run from newRun.
+func newRunWithLanes(t *testing.T, lanes int) string {
+	t.Helper()
+	dir := newRun(t)
+	seats, laneSeats := CastFor(nil, lanes)
+	if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: HarnessSeat},
+		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats}); err != nil {
+		t.Fatalf("seed the cast: %v", err)
+	}
+	return dir
+}
+
+// castBody is a Cast naming these seats and these lanes. NOT `castWith`, which castcoverage_test
+// already uses for a whole RUN built around a cast — the same word for two things reads as
+// confirmation to anyone checking.
+func castBody(seats, lanes []string) *recordpb.Cast {
+	return &recordpb.Cast{SeatIds: seats, LaneSeatIds: lanes}
+}

@@ -15,7 +15,7 @@ func castWith(t *testing.T, areas ...string) Run {
 	t.Helper()
 	run := mustRun(t, recordtest.TmpRun(t))
 	harness := Identity{Run: run, SeatID: HarnessSeat}
-	if _, err := Append(harness, &recordpb.Cast{SeatIds: CastFor(areas, 1)}); err != nil {
+	if _, err := Append(harness, &recordpb.Cast{SeatIds: func() []string { s, _ := CastFor(areas, 1); return s }()}); err != nil {
 		t.Fatal(err)
 	}
 	return run

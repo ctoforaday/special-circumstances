@@ -62,29 +62,14 @@ func skeletonOfTemplate(arg string) (string, bool) {
 	return s, true
 }
 
-// skeletonOfPattern reduces the roster's ONE remaining pattern to the same shape.
+// laneSkeleton is the shape a lane dispatch site reduces to, built from the one spelling of a
+// lane id rather than from a pattern over one.
 //
-// IT USED TO REDUCE EIGHT. The roster holds whole ids now, so a dispatched lens is compared by
-// NAME — `red-lens-banana` no longer satisfies this bind by matching a shape, which is the
-// strength a table has and a pattern cannot.
-//
-// IT REFUSES WHAT IT DOES NOT UNDERSTAND. `\d+` is the only construct left; any other
-// metacharacter appearing here means this reduction is no longer reading the pattern it thinks
-// it is. Returning false there — rather than a best-effort skeleton — is the difference between
-// this gate failing loudly the day the lane shape grows a construct it cannot handle, and it
-// silently passing every id forever after.
-func skeletonOfPattern(p string) (string, bool) {
-	s := strings.TrimPrefix(strings.TrimSuffix(p, "$"), "^")
-	// CAPTURING OR NOT IS THE SAME SHAPE. The lane pattern captures its index because
-	// seatclass.LaneIndex reads it; a seat id is no different for the parentheses being there.
-	// Longest first, so the group is not half-eaten by the atom inside it.
-	s = strings.ReplaceAll(s, `(\d+)`, hole)
-	s = strings.ReplaceAll(s, `\d+`, hole)
-	if strings.ContainsAny(s, `\[]()*+?{}|.`) {
-		return "", false
-	}
-	return s, true
-}
+// skeletonOfPattern IS GONE WITH THE LAST PATTERN. It reduced eight roster regexes, then one, and
+// now none: the roster holds whole ids and lane ids are generated (record.LaneSeatIDs), so there is
+// nothing left to reduce. What debate.js interpolates is still a hole, and this is what it must
+// equal.
+func laneSkeleton() string { return seatclass.LaneSeatPrefix + hole }
 
 // THE ROSTER TRACKS THE ENGINE, AND UNTIL NOW NOTHING CHECKED THAT IT DID.
 //
@@ -120,12 +105,7 @@ func TestTheRosterMatchesWhatTheEngineActuallyDispatches(t *testing.T) {
 	for id, s := range seatclass.Seats {
 		admits[id] = s.Role
 	}
-	laneSk, ok := skeletonOfPattern(seatclass.LaneSeat.String())
-	if !ok {
-		t.Fatalf("the lane pattern %s uses a construct this bind does not understand; teach "+
-			"skeletonOfPattern about it rather than leaving the shape unbound", seatclass.LaneSeat)
-	}
-	admits[laneSk] = "blue"
+	admits[laneSkeleton()] = "blue"
 
 	// Arguments that are not literals, exempted by NAME and then covered above rather than waved
 	// through: a lens is handed its own id, and a petition sitting is the bench answering for the
@@ -303,7 +283,7 @@ func TestTheSeatIdCommentsDescribeWhatTheGateDoes(t *testing.T) {
 		{"red-chair", true, "the chair keeps its party prefix and IS dispatched — which is why the attestation table, not the shape, is what catches the wrong agent registering as it"},
 		{"red-merge-r1", false, "neither the retired -r<N>- sitting segment nor the pre-#831 merge role survives"},
 	} {
-		if got := dispatchableSeatID(c.id); got != c.want {
+		if got := dispatchableSeatID(mustRun(t, t.TempDir()), c.id); got != c.want {
 			t.Errorf("dispatchableSeatID(%q) = %v, want %v — %s", c.id, got, c.want, c.claim)
 		}
 	}

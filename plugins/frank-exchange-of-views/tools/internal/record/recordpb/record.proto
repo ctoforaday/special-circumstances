@@ -1951,6 +1951,18 @@ message SittingLimit {
 // is the table derived-seat-identity.md §III.3 named and did not specify.
 message Cast {
   repeated string seat_ids = 1;
+  // WHICH OF THOSE SEATS ARE LANES, AS A FIELD, because it cannot be recovered from the ids.
+  //
+  // Every other seat the engine dispatches has a fixed id and a row on the static roster
+  // (internal/seatclass), which carries its role and its tier. Lanes do not: how many a run seats
+  // is a run parameter, so no compiled table can name them. The roster carried a PATTERN for them
+  // instead, and the tier join, the register gate and the coverage audit each asked that pattern a
+  // question — the audit going as far as reading the lane's index back out of its name.
+  //
+  // A pattern bounds a shape and answers nothing about membership. This is the membership, written
+  // by setup, which knows: a subset of seat_ids, refused at the write if it names a seat the cast
+  // does not.
+  repeated string lane_seat_ids = 2;
 }
 
 // Dispatch is the chair engaging ONE party: the seat, the gaps it is engaged on, and the report

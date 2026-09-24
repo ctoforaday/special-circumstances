@@ -48,7 +48,7 @@ func TestATerminalSeatActsInTheEpochTheChairHasReached(t *testing.T) {
 }
 
 func TestSynthesisSeatsAreEpochZeroBecauseNoChairHasSat(t *testing.T) {
-	runDir := newRun(t)
+	runDir := newRunWithLanes(t, 2)
 	for _, s := range []string{"frontier", "blue-synthesize", "blue-lane-2"} {
 		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s}, "", ""); err != nil {
 			t.Fatal(err)

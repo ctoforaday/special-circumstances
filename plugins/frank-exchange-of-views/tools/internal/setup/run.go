@@ -247,8 +247,12 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	// seats, derived from the areas selected and the lane count. Every register and every dispatch
 	// is checked against it from here on (plans/roundless.md §III.B.1).
 	lanesN, _ := strconv.Atoi(cfg.Lanes)
+	// THE LANES ARE NAMED, NOT LEFT TO BE RECOGNISED. Every other seat's role and tier come from the
+	// static roster; a lane's cannot, because how many a run seats is a run parameter. setup is the
+	// one process that knows, so it says so here rather than leaving a pattern to guess later.
+	seats, laneSeats := record.CastFor(cfg.LensAreas, lanesN)
 	if _, err := record.Append(record.Identity{Run: run, SeatID: record.HarnessSeat},
-		&recordpb.Cast{SeatIds: record.CastFor(cfg.LensAreas, lanesN)}); err != nil {
+		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats}); err != nil {
 		fmt.Fprintf(stderr, "run-setup: could not write the cast: %v\n", err)
 		return 2
 	}

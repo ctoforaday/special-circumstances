@@ -347,7 +347,7 @@ func TestPlanJSONEmitsArraysNeverNull(t *testing.T) {
 
 func TestDefaultCastListsAllSevenAreas(t *testing.T) {
 	var lenses []string
-	for _, s := range CastFor(nil, 1) {
+	for _, s := range func() []string { s, _ := CastFor(nil, 1); return s }() {
 		if strings.HasPrefix(s, "red-lens-") {
 			lenses = append(lenses, strings.TrimPrefix(s, "red-lens-"))
 		}

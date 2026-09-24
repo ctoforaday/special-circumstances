@@ -121,7 +121,10 @@ func seatIDPattern() *regexp.Regexp {
 		ids = append(ids, regexp.QuoteMeta(id))
 	}
 	sort.Sort(sort.Reverse(sort.StringSlice(ids))) // longest-first among shared prefixes
-	lane := strings.TrimSuffix(strings.TrimPrefix(seatclass.LaneSeat.String(), "^"), "$")
+	// A LANE IS A PROSE PATTERN HERE AND NOTHING ELSE. Its ids are generated per run
+	// (record.LaneSeatIDs) so they cannot be enumerated at build time — but this searches TEXT for
+	// a name, which is not the id-parsing the roster gave up. Built from the one spelling.
+	lane := regexp.QuoteMeta(seatclass.LaneSeatPrefix) + `\d+`
 	return regexp.MustCompile(`\b(` + strings.Join(ids, "|") + "|" + lane + `)\b`)
 }
 
