@@ -464,21 +464,32 @@ func TestALandingPageIsFollowedToTheFullTextItNames(t *testing.T) {
 // different way — Signposting, `Link: <…>; rel="item"` — which this tool had a parser for and
 // never once used: both callers passed an empty string because nothing captured the header.
 func TestTheWalkToFullTextFollowsEverySignpostAndStops(t *testing.T) {
-	t.Run("landing to html to pdf", func(t *testing.T) {
+	// THE WALK STOPS AT THE FULL TEXT, IT DOES NOT CHASE A FORMAT.
+	//
+	// The first version of this went landing -> full-text html -> pdf, because the html page also
+	// names its own pdf. That trades text we can already read for bytes we would have to extract
+	// again, and where the pdf is a scan, for a machine reading of a picture of the text we HAD.
+	// There is no information in that trade.
+	//
+	// The signal is the publisher's: a full-text page emits `citation_fulltext_html_url` naming
+	// ITSELF, which is it saying "you are on the full text".
+	t.Run("landing to full-text html, and no further", func(t *testing.T) {
 		run := runtest.New(t, t.TempDir())
 		const landing, htmlFull, pdf = "https://p.example/a", "https://p.example/a/full", "https://p.example/a.pdf"
-		pdfBody := "%PDF-1.7 " + strings.Repeat("the paper ", 4000)
+		fullBody := `<html><head><meta name="citation_fulltext_html_url" content="` + htmlFull + `">` +
+			`<meta name="citation_pdf_url" content="` + pdf + `"></head><body>` +
+			strings.Repeat("methods results discussion ", 100) + `</body></html>`
+		var asked []string
 		f := fake(func(u string) (*Response, error) {
+			asked = append(asked, u)
 			switch u {
 			case landing:
 				return &Response{ContentType: "text/html", Body: []byte(
 					`<html><head><meta name="citation_fulltext_html_url" content="` + htmlFull + `"></head><body>abstract</body></html>`)}, nil
 			case htmlFull:
-				return &Response{ContentType: "text/html", Body: []byte(
-					`<html><head><meta name="citation_pdf_url" content="` + pdf + `"></head><body>` +
-						strings.Repeat("methods results discussion ", 100) + `</body></html>`)}, nil
+				return &Response{ContentType: "text/html", Body: []byte(fullBody)}, nil
 			case pdf:
-				return &Response{ContentType: "application/pdf", Body: []byte(pdfBody)}, nil
+				return &Response{ContentType: "application/pdf", Body: []byte("%PDF-1.7 " + strings.Repeat("x ", 40000))}, nil
 			}
 			return nil, &Refusal{URL: u, Status: 404}
 		})
@@ -486,8 +497,73 @@ func TestTheWalkToFullTextFollowsEverySignpostAndStops(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if string(got) != pdfBody {
-			t.Fatalf("the walk stopped short: %d bytes, content_type %q", len(got), e.ContentType)
+		if string(got) != fullBody {
+			t.Fatalf("did not stop at the full-text html: %d bytes, type %q", len(got), e.ContentType)
+		}
+		for _, u := range asked {
+			if u == pdf {
+				t.Errorf("the pdf was fetched even though the html full text was in hand: %v", asked)
+			}
+		}
+	})
+
+	// A MARKUP FORM IS PREFERRED WHERE BOTH ARE OFFERED. Html and xml are already text; a pdf has
+	// to be extracted, and where it is a scan, read off page images by a machine. Taking the pdf
+	// when the publisher also offers the html spends that work to arrive back at the same words,
+	// with fewer of them.
+	t.Run("html is preferred to pdf when both are named", func(t *testing.T) {
+		run := runtest.New(t, t.TempDir())
+		const landing, htmlFull, pdf = "https://p.example/c", "https://p.example/c/full", "https://p.example/c.pdf"
+		fullBody := `<html><head><meta name="citation_fulltext_html_url" content="` + htmlFull + `"></head><body>` +
+			strings.Repeat("methods results discussion ", 100) + `</body></html>`
+		var asked []string
+		f := fake(func(u string) (*Response, error) {
+			asked = append(asked, u)
+			switch u {
+			case landing:
+				return &Response{ContentType: "text/html", Body: []byte(
+					`<html><head><meta name="citation_pdf_url" content="` + pdf + `">` +
+						`<meta name="citation_fulltext_html_url" content="` + htmlFull + `"></head><body>abstract</body></html>`)}, nil
+			case htmlFull:
+				return &Response{ContentType: "text/html", Body: []byte(fullBody)}, nil
+			case pdf:
+				// Deliberately much larger, so a size comparison alone would choose wrongly.
+				return &Response{ContentType: "application/pdf", Body: []byte("%PDF-1.7 " + strings.Repeat("x ", 80000))}, nil
+			}
+			return nil, &Refusal{URL: u, Status: 404}
+		})
+		if _, got, _, err := Resolve(run, landing, f); err != nil {
+			t.Fatal(err)
+		} else if string(got) != fullBody {
+			t.Fatalf("the pdf was taken over the html full text: %d bytes", len(got))
+		}
+		for _, u := range asked {
+			if u == pdf {
+				t.Errorf("the pdf was fetched at all: %v", asked)
+			}
+		}
+	})
+
+	// AND A PDF IS TAKEN WHEN IT IS THE ONLY THING OFFERED. An abstract page whose sole pointer is
+	// `citation_pdf_url` is the common shape, and there the pdf is the paper.
+	t.Run("abstract page offering only a pdf", func(t *testing.T) {
+		run := runtest.New(t, t.TempDir())
+		const landing, pdf = "https://p.example/b", "https://p.example/b.pdf"
+		pdfBody := "%PDF-1.7 " + strings.Repeat("the paper ", 4000)
+		f := fake(func(u string) (*Response, error) {
+			switch u {
+			case landing:
+				return &Response{ContentType: "text/html", Body: []byte(
+					`<html><head><meta name="citation_pdf_url" content="` + pdf + `"></head><body>abstract</body></html>`)}, nil
+			case pdf:
+				return &Response{ContentType: "application/pdf", Body: []byte(pdfBody)}, nil
+			}
+			return nil, &Refusal{URL: u, Status: 404}
+		})
+		if _, got, _, err := Resolve(run, landing, f); err != nil {
+			t.Fatal(err)
+		} else if string(got) != pdfBody {
+			t.Fatalf("the only offered copy was not taken: %d bytes", len(got))
 		}
 	})
 

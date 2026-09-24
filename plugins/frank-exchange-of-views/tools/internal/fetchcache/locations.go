@@ -113,6 +113,10 @@ func citationMetaRe(name string) *regexp.Regexp {
 // MEASURED 2026-09-24 over the pages this tool fetched and recorded as documents: of 16 that
 // turned out to be abstract or landing pages rather than the paper, 12 carried one of these.
 // The publisher states where its full text is; nothing here has to guess.
+// A MARKUP FORM BEFORE A PDF, and the order is the whole point. Html and xml are already text;
+// a pdf has to be extracted, and where it is a scan, read off page images by a machine. Taking
+// the pdf when the publisher also offers the html would spend that work to arrive back at the
+// same words, with fewer of them.
 var fullTextMetaNames = []string{
 	"citation_fulltext_html_url",
 	"citation_full_html_url",
@@ -156,25 +160,44 @@ func LandingPageFullText(contentType string, body []byte, linkHeader string, bas
 	if !strings.Contains(strings.ToLower(contentType), "html") {
 		return ""
 	}
+	// A SELF-POINTER IS THE PUBLISHER SAYING "THIS PAGE IS THE FULL TEXT", and it ENDS the walk.
+	//
+	// This is the difference between following a signpost and chasing a format. A full-text html
+	// page emits `citation_fulltext_html_url` naming itself, and beside it `citation_pdf_url`
+	// naming its own pdf. Reading the self-pointer as "no lead here" and moving on to the pdf
+	// would trade text we can already read for bytes we would have to extract again — and, when
+	// the pdf turns out to be a scan, for a machine reading of a picture of the text we HAD.
+	// There is no information in that trade, only loss.
+	//
+	// So the self-pointer is not skipped, it is DECISIVE: we are already on the full text.
+	for _, name := range []string{"citation_fulltext_html_url", "citation_full_html_url"} {
+		if u := metaURL(name, body, base); u != "" && u == base.String() {
+			return ""
+		}
+	}
 	for _, name := range fullTextMetaNames {
-		m := citationMetaRe(name).FindSubmatch(body)
-		if m == nil {
-			continue
-		}
-		raw := string(m[1])
-		if raw == "" {
-			raw = string(m[2])
-		}
-		u := resolveWeb(base, strings.TrimSpace(raw))
-		// A POINTER AT THE PAGE WE ARE ALREADY ON IS NOT A LEAD. Nature emits
-		// `citation_fulltext_html_url` naming the very url just fetched; following it would
-		// re-fetch the same abstract and spend a paced request to learn nothing.
+		u := metaURL(name, body, base)
+		// A pointer at the page we are already on is not a lead — handled above for the full-text
+		// names, and for the rest it is simply nothing to follow.
 		if u == "" || u == base.String() {
 			continue
 		}
 		return u
 	}
 	return ""
+}
+
+// metaURL reads one citation meta tag and resolves it against the page it was found on.
+func metaURL(name string, body []byte, base *url.URL) string {
+	m := citationMetaRe(name).FindSubmatch(body)
+	if m == nil {
+		return ""
+	}
+	raw := string(m[1])
+	if raw == "" {
+		raw = string(m[2])
+	}
+	return resolveWeb(base, strings.TrimSpace(raw))
 }
 
 // signpostItem pulls the FAIR Signposting `rel="item"` target out of a Link header, preferring a
