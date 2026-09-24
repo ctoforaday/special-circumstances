@@ -10,6 +10,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // mustReserve claims a slot and fails the test if the host is reported saturated, so a test that
@@ -508,5 +510,92 @@ func TestOnlyStrangersArePaced(t *testing.T) {
 		if w, ok := reserveSlot(host, 0); !ok || w == 0 {
 			t.Errorf("%s waited %v (ok=%v); the exemption is too wide", host, w, ok)
 		}
+	}
+}
+
+// ONE RETRIEVAL PAYS EACH HOST ONCE, HOWEVER MANY HOPS IT TAKES.
+//
+// A redirect is the SERVER'S instruction, not a request we chose to make, and every crawler
+// follows one without pausing between hops because the alternative makes redirects unusable.
+//
+// MEASURED before this, on doi 10.1038/s41586-021-03819-2: Nature's sign-on chain is a 303 to
+// idp.nature.com then two 302s back to the article, and the second idp hop waited 25 seconds to
+// follow a Location the first hop had just handed us. The whole fetch took 91 seconds, of which
+// 3.5 were on the wire.
+func TestARedirectChainIsChargedOncePerHost(t *testing.T) {
+	tempPaceDir(t)
+	pacedLoopback(t)
+	var hits int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			_, _ = w.Write([]byte("User-agent: *\nCrawl-delay: 30\n"))
+			return
+		}
+		hits++
+		switch r.URL.Path {
+		case "/a":
+			http.Redirect(w, r, "/b", http.StatusSeeOther)
+		case "/b":
+			http.Redirect(w, r, "/c", http.StatusFound)
+		default:
+			_, _ = w.Write([]byte("<html><body>" + strings.Repeat("the paper. ", 200) + "</body></html>"))
+		}
+	}))
+	defer srv.Close()
+
+	start := time.Now()
+	if _, err := NewHTTPFetcher().Fetch(srv.URL + "/a"); err != nil {
+		t.Fatalf("fetch: %v", err)
+	}
+	elapsed := time.Since(start)
+	if hits != 3 {
+		t.Fatalf("the chain made %d content requests, expected 3 — this test is not measuring what it thinks", hits)
+	}
+	// The host published 30s. Three hops charged separately would wait at least twice that.
+	if elapsed > 5*time.Second {
+		t.Errorf("a three-hop chain took %v — each hop was charged a crawl-delay of its own", elapsed)
+	}
+
+	// AND THE FLOOR STILL BITES ON A SECOND DOCUMENT. This must not become "pacing is off".
+	start = time.Now()
+	if _, err := NewHTTPFetcher().Fetch(srv.URL + "/other"); err != nil {
+		t.Fatalf("second fetch: %v", err)
+	}
+	if waited := time.Since(start); waited < 30*time.Second {
+		t.Errorf("a second document from the same host waited %v, want at least the published 30s", waited)
+	}
+}
+
+// AND THE WALK TO THE FULL TEXT IS THE SAME RETRIEVAL, not a new one. A publisher naming its own
+// pdf is telling us where the thing is; charging that hop separately cost a full jittered
+// crawl-delay on arxiv.org — 23 seconds to follow a pointer the previous response had handed us.
+func TestFollowingAPublishersOwnPointerIsNotASecondAsking(t *testing.T) {
+	tempPaceDir(t)
+	pacedLoopback(t)
+	var srv *httptest.Server
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/robots.txt":
+			_, _ = w.Write([]byte("User-agent: *\nCrawl-delay: 30\n"))
+		case "/abs":
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write([]byte(`<html><head><meta name="citation_pdf_url" content="` + srv.URL + `/pdf"></head><body>abstract</body></html>`))
+		default:
+			w.Header().Set("Content-Type", "application/pdf")
+			_, _ = w.Write([]byte("%PDF-1.7 " + strings.Repeat("the paper ", 400)))
+		}
+	}))
+	defer srv.Close()
+
+	start := time.Now()
+	e, body, _, err := Resolve(runtest.New(t, t.TempDir()), srv.URL+"/abs", NewHTTPFetcher())
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if !strings.HasPrefix(string(body), "%PDF") {
+		t.Fatalf("the walk did not reach the pdf: %q", e.ContentType)
+	}
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
+		t.Errorf("following the publisher's own pointer took %v — it was charged as a new asking", elapsed)
 	}
 }
