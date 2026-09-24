@@ -345,3 +345,298 @@ func TestResolveClassifiesWhatTheRecoveryPathStored(t *testing.T) {
 		t.Error("a recovered wall still claims text_retrieved — that is what a seat branches on")
 	}
 }
+
+// THE PAPER WE COULD READ IS THE ONE THAT MOST NEEDS THE RETRACTION CHECK, and it was the one
+// not getting it.
+//
+// The index lookup lived in Recover's stamp, which runs only when the live fetch FAILED. Measured
+// over 47 works on 2026-09-23: all 28 rows carrying work facts were `metadata` or `oa` answers,
+// and all 8 rows that returned a readable document carried none. The fact that can void a
+// citation was present on exactly the documents nobody could quote.
+func TestASuccessfulLiveFetchStillAsksTheIndex(t *testing.T) {
+	run := runtest.New(t, t.TempDir())
+	yes := true
+	f := fake(func(u string) (*Response, error) {
+		switch {
+		case strings.Contains(u, "openalex"):
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","is_retracted":true,` +
+				`"type":"article","open_access":{"oa_status":"bronze"}}`)}, nil
+		case strings.Contains(u, "publisher.example"):
+			return &Response{Body: []byte("<html><body>" + strings.Repeat("the paper. ", 300) + "</body></html>"),
+				ContentType: "text/html"}, nil
+		}
+		return nil, &Refusal{URL: u, Status: 404}
+	})
+	e, _, _, err := Resolve(run, "https://publisher.example/doi/10.1234/withdrawn", f)
+	if err != nil {
+		t.Fatalf("the live fetch failed: %v", err)
+	}
+	if !e.TextRetrieved && e.Sha == "" {
+		t.Fatal("no document was stored, so this tests nothing")
+	}
+	if e.Work == nil || e.Work.Retracted == nil || *e.Work.Retracted != yes {
+		t.Fatalf("a successfully READ paper carries no retraction check: %+v", e.Work)
+	}
+	if e.Work.OAStatus != "bronze" {
+		t.Errorf("the rest of the work record did not travel: %+v", e.Work)
+	}
+
+	// AND A URL WITH NO DOI ASKS NOBODY. There is nothing to ask about, and a request per fetch
+	// on every non-scholarly url would be a cost paid for no possible answer.
+	var asked int
+	g := fake(func(u string) (*Response, error) {
+		if strings.Contains(u, "openalex") {
+			asked++
+		}
+		return &Response{Body: []byte("<html><body>" + strings.Repeat("plain. ", 300) + "</body></html>"),
+			ContentType: "text/html"}, nil
+	})
+	if _, _, _, err := Resolve(run, "https://example.org/a-page", g); err != nil {
+		t.Fatalf("the second fetch failed: %v", err)
+	}
+	if asked != 0 {
+		t.Errorf("an index was asked about a url carrying no doi (%d times)", asked)
+	}
+}
+
+// AN ABSTRACT PAGE IS NOT THE PAPER, AND THE PUBLISHER SAYS WHERE THE PAPER IS.
+//
+// MEASURED over 120 works: of 25 html bodies this tool recorded as documents, eleven were
+// abstract or landing pages — 401 to 1,885 words of navigation, abstract and references. That is
+// the same false claim as calling a zip the source's text and worse, because an abstract reads
+// like a paper: a seat quoting one would be quoting the summary while saying it read the study.
+//
+// Of the sixteen short pages, TWELVE carried the publisher's own pointer to the readable copy.
+// The fix is that stated fact, not a word-count threshold.
+func TestALandingPageIsFollowedToTheFullTextItNames(t *testing.T) {
+	run := runtest.New(t, t.TempDir())
+	const landing = "https://publisher.example/article/1"
+	const full = "https://publisher.example/article/1/fulltext"
+	abstract := `<html><head>` +
+		`<meta name="citation_pdf_url" content="https://publisher.example/article/1.pdf">` +
+		`<meta name="citation_fulltext_html_url" content="` + full + `">` +
+		`</head><body>` + strings.Repeat("the abstract. ", 40) + `</body></html>`
+	body := "<html><body>" + strings.Repeat("methods results discussion. ", 900) + "</body></html>"
+	f := fake(func(u string) (*Response, error) {
+		switch u {
+		case landing:
+			return &Response{Body: []byte(abstract), ContentType: "text/html"}, nil
+		case full:
+			return &Response{Body: []byte(body), ContentType: "text/html"}, nil
+		}
+		return nil, &Refusal{URL: u, Status: 404}
+	})
+	e, got, _, err := Resolve(run, landing, f)
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if len(got) != len(body) {
+		t.Fatalf("the abstract page was stored as the document (%d bytes, full text is %d)", len(got), len(body))
+	}
+	// RECORDED AS A FOLLOW, NOT A RECOVERY. RetrievedVia means the bytes may be a different
+	// artifact from the url's; a publisher's abstract naming its own full text is the same work.
+	if e.FollowedTo != full {
+		t.Errorf("the hop is not recorded: followed_to %q", e.FollowedTo)
+	}
+	if e.RetrievedVia != "" {
+		t.Errorf("following a publisher's own pointer was recorded as a recovery: %q", e.RetrievedVia)
+	}
+
+	// A SHORTER ANSWER IS REFUSED. The pointer is the publisher's, so this is not deciding which
+	// is the paper — it is refusing to trade a page for a smaller one, which is what a paywall
+	// stub or an error page would be.
+	g := fake(func(u string) (*Response, error) {
+		switch u {
+		case landing:
+			return &Response{Body: []byte(abstract), ContentType: "text/html"}, nil
+		case full:
+			return &Response{Body: []byte("<html>register to continue</html>"), ContentType: "text/html"}, nil
+		}
+		return nil, &Refusal{URL: u, Status: 404}
+	})
+	run2 := runtest.New(t, t.TempDir())
+	if _, kept, _, err := Resolve(run2, landing, g); err != nil {
+		t.Fatalf("resolve: %v", err)
+	} else if len(kept) != len(abstract) {
+		t.Errorf("a smaller answer replaced the page we had: %d bytes", len(kept))
+	}
+}
+
+// THE WHOLE WALK, AND THE THREE STATEMENTS IT FOLLOWS.
+//
+// A landing page names its full-text html; that html names the pdf. One hop stopped in the middle
+// of a two-step the publisher had signposted end to end. And a repository says the same thing a
+// different way — Signposting, `Link: <…>; rel="item"` — which this tool had a parser for and
+// never once used: both callers passed an empty string because nothing captured the header.
+func TestTheWalkToFullTextFollowsEverySignpostAndStops(t *testing.T) {
+	// THE WALK STOPS AT THE FULL TEXT, IT DOES NOT CHASE A FORMAT.
+	//
+	// The first version of this went landing -> full-text html -> pdf, because the html page also
+	// names its own pdf. That trades text we can already read for bytes we would have to extract
+	// again, and where the pdf is a scan, for a machine reading of a picture of the text we HAD.
+	// There is no information in that trade.
+	//
+	// The signal is the publisher's: a full-text page emits `citation_fulltext_html_url` naming
+	// ITSELF, which is it saying "you are on the full text".
+	t.Run("landing to full-text html, and no further", func(t *testing.T) {
+		run := runtest.New(t, t.TempDir())
+		const landing, htmlFull, pdf = "https://p.example/a", "https://p.example/a/full", "https://p.example/a.pdf"
+		fullBody := `<html><head><meta name="citation_fulltext_html_url" content="` + htmlFull + `">` +
+			`<meta name="citation_pdf_url" content="` + pdf + `"></head><body>` +
+			strings.Repeat("methods results discussion ", 100) + `</body></html>`
+		var asked []string
+		f := fake(func(u string) (*Response, error) {
+			asked = append(asked, u)
+			switch u {
+			case landing:
+				return &Response{ContentType: "text/html", Body: []byte(
+					`<html><head><meta name="citation_fulltext_html_url" content="` + htmlFull + `"></head><body>abstract</body></html>`)}, nil
+			case htmlFull:
+				return &Response{ContentType: "text/html", Body: []byte(fullBody)}, nil
+			case pdf:
+				return &Response{ContentType: "application/pdf", Body: []byte("%PDF-1.7 " + strings.Repeat("x ", 40000))}, nil
+			}
+			return nil, &Refusal{URL: u, Status: 404}
+		})
+		e, got, _, err := Resolve(run, landing, f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != fullBody {
+			t.Fatalf("did not stop at the full-text html: %d bytes, type %q", len(got), e.ContentType)
+		}
+		for _, u := range asked {
+			if u == pdf {
+				t.Errorf("the pdf was fetched even though the html full text was in hand: %v", asked)
+			}
+		}
+	})
+
+	// A MARKUP FORM IS PREFERRED WHERE BOTH ARE OFFERED. Html and xml are already text; a pdf has
+	// to be extracted, and where it is a scan, read off page images by a machine. Taking the pdf
+	// when the publisher also offers the html spends that work to arrive back at the same words,
+	// with fewer of them.
+	t.Run("html is preferred to pdf when both are named", func(t *testing.T) {
+		run := runtest.New(t, t.TempDir())
+		const landing, htmlFull, pdf = "https://p.example/c", "https://p.example/c/full", "https://p.example/c.pdf"
+		fullBody := `<html><head><meta name="citation_fulltext_html_url" content="` + htmlFull + `"></head><body>` +
+			strings.Repeat("methods results discussion ", 100) + `</body></html>`
+		var asked []string
+		f := fake(func(u string) (*Response, error) {
+			asked = append(asked, u)
+			switch u {
+			case landing:
+				return &Response{ContentType: "text/html", Body: []byte(
+					`<html><head><meta name="citation_pdf_url" content="` + pdf + `">` +
+						`<meta name="citation_fulltext_html_url" content="` + htmlFull + `"></head><body>abstract</body></html>`)}, nil
+			case htmlFull:
+				return &Response{ContentType: "text/html", Body: []byte(fullBody)}, nil
+			case pdf:
+				// Deliberately much larger, so a size comparison alone would choose wrongly.
+				return &Response{ContentType: "application/pdf", Body: []byte("%PDF-1.7 " + strings.Repeat("x ", 80000))}, nil
+			}
+			return nil, &Refusal{URL: u, Status: 404}
+		})
+		if _, got, _, err := Resolve(run, landing, f); err != nil {
+			t.Fatal(err)
+		} else if string(got) != fullBody {
+			t.Fatalf("the pdf was taken over the html full text: %d bytes", len(got))
+		}
+		for _, u := range asked {
+			if u == pdf {
+				t.Errorf("the pdf was fetched at all: %v", asked)
+			}
+		}
+	})
+
+	// AND A PDF IS TAKEN WHEN IT IS THE ONLY THING OFFERED. An abstract page whose sole pointer is
+	// `citation_pdf_url` is the common shape, and there the pdf is the paper.
+	t.Run("abstract page offering only a pdf", func(t *testing.T) {
+		run := runtest.New(t, t.TempDir())
+		const landing, pdf = "https://p.example/b", "https://p.example/b.pdf"
+		pdfBody := "%PDF-1.7 " + strings.Repeat("the paper ", 4000)
+		f := fake(func(u string) (*Response, error) {
+			switch u {
+			case landing:
+				return &Response{ContentType: "text/html", Body: []byte(
+					`<html><head><meta name="citation_pdf_url" content="` + pdf + `"></head><body>abstract</body></html>`)}, nil
+			case pdf:
+				return &Response{ContentType: "application/pdf", Body: []byte(pdfBody)}, nil
+			}
+			return nil, &Refusal{URL: u, Status: 404}
+		})
+		if _, got, _, err := Resolve(run, landing, f); err != nil {
+			t.Fatal(err)
+		} else if string(got) != pdfBody {
+			t.Fatalf("the only offered copy was not taken: %d bytes", len(got))
+		}
+	})
+
+	t.Run("a repository signpost in the Link header", func(t *testing.T) {
+		run := runtest.New(t, t.TempDir())
+		const landing, item = "https://repo.example/12345/", "https://repo.example/12345/paper.pdf"
+		pdfBody := "%PDF-1.7 " + strings.Repeat("deposited copy ", 3000)
+		f := fake(func(u string) (*Response, error) {
+			switch u {
+			case landing:
+				return &Response{ContentType: "text/html", LinkHeader: `<` + item + `> ; rel="item" ; type="application/pdf"`,
+					Body: []byte("<html><body>" + strings.Repeat("record page ", 30) + "</body></html>")}, nil
+			case item:
+				return &Response{ContentType: "application/pdf", Body: []byte(pdfBody)}, nil
+			}
+			return nil, &Refusal{URL: u, Status: 404}
+		})
+		if _, got, _, err := Resolve(run, landing, f); err != nil {
+			t.Fatal(err)
+		} else if string(got) != pdfBody {
+			t.Fatalf("the Link header signpost was not followed: %d bytes", len(got))
+		}
+	})
+
+	t.Run("a link element in the markup", func(t *testing.T) {
+		run := runtest.New(t, t.TempDir())
+		const landing, item = "https://eprints.example/41183/", "https://eprints.example/41183/1/paper.pdf"
+		pdfBody := "%PDF-1.7 " + strings.Repeat("author manuscript ", 3000)
+		f := fake(func(u string) (*Response, error) {
+			switch u {
+			case landing:
+				return &Response{ContentType: "text/html", Body: []byte(
+					`<html><head><link rel="alternate" type="application/pdf" href="` + item + `"></head><body>` +
+						strings.Repeat("record page ", 30) + `</body></html>`)}, nil
+			case item:
+				return &Response{ContentType: "application/pdf", Body: []byte(pdfBody)}, nil
+			}
+			return nil, &Refusal{URL: u, Status: 404}
+		})
+		if _, got, _, err := Resolve(run, landing, f); err != nil {
+			t.Fatal(err)
+		} else if string(got) != pdfBody {
+			t.Fatalf("a rel=alternate pdf in the markup was not followed: %d bytes", len(got))
+		}
+	})
+
+	t.Run("an rss alternate is not a paper", func(t *testing.T) {
+		run := runtest.New(t, t.TempDir())
+		const landing = "https://p.example/b"
+		page := "<html><head><link rel=\"alternate\" type=\"application/rss+xml\" href=\"https://p.example/feed\"></head><body>" +
+			strings.Repeat("abstract text ", 40) + "</body></html>"
+		var asked []string
+		f := fake(func(u string) (*Response, error) {
+			asked = append(asked, u)
+			if u == landing {
+				return &Response{ContentType: "text/html", Body: []byte(page)}, nil
+			}
+			return &Response{ContentType: "application/rss+xml", Body: []byte(strings.Repeat("<item/>", 5000))}, nil
+		})
+		if _, got, _, err := Resolve(run, landing, f); err != nil {
+			t.Fatal(err)
+		} else if string(got) != page {
+			t.Errorf("a feed replaced the paper: %d bytes", len(got))
+		}
+		for _, u := range asked {
+			if strings.Contains(u, "/feed") {
+				t.Errorf("the feed was fetched at all: %v", asked)
+			}
+		}
+	})
+}

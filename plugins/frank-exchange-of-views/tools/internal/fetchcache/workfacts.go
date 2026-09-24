@@ -44,10 +44,15 @@ type WorkFacts struct {
 
 // OALocation is one place a copy sits, with the index's own typing of it.
 type OALocation struct {
-	URL     string
-	IsPDF   bool
-	Version string // publishedVersion, acceptedVersion, submittedVersion
-	License string
+	URL string
+	// IsDocument says this location is the DOCUMENT ITSELF rather than a page about it — a pdf,
+	// or full text in another form. It was called IsPDF, and the name was wrong the moment
+	// Europe PMC's JATS route joined the list: a field named for one format, carrying the
+	// concept "try this before any landing page", is a name that will be believed by whoever
+	// reads it next.
+	IsDocument bool
+	Version    string // publishedVersion, acceptedVersion, submittedVersion
+	License    string
 }
 
 // versionRank orders the copies of a work by how close each is to the version of record.
@@ -72,8 +77,8 @@ func versionRank(v string) int {
 // is to the version of record. Stable, so the index's own order survives inside a tier.
 func rankLocations(locs []OALocation) []OALocation {
 	sort.SliceStable(locs, func(i, j int) bool {
-		if locs[i].IsPDF != locs[j].IsPDF {
-			return locs[i].IsPDF
+		if locs[i].IsDocument != locs[j].IsDocument {
+			return locs[i].IsDocument
 		}
 		return versionRank(locs[i].Version) < versionRank(locs[j].Version)
 	})
@@ -121,8 +126,15 @@ func openAlexWork(f Fetcher, doi string) (WorkFacts, []OALocation, bool) {
 	}
 	var locs []OALocation
 	for _, l := range w.Locations {
+		// `pdf_url` IS OPENALEX'S CLAIM, NOT A CONTENT TYPE. It files an abstract page there
+		// often enough to matter: measured over ten works whose free copy this tool failed to
+		// reach, five listed a `pubmed.ncbi.nlm.nih.gov/<pmid>` abstract as `pdf_url`, and each
+		// consumed one of four candidate slots ahead of a location that would have worked. The
+		// url is still tried — as the landing page it is, where its own citation_pdf_url may
+		// name the real thing.
 		if l.PDFURL != "" {
-			locs = append(locs, OALocation{URL: l.PDFURL, IsPDF: true, Version: l.Version, License: l.License})
+			locs = append(locs, OALocation{URL: l.PDFURL, IsDocument: looksLikePDF(l.PDFURL),
+				Version: l.Version, License: l.License})
 		}
 		if l.IsOA && l.Landing != "" {
 			locs = append(locs, OALocation{URL: l.Landing, Version: l.Version, License: l.License})
@@ -130,7 +142,7 @@ func openAlexWork(f Fetcher, doi string) (WorkFacts, []OALocation, bool) {
 	}
 	if w.OpenAccess.OAURL != "" {
 		locs = append(locs, OALocation{URL: w.OpenAccess.OAURL,
-			IsPDF: strings.Contains(w.OpenAccess.OAURL, ".pdf")})
+			IsDocument: strings.Contains(w.OpenAccess.OAURL, ".pdf")})
 	}
 	return facts, locs, true
 }

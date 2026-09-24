@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -186,5 +187,51 @@ func TestBlueCiteKeyIsIdempotent(t *testing.T) {
 	}
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_CITE); n != 1 {
 		t.Errorf("a retried cite recorded %d cite events, want 1", n)
+	}
+}
+
+// THE RETRACTION REACHES THE CITATION, driven through the real cite command.
+//
+// The Wakefield MMR paper is the case this whole axis came from, and it is the one to drive:
+// `fetch` on it live returns `retracted: true`, and Crossref's own title carries the word. What
+// that proves is that the SUMMARY is right. The summary is not the deliverable — the citation is,
+// and until this test the last link was unchecked.
+//
+// The url is the real doi so the fixture cannot drift into a shape no index serves.
+func TestBlueCiteCarriesTheRetractionOntoTheRecord(t *testing.T) {
+	const doi = "10.1016/S0140-6736(97)11096-0"
+	const src = "https://doi.org/" + doi
+	runDir := newRun(t)
+	writeReport(t, runDir, "# Findings\n\nThe claim rests on a withdrawn paper.\n")
+	registerBlue(t, runDir)
+	withFetcher(t, &fakeFetcher{resp: map[string][]byte{
+		src: []byte("<html>" + strings.Repeat("the paper's text. ", 200) + "</html>"),
+		"https://api.openalex.org/works/doi:" + url.PathEscape(doi) + "?mailto=" + fetchcache.ContactEmail: []byte(
+			`{"id":"https://openalex.org/W1","is_retracted":true,"type":"article",` +
+				`"open_access":{"oa_status":"closed"}}`),
+	}})
+
+	if out, err := run(t, "cite", "--run", runDir, "--seat-id", citeSeat,
+		"--quote", `# Findings: "The claim rests on a withdrawn paper."`,
+		"--url", src, "--title", "Ileal-lymphoid-nodular hyperplasia (RETRACTED)"); err != nil {
+		t.Fatalf("blue cite: %v (out %q)", err, out)
+	}
+	ev := firstCiteEvent(t, runDir)
+	if ev == nil {
+		t.Fatal("no cite event recorded")
+	}
+	if got := ev.GetWorkStatus(); got != recordpb.WorkStatus_WORK_STATUS_RETRACTED {
+		t.Fatalf("the citation records work_status %v — a seat cited a withdrawn paper and the "+
+			"record cannot say so, which is the whole defect this axis exists for", got)
+	}
+
+	// AND THE READER IS TOLD. The record carrying it is half the job; the assembled document is
+	// where a reader of the subject meets it.
+	sources, err := record.CitedSources(runtest.Open(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sources) != 1 || sources[0].WorkStatus != recordpb.WorkStatus_WORK_STATUS_RETRACTED {
+		t.Fatalf("the projection assembly reads dropped the status: %+v", sources)
 	}
 }
