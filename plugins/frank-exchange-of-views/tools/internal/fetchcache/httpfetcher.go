@@ -273,11 +273,11 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, retried, skipRobots bool) (o
 	// Reading robots.txt is itself a fetch, so it is exempted by path — otherwise checking the
 	// rules would need the rules. The exemption is the standard's own: robots.txt is never
 	// governed by robots.txt.
+	// THE RULES ARE READ FOR THE RATE, AND ONLY THE RATE. Warming them here rather than at the
+	// pacer keeps the fetch of robots.txt on this path — where it is exempted from the host's own
+	// floor — instead of inside the reservation that floor comes from.
 	if !skipRobots {
-		rules := robotsFor(robotsClient{h}, u.Scheme, u.Host)
-		if rule := robotsBlocks(rules, u); rule != "" {
-			return nil, nil, "", &RobotsRefusal{URL: rawURL, Rule: rule}
-		}
+		_ = robotsFor(robotsClient{h}, u.Scheme, u.Host)
 	}
 	// WAIT OUR TURN FOR THIS HOST. The floor is enforced here, at the only place a request
 	// leaves, so no caller can forget it and no new backend has to remember.

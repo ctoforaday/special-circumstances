@@ -182,9 +182,6 @@ type Entry struct {
 	//	            source was closed when the source had said "not yet"
 	//	origin   — no proxy is configured, so the refusal is the source's own
 	//	unknown   — a proxy is configured and the two readings cannot be told apart
-	//	robots    — nothing was asked of the origin at all; this host's robots.txt disallows the
-	//	            path, so there is no HTTP status to record and inventing one would attribute a
-	//	            refusal to a source that never made it
 	RefusalClass string `json:"refusal_class,omitempty"`
 
 	// RetrievedVia names the archive snapshot these bytes came from, when the live source refused
@@ -481,19 +478,11 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		// so a candidate on the disallowed host is refused again by the same rule. What changes is
 		// that the OTHER hosts are now asked.
 		var ref *Refusal
-		var rob *RobotsRefusal
-		isRefusal, isRobots := errors.As(ferr, &ref), errors.As(ferr, &rob)
-		if !isRefusal && !isRobots {
+		if !errors.As(ferr, &ref) {
 			return Entry{}, nil, false, ferr
 		}
 		stub := Entry{URL: url}
-		if isRefusal {
-			stub.HTTPStatus, stub.RefusalClass = ref.Status, refusalClass(ref.Status)
-		} else {
-			// NOT an HTTP status: nothing was asked of the origin. Recording one would invent a
-			// refusal the source never made.
-			stub.RefusalClass = "robots"
-		}
+		stub.HTTPStatus, stub.RefusalClass = ref.Status, refusalClass(ref.Status)
 		_ = appendIndexIfAbsent(run, stub)
 		// THE REFUSAL IS NOT THE END OF THE ATTEMPT, but the right next move depends on WHAT this
 		// source is — and choosing wrongly is how a run ends up citing a landing page.

@@ -2,54 +2,50 @@ package fetchcache
 
 import (
 	"encoding/json"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/jimsmart/grobotstxt"
 )
 
-// ROBOTS.TXT IS THE OPERATOR'S OWN INSTRUCTION, AND IT IS THE ONE WE HAD NEVER READ.
+// ROBOTS.TXT IS READ FOR ITS RATE LIMIT, AND FOR NOTHING ELSE.
 //
-// This tool fetched whatever url it was handed. For a seat reading one cited source that is
-// defensible; for a sweep over thousands of urls it is crawling, and a crawler that does not read
-// robots.txt is not a good citizen whatever else it does politely.
+// # What this file is for
 //
-// # What it costs, measured before it was adopted
+// A host that publishes `Crawl-delay` is telling automated clients how much room it wants, and
+// that number beats anything this tool could guess. arXiv publishes **15 seconds** — five times
+// slower than the 3 seconds this tool had transcribed from arXiv's prose terms of use. A number
+// a host publishes for machines beats a number we read out of a sentence, every time, and it is
+// the difference between believing we are polite and being told we are.
 //
-// Across the top-cited works of 26 fields, on the 19 sampled publisher hosts with a readable
-// robots.txt, exactly ONE landing page of 32 was disallowed to `*` — 3.1%. So honouring it
-// forfeits almost nothing.
+// # What it is NOT for, and the mistake that was made here
 //
-// # What it buys, which is more than permission
+// This tool ONCE REFUSED a fetch on a `Disallow`, and that was wrong. The Robots Exclusion
+// Protocol addresses CRAWLERS — clients that discover and traverse — and this is not one. It
+// fetches one url a seat has chosen and is about to cite, which is the act a browser performs,
+// and a browser does not consult robots.txt.
 //
-// Five of those hosts publish a Crawl-delay, and arXiv's is **15 seconds** — five times slower
-// than the 3 seconds this tool had taken from arXiv's prose terms of use. A number the host
-// publishes for machines beats a number we transcribed from a sentence, every time, and it is the
-// difference between believing we are polite and being told we are.
+// The rules that were turning us away say so themselves. Measured over 558 fetches, six rules
+// accounted for every refusal, and four were a blanket `Disallow: /` for `*` beside NAMED
+// allowances for search engines — IOP allows googlebot and slurp with narrow, annotated
+// exceptions ("Duplicate content caused by serving jsessionids", "Disallow crawling search
+// results pages") while refusing everyone else outright; APA allows Googlebot and
+// CrossrefEventDataBot by name. Those are search-index directives. Letting them decide whether a
+// researcher may read one paper they have already cited is not obedience, it is a category error
+// — and it cost the publisher's copy on 5.4% of fetches to honour a rule aimed at indexers.
 //
-// # Why a Disallow refuses rather than warns
-//
-// The alternative — fetch anyway and note it — makes the operator's instruction advisory, which is
-// not what it is. A refusal here is also cheap, because it is not the end of the road: the
-// metadata and open-access backends answer from indexes that publish for machines, so a seat that
-// may not read the publisher's page can still learn the source exists and find a copy that is
-// meant to be read.
+// A tool that one day walks a corpus rather than answering for a citation is a crawler and owes
+// the full protocol. This one is not that, and must not be built as though it were.
 type robotsRules struct {
-	// Disallow and Allow are the longest-match groups for the agent we send. Empty means the
-	// host published rules that do not mention us, which permits everything.
-	Disallow []string `json:"disallow"`
-	Allow    []string `json:"allow"`
 	// CrawlDelay is the host's own pacing instruction in seconds, or 0 where it publishes none.
+	// It is the only directive this tool acts on.
 	CrawlDelay float64 `json:"crawl_delay"`
 	// Fetched is when this was read, for the cache's own expiry.
 	Fetched time.Time `json:"fetched"`
-	// Missing records that the host answered no robots.txt at all, which permits everything —
-	// stored so the absence is cached like any other answer rather than re-asked every fetch.
+	// Missing records that the host answered no robots.txt at all — stored so the absence is
+	// cached like any other answer rather than re-asked every fetch.
 	Missing bool `json:"missing"`
 }
 
@@ -120,8 +116,8 @@ func fetchRobots(f Fetcher, scheme, host string) *robotsRules {
 	return parseRobots(string(resp.Body))
 }
 
-// parseRobots reads the groups that apply to us: the wildcard group, and any group naming this
-// tool, which wins where both exist.
+// parseRobots reads the Crawl-delay that applies to us: from a group naming this tool where one
+// exists, otherwise from the wildcard group.
 //
 // GROUPS ARE ACCUMULATED, NOT OVERWRITTEN, because a file may open several `User-agent:` lines
 // before a single set of rules — the standard's way of saying "these apply to all of you".
@@ -149,125 +145,35 @@ func parseRobots(body string) *robotsRules {
 			switch {
 			case v == "*":
 				targets = append(targets, star)
-			case strings.Contains(strings.ToLower(userAgent), strings.ToLower(v)) && v != "":
+			case v != "" && strings.Contains(strings.ToLower(userAgent), strings.ToLower(v)):
 				targets = append(targets, mine)
 			}
 			lastWasAgent = true
 			continue
 		}
 		lastWasAgent = false
-		for _, t := range targets {
-			switch k {
-			case "disallow":
-				if v != "" {
-					t.Disallow = append(t.Disallow, v)
-				}
-			case "allow":
-				if v != "" {
-					t.Allow = append(t.Allow, v)
-				}
-			case "crawl-delay":
-				if d, err := strconv.ParseFloat(v, 64); err == nil && d > 0 {
-					t.CrawlDelay = d
-				}
+		if k != "crawl-delay" {
+			continue
+		}
+		if d, err := strconv.ParseFloat(v, 64); err == nil && d > 0 {
+			for _, t := range targets {
+				t.CrawlDelay = d
 			}
 		}
 	}
-	// A GROUP NAMING US WINS OUTRIGHT over the wildcard, which is what the standard says: the
-	// most specific matching group applies, and its silence is not the wildcard's speech.
-	if len(mine.Disallow) > 0 || len(mine.Allow) > 0 || mine.CrawlDelay > 0 {
+	// A GROUP NAMING US WINS OUTRIGHT over the wildcard: the most specific matching group
+	// applies, and its silence is not the wildcard's speech.
+	if mine.CrawlDelay > 0 {
 		return mine
 	}
 	return star
 }
 
-// allows answers whether a path may be fetched, by longest match, with Allow winning a tie — the
-// rule every major implementation follows.
-//
-// THE GROUP SELECTION IS OURS AND STAYS OURS, which is the other half of the grobotstxt decision.
-// Its AgentAllowed picks the group by Google's rule, and on the one case where the two differ we
-// are the more obedient: a file addressing `User-agent: feov` is applied to us, because `feov` is
-// a prefix of what we send, while Google's matcher requires a closer match and would ignore that
-// group entirely. A politeness-first tool takes the reading that obeys MORE rules, so the path
-// grammar is delegated and the question of whose rules these are is not.
-func (r *robotsRules) allows(path string) bool {
-	if r == nil || r.Missing {
-		return true
-	}
-	if path == "" {
-		path = "/"
-	}
-	best, allow := -1, true
-	for _, p := range r.Disallow {
-		if matchRobotsPath(p, path) && len(p) > best {
-			best, allow = len(p), false
-		}
-	}
-	for _, p := range r.Allow {
-		if matchRobotsPath(p, path) && len(p) >= best {
-			best, allow = len(p), true
-		}
-	}
-	return allow
-}
-
-// matchRobotsPath is Google's own matcher, and this is a deliberate dependency.
-//
-// WHAT THE DIFFERENTIAL FOUND, BEFORE THE SWAP. The hand-rolled matcher this replaced agreed with
-// grobotstxt on 25 of 25 path cases — every wildcard corner, `$` anchoring, query strings,
-// percent-encoding both ways, `/a` against `/abc`, `$` alone, a bare `*`. So this is NOT a
-// correctness fix and must not be remembered as one.
-//
-// It is taken for the cases NOT in that table. grobotstxt is a function-for-function port of
-// Google's C++ robots.txt matcher and carries 100% of its test suite, which is a great deal more
-// thought about this grammar than one afternoon of ours. The corners we did not think to test are
-// exactly the ones a reference implementation is for, and robots.txt is the one file here where
-// being wrong means disobeying an operator who wrote down what they wanted.
-func matchRobotsPath(pattern, path string) bool {
-	if pattern == "" {
-		return false
-	}
-	return grobotstxt.Matches(path, pattern)
-}
-
-// robotsInterval is the host's own published pacing, or 0.
+// interval is the host's published Crawl-delay as a duration, or 0 where it publishes none.
+// It is the one thing this file exists to produce.
 func (r *robotsRules) interval() time.Duration {
 	if r == nil || r.CrawlDelay <= 0 {
 		return 0
 	}
 	return time.Duration(r.CrawlDelay * float64(time.Second))
-}
-
-// RobotsRefusal is returned when a host's own robots.txt forbids the path.
-type RobotsRefusal struct {
-	URL  string
-	Rule string
-}
-
-func (e *RobotsRefusal) Error() string {
-	return "fetch: " + e.URL + " is DISALLOWED BY THIS HOST'S robots.txt (rule: " + e.Rule + "). " +
-		"That is the site operator's own instruction to automated clients, and this tool obeys it rather than " +
-		"deciding it does not apply. It is NOT a statement that the source is unavailable or closed: ask " +
-		"`metadata` whether it exists, or `oa` whether a copy that is meant to be read exists elsewhere"
-}
-
-// robotsBlocks reports the matching rule when a url is disallowed, or "" when it is permitted.
-func robotsBlocks(r *robotsRules, u *url.URL) string {
-	if r == nil || r.Missing || u == nil {
-		return ""
-	}
-	p := u.Path
-	if u.RawQuery != "" {
-		p += "?" + u.RawQuery
-	}
-	if r.allows(p) {
-		return ""
-	}
-	best := ""
-	for _, d := range r.Disallow {
-		if matchRobotsPath(d, p) && len(d) > len(best) {
-			best = d
-		}
-	}
-	return best
 }

@@ -1,15 +1,13 @@
 package fetchcache
 
 import (
-	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // arXiv's REAL robots.txt, trimmed to the groups that decide. The Crawl-delay is the point: this
@@ -30,91 +28,36 @@ func TestTheHostsOwnCrawlDelayIsRead(t *testing.T) {
 	if got := r.interval(); got != 15*time.Second {
 		t.Errorf("crawl delay = %v, want 15s — the host's published number", got)
 	}
-	if !r.allows("/abs/1706.03762") {
-		t.Error("an explicitly allowed path was refused")
-	}
-	if r.allows("/find") {
-		t.Error("a disallowed path was permitted")
-	}
 }
 
-// THE WILDCARD RULES ARE MATCHED BY LONGEST MATCH, WITH Allow WINNING A TIE — the behaviour every
-// major implementation shares, and the one that decides whether a broad Disallow with a narrow
-// Allow carved out of it lets us through.
-func TestLongestMatchWinsAndAllowBreaksTies(t *testing.T) {
-	r := parseRobots("User-agent: *\nDisallow: /articles/\nAllow: /articles/open/\n")
-	for path, want := range map[string]bool{
-		"/articles/paywalled/1": false,
-		"/articles/open/1":      true,
-		"/elsewhere":            true,
-	} {
-		if got := r.allows(path); got != want {
-			t.Errorf("allows(%q) = %v, want %v", path, got, want)
-		}
+// A Disallow IS READ PAST, NOT OBEYED, and that is the decision this test exists to hold.
+//
+// The Robots Exclusion Protocol addresses CRAWLERS — clients that discover and traverse. This
+// tool fetches one url a seat has chosen and is about to cite, which is what a browser does, and
+// a browser does not consult robots.txt. Measured over 558 fetches, obeying cost the publisher's
+// copy on 5.4% of them, to rules aimed at search indexers: four of the six were a blanket
+// `Disallow: /` for `*` sitting beside named allowances for googlebot.
+//
+// The file is still read. The rate limit in it is a host telling us how much room it wants, and
+// that is worth having.
+func TestADisallowDoesNotStopAFetch(t *testing.T) {
+	blanket := parseRobots("User-agent: *\nDisallow: /\nCrawl-delay: 20\n")
+	if got := blanket.interval(); got != 20*time.Second {
+		t.Errorf("the rate was lost with the rules: %v", got)
 	}
-}
-
-// A GROUP NAMING US WINS OUTRIGHT, and its silence is not the wildcard's speech — a host that
-// gives this tool its own permissive group must not inherit the wildcard's refusals.
-func TestAGroupNamingUsOverridesTheWildcard(t *testing.T) {
-	r := parseRobots("User-agent: *\nDisallow: /\n\nUser-agent: feov-record\nDisallow: /private\nCrawl-delay: 2\n")
-	if !r.allows("/articles/1") {
-		t.Error("our own group was permitted everything but /private, and the wildcard's blanket refusal was applied anyway")
-	}
-	if r.allows("/private/x") {
-		t.Error("our own group's refusal was not applied")
-	}
-	if r.interval() != 2*time.Second {
-		t.Errorf("crawl delay = %v, want our group's 2s", r.interval())
+	// The parsed rules carry no path vocabulary at all, which is what makes obeying one
+	// impossible to reintroduce by accident rather than merely discouraged.
+	if fmt.Sprintf("%+v", *blanket) != fmt.Sprintf("%+v", robotsRules{CrawlDelay: 20}) {
+		t.Errorf("robotsRules carries more than the rate: %+v", *blanket)
 	}
 }
 
 // SEVERAL AGENTS MAY SHARE ONE SET OF RULES, declared as consecutive User-agent lines. Resetting
 // the target on each line instead of accumulating would silently apply the rules to only the last.
 func TestConsecutiveAgentLinesShareTheRules(t *testing.T) {
-	r := parseRobots("User-agent: SomeBot\nUser-agent: *\nDisallow: /secret\n")
-	if r.allows("/secret/x") {
-		t.Error("rules following a shared agent block were not applied to the wildcard")
-	}
-}
-
-// AN ABSENT robots.txt PERMITS EVERYTHING — the standard's reading of a 404, and the common case.
-func TestNoRulesPermits(t *testing.T) {
-	var missing *robotsRules
-	if !missing.allows("/anything") {
-		t.Error("a nil rule set refused a path")
-	}
-	if !(&robotsRules{Missing: true}).allows("/anything") {
-		t.Error("an absent robots.txt refused a path")
-	}
-}
-
-// THE REFUSAL SAYS WHAT IT IS AND WHAT IS STILL POSSIBLE. A seat told only "disallowed" would
-// record the source as unreachable, when the indexes that publish for machines may still answer.
-func TestTheRobotsRefusalPointsSomewhere(t *testing.T) {
-	e := &RobotsRefusal{URL: "https://ex.org/a", Rule: "/a"}
-	for _, want := range []string{"robots.txt", "site operator's own instruction", "metadata", "oa"} {
-		if !strings.Contains(e.Error(), want) {
-			t.Errorf("refusal missing %q: %s", want, e.Error())
-		}
-	}
-}
-
-// $ ANCHORS AND * WILDCARDS are in wide use in real files, including arXiv's own.
-func TestWildcardAndAnchorMatching(t *testing.T) {
-	for _, tc := range []struct {
-		pattern, path string
-		want          bool
-	}{
-		{"/pdf/*v[0-9]", "/pdf/1234v[0-9]", true},
-		{"/*.pdf$", "/a/b/c.pdf", true},
-		{"/*.pdf$", "/a/b/c.pdf?x=1", false},
-		{"/abs/", "/abs/1706.03762", true},
-		{"/abs/", "/pdf/1706.03762", false},
-	} {
-		if got := matchRobotsPath(tc.pattern, tc.path); got != tc.want {
-			t.Errorf("matchRobotsPath(%q,%q) = %v, want %v", tc.pattern, tc.path, got, tc.want)
-		}
+	r := parseRobots("User-agent: SomeBot\nUser-agent: *\nCrawl-delay: 9\n")
+	if got := r.interval(); got != 9*time.Second {
+		t.Errorf("a rate following a shared agent block did not reach the wildcard group: %v", got)
 	}
 }
 
@@ -151,45 +94,6 @@ func TestTheAgentDoesNotImpersonateOrTripAGate(t *testing.T) {
 	}
 }
 
-// A REDIRECT USED TO WALK STRAIGHT PAST robots.txt. The client followed 3xx internally, so the
-// rules were consulted for the url a seat typed and for no hop after it — and since nearly every
-// scholarly citation is a doi.org link that redirects to a publisher, the only host whose rules
-// were ever checked was a resolver that publishes none. An operator's instruction evaded by a 302.
-func TestRobotsIsHonouredOnARedirectTarget(t *testing.T) {
-	tempPaceDir(t)
-	var served int
-	dest := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/robots.txt" {
-			_, _ = w.Write([]byte("User-agent: *\nDisallow: /private/\n"))
-			return
-		}
-		served++
-		_, _ = w.Write([]byte("<html><body>" + strings.Repeat("the paper. ", 200) + "</body></html>"))
-	}))
-	defer dest.Close()
-	resolver := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/robots.txt" {
-			http.NotFound(w, r) // the resolver publishes nothing, exactly as doi.org does
-			return
-		}
-		http.Redirect(w, r, dest.URL+"/private/article", http.StatusFound)
-	}))
-	defer resolver.Close()
-
-	_, err := NewHTTPFetcher().Fetch(resolver.URL + "/10.1234/x")
-	var rr *RobotsRefusal
-	if !errors.As(err, &rr) {
-		t.Fatalf("a redirect into a disallowed path was followed; err = %v", err)
-	}
-	if served != 0 {
-		t.Errorf("the disallowed path was served %d time(s) — the refusal came too late", served)
-	}
-	// AND THE PERMITTED PATH ON THE SAME HOST STILL WORKS, so this refuses a path and not a host.
-	if _, err := NewHTTPFetcher().Fetch(dest.URL + "/public/article"); err != nil {
-		t.Errorf("an allowed path on the same host was refused: %v", err)
-	}
-}
-
 // THE PUBLISHED DELAY MUST REACH THE FLOOR, end to end, through a real fetch.
 //
 // A unit test asserted this and passed while it was broken for every real host, because it
@@ -223,69 +127,6 @@ func TestAPublishedCrawlDelayReachesThePacer(t *testing.T) {
 	if iv := intervalFor(host); iv != 30*time.Second {
 		t.Errorf("after reading a published Crawl-delay of 30s the floor is %v — the host's own "+
 			"number never reached the pacer", iv)
-	}
-}
-
-// A ROBOTS REFUSAL MUST STILL TRY THE OTHER ROUTES. The recovery chain keyed on *Refusal alone,
-// so a disallowed page ended the fetch — while the refusal's own text tells the seat to ask `oa`
-// whether a copy exists elsewhere. The tool named the route and declined to take it.
-//
-// IOP publishes `Disallow: /`, so every IOP paper was lost. Measured on one: `--via oa` returns a
-// 633 KB PDF from arXiv. Being told we may not read the publisher's copy says nothing about the
-// copy the author put in a repository.
-func TestARobotsRefusalStillReachesTheOpenAccessRung(t *testing.T) {
-	tempPaceDir(t)
-	run := runtest.New(t, t.TempDir())
-	pub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/robots.txt" {
-			_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n")) // IOP's shape
-			return
-		}
-		t.Error("the disallowed host was fetched after all")
-	}))
-	defer pub.Close()
-
-	// The publisher is disallowed; a repository copy exists and is listed by the index.
-	repo := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/robots.txt" {
-			http.NotFound(w, r)
-			return
-		}
-		_, _ = w.Write([]byte("%PDF-1.7 the author's copy"))
-	}))
-	defer repo.Close()
-
-	prev := Default
-	Default = fake(func(u string) (*Response, error) {
-		switch {
-		case strings.Contains(u, "openalex"):
-			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","locations":[{"pdf_url":"` +
-				repo.URL + `/copy.pdf","is_oa":true}]}`)}, nil
-		case strings.Contains(u, "ebi.ac.uk"):
-			return &Response{Body: []byte(`{"resultList":{"result":[]}}`)}, nil
-		case strings.Contains(u, "semanticscholar"):
-			return &Response{Body: []byte(`{"paperId":"a","openAccessPdf":null}`)}, nil
-		case strings.Contains(u, "doaj.org"):
-			return &Response{Body: []byte(`{"total":0,"results":[]}`)}, nil
-		}
-		return NewHTTPFetcher().Fetch(u)
-	})
-	t.Cleanup(func() { Default = prev })
-
-	entry, body, _, err := Resolve(run, pub.URL+"/article/10.1234/x", Default)
-	if err != nil {
-		t.Fatalf("a robots refusal ended the fetch instead of recovering: %v", err)
-	}
-	if !strings.HasPrefix(string(body), "%PDF") {
-		t.Errorf("recovered %q, want the repository copy", string(body[:min(24, len(body))]))
-	}
-	// AND THE RECORD SAYS WHY THE PUBLISHER WAS NOT USED — without inventing an HTTP status the
-	// origin never returned, because nothing was asked of it.
-	if entry.RefusalClass != "robots" {
-		t.Errorf("RefusalClass = %q, want robots", entry.RefusalClass)
-	}
-	if entry.HTTPStatus != 0 {
-		t.Errorf("HTTPStatus = %d — nothing was asked of the origin, so it refused nothing", entry.HTTPStatus)
 	}
 }
 
@@ -351,46 +192,5 @@ func TestTheFetchPathTakesTheRegisteredTargetAndNeverAsksTheResolver(t *testing.
 	}
 	if resolverHits != 0 {
 		t.Errorf("the resolver was asked %d time(s) — the registered target should have replaced it", resolverHits)
-	}
-}
-
-// THE HYBRID, PINNED: Google's path grammar, our group selection, our Crawl-delay.
-//
-// Each half is here because the other library does not have it, and the split is the decision
-// this test exists to keep. grobotstxt is a port of Google's matcher and carries its whole test
-// suite, so the path grammar is delegated. It has no Crawl-delay at all — Google's parser ignores
-// the directive by design — and its group selection is less obedient than ours.
-func TestRobotsUsesGooglesGrammarAndOurObedience(t *testing.T) {
-	for _, tc := range []struct {
-		name, body, path string
-		want             bool
-	}{
-		// The grammar, delegated. These agreed with the hand-rolled matcher too; they are kept as
-		// the contract, so a future swap back has something to fail against.
-		{"wildcard and anchor", "User-agent: *\nDisallow: /*.pdf$\n", "/x/y.pdf", false},
-		{"anchor does not reach a query", "User-agent: *\nDisallow: /*.pdf$\n", "/x/y.pdf?v=1", true},
-		{"allow wins the longer match", "User-agent: *\nDisallow: /\nAllow: /pdf/\n", "/pdf/a.pdf", true},
-		{"prefix is not a path boundary", "User-agent: *\nDisallow: /a\n", "/abc", false},
-		{"percent-encoding is not folded", "User-agent: *\nDisallow: /%7Ejoe/\n", "/~joe/index.html", true},
-
-		// The obedience, ours. A file naming a prefix of our token is applied to us; Google's own
-		// matcher requires a closer match and would let this through. On the single case where the
-		// two disagreed, this is the reading that obeys.
-		{"a group naming a prefix of us applies", "User-agent: feov\nDisallow: /prefixmatch\n", "/prefixmatch", false},
-		{"a named group beats the wildcard", "User-agent: feov-record\nDisallow: /x\nUser-agent: *\nDisallow: /\n", "/y", true},
-		{"consecutive agent lines share one group", "User-agent: googlebot\nUser-agent: feov-record\nDisallow: /both\n", "/both", false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := parseRobots(tc.body).allows(tc.path); got != tc.want {
-				t.Errorf("allows(%q) = %v, want %v\n%s", tc.path, got, tc.want, tc.body)
-			}
-		})
-	}
-
-	// AND THE CRAWL-DELAY SURVIVES THE SWAP. It is the directive the whole politeness contract
-	// leans on — arXiv publishes 15 seconds, five times slower than the number this tool used to
-	// carry — and it is exactly what a Google-derived parser drops, because Google ignores it.
-	if d := parseRobots("User-agent: *\nCrawl-delay: 15\nDisallow: /x\n").CrawlDelay; d != 15 {
-		t.Errorf("Crawl-delay = %v, want 15 — the one directive grobotstxt does not carry", d)
 	}
 }
