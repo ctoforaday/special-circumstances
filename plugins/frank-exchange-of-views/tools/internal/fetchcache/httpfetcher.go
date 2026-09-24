@@ -137,12 +137,21 @@ func NewHTTPFetcher() Fetcher {
 // uses, so the two rules cannot drift apart: below it the page is a bouncer, above it the page is
 // the answer.
 func (h *httpFetcher) Fetch(rawURL string) (*Response, error) {
+	return h.FetchSameRetrieval(rawURL, map[string]bool{})
+}
+
+// FetchSameRetrieval continues one document's retrieval: hosts already in `chain` are not charged
+// a pacing slot again, because this is the same asking carried on rather than a new one.
+func (h *httpFetcher) FetchSameRetrieval(rawURL string, chain map[string]bool) (*Response, error) {
+	if chain == nil {
+		chain = map[string]bool{}
+	}
 	seen := map[string]bool{rawURL: true}
 	cur := rawURL
 	var reserved bool
 	var policy string
 	for hop := 0; ; hop++ {
-		out, final, err := h.fetchOnce(cur)
+		out, final, err := h.fetchOnce(cur, chain)
 		if err != nil {
 			return nil, err
 		}
@@ -152,11 +161,15 @@ func (h *httpFetcher) Fetch(rawURL string) (*Response, error) {
 			reserved, policy = true, out.TDMPolicy
 		}
 		out.TDMReserved, out.TDMPolicy = reserved, policy
+		out.Retrieval = chain
 		next := metaRefreshTarget(out.ContentType, out.Body, final)
 		// THE LAST HOP RETURNS WHAT IT HAS rather than failing: a bouncer is still a fact about
 		// the source, and ShellReason will say so. Refusing here would turn a describable page
 		// into no answer at all.
 		if next == "" || hop >= maxMetaRefresh || seen[next] {
+			if final != nil {
+				out.FinalURL = final.String()
+			}
 			return out, nil
 		}
 		seen[next] = true
@@ -182,8 +195,8 @@ func isOverloadStatus(code int) bool {
 	return false
 }
 
-func (h *httpFetcher) fetchOnce(rawURL string) (*Response, *url.URL, error) {
-	return h.followRedirects(rawURL, false)
+func (h *httpFetcher) fetchOnce(rawURL string, chain map[string]bool) (*Response, *url.URL, error) {
+	return h.followRedirects(rawURL, false, chain)
 }
 
 // robotsClient fetches a rules file WITHOUT consulting rules, for every hop of that fetch.
@@ -196,13 +209,26 @@ func (h *httpFetcher) fetchOnce(rawURL string) (*Response, *url.URL, error) {
 type robotsClient struct{ h *httpFetcher }
 
 func (r robotsClient) Fetch(u string) (*Response, error) {
-	out, _, err := r.h.followRedirects(u, true)
+	out, _, err := r.h.followRedirects(u, true, map[string]bool{})
 	return out, err
 }
 
 // followRedirects walks a redirect chain by hand, so every hop is a full fetch: its host paced,
 // its path checked against that host's robots.txt, its status inspected.
-func (h *httpFetcher) followRedirects(rawURL string, skipRobots bool) (*Response, *url.URL, error) {
+func (h *httpFetcher) followRedirects(rawURL string, skipRobots bool, charged map[string]bool) (*Response, *url.URL, error) {
+	// ONE RETRIEVAL PAYS EACH HOST ONCE. A redirect is the SERVER'S instruction, not a
+	// request we chose to make, and charging every hop a full crawl-delay makes a redirect
+	// chain cost more than the document. Measured on doi 10.1038/s41586-021-03819-2:
+	// Nature's sign-on chain is 303 to idp.nature.com then two 302s, and the second idp hop
+	// waited 25 seconds to follow a Location the first hop had just handed us.
+	//
+	// Every crawler follows redirects without pausing between hops; the alternative makes a
+	// redirect unusable. The rate a host publishes is about how often we ASK IT FOR THINGS,
+	// and a chain is one asking. The chain is bounded at maxRedirects, so this cannot become
+	// a way to spend a host's budget without limit.
+	if charged == nil {
+		charged = map[string]bool{}
+	}
 	cur := rawURL
 	// A DOI URL IS AN IDENTIFIER, AND CROSSREF HOLDS WHERE IT POINTS. Asking it replaces a hop
 	// through a resolver that publishes no rate guidance — and therefore sits at this tool's
@@ -214,7 +240,7 @@ func (h *httpFetcher) followRedirects(rawURL string, skipRobots bool) (*Response
 	}
 	seen := map[string]bool{rawURL: true, cur: true}
 	for hop := 0; ; hop++ {
-		resp, final, loc, err := h.fetchOnceRetry(cur, false, skipRobots)
+		resp, final, loc, err := h.fetchOnceRetry(cur, false, skipRobots, charged)
 		if err != nil || loc == "" {
 			return resp, final, err
 		}
@@ -236,7 +262,7 @@ func (h *httpFetcher) followRedirects(rawURL string, skipRobots bool) (*Response
 	}
 }
 
-func (h *httpFetcher) fetchOnceRetry(rawURL string, retried, skipRobots bool) (out *Response, final *url.URL, location string, err error) {
+func (h *httpFetcher) fetchOnceRetry(rawURL string, retried, skipRobots bool, charged map[string]bool) (out *Response, final *url.URL, location string, err error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("fetch: unparseable url %q: %w", rawURL, err)
@@ -295,7 +321,9 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, retried, skipRobots bool) (o
 	// a rules file is small, fetched once per TTL, and delaying the first real request by half a
 	// minute to be polite about the file that grants permission is politeness spent on nothing.
 	// Two immediate requests to a cold host is not a flood.
-	if !skipRobots {
+	started := time.Now()
+	if !skipRobots && !charged[u.Host] {
+		charged[u.Host] = true
 		w, ok := reserveSlot(u.Host, 0)
 		if !ok {
 			return nil, nil, "", fmt.Errorf("fetch: %s is saturated — this machine already has more than %v "+
@@ -306,12 +334,15 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, retried, skipRobots bool) (o
 		if w > 0 {
 			time.Sleep(w)
 		}
+		paceTrace(u.Host, w)
 	}
+	dialed := time.Now()
 	resp, err := h.client.Do(req)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("fetch: %w", err)
 	}
 	defer resp.Body.Close()
+	wireTrace(rawURL, resp.StatusCode, time.Since(dialed), time.Since(started))
 	// A 429 IS THE HOST TELLING US THE PACE WAS WRONG, and it is the one refusal worth obeying
 	// rather than merely reporting. Honour its own Retry-After once, and push the whole host's
 	// queue out by it so every later request slows too — backing off only the refused request
@@ -334,7 +365,7 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, retried, skipRobots bool) (o
 		backoffHost(u.Host, wait)
 		if wait <= retryAfterCap {
 			time.Sleep(wait)
-			return h.fetchOnceRetry(rawURL, true, skipRobots)
+			return h.fetchOnceRetry(rawURL, true, skipRobots, charged)
 		}
 	}
 	// A REDIRECT IS NOT A REFUSAL. The client no longer follows them, so a 3xx arrives here with
@@ -580,4 +611,26 @@ func decodeCoding(enc string, body io.Reader, cap int64) (io.Reader, error) {
 	// about how often this fires, which this message is what makes measurable.
 	return nil, fmt.Errorf("nothing here decodes it, and this client never offered it — "+
 		"the body is not the document and must not be read as one (gzip and deflate are decoded; %q is not)", enc)
+}
+
+// paceTrace and wireTrace answer "where did the time go" for one fetch, on stderr, behind an env
+// var that is off by default.
+//
+// THE QUESTION IS NOT ANSWERABLE FROM THE TOTAL. A work touches eight hosts and each has its own
+// floor; a 91-second fetch could be politeness or could be one slow origin, and reasoning from
+// the design gives the answer you already believed. This prints both numbers per request, so the
+// waiting and the waiting-on-them are told apart by measurement.
+func paceTrace(host string, waited time.Duration) {
+	if os.Getenv("FEOV_PACE_TRACE") == "" || waited <= 0 {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "pace  %-34s waited %6.1fs\n", host, waited.Seconds())
+}
+
+func wireTrace(rawURL string, status int, wire, total time.Duration) {
+	if os.Getenv("FEOV_PACE_TRACE") == "" {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "wire  %-58s %3d  %5.1fs on the wire, %5.1fs including any wait\n",
+		rawURL[:min(58, len(rawURL))], status, wire.Seconds(), total.Seconds())
 }
