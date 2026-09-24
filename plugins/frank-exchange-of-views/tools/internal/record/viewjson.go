@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -99,6 +100,19 @@ type GapJSON struct {
 	// unset, so a gap anchored by quote reads exactly as it did.
 	AboutKind string `json:"about_kind,omitempty"`
 	AboutRef  string `json:"about_ref,omitempty"`
+	// Backing is WHAT STANDS BEHIND THIS GAP'S SENTENCE — the citation and proof anchors in its
+	// location, and whether anyone has verified them.
+	//
+	// IT RIDES THE GAP BECAUSE THAT IS THE QUESTION. A lens auditing a claim asks "is this backed,
+	// and did anyone check?", which is a property of the sentence in front of it and not of the
+	// run. Measured across three runs, `show evidence` was called 99 times against a projection
+	// holding ~10 events: a seat polling a whole table to learn one fact about one gap.
+	//
+	// OPEN GAPS ONLY, so this shrinks as the board closes — the same rule Passage rides on.
+	// NOT omitempty: a gap with nothing behind it renders `[]`, because "no anchor in this
+	// sentence" and "not computed" are different answers and an absent key cannot tell them apart.
+	// TestNoProjectionListIsOmitEmpty holds every list on this projection to it.
+	Backing []GapBackingJSON `json:"backing"`
 	// MintedLocation is the sentence as it read WHEN THE GAP WAS MINTED, present only when the
 	// text has since changed. Location above is where that text is NOW — carried through the
 	// edits rather than frozen (#453) — and keeping both is what stops a relocation from being a
@@ -625,6 +639,26 @@ type WorkJSON struct {
 	Counterparty CounterpartyJSON `json:"counterparty"`
 }
 
+// GapBackingJSON is one anchor in a gap's location, and what the record knows about it.
+//
+// Verified is the fact a lens is actually after: an anchor nobody checked is a claim standing on
+// its author's word, which is the defect the evidence lens exists to find. Absent `outcome` means
+// no verification exists — stated by the field being empty rather than by the anchor being missing,
+// because "nobody looked" and "not backed" are different answers.
+type GapBackingJSON struct {
+	Anchor string `json:"anchor"`
+	// Kind is citation | proof | finding, from the id's prefix — the one string-encoded fact this
+	// tree keeps on purpose, because the id and its token are minted together (see anchor.Token).
+	Kind string `json:"kind"`
+	// Outcome and Confidence are the verification, where one exists — the SourceOutcome and
+	// Confidence vocabularies, not a second spelling of them.
+	Outcome    string `json:"outcome,omitempty"`
+	Confidence string `json:"confidence,omitempty"`
+	// VerifiedBy is the seat that checked it, so a lens can see whether its OWN check is the one
+	// standing — re-verifying your own corroboration is not independent.
+	VerifiedBy string `json:"verified_by,omitempty"`
+}
+
 // CounterpartyJSON is what the OTHER party has done in this run, for a seat that has to decide
 // whether to wait, act, or dispose.
 //
@@ -678,6 +712,19 @@ type WorkGapJSON struct {
 	// when the where is a quote.
 	AboutKind string `json:"about_kind,omitempty"`
 	AboutRef  string `json:"about_ref,omitempty"`
+	// Backing is WHAT STANDS BEHIND THIS GAP'S SENTENCE — the citation and proof anchors in its
+	// location, and whether anyone has verified them.
+	//
+	// IT RIDES THE GAP BECAUSE THAT IS THE QUESTION. A lens auditing a claim asks "is this backed,
+	// and did anyone check?", which is a property of the sentence in front of it and not of the
+	// run. Measured across three runs, `show evidence` was called 99 times against a projection
+	// holding ~10 events: a seat polling a whole table to learn one fact about one gap.
+	//
+	// OPEN GAPS ONLY, so this shrinks as the board closes — the same rule Passage rides on.
+	// NOT omitempty: a gap with nothing behind it renders `[]`, because "no anchor in this
+	// sentence" and "not computed" are different answers and an absent key cannot tell them apart.
+	// TestNoProjectionListIsOmitEmpty holds every list on this projection to it.
+	Backing []GapBackingJSON `json:"backing"`
 	// EditedSince is every edit that moved this gap's sentence SINCE THE READER'S LAST EPOCH —
 	// the change history red would otherwise have to reconstruct by diffing the report against a
 	// memory of it. A gap whose text blue rewrote is the commonest thing red re-audits.
@@ -744,7 +791,20 @@ type EstoppedJSON struct {
 	Location  string `json:"location"`
 	AboutKind string `json:"about_kind,omitempty"`
 	AboutRef  string `json:"about_ref,omitempty"`
-	Class     string `json:"class"`
+	// Backing is WHAT STANDS BEHIND THIS GAP'S SENTENCE — the citation and proof anchors in its
+	// location, and whether anyone has verified them.
+	//
+	// IT RIDES THE GAP BECAUSE THAT IS THE QUESTION. A lens auditing a claim asks "is this backed,
+	// and did anyone check?", which is a property of the sentence in front of it and not of the
+	// run. Measured across three runs, `show evidence` was called 99 times against a projection
+	// holding ~10 events: a seat polling a whole table to learn one fact about one gap.
+	//
+	// OPEN GAPS ONLY, so this shrinks as the board closes — the same rule Passage rides on.
+	// NOT omitempty: a gap with nothing behind it renders `[]`, because "no anchor in this
+	// sentence" and "not computed" are different answers and an absent key cannot tell them apart.
+	// TestNoProjectionListIsOmitEmpty holds every list on this projection to it.
+	Backing []GapBackingJSON `json:"backing"`
+	Class   string           `json:"class"`
 	// Fate is the disposition that ended it — red's `close --as` (closure_class) or the
 	// bench's `motion docket rule --as` (disposition). One vocabulary since #342, so a reader does not
 	// have to know which verb produced the word before it can interpret it.
@@ -890,7 +950,58 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 // own, so a seat sitting in epoch 3 sees what happened in epoch 2 — the epoch it was not present
 // for. Zero means "no epoch known", and then every edit is shown rather than none: a reader whose
 // epoch could not be determined is better handed the whole history than silently handed none.
+// backingOf indexes every verification by the anchor it checked, so the work list can say what
+// stands behind a gap's sentence without a seat reading the whole evidence table.
+//
+// THE LAST VERIFICATION WINS, as it does everywhere else a seat may revisit its own act: a lens
+// re-verifying a source after blue moved it is stating the current answer, not a second one.
+func backingOf(evs []*Event) map[string]GapBackingJSON {
+	out := map[string]GapBackingJSON{}
+	for _, e := range evs {
+		v, ok := recordpb.BodyAs[*recordpb.Verify](e)
+		if !ok || v.GetAnchor() == "" {
+			continue
+		}
+		out[v.GetAnchor()] = GapBackingJSON{
+			Anchor: v.GetAnchor(), Kind: anchor.Kind(v.GetAnchor()),
+			Outcome: recordpb.Word(v.GetOutcome()), Confidence: recordpb.Word(v.GetConfidence()),
+			VerifiedBy: e.GetSeatId(),
+		}
+	}
+	return out
+}
+
+// gapBacking is the anchors in a gap's own location and what is known about each.
+//
+// UNVERIFIED IS AN ENTRY, NOT AN ABSENCE. An anchor nobody checked is a claim standing on its
+// author's word — the thing the evidence lens exists to find — so it appears with an empty
+// outcome. Leaving it out would make "nobody looked" and "no anchor here" the same bytes.
+func gapBacking(g WorkGapState, verified map[string]GapBackingJSON) []GapBackingJSON {
+	out := []GapBackingJSON{}
+	ids := anchor.IDs(g.Location)
+	if g.AboutRef != "" && anchor.Kind(g.AboutRef) != "finding" {
+		ids = append(ids, g.AboutRef)
+	}
+	seen := map[string]bool{}
+	for _, id := range ids {
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		if b, ok := verified[id]; ok {
+			out = append(out, b)
+			continue
+		}
+		out = append(out, GapBackingJSON{Anchor: id, Kind: anchor.Kind(id)})
+	}
+	return out
+}
+
 func workJSONOfGaps(gaps []WorkGapState, since int) WorkJSON {
+	return workJSONOfGapsWithBacking(gaps, since, nil)
+}
+
+func workJSONOfGapsWithBacking(gaps []WorkGapState, since int, verified map[string]GapBackingJSON) WorkJSON {
 	// Sitting carries its own list, and it is initialised HERE as well as in SittingOf: a WorkJSON
 	// built without a sitting still marshals one, and a nil there renders `"open": null` — "not
 	// computed" where the truth is "nothing open".
@@ -902,6 +1013,7 @@ func workJSONOfGaps(gaps []WorkGapState, since int) WorkJSON {
 				Severity: g.Severity, Likelihood: g.Likelihood, Impact: g.Impact, ComplexityCost: g.Cx,
 				Class: g.Class, Location: g.Location, Passage: g.Passage,
 				AboutKind: g.AboutKind, AboutRef: g.AboutRef,
+				Backing:         gapBacking(g, verified),
 				EditedSince:     editsSince(g.Edits, since),
 				ProblemSynopsis: synopsis(g.Problem),
 				CheckKind:       g.CheckKind, AwaitingProof: g.AwaitingProof,
@@ -942,7 +1054,7 @@ func WorkJSONOfRun(run Run) (WorkJSON, error) {
 	if err != nil {
 		return WorkJSON{}, err
 	}
-	return workJSONOfGaps(gaps, 0), nil
+	return workJSONOfGapsWithBacking(gaps, 0, backingOf(m.Events)), nil
 }
 
 // WorkJSONBytes renders the work list as indented JSON (a seat reads it in a terminal
@@ -1061,7 +1173,20 @@ type FindingJSON struct {
 	// anchor went missing, it is one whose subject was never on the page.
 	AboutKind string `json:"about_kind,omitempty"`
 	AboutRef  string `json:"about_ref,omitempty"`
-	Text      string `json:"text"`
+	// Backing is WHAT STANDS BEHIND THIS GAP'S SENTENCE — the citation and proof anchors in its
+	// location, and whether anyone has verified them.
+	//
+	// IT RIDES THE GAP BECAUSE THAT IS THE QUESTION. A lens auditing a claim asks "is this backed,
+	// and did anyone check?", which is a property of the sentence in front of it and not of the
+	// run. Measured across three runs, `show evidence` was called 99 times against a projection
+	// holding ~10 events: a seat polling a whole table to learn one fact about one gap.
+	//
+	// OPEN GAPS ONLY, so this shrinks as the board closes — the same rule Passage rides on.
+	// NOT omitempty: a gap with nothing behind it renders `[]`, because "no anchor in this
+	// sentence" and "not computed" are different answers and an absent key cannot tell them apart.
+	// TestNoProjectionListIsOmitEmpty holds every list on this projection to it.
+	Backing []GapBackingJSON `json:"backing"`
+	Text    string           `json:"text"`
 	// MintedAs is the gap ids whose `found_by` credits this finding — the join the record
 	// already holds, read from the side that could not reach it.
 	//

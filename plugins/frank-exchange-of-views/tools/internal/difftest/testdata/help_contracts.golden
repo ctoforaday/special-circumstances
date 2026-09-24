@@ -88,7 +88,7 @@ Available Commands:
   log          an entry for the operator who can retool you — what it asserts, said in the positive
   mint         turn lens findings into a graded gap on the board, when a defect is real and belongs there
   near-match   screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
-  register     your first act in any sitting you record something in, and the one call that needs your seat id
+  register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
   regrade      move a grade on a gap that already exists, with the reason it moved
   render-page  draw one page of a cached PDF, to check a citation of OCR text against the page's pixels
   reproduce    re-run a recorded computation and judge whether it proves the sentence it is attached to
@@ -134,7 +134,7 @@ Available Commands:
   inquiry-support your one read, each sitting the report has moved, of its account of its lines of inquiry — required before a PASS
   log             an entry for the operator who can retool you — what it asserts, said in the positive
   position        your sitting's position — the argument the other side answers, rendered as this sitting's RED section
-  register        your first act in any sitting you record something in, and the one call that needs your seat id
+  register        NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
   spot-check      sample the closure archive — a duty every chair sitting owes, including the sittings with nothing to sample
   verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
@@ -181,7 +181,7 @@ Available Commands:
   manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
   position        your sitting's position — the argument the other side answers, rendered as this sitting's BLUE section
   prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
-  register        your first act in any sitting you record something in, and the one call that needs your seat id
+  register        NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
   retire          take a claim out of the report, when it cannot stand and no edit will save it
   revision        your revision — what changed this sitting, once, after your edits have landed
 
@@ -225,7 +225,7 @@ Available Commands:
   help         Help about any command
   log          an entry for the operator who can retool you — what it asserts, said in the positive
   outcome      stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
-  register     your first act in any sitting you record something in, and the one call that needs your seat id
+  register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
 
 Command groups — each holds commands THIS page does not list:
   inquest      READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them

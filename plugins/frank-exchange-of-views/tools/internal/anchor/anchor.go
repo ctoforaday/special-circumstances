@@ -35,6 +35,54 @@ func Token(id string) string {
 	}
 }
 
+// IDs are the anchor ids in s, in order, deduplicated.
+//
+// IT READS WHAT Token WRITES, and it is here rather than in the caller for that reason: the token
+// format has one home, and a second reader spelled as a regex somewhere else is the shape this
+// package's own comment warns about below (claimcount's three patterns, pinned by a test because
+// they could not share this code). tokenLenAt already recognises the three classes and nothing
+// else; this walks with it.
+func IDs(s string) []string {
+	var out []string
+	seen := map[string]bool{}
+	for i := 0; i < len(s); {
+		n := tokenLenAt(s, i)
+		if n == 0 {
+			i++
+			continue
+		}
+		if id := idAt(s, i, n); id != "" && !seen[id] {
+			seen[id] = true
+			out = append(out, id)
+		}
+		i += n
+	}
+	return out
+}
+
+// idAt is the id inside the token of length n beginning at i.
+func idAt(s string, i, n int) string {
+	tok := s[i : i+n]
+	for _, p := range []string{"<!--fx:", "<!--cite:", "<!--proof:"} {
+		if strings.HasPrefix(tok, p) {
+			return strings.TrimSuffix(tok[len(p):], "-->")
+		}
+	}
+	return ""
+}
+
+// Kind is the class an anchor id names: citation, proof or finding.
+func Kind(id string) string {
+	switch {
+	case strings.HasPrefix(id, "c-"):
+		return "citation"
+	case strings.HasPrefix(id, "p-"):
+		return "proof"
+	default:
+		return "finding"
+	}
+}
+
 // Label describes an anchor id by its class, so a seat is told which KIND of anchor its edit would
 // have disturbed. A generic name is passed through unchanged.
 func Label(id string) string {
