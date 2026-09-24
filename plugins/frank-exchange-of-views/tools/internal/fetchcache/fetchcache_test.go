@@ -433,8 +433,13 @@ func TestALandingPageIsFollowedToTheFullTextItNames(t *testing.T) {
 	if len(got) != len(body) {
 		t.Fatalf("the abstract page was stored as the document (%d bytes, full text is %d)", len(got), len(body))
 	}
-	if !strings.Contains(e.RetrievedVia, "citation metadata") {
-		t.Errorf("the hop is not recorded as provenance: %q", e.RetrievedVia)
+	// RECORDED AS A FOLLOW, NOT A RECOVERY. RetrievedVia means the bytes may be a different
+	// artifact from the url's; a publisher's abstract naming its own full text is the same work.
+	if e.FollowedTo != full {
+		t.Errorf("the hop is not recorded: followed_to %q", e.FollowedTo)
+	}
+	if e.RetrievedVia != "" {
+		t.Errorf("following a publisher's own pointer was recorded as a recovery: %q", e.RetrievedVia)
 	}
 
 	// A SHORTER ANSWER IS REFUSED. The pointer is the publisher's, so this is not deciding which

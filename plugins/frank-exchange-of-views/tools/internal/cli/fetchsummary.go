@@ -46,6 +46,10 @@ type fetchSummary struct {
 	// RetrievedVia is the SENTENCE naming where these bytes came from, when the live source
 	// refused and a backend recovered them. Empty means the bytes are the live source's own.
 	RetrievedVia string `json:"retrieved_via,omitempty"`
+	// FollowedTo names where the walk ended when a page pointed at its own full text. It is not
+	// RetrievedVia and must not be rendered as one: the bytes are the same work from the place
+	// its publisher named, not another artifact standing in for it.
+	FollowedTo string `json:"followed_to,omitempty"`
 	// Backend is which backend that was, as a value rather than a sentence to match on.
 	Backend string `json:"backend,omitempty"`
 	// TextRetrieved says THESE BYTES ARE THE SOURCE'S TEXT. False means they are a record that
@@ -179,6 +183,7 @@ func summarize(run record.Run, e fetchcache.Entry, bodyLen int, hit bool) fetchS
 		HTTPStatus:     e.HTTPStatus,
 		RefusalClass:   e.RefusalClass,
 		RetrievedVia:   e.RetrievedVia,
+		FollowedTo:     e.FollowedTo,
 		Backend:        e.Backend,
 		// A LIVE FETCH THAT YIELDED A DOCUMENT HAS THE SOURCE'S TEXT. The entry's own flag speaks
 		// only for the recovery path, so it is the wrong answer for the common one.
@@ -342,6 +347,12 @@ func (s fetchSummary) render() string {
 	// one — the flag existed in `--json` and nowhere a seat reading the summary would see it. A
 	// container arrived, the fetch looked like every other success, and only the content type
 	// hinted otherwise.
+	if s.FollowedTo != "" {
+		fmt.Fprintf(&b, "followed_to: %s\n"+
+			"  ^ THE PAGE YOU ASKED FOR NAMED ITS OWN FULL TEXT AND THIS FOLLOWED IT. Same work, from where the\n"+
+			"    publisher said to look — not a substitute copy. Cite the url you asked for; this records how the\n"+
+			"    text was reached.\n", s.FollowedTo)
+	}
 	if !s.TextRetrieved && s.RetrievedVia == "" && s.TextRetrievedReason != "" {
 		fmt.Fprintf(&b, "text_retrieved: false\n  ^ %s\n", s.TextRetrievedReason)
 	}

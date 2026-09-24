@@ -205,6 +205,12 @@ type Entry struct {
 	// A metadata answer is a real finding and a legitimate citation — as `source_text_read:
 	// unread`. It is not a reading, and nothing may cite it as one.
 	TextRetrieved bool `json:"text_retrieved,omitempty"`
+	// FollowedTo names the url this fetch ENDED at, when the page first asked for pointed at its
+	// own full text and that pointer was followed. It is deliberately not RetrievedVia: that one
+	// says the bytes may be a different artifact from the url's, which is true of an archive
+	// snapshot and false here — a publisher's abstract naming its own full text is the same work,
+	// at the place its publisher said to look.
+	FollowedTo string `json:"followed_to,omitempty"`
 	// TextRetrievedReason states WHY the bytes are not the source's text on a fetch that reached
 	// the source and got its real document — the paired reason this flag lacked, in the shape
 	// TextExtracted and NotRenderable already use here. A withdrawn claim with no reason is
@@ -500,27 +506,6 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		}
 		return entry, att.Body, false, nil
 	}
-	entry := Entry{URL: url, ContentType: SniffedMediaType(resp.ContentType, resp.Body)}
-	entry.Sha = Sha(resp.Body)
-
-	ex := DefaultExtractor.Extract(Dir(run), entry.ContentType, resp.Body)
-	entry.Filename = Label(ex.Title, resp.Disposition, url)
-	if terr := foldExtraction(run, &entry, ex); terr != nil {
-		return Entry{}, nil, false, terr
-	}
-	Classify(&entry, resp.Body)
-	// READ OFF THE RESPONSE, NOT THE FINAL BODY, so a reservation declared on a hop this fetch
-	// passed through is still recorded — Elsevier declares it on the markup-redirect bouncer,
-	// which the fetcher now follows past.
-	//
-	// THE POINTER IS SET ONLY WHERE THE QUESTION WAS ASKABLE, which is what its three states
-	// mean: a PDF or a JSON record leaves it nil, because nothing looked, and writing `false`
-	// there would report a document nobody examined as declaring nothing.
-	if resp.TDMReserved || strings.Contains(entry.ContentType, "html") {
-		reserved := resp.TDMReserved
-		entry.TDMReserved = &reserved
-		entry.TDMPolicy = resp.TDMPolicy
-	}
 	// THE PAGE MAY BE THE ABSTRACT, AND IT USUALLY SAYS SO ITSELF.
 	//
 	// MEASURED over 120 works: of 25 html bodies this tool recorded as documents, ELEVEN were
@@ -543,9 +528,10 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 	// THE ABSTRACT IS KEPT WHEN IT IS ALL THERE IS. Nothing here refuses a page for being short —
 	// a record that the work exists is a legitimate citation as `unread`. What it refuses is
 	// STOPPING at that page when the publisher has said where the readable copy is.
+	var followedTo string
 	seenHop := map[string]bool{url: true}
 	for hops := 0; hops < maxFullTextHops; hops++ {
-		fullText := LandingPageFullText(entry.ContentType, resp.Body, resp.LinkHeader, base)
+		fullText := LandingPageFullText(SniffedMediaType(resp.ContentType, resp.Body), resp.Body, resp.LinkHeader, base)
 		if fullText == "" || seenHop[fullText] {
 			break
 		}
@@ -558,15 +544,43 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 			break
 		}
 		resp = hop
-		entry.ContentType = SniffedMediaType(hop.ContentType, hop.Body)
-		entry.RetrievedVia = fmt.Sprintf("the full text at %s, which the page at %s names in its own citation metadata", fullText, url)
+		followedTo = fullText
 		if b, berr := neturl.Parse(fullText); berr == nil {
 			base = b
 		}
 		// A pdf or an xml body is the document; there is nothing further to follow.
-		if !strings.Contains(strings.ToLower(entry.ContentType), "html") {
+		if !strings.Contains(strings.ToLower(SniffedMediaType(resp.ContentType, resp.Body)), "html") {
 			break
 		}
+	}
+
+	entry := Entry{URL: url, ContentType: SniffedMediaType(resp.ContentType, resp.Body)}
+	entry.Sha = Sha(resp.Body)
+	// THE HOP IS PROVENANCE, NOT A RECOVERY. RetrievedVia means "these bytes did not come from
+	// the url you asked for and may be a different artifact" — an archive snapshot, another
+	// version — and it makes the summary withdraw the claim that the source's text was retrieved.
+	// Following a publisher's own pointer from its abstract to its full text is neither of those:
+	// it is the same work, at the place its publisher said to look. Recorded, and not as a
+	// recovery.
+	entry.FollowedTo = followedTo
+
+	ex := DefaultExtractor.Extract(Dir(run), entry.ContentType, resp.Body)
+	entry.Filename = Label(ex.Title, resp.Disposition, url)
+	if terr := foldExtraction(run, &entry, ex); terr != nil {
+		return Entry{}, nil, false, terr
+	}
+	Classify(&entry, resp.Body)
+	// READ OFF THE RESPONSE, NOT THE FINAL BODY, so a reservation declared on a hop this fetch
+	// passed through is still recorded — Elsevier declares it on the markup-redirect bouncer,
+	// which the fetcher now follows past.
+	//
+	// THE POINTER IS SET ONLY WHERE THE QUESTION WAS ASKABLE, which is what its three states
+	// mean: a PDF or a JSON record leaves it nil, because nothing looked, and writing `false`
+	// there would report a document nobody examined as declaring nothing.
+	if resp.TDMReserved || strings.Contains(entry.ContentType, "html") {
+		reserved := resp.TDMReserved
+		entry.TDMReserved = &reserved
+		entry.TDMPolicy = resp.TDMPolicy
 	}
 	// AND THE WORK'S OWN FACTS, ON THE PATH THAT SUCCEEDS.
 	//
