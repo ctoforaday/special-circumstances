@@ -106,6 +106,16 @@ type sittingInput struct {
 	// expensive; parsing a transcript is the writer's job, in the process that already carries
 	// the record.
 	AgentTranscriptPath string `json:"agent_transcript_path"`
+	// WHERE THE SEAT SPOKE, both carried on every payload of both events and recorded by neither
+	// until now. SessionID names the conversation the sitting happened in; PromptID names the
+	// DISPATCH, and changes when an agent is re-prompted while its agent id does not.
+	//
+	// READ HERE AND NOT DERIVED LATER. A reader reconstructing the conversation from the filesystem
+	// has to guess between two layouts — `subagents/` for a plain subagent and
+	// `subagents/workflows/wf_<id>/` under the Workflow tool — and a guess that misses returns no
+	// trajectory, which reads exactly like a seat that never ran.
+	SessionID string `json:"session_id"`
+	PromptID  string `json:"prompt_id"`
 }
 
 // Start records the moment the harness dispatched an agent.
@@ -192,7 +202,7 @@ func handoff(stdin io.Reader, phase string, seat io.Writer, rec *hookfailures.Re
 		return nil
 	}
 	rec.OK(StageWriterMissing)
-	forSeat, err := spawn(writer, inferred.Dir, phase, in.AgentID, in.AgentType, in.AgentTranscriptPath)
+	forSeat, err := spawn(writer, inferred.Dir, phase, in.AgentID, in.AgentType, in.AgentTranscriptPath, in.SessionID, in.PromptID)
 	if err != nil {
 		rec.FailIn(StageWrite, inferred.MarkerDir, err.Error())
 		return nil
@@ -247,7 +257,7 @@ func unusableDetail(i runlive.Inferred) string {
 // about this function is which events reach it and with what — that a turn end never does, that a
 // session with no run never does — and asserting that through a real subprocess would test the
 // exec plumbing instead of the filter.
-var spawn = func(writer, runDir, phase, agentID, agentType, transcript string) ([]byte, error) {
+var spawn = func(writer, runDir, phase, agentID, agentType, transcript, sessionID, promptID string) ([]byte, error) {
 	// WAITED ON, not fired and forgotten: a detached child can be killed when the hook process
 	// exits, and a span silently missing one end is worse than a hook that took another
 	// millisecond.
@@ -264,9 +274,16 @@ var spawn = func(writer, runDir, phase, agentID, agentType, transcript string) (
 		"-agent-type", agentType,
 	}
 	// ONLY WHEN THERE IS ONE. SubagentStart carries no transcript, and an empty flag would make
-	// the writer distinguish "not sent" from "sent empty" for no reason.
+	// the writer distinguish "not sent" from "sent empty" for no reason. The same rule for the
+	// conversation fields: absent means the payload did not carry it, which is a real answer.
 	if transcript != "" {
 		args = append(args, "-transcript", transcript)
+	}
+	if sessionID != "" {
+		args = append(args, "-session-id", sessionID)
+	}
+	if promptID != "" {
+		args = append(args, "-prompt-id", promptID)
 	}
 	// STDOUT AND STDERR ARE SPLIT, and that is the change that makes this a delivery channel. They
 	// were merged by CombinedOutput, which was right while the output was only ever a failure

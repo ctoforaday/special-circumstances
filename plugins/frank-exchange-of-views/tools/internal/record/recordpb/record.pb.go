@@ -6132,7 +6132,27 @@ type SittingOpen struct {
 	// the sitting; it did not sit. Recording who sat is a different statement from claiming to be
 	// them, and a reader that needs the binding should not have to join through a register the seat
 	// may never write.
-	SeatId        *string `protobuf:"bytes,3,opt,name=seat_id,json=seatId,proto3,oneof" json:"seat_id,omitempty"`
+	SeatId *string `protobuf:"bytes,3,opt,name=seat_id,json=seatId,proto3,oneof" json:"seat_id,omitempty"`
+	// WHERE THIS SEAT SPOKE. session_id and prompt_id come off the SubagentStart payload, which has
+	// carried both all along; nothing recorded them, so "which conversation was this sitting in" was
+	// answerable only by globbing the filesystem.
+	//
+	// PER SITTING AND NOT ON THE CAST, and the difference is a resumed run. A run outlives the
+	// session that started it — the run directory survives a resume, the session does not — so a
+	// session id written once at setup would be silently wrong for every sitting after the resume,
+	// which is the case that already bites hardest (#1111). Repeated per sitting it costs a short
+	// string ~38 times and cannot go stale.
+	//
+	// WHAT IT BUYS: the bench's integrity inspection reads seat trajectories, and the path reaches it
+	// today only as prose interpolated into its prompt from an argument THE OPERATOR MUST SUPPLY —
+	// so the duty silently does nothing on every run where they did not. With this the trajectory is
+	// a join on the record instead of a path in a sentence.
+	SessionId *string `protobuf:"bytes,4,opt,name=session_id,json=sessionId,proto3,oneof" json:"session_id,omitempty"`
+	// prompt_id is the DISPATCH's identity, and it is the one thing here the record could not
+	// already express. agent_id names the agent, and a re-prompted agent keeps it; prompt_id changes.
+	// So "how many times was this seat asked" is answerable, which is exactly what a resumed dispatch
+	// makes ambiguous today.
+	PromptId      *string `protobuf:"bytes,5,opt,name=prompt_id,json=promptId,proto3,oneof" json:"prompt_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6188,10 +6208,42 @@ func (x *SittingOpen) GetSeatId() string {
 	return ""
 }
 
+func (x *SittingOpen) GetSessionId() string {
+	if x != nil && x.SessionId != nil {
+		return *x.SessionId
+	}
+	return ""
+}
+
+func (x *SittingOpen) GetPromptId() string {
+	if x != nil && x.PromptId != nil {
+		return *x.PromptId
+	}
+	return ""
+}
+
 type SittingClose struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AgentId       *string                `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`
-	AgentType     *string                `protobuf:"bytes,2,opt,name=agent_type,json=agentType,proto3,oneof" json:"agent_type,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	AgentId   *string                `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`
+	AgentType *string                `protobuf:"bytes,2,opt,name=agent_type,json=agentType,proto3,oneof" json:"agent_type,omitempty"`
+	// THE SEAT'S OWN TRANSCRIPT, WHICH ONLY THIS END IS TOLD. SubagentStop carries
+	// agent_transcript_path — the child conversation, at
+	// <projects>/<slug>/<session>/subagents/[workflows/wf_*/]agent-<agent_id>.jsonl — and this
+	// process ALREADY RECEIVES it: sittingwrite parses it for the turn ingest and then discards the
+	// path. Recording it turns "find this seat's trajectory" from a glob over two possible layouts
+	// into a column.
+	//
+	// IT IS THE EXACT PATH RATHER THAN A DERIVATION. The layout has two shapes — a plain subagent
+	// sits under `subagents/`, one dispatched by the Workflow tool under
+	// `subagents/workflows/wf_<id>/` — so a reader reconstructing it from session_id and agent_id
+	// must guess which, and a guess that misses returns "no trajectory", which reads exactly like a
+	// seat that never ran.
+	AgentTranscriptPath *string `protobuf:"bytes,3,opt,name=agent_transcript_path,json=agentTranscriptPath,proto3,oneof" json:"agent_transcript_path,omitempty"`
+	// The same two, for the same reason as on the opening end: a sitting whose ends fall in different
+	// sessions is a resumed run, and the record should be able to say so rather than leave a reader
+	// to infer it.
+	SessionId     *string `protobuf:"bytes,4,opt,name=session_id,json=sessionId,proto3,oneof" json:"session_id,omitempty"`
+	PromptId      *string `protobuf:"bytes,5,opt,name=prompt_id,json=promptId,proto3,oneof" json:"prompt_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6236,6 +6288,27 @@ func (x *SittingClose) GetAgentId() string {
 func (x *SittingClose) GetAgentType() string {
 	if x != nil && x.AgentType != nil {
 		return *x.AgentType
+	}
+	return ""
+}
+
+func (x *SittingClose) GetAgentTranscriptPath() string {
+	if x != nil && x.AgentTranscriptPath != nil {
+		return *x.AgentTranscriptPath
+	}
+	return ""
+}
+
+func (x *SittingClose) GetSessionId() string {
+	if x != nil && x.SessionId != nil {
+		return *x.SessionId
+	}
+	return ""
+}
+
+func (x *SittingClose) GetPromptId() string {
+	if x != nil && x.PromptId != nil {
+		return *x.PromptId
 	}
 	return ""
 }
@@ -7655,22 +7728,36 @@ const file_record_proto_rawDesc = "" +
 	"\b_run_viaB\r\n" +
 	"\v_agent_typeB\x12\n" +
 	"\x10_repairs_sittingB\v\n" +
-	"\t_occasionJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\fserved_modelR\x0frequested_model\"\x97\x01\n" +
+	"\t_occasionJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\fserved_modelR\x0frequested_model\"\xfa\x01\n" +
 	"\vSittingOpen\x12\x1e\n" +
 	"\bagent_id\x18\x01 \x01(\tH\x00R\aagentId\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"agent_type\x18\x02 \x01(\tH\x01R\tagentType\x88\x01\x01\x12\x1c\n" +
-	"\aseat_id\x18\x03 \x01(\tH\x02R\x06seatId\x88\x01\x01B\v\n" +
+	"\aseat_id\x18\x03 \x01(\tH\x02R\x06seatId\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"session_id\x18\x04 \x01(\tH\x03R\tsessionId\x88\x01\x01\x12 \n" +
+	"\tprompt_id\x18\x05 \x01(\tH\x04R\bpromptId\x88\x01\x01B\v\n" +
 	"\t_agent_idB\r\n" +
 	"\v_agent_typeB\n" +
 	"\n" +
-	"\b_seat_id\"n\n" +
+	"\b_seat_idB\r\n" +
+	"\v_session_idB\f\n" +
+	"\n" +
+	"_prompt_id\"\xa4\x02\n" +
 	"\fSittingClose\x12\x1e\n" +
 	"\bagent_id\x18\x01 \x01(\tH\x00R\aagentId\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"agent_type\x18\x02 \x01(\tH\x01R\tagentType\x88\x01\x01B\v\n" +
+	"agent_type\x18\x02 \x01(\tH\x01R\tagentType\x88\x01\x01\x127\n" +
+	"\x15agent_transcript_path\x18\x03 \x01(\tH\x02R\x13agentTranscriptPath\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"session_id\x18\x04 \x01(\tH\x03R\tsessionId\x88\x01\x01\x12 \n" +
+	"\tprompt_id\x18\x05 \x01(\tH\x04R\bpromptId\x88\x01\x01B\v\n" +
 	"\t_agent_idB\r\n" +
-	"\v_agent_type\"\xe8\x01\n" +
+	"\v_agent_typeB\x18\n" +
+	"\x16_agent_transcript_pathB\r\n" +
+	"\v_session_idB\f\n" +
+	"\n" +
+	"_prompt_id\"\xe8\x01\n" +
 	"\fSittingLimit\x12\x1e\n" +
 	"\bagent_id\x18\x01 \x01(\tH\x00R\aagentId\x88\x01\x01\x12\"\n" +
 	"\n" +

@@ -774,13 +774,18 @@ CREATE TABLE "sitting_open" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "agent_id" TEXT,
   "agent_type" TEXT,
-  "seat_id" TEXT
+  "seat_id" TEXT,
+  "session_id" TEXT,
+  "prompt_id" TEXT
 ) STRICT;
 
 CREATE TABLE "sitting_close" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "agent_id" TEXT,
-  "agent_type" TEXT
+  "agent_type" TEXT,
+  "agent_transcript_path" TEXT,
+  "session_id" TEXT,
+  "prompt_id" TEXT
 ) STRICT;
 
 CREATE TABLE "cast" (
