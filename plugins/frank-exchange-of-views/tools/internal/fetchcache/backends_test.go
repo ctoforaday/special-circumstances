@@ -118,6 +118,10 @@ func TestMetadataIsARecordNotAReading(t *testing.T) {
 }
 
 func TestIdentifiersAreLiftedOutOfURLs(t *testing.T) {
+	// LOWERCASED. A doi's suffix is case-insensitive by the handbook and the indexes are not
+	// consistently so: measured 2026-09-24, `10.1016/0021-9991(92)90240-y` resolves at OpenAlex
+	// while Semantic Scholar wanted `…-Y`. Normalising asks every index the same question the
+	// same way, which is what makes a missing answer mean something.
 	if got := DOIOf("https://doi.org/10.5951/MT.82.1.0033"); got != "10.5951/MT.82.1.0033" {
 		t.Errorf("doi = %q", got)
 	}
@@ -384,8 +388,20 @@ func TestEveryListedOpenAccessLocationIsTried(t *testing.T) {
 	if att == nil || !att.TextRetrieved {
 		t.Fatalf("the second listed location was never reached: %+v", att)
 	}
-	if len(tried) != 2 || !strings.Contains(tried[1], "repo.example") {
+	// The refused candidate is asked of the web archive before the list moves on — that lookup is
+	// the fallback for a copy an index asserted and a host would not hand over, so it belongs in
+	// the sequence rather than being filtered out of this assertion.
+	var docs []string
+	for _, u := range tried {
+		if !strings.Contains(u, "archive.org") {
+			docs = append(docs, u)
+		}
+	}
+	if len(docs) != 2 || !strings.Contains(docs[1], "repo.example") {
 		t.Errorf("urls tried = %v, want the refused one then the one that works", tried)
+	}
+	if len(tried) == len(docs) {
+		t.Error("a refused candidate was abandoned without asking the archive for a snapshot of it")
 	}
 	// THE LIST IS WHAT IS READ, not the index's nomination — `oa_url` here is null while two
 	// locations carry a pdf, which is exactly the shape that used to yield "no open copy".
@@ -852,5 +868,74 @@ func TestARecoveredPDFIsExtractedLikeALiveOne(t *testing.T) {
 	}
 	if e.Extractor == "" {
 		t.Error("no extractor id on an attempted extraction: nothing can re-run it")
+	}
+}
+
+// A COPY AN INDEX ASSERTED, LOST TO A BOT WALL, RECOVERED FROM THE ARCHIVE.
+//
+// MEASURED 2026-09-24 on doi 10.1016/s0021-9258(19)52451-6 — Lowry et al. 1951, whose pdf carries
+// "This is an Open Access article under the CC BY license" on its own first page. Unpaywall names
+// the jbc.org pdf; jbc.org answers 403 to this client; the Wayback snapshot of that exact url is
+// the same eleven-page Elsevier pdf, 823,098 bytes. An article we are licensed to read, lost to a
+// door policy, recovered by asking somebody who kept a copy.
+func TestARefusedOpenAccessCopyIsSoughtInTheArchive(t *testing.T) {
+	const walled = "https://publisher.example/paper.pdf"
+	const snapshot = "https://web.archive.org/web/20250812050548/" + walled
+	pdf := "%PDF-1.7 " + strings.Repeat("the paper ", 3000)
+	var asked []string
+	f := fake(func(u string) (*Response, error) {
+		asked = append(asked, u)
+		switch {
+		case strings.Contains(u, "openalex"):
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","locations":[{"pdf_url":"` + walled + `","is_oa":true,"license":"cc-by"}]}`)}, nil
+		case strings.Contains(u, "archive.org/wayback/available"):
+			return &Response{Body: []byte(`{"archived_snapshots":{"closest":{"available":true,"status":"200",` +
+				`"timestamp":"20250812050548","url":"` + snapshot + `"}}}`)}, nil
+		case strings.Contains(u, "web.archive.org"):
+			// The `if_` modifier asks for the stored bytes rather than the archive's framed replay.
+			if !strings.Contains(u, "if_/") {
+				t.Errorf("the snapshot was fetched without the raw-bytes modifier: %s", u)
+			}
+			return &Response{Body: []byte(pdf), ContentType: "application/pdf"}, nil
+		case u == walled:
+			return nil, &Refusal{URL: u, Status: 403}
+		}
+		if r, isIndex := emptyIndexAnswer(u); isIndex {
+			return r, nil
+		}
+		return nil, &Refusal{URL: u, Status: 404}
+	})
+	att := Recover(f, "https://doi.org/10.1234/x", ViaOA, "")
+	if att == nil || !att.TextRetrieved {
+		t.Fatalf("the archived copy was not taken: %+v", att)
+	}
+	if string(att.Body) != pdf {
+		t.Errorf("wrong bytes: %d", len(att.Body))
+	}
+	if !strings.Contains(att.Via, "web archive") || !strings.Contains(att.Via, "refused this container") {
+		t.Errorf("the provenance does not say where the bytes came from or why: %s", att.Via)
+	}
+
+	// A SNAPSHOT OF A REFUSAL IS NOT A COPY. The archive stores whatever it was served, including
+	// the 403 page and the challenge interstitial; its own status field is the only thing telling
+	// those from the document, and taking one would cache a wall as the paper.
+	g := fake(func(u string) (*Response, error) {
+		switch {
+		case strings.Contains(u, "openalex"):
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","locations":[{"pdf_url":"` + walled + `","is_oa":true}]}`)}, nil
+		case strings.Contains(u, "archive.org/wayback/available"):
+			return &Response{Body: []byte(`{"archived_snapshots":{"closest":{"available":true,"status":"403",` +
+				`"timestamp":"20250812050548","url":"` + snapshot + `"}}}`)}, nil
+		case strings.Contains(u, "web.archive.org"):
+			t.Error("a snapshot the archive itself recorded as a 403 was fetched anyway")
+			return nil, &Refusal{URL: u, Status: 403}
+		}
+		if r, isIndex := emptyIndexAnswer(u); isIndex {
+			return r, nil
+		}
+		return nil, &Refusal{URL: u, Status: 403}
+	})
+	if a := Recover(g, "https://doi.org/10.1234/x", ViaOA, ""); a != nil && a.TextRetrieved {
+		t.Error("an archived refusal was served as the document")
 	}
 }
