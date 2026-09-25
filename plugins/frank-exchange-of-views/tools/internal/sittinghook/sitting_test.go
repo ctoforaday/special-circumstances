@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -37,9 +38,9 @@ func capture(t *testing.T) *[]handoffArgs {
 
 	var got []handoffArgs
 	prev := spawn
-	spawn = func(w, r, p, id, ty, tr string) error {
+	spawn = func(w, r, p, id, ty, tr string) ([]byte, error) {
 		got = append(got, handoffArgs{w, r, p, id, ty, tr})
-		return nil
+		return nil, nil
 	}
 	t.Cleanup(func() { spawn = prev })
 	return &got
@@ -77,6 +78,14 @@ func payload(t *testing.T, agentID, agentType, cwd string) *strings.Reader {
 func TestSubagentStopEmitsNothing(t *testing.T) {
 	got := capture(t)
 	cwd, _ := liveRun(t)
+	// THE WRITER HANDS BACK A PAYLOAD, which is the only version of this test that holds anything: a
+	// stub returning nothing passes whatever Stop does with it.
+	prev := spawn
+	spawn = func(w, r, p, id, ty, tr string) ([]byte, error) {
+		*got = append(*got, handoffArgs{w, r, p, id, ty, tr})
+		return []byte(`{"sitting":{"seat":"red-lens-evidence"}}`), nil
+	}
+	t.Cleanup(func() { spawn = prev })
 	var out bytes.Buffer
 	if err := Stop(payload(t, "agent_01", "frank-exchange-of-views:red-auditor", cwd), &out, testRecorder()); err != nil {
 		t.Fatalf("Stop returned an error; a hook must not fail on an event the seat cannot see: %v", err)
@@ -236,4 +245,87 @@ func TestMain(m *testing.M) {
 	}
 	os.RemoveAll(dir)
 	os.Exit(code)
+}
+
+// START SPEAKS THE SEAT'S WORK LIST, AND SPEAKS NOTHING ELSE (#1122).
+//
+// This is the contract the narrowed gate above leaves to be stated. Three properties, and each one
+// is a way the channel has a plausible failure that looks like success:
+//
+//   - the writer's stdout reaches the seat VERBATIM, through a JSON string, so a list carrying a
+//     quoted claim survives — every gap location quotes the sentence it challenges;
+//   - nothing is emitted for an empty payload, because blue's configuration seats three seats and an
+//     empty additionalContext is a document that says nothing;
+//   - the writer's STDERR never reaches the seat. The streams were merged, and a diagnostic line
+//     merged into the other would arrive in a seat's context as its work.
+func TestStartSpeaksTheSeatsWorkListAndNothingElse(t *testing.T) {
+	cwd, _ := liveRun(t)
+	capture(t) // places a writer beside the test binary; writerPath's absence check gates the handoff
+	for _, tc := range []struct {
+		name, stdout string
+		want         string
+	}{
+		{"a list", `{"sitting":{"seat":"red-lens-evidence","open":[{"what":"quote \"this\""}]}}`,
+			`{"sitting":{"seat":"red-lens-evidence","open":[{"what":"quote \"this\""}]}}`},
+		{"nothing", "", ""},
+		{"whitespace only", "\n  \n", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			prev := spawn
+			spawn = func(string, string, string, string, string, string) ([]byte, error) {
+				return []byte(tc.stdout), nil
+			}
+			t.Cleanup(func() { spawn = prev })
+
+			var out bytes.Buffer
+			if err := Start(payload(t, "agent_01", "frank-exchange-of-views:red-lens-evidence", cwd), &out, testRecorder()); err != nil {
+				t.Fatal(err)
+			}
+			if tc.want == "" {
+				if out.Len() != 0 {
+					t.Fatalf("an empty payload produced a document anyway: %q", out.String())
+				}
+				return
+			}
+			var doc struct {
+				HookSpecificOutput struct {
+					HookEventName     string `json:"hookEventName"`
+					AdditionalContext string `json:"additionalContext"`
+				} `json:"hookSpecificOutput"`
+			}
+			if err := json.Unmarshal(out.Bytes(), &doc); err != nil {
+				t.Fatalf("what Start emitted is not a hook document (%v): %q", err, out.String())
+			}
+			if doc.HookSpecificOutput.HookEventName != "SubagentStart" {
+				t.Errorf("the document names %q; the client routes on this field",
+					doc.HookSpecificOutput.HookEventName)
+			}
+			if got := doc.HookSpecificOutput.AdditionalContext; got != tc.want {
+				t.Errorf("the seat's list did not survive the envelope:\n got %q\nwant %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// THE WRITER'S DIAGNOSTICS ARE NOT THE SEAT'S WORK. exec.Cmd's two streams were merged by
+// CombinedOutput, which was right while the output was only ever a failure report. This drives the
+// REAL spawn against a writer that prints on both, because the split is the thing under test and a
+// stubbed spawn cannot have a stderr to lose.
+func TestOnlyTheWritersStdoutReachesTheSeat(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the stand-in writer is a shell script")
+	}
+	dir := t.TempDir()
+	writer := filepath.Join(dir, "writer")
+	if err := os.WriteFile(writer, []byte("#!/bin/sh\necho 'for the seat'\necho 'a diagnostic' >&2\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	forSeat, err := spawn(writer, dir, phaseOpen, "a1", "t", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := strings.TrimSpace(string(forSeat))
+	if got != "for the seat" {
+		t.Errorf("the seat's channel carried %q — a diagnostic that reaches it arrives as the seat's work", got)
+	}
 }

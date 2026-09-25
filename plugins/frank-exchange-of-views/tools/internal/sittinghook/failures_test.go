@@ -104,8 +104,8 @@ func TestAWriterThatFailsIsRecordedInItsOwnWords(t *testing.T) {
 	cwd, _ := liveRun(t)
 	capture(t)
 	prev := spawn
-	spawn = func(string, string, string, string, string, string) error {
-		return errors.New("feov-sitting-write: exit status 1: sittingwrite: ingesting 3 turns for a1: disk full")
+	spawn = func(string, string, string, string, string, string) ([]byte, error) {
+		return nil, errors.New("feov-sitting-write: exit status 1: sittingwrite: ingesting 3 turns for a1: disk full")
 	}
 	t.Cleanup(func() { spawn = prev })
 
@@ -130,7 +130,7 @@ func TestTheRealSpawnKeepsTheWritersOutput(t *testing.T) {
 	if err := os.WriteFile(writer, []byte("#!/bin/sh\necho 'the writer said why' >&2\nexit 3\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	err := spawn(writer, dir, phaseClose, "a1", "t", "")
+	_, err := spawn(writer, dir, phaseClose, "a1", "t", "")
 	if err == nil || !strings.Contains(err.Error(), "the writer said why") {
 		t.Fatalf("spawn lost the writer's output: %v", err)
 	}

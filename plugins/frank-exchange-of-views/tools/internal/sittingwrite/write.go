@@ -19,6 +19,7 @@ package sittingwrite
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"google.golang.org/protobuf/proto"
@@ -111,7 +112,13 @@ func WriteLimit(runDir, agentID, agentType string, sitting, limit int) error {
 // 3.555 ms and 13.06 MB against 1.189 ms and 2.94 MB. This process is spawned only once the hook
 // has established a seat and a run — about 38 times a run — and it already carries the record.
 // The transcript is therefore parsed HERE, behind the same filter that guards the span write.
-func Write(runDir string, phase Phase, agentID, agentType, transcriptPath string) error {
+// # What it says to the seat
+//
+// On the OPENING end it also renders the seat's work list to `seat`, which the SubagentStart hook
+// hands to the dispatched subagent as additionalContext. See worklist.go: the ordering is
+// load-bearing, because the sitting_open written just above is what satisfies the dispatch and
+// excuses the log channel, so the list is only correct once it is on the record.
+func Write(runDir string, phase Phase, agentID, agentType, transcriptPath string, seat io.Writer) error {
 	if agentID == "" || agentType == "" {
 		return fmt.Errorf("sittingwrite: refusing to write a sitting with no agent identity — the "+
 			"hook is what decides this is a seat, and it handed over %q/%q", agentID, agentType)
@@ -141,6 +148,9 @@ func Write(runDir string, phase Phase, agentID, agentType, transcriptPath string
 	// conflating the two is the phantom-archive defect this field exists to prevent.
 	if _, err := record.Append(record.Identity{Run: run, SeatID: HookSeat}, body); err != nil {
 		return err
+	}
+	if phase == Open && seat != nil {
+		injectWorkList(run, agentType, seat)
 	}
 	return ingestTurns(run, phase, transcriptPath)
 }
