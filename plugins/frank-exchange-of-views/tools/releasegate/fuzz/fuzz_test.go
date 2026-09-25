@@ -479,7 +479,15 @@ func (r *runner) answerDisputes(seatID string) []map[string]any {
 	// the exit ("4 motion(s) filed and never ruled"). The chair's prompt says the same: rule the
 	// grade motions blue filed, read from the motions projection, never counted by hand.
 	pending := r.raised
-	if out, err := r.exec("show", "motions", "--seat-id", seatID); err == nil {
+	// THE GROUP IS ASKED, NOT SPELLED. `motions` moved to `inquest`, and a literal "show" here read
+	// the projection through a group that no longer holds it. This is the CHAIR's act (see the call
+	// site) and the chair carries inquest, so no membership check is needed.
+	//
+	// THE err == nil GUARD STAYS, and what makes it safe is elsewhere: the per-role sweep drives
+	// `inquest motions` for the chair STRICTLY, so a broken read fails the run there rather than
+	// falling back to `r.raised` unseen. Tolerance here with no strict driver anywhere would be how
+	// the from-memory defect above came back.
+	if out, err := r.exec(seat.GroupOf("motions"), "motions", "--seat-id", seatID); err == nil {
 		var page struct {
 			Motions []struct {
 				ID      string            `json:"id"`
@@ -693,6 +701,27 @@ func (r *runner) staleAreas() []string {
 	return out
 }
 
+// outstandingMotions is how many motions stand unruled on the record, read from the projection.
+//
+// A FAILED READ RETURNS ZERO AND SAYS SO IS NOT POSSIBLE HERE: the per-role sweep drives
+// `inquest motions` for the chair strictly, so a broken read fails the run there rather than
+// silently reporting "nothing outstanding" and skipping the terminal sitting again.
+func (r *runner) outstandingMotions(seatID string) int {
+	out, err := r.exec(seat.GroupOf("motions"), "motions", "--seat-id", seatID)
+	if err != nil {
+		return 0
+	}
+	var page struct {
+		Counts struct {
+			Outstanding int `json:"outstanding"`
+		} `json:"counts"`
+	}
+	if json.Unmarshal([]byte(out), &page) != nil {
+		return 0
+	}
+	return page.Counts.Outstanding
+}
+
 func (r *runner) chairEnvelope(seatID, verdict string, responses []map[string]any) map[string]any {
 	_ = responses // grade motions are ruled on the record; the envelope no longer restates them
 	plan := r.planThisSitting
@@ -700,7 +729,18 @@ func (r *runner) chairEnvelope(seatID, verdict string, responses []map[string]an
 		plan = map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false,
 			"max_epochs": 0, "epoch_limit_reached": false, "why": []any{}, "stale_areas": []any{}}
 	}
-	e := map[string]any{"plan": plan, "unruled_motions": 0, "petitions": r.maybePetition("chair", seatID), "log": arr()}
+	// UNRULED MOTIONS COME FROM THE RECORD, NOT FROM A LITERAL ZERO.
+	//
+	// This said 0, always — and debate.js dispatches the TERMINAL bench sitting only when the chair
+	// reports `unruled_motions > 0`. So that whole dispatch site, its prompt and its `terminal`
+	// occasion were unreachable in this sweep: the flag-coverage gate reported `register --occasion
+	// terminal` undriven and could not say why, because the run it needed could not be generated.
+	// A hardcoded zero in a stub is a branch of the product that no amount of fuzzing reaches.
+	//
+	// The chair carries `inquest`, so it can ask; the count is the motions projection's own
+	// `counts.outstanding`, which is what the PASS refusal counts too.
+	e := map[string]any{"plan": plan, "unruled_motions": r.outstandingMotions(seatID),
+		"petitions": r.maybePetition("chair", seatID), "log": arr()}
 	if verdict != "" {
 		e["verdict"] = verdict
 	}
@@ -1018,6 +1058,11 @@ func (r *runner) mint(seatID string) string {
 		// with "unknown class" — a run that mints nothing, returns FAIL with an empty gaps array,
 		// and is rejected by the engine as a degenerate merge. The cause was three verbs away
 		// from the symptom and invisible from the log.
+		// READ THE REGISTRY BEFORE COINING ONE. `class list` was the single command path no seat
+		// reached across 40 runs, and a real lens does reach it: measured on the 2026-09-25 smoke, a
+		// lens ran `class list` before minting under a class it was unsure of. Coining without
+		// looking is also how a seat invents a rival slug for a class that already exists.
+		_, _ = r.exec("class", "list", "--seat-id", seatID)
 		coin := []string{"class", "new", "--seat-id", seatID,
 			// --neighbor names an EXISTING class, and is checked. `verification-gap` was not one;
 			// nothing objected while the registry was absent, so the coining path ran green for
@@ -2731,13 +2776,24 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	for role, sid := range map[string]string{
 		"blue": "blue-respond", "lens": "red-lens-evidence", "chair": "red-chair", "bench": "judge",
 	} {
+		// EACH VIEW UNDER ITS OWN GROUP, FOR THE ROLES THAT CARRY IT. This drove everything as
+		// `show` for all four roles, and when the bench's raw-record projections moved to `inquest`
+		// every role started failing on them — 40 of 40 runs, with the per-verb coverage gates
+		// reporting ZERO events downstream because no run survived to be tallied. The group and the
+		// membership are both ASKED rather than held: GroupOf reads the view table, and roleHasGroup
+		// reads the real command tree, so neither can go stale the way a literal "show" did.
 		for _, v := range viewNamesForFuzz {
-			args := []string{"show", v, "--run", runDir, "--seat-id", sid}
+			group := seat.GroupOf(v)
+			if !roleHasGroup(role, group) {
+				continue // this role does not carry the group this view lives under
+			}
+			drivenView[v] = true
+			args := []string{group, v, "--run", runDir, "--seat-id", sid}
 			if v == "changes" && len(ids) > 0 {
 				args = append(args, "--id", ids[0])
 			}
 			if _, err := drive(bin, args...); err != nil {
-				res.err = role + " show " + v + " failed: " + err.Error()
+				res.err = role + " " + group + " " + v + " failed: " + err.Error()
 				return res
 			}
 		}
@@ -2785,8 +2841,13 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = "show report --anchor f-ffffffff SUCCEEDED on an anchor nobody minted — a window over nothing:\n" + truncate(string(out))
 		return res
 	}
-	// The OPERATOR's read of the log — seats write it, the human reads it back with `show log`.
-	if _, err := tracked(bin, "show", "log", "--run", runDir, "--seat-id", "operator"); err != nil {
+	// The OPERATOR's read of the log — seats write it, the human reads it back.
+	//
+	// UNDER `ops`, NOT `show`. The operator's reads moved into a group of their own, and this call
+	// kept the old word — the same stale-caller shape as the inquest views above, from the same
+	// reorganisation. `log` is not a seat projection, so GroupOf does not answer for it: the group
+	// is spelled once, here, and the `operator log read` failure names it if it moves again.
+	if _, err := tracked(bin, "ops", "log", "--run", runDir, "--seat-id", "operator"); err != nil {
 		res.err = "operator log read failed: " + err.Error()
 		return res
 	}
@@ -2807,7 +2868,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		}
 	}
 	{
-		out, err := drive(bin, "show", "debate", "--json", "--run", runDir, "--seat-id", "red-chair")
+		out, err := drive(bin, seat.GroupOf("debate"), "debate", "--json", "--run", runDir, "--seat-id", "red-chair")
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
 			res.err = "show debate --json did not return valid JSON:\n" + truncate(string(out))
@@ -2827,9 +2888,13 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// EVERY ROLE'S show, not merge's alone. Each role has a different DEFAULT view and its own
 	// role gate, so driving only `chair show --view` left the other three reachable but never
 	// reached — and --id (the scoped form) never passed at all.
-	for _, role := range []string{"blue", "lens", "bench"} {
-		if out, err := drive(bin, "show", "debate", "--run", runDir, "--seat-id", seatOfRole(role)); err != nil {
-			res.err = role + " show debate failed:\n" + truncate(string(out))
+	for _, role := range []string{"blue", "lens", "bench", "chair"} {
+		group := seat.GroupOf("debate")
+		if !roleHasGroup(role, group) {
+			continue
+		}
+		if out, err := drive(bin, group, "debate", "--run", runDir, "--seat-id", seatOfRole(role)); err != nil {
+			res.err = role + " " + group + " debate failed:\n" + truncate(string(out))
 			return res
 		}
 	}
@@ -2853,8 +2918,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		if jsonByName[v] {
 			continue // JSON by name — driven by their own oracles, not the markdown path
 		}
-		if out, err := drive(bin, "show", v, "--run", runDir, "--seat-id", "red-chair"); err != nil {
-			res.err = "show " + v + " (projection) failed:\n" + truncate(string(out))
+		if out, err := drive(bin, seat.GroupOf(v), v, "--run", runDir, "--seat-id", "red-chair"); err != nil {
+			res.err = seat.GroupOf(v) + " " + v + " (projection) failed:\n" + truncate(string(out))
 			return res
 		}
 	}
@@ -3631,6 +3696,30 @@ func truncate(s string) string {
 // is swept without anyone remembering to edit a list here.
 var viewNamesForFuzz = seat.ViewNames()
 
+// roleHasGroup asks the REAL command tree whether this role carries this command group.
+//
+// IT IS A QUERY AND NOT A COPY OF THE RULE. Which roles hold `inquest` is decided in
+// seat.RoleVerbs — the seats that adjudicate, which is the chair as well as the bench — and a
+// literal `role == "bench" || role == "chair"` here would be that rule written twice, going stale
+// the next time it moves. The rule has already moved once, and a hardcoded "show" at the call sites
+// is exactly what failed when it did.
+func roleHasGroup(role, group string) bool {
+	for _, c := range seat.RoleVerbs(role) {
+		if c.Name() == group {
+			return true
+		}
+	}
+	return false
+}
+
+// drivenView records which projections the per-role sweep actually drove.
+//
+// THE SKIP NEEDS A WITNESS. The sweep now skips a view whose group a role does not carry, and a
+// skip is how this oracle's own comment says coverage gaps are born: "a view ships, nobody adds it
+// to the list, and the sweep reports full coverage of a surface it never drove." So a view that NO
+// role drove fails the sweep rather than passing quietly.
+var drivenView = map[string]bool{}
+
 // surfaceQuorum is the run count at or above which the coverage gates can hold the sweep to the
 // FULL surface. Below it a low-frequency path can flake to zero and fail an honest run.
 //
@@ -3812,6 +3901,18 @@ func TestFuzzDebate(t *testing.T) {
 			"the per-verb event gate, the citation/provenance floors, the full-surface command gate, "+
 			"and the flag/enum coverage sweeps. This is not a pass over them — only the cite/finding "+
 			"floor below was checked. Run the default sweep to assert the surface.", completed, surfaceQuorum)
+	}
+	// EVERY VIEW REACHED SOMEBODY. The per-role sweep skips a view whose group a role does not
+	// carry, and this is the witness for that skip: a view no role drove has been swept by nobody
+	// while the sweep reported success, which is the exact shape this oracle's own comment warns
+	// about. Under quorum it is not asserted, for the same reason the verb gates are not.
+	if measured {
+		for _, v := range viewNamesForFuzz {
+			if !drivenView[v] {
+				t.Errorf("no role drove the %q projection across %d runs — it lives under group %q, "+
+					"which no role carries, so the sweep covered it with nobody", v, completed, seat.GroupOf(v))
+			}
+		}
 	}
 	if measured {
 		for _, k := range verbsWithEvents {
@@ -4523,7 +4624,12 @@ var readOnlySurfaces = [][]string{
 	{"scorecard", "--card", "red"},
 	// Every command's help on a seat's surface, which it produces by running this binary again
 	// once per page. One seat is enough: it is one contract on every surface, keyed once.
-	{"manual", "--seat-id", "blue-respond"},
+	//
+	// THE OPERATOR RENDERS IT, `--for` NAMES THE SURFACE. `manual` is a generator's command and its
+	// own help says a seat "does not run it and cannot" — it left every seat's surface, and this call
+	// kept the old form of passing the seat's own id. The read it is asserting is unchanged: blue's
+	// whole surface, every page's help produced live.
+	{"manual", "--seat-id", "operator", "--for", "blue-respond"},
 }
 
 // dashboardArgv is separate because `dashboard` is POSITIONAL — `dashboard <runDir>
@@ -4831,7 +4937,7 @@ func TestSortedKeysIsStableAcrossMapIterationOrder(t *testing.T) {
 // ruling yet — the one the dispatch filed — or "" when there is none.
 func (r *runner) unruledDocketMotion(gapID string) string {
 	// `show` renders json by default (--format); the global --json envelope is not its shape.
-	out, err := r.exec("show", "motions", "--seat-id", "judge")
+	out, err := r.exec(seat.GroupOf("motions"), "motions", "--seat-id", "judge")
 	if err != nil {
 		return ""
 	}
