@@ -2,11 +2,15 @@ $ finding --run {RUN} --seat-id red-lens-evidence --key F1 --severity medium --l
 exit 0
 stdout:
 finding recorded: evidence-F1 — the run-unique label a gap's found_by names (id FINDING001)
+you may NOT stop yet — 1 of 1 item(s) block you:
+  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 $ finding --run {RUN} --seat-id red-lens-evidence --key F2 --severity medium --likelihood medium --impact medium --quote ## S2 --reason round two
 exit 0
 stdout:
 finding recorded: evidence-F2 — the run-unique label a gap's found_by names (id FINDING001)
+you may NOT stop yet — 1 of 1 item(s) block you:
+  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}

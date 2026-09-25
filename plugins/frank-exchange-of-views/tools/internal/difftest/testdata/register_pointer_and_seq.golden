@@ -8,6 +8,8 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+you may NOT stop yet — 1 of 1 item(s) block you:
+  · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 $ register --run {RUN} --seat-id blue-respond
 exit 0
@@ -19,11 +21,15 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+you may NOT stop yet — 1 of 1 item(s) block you:
+  · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
 
 $ revision --run {RUN} --seat-id blue-respond --reason first pass
 exit 0
 stdout:
 revision recorded — this sitting's changes are on the record [key blue-respond:revision:#1]
+you may NOT stop yet — 1 of 1 item(s) block you:
+  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 $ log --run {RUN} --seat-id blue-respond --reason no PDF extraction
 exit 2
@@ -92,6 +98,8 @@ $ finding --run {RUN} --seat-id red-lens-logic --key F1 --severity medium --like
 exit 0
 stdout:
 finding recorded: logic-F1 — the run-unique label a gap's found_by names (id FINDING001)
+you may NOT stop yet — 1 of 1 item(s) block you:
+  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}

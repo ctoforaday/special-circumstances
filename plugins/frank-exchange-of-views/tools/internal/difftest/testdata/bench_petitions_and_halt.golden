@@ -8,11 +8,17 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+you may NOT stop yet — 1 of 1 item(s) block you:
+  · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 $ motion petition file --run {RUN} --seat-id red-chair --class safety --reason the design erodes a consent gate --relief halt and escalate
 exit 0
 stdout:
 motion M1 filed (petition)
+you may NOT stop yet — 3 of 3 item(s) block you:
+  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · motion M1 (petition, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
+  · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 $ register --run {RUN} --seat-id judge --occasion docket
 exit 0
@@ -24,16 +30,22 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+you may NOT stop yet — 1 of 1 item(s) block you:
+  · petition M1 is unruled, and the bench's motions are heard BEFORE the debate continues
 
 $ motion petition rule --run {RUN} --seat-id judge --id M1 --as granted --binds both --reason the relief binds the coming seats
 exit 0
 stdout:
 motion M1 ruled granted [key judge:motion_rule:#1]
+you may NOT stop yet — 1 of 1 item(s) block you:
+  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 $ halt --run {RUN} --seat-id judge --reason continuing would compromise the consent gate
 exit 0
 stdout:
 JUDICIAL HALT recorded — capture relays this verbatim [key judge:halt:#1]
+you may NOT stop yet — 1 of 1 item(s) block you:
+  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}

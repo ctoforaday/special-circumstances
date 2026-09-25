@@ -8,6 +8,8 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+you may NOT stop yet — 1 of 1 item(s) block you:
+  · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 $ register --run {RUN} --seat-id red-lens-evidence
 exit 0
@@ -19,6 +21,7 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+you may stop: nothing blocking, 1 item(s) open to you
 
 $ mint --run {RUN} --seat-id red-lens-evidence --class invented-class --check-kind document --check x --problem p
 exit 2

@@ -8,6 +8,8 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+you may NOT stop yet — 1 of 1 item(s) block you:
+  · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 $ register --run {RUN} --seat-id red-lens-evidence
 exit 0
@@ -19,6 +21,7 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+you may stop: nothing blocking, 1 item(s) open to you
 
 $ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem docketed
 exit 0
@@ -26,11 +29,18 @@ stdout:
 minted G1
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+you may NOT stop yet — 1 of 1 item(s) block you:
+  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 $ motion docket file --run {RUN} --seat-id red-chair --id G1 --reason contested, and not red's to close
 exit 0
 stdout:
 motion M1 filed (docket)
+you may NOT stop yet — 4 of 4 item(s) block you:
+  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · gap G1 is open and material — PASS is refused while it is
+  · motion M1 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
+  · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 $ register --run {RUN} --seat-id judge --occasion docket
 exit 0
@@ -42,6 +52,8 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+you may NOT stop yet — 1 of 1 item(s) block you:
+  · docket M1 is unruled, and the bench's motions are heard BEFORE the debate continues
 
 $ motion docket rule --run {RUN} --seat-id judge --id M1 --as repaired --reason r
 exit 2

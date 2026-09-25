@@ -639,7 +639,9 @@ func TestMintAssignsSequentialIdsAndIsIdempotentByKey(t *testing.T) {
 		t.Errorf("second mint said %q", got)
 	}
 	// The retry: same command, same key, and the EXISTING id comes back.
-	if got := mint("--key", "L1-F3"); got != "minted G2 (idempotent retry — existing id returned)" {
+	// FIRST LINE, because every write now also prints where the seat stands (seat/standing.go) and
+	// the subject here is what the verb said about the act.
+	if got := firstLine(mint("--key", "L1-F3")); got != "minted G2 (idempotent retry — existing id returned)" {
 		t.Errorf("the retry said %q, want the existing id", got)
 	}
 	mints := 0
@@ -1165,7 +1167,9 @@ func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 				t.Fatal(err)
 			}
 			// The success line carries the act's key, which is what a same-sitting correction names.
-			if want := "log entry recorded: defect [key " + tc.seatID + ":log:#1]"; strings.TrimSpace(out) != want {
+			// THE FIRST LINE IS THE VERB'S; the lines after it are where the seat now stands, printed
+			// by every write (seat/standing.go).
+			if want := "log entry recorded: defect [key " + tc.seatID + ":log:#1]"; firstLines(out, 1) != want {
 				t.Errorf("log said %q, want %q", out, want)
 			}
 			ev := lastBody(t, runDir, &recordpb.Log{})
@@ -1388,7 +1392,10 @@ func TestVerdictRendersAndCheckpoints(t *testing.T) {
 		t.Errorf("verdict did not report the mirror: %q", out)
 	}
 	// The mirror carries the events, so they survive the working tree.
-	mirror := strings.TrimSpace(out[strings.Index(out, "checkpointed to ")+len("checkpointed to "):])
+	// TO THE END OF THE LINE, not the end of the output. Every write now prints where the seat stands
+	// after it, so slicing to the end swept that text into the path — which is this repository's own
+	// lesson about recovering a fact from prose, arriving in a test.
+	mirror := strings.TrimSpace(firstLines(out[strings.Index(out, "checkpointed to ")+len("checkpointed to "):], 1))
 	entries, rerr := os.ReadDir(mirror)
 	if rerr != nil {
 		t.Fatalf("the checkpoint mirror is not readable: %v", rerr)

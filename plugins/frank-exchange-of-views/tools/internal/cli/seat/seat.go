@@ -337,6 +337,10 @@ type okEnvelope struct {
 	// Key is the record key of the act a correctable verb just wrote — what --corrects names.
 	Key    string `json:"key,omitempty"`
 	Result Result `json:"result,omitempty"`
+	// Standing is where the seat stands AFTER this act — absent on a read, which moved nothing.
+	// See standing.go: it is what ends `show work` after an act, and it carries the verdict rather
+	// than the list because the list is 4-5 KB and the verdict is the question.
+	Standing *StandingJSON `json:"standing,omitempty"`
 }
 
 type errEnvelope struct {
@@ -650,9 +654,13 @@ func Emit(cmd *cobra.Command, res Result, err error) error {
 		return Emit(cmd, nil, feov.Errorf(feov.Validation,
 			"nothing was corrected — this invocation wrote no %s, so nothing replaced the act --corrects names", RecordType(cmd)))
 	}
+	// WHERE THE SEAT NOW STANDS RIDES THE ACT. Computed once, here, for both forms — a seat reading
+	// the human line and a consumer parsing the envelope are answering the same question and must not
+	// be told different things.
+	standing := standingAfter(cmd)
 	if jsonMode(cmd) {
 		return json.NewEncoder(cmd.OutOrStdout()).Encode(okEnvelope{
-			Verb: cmd.Name(), Role: role, OK: true, Key: key, Result: res,
+			Verb: cmd.Name(), Role: role, OK: true, Key: key, Result: res, Standing: standing,
 		})
 	}
 	if res != nil {
@@ -665,6 +673,11 @@ func Emit(cmd *cobra.Command, res Result, err error) error {
 			}
 		}
 		fmt.Fprintln(cmd.OutOrStdout(), line)
+	}
+	// AFTER the verb's own line, never instead of it: the act's own result is what the seat asked
+	// for, and the standing is the context it would otherwise have spent a call on.
+	if standing != nil {
+		fmt.Fprintln(cmd.OutOrStdout(), standing.Human())
 	}
 	return nil
 }
