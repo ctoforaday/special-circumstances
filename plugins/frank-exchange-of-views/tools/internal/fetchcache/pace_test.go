@@ -523,6 +523,7 @@ func TestOnlyStrangersArePaced(t *testing.T) {
 // follow a Location the first hop had just handed us. The whole fetch took 91 seconds, of which
 // 3.5 were on the wire.
 func TestARedirectChainIsChargedOncePerHost(t *testing.T) {
+	const published = 30 * time.Second
 	tempPaceDir(t)
 	pacedLoopback(t)
 	var hits int
@@ -551,9 +552,13 @@ func TestARedirectChainIsChargedOncePerHost(t *testing.T) {
 	if hits != 3 {
 		t.Fatalf("the chain made %d content requests, expected 3 — this test is not measuring what it thinks", hits)
 	}
-	// The host published 30s. Three hops charged separately would wait at least twice that.
-	if elapsed > 5*time.Second {
-		t.Errorf("a three-hop chain took %v — each hop was charged a crawl-delay of its own", elapsed)
+	// THE THRESHOLD IS DERIVED FROM THE FLOOR, NOT CHOSEN. A charged hop waits at least the
+	// host's published delay, so anything under that delay proves no hop was charged — while a
+	// fixed small number is a bet on how fast the box is. This assertion was `> 5*time.Second`
+	// and failed at 5.04s under `-race` on a box at load 34: a timing test that measures the
+	// machine instead of the behaviour, which is the flake this repository keeps warning about.
+	if elapsed > published/2 {
+		t.Errorf("a three-hop chain took %v against a published delay of %v — hops were charged separately", elapsed, published)
 	}
 
 	// AND THE FLOOR STILL BITES ON A SECOND DOCUMENT. This must not become "pacing is off".
@@ -561,8 +566,8 @@ func TestARedirectChainIsChargedOncePerHost(t *testing.T) {
 	if _, err := NewHTTPFetcher().Fetch(srv.URL + "/other"); err != nil {
 		t.Fatalf("second fetch: %v", err)
 	}
-	if waited := time.Since(start); waited < 30*time.Second {
-		t.Errorf("a second document from the same host waited %v, want at least the published 30s", waited)
+	if waited := time.Since(start); waited < published {
+		t.Errorf("a second document from the same host waited %v, want at least the published %v", waited, published)
 	}
 }
 
@@ -570,6 +575,7 @@ func TestARedirectChainIsChargedOncePerHost(t *testing.T) {
 // pdf is telling us where the thing is; charging that hop separately cost a full jittered
 // crawl-delay on arxiv.org — 23 seconds to follow a pointer the previous response had handed us.
 func TestFollowingAPublishersOwnPointerIsNotASecondAsking(t *testing.T) {
+	const published = 30 * time.Second
 	tempPaceDir(t)
 	pacedLoopback(t)
 	var srv *httptest.Server
@@ -595,7 +601,9 @@ func TestFollowingAPublishersOwnPointerIsNotASecondAsking(t *testing.T) {
 	if !strings.HasPrefix(string(body), "%PDF") {
 		t.Fatalf("the walk did not reach the pdf: %q", e.ContentType)
 	}
-	if elapsed := time.Since(start); elapsed > 5*time.Second {
-		t.Errorf("following the publisher's own pointer took %v — it was charged as a new asking", elapsed)
+	// Derived from the floor for the same reason as above: under the published delay proves the
+	// hop was free, and does not also assert how fast this machine is today.
+	if elapsed := time.Since(start); elapsed > published/2 {
+		t.Errorf("following the publisher's own pointer took %v against a published delay of %v — it was charged as a new asking", elapsed, published)
 	}
 }
