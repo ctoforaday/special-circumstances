@@ -189,7 +189,11 @@ func isRedirect(code int) bool {
 
 func isOverloadStatus(code int) bool {
 	switch code {
-	case http.StatusTooManyRequests, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+	case http.StatusTooManyRequests, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout,
+		// 425 Too Early is the same message in different words: not now, ask again. Measured
+		// 2026-09-24 on a host that returned it three times running, so the body was never seen
+		// and a real copy was scored as a failure.
+		http.StatusTooEarly:
 		return true
 	}
 	return false
@@ -240,7 +244,7 @@ func (h *httpFetcher) followRedirects(rawURL string, skipRobots bool, charged ma
 	}
 	seen := map[string]bool{rawURL: true, cur: true}
 	for hop := 0; ; hop++ {
-		resp, final, loc, err := h.fetchOnceRetry(cur, false, skipRobots, charged)
+		resp, final, loc, err := h.fetchOnceRetry(cur, 0, skipRobots, charged)
 		if err != nil || loc == "" {
 			return resp, final, err
 		}
@@ -262,7 +266,7 @@ func (h *httpFetcher) followRedirects(rawURL string, skipRobots bool, charged ma
 	}
 }
 
-func (h *httpFetcher) fetchOnceRetry(rawURL string, retried, skipRobots bool, charged map[string]bool) (out *Response, final *url.URL, location string, err error) {
+func (h *httpFetcher) fetchOnceRetry(rawURL string, attempt int, skipRobots bool, charged map[string]bool) (out *Response, final *url.URL, location string, err error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("fetch: unparseable url %q: %w", rawURL, err)
@@ -353,7 +357,14 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, retried, skipRobots bool, ch
 	// broken, and either way continuing at the pace that met it is the wrong response — Europe
 	// PMC falls over this way under load, with no Retry-After to read. Treating a 5xx as an
 	// ordinary refusal means the next request goes out at exactly the rate that just failed.
-	if isOverloadStatus(resp.StatusCode) && !retried {
+	// ONE RETRY, AND THE MEASUREMENT THAT SETTLED IT. Three were tried first, on the theory that
+	// an index's answer is not interchangeable — Semantic Scholar was the only source holding a
+	// location for doi 10.1509/jmkg.68.1.1.24036, where four other indexes called the work
+	// closed. Measured 2026-09-24: four attempts, four 429s. Its anonymous quota is SHARED across
+	// every unauthenticated client, so when it is gone it is gone, and asking again only spends
+	// our own floor — which the escalating backoff had pushed to 87 seconds on that host. Extra
+	// attempts bought nothing and cost the host more.
+	if isOverloadStatus(resp.StatusCode) && attempt < 1 {
 		wait := retryAfter(resp.Header)
 		if wait <= 0 {
 			// THIS HOST'S FLOOR, not the global default. A host with a published Crawl-delay or a
@@ -365,7 +376,7 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, retried, skipRobots bool, ch
 		backoffHost(u.Host, wait)
 		if wait <= retryAfterCap {
 			time.Sleep(wait)
-			return h.fetchOnceRetry(rawURL, true, skipRobots, charged)
+			return h.fetchOnceRetry(rawURL, attempt+1, skipRobots, charged)
 		}
 	}
 	// A REDIRECT IS NOT A REFUSAL. The client no longer follows them, so a 3xx arrives here with

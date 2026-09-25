@@ -110,6 +110,12 @@ var (
 // there is none, which is an ordinary answer: most web pages are not articles.
 func DOIOf(rawURL string) string {
 	m := doiRe.FindString(rawURL)
+	// NOT CASE-NORMALISED, AND THAT WAS TRIED. A doi's suffix is case-insensitive by the handbook,
+	// so lowercasing looks free — but a report from ground-truth checking on 2026-09-24 said
+	// Semantic Scholar answered for `10.1016/0021-9991(92)90240-Y` and not the lowercase form,
+	// which is the opposite direction, and the service was rate-limiting too hard to verify it.
+	// An unverified normalisation that could silently lose an index's only answer is worse than
+	// the inconsistency it tidies. Pass the doi as the source wrote it.
 	return strings.TrimRight(m, ".,;)")
 }
 
@@ -576,6 +582,24 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 				}
 				resp, ferr := f.Fetch(loc)
 				if ferr != nil {
+					// THE INDEX SAID THIS COPY EXISTS AND THE HOST WILL NOT GIVE IT TO US. That is
+					// a fact about the host's door policy, not about the copy, and the archive is a
+					// different host with its own rules (gblock, 2026-09-23).
+					//
+					// MEASURED 2026-09-24 on doi 10.1016/s0021-9258(19)52451-6 — Lowry et al.
+					// 1951, whose pdf carries "This is an Open Access article under the CC BY
+					// license" on its own first page. Unpaywall names the jbc.org pdf; jbc.org
+					// answers 403 to this client; the Wayback snapshot of that exact url is the
+					// same eleven-page Elsevier pdf. An article we are licensed to read, lost to a
+					// bot wall, recovered by asking somebody who kept a copy.
+					if snap := archivedCopy(f, loc); snap != nil {
+						return &Attempt{Body: snap.Body, ContentType: SniffedMediaType(snap.ContentType, snap.Body),
+							TextRetrieved: true, Facts: facts, Version: typed[loc].Version,
+							License: firstNonEmpty(typed[loc].License, facts.License),
+							Via: fmt.Sprintf("open-access copy of doi %s, taken from the web archive's snapshot of %s "+
+								"because that host refused this container — the copy is the one the index named, and the "+
+								"archive is where it was still readable", doi, loc)}
+					}
 					refused = append(refused, loc)
 					continue
 				}
@@ -840,4 +864,46 @@ func versionWords(v string) string {
 		return "a SUBMITTED PREPRINT, which may differ in substance from the published paper"
 	}
 	return "version unstated by the index"
+}
+
+// archivedCopy asks the web archive for a snapshot of ONE url a source index asserted, after the
+// host holding it refused us.
+//
+// IT IS NOT THE ARCHIVE BACKEND. That one answers "what did this page say on a date", for the url
+// a seat asked for, and warns that the bytes are a third party's snapshot of another time. This
+// asks a narrower question — "the copy the index named is unreachable; does a copy of THAT url
+// still exist" — and it fires only after a refusal, so it costs nothing on the path that works.
+//
+// The `if_` suffix on the timestamp asks the archive for the bytes it stored rather than its own
+// framed replay of them; without it the body comes back wrapped in the archive's navigation.
+func archivedCopy(f Fetcher, rawURL string) *Response {
+	resp, err := f.Fetch("https://archive.org/wayback/available?url=" + url.QueryEscape(rawURL))
+	if err != nil {
+		return nil
+	}
+	var r struct {
+		Snapshots struct {
+			Closest struct {
+				Available bool   `json:"available"`
+				URL       string `json:"url"`
+				Status    string `json:"status"`
+				Timestamp string `json:"timestamp"`
+			} `json:"closest"`
+		} `json:"archived_snapshots"`
+	}
+	if json.Unmarshal(resp.Body, &r) != nil {
+		return nil
+	}
+	c := r.Snapshots.Closest
+	// A SNAPSHOT OF A REFUSAL IS NOT A COPY. The archive stores whatever it was served, including
+	// the 403 page and the challenge interstitial, and its own status field is the only thing that
+	// separates those from the document.
+	if !c.Available || c.URL == "" || (c.Status != "" && c.Status != "200") {
+		return nil
+	}
+	snap, serr := f.Fetch(strings.Replace(c.URL, "/"+c.Timestamp+"/", "/"+c.Timestamp+"if_/", 1))
+	if serr != nil || ShellReason(snap.ContentType, snap.Body) != "" {
+		return nil
+	}
+	return snap
 }
