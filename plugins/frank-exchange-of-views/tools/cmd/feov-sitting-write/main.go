@@ -20,7 +20,9 @@ func main() {
 	phase := flag.String("phase", "", "open or close (an end of the span), or limit (the sitting reached the tool-call limit)")
 	agentID := flag.String("agent-id", "", "the harness handle for the subagent")
 	agentType := flag.String("agent-type", "", "the agent configuration it was dispatched as")
-	transcript := flag.String("transcript", "", "the finished seat's transcript, whose turns are ingested (SubagentStop only)")
+	transcript := flag.String("transcript", "", "the finished seat's transcript, whose turns are ingested and whose path is recorded (SubagentStop only)")
+	sessionID := flag.String("session-id", "", "the conversation this sitting happened in, from the hook payload")
+	promptID := flag.String("prompt-id", "", "the dispatch's own id, from the hook payload — it changes when an agent is re-prompted and its agent id does not")
 	sitting := flag.Int("sitting", 0, "the seat's sitting that reached the limit (limit only)")
 	limit := flag.Int("limit", 0, "the per-sitting tool-call limit it reached (limit only)")
 	flag.Parse()
@@ -32,7 +34,11 @@ func main() {
 		// STDOUT IS THE SEAT'S CHANNEL, and stderr is the caller's. On the opening end this process
 		// prints the seat's work list here and the SubagentStart hook passes it to the dispatched
 		// subagent; a diagnostic printed to stdout would arrive in a seat's context as its work.
-		err = sittingwrite.Write(*run, sittingwrite.Phase(*phase), *agentID, *agentType, *transcript, os.Stdout)
+		err = sittingwrite.Write(sittingwrite.Sitting{
+			RunDir: *run, Phase: sittingwrite.Phase(*phase),
+			AgentID: *agentID, AgentType: *agentType, TranscriptPath: *transcript,
+			SessionID: *sessionID, PromptID: *promptID,
+		}, os.Stdout)
 	}
 	if err != nil {
 		// Stderr and a non-zero exit. The span hooks ignore it — a seat is not blocked because the

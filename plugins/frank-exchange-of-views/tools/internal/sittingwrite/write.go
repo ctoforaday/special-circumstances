@@ -118,7 +118,25 @@ func WriteLimit(runDir, agentID, agentType string, sitting, limit int) error {
 // hands to the dispatched subagent as additionalContext. See worklist.go: the ordering is
 // load-bearing, because the sitting_open written just above is what satisfies the dispatch and
 // excuses the log channel, so the list is only correct once it is on the record.
-func Write(runDir string, phase Phase, agentID, agentType, transcriptPath string, seat io.Writer) error {
+// Sitting is one end of a span as the hook observed it.
+//
+// A STRUCT BECAUSE THE FIELDS ARE ALL STRINGS. This was six positional parameters and the harness
+// facts made it eight; at that width a transposed pair type-checks, writes a wrong record, and is
+// found by nobody. Every field here is named at the call site.
+type Sitting struct {
+	RunDir string
+	Phase  Phase
+	// AgentID and AgentType are what the hook decides a seat by; the writer refuses without both.
+	AgentID, AgentType string
+	// TranscriptPath is the SEAT's own conversation, present on the closing end only.
+	TranscriptPath string
+	// SessionID and PromptID are the conversation and the dispatch. Empty means the payload did not
+	// carry one, which is a real answer and is stored as absent rather than as "".
+	SessionID, PromptID string
+}
+
+func Write(s Sitting, seat io.Writer) error {
+	runDir, phase, agentID, agentType, transcriptPath := s.RunDir, s.Phase, s.AgentID, s.AgentType, s.TranscriptPath
 	if agentID == "" || agentType == "" {
 		return fmt.Errorf("sittingwrite: refusing to write a sitting with no agent identity — the "+
 			"hook is what decides this is a seat, and it handed over %q/%q", agentID, agentType)
@@ -138,9 +156,31 @@ func Write(runDir string, phase Phase, agentID, agentType, transcriptPath string
 		if seat, ok := record.SeatOfAgentType(agentType); ok {
 			open.SeatId = proto.String(seat)
 		}
+		// WHERE THE SEAT SPOKE. Set only when the payload carried it: an empty string written as a
+		// value would make "the harness did not tell us" indistinguishable from "the conversation
+		// has no id", and this field exists to answer the first question honestly.
+		if s.SessionID != "" {
+			open.SessionId = proto.String(s.SessionID)
+		}
+		if s.PromptID != "" {
+			open.PromptId = proto.String(s.PromptID)
+		}
 		body = open
 	case Close:
-		body = &recordpb.SittingClose{AgentId: proto.String(agentID), AgentType: proto.String(agentType)}
+		cl := &recordpb.SittingClose{AgentId: proto.String(agentID), AgentType: proto.String(agentType)}
+		// THE PATH THIS PROCESS ALREADY HELD. It is parsed just below for the turn ingest and was
+		// then discarded, so the one end that is TOLD where the seat's trajectory lives was the one
+		// place it went unrecorded.
+		if transcriptPath != "" {
+			cl.AgentTranscriptPath = proto.String(transcriptPath)
+		}
+		if s.SessionID != "" {
+			cl.SessionId = proto.String(s.SessionID)
+		}
+		if s.PromptID != "" {
+			cl.PromptId = proto.String(s.PromptID)
+		}
+		body = cl
 	default:
 		return fmt.Errorf("sittingwrite: unknown phase %q — a span has exactly two ends", phase)
 	}

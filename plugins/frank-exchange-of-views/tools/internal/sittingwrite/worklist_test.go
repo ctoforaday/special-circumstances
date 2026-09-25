@@ -33,7 +33,7 @@ func TestTheOpeningEndRendersTheSeatsWorkList(t *testing.T) {
 			SeatId: proto.String("red-lens-evidence"), Pin: proto.Int64(1)}))
 
 	var forSeat bytes.Buffer
-	if err := Write(dir, Open, "agent_01", "frank-exchange-of-views:red-lens-evidence", "", &forSeat); err != nil {
+	if err := Write(Sitting{RunDir: dir, Phase: Open, AgentID: "agent_01", AgentType: "frank-exchange-of-views:red-lens-evidence", TranscriptPath: ""}, &forSeat); err != nil {
 		t.Fatal(err)
 	}
 	out := forSeat.String()
@@ -65,7 +65,7 @@ func TestTheOpeningEndRendersTheSeatsWorkList(t *testing.T) {
 func TestAConfigurationSeatingSeveralIsHandedNothing(t *testing.T) {
 	dir := newRun(t)
 	var forSeat bytes.Buffer
-	if err := Write(dir, Open, "agent_01", "frank-exchange-of-views:blue-researcher", "", &forSeat); err != nil {
+	if err := Write(Sitting{RunDir: dir, Phase: Open, AgentID: "agent_01", AgentType: "frank-exchange-of-views:blue-researcher", TranscriptPath: ""}, &forSeat); err != nil {
 		t.Fatal(err)
 	}
 	if forSeat.Len() != 0 {
@@ -79,7 +79,7 @@ func TestAConfigurationSeatingSeveralIsHandedNothing(t *testing.T) {
 func TestTheClosingEndRendersNothing(t *testing.T) {
 	dir := newRun(t)
 	var forSeat bytes.Buffer
-	if err := Write(dir, Close, "agent_01", "frank-exchange-of-views:red-lens-evidence", "", &forSeat); err != nil {
+	if err := Write(Sitting{RunDir: dir, Phase: Close, AgentID: "agent_01", AgentType: "frank-exchange-of-views:red-lens-evidence", TranscriptPath: ""}, &forSeat); err != nil {
 		t.Fatal(err)
 	}
 	if forSeat.Len() != 0 {
@@ -101,7 +101,7 @@ func TestAnUnreadableListSaysSoRatherThanReadingEmpty(t *testing.T) {
 	t.Cleanup(func() { seatRoleOf = prev })
 
 	var forSeat bytes.Buffer
-	if err := Write(dir, Open, "agent_01", "frank-exchange-of-views:red-lens-evidence", "", &forSeat); err != nil {
+	if err := Write(Sitting{RunDir: dir, Phase: Open, AgentID: "agent_01", AgentType: "frank-exchange-of-views:red-lens-evidence", TranscriptPath: ""}, &forSeat); err != nil {
 		t.Fatal(err)
 	}
 	out := forSeat.String()

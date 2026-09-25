@@ -1919,11 +1919,53 @@ message SittingOpen {
   // them, and a reader that needs the binding should not have to join through a register the seat
   // may never write.
   optional string seat_id = 3;
+
+  // WHERE THIS SEAT SPOKE. session_id and prompt_id come off the SubagentStart payload, which has
+  // carried both all along; nothing recorded them, so "which conversation was this sitting in" was
+  // answerable only by globbing the filesystem.
+  //
+  // PER SITTING AND NOT ON THE CAST, and the difference is a resumed run. A run outlives the
+  // session that started it — the run directory survives a resume, the session does not — so a
+  // session id written once at setup would be silently wrong for every sitting after the resume,
+  // which is the case that already bites hardest (#1111). Repeated per sitting it costs a short
+  // string ~38 times and cannot go stale.
+  //
+  // WHAT IT BUYS: the bench's integrity inspection reads seat trajectories, and the path reaches it
+  // today only as prose interpolated into its prompt from an argument THE OPERATOR MUST SUPPLY —
+  // so the duty silently does nothing on every run where they did not. With this the trajectory is
+  // a join on the record instead of a path in a sentence.
+  optional string session_id = 4;
+
+  // prompt_id is the DISPATCH's identity, and it is the one thing here the record could not
+  // already express. agent_id names the agent, and a re-prompted agent keeps it; prompt_id changes.
+  // So "how many times was this seat asked" is answerable, which is exactly what a resumed dispatch
+  // makes ambiguous today.
+  optional string prompt_id = 5;
 }
 
 message SittingClose {
   optional string agent_id = 1;
   optional string agent_type = 2;
+
+  // THE SEAT'S OWN TRANSCRIPT, WHICH ONLY THIS END IS TOLD. SubagentStop carries
+  // agent_transcript_path — the child conversation, at
+  // <projects>/<slug>/<session>/subagents/[workflows/wf_*/]agent-<agent_id>.jsonl — and this
+  // process ALREADY RECEIVES it: sittingwrite parses it for the turn ingest and then discards the
+  // path. Recording it turns "find this seat's trajectory" from a glob over two possible layouts
+  // into a column.
+  //
+  // IT IS THE EXACT PATH RATHER THAN A DERIVATION. The layout has two shapes — a plain subagent
+  // sits under `subagents/`, one dispatched by the Workflow tool under
+  // `subagents/workflows/wf_<id>/` — so a reader reconstructing it from session_id and agent_id
+  // must guess which, and a guess that misses returns "no trajectory", which reads exactly like a
+  // seat that never ran.
+  optional string agent_transcript_path = 3;
+
+  // The same two, for the same reason as on the opening end: a sitting whose ends fall in different
+  // sessions is a resumed run, and the record should be able to say so rather than leave a reader
+  // to infer it.
+  optional string session_id = 4;
+  optional string prompt_id = 5;
 }
 
 // SittingLimit is a seat's sitting stopped at the run's per-sitting tool-call limit (the run term

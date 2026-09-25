@@ -15,7 +15,7 @@ import (
 func TestBothEndsOfASpanLand(t *testing.T) {
 	run := newRun(t)
 	for _, p := range []Phase{Open, Close} {
-		if err := Write(run, p, "agent_01", "frank-exchange-of-views:lead-judge", "", nil); err != nil {
+		if err := Write(Sitting{RunDir: run, Phase: p, AgentID: "agent_01", AgentType: "frank-exchange-of-views:lead-judge", TranscriptPath: ""}, nil); err != nil {
 			t.Fatalf("writing the %s end: %v", p, err)
 		}
 	}
@@ -30,7 +30,7 @@ func TestBothEndsOfASpanLand(t *testing.T) {
 // seat-shaped id here would be a guess written into a permanent record.
 func TestTheSpanIsAttributedToTheHookAndCarriesTheAgent(t *testing.T) {
 	run := newRun(t)
-	if err := Write(run, Open, "agent_42", "frank-exchange-of-views:red-auditor", "", nil); err != nil {
+	if err := Write(Sitting{RunDir: run, Phase: Open, AgentID: "agent_42", AgentType: "frank-exchange-of-views:red-auditor", TranscriptPath: ""}, nil); err != nil {
 		t.Fatal(err)
 	}
 	m, err := record.MergedEvents(mustRun(t, run))
@@ -63,7 +63,7 @@ func TestTheSpanIsAttributedToTheHookAndCarriesTheAgent(t *testing.T) {
 // permanent record that joins to nothing.
 func TestASpanWithNoIdentityIsRefused(t *testing.T) {
 	run := newRun(t)
-	err := Write(run, Open, "", "", "", nil)
+	err := Write(Sitting{RunDir: run, Phase: Open, AgentID: "", AgentType: "", TranscriptPath: ""}, nil)
 	if err == nil {
 		t.Fatal("a sitting with no agent identity was written")
 	}
@@ -73,7 +73,7 @@ func TestASpanWithNoIdentityIsRefused(t *testing.T) {
 }
 
 func TestAnUnknownPhaseIsRefused(t *testing.T) {
-	if err := Write(newRun(t), Phase("middle"), "a", "b", "", nil); err == nil {
+	if err := Write(Sitting{RunDir: newRun(t), Phase: Phase("middle"), AgentID: "a", AgentType: "b", TranscriptPath: ""}, nil); err == nil {
 		t.Fatal("a third end of a two-ended span was accepted")
 	}
 }
@@ -135,7 +135,7 @@ func writeTranscript(t *testing.T, body string) string {
 // it — the live dashboard above all.
 func TestCloseIngestsTheSeatsTurns(t *testing.T) {
 	run := newRun(t)
-	if err := Write(run, Close, "AG", "frank-exchange-of-views:red-auditor", writeTranscript(t, oneTurn), nil); err != nil {
+	if err := Write(Sitting{RunDir: run, Phase: Close, AgentID: "AG", AgentType: "frank-exchange-of-views:red-auditor", TranscriptPath: writeTranscript(t, oneTurn)}, nil); err != nil {
 		t.Fatal(err)
 	}
 	r, err := record.NewRun(run)
@@ -151,7 +151,7 @@ func TestCloseIngestsTheSeatsTurns(t *testing.T) {
 // there would be reading the PREVIOUS sitting's.
 func TestOpenIngestsNothing(t *testing.T) {
 	run := newRun(t)
-	if err := Write(run, Open, "AG", "frank-exchange-of-views:red-auditor", writeTranscript(t, oneTurn), nil); err != nil {
+	if err := Write(Sitting{RunDir: run, Phase: Open, AgentID: "AG", AgentType: "frank-exchange-of-views:red-auditor", TranscriptPath: writeTranscript(t, oneTurn)}, nil); err != nil {
 		t.Fatal(err)
 	}
 	r, _ := record.NewRun(run)
@@ -164,7 +164,7 @@ func TestOpenIngestsNothing(t *testing.T) {
 // perfectly good span write look like a failure — the span is this process's reason to exist.
 func TestAnUnreadableTranscriptDoesNotFailTheSpan(t *testing.T) {
 	run := newRun(t)
-	if err := Write(run, Close, "AG", "frank-exchange-of-views:red-auditor", "/nonexistent/agent.jsonl", nil); err != nil {
+	if err := Write(Sitting{RunDir: run, Phase: Close, AgentID: "AG", AgentType: "frank-exchange-of-views:red-auditor", TranscriptPath: "/nonexistent/agent.jsonl"}, nil); err != nil {
 		t.Errorf("an unreadable transcript failed the span write: %v", err)
 	}
 	r, _ := record.NewRun(run)
@@ -177,7 +177,84 @@ func TestAnUnreadableTranscriptDoesNotFailTheSpan(t *testing.T) {
 // one; its absence is not a fault.
 func TestCloseWithoutATranscriptIsFine(t *testing.T) {
 	run := newRun(t)
-	if err := Write(run, Close, "AG", "frank-exchange-of-views:red-auditor", "", nil); err != nil {
+	if err := Write(Sitting{RunDir: run, Phase: Close, AgentID: "AG", AgentType: "frank-exchange-of-views:red-auditor", TranscriptPath: ""}, nil); err != nil {
 		t.Errorf("a close with no transcript errored: %v", err)
+	}
+}
+
+// THE RECORD KNOWS WHERE THE SEAT SPOKE.
+//
+// The hook is handed session_id, prompt_id and — at the closing end — the seat's OWN transcript
+// path, and recorded none of them. "Which conversation was this sitting in" was answerable only by
+// globbing the filesystem across two possible layouts, and the bench's integrity inspection got the
+// path as prose interpolated into its prompt from an argument the operator had to supply.
+//
+// ABSENT IS A REAL ANSWER AND IS STORED AS ABSENT. A payload that carried no session id must not be
+// recorded as `""`, because a reader cannot tell an empty conversation id from one nobody sent.
+func TestTheSpanRecordsTheConversationItHappenedIn(t *testing.T) {
+	run := newRun(t)
+	const (
+		sess  = "ab802afa-997d-4493-bbd9-5c31685767eb"
+		promp = "e353381b-5bfa-4640-a381-b2b76bdac383"
+		tpath = "/p/-slug/ab802afa/subagents/workflows/wf_6bf981c5-896/agent-a5280059b8b60e1f7.jsonl"
+	)
+	if err := Write(Sitting{RunDir: run, Phase: Open, AgentID: "a5280059b8b60e1f7",
+		AgentType: "frank-exchange-of-views:red-lens-voice", SessionID: sess, PromptID: promp}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := Write(Sitting{RunDir: run, Phase: Close, AgentID: "a5280059b8b60e1f7",
+		AgentType: "frank-exchange-of-views:red-lens-voice", TranscriptPath: tpath,
+		SessionID: sess, PromptID: promp}, nil); err != nil {
+		t.Fatal(err)
+	}
+	m, err := record.MergedEvents(mustRun(t, run))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sawOpen, sawClose bool
+	for _, e := range m.Events {
+		if o := e.GetSittingOpen(); o != nil {
+			sawOpen = true
+			if o.GetSessionId() != sess || o.GetPromptId() != promp {
+				t.Errorf("the opening end lost the conversation: session=%q prompt=%q", o.GetSessionId(), o.GetPromptId())
+			}
+		}
+		if cl := e.GetSittingClose(); cl != nil {
+			sawClose = true
+			// THE EXACT PATH, not a derivation: the two layouts (`subagents/` and
+			// `subagents/workflows/wf_*/`) cannot be told apart from session and agent alone, and a
+			// reconstruction that guesses wrong returns no trajectory — which reads as a seat that
+			// never ran.
+			if cl.GetAgentTranscriptPath() != tpath {
+				t.Errorf("the closing end lost the seat's own transcript: %q", cl.GetAgentTranscriptPath())
+			}
+			if cl.GetSessionId() != sess || cl.GetPromptId() != promp {
+				t.Errorf("the closing end lost the conversation: session=%q prompt=%q", cl.GetSessionId(), cl.GetPromptId())
+			}
+		}
+	}
+	if !sawOpen || !sawClose {
+		t.Fatalf("want both ends on the record, got open=%v close=%v", sawOpen, sawClose)
+	}
+}
+
+// A PAYLOAD THAT CARRIED NOTHING RECORDS NOTHING, so a reader can tell "the harness did not say"
+// from "the conversation has no id". Empty strings written as values would collapse the two.
+func TestAnAbsentConversationIsAbsentAndNotEmpty(t *testing.T) {
+	run := newRun(t)
+	if err := Write(Sitting{RunDir: run, Phase: Open, AgentID: "a1",
+		AgentType: "frank-exchange-of-views:red-lens-voice"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	m, err := record.MergedEvents(mustRun(t, run))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range m.Events {
+		if o := e.GetSittingOpen(); o != nil {
+			if o.SessionId != nil || o.PromptId != nil {
+				t.Errorf("an unsent conversation was recorded as a value: session=%v prompt=%v", o.SessionId, o.PromptId)
+			}
+		}
 	}
 }

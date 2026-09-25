@@ -171,10 +171,17 @@ const steelmanClause = ` STEELMAN DUTY: read the exploration space via the \`lin
 // produce its own evidence propagates the lie, and letting parties demand
 // inspection of each other encourages fabrication. So the bench reads directly.
 //
-// Available only when the operator supplies transcriptDir, which is knowable
-// after launch rather than at dispatch (the directory is created by the run) —
-// so this arms on a RESUME, and every run is reconciled post-hoc at capture
-// regardless.
+// Available only when the operator supplies transcriptDir, so this arms on a
+// RESUME, and every run is reconciled post-hoc at capture regardless.
+//
+// THE REASON IT IS OPERATOR-SUPPLIED NO LONGER HOLDS. This said the directory is
+// "knowable after launch rather than at dispatch". It is knowable at dispatch:
+// the SubagentStart payload carries session_id and the Stop payload carries
+// agent_transcript_path — the seat's own conversation — and since epoch 14 both
+// are on the record, so the trajectory is a JOIN rather than a path a human has
+// to hand in. Wiring the bench to read it from there is what removes this
+// argument and this interpolation; until then the clause stays as it is, because
+// a prompt that names a directory nobody supplied points at nothing.
 //
 // TWO CONSTRAINTS make this oversight rather than surveillance. The looking need
 // not be on the record, but the FINDING must be: what the bench relies on is
