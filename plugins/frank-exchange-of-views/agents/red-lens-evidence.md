@@ -188,7 +188,7 @@ Available Commands:
   log          an entry for the operator who can retool you — what it asserts, said in the positive
   mint         turn lens findings into a graded gap on the board, when a defect is real and belongs there
   near-match   screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
-  register     your first act in any sitting you record something in, and the one call that needs your seat id
+  register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
   regrade      move a grade on a gap that already exists, with the reason it moved
   render-page  draw one page of a cached PDF, to check a citation of OCR text against the page's pixels
   reproduce    re-run a recorded computation and judge whether it proves the sentence it is attached to
@@ -674,7 +674,7 @@ Flags:
 (Global Flags:) → SHARED §2
 ==============================================================================
 $ feov-record register --help
-your first act in any sitting you record something in, and the one call that needs your seat id
+NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
 
 It binds your seat to you on the record: every later call resolves it, and your run is injected on every call, so you type neither again.
 
@@ -815,7 +815,7 @@ THE BOARD — open and closed gaps with grades, closures, anchors, observations 
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §22
 
-OUTPUT (JSON): {open:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location,passage,about_kind,about_ref,minted_location,location_edits:[{epoch,edited_by,old,new}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],closed:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location,passage,about_kind,about_ref,minted_location,location_edits:[{epoch,edited_by,old,new}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],observations:[{id,seat_id,key,kind,label,text,credited}],counts:{open,closed,closed_by_bench,uncredited_findings,anomalies,total_observations,citations,citations_authored},anomalies:[string]}
+OUTPUT (JSON): {open:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],minted_location,location_edits:[{epoch,edited_by,old,new}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],closed:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],minted_location,location_edits:[{epoch,edited_by,old,new}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],observations:[{id,seat_id,key,kind,label,text,credited}],counts:{open,closed,closed_by_bench,uncredited_findings,anomalies,total_observations,citations,citations_authored},anomalies:[string]}
 
 Usage:
   feov-record show board [flags]
@@ -857,7 +857,7 @@ Every lens finding on the record (label, seat, epoch, role, grades, location, te
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §22
 
-OUTPUT (JSON): {findings:[{label,anchor,seat_id,epoch,role,severity,likelihood,impact,location,about_kind,about_ref,text,minted_as:[string]}],counts:{total}}
+OUTPUT (JSON): {findings:[{label,anchor,seat_id,epoch,role,severity,likelihood,impact,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],text,minted_as:[string]}],counts:{total}}
 
 Usage:
   feov-record show findings [flags]
@@ -906,7 +906,7 @@ Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_wit
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §22
 
-OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}],last_sitting:{kind,pin,head}},open:[{id,severity,likelihood,impact,complexity_cost,class,location,passage,about_kind,about_ref,edited_since:[{epoch,edited_by,old,new}],problem_synopsis,check_kind,awaiting_proof,awaiting_docket,docket_reopens_on,found_by:[string],material}],estopped:[{id,location,about_kind,about_ref,class,fate,closed_by,artifact_state}],counts:{open,estopped},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
+OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}],last_sitting:{kind,pin,head}},open:[{id,severity,likelihood,impact,complexity_cost,class,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],edited_since:[{epoch,edited_by,old,new}],problem_synopsis,check_kind,awaiting_proof,awaiting_docket,docket_reopens_on,found_by:[string],material}],estopped:[{id,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],class,fate,closed_by,artifact_state}],counts:{open,estopped},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
 
 Usage:
   feov-record show work [flags]

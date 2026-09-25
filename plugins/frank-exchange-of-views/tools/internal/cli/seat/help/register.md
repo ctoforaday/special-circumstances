@@ -1,6 +1,6 @@
 ## menu
 
-your first act in any sitting you record something in, and the one call that needs your seat id
+NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
 
 ## detail
 
