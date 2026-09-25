@@ -245,9 +245,18 @@ the old ones; what moved is what the verb demands before it will answer.
   on it to mistype — and must know to add `--seat-id operator`. All three commands
   the skill gave (setup, capture, the dashboard watcher) carried the omission,
   and `seatenv/identity.go` still said the empty id "builds the operator tree".
+- **Instance, and it is not agent-facing**: `#1162` widened the work list's
+  assembler to take a gap's verification backing, and left a one-line overload
+  that passed nil. The only live caller of the overload was `WorkJSONBytes` — the
+  SEAT's read — so the feature reached the consistency oracle and no seat at all,
+  with the feature's own test driving `WorkJSONOfRun` and passing. **A convenience
+  overload of a widened signature is a caller that cannot be swept by name**: it
+  satisfies the new contract syntactically, with the old value.
 - **Sweep question**: which other surfaces script this verb, and does each call
   satisfy the requirement the contract gained — including the comments that
-  describe the old behaviour?
+  describe the old behaviour? For a widened FUNCTION: does any overload still
+  supply the old default, and is the new argument reached from the call the
+  consumer actually makes?
 - **Neighbour**: `port-retarget` — there the RUNTIME moved and the caller names
   the old one; here the runtime is right and demands more than the caller gives.
 
