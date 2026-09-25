@@ -243,7 +243,7 @@ func OpenAccessCandidates(f Fetcher, doi string) (locs []string, facts WorkFacts
 	}
 	seen := map[string]bool{}
 	var pdfs, pages []string
-	add := func(u string, isPDF bool) {
+	add2 := func(u string, isPDF bool) {
 		u = strings.TrimSpace(u)
 		// A doi.org url is an identifier, not a copy: following it returns to the publisher this
 		// lookup exists to get around.
@@ -256,6 +256,22 @@ func OpenAccessCandidates(f Fetcher, doi string) (locs []string, facts WorkFacts
 			return
 		}
 		pages = append(pages, u)
+	}
+	// EVERY PMC URL AN INDEX NAMES IS EXPANDED INTO THE ROUTES THAT SERVE A MACHINE. The
+	// identifier is the valuable part; the host the index chose to spell it with is not.
+	pmcSeen := map[string]bool{}
+	add := func(u string, isPDF bool) {
+		u = strings.TrimSpace(u)
+		if id, routes := PMCRoutes(u); id != "" && !pmcSeen[id] {
+			pmcSeen[id] = true
+			if k := pmcOpenAccessPDF(f, id); k != "" {
+				add2(k, true)
+			}
+			for _, r := range routes {
+				add2(r, true)
+			}
+		}
+		add2(u, isPDF)
 	}
 
 	// THE WHOLE RECORD, NOT ONE FIELD OF IT. openAlexWork reads the work's own facts — retracted,

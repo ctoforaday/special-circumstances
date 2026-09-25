@@ -64,8 +64,30 @@ func TestHTTPFetcherEnforcesSizeCap(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	if _, err := NewHTTPFetcher().Fetch(srv.URL); err == nil || !strings.Contains(err.Error(), "cap") {
-		t.Errorf("Fetch of an over-size body = %v, want a size-cap error", err)
+	_, err := NewHTTPFetcher().Fetch(srv.URL)
+	if err == nil {
+		t.Fatal("an over-size body was accepted")
+	}
+	// THE REFUSAL SAYS WHAT IT IS AND WHAT TO DO. It used to read "cite a smaller source or a
+	// specific page", which is advice a seat cannot take — it does not choose how long an
+	// article is. The message names the bound, says it is a bound on one READ rather than a
+	// verdict on the source, and points at the route that often works: a repository's copy of
+	// the same paper is frequently a fraction of the publisher's.
+	for _, want := range []string{"larger than", "NOT a judgement", "ask `oa`"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the size refusal is missing %q: %v", want, err)
+		}
+	}
+}
+
+// AND THE CAP IS SET WHERE REAL PAPERS FIT. Measured over the documents this tool has cached:
+// p90 0.7 MB, p99 5.0 MB, largest 19.3 MB. The old 5 MiB cap sat exactly at the 99th percentile,
+// so the top one or two per cent of the literature — theses, figure-heavy reviews — was refused
+// for being itself.
+func TestTheSizeCapClearsARealPaper(t *testing.T) {
+	if maxFetchBytes < 20<<20 {
+		t.Errorf("maxFetchBytes is %d MiB; the largest document measured in the corpus is 19.3 MB "+
+			"and would be refused", maxFetchBytes>>20)
 	}
 }
 

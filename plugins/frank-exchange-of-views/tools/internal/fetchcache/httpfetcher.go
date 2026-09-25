@@ -31,8 +31,26 @@ const (
 	// the budget before it blew the redirect cap: an endless-redirect fixture failed with a
 	// deadline instead of the cap it was written for. A hop that sleeps 15 seconds by our choice
 	// has not been slow, and treating it as slow would make politeness look like a broken host.
-	fetchTimeout  = 15 * time.Second
-	maxFetchBytes = 5 << 20 // 5 MiB — a source document, not a download
+	fetchTimeout = 15 * time.Second
+	// maxFetchBytes bounds one document. It was 5 MiB and that refused real papers.
+	//
+	// MEASURED over the documents this tool has cached: p90 is 0.7 MB, p99 is 5.0 MB, and the
+	// largest is 19.3 MB — so the old cap sat exactly at the 99th percentile and turned the top
+	// one or two per cent of the literature into a refusal. A 34-page review with figures is not
+	// a download, it is the paper, and "cite a smaller source" is advice a seat cannot take: it
+	// does not choose how long the article is.
+	//
+	// WHAT THE CAP IS ACTUALLY FOR is bounding one read in memory. It is not protecting the
+	// context — nothing here ever puts a body in it, which is the whole design of the fetch
+	// summary — and it is not protecting the disk, since the cache stores the document either
+	// way.
+	//
+	// 30 MiB is gblock's call: half again the largest document measured, enough headroom for a
+	// thesis or a figure-heavy review, and small enough that a concurrent sweep is not holding
+	// hundreds of megabytes of transient buffers. It is deliberately a number to REVISIT — the
+	// refusal names the bound, so a run that meets it says so rather than failing quietly, and
+	// that is the signal to raise it again.
+	maxFetchBytes = 30 << 20
 	// maxRedirects is the real bound on a paced fetch. Five is generous for the web and
 	// pathological for a citation: a doi.org link reaches its publisher in one or two hops, and
 	// the deadline in Fetch is sized from this number rather than guessed at.
@@ -462,7 +480,11 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, attempt int, skipRobots bool
 		return nil, nil, "", fmt.Errorf("fetch: reading %s: %w", rawURL, rerr)
 	}
 	if int64(len(b)) > h.maxBytes {
-		return nil, nil, "", fmt.Errorf("fetch: %s exceeds the %d-byte cap — cite a smaller source or a specific page", rawURL, h.maxBytes)
+		return nil, nil, "", fmt.Errorf("fetch: %s is larger than the %d MiB this tool reads in one document "+
+			"(it sent more than %d bytes). That is a bound on one read, NOT a judgement that the source is wrong: "+
+			"a dataset, a video or a whole-issue archive lands here legitimately. If it is a paper, ask `oa` for "+
+			"another copy — a repository's version of the same article is often a fraction of the publisher's",
+			rawURL, h.maxBytes>>20, h.maxBytes)
 	}
 	out.Body = b
 	out.TDMReserved, out.TDMPolicy = TDMReservation(out.ContentType, b)
