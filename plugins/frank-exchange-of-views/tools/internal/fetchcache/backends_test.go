@@ -964,9 +964,9 @@ func TestARefusedOpenAccessCopyIsSoughtInTheArchive(t *testing.T) {
 // answers a challenge. Demoting that host was right; throwing the identifier away with it was not.
 func TestAPMCIdentifierIsExpandedIntoRoutesThatServeAMachine(t *testing.T) {
 	for _, shape := range []string{
-		"https://www.ncbi.nlm.nih.gov/pmc/articles/3929010",   // legacy, numeric, no prefix
-		"https://pmc.ncbi.nlm.nih.gov/articles/PMC3929010/",   // canonical
-		"http://europepmc.org/pmc/articles/PMC3929010",        // Europe PMC's spelling
+		"https://www.ncbi.nlm.nih.gov/pmc/articles/3929010", // legacy, numeric, no prefix
+		"https://pmc.ncbi.nlm.nih.gov/articles/PMC3929010/", // canonical
+		"http://europepmc.org/pmc/articles/PMC3929010",      // Europe PMC's spelling
 	} {
 		id, routes := PMCRoutes(shape)
 		if id != "PMC3929010" {
