@@ -189,9 +189,10 @@ F="${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh"; if [ -f "$F" ]; then exec sh "$F" 
 
 The existence check keeps a root without the script (CI's empty root, a damaged cache) on an
 exit-0 path that writes to stderr only. Built differently from the round-2 text, which had this
-fallback print a `systemMessage` on every event: FEOV's hooks/README.md records that a
-SubagentStart/Stop hook that talks re-invokes the seat (nine firings measured), and the fallback
-cannot tell its event apart without the script. A root with `hooks.json` but no `fetch-bin.sh`
+fallback print a `systemMessage` on every event: FEOV's hooks/README.md records that a SubagentStop
+hook that talks re-invokes the seat (nine firings measured), and the fallback cannot tell its event
+apart without the script — so it must stay silent on every event rather than know which one it is
+safe on. A root with `hooks.json` but no `fetch-bin.sh`
 cannot come from an install; both ship in the same tree. `fetchbingen -check` fails when a guard's `<Event>` differs from the event
 key it sits under, or when a guard does not reference `fetch-bin.sh` — the literal is a copy of
 the key, and a copy-paste slip would silently move a guard out of the displaying set.

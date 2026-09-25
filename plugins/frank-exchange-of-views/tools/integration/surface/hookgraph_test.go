@@ -98,9 +98,15 @@ var hookLocalPackages = map[string][]string{
 	"./cmd/feov-subagentstart": {
 		"internal/feov", "internal/seatenv", "internal/hookgate", "internal/runlive", "internal/hookcmd",
 		"internal/sittinghook", "internal/buildid", "internal/sittingcap",
-		// hookfailures, for the reason and at the cost stated under feov-pretooluse. These two may
-		// never SPEAK — an emission re-invokes the seat — so they only record, and the next tool call
-		// the seat makes says it.
+		// hookfailures, for the reason and at the cost stated under feov-pretooluse. A FAILURE here
+		// cannot be said where it happened — this event displays nothing to a human — so it is
+		// recorded and the next tool call the seat makes says it. Which is a separate channel from
+		// the work list this event injects (#1122): one goes to the human, the other to the seat.
+		//
+		// internal/record IS NOT HERE AND MUST NOT BE. The injected work list is rendered by the
+		// spawned writer, which already carries the record; linking it into the hook would pay a
+		// SQLite driver's init() at every main-agent turn end in every session — 3.555 ms and
+		// 13.06 MB against 1.189 ms and 2.94 MB, measured on this binary.
 		"internal/hookfailures",
 	},
 	"./cmd/feov-subagentstop": {

@@ -73,8 +73,10 @@ type Entry func(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) e
 // beside a permission document is not a response, and a decision is never risked for a message: a
 // document Run cannot decode goes out exactly as the entry wrote it.
 //
-// SubagentStart and SubagentStop display nothing, so Settle returns "" and nothing is added — which
-// keeps them mute, as they must be (an emission re-invokes the seat).
+// SubagentStart and SubagentStop display nothing TO A HUMAN, so Settle returns "" and no
+// systemMessage is added. That is not the same as muteness: SubagentStart's document is how a seat's
+// work list reaches it (#1122), and only SubagentStop must stay silent outright — an emission there
+// re-invokes the seat, nine firings measured.
 func Run(bin, event string, f Entry, stdin io.Reader, stdout io.Writer) (code int) {
 	rec := hookfailures.New("frank-exchange-of-views", bin, event, time.Now(), os.Stderr)
 	var buf bytes.Buffer

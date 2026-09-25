@@ -66,31 +66,27 @@ func payload(t *testing.T, agentID, agentType, cwd string) *strings.Reader {
 	return strings.NewReader(string(b))
 }
 
-// THE SILENCE IS THE CONTRACT. A SubagentStop hook that emits anything re-invokes the seat and
-// fires again — nine firings for one seat in the measured case, the returned context discarded
-// every time (plans/hook-surface-spike.md §10). This keeps a well-meaning "tell the seat what we
-// recorded" from turning one event into nine.
-func TestTheSittingHooksEmitNothing(t *testing.T) {
+// SubagentStop's SILENCE IS THE CONTRACT, AND IT IS ITS ALONE. A Stop hook that emits anything
+// re-invokes the seat and fires again — nine firings for one seat in the measured case, the returned
+// context discarded every time (plans/hook-surface-spike.md §10). This keeps a well-meaning "tell the
+// seat what we recorded" from turning one event into nine.
+//
+// THE GATE USED TO COVER BOTH ENDS, WHICH STATED A MEASUREMENT OF ONE EVENT AS A LAW OF TWO. §10
+// measured the opposite on Start in the same run: one firing, the marker delivered to the SEAT's
+// context. Start's own contract is asserted by TestStartSpeaksTheSeatsWorkListAndNothingElse.
+func TestSubagentStopEmitsNothing(t *testing.T) {
 	got := capture(t)
 	cwd, _ := liveRun(t)
-	for _, tc := range []struct {
-		name string
-		fn   func(*strings.Reader, *bytes.Buffer) error
-	}{
-		{"Start", func(r *strings.Reader, w *bytes.Buffer) error { return Start(r, w, testRecorder()) }},
-		{"Stop", func(r *strings.Reader, w *bytes.Buffer) error { return Stop(r, w, testRecorder()) }},
-	} {
-		var out bytes.Buffer
-		if err := tc.fn(payload(t, "agent_01", "frank-exchange-of-views:red-auditor", cwd), &out); err != nil {
-			t.Fatalf("%s returned an error; a hook must not fail on an event the seat cannot see: %v", tc.name, err)
-		}
-		if out.Len() != 0 {
-			t.Errorf("%s wrote %q to stdout — an emission re-invokes the seat and the event fires nine times",
-				tc.name, out.String())
-		}
+	var out bytes.Buffer
+	if err := Stop(payload(t, "agent_01", "frank-exchange-of-views:red-auditor", cwd), &out, testRecorder()); err != nil {
+		t.Fatalf("Stop returned an error; a hook must not fail on an event the seat cannot see: %v", err)
 	}
-	if len(*got) != 2 {
-		t.Errorf("want both ends handed to the writer, got %d", len(*got))
+	if out.Len() != 0 {
+		t.Errorf("Stop wrote %q to stdout — an emission re-invokes the seat and the event fires nine times",
+			out.String())
+	}
+	if len(*got) != 1 {
+		t.Errorf("want the closing end handed to the writer, got %d", len(*got))
 	}
 }
 

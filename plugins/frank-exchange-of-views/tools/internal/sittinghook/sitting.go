@@ -108,23 +108,26 @@ type sittingInput struct {
 
 // Start records the moment the harness dispatched an agent.
 //
-// IT WRITES NOTHING TO STDOUT, and that is load-bearing rather than minimal. §10 of the hook
-// surface spike measured what an emission costs on the sibling event: a SubagentStop hook
-// returning additionalContext re-invoked the seat, its turn ended, the hook fired again — NINE
-// firings for one seat, the returned context discarded every time. Under a log-only hook the same
-// launch fires exactly once. An observation hook that starts talking turns one event into nine.
+// IT WRITES NOTHING TO STDOUT TODAY, AND THAT IS A CHOICE RATHER THAN A CONSTRAINT. The nine-firing
+// loop §10 of the hook surface spike measured is SubagentStop's: an emission there re-invoked the
+// seat, its turn ended, the hook fired again, and the returned context was discarded every time.
+// THIS EVENT IS THE OPPOSITE RESULT in the same section — one firing, and the marker arrives in the
+// SEAT's own context. Verified three times now: #500 and #507, and again 2026-09-25, where the
+// injected marker landed as a hook_additional_context attachment on the seat's transcript and the
+// seat returned it verbatim. So this is a per-seat injection channel, and #1122 is what uses it.
 func Start(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 	return handoff(stdin, phaseOpen, rec)
 }
 
-// Stop records the moment that agent returned. Silent for the reason above — and here the
-// measurement is of this very event rather than an analogy to it.
+// Stop records the moment that agent returned, and MUST stay silent — here the measurement is of
+// this very event: nine firings for one seat, nothing delivered anywhere.
 func Stop(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 	return handoff(stdin, phaseClose, rec)
 }
 
-// The stages a sitting hook can fail at. NEITHER of its events displays anything, and neither may
-// speak (an emission re-invokes the seat), so each waits on the record for FEOV's only displaying
+// The stages a sitting hook can fail at. NEITHER of its events displays anything TO A HUMAN, which
+// is a different question from whether either may speak to the SEAT: SubagentStart may and
+// SubagentStop may not. A failure here therefore waits on the record for FEOV's only displaying
 // event — PreToolUse — which a seat's very next tool call fires.
 const (
 	StageInput         hookfailures.Stage = "sitting-input"
