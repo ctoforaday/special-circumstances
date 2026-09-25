@@ -1058,8 +1058,6 @@ func WorkJSONOfRun(run Run) (WorkJSON, error) {
 	return workJSONOfGaps(gaps, 0, backingOf(m.Events)), nil
 }
 
-// WorkJSONBytes renders the work list as indented JSON (a seat reads it in a terminal
-// transcript), mirroring BoardJSONBytes.
 // counterpartyOf counts what the OTHER party has done, so a seat can tell "not yet" from "not
 // coming". See CounterpartyJSON for the seat testimony that produced it.
 //
@@ -1117,23 +1115,36 @@ func epochOfSeatOnBoard(evs []*Event, seatID string) int {
 	return r
 }
 
-func WorkJSONBytes(run Run, role, seatID string) ([]byte, error) {
+// WorkOfSeat is the work list a seat reads, as the struct. WorkJSONBytes renders THIS, so a caller
+// that wants a field off the list asks the same computation `show work` prints rather than folding
+// the record a second time — and the two cannot then tell a seat different things.
+func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	// The stream through the loader (no fold), the gap facts off the view.
 	m, err := MergedEvents(run)
 	if err != nil {
-		return nil, err
+		return WorkJSON{}, err
 	}
 	gaps, err := workGapStatesOfRun(run, m.Events)
 	if err != nil {
-		return nil, err
+		return WorkJSON{}, err
 	}
 	ids, err := eventIDsOfRun(run)
 	if err != nil {
-		return nil, err
+		return WorkJSON{}, err
 	}
 	w := workJSONOfGaps(gaps, epochOfSeatOnBoard(m.Events, seatID)-1, backingOf(m.Events))
 	w.Sitting = SittingOf(m.Events, ids, gaps, role, seatID)
 	w.Counterparty = counterpartyOf(m.Events, role, epochOfSeatOnBoard(m.Events, seatID))
+	return w, nil
+}
+
+// WorkJSONBytes renders the work list as indented JSON (a seat reads it in a terminal transcript),
+// mirroring BoardJSONBytes.
+func WorkJSONBytes(run Run, role, seatID string) ([]byte, error) {
+	w, err := WorkOfSeat(run, role, seatID)
+	if err != nil {
+		return nil, err
+	}
 	out, err := json.MarshalIndent(w, "", "  ")
 	if err != nil {
 		return nil, err

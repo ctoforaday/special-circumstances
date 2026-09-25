@@ -930,6 +930,14 @@ caused by the emission, as it was for `Stop`, and is not a property of the event
   own context and the wrong shape for anything about the parent's note.
 - **`stop_hook_active` is present and correct on `SubagentStop`**, so a guard could break the loop —
   but there is nothing to guard, because nothing arrives.
+- **NO EVENT INJECTS AT TURN 0 OF A *RE-PROMPTED* SUBAGENT (measured 2026-09-25).** `SubagentStart`
+  fires once per DISPATCH, so a seat the engine re-prompts rather than dispatching afresh receives
+  nothing. `UserPromptSubmit` is the obvious candidate and is refuted: in a scratch project with both
+  hooks registered and one subagent launched, `SubagentStart`'s marker landed in the SEAT's
+  transcript as a `hook_additional_context` attachment while `UserPromptSubmit` fired **once and
+  delivered to the PARENT** — it is the main session's prompt channel and does not reach a subagent
+  at all. So per-invocation injection into a seat is available for a fresh dispatch and for nothing
+  else, and anything a resumed seat needs it must ask for (see #1111, #1122).
 
 **Keep the loop in proportion: it is cycle detection, and it is cheap.** Nine firings is the
 *unguarded* case, which no design here proposes — `checkpoint-freshness.md` F10 already requires

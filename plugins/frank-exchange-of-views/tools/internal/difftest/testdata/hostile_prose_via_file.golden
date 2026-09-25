@@ -8,6 +8,8 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
+  · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 $ register --run {RUN} --seat-id red-lens-evidence
 exit 0
@@ -19,6 +21,7 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ position --run {RUN} --seat-id red-chair --reason quotes " ' `backtick` $(subshell) ${var}
 newline	tab
@@ -29,6 +32,9 @@ backslash \ and \n literal
 exit 0
 stdout:
 position recorded [key red-chair:position:#1]
+2 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
+  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 $ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --reason quotes " ' `backtick` $(subshell) ${var}
 newline	tab
@@ -41,6 +47,8 @@ stdout:
 minted G1
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
+  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 $ finding --run {RUN} --seat-id red-lens-logic --key F1 --severity low --likelihood low --impact low --quote ## S2 --reason quotes " ' `backtick` $(subshell) ${var}
 newline	tab
@@ -51,6 +59,8 @@ backslash \ and \n literal
 exit 0
 stdout:
 finding recorded: logic-F1 — the run-unique label a gap's found_by names (id FINDING001)
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
+  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}

@@ -1695,6 +1695,8 @@ Flags:
 ── correction target: the lens regrades G1
 exit 0
 regraded G1 [key red-lens-evidence:regrade:#1:G1]
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
+  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 ── correction without a why
 exit 2
@@ -1803,10 +1805,14 @@ exit 0
 minted G2
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
+  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 ── reliance target: the lens regrades G2
 exit 0
 regraded G2 [key red-lens-evidence:regrade:#1:G2]
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
+  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 ── reliance: another seat acts
 exit 0
@@ -1817,6 +1823,10 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+3 STILL TO CLEAR before you may end your turn (of 5 item(s) open to you):
+  · gap G1 is open and material — PASS is refused while it is
+  · gap G2 is open and material — PASS is refused while it is
+  · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 ── correction after another seat has acted
 exit 2
@@ -1825,6 +1835,8 @@ feov-record: lens: record: another seat has acted since this regrade (event 6, a
 ── frozen field target: the lens closes G1
 exit 0
 closed G1 (repaired) [key red-lens-evidence:close:#1:G1]
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
+  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 ── a PROSE correction moving a frozen field
 exit 2
@@ -1839,6 +1851,7 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 ── correction of an earlier sitting's act
 exit 2
