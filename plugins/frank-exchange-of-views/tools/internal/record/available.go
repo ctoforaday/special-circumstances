@@ -167,6 +167,19 @@ func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item 
 		for _, id := range proofsWithoutReproduce(evs) {
 			add("proof " + id + " is recorded and nobody has re-run it — a proof is audited by RE-RUNNING it, not by reading it")
 		}
+		// WHETHER BLUE ANSWERED, PER GAP, AND WHETHER THE RECORD CAN SAY (#1122).
+		//
+		// A lens dispatched on its own open gap has one question before it re-reads anything: did
+		// blue answer this, or am I being asked to re-argue a gap nothing has touched? Nothing said.
+		// The lens's other surface — the report's own movement — answers a document-level question
+		// ("the report was at N and is at M"), which is not the same question: the report can move a
+		// great deal without a single edit answering this gap.
+		//
+		// ON THE ORIGINATOR'S LIST, by the same rule as the regrade line above: only the minting seat
+		// re-audits and closes its gap, so this is news for that seat and noise for any other.
+		for _, w := range blueAnswers(evs, gaps, seatID) {
+			add(w)
+		}
 	}
 	return out
 }
