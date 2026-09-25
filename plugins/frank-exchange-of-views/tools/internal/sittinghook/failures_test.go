@@ -15,9 +15,13 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 )
 
-// NEITHER SITTING EVENT DISPLAYS ANYTHING, AND NEITHER MAY SPEAK — an emission re-invokes the seat,
-// measured nine times over. Every failure below used to be a silent return or a writer whose output
-// went to /dev/null. Each is recorded now, and each test asserts the hook still writes NOTHING.
+// NEITHER SITTING EVENT DISPLAYS ANYTHING TO A HUMAN, so every failure below goes to the record and
+// is read out on the next displaying event. Each used to be a silent return or a writer whose output
+// went to /dev/null.
+//
+// WHAT THE TESTS HERE ASSERT IS SILENCE ON THE FAILURE PATH, not silence as a law of the events.
+// SubagentStop may never speak — an emission re-invokes the seat, nine firings measured. SubagentStart
+// may, and does (#1122); what it must never do is turn a failure it could not record into output.
 
 func sittingStages(t *testing.T) map[string]bool {
 	t.Helper()
@@ -100,8 +104,8 @@ func TestAWriterThatFailsIsRecordedInItsOwnWords(t *testing.T) {
 	cwd, _ := liveRun(t)
 	capture(t)
 	prev := spawn
-	spawn = func(string, string, string, string, string, string) error {
-		return errors.New("feov-sitting-write: exit status 1: sittingwrite: ingesting 3 turns for a1: disk full")
+	spawn = func(string, string, string, string, string, string) ([]byte, error) {
+		return nil, errors.New("feov-sitting-write: exit status 1: sittingwrite: ingesting 3 turns for a1: disk full")
 	}
 	t.Cleanup(func() { spawn = prev })
 
@@ -126,7 +130,7 @@ func TestTheRealSpawnKeepsTheWritersOutput(t *testing.T) {
 	if err := os.WriteFile(writer, []byte("#!/bin/sh\necho 'the writer said why' >&2\nexit 3\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	err := spawn(writer, dir, phaseClose, "a1", "t", "")
+	_, err := spawn(writer, dir, phaseClose, "a1", "t", "")
 	if err == nil || !strings.Contains(err.Error(), "the writer said why") {
 		t.Fatalf("spawn lost the writer's output: %v", err)
 	}

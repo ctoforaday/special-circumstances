@@ -34,13 +34,14 @@ func TestAStopTheHookRecordsClosesTheSittingItsAgentRegistered(t *testing.T) {
 	got := capture(t) // places the writer beside the test binary, which the handoff checks for
 	cwd, runDir := liveRun(t)
 	t.Cleanup(func() { _ = recordsql.CloseUnder(runDir) })
-	spawn = func(_, run, phase, agentID, agentType, transcript string) error {
+	spawn = func(_, run, phase, agentID, agentType, transcript string) ([]byte, error) {
 		*got = append(*got, handoffArgs{"", run, phase, agentID, agentType, transcript})
-		err := sittingwrite.Write(run, sittingwrite.Phase(phase), agentID, agentType, transcript)
+		var forSeat bytes.Buffer
+		err := sittingwrite.Write(run, sittingwrite.Phase(phase), agentID, agentType, transcript, &forSeat)
 		if err != nil {
 			t.Errorf("the writer refused the stop the hook handed it: %v", err)
 		}
-		return err
+		return forSeat.Bytes(), err
 	}
 	recordtest.Seed(t, runDir,
 		recordtest.At(t, record.HarnessSeat, "harness:cast", &recordpb.Cast{SeatIds: []string{"red-chair", "red-lens-evidence", "blue-respond", "judge"}}),

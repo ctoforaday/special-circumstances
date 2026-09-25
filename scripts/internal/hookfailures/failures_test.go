@@ -150,12 +150,13 @@ func TestAFailureIsRecordedAlwaysAndSaidOnlyWhereItIsDisplayed(t *testing.T) {
 	}
 }
 
-// SubagentStart and SubagentStop are the two events that must stay mute even if the set of
-// displaying events is ever widened by hand: an emission there re-invokes the seat.
+// SubagentStart and SubagentStop carry nothing to a HUMAN even if the set of displaying events is
+// ever widened by hand. Widening it would put a systemMessage on a dispatch or a return, where no
+// human is reading — and on Stop an emission of any kind re-invokes the seat.
 func TestTheSubagentEventsNeverDisplay(t *testing.T) {
 	for _, ev := range []string{"SubagentStart", "SubagentStop"} {
 		if Displays(ev) {
-			t.Errorf("%s must never display: an emission there re-invokes the seat", ev)
+			t.Errorf("%s must never display: no human reads a dispatch or a return", ev)
 		}
 	}
 }

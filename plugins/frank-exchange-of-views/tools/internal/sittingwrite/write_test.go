@@ -15,7 +15,7 @@ import (
 func TestBothEndsOfASpanLand(t *testing.T) {
 	run := newRun(t)
 	for _, p := range []Phase{Open, Close} {
-		if err := Write(run, p, "agent_01", "frank-exchange-of-views:lead-judge", ""); err != nil {
+		if err := Write(run, p, "agent_01", "frank-exchange-of-views:lead-judge", "", nil); err != nil {
 			t.Fatalf("writing the %s end: %v", p, err)
 		}
 	}
@@ -30,7 +30,7 @@ func TestBothEndsOfASpanLand(t *testing.T) {
 // seat-shaped id here would be a guess written into a permanent record.
 func TestTheSpanIsAttributedToTheHookAndCarriesTheAgent(t *testing.T) {
 	run := newRun(t)
-	if err := Write(run, Open, "agent_42", "frank-exchange-of-views:red-auditor", ""); err != nil {
+	if err := Write(run, Open, "agent_42", "frank-exchange-of-views:red-auditor", "", nil); err != nil {
 		t.Fatal(err)
 	}
 	m, err := record.MergedEvents(mustRun(t, run))
@@ -63,7 +63,7 @@ func TestTheSpanIsAttributedToTheHookAndCarriesTheAgent(t *testing.T) {
 // permanent record that joins to nothing.
 func TestASpanWithNoIdentityIsRefused(t *testing.T) {
 	run := newRun(t)
-	err := Write(run, Open, "", "", "")
+	err := Write(run, Open, "", "", "", nil)
 	if err == nil {
 		t.Fatal("a sitting with no agent identity was written")
 	}
@@ -73,7 +73,7 @@ func TestASpanWithNoIdentityIsRefused(t *testing.T) {
 }
 
 func TestAnUnknownPhaseIsRefused(t *testing.T) {
-	if err := Write(newRun(t), Phase("middle"), "a", "b", ""); err == nil {
+	if err := Write(newRun(t), Phase("middle"), "a", "b", "", nil); err == nil {
 		t.Fatal("a third end of a two-ended span was accepted")
 	}
 }
@@ -135,7 +135,7 @@ func writeTranscript(t *testing.T, body string) string {
 // it — the live dashboard above all.
 func TestCloseIngestsTheSeatsTurns(t *testing.T) {
 	run := newRun(t)
-	if err := Write(run, Close, "AG", "frank-exchange-of-views:red-auditor", writeTranscript(t, oneTurn)); err != nil {
+	if err := Write(run, Close, "AG", "frank-exchange-of-views:red-auditor", writeTranscript(t, oneTurn), nil); err != nil {
 		t.Fatal(err)
 	}
 	r, err := record.NewRun(run)
@@ -151,7 +151,7 @@ func TestCloseIngestsTheSeatsTurns(t *testing.T) {
 // there would be reading the PREVIOUS sitting's.
 func TestOpenIngestsNothing(t *testing.T) {
 	run := newRun(t)
-	if err := Write(run, Open, "AG", "frank-exchange-of-views:red-auditor", writeTranscript(t, oneTurn)); err != nil {
+	if err := Write(run, Open, "AG", "frank-exchange-of-views:red-auditor", writeTranscript(t, oneTurn), nil); err != nil {
 		t.Fatal(err)
 	}
 	r, _ := record.NewRun(run)
@@ -164,7 +164,7 @@ func TestOpenIngestsNothing(t *testing.T) {
 // perfectly good span write look like a failure — the span is this process's reason to exist.
 func TestAnUnreadableTranscriptDoesNotFailTheSpan(t *testing.T) {
 	run := newRun(t)
-	if err := Write(run, Close, "AG", "frank-exchange-of-views:red-auditor", "/nonexistent/agent.jsonl"); err != nil {
+	if err := Write(run, Close, "AG", "frank-exchange-of-views:red-auditor", "/nonexistent/agent.jsonl", nil); err != nil {
 		t.Errorf("an unreadable transcript failed the span write: %v", err)
 	}
 	r, _ := record.NewRun(run)
@@ -177,7 +177,7 @@ func TestAnUnreadableTranscriptDoesNotFailTheSpan(t *testing.T) {
 // one; its absence is not a fault.
 func TestCloseWithoutATranscriptIsFine(t *testing.T) {
 	run := newRun(t)
-	if err := Write(run, Close, "AG", "frank-exchange-of-views:red-auditor", ""); err != nil {
+	if err := Write(run, Close, "AG", "frank-exchange-of-views:red-auditor", "", nil); err != nil {
 		t.Errorf("a close with no transcript errored: %v", err)
 	}
 }

@@ -29,7 +29,10 @@ func main() {
 	if sittingwrite.Phase(*phase) == sittingwrite.Limit {
 		err = sittingwrite.WriteLimit(*run, *agentID, *agentType, *sitting, *limit)
 	} else {
-		err = sittingwrite.Write(*run, sittingwrite.Phase(*phase), *agentID, *agentType, *transcript)
+		// STDOUT IS THE SEAT'S CHANNEL, and stderr is the caller's. On the opening end this process
+		// prints the seat's work list here and the SubagentStart hook passes it to the dispatched
+		// subagent; a diagnostic printed to stdout would arrive in a seat's context as its work.
+		err = sittingwrite.Write(*run, sittingwrite.Phase(*phase), *agentID, *agentType, *transcript, os.Stdout)
 	}
 	if err != nil {
 		// Stderr and a non-zero exit. The span hooks ignore it — a seat is not blocked because the

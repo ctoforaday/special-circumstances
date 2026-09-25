@@ -1,6 +1,8 @@
 package record
 
 import (
+	"encoding/json"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"google.golang.org/protobuf/proto"
 	"strings"
@@ -98,8 +100,15 @@ func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	w, err := WorkJSONOfRun(mustRun(t, dir))
+	// THROUGH THE CALL A SEAT MAKES, not through the oracle's entry point. This test drove
+	// WorkJSONOfRun and passed while the seat-facing renderer still assembled with a nil backing —
+	// the feature reached the consistency oracle and no seat at all.
+	b, err := WorkJSONBytes(mustRun(t, dir), "lens", "red-lens-evidence")
 	if err != nil {
+		t.Fatal(err)
+	}
+	var w WorkJSON
+	if err := json.Unmarshal(b, &w); err != nil {
 		t.Fatal(err)
 	}
 	if len(w.Open) != 1 {

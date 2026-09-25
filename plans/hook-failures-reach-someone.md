@@ -14,8 +14,9 @@ GOAL: every FAILURE (the hook could not do its job) and every ACTION-NEEDED mess
 run something) in those two plugins reaches a human, on the session it happened in where the event
 displays, and on the next displaying event where it does not. ROUTINE diagnostics stay on stderr.
 
-NON-GOALS: changing any hook's exit code, decision or blocking behaviour; making SubagentStart or
-SubagentStop speak (measured: an emission there re-invokes the seat, 9x); rewriting the hook-log.
+NON-GOALS: changing any hook's exit code, decision or blocking behaviour; carrying a FAULT out on
+SubagentStart or SubagentStop, neither of which a human reads (and on SubagentStop an emission of any
+kind re-invokes the seat, 9x measured); rewriting the hook-log.
 
 WHY THIS MACHINERY AND NOT LESS. Two cheaper fixes were considered and rejected on the evidence.
 (a) *Say it on stderr, louder.* Refuted by measurement (§V.1, run): stderr at exit 0 never reaches

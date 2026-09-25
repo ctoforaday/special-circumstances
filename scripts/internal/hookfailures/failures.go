@@ -25,9 +25,14 @@
 // hooks here already emit a JSON document of their own and a second top-level object would corrupt
 // it: each binary merges the text into its own response, and one with nothing to emit calls Emit.
 //
-// SubagentStart and SubagentStop must stay MUTE whatever happens — an emission there re-invokes
-// the seat (measured, 9x) — and they are simply not displaying events, so nothing special is
-// needed beyond never calling Emit on them.
+// SubagentStart and SubagentStop CARRY NO MESSAGE TO A HUMAN, whatever happens: neither is a
+// displaying event, so nothing special is needed beyond never calling Emit on them. A failure at
+// either waits for the next event that displays.
+//
+// THAT IS NOT THE SAME AS SILENCE. SubagentStop must emit nothing at all — an emission there
+// re-invokes the seat, nine firings measured — while SubagentStart's document is a per-seat
+// injection channel that a plugin may legitimately use. What this package governs is the FAULT
+// channel, and a fault is never said on either.
 //
 // # What is deliberately accepted
 //

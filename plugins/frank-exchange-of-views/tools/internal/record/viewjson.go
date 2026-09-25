@@ -997,11 +997,12 @@ func gapBacking(g WorkGapState, verified map[string]GapBackingJSON) []GapBacking
 	return out
 }
 
-func workJSONOfGaps(gaps []WorkGapState, since int) WorkJSON {
-	return workJSONOfGapsWithBacking(gaps, since, nil)
-}
-
-func workJSONOfGapsWithBacking(gaps []WorkGapState, since int, verified map[string]GapBackingJSON) WorkJSON {
+// ONE ASSEMBLER, AND THE BACKING IS AN ARGUMENT TO IT RATHER THAN A SECOND FUNCTION. There was a
+// thin wrapper here that passed nil, and the only live caller of it was WorkJSONBytes — the SEAT's
+// read. So the gap backing reached the consistency oracle and no seat: the feature's own test drove
+// WorkJSONOfRun and passed. A test of the function is not a test of the call, and a convenience
+// overload of a widened signature is where that gets to hide.
+func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBackingJSON) WorkJSON {
 	// Sitting carries its own list, and it is initialised HERE as well as in SittingOf: a WorkJSON
 	// built without a sitting still marshals one, and a nil there renders `"open": null` — "not
 	// computed" where the truth is "nothing open".
@@ -1054,7 +1055,7 @@ func WorkJSONOfRun(run Run) (WorkJSON, error) {
 	if err != nil {
 		return WorkJSON{}, err
 	}
-	return workJSONOfGapsWithBacking(gaps, 0, backingOf(m.Events)), nil
+	return workJSONOfGaps(gaps, 0, backingOf(m.Events)), nil
 }
 
 // WorkJSONBytes renders the work list as indented JSON (a seat reads it in a terminal
@@ -1130,7 +1131,7 @@ func WorkJSONBytes(run Run, role, seatID string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	w := workJSONOfGaps(gaps, epochOfSeatOnBoard(m.Events, seatID)-1)
+	w := workJSONOfGaps(gaps, epochOfSeatOnBoard(m.Events, seatID)-1, backingOf(m.Events))
 	w.Sitting = SittingOf(m.Events, ids, gaps, role, seatID)
 	w.Counterparty = counterpartyOf(m.Events, role, epochOfSeatOnBoard(m.Events, seatID))
 	out, err := json.MarshalIndent(w, "", "  ")

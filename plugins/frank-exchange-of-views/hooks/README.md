@@ -59,19 +59,32 @@ Opens the span. THE SITTING SPAN (#265). Seat durations read ZERO because both e
 FILESYSTEM MTIMES: on the fallback path StartedMs == EndedMs for every completed seat so the duration
 branch never fired, and a running seat's 'elapsed' measured time since the last WRITE. These two
 events put both ends on the record as facts a hook OBSERVED rather than values derived from file
-metadata. NO MATCHER — these events take none. THE BINARY WRITES NOTHING TO STDOUT, and that is the
-contract rather than a minimal implementation: a SubagentStop hook that emits `additionalContext`
-RE-INVOKES the seat and fires again — nine firings for one seat in the measured case, the returned
-context discarded every time (plans/hook-surface-spike.md §10). A log-only hook fires exactly once.
-Anything added here that talks turns one event into nine. ONLY A SEAT IS RECORDED: SubagentStop also
-fires at the MAIN agent's turn end, with a minted agent id and no agent_type — 19 seats against 50
-turn ends in one measured session, separated by agent_type with zero exceptions either way (§7a). An
-event with no agent_type is not a sitting and is dropped. The bootstrap guard mirrors every other
-hook here: a fresh plugin-cache version ships without binaries and an unguarded hook would
-crash-storm the window; the guard hands the missing binary to hooks/fetch-bin.sh, which says nothing on this event. SubagentStart
-CANNOT NAME THE SEAT — it carries the harness handle and the agent configuration and nothing the
-workflow supplied (#290, measured 2026-08-23), so the seat is recovered later by joining agent_id to
-the register event that names it.
+metadata. NO MATCHER — these events take none.
+
+THE BINARY SPEAKS TO THE SEAT, AND THIS IS THE ONE EVENT IN THIS PLUGIN THAT CAN. A
+`{"hookSpecificOutput":{"hookEventName":"SubagentStart","additionalContext":"…"}}` document reaches
+the DISPATCHED SEAT's context and nothing else — one firing, verified three times
+(plans/hook-surface-spike.md §5 and §10, and again 2026-09-25, where the marker landed as a
+`hook_additional_context` attachment on the seat's transcript and the seat returned it verbatim). The
+nine-firing loop described under SubagentStop is that event's and does not apply here. What this
+event injects is the seat's own WORK LIST, read from the record at the moment of dispatch and
+rendered by the writer, so a seat that owes nothing can end its turn having run no commands at all.
+It is the projection's bytes, not a second author of the seat's duties.
+
+FAILURE IS A DIFFERENT CHANNEL FROM INJECTION. This event displays nothing to a HUMAN, so a failure
+to record the span goes on the hook record and is read out by the seat's next tool call (PreToolUse).
+A work list that could not be read says so in the injected text instead — "I could not tell" and
+"nothing engages you" must never be the same bytes.
+
+ONLY A SEAT IS RECORDED: the sibling event also fires at the MAIN agent's turn end, with a minted
+agent id and no agent_type — 19 seats against 50 turn ends in one measured session, separated by
+agent_type with zero exceptions either way (§7a). An event with no agent_type is not a sitting and is
+dropped. The bootstrap guard mirrors every other hook here: a fresh plugin-cache version ships
+without binaries and an unguarded hook would crash-storm the window; the guard hands the missing
+binary to hooks/fetch-bin.sh, which says nothing on this event. THE PAYLOAD CANNOT NAME THE SEAT — it
+carries the harness handle and the agent configuration and nothing the workflow supplied (#290,
+measured 2026-08-23) — so the seat is resolved from the configuration where that is one-to-one, and
+otherwise recovered later by joining agent_id to the register event that names it.
 
 ## SubagentStop
 

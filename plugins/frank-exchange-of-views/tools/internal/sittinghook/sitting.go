@@ -1,5 +1,6 @@
 // Package sittinghook is the SubagentStart/SubagentStop hook logic: decide whether this event is a
-// seat's sitting in a live run, and if so hand the write to a separate process.
+// seat's sitting in a live run, and if so hand the write to a separate process — and, on the opening
+// end, deliver to the seat what that process rendered for it.
 //
 // IT LINKS NOTHING EXPENSIVE, and that is the whole design rather than a detail. These hooks fire
 // far more often than they write:
@@ -20,6 +21,7 @@
 package sittinghook
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookfailures"
@@ -108,23 +110,32 @@ type sittingInput struct {
 
 // Start records the moment the harness dispatched an agent.
 //
-// IT WRITES NOTHING TO STDOUT, and that is load-bearing rather than minimal. §10 of the hook
-// surface spike measured what an emission costs on the sibling event: a SubagentStop hook
-// returning additionalContext re-invoked the seat, its turn ended, the hook fired again — NINE
-// firings for one seat, the returned context discarded every time. Under a log-only hook the same
-// launch fires exactly once. An observation hook that starts talking turns one event into nine.
+// IT SPEAKS TO THE SEAT, and it is the only event in this plugin that may. The nine-firing loop §10
+// of the hook surface spike measured is SubagentStop's: an emission there re-invoked the seat, its
+// turn ended, the hook fired again, and the returned context was discarded every time. THIS EVENT IS
+// THE OPPOSITE RESULT in the same section — one firing, and the marker arrives in the SEAT's own
+// context. Verified three times: #500 and #507, and again 2026-09-25, where the injected marker
+// landed as a hook_additional_context attachment on the seat's transcript and the seat returned it
+// verbatim.
+//
+// WHAT IT SAYS IS THE SEAT'S WORK LIST (#1122), rendered by the writer this hands off to, and passed
+// through here verbatim. Nothing in this package composes that text: a seat could not learn it owed
+// nothing without asking, so the cheapest empty sitting was one call and never zero.
 func Start(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
-	return handoff(stdin, phaseOpen, rec)
+	return handoff(stdin, phaseOpen, stdout, rec)
 }
 
-// Stop records the moment that agent returned. Silent for the reason above — and here the
-// measurement is of this very event rather than an analogy to it.
+// Stop records the moment that agent returned, and MUST stay silent — here the measurement is of
+// this very event: nine firings for one seat, nothing delivered anywhere.
 func Stop(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
-	return handoff(stdin, phaseClose, rec)
+	// NO WRITER PASSED, WHICH IS THE OUTER OF TWO REFUSALS. handoff cannot emit for an event that
+	// handed it nowhere to write, and it also refuses on the phase — see the emission site.
+	return handoff(stdin, phaseClose, nil, rec)
 }
 
-// The stages a sitting hook can fail at. NEITHER of its events displays anything, and neither may
-// speak (an emission re-invokes the seat), so each waits on the record for FEOV's only displaying
+// The stages a sitting hook can fail at. NEITHER of its events displays anything TO A HUMAN, which
+// is a different question from whether either may speak to the SEAT: SubagentStart may and
+// SubagentStop may not. A failure here therefore waits on the record for FEOV's only displaying
 // event — PreToolUse — which a seat's very next tool call fires.
 const (
 	StageInput         hookfailures.Stage = "sitting-input"
@@ -137,7 +148,7 @@ const (
 // NOTHING HERE CAN FAIL THE HOOK. A hook's job is to observe; a seat is not blocked because the
 // bookkeeping failed, and an error returned from here would reach the harness as a failed hook on
 // an event the seat cannot even see.
-func handoff(stdin io.Reader, phase string, rec *hookfailures.Recorder) error {
+func handoff(stdin io.Reader, phase string, seat io.Writer, rec *hookfailures.Recorder) error {
 	raw, err := io.ReadAll(stdin)
 	if err != nil {
 		rec.Fail(StageInput, "cannot read the hook payload: "+err.Error()+" — this sitting is not on the record")
@@ -181,12 +192,50 @@ func handoff(stdin io.Reader, phase string, rec *hookfailures.Recorder) error {
 		return nil
 	}
 	rec.OK(StageWriterMissing)
-	if err := spawn(writer, inferred.Dir, phase, in.AgentID, in.AgentType, in.AgentTranscriptPath); err != nil {
+	forSeat, err := spawn(writer, inferred.Dir, phase, in.AgentID, in.AgentType, in.AgentTranscriptPath)
+	if err != nil {
 		rec.FailIn(StageWrite, inferred.MarkerDir, err.Error())
 		return nil
 	}
 	rec.OKIn(StageWrite, inferred.MarkerDir)
+	// THE WRITER'S STDOUT IS THE SEAT'S WORK LIST, and it is passed through verbatim. This hook links
+	// nothing that can read a record (see the package comment and the hookgraph allowlist), so the
+	// projection is rendered in the process that already carries it and this one only delivers.
+	//
+	// NOTHING IS EMITTED FOR AN EMPTY PAYLOAD. A seat whose configuration seats several — blue's —
+	// has no list to be handed, and an empty additionalContext would be a document saying nothing.
+	//
+	// THE PHASE IS CHECKED HERE AS WELL AS IN THE WRITER, and that is defence in depth rather than a
+	// duplicated branch. Stop's silence is a contract whose breach costs nine firings of an event, and
+	// the only thing enforcing it was a phase switch in a different process: a writer that started
+	// printing anything on close — a diagnostic moved to stdout, a future phase — would have re-armed
+	// the seat, and nothing here would have refused it.
+	if phase == phaseOpen && seat != nil && len(strings.TrimSpace(string(forSeat))) > 0 {
+		emitForSeat(seat, string(forSeat))
+	}
 	return nil
+}
+
+// emitForSeat writes the one document SubagentStart may return: additionalContext for the subagent
+// that was just dispatched.
+//
+// MARSHALLED, NEVER FORMATTED. The work list is JSON inside a JSON string, and every quote, newline
+// and backslash in it has to survive; a Sprintf of this shape would corrupt the first list that
+// carried a quoted claim, which is every list that carries a gap location.
+func emitForSeat(stdout io.Writer, context string) {
+	type hookSpecific struct {
+		HookEventName     string `json:"hookEventName"`
+		AdditionalContext string `json:"additionalContext"`
+	}
+	b, err := json.Marshal(struct {
+		HookSpecificOutput hookSpecific `json:"hookSpecificOutput"`
+	}{hookSpecific{HookEventName: "SubagentStart", AdditionalContext: context}})
+	if err != nil {
+		// Unreachable for two strings, and silence is the right failure anyway: a malformed document
+		// on this event is worse than no document, because the seat can still ask for its list.
+		return
+	}
+	stdout.Write(append(b, '\n'))
 }
 
 // unusableDetail says which fault the inference hit, because each is fixed differently.
@@ -198,7 +247,7 @@ func unusableDetail(i runlive.Inferred) string {
 // about this function is which events reach it and with what — that a turn end never does, that a
 // session with no run never does — and asserting that through a real subprocess would test the
 // exec plumbing instead of the filter.
-var spawn = func(writer, runDir, phase, agentID, agentType, transcript string) error {
+var spawn = func(writer, runDir, phase, agentID, agentType, transcript string) ([]byte, error) {
 	// WAITED ON, not fired and forgotten: a detached child can be killed when the hook process
 	// exits, and a span silently missing one end is worse than a hook that took another
 	// millisecond.
@@ -219,10 +268,20 @@ var spawn = func(writer, runDir, phase, agentID, agentType, transcript string) e
 	if transcript != "" {
 		args = append(args, "-transcript", transcript)
 	}
-	if out, err := exec.Command(writer, args...).CombinedOutput(); err != nil {
-		return fmt.Errorf("%s: %v: %s", writerName, err, strings.TrimSpace(string(out)))
+	// STDOUT AND STDERR ARE SPLIT, and that is the change that makes this a delivery channel. They
+	// were merged by CombinedOutput, which was right while the output was only ever a failure
+	// report: now stdout is the seat's work list and stderr is the writer's diagnostics, and one
+	// stray diagnostic line merged into the other would arrive in a seat's context as its work.
+	cmd := exec.Command(writer, args...)
+	var forSeat, diagnostics bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &forSeat, &diagnostics
+	if err := cmd.Run(); err != nil {
+		// BOTH STREAMS ON THE FAILURE PATH. The writer reports its faults on stderr, and anything it
+		// had begun writing for the seat is evidence about the fault rather than a list.
+		return nil, fmt.Errorf("%s: %v: %s", writerName, err,
+			strings.TrimSpace(diagnostics.String()+" "+forSeat.String()))
 	}
-	return nil
+	return forSeat.Bytes(), nil
 }
 
 // writerFileName is the writer's name on this platform. It exists so the test that places a stub

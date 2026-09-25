@@ -17,7 +17,7 @@ import (
 )
 
 // PRETOOLUSE IS FEOV'S ONLY DISPLAYING EVENT, so Run is where every failure this plugin records —
-// here or on the sitting events, which may never speak — reaches a human. These tests drive Run.
+// here or on the sitting events, which display nothing to a human — reaches one. These tests drive Run.
 
 func runEntry(t *testing.T, event string, f Entry) (stdout string) {
 	t.Helper()
@@ -90,8 +90,16 @@ func TestAnUndecodableDecisionGoesOutIntact(t *testing.T) {
 	}
 }
 
-// THE SITTING EVENTS STAY MUTE, whatever failed. An emission there re-invokes the seat.
-func TestTheSittingEventsNeverSpeak(t *testing.T) {
+// A SITTING EVENT SAYS NOTHING ABOUT ITS OWN FAULT, whatever failed — the failure goes on the record
+// and the next displaying event reads it out. Asserted on BOTH ends, because a panicking entry has
+// written no document and there is nothing legitimate left to emit; the systemMessage a displaying
+// event would carry is what must not appear here.
+//
+// THIS IS NOT "the sitting events never speak", which is what it used to say and covered both events
+// with a measurement of one. SubagentStop may never emit at all — an emission re-invokes the seat,
+// nine firings measured — and that is asserted at the source, in sittinghook. SubagentStart's
+// document is how a seat's work list reaches it; what it may not do is turn its own fault into output.
+func TestASittingEventNeverSpeaksItsOwnFault(t *testing.T) {
 	for _, ev := range []string{"SubagentStart", "SubagentStop"} {
 		t.Run(ev, func(t *testing.T) {
 			t.Setenv("XDG_STATE_HOME", t.TempDir())

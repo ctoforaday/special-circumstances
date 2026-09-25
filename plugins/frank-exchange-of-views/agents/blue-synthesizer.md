@@ -913,7 +913,7 @@ Available Commands:
   findings         THE RAW LENS FINDINGS, BEFORE they are minted into gaps — several findings can become one gap, and this is where you see which. Written by `finding`
   lines-of-inquiry WHICH DIRECTIONS WERE TAKEN AND WHICH WERE NOT — pursued, deferred, declined, abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule`
   report           THE REPORT, as it stands now. `changes` says how it got that way. Written by the opening synthesis and every `edit`, with anchors from `cite`, `finding` and `prove`
-  work             WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Run it first and again before you finish. Written by `mint`, `close` and the bench's `motion docket rule`
+  work             WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Delivered with your dispatch where it can be; run it when it was not, and again before you finish. Written by `mint`, `close` and the bench's `motion docket rule`
 
 Flags:
   -h, --help        help for show
@@ -1007,7 +1007,7 @@ Flags:
 (Global Flags:) → SHARED §19
 ==============================================================================
 $ feov-record show work --help
-**RUN THIS FIRST AND AGAIN BEFORE YOU STOP.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left.
+**IT MAY ALREADY BE IN FRONT OF YOU: this list is delivered with your dispatch, and a dispatch that delivered it says so above it. Run this when it was not, and again before you stop — your own acts move it.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left.
 
 An item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran, a line of inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.
 
