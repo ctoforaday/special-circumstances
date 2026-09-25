@@ -45,12 +45,11 @@ const (
 	// summary — and it is not protecting the disk, since the cache stores the document either
 	// way.
 	//
-	// 30 MiB is gblock's call: half again the largest document measured, enough headroom for a
-	// thesis or a figure-heavy review, and small enough that a concurrent sweep is not holding
-	// hundreds of megabytes of transient buffers. It is deliberately a number to REVISIT — the
-	// refusal names the bound, so a run that meets it says so rather than failing quietly, and
-	// that is the signal to raise it again.
-	maxFetchBytes = 30 << 20
+	// 64 MiB is gblock's call, taken after seeing the distribution: more than three times the
+	// largest document measured, so a thesis, a figure-heavy review or a supplementary-laden
+	// article clears it without anyone having to think about the number again. The refusal still
+	// names the bound, so a run that somehow meets it says so rather than failing quietly.
+	maxFetchBytes = 64 << 20
 	// maxRedirects is the real bound on a paced fetch. Five is generous for the web and
 	// pathological for a citation: a doi.org link reaches its publisher in one or two hops, and
 	// the deadline in Fetch is sized from this number rather than guessed at.
