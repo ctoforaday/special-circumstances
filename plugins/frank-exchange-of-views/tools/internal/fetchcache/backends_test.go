@@ -118,6 +118,10 @@ func TestMetadataIsARecordNotAReading(t *testing.T) {
 }
 
 func TestIdentifiersAreLiftedOutOfURLs(t *testing.T) {
+	// LOWERCASED. A doi's suffix is case-insensitive by the handbook and the indexes are not
+	// consistently so: measured 2026-09-24, `10.1016/0021-9991(92)90240-y` resolves at OpenAlex
+	// while Semantic Scholar wanted `…-Y`. Normalising asks every index the same question the
+	// same way, which is what makes a missing answer mean something.
 	if got := DOIOf("https://doi.org/10.5951/MT.82.1.0033"); got != "10.5951/MT.82.1.0033" {
 		t.Errorf("doi = %q", got)
 	}
@@ -384,8 +388,20 @@ func TestEveryListedOpenAccessLocationIsTried(t *testing.T) {
 	if att == nil || !att.TextRetrieved {
 		t.Fatalf("the second listed location was never reached: %+v", att)
 	}
-	if len(tried) != 2 || !strings.Contains(tried[1], "repo.example") {
+	// The refused candidate is asked of the web archive before the list moves on — that lookup is
+	// the fallback for a copy an index asserted and a host would not hand over, so it belongs in
+	// the sequence rather than being filtered out of this assertion.
+	var docs []string
+	for _, u := range tried {
+		if !strings.Contains(u, "archive.org") {
+			docs = append(docs, u)
+		}
+	}
+	if len(docs) != 2 || !strings.Contains(docs[1], "repo.example") {
 		t.Errorf("urls tried = %v, want the refused one then the one that works", tried)
+	}
+	if len(tried) == len(docs) {
+		t.Error("a refused candidate was abandoned without asking the archive for a snapshot of it")
 	}
 	// THE LIST IS WHAT IS READ, not the index's nomination — `oa_url` here is null while two
 	// locations carry a pdf, which is exactly the shape that used to yield "no open copy".
@@ -730,8 +746,21 @@ func TestAStatedPDFOutranksAGuessedOne(t *testing.T) {
 	if len(locs) == 0 {
 		t.Fatal("no candidates at all")
 	}
-	if locs[0] != "https://europepmc.org/articles/PMC1?pdf=render" {
-		t.Errorf("first candidate is %q, want the pdf Europe PMC states it holds", locs[0])
+	// THE API HOST COMES FIRST, ahead even of a pdf Europe PMC states it holds — because it
+	// states that pdf on `europepmc.org`, which is behind a Cloudflare challenge in its entirety,
+	// `/robots.txt` included. A stated location on a host that will not open the door loses to a
+	// machine route that will.
+	if !strings.Contains(locs[0], "ebi.ac.uk") {
+		t.Errorf("first candidate is %q, want the api host that actually serves a machine", locs[0])
+	}
+	var seenRender bool
+	for _, l := range locs {
+		if strings.Contains(l, "pdf=render") {
+			seenRender = true
+		}
+	}
+	if !seenRender {
+		t.Errorf("the stated pdf was dropped rather than ranked below a working route: %v", locs)
 	}
 	// AND THE ABSTRACT PAGES ARE STILL TRIED, as the landing pages they are — a page can name the
 	// real pdf in its own citation_pdf_url, so demoting is right and dropping is not.
@@ -744,13 +773,16 @@ func TestAStatedPDFOutranksAGuessedOne(t *testing.T) {
 	// THE CONTRACT IS THE ORDER, not a fixed position: every location typed as a pdf comes before
 	// every one demoted to a landing page. With a four-candidate budget that is what decides
 	// whether the copy that works is ever asked for.
+	// The ordering contract, restated for what the union now holds: every route typed as a
+	// document comes before every one demoted to a landing page.
 	seenPage := false
 	for _, l := range locs {
-		isPDF := strings.Contains(l, "pdf=render")
-		if isPDF && seenPage {
-			t.Errorf("a stated pdf sorts behind a landing page: %v", locs)
+		isDoc := strings.Contains(l, "pdf=render") || strings.Contains(l, "ebi.ac.uk") ||
+			strings.Contains(l, "pmc.ncbi.nlm.nih.gov")
+		if isDoc && seenPage {
+			t.Errorf("a document route sorts behind a landing page: %v", locs)
 		}
-		if !isPDF {
+		if !isDoc {
 			seenPage = true
 		}
 	}
@@ -852,5 +884,137 @@ func TestARecoveredPDFIsExtractedLikeALiveOne(t *testing.T) {
 	}
 	if e.Extractor == "" {
 		t.Error("no extractor id on an attempted extraction: nothing can re-run it")
+	}
+}
+
+// A COPY AN INDEX ASSERTED, LOST TO A BOT WALL, RECOVERED FROM THE ARCHIVE.
+//
+// MEASURED 2026-09-24 on doi 10.1016/s0021-9258(19)52451-6 — Lowry et al. 1951, whose pdf carries
+// "This is an Open Access article under the CC BY license" on its own first page. Unpaywall names
+// the jbc.org pdf; jbc.org answers 403 to this client; the Wayback snapshot of that exact url is
+// the same eleven-page Elsevier pdf, 823,098 bytes. An article we are licensed to read, lost to a
+// door policy, recovered by asking somebody who kept a copy.
+func TestARefusedOpenAccessCopyIsSoughtInTheArchive(t *testing.T) {
+	const walled = "https://publisher.example/paper.pdf"
+	const snapshot = "https://web.archive.org/web/20250812050548/" + walled
+	pdf := "%PDF-1.7 " + strings.Repeat("the paper ", 3000)
+	var asked []string
+	f := fake(func(u string) (*Response, error) {
+		asked = append(asked, u)
+		switch {
+		case strings.Contains(u, "openalex"):
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","locations":[{"pdf_url":"` + walled + `","is_oa":true,"license":"cc-by"}]}`)}, nil
+		case strings.Contains(u, "archive.org/wayback/available"):
+			return &Response{Body: []byte(`{"archived_snapshots":{"closest":{"available":true,"status":"200",` +
+				`"timestamp":"20250812050548","url":"` + snapshot + `"}}}`)}, nil
+		case strings.Contains(u, "web.archive.org"):
+			// The `if_` modifier asks for the stored bytes rather than the archive's framed replay.
+			if !strings.Contains(u, "if_/") {
+				t.Errorf("the snapshot was fetched without the raw-bytes modifier: %s", u)
+			}
+			return &Response{Body: []byte(pdf), ContentType: "application/pdf"}, nil
+		case u == walled:
+			return nil, &Refusal{URL: u, Status: 403}
+		}
+		if r, isIndex := emptyIndexAnswer(u); isIndex {
+			return r, nil
+		}
+		return nil, &Refusal{URL: u, Status: 404}
+	})
+	att := Recover(f, "https://doi.org/10.1234/x", ViaOA, "")
+	if att == nil || !att.TextRetrieved {
+		t.Fatalf("the archived copy was not taken: %+v", att)
+	}
+	if string(att.Body) != pdf {
+		t.Errorf("wrong bytes: %d", len(att.Body))
+	}
+	if !strings.Contains(att.Via, "web archive") || !strings.Contains(att.Via, "refused this container") {
+		t.Errorf("the provenance does not say where the bytes came from or why: %s", att.Via)
+	}
+
+	// A SNAPSHOT OF A REFUSAL IS NOT A COPY. The archive stores whatever it was served, including
+	// the 403 page and the challenge interstitial; its own status field is the only thing telling
+	// those from the document, and taking one would cache a wall as the paper.
+	g := fake(func(u string) (*Response, error) {
+		switch {
+		case strings.Contains(u, "openalex"):
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","locations":[{"pdf_url":"` + walled + `","is_oa":true}]}`)}, nil
+		case strings.Contains(u, "archive.org/wayback/available"):
+			return &Response{Body: []byte(`{"archived_snapshots":{"closest":{"available":true,"status":"403",` +
+				`"timestamp":"20250812050548","url":"` + snapshot + `"}}}`)}, nil
+		case strings.Contains(u, "web.archive.org"):
+			t.Error("a snapshot the archive itself recorded as a 403 was fetched anyway")
+			return nil, &Refusal{URL: u, Status: 403}
+		}
+		if r, isIndex := emptyIndexAnswer(u); isIndex {
+			return r, nil
+		}
+		return nil, &Refusal{URL: u, Status: 403}
+	})
+	if a := Recover(g, "https://doi.org/10.1234/x", ViaOA, ""); a != nil && a.TextRetrieved {
+		t.Error("an archived refusal was served as the document")
+	}
+}
+
+// A PMC IDENTIFIER IS WORTH MORE THAN THE HOST AN INDEX SPELLS IT WITH.
+//
+// MEASURED 2026-09-25 across 397 works: of the failures where an IP-indifferent host demonstrably
+// holds an open copy, NINETEEN OF TWENTY-SEVEN were this one shape — OpenAlex naming
+// `www.ncbi.nlm.nih.gov/pmc/articles/3929010`, the legacy numeric form on the browser host that
+// answers a challenge. Demoting that host was right; throwing the identifier away with it was not.
+func TestAPMCIdentifierIsExpandedIntoRoutesThatServeAMachine(t *testing.T) {
+	for _, shape := range []string{
+		"https://www.ncbi.nlm.nih.gov/pmc/articles/3929010", // legacy, numeric, no prefix
+		"https://pmc.ncbi.nlm.nih.gov/articles/PMC3929010/", // canonical
+		"http://europepmc.org/pmc/articles/PMC3929010",      // Europe PMC's spelling
+	} {
+		id, routes := PMCRoutes(shape)
+		if id != "PMC3929010" {
+			t.Errorf("%s -> id %q, want PMC3929010", shape, id)
+		}
+		if len(routes) == 0 || !strings.Contains(routes[0], "ebi.ac.uk") {
+			t.Errorf("%s -> %v, want the api host first", shape, routes)
+		}
+	}
+	// A url that is not PMC at all yields nothing, so nothing else is rewritten by accident.
+	if id, _ := PMCRoutes("https://publisher.example/articles/12345"); id != "" {
+		t.Errorf("a non-PMC url was read as one: %q", id)
+	}
+
+	// AND THE UNION EXPANDS IT. The index names only the walled browser url; the candidates must
+	// carry the machine routes, and the bucket is asked because it answers anonymously.
+	var asked []string
+	f := fake(func(u string) (*Response, error) {
+		asked = append(asked, u)
+		switch {
+		case strings.Contains(u, "openalex"):
+			return &Response{Body: []byte(`{"id":"https://openalex.org/W1","locations":[` +
+				`{"pdf_url":"https://www.ncbi.nlm.nih.gov/pmc/articles/3929010","is_oa":true}]}`)}, nil
+		case strings.Contains(u, "pmc-oa-opendata"):
+			return &Response{Body: []byte(`<ListBucketResult><KeyCount>0</KeyCount></ListBucketResult>`)}, nil
+		}
+		if r, isIndex := emptyIndexAnswer(u); isIndex {
+			return r, nil
+		}
+		return nil, &Refusal{URL: u, Status: 403}
+	})
+	locs, _, _, _ := OpenAccessCandidates(f, "10.1234/x")
+	joined := strings.Join(locs, " ")
+	for _, want := range []string{
+		"ebi.ac.uk/europepmc/webservices/rest/PMC3929010/fullTextXML",
+		"pmc.ncbi.nlm.nih.gov/articles/PMC3929010/",
+	} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("the union does not carry %q: %v", want, locs)
+		}
+	}
+	var askedBucket bool
+	for _, u := range asked {
+		if strings.Contains(u, "pmc-oa-opendata") {
+			askedBucket = true
+		}
+	}
+	if !askedBucket {
+		t.Error("the open-access bucket was never asked, though it is the route that needs no challenge")
 	}
 }

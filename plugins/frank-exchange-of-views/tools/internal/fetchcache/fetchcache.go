@@ -37,6 +37,23 @@ import (
 	"strings"
 )
 
+// ChainFetcher is a Fetcher that can continue ONE retrieval across several requests.
+//
+// A DOCUMENT IS ONE ASKING, however many urls it takes to reach it. A redirect chain already
+// works this way — each host is charged a pacing slot once, not once per hop — and a publisher
+// naming its own full text is the same shape of indirection: the host is telling us where the
+// thing is, not being asked a second question. Measured on arxiv.org, whose abstract page names
+// its pdf: charging that hop separately cost a full jittered crawl-delay, 23 seconds, to follow
+// a pointer the previous response had just handed us.
+//
+// A Fetcher that does not implement this is used unchanged and pays per request.
+type ChainFetcher interface {
+	Fetcher
+	// FetchSameRetrieval fetches within the retrieval `chain` identifies, so a host already
+	// charged for this document is not charged again.
+	FetchSameRetrieval(rawURL string, chain map[string]bool) (*Response, error)
+}
+
 // Fetcher performs the one live read. Prod is an SSRF-capped net/http client (httpfetcher.go);
 // tests supply a deterministic stub so the cache is testable offline.
 type Fetcher interface {
@@ -66,6 +83,21 @@ type Response struct {
 	// filename chain. Measured across the cited corpus: not one source sent it, which is
 	// exactly why it is a rung and not the rule.
 	Disposition string
+	// FinalURL is the url this response actually came from, after every redirect and meta-refresh
+	// hop. Empty only where nothing recorded it.
+	//
+	// IT IS THE BASE A PAGE'S OWN POINTERS RESOLVE AGAINST, and using the url ASKED FOR instead
+	// was a measured defect. A doi.org url redirects to a publisher; the publisher's page names
+	// its full text as an absolute url on its own host; comparing that against `doi.org/10.…`
+	// finds them unequal, so the "this page IS the full text" stop never fired and the walk
+	// hopped. Measured on doi 10.1038/s41586-021-03819-2: Nature's SSO chain — 303 to
+	// idp.nature.com, two 302s, back to the article — ran TWICE, the second time to arrive at the
+	// page already in hand, for 50 seconds of pacing on redundant requests.
+	FinalURL string
+	// Retrieval names the hosts this document's fetch has already been charged a pacing slot
+	// for, so a follow-on request for the SAME document does not pay twice. Nil from a Fetcher
+	// that does not pace.
+	Retrieval map[string]bool
 	// LinkHeader is the raw `Link:` header, or "".
 	//
 	// IT IS SIGNPOSTING, AND IT WAS DEAD CODE. The parser for it existed and both callers passed
@@ -512,7 +544,9 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 	// that emits it is the system serving the article.
 	//
 	// One hop, only when the first answer was html. A pdf or an xml body is already the document.
-	base, _ := neturl.Parse(url)
+	// THE BASE IS WHERE WE LANDED, not where we asked. A relative pointer resolves against the
+	// page that emitted it, and an absolute one is compared against it.
+	base, _ := neturl.Parse(firstNonEmptyStr(resp.FinalURL, url))
 	// FOLLOW IT, AND THEN FOLLOW THAT. A landing page names its full-text html; that html often
 	// names the pdf. One hop stopped at the middle of a two-step the publisher had signposted
 	// end to end, so the chain runs to a bounded depth rather than a fixed one.
@@ -522,13 +556,16 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 	// STOPPING at that page when the publisher has said where the readable copy is.
 	var followedTo string
 	seenHop := map[string]bool{url: true}
+	// The hosts this DOCUMENT has already been charged for. The walk that follows is the same
+	// asking continued, not a new one.
+	retrieval := resp.Retrieval
 	for hops := 0; hops < maxFullTextHops; hops++ {
 		fullText := LandingPageFullText(SniffedMediaType(resp.ContentType, resp.Body), resp.Body, resp.LinkHeader, base)
 		if fullText == "" || seenHop[fullText] {
 			break
 		}
 		seenHop[fullText] = true
-		hop, herr := f.Fetch(fullText)
+		hop, herr := fetchInRetrieval(f, fullText, retrieval)
 		// A SHORTER ANSWER IS REFUSED. The pointer is the publisher's, so this is not deciding
 		// WHICH is the paper — it is refusing to trade a page for a smaller one, which is what a
 		// paywall stub or an error page would be.
@@ -537,7 +574,7 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		}
 		resp = hop
 		followedTo = fullText
-		if b, berr := neturl.Parse(fullText); berr == nil {
+		if b, berr := neturl.Parse(firstNonEmptyStr(hop.FinalURL, fullText)); berr == nil {
 			base = b
 		}
 		// A pdf or an xml body is the document; there is nothing further to follow.
@@ -819,3 +856,19 @@ func textBearingRefusal(contentType string) string {
 // `application/zip` carries no Content-Encoding at all (measured, 2026-09-23: the response has
 // Content-Type and Content-Disposition and no encoding header). The compression is the document,
 // not the transport, and no Accept-Encoding would have changed what the server sent.
+
+func firstNonEmptyStr(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
+}
+
+// fetchInRetrieval continues one document's retrieval where the fetcher can, and falls back to an
+// ordinary fetch where it cannot — a test double, or any Fetcher that does not pace at all.
+func fetchInRetrieval(f Fetcher, rawURL string, chain map[string]bool) (*Response, error) {
+	if cf, ok := f.(ChainFetcher); ok && chain != nil {
+		return cf.FetchSameRetrieval(rawURL, chain)
+	}
+	return f.Fetch(rawURL)
+}

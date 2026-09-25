@@ -113,6 +113,12 @@ var hostIntervals = map[string]time.Duration{
 	// pool this tool's mailto puts it in (measured 2026-09-22; without the mailto it is 5). Half
 	// the ceiling, because that pool is shared with every other polite client.
 	"api.crossref.org": 200 * time.Millisecond,
+	// Semantic Scholar's unauthenticated quota is SHARED across every anonymous client, so a 429
+	// arrives whatever we do — but arriving at one costs more here than anywhere else: measured
+	// 2026-09-24, it was the ONLY index holding a location for doi 10.1509/jmkg.68.1.1.24036,
+	// where OpenAlex, Unpaywall, Europe PMC and CORE all reported the work closed. Losing its
+	// answer loses the copy, and no other source covers for it.
+	"api.semanticscholar.org": time.Second,
 	// NCBI asks for no more than 3 requests per second without an API key.
 	"eutils.ncbi.nlm.nih.gov": 334 * time.Millisecond,
 	"pmc.ncbi.nlm.nih.gov":    334 * time.Millisecond,

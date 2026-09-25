@@ -640,3 +640,43 @@ func TestTheWalkToFullTextFollowsEverySignpostAndStops(t *testing.T) {
 		}
 	})
 }
+
+// A PAGE'S POINTERS RESOLVE AGAINST THE PAGE, NOT THE URL WE ASKED FOR — and the identity of an
+// article is scheme+host+path, not the query a sign-on appended on the way in.
+//
+// MEASURED on doi 10.1038/s41586-021-03819-2. A doi.org url redirects to the publisher; the
+// publisher's page names its full text as an absolute url on its own host; comparing that against
+// `doi.org/10.1038/…` found them unequal, so the "this page IS the full text" stop never fired.
+// Fixing the base was not enough: Nature's chain lands at
+// `…/s41586-021-03819-2?error=cookies_not_supported&code=…` while the page names the clean url.
+// Same document, different string — and the walk went back through the whole sign-on chain to
+// arrive where it already was.
+func TestTheWalkStopsOnAPageThatNamesItselfHoweverItWasReached(t *testing.T) {
+	const asked = "https://doi.example/10.1234/x"
+	const landed = "https://publisher.example/articles/x?error=cookies_not_supported&code=abc"
+	const clean = "https://publisher.example/articles/x"
+	page := `<html><head><meta name="citation_fulltext_html_url" content="` + clean + `">` +
+		`<meta name="citation_pdf_url" content="https://publisher.example/x.pdf"></head><body>` +
+		strings.Repeat("methods results discussion ", 100) + `</body></html>`
+	var asked2 []string
+	f := fake(func(u string) (*Response, error) {
+		asked2 = append(asked2, u)
+		if u == asked {
+			// The fetcher followed a redirect and says where it ended up.
+			return &Response{ContentType: "text/html", Body: []byte(page), FinalURL: landed}, nil
+		}
+		return &Response{ContentType: "application/pdf", Body: []byte("%PDF-1.7 " + strings.Repeat("x ", 9000))}, nil
+	})
+	if _, body, _, err := Resolve(runtest.New(t, t.TempDir()), asked, f); err != nil {
+		t.Fatal(err)
+	} else if string(body) != page {
+		t.Fatalf("the page that named itself was left behind: %d bytes", len(body))
+	}
+	// The index lookup for the work's own facts is a different question and still runs; what must
+	// NOT happen is another request for the DOCUMENT.
+	for _, u := range asked2 {
+		if u != asked && !strings.Contains(u, "openalex") {
+			t.Errorf("the document was fetched again from a page that had said it was the full text: %v", asked2)
+		}
+	}
+}
