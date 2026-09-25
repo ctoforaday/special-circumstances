@@ -8,7 +8,7 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-you may NOT stop yet — 1 of 1 item(s) block you:
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 $ register --run {RUN} --seat-id red-lens-evidence
@@ -21,7 +21,7 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-you may stop: nothing blocking, 1 item(s) open to you
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ register --run {RUN} --seat-id blue-respond
 exit 0
@@ -33,7 +33,7 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-you may NOT stop yet — 1 of 1 item(s) block you:
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
   · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
 
 $ register --run {RUN} --seat-id judge --occasion docket
@@ -46,7 +46,7 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-you may stop: nothing blocking, 1 item(s) open to you
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check a --severity high --likelihood high --impact high --problem the first gap
 exit 0
@@ -54,7 +54,7 @@ stdout:
 minted G1
   acceptance check RECORDED as: a
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-you may NOT stop yet — 1 of 1 item(s) block you:
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 $ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check b --severity high --likelihood high --impact high --problem the second gap
@@ -63,14 +63,14 @@ stdout:
 minted G2
   acceptance check RECORDED as: b
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-you may NOT stop yet — 1 of 1 item(s) block you:
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 $ manifest-row --run {RUN} --seat-id blue-respond --id G1 --reason G1 is reproducible via 
 exit 0
 stdout:
 manifest row recorded for G1 [key blue-respond:manifest_row:#1:G1]
-you may NOT stop yet — 2 of 2 item(s) block you:
+2 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
   · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
 
@@ -78,7 +78,7 @@ $ manifest-row --run {RUN} --seat-id blue-respond --id G1 --reason G1 is reprodu
 exit 0
 stdout:
 manifest row recorded for G1 [key blue-respond:manifest_row:#1:G1~1]
-you may NOT stop yet — 2 of 2 item(s) block you:
+2 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
   · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
 
@@ -86,7 +86,7 @@ $ manifest-row --run {RUN} --seat-id blue-respond --id G1 --reason G1 is reprodu
 exit 0
 stdout:
 manifest row recorded for G1 [key blue-respond:manifest_row:#1:G1~1]
-you may NOT stop yet — 2 of 2 item(s) block you:
+2 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
   · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
 
@@ -94,7 +94,7 @@ $ line-of-inquiry propose --run {RUN} --seat-id blue-respond --reason try the  m
 exit 0
 stdout:
 line of inquiry Q1 recorded (proposed): try the  method [key blue-respond:avenue:#1]
-you may NOT stop yet — 2 of 3 item(s) block you:
+2 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
   · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
 
@@ -102,7 +102,7 @@ $ line-of-inquiry move --run {RUN} --seat-id blue-respond --id Q1 --as pursued -
 exit 0
 stdout:
 line of inquiry Q1 moved to pursued [key blue-respond:avenue:#2]
-you may NOT stop yet — 2 of 2 item(s) block you:
+2 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
   · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
 
@@ -110,7 +110,7 @@ $ line-of-inquiry propose --run {RUN} --seat-id blue-respond --reason try the re
 exit 0
 stdout:
 line of inquiry Q1 recorded (proposed): try the recorded method [key blue-respond:avenue:#1~1]
-you may NOT stop yet — 2 of 2 item(s) block you:
+2 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
   · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
 
@@ -118,7 +118,7 @@ $ motion grade file --run {RUN} --seat-id blue-respond --id G2 --dimension sever
 exit 0
 stdout:
 motion M1 filed (grade)
-you may NOT stop yet — 2 of 2 item(s) block you:
+2 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
   · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
 
@@ -126,7 +126,7 @@ $ motion grade rule --run {RUN} --seat-id red-chair --id M1 --as rejected --reas
 exit 0
 stdout:
 motion M1 ruled rejected [key red-chair:motion_rule:#1]
-you may NOT stop yet — 5 of 7 item(s) block you:
+5 STILL TO CLEAR before you may end your turn (of 7 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
   · gap G1 is open and material — PASS is refused while it is
   · gap G2 is open and material — PASS is refused while it is
@@ -137,7 +137,7 @@ $ motion grade rule --run {RUN} --seat-id red-chair --id M1 --as rejected --reas
 exit 0
 stdout:
 motion M1 ruled rejected [key red-chair:motion_rule:#1~1]
-you may NOT stop yet — 5 of 7 item(s) block you:
+5 STILL TO CLEAR before you may end your turn (of 7 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
   · gap G1 is open and material — PASS is refused while it is
   · gap G2 is open and material — PASS is refused while it is
@@ -148,7 +148,7 @@ $ motion grade appeal --run {RUN} --seat-id blue-respond --id M1 --reason pressi
 exit 0
 stdout:
 motion M1 appealed [key blue-respond:motion_appeal:#1]
-you may NOT stop yet — 2 of 2 item(s) block you:
+2 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
   · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
 
@@ -156,7 +156,7 @@ $ motion grade appeal --run {RUN} --seat-id blue-respond --id M1 --reason pressi
 exit 0
 stdout:
 motion M1 appealed [key blue-respond:motion_appeal:#1~1]
-you may NOT stop yet — 2 of 2 item(s) block you:
+2 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
   · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
 
@@ -164,49 +164,49 @@ $ close --run {RUN} --seat-id red-lens-evidence --id G1 --verified-by L1 --verif
 exit 0
 stdout:
 closed G1 (repaired) [key red-lens-evidence:close:#1:G1]
-you may NOT stop yet — 1 of 1 item(s) block you:
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 $ close --run {RUN} --seat-id red-lens-evidence --id G1 --verified-by L1 --verified-with Read --verified-against report.md#S2 --reason verified at the leaf --corrects red-lens-evidence:close:#1:G1 --correction-why a word was lost
 exit 0
 stdout:
 closed G1 (repaired) [key red-lens-evidence:close:#1:G1~1]
-you may NOT stop yet — 1 of 1 item(s) block you:
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 $ motion petition file --run {RUN} --seat-id red-lens-evidence --class safety --relief halt before the next round --reason a consent gate is missing
 exit 0
 stdout:
 motion M2 filed (petition)
-you may NOT stop yet — 1 of 1 item(s) block you:
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 $ motion petition rule --run {RUN} --seat-id judge --id M2 --as denied --reason the gate  exists
 exit 0
 stdout:
 motion M2 ruled denied [key judge:motion_rule:#1]
-you may NOT stop yet — 1 of 1 item(s) block you:
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 $ motion petition rule --run {RUN} --seat-id judge --id M2 --as denied --reason the gate already exists --corrects judge:motion_rule:#1 --correction-why a word was lost
 exit 0
 stdout:
 motion M2 ruled denied [key judge:motion_rule:#1~1]
-you may NOT stop yet — 1 of 1 item(s) block you:
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 $ outcome --run {RUN} --seat-id judge --as UNVERIFIED --reason it stopped because  refused
 exit 0
 stdout:
 outcome recorded: UNVERIFIED (asserted) [key judge:outcome:#1]
-you may NOT stop yet — 1 of 1 item(s) block you:
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 $ outcome --run {RUN} --seat-id judge --as UNVERIFIED --reason it stopped because the gate refused --corrects judge:outcome:#1 --correction-why a word was lost
 exit 0
 stdout:
 outcome recorded: UNVERIFIED (asserted) [key judge:outcome:#1~1]
-you may NOT stop yet — 1 of 1 item(s) block you:
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 ═══ EVENTS ═══

@@ -67,6 +67,18 @@ type StandingJSON struct {
 }
 
 // Human renders the standing as the lines that follow a success message.
+//
+// THE PERMISSION IS THE SENTENCE AND THE INVENTORY IS SUBORDINATE TO IT. This read "you may stop:
+// nothing blocking, 1 item(s) open to you" — two numbers of equal weight, one saying stop and one
+// saying something is open, which a seat can read as unfinished business and answer by going to
+// look. The blocking count is the only one that decides anything, so it is rendered as a COUNTDOWN
+// a seat watches reach zero, and the open tail is a parenthetical that explicitly says it is not
+// owed.
+//
+// IT CANNOT REACH "0 OPEN", AND THAT IS THE WORK LIST'S DESIGN RATHER THAN A ROUNDING HERE. The list
+// deliberately keeps the acts a seat MAY do — a citation nobody verified, a proof nobody re-ran —
+// because a seat whose list empties reads it as permission to stop looking (record.Item.Blocks). So
+// "all clear" is the terminal, not "nothing open", and the sentence has to say which one it means.
 func (s StandingJSON) Human() string {
 	if s.Unreadable != "" {
 		return "WHERE YOU STAND IS NOT MEASURED: " + s.Unreadable +
@@ -74,10 +86,12 @@ func (s StandingJSON) Human() string {
 	}
 	var b strings.Builder
 	if len(s.Blocking) == 0 {
-		fmt.Fprintf(&b, "you may stop: nothing blocking, %d item(s) open to you", s.Open)
+		fmt.Fprintf(&b, "ALL CLEAR — nothing blocks you and you may end your turn "+
+			"(%d item(s) stay open to you and none of them is owed).", s.Open)
 		return b.String()
 	}
-	fmt.Fprintf(&b, "you may NOT stop yet — %d of %d item(s) block you:", len(s.Blocking), s.Open)
+	fmt.Fprintf(&b, "%d STILL TO CLEAR before you may end your turn (of %d item(s) open to you):",
+		len(s.Blocking), s.Open)
 	for _, it := range s.Blocking {
 		b.WriteString("\n  · " + it)
 	}

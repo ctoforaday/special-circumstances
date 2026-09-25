@@ -23,11 +23,11 @@ func TestEveryWriteSaysWhereTheSeatStands(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "you may stop") && !strings.Contains(out, "you may NOT stop") {
+	if !saysWhereYouStand(out) {
 		t.Errorf("a write did not say where the seat stands:\n%s", out)
 	}
 	// AFTER the verb's own line, never instead of it.
-	if firstLines(out, 1) == "" || strings.HasPrefix(out, "you may") {
+	if firstLines(out, 1) == "" || saysWhereYouStand(firstLines(out, 1)) {
 		t.Errorf("the standing displaced the act's own result:\n%s", out)
 	}
 
@@ -39,10 +39,8 @@ func TestEveryWriteSaysWhereTheSeatStands(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, no := range []string{"you may stop", "you may NOT stop", "WHERE YOU STAND"} {
-		if strings.Contains(work, no) {
-			t.Errorf("a read carried a standing block (%q):\n%s", no, work)
-		}
+	if saysWhereYouStand(work) || strings.Contains(work, "WHERE YOU STAND") {
+		t.Errorf("a read carried a standing block:\n%s", work)
 	}
 }
 
@@ -79,7 +77,7 @@ func TestTheStandingIsTheSameInBothForms(t *testing.T) {
 		t.Fatal("a write's JSON envelope carries no standing — a consumer would have to run a second command for it")
 	}
 	// The human form of the FIRST call said the same thing about blocking that the envelope says.
-	blockedHuman := strings.Contains(human, "you may NOT stop")
+	blockedHuman := strings.Contains(human, "STILL TO CLEAR")
 	if blockedHuman == env.Standing.Complete {
 		t.Errorf("the two forms disagree: human blocked=%v, envelope complete=%v\nhuman:\n%s\njson:\n%s",
 			blockedHuman, env.Standing.Complete, human, raw)
@@ -100,8 +98,13 @@ func TestABlockedSeatIsToldWhatBlocksIt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "you may NOT stop") {
+	if !strings.Contains(out, "STILL TO CLEAR") {
 		t.Fatalf("the chair owes its terminal act and was not told it is held:\n%s", out)
+	}
+	// THE TERMINAL AND THE HELD STATE MUST NOT BOTH READ AS PERMISSION. "ALL CLEAR" is the one
+	// sentence that grants it, and a held seat must not see it anywhere in the block.
+	if strings.Contains(out, "ALL CLEAR") {
+		t.Errorf("a held seat was also told it was clear:\n%s", out)
 	}
 	if !strings.Contains(out, "·") {
 		t.Errorf("the seat was told it is blocked and not by what:\n%s", out)
@@ -121,7 +124,13 @@ func TestAMotionAlsoSaysWhereTheSeatStands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("motion grade file: %v\n%s", err, out)
 	}
-	if !strings.Contains(out, "you may stop") && !strings.Contains(out, "you may NOT stop") {
+	if !saysWhereYouStand(out) {
 		t.Errorf("a motion is a write and said nothing about where the seat stands:\n%s", out)
 	}
+}
+
+// saysWhereYouStand matches either terminal of the standing block, in ONE place — the two phrases are
+// what the block is, and a test spelling them separately drifts from the renderer one leg at a time.
+func saysWhereYouStand(s string) bool {
+	return strings.Contains(s, "ALL CLEAR") || strings.Contains(s, "STILL TO CLEAR")
 }

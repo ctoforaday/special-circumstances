@@ -8,7 +8,7 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-you may NOT stop yet — 1 of 1 item(s) block you:
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 $ register --run {RUN} --seat-id red-lens-evidence
@@ -21,7 +21,7 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-you may stop: nothing blocking, 1 item(s) open to you
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check a --severity low --likelihood low --impact low --problem from the stale dispatch
 exit 0
@@ -29,7 +29,7 @@ stdout:
 minted G1
   acceptance check RECORDED as: a
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-you may NOT stop yet — 1 of 1 item(s) block you:
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 $ register --run {RUN} --seat-id red-chair
@@ -42,7 +42,7 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-you may NOT stop yet — 1 of 2 item(s) block you:
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 $ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check b --severity high --likelihood high --impact high --problem from the live dispatch
@@ -51,14 +51,14 @@ stdout:
 minted G2
   acceptance check RECORDED as: b
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-you may NOT stop yet — 1 of 1 item(s) block you:
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
 
 $ verdict --run {RUN} --seat-id red-chair --as FAIL
 exit 0
 stdout:
 verdict FAIL (2 open, 0 closed) and checkpointed to {MIRROR}
-you may NOT stop yet — 2 of 4 item(s) block you:
+2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
   · the log is open — you have neither reported a missing capability nor said that nothing blocked you
   · gap G2 is open and material — PASS is refused while it is
 
