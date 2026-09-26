@@ -17,7 +17,7 @@ import (
 //
 // A research report is full of parentheses. `O(√n)` as a REGEX means "O followed by √n" and does not
 // match the text `O(√n)`; as a LITERAL it does. Verified against m10's real report before this test
-// was written: --match found nothing, --phrase found line 48. One flag with a `--literal` toggle
+// was written: --match found nothing, --quote found line 48. One flag with a `--literal` toggle
 // would hand half the callers the other semantics silently, and a silent zero is the class this
 // surface keeps removing.
 func TestMatchIsARegexAndPhraseIsLiteral(t *testing.T) {
@@ -29,12 +29,12 @@ func TestMatchIsARegexAndPhraseIsLiteral(t *testing.T) {
 	if !strings.Contains(regexHit, "no line of the report matches") {
 		t.Errorf("--match treated the parens as literal; a capture group must not match `O(√n)`:\n%s", regexHit)
 	}
-	literalHit, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat, "--phrase", `O(√n)`)
+	literalHit, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat, "--quote", `O(√n)`)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(literalHit, "no line of the report matches") {
-		t.Errorf("--phrase did not match the characters as typed:\n%s", literalHit)
+		t.Errorf("--quote did not match the characters as typed:\n%s", literalHit)
 	}
 	// AND THE EMPTY CASE SAYS WHAT IT IS. "found nothing" and "the report is empty" must not be the
 	// same bytes — the seat that cannot tell them apart stops auditing.
@@ -61,7 +61,7 @@ func TestASelectedReportLineCarriesItsHeadingAndLineNumber(t *testing.T) {
 	// that has to remember `(?i)` finds half its hits and believes it found all of them — which is a
 	// silent partial read, not a missed feature. Unasserted, this was the one claim a mutation of
 	// `(?i)` walked straight through.
-	for _, flag := range []string{"--match", "--phrase"} {
+	for _, flag := range []string{"--match", "--quote"} {
 		up, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat, flag, "METHODOLOGY")
 		if err != nil {
 			t.Fatal(err)
@@ -82,12 +82,12 @@ func TestASelectedReportLineCarriesItsHeadingAndLineNumber(t *testing.T) {
 func TestTheTwoSelectorsMayNotBeCombined(t *testing.T) {
 	runDir := seatRun(t)
 	for _, v := range []string{"report", "board", "changes"} {
-		args := []string{"show", v, "--run", runDir, "--seat-id", "red-chair", "--match", "x", "--phrase", "y"}
+		args := []string{"show", v, "--run", runDir, "--seat-id", "red-chair", "--match", "x", "--quote", "y"}
 		if v != "report" {
 			args = append(args, "--json")
 		}
 		if _, err := run(t, args...); err == nil {
-			t.Errorf("show %s accepted --match and --phrase together", v)
+			t.Errorf("show %s accepted --match and --quote together", v)
 		} else if !strings.Contains(err.Error(), "Pass ONE") {
 			t.Errorf("show %s: the refusal does not say to pass one: %v", v, err)
 		}
@@ -102,7 +102,7 @@ func TestAMalformedRegexNamesTheLiteralFlag(t *testing.T) {
 	if err == nil {
 		t.Fatal("an unbalanced regex was accepted")
 	}
-	if !strings.Contains(err.Error(), "--phrase") {
+	if !strings.Contains(err.Error(), "--quote") {
 		t.Errorf("the refusal does not point at the literal flag, which is the usual cause: %v", err)
 	}
 }
@@ -143,7 +143,7 @@ func TestTheChangeLogCarriesTheDiffAndIsSelectable(t *testing.T) {
 	}
 	// AND IT IS SELECTABLE on the text of the change itself, which is the question a re-auditing
 	// lens has: did anything touch this sentence?
-	sel, err := run(t, "show", "changes", "--run", runDir, "--seat-id", lensSeat, "--json", "--phrase", e.Old[:12])
+	sel, err := run(t, "show", "changes", "--run", runDir, "--seat-id", lensSeat, "--json", "--quote", e.Old[:12])
 	if err != nil {
 		t.Fatalf("selecting the change log: %v", err)
 	}
@@ -193,9 +193,9 @@ func TestTheBoardIsSelectableAndKeepsItsEmptyArrays(t *testing.T) {
 func TestASelectorMatchesThroughAnchorsAndWhitespace(t *testing.T) {
 	runDir := seatRunReport(t, "# Findings\n\nOverhead is negligible<!--fx:f-eee49716--><!--fx:f-051df802-->.\n\nCost   is\n  spread over lines.\n")
 	for _, tc := range []struct{ name, flag, value string }{
-		{"a phrase spanning two abutting anchors", "--phrase", "negligible."},
+		{"a phrase spanning two abutting anchors", "--quote", "negligible."},
 		{"a regex spanning an anchor", "--match", "negligible[.]"},
-		{"a phrase across collapsed whitespace", "--phrase", "Cost is"},
+		{"a phrase across collapsed whitespace", "--quote", "Cost is"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			out, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat, tc.flag, tc.value)

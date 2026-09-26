@@ -240,10 +240,11 @@ const (
 	// validator's job rather than a second word's.
 	Anchor = "anchor"
 
-	// Match and Phrase are the ONE selector vocabulary the kitchen-sink reads share — a regex and a
-	// literal. See cli/seat/selector.go for why both exist rather than one with a toggle.
-	Match  = "match"
-	Phrase = "phrase"
+	// Match is the selector's REGEX half. Its literal half is Quote, deliberately the same word the
+	// acting verbs take for a span of report text: one concept, one name. See cli/seat/selector.go
+	// for why the pair exists rather than one flag with a toggle, and why the verbs differ on what a
+	// MISS means rather than on what the value is called.
+	Match = "match"
 
 	// The bench's vocabulary. Binds is the addressee of granted relief — set on a RULING,
 	// never on the filing. What a petitioner asks for and what the bench orders are different
@@ -332,7 +333,7 @@ func All() []string {
 		Class, Definition, Neighbor, Distinguisher, MaterialDefault,
 		Problem, Fix, Check, CheckKind, Type, SourceText, OCRQuote, Page, Via, At, About, AboutKind, Hypothesis, Script, Cites, ExpectError,
 		Supersedes, SupersededBy, FoundBy, CarriedFrom,
-		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Match, Phrase,
+		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Match,
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Settled, ReopensOn, Final,
 		Method, AccessDate,

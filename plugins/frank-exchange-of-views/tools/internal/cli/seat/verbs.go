@@ -485,7 +485,7 @@ func viewGroup(inquest bool) *cobra.Command {
 	// unreachable, and the message a seat actually got did not say where --id does work. A
 	// carefully argued error nobody can reach is the same as no error at all.
 	c.PersistentFlags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID,
-		"scope the changes projection to one gap — red's required_fix beside the edits answering it. For part of a projection by its TEXT rather than by a gap, report/board/changes take --match (a regex) or --phrase (a literal)")
+		"scope the changes projection to one gap — red's required_fix beside the edits answering it. For part of a projection by its TEXT rather than by a gap, every view takes --match (a regex) or --quote (a literal, the same span the acting verbs take)")
 	for _, v := range views {
 		if v.inquest {
 			continue // the bench's own group; see Inquest
@@ -998,7 +998,7 @@ func inquestGroup() *cobra.Command {
 		}
 		// THE INQUEST VIEWS TAKE THE SELECTOR PAIR TOO. This group is built here rather than in the
 		// `show` loop, so a flag added there reaches only half the views — which is how `--match` and
-		// `--phrase` first shipped on `show board` and not on `inquest motions`, in the very change
+		// The literal selector reached `show board` and not `inquest motions`, in the very change
 		// that was meant to stop behaviour being built twice. Both builders call the same helper now.
 		AddSelectorFlags(sub, selectorNoun(v.name))
 		c.AddCommand(sub)

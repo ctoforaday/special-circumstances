@@ -161,11 +161,11 @@ THIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-fo
 select only the gaps matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
 
 §24 (on 2 pages):
-select only the gaps containing this text LITERALLY (case-insensitive) — use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
+select only the gaps containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
 §25 (on 7 pages):
 Global Flags:
-      --id gap-id        scope the changes projection to one gap — red's required_fix beside the edits answering it. For part of a projection by its TEXT rather than by a gap, report/board/changes take --match (a regex) or --phrase (a literal)
+      --id gap-id        scope the changes projection to one gap — red's required_fix beside the edits answering it. For part of a projection by its TEXT rather than by a gap, every view takes --match (a regex) or --quote (a literal, the same span the acting verbs take)
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
       --schema           print the event-schema epoch this binary writes, and exit
@@ -808,7 +808,7 @@ Available Commands:
 
 Flags:
   -h, --help        help for show
-      --id gap-id   scope the changes projection to one gap — red's required_fix beside the edits answering it. For part of a projection by its TEXT rather than by a gap, report/board/changes take --match (a regex) or --phrase (a literal)
+      --id gap-id   scope the changes projection to one gap — red's required_fix beside the edits answering it. For part of a projection by its TEXT rather than by a gap, every view takes --match (a regex) or --quote (a literal, the same span the acting verbs take)
 
 (Global Flags:) → SHARED §2
 
@@ -832,7 +832,7 @@ Flags:
       --format string   json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose) (default "json")
   -h, --help            help for board
       --match regex     → SHARED §23
-      --phrase text     → SHARED §24
+      --quote text      → SHARED §24
 
 (Global Flags:) → SHARED §25
 ==============================================================================
@@ -851,7 +851,7 @@ Usage:
 Flags:
   -h, --help          help for changes
       --match regex   select only the edits matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
-      --phrase text   select only the edits containing this text LITERALLY (case-insensitive) — use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
+      --quote text    select only the edits containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
 (Global Flags:) → SHARED §25
 ==============================================================================
@@ -872,7 +872,7 @@ Usage:
 Flags:
   -h, --help          help for evidence
       --match regex   select only the citations and proofs matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
-      --phrase text   select only the citations and proofs containing this text LITERALLY (case-insensitive) — use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
+      --quote text    select only the citations and proofs containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
 (Global Flags:) → SHARED §25
 ==============================================================================
@@ -893,7 +893,7 @@ Usage:
 Flags:
   -h, --help          help for findings
       --match regex   select only the findings matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
-      --phrase text   select only the findings containing this text LITERALLY (case-insensitive) — use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
+      --quote text    select only the findings containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
 (Global Flags:) → SHARED §25
 ==============================================================================
@@ -912,7 +912,7 @@ Usage:
 Flags:
   -h, --help          help for lines-of-inquiry
       --match regex   select only the lines of inquiry matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
-      --phrase text   select only the lines of inquiry containing this text LITERALLY (case-insensitive) — use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
+      --quote text    select only the lines of inquiry containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
 (Global Flags:) → SHARED §25
 ==============================================================================
@@ -930,7 +930,7 @@ Flags:
       --anchor id     read the report AT one anchor id (f-…, c-…, p-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back
   -h, --help          help for report
       --match regex   select only the report lines matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
-      --phrase text   select only the report lines containing this text LITERALLY (case-insensitive) — use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
+      --quote text    select only the report lines containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
       --window int    with --anchor: how many paragraphs of content either side of it (blank lines are kept, not counted) (default 3)
 
 (Global Flags:) → SHARED §25
@@ -962,7 +962,7 @@ Usage:
 Flags:
   -h, --help          help for work
       --match regex   → SHARED §23
-      --phrase text   → SHARED §24
+      --quote text    → SHARED §24
 
 (Global Flags:) → SHARED §25
 ==============================================================================

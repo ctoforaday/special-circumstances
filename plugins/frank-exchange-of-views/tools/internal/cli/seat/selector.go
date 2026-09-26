@@ -54,7 +54,7 @@ import (
 // Selector is a seat's request for part of a projection: at most one of a regex and a literal.
 type Selector struct {
 	re *regexp.Regexp
-	// Literal is the phrase as typed, kept for the message a caller prints when nothing matched —
+	// Literal is the quote as typed, kept for the message a caller prints when nothing matched —
 	// "no line matches /x/" reads differently from "no line contains \"x\"".
 	Literal string
 }
@@ -65,7 +65,7 @@ func (s Selector) Active() bool { return s.re != nil }
 // Describe is how a caller names the ask when it reports a count or an empty result.
 func (s Selector) Describe() string {
 	if s.Literal != "" {
-		return "the phrase " + `"` + s.Literal + `"`
+		return "the quote " + `"` + s.Literal + `"`
 	}
 	if s.re != nil {
 		return "/" + s.re.String() + "/"
@@ -100,6 +100,16 @@ func visibleText(s string) string {
 }
 
 // AddSelectorFlags registers the pair on a view that supports them.
+//
+// THE LITERAL ONE IS --quote, THE SAME WORD THE ACTING VERBS TAKE for a span of report text, and that
+// is the design rather than a collision. A seat holds one sentence off the report and does three
+// things with it: finds which entries mention it, edits it, cites it. One concept takes one name.
+//
+// The verbs differ in what a MISS means, and that difference belongs to the VERB, not to the value: an
+// acting verb refuses a quote the report does not carry, while a view reports "matched": 0 in its
+// selection block. Sharing the word makes a view a DRY RUN for the act — a seat that filters by the
+// quote it is about to edit with learns the quote is wrong before it writes anything.
+//
 // THROUGH flags.Text, NOT c.Flags().String. Both values are composed by the seat in a shell, so both
 // need the quoting rule that helper appends to the page — a regex is the value most likely to be eaten
 // by a shell before the tool sees it. Registering them the plain way skipped that rule and skipped the
@@ -109,20 +119,20 @@ func visibleText(s string) string {
 func AddSelectorFlags(c *cobra.Command, what string) {
 	flags.Text(c, flags.Match,
 		"select only the "+what+" matching this `regex` (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut")
-	flags.Text(c, flags.Phrase,
-		"select only the "+what+" containing this `text` LITERALLY (case-insensitive) — use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else")
+	flags.Text(c, flags.Quote,
+		"select only the "+what+" containing this `text` LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else")
 }
 
 // SelectorOf reads the pair, refusing the two ways a seat can get a wrong answer quietly: asking
 // with both, and asking with a regex that does not compile.
 func SelectorOf(c *cobra.Command) (Selector, error) {
 	rx, _ := c.Flags().GetString(flags.Match)
-	lit, _ := c.Flags().GetString(flags.Phrase)
+	lit, _ := c.Flags().GetString(flags.Quote)
 	switch {
 	case rx != "" && lit != "":
 		return Selector{}, feov.Errorf(feov.Validation,
-			"--match and --phrase ask the same question two ways and would disagree the moment the text "+
-				"has a metacharacter in it. Pass ONE: --match for a regex (an alternation of tells), --phrase for "+
+			"--match and --quote ask the same question two ways and would disagree the moment the text "+
+				"has a metacharacter in it. Pass ONE: --match for a regex (an alternation of tells), --quote for "+
 				"text containing (), ., * or [] that a regex would read as syntax")
 	case lit != "":
 		return Selector{re: regexp.MustCompile("(?i)" + regexp.QuoteMeta(lit)), Literal: lit}, nil
@@ -131,7 +141,7 @@ func SelectorOf(c *cobra.Command) (Selector, error) {
 		if err != nil {
 			return Selector{}, feov.Errorf(feov.Validation,
 				"--match %q is not a valid regex: %v. If you meant it literally — text with (), ., * or [] in "+
-					"it — pass it as --phrase instead, which matches the characters as typed", rx, err)
+					"it — pass it as --quote instead, which matches the characters as typed", rx, err)
 		}
 		return Selector{re: re}, nil
 	}
