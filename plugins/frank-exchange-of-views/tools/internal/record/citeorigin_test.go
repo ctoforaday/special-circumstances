@@ -24,11 +24,14 @@ func TestACiteOriginAndItsPinsAreCheckedAtTheWrite(t *testing.T) {
 		{"pages on embedded text", &recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: embedded.Enum(), Pages: []int32{3}}, "whose text origin is embedded"},
 		{"pages without the reading", &recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: ocr.Enum(), Pages: []int32{3}}, "pages without the quote and the reading"},
 		{"ocr with its pins", &recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: ocr.Enum(), Pages: []int32{3},
-			WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(),
-			OcrQuote:   proto.String("s"), OcrEngine: proto.String("e"), OcrTextSha: proto.String("t")}, ""},
+			WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(),
+			OcrQuote: proto.String("s"), OcrEngine: proto.String("e"), OcrTextSha: proto.String("t")}, ""},
 		// THE SECOND THING THE TOOL STAMPS, refused on the same terms. A cite with a perfect
 		// origin and no word on whether the work still stands renders as an ordinary source.
 		{"no work status", &recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: embedded.Enum()}, "carries no work_status"},
+		// AND THE THIRD: a cite of an abstract with nothing saying so renders like a cite of the paper.
+		{"no completeness", &recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: embedded.Enum(),
+			WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum()}, "carries no source_completeness"},
 	} {
 		err := validate(run, "blue-respond", recordpb.EventType_EVENT_TYPE_CITE, tc.body)
 		switch {

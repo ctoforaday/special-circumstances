@@ -360,7 +360,7 @@ var EnumFields = map[string][]EnumField{
 	}},
 	"verify": {{
 		Key: "outcome", Flag: flags.As, Values: []EnumValue{
-			ev("supports", "you read the source at the leaf and it says what the claim says"),
+			ev("supports", "you read the source and it says what the claim says. Where the run's copy of it is only the work's abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows"),
 			// UNDERSCORE, matching the schema. It was `supports-with-bridge` — the only hyphenated value in
 			// any set — so `--help` offered a word `SourceOutcomeOf` then refused: "not a source outcome
 			// this record can carry", for the value the tool had just told the seat to use. That is #342

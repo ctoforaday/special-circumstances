@@ -198,6 +198,9 @@ func newCite() *cobra.Command {
 			// carrier — the citation reaches the reader through the record, and until this line
 			// existed a retracted source made a footnote indistinguishable from a sound one.
 			WorkStatus: record.WorkStatusOf(entry.Retraction()).Enum(),
+			// AND WHICH PART OF THE WORK THE COPY IS — a summary_only citation of an abstract and
+			// one of a paper read the same until this was on the record.
+			SourceCompleteness: entry.SourceCompleteness().Enum(),
 		}
 		if len(ocr.loc.Pages) > 0 {
 			body.OcrQuote = proto.String(ocrQuote)

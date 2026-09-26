@@ -273,8 +273,20 @@ func TestBlueCiteRefusesALeafReadingOfAnAbstract(t *testing.T) {
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_CITE); n != 0 {
 		t.Fatalf("the refusal left %d cite events on the record", n)
 	}
-	// The abstract is still citable as what it is.
+	// The abstract is still citable as what it is — and the record says what it is.
 	if err := cite("summary_only"); err != nil {
 		t.Fatalf("an abstract cited as summary_only was refused: %v", err)
+	}
+	if c := firstCiteEvent(t, runDir); c == nil || c.GetSourceCompleteness() != recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT {
+		t.Errorf("the citation of an abstract does not record it as one: %v", c.GetSourceCompleteness())
+	}
+	// AND RED'S LOOKUP TABLE SHOWS IT, which is where red decides what to check.
+	m, err := record.MergedEvents(runtest.Open(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ev := record.EvidenceJSONOf(m.Events)
+	if len(ev.Sources) != 1 || ev.Sources[0].SourceCompleteness != "abstract" {
+		t.Errorf("the evidence view does not show the citation rests on an abstract: %+v", ev.Sources)
 	}
 }

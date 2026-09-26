@@ -359,6 +359,17 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		body.Label = proto.String(label)
 	}
 
+	// WHICH PART OF THE WORK RED'S COPY IS, on every verdict that names a source — a `supports`
+	// read off an abstract is a confirmation of the abstract, and the record says so rather than
+	// the seat. Read from the index, never fetched; a source outside the cache was never asked.
+	if body.GetUrl() != "" {
+		completeness := recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_ASKED
+		if e, _, ok, lerr := fetchcache.Lookup(run, body.GetUrl()); lerr == nil && ok {
+			completeness = e.SourceCompleteness()
+		}
+		body.SourceCompleteness = completeness.Enum()
+	}
+
 	if _, err := record.Append(s.Identity(), body); err != nil {
 		return nil, err
 	}

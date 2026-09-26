@@ -9,6 +9,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 )
 
@@ -178,5 +179,57 @@ func TestAbsentIsRefusedOnACopyThatIsOnlyTheAbstract(t *testing.T) {
 	}
 	if err := absent("https://example.org/a-source-never-fetched"); err != nil {
 		t.Fatalf("absent against an unclassified source was refused: %v", err)
+	}
+}
+
+// RED MAY CONFIRM FROM AN ABSTRACT, AND THE RECORD SAYS IT DID (gblock, 2026-09-26). A `supports`
+// read off the abstract confirms what the abstract says; the verdict carries the copy's
+// completeness so that nothing downstream reads it as a verdict on the study. A source outside the
+// run's cache was never classified, and says so.
+func TestASupportFromAnAbstractRecordsThatItWasOne(t *testing.T) {
+	runDir := corroborateRun(t)
+	const src = "https://doi.org/10.1038/nature06964"
+	page := []byte("<html><body>the abstract</body></html>")
+	if _, err := fetchcache.Store(runtest.Open(t, runDir), fetchcache.Entry{URL: src, Sha: fetchcache.Sha(page),
+		ContentType: "text/html", Completeness: fetchcache.CompletenessAbstract,
+		CompletenessReason: "the platform printed its paywall in place of the body"}, page); err != nil {
+		t.Fatal(err)
+	}
+	supports := func(url string) {
+		t.Helper()
+		if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-evidence",
+			"--url", url, "--title", "A source", "--quote", corroborated, "--as", "supports", "--confidence", "high",
+			"--reason", "the abstract states it"); err != nil {
+			t.Fatalf("a supports from %s was refused: %v", url, err)
+		}
+	}
+	supports(src)
+	supports("https://example.org/never-fetched")
+	got := map[string]recordpb.SourceCompleteness{}
+	m, err := record.MergedEvents(runtest.Open(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range m.Events {
+		if v, ok := recordpb.BodyAs[*recordpb.Verify](e); ok {
+			got[v.GetUrl()] = v.GetSourceCompleteness()
+		}
+	}
+	if got[src] != recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT {
+		t.Errorf("a supports read off an abstract records %v", got[src])
+	}
+	if g := got["https://example.org/never-fetched"]; g != recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_ASKED {
+		t.Errorf("a source outside the cache records %v, want not_asked", g)
+	}
+	// AND RED'S LOOKUP TABLE SHOWS IT, which is where the verdict is read.
+	ev := record.EvidenceJSONOf(m.Events)
+	seen := false
+	for _, v := range ev.Independent {
+		if v.URL == src && v.SourceCompleteness == "abstract" {
+			seen = true
+		}
+	}
+	if !seen {
+		t.Errorf("the evidence view does not show the verdict rests on an abstract: %+v", ev.Independent)
 	}
 }

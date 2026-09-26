@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // WHETHER AN HTML PAGE IS THE PAPER OR ITS ABSTRACT, decided only on POSITIVE evidence.
@@ -168,3 +170,23 @@ func pdfCompleteness(pages, declared int, workType string) (verdict, reason stri
 // bookTypes are the index's words for a whole book: OpenAlex's `book`, Crossref's `monograph` and
 // `edited-book`. A chapter is not here — a chapter's pdf is that work.
 var bookTypes = map[string]bool{"book": true, "monograph": true, "edited-book": true}
+
+// SourceCompleteness is the record's word for this entry's completeness — what a citation of it
+// carries. A word this switch does not know maps to UNSPECIFIED, which the record's write guard
+// refuses: a new verdict added here without a record word must fail at the write, not reach a
+// reader as some other verdict.
+func (e Entry) SourceCompleteness() recordpb.SourceCompleteness {
+	switch e.Completeness {
+	case CompletenessFull:
+		return recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL
+	case CompletenessAbstract:
+		return recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT
+	case CompletenessUnverified:
+		return recordpb.SourceCompleteness_SOURCE_COMPLETENESS_UNVERIFIED
+	case CompletenessNotTheWork:
+		return recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_THE_WORK
+	case "":
+		return recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_ASKED
+	}
+	return recordpb.SourceCompleteness_SOURCE_COMPLETENESS_UNSPECIFIED
+}
