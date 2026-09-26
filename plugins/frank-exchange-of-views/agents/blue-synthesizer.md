@@ -169,12 +169,12 @@ capability is a finding about the tooling, and that channel is how it gets fixed
 §2 (on 2 pages):
 The sentence is found in the report as the record holds it, so the report must be frozen into the record first; before that there is nothing to anchor in.
 
-§3 (on 16 pages):
+§3 (on 19 pages):
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
 your text, and records whatever the command printed — or nothing — in its place. Pass every
 free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
 
-§4 (on 16 pages):
+§4 (on 19 pages):
   X=$(cat <<'EOF'
   your text — backticks, apostrophes and $ signs are all literal here
   EOF
@@ -244,7 +244,7 @@ THIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-fo
 
 §19 (on 7 pages):
 Global Flags:
-      --id string        scope the changes projection to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
+      --id string        scope the changes projection to one gap — red's required_fix beside the edits answering it. For part of a projection by its TEXT rather than by a gap, report/board/changes take --match (a regex) or --phrase (a literal)
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
       --schema           print the event-schema epoch this binary writes, and exit
@@ -917,7 +917,7 @@ Available Commands:
 
 Flags:
   -h, --help        help for show
-      --id string   scope the changes projection to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form
+      --id string   scope the changes projection to one gap — red's required_fix beside the edits answering it. For part of a projection by its TEXT rather than by a gap, report/board/changes take --match (a regex) or --phrase (a literal)
 
 (Global Flags:) → SHARED §7
 
@@ -930,23 +930,37 @@ THE BOARD — open and closed gaps with grades, closures, anchors, observations 
 
 OUTPUT (JSON): {open:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],minted_location,location_edits:[{epoch,edited_by,old,new}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],closed:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],minted_location,location_edits:[{epoch,edited_by,old,new}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],observations:[{id,seat_id,key,kind,label,text,credited}],counts:{open,closed,closed_by_bench,uncredited_findings,anomalies,total_observations,citations,citations_authored},anomalies:[string]}
 
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+
+(X=$(cat <<'EOF') → SHARED §4
+
 Usage:
   feov-record show board [flags]
 
 Flags:
       --format string   json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose) (default "json")
   -h, --help            help for board
+      --match regex     select only the gaps matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
+      --phrase text     select only the gaps containing this text LITERALLY (case-insensitive) — use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
 (Global Flags:) → SHARED §19
 ==============================================================================
 $ feov-record show changes --help
 every recorded edit to the report (the blue_edit diff stack), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`
 
+OUTPUT (JSON, with --json — the bare call is the markdown form): {edits:[{seat,sitting,epoch,answers,old,new,delta,reason,applied_verbatim,accepted}],counts:{edits}}
+
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+
+(X=$(cat <<'EOF') → SHARED §4
+
 Usage:
   feov-record show changes [flags]
 
 Flags:
-  -h, --help   help for changes
+  -h, --help          help for changes
+      --match regex   select only the edits matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
+      --phrase text   select only the edits containing this text LITERALLY (case-insensitive) — use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
 (Global Flags:) → SHARED §19
 ==============================================================================
@@ -996,13 +1010,19 @@ Flags:
 $ feov-record show report --help
 THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the opening synthesis and every `edit`
 
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+
+(X=$(cat <<'EOF') → SHARED §4
+
 Usage:
   feov-record show report [flags]
 
 Flags:
-      --anchor id    read the report AT one anchor id (f-…, c-…, p-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back
-  -h, --help         help for report
-      --window int   with --anchor: how many paragraphs of content either side of it (blank lines are kept, not counted) (default 3)
+      --anchor id     read the report AT one anchor id (f-…, c-…, p-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back
+  -h, --help          help for report
+      --match regex   select only the report lines matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
+      --phrase text   select only the report lines containing this text LITERALLY (case-insensitive) — use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
+      --window int    with --anchor: how many paragraphs of content either side of it (blank lines are kept, not counted) (default 3)
 
 (Global Flags:) → SHARED §19
 ==============================================================================

@@ -272,7 +272,7 @@ var views = []struct {
 	{"work", "WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Delivered with your dispatch, and every act you record says where you then stand, so you rarely need to ask. Written by `mint`, `close` and the bench's `motion docket rule`", "**YOU ARE PROBABLY NOT MEANT TO RUN THIS. The list is delivered with your dispatch, and every act you record answers `may I stop` for you afterwards — so reach for this only when neither reached you, or when you want the items that do NOT block you.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left.\n\nAn item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran, a line of inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.\n\nFOR EACH GAP YOU MINTED AND LEFT OPEN, an item says whether blue ANSWERED it — and where the record cannot yet say, it says that instead of reporting no answer. Blue still sitting and blue having said nothing are the same silence on the record, and they want different acts from you: one is waiting, the other is a fact to state.\n\n`open` holds OPEN gaps only, and each carries WHAT IT TAKES TO ACT ON IT: the grades, class and location, the WHOLE problem (`problem_synopsis` is the first 140 characters, for scanning a long list), the `required_fix` and the `acceptance_check` you will be re-audited against, `minted_by` and `yours_to_close` — only the seat that minted a gap may close or regrade it, and that field answers it rather than leaving you to decode `found_by`. YOU SHOULD NOT NEED THE BOARD TO ACT ON YOUR OWN WORK. One with `awaiting_docket` was REMANDED by the bench — nothing is pending, and it returns only if you docket it again (`docket_reopens_on` says what would bring it back).\n\n`estopped` IS WHAT YOU MAY NOT RE-RAISE: the gaps the BENCH ruled, each with id, location, class and the `fate` that ended it. Re-raising one is relitigation, not diligence — new evidence against it is a lineage successor, minted under a new id naming the ruled gap in `supersedes` and saying what the ruling did not account for. YOUR OWN closures are not here and are not a bar: red may reopen what red closed, and `near-match` shows you those with `closed_by` at the moment you are deciding reopen-or-new.\n\nFate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. Written by `mint`, `close` and the bench's `motion docket rule`", "*", true, record.WorkJSON{}, false},
 	{"motions", "WHAT HAS BEEN CONTESTED AND HOW IT WAS RULED — the ask in the filer's words, and the ruling if it has one. `debate` is what each side ARGUED; this is what was formally disputed. Written by `motion`, `rule` and `appeal`", "Every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks a PASS verdict, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal`", "", true, record.MotionsJSON{}, true},
 	{"debate", "WHAT EACH SIDE ARGUED, epoch by epoch — the transcript, in order. Written by `position`, `closing` and the bench's `motion docket rule`", "the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by `position`, `closing` and the bench's `motion docket rule`", "", false, record.DebateJSON{}, true},
-	{"changes", "HOW THE REPORT GOT THAT WAY — every edit in record order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by `edit`", "every recorded edit to the report (the blue_edit diff stack), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`", "", false, nil, false},
+	{"changes", "HOW THE REPORT GOT THAT WAY — every edit in record order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by `edit`", "every recorded edit to the report (the blue_edit diff stack), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`", "", false, record.ChangesJSON{}, false},
 	{"evidence", "WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading. Written by `cite`, `prove`, `verify` and `reproduce`", "WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a finding to file however well it reads. `not_checked` is not reassurance; it says nobody asked. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` are the PDF pages the tool found its `ocr_quote` on: check it against one of those page images, not against the reading. Every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their confidence. THIS IS HOW YOU RESOLVE AN ANCHOR you are reading in the report. Written by `cite`, `prove`, `verify` and `reproduce`", "", true, record.EvidenceJSON{}, false},
 	{"lines-of-inquiry", "WHICH DIRECTIONS WERE TAKEN AND WHICH WERE NOT — pursued, deferred, declined, abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule`", "the exploration space: lines taken, deferred, declined and abandoned, and the ones still undecided; --json gives the same lines with their types intact, each carrying the reason for its CURRENT status. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule` (red's ruling)", "", false, record.InquiriesJSON{}, false},
 	{"telemetry", "HOW THE NUMBERS MOVED ACROSS EPOCHS — a trend, not a snapshot: one line per epoch (chair sitting), and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it", "JSONL, one line per epoch (chair sitting): the trend the STOPPING judgment reads — the bench's signal for whether the findings are still changing character or merely recurring", "", true, view.TelemetryLineShape(), true},
@@ -485,7 +485,7 @@ func viewGroup(inquest bool) *cobra.Command {
 	// unreachable, and the message a seat actually got did not say where --id does work. A
 	// carefully argued error nobody can reach is the same as no error at all.
 	c.PersistentFlags().String(flags.ID, "",
-		"scope the changes projection to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form")
+		"scope the changes projection to one gap — red's required_fix beside the edits answering it. For part of a projection by its TEXT rather than by a gap, report/board/changes take --match (a regex) or --phrase (a literal)")
 	for _, v := range views {
 		if v.inquest {
 			continue // the bench's own group; see Inquest
@@ -527,6 +527,17 @@ func viewGroup(inquest bool) *cobra.Command {
 		// READING AT AN ANCHOR, rather than pulling the whole document to check one sentence.
 		// The window is addressed by anchor because a line number is a fact about a rendering —
 		// see internal/anchor/window.go for why that distinction is load-bearing here.
+		// THE SAME SELECTOR VOCABULARY ON ALL THREE KITCHEN SINKS. `report`, `board` and `changes` are
+		// the reads a seat should rarely need whole; they shared no working way to ask for part of one
+		// while all advertising `--id`, which only `changes` honours. See selector.go.
+		switch v.name {
+		case "report":
+			AddSelectorFlags(sub, "report lines")
+		case "board":
+			AddSelectorFlags(sub, "gaps")
+		case "changes":
+			AddSelectorFlags(sub, "edits")
+		}
 		if v.name == "report" {
 			sub.Flags().String(flags.Anchor, "",
 				"read the report AT one anchor `id` (f-…, c-…, p-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back")
@@ -595,6 +606,25 @@ func renderView(cmd *cobra.Command, want string) error {
 		}
 	} else if asJSON {
 		switch want {
+		// changes IS A CHANGE LOG AND NOW CARRIES THE CHANGE. The markdown stays — its diff blocks are
+		// the human-verification rendering — and this gives the same edits structured, so a seat can
+		// select over them instead of rendering the report and grepping. 8 of m10's 23 unscoped
+		// `changes` calls asked for a --json that did not exist, then inspected the refusal envelope
+		// (`jq 'keys'`, `jq '.error'`) to work out why.
+		case "changes":
+			b, err := record.ChangesJSONBytes(run)
+			if err != nil {
+				return err
+			}
+			if sel, serr := SelectorOf(cmd); serr != nil {
+				return serr
+			} else if sel.Active() {
+				out, _, _ := selectJSONArrays(b, sel, "edits")
+				cmd.OutOrStdout().Write(out)
+				return nil
+			}
+			cmd.OutOrStdout().Write(b)
+			return nil
 		case "debate":
 			b, err := record.DebateJSONBytes(run)
 			if err != nil {
@@ -694,6 +724,17 @@ func renderView(cmd *cobra.Command, want string) error {
 		if err != nil {
 			return err
 		}
+		// SELECTED GAPS. Every board read in universe-m10 began `jq '.open[]'` — the seat narrowing a
+		// kitchen sink by hand. The selector filters the gap arrays on any of their text, and reports
+		// what it kept of what there was, so a pattern that matched nothing is distinguishable from a
+		// board that holds nothing.
+		if sel, serr := SelectorOf(cmd); serr != nil {
+			return serr
+		} else if sel.Active() {
+			out, _, _ := selectJSONArrays(b, sel, "open", "closed")
+			cmd.OutOrStdout().Write(out)
+			return nil
+		}
 		cmd.OutOrStdout().Write(b)
 		return nil
 	}
@@ -746,6 +787,21 @@ func renderView(cmd *cobra.Command, want string) error {
 		if cmd.Flags().Changed(flags.Window) {
 			return feov.Errorf(feov.Validation, "show report: --window sizes a window and there is no window without --anchor <id>. "+
 				"Either name the anchor you are reading at, or drop --window and take the whole report")
+		}
+		// SELECTED LINES, WITH WHAT IT TAKES TO CITE THEM. A seat hunting an undiscovered defect has
+		// no anchor to read at — that is what makes it undiscovered — so it rendered the whole report
+		// and grepped, then sed'd a line range to find the heading above the hit. This returns the
+		// same triple --anchor does (heading, text, line number) keyed on a pattern instead of an id.
+		if sel, serr := SelectorOf(cmd); serr != nil {
+			return serr
+		} else if sel.Active() {
+			out, n := selectReportLines(string(b), sel)
+			fmt.Fprint(cmd.OutOrStdout(), out)
+			if n == 0 {
+				fmt.Fprintf(cmd.OutOrStdout(), "no line of the report matches %s — the report has %d line(s). This is a read that found nothing, not an empty report.\n",
+					sel.Describe(), len(strings.Split(string(b), "\n")))
+			}
+			return nil
 		}
 		cmd.OutOrStdout().Write(b)
 		return nil
