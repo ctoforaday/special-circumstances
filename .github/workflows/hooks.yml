@@ -308,7 +308,7 @@ jobs:
       # processes — parallel Edits in one turn fire parallel PostToolUse invocations, each
       # its own binary, sharing state under .claude/. No race detector observes that: any
       # cross-process ordering a hook depends on has to be enforced by the hook itself.
-      - run: go test -race ./...
+      - run: go test -race -timeout=30m ./...
         env:
           CGO_ENABLED: "1"
 
@@ -680,7 +680,10 @@ jobs:
         run: |
           pkgs="$(go list -deps ./cmd/feov-record | grep '^github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools')"
           test -n "$pkgs"
-          echo "$pkgs" | xargs go test -race
+          # -timeout=30m: a test timeout catches a HANG, and Go's default of ten minutes was
+          # catching a correct serial suite instead — internal/cli took 435s under -race on an
+          # idle box. scripts/check holds the local gate to the same bound (raceTimeout).
+          echo "$pkgs" | xargs go test -race -timeout=30m
         # EXPLICIT even though the step is Linux-only now: this job sets no default
         # shell, and a script whose syntax assumes bash should say so where it runs.
         shell: bash
@@ -899,7 +902,7 @@ jobs:
           # pin is the fix; lowering go.mod or restoring `auto` would only re-hide it.
           go-version: "1.25"
       - run: go test ./...
-      - run: go test -race ./...
+      - run: go test -race -timeout=30m ./...
         env:
           CGO_ENABLED: "1"
 
@@ -1180,7 +1183,7 @@ jobs:
       # path/bytes pair could hand one file another file's contents. That shipped, and was found
       # by reading rather than by CI, because scripts was the one module with no -race leg. The
       # suite is seconds; the detector is cheap here.
-      - run: go test -race ./...
+      - run: go test -race -timeout=30m ./...
 
   qlty:
     # The quality gate had no CI leg at all. `qlty check` is mandatory during

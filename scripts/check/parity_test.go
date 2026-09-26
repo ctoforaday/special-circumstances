@@ -177,7 +177,9 @@ func TestRaceScopesMatchTheWorkflow(t *testing.T) {
 	// Scoped to the job's own block: `-race ./...` appears in several jobs, so a bare
 	// Contains over the whole workflow would pass on somebody else's leg — which is the
 	// shape of claim this whole test exists to refuse.
-	if !strings.Contains(jobBlock(t, wf, "scripts"), "go test -race ./...") {
+	// The command and its scope, not their adjacency: a flag between them (the race bound) must
+	// not read as the leg having gone.
+	if !regexp.MustCompile(`go test -race\b[^\n]*\s\./\.\.\.`).MatchString(jobBlock(t, wf, "scripts")) {
 		t.Error("the scripts job no longer runs -race over ./..., but raceScope claims it does")
 	}
 	if scope := raceScope["scripts"]; len(scope) != 1 || scope[0] != "./..." {
@@ -369,5 +371,52 @@ func TestExpandScopeDerivesTheModuleLocalGraph(t *testing.T) {
 	}
 	if _, err := expandScope("..", []string{depsScopePrefix + "./no-such-target"}); err == nil {
 		t.Error("a target go list cannot resolve expanded without error — that silence would race nothing and pass")
+	}
+}
+
+// THE RACE BOUND IS ONE NUMBER IN TWO PLACES, and both are held to it.
+//
+// Go's default ten-minute test timeout was catching a correct serial suite rather than a hang:
+// feov-record's internal/cli took 435s under -race on an IDLE box and 776s under this box's
+// usual load, turning the race gate red three times in one week with zero data races reported.
+// raceTimeout fixes the local gate; the workflow carries the same bound. If one moves without
+// the other, `check` and CI measure different things — the drift this command exists to remove.
+func TestEveryModuleRaceLegCarriesTheBound(t *testing.T) {
+	for _, g := range gateSet() {
+		if g.kind != kindRace || !strings.HasSuffix(g.id, ":race") {
+			continue // the narrow single-test legs run one test and need no suite bound
+		}
+		var found bool
+		for _, a := range g.args {
+			if a == raceTimeout {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("local race gate %q runs %v without %s", g.id, g.args, raceTimeout)
+		}
+	}
+	// Every SUITE race leg in the workflow — `./...` or the xargs'd import graph — carries it too.
+	// Whole lines, so a mention in a YAML comment — the workflow explains itself in prose — is
+	// told apart from an invocation. The first version matched "`go test -race` with no packages
+	// would" out of a comment and failed on it.
+	var legs int
+	for _, line := range strings.Split(workflow(t), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") || !strings.Contains(trimmed, "go test -race") {
+			continue
+		}
+		if strings.Contains(line, "-run ") {
+			continue // a single named test, like the local narrow legs
+		}
+		legs++
+		if !strings.Contains(line, raceTimeout) {
+			t.Errorf("a workflow race leg lacks %s, so CI and the local gate diverge: %q", raceTimeout, trimmed)
+		}
+	}
+	// A NO-MATCH MUST NOT READ AS A PASS. If the workflow's shape moves and this finds nothing, it
+	// would report every leg bounded while checking none.
+	if legs == 0 {
+		t.Fatal("found no suite race legs in the workflow at all — the check measured nothing")
 	}
 }
