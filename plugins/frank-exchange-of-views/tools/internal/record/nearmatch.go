@@ -1,6 +1,7 @@
 package record
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"math"
 	"sort"
 	"strings"
@@ -46,7 +47,12 @@ const locationBonus = 0.15
 // single-character tokens (punctuation noise, stray letters). Deterministic, unicode-aware.
 func tokenize(s string) map[string]bool {
 	out := map[string]bool{}
-	for _, f := range strings.FieldsFunc(strings.ToLower(s), func(r rune) bool {
+	// THE ANNOTATION LAYER IS NOT VOCABULARY. Splitting on non-alphanumerics turns an anchor into
+	// tokens — `<!--fx:f-dbd94684-->` yields "fx" and "dbd94684" — and both land in the union, so an
+	// anchored sentence scores LOWER against the same words than an unanchored one. The score degrades
+	// quietly rather than failing, which is why it survived: a near-match that should have warned about
+	// a duplicate just ranks lower. Stripped through the one definition of the layer.
+	for _, f := range strings.FieldsFunc(strings.ToLower(anchortext.Visible(s)), func(r rune) bool {
 		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
 	}) {
 		if len([]rune(f)) > 1 {

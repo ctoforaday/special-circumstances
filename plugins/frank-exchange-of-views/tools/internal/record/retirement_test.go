@@ -384,13 +384,22 @@ func TestALensAuditIsAnItemOnItsWorkList(t *testing.T) {
 		t.Errorf("a lens on its FIRST sitting is not told to audit: %+v", first.Open)
 	}
 
-	// behind: the change is the surface, and the item names the range
+	// behind: the FULL re-read is the surface and the item names the range it moved through.
+	//
+	// This asserted "audit what moved" and read, in its own comment, "the change is the surface" —
+	// which is what the item used to say and what adversarial-audit forbids in terms: "a
+	// change-summary is a navigation hint, never the audit surface… This is not permission to audit a
+	// fragment." The item now states the pins as navigation and sends the lens to the whole document,
+	// so the assertion moves with it.
 	b := retBoard(t).sit(2, evLens).add(evLens, freshHigh("G1")).
 		add("blue-respond", &recordpb.BlueEdit{Answers: proto.String("G1"), Old: proto.String("a"), New: proto.String("b"), EditKey: proto.String("E1")})
 	head := int64(b.n)
 	beh := sittingOfRunT(t, b.sit(head, evLens).seed(), "lens", evLens)
-	if !listsItem(beh, "audit what moved") {
-		t.Errorf("a lens whose report MOVED is not told what to audit: %+v", beh.Open)
+	if !listsItem(beh, "re-read it in full") {
+		t.Errorf("a lens whose report MOVED is not sent to the whole document: %+v", beh.Open)
+	}
+	if listsItem(beh, "not the whole document") {
+		t.Errorf("the item tells the lens to audit a fragment, which adversarial-audit forbids: %+v", beh.Open)
 	}
 	if !listsItem(beh, "is at") {
 		t.Errorf("the item does not name the range the lens must audit: %+v", beh.Open)

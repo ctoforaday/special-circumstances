@@ -1099,7 +1099,14 @@ JOIN "events_w" e ON e."id" = b."event_id"
 WHERE e."id" > me."id"
   AND COALESCE(m."location", '') != ''
   AND COALESCE(b."old", '') != ''
-  AND (instr(b."old", m."location") > 0 OR instr(m."location", b."old") > 0);
+  -- THROUGH THE ANNOTATION LAYER. Both spans are quotes of the report and either may carry anchors
+  -- the other does not: minting places one at the location the gap names, so a raw comparison stops
+  -- matching on the act that creates the gap — and stops matching SILENTLY, because "no rows" is
+  -- also the honest answer for a gap nothing has edited. Measured on universe-m11: 3 of 5 located
+  -- gaps attributed NONE of their edits, and the work list shipped their stale locations beside an
+  -- empty edited_since field. visible() is registered by recordsql and is anchortext's own reduction.
+  AND (instr(visible(b."old"), visible(m."location")) > 0
+       OR instr(visible(m."location"), visible(b."old")) > 0);
 
 -- THE CHANGE LOG, AS A VIEW: every recorded edit to the report with the text on both sides.
 --

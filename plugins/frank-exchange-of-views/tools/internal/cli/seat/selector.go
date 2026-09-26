@@ -95,6 +95,16 @@ func (s Selector) Hits(text string) bool {
 
 // visibleText is what a seat reads on the page: the annotation layer removed and whitespace runs
 // collapsed, matching what anchortext tolerates when it locates a quote.
+//
+// NOT anchortext.Visible, AND THE DIFFERENCE IS DELIBERATE — measured, not assumed. Visible also
+// trims TRAILING PUNCTUATION, which is right for comparing two quotes of one sentence (a seat may
+// or may not carry the full stop) and wrong here: this text is matched against a seat's own PATTERN,
+// and `--match "negligible[.]"` is a pattern that names the full stop. Substituting Visible here
+// fails TestASelectorMatchesThroughAnchorsAndWhitespace on exactly that case.
+//
+// So: one definition of the invisible layer (anchortext.annotationLen), two questions about it.
+// internal/record/locatorclass_test.go holds the quote-versus-quote comparisons to Visible; this one
+// is document-versus-pattern and keeps the punctuation a pattern can address.
 func visibleText(s string) string {
 	return strings.Join(strings.Fields(claimcount.StripAnchors(s)), " ")
 }
