@@ -146,7 +146,16 @@ func beforeRefs(b []byte, refs *regexp.Regexp) []byte {
 // manuscript ran 44 pages against 19, another 15 against 7 — double spacing, cover sheets,
 // supplements), and one was short: 10 pages of a 165-page report. So `full` is anything that is at
 // least half the span, `unverified` is less, and a pdf with no numeric span is not asked.
-func pdfCompleteness(pages, declared int) (verdict, reason string) {
+//
+// A BOOK DECLARES NO SPAN, and its open "copies" are often not the book. MEASURED: an index listed
+// Springer's front matter (`/content/pdf/bfm:…`, 23 pages: preface and contents) as the open copy
+// of a 22-chapter book, and a monograph's listed pdf was one page. Nothing can check a book's pdf,
+// so it is `unverified` — kept, and never claimed to be the book.
+func pdfCompleteness(pages, declared int, workType string) (verdict, reason string) {
+	if pages > 0 && bookTypes[workType] {
+		return CompletenessUnverified, fmt.Sprintf("the work is a %s, which declares no page span, so nothing says whether "+
+			"these %d pages are the book or part of it (front matter, a chapter)", workType, pages)
+	}
 	if pages <= 0 || declared <= 0 {
 		return "", ""
 	}
@@ -155,3 +164,7 @@ func pdfCompleteness(pages, declared int) (verdict, reason string) {
 	}
 	return CompletenessUnverified, fmt.Sprintf("the pdf has %d pages where the index declares %d for the work: part of it, not all of it", pages, declared)
 }
+
+// bookTypes are the index's words for a whole book: OpenAlex's `book`, Crossref's `monograph` and
+// `edited-book`. A chapter is not here — a chapter's pdf is that work.
+var bookTypes = map[string]bool{"book": true, "monograph": true, "edited-book": true}

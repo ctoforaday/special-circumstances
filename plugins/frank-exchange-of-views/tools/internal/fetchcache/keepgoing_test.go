@@ -1,6 +1,7 @@
 package fetchcache
 
 import (
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -16,6 +17,7 @@ type keepGoingSite struct {
 	page   []byte
 	locs   string
 	biblio string // OpenAlex's biblio object, where a test declares the work's page span
+	kind   string // OpenAlex's type for the work, where a test declares one
 	bodies map[string]*Response
 	seen   []string
 }
@@ -34,6 +36,9 @@ func (k *keepGoingSite) Fetch(u string) (*Response, error) {
 		biblio := ""
 		if k.biblio != "" {
 			biblio = `"biblio":` + k.biblio + `,`
+		}
+		if k.kind != "" {
+			biblio += `"type":"` + k.kind + `",`
 		}
 		return &Response{Body: []byte(`{"id":"https://openalex.org/W1","open_access":{"oa_url":null},` + biblio + `"locations":[` + k.locs + `]}`)}, nil
 	}
@@ -315,5 +320,28 @@ func TestADocumentURLAnsweredWithItsAbstractIsSoughtInTheArchive(t *testing.T) {
 		if strings.Contains(u, "archive.org") {
 			t.Errorf("a landing page answering with its abstract sent the walk to the archive: %s", u)
 		}
+	}
+}
+
+// THE TEXT THE RECORD NAMES IS THE TEXT ON DISK. A recovered document's extraction was written
+// under an empty sha — `<run>/cache.txt`, shared by every recovery — while the record pointed at
+// `<sha>.txt`, which did not exist. A seat following text_path found nothing; one reading the
+// shared file read whichever paper was recovered last.
+func TestARecoveredDocumentsTextIsWhereTheRecordSays(t *testing.T) {
+	run := runtest.New(t, t.TempDir())
+	withText(t, "the paper's own text")
+	site := &keepGoingSite{asked: keepGoingDOI, page: loadBody(t, "nature-paywalled.html.gz"),
+		locs:   `{"pdf_url":"https://repo.example/open.pdf","is_oa":true}`,
+		bodies: map[string]*Response{"https://repo.example/open.pdf": {Body: []byte("%PDF-1.7 the paper"), ContentType: "application/pdf"}}}
+	entry, _, _, err := Resolve(run, keepGoingDOI, site)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if entry.TextSha == "" {
+		t.Fatal("no text was recorded for the recovered document")
+	}
+	got, err := os.ReadFile(TextPath(run, entry.Sha))
+	if err != nil || string(got) != "the paper's own text" {
+		t.Errorf("the text the record names is not on disk: %q, %v", got, err)
 	}
 }

@@ -310,7 +310,7 @@ func Classify(entry *Entry, body []byte) {
 	}
 	entry.Completeness, entry.CompletenessReason = Completeness(entry.ContentType, body, DOIOf(entry.URL) != "")
 	if MediaType(entry.ContentType) == "application/pdf" && entry.Work != nil {
-		entry.Completeness, entry.CompletenessReason = pdfCompleteness(entry.Pages, entry.Work.DeclaredPages)
+		entry.Completeness, entry.CompletenessReason = pdfCompleteness(entry.Pages, entry.Work.DeclaredPages, entry.Work.WorkType)
 	}
 }
 
@@ -811,6 +811,10 @@ func EntryFor(run record.Run, url string, att *Attempt) Entry {
 	// artifact as one fetched live and owes the same extraction — and without it nothing marks it
 	// as a scan for the OCR path either, because that path keys on an ATTEMPTED extraction that
 	// found no text.
+	// THE SHA BEFORE THE EXTRACTION, because the text is stored under it. Store sets it later, and
+	// extracting first wrote every recovered document's text to `<run>/cache.txt` — one file,
+	// overwritten by each recovery — while the record named `<sha>.txt`, which was never written.
+	entry.Sha = Sha(att.Body)
 	ex := DefaultExtractor.Extract(Dir(run), entry.ContentType, att.Body)
 	if entry.Filename == "" {
 		entry.Filename = Label(ex.Title, "", url)
