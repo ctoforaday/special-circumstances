@@ -586,6 +586,19 @@ func requireDeclaredSchema(db *sql.DB) error {
 	if len(staleView) > 0 {
 		lacks = append(lacks, "this run's "+strings.Join(staleView, ", ")+" view is the one its CREATING binary wrote, and this binary defines it differently")
 	}
+	// THE MIRROR: A RECORD THAT CARRIES MORE THAN THIS BINARY DECLARES.
+	//
+	// Everything above asks whether the record LACKS what this binary knows — an older run. The
+	// opposite is a stale BINARY, and it was unhandled: an extra table or view sails past open and the
+	// first write dies on whatever constraint the binary has never heard of, as raw SQLite text
+	// reaching a seat. Checked here rather than at the write because a read is just as wrong, and
+	// because open is where the record can still be refused whole.
+	if ahead, err := recordIsAhead(db, tables, views); err != nil {
+		return err
+	} else if len(ahead) > 0 {
+		return fmt.Errorf("recordsql: this run's record carries %s, which this binary does not declare — %s",
+			strings.Join(ahead, ", "), newerRunAdvice)
+	}
 	if len(lacks) == 0 {
 		return nil
 	}
@@ -939,3 +952,37 @@ func (e enumAt) Type() protoreflect.EnumType             { return nil }
 func (e enumAt) Number() protoreflect.EnumNumber         { return e.n }
 
 var _ = proto.Marshal
+
+// recordIsAhead names what the record carries that this binary has never heard of.
+//
+// TABLES AND VIEWS ONLY, NOT COLUMNS. An extra column on a known table is what an older binary meets
+// on a record whose schema grew a field, and it is harmless to a READ: the binary selects the columns
+// it declares and gets them. An extra TABLE or VIEW is a whole fact the binary cannot see, and a
+// CHECK it does not know about is what turns the first write into raw SQLite text. Naming the coarse
+// difference is enough to refuse, and refusing is the whole job.
+func recordIsAhead(db *sql.DB, tables []string, views map[string]string) ([]string, error) {
+	known := make(map[string]bool, len(tables)+len(views))
+	for _, t := range tables {
+		known[t] = true
+	}
+	for v := range views {
+		known[v] = true
+	}
+	rows, err := db.Query(`SELECT "type", "name" FROM sqlite_master
+	  WHERE "type" IN ('table', 'view') AND "name" NOT LIKE 'sqlite_%' ORDER BY "type", "name"`)
+	if err != nil {
+		return nil, fmt.Errorf("recordsql: asking what this record carries: %w", err)
+	}
+	defer rows.Close()
+	var ahead []string
+	for rows.Next() {
+		var kind, name string
+		if err := rows.Scan(&kind, &name); err != nil {
+			return nil, err
+		}
+		if !known[name] {
+			ahead = append(ahead, fmt.Sprintf("a %s %q", kind, name))
+		}
+	}
+	return ahead, rows.Err()
+}

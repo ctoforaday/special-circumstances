@@ -205,3 +205,49 @@ func TestAViewDefinedDifferentlyIsNamedAsAnOlderRun(t *testing.T) {
 		t.Errorf("a view that is present and different was reported as absent: %v", err)
 	}
 }
+
+// A RECORD AHEAD OF THIS BINARY IS REFUSED, AND IT IS A DIFFERENT MISTAKE FROM AN OLDER RUN.
+//
+// Everything above is the record LACKING what this binary declares. The mirror is a stale BINARY, and
+// it was unhandled: an extra table or view sails past open and the first write dies on a constraint
+// the binary has never heard of, as raw SQLite text reaching a seat.
+//
+// Met for real, and it cost a whole sitting. On universe-m11 a seat typed a BARE `feov-record` and
+// reached the HOST's plugin cache — the same plugin VERSION, event-schema epoch 8 — instead of the
+// run's own `.bin/feov-record` at epoch 14. It died on `CHECK constraint failed: type (275)`, every
+// later call was refused with "register is your first act and it has not happened", and that sitting
+// made 100 tool calls and recorded nothing at all.
+func TestARecordAheadOfThisBinaryIsRefusedAsAStaleBinary(t *testing.T) {
+	path := filepath.Join(tmpRun(t), "record.db")
+	db, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_BLUE_EDIT, &recordpb.BlueEdit{})); err != nil {
+		t.Fatal(err)
+	}
+	// What a NEWER binary would have created and this one has never heard of.
+	for _, stmt := range []string{
+		`CREATE TABLE "future_fact" ("event_id" INTEGER PRIMARY KEY, "whatever" TEXT) STRICT`,
+		`CREATE VIEW "future_view" AS SELECT 1 AS "x"`,
+	} {
+		if _, err := db.Exec(stmt); err != nil {
+			t.Fatalf("%s: %v", stmt, err)
+		}
+	}
+	if err := Close(path); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = Open(path)
+	for _, want := range []string{"NEWER binary", `"future_fact"`, `"future_view"`, "THIS BINARY is the stale party", "/.bin/feov-record"} {
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("opening a record ahead of this binary: %v — want %s named", err, want)
+		}
+	}
+	// NOT THE OTHER REMEDY. Telling a seat to migrate here sends it to replay a record that is already
+	// newer than the binary doing the replaying, which is the one thing that cannot help.
+	if err != nil && strings.Contains(err.Error(), "Migrate it") {
+		t.Errorf("a record AHEAD of this binary was offered the older-run remedy: %v", err)
+	}
+}
