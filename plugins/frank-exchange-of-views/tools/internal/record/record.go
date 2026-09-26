@@ -1422,6 +1422,11 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		if b.GetWorkStatus() == recordpb.WorkStatus_WORK_STATUS_UNSPECIFIED {
 			return fmt.Errorf("record: cite carries no work_status — the tool stamps what the indexes say about the cited work (standing, retracted, or not_checked) before it writes, and this write skipped that")
 		}
+		// AND WHICH PART OF THE WORK THE COPY IS, for the same reason: a cite of an abstract with
+		// the field unstamped renders exactly like a cite of the paper.
+		if b.GetSourceCompleteness() == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_UNSPECIFIED {
+			return fmt.Errorf("record: cite carries no source_completeness — the tool stamps which part of the work the cited copy is (full, abstract, unverified, not_the_work, or not_asked) before it writes, and this write skipped that")
+		}
 	case *recordpb.Verify:
 		// THE PAGE AND ITS TWO HASHES ARE ONE FACT: which image red checked, and which render the
 		// reading came from. One without the others is a check nobody can re-run.

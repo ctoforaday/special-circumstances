@@ -87,6 +87,10 @@ type EvidenceSourceJSON struct {
 	// rendering stays silent about, because "nobody asked an index" is a lead for red and a
 	// distraction for a reader of the subject.
 	WorkStatus string `json:"work_status,omitempty"`
+	// SourceCompleteness is which part of the work blue's copy is — full, abstract, unverified,
+	// not_the_work, not_asked. A summary_only citation of an abstract and a leaf citation of the
+	// paper differ in what red has to check, and only this field says which one it holds.
+	SourceCompleteness string `json:"source_completeness,omitempty"`
 	// OCRQuote and Pages are blue's span from an OCR reading and the PDF pages the tool found it
 	// on. A source with pages is checked against a page image, not against the reading;
 	// OCREngine and OCRTextSha name the reading the pages were found in.
@@ -198,6 +202,10 @@ type EvidenceVerificationJSON struct {
 	// on the source row because a labelled corroboration is a source in its own right — red found
 	// it, blue never cited it, and it renders in `independent`, which reads no source row at all.
 	WorkStatus string `json:"work_status,omitempty"`
+	// SourceCompleteness is which part of the work red's copy was. A `supports` read off an
+	// abstract confirms what the abstract says, not what the study shows, and a reader of this
+	// verdict needs to know which it is.
+	SourceCompleteness string `json:"source_completeness,omitempty"`
 }
 
 // Refuted reports whether this verification found AGAINST the claim — the two outcomes that
@@ -301,6 +309,8 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 			PageRenderSha:    vf.GetPageRenderSha(),
 			ReadingRenderSha: vf.GetReadingRenderSha(),
 			WorkStatus:       recordpb.Word(vf.GetWorkStatus()),
+
+			SourceCompleteness: recordpb.Word(vf.GetSourceCompleteness()),
 		}
 		out.Counts.Verifications++
 		// THE SPLIT IS STILL ON THE ANCHOR, not on `Verify.independent`, and the empty string is
@@ -402,12 +412,13 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 				Epoch:      w.Epoch,
 				Verified:   checks,
 
-				SourceTextOrigin: recordpb.Word(bd.GetSourceTextOrigin()),
-				WorkStatus:       recordpb.Word(bd.GetWorkStatus()),
-				OCRQuote:         bd.GetOcrQuote(),
-				Pages:            bd.GetPages(),
-				OCREngine:        bd.GetOcrEngine(),
-				OCRTextSha:       bd.GetOcrTextSha(),
+				SourceTextOrigin:   recordpb.Word(bd.GetSourceTextOrigin()),
+				WorkStatus:         recordpb.Word(bd.GetWorkStatus()),
+				SourceCompleteness: recordpb.Word(bd.GetSourceCompleteness()),
+				OCRQuote:           bd.GetOcrQuote(),
+				Pages:              bd.GetPages(),
+				OCREngine:          bd.GetOcrEngine(),
+				OCRTextSha:         bd.GetOcrTextSha(),
 			})
 		case *recordpb.Proof:
 			// `proof_sha` is the proof's sha256 — the record spells it once, on the field the

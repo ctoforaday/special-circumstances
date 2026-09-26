@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
@@ -226,5 +227,22 @@ func TestTheDOIAskedForMakesABarePageAQuestion(t *testing.T) {
 	Classify(&plain, page)
 	if plain.Completeness != "" {
 		t.Errorf("the same page reached without a doi got %q; nothing asked it for a work", plain.Completeness)
+	}
+}
+
+// THE RECORD'S WORD FOR EACH VERDICT, and a word nobody mapped goes to UNSPECIFIED — which the
+// cite write guard refuses — rather than reaching a reader as some other verdict.
+func TestEachVerdictHasItsRecordWord(t *testing.T) {
+	for verdict, want := range map[string]recordpb.SourceCompleteness{
+		CompletenessFull:        recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL,
+		CompletenessAbstract:    recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT,
+		CompletenessUnverified:  recordpb.SourceCompleteness_SOURCE_COMPLETENESS_UNVERIFIED,
+		CompletenessNotTheWork:  recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_THE_WORK,
+		"":                      recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_ASKED,
+		"a verdict added later": recordpb.SourceCompleteness_SOURCE_COMPLETENESS_UNSPECIFIED,
+	} {
+		if got := (Entry{Completeness: verdict}).SourceCompleteness(); got != want {
+			t.Errorf("%q maps to %v, want %v", verdict, got, want)
+		}
 	}
 }

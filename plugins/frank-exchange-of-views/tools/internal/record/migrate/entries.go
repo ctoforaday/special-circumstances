@@ -135,6 +135,11 @@ func citeEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 	if c.WorkStatus == nil {
 		c.WorkStatus = recordpb.WorkStatus_WORK_STATUS_NOT_RECORDED.Enum()
 	}
+	// NOR, BEFORE EPOCH 15, WHICH PART OF THE WORK THE COPY WAS. NOT_ASKED would claim the fetch
+	// looked and could not tell; the field simply did not exist.
+	if c.SourceCompleteness == nil {
+		c.SourceCompleteness = recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_RECORDED.Enum()
+	}
 	return []proto.Message{c}, nil
 }
 

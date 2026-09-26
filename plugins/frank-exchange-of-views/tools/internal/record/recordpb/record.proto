@@ -387,7 +387,7 @@ enum Disposition {
 // a verdict no field could carry, reporting PASS over an empty file on every run.
 enum SourceOutcome {
   SOURCE_OUTCOME_UNSPECIFIED = 0;
-  SOURCE_OUTCOME_SUPPORTS = 1 [(means) = "you read the source at the leaf and it says what the claim says"];
+  SOURCE_OUTCOME_SUPPORTS = 1 [(means) = "you read the source and it says what the claim says. Where the run's copy of it is only the work's abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows"];
   SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE = 2 [(means) = "it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement"];
   SOURCE_OUTCOME_WEAK = 3 [(means) = "it gestures at the claim, or is itself uncorroborated: thin support, not none"];
   SOURCE_OUTCOME_REFUTES = 4 [(means) = "you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry"];
@@ -1037,6 +1037,24 @@ enum WorkStatus {
   WORK_STATUS_NOT_RECORDED = 4 [(means) = "this citation predates the field; written only by migrate"];
 }
 
+// SourceCompleteness is WHICH PART OF THE WORK THE RUN'S COPY IS, stamped by the tool from what the
+// fetch recorded; a seat never types it. A fourth axis beside the three above: SourceTextRead is
+// how much of the copy this seat read, SourceTextOrigin whose reading its text is, WorkStatus what
+// the literature says of the work — and none of them says whether the copy is the paper or only its
+// abstract, which is the difference between confirming a study and confirming its summary.
+//
+// AN ENUM AND NOT A BOOL, for WorkStatus's reason: NOT_ASKED folds nothing into FULL. Only FULL
+// rests on positive evidence; UNVERIFIED says nobody could tell.
+enum SourceCompleteness {
+  SOURCE_COMPLETENESS_UNSPECIFIED = 0;
+  SOURCE_COMPLETENESS_FULL = 1 [(means) = "the copy carries the work's body: its platform marks the body sections, or it is a pdf covering the page span the work declares"];
+  SOURCE_COMPLETENESS_ABSTRACT = 2 [(means) = "the copy is the work's ABSTRACT page: its platform printed a paywall or page images in place of the body. What it confirms is what the abstract says, not what the study shows"];
+  SOURCE_COMPLETENESS_UNVERIFIED = 3 [(means) = "nothing the tool knows could tell whether the copy carries the body — a platform with no known marker, a pdf much shorter than the work, a book's pdf"];
+  SOURCE_COMPLETENESS_NOT_THE_WORK = 4 [(means) = "the copy is not the work at all: a sign-in page, a book's sales page"];
+  SOURCE_COMPLETENESS_NOT_ASKED = 5 [(means) = "the question did not apply or could not be put: a page that is not about a scholarly work, a pdf with no declared span, or a source outside the run's cache. It says NOTHING about whether the copy is complete"];
+  SOURCE_COMPLETENESS_NOT_RECORDED = 6 [(means) = "this citation predates the field; written only by migrate"];
+}
+
 message Cite {
   optional string label = 1;
   optional string url = 2;
@@ -1073,6 +1091,9 @@ message Cite {
   // above is. Not `(sql).required`: no seat types it, so `validate` refuses an unstamped value
   // rather than a flag teaching one.
   optional WorkStatus work_status = 16 [(prose) = false];
+
+  // WHICH PART OF THE WORK THE CITED COPY IS, stamped from the fetch index like the two above.
+  optional SourceCompleteness source_completeness = 17 [(prose) = false];
 
   // `claim` held the cited sentence a SECOND time, beside `location` which held it to place the
   // anchor. One span, one field.
@@ -1147,6 +1168,10 @@ message Verify {
   // field exists for: the strongest thing an adversarial process produces, resting on withdrawn
   // work, with nothing in the document saying so.
   optional WorkStatus work_status = 15 [(prose) = false];
+
+  // WHICH PART OF THE WORK RED'S COPY IS. A verdict read off an abstract confirms what the abstract
+  // says; this is what lets a reader of the record tell that from a verdict on the study.
+  optional SourceCompleteness source_completeness = 16 [(prose) = false];
 
   reserved 2;
   reserved "reference";

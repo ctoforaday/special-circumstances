@@ -273,13 +273,24 @@ INSERT INTO "enum_work_status" ("value", "means") VALUES ('not_recorded', 'this 
 INSERT INTO "enum_work_status" ("value", "means") VALUES ('retracted', 'an index reports the work RETRACTED. It may still be cited — as retracted, which the footnote and the Bibliography say for you — and its findings support no claim: a quotation from it is evidence of what the withdrawn paper said, and nothing more');
 INSERT INTO "enum_work_status" ("value", "means") VALUES ('standing', 'an index was asked and reports no retraction: the work stands in the literature as published');
 
+CREATE TABLE "enum_source_completeness" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('abstract', 'the copy is the work''s ABSTRACT page: its platform printed a paywall or page images in place of the body. What it confirms is what the abstract says, not what the study shows');
+INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('full', 'the copy carries the work''s body: its platform marks the body sections, or it is a pdf covering the page span the work declares');
+INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('not_asked', 'the question did not apply or could not be put: a page that is not about a scholarly work, a pdf with no declared span, or a source outside the run''s cache. It says NOTHING about whether the copy is complete');
+INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('not_recorded', 'this citation predates the field; written only by migrate');
+INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('not_the_work', 'the copy is not the work at all: a sign-in page, a book''s sales page');
+INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('unverified', 'nothing the tool knows could tell whether the copy carries the body — a platform with no known marker, a pdf much shorter than the work, a book''s pdf');
+
 CREATE TABLE "enum_source_outcome" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
 INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('absent', 'you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was');
 INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('refutes', 'you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry');
-INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('supports', 'you read the source at the leaf and it says what the claim says');
+INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('supports', 'you read the source and it says what the claim says. Where the run''s copy of it is only the work''s abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows');
 INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('supports_with_bridge', 'it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement');
 INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('unreachable', 'you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried "unable to corroborate" is an incomplete audit');
 INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('weak', 'it gestures at the claim, or is itself uncorroborated: thin support, not none');
@@ -628,9 +639,11 @@ CREATE TABLE "cite" (
   "ocr_engine" TEXT,
   "ocr_text_sha" TEXT,
   "work_status" TEXT,
+  "source_completeness" TEXT,
   FOREIGN KEY ("source_text_read") REFERENCES "enum_source_text_read"("value"),
   FOREIGN KEY ("source_text_origin") REFERENCES "enum_source_text_origin"("value"),
-  FOREIGN KEY ("work_status") REFERENCES "enum_work_status"("value")
+  FOREIGN KEY ("work_status") REFERENCES "enum_work_status"("value"),
+  FOREIGN KEY ("source_completeness") REFERENCES "enum_source_completeness"("value")
 ) STRICT;
 
 CREATE TABLE "cite_pages" (
@@ -656,10 +669,12 @@ CREATE TABLE "verify" (
   "page_render_sha" TEXT,
   "reading_render_sha" TEXT,
   "work_status" TEXT,
+  "source_completeness" TEXT,
   CHECK ("independent" IS NULL OR "independent" IN (0, 1)),
   FOREIGN KEY ("outcome") REFERENCES "enum_source_outcome"("value"),
   FOREIGN KEY ("confidence") REFERENCES "enum_confidence"("value"),
-  FOREIGN KEY ("work_status") REFERENCES "enum_work_status"("value")
+  FOREIGN KEY ("work_status") REFERENCES "enum_work_status"("value"),
+  FOREIGN KEY ("source_completeness") REFERENCES "enum_source_completeness"("value")
 ) STRICT;
 
 CREATE TABLE "proof" (
