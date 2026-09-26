@@ -246,6 +246,22 @@ var nodeSuites = []string{
 	"plugins/frank-exchange-of-views/tests/simulator/prompts.test.mjs",
 }
 
+// raceTimeout bounds each package's run under the race detector, and it is SET because Go's
+// default of ten minutes was the wrong question.
+//
+// A test timeout exists to catch a HANG, which is unbounded. It was instead catching a correct,
+// slow, serial suite. MEASURED 2026-09-26: feov-record's internal/cli — 400 tests, 20 of them
+// parallel, the rest serialised by t.Setenv and a package-level fetcher swap — took 435 seconds
+// under -race on an IDLE four-core box, 72% of the default before anything else ran. Under the
+// load this box actually carries it reached 776 seconds, and the gate went red three times in a
+// week on timeouts with ZERO `WARNING: DATA RACE` in any log. A gate that is red for reasons
+// unrelated to what it measures is one people stop reading, and that is how a real race ships.
+//
+// Thirty minutes is more than twice the worst measured run and still finite, so a genuine hang
+// is caught. CI's race leg carries the same bound, so this command and the workflow keep
+// measuring one thing.
+const raceTimeout = "-timeout=30m"
+
 // gateSet builds the full set. One function so there is exactly one answer to "what are the
 // gates", and both the runner and the parity test read it.
 func gateSet() []gate {
@@ -261,7 +277,7 @@ func gateSet() []gate {
 		)
 		if scope, ok := raceScope[m.dir]; ok {
 			gs = append(gs, gate{id: m.ciJob + ":race", kind: kindRace, dir: m.dir,
-				args: append([]string{"test", "-race", noCache}, scope...), ciJob: m.ciJob,
+				args: append([]string{"test", "-race", noCache, raceTimeout}, scope...), ciJob: m.ciJob,
 				why: "the concurrency guards are the ones that fail in production, not in a suite"})
 		}
 	}
