@@ -12,7 +12,7 @@ are different kinds of evidence, and this skill keeps them apart.
 ## When
 
 - BEFORE designing a fix for an agent-behaviour defect — a rule present in the prompt and not
-  followed, a verb called in a way its help warns against, a duty the work list did not show — YOU
+  followed, a verb called in a way its help warns against, a duty nothing in front of it named — YOU
   MUST find out how the agent read the situation. A fix aimed at the wrong reading adds text the
   agent will override the same way.
 - During diagnosis, YOU MUST NOT infer intent from the transcript alone when the session still
@@ -59,12 +59,12 @@ env -u CLAUDE_PROJECT_DIR <-u any variable that names a live run or seat identit
 - YOU MUST reproduce the original's system prompt and model. A fork answering under a different
   prompt is a different agent.
 
-### Interviewing a SEAT, which `--resume` cannot reach on its own
+### Interviewing a SUBAGENT, which `--resume` cannot reach on its own
 
-A seat sitting is a SUBAGENT, and a subagent shares its parent's `sessionId` — every sitting of a
-run carries the same one — while its own identity is an `agentId`. So `--resume <sessionId>` forks
-the PARENT, and `--resume <agentId>` is refused: the value is not a UUID. The transcript is on disk
-and is not addressable as a session.
+A subagent shares its PARENT's `sessionId` — every subagent of one parent carries the same one —
+while its own identity is an `agentId`. So `--resume <sessionId>` forks the PARENT, and `--resume
+<agentId>` is refused: the value is not a UUID. The transcript is on disk and is not addressable as
+a session.
 
 PROMOTE IT, and it becomes one. The session index keys on the `sessionId` INSIDE each line, not on
 the filename, so a child transcript rewritten to carry a fresh id is an ordinary session:
@@ -100,10 +100,9 @@ EOF
   id is what you pass, so this matters only when a human goes looking.
 - THE PROJECT DIRECTORY IS CHOSEN BY THE CWD you interview from, because the directory name is the
   encoded cwd. Promote into the store whose credentials you mean to spend: an isolated
-  `CLAUDE_CONFIG_DIR` (a universe built by `universe.sh`, say) can answer "Not logged in" even with
-  a credentials symlink in place, and the default store under `~/.claude/projects/<encoded-cwd>/`
-  is the reliable host. Keep the cwd the one the sitting ran in either way, so relative paths in
-  its context still mean what they meant.
+  `CLAUDE_CONFIG_DIR` can answer "Not logged in" even with a credentials symlink in place, and the
+  default store under `~/.claude/projects/<encoded-cwd>/` is the reliable host. Keep the cwd the one
+  the original ran in either way, so relative paths in its context still mean what they meant.
 - `-p` WAITS ON STDIN. Without `</dev/null` the call returns an empty result with zero tokens and
   a warning, which reads exactly like a fork that had nothing to say.
 - AFTER the interview, the promoted copy is scratch: delete it, or keep it beside the question file
@@ -121,7 +120,7 @@ Write the questions so the answers can be weighed:
   where it saw each one, why it took the cited act. YOU MUST NOT name the rule you suspect until the
   last question; naming it first gets agreement, not an account.
 - End with: "What, concretely, would have made you act differently?" The answer usually names the
-  fix — a word that scoped a rule away, a tool behaviour it relied on, an item its work list lacked.
+  fix — a word that scoped a rule away, a tool behaviour it relied on, a fact its inputs did not carry.
 - AFTER the call, YOU MUST keep the question file, the answer and the call's cost together, and
   pass the answer verbatim to whoever builds the fix.
 
@@ -136,7 +135,7 @@ Write the questions so the answers can be weighed:
   only for how the agent read the situation — the one thing the record cannot hold.
 - During diagnosis, YOU MUST weigh the recurring shape these interviews find: the instruction was
   present and read, and something closer to the act overrode it — the task's framing, a command's
-  behaviour, a work list that said "complete". The fix for that shape belongs in the tool or the
+  behaviour, an input that said the work was already done. The fix for that shape belongs in the tool or the
   task (a scope word, an idempotent command, a work-list item), not in a longer instruction.
 
 ## Limits
@@ -148,12 +147,12 @@ Write the questions so the answers can be weighed:
   correctly) separates the cause from the rationalisation.
 - **"WHAT WOULD HAVE HELPED" IS THE LEAST RELIABLE ANSWER IN THE INTERVIEW, and it is the one you
   most want to act on.** An agent asked what it lacked will describe, fluently and in the right
-  shape, something it was already holding. Measured across two seats of one run: a chair said its
-  work list "gave only problem_synopsis" and asked for a field carrying the full problem, required
-  fix and acceptance check — all three were in the payload it was handed, verbatim, along with the
-  authority field it asked for under another name; a lens said a field "told me no, but I didn't
-  check it until after trying", which is the same admission from the other side. Neither was lying:
-  an unread field and an absent one feel identical from the inside.
+  shape, something it was already holding. Measured across two agents of one run: one complained it
+  had been given only a truncated summary and asked for three fields carrying the full text — all
+  three were in the payload it was handed, verbatim, along with a fourth it asked for under a
+  different word; the other said of a field it was holding "it told me no, but I didn't check it
+  until after trying", which is the same admission from the other side. Neither was lying: an unread
+  field and an absent one feel identical from the inside.
   So BEFORE building anything an interview asked for, YOU MUST diff the request against what was
   actually delivered. Where the answer names something already present, the finding is NOT a missing
   field — it is that the field was not read, and adding more of them makes the payload longer and
