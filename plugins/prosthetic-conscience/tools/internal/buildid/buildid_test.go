@@ -39,14 +39,9 @@ func TestAFreshlyBuiltBinaryReportsItsOwnCommit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// THE REVISION GO STAMPS FROM, not this working tree's HEAD. In a worktree those differ,
-	// and asserting the local HEAD made the test fail everywhere this repo is developed while
-	// the toolchain was behaving exactly as documented (#532).
-	stampDir, ok := StampedFrom(dir)
-	if !ok {
-		t.Skip("not in a git checkout")
-	}
-	head, err := exec.Command("git", "-C", stampDir, "rev-parse", "--short=7", "HEAD").Output()
+	// THIS TREE'S HEAD, worktree or not: Go 1.27 stamps a worktree's own revision. Go 1.25
+	// stamped the main checkout's (#532), measured side by side at the 1.27 bump.
+	head, err := exec.Command("git", "-C", dir, "rev-parse", "--short=7", "HEAD").Output()
 	if err != nil {
 		t.Skip("not in a git checkout")
 	}
@@ -74,6 +69,6 @@ func TestAFreshlyBuiltBinaryReportsItsOwnCommit(t *testing.T) {
 	if !strings.Contains(line, want) {
 		t.Errorf("-version = %q; must report the revision Go stamped it from (%s, read from %s). "+
 			"If this fails with `unknown`, the toolchain stopped stamping vcs.revision and every "+
-			"binary is now reporting nothing rather than something wrong", line, want, stampDir)
+			"binary is now reporting nothing rather than something wrong", line, want, dir)
 	}
 }

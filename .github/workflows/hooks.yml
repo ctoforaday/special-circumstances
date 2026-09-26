@@ -94,7 +94,7 @@ jobs:
             plugins/frank-exchange-of-views/tools/go.sum
             plugins/gray-area/tools/go.mod
             scripts/go.sum
-          go-version: "1.25"
+          go-version: "1.27"
       - name: gofmt, once, for the whole repository
         run: |
           set -euo pipefail
@@ -280,7 +280,7 @@ jobs:
           # by hand would have rebuilt, worse, something GitHub ships.
           #
           # The go TOOLCHAIN is already in setup-go's own key
-          # (setup-go-Windows-x64-go-1.25.13-<hash>), so a version bump invalidates on its
+          # (setup-go-Windows-x64-go-1.27.1-<hash>), so a version bump invalidates on its
           # own and needs nothing here.
           # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
           # inputs, so they raced to save one key and the smallest job always won —
@@ -289,14 +289,14 @@ jobs:
           # keys on what IT builds, so each save is the cache its restore expects.
           cache-dependency-path: |
             plugins/prosthetic-conscience/tools/go.mod
-          # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
+          # MUST satisfy every go.mod in the repo — all FOUR are on 1.27: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
           # DOWNLOADED 1.25 to build a 1.25 module and CI went green while testing a
           # toolchain nobody had pinned. v7 defaults GOTOOLCHAIN=local, which turns that
           # into the honest error it always was — `go.mod requires go >= 1.25`. Raising the
           # pin is the fix; lowering go.mod or restoring `auto` would only re-hide it.
-          go-version: "1.25"
+          go-version: "1.27"
       - run: go test ./...
       # This module had no race leg at all, while gray-area ran `-race ./...` and
       # feov-record races its shipped binary's import graph (see that job for the scope
@@ -336,7 +336,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@v6
         with:
-          go-version: "1.25"
+          go-version: "1.27"
           cache: false
       - name: C stack for the OCR engine (cache)
         if: github.event_name != 'push'
@@ -536,7 +536,7 @@ jobs:
           # by hand would have rebuilt, worse, something GitHub ships.
           #
           # The go TOOLCHAIN is already in setup-go's own key
-          # (setup-go-Windows-x64-go-1.25.13-<hash>), so a version bump invalidates on its
+          # (setup-go-Windows-x64-go-1.27.1-<hash>), so a version bump invalidates on its
           # own and needs nothing here.
           # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
           # inputs, so they raced to save one key and the smallest job always won —
@@ -545,14 +545,14 @@ jobs:
           # keys on what IT builds, so each save is the cache its restore expects.
           cache-dependency-path: |
             plugins/frank-exchange-of-views/tools/go.sum
-          # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
+          # MUST satisfy every go.mod in the repo — all FOUR are on 1.27: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
           # DOWNLOADED 1.25 to build a 1.25 module and CI went green while testing a
           # toolchain nobody had pinned. v7 defaults GOTOOLCHAIN=local, which turns that
           # into the honest error it always was — `go.mod requires go >= 1.25`. Raising the
           # pin is the fix; lowering go.mod or restoring `auto` would only re-hide it.
-          go-version: "1.25"
+          go-version: "1.27"
       - uses: actions/setup-node@v7
         with:
           # The bump the previous comment here was waiting for. `cache: false` was never
@@ -884,7 +884,7 @@ jobs:
           # by hand would have rebuilt, worse, something GitHub ships.
           #
           # The go TOOLCHAIN is already in setup-go's own key
-          # (setup-go-Windows-x64-go-1.25.13-<hash>), so a version bump invalidates on its
+          # (setup-go-Windows-x64-go-1.27.1-<hash>), so a version bump invalidates on its
           # own and needs nothing here.
           # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
           # inputs, so they raced to save one key and the smallest job always won —
@@ -893,14 +893,14 @@ jobs:
           # keys on what IT builds, so each save is the cache its restore expects.
           cache-dependency-path: |
             plugins/gray-area/tools/go.mod
-          # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
+          # MUST satisfy every go.mod in the repo — all FOUR are on 1.27: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
           # DOWNLOADED 1.25 to build a 1.25 module and CI went green while testing a
           # toolchain nobody had pinned. v7 defaults GOTOOLCHAIN=local, which turns that
           # into the honest error it always was — `go.mod requires go >= 1.25`. Raising the
           # pin is the fix; lowering go.mod or restoring `auto` would only re-hide it.
-          go-version: "1.25"
+          go-version: "1.27"
       - run: go test ./...
       - run: go test -race -timeout=30m ./...
         env:
@@ -1067,7 +1067,7 @@ jobs:
           # by hand would have rebuilt, worse, something GitHub ships.
           #
           # The go TOOLCHAIN is already in setup-go's own key
-          # (setup-go-Windows-x64-go-1.25.13-<hash>), so a version bump invalidates on its
+          # (setup-go-Windows-x64-go-1.27.1-<hash>), so a version bump invalidates on its
           # own and needs nothing here.
           # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
           # inputs, so they raced to save one key and the smallest job always won —
@@ -1076,7 +1076,7 @@ jobs:
           # keys on what IT builds, so each save is the cache its restore expects.
           cache-dependency-path: |
             scripts/go.sum
-          go-version: "1.25"
+          go-version: "1.27"
       - uses: actions/setup-node@v7
         with:
           # The bump the previous comment here was waiting for. `cache: false` was never
@@ -1167,7 +1167,7 @@ jobs:
           # by hand would have rebuilt, worse, something GitHub ships.
           #
           # The go TOOLCHAIN is already in setup-go's own key
-          # (setup-go-Windows-x64-go-1.25.13-<hash>), so a version bump invalidates on its
+          # (setup-go-Windows-x64-go-1.27.1-<hash>), so a version bump invalidates on its
           # own and needs nothing here.
           # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
           # inputs, so they raced to save one key and the smallest job always won —
@@ -1176,7 +1176,7 @@ jobs:
           # keys on what IT builds, so each save is the cache its restore expects.
           cache-dependency-path: |
             scripts/go.sum
-          go-version: "1.25"
+          go-version: "1.27"
       - run: go test ./...
       # THE MODULE'S CONCURRENCY IS REAL NOW, so the detector gets a look. golden/interrupt.go
       # guards signal state with a mutex against its interrupt handler, where an unsynchronised
@@ -1307,7 +1307,7 @@ jobs:
           # by hand would have rebuilt, worse, something GitHub ships.
           #
           # The go TOOLCHAIN is already in setup-go's own key
-          # (setup-go-Windows-x64-go-1.25.13-<hash>), so a version bump invalidates on its
+          # (setup-go-Windows-x64-go-1.27.1-<hash>), so a version bump invalidates on its
           # own and needs nothing here.
           # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
           # inputs, so they raced to save one key and the smallest job always won —
@@ -1318,14 +1318,14 @@ jobs:
             scripts/go.sum
             plugins/frank-exchange-of-views/tools/go.sum
             plugins/prosthetic-conscience/tools/go.mod
-          # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
+          # MUST satisfy every go.mod in the repo — all FOUR are on 1.27: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
           # DOWNLOADED 1.25 to build a 1.25 module and CI went green while testing a
           # toolchain nobody had pinned. v7 defaults GOTOOLCHAIN=local, which turns that
           # into the honest error it always was — `go.mod requires go >= 1.25`. Raising the
           # pin is the fix; lowering go.mod or restoring `auto` would only re-hide it.
-          go-version: "1.25"
+          go-version: "1.27"
       - run: go run ./golden
         working-directory: scripts
 
@@ -1369,7 +1369,7 @@ jobs:
           # by hand would have rebuilt, worse, something GitHub ships.
           #
           # The go TOOLCHAIN is already in setup-go's own key
-          # (setup-go-Windows-x64-go-1.25.13-<hash>), so a version bump invalidates on its
+          # (setup-go-Windows-x64-go-1.27.1-<hash>), so a version bump invalidates on its
           # own and needs nothing here.
           # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
           # inputs, so they raced to save one key and the smallest job always won —
@@ -1392,7 +1392,7 @@ jobs:
           # that build the same thing SHOULD share one.
           cache-dependency-path: |
             scripts/go.sum
-          go-version: "1.25"
+          go-version: "1.27"
       - uses: actions/setup-node@v7
         with:
           # The bump the previous comment here was waiting for. `cache: false` was never
@@ -1618,7 +1618,7 @@ jobs:
           # by hand would have rebuilt, worse, something GitHub ships.
           #
           # The go TOOLCHAIN is already in setup-go's own key
-          # (setup-go-Windows-x64-go-1.25.13-<hash>), so a version bump invalidates on its
+          # (setup-go-Windows-x64-go-1.27.1-<hash>), so a version bump invalidates on its
           # own and needs nothing here.
           # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
           # inputs, so they raced to save one key and the smallest job always won —
@@ -1629,14 +1629,14 @@ jobs:
             plugins/prosthetic-conscience/tools/go.mod
             plugins/frank-exchange-of-views/tools/go.sum
             plugins/gray-area/tools/go.mod
-          # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
+          # MUST satisfy every go.mod in the repo — all FOUR are on 1.27: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
           # DOWNLOADED 1.25 to build a 1.25 module and CI went green while testing a
           # toolchain nobody had pinned. v7 defaults GOTOOLCHAIN=local, which turns that
           # into the honest error it always was — `go.mod requires go >= 1.25`. Raising the
           # pin is the fix; lowering go.mod or restoring `auto` would only re-hide it.
-          go-version: "1.25"
+          go-version: "1.27"
       - name: Resolve the plugin from the tag
         id: plugin
         run: |
