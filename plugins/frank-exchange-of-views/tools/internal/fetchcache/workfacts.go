@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -40,6 +41,10 @@ type WorkFacts struct {
 	OAStatus string `json:"oa_status,omitempty"`
 	// License is the best open location's licence, where the index knows one.
 	License string `json:"license,omitempty"`
+	// DeclaredPages is how many pages the work occupies in its venue, from the index's own first
+	// and last page. 0 where either is missing or not a page NUMBER — an e-locator (`e3000410`)
+	// names an article, not a span, and reading it as one page would call every such pdf too long.
+	DeclaredPages int `json:"declared_pages,omitempty"`
 }
 
 // OALocation is one place a copy sits, with the index's own typing of it.
@@ -106,6 +111,10 @@ func openAlexWork(f Fetcher, doi string) (WorkFacts, []OALocation, bool) {
 		BestOA *struct {
 			License string `json:"license"`
 		} `json:"best_oa_location"`
+		Biblio struct {
+			FirstPage string `json:"first_page"`
+			LastPage  string `json:"last_page"`
+		} `json:"biblio"`
 		Locations []struct {
 			PDFURL  string `json:"pdf_url"`
 			Landing string `json:"landing_page_url"`
@@ -124,6 +133,7 @@ func openAlexWork(f Fetcher, doi string) (WorkFacts, []OALocation, bool) {
 	if w.BestOA != nil {
 		facts.License = w.BestOA.License
 	}
+	facts.DeclaredPages = declaredPages(w.Biblio.FirstPage, w.Biblio.LastPage)
 	var locs []OALocation
 	for _, l := range w.Locations {
 		// `pdf_url` IS OPENALEX'S CLAIM, NOT A CONTENT TYPE. It files an abstract page there
@@ -155,4 +165,15 @@ func (e Entry) Retraction() *bool {
 		return nil
 	}
 	return e.Work.Retracted
+}
+
+// declaredPages is the span first..last, inclusive, where both are page numbers and the span runs
+// forwards; 0 otherwise.
+func declaredPages(first, last string) int {
+	a, aerr := strconv.Atoi(strings.TrimSpace(first))
+	b, berr := strconv.Atoi(strings.TrimSpace(last))
+	if aerr != nil || berr != nil || a <= 0 || b < a {
+		return 0
+	}
+	return b - a + 1
 }

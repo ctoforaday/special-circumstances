@@ -15,6 +15,7 @@ type keepGoingSite struct {
 	asked  string
 	page   []byte
 	locs   string
+	biblio string // OpenAlex's biblio object, where a test declares the work's page span
 	bodies map[string]*Response
 	seen   []string
 }
@@ -30,7 +31,11 @@ func (k *keepGoingSite) Fetch(u string) (*Response, error) {
 		r, _ := emptyIndexAnswer(u)
 		return r, nil
 	case strings.Contains(u, "openalex"):
-		return &Response{Body: []byte(`{"id":"https://openalex.org/W1","open_access":{"oa_url":null},"locations":[` + k.locs + `]}`)}, nil
+		biblio := ""
+		if k.biblio != "" {
+			biblio = `"biblio":` + k.biblio + `,`
+		}
+		return &Response{Body: []byte(`{"id":"https://openalex.org/W1","open_access":{"oa_url":null},` + biblio + `"locations":[` + k.locs + `]}`)}, nil
 	}
 	if r, ok := k.bodies[u]; ok {
 		return r, nil

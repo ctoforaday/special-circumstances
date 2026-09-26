@@ -2,6 +2,7 @@ package fetchcache
 
 import (
 	"bytes"
+	"fmt"
 	"regexp"
 	"strings"
 )
@@ -135,4 +136,22 @@ func beforeRefs(b []byte, refs *regexp.Regexp) []byte {
 		return b[:loc[0]]
 	}
 	return b
+}
+
+// pdfCompleteness judges a pdf by its page count against the span the index declares for the
+// work. A pdf is taken as the document — there is no evidence of a pdf of only an abstract — and
+// this asks the one question the evidence supports: is it much SHORTER than the work?
+//
+// MEASURED over 20 retrieved pdfs against their declared spans: longer is normal (an accepted
+// manuscript ran 44 pages against 19, another 15 against 7 — double spacing, cover sheets,
+// supplements), and one was short: 10 pages of a 165-page report. So `full` is anything that is at
+// least half the span, `unverified` is less, and a pdf with no numeric span is not asked.
+func pdfCompleteness(pages, declared int) (verdict, reason string) {
+	if pages <= 0 || declared <= 0 {
+		return "", ""
+	}
+	if pages*2 >= declared {
+		return CompletenessFull, fmt.Sprintf("the pdf's %d pages cover the %d the index declares for the work", pages, declared)
+	}
+	return CompletenessUnverified, fmt.Sprintf("the pdf has %d pages where the index declares %d for the work: part of it, not all of it", pages, declared)
 }

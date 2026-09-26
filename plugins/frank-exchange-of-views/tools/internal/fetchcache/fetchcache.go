@@ -309,6 +309,9 @@ func Classify(entry *Entry, body []byte) {
 		entry.NotRenderableReason = shell
 	}
 	entry.Completeness, entry.CompletenessReason = Completeness(entry.ContentType, body, DOIOf(entry.URL) != "")
+	if MediaType(entry.ContentType) == "application/pdf" && entry.Work != nil {
+		entry.Completeness, entry.CompletenessReason = pdfCompleteness(entry.Pages, entry.Work.DeclaredPages)
+	}
 }
 
 // WithoutBody says the bytes are known NOT to be the work's text: its abstract page, or a page
@@ -621,7 +624,6 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 	if terr := foldExtraction(run, &entry, ex); terr != nil {
 		return Entry{}, nil, false, terr
 	}
-	Classify(&entry, resp.Body)
 	// READ OFF THE RESPONSE, NOT THE FINAL BODY, so a reservation declared on a hop this fetch
 	// passed through is still recorded — Elsevier declares it on the markup-redirect bouncer,
 	// which the fetcher now follows past.
@@ -650,6 +652,8 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 			entry.Work = &facts
 		}
 	}
+	// After the work's facts: a pdf's completeness is its page count against the work's span.
+	Classify(&entry, resp.Body)
 	// AND THE LIVE PATH RECORDS WHY IT IS NOT TEXT, not just that it is not. The summary can
 	// derive the flag from the content type, but only the record outlives the run — an archived
 	// entry holding `text_retrieved: false` and nothing else cannot say whether the source
@@ -845,6 +849,8 @@ func EntryFor(run record.Run, url string, att *Attempt) Entry {
 // and an unverified page may already be the full text a scan would only reproduce.
 func fullerCopy(run record.Run, f Fetcher, url string, page Entry) (Entry, *Attempt) {
 	doi := DOIOf(url)
+	var partial Entry
+	var partialAtt *Attempt
 	for _, via := range []string{ViaArxiv, ViaOA} {
 		att := Recover(f, url, via, "")
 		if att == nil || !att.TextRetrieved || copyRank(att, doi) != rankBody {
@@ -859,9 +865,17 @@ func fullerCopy(run record.Run, f Fetcher, url string, page Entry) (Entry, *Atte
 		}
 		cand.RetrievedVia = fmt.Sprintf("the page at %s is %s (%s), so the work was sought further: %s",
 			url, page.Completeness, page.CompletenessReason, cand.RetrievedVia)
+		// PART OF THE WORK IS A FALLBACK, not an answer: the next rung may hold all of it. It still
+		// beats a page known to carry none of the body.
+		if cand.Completeness == CompletenessUnverified {
+			if partialAtt == nil && page.WithoutBody() {
+				partial, partialAtt = cand, att
+			}
+			continue
+		}
 		return cand, att
 	}
-	return Entry{}, nil
+	return partial, partialAtt
 }
 
 // maxFullTextHops bounds the walk from a landing page to the readable copy. Two is what the
