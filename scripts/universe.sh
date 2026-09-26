@@ -222,6 +222,45 @@ share_credentials() {
 clear_seat_env() {
   unset FEOV_RUN FEOV_RUN_FROM_WRAPPER FEOV_AGENT_ID FEOV_AGENT_TYPE FEOV_HOOK_VERSION
   unset CLAUDE_PROJECT_DIR
+  hermetic_path
+}
+
+# THE HOST'S PLUGIN BINARIES MUST NOT BE REACHABLE FROM INSIDE AN ISOLATED UNIVERSE, and they were:
+# the plugin system puts every installed plugin's bin/ on PATH, and a universe inherits the parent
+# shell's PATH wholesale. CLAUDE_CODE_PLUGIN_CACHE_DIR isolates what the universe INSTALLS; it does
+# nothing about what is already reachable by name.
+#
+# MEASURED, and it cost universe-m11 an entire sitting. A blue seat typed a BARE `feov-record`
+# instead of the run's `$RUN/.bin/feov-record`, and PATH handed it
+# ~/.claude/plugins/cache/.../frank-exchange-of-views/1.72.0/bin/feov-record — the SAME plugin
+# version as the universe's, at event-schema epoch 8 against the run's epoch 14. Its write died on a
+# raw `CHECK constraint failed: type (275)`, every call after it was refused with "`register` is your
+# first act and it has not happened", and that sitting made 100 tool calls and recorded NOTHING. A
+# plugin version is not an epoch, so the matching version made the two look interchangeable.
+#
+# REMOVED RATHER THAN SHADOWED. Prepending the run's .bin would make a bare invocation work, and a
+# bare invocation working is what let this happen unnoticed for a whole run: the seat's prompt names
+# the binary by path, so the honest outcome for a name lookup is "command not found" — loud, local to
+# the call, and it sends the seat to the path it was given. Shadowing would also be impossible to do
+# correctly here, because the run directory does not exist until `setup` runs inside the universe.
+#
+# ISOLATED ONLY. Under `--live` the universe INSTALLS into ~/.claude, so the host cache IS its cache
+# and stripping it would remove the binaries the run needs.
+hermetic_path() {
+  if [ "$LIVE" = "1" ]; then return; fi
+  local host_cache="$HOME/.claude/plugins/cache" out="" p dropped=0
+  local IFS=:
+  for p in $PATH; do
+    case "$p" in
+      "$host_cache"/*) dropped=$((dropped + 1)); continue ;;
+    esac
+    out="${out:+$out:}$p"
+  done
+  unset IFS
+  if [ "$dropped" -gt 0 ]; then
+    export PATH="$out"
+    log "PATH: dropped $dropped host plugin-cache bin dir(s) — a bare tool name must not reach the host's binaries"
+  fi
 }
 
 cmd_build() {
