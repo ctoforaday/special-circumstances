@@ -286,3 +286,34 @@ func TestAnArchivedAbstractDoesNotEndTheWalk(t *testing.T) {
 		t.Fatal("the walled candidate's snapshot was never asked for: the test did not reach the archive")
 	}
 }
+
+// A DOCUMENT URL ANSWERED WITH THE ABSTRACT HAS BEEN REFUSED, and the archive is asked for it as
+// for any refusal. Measured on nature.com: the .pdf an index names 303s back to the paywalled
+// page. A landing page answering with its abstract is only being what it is, and costs no lookup.
+func TestADocumentURLAnsweredWithItsAbstractIsSoughtInTheArchive(t *testing.T) {
+	withText(t, "the paper")
+	const pdfURL = "https://publisher.example/x.pdf"
+	abstract := loadBody(t, "springer-link-paywalled.html.gz")
+	site := &keepGoingSite{asked: "unused",
+		locs: `{"pdf_url":"` + pdfURL + `","is_oa":true}`,
+		bodies: map[string]*Response{
+			pdfURL: {Body: abstract, ContentType: "text/html"},
+			"https://archive.org/wayback/available?url=https%3A%2F%2Fpublisher.example%2Fx.pdf": {Body: []byte(
+				`{"archived_snapshots":{"closest":{"available":true,"status":"200","timestamp":"20240101000000","url":"https://web.archive.org/web/20240101000000/` + pdfURL + `"}}}`)},
+			"https://web.archive.org/web/20240101000000if_/" + pdfURL: {Body: []byte("%PDF-1.7 the paper"), ContentType: "application/pdf"},
+		}}
+	att := Recover(site, keepGoingDOI, ViaOA, "")
+	if att == nil || string(att.Body) != "%PDF-1.7 the paper" || !strings.Contains(att.Via, "not its body") {
+		t.Fatalf("the archived pdf was not sought after its url answered with the abstract: %+v", att)
+	}
+
+	landing := &keepGoingSite{asked: "unused",
+		locs:   `{"landing_page_url":"https://publisher.example/abs","is_oa":true}`,
+		bodies: map[string]*Response{"https://publisher.example/abs": {Body: abstract, ContentType: "text/html"}}}
+	_ = Recover(landing, keepGoingDOI, ViaOA, "")
+	for _, u := range landing.seen {
+		if strings.Contains(u, "archive.org") {
+			t.Errorf("a landing page answering with its abstract sent the walk to the archive: %s", u)
+		}
+	}
+}
