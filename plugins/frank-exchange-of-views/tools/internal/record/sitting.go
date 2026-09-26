@@ -120,7 +120,18 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 		case "first":
 			may("audit the report in full — this is your first sitting on it, so nothing of it is yet yours to have read")
 		case "behind":
-			may(fmt.Sprintf("audit what moved: the report was at %d when you last sat and is at %d now — the change is your surface, not the whole document",
+			// THE PINS ARE NAVIGATION, NOT THE AUDIT SURFACE, and this item said the opposite.
+			//
+			// It read "the change is your surface, not the whole document", which contradicts the
+			// duty it was meant to serve in the words adversarial-audit already uses: "a
+			// change-summary is a navigation hint, never the audit surface… This is not permission to
+			// audit a fragment — when the report HAS moved, the full re-read stands exactly as
+			// written." A lens asked about it had resolved the contradiction in the SKILL's favour
+			// and read the report whole, which is the right outcome reached despite this text.
+			//
+			// So it states the fact and points at the duty, and the seat's constitution keeps saying
+			// what the duty is. A work list that argues with a MUST teaches a seat to weigh the two.
+			may(fmt.Sprintf("the report moved while you were away — you last sat at %d and it is at %d now, so re-read it in full; the pins are here to show you WHAT changed, not to narrow what you audit",
 				s.LastSitting.Pin, s.LastSitting.Head))
 		}
 	}
