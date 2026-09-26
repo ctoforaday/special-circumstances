@@ -309,6 +309,9 @@ func Classify(entry *Entry, body []byte) {
 		entry.NotRenderableReason = shell
 	}
 	entry.Completeness, entry.CompletenessReason = Completeness(entry.ContentType, body, DOIOf(entry.URL) != "")
+	if MediaType(entry.ContentType) == "application/pdf" && entry.Work != nil {
+		entry.Completeness, entry.CompletenessReason = pdfCompleteness(entry.Pages, entry.Work.DeclaredPages, entry.Work.WorkType)
+	}
 }
 
 // WithoutBody says the bytes are known NOT to be the work's text: its abstract page, or a page
@@ -621,7 +624,6 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 	if terr := foldExtraction(run, &entry, ex); terr != nil {
 		return Entry{}, nil, false, terr
 	}
-	Classify(&entry, resp.Body)
 	// READ OFF THE RESPONSE, NOT THE FINAL BODY, so a reservation declared on a hop this fetch
 	// passed through is still recorded — Elsevier declares it on the markup-redirect bouncer,
 	// which the fetcher now follows past.
@@ -650,6 +652,8 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 			entry.Work = &facts
 		}
 	}
+	// After the work's facts: a pdf's completeness is its page count against the work's span.
+	Classify(&entry, resp.Body)
 	// AND THE LIVE PATH RECORDS WHY IT IS NOT TEXT, not just that it is not. The summary can
 	// derive the flag from the content type, but only the record outlives the run — an archived
 	// entry holding `text_retrieved: false` and nothing else cannot say whether the source
@@ -658,6 +662,19 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		entry.TextRetrievedReason = textBearingRefusal(entry.ContentType)
 	} else if entry.WithoutBody() {
 		entry.TextRetrievedReason = withoutBodyReason(entry)
+	}
+	// A PAGE NOT KNOWN TO BE THE BODY IS NOT WHERE THE SEARCH ENDS. Measured over 23 works whose
+	// fetch stopped at an abstract or a non-work page: the open-access rung held a copy of 14 —
+	// and the recovery chain never ran, because it ran only when the live fetch was refused, and
+	// a publisher's abstract is a perfectly good 200. The page is kept when nothing better exists.
+	if entry.Completeness != "" && entry.Completeness != CompletenessFull {
+		if better, att := fullerCopy(run, f, url, entry); att != nil {
+			stored, serr := Store(run, better, att.Body)
+			if serr != nil {
+				return Entry{}, nil, false, serr
+			}
+			return stored, att.Body, false, nil
+		}
 	}
 	stored, serr := Store(run, entry, resp.Body)
 	if serr != nil {
@@ -794,6 +811,10 @@ func EntryFor(run record.Run, url string, att *Attempt) Entry {
 	// artifact as one fetched live and owes the same extraction — and without it nothing marks it
 	// as a scan for the OCR path either, because that path keys on an ATTEMPTED extraction that
 	// found no text.
+	// THE SHA BEFORE THE EXTRACTION, because the text is stored under it. Store sets it later, and
+	// extracting first wrote every recovered document's text to `<run>/cache.txt` — one file,
+	// overwritten by each recovery — while the record named `<sha>.txt`, which was never written.
+	entry.Sha = Sha(att.Body)
 	ex := DefaultExtractor.Extract(Dir(run), entry.ContentType, att.Body)
 	if entry.Filename == "" {
 		entry.Filename = Label(ex.Title, "", url)
@@ -821,6 +842,44 @@ func EntryFor(run record.Run, url string, att *Attempt) Entry {
 		entry.TextRetrievedReason = withoutBodyReason(entry)
 	}
 	return entry
+}
+
+// fullerCopy asks the rungs that return the work itself — arXiv, then the open-access copies —
+// for something carrying more of it than the page in hand. Not the archive: its snapshot of a
+// subscription article is that same abstract page. Not the metadata record: it carries less.
+//
+// ONLY A BODY REPLACES THE PAGE: a pdf, an xml body, or a page its platform marks full. And a pdf
+// with no text layer replaces only a page KNOWN not to be the body — a scan needs reading by OCR,
+// and an unverified page may already be the full text a scan would only reproduce.
+func fullerCopy(run record.Run, f Fetcher, url string, page Entry) (Entry, *Attempt) {
+	doi := DOIOf(url)
+	var partial Entry
+	var partialAtt *Attempt
+	for _, via := range []string{ViaArxiv, ViaOA} {
+		att := Recover(f, url, via, "")
+		if att == nil || !att.TextRetrieved || copyRank(att, doi) != rankBody {
+			continue
+		}
+		cand := EntryFor(run, url, att)
+		if !cand.TextRetrieved {
+			continue
+		}
+		if !page.WithoutBody() && cand.TextExtracted != nil && !*cand.TextExtracted {
+			continue
+		}
+		cand.RetrievedVia = fmt.Sprintf("the page at %s is %s (%s), so the work was sought further: %s",
+			url, page.Completeness, page.CompletenessReason, cand.RetrievedVia)
+		// PART OF THE WORK IS A FALLBACK, not an answer: the next rung may hold all of it. It still
+		// beats a page known to carry none of the body.
+		if cand.Completeness == CompletenessUnverified {
+			if partialAtt == nil && page.WithoutBody() {
+				partial, partialAtt = cand, att
+			}
+			continue
+		}
+		return cand, att
+	}
+	return partial, partialAtt
 }
 
 // maxFullTextHops bounds the walk from a landing page to the readable copy. Two is what the

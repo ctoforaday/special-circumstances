@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 )
@@ -151,5 +152,31 @@ func TestAWeakReadingCitesButAnUnreachableOneDoesNot(t *testing.T) {
 				t.Errorf("%s in the bibliography = %v, want %v — %s", tc.outcome, got, tc.cites, tc.why)
 			}
 		})
+	}
+}
+
+// SILENCE IN AN ABSTRACT IS NOT SILENCE IN THE WORK. A copy the fetch recorded as the abstract
+// cannot establish that a claim is absent from the work; the same finding against a copy that
+// carries the body — or one nobody classified — still records.
+func TestAbsentIsRefusedOnACopyThatIsOnlyTheAbstract(t *testing.T) {
+	runDir := corroborateRun(t)
+	const src = "https://doi.org/10.1038/nature06964"
+	page := []byte("<html><body>the abstract</body></html>")
+	if _, err := fetchcache.Store(runtest.Open(t, runDir), fetchcache.Entry{URL: src, Sha: fetchcache.Sha(page),
+		ContentType: "text/html", Completeness: fetchcache.CompletenessAbstract,
+		CompletenessReason: "the platform printed its paywall in place of the body"}, page); err != nil {
+		t.Fatal(err)
+	}
+	absent := func(url string) error {
+		_, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-evidence",
+			"--url", url, "--title", "A source", "--quote", corroborated, "--as", "absent", "--confidence", "high",
+			"--reason", "the claim is not in it")
+		return err
+	}
+	if err := absent(src); err == nil || !strings.Contains(err.Error(), "abstract") {
+		t.Fatalf("absent was recorded against a copy that is only the abstract: %v", err)
+	}
+	if err := absent("https://example.org/a-source-never-fetched"); err != nil {
+		t.Fatalf("absent against an unclassified source was refused: %v", err)
 	}
 }

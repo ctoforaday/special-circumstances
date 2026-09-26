@@ -201,7 +201,7 @@ func newCorroborate() *cobra.Command {
 // describing the same four fields differently — which is how this vocabulary got into trouble.
 func verifyAxes(c *cobra.Command) {
 	flags.Text(c, flags.Quote, flags.DescQuote+" (the claim you are checking)")
-	enumhelp.Flag(c, flags.As, record.MustEnum("verify", "outcome"), "what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade")
+	enumhelp.Flag(c, flags.As, record.MustEnum("verify", "outcome"), "what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade. Absent is refused on a copy fetch recorded as the work's abstract, or as not the work")
 	enumhelp.Flag(c, flags.Confidence, record.MustEnum("verify", "confidence"), "how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts")
 	c.Flags().Var(&flags.DateValue{}, flags.AccessDate, "YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger")
 }
@@ -266,6 +266,17 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 			return nil, feov.Errorf(feov.Validation, "lens verify: %q is not a source outcome this record can carry", w)
 		}
 		body.Outcome = &o
+		// SILENCE IN AN ABSTRACT IS NOT SILENCE IN THE WORK. `absent` says the claim is not in the
+		// source; where the copy this run holds is recorded as the work's abstract, or as not the
+		// work at all, nothing was read that could say so. Read from the index, never fetched —
+		// the same rule the retraction stamp below keeps.
+		if o == recordpb.SourceOutcome_SOURCE_OUTCOME_ABSENT {
+			if e, _, ok, lerr := fetchcache.Lookup(run, body.GetUrl()); lerr == nil && ok && e.WithoutBody() {
+				return nil, feov.Errorf(feov.Validation, "lens verify: the copy of %s this run holds is %s — %s. "+
+					"Its silence is not the work's, so absent cannot be established from it; record what the copy does "+
+					"establish, or find a copy that carries the body", body.GetUrl(), e.Completeness, e.CompletenessReason)
+			}
+		}
 	}
 	if w := seat.Str(cmd, flags.Confidence); w != "" {
 		cf, ok := record.ConfidenceOf(w)

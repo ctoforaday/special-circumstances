@@ -672,10 +672,11 @@ func TestTheWalkStopsOnAPageThatNamesItselfHoweverItWasReached(t *testing.T) {
 	} else if string(body) != page {
 		t.Fatalf("the page that named itself was left behind: %d bytes", len(body))
 	}
-	// The index lookup for the work's own facts is a different question and still runs; what must
-	// NOT happen is another request for the DOCUMENT.
+	// The index lookups are a different question and still run — the work's own facts, and, since
+	// naming itself is not evidence of a body (Nature's paywalled page names itself too), where
+	// else the work is. What must NOT happen is another request for the DOCUMENT.
 	for _, u := range asked2 {
-		if u != asked && !strings.Contains(u, "openalex") {
+		if u != asked && !strings.Contains(u, "openalex") && !isIndexLookup(u) {
 			t.Errorf("the document was fetched again from a page that had said it was the full text: %v", asked2)
 		}
 	}
