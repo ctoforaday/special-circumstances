@@ -247,7 +247,6 @@ Usage:
 Available Commands:
   assemble     assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the record; no inputs
   certify      what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
-  completion   Generate the autocompletion script for the specified shell
   count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
   declare      a holding that binds how the whole record is READ, when the dispute is over what a term MEANS and no gap moves
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes

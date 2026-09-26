@@ -183,7 +183,6 @@ Usage:
 
 Available Commands:
   close        close a gap with the verification you did THIS sitting, naming what you checked it against
-  completion   Generate the autocompletion script for the specified shell
   corroborate  go and find a source blue never cited, when the claim has no anchor but the source is obtainable
   count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
