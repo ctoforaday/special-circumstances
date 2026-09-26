@@ -120,6 +120,9 @@ func newShowDiagnostics() *cobra.Command {
 	show.AddCommand(newShowTiers())
 	// THE LOG, which every seat writes and only the operator reads. See log.go.
 	show.AddCommand(newShowLog())
+	// WHERE THE WALL CLOCK WENT. See timing.go — the two views behind it existed unwired, so the
+	// engine could decompose its own clock and had no surface that did.
+	show.AddCommand(newShowTiming())
 	return show
 }
 

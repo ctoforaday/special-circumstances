@@ -2,7 +2,6 @@ package recordsql
 
 import (
 	"database/sql"
-	"database/sql/driver"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -20,47 +19,13 @@ import (
 	// suite and none in the shipped binary. Every test passed and the first real `chair register`
 	// failed with `unknown driver "sqlite"`. A blank import is invisible to the compiler's unused
 	// check, which is exactly why the wrong file stayed good enough.
-	sqlite3 "modernc.org/sqlite"
+	_ "modernc.org/sqlite"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
-
-// THE ANNOTATION LAYER IS VISIBLE TO SQL, because one view has to compare two quotes of the report.
-//
-// `gap_edit` asks whether an edit's span and a gap's location are the same sentence, and both may
-// carry anchors the other does not — minting places one at the location it names, so the comparison
-// breaks on the act that creates the thing compared. The rule belongs to anchortext, which defines
-// the layer; registering it here means SQL and Go run the SAME reduction rather than two that can
-// drift (internal/record/locatorclass_test.go holds every site in the class to it).
-//
-// THE COST, STATED: a reader that queries `gap_edit` through a driver without this function gets
-// "no such function: visible". Every Go reader has it — RegisterScalarFunction applies to all
-// connections the "sqlite" driver opens afterwards, which is migrate, the tools and the tests. A
-// hand-run `sqlite3` or a python script does not, and must strip the layer itself. CREATE VIEW does
-// NOT resolve functions, so the DDL still applies and the schema golden still generates without it.
-func init() {
-	if err := sqlite3.RegisterScalarFunction("visible", 1, func(_ *sqlite3.FunctionContext, args []driver.Value) (driver.Value, error) {
-		if len(args) != 1 {
-			return nil, fmt.Errorf("visible: want 1 argument, got %d", len(args))
-		}
-		switch v := args[0].(type) {
-		case nil:
-			return nil, nil // NULL in, NULL out: a location a gap never set is not an empty one
-		case string:
-			return anchortext.Visible(v), nil
-		case []byte:
-			return anchortext.Visible(string(v)), nil
-		default:
-			return nil, fmt.Errorf("visible: want TEXT, got %T", args[0])
-		}
-	}); err != nil {
-		panic("recordsql: registering the visible() SQL function: " + err.Error())
-	}
-}
 
 // Open creates or opens a run's database and applies the derived schema to a new one.
 //
@@ -586,18 +551,24 @@ func requireDeclaredSchema(db *sql.DB) error {
 	if len(staleView) > 0 {
 		lacks = append(lacks, "this run's "+strings.Join(staleView, ", ")+" view is the one its CREATING binary wrote, and this binary defines it differently")
 	}
-	// THE MIRROR: A RECORD THAT CARRIES MORE THAN THIS BINARY DECLARES.
+	// THE EPOCHS, COMPARED — one integer, and it answers BOTH directions.
 	//
-	// Everything above asks whether the record LACKS what this binary knows — an older run. The
-	// opposite is a stale BINARY, and it was unhandled: an extra table or view sails past open and the
-	// first write dies on whatever constraint the binary has never heard of, as raw SQLite text
-	// reaching a seat. Checked here rather than at the write because a read is just as wrong, and
-	// because open is where the record can still be refused whole.
-	if ahead, err := recordIsAhead(db, tables, views); err != nil {
+	// This asked the question by SHAPE: did the record carry a table or a view this binary does not
+	// declare. Shape cannot distinguish a stale binary from a view the current binary deliberately
+	// DROPPED, so it reported the wrong party as stale and made removing a view a two-step change.
+	// The record states its epoch now, so the question has one answer.
+	//
+	// A record with no epoch at all is an OLDER run and is named by the table check above — it lacks a
+	// declared table — so there is no third case and no tolerance path here.
+	if epoch, ok, err := recordEpoch(db); err != nil {
 		return err
-	} else if len(ahead) > 0 {
-		return fmt.Errorf("recordsql: this run's record carries %s, which this binary does not declare — %s",
-			strings.Join(ahead, ", "), newerRunAdvice)
+	} else if ok && epoch != recordpb.EventSchema {
+		if epoch > recordpb.EventSchema {
+			return fmt.Errorf("recordsql: this run's record was written at event-schema epoch %d and this binary writes %d — %s",
+				epoch, recordpb.EventSchema, newerRunAdvice)
+		}
+		return fmt.Errorf("recordsql: this run's record was written at event-schema epoch %d and this binary writes %d — %s",
+			epoch, recordpb.EventSchema, olderRunAdvice)
 	}
 	if len(lacks) == 0 {
 		return nil
@@ -699,6 +670,11 @@ func applySchemaTx(tx *sql.Tx) error {
 		return err
 	}
 	if _, err := tx.Exec(ViewsDDL); err != nil {
+		return err
+	}
+	// THE EPOCH GOES IN WITH THE SCHEMA, in this transaction, because a database whose shape exists
+	// and whose epoch does not is exactly the state every reader downstream would have to tolerate.
+	if _, err := tx.Exec(`INSERT INTO "schema_epoch" ("id", "epoch") VALUES (1, ?)`, recordpb.EventSchema); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -953,36 +929,19 @@ func (e enumAt) Number() protoreflect.EnumNumber         { return e.n }
 
 var _ = proto.Marshal
 
-// recordIsAhead names what the record carries that this binary has never heard of.
+// recordEpoch is the event-schema epoch this record was written at, and whether it states one.
 //
-// TABLES AND VIEWS ONLY, NOT COLUMNS. An extra column on a known table is what an older binary meets
-// on a record whose schema grew a field, and it is harmless to a READ: the binary selects the columns
-// it declares and gets them. An extra TABLE or VIEW is a whole fact the binary cannot see, and a
-// CHECK it does not know about is what turns the first write into raw SQLite text. Naming the coarse
-// difference is enough to refuse, and refusing is the whole job.
-func recordIsAhead(db *sql.DB, tables []string, views map[string]string) ([]string, error) {
-	known := make(map[string]bool, len(tables)+len(views))
-	for _, t := range tables {
-		known[t] = true
-	}
-	for v := range views {
-		known[v] = true
-	}
-	rows, err := db.Query(`SELECT "type", "name" FROM sqlite_master
-	  WHERE "type" IN ('table', 'view') AND "name" NOT LIKE 'sqlite_%' ORDER BY "type", "name"`)
+// ok is false ONLY for a record predating the field, which the declared-table check names as an older
+// run before this is consulted — so a caller never has to decide what an absent epoch means.
+func recordEpoch(q queryRower) (int, bool, error) {
+	var epoch sql.NullInt64
+	err := q.QueryRow(`SELECT "epoch" FROM "schema_epoch" WHERE "id" = 1`).Scan(&epoch)
 	if err != nil {
-		return nil, fmt.Errorf("recordsql: asking what this record carries: %w", err)
+		// A missing table is not an error here: it is the older-run case, reported by its own check.
+		return 0, false, nil
 	}
-	defer rows.Close()
-	var ahead []string
-	for rows.Next() {
-		var kind, name string
-		if err := rows.Scan(&kind, &name); err != nil {
-			return nil, err
-		}
-		if !known[name] {
-			ahead = append(ahead, fmt.Sprintf("a %s %q", kind, name))
-		}
+	if !epoch.Valid {
+		return 0, false, nil
 	}
-	return ahead, rows.Err()
+	return int(epoch.Int64), true, nil
 }

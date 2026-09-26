@@ -132,13 +132,6 @@ func TestMotionAnswersStatesFirstWinsOnce(t *testing.T) {
 	if ruling != "rejected" || by != "judge" {
 		t.Errorf("(ruling, ruled_by) = (%q, %q), want the FIRST ruling — the second does not overturn it", ruling, by)
 	}
-	// And motion_state, which reads this view, carries ONE row too.
-	if err := db.QueryRow(`SELECT count(*) FROM "motion_state" WHERE "motion_id" = 'M-1'`).Scan(&n); err != nil {
-		t.Fatal(err)
-	}
-	if n != 1 {
-		t.Fatalf("motion_state has %d rows for a twice-ruled motion, want 1", n)
-	}
 }
 
 func TestLineOfInquiryCarriesTheWholeLine(t *testing.T) {

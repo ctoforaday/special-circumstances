@@ -260,51 +260,6 @@ SELECT
 FROM "seat_turn_span"
 GROUP BY "agent_id", "bucket";
 
--- EVERY EDIT THAT TOUCHED A GAP'S SENTENCE, in the order it happened.
---
--- A gap's location is prose captured at mint and validated once. blue edit then explicitly
--- permits rewriting an anchored sentence ("that is transit, not authorship"), and nothing
--- reconciled the two — so from round 2 the board showed text that is no longer in the document,
--- by the sanctioned path, and red re-auditing had to GUESS what blue had changed underneath it
--- (#453).
---
--- IT IS A VIEW BECAUSE THE FACTS ARE ALREADY ON THE RECORD. The report is a frozen base plus an
--- ordered stack of tool-made ops (#709), and blue_edit carries the exact old span and its
--- replacement. Storing a second copy of "which edits hit this gap" would be the drift this
--- schema is derived to avoid; the association is a join, and it is authored here where every
--- reader can see the rule rather than folded differently in each one.
---
--- THE OVERLAP TEST IS CONTAINMENT IN EITHER DIRECTION, which is the honest pair: an edit that
--- rewrites the WHOLE sentence contains the location, and an edit to a fragment INSIDE the
--- sentence is contained by it. Both moved the text the gap points at; neither is a coincidence
--- of wording, because both spans are exact quotes the tool matched against the report.
---
--- Only edits AFTER the mint count. An edit that ran before the gap existed is part of the text
--- red minted against, not a change to it.
-CREATE VIEW "gap_edit" AS
-SELECT
-  m."gap_id"                                   AS "gap_id",
-  e."id"                                       AS "event_id",
-  e."epoch"                                    AS "epoch",
-  e."seat_id"                                  AS "edited_by",
-  b."old"                                      AS "old",
-  b."new"                                      AS "new"
-FROM "mint" m
-JOIN "events" me ON me."id" = m."event_id"
-JOIN "blue_edit" b
-JOIN "events_w" e ON e."id" = b."event_id"
-WHERE e."id" > me."id"
-  AND COALESCE(m."location", '') != ''
-  AND COALESCE(b."old", '') != ''
-  -- THROUGH THE ANNOTATION LAYER. Both spans are quotes of the report and either may carry anchors
-  -- the other does not: minting places one at the location the gap names, so a raw comparison stops
-  -- matching on the act that creates the gap — and stops matching SILENTLY, because "no rows" is
-  -- also the honest answer for a gap nothing has edited. Measured on universe-m11: 3 of 5 located
-  -- gaps attributed NONE of their edits, and the work list shipped their stale locations beside an
-  -- empty edited_since field. visible() is registered by recordsql and is anchortext's own reduction.
-  AND (instr(visible(b."old"), visible(m."location")) > 0
-       OR instr(visible(m."location"), visible(b."old")) > 0);
-
 -- THE CHANGE LOG, AS A VIEW: every recorded edit to the report with the text on both sides.
 --
 -- The seat-facing changes read folded the WHOLE event stream in Go to project ONE event family, which
@@ -563,7 +518,7 @@ LEFT JOIN "events" ce ON ce."id" = cx."event_id"
 -- carrying a gap_id; it is a docket motion's RULING, and the gap is on the motion that asked.
 -- So: the ruling arm gives the disposition, its motion_rule gives the motion id, and the docket
 -- FILING gives the gap. Written here once rather than at each reader, which is what this view is
--- for — the same join was hand-written at eight readers before motion_state existed.
+-- for — the same join was hand-written at eight readers before it.
 --
 -- AND IT HAD TO CHANGE IN THE SAME COMMIT AS THE DELETE. SQLite does not validate a view body at
 -- CREATE, so a view left reading "opinion" after that table went would have applied cleanly and
@@ -696,35 +651,6 @@ LEFT JOIN "motion_appeal" fa ON fa."event_id" =
   (SELECT y."event_id" FROM "motion_appeal" y JOIN "live_event" ly ON ly."event_id" = y."event_id"
     WHERE y."motion_id" = ids."motion_id" ORDER BY ly."pos" LIMIT 1)
 LEFT JOIN "events" fae ON fae."id" = fa."event_id";
-
--- A motion with its filing and its ruling on one row. This join is hand-written at eight readers in
--- the file-backed record, each keying a disposition on a gap_id that the ruling does not carry.
--- The answer half comes from motion_answers, so the first-wins rule has ONE statement: the
--- old inline LEFT JOIN on motion_rule multiplied this view's rows for a motion carrying two
--- rulings — exactly the legacy shape the write guard now refuses, read as two motions.
-CREATE VIEW "motion_state" AS
-SELECT
-  m."motion_id"                        AS "motion_id",
-  m."subject"                          AS "subject",
-  me."seat_id"                         AS "filed_by",
-  me."id"                           AS "filed_seq",
-  -- THE GAP COMES FROM WHICHEVER FILING ARM CARRIES ONE. A bare read off motion_grade was correct
-  -- while grade was the only subject about a gap; docket is the second.
-  COALESCE(g."gap_id", gd."gap_id")    AS "gap_id",
-  a."grade"                            AS "grade_ruling",
-  a."petition"                         AS "petition_ruling",
-  a."direction"                        AS "direction_ruling",
-  a."docket"                           AS "docket_ruling",
-  a."ruled_by"                         AS "ruled_by",
-  a."ruled_seq"                        AS "ruled_seq",
-  (a."ruled_by" IS NULL)               AS "unruled",
-  a."appealed_by"                      AS "appealed_by",
-  a."appeal_reason"                    AS "appeal_reason"
-FROM "motion" m
-JOIN "events" me ON me."id" = m."event_id"
-LEFT JOIN "motion_grade" g ON g."event_id" = m."event_id"
-LEFT JOIN "motion_docket" gd ON gd."event_id" = m."event_id"
-LEFT JOIN "motion_answers" a ON a."motion_id" = m."motion_id";
 
 -- A LINE OF INQUIRY, whole: proposed by whom, saying what, where its status stands now, and
 -- how red last ruled the direction — the join that used to live in three separate readers
