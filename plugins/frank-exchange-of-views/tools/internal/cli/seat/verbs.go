@@ -527,17 +527,16 @@ func viewGroup(inquest bool) *cobra.Command {
 		// READING AT AN ANCHOR, rather than pulling the whole document to check one sentence.
 		// The window is addressed by anchor because a line number is a fact about a rendering —
 		// see internal/anchor/window.go for why that distinction is load-bearing here.
-		// THE SAME SELECTOR VOCABULARY ON ALL THREE KITCHEN SINKS. `report`, `board` and `changes` are
-		// the reads a seat should rarely need whole; they shared no working way to ask for part of one
-		// while all advertising `--id`, which only `changes` honours. See selector.go.
-		switch v.name {
-		case "report":
-			AddSelectorFlags(sub, "report lines")
-		case "board":
-			AddSelectorFlags(sub, "gaps")
-		case "changes":
-			AddSelectorFlags(sub, "edits")
-		}
+		// EVERY VIEW TAKES THE SAME SELECTOR PAIR (gblock: "everywhere you have one selector you
+		// probably want them all"). It began on three — `report`, `board` and `changes` — which left
+		// the rest with no working way to ask for part of a projection while all of them advertised
+		// `--id`, which only `changes` honours. A view now gains selection by being in this table,
+		// not by anyone remembering to add a case.
+		//
+		// THE NOUN COMES FROM THE VIEW so the help reads in the seat's terms ("only the gaps matching",
+		// "only the edits matching"); `entries` is the honest default for a projection whose rows have
+		// no better word, rather than a name invented per view in a list that would go stale.
+		AddSelectorFlags(sub, selectorNoun(v.name))
 		if v.name == "report" {
 			sub.Flags().String(flags.Anchor, "",
 				"read the report AT one anchor `id` (f-…, c-…, p-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back")
@@ -616,22 +615,13 @@ func renderView(cmd *cobra.Command, want string) error {
 			if err != nil {
 				return err
 			}
-			if sel, serr := SelectorOf(cmd); serr != nil {
-				return serr
-			} else if sel.Active() {
-				out, _, _ := selectJSONArrays(b, sel, "edits")
-				cmd.OutOrStdout().Write(out)
-				return nil
-			}
-			cmd.OutOrStdout().Write(b)
-			return nil
+			return WriteSelected(cmd, b)
 		case "debate":
 			b, err := record.DebateJSONBytes(run)
 			if err != nil {
 				return err
 			}
-			cmd.OutOrStdout().Write(b)
-			return nil
+			return WriteSelected(cmd, b)
 		// THE SCORECARD HAS A STRUCTURED FORM BECAUSE ITS READER IS A MACHINE. Asking for one and
 		// being refused was the largest single source of failed commands in the 2026-09-20 run —
 		// 10 of 55, plus 7 more as seats fell back to grepping the rendered card. The card's rows
@@ -728,15 +718,7 @@ func renderView(cmd *cobra.Command, want string) error {
 		// kitchen sink by hand. The selector filters the gap arrays on any of their text, and reports
 		// what it kept of what there was, so a pattern that matched nothing is distinguishable from a
 		// board that holds nothing.
-		if sel, serr := SelectorOf(cmd); serr != nil {
-			return serr
-		} else if sel.Active() {
-			out, _, _ := selectJSONArrays(b, sel, "open", "closed")
-			cmd.OutOrStdout().Write(out)
-			return nil
-		}
-		cmd.OutOrStdout().Write(b)
-		return nil
+		return WriteSelected(cmd, b)
 	}
 	// findings is served as JSON too, and for the same reason: the chair ACTS on it
 	// (coalesces findings into gaps), so it reads structured fields, not prose it must
@@ -746,8 +728,7 @@ func renderView(cmd *cobra.Command, want string) error {
 		if err != nil {
 			return err
 		}
-		cmd.OutOrStdout().Write(b)
-		return nil
+		return WriteSelected(cmd, b)
 	}
 	// motions is JSON by name: a seat reads it to ANSWER a motion, so it needs the filer's
 	// basis as a field rather than prose it must find in a transcript.
@@ -803,8 +784,7 @@ func renderView(cmd *cobra.Command, want string) error {
 			}
 			return nil
 		}
-		cmd.OutOrStdout().Write(b)
-		return nil
+		return WriteSelected(cmd, b)
 	}
 	// evidence is JSON by name: it is a LOOKUP TABLE keyed by the anchor token a seat is holding,
 	// and a markdown rendering of it would be a table to parse rather than a field to read.
@@ -813,16 +793,14 @@ func renderView(cmd *cobra.Command, want string) error {
 		if err != nil {
 			return err
 		}
-		cmd.OutOrStdout().Write(b)
-		return nil
+		return WriteSelected(cmd, b)
 	}
 	if want == "motions" {
 		b, err := record.MotionsJSONBytes(run)
 		if err != nil {
 			return err
 		}
-		cmd.OutOrStdout().Write(b)
-		return nil
+		return WriteSelected(cmd, b)
 	}
 	// work is JSON by name too — the seat ACTS on it (scans the open set, screens candidates),
 	// so it reads structured fields, not prose. It is the shrinking once-per-turn read that the
@@ -833,8 +811,7 @@ func renderView(cmd *cobra.Command, want string) error {
 		if err != nil {
 			return err
 		}
-		cmd.OutOrStdout().Write(b)
-		return nil
+		return WriteSelected(cmd, b)
 	}
 	// telemetry is JSONL by name — one line per epoch, the wire shape the stopping
 	// judgment reads. It is a SERIES, not a snapshot, and the series is the whole
@@ -844,8 +821,7 @@ func renderView(cmd *cobra.Command, want string) error {
 		if err != nil {
 			return err
 		}
-		cmd.OutOrStdout().Write(b)
-		return nil
+		return WriteSelected(cmd, b)
 	}
 	if want == "" {
 		return RefuseAndTeach(showGroup(cmd), fmt.Sprintf("%s show: name a projection. Each below names the verb that fills it", role))
@@ -871,8 +847,7 @@ func renderView(cmd *cobra.Command, want string) error {
 	if err != nil {
 		return err
 	}
-	cmd.OutOrStdout().Write(b)
-	return nil
+	return WriteSelected(cmd, b)
 }
 
 // RoleVerbs is the seat's verb set, ready to mount at the ROOT of that seat's tree.
@@ -1021,6 +996,11 @@ func inquestGroup() *cobra.Command {
 			SilenceUsage: true,
 			RunE:         func(cmd *cobra.Command, _ []string) error { return renderView(cmd, v.name) },
 		}
+		// THE INQUEST VIEWS TAKE THE SELECTOR PAIR TOO. This group is built here rather than in the
+		// `show` loop, so a flag added there reaches only half the views — which is how `--match` and
+		// `--phrase` first shipped on `show board` and not on `inquest motions`, in the very change
+		// that was meant to stop behaviour being built twice. Both builders call the same helper now.
+		AddSelectorFlags(sub, selectorNoun(v.name))
 		c.AddCommand(sub)
 	}
 	return c

@@ -171,8 +171,13 @@ func selectReportLines(body string, sel Selector) (string, int) {
 	return b.String(), hits
 }
 
-// selectJSONArrays keeps only the entries of the named top-level arrays whose JSON text the selector
-// hits, and reports how many it kept of how many there were.
+// selectJSONArrays keeps only the entries of EVERY top-level array whose JSON text the selector hits,
+// and reports how many it kept of how many there were.
+//
+// NO PER-VIEW LIST OF KEY NAMES. Naming the arrays per projection would be a hand-kept table of what
+// each view contains — the shape that goes stale the first time a projection grows a list, and the
+// defect this surface keeps removing. Every top-level array is a collection of entries, and "which of
+// these is about X" is the same question whichever view asked it.
 //
 // IT MATCHES THE ENTRY'S WHOLE JSON, deliberately: a seat hunting a class, a phrase in a problem, a
 // seat id in found_by or a word in an acceptance check is asking one question — "which of these is
@@ -184,19 +189,15 @@ func selectReportLines(body string, sel Selector) (string, int) {
 // on universe-m10 they habitually write `... 2>&1 | jq '…'`, which would fold the count line into the
 // JSON and fail the parse. A read whose own diagnostics break the commonest way of reading it is
 // worse than one whose shape gains a key you asked for by passing a flag.
-func selectJSONArrays(body []byte, sel Selector, arrays ...string) (out []byte, kept, of int) {
+func selectJSONArrays(body []byte, sel Selector) (out []byte, kept, of int) {
 	var doc map[string]json.RawMessage
 	if err := json.Unmarshal(body, &doc); err != nil {
 		return body, 0, 0 // not an object: hand back what we were given rather than a guess
 	}
-	for _, name := range arrays {
-		raw, ok := doc[name]
-		if !ok {
-			continue
-		}
+	for name, raw := range doc {
 		var items []json.RawMessage
 		if json.Unmarshal(raw, &items) != nil {
-			continue
+			continue // not an array: a scalar or an object is not a set of entries to select from
 		}
 		hit := []json.RawMessage{}
 		for _, it := range items {
@@ -223,4 +224,51 @@ func selectJSONArrays(body []byte, sel Selector, arrays ...string) (out []byte, 
 		return body, kept, of
 	}
 	return append(b, '\n'), kept, of
+}
+
+// WriteSelected is the ONE way a projection's JSON leaves this package.
+//
+// Ten sites in renderView wrote `cmd.OutOrStdout().Write(b)` directly, and adding selection to each
+// would be the same behaviour built ten times — which is the objection that produced this file. Every
+// site calls this instead, so a view gains selection by gaining the flags and nothing else, and a new
+// view cannot ship without it by forgetting a line.
+//
+// AN INACTIVE SELECTOR WRITES THE BYTES UNTOUCHED, so a read with no selector is exactly what it was.
+func WriteSelected(cmd *cobra.Command, b []byte) error {
+	sel, err := SelectorOf(cmd)
+	if err != nil {
+		return err
+	}
+	if !sel.Active() {
+		_, werr := cmd.OutOrStdout().Write(b)
+		return werr
+	}
+	out, _, _ := selectJSONArrays(b, sel)
+	_, werr := cmd.OutOrStdout().Write(out)
+	return werr
+}
+
+// selectorNoun is what a view's entries are called, for the flag's own help.
+//
+// A SHORT TABLE WITH AN HONEST DEFAULT, not a name per view. Only the views whose rows have a word a
+// seat already uses are named; everything else selects `entries`, which is true and does not rot when
+// a view is added.
+func selectorNoun(view string) string {
+	switch view {
+	case "report":
+		return "report lines"
+	case "board", "work":
+		return "gaps"
+	case "changes":
+		return "edits"
+	case "findings":
+		return "findings"
+	case "evidence":
+		return "citations and proofs"
+	case "motions":
+		return "motions"
+	case "lines-of-inquiry":
+		return "lines of inquiry"
+	}
+	return "entries"
 }
