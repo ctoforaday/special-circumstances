@@ -27,7 +27,7 @@ import (
 // gates hold the seams that were wrong, because every one of them was prose nothing compiled.
 func dispatchSource(t *testing.T) string {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join("..", "..", "cmd", "seatprobe", "main.go"))
+	b, err := os.ReadFile(filepath.Join("..", "..", "devcmd", "seatprobe", "main.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,11 +125,11 @@ func TestTheProbeComposesNoPromptOfItsOwn(t *testing.T) {
 		"do your sitting's work",
 	} {
 		if strings.Contains(src, banned) {
-			t.Errorf("cmd/seatprobe still composes a seat prompt (%q) — the dispatched prompt must be debate.js's, rendered by running it", banned)
+			t.Errorf("devcmd/seatprobe still composes a seat prompt (%q) — the dispatched prompt must be debate.js's, rendered by running it", banned)
 		}
 	}
 	if !strings.Contains(src, "seatprobe.ProductionPrompt(") {
-		t.Error("cmd/seatprobe does not take its prompt from debate.js")
+		t.Error("devcmd/seatprobe does not take its prompt from debate.js")
 	}
 }
 
