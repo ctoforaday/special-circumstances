@@ -240,6 +240,12 @@ const (
 	// validator's job rather than a second word's.
 	Anchor = "anchor"
 
+	// Match is the selector's REGEX half. Its literal half is Quote, deliberately the same word the
+	// acting verbs take for a span of report text: one concept, one name. See cli/seat/selector.go
+	// for why the pair exists rather than one flag with a toggle, and why the verbs differ on what a
+	// MISS means rather than on what the value is called.
+	Match = "match"
+
 	// The bench's vocabulary. Binds is the addressee of granted relief — set on a RULING,
 	// never on the filing. What a petitioner asks for and what the bench orders are different
 	// facts, and only the second binds anyone.
@@ -327,7 +333,7 @@ func All() []string {
 		Class, Definition, Neighbor, Distinguisher, MaterialDefault,
 		Problem, Fix, Check, CheckKind, Type, SourceText, OCRQuote, Page, Via, At, About, AboutKind, Hypothesis, Script, Cites, ExpectError,
 		Supersedes, SupersededBy, FoundBy, CarriedFrom,
-		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor,
+		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Match,
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Settled, ReopensOn, Final,
 		Method, AccessDate,

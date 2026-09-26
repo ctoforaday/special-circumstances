@@ -21,7 +21,7 @@ import (
 func TestNoProjectionListMarshalsAsNull(t *testing.T) {
 	for name, v := range map[string]any{
 		"BoardJSON": mustBoardJSONT(t, mustRun(t, newRun(t))),
-		"WorkJSON":  workJSONOfGaps(nil, 0, nil),
+		"WorkJSON":  workJSONOfGaps(nil, 0, nil, ""),
 	} {
 		raw, err := json.Marshal(v)
 		if err != nil {

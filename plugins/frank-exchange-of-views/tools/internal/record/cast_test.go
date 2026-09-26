@@ -129,3 +129,60 @@ func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
 		t.Errorf("an unchecked anchor is missing or claims an outcome: %+v", g)
 	}
 }
+
+// OWNERSHIP IS ANSWERED, NOT DERIVED (gblock's ruling: work is self-sufficient for any job that is
+// not reading the whole document).
+//
+// Every one of universe-m10's eight refusals was a seat acting on a gap another seat minted, and the
+// information was on the list the whole time — as `found_by: ["computation-F1"]`, a finding label
+// whose owning seat you recover by decoding a prefix and then recalling that only the originator may
+// close. Two inferences, at the moment of acting, ten calls into a sitting.
+//
+// THROUGH THE SEAT PATH, because `yours_to_close` is a fact ABOUT THE READER and the oracle's
+// entry point has no reader. A test through WorkJSONOfRun would assert the false case twice and
+// pass — which is how #1162 shipped a field that reached no seat.
+func TestTheWorkListAnswersWhetherAGapIsYoursToClose(t *testing.T) {
+	dir := newRun(t)
+	mint := func(seat, gap string) {
+		if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: seat}, &recordpb.Mint{
+			GapId: proto.String(gap), Class: proto.String("c"),
+			Problem:     proto.String("the claim rests on one source"),
+			Location:    proto.String("A sentence"),
+			RequiredFix: proto.String("qualify it"), AcceptanceCheck: proto.String("the sentence names the range"),
+			CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Severity:   recordtest.P(recordpb.Grade_GRADE_HIGH),
+			Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH),
+			Impact:     recordtest.P(recordpb.Grade_GRADE_HIGH),
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mint("red-lens-evidence", "G1")
+	mint("red-lens-logic", "G2")
+
+	for _, reader := range []string{"red-lens-evidence", "red-lens-logic"} {
+		b, err := WorkJSONBytes(mustRun(t, dir), "lens", reader)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var w WorkJSON
+		if err := json.Unmarshal(b, &w); err != nil {
+			t.Fatal(err)
+		}
+		if len(w.Open) != 2 {
+			t.Fatalf("want both gaps on the list (a lens sees the open set): %+v", w.Open)
+		}
+		for _, g := range w.Open {
+			mine := g.MintedBy == reader
+			if g.YoursToClose != mine {
+				t.Errorf("%s reading %s: yours_to_close=%v but minted_by=%q — the field must answer for THIS reader",
+					reader, g.ID, g.YoursToClose, g.MintedBy)
+			}
+			// The prose that made a seat leave this list for the board.
+			if g.AcceptanceCheck == "" || g.RequiredFix == "" || g.Problem == "" {
+				t.Errorf("%s reading %s: the gap still withholds what it takes to act: check=%q fix=%q problem=%q",
+					reader, g.ID, g.AcceptanceCheck, g.RequiredFix, g.Problem)
+			}
+		}
+	}
+}

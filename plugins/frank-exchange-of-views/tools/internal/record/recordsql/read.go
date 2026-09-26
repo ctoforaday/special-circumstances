@@ -46,8 +46,11 @@ func Events(db *sql.DB) ([]*recordpb.Event, error) {
 
 // Window is where an event sits on the record's two clocks (plans/roundless.md §III.A.0): the
 // EPOCH — how many times the chair had registered at or before this row — and the SITTING — how
-// many times this row's own seat had. Both are read off the events_w view, which derives them by
-// window function from "id"; neither is stamped on the row. The envelope's own history says why:
+// many times this row's own seat had. Both are read off the events_w view, which numbers the
+// SITTINGS by window function and joins them; neither is stamped on the row. (This said the windows
+// were derived "by window function from id", and for a long time they were not: the view ran two
+// correlated scalar subqueries per row, which EXPLAIN QUERY PLAN names as such. The sentence
+// described the intended mechanism, and reading it was how the quadratic one went unnoticed.) The envelope's own history says why:
 // seq, nonce and epoch were each a derivation stored at the write, each cost the write a read,
 // and each was retired once the record could simply be asked.
 type Window struct {

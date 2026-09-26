@@ -172,6 +172,11 @@ func newFile(subject string, required []string) *cobra.Command {
 			}
 			// A docket names a gap (--id); a petition asks for relief in words (--relief).
 			if flags.ClosedForm(f) {
+				if f == flags.ID {
+					// THE FILING NAMES WHAT IS BEING DISPUTED, and its kind depends on the subject.
+					c.Flags().Var(idShapeFor(subject, true), f, "REQUIRED for a "+subject+" motion")
+					continue
+				}
 				c.Flags().String(f, "", "REQUIRED for a "+subject+" motion")
 			} else {
 				flags.Text(c, f, "REQUIRED for a "+subject+" motion")
@@ -356,7 +361,7 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 		},
 	}
 	seat.Prose(c)
-	c.Flags().String(flags.ID, "", refHelp(subject))
+	c.Flags().Var(idShapeFor(subject, false), flags.ID, refHelp(subject))
 	enumhelp.Flag(c, flags.As, e, "your ruling")
 	for _, f := range ruleFlags {
 		switch f {
@@ -446,7 +451,7 @@ func newAppeal(subject string) *cobra.Command {
 		},
 	}
 	seat.Prose(c)
-	c.Flags().String(flags.ID, "", refHelp(subject)+" — the motion being appealed, which must already have been ruled")
+	c.Flags().Var(idShapeFor(subject, false), flags.ID, refHelp(subject)+" — the motion being appealed, which must already have been ruled")
 	// The record type, for the contract gate — see newFile.
 	seat.Records(c, "motion_appeal")
 	return seat.Correctable(c)
@@ -529,4 +534,31 @@ var ruleFlagHelp = map[string]string{
 	flags.Settled:    "what the losing party may no longer assert, in one sentence",
 	flags.ReopensOn:  "the evidence or condition that would make this worth raising again — or pass --final to say nothing would",
 	flags.Final:      "nothing would reopen this. The assertable empty case for --reopens-on: pass exactly one of the two",
+}
+
+// idShapeFor is WHICH KIND of id a motion verb's --id takes, so the page names the kind and a
+// wrong-kind value is refused by its shape rather than by a lookup that reports "no such motion" for a
+// perfectly good gap id.
+//
+// THE INQUIRY SUBJECT IS THE ASYMMETRY, and refHelp already states it: a direction's filing joins on
+// the line of inquiry's own id, "not an M-number", so every inquiry motion verb keys on Q. For the
+// other subjects the FILING names the thing being disputed — a gap — while the ruling and the appeal
+// name the motion. Registering all of them as a plain string is what made the help print `string`
+// nine times and refuse nothing (internal/cli/idshape_test.go).
+//
+// SHAPE ONLY, NO EXISTENCE CHECK, and that is measured rather than assumed. These arms carried
+// `.WithCheck(record.GapExists)` and `.WithCheck(record.InquiryExists)` for one commit; deleting both
+// left the whole suite green and left every refusal BYTE-IDENTICAL, because each verb's own body
+// already resolves the reference — `RequireGapRef` at the filing, `RequireMotionSubjectRef` at the
+// ruling, `RequireRuledMotion` at the appeal — and the last two are STRONGER than existence, being
+// bound to the subject and to the ruled state. A checker here would have been a second
+// implementation of a check that already refuses, in front of one that also knows more.
+func idShapeFor(subject string, filing bool) *flags.ShapedValue {
+	if subject == "inquiry" {
+		return flags.InquiryID()
+	}
+	if filing {
+		return flags.GapID()
+	}
+	return flags.MotionID()
 }

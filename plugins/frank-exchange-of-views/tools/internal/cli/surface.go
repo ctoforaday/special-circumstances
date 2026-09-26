@@ -176,12 +176,24 @@ func walkSurface(root *cobra.Command, fn func(path []string, c *cobra.Command)) 
 // The interface is re-declared rather than imported for the same reason `seat` re-declares it:
 // a method set is structural in Go, and stating it here keeps the dependency from running the
 // wrong way.
+//
+// IT ASKS WHETHER A CHECKER IS ATTACHED, not whether the value has the method, and the difference
+// is the whole claim this function makes. Every shaped flag has Check — it returns nil when no
+// checker is set — so `interface{ Check(string) error }` alone selects every SHAPED flag and this
+// map reported flags that point at NOTHING as references. The release gate is where it surfaced:
+// its vocabulary check demanded `motion-id` and `sha256` be declared as entity classes "with what
+// they point at", and neither points at anything, because shape and existence are different halves.
+// internal/cli/referencechecks_test.go carries the same distinction for the fixture table.
 func CommandReferences() map[string]map[string]string {
-	type referenceChecker interface{ Check(string) error }
+	type referenceChecker interface {
+		Check(string) error
+		Checked() bool
+	}
 	out := map[string]map[string]string{}
 	for path, c := range commandsByPath() {
 		c.Flags().VisitAll(func(f *pflag.Flag) {
-			if _, ok := f.Value.(referenceChecker); !ok {
+			ref, ok := f.Value.(referenceChecker)
+			if !ok || !ref.Checked() {
 				return
 			}
 			if out[path] == nil {
