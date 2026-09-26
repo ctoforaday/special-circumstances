@@ -164,8 +164,17 @@ func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item 
 		for _, key := range citedClaimsWithoutVerify(evs) {
 			add("citation " + key + " is on the record and nobody has verified it against what the source actually says")
 		}
-		for _, id := range proofsWithoutReproduce(evs) {
-			add("proof " + id + " is recorded and nobody has re-run it — a proof is audited by RE-RUNNING it, not by reading it")
+		// THE ITEM CARRIES THE ID THE VERB TAKES, which it did not. This named the proof by its
+		// `p-…` anchor while `reproduce --id` takes the sha256 and refuses the anchor by shape — so a
+		// seat holding the item had to go and translate it. Measured on universe-m11: three lenses
+		// spent 22 proof-file reads and 14 filesystem hunts between them doing exactly that, for 12
+		// re-runs. The record carries both ids on the same event; only one was passed on.
+		for _, pr := range proofsWithoutReproduce(evs) {
+			item := "proof " + pr.Anchor + " is recorded and nobody has re-run it — a proof is audited by RE-RUNNING it, not by reading it"
+			if pr.Sha != "" {
+				item += ", and `reproduce` does the re-running: --id " + pr.Sha
+			}
+			add(item)
 		}
 		// WHETHER BLUE ANSWERED, PER GAP, AND WHETHER THE RECORD CAN SAY (#1122).
 		//
@@ -342,7 +351,14 @@ func citedClaimsWithoutVerify(evs []*Event) []string {
 // what the seat carries away. See the return notes: `lens reproduce` takes `--id <sha256>`, so a
 // seat handed a `p-…` label still has to resolve it through `lens show evidence` — the same
 // shape of dead-end the `--key` note below records, and left as found rather than redesigned here.
-func proofsWithoutReproduce(evs []*Event) []string {
+// ProofRef is a recorded proof named BOTH ways: the anchor the report carries and the sha256 the
+// verb takes. A work item passing on only one of them makes the seat resolve the other.
+type ProofRef struct {
+	Anchor string
+	Sha    string
+}
+
+func proofsWithoutReproduce(evs []*Event) []ProofRef {
 	rerun := map[string]bool{}
 	for i := range evs {
 		body, ok := recordpb.Body(evs[i])
@@ -355,7 +371,7 @@ func proofsWithoutReproduce(evs []*Event) []string {
 			}
 		}
 	}
-	var out []string
+	var out []ProofRef
 	seen := map[string]bool{}
 	for i := range evs {
 		body, ok := recordpb.Body(evs[i])
@@ -377,7 +393,7 @@ func proofsWithoutReproduce(evs []*Event) []string {
 			continue
 		}
 		seen[id] = true
-		out = append(out, id)
+		out = append(out, ProofRef{Anchor: id, Sha: p.GetProofSha()})
 	}
 	return out
 }
