@@ -62,7 +62,7 @@ Always-on rules bind every session via the imports below; the rest load on deman
   - A test of the function is not a test of the call: delete the call site and run the suite.
 - BEFORE asserting a negative — X does not exist, is not possible, has already happened — YOU MUST run the check that would find it. A listing capped at N that prints exactly N is truncated. For what an agent SEES, render it (the real `--help`, the prompt golden, the transcript's tool result), never grep the source it is built from. A red on one box only is a hypothesis about the box until the code's requirement is checked.
 - Timing: interleave the arms, keep setup outside the timer, `ps` by tenant before believing a latency, and run a suite solo before a timing verdict; on a shared box, allocation counts beat wall clock.
-- CI runs Go 1.25 with `GOTOOLCHAIN=local`; set the same to reproduce a CI Go failure.
+- CI runs Go 1.27 with `GOTOOLCHAIN=local`; set the same to reproduce a CI Go failure.
 - Windows CI runs gray-area's whole suite: a test that redirects home sets `USERPROFILE` as well as `HOME`; a built binary needs `.exe`; a golden is named `*.golden` or `*.sql` (`.gitattributes` pins line endings by extension); a pflag default that is a path gets a display `DefValue`.
 - modernc SQLite ignores the query string of a DSN not prefixed `file:` — a read-only open is a `file:` URI, never `path?mode=ro`.
 

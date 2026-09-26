@@ -131,7 +131,7 @@ requests, not `git clone` of a public repository.
 |---|---|
 | Network access | Trusted (the default) or higher. **None** blocks the clone and the Go module fetches. |
 | Allowed domains | `github.com`, `codeload.github.com`, `proxy.golang.org`, `sum.golang.org` — all on the default Trusted list. A **research** environment additionally needs whatever hosts its sources live on; anything outside the list answers 403, which a seat cannot distinguish from an origin refusing it (see above) |
-| Go toolchain | Pre-installed in cloud environments. `go.mod` declares 1.24; the toolchain resolves 1.25.0 on first build |
+| Go toolchain | Pre-installed in cloud environments. every `go.mod` declares 1.27.1, and CI builds with `GOTOOLCHAIN=local`, so an older toolchain refuses rather than downloading one |
 | Runtime budget | Keep the setup script under roughly five minutes so the environment cache can build |
 
 ## Verification
