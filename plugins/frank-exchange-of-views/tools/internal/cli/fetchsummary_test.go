@@ -6,6 +6,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // THE WARNING IS TOLD ABOUT THE BACKEND THAT ANSWERED. The archive paragraph used to print over
@@ -60,6 +61,11 @@ func TestALiveDocumentReportsItsTextAsRetrieved(t *testing.T) {
 		{"a wall", fetchcache.Entry{Sha: "abc", URL: "https://ex/a", ContentType: "text/html", NotRenderable: &yes}, false},
 		{"a bibliographic record", fetchcache.Entry{Sha: "abc", URL: "https://ex/a", RetrievedVia: "Crossref record", TextRetrieved: false}, false},
 		{"a recovered document", fetchcache.Entry{Sha: "abc", URL: "https://ex/a", RetrievedVia: "an open copy", TextRetrieved: true}, true},
+		// An abstract renders perfectly and is still not the study.
+		{"an abstract page", fetchcache.Entry{Sha: "abc", URL: "https://ex/a", ContentType: "text/html", NotRenderable: &no, Completeness: fetchcache.CompletenessAbstract}, false},
+		{"a page that is not the work", fetchcache.Entry{Sha: "abc", URL: "https://ex/a", ContentType: "text/html", NotRenderable: &no, Completeness: fetchcache.CompletenessNotTheWork}, false},
+		// Nobody could tell, and the page is kept as what it is.
+		{"an unverified page", fetchcache.Entry{Sha: "abc", URL: "https://ex/a", ContentType: "text/html", NotRenderable: &no, Completeness: fetchcache.CompletenessUnverified}, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := (fetchSummary{TextRetrieved: tc.e.TextRetrieved || liveTextRetrieved(tc.e)}).TextRetrieved; got != tc.want {
@@ -130,5 +136,21 @@ func TestBytesWithNoReaderAreNotTheSourcesText(t *testing.T) {
 	pdf := fetchcache.Entry{URL: "https://ex.org/p.pdf", Sha: "def", ContentType: "application/pdf"}
 	if got := summarize(record.Run{}, pdf, 4096, false); !got.TextRetrieved {
 		t.Error("a pdf is no longer reported as the source's text")
+	}
+}
+
+// WHICH PART OF THE WORK A PAGE IS REACHES THE SEAT, on the human summary as well as --json. An
+// abstract reads like a paper; the verdict is the only thing on the page that says it is not one.
+func TestTheSummaryNamesWhichPartOfTheWorkThePageIs(t *testing.T) {
+	no := false
+	e := fetchcache.Entry{Sha: "abc", URL: "https://doi.org/10.1038/x", ContentType: "text/html", NotRenderable: &no,
+		Completeness: fetchcache.CompletenessAbstract, CompletenessReason: "the platform printed its paywall",
+		TextRetrievedReason: "the page is the work's ABSTRACT, not its body"}
+	s := summarize(runtest.New(t, t.TempDir()), e, 10, false)
+	out := s.render()
+	for _, want := range []string{"completeness: abstract", "completeness_reason: the platform printed its paywall", "text_retrieved: false", "ABSTRACT, not its body"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the summary is missing %q:\n%s", want, out)
+		}
 	}
 }

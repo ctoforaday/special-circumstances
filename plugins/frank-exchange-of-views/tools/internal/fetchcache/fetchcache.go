@@ -184,6 +184,13 @@ type Entry struct {
 	// the three it was, with the measurement. A flag with no reason is a verdict a reader cannot
 	// check, and here it is also the only place the three causes are told apart.
 	NotRenderableReason string `json:"not_renderable_reason,omitempty"`
+	// Completeness says whether an html page reached for a scholarly work carries the work's BODY
+	// or only its abstract — full, abstract, unverified, not_the_work (see Completeness). "" means
+	// the question was not asked: not html, or not a page about a work. NotRenderable asks whether
+	// the page is a document at all; this asks WHICH part of the work it is, and a page passes the
+	// first while failing the second — an abstract is a perfectly renderable page.
+	Completeness       string `json:"completeness,omitempty"`
+	CompletenessReason string `json:"completeness_reason,omitempty"`
 
 	// TDMReserved says the source reserved text-and-data-mining rights in its own markup (the
 	// W3C TDM Reservation Protocol), and TDMPolicy is where it says it states the terms.
@@ -301,6 +308,22 @@ func Classify(entry *Entry, body []byte) {
 		entry.NotRenderable = &notRenderable
 		entry.NotRenderableReason = shell
 	}
+	entry.Completeness, entry.CompletenessReason = Completeness(entry.ContentType, body, DOIOf(entry.URL) != "")
+}
+
+// WithoutBody says the bytes are known NOT to be the work's text: its abstract page, or a page
+// that is not the work at all. An `unverified` page is not this — nobody could tell, and it is
+// kept as what it is.
+func (e Entry) WithoutBody() bool {
+	return e.Completeness == CompletenessAbstract || e.Completeness == CompletenessNotTheWork
+}
+
+// withoutBodyReason is the sentence recorded when the page is known not to carry the body.
+func withoutBodyReason(e Entry) string {
+	if e.Completeness == CompletenessNotTheWork {
+		return "the page is not the work: " + e.CompletenessReason
+	}
+	return "the page is the work's ABSTRACT, not its body: " + e.CompletenessReason + ". Quote it as the abstract, never as the study"
 }
 
 // SniffedMediaType is the media type a response ACTUALLY carries, preferring the bytes over the
@@ -633,6 +656,8 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 	// refused, the page was a wall, or the bytes were a tarball.
 	if !TextBearing(entry.ContentType) {
 		entry.TextRetrievedReason = textBearingRefusal(entry.ContentType)
+	} else if entry.WithoutBody() {
+		entry.TextRetrievedReason = withoutBodyReason(entry)
 	}
 	stored, serr := Store(run, entry, resp.Body)
 	if serr != nil {
@@ -788,6 +813,12 @@ func EntryFor(run record.Run, url string, att *Attempt) Entry {
 	// page or an interstitial, the claim that text was retrieved is withdrawn with them.
 	if entry.NotRenderable != nil && *entry.NotRenderable {
 		entry.TextRetrieved = false
+	}
+	// AND A RECOVERED ABSTRACT IS NOT A RECOVERED PAPER. The archive's snapshot of a subscription
+	// article is usually its landing page, which renders perfectly and carries only the abstract.
+	if entry.TextRetrieved && entry.WithoutBody() {
+		entry.TextRetrieved = false
+		entry.TextRetrievedReason = withoutBodyReason(entry)
 	}
 	return entry
 }
