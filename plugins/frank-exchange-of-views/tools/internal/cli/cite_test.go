@@ -289,4 +289,8 @@ func TestBlueCiteRefusesALeafReadingOfAnAbstract(t *testing.T) {
 	if len(ev.Sources) != 1 || ev.Sources[0].SourceCompleteness != "abstract" {
 		t.Errorf("the evidence view does not show the citation rests on an abstract: %+v", ev.Sources)
 	}
+	// AND THE READER OF THE REPORT IS TOLD, in the note and the Bibliography.
+	if out := assembled(t, runDir); strings.Count(out, "**[ABSTRACT ONLY]**") != 2 {
+		t.Errorf("the assembled report does not mark the abstract citation in both places:\n%s", out)
+	}
 }

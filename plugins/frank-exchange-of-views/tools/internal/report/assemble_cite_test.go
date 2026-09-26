@@ -193,3 +193,50 @@ func TestARetractionOnAnyCitationOfAUrlReachesItsBibliographyLine(t *testing.T) 
 		t.Errorf("the Bibliography line drops a retraction recorded on another citation of the same url:\n%s", got)
 	}
 }
+
+// A CITATION THAT RESTS ON THE ABSTRACT SAYS SO WHERE THE READER IS, in both places for the
+// reason a retraction does. An abstract is quoted exactly like a study; the mark is the only thing
+// in the document that tells the reader which one the sentence was drawn from.
+func TestAnAbstractOnlyCitationIsMarkedInBothTheNoteAndTheBibliography(t *testing.T) {
+	abs := recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT
+	full := recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL
+	sources := []record.Source{
+		{Label: "c-1", URL: "https://ex/abs", Title: "Read As An Abstract", AccessDate: "2026-08-03", SourceCompleteness: abs},
+		{Label: "c-2", URL: "https://ex/full", Title: "Read In Full", AccessDate: "2026-08-03", SourceCompleteness: full},
+		// A retracted work read only as its abstract carries both marks.
+		{Label: "c-3", URL: "https://ex/both", Title: "Withdrawn", AccessDate: "2026-08-03", SourceCompleteness: abs,
+			WorkStatus: recordpb.WorkStatus_WORK_STATUS_RETRACTED},
+	}
+	got := weaveCitations("One<!--cite:c-1-->. Two<!--cite:c-2-->. Three<!--cite:c-3-->.", sources)
+	for _, want := range []string{
+		"[^1]: Read As An Abstract. https://ex/abs (accessed 2026-08-03) **[ABSTRACT ONLY]**",
+		"- Read As An Abstract. https://ex/abs (accessed 2026-08-03) **[ABSTRACT ONLY]**",
+		"[^3]: Withdrawn. https://ex/both (accessed 2026-08-03) **[RETRACTED]** **[ABSTRACT ONLY]**",
+		"- Withdrawn. https://ex/both (accessed 2026-08-03) **[RETRACTED]** **[ABSTRACT ONLY]**",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "https://ex/full (accessed 2026-08-03) **") {
+		t.Errorf("a citation read in full is annotated:\n%s", got)
+	}
+}
+
+// THE BIBLIOGRAPHY LINE IS THE WORK, SO IT TAKES EVERY CITATION OF IT: marked only when all of
+// them rest on the abstract. Each footnote still speaks for its own copy.
+func TestTheBibliographyMarksAWorkOnlyWhenEveryCitationOfItIsTheAbstract(t *testing.T) {
+	sources := []record.Source{
+		{Label: "c-1", URL: "https://ex/p", Title: "The Study", AccessDate: "2026-08-03",
+			SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT},
+		{Label: "c-2", URL: "https://ex/p", Title: "The Study", AccessDate: "2026-09-01", Corroborated: true,
+			SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_UNVERIFIED},
+	}
+	got := weaveCitations("A claim<!--cite:c-1-->. Another<!--cite:c-2-->.", sources)
+	if !strings.Contains(got, "[^1]: The Study. https://ex/p (accessed 2026-08-03) **[ABSTRACT ONLY]**") {
+		t.Errorf("the abstract citation's own note is not marked:\n%s", got)
+	}
+	if strings.Contains(got, "- The Study. https://ex/p (accessed 2026-08-03) **[ABSTRACT ONLY]**") {
+		t.Errorf("the work is marked abstract-only though another citation's copy may have been the paper:\n%s", got)
+	}
+}

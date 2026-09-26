@@ -54,6 +54,10 @@ type Source struct {
 	// other, and a retracted source presented as ordinary is the one defect a sound pipeline
 	// still publishes.
 	WorkStatus recordpb.WorkStatus
+	// SourceCompleteness is which part of the work this citation's copy was. Assembly marks a
+	// citation that rests on the abstract alone, because an abstract is quoted exactly like a
+	// study and nothing else in the document tells the reader which it was.
+	SourceCompleteness recordpb.SourceCompleteness
 }
 
 // citedSource reads a citable source off an event body, if it is one.
@@ -86,6 +90,8 @@ func citedSource(body proto.Message) (Source, bool) {
 			Location:   b.GetLocation(),
 			Pages:      b.GetPages(),
 			WorkStatus: b.GetWorkStatus(),
+
+			SourceCompleteness: b.GetSourceCompleteness(),
 		}, true
 	case *recordpb.Verify:
 		// No sha: red read the source itself rather than through the run cache, and the
@@ -99,6 +105,8 @@ func citedSource(body proto.Message) (Source, bool) {
 			Location:     b.GetClaim(),
 			Corroborated: true,
 			WorkStatus:   b.GetWorkStatus(),
+
+			SourceCompleteness: b.GetSourceCompleteness(),
 		}, true
 	}
 	return Source{}, false

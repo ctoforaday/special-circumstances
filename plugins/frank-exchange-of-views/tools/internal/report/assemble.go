@@ -160,7 +160,8 @@ func weaveCitations(md string, sources []record.Source) string {
 		if l := pageLocator(s.Pages); l != "" {
 			locator = ", " + l
 		}
-		fmt.Fprintf(&out, "[^%d]: %s%s. %s%s%s\n", n, citationTitle(s), locator, s.URL, accessed(s.AccessDate), retractionNote(s.WorkStatus))
+		fmt.Fprintf(&out, "[^%d]: %s%s. %s%s%s%s\n", n, citationTitle(s), locator, s.URL, accessed(s.AccessDate),
+			retractionNote(s.WorkStatus), abstractNote(s.SourceCompleteness == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT))
 		if !listed[s.URL] {
 			listed[s.URL] = true
 			bib = append(bib, "- "+bibliographyEntry(s.URL, sources))
@@ -185,6 +186,11 @@ func bibliographyEntry(url string, sources []record.Source) string {
 	// one chosen row; the status is taken over EVERY row for this url, so a corroboration that
 	// carries the stamp still warns the reader when the blue cite whose title won did not.
 	status := recordpb.WorkStatus_WORK_STATUS_UNSPECIFIED
+	// WHETHER ONLY THE ABSTRACT WAS READ IS A FACT ABOUT THE COPIES, NOT THE WORK, so it is the
+	// opposite quantifier: the line is marked only when EVERY citation of this url rests on the
+	// abstract. One citation whose copy was the paper — or might have been — means the report's
+	// use of the work was not confined to its abstract.
+	abstractOnly := true
 	for _, src := range sources {
 		if src.URL != url {
 			continue
@@ -193,11 +199,26 @@ func bibliographyEntry(url string, sources []record.Source) string {
 		if src.WorkStatus == recordpb.WorkStatus_WORK_STATUS_RETRACTED {
 			status = src.WorkStatus
 		}
+		if src.SourceCompleteness != recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT {
+			abstractOnly = false
+		}
 		if !found || (pick.Corroborated && !src.Corroborated) {
 			pick, found = src, true
 		}
 	}
-	return fmt.Sprintf("%s. %s%s%s", citationTitle(pick), url, accessed(date), retractionNote(status))
+	return fmt.Sprintf("%s. %s%s%s%s", citationTitle(pick), url, accessed(date), retractionNote(status), abstractNote(found && abstractOnly))
+}
+
+// abstractNote is what the reader is told about a citation that rests on the work's abstract
+// alone — the copy the run held was the abstract page, so what the text draws from it is what the
+// abstract says, not what the study shows. In the note and in the Bibliography for the reason
+// retractionNote gives. Only ABSTRACT prints: unverified and not_asked are the tool's uncertainty,
+// which the record carries for red.
+func abstractNote(abstractOnly bool) string {
+	if abstractOnly {
+		return " **[ABSTRACT ONLY]**"
+	}
+	return ""
 }
 
 // retractionNote is what the reader is told about a cited work that no longer stands.

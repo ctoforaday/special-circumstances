@@ -297,7 +297,7 @@ CREATE TABLE "enum_source_completeness" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('abstract', 'the copy is the work''s ABSTRACT page: its platform printed a paywall or page images in place of the body. What it confirms is what the abstract says, not what the study shows');
+INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('abstract', 'the copy is the work''s ABSTRACT page: its platform printed a paywall or page images in place of the body. What it confirms is what the abstract says, not what the study shows, and the footnote and the Bibliography mark it ABSTRACT ONLY for the reader');
 INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('full', 'the copy carries the work''s body: its platform marks the body sections, or it is a pdf covering the page span the work declares');
 INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('not_asked', 'the question did not apply or could not be put: a page that is not about a scholarly work, a pdf with no declared span, or a source outside the run''s cache. It says NOTHING about whether the copy is complete');
 INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('not_recorded', 'this citation predates the field; written only by migrate');

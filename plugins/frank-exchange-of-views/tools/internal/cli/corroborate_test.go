@@ -232,4 +232,9 @@ func TestASupportFromAnAbstractRecordsThatItWasOne(t *testing.T) {
 	if !seen {
 		t.Errorf("the evidence view does not show the verdict rests on an abstract: %+v", ev.Independent)
 	}
+	// A SUPPORTING CORROBORATION IS A FOOTNOTE, and the reader is told it rests on an abstract.
+	if out := assembled(t, runDir); !strings.Contains(out, "https://doi.org/10.1038/nature06964") ||
+		!strings.Contains(out, "**[ABSTRACT ONLY]**") {
+		t.Errorf("red's abstract-backed corroboration is not marked for the reader:\n%s", out)
+	}
 }

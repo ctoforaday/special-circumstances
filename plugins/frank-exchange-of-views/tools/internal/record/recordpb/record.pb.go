@@ -8067,11 +8067,11 @@ const file_record_proto_rawDesc = "" +
 	"\x17WORK_STATUS_NOT_CHECKED\x10\x01\x1a\xb2\x01\x8a\xb5\x18\xad\x01no index was consulted about this work — it carries no doi, or the index did not answer. It says NOTHING about whether the work stands, and must not be read as reassurance\x12z\n" +
 	"\x14WORK_STATUS_STANDING\x10\x02\x1a`\x8a\xb5\x18\\an index was asked and reports no retraction: the work stands in the literature as published\x12\x9b\x02\n" +
 	"\x15WORK_STATUS_RETRACTED\x10\x03\x1a\xff\x01\x8a\xb5\x18\xfa\x01an index reports the work RETRACTED. It may still be cited — as retracted, which the footnote and the Bibliography say for you — and its findings support no claim: a quotation from it is evidence of what the withdrawn paper said, and nothing more\x12[\n" +
-	"\x18WORK_STATUS_NOT_RECORDED\x10\x04\x1a=\x8a\xb5\x189this citation predates the field; written only by migrate*\xcb\b\n" +
+	"\x18WORK_STATUS_NOT_RECORDED\x10\x04\x1a=\x8a\xb5\x189this citation predates the field; written only by migrate*\x97\t\n" +
 	"\x12SourceCompleteness\x12#\n" +
 	"\x1fSOURCE_COMPLETENESS_UNSPECIFIED\x10\x00\x12\xa2\x01\n" +
-	"\x18SOURCE_COMPLETENESS_FULL\x10\x01\x1a\x83\x01\x8a\xb5\x18\x7fthe copy carries the work's body: its platform marks the body sections, or it is a pdf covering the page span the work declares\x12\xd6\x01\n" +
-	"\x1cSOURCE_COMPLETENESS_ABSTRACT\x10\x02\x1a\xb3\x01\x8a\xb5\x18\xae\x01the copy is the work's ABSTRACT page: its platform printed a paywall or page images in place of the body. What it confirms is what the abstract says, not what the study shows\x12\xc1\x01\n" +
+	"\x18SOURCE_COMPLETENESS_FULL\x10\x01\x1a\x83\x01\x8a\xb5\x18\x7fthe copy carries the work's body: its platform marks the body sections, or it is a pdf covering the page span the work declares\x12\xa2\x02\n" +
+	"\x1cSOURCE_COMPLETENESS_ABSTRACT\x10\x02\x1a\xff\x01\x8a\xb5\x18\xfa\x01the copy is the work's ABSTRACT page: its platform printed a paywall or page images in place of the body. What it confirms is what the abstract says, not what the study shows, and the footnote and the Bibliography mark it ABSTRACT ONLY for the reader\x12\xc1\x01\n" +
 	"\x1eSOURCE_COMPLETENESS_UNVERIFIED\x10\x03\x1a\x9c\x01\x8a\xb5\x18\x97\x01nothing the tool knows could tell whether the copy carries the body — a platform with no known marker, a pdf much shorter than the work, a book's pdf\x12n\n" +
 	" SOURCE_COMPLETENESS_NOT_THE_WORK\x10\x04\x1aH\x8a\xb5\x18Dthe copy is not the work at all: a sign-in page, a book's sales page\x12\xf8\x01\n" +
 	"\x1dSOURCE_COMPLETENESS_NOT_ASKED\x10\x05\x1a\xd4\x01\x8a\xb5\x18\xcf\x01the question did not apply or could not be put: a page that is not about a scholarly work, a pdf with no declared span, or a source outside the run's cache. It says NOTHING about whether the copy is complete\x12c\n" +
