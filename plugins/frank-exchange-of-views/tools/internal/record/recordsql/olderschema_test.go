@@ -139,10 +139,17 @@ func TestAMissingDeclaredViewIsNamedAsAnOlderRun(t *testing.T) {
 	}
 
 	_, err = Open(path)
-	for _, want := range []string{"older binary", `"change"`, "view", "`--seat-id operator migrate --from <runDir> --to <freshDir>`"} {
+	// "has no" rather than just the word "view": the sibling case (present and DIFFERENT) also names
+	// the view and the way out, so a looser assertion passes on either arm and neither test then pins
+	// which one fired. Proven by mutation — disabling the absent arm sends a missing view down the
+	// stale arm, and every weaker assertion here still matched.
+	for _, want := range []string{"older binary", `"change"`, "has no", "view", "`--seat-id operator migrate --from <runDir> --to <freshDir>`"} {
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("opening a run whose record lacks a declared view: %v — want %s named", err, want)
 		}
+	}
+	if err != nil && strings.Contains(err.Error(), "defines it differently") {
+		t.Errorf("an ABSENT view was reported as one defined differently: %v", err)
 	}
 	// AND THE VIEW SET IS READ FROM THE DDL, not from a list kept beside it: every view ViewsDDL
 	// creates is checked, so adding one cannot silently go unwatched. A hand-kept list here would
@@ -153,5 +160,48 @@ func TestAMissingDeclaredViewIsNamedAsAnOlderRun(t *testing.T) {
 	}
 	if got, want := len(views), strings.Count(ViewsDDL, "CREATE VIEW "); got != want {
 		t.Errorf("declaredViews reports %d view(s) and ViewsDDL creates %d — the check covers less than the DDL writes", got, want)
+	}
+}
+
+// A VIEW THAT IS PRESENT AND DIFFERENT IS THE QUIETER HALF, and a name check cannot see it. The view
+// exists, the query succeeds, and it answers by the definition its CREATING binary held — so a view
+// whose rule was FIXED goes on returning the answer it was fixed for, on every record made before the
+// fix, with nothing missing to raise.
+//
+// Met for real: events_w's two correlated subqueries were replaced by MATERIALIZED CTEs, and a record
+// created one commit earlier kept the quadratic definition while passing a name check.
+func TestAViewDefinedDifferentlyIsNamedAsAnOlderRun(t *testing.T) {
+	path := filepath.Join(tmpRun(t), "record.db")
+	db, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_BLUE_EDIT, &recordpb.BlueEdit{})); err != nil {
+		t.Fatal(err)
+	}
+	// Replaced, not dropped: the name stays and only the rule moves, which is the state under test.
+	// "gap_edit" is a leaf — no other view selects from it — so this cannot fail for a dependency.
+	for _, stmt := range []string{
+		`DROP VIEW "gap_edit"`,
+		`CREATE VIEW "gap_edit" AS SELECT 1 AS "gap_id", 1 AS "event_id", 1 AS "epoch", 1 AS "edited_by", 1 AS "old", 1 AS "new"`,
+	} {
+		if _, err := db.Exec(stmt); err != nil {
+			t.Fatalf("%s: %v", stmt, err)
+		}
+	}
+	if err := Close(path); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = Open(path)
+	for _, want := range []string{"older binary", `"gap_edit"`, "defines it differently", "`--seat-id operator migrate --from <runDir> --to <freshDir>`"} {
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("opening a run whose view is defined differently: %v — want %s named", err, want)
+		}
+	}
+	// AND IT IS NOT REPORTED AS MISSING. The two are different repairs to describe even though both
+	// end at migrate, and a seat told a view is absent when it is present reads the record as damaged.
+	if err != nil && strings.Contains(err.Error(), "has no") {
+		t.Errorf("a view that is present and different was reported as absent: %v", err)
 	}
 }

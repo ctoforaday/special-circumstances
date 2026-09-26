@@ -74,18 +74,50 @@ WHERE e."sitting_id" = e."id";
 --
 -- A row with no sitting — the harness's own bookkeeping, a cast, anything written before its seat
 -- opened one — has sitting 0. The harness observes; it does not sit.
+-- BOTH NUMBERS ARE COMPUTED ONCE FOR THE WHOLE QUERY, NOT ONCE PER ROW, and that is what the two
+-- MATERIALIZED CTEs are for rather than a style preference.
+--
+-- This read as two correlated scalar subqueries over the "sittings" view: for every event, count that
+-- seat's sittings up to it, and count the chair's. Each subquery re-derived "sittings" from a full
+-- scan of "events", so the view was QUADRATIC in the size of the record — measured at 15.4 s for one
+-- pass over a 13,968-event database, which everything on MergedEvents pays.
+--
+-- The rank each row needs is a property of its SITTING, and there are far fewer sittings than events
+-- (1,824 against 13,968 in that database; 38 against 291 on the m10 smoke), so numbering the sittings
+-- once and joining on sitting_id asks the question the right number of times. MATERIALIZED is
+-- load-bearing: without the keyword SQLite re-evaluated the CTE inside the correlated epoch lookup and
+-- the rewrite measured SLOWER than the subqueries it replaced (0.93x). With it, 448 ms — 34.3x — and
+-- row-for-row identical output on the same database.
+--
+-- An index cannot substitute for this. The best partial index tried
+-- (events(seat_id, id) WHERE sitting_id = id) bought 3.01x and left the shape quadratic, because the
+-- per-row work is still proportional to the number of sittings; events(sitting_id) alone was WORSE
+-- (0.78x) and adding it to the partial index halved that index's gain.
 CREATE VIEW "events_w" AS
+WITH "seat_sitting" AS MATERIALIZED (
+  SELECT "id"      AS "id",
+         row_number() OVER (PARTITION BY "seat_id" ORDER BY "id") AS "n"
+  FROM "sittings"
+),
+"chair_sitting" AS MATERIALIZED (
+  SELECT "id" AS "id", row_number() OVER (ORDER BY "id") AS "n"
+  FROM "sittings" WHERE "seat_id" = 'red-chair'
+)
 SELECT e."id"      AS "id",
        e."seat_id" AS "seat_id",
        e."ts"      AS "ts",
        e."type"    AS "type",
        e."key"     AS "key",
-       COALESCE((SELECT count(*) FROM "sittings" mine
-                  WHERE mine."seat_id" = s."seat_id" AND mine."id" <= s."id"), 0) AS "sitting",
-       (SELECT count(*) FROM "sittings" chair
-         WHERE chair."seat_id" = 'red-chair' AND chair."id" <= e."id")            AS "epoch"
+       COALESCE(ss."n", 0) AS "sitting",
+       -- THE LAST CHAIR SITTING AT OR BEFORE THIS ROW, which is the same number the count was: the
+       -- chair's sittings are numbered from 1, so the newest one not after this event IS the count of
+       -- them. Keyed on the EVENT's id, not its sitting's, because the epoch asks about the chair's
+       -- sittings and not about the row's seat — which is what makes it defined for a bench close or a
+       -- lane's draft, and 0 before the chair's first sitting (the base phase).
+       COALESCE((SELECT cs."n" FROM "chair_sitting" cs
+                  WHERE cs."id" <= e."id" ORDER BY cs."id" DESC LIMIT 1), 0) AS "epoch"
 FROM "events" e
-LEFT JOIN "sittings" s ON s."id" = e."sitting_id";
+LEFT JOIN "seat_sitting" ss ON ss."id" = e."sitting_id";
 
 -- THE AGENT -> SEAT BINDING, AS SQL, so a telemetry view can name a seat without any reader
 -- re-deriving the rule. It is the same rule record.SeatOfAgent applies in Go and states in prose:

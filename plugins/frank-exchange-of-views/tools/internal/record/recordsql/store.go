@@ -388,7 +388,7 @@ var declared struct {
 	once   sync.Once
 	tables []string
 	cols   map[string][]string
-	views  []string
+	views  map[string]string
 	err    error
 }
 
@@ -446,20 +446,25 @@ func declaredSchema() ([]string, map[string][]string, error) {
 			}
 			sort.Strings(cols[t])
 		}
-		vrows, err := mem.Query(`SELECT "name" FROM sqlite_master WHERE type = 'view' ORDER BY "name"`)
+		// THE DEFINITION, NOT JUST THE NAME, and both sides are read from sqlite_master so the
+		// comparison is exact by construction: SQLite stores a CREATE VIEW statement verbatim, so two
+		// databases built from the same ViewsDDL hold byte-identical text, and no formatting rule has
+		// to be agreed between a parser here and the DDL there. The leading `--` comments are not part
+		// of the statement and do not appear on either side.
+		vrows, err := mem.Query(`SELECT "name", "sql" FROM sqlite_master WHERE type = 'view' ORDER BY "name"`)
 		if err != nil {
 			declared.err = err
 			return
 		}
-		var views []string
+		views := map[string]string{}
 		for vrows.Next() {
-			var n string
-			if err := vrows.Scan(&n); err != nil {
+			var n, q string
+			if err := vrows.Scan(&n, &q); err != nil {
 				vrows.Close()
 				declared.err = err
 				return
 			}
-			views = append(views, n)
+			views[n] = q
 		}
 		vrows.Close()
 		declared.tables, declared.cols, declared.views = tables, cols, views
@@ -467,9 +472,10 @@ func declaredSchema() ([]string, map[string][]string, error) {
 	return declared.tables, declared.cols, declared.err
 }
 
-// declaredViews is every view this binary's ViewsDDL creates, sorted. It shares declaredSchema's
-// once, so asking for it applies the same one-time in-memory schema.
-func declaredViews() ([]string, error) {
+// declaredViews is every view this binary's ViewsDDL creates, by name, with the text SQLite stored
+// for it. It shares declaredSchema's once, so asking for it applies the same one-time in-memory
+// schema.
+func declaredViews() (map[string]string, error) {
 	if _, _, err := declaredSchema(); err != nil {
 		return nil, err
 	}
@@ -517,18 +523,33 @@ func requireDeclaredSchema(db *sql.DB) error {
 	if err != nil {
 		return fmt.Errorf("recordsql: reading this binary's own views: %w", err)
 	}
-	var noView []string
-	for _, v := range views {
-		has, err := hasView(db, v)
+	names := make([]string, 0, len(views))
+	for v := range views {
+		names = append(names, v)
+	}
+	sort.Strings(names) // a map range would reorder the refusal between two identical runs
+	var noView, staleView []string
+	for _, v := range names {
+		have, err := viewSQL(db, v)
 		if err != nil {
 			return err
 		}
-		if !has {
+		switch {
+		case have == "":
 			noView = append(noView, fmt.Sprintf("%q", v))
+		case have != views[v]:
+			// A STALE DEFINITION IS THE HALF A NAME CHECK CANNOT SEE, and it is the quieter failure:
+			// the view is present, the query succeeds, and it answers by the OLD rule. Nothing is
+			// missing, so nothing raises — a view whose definition was FIXED goes on returning the
+			// answer it was fixed for, on every record created before the fix.
+			staleView = append(staleView, fmt.Sprintf("%q", v))
 		}
 	}
 	if len(noView) > 0 {
 		lacks = append(lacks, "this run's record has no "+strings.Join(noView, ", ")+" view")
+	}
+	if len(staleView) > 0 {
+		lacks = append(lacks, "this run's "+strings.Join(staleView, ", ")+" view is the one its CREATING binary wrote, and this binary defines it differently")
 	}
 	if len(lacks) == 0 {
 		return nil
