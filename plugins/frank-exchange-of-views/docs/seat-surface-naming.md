@@ -111,7 +111,7 @@ nothing compiled, and each moved the numbers in the direction that flatters the 
 |---|---|---|---|
 | **Agent** | `--system-prompt-file <constitution>` | `agentType: 'frank-exchange-of-views:<agent>'` | a raw system-prompt file loads NO skills. Every probed seat sat without `research-protocol` — the protocol it operates under. |
 | **Tools** | an `--allowedTools` list written in the harness | the agent definition's own set | the list had neither `WebSearch` nor `ToolSearch`, so `corroborate` — the verb for a source the seat goes and FINDS — was **unperformable**. Every run scored the seat UNMET on it, and the interview then recorded a seat "judging against" a verb it had no means to use. |
-| **Prompt** | ~950 characters written in `cmd/seatprobe/main.go` | 12,800–24,000 characters rendered by `debate.js` | not a summary — a **paraphrase**, saying similar things in different words. Every help-reading count, verb-reach count and friction rate ever published by this probe was measured on a prompt no seat is given. |
+| **Prompt** | ~950 characters written in `devcmd/seatprobe/main.go` | 12,800–24,000 characters rendered by `debate.js` | not a summary — a **paraphrase**, saying similar things in different words. Every help-reading count, verb-reach count and friction rate ever published by this probe was measured on a prompt no seat is given. |
 | **Seat** | `judge-r1` on two boards | never | a judge sits only when the contested docket is non-empty, and round 1 has nothing that persists and no pending dispute. The tool's roster accepts `judge-r\d+`, so nothing refused it: the seat was valid, registered, dispatched and scored, and the orchestrator has never seated it. |
 
 ## What survives
@@ -494,7 +494,7 @@ the seat's actual conditions rather than producing plausible grievance on demand
 
 *Measured on the harness's paraphrase, before the fidelity pass. Run 5 replaces it.*
 
-Instrument: `cmd/seatprobe`, 9 dispatches — 9 boards, one model (haiku), ONE configuration: the
+Instrument: `devcmd/seatprobe`, 9 dispatches — 9 boards, one model (haiku), ONE configuration: the
 shipped constitution against the shipped tree. **There are no arms.** The naming question is
 settled and the alternatives were deleted from the probe rather than left dispatchable; keeping a
 superseded configuration runnable is archaeology with a command-line flag. The second model is
@@ -590,7 +590,7 @@ a friction event is durable and attributable, where "I am blocked" is neither.
 
 # Re-run, 2026-08-19 — two models, and the constitutions no longer name verbs
 
-Instrument: `cmd/seatprobe`, 72 dispatches — 4 arms × 9 boards × 2 models (opus, haiku), one
+Instrument: `devcmd/seatprobe`, 72 dispatches — 4 arms × 9 boards × 2 models (opus, haiku), one
 replicate per cell. All four roles are represented (lens, merge, blue, bench) rather than two.
 
 Three things changed under the instrument since the first run, and each moves what an arm MEANS:
@@ -681,7 +681,7 @@ that reached for 6.
 
 # Original run, 2026-08-15 — one model, and the shipped constitution named verbs
 
-Instrument: `cmd/seatprobe`, model haiku, 24 dispatches — 4 arms × 2 boards
+Instrument: `devcmd/seatprobe`, model haiku, 24 dispatches — 4 arms × 2 boards
 (`arithmetic`, blue seat; `audit`, merge seat) × 3 replicates.
 
 ## Why this was run

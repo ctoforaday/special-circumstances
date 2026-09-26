@@ -21,7 +21,7 @@ func debateScriptForTest() string {
 
 // THE PROMPT A SEAT IS DISPATCHED WITH IS debate.js's, AND THIS GATE HOLDS THE ACTUAL BYTES.
 //
-// It used to hold a prompt written in cmd/seatprobe/main.go — a paraphrase of production, ~950
+// It used to hold a prompt written in devcmd/seatprobe/main.go — a paraphrase of production, ~950
 // characters against production's 12,800–24,000 — and every clause of the contract had to be
 // re-asserted here because nothing else compiled the paraphrase against the original. Twice it went
 // stale and cost a nine-board run: once on the identity contract (8 of 9 seats refused on their

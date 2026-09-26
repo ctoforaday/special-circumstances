@@ -22,14 +22,14 @@ import (
 // `--help` answers completely.
 //
 // Measured 2026-08-15, counting distinct `<role> <verb>` forms in the constitutions the probe
-// actually dispatches under (cmd/seatprobe.constitutionFor):
+// actually dispatches under (devcmd/seatprobe.constitutionFor):
 //
 //	blue   blue-researcher.md   2 named   of 18 reachable
 //	bench  lead-judge.md        2 named   of 11 reachable
 //	merge  red-auditor.md       4 named   of 16 reachable
 //	lens   red-auditor.md       1 named   of  9 reachable
 //
-// The acting-arm prompt itself (cmd/seatprobe.dispatch) names ZERO verbs. So the seat's entire
+// The acting-arm prompt itself (devcmd/seatprobe.dispatch) names ZERO verbs. So the seat's entire
 // nomination set was those two-to-four names, and the measured result was a seat using about four
 // verbs. "Seats do not read `--help`" and "seats stop when the partial list runs out" produce that
 // same number and want opposite fixes — the first is a fact about seats, the second is a fact

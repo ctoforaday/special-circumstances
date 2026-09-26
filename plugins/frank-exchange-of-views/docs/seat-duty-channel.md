@@ -1,6 +1,6 @@
 # What the duty channel buys, and what the first attempt to measure it found instead
 
-Measured 2026-08-15. Instrument: `cmd/seatprobe -duty <arm>`, naming held at `partial` (the shipped
+Measured 2026-08-15. Instrument: `devcmd/seatprobe -duty <arm>`, naming held at `partial` (the shipped
 constitution), model haiku, 24 dispatches — 4 arms × 2 boards (`docket`/blue, `lens-audit`/lens) × 3
 replicates.
 
