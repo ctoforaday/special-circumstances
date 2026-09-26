@@ -1,9 +1,9 @@
 package record
 
 import (
+	"database/sql"
 	"encoding/json"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"fmt"
 )
 
 // THE CHANGE LOG CARRIES THE CHANGE (gblock's ruling: "it's meant to have the diff").
@@ -54,36 +54,59 @@ type EditJSON struct {
 	Accepted        bool `json:"accepted"`
 }
 
-// ChangesJSONOf projects the recorded edits.
-func ChangesJSONOf(evs []*Event) ChangesJSON {
+// ChangesJSONOfDB projects the recorded edits from the `change` view.
+//
+// A QUERY, NOT A FOLD. This read used to load every event in the record through MergedEvents and walk
+// them looking for one body type, which made the cost of asking about the edits scale with the size of
+// the whole record — and pulled in the per-row clock derivation on the way. The view states the same
+// three rules where every reader can see them: the clock comes from events_w, the act that STANDS
+// after a correction comes from live_event, and the character delta is computed in SQL.
+//
+// ORDERED BY "pos", NOT BY EVENT ID, because that is what Live does: a corrected edit is replaced by
+// its successor at the STRUCK act's position, so a repair does not reorder the log. LiveKeys pins the
+// two orders against each other.
+func ChangesJSONOfDB(db *sql.DB) (ChangesJSON, error) {
 	out := ChangesJSON{Edits: []EditJSON{}}
-	var clk Clock
-	for _, e := range Live(evs) {
-		w := clk.Advance(e)
-		ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e)
-		if !ok {
-			continue
+	rows, err := db.Query(`SELECT "seat_id", "sitting", "epoch", "answers", "old", "new",
+	    "delta", "reason", "applied_verbatim", "accepted"
+	  FROM "change" ORDER BY "pos", "event_id"`)
+	if err != nil {
+		return out, fmt.Errorf("record: asking the change view: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var ed EditJSON
+		// THE SCAN ORDER IS THE SELECT'S ORDER. Two same-typed neighbours swapped here compile
+		// silently and put one edit's text under another's heading, so the two lists are kept
+		// literally adjacent above and below.
+		if err := rows.Scan(&ed.Seat, &ed.Sitting, &ed.Epoch, &ed.Answers, &ed.Old, &ed.New,
+			&ed.Delta, &ed.Reason, &ed.AppliedVerbatim, &ed.Accepted); err != nil {
+			return out, err
 		}
-		out.Edits = append(out.Edits, EditJSON{
-			Seat: e.GetSeatId(), Sitting: w.Sitting, Epoch: w.Epoch,
-			Answers: ed.GetAnswers(),
-			Old:     ed.GetOld(), New: ed.GetNew(),
-			Delta:           len([]rune(ed.GetNew())) - len([]rune(ed.GetOld())),
-			Reason:          ed.GetText(),
-			AppliedVerbatim: ed.GetAppliedVerbatim(), Accepted: ed.GetAccepted(),
-		})
+		out.Edits = append(out.Edits, ed)
+	}
+	if err := rows.Err(); err != nil {
+		return out, err
 	}
 	out.Counts.Edits = len(out.Edits)
-	return out
+	return out, nil
 }
 
 // ChangesJSONBytes renders it as indented JSON, mirroring the other structured reads.
 func ChangesJSONBytes(run Run) ([]byte, error) {
-	m, err := MergedEvents(run)
+	db, err := openRunForRead(run)
 	if err != nil {
 		return nil, err
 	}
-	b, err := json.MarshalIndent(ChangesJSONOf(m.Events), "", "  ")
+	// A RUN WITH NO RECORD YET IS AN EMPTY LOG, not an error: `show changes` before blue's first
+	// edit is a legitimate read, and the empty `edits` list is the honest answer to it.
+	out := ChangesJSON{Edits: []EditJSON{}}
+	if db != nil {
+		if out, err = ChangesJSONOfDB(db); err != nil {
+			return nil, err
+		}
+	}
+	b, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {
 		return nil, err
 	}
