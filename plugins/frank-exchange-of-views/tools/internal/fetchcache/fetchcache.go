@@ -659,6 +659,19 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 	} else if entry.WithoutBody() {
 		entry.TextRetrievedReason = withoutBodyReason(entry)
 	}
+	// A PAGE NOT KNOWN TO BE THE BODY IS NOT WHERE THE SEARCH ENDS. Measured over 23 works whose
+	// fetch stopped at an abstract or a non-work page: the open-access rung held a copy of 14 —
+	// and the recovery chain never ran, because it ran only when the live fetch was refused, and
+	// a publisher's abstract is a perfectly good 200. The page is kept when nothing better exists.
+	if entry.Completeness != "" && entry.Completeness != CompletenessFull {
+		if better, att := fullerCopy(run, f, url, entry); att != nil {
+			stored, serr := Store(run, better, att.Body)
+			if serr != nil {
+				return Entry{}, nil, false, serr
+			}
+			return stored, att.Body, false, nil
+		}
+	}
 	stored, serr := Store(run, entry, resp.Body)
 	if serr != nil {
 		return Entry{}, nil, false, serr
@@ -821,6 +834,34 @@ func EntryFor(run record.Run, url string, att *Attempt) Entry {
 		entry.TextRetrievedReason = withoutBodyReason(entry)
 	}
 	return entry
+}
+
+// fullerCopy asks the rungs that return the work itself — arXiv, then the open-access copies —
+// for something carrying more of it than the page in hand. Not the archive: its snapshot of a
+// subscription article is that same abstract page. Not the metadata record: it carries less.
+//
+// ONLY A BODY REPLACES THE PAGE: a pdf, an xml body, or a page its platform marks full. And a pdf
+// with no text layer replaces only a page KNOWN not to be the body — a scan needs reading by OCR,
+// and an unverified page may already be the full text a scan would only reproduce.
+func fullerCopy(run record.Run, f Fetcher, url string, page Entry) (Entry, *Attempt) {
+	doi := DOIOf(url)
+	for _, via := range []string{ViaArxiv, ViaOA} {
+		att := Recover(f, url, via, "")
+		if att == nil || !att.TextRetrieved || copyRank(att, doi) != rankBody {
+			continue
+		}
+		cand := EntryFor(run, url, att)
+		if !cand.TextRetrieved {
+			continue
+		}
+		if !page.WithoutBody() && cand.TextExtracted != nil && !*cand.TextExtracted {
+			continue
+		}
+		cand.RetrievedVia = fmt.Sprintf("the page at %s is %s (%s), so the work was sought further: %s",
+			url, page.Completeness, page.CompletenessReason, cand.RetrievedVia)
+		return cand, att
+	}
+	return Entry{}, nil
 }
 
 // maxFullTextHops bounds the walk from a landing page to the readable copy. Two is what the
