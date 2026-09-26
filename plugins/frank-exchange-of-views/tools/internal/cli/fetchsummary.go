@@ -100,6 +100,12 @@ type fetchSummary struct {
 	// would verify a citation against the furniture.
 	NotRenderable       *bool  `json:"not_renderable,omitempty"`
 	NotRenderableReason string `json:"not_renderable_reason,omitempty"`
+	// Completeness says which part of the work an html page is — full, abstract, unverified,
+	// not_the_work — and CompletenessReason what the page showed. It is printed on every page it
+	// was asked of, `full` included: an abstract reads like a paper, and the verdict is what tells
+	// a seat which one it is quoting.
+	Completeness       string `json:"completeness,omitempty"`
+	CompletenessReason string `json:"completeness_reason,omitempty"`
 	// TDMReserved says the source reserved text-and-data-mining rights in its markup. It bears on
 	// KEEPING this content, not on reading or quoting it, so it is reported and nothing is gated
 	// on it — see fetchcache.TDMReservation.
@@ -194,6 +200,7 @@ func summarize(run record.Run, e fetchcache.Entry, bodyLen int, hit bool) fetchS
 		TextSha256:          e.TextSha,
 		TextReason:          e.TextReason,
 		NotRenderable:       e.NotRenderable, NotRenderableReason: e.NotRenderableReason,
+		Completeness: e.Completeness, CompletenessReason: e.CompletenessReason,
 		TDMReserved: e.TDMReserved, TDMPolicy: e.TDMPolicy,
 		CopyVersion: e.CopyVersion, CopyLicense: e.CopyLicense,
 		Extractor: e.Extractor,
@@ -360,6 +367,8 @@ func (s fetchSummary) render() string {
 		line("not_renderable", "true")
 		line("not_renderable_reason", s.NotRenderableReason)
 	}
+	line("completeness", s.Completeness)
+	line("completeness_reason", s.CompletenessReason)
 	// WHAT THE INDEX KNOWS THAT THE BYTES CANNOT TELL YOU.
 	line("work_type", s.WorkType)
 	line("oa_status", s.OAStatus)
@@ -409,5 +418,7 @@ func liveTextRetrieved(e fetchcache.Entry) bool {
 	if e.NotRenderable != nil && *e.NotRenderable {
 		return false
 	}
-	return true
+	// AN ABSTRACT IS NOT THE SOURCE'S TEXT, however cleanly it rendered. Measured, 19 of 26 html
+	// pages this tool had called documents were abstracts, and every one of them read `true` here.
+	return !e.WithoutBody()
 }
