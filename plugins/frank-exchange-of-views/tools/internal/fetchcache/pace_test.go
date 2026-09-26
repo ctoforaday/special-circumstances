@@ -51,7 +51,16 @@ func tempPaceDir(t *testing.T) {
 	t.Helper()
 	prev := paceDir
 	paceDir = t.TempDir()
-	t.Cleanup(func() { paceDir = prev })
+	// AND THE PROCESS'S READ OF EACH HOST'S RULES. robotsMem is keyed host:port, and httptest hands
+	// a later server a port an earlier one used — which then answers with the earlier server's
+	// Crawl-delay. Measured: TestAPublishedCrawlDelayReachesThePacer read 15s where its own server
+	// published 30s, once in a full race run, and passed five times alone.
+	clearRobotsMem()
+	t.Cleanup(func() { paceDir = prev; clearRobotsMem() })
+}
+
+func clearRobotsMem() {
+	robotsMem.Range(func(k, _ any) bool { robotsMem.Delete(k); return true })
 }
 
 // THE FLOOR IS PER HOST. A run's breadth must not be charged as pressure: two origins have
