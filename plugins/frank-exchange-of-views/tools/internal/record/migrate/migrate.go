@@ -66,11 +66,32 @@ func Migrate(fromDir, toDir string, reg Registry, opt Options) (*Manifest, error
 	if err != nil {
 		return nil, err
 	}
+	carried := 0
+	var sourceEpoch *int
 	if sq, ok := src.(*SQLiteSource); ok {
 		unclassified = sq.Unclassified()
+		if e, ok := sq.SourceEpoch(); ok {
+			sourceEpoch = &e
+		}
+		// THE PER-TURN MEASUREMENTS ARE CARRIED, NOT REPLAYED. They are not events — nothing in the
+		// translation registry addresses them — and they are not re-derivable either, because the
+		// transcripts they were read from are not part of a run. See SQLiteSource.SeatTurns.
+		turns, err := sq.SeatTurns()
+		if err != nil {
+			return nil, err
+		}
+		for agent, ts := range turns {
+			n, err := record.AppendSeatTurns(dst, agent, ts)
+			if err != nil {
+				return nil, fmt.Errorf("migrate: carrying %d per-turn measurement(s) for agent %s: %w", len(ts), agent, err)
+			}
+			carried += n
+		}
 	}
 	m := NewManifest(fromDir, src.Files(), unclassified, res)
 	m.Discarded = discarded
+	m.SeatTurns = carried
+	m.SourceEpoch = sourceEpoch
 	m.StatedFills = append(registryFills, m.StatedFills...)
 	if err := m.Write(toDir); err != nil {
 		return nil, err

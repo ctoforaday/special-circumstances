@@ -26,7 +26,11 @@ func newMigrate() *cobra.Command {
 			"the ORIGINAL clock. Every act is validated exactly as a seat's would be, so the output is a record this " +
 			"binary could have written; run channels (inputs, proofs) copy verbatim, and inputs/migration.json records " +
 			"what was translated, refused, and accepted as loss. A refusal exits non-zero and is the tool's OUTPUT — " +
-			"there is no flag that skips validation.",
+			"there is no flag that skips validation.\n\n" +
+			"THE PER-TURN MEASUREMENTS ARE BROUGHT ACROSS, not replayed: they are measurements taken from outside, " +
+			"from transcripts that are not part of a run, so the record holds the only copy of them and the manifest " +
+			"states how many came over. The manifest also states the epoch the source declared beside the one this " +
+			"binary wrote, so the move the migration exists to make is a fact you can read rather than infer.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,

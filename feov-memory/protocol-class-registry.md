@@ -44,7 +44,10 @@ A derived, summarized or projected channel is handed to a consumer that needs th
 source, and the consumer cannot tell the difference.
 - **Instances**: blue repairing from the gap JSON, whose carve-out enumeration
   was nine commands short of the source; the CHANGELOG used as a round-state
-  signal when a revision shipped without one.
+  signal when a revision shipped without one; a migrated record handed to the
+  timing readers without the per-turn measurements the source held — 1795 rows
+  dropped, and the empty decomposition downstream is byte-identical to the one a
+  run whose transcripts were never read produces.
 - **Sweep question**: does any consumer of this channel need the source, and does
   it know the channel is lossy?
 - **Neighbour**: `reader-channel-mismatch` (gap registry).

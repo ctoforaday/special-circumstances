@@ -13,6 +13,13 @@ import "fmt"
 // decomposed a run BY HAND. That analysis is the standing reason to have this: the way to make a run
 // faster is to find which turns are slow and what those turns were doing.
 //
+// A SPAN IS A GAP, AND A GAP HOLDS WHATEVER FELL INSIDE IT. A turn's span is the time since the seat's
+// previous turn, so it holds the execution of any tool that turn called as well as this turn's own
+// generation. That makes the bucket a statement about what the turns CONTAINED and never about what
+// their time was spent on — in the run this was first measured on, turns carrying a thinking block led
+// every seat's totals, and each of those gaps also held the tool call preceding it. A reader that takes
+// the thinking bucket for time spent thinking has read a different quantity than the one recorded.
+//
 // THE BUCKETS ARE FACTS, NOT JUDGEMENTS, and the views say why: a threshold like "70-83 tok/s is
 // healthy generation" was chosen once, from one run, and freezing it into the schema would apply it to
 // every future run by readers who never saw it chosen. So the split is by what the turn CONTAINED —

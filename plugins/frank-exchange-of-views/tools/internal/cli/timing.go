@@ -31,6 +31,11 @@ func newShowTiming() *cobra.Command {
 			"output_tokens come through per turn so an analysis applies its own cutoffs where they can be argued with.\n\n" +
 			"A turn's span is the gap to the turn BEFORE it, so a seat's first turn has none: null, never zero.\n" +
 			"Zero would read as instant, and any total summing it under-reports that seat by its opening turn.\n\n" +
+			"A SPAN IS A GAP, AND A GAP HOLDS WHATEVER FELL INSIDE IT. The measurement is the time between two of a\n" +
+			"seat's turns, so each span also holds the execution of any tool the PREVIOUS turn called, not only this\n" +
+			"turn's own generation. A bucket names what its turns CONTAINED, never what their time was spent on:\n" +
+			"turns carrying a thinking block can lead the totals in a run whose clock actually went to tool calls,\n" +
+			"because every one of those gaps holds the call that came before it. Say which you mean.\n\n" +
 			"measured says whether the per-turn measurement was TAKEN. False means the transcripts were never\n" +
 			"read for this run, so there is nothing to decompose — a different fact from a run whose turns were\n" +
 			"all fast, and one an empty answer on its own cannot tell you.",

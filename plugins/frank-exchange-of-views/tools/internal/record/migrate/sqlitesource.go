@@ -14,6 +14,7 @@ import (
 	_ "modernc.org/sqlite" // the module's own driver; opened directly, never through recordsql.Open
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatturn"
 )
 
 // dbSiblings is the FILE SET a SQLite record is. The database alone is not the record: the
@@ -225,7 +226,24 @@ var renamedBodyTables = map[string]string{
 
 func (s *SQLiteSource) classify(t string, byTable map[string]string, byID map[int64]*OldEvent) error {
 	switch {
-	case t == "events" || t == "seat_turn" || strings.HasPrefix(t, "sqlite_") || strings.HasPrefix(t, "enum_"):
+	// THE ENVELOPE, THE VOCABULARIES AND THE RECORD'S OWN METADATA ARE NOT EVENTS.
+	//
+	// `schema_epoch` is the shape the SOURCE was written at — one row, no event, and the one fact in
+	// the database that describes the database rather than the run. It is read separately (SourceEpoch)
+	// and deliberately NOT replayed: the destination is stamped with THIS binary's epoch by the write
+	// path, which is what makes a migration move the epoch forward instead of carrying the old one into
+	// a fresh run this binary would refuse for the same reason.
+	case t == "events" || t == "schema_epoch" ||
+		strings.HasPrefix(t, "sqlite_") || strings.HasPrefix(t, "enum_"):
+		return nil
+	// `seat_turn` is a MEASUREMENT ABOUT a seat, not an act by one: taken from outside by whoever read
+	// the transcript, keyed on the agent rather than on an event, and held apart from the log for that
+	// reason (AppendSeatTurns says why). So it is not classifiable as an event — and it is not
+	// discardable either. It is carried verbatim by its own pass (SeatTurns, replayed in Migrate),
+	// because the transcripts it was read FROM are not part of an archived run: dropping it here loses
+	// the only copy, and loses it silently, since an empty decomposition reads exactly like a run whose
+	// capture never went.
+	case t == "seat_turn":
 		return nil
 	case byTable[t] != "":
 		return s.readBody(t, byID, byTable[t])
@@ -402,4 +420,53 @@ func (s *SQLiteSource) Unclassified() []string {
 	out := append([]string(nil), s.unclassified...)
 	sort.Strings(out)
 	return out
+}
+
+// SourceEpoch is the event-schema epoch the source record states, and whether it states one.
+//
+// A record predating the field says nothing, which is not an error: that is precisely the record a
+// migration exists to bring forward, and refusing to read it would make the field impossible to
+// introduce. The value is reported rather than acted on — migrate translates by CONTENT, and an epoch
+// that disagreed with the content would be the record lying about itself.
+func (s *SQLiteSource) SourceEpoch() (int, bool) {
+	var epoch int
+	if err := s.db.QueryRow(`SELECT "epoch" FROM "schema_epoch" WHERE "id" = 1`).Scan(&epoch); err != nil {
+		return 0, false
+	}
+	return epoch, true
+}
+
+// SeatTurns is the source's per-turn measurements, by agent, in turn order.
+//
+// These are carried rather than replayed, and the distinction is the point: a turn is not an event, so
+// no translation registry has anything to say about it, and the columns mean today exactly what they
+// meant when they were written. They are read here and written through AppendSeatTurns, the same path
+// capture uses, so the destination's key and its refusals apply.
+//
+// WHY THEY ARE CARRIED AT ALL. The transcripts a turn was read from live in the client's project
+// directory, not the run, so an archived run holds no copy: a migration that dropped these would
+// destroy the only per-turn record the run has, and the loss would be invisible — every timing view
+// would return empty, which is what a run whose capture never went also returns.
+func (s *SQLiteSource) SeatTurns() (map[string][]seatturn.Turn, error) {
+	rows, err := s.db.Query(`SELECT "agent_id","turn_idx","ts_ms","model","input_tokens","output_tokens",
+	  "cache_read","cache_creation","is_thinking","is_tool" FROM "seat_turn" ORDER BY "agent_id","turn_idx"`)
+	if err != nil {
+		// An absent table is a record written before per-turn measurement existed, which is a run with
+		// nothing to carry rather than a broken one.
+		return nil, nil
+	}
+	defer rows.Close()
+	out := map[string][]seatturn.Turn{}
+	for rows.Next() {
+		var agent string
+		var t seatturn.Turn
+		var thinking, tool int
+		if err := rows.Scan(&agent, &t.Index, &t.TSMillis, &t.Model, &t.Input, &t.Output,
+			&t.CacheRead, &t.CacheCreation, &thinking, &tool); err != nil {
+			return nil, fmt.Errorf("migrate: reading a seat turn from the source record: %w", err)
+		}
+		t.Thinking, t.Tool = thinking == 1, tool == 1
+		out[agent] = append(out[agent], t)
+	}
+	return out, rows.Err()
 }

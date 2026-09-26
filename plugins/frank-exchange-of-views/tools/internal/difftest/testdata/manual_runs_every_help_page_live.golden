@@ -1806,6 +1806,363 @@ Flags:
 
 (Global Flags:) → SHARED §21
 
+$ manual --seat-id operator
+exit 0
+stdout:
+feov-record manual — the operator surface, seat operator: 16 commands, each under a header naming it and followed by the help it prints, run live just now. LEAN ON PURPOSE: a block that repeats word for word on several pages is printed ONCE under SHARED below, and each page marks where it came out (`→ SHARED §n`); a group whose page would only list commands that have pages of their own is left out, and so is this command's own page. The surface's own page comes first.
+
+WORDS THIS SURFACE USES — one word for each concept, and it is the same word on every page, prompt and constitution you read:
+  - The report is the research prose written for a reader of the subject: one document from a lane's text to the assembled report.md, named by its stage only where the stage matters (your part of the report, the report as `show report` serves it, the assembled report.md).
+  - The run directory is the directory that holds one run: its record, its report and the documents assembled beside it.
+  - The record is the run's account of every act, held as events in records/record.db, and every read a seat makes is a projection of it.
+  - A run is one research question taken from setup to its outcome.
+  - An epoch runs from one chair sitting to the next: the chair relays who sits, the parties the record names sit, and the chair sits again.
+  - A sitting is one seat's dispatch, from the prompt the engine hands it to the envelope it returns.
+  - An exchange is a red sitting followed by a blue sitting on one gap, and k-max counts them.
+  - A seat is one agent's place in the run, registered under a seat id whose role decides the surface it is given.
+  - A side is red or blue: red audits the report and passes or fails it, blue researches, writes and repairs it.
+  - A lens is a red seat that audits the report for one class of defect, and the only seat that files findings and mints gaps.
+  - The chair is red's running seat: it relays who sits, rules blue's motions, spot-checks the archive and records red's verdict.
+  - The bench is the seat that adjudicates the contested docket, rules on motions and stamps how the run ended.
+  - A lane is one of blue's parallel first passes at the report, written by one researcher under one method.
+  - The synthesizer is the blue seat that merges the lane drafts into the report by union and writes the report's authored surfaces.
+  - The engine is the workflow script that dispatches the seats the record says are ready and reads the envelopes they return.
+  - The operator is the person running the research, and the seat id their own commands run under.
+  - The log is the entries a seat files for the operator with the `log` verb — a missing capability, a defect in the tooling, an impediment or a nominal sitting — and none of it is debate material.
+  - Friction is one type of log entry: the work was impeded and the seat is noting it.
+  - A missing capability is an act a seat needed that no surface offers, and it goes in the log, never on the board.
+  - A citation is a source attached to a sentence of the report with the cite verb, hashed and dated so it can be checked again.
+  - OCR-derived text is a machine's reading of a scanned document's page images: deterministic, and able to misread, so a citation quoting it records the PDF page its quote sits on and is checked against that page's image.
+  - An anchor is the invisible token a citation, a proof or a finding leaves at its sentence in the report.
+  - A proof is a recorded computation: a script that was run, with its hash and exit status.
+  - A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
+  - The verdict is the chair's PASS or FAIL on the board.
+  - The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
+  - A finding is a lens's recorded observation of a defect in the report, graded and not yet minted.
+  - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
+  - A gap is material when its class is always material, or when its class goes by grade and its current severity is medium or above, and an open material gap holds the PASS gate.
+  - To retire a claim is to take it out of the report with the retire verb, on the record.
+  - Lens retirement is the record's state for a lens that has stopped finding material: two sittings without a fresh material gap retire it, a head move re-arms it once, and a barren re-arm retires it for good.
+  - A stale area is the area of a lens retired for good whose last sitting is behind the report head, which the chair reads and names in a spot-check before a PASS.
+  - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
+  - A grade motion is a side's motion contesting a gap's grade, ruled by the bench.
+  - A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
+
+SHARED BY THE COMMANDS BELOW — each block is printed ONCE here, and every page it was lifted from carries a marker line ending `→ SHARED §n` exactly where it was:
+§1 (on 16 pages):
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
+      --schema           print the event-schema epoch this binary writes, and exit
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
+
+==============================================================================
+$ feov-record --help
+feov-record — the seat-side record runtime (the verb set IS the role boundary)
+
+A lens structurally cannot mint or close a board gap: no such verb exists in its
+namespace. Blue has no board verbs at all. The bench rules and never originates.
+
+Usage:
+  feov-record [flags]
+  feov-record [command]
+
+Available Commands:
+  capture      run /research's post-hoc capture auditor (operator; nine audits + cost.md/tarball/scorecards)
+  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
+  dashboard    render a run's live dashboard.html (operator; board/cost/seats/judiciary/scorecards)
+  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  graph        render a run's actual behaviour (seat flow + gap lifecycle) as mermaid or dot (read-only)
+  help         Help about any command
+  manual       render a surface's commands, each with its own help, run live — for generating a seat's constitution
+  migrate      replay an old record through this binary's write path into a fresh run (the source is never modified)
+  ocr          render a scanned document's pages and read them with the local OCR engine
+  ops          ask an operator question about a run — how the seats behaved, what they reported, what answered them (read-only)
+  scorecard    print this run's scorecards — red, blue and bench, or one with --card. OPERATOR ANALYTICS ACROSS CARDS. A seat reads its own with `show scorecard`, which takes no selector
+  setup        build a research run's blackboard: skeleton, pins, memory mirrors, and the .run-live marker (operator; writes files)
+  verify       cross-check a run's record against its invariants, and tally it (read-only)
+
+Flags:
+  -h, --help             help for feov-record
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
+      --schema           print the event-schema epoch this binary writes, and exit
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
+  -v, --version          version for feov-record
+
+Use "feov-record [command] --help" for more information about a command.
+==============================================================================
+$ feov-record capture --help
+capture is the mechanical half of /research's run-record step plus the mechanized post-hoc auditor: it copies the journal, packs the agent transcripts, writes cost.md, runs the nine integrity audits (recomputing counts from the git-tracked files and diffing them against the envelopes' self-reports), appends each card's scorecard, harvests judicial rulings into law/proposed/, and removes the run-live marker — writing run-record-audit.md and exiting 2 on any audit FAIL. The record-backed audits read the record in-process. Ported from capture-research-run.mjs.
+
+Usage:
+  feov-record capture <runDir> <transcriptDir> [flags]
+
+Flags:
+  -h, --help   help for capture
+
+(Global Flags:) → SHARED §1
+==============================================================================
+$ feov-record count-claims --help
+count-claims prints the report's claim_count — the number of footnoted declarative claims, computed deterministically from the report on the record. It writes nothing. Blue uses it live to size its envelope figure; capture recomputes it independently.
+
+Usage:
+  feov-record count-claims [flags]
+
+Flags:
+  -h, --help   help for count-claims
+
+(Global Flags:) → SHARED §1
+==============================================================================
+$ feov-record dashboard --help
+dashboard renders the run's own instruments — board-mass trend, open/close rates, live seats + completion ETA, cost-so-far, judiciary analytics, friction, and this run's scorecards — into <runDir>/dashboard.html (meta-refreshes every 20s). Reads the record in-process plus the Workflow transcripts. --watch regenerates every 15s until the .run-live marker is removed. --serve <port> instead HOSTS it over HTTPS behind a per-run secret URL (rendered fresh per request, self-tears-down when the run ends) so it is reachable across the local network. Ported from render-run-dashboard.mjs.
+
+Usage:
+  feov-record dashboard <runDir> <transcriptDir> [flags]
+
+Flags:
+  -h, --help                    help for dashboard
+      --judgment-model string   judgment-tier model, for the run-config header
+      --lanes string            blue lane count, for the run-config header
+      --model string            bulk-tier model, for the run-config header (else read from inputs/run-config.json)
+      --now int                 inject the clock in unix-ms (default: real time) — for deterministic tests
+      --serve int               host the dashboard over HTTPS on this port instead of writing a file — bound to 0.0.0.0 so it is reachable across the local network, gated by a per-run secret URL (self-signed cert, rendered fresh per request, self-tears-down when the run ends)
+      --watch                   regenerate every 15s until the run-live marker is removed
+
+(Global Flags:) → SHARED §1
+==============================================================================
+$ feov-record fetch --help
+fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself. Open what you need with Read, using an offset and a limit: a 67-page paper pasted into your context is waste whether legible or not. A PDF's text is extracted to <run>/cache/<sha256>.txt and named in the summary, so you need no PDF tooling.
+
+A PDF WITH NO TEXT LAYER (a scan) is read by the LOCAL OCR ENGINE compiled into this binary — deterministic, reproducible, no model, credentials or network, seconds per document — and named in the summary as ocr_derived text keyed to the engine identity, so an audit can re-derive it byte for byte. Ruled tables of marks are reconstructed into |-separated rows with confidence stats on the record; one that cannot place its marks, or whose measured grid is far larger than the rows and columns it recovered, falls back to plain text WITH the failure stated. A ruled table of TEXT cells is rebuilt from the rules themselves: the lattice says where the cells are, each cell holds the words inside it, and the rows keep their binding. Where the rules bind no usable grid — a figure, a box, a table of marks the reading lost — the page falls back to plain text WITH the reason and the measurement on the record. A document over the render disk budget is refused rather than partly read. OCR text can misread: citing it at the leaf takes `cite --ocr-quote` with the span from the reading, and the tool records the PDF page it sits on.
+
+Pages already read are never re-derived: each carries a receipt checked against its image hash, so a retry or a crash resumes cleanly. Beside each page's reading, under <run>/cache/<sha>.pages/, the engine's evidence for it is kept for debugging — tesseract's own diagnostics for that page and, on ruled pages, the word boxes it read and any table the dropout check refused — never the page image. A later fetch of the same URL is served from cache, so every seat reads identical bytes. It writes no record event. A failure is a non-zero error (pick another source) and logs no friction itself.
+
+AN UNREACHED SOURCE IS NOT EVIDENCE OF ABSENCE: behind an egress proxy, a host outside the allowlist answers 403 — the status an origin uses to refuse a client — so a failure can be a fact about THIS CONTAINER or about the SOURCE, and those are different findings. The refusal says which where it can; where you cannot tell, record the source as UNREACHABLE FROM HERE, not the question as unresolved.
+
+Usage:
+  feov-record fetch [flags]
+
+Flags:
+      --at string     with --via archive: bound the capture to YYYYMMDD and take the latest at or before it. A priority question needs the FIRST time something was visible, which the newest capture cannot answer
+  -h, --help          help for fetch
+      --ocr           read a PDF that has no text layer with the local OCR engine; --ocr=false caches it unread (default true)
+      --url string    the http/https URL to read
+      --via backend   reach the source through a named backend: live | archive | oa | metadata | arxiv | eric | auto. They answer DIFFERENT questions — live the URL itself (the same as omitting this); archive what the page said on a date (right for web pages, usually the landing page for a subscription article); oa whether a legal open copy exists; metadata only that the source exists and where (no text, and the honest answer when there is none to get); arxiv the preprint, in whichever form this tool can take — its PDF, or arXiv's own HTML rendering where the PDF is over the fetch cap, which HAS NO PAGE NUMBERS and must be quoted as the HTML; eric the US education index's record, with its full text where ERIC holds an authorised copy; auto tries arxiv, oa, archive, metadata in that order. A refused live fetch falls back through that same order
+
+(Global Flags:) → SHARED §1
+==============================================================================
+$ feov-record graph --help
+graph replays <run>'s record and prints its shape — the seats that ran per epoch (chair sitting) with their event tallies, and each gap's lifecycle coloured by state, with holes (a dispute nobody answered, a silent closure) highlighted. Default output is markdown with mermaid (renders in an artifact, a PR, or a phone); --format dot emits a graphviz digraph for a dense run.
+
+Usage:
+  feov-record graph [flags]
+
+Flags:
+      --format string   output format: mermaid (markdown, renders natively) | dot (graphviz) (default "mermaid")
+  -h, --help            help for graph
+
+(Global Flags:) → SHARED §1
+==============================================================================
+$ feov-record migrate --help
+migrate reads an old run's record — including a vocabulary this binary's readers refuse — translates each event through the authored registry, and replays them in order through the current write path under the ORIGINAL clock. Every act is validated exactly as a seat's would be, so the output is a record this binary could have written; run channels (inputs, proofs) copy verbatim, and inputs/migration.json records what was translated, refused, and accepted as loss. A refusal exits non-zero and is the tool's OUTPUT — there is no flag that skips validation.
+
+THE PER-TURN MEASUREMENTS ARE BROUGHT ACROSS, not replayed: they are measurements taken from outside, from transcripts that are not part of a run, so the record holds the only copy of them and the manifest states how many came over. The manifest also states the epoch the source declared beside the one this binary wrote, so the move the migration exists to make is a fact you can read rather than infer.
+
+Usage:
+  feov-record migrate --from <oldRunDir> --to <newRunDir> [flags]
+
+Flags:
+      --accept-loss strings   accept a registry-documented loss for exactly this word (repeatable); the acceptance lands in the manifest
+      --from string           the old run directory (its records/record.db file set is read from a copy)
+  -h, --help                  help for migrate
+      --to string             the fresh run directory to write — refused if it already holds anything
+
+(Global Flags:) → SHARED §1
+==============================================================================
+$ feov-record ocr --help
+ocr operates on a document `fetch` has already cached. `ocr pages` rasterises the document and names the images; `ocr read` runs the local OCR engine over them and records the reading. A document whose text layer was already extracted is refused unless --force, because reading pixels re-derives, less accurately, what a file already says.
+
+Usage:
+  feov-record ocr [command]
+
+Available Commands:
+  pages       rasterise every page of a cached PDF and name the images
+  read        read the rendered pages with the local OCR engine, and record the reading
+
+Flags:
+  -h, --help   help for ocr
+
+(Global Flags:) → SHARED §1
+
+Use "feov-record ocr [command] --help" for more information about a command.
+==============================================================================
+$ feov-record ocr pages --help
+pages renders each page of the cached document --sha to a GRAYSCALE PNG under <run>/cache/<sha>.pages/ and writes a render record beside them holding the resolution, one hash per page image, and the renderer's library@semver. --dpi renders EVERY page at one resolution, 300 by default. The automatic scan-reading path does not: it follows each page's own scan resolution, floored at 300 — where the detector's constants were measured — and capped at 600, so a document of mixed scans is a range rather than one number. `ocr read` accepts any page inside that 300-600 band and refuses one outside it. Rendering the same scan here at 300 and letting the automatic path render it at its own higher resolution produces two different readings of one document; --dpi is for a human inspecting the pixels, and the reading an audit re-derives is the automatic one. It prints a summary naming the directory and the page range — never an image, and never the document. A DOCUMENT THAT ALREADY HAS TEXT IS REFUSED. Where fetch extracted a text layer, its extraction is already on disk and reading the pixels instead re-derives it, less accurately. --force renders anyway, for the case where the text layer is present but wrong.
+
+Usage:
+  feov-record ocr pages [flags]
+
+Flags:
+      --dpi int      render resolution, 72–600 (default 300)
+      --force        render even though a text layer was already extracted
+  -h, --help         help for pages
+      --sha string   sha256 of a document already in the run cache (from a fetch summary)
+
+(Global Flags:) → SHARED §1
+==============================================================================
+$ feov-record ocr read --help
+read runs the OCR engine compiled into this binary (tesseract + leptonica, statically linked) over each page image rendered by `ocr pages`. The assembled text is written to <run>/cache/<sha>.ocr.txt and each page's own reading beside its image. FULLY LOCAL AND DETERMINISTIC: no model, no credentials, no network. The record keys the reading to the engine identity and the exact image hashes, so an audit can re-derive it byte for byte. It reads any page rendered between 300 and 600 DPI — the band the detector's constants are derived over, one page at a time from that page's own resolution — and refuses a page outside it; re-render if the images are lower. A page with a ruled table is detected and reconstructed into |-separated rows, with confidence stats as fields on the record; a reconstruction that cannot place its marks falls back to plain text WITH the failure stated, never a plausible half-table. Pages already read are never derived twice — each carries a receipt validated against its image hash — and --force discards the receipts for a full re-read.
+
+Usage:
+  feov-record ocr read [flags]
+
+Flags:
+      --force        read again even though a reading of these exact images exists
+  -h, --help         help for read
+      --sha string   sha256 of a document whose pages ocr pages has already rendered
+
+(Global Flags:) → SHARED §1
+==============================================================================
+$ feov-record ops diagnostics --help
+diagnostics answers, for each seat that registered in a run, whether the surface reached it at all.
+
+SEEN is EXPOSURE — the role's own verbs that appeared in help output the seat received — and it is a
+different quantity from USE. A seat can reach for a verb it was never shown (it guessed, or a refusal
+taught it) and can be shown verbs it never reaches for. Reporting one as the other is how a naming
+experiment measures its own instrument.
+
+SEEN is counted per BLOCK, never per line: the root listing carries names that are also role verbs, so
+a line-level match credits every seat before it acts.
+
+Usage:
+  feov-record ops diagnostics [flags]
+
+Flags:
+      --format string       json (the form a reader joins on) | markdown (default "json")
+  -h, --help                help for diagnostics
+      --sitting string      the seat whose sitting this trajectory is (REQUIRED: one trajectory is one sitting, and the record cannot say which of the registered seats it belongs to)
+      --trajectory string   path to the captured trajectory JSONL; inferred from the run when omitted
+
+(Global Flags:) → SHARED §1
+==============================================================================
+$ feov-record ops log --help
+ops log prints the entries seats filed in the log — missing capabilities, defects in the tooling, impediments and requests — and, separately, the seats that SAT AND FILED NOTHING, read off the harness brackets rather than asserted by the seat. The two counts are not interchangeable: no entries and no seated-and-silent is a run nobody sat in.
+
+Seats WRITE the log with their own `log --type <type> --reason "..."`, under their own --seat-id; this is the read, and it is yours, not theirs.
+
+Usage:
+  feov-record ops log [flags]
+
+Flags:
+  -h, --help   help for log
+
+(Global Flags:) → SHARED §1
+==============================================================================
+$ feov-record ops tiers --help
+tiers joins the run's CONFIGURED model tiers (inputs/run-config.json — the request) against the model that actually answered each seat — read from that seat's own trajectory, which `register` names by recording its agent id, and where the harness declares a substitution by naming both ends).
+
+A seat nobody measured reads NOT MEASURED. It never reads as the configured model, and it never reads as a blank that could be mistaken for agreement: a run where nothing looked is not a run that matched.
+
+Usage:
+  feov-record ops tiers [flags]
+
+Flags:
+      --format string   json (the form a reader joins on) | markdown (default "json")
+  -h, --help            help for tiers
+
+(Global Flags:) → SHARED §1
+==============================================================================
+$ feov-record ops timing --help
+timing answers which turns a run spent its wall clock in, and what those turns were doing.
+
+THE BUCKETS ARE FACTS, NOT JUDGEMENTS. A threshold — what counts as a stall, what counts as healthy
+generation — is chosen from a particular run, and freezing one here would apply it to every future run
+by readers who never saw it chosen. So the split is by what each turn CONTAINED, and span_ms and
+output_tokens come through per turn so an analysis applies its own cutoffs where they can be argued with.
+
+A turn's span is the gap to the turn BEFORE it, so a seat's first turn has none: null, never zero.
+Zero would read as instant, and any total summing it under-reports that seat by its opening turn.
+
+A SPAN IS A GAP, AND A GAP HOLDS WHATEVER FELL INSIDE IT. The measurement is the time between two of a
+seat's turns, so each span also holds the execution of any tool the PREVIOUS turn called, not only this
+turn's own generation. A bucket names what its turns CONTAINED, never what their time was spent on:
+turns carrying a thinking block can lead the totals in a run whose clock actually went to tool calls,
+because every one of those gaps holds the call that came before it. Say which you mean.
+
+measured says whether the per-turn measurement was TAKEN. False means the transcripts were never
+read for this run, so there is nothing to decompose — a different fact from a run whose turns were
+all fast, and one an empty answer on its own cannot tell you.
+
+Usage:
+  feov-record ops timing [flags]
+
+Flags:
+  -h, --help   help for timing
+
+(Global Flags:) → SHARED §1
+==============================================================================
+$ feov-record scorecard --help
+scorecard prints this run's scorecards — red, blue and bench, in that order, each under its own `# <card> scorecard` heading — or only the one --card names. A card's rows are computed from the run's record (the board, findings and debate projections, read in-process), its journal envelopes and its board telemetry: the same numbers the dashboard and the human see. The envelope-derived rows read "not computed" until capture assembles the journal. OPERATOR ANALYTICS ACROSS CARDS: a seat reads its own with `show scorecard`, which takes no selector because the seat it registered as decides its card. A record that cannot be read is refused before any card is printed.
+
+Usage:
+  feov-record scorecard --run <dir> [--card red|blue|bench] [flags]
+
+Flags:
+      --card string   which card: red|blue|bench (omit to print all three)
+  -h, --help          help for scorecard
+
+(Global Flags:) → SHARED §1
+==============================================================================
+$ feov-record setup --help
+setup creates <runDir>'s blackboard skeleton (idempotent — pre-staged files are kept), pins the evidence base at HEAD, mirrors the law memory into inputs/, writes the .run-live marker hook guards consult, and preflights the record binary. The four fail-fast gates (a runDir, both model tiers, valid cites, and — with --bin-dir — a matching record binary) run BEFORE any state is created, so a bad launch costs a re-run, not a seat mid-sitting.
+
+FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
+your text, and records whatever the command printed — or nothing — in its place. Pass every
+free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
+
+  X=$(cat <<'EOF'
+  your text — backticks, apostrophes and $ signs are all literal here
+  EOF
+  )
+  … "$X"
+
+Usage:
+  feov-record setup <runDir> [flags]
+
+Flags:
+      --allow-substitution           accept a run whose environment answers with a model other than the configured tier — recorded on the run, so every seat's register stops refusing it and the substitution stays visible on the record
+      --bin-dir string               where the feov-record binary the SEATS will call lives (default: this executable's own directory); the version preflight always runs and always refuses on a miss
+      --cite stringArray             a cited path, optionally pinned: <path>[@<commit>] (repeatable)
+      --convergence-fraction float   fraction of the run's peak board mass below which a FAIL over a board with nothing material is refused (default 0.25)
+  -h, --help                         help for setup
+      --judgment-model string        the judgment tier (blue-synthesize, red-chair, judge, assemble)
+      --k int                        consecutive exchanges on one gap with no movement before it is at impasse (default 2; recorded in run-config.json)
+      --k-max int                    total exchanges on one gap before it is at impasse regardless of movement (default 6; a smoke run passes 2)
+      --lanes string                 the frontier lane count (recorded in run-config.json)
+      --lens-area stringArray        a red lens area this run dispatches (repeatable; default every area — narrow it only with a reason, which --lens-area-reason then requires) — the cast is written from these
+      --lens-area-reason string      why this run seats fewer than every lens area — REQUIRED with a narrowing --lens-area, refused as empty; recorded in run-config.json so an archived run states what the narrowing was for
+      --max-epochs int               the chair sittings the run gets, 1 or more; the sitting that opens the last epoch dispatches nobody, and a run with parties still ready there ends CEILING (default 12; recorded in run-config.json)
+      --max-sitting-calls int        the tool calls one seat may make in one sitting; past it the hook refuses every call but a register, and the record says which seat and sitting stopped (default 150; recorded in run-config.json)
+      --mint-budget int              the FLOOR of the gaps one lens may mint in the run, superseding mints included; each lens's budget is the larger of this and one mint per so many units of what its area audits, read off the record at each mint — evidence 1 per 2 citations on the record; logic 1 per 3 claims in the current report; dark-side 1 per 5 prose paragraphs in the current report; voice 1 per 5 prose paragraphs in the current report; computation 1 per 2 proofs on the record; adversary 1 per 5 prose paragraphs in the current report; architecture 1 per 5 prose paragraphs in the current report (default 5; a smoke run passes 1)
+      --model string                 the bulk tier (frontier, blue lanes, red lenses, blue responses)
+      --run-id string                the orchestrator's run id, recorded in the .run-live marker so a run found STALE can be resumed rather than only noticed
+      --script-path string           the orchestrator script this run was launched from, recorded in the .run-live marker beside --run-id
+      --topic string                 the run's research topic (goes in every stub header)
+
+(Global Flags:) → SHARED §1
+==============================================================================
+$ feov-record verify --help
+verify replays <run>'s event record and asserts the invariants that must hold if it is sound — gaps disposed, refs resolve, a PASS closed every material gap, seats registered first — then prints the authoritative counts. It writes nothing. A violated invariant exits non-zero.
+
+Usage:
+  feov-record verify [flags]
+
+Flags:
+  -h, --help   help for verify
+
+(Global Flags:) → SHARED §1
+
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}

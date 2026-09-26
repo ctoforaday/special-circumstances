@@ -315,6 +315,11 @@ func scenarios() []scenario {
 			cmds: []cmd{
 				base("manual", "--seat-id", "operator", "--for", "judge"),
 				base("manual", "--seat-id", "operator", "--for", "blue-respond"),
+				// AND THE OPERATOR'S OWN, which nothing pinned: the two rows above walk OTHER seats'
+				// surfaces THROUGH this one, so every operator page — the diagnostics, the migration,
+				// the dashboards — was help text no golden read. The rule that a surface change is
+				// reviewed line by line has nothing to review for the surface the operator uses.
+				base("manual", "--seat-id", "operator"),
 			},
 		},
 		{
