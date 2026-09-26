@@ -43,13 +43,9 @@ func TestAFreshlyBuiltBinaryReportsItsOwnCommit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// THE REVISION GO STAMPS FROM, not this working tree's HEAD — they differ in every
-	// worktree, which is where this repo is developed (#532).
-	stampDir, ok := StampedFrom(dir)
-	if !ok {
-		t.Skip("not in a git checkout")
-	}
-	head, err := exec.Command("git", "-C", stampDir, "rev-parse", "--short=7", "HEAD").Output()
+	// THIS TREE'S HEAD, worktree or not: Go 1.27 stamps a worktree's own revision. Go 1.25
+	// stamped the main checkout's (#532), measured side by side at the 1.27 bump.
+	head, err := exec.Command("git", "-C", dir, "rev-parse", "--short=7", "HEAD").Output()
 	if err != nil {
 		t.Skip("not in a git checkout")
 	}
