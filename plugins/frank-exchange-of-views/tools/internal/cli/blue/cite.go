@@ -138,6 +138,15 @@ func newCite() *cobra.Command {
 			}
 			read = v
 		}
+		// A LEAF READING OF AN ABSTRACT IS A CLAIM TO HAVE READ THE STUDY. The fetch has already
+		// looked for a copy carrying the body; where the copy it kept is known not to be one, the
+		// reading the record can carry is `summary_only` — which the vocabulary defines to include
+		// an abstract — or `unread` for a page that is not the work at all.
+		if read == recordpb.SourceTextRead_SOURCE_TEXT_READ_LEAF && entry.WithoutBody() {
+			return nil, fmt.Errorf("blue cite: the copy of %s this run holds is %s — %s. A leaf reading claims "+
+				"you read the work itself; cite it with --%s summary_only for an abstract, or unread for a page "+
+				"that is not the work, or cite a source whose text you read", url, entry.Completeness, entry.CompletenessReason, flags.SourceText)
+		}
 
 		// WHERE THE CITED TEXT CAME FROM, and for OCR text, WHICH PAGE THE QUOTE SITS ON. The
 		// binary finds the page from the span; a seat never types one. Refused before the label is
@@ -214,7 +223,7 @@ func newCite() *cobra.Command {
 	}))
 
 	enumhelp.Flag(c, flags.SourceText, record.MustEnum("cite", "source_text_read"),
-		"how much of the source you actually READ; omitted records `unread`")
+		"how much of the source you actually READ; omitted records `unread`. A leaf reading is refused on a copy fetch recorded as the work's abstract, or as not the work")
 	flags.Text(c, flags.Quote, flags.DescQuote+". A mis-quote is rejected rather than guessed at")
 	c.Flags().String(flags.URL, "", flags.DescURL)
 	flags.Text(c, flags.Title, flags.DescTitle)

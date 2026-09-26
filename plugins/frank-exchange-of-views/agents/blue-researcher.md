@@ -420,7 +420,7 @@ Flags:
       --ocr-quote string        for OCR-derived text: the span you quote, verbatim from the source's reading (not the report). The tool records the PDF page it sits on; required with --source-text leaf
       --quote string            the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. A mis-quote is rejected rather than guessed at
       --reason string           why this source backs the sentence — kept on the record and shown beside the source in the evidence view, never printed in the report
-      --source-text unread      how much of the source you actually READ; omitted records unread
+      --source-text unread      how much of the source you actually READ; omitted records unread. A leaf reading is refused on a copy fetch recorded as the work's abstract, or as not the work
       --title string            the source's name, as it appears in the composed bibliography
       --url string              the source's http/https URL — fetched once and cached, so both sides read the same bytes
 

@@ -1,7 +1,10 @@
 package cli
 
 import (
+	"bytes"
+	"compress/gzip"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"io"
 	"net/url"
 	"os"
 	"regexp"
@@ -233,5 +236,45 @@ func TestBlueCiteCarriesTheRetractionOntoTheRecord(t *testing.T) {
 	}
 	if len(sources) != 1 || sources[0].WorkStatus != recordpb.WorkStatus_WORK_STATUS_RETRACTED {
 		t.Fatalf("the projection assembly reads dropped the status: %+v", sources)
+	}
+}
+
+// A LEAF READING OF AN ABSTRACT IS REFUSED, driven through the real cite command on a real
+// paywalled page. The fetch has already looked for a copy carrying the body and found none, so
+// the copy the run holds is the abstract, and `leaf` would claim the study was read.
+func TestBlueCiteRefusesALeafReadingOfAnAbstract(t *testing.T) {
+	gz, err := os.ReadFile("../fetchcache/testdata/bodies/nature-paywalled.html.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	zr, err := gzip.NewReader(bytes.NewReader(gz))
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err := io.ReadAll(zr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const src = "https://doi.org/10.1038/nature06964"
+	runDir := newRun(t)
+	writeReport(t, runDir, "# Findings\n\nThe crystals expose reactive facets.\n")
+	registerBlue(t, runDir)
+	withFetcher(t, &fakeFetcher{contentType: "text/html", resp: map[string][]byte{src: page}})
+	cite := func(reading string) error {
+		_, err := run(t, "cite", "--run", runDir, "--seat-id", citeSeat,
+			"--quote", `# Findings: "The crystals expose reactive facets."`,
+			"--url", src, "--title", "Anatase TiO2 single crystals", "--source-text", reading)
+		return err
+	}
+	err = cite("leaf")
+	if err == nil || !strings.Contains(err.Error(), "abstract") || !strings.Contains(err.Error(), "summary_only") {
+		t.Fatalf("a leaf reading of an abstract was not refused with the reading it can carry: %v", err)
+	}
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_CITE); n != 0 {
+		t.Fatalf("the refusal left %d cite events on the record", n)
+	}
+	// The abstract is still citable as what it is.
+	if err := cite("summary_only"); err != nil {
+		t.Fatalf("an abstract cited as summary_only was refused: %v", err)
 	}
 }
