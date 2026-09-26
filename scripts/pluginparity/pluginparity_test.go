@@ -66,48 +66,41 @@ func TestAlwaysOnImportParity(t *testing.T) {
 	}
 }
 
-// A dev-only cmd/ directory is skipped by TWO readers — this checker's shipped-binary count and
-// the cold-bootstrap build loop — and they must skip the same ones. Nothing makes that true by
-// construction: they are a Go program and a shell script reading one marker by agreement.
-//
-// The failure if they drift is silent in the direction that matters. Bootstrap stops honouring
-// the marker and every consumer quietly gains a binary that shells out to the `claude` CLI and
-// reads this repo's agents/; the count still agrees, the check still passes, and the only
-// symptom is a stray executable nobody looks at.
-func TestDevOnlyMarkerIsHonouredByBothReaders(t *testing.T) {
-	dir := t.TempDir()
-	if devOnly(dir) {
-		t.Fatal("an ordinary cmd/ directory was treated as dev-only — it would stop shipping")
+// A development harness wearing a shipped binary's directory is found by what its code
+// imports, and only there: the same import is legal in a test and under tools/devcmd/.
+func TestShippedHarnessIsFoundByItsImport(t *testing.T) {
+	const imp = "package main\n\nimport _ \"example.com/x/internal/repotree\"\n"
+	write := func(t *testing.T, root, rel, body string) {
+		t.Helper()
+		p := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if err := os.WriteFile(filepath.Join(dir, "DEV-ONLY"), []byte("x"), 0o644); err != nil {
-		t.Fatal(err)
+	for _, c := range []struct {
+		name, rel string
+		want      bool
+	}{
+		{"a shipped command", "plugins/p/tools/cmd/probe/main.go", true},
+		{"an internal package a shipped command can reach", "plugins/p/tools/internal/lib/lib.go", true},
+		{"a development harness", "plugins/p/tools/devcmd/probe/main.go", false},
+		{"a test", "plugins/p/tools/cmd/hook/main_test.go", false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			root := t.TempDir()
+			write(t, root, "plugins/p/tools/cmd/hook/main.go", "package main\n")
+			write(t, root, c.rel, imp)
+			got := shippedHarnessProblems(root)
+			if c.want != (len(got) == 1) || len(got) > 1 {
+				t.Fatalf("want a finding: %v; got %v", c.want, got)
+			}
+		})
 	}
-	if !devOnly(dir) {
-		t.Fatal("the marker was ignored: a development harness would ship to every consumer")
-	}
-
-	// The build script is the other reader. It cannot be called from here, so what is checked
-	// is that it still consults the same marker at all.
-	b, err := os.ReadFile(filepath.Join("..", "bootstrap-plugins.sh"))
-	if err != nil {
-		t.Fatalf("cannot read the bootstrap script: %v", err)
-	}
-	if !strings.Contains(string(b), "DEV-ONLY") {
-		t.Fatal("bootstrap-plugins.sh no longer skips DEV-ONLY directories, so a cold bootstrap " +
-			"builds a development harness into every consumer's plugin bin while this checker, " +
-			"which excludes it from the count, goes on agreeing with the documented number")
-	}
-
-	// And the marker has to be on something: a marker nothing carries is a check that passes
-	// by describing an empty set, which is how this class of guard usually dies.
-	root, err := gitx.Root()
-	if err != nil {
-		t.Skipf("not a git checkout: %v", err)
-	}
-	hits, _ := filepath.Glob(filepath.Join(root, "plugins", "*", "tools", "cmd", "*", "DEV-ONLY"))
-	if len(hits) == 0 {
-		t.Fatal("no cmd/ directory carries a DEV-ONLY marker — if the last dev harness was " +
-			"promoted or deleted, delete this mechanism too rather than leaving it passing vacuously")
+	if got := shippedHarnessProblems(t.TempDir()); len(got) != 1 || !strings.Contains(got[0], "read no Go file") {
+		t.Fatalf("an empty tree must be refused, not passed: %v", got)
 	}
 }
 

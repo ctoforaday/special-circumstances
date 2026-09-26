@@ -192,8 +192,18 @@ func TestWorkIsOpenOnlyLeanAndEstoppedIsBenchRulingsOnly(t *testing.T) {
 	if w.Counts.Open != 1 || w.Counts.Estopped != 0 {
 		t.Errorf("counts = %+v, want open 1 estopped 0", w.Counts)
 	}
-	// The open gap's problem is TRUNCATED to the synopsis budget, and the full-prose fields
-	// (required_fix, acceptance_check) are absent from the JSON entirely.
+	// THE SYNOPSIS IS STILL A SYNOPSIS, and the open gap now ALSO carries the prose a seat acts on.
+	//
+	// This used to assert the opposite — that required_fix and acceptance_check were absent, "lean by
+	// design". The premise was that a seat scans here and goes to the board to act. Measured on
+	// universe-m10 it does not: `board` was read 46 times against `work`'s 21, and the fields those
+	// board reads named were mostly ones the work list had already handed over. One withheld field
+	// pulled the seat to the whole board. The withheld field was usually acceptance_check — which
+	// this list's own item tells the seat to re-audit against.
+	//
+	// The synopsis stays because a chair scanning a large open set reads it as a list; at 140 runes
+	// carrying both costs a line per gap. What must NOT leak is a CLOSED gap's prose: this is the
+	// open work, not the history.
 	if r := []rune(w.Open[0].ProblemSynopsis); len(r) > synopsisLimit+1 { // +1 for the ellipsis
 		t.Errorf("problem synopsis is %d runes, want <= %d + ellipsis", len(r), synopsisLimit)
 	}
@@ -201,10 +211,25 @@ func TestWorkIsOpenOnlyLeanAndEstoppedIsBenchRulingsOnly(t *testing.T) {
 		t.Errorf("a truncated synopsis must be marked with an ellipsis: %q", w.Open[0].ProblemSynopsis)
 	}
 	blob, _ := json.Marshal(w)
-	for _, secret := range []string{"SECRET_FIX_PROSE", "SECRET_CHECK_PROSE", "a closed problem"} {
-		if strings.Contains(string(blob), secret) {
-			t.Errorf("the work list must not carry prose %q — it is lean by design:\n%s", secret, blob)
-		}
+	// A CLOSED gap's prose is still out: the work list is the open work, and #1164's ruling on scope
+	// ("work is the open work not the completed history") did not change.
+	if strings.Contains(string(blob), "a closed problem") {
+		t.Errorf("a closed gap's problem leaked into the open work list:\n%s", blob)
+	}
+	// THE OPEN GAP CARRIES WHAT IT TAKES TO ACT ON IT. Each of these was board-only and each was a
+	// reason to leave this list.
+	g := w.Open[0]
+	if g.RequiredFix != "SECRET_FIX_PROSE" {
+		t.Errorf("the open gap has no required_fix — a seat cannot know what must become true: %+v", g)
+	}
+	if g.AcceptanceCheck != "SECRET_CHECK_PROSE" {
+		t.Errorf("the open gap has no acceptance_check, and the sitting item tells the seat to re-audit against it: %+v", g)
+	}
+	if !strings.HasPrefix(g.Problem, "word word") || len([]rune(g.Problem)) <= synopsisLimit {
+		t.Errorf("the open gap has no UNTRUNCATED problem (%d runes) — the full statement is what the originator answers", len([]rune(g.Problem)))
+	}
+	if g.MintedBy != "red-chair" {
+		t.Errorf("the open gap does not name its minter as a seat id, so ownership is decodable only from found_by: %q", g.MintedBy)
 	}
 	// The lean open gap keeps its grades, class, location and found_by.
 	if w.Open[0].Severity != "high" || w.Open[0].Class != "correctness" || w.Open[0].Location != "§open" {

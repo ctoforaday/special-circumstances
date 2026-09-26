@@ -17,6 +17,11 @@ import (
 // Same for a closed set: an enum whose values are not all driven has members nothing has ever
 // recorded, and a downstream consumer that mishandles one would not be caught.
 
+// impossibleQuote is a literal no projection can contain, for the selector drive's negative arm. It
+// has to be checked against the SELECTED text and not merely look unlikely: the selector matches an
+// entry's whole JSON, so any word that could appear in a field NAME would match every entry.
+const impossibleQuote = "qzzx-no-projection-contains-this-xzzq"
+
 // flagExemptions are flags the fuzz deliberately does not pass, each with its reason. Stated
 // rather than omitted: an absence with no reason is indistinguishable from an oversight.
 var flagExemptions = map[string]string{

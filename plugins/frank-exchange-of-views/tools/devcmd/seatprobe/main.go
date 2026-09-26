@@ -60,9 +60,9 @@
 //
 // # Usage
 //
-//	go run ./cmd/seatprobe -bin <feov-record> -board arithmetic -dir <scratch>
-//	go run ./cmd/seatprobe -bin <feov-record> -board all -dir <scratch> -parallel 3
-//	go run ./cmd/seatprobe -board arithmetic -dir <scratch> -report-only
+//	go run ./devcmd/seatprobe -bin <feov-record> -board arithmetic -dir <scratch>
+//	go run ./devcmd/seatprobe -bin <feov-record> -board all -dir <scratch> -parallel 3
+//	go run ./devcmd/seatprobe -board arithmetic -dir <scratch> -report-only
 package main
 
 import (

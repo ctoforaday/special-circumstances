@@ -113,7 +113,9 @@ func newReproduce() *cobra.Command {
 		}
 		return reproduceResult{SHA: sha, Matches: ok, Got: got, Recorded: want}, nil
 	}))
-	c.Flags().String(flags.ID, "", "REQUIRED — the sha256 of the recorded proof to re-run")
+	// A SHA, SHAPED. Registered as a plain string the page printed `string` and a gap id typed here was
+	// refused by the proof lookup rather than by its shape — the refusal named no kind.
+	c.Flags().Var(flags.SHA(), flags.ID, "REQUIRED — the sha256 of the recorded proof to re-run")
 	enumhelp.Flag(c, flags.As, record.MustEnum("reproduce", "soundness"), ("REQUIRED — having READ the script: does it actually establish the claim it is anchored to?"))
 	return seat.Correctable(c)
 }

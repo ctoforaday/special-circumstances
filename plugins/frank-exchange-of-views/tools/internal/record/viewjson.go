@@ -689,10 +689,26 @@ type CounterpartyJSON struct {
 	Reading string `json:"reading"`
 }
 
-// WorkGapJSON is an open gap in its lean form: the grades a chair weighs, its class and
-// location, a synopsis of the problem, and the lens findings that surfaced it. NOT the full
-// prose — required_fix and acceptance_check stay on the board (--view board / ledger) for the
-// seat that opens the gap; the work list is for scanning the open set, not re-deriving it.
+// WorkGapJSON is an open gap with everything a seat needs to ACT on it.
+//
+// THE LEANNESS RULE IS GONE, AND THE MEASUREMENT IS WHY. This read "NOT the full prose —
+// required_fix and acceptance_check stay on the board for the seat that opens the gap; the work
+// list is for scanning the open set, not re-deriving it." The premise was that a seat scans here
+// and goes to the board when it decides to act. Measured on universe-m10 it does not: `board` was
+// read 46 times against `work`'s 21, and of the fields those board reads named, `class` (10),
+// `problem_synopsis` (8), `check_kind` (3), `edited_since` (3), `found_by` (2) and `location` (2)
+// were ALREADY in the work list the seat had been handed. One missing field pulled the seat to the
+// whole board, and once there it re-read what it already had.
+//
+// The missing field was usually acceptance_check — and the work list's own item says "re-audit it
+// against the acceptance check you set at mint", so the list instructed the seat to use a field it
+// withheld. The old comment even names the seat that needs the prose as "the seat that opens the
+// gap", which is the originator: exactly whose work list this is.
+//
+// THE BAR IS SELF-SUFFICIENCY FOR ANY JOB THAT IS NOT READING THE WHOLE DOCUMENT (gblock's
+// ruling). A seat re-auditing, closing, or arguing one of its own gaps must need no second call.
+// The full re-read of the report stays what it always was — a duty, and the one thing this list
+// does not replace.
 type WorkGapJSON struct {
 	ID             string `json:"id"`
 	Severity       any    `json:"severity"`
@@ -734,8 +750,28 @@ type WorkGapJSON struct {
 	// and the commonest state it finds. Omitted, that answer is indistinguishable from a projection
 	// that does not carry edits at all, and a seat that cannot tell the two apart spends a call on
 	// the changes projection to find out — which is the call this field exists to save.
-	EditedSince     []GapEdit `json:"edited_since"`
-	ProblemSynopsis string    `json:"problem_synopsis"`
+	EditedSince []GapEdit `json:"edited_since"`
+	// ProblemSynopsis is the first synopsisLimit runes, kept because a chair scanning many open
+	// gaps reads it as a list. Problem is the WHOLE statement, because the originator re-auditing
+	// its own gap is answering the problem rather than skimming it — and a truncated problem sent
+	// seats to the board for `problem`, which is board-only prose.
+	ProblemSynopsis string `json:"problem_synopsis"`
+	Problem         string `json:"problem"`
+	// RequiredFix is what must become TRUE, and AcceptanceCheck is the falsifiable check the
+	// originator committed to running at re-audit. Both were board-only; both are what the work
+	// list's own items tell a seat to act against.
+	RequiredFix     string `json:"required_fix"`
+	AcceptanceCheck string `json:"acceptance_check"`
+	// MintedBy is the seat that minted this gap, AS A SEAT ID. FoundBy below carries finding
+	// labels (`computation-F1`), so ownership was recoverable only by decoding a prefix and then
+	// recalling that only the originator may close — two inferences at the moment of acting.
+	// Measured on universe-m10: every one of the run's 8 refusals was a seat acting on another
+	// seat's gap, and the information was present in `found_by` the whole time.
+	MintedBy string `json:"minted_by"`
+	// YoursToClose is the CONCLUSION rather than the premises: whether THIS reader may close or
+	// regrade this gap. requireOriginator refuses any other seat, so a reader that has to derive
+	// this is deriving a refusal it could have been handed.
+	YoursToClose bool `json:"yours_to_close"`
 	// CheckKind rides the work list too, though nothing else about the acceptance check does.
 	// The comment above says required_fix and acceptance_check belong to the seat that OPENS
 	// the gap — but check_kind is not a description of the demand, it is the demand's TYPE,
@@ -841,6 +877,9 @@ func synopsis(s string) string {
 // folded Board.
 type WorkGapState struct {
 	ID, Class, Location, Problem, CheckKind string
+	// RequiredFix, AcceptanceCheck and MintedBy come off the gap view's own columns. The work list
+	// withheld all three, and in universe-m10 a board read was how a seat went to fetch one.
+	RequiredFix, AcceptanceCheck, MintedBy string
 	// Passage is the report section Location sits in — see GapJSON.Passage. It rides the WORK list
 	// as well as the board because the work list is the read a seat does first: measured across the
 	// empty sittings of eight runs, `show work` was called 19 times against `show board`'s 11 and
@@ -906,7 +945,8 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 	rows, err := db.Query(`SELECT "gap_id", "open", "awaiting_proof", "awaiting_docket", "docket_reopens_on",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
-	    "material", "class_material", "stranded", "superseded_by"
+	    "material", "class_material", "stranded", "superseded_by",
+	    "required_fix", "acceptance_check", "minted_by"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
 		return nil, fmt.Errorf("record: asking the record for its work list: %w", err)
@@ -916,6 +956,7 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 	for rows.Next() {
 		var g WorkGapState
 		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, kind, reopensOn, classMaterial, supersededBy sql.NullString
+		var requiredFix, acceptanceCheck, mintedBy sql.NullString
 		var mintedEvent int64
 		// THE SCAN ORDER IS THE SELECT'S ORDER, and both sides of this merge added a column:
 		// awaiting_docket/docket_reopens_on here, about_kind/about_ref on main. A scan that kept
@@ -924,7 +965,8 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 		if err := rows.Scan(&g.ID, &g.Open, &g.AwaitingProof, &g.AwaitingDocket, &reopensOn,
 			&sev, &lik, &imp, &cx,
 			&class, &loc, &aboutKind, &aboutRef, &problem, &kind, &mintedEvent,
-			&g.Material, &classMaterial, &g.Stranded, &supersededBy); err != nil {
+			&g.Material, &classMaterial, &g.Stranded, &supersededBy,
+			&requiredFix, &acceptanceCheck, &mintedBy); err != nil {
 			return nil, err
 		}
 		g.ClassMaterial, g.SupersededBy = classMaterial.String, supersededBy.String
@@ -932,6 +974,7 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 		g.Severity, g.Likelihood, g.Impact, g.Cx = nullWord(sev), nullWord(lik), nullWord(imp), nullWord(cx)
 		g.Class, g.Location, g.Problem, g.CheckKind = class.String, loc.String, problem.String, kind.String
 		g.AboutKind, g.AboutRef = aboutKind.String, aboutRef.String
+		g.RequiredFix, g.AcceptanceCheck, g.MintedBy = requiredFix.String, acceptanceCheck.String, mintedBy.String
 		g.Edits = gapEdits[g.ID]
 		g.Location = CurrentLocation(g.Location, g.Edits)
 		g.Passage = PassageAround(report, g.Location)
@@ -1002,7 +1045,9 @@ func gapBacking(g WorkGapState, verified map[string]GapBackingJSON) []GapBacking
 // read. So the gap backing reached the consistency oracle and no seat: the feature's own test drove
 // WorkJSONOfRun and passed. A test of the function is not a test of the call, and a convenience
 // overload of a widened signature is where that gets to hide.
-func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBackingJSON) WorkJSON {
+// reader is the seat this list is FOR, so `yours_to_close` can be answered rather than derived. It
+// is empty for the oracle's run-wide read (WorkJSONOfRun), which is addressed to nobody.
+func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBackingJSON, reader string) WorkJSON {
 	// Sitting carries its own list, and it is initialised HERE as well as in SittingOf: a WorkJSON
 	// built without a sitting still marshals one, and a nil there renders `"open": null` — "not
 	// computed" where the truth is "nothing open".
@@ -1017,7 +1062,15 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 				Backing:         gapBacking(g, verified),
 				EditedSince:     editsSince(g.Edits, since),
 				ProblemSynopsis: synopsis(g.Problem),
-				CheckKind:       g.CheckKind, AwaitingProof: g.AwaitingProof,
+				Problem:         g.Problem,
+				RequiredFix:     g.RequiredFix,
+				AcceptanceCheck: g.AcceptanceCheck,
+				MintedBy:        g.MintedBy,
+				// THE CONCLUSION, NOT THE PREMISES. requireOriginator refuses a close or regrade
+				// from any other seat; a reader deriving this from MintedBy is deriving a refusal
+				// it could have been handed. Empty reader (the oracle) is nobody's list, so false.
+				YoursToClose: reader != "" && g.MintedBy == reader,
+				CheckKind:    g.CheckKind, AwaitingProof: g.AwaitingProof,
 				AwaitingDocket: g.AwaitingDocket, DocketReopensOn: g.DocketReopensOn,
 				FoundBy:  strs(g.FoundBy),
 				Material: g.Material,
@@ -1055,7 +1108,7 @@ func WorkJSONOfRun(run Run) (WorkJSON, error) {
 	if err != nil {
 		return WorkJSON{}, err
 	}
-	return workJSONOfGaps(gaps, 0, backingOf(m.Events)), nil
+	return workJSONOfGaps(gaps, 0, backingOf(m.Events), ""), nil
 }
 
 // counterpartyOf counts what the OTHER party has done, so a seat can tell "not yet" from "not
@@ -1132,7 +1185,7 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	if err != nil {
 		return WorkJSON{}, err
 	}
-	w := workJSONOfGaps(gaps, epochOfSeatOnBoard(m.Events, seatID)-1, backingOf(m.Events))
+	w := workJSONOfGaps(gaps, epochOfSeatOnBoard(m.Events, seatID)-1, backingOf(m.Events), seatID)
 	w.Sitting = SittingOf(m.Events, ids, gaps, role, seatID)
 	w.Counterparty = counterpartyOf(m.Events, role, epochOfSeatOnBoard(m.Events, seatID))
 	return w, nil

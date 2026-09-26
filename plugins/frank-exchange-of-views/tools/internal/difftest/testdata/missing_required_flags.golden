@@ -112,7 +112,6 @@ Usage:
 Available Commands:
   carry           restate an earlier sitting's closure, when the work is done and you are not re-attesting it
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
-  completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
   dispatch        `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes

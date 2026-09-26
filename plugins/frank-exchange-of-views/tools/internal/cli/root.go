@@ -168,6 +168,15 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
+	// COBRA'S SHELL-COMPLETION GENERATOR IS NOT A SEAT'S VERB, and it was on every seat's surface:
+	// the group plus one command per shell, five paths a seat can name and none it can use. No agent
+	// generates a zsh completion script.
+	//
+	// THE COST IS PAID AT THE OPENING ACT. A seat is told to read its WHOLE surface before deciding
+	// what to do — that instruction is the fix for seats opening 6 of 51 group pages — so every path
+	// that cannot be an act is read by every seat in every sitting, and agentgen inlines the same
+	// listing into all eleven agent definitions.
+	root.CompletionOptions.DisableDefaultCmd = true
 
 	// The two flags EVERY verb needs, declared once and inherited. Persistent
 	// flags are the mechanism the first cut of this CLI re-implemented by

@@ -42,6 +42,21 @@ func HasTable(q queryRower, table string) (bool, error) {
 // RequireTable refuses a write that needs a table an older run's database does not have, in the
 // words olderSchema uses for the same fact on the read path: the cause, and the migration that is
 // the way out.
+// viewSQL is the text SQLite stored for this view, or "" if the database has no such view. Separate
+// from HasTable because sqlite_master distinguishes the two, and it returns the DEFINITION rather than
+// a bool because a view that is present and DIFFERENT is its own answer — see requireDeclaredSchema.
+func viewSQL(q queryRower, view string) (string, error) {
+	var sqlText sql.NullString
+	err := q.QueryRow(`SELECT "sql" FROM sqlite_master WHERE type = 'view' AND "name" = ?`, view).Scan(&sqlText)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return sqlText.String, nil
+}
+
 func RequireTable(q queryRower, table string) error {
 	ok, err := HasTable(q, table)
 	if err != nil {

@@ -15,7 +15,10 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"go/parser"
+	"go/token"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -123,7 +126,7 @@ func main() {
 	}
 	dirs := 0
 	for _, d := range cmdDirs {
-		if fi, err := os.Stat(d); err == nil && fi.IsDir() && !devOnly(d) {
+		if fi, err := os.Stat(d); err == nil && fi.IsDir() {
 			dirs++
 		}
 	}
@@ -152,7 +155,7 @@ func main() {
 		}
 		onDisk := map[string]bool{}
 		for _, d := range cmdDirs {
-			if fi, err := os.Stat(d); err == nil && fi.IsDir() && !devOnly(d) &&
+			if fi, err := os.Stat(d); err == nil && fi.IsDir() &&
 				strings.Contains(filepath.ToSlash(d), "plugins/"+plugin+"/") {
 				onDisk[filepath.Base(d)] = true
 			}
@@ -170,6 +173,10 @@ func main() {
 	}
 
 	for _, p := range alwaysOnProblems(root) {
+		fail("%s", p)
+	}
+
+	for _, p := range shippedHarnessProblems(root) {
 		fail("%s", p)
 	}
 
@@ -193,16 +200,56 @@ func contains(h []string, n string) bool {
 // provisioned the same way and is called out in the manifest's own comment.
 func documentedException(name string) bool { return name == "sc-doctor" }
 
-// devOnly reports whether a cmd/ directory is a development harness rather than a shipped
-// binary, by the marker the BUILD script reads for the same decision.
+// shippedHarnessProblems reports every non-test Go file outside a tools/devcmd/ tree that
+// imports internal/repotree.
 //
-// The marker rather than a name list here, and this check is the reason why: it exists because
-// the documented count went stale twice and the _hook_binaries manifest twice more. A list of
-// exempt names living in this file would be a third hand-maintained copy of the same fact,
-// kept by the same hands that let the first two drift.
-func devOnly(cmdDir string) bool {
-	_, err := os.Stat(filepath.Join(cmdDir, "DEV-ONLY"))
-	return err == nil
+// Every directory under plugins/*/tools/cmd/ ships: the release job cross-compiles it, the
+// hooks' fetch-bin.sh installs it, sc-doctor counts it and the cold bootstrap builds it. A
+// development harness that needs a plugin's internal/ packages lives in tools/devcmd/ instead,
+// where none of those enumerators look. What marks a harness is a property of its code, not a
+// list: repotree exists only to find a checkout of this repository, which no installing
+// project has. seatprobe shipped in every FEOV release for this reason (#1174).
+//
+// Held for every non-test package rather than only cmd/ mains, so a shipped binary cannot reach
+// repotree through an internal package either. A walk that reads no Go file is refused, so a
+// moved tree cannot pass by scanning nothing.
+func shippedHarnessProblems(root string) []string {
+	var problems []string
+	read := 0
+	tools, _ := filepath.Glob(filepath.Join(root, "plugins", "*", "tools"))
+	for _, t := range tools {
+		_ = filepath.WalkDir(t, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() {
+				if path != t && (d.Name() == "devcmd" || d.Name() == "testdata" || strings.HasPrefix(d.Name(), ".")) {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+				return nil
+			}
+			f, perr := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
+			if perr != nil {
+				problems = append(problems, fmt.Sprintf("%s: cannot parse its imports: %v", path, perr))
+				return nil
+			}
+			read++
+			for _, im := range f.Imports {
+				if strings.HasSuffix(strings.Trim(im.Path.Value, `"`), "/internal/repotree") {
+					rel, _ := filepath.Rel(root, path)
+					problems = append(problems, fmt.Sprintf("%s imports internal/repotree, which only finds a checkout of this repository — a development harness belongs in tools/devcmd/, not in a package a shipped binary can reach.", filepath.ToSlash(rel)))
+				}
+			}
+			return nil
+		})
+	}
+	if read == 0 {
+		problems = append(problems, "plugins/*/tools: read no Go file — the walk moved or the tree did, and the repotree rule checked nothing.")
+	}
+	return problems
 }
 
 // manifestsOf lists a filename under every plugin, repo-relative.

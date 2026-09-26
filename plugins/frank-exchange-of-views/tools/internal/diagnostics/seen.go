@@ -43,6 +43,12 @@ const listingHeader = "Available Commands:"
 
 // housekeeping are the commands cobra generates onto every parent. They belong to no role, so
 // they neither credit a seat nor disqualify the listing they appear in.
+//
+// "completion" IS LOAD-BEARING HERE AND NAMES NOTHING ON THE LIVE SURFACE. This file reads help
+// listings out of RECORDED TRANSCRIPTS, and the recorded ones carry the word: the generator is
+// switched off at the root now, so no seat will be handed it again, but every archived run was.
+// Dropping it would make each of those blocks fail the all-names test below and be rejected whole —
+// the false zero this map exists to prevent, on exactly the data that can no longer be re-recorded.
 var housekeeping = map[string]bool{"completion": true, "help": true}
 
 // helpBlocks pulls every cobra command listing out of one text.

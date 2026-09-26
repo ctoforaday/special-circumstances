@@ -16,7 +16,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
-// EVERY BOARD MUST BUILD THE WAY cmd/seatprobe BUILDS IT: through a SUBPROCESS, with the record
+// EVERY BOARD MUST BUILD THE WAY devcmd/seatprobe BUILDS IT: through a SUBPROCESS, with the record
 // root in that subprocess's environment and NOT in this one.
 //
 // # Why this cannot be an in-process gate
@@ -68,7 +68,7 @@ func TestEveryProbeBoardBuildsThroughASubprocessWithASeparatedRecord(t *testing.
 		b := b
 		t.Run(name, func(t *testing.T) {
 			runDir := recordtest.TmpRun(t)
-			// THE ROOT GOES TO THE SUBPROCESS ONLY, exactly as cmd/seatprobe declares it. Setting
+			// THE ROOT GOES TO THE SUBPROCESS ONLY, exactly as devcmd/seatprobe declares it. Setting
 			// it with t.Setenv instead would put it in this process too, and this test would
 			// become the in-process one it exists to be different from.
 			recordRoot := t.TempDir()
@@ -96,7 +96,7 @@ func TestEveryProbeBoardBuildsThroughASubprocessWithASeparatedRecord(t *testing.
 			}
 			if err != nil {
 				t.Fatalf("board %q does not build with a separated record: %v\n\n"+
-					"This is the configuration cmd/seatprobe runs. A board that builds in-process and\n"+
+					"This is the configuration devcmd/seatprobe runs. A board that builds in-process and\n"+
 					"not here means every real dispatch dies before a seat is handed anything, while\n"+
 					"the in-process gate reports the fixtures healthy.", name, err)
 			}

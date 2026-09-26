@@ -91,7 +91,7 @@ Flags:
       --corrects string         the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
       --final                   nothing would reopen this. The assertable empty case for --reopens-on: pass exactly one of the two
   -h, --help                    help for rule
-      --id string               REQUIRED — the motion id (M1, M2 …)
+      --id motion-id            REQUIRED — the motion id (M1, M2 …)
       --principle string        the rule you applied, stated so a later sitting can apply the same one
       --reason string           REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --reopens-on string       the evidence or condition that would make this worth raising again — or pass --final to say nothing would
@@ -152,7 +152,7 @@ Flags:
       --corrects string         the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
       --final                   nothing would reopen this. The assertable empty case for --reopens-on: pass exactly one of the two
   -h, --help                    help for rule
-      --id string               REQUIRED — the motion id (M1, M2 …)
+      --id motion-id            REQUIRED — the motion id (M1, M2 …)
       --principle string        the rule you applied, stated so a later sitting can apply the same one
       --reason string           REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --reopens-on string       the evidence or condition that would make this worth raising again — or pass --final to say nothing would

@@ -18,7 +18,7 @@ import (
 //
 // Nothing reported it for one reason: the only thing that built a board was
 // TestWriteSeatProbeFixture, which is env-guarded (FEOV_SEAT_PROBE_DIR) and skips by default, and
-// `cmd/seatprobe` itself, which is run by hand. So the fixtures rotted behind a full green sweep —
+// `devcmd/seatprobe` itself, which is run by hand. So the fixtures rotted behind a full green sweep —
 // the write path moved, the carrier kept speaking the old model, and the half-state read as done.
 //
 // This is that gate, and it is deliberately NOT env-guarded. It costs one temp directory per board

@@ -99,6 +99,24 @@ var referenceChecks = []struct {
 		extra: []string{"--as", "remanded", "--principle", "p", "--tension", "t", "--review-flag", "false", "--settled", "the proposition this ruling bars", "--final", "--reason", "r"}},
 	{verb: []string{"motion", "grade", "file"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--dimension", "severity", "--proposed", "low", "--reason", "r"}},
+	// THE THREE BELOW DRIVE THE VERB BODY'S OWN REFERENCE CHECK, not a flag checker — see idShapeFor,
+	// which deliberately carries no checker because each of these verbs already resolves its id and the
+	// two rulings resolve it more strictly than existence would. They are here because the behaviour
+	// was UNCOVERED: `motion docket file` had no test that a dangling gap id is refused, and a body
+	// check no test drives is the hole this file exists to close. The derived gate does not demand
+	// them; nothing about a shape-only flag does.
+	{verb: []string{"motion", "docket", "file"}, flag: "--id", against: "the board", bogus: "G2",
+		extra: []string{"--reason", "r"}},
+	// THE INQUIRY SUBJECT KEYS ON Q, NOT M — a direction has no filing verb (the proposal is the
+	// filing), so the ruling and the appeal both name the LINE and are checked against the lines on
+	// the record. `rule` sits only on the chair's tree, which is why seatHolding resolves the whole
+	// path: asked for "motion" alone it answered "lens", and the fixture ran a verb that seat cannot
+	// name. Both refusals come from the body and name the LINE, which is the right word for an id the
+	// subject keys on Q.
+	{verb: []string{"motion", "inquiry", "rule"}, flag: "--id", against: "the lines of inquiry on the record", bogus: "Q9",
+		extra: []string{"--as", "endorsed", "--reason", "r"}},
+	{verb: []string{"motion", "inquiry", "appeal"}, flag: "--id", against: "the lines of inquiry on the record", bogus: "Q9",
+		extra: []string{"--reason", "r"}},
 	// FOUND BY TestEveryCheckedFlagIsInTheTable. All three carry a check and none was driven —
 	// exactly the hole the derived gate exists to close, caught the first time it ran.
 	{verb: []string{"prove"}, flag: "--answers", against: "the board", bogus: "G2",
@@ -181,13 +199,21 @@ func TestEveryCheckedFlagIsInTheTable(t *testing.T) {
 		declared[strings.Join(c.verb, " ")+" "+c.flag] = true
 	}
 
-	type carrier interface{ Check(string) error }
+	// ASKS WHETHER A CHECKER IS ATTACHED, not whether the value could hold one. Every ShapedValue
+	// has Check, so `interface{ Check(string) error }` alone selects every SHAPED flag and this gate
+	// then demanded a reference fixture for `reproduce --id` (a sha256, resolved against nothing).
+	// Shape is the other half and is proven in internal/cli/idshape_test.go.
+	type carrier interface {
+		Check(string) error
+		Checked() bool
+	}
 	var missing []string
 	var walk func(cmd *cobra.Command, path string)
 	walk = func(cmd *cobra.Command, path string) {
 		p := strings.TrimSpace(path + " " + cmd.Name())
 		cmd.Flags().VisitAll(func(f *pflag.Flag) {
-			if _, ok := f.Value.(carrier); !ok {
+			ref, ok := f.Value.(carrier)
+			if !ok || !ref.Checked() {
 				return
 			}
 			// Strip the binary's own name: the table names command paths as a seat types them.
@@ -227,7 +253,7 @@ func TestEveryDeclaredReferenceIsActuallyChecked(t *testing.T) {
 			}
 
 			argv := append([]string{}, c.verb...)
-			argv = append(argv, "--run", runDir, "--seat-id", seatHolding(c.verb[0]))
+			argv = append(argv, "--run", runDir, "--seat-id", seatHolding(c.verb...))
 			argv = append(argv, c.flag, c.bogus)
 			argv = append(argv, c.extra...)
 

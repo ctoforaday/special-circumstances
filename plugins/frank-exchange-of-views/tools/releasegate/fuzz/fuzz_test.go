@@ -2796,6 +2796,44 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 				res.err = role + " " + group + " " + v + " failed: " + err.Error()
 				return res
 			}
+			// AND BOTH OF ITS SELECTORS. Thirty-four flags reached the surface with no end-to-end
+			// drive at all, which this sweep's own flag gate named: a flag no run ever passes is code
+			// no run has executed. They are seat-facing, so an exemption would have been a claim that
+			// nobody checks them.
+			//
+			// THE ASSERTION IS AN INVARIANT, NOT A FIXTURE, because the sweep reaches an arbitrary run
+			// shape and there is no expected entry list to compare against. A regex of one dot matches
+			// every character, so it must keep everything the unselected read had; a quote nothing can
+			// contain must keep nothing. The counts come from the tool's own `selection` block rather
+			// than from counting the output here, so this reads the answer the SEAT reads — and a view
+			// that renders text instead of JSON simply carries no block and is driven without it.
+			for _, sel := range [][]string{{"--match", "."}, {"--quote", impossibleQuote}} {
+				sargs := append([]string{group, v, "--run", runDir, "--seat-id", sid}, sel...)
+				out, err := drive(bin, sargs...)
+				if err != nil {
+					res.err = role + " " + group + " " + v + " " + strings.Join(sel, " ") + " failed: " + err.Error()
+					return res
+				}
+				var doc struct {
+					Selection *struct {
+						Matched int `json:"matched"`
+						Of      int `json:"of"`
+					} `json:"selection"`
+				}
+				if json.Unmarshal([]byte(strings.TrimSpace(string(out))), &doc) != nil || doc.Selection == nil {
+					continue // a text view, or a refusal the drive already reported
+				}
+				if sel[0] == "--match" && doc.Selection.Matched != doc.Selection.Of {
+					res.err = fmt.Sprintf("%s %s %s --match . kept %d of %d — a pattern matching every character dropped entries",
+						role, group, v, doc.Selection.Matched, doc.Selection.Of)
+					return res
+				}
+				if sel[0] == "--quote" && doc.Selection.Matched != 0 {
+					res.err = fmt.Sprintf("%s %s %s --quote %q kept %d of %d — a quote nothing contains matched something",
+						role, group, v, impossibleQuote, doc.Selection.Matched, doc.Selection.Of)
+					return res
+				}
+			}
 		}
 		if _, err := drive(bin, "show", "--run", runDir, "--seat-id", sid); err != nil {
 			res.err = role + " show (bare, the seat's pending work) failed: " + err.Error()

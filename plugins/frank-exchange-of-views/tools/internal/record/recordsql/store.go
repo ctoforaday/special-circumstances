@@ -374,7 +374,7 @@ func openUncached(path string) (*sql.DB, error) {
 	// the cause nor the way out. Refused here by CONTENT — what the database lacks — never by a
 	// recorded version.
 	if existed {
-		if err := requireDeclaredColumns(db); err != nil {
+		if err := requireDeclaredSchema(db); err != nil {
 			db.Close()
 			return nil, err
 		}
@@ -388,6 +388,7 @@ var declared struct {
 	once   sync.Once
 	tables []string
 	cols   map[string][]string
+	views  map[string]string
 	err    error
 }
 
@@ -406,6 +407,14 @@ func declaredSchema() ([]string, map[string][]string, error) {
 		defer mem.Close()
 		mem.SetMaxOpenConns(1) // one connection is one in-memory database
 		if _, err := mem.Exec(schema); err != nil {
+			declared.err = err
+			return
+		}
+		// THE VIEWS GO IN TOO, because they are half of what a reader names. A projection that is a
+		// query over a view fails with SQLite's "no such table: change" on a record written before
+		// that view existed — the same unnamed failure requireDeclaredSchema exists to replace for a
+		// column, in a record whose EVENTS are all present and readable.
+		if _, err := mem.Exec(ViewsDDL); err != nil {
 			declared.err = err
 			return
 		}
@@ -437,15 +446,52 @@ func declaredSchema() ([]string, map[string][]string, error) {
 			}
 			sort.Strings(cols[t])
 		}
-		declared.tables, declared.cols = tables, cols
+		// THE DEFINITION, NOT JUST THE NAME, and both sides are read from sqlite_master so the
+		// comparison is exact by construction: SQLite stores a CREATE VIEW statement verbatim, so two
+		// databases built from the same ViewsDDL hold byte-identical text, and no formatting rule has
+		// to be agreed between a parser here and the DDL there. The leading `--` comments are not part
+		// of the statement and do not appear on either side.
+		vrows, err := mem.Query(`SELECT "name", "sql" FROM sqlite_master WHERE type = 'view' ORDER BY "name"`)
+		if err != nil {
+			declared.err = err
+			return
+		}
+		views := map[string]string{}
+		for vrows.Next() {
+			var n, q string
+			if err := vrows.Scan(&n, &q); err != nil {
+				vrows.Close()
+				declared.err = err
+				return
+			}
+			views[n] = q
+		}
+		vrows.Close()
+		declared.tables, declared.cols, declared.views = tables, cols, views
 	})
 	return declared.tables, declared.cols, declared.err
 }
 
-// requireDeclaredColumns refuses a database missing a table or a column this binary declares,
+// declaredViews is every view this binary's ViewsDDL creates, by name, with the text SQLite stored
+// for it. It shares declaredSchema's once, so asking for it applies the same one-time in-memory
+// schema.
+func declaredViews() (map[string]string, error) {
+	if _, _, err := declaredSchema(); err != nil {
+		return nil, err
+	}
+	return declared.views, nil
+}
+
+// requireDeclaredSchema refuses a database missing a table, a column or a VIEW this binary declares,
 // naming each and the way out (`migrate`). Missing columns are named first: they are what a run
 // written before a field was added lacks, and the seat needs to read which field it was.
-func requireDeclaredColumns(db *sql.DB) error {
+//
+// VIEWS ARE CHECKED FOR THE SAME REASON THE COLUMNS ARE, and were not. A run's views are fixed when
+// its database is created — ensureSchema applies once, and deliberately does not take a write lock on
+// every open — so a binary that added a view reads an older record and gets "no such table", naming
+// neither the cause nor the way out. That failure is worse than the column one, because a view is
+// DERIVED: every event the projection needs is present, and the only thing missing is the query.
+func requireDeclaredSchema(db *sql.DB) error {
 	tables, cols, err := declaredSchema()
 	if err != nil {
 		return fmt.Errorf("recordsql: reading this binary's own schema: %w", err)
@@ -472,6 +518,38 @@ func requireDeclaredColumns(db *sql.DB) error {
 	}
 	if len(absent) > 0 {
 		lacks = append(lacks, "this run's record has no "+strings.Join(absent, ", ")+" table")
+	}
+	views, err := declaredViews()
+	if err != nil {
+		return fmt.Errorf("recordsql: reading this binary's own views: %w", err)
+	}
+	names := make([]string, 0, len(views))
+	for v := range views {
+		names = append(names, v)
+	}
+	sort.Strings(names) // a map range would reorder the refusal between two identical runs
+	var noView, staleView []string
+	for _, v := range names {
+		have, err := viewSQL(db, v)
+		if err != nil {
+			return err
+		}
+		switch {
+		case have == "":
+			noView = append(noView, fmt.Sprintf("%q", v))
+		case have != views[v]:
+			// A STALE DEFINITION IS THE HALF A NAME CHECK CANNOT SEE, and it is the quieter failure:
+			// the view is present, the query succeeds, and it answers by the OLD rule. Nothing is
+			// missing, so nothing raises — a view whose definition was FIXED goes on returning the
+			// answer it was fixed for, on every record created before the fix.
+			staleView = append(staleView, fmt.Sprintf("%q", v))
+		}
+	}
+	if len(noView) > 0 {
+		lacks = append(lacks, "this run's record has no "+strings.Join(noView, ", ")+" view")
+	}
+	if len(staleView) > 0 {
+		lacks = append(lacks, "this run's "+strings.Join(staleView, ", ")+" view is the one its CREATING binary wrote, and this binary defines it differently")
 	}
 	if len(lacks) == 0 {
 		return nil
