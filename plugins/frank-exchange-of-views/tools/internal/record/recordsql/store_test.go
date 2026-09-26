@@ -379,8 +379,17 @@ func TestAnUnruledMotionIsAColumn(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// THE UNRULED MOTION IS FOUND THROUGH THE VIEW THE PRODUCT READS. This asked motion_state, a view
+	// no shipped reader ever queried — so the assertion proved a join nothing depended on. The verdict
+	// refusal that actually names unruled motions goes through motion_answers, and the gap comes from
+	// the filing arm that carries one, so the test asks what the product asks.
 	var id, gap string
-	if err := db.QueryRow(`SELECT motion_id, gap_id FROM motion_state WHERE unruled`).Scan(&id, &gap); err != nil {
+	if err := db.QueryRow(`SELECT m."motion_id", COALESCE(g."gap_id", gd."gap_id")
+	  FROM "motion" m
+	  LEFT JOIN "motion_grade" g ON g."event_id" = m."event_id"
+	  LEFT JOIN "motion_docket" gd ON gd."event_id" = m."event_id"
+	  LEFT JOIN "motion_answers" a ON a."motion_id" = m."motion_id"
+	  WHERE a."ruled_by" IS NULL`).Scan(&id, &gap); err != nil {
 		t.Fatalf("the unruled motion is not visible: %v", err)
 	}
 	if id != "M2" || gap != "G2" {

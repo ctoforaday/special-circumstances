@@ -25,6 +25,15 @@ func migrationLine(runDir string) string {
 	for _, n := range m.Out {
 		out += n
 	}
-	return fmt.Sprintf("migrated record: replayed from %s by %s — %d event(s) in -> %d out, %d refusal(s), %d accepted loss(es); inputs/%s",
-		m.SourcePath, m.ToolVersion, in, out, len(m.Refusals), len(m.Accepted), migrate.ManifestName)
+	// The epoch pair and the turn count are here because this line is where an auditor
+	// meets a translated record: the pair says what move was made, and the count is the one part of
+	// a migration whose loss would be invisible downstream — an empty timing view reads the same
+	// whether the measurements were dropped or never taken.
+	epoch := fmt.Sprintf("epoch %d", m.EventSchema)
+	if m.SourceEpoch != nil {
+		epoch = fmt.Sprintf("epoch %d -> %d", *m.SourceEpoch, m.EventSchema)
+	}
+	return fmt.Sprintf("migrated record: replayed from %s by %s — %d event(s) in -> %d out, %d refusal(s), %d accepted loss(es), "+
+		"%s, %d per-turn measurement(s) brought over; inputs/%s",
+		m.SourcePath, m.ToolVersion, in, out, len(m.Refusals), len(m.Accepted), epoch, m.SeatTurns, migrate.ManifestName)
 }

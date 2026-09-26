@@ -39,6 +39,26 @@ import (
 // adversarial process: red audits what blue wrote and the bench rules on both, so a row that can be
 // edited after the fact is not evidence. Nothing in the application layer is trusted to remember.
 const EnvelopeDDL = `
+-- THE EPOCH IS A FIELD ON THE RECORD, not a shape a reader infers from it.
+--
+-- A reader has to know whether the binary in its hands and the record in front of it agree about
+-- what an event IS. That was answered twice and neither answer was the question: setup compares
+-- the binary's epoch against the plugin manifest ONCE, at the start of a run, which cannot see a
+-- seat invoking a different binary later; and the open path inferred it from SCHEMA SHAPE, asking
+-- whether the record carried a table or view the binary did not declare. Shape cannot tell a stale
+-- binary from a view the current binary deliberately DROPPED, so it made removing a view a two-step
+-- change and reported the wrong party as stale.
+--
+-- One row, written in the transaction that creates the schema, so a database cannot exist without
+-- its epoch. Compared at every open: lower than this binary's is an older run and migrates; higher
+-- means THIS binary is the stale one. Equal proceeds.
+CREATE TABLE "schema_epoch" (
+  -- The CHECK is the whole point of the column: one record has ONE epoch, and a second row would
+  -- make "the record's epoch" a question with two answers.
+  "id"    INTEGER PRIMARY KEY CHECK ("id" = 1),
+  "epoch" INTEGER NOT NULL
+) STRICT;
+
 CREATE TABLE "events" (
   "id"      INTEGER PRIMARY KEY,
   "seat_id" TEXT    NOT NULL,

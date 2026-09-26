@@ -26,14 +26,24 @@ type Manifest struct {
 	// SourceHash is the LOGICAL hash: sha256 over the event stream as read. The per-file
 	// hashes below are byte hashes of what was on disk, labelled as such — the same record
 	// hashes differently across WAL checkpoint states, which is why both exist.
-	SourceHash  string         `json:"source_hash"`
-	SourceFiles []SourceFile   `json:"source_files"`
-	ToolVersion string         `json:"tool_version"`
-	EventSchema int            `json:"event_schema"`
-	MigratedAt  string         `json:"migrated_at"`
-	In          map[string]int `json:"events_in"`
-	Out         map[string]int `json:"events_out"`
-	Refusals    []Refusal      `json:"refusals,omitempty"`
+	SourceHash  string       `json:"source_hash"`
+	SourceFiles []SourceFile `json:"source_files"`
+	ToolVersion string       `json:"tool_version"`
+	// EventSchema is the epoch the migrated record was WRITTEN at — this binary's. SourceEpoch is the
+	// one the source stated, absent when the source predates the field, which is the record a
+	// migration most exists for. The pair is what makes "the migration moved the epoch" a fact a
+	// reader can check instead of an intention: the destination's stored epoch is this field, and the
+	// distance travelled is only legible beside where it started.
+	EventSchema int  `json:"event_schema"`
+	SourceEpoch *int `json:"source_epoch,omitempty"`
+	// SeatTurns is how many per-turn measurements were carried across. Zero is a real answer — a run
+	// whose capture never went has none — and it is a stated zero rather than an absent field, because
+	// a dropped carry and an uncaptured run produce the same empty timing view downstream.
+	SeatTurns  int            `json:"seat_turns"`
+	MigratedAt string         `json:"migrated_at"`
+	In         map[string]int `json:"events_in"`
+	Out        map[string]int `json:"events_out"`
+	Refusals   []Refusal      `json:"refusals,omitempty"`
 	// StatedFills are the values the migration SUPPLIED where the source predates a field and no
 	// value can say "never recorded" in its own terms — an enum has no such word. Each names where
 	// it was written, the slug, the value and why, so the fill is on the record rather than posing
