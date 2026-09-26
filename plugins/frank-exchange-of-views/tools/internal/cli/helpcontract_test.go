@@ -207,19 +207,40 @@ func isSeatRole(s string) bool {
 
 // seatHolding answers which seat can run this verb, by looking for it. It replaces reading the
 // role out of a command PATH, which stopped being possible when the role left the path.
-func seatHolding(verb string) string {
+func seatHolding(path ...string) string {
 	// SEATS FIRST, AND IN A FIXED ORDER. `verify` is a lens verb AND the operator's whole-record
 	// cross-check, and `fetch`/`count-claims` sit in both too — so ranging a map returned whichever
 	// tree came up first and the answer changed between runs. This asks about SEAT verbs, so the
 	// operator's tree is not a candidate at all.
 	for _, role := range []string{"lens", "chair", "blue", "bench"} {
-		for _, c := range NewRootFor(record.SampleSeatOf(role)).Commands() {
-			if c.Name() == verb {
-				return seatFor(role)
-			}
+		if cmdAt(NewRootFor(record.SampleSeatOf(role)), path) != nil {
+			return seatFor(role)
 		}
 	}
 	return ""
+}
+
+// cmdAt resolves a command PATH rather than a top-level name.
+//
+// `motion` is on all four seat trees and `motion inquiry rule` is on the chair's alone — only the
+// gavel-holder gets the verb — so a lookup that stopped at the first word answered "lens" and the
+// caller then invoked a verb that seat cannot name. That reads as the check being absent when it is
+// the fixture that is in the wrong tree.
+func cmdAt(c *cobra.Command, path []string) *cobra.Command {
+	for _, name := range path {
+		var next *cobra.Command
+		for _, sub := range c.Commands() {
+			if sub.Name() == name {
+				next = sub
+				break
+			}
+		}
+		if next == nil {
+			return nil
+		}
+		c = next
+	}
+	return c
 }
 
 func seatFor(role string) string {

@@ -163,7 +163,7 @@ select only the gaps containing this text LITERALLY (case-insensitive) — use t
 
 §25 (on 7 pages):
 Global Flags:
-      --id string        scope the changes projection to one gap — red's required_fix beside the edits answering it. For part of a projection by its TEXT rather than by a gap, report/board/changes take --match (a regex) or --phrase (a literal)
+      --id gap-id        scope the changes projection to one gap — red's required_fix beside the edits answering it. For part of a projection by its TEXT rather than by a gap, report/board/changes take --match (a regex) or --phrase (a literal)
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
       --schema           print the event-schema epoch this binary writes, and exit
@@ -529,7 +529,7 @@ Usage:
 
 Flags:
   -h, --help            help for file
-      --id string       REQUIRED for a docket motion
+      --id gap-id       REQUIRED for a docket motion
       --reason string   → SHARED §15
 
 (Global Flags:) → SHARED §2
@@ -554,7 +554,7 @@ Flags:
       --correction-why string   → SHARED §6
       --corrects string         → SHARED §7
   -h, --help                    help for appeal
-      --id string               the motion id (M1, M2 …) — the motion being appealed, which must already have been ruled
+      --id motion-id            the motion id (M1, M2 …) — the motion being appealed, which must already have been ruled
       --reason string           → SHARED §15
 
 (Global Flags:) → SHARED §2
@@ -578,7 +578,7 @@ Usage:
 Flags:
       --dimension dimension-value   REQUIRED for a grade motion
   -h, --help                        help for file
-      --id string                   REQUIRED for a grade motion
+      --id gap-id                   REQUIRED for a grade motion
       --proposed grade              the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --reason string               → SHARED §15
 
@@ -611,7 +611,7 @@ Flags:
       --correction-why string   → SHARED §6
       --corrects string         → SHARED §7
   -h, --help                    help for appeal
-      --id string               the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number — the motion being appealed, which must already have been ruled
+      --id inquiry-id           the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number — the motion being appealed, which must already have been ruled
       --reason string           → SHARED §15
 
 (Global Flags:) → SHARED §2
@@ -774,7 +774,7 @@ Flags:
       --correction-why string   → SHARED §6
       --corrects string         → SHARED §7
   -h, --help                    help for reproduce
-      --id string               REQUIRED — the sha256 of the recorded proof to re-run
+      --id sha256               REQUIRED — the sha256 of the recorded proof to re-run
       --reason string           → SHARED §15
 
 Enumerated values:
@@ -806,7 +806,7 @@ Available Commands:
 
 Flags:
   -h, --help        help for show
-      --id string   scope the changes projection to one gap — red's required_fix beside the edits answering it. For part of a projection by its TEXT rather than by a gap, report/board/changes take --match (a regex) or --phrase (a literal)
+      --id gap-id   scope the changes projection to one gap — red's required_fix beside the edits answering it. For part of a projection by its TEXT rather than by a gap, report/board/changes take --match (a regex) or --phrase (a literal)
 
 (Global Flags:) → SHARED §2
 

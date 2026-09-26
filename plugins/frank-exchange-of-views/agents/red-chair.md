@@ -143,7 +143,7 @@ select only the gaps containing this text LITERALLY (case-insensitive) — use t
 
 §21 (on 7 pages):
 Global Flags:
-      --id string        scope the changes projection to one gap — red's required_fix beside the edits answering it. For part of a projection by its TEXT rather than by a gap, report/board/changes take --match (a regex) or --phrase (a literal)
+      --id gap-id        scope the changes projection to one gap — red's required_fix beside the edits answering it. For part of a projection by its TEXT rather than by a gap, report/board/changes take --match (a regex) or --phrase (a literal)
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
       --schema           print the event-schema epoch this binary writes, and exit
@@ -462,7 +462,7 @@ Usage:
 
 Flags:
   -h, --help            help for file
-      --id string       REQUIRED for a docket motion
+      --id gap-id       REQUIRED for a docket motion
       --reason string   → SHARED §7
 
 (Global Flags:) → SHARED §8
@@ -487,7 +487,7 @@ Flags:
       --correction-why string   → SHARED §5
       --corrects string         → SHARED §6
   -h, --help                    help for appeal
-      --id string               the motion id (M1, M2 …) — the motion being appealed, which must already have been ruled
+      --id motion-id            the motion id (M1, M2 …) — the motion being appealed, which must already have been ruled
       --reason string           → SHARED §7
 
 (Global Flags:) → SHARED §8
@@ -511,7 +511,7 @@ Usage:
 Flags:
       --dimension dimension-value   REQUIRED for a grade motion
   -h, --help                        help for file
-      --id string                   REQUIRED for a grade motion
+      --id gap-id                   REQUIRED for a grade motion
       --proposed grade              the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --reason string               → SHARED §7
 
@@ -543,7 +543,7 @@ Flags:
       --correction-why string   → SHARED §5
       --corrects string         → SHARED §6
   -h, --help                    help for rule
-      --id string               REQUIRED — the motion id (M1, M2 …)
+      --id motion-id            REQUIRED — the motion id (M1, M2 …)
       --reason string           → SHARED §18
 
 Enumerated values:
@@ -573,7 +573,7 @@ Flags:
       --correction-why string   → SHARED §5
       --corrects string         → SHARED §6
   -h, --help                    help for appeal
-      --id string               the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number — the motion being appealed, which must already have been ruled
+      --id inquiry-id           the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number — the motion being appealed, which must already have been ruled
       --reason string           → SHARED §7
 
 (Global Flags:) → SHARED §8
@@ -597,7 +597,7 @@ Flags:
       --correction-why string               → SHARED §5
       --corrects string                     → SHARED §6
   -h, --help                                help for rule
-      --id string                           REQUIRED — the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number
+      --id inquiry-id                       REQUIRED — the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number
       --reason string                       → SHARED §18
 
 Enumerated values:
@@ -704,7 +704,7 @@ Available Commands:
 
 Flags:
   -h, --help        help for show
-      --id string   scope the changes projection to one gap — red's required_fix beside the edits answering it. For part of a projection by its TEXT rather than by a gap, report/board/changes take --match (a regex) or --phrase (a literal)
+      --id gap-id   scope the changes projection to one gap — red's required_fix beside the edits answering it. For part of a projection by its TEXT rather than by a gap, report/board/changes take --match (a regex) or --phrase (a literal)
 
 (Global Flags:) → SHARED §8
 

@@ -95,6 +95,14 @@ func (v *ShapedValue) Check(runDir string) error {
 	return v.check(runDir, v.val)
 }
 
+// Checked reports whether an existence check is ATTACHED, which is not the same question as
+// whether this type can carry one. Every ShapedValue has the Check method, so a test asking for the
+// METHOD measures "is shaped" and reports a shape-only flag as an unproven reference check —
+// `reproduce --id` takes a sha256 with nothing to resolve it against, and five such flags were
+// reported that way the first time --id was shaped everywhere. The parse half is proven separately
+// (internal/cli/idshape_test.go, internal/flags/idnamespace_test.go) and the two must stay separable.
+func (v *ShapedValue) Checked() bool { return v != nil && v.check != nil }
+
 // WithCheck attaches the existence check. Separate from the constructor so the shape constructors
 // stay usable where only the form matters, and so the call site reads as one statement of what
 // the flag is: `flags.GapID().WithCheck(record.GapExists)`.

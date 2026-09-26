@@ -484,7 +484,7 @@ func viewGroup(inquest bool) *cobra.Command {
 	// refusal written for that case — naming `changes` as the one view --id scopes — was
 	// unreachable, and the message a seat actually got did not say where --id does work. A
 	// carefully argued error nobody can reach is the same as no error at all.
-	c.PersistentFlags().String(flags.ID, "",
+	c.PersistentFlags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID,
 		"scope the changes projection to one gap — red's required_fix beside the edits answering it. For part of a projection by its TEXT rather than by a gap, report/board/changes take --match (a regex) or --phrase (a literal)")
 	for _, v := range views {
 		if v.inquest {
