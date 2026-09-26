@@ -1,0 +1,93 @@
+[
+ {
+  "file": "nature-full.html.gz",
+  "url": "https://doi.org/10.1038/nature11556",
+  "doi": "10.1038/nature11556",
+  "truth": "FULL",
+  "read": "Perspective-type article (dc.type ReviewPaper), free to read. Body in div#SecN-section blocks inside div.main-content."
+ },
+ {
+  "file": "nature-paywalled.html.gz",
+  "url": "https://doi.org/10.1038/nature06964",
+  "doi": "10.1038/nature06964",
+  "truth": "ABSTRACT",
+  "read": "Only div.c-article-section Abstract (~179 words) inside div.c-article-body, then h2#access-options; no div.main-content, no body sections. Non-body prose present: editorial summary (~120 words), supplementary-file description (~60 words), acknowledgements."
+ },
+ {
+  "file": "nature-pre1997-pdf-canonical.html.gz",
+  "url": "https://doi.org/10.1038/353737a0",
+  "doi": "10.1038/353737a0",
+  "truth": "ABSTRACT",
+  "read": "Only div.c-article-section Abstract (~177 words) inside div.c-article-body, then h2#access-options; no div.main-content, no body sections. Non-body prose present: none beyond the abstract. Canonical link points to the .pdf (pre-HTML-era article; no HTML full text exists)."
+ },
+ {
+  "file": "pmc-full.html.gz",
+  "url": "https://doi.org/10.1016/j.jml.2012.11.001",
+  "doi": "10.1016/j.jml.2012.11.001",
+  "truth": "FULL",
+  "read": "Recorded DOI is an Elsevier JML article; cached response is the PMC author manuscript (nihms533954)."
+ },
+ {
+  "file": "pmc-scanned-images-only.html.gz",
+  "url": "https://doi.org/10.1113/jphysiol.1952.sp004764",
+  "doi": "10.1113/jphysiol.1952.sp004764",
+  "truth": "ABSTRACT",
+  "read": "PMC SCANNED-PAGE article (1952): section.scanned-pages shows 'Full text' as ~45 page images (pp. 500–544) + PDF link; there is NO text body and NO abstract text — the only prose is the 'Selected References' list. Verdict enum fits poorly: labelled ABSTRACT because the page is an article page whose text does not contain the body; strictly it is 'no text at all' (body present only as images)."
+ },
+ {
+  "file": "springer-link-paywalled.html.gz",
+  "url": "https://doi.org/10.1023/a:1016212804288",
+  "doi": "10.1023/a:1016212804288",
+  "truth": "ABSTRACT",
+  "read": "Abstract only (~311 words), then access block."
+ },
+ {
+  "file": "springer-link-free-body-only-in-pdf.html.gz",
+  "url": "https://doi.org/10.3758/brm.41.4.1149",
+  "doi": "10.3758/brm.41.4.1149",
+  "truth": "ABSTRACT",
+  "read": "FREE article (meta access=Yes, citation_fulltext_world_readable, JSON-LD isAccessibleForFree=true) with NO HTML full text: abstract (~98 words) then 'Article PDF — Download to read the full article text'. Body exists only as PDF. Every open-access flag says free; the page is still abstract-only."
+ },
+ {
+  "file": "highwire-extract-view.html.gz",
+  "url": "https://doi.org/10.1136/bmj.39489.470347.ad",
+  "doi": "10.1136/bmj.39489.470347.ad",
+  "truth": "ABSTRACT",
+  "read": "Wayback capture (2021-03-05) of a BMJ HighWire page in EXTRACT view: teaser (~33 words), Summary points box (~106 words), opening paragraph(s) (~143 words), then 'View Full Text' link and purchase/login panes. BMJ Analysis pieces have no abstract; the extract is the article's opening ~280 words. Not the body."
+ },
+ {
+  "file": "sciencedirect-oa-abstract-via-wayback.html.gz",
+  "url": "https://doi.org/10.1016/j.ajme.2017.09.001",
+  "doi": "10.1016/j.ajme.2017.09.001",
+  "truth": "ABSTRACT",
+  "read": "Wayback Machine capture (2024-04-13) of a ScienceDirect page for an OPEN-ACCESS (CC-licensed) review. Only the abstract (~168 words, div#abstracts) is in the HTML; no div#body, no section headings. The article is free, yet the captured response has no body — not a paywall case."
+ },
+ {
+  "file": "osti-repository-record.html.gz",
+  "url": "https://doi.org/10.1016/s0168-9002(03)01368-8",
+  "doi": "10.1016/s0168-9002(03)01368-8",
+  "truth": "ABSTRACT",
+  "read": "OSTI.GOV bibliographic record: metadata, abstract (~151 words in div#citation-abstract), citation formats, reference list. Body only via citation_pdf_url (osti purl). A repository record rather than the publisher's article page."
+ },
+ {
+  "file": "bepress-repository-record.html.gz",
+  "url": "https://doi.org/10.1037/0022-006x.51.3.390",
+  "doi": "10.1037/0022-006x.51.3.390",
+  "truth": "ABSTRACT",
+  "read": "Institutional-repository record (bepress Digital Commons, URI): metadata + abstract (~163 words) + 'Link to Full Text' button pointing off-site. No body, no PDF here."
+ },
+ {
+  "file": "choice-login-wall.html.gz",
+  "url": "https://doi.org/10.5860/choice.34-3310",
+  "doi": "10.5860/choice.34-3310",
+  "truth": "OTHER",
+  "read": "Choice Reviews LOGIN page — no review text, no citation_* metadata, no title of the reviewed work. OTHER = login wall / site page."
+ },
+ {
+  "file": "springer-book-landing.html.gz",
+  "url": "https://doi.org/10.1007/978-1-4757-3061-6",
+  "doi": "10.1007/978-1-4757-3061-6",
+  "truth": "OTHER",
+  "read": "Springer Nature Link BOOK landing page (2nd ed.; canonical points to the 3rd-edition ISBN 978-0-387-46312-4 while og:url keeps 978-1-4757-3061-6): 'About this book' blurb (~150 words), TOC of 22 chapters. OTHER = book landing page."
+ }
+]
