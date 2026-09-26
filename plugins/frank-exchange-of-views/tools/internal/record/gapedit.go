@@ -3,6 +3,8 @@ package record
 import (
 	"database/sql"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 )
 
 // A GAP'S LOCATION IS CARRIED THROUGH THE EDITS, not frozen at mint and not merely flagged.
@@ -85,13 +87,25 @@ func CurrentLocation(minted string, edits []GapEdit) string {
 		return loc
 	}
 	for _, e := range edits {
+		// THROUGH THE ANNOTATION LAYER, both sides. A gap's stored location is the sentence as red
+		// quoted it; the edit's span is the sentence as the report holds it, anchor included —
+		// placed there by this gap's own mint. Compared raw, the two stop matching at the moment
+		// the gap exists. internal/record/locatorclass_test.go holds the whole class to this.
+		vLoc, vOld := anchortext.Visible(loc), anchortext.Visible(e.Old)
 		switch {
-		case e.Old == "":
+		case e.Old == "" || vOld == "":
 			continue
-		case strings.Contains(e.Old, loc):
+		case strings.Contains(vOld, vLoc):
 			loc = e.New
-		case strings.Contains(loc, e.Old):
-			loc = strings.Replace(loc, e.Old, e.New, 1)
+		case strings.Contains(vLoc, vOld):
+			// The fragment case keeps the location's shape with the fragment substituted. Try the
+			// raw substitution first so a location that never met an anchor is returned byte for
+			// byte; fall back to the visible form, which is what the seat has to quote anyway.
+			if next := strings.Replace(loc, e.Old, e.New, 1); next != loc {
+				loc = next
+			} else {
+				loc = strings.Replace(vLoc, vOld, anchortext.Visible(e.New), 1)
+			}
 		}
 	}
 	return loc

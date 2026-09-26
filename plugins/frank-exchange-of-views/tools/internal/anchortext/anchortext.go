@@ -76,6 +76,28 @@ func annotationLen(s string, i int) int {
 	return 0
 }
 
+// Visible is a span of report text with the invisible layer removed — the skeleton any comparison
+// of two such spans must run on.
+//
+// IT IS THE SAME REDUCTION LocateSpan MATCHES THROUGH, exported rather than reimplemented. Three
+// other sites compared two quotes of the report on RAW BYTES and each stopped matching the moment a
+// sentence gained an anchor: the `gap_edit` view, CurrentLocation's fold, and EstoppelConflict.
+// Minting PLACES an anchor at the location a gap names, so those comparisons broke on the act that
+// created the thing being compared — and broke silently, because "different spans" is also the
+// honest answer for two unrelated sentences.
+//
+// LocateSpan answers "where in this report is this quote" and must return RAW offsets, so it walks
+// the layer in a streaming pass. This answers "are these two quotes the same text", where offsets
+// are meaningless and a reduced string is the whole answer. One definition of the layer
+// (annotationLen), two questions.
+//
+// IT IS NOT THE RIGHT REDUCTION FOR EVERY READER, and the boundary is the trailing-punctuation trim.
+// Dropping it is right when comparing two quotes of one sentence, because a seat may or may not carry
+// the full stop. It is wrong where the text is matched against a seat's own PATTERN — the view
+// selectors keep their own, narrower reduction for that reason (internal/cli/seat/selector.go), since
+// `--match "negligible[.]"` is a pattern that names the punctuation this would remove.
+func Visible(s string) string { return normalizeQuote(s) }
+
 // normalizeQuote reduces a quote to its matchable skeleton: annotation spans dropped,
 // whitespace runs collapsed to a single space, TRAILING punctuation and whitespace
 // trimmed. Internal punctuation survives as content. Returns "" for an empty/all-

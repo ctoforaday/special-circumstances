@@ -2,6 +2,7 @@ package recordsql
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -19,13 +20,47 @@ import (
 	// suite and none in the shipped binary. Every test passed and the first real `chair register`
 	// failed with `unknown driver "sqlite"`. A blank import is invisible to the compiler's unused
 	// check, which is exactly why the wrong file stayed good enough.
-	_ "modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
+
+// THE ANNOTATION LAYER IS VISIBLE TO SQL, because one view has to compare two quotes of the report.
+//
+// `gap_edit` asks whether an edit's span and a gap's location are the same sentence, and both may
+// carry anchors the other does not — minting places one at the location it names, so the comparison
+// breaks on the act that creates the thing compared. The rule belongs to anchortext, which defines
+// the layer; registering it here means SQL and Go run the SAME reduction rather than two that can
+// drift (internal/record/locatorclass_test.go holds every site in the class to it).
+//
+// THE COST, STATED: a reader that queries `gap_edit` through a driver without this function gets
+// "no such function: visible". Every Go reader has it — RegisterScalarFunction applies to all
+// connections the "sqlite" driver opens afterwards, which is migrate, the tools and the tests. A
+// hand-run `sqlite3` or a python script does not, and must strip the layer itself. CREATE VIEW does
+// NOT resolve functions, so the DDL still applies and the schema golden still generates without it.
+func init() {
+	if err := sqlite3.RegisterScalarFunction("visible", 1, func(_ *sqlite3.FunctionContext, args []driver.Value) (driver.Value, error) {
+		if len(args) != 1 {
+			return nil, fmt.Errorf("visible: want 1 argument, got %d", len(args))
+		}
+		switch v := args[0].(type) {
+		case nil:
+			return nil, nil // NULL in, NULL out: a location a gap never set is not an empty one
+		case string:
+			return anchortext.Visible(v), nil
+		case []byte:
+			return anchortext.Visible(string(v)), nil
+		default:
+			return nil, fmt.Errorf("visible: want TEXT, got %T", args[0])
+		}
+	}); err != nil {
+		panic("recordsql: registering the visible() SQL function: " + err.Error())
+	}
+}
 
 // Open creates or opens a run's database and applies the derived schema to a new one.
 //

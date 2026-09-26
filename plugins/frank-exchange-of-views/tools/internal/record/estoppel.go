@@ -3,6 +3,7 @@ package record
 import (
 	"database/sql"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -70,12 +71,16 @@ func appliedVerbatim(evs []*Event, gaps map[string]*Gap) map[string]string {
 // Containment either way, on whitespace-collapsed text: the new finding may quote a fragment
 // of the prescribed sentence or a span that swallows it whole, and both are the same act.
 func EstoppelConflict(f Family, quote string) (gapID, prescribed string) {
-	q := collapse(quote)
+	// VISIBLE, NOT MERELY COLLAPSED. collapse normalises whitespace and leaves the anchors, and the
+	// two sides of this comparison differ by exactly that: `fix_new` is red's prose, written before
+	// any anchor existed, while `quote` is taken from the report, which anchors the sentence the
+	// moment the fix lands. On raw bytes this check goes blind at the instant it becomes relevant.
+	q := anchortext.Visible(quote)
 	if len(q) == 0 {
 		return "", ""
 	}
 	for id, fixNew := range appliedVerbatim(f.Events, GapsByID(f.Gaps)) {
-		p := collapse(fixNew)
+		p := anchortext.Visible(fixNew)
 		if len(p) < minEstoppelOverlap && len(q) < minEstoppelOverlap {
 			continue
 		}
