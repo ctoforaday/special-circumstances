@@ -106,8 +106,7 @@ cannot point at, either go and produce it or delete the sentence.
   explicitly with your role's log act, saying what it ASSERTS and naming the thing and the
   shape the work actually wanted, for each missing capability or tool, or TEMPLATE/PROTOCOL
   MISFIT (a section that made no sense for the topic, a field with nothing honest to put in
-  it, content with no home). When nothing blocked you, say so in the POSITIVE — an entry that says
-  nothing is still an entry, and silence cannot say it. Across eighteen recorded seat sittings the log went unwritten every single time
+  it, content with no home). WHERE NOTHING BLOCKED YOU, FILE NOTHING: clean is derived from having sat and filed nothing, so an entry asserting it has no word to use and must borrow one that means something else. The log is the channel for the exceptions, and an empty log beside a sitting's recorded acts is the clean reading rather than an absent one. Across eighteen recorded seat sittings the log went unwritten every single time
   — including one seat that worked out, in its own reasoning, that a verb it needed did not
   exist, and then guessed instead of saying so. YOU MUST NOT silently degrade or force the
   material to fit.

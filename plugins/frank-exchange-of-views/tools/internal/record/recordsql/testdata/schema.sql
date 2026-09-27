@@ -111,7 +111,7 @@ INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('dispatch', 
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('finding', 'something red found, graded but not yet minted as a gap', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('halt', 'the bench ending the run on a safety, ethics, consent or integrity boundary', 'prose');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('inquiry_review', 'a review of the lines of inquiry themselves, rather than of a finding', 'full');
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('log', 'an entry addressed to the operator who can retool the seat: a defect, a request, an impediment, or a nominal sitting', 'full');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('log', 'an entry addressed to the operator who can retool the seat: a defect, a request or an impediment — never a clean sitting, which is derived from having sat and filed nothing', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('manifest_row', 'one row of the run''s manifest, tying a gap to what shipped for it', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('mint', 'a gap put on the board — the act that creates the entity every other act refers to', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('motion', 'a motion filed: a grade contested, a petition to the bench, or a direction proposed', 'none');

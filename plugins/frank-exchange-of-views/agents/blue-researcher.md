@@ -184,8 +184,7 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
   explicitly with your role's log act, saying what it ASSERTS and naming the thing and the
   shape the work actually wanted, for each missing capability or tool, or TEMPLATE/PROTOCOL
   MISFIT (a section that made no sense for the topic, a field with nothing honest to put in
-  it, content with no home). When nothing blocked you, say so in the POSITIVE — an entry that says
-  nothing is still an entry, and silence cannot say it. Across eighteen recorded seat sittings the log went unwritten every single time
+  it, content with no home). WHERE NOTHING BLOCKED YOU, FILE NOTHING: clean is derived from having sat and filed nothing, so an entry asserting it has no word to use and must borrow one that means something else. The log is the channel for the exceptions, and an empty log beside a sitting's recorded acts is the clean reading rather than an absent one. Across eighteen recorded seat sittings the log went unwritten every single time
   — including one seat that worked out, in its own reasoning, that a verb it needed did not
   exist, and then guessed instead of saying so. YOU MUST NOT silently degrade or force the
   material to fit.
@@ -226,7 +225,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - The synthesizer is the blue seat that merges the lane drafts into the report by union and writes the report's authored surfaces.
   - The engine is the workflow script that dispatches the seats the record says are ready and reads the envelopes they return.
   - The operator is the person running the research, and the seat id their own commands run under.
-  - The log is the entries a seat files for the operator with the `log` verb — a missing capability, a defect in the tooling, an impediment or a nominal sitting — and none of it is debate material.
+  - The log is the entries a seat files for the operator with the `log` verb — a missing capability, a defect in the tooling, or an impediment, never a clean sitting, which is derived from having sat and filed nothing — and none of it is debate material.
   - Friction is one type of log entry: the work was impeded and the seat is noting it.
   - A missing capability is an act a seat needed that no surface offers, and it goes in the log, never on the board.
   - A citation is a source attached to a sentence of the report with the cite verb, hashed and dated so it can be checked again.

@@ -254,8 +254,9 @@ func Read(sf Surface, run record.Run, seatID string) (*Choices, error) {
 		}
 		c.Used[verb]++
 		// THE BODY IS THE TYPE, so asking for a Friction body asks the same question
-		// `e.Type == "friction"` did. The clean case is no longer a different MESSAGE — it is a
-		// `nominal` entry on the same one — so it lands here too and the type distinguishes it.
+		// `e.Type == "friction"` did. The clean case is no longer a different MESSAGE and is no
+		// longer an entry at all: `nominal` was retired and clean is derived from having sat and
+		// filed nothing, so what lands here is exactly the exceptions, distinguished by type.
 		// `text` is the field the schema gives the seat's own sentence; `reason` was the payload
 		// key that carried it.
 		if f, ok := recordpb.BodyAs[*recordpb.Log](e); ok && live[e] {

@@ -153,7 +153,14 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 	// Measured across eight runs: 48% of wakeups recorded nothing and still cost as much as the
 	// productive ones — 46% of every command in the run.
 	if !seatDidThisSitting(evs, seatID, recordpb.EventType_EVENT_TYPE_LOG) && !sittingRecordedNothing(evs, seatID) {
-		add("the log is open — you have neither reported a missing capability nor said that nothing blocked you")
+		// THE ITEM NAMES ONLY WHAT CAN BE FILED. It used to end "nor said that nothing blocked you",
+		// which no type can say: `nominal` was retired when clean became DERIVED from having sat and
+		// filed nothing (LogType's own comment carries the measurement — 40 of 40 and 42 of 42 entries
+		// were nominal and carried nothing to act on). A seat reads this list as its duties, so the
+		// half it could not discharge got filed under a word that means something else: 8 of 28 entries
+		// in universe-m12 and 6 of 35 in m11 assert that nothing was wrong, six of them as `friction`
+		// and one as `defect` — in the one field the operator triages the channel by.
+		add("the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry")
 	}
 
 	// EVERY DISPATCHED SEAT OWES THE SITTING IT WAS DISPATCHED FOR, and this list says so by the

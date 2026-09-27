@@ -1865,10 +1865,10 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 				redEpochs++
 			}
 		}
-		// ONE ARM NOW, AND IT STILL COUNTS THE ATTESTED EMPTY CASE. The clean sitting used to be a
-		// second event type appended separately; it is a `nominal` ENTRY on the same list, so a
-		// seat that files one has used the channel exactly as the duty asks and needs no special
-		// collection to be seen doing it.
+		// ONE ARM NOW, AND THE EMPTY CASE IS NOT IN IT. The clean sitting used to be a second event
+		// type appended separately, then a `nominal` entry on this list; `nominal` is retired and
+		// clean is derived from having sat and filed nothing, so this list holds the exceptions and
+		// a sitting absent from it is the clean reading rather than an unused channel.
 		fj := record.LogJSONOf(fam.Events)
 		onRecord = append(onRecord, fj.Log...)
 	}

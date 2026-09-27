@@ -1388,10 +1388,12 @@ func findingsViewEventTypes() []recordpb.EventType {
 // toward the record as the single reader.
 //
 // ONE LIST, TYPED — not two. The clean case used to be its own array because it was its own event
-// type; it is now an entry with `type: nominal`, so a reader FILTERS rather than picking a list.
-// The property that split them survives: a nominal entry is an EVENT, so "four seats said they
-// looked" is still distinguishable from "the channel went unused", which is what silence could
-// never say and what an empty list alone still cannot.
+// type, and then an entry with `type: nominal`; `nominal` is retired and clean is DERIVED from
+// having sat and filed nothing, so a reader FILTERS this list for the exceptions.
+// WHAT THE RETIREMENT GAVE UP, stated rather than lost: "four seats said they looked" is no longer
+// distinguishable from "the channel went unused" by this list alone. It is answerable from the
+// sittings the harness brackets, which is where having sat is recorded — and the entries that used
+// to carry it were measured worthless, 40 of 40 in one run and 42 of 42 in another (LogType).
 type LogJSON struct {
 	Log    []LogEntryJSON `json:"log"`
 	Counts struct {
