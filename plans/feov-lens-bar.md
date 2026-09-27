@@ -156,7 +156,7 @@ S1–S4 are classified line by line in III.1; S5 in III.5.
   (`:339`, read inside the chair's sitting at `sitting.go:122-125` and by `RequireChairSittingOpened`, where it asks
   exactly whether the chair's CURRENT sitting has been opened); and `DispatchStands` (`:399`, the chair's
   `dispatch next`, which asks only whether anyone registered since the latest rows).
-- **Default cast** is four areas: `record/cast.go:15` and `debate.js:563`. Concurrency is capped at about 2 (#788).
+- **Default cast** is four areas: `record/cast.go:15` and `debate.js:563`. Concurrency is capped at about 2 (#788). [Corrected 2026-09-27: that is the Workflow tool's un-overridden default of `CPUs − 2`; `scripts/universe.sh` sets `CLAUDE_CODE_WORKFLOW_MAX_CONCURRENT_AGENTS=16` for every run it launches, so the seven-lens cast sits in one wave.]
   computation, adversary and architecture were never seated in any archived run [R §1].
 - **Report voice:**
   - The rules: `agents/blue-researcher.md:184`, `blue-synthesizer.md:109`, `red-lens-voice.md:11-17`,
