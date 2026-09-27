@@ -1,9 +1,19 @@
 # The rig — one work item per dispatch
 
-> STATUS 2026-09-26: proposed — a research document and a direction, not an implementation plan.
-> Written against `d4fea590`. It asks for one ruling (§I, "The question") before any step in §III
-> is started. Every number in §II is from the run it names, and the ones marked *single run* have
-> not been reproduced; §V.0 is the measurement that has to come first.
+> STATUS 2026-09-27: proposed — a research document and a direction, not an implementation plan.
+> Landed on `main` as #1185; audited and corrected against `b0ff6679` the day after (the audit's
+> findings are listed at the end of this banner). It asks for one ruling (§I, "The question")
+> before any step in §III is started. Every number in §II is from the run it names, and the ones
+> marked *single run* have not been reproduced; §V.0 is the measurement that has to come first,
+> and its item 4 has now been run (§II.4).
+>
+> Audit 2026-09-27, seven defects, all corrected in place: the wall-clock estimate mixed a haiku
+> per-turn rate with opus turn counts and put the bookends at half their measured length; the
+> dispatch read was described as seat-less when its verb writes dispatch rows and #1192 registers
+> a writer; §III.5 described a flat "re-read the full report" order that 19a4ddef had already
+> scoped; §III.6 still said "concurrency 2 on this box" after §II.4 was corrected; the cap row
+> predated #1192; every `debate.js` line reference was off by one after #1185's own edits; and
+> two m11 measurements cited a box-local note when commits 0b3715e7 and 2fe606cb carry them.
 
 ## I. Summary & Goals
 
@@ -25,7 +35,9 @@ owns everything between one decision and the next.
 unit, and a sitting is a long, self-directed context.
 
 - Orientation dominates: 34 of 38 calls in one lens sitting were orientation for 4 adjudications
-  (§II.2). Seats re-read the whole report in 13 of 13 empty sittings.
+  (§II.3). Before 19a4ddef scoped the re-read, seats re-read the whole report in 13 of 13 empty
+  sittings; after it, on m11, 12 sittings handed their gaps read the board anyway and 6 looked a
+  gap up by id while holding it (commit 0b3715e7).
 - Context, not output, is the bill: 237M cache-read tokens against 0.24M output in one keeper
   run; a warm resume cut turns by 30% and cost by 6%, because the conversation it re-read grew
   every sitting (§II.3).
@@ -39,8 +51,11 @@ unit, and a sitting is a long, self-directed context.
 
 **The question this document asks the human to rule on.** Is the debate engine a swarm of agents
 that use a record, or a rig that drives a record and calls an agent at each point where judgment
-is needed? The tree has been answering "rig" one mechanism at a time since #500. Saying it out
-loud changes what the next ten changes are, and it changes what the Workflow script is *for*.
+is needed? The tree has been answering "rig" one mechanism at a time since #500, and it has now
+used the word: commit 0b3715e7, "Speech is questioned; the rig is not", rules that the envelope
+the harness delivers is the instrument reporting its own state and the contents it carries are
+another party's words. Saying it out loud changes what the next ten changes are, and it changes
+what the Workflow script is *for*.
 
 ### Goals
 
@@ -62,11 +77,11 @@ loud changes what the next ten changes are, and it changes what the Workflow scr
 
 ## II. Technical Context — what the tree does today, measured
 
-### II.1 The engine (`debate.js`, 1147 lines)
+### II.1 The engine (`debate.js`, 1148 lines at `b0ff6679`)
 
 The script calls `agent()` and `parallel()` only; `pipeline()` is stubbed in the goja harness and
 unused. The bookends are fixed: frontier (1 agent), lanes (N in parallel), synthesis (1),
-terminal bench (0–1), assemble (1). The debate is `while (!halted)` at line 985, one **epoch**
+terminal bench (0–1), assemble (1). The debate is `while (!halted)` at line 986, one **epoch**
 per iteration, in fixed order:
 
 1. The chair sits (judgment tier). It runs `dispatch next` and relays the JSON as `plan`.
@@ -75,7 +90,7 @@ per iteration, in fixed order:
 
 Three structural facts follow from the script's own comments.
 
-- **The script reads nothing.** "debate.js reads no record" (lines 49–51, 134–135, 367–368).
+- **The script reads nothing.** "debate.js reads no record" (lines 49–51, 135, 367).
   Every fact the engine acts on is a seat's envelope relay: the chair's `plan`, `verdict` and
   `unruled_motions`; blue's `claim_count`, `found_closed`, `manifest`; the bench's
   `dispositions` and `holdings`. The Workflow tool has no side-effect primitive, so a
@@ -85,7 +100,7 @@ Three structural facts follow from the script's own comments.
   The `for … of blues` loop runs at most once because `engage()` groups every gap by seat — a
   plan holds at most one blue party and one bench party, and that party carries all its gaps.
 - **JS memory holds facts the record should.** `holdingsInEffect`, `rulingsInEffect`,
-  `reliefInEffect`, `friction`, `petitionLog` (lines 673–783) are interpolated into later
+  `reliefInEffect`, `friction`, `petitionLog` (lines 674–784) are interpolated into later
   prompts and are lost on a throw unless the agent cache replays. Relief is described as
   "operative this sitting" and only ever grows.
 
@@ -102,7 +117,7 @@ prompt grants the petition right.
 | Identity and run | `feov-pretooluse` rewrites every Bash command with `FEOV_RUN`, `FEOV_AGENT_ID`; `seatenv` refuses a disagreeing `--run` or `--seat-id` | the seat never types either |
 | The work list | `feov-subagentstart` → `sittingwrite.injectWorkList`, delivered as `additionalContext` | measured to land in the seat's own context three times (#500, #507, 2026-09-25) |
 | May I stop | `standing.go`: the blocking items and `complete` ride every successful write | 4–5 KB list, ~1.2k tokens, too heavy to attach to every act |
-| The hard stop | `sittingcap`, default 150 calls; the hook refuses past it and lets only `register` through | the only thing that forces a return |
+| The hard stop | `sittingcap`, default 150 calls, counted from the seat's `register`; the hook refuses past it and lets only `register` through. Since #1192 a write by an unregistered agent registers it (`seat.requireBound`), so a sitting that writes is capped by construction; a sitting that writes nothing has no header and nothing to cap (`sittingcap.go:14–25`) | the only thing that forces a return |
 | The surface | `agentgen` inlines the tool's `manual` into every constitution: ~10.7k generated words per lens on 0.5–0.7k hand-written; blue-researcher 11.1k on 3.0k | exists because fetching help cost 171 calls, 10% of a 69-seat run |
 
 What is still the seat's: everything inside the sitting. The nearest prior statement of
@@ -118,14 +133,16 @@ projection's own bytes (`worklist.go:23–28`). §IV.2 takes that argument to wh
 | Turns per lens sitting, opus | ≈49–56 (two runs agree in magnitude) | `research/2026-08-23_*/cost.md` |
 | Turns per blue-respond sitting | 71–136 | same |
 | Median sitting, 2026-09-20 | 35 turns, 20 calls; head+tail 5%, turn-to-turn 95% | `cost.go:494` |
-| One lens sitting, m11 epoch 3 | 38 calls, 75 turns, **4 adjudications; 34 calls orientation** | m11 investigation, box-local scratch note `:21` |
+| One lens sitting, m11 epoch 3 | 38 calls, 75 turns, **4 adjudications; 34 calls orientation** | m11 investigation (box-local note; the run is `universe-m11`, haiku on both tiers, 1 lane, k-max 2, mint budget 1) |
 | Chair read:write | ≈26:7 | same, `:97` |
 | Cache read vs output, one keeper run | 237.48M read, 16.44M write, **0.24M output** | `cost.md:26` |
 | Mean context per turn | ≈85k (lens), ≈180k (blue); peaks 294k, 256k | run-record-audit `:38,:44` |
 | Warm vs cold, 8 matched pairs (#861) | −30% turns, −47% cache write, −36% time, **−6% cost**: run-level cache read +44% | #861 (eight matched pairs; arm B aborted) |
 | Turn time decomposition, one run | 43% thinking, **41% round-trip tail** (1,780 small turns), 11% generation, 5% stalls; absolute latencies contaminated by a co-tenant | #684 F11/F14 |
 | Empty sittings | 48% across eight runs, median 131.9 s each; 13/42 on 2026-09-22, all 13 re-read the whole report | `cost.go:468`; commit 19a4ddef |
-| Board read despite holding gaps | 12 sittings; 6 re-fetched a gap they held | m11 investigation, box-local scratch note (PR #1178 lineage) |
+| Board read despite holding gaps | 42 board reads; 12 sittings handed gaps read the board anyway; 6 re-fetched a gap by id while holding it | commit 0b3715e7 (m11) |
+| Proofs re-run by hand | 12 `reproduce` calls cost 7 hand runs of the script, 22 proof-file reads, 14 filesystem hunts | commit 2fe606cb (m11) |
+| m11 sitting durations, from its 47 seat transcripts (this audit) | lens 114 s median, n=26, max 231; chair 107 s, n=9, growing 53→171 s across epochs; blue 124 s, n=5; bench 163 s, n=2; synthesis 191 s. Summed 88 min; wall 55.7 min | `universe-m11` transcripts, `subagents/workflows/wf_e9af9482…` |
 | Work list delivered to blue-researcher | 0 of 8 sittings (its agent type seats three seats) | `worklist.go`, `agentrole.go:35` |
 
 Two things the numbers say together. **The seat pays for its context, not its work**: output
@@ -142,13 +159,15 @@ calls, and half of all sittings had nothing to do and read the whole report to l
   called it.
 - **Concurrency defaults to `min(16, CPUs − 2)` per workflow and is overridable.** On this
   4-core box the default is 2, which is what the 2026-08-23 programme ran at (29 seats strictly
-  sequential) and what #753 and `debate.js:630` repeat as settled. `scripts/universe.sh` sets
-  `CLAUDE_CODE_WORKFLOW_MAX_CONCURRENT_AGENTS` (default 16) for every run it launches, so m10,
-  m11 and the smoke ran with the whole lens batch in one wave; the trajectory catalogue shows 8
-  subagents acting in the same minute on this box. The box is idle during a run — the time is
-  remote model time — so the cap is not the constraint on wall clock. **The epoch chain is**:
-  chair → lens wave → blue → bench is serial by construction, and m11's 56 min over 9 epochs is
-  about 6 min per epoch however wide the lens wave is.
+  sequential), what #753 repeats as settled, and what the `DEFAULT_AREAS` comment repeated until #1185. `scripts/universe.sh` sets
+  `CLAUDE_CODE_WORKFLOW_MAX_CONCURRENT_AGENTS` (default 16) for every run it launches, and
+  m11's own transcripts show it: 7 seats concurrent at peak, the whole lens batch in one wave.
+  The box is idle during a run — the time is remote model time — so the cap is not the
+  constraint on wall clock. **The epoch chain is**, and §V.0 item 4 has measured it: summing
+  the chair, the longest lens, blue and the bench per epoch gives 45.8 of the 48.9 min m11
+  spent after its 6.7 min of bookends — **94% of the run is the serial chain**, and the lens
+  wave's width changes none of it. The remaining 6% is the gaps between one seat returning and
+  the next being spawned.
 - Lifetime cap 1000 agents per workflow; no filesystem; no `Date.now()`; resume replays the
   longest unchanged prefix of `(prompt, opts)` from cache. A prompt that interpolates a
   volatile brief misses on resume; a prompt keyed on an item id and a record sequence hits.
@@ -189,7 +208,7 @@ engine dispatches one `Item` at a time**, and `Item` gains what a dispatch needs
 | `budget` | calls allowed for this item | the cap becomes per item, small, and refusable |
 
 The `kind` census above is derived from the duties the constitutions and prompts already hold
-(§II.2, debate.js lines 946–980): it adds no duty. What it removes is the seat's freedom to
+(§II.2, debate.js lines 948–980): it adds no duty. What it removes is the seat's freedom to
 choose which of them to do next. Each kind maps to a verb set; a `respond` item may `edit`,
 `motion grade file`, and `manifest`; an `adjudicate` item may `regrade`, `close`, `retire`; an
 `audit-area` item may `mint` within its budget and `petition`. The record refuses the rest, as
@@ -210,11 +229,13 @@ sitting per epoch. Two changes remove the epoch and most of the cost:
    board — red audits the record as if it were a claim, and the engine holds its seats to the same standard; it uses it only to decide that the item's
    pipeline may advance. The lens and lane envelopes are the two that are strings today, and the
    petitions and friction they lose are the cost of that.
-2. **The dispatch read is its own dispatch, at the cheapest tier, with a schema.** Its only act
-   is to run `dispatch next` and return the plan as the validated object. It has no duties, no
-   constitution and no judgment; it is the engine asking the record a question through the only
-   channel the Workflow tool has. The chair keeps its judgment — the PASS/FAIL verdict, rulings,
-   closings, the spot-check — and each of those becomes an item of its own kind.
+2. **The dispatch read is a chair item of one kind, at the cheapest tier, with a schema.** Its
+   only act is to run `dispatch next` and return the plan as the validated object. It is not
+   seat-less: that verb records dispatch rows, it sits on the chair's surface, and since #1192
+   any write registers its agent — so it sits under the chair's agent type, with a constitution
+   generated for that one verb (§III.3) and no judgment asked of it. It is the engine asking the
+   record a question through the only channel the Workflow tool has. The chair's judgment — the
+   PASS/FAIL verdict, rulings, closings, the spot-check — becomes items of their own kinds.
 
 With both, the loop is: read the ready items → dispatch each as it becomes ready (`pipeline`,
 not `parallel`) → on each receipt, re-read. The epoch, `max_epochs`, and the no-progress valve
@@ -244,7 +265,11 @@ Two `respond` items on gaps that anchor to the same section will run concurrentl
 cannot happen because blue sits alone. The rule that makes it safe is one the record already
 half-holds: **a write names the `as_of` it was computed against, and the record refuses a write
 whose subject moved since** — the anchored text was edited, the gap was regraded, the motion was
-ruled. The refusal names what moved and the engine re-dispatches the item with a fresh brief.
+ruled. The half it holds today is by content: an anchor that is no longer in the report is
+refused as "a stale reference or belongs to another run" (`anchor/window.go:93`). The half it
+lacks is by sequence: `events.id` is the record's append-only order (`recordsql`), and `as_of`
+is the highest id the brief was rendered from. The refusal names what moved and the engine
+re-dispatches the item with a fresh brief.
 This is the pushed-projection objection of `tool-is-the-contract` §IX answered structurally:
 a delivered brief is allowed to be stale precisely because staleness is refused at the write
 rather than discovered at the read. It is also the concurrency-namespace lesson of
@@ -254,11 +279,14 @@ be one the record can see.
 ### III.5 What the seat stops being told
 
 The seat prompt shrinks to the kind, the subject, the brief, and the return schema. "Read
-`sitting.last_sitting` first and branch on its kind", "pull your working set in one pass",
-"re-read the FULL report" — the instructions that exist to orient a self-directed sitting — go,
-because the brief is the orientation. The measured contradiction between `critical-stance`'s
-"re-read the full report" and the work item's "audit what moved" (m11) dissolves for every kind
-but `audit-area`, where the full read is the item.
+`sitting.last_sitting` first and branch on its kind" and "pull your working set in one pass" —
+the instructions that exist to orient a self-directed sitting — go, because the brief is the
+orientation. The flat "re-read the FULL report" order already left with 19a4ddef, which scoped
+the re-read by the last sitting's kind; what remained was the seats' distrust of the list
+itself, which 0b3715e7 ruled on: the envelope is the rig and is not questioned, the contents
+are speech and are. A brief inherits that ruling exactly — its `kind`, `subject`, `as_of` and
+`budget` are the instrument's, and the gap text it carries is another lens's words, verified at
+the leaf as before. `audit-area` keeps the full read, because there the full read is the item.
 
 ### III.6 The vehicle — Workflow first, a Go driver only on a condition
 
@@ -266,9 +294,9 @@ Four vehicles were considered; the order is a recommendation, not a survey.
 
 1. **Workflow, restructured** (§III.1–III.5). Everything above fits inside it: `pipeline` over
    items, schema'd envelopes, the cheap dispatch read, `SubagentStart` delivering the brief.
-   Cost: one small model call per engine tick; concurrency 2 on this box; resume via the agent
-   cache keyed on `(kind, subject, as_of)`. **Recommended first**, because every step is a
-   diff to files that exist and the release surface does not move.
+   Cost: one small model call per engine tick; resume via the agent cache keyed on
+   `(kind, subject, as_of)`. **Recommended first**, because every step is a diff to files that
+   exist and the release surface does not move.
 2. **A Go driver over `claude -p` per item** (`feov-record run`). Reads SQLite directly, needs
    no dispatch-read call, schedules on the record, resumes from the record (better than the
    agent cache: what is done is what the record says is done), and its concurrency is bounded
@@ -279,8 +307,8 @@ Four vehicles were considered; the order is a recommendation, not a survey.
    with plugins loaded; `--bare` is not usable on the subscription. The CLAUDE.md warning that a
    harness must not stand in for the engine was earned by a *test* rig; a driver that IS the
    engine does not dodge it but must re-earn every hook fact on the new event surface.
-   **Condition to take it:** §V.0 shows the dispatch-read overhead or the concurrency cap is the
-   binding constraint on a box where more than 2 seats can actually run.
+   **Condition to take it:** §V.0 shows the dispatch-read overhead is the binding constraint,
+   or the subscription's rate limit is reached below the width the items could use.
 3. **The Agent SDK** (TypeScript or Python): in-process hooks, structured output, `canUseTool`.
    Refused by the repository's rule that committed tooling is Go; there is no Go SDK. Noted so
    the refusal is on the record, not so it can be reopened silently.
@@ -331,18 +359,23 @@ for free; §V.0 counts it (defects found outside any item, per run) so the loss 
 
 The item count roughly triples — an m11-scale run of 47 sittings becomes ≈120 dispatches: ≈19
 area audits, ≈48 gap items, ≈10 chair items, 6 bookends, ≈40 dispatch reads — and each item is
-shorter. A model, not a measurement (the per-kind turn counts are guesses §V.0 replaces): an
-area audit ≈25 turns, a response ≈10, an adjudication ≈6, a read ≈10 s, a per-dispatch floor of
-≈15 s for spawn plus two turns, 3.4–6.6 s per turn. Summed, ≈105 min against today's ≈100 min
-of summed sitting time.
+shorter. The baseline is m11 as measured from its transcripts (§II.3): haiku on both tiers,
+88 min of summed sitting time, 55.7 min of wall clock, of which 6.7 min is the bookends and
+45.8 min is the serial chain. The per-kind figures are a model §V.0 replaces: an area audit is a
+whole lens sitting (114 s median); a response, an adjudication or a ruling on one subject
+≈40–60 s at haiku (8–12 turns on a context a third the size); a read ≈10 s; a per-dispatch
+floor ≈15 s. Summed, ≈90–100 min against today's 88.
 
 Wall clock is max(summed ÷ concurrency, the longest serial chain). At 16 wide the sum is not the
-bound; the chain is: frontier → lanes → synthesis (≈10 min) + the longest gap's lifecycle
-(mint → respond → adjudicate → respond → adjudicate → close, ≈5–6 min with a read between each)
-+ verdict and assemble (≈3 min) ≈ **18–20 min**, against m11's measured 56 min, which is
-9 epochs of a serial chair → lens → blue → bench. That ≈3× is the epoch leaving, not the items
-getting faster; the 41% round-trip tail is per turn and unchanged. At the un-overridden default
-of 2 the sum binds instead and the rig is no faster than today.
+bound; the chain is: the bookends, unchanged (6.7 min; they shorten only if audits may start on
+lane drafts before synthesis, which the rig permits and today's script does not) + the longest
+gap's lifecycle (mint inside an area audit ≈2 min → respond → adjudicate → respond →
+adjudicate → close, ≈4 items × ≈50 s with a read between each, ≈6 min) + verdict and assemble
+(≈3 min) ≈ **16–18 min at haiku, against the measured 55.7**. That ≈3× is the epoch leaving,
+not the items getting faster; the 41% round-trip tail is per turn and unchanged. Every figure
+here is at haiku's ≈3.4 s per turn; a sonnet or opus tier lengthens both columns by the same
+factor, so the ratio is the claim and the minutes are not. At the un-overridden default of 2
+the sum binds instead and the rig is no faster than today.
 
 Two costs inside that estimate. **The dispatch read is a design variable**: one read per receipt
 spends a slot and ≈10 s of chain per item; the estimate assumes one read per tick with every
@@ -372,9 +405,11 @@ Instrument the current engine, no design change, on one dev run and one smoke:
    without building them.
 3. Discovery baseline: gaps minted per `audit` sitting per area, and defects found outside any
    engaged gap.
-4. From m11's record: achieved concurrency per epoch, and the critical chain — the sum of the
-   chair, the longest lens, blue and bench per epoch — against the run's wall clock. If the
-   chain is not most of the 56 min, §IV.5's estimate is wrong.
+4. **Done 2026-09-27**, from m11's 47 seat transcripts: peak concurrency 7; the chain — chair +
+   longest lens + blue + bench per epoch — is 45.8 of the 48.9 min after the bookends. §IV.5
+   stands on it. Method: per seat transcript under the workflow's directory, the first and last
+   record timestamps are the sitting's span and the seat prompt's opening words name the role;
+   chair starts delimit epochs; the chain is summed inside each. *Re-arms on any new run.*
 
 The decision rule: if orientation is under a third of calls, or the modelled per-kind context is
 not under half the sitting's mean, the cost case fails and only §III.2 (the schema'd envelopes
