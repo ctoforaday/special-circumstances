@@ -22,7 +22,7 @@ export const meta = {
 //   throws rather than guess a tier or inherit the session model: a silently expensive (or silently
 //   cheap) tier was the #111 trap. sonnet for development; --smoke sets BOTH to haiku. NEVER change
 //   `model` OR `judgmentModel` on a resume — they change agent() opts, bust the cache keys, and
-//   re-run completed rounds at full price.
+//   re-run completed sittings at full price.
 //   Per-role split (efficiency doctrine: cheapen redundancy and mechanics, never judgment or
 //   the adversary): `model` drives the BULK seats (frontier, blue lanes, red lenses, blue
 //   responses); `judgmentModel` drives the JUDGMENT seats (blue-synthesize, red-chair,
@@ -40,13 +40,13 @@ export const meta = {
 //   at its first seat rather than at capture. An operator who accepts the environment's
 //   substitution says so once, at `setup`, and the run proceeds with it on the record.
 // TERMINATION IS JUDGED, AND THE STANDING PRACTICE IS STOP-AND-RESUME (run-4 report §1.4-1.5):
-//   the demonstrated ~$0 terminator is the operator stopping the run and resuming with a
-//   reduced maxRounds — cache replay skips every completed agent; only the honest UNVERIFIED
-//   assembly runs live. maxRounds is a COST CEILING, never the terminator of record; the
-//   automatic severity-floor stop was REJECTED by the run-4 debate (it automates the one call
-//   that belongs to judgment). The per-round board-telemetry line (below) is the signal the
-//   stopping judgment reads. NEVER change model/judgmentModel on that resume.
-// The lead is a script: mechanics, round-keeping, termination. All file writes
+//   the operator stops the run and resumes it — Workflow({scriptPath, resumeFromRunId}) with the
+//   SAME args — and the agent cache replays every completed sitting at ~$0; only what had not run
+//   runs live. The run's bounds are its TERMS in inputs/run-config.json (k-max, mint-budget,
+//   max-epochs), never a count passed here; the automatic severity-floor stop was REJECTED by the
+//   run-4 debate (it automates the one call that belongs to judgment). NEVER change
+//   model/judgmentModel on that resume.
+// The lead is a script: mechanics, dispatch, termination. All file writes
 // belong to the agents (the filesystem is the blackboard; the script has no
 // filesystem access by design). Judgment calls go to lead-judge, never round-to-round.
 // Defensive arg handling: args may arrive JSON-encoded (resume path); a stringified
@@ -305,10 +305,9 @@ const MASS = { trivial: 0.5, low: 1, 'low_medium': 1.5, medium: 2, 'medium_high'
 // END GENERATED MASS
 const gapMass = (g) => (MASS[g.likelihood] ?? 0) * (MASS[g.impact] ?? 0)
 
-// Grade-dispute channel constants (run-4 report §3.3, clauses (v) and (vii)):
-// per-round dispute cap with overflow batch-docketed as ONE judge item, and the
-// script-computed cumulative accepted-delta magnitude (in mapping units) that
-// batch-dockets accepted deflation/inflation for judge review before it stands.
+// Grade-dispute channel (run-4 report §3.3, clauses (v) and (vii)): the dimensions a grade
+// motion may dispute. The per-round dispute cap and the cumulative accepted-delta threshold that
+// once sat here left with the round (plans/roundless.md); a dispute is docketed per gap now.
 
 const DISPUTE_DIMENSION = { type: 'string', enum: ['severity', 'likelihood', 'impact', 'complexity'] }
 
@@ -453,7 +452,7 @@ const BLUE_ENVELOPE = {
     // contest path against red's grades. Record-integrity insurance; zero expected savings.
     // #62 Stage 2: this is a ROUTING REF, not the content — the argument (evidence) is emitted
     // as a `dispute` event on the record; the envelope carries only what the sandboxed
-    // orchestrator needs to route the docket (proposed drives the accepted-delta arithmetic).
+    // orchestrator needs to route the docket.
     grade_motions: {
       type: 'array',
       items: {
@@ -626,8 +625,10 @@ const LENS_DISPATCH = {
 for (const area of RED_AREAS) if (!LENS_DISPATCH[`red-lens-${area}`]) throw new Error(`debate: lens area ${area} is declared and has no dispatch row — LENS_DISPATCH must name its agent type`)
 for (const [seat, row] of Object.entries(LENS_DISPATCH)) if (!RED_AREAS.includes(row.area)) throw new Error(`debate: LENS_DISPATCH seats ${seat} for area ${row.area}, which RED_AREAS does not declare`)
 
-// The areas a run dispatches. EVERY AREA SITS BY DEFAULT; the first sitting is seven lens sittings,
-// four waves against a concurrency cap measured at about two concurrent agents. A lens that finds nothing retires within two sittings (the record's
+// The areas a run dispatches. EVERY AREA SITS BY DEFAULT; the first sitting is seven lens sittings
+// in one wave. The Workflow tool's concurrency defaults to min(16, CPUs-2) — two on a four-core box,
+// which #753 measured as four waves — and CLAUDE_CODE_WORKFLOW_MAX_CONCURRENT_AGENTS raises it;
+// scripts/universe.sh sets 16 for every run it launches. A lens that finds nothing retires within two sittings (the record's
 // retirement fold), so seating an area costs at most that; an operator narrows the cast only with a
 // reason. record.DefaultCastAreas says the same, and the cast setup writes is read from it.
 const DEFAULT_AREAS = RED_AREAS.slice()
