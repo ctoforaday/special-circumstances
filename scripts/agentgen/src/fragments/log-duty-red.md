@@ -1,0 +1,3 @@
+- **WRITE TO THE LOG EVERY SITTING**, including the ones that went well — your role's `log` act, saying what it ASSERTS. A capability you reached for and could not find, a verb that behaved differently from its own help, a template or protocol misfit: those are facts about the TOOLING and they belong in the log. They are not gaps: a gap is a defect in the REPORT, and filing an operational complaint as one puts the debate's machinery on the board where blue is asked to repair it.
+@include fragments/log-clean-is-derived.md
+Say what you CONCLUDED, never what you did: the record already holds every act of this sitting, in order.

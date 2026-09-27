@@ -2787,7 +2787,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			if !roleHasGroup(role, group) {
 				continue // this role does not carry the group this view lives under
 			}
-			drivenView[v] = true
+			markViewDriven(v)
 			args := []string{group, v, "--run", runDir, "--seat-id", sid}
 			if v == "changes" && len(ids) > 0 {
 				args = append(args, "--id", ids[0])
@@ -3756,7 +3756,26 @@ func roleHasGroup(role, group string) bool {
 // skip is how this oracle's own comment says coverage gaps are born: "a view ships, nobody adds it
 // to the list, and the sweep reports full coverage of a surface it never drove." So a view that NO
 // role drove fails the sweep rather than passing quietly.
-var drivenView = map[string]bool{}
+//
+// IT IS WRITTEN FROM EVERY WORKER, so it is guarded. The sweep runs FUZZ_C runs at once and each
+// one drives every view its roles carry, which made this the one piece of cross-run state on a hot
+// path — and an unguarded map written by twelve goroutines is not a flake, it is a crash the
+// runtime takes when it happens to notice: `fatal error: concurrent map writes`, killing the gate
+// mid-sweep after 400 seconds with no failing assertion to read. Reproduce with
+// `FEOV_RELEASE_GATE=1 FUZZ_N=6 FUZZ_C=6 go test -race -run TestFuzzDebate ./releasegate/fuzz/`.
+//
+// The READ is after wg.Wait, so only the writes ever contended.
+var (
+	drivenViewMu sync.Mutex
+	drivenView   = map[string]bool{}
+)
+
+// markViewDriven records that some role drove this projection.
+func markViewDriven(v string) {
+	drivenViewMu.Lock()
+	drivenView[v] = true
+	drivenViewMu.Unlock()
+}
 
 // surfaceQuorum is the run count at or above which the coverage gates can hold the sweep to the
 // FULL surface. Below it a low-frequency path can flake to zero and fail an honest run.
