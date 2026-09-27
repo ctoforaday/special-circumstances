@@ -89,7 +89,7 @@ Three structural facts follow from the script's own comments.
   prompts and are lost on a throw unless the agent cache replays. Relief is described as
   "operative this sitting" and only ever grows.
 
-Two defects found while mapping, filed here so they are not lost: lens envelopes are
+Two defects found while mapping, filed as #1190 and #1191: lens envelopes are
 unschematized strings, so `takeFriction` and `hearPetitions` read `undefined` and a lens's
 petitions never reach the engine; and `JUDGE_ENVELOPE` has no `petitions` field while the bench
 prompt grants the petition right.
