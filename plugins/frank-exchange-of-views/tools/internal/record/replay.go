@@ -469,6 +469,38 @@ func ExistingMintByKey(run Run, seatID, key string) (string, error) {
 	return id, nil
 }
 
+// ExistingProposalByText gives `line-of-inquiry propose` the same crash-retry idempotency mint has,
+// and it needs no key because the LINE IS THE IDENTITY of a line of inquiry.
+//
+// MEASURED, and it cost a run's ledger: on universe-m12 a blue seat's propose script ran, wrote five
+// lines, and returned NO OUTPUT AT ALL to the seat. Seeing nothing, it ran the identical script
+// again — the only reasonable act — and five more ids were minted for five byte-identical
+// hypotheses. The run then held ten lines of inquiry for five questions, blue moved all ten to
+// pursued, and a lens filed a defect about the method count being redundant. Nothing refused any of
+// it, because the idempotency key is `<seat>:<verb>:#<ordinal>` and a repeat is BY DESIGN a new act.
+//
+// WHY BOTH FIELDS. `--reason` is required and `--hypothesis` is not, so the line alone would collapse
+// two proposals that share required prose and differ in the claim being tested. Both matching is the
+// retry; either differing is a new line.
+//
+// SCOPED TO THE SEAT, like mint's key. Two lanes converging on the same line independently is a
+// different question — a real duplicate in the ledger, but not a retry, and not one a seat can be
+// refused for without telling it what the other lane did.
+func ExistingProposalByText(run Run, seatID, line, hypothesis string) (string, error) {
+	if line == "" {
+		return "", nil
+	}
+	var id string
+	if _, err := queryRow(run, []any{&id},
+		`SELECT a."avenue_id" FROM "avenue" a JOIN "events" e ON e."id" = a."event_id"
+		  WHERE e."seat_id" = ? AND a."line" = ? AND COALESCE(a."hypothesis", '') = ?
+		    AND a."status" = 'proposed'
+		  ORDER BY a."event_id" LIMIT 1`, seatID, line, hypothesis); err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
 // ---- class registry ----
 
 // registryClass is one staged registry row. MaterialDefault is a pointer so an absent field is

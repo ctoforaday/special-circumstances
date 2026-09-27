@@ -70,6 +70,23 @@ func newInquiryPropose() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
+		why, err := seat.Reason(cmd)
+		if err != nil {
+			return nil, err
+		}
+		// CRASH-RETRY IDEMPOTENCY, before an id is minted. A seat whose call returned nothing retries
+		// it, and without this the retry is a second line of inquiry saying the same thing — ten for
+		// five on universe-m12. A CORRECTION is exempt: it re-states an act on purpose, and
+		// proposalID gives it the corrected line's own id.
+		if corrects, cerr := s.CorrectionTarget(); cerr == nil && corrects == nil {
+			prior, err := record.ExistingProposalByText(run, s.SeatID, why, seat.Str(cmd, flags.Hypothesis))
+			if err != nil {
+				return nil, err
+			}
+			if prior != "" {
+				return inquiryResult{ID: prior, Status: "proposed", Line: why, Idempotent: true}, nil
+			}
+		}
 		id, err := proposalID(s, run)
 		if err != nil {
 			return nil, err
@@ -84,10 +101,6 @@ func newInquiryPropose() *cobra.Command {
 		// A fresh proposal with no stated fate is `proposed` — the state the old shape could
 		// not express, which forced blue to declare a fate before it had one. It is set on the
 		// body above, where the enum makes it a value rather than a spelling.
-		why, err := seat.Reason(cmd)
-		if err != nil {
-			return nil, err
-		}
 		// The record keeps its own word: the payload key is `line`, the flag is --reason.
 		// Flag words are not payload keys (see internal/flags).
 		//
@@ -193,6 +206,9 @@ type inquiryResult struct {
 	Status string `json:"status"`
 	Line   string `json:"line,omitempty"`
 	Moved  bool   `json:"moved,omitempty"`
+	// Idempotent says this call recorded NOTHING and returned the line it already had — a retry of a
+	// propose whose first attempt the seat never saw the answer to.
+	Idempotent bool `json:"idempotent,omitempty"`
 	// VoiceTells is ADVICE, and the act is already recorded by the time it renders. A line of
 	// inquiry is composed into report.md, which is written for a reader of the SUBJECT; this names
 	// where the text sounds like the run talking about itself. It refuses nothing — a pattern cannot
@@ -202,6 +218,9 @@ type inquiryResult struct {
 
 func (r inquiryResult) Human() string {
 	head := "line of inquiry " + r.ID + " recorded (" + r.Status + "): " + r.Line
+	if r.Idempotent {
+		head = "line of inquiry " + r.ID + " already records this line (idempotent retry — nothing written)"
+	}
 	if r.Moved {
 		head = "line of inquiry " + r.ID + " moved to " + r.Status
 	}
