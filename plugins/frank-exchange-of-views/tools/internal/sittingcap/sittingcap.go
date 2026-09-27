@@ -13,6 +13,17 @@
 // that is the main session of a headless `claude -p` process never fires SubagentStart at all.
 // Every sitting under either engine begins with a register.
 //
+// WHAT MAKES THAT LAST SENTENCE TRUE IS A GATE, NOT A CONVENTION, and it is worth naming here
+// because this package's whole window depends on it. seat.requireBound refuses a write by an agent
+// with no register, and where the surface's register carries nothing but the binding it performs one
+// silently rather than refusing. So a sitting that WRITES has a header by construction.
+//
+// A sitting that writes NOTHING has none, and that is correct rather than a gap: the free sitting
+// (#1089) is a woken seat with nothing owed running no commands at all, and there is nothing to
+// limit. The premise held by accident until universe-m12, where a bracket-bound lens ran three
+// sittings and 125 turns unregistered — so uncapped, and Count's silence on a missing header reads
+// the same as an operator's.
+//
 // # Why a file and not the record
 //
 // The hook runs as a fresh process once per tool call and may not link the record (its import

@@ -216,6 +216,11 @@ func (c Context) Identity() record.Identity {
 // would be demanding a mechanism their environment does not have. The check is therefore keyed on
 // the handle's PRESENCE, and its absence falls back to the flag exactly as before.
 //
+// AND WHERE THE TOOL CAN ESTABLISH THE BINDING ITSELF, IT DOES, INSTEAD OF REFUSING — see
+// autoRegisters. The refusal was asking most seats to state a fact the tool already held, and the
+// register it asked for is also what arms the per-sitting call cap, so an agent allowed to write
+// without one ran uncapped.
+//
 // COBRA ANSWERS --help WITHOUT REACHING RunE, so reading a surface is structurally exempt and needs
 // no arm here: an unregistered seat can still discover what it is about to register for.
 func requireBound(cmd *cobra.Command, s Context) error {
@@ -223,12 +228,18 @@ func requireBound(cmd *cobra.Command, s Context) error {
 	if agent == "" || cmd == nil || cmd.Name() == "register" {
 		return nil
 	}
-	bound, found, err := record.SeatOfAgent(s.handle(), agent)
+	// THE STRICT LOOKUP, not SeatOfAgent: the harness bracket answers who a seat IS, and that is a
+	// read. What gates a write is whether a REGISTER exists, because a register opens the sitting the
+	// per-call cap counts in. Accepting the bracket here made a bracket-bound seat uncapped.
+	bound, found, err := record.RegisteredSeatOfAgent(s.handle(), agent)
 	if err != nil {
 		return err
 	}
 	if found && bound != "" {
 		return nil
+	}
+	if autoRegisters(cmd) {
+		return autoRegister(cmd, s)
 	}
 	return feov.Errorf(feov.Validation,
 		"`register` is your first act and it has not happened: nothing on the record binds this agent to a seat, "+
@@ -236,6 +247,55 @@ func requireBound(cmd *cobra.Command, s Context) error {
 			"call after it resolves your seat from that binding instead of trusting the flag. This is the ONE call that "+
 			"needs you to type your seat id.",
 		s.SeatID, s.SeatID)
+}
+
+// autoRegisters says whether this surface's `register` can be performed FOR the seat, and it asks
+// the surface rather than a list of roles — the fact lives once, where the difference is declared.
+//
+// A register carries the binding, and on two surfaces it carries one thing more, as a flag:
+//
+//	bench   --occasion        which of its four questions this sitting answers. Only its prompt knows.
+//	blue    --repair-sitting  that this sitting completes the last one's record. Only the seat knows.
+//
+// Neither can be supplied by anything but the seat, so neither can be silent. Every other surface's
+// register is the binding and nothing else, which is a fact the tool already holds — so the seat
+// spends a call telling the tool what the tool knows, and that call is what this removes.
+//
+// DERIVED, NEVER LISTED. A future flag on some surface's register means new information only the
+// seat has, and the honest default for that is to stop registering it silently — which happens by
+// itself here, with no second roster to keep in step.
+func autoRegisters(cmd *cobra.Command) bool {
+	for _, c := range cmd.Root().Commands() {
+		if c.Name() != "register" {
+			continue
+		}
+		bespoke := false
+		c.LocalFlags().VisitAll(func(f *pflag.Flag) {
+			if f.Name != "help" {
+				bespoke = true
+			}
+		})
+		return !bespoke
+	}
+	return false
+}
+
+// autoRegister registers this agent as the seat it says it is, silently, on its first act.
+//
+// SILENT IS THE POINT. The seat is not told, because there is nothing for it to decide: the
+// alternative was a refusal telling it to run a command whose whole content is a fact the tool
+// already had. Measured on universe-m11 and m12: 17 of one run's calls were registers, and 8 of 9
+// sittings with nothing owed registered anyway — the tool's answer rather than the seat's.
+//
+// IT MUST DO EVERYTHING THE VERB DOES, which is why it calls the same handler rather than only the
+// record write. The sitting's tool-call cap is armed BY register (sittingcap keys on its header), so
+// a silent register that skipped that would buy back the call and lose the cap — the exact hole this
+// change closes.
+func autoRegister(cmd *cobra.Command, s Context) error {
+	if _, err := register(s, cmd); err != nil {
+		return fmt.Errorf("registering %s for its first act: %w", s.SeatID, err)
+	}
+	return nil
 }
 
 // BoundSeat resolves this process's agent handle to the seat it registered as, against a run.
