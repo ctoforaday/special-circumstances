@@ -77,54 +77,19 @@ flowchart TB
 - **citations_checked** is the board's `counts.citations` (a tally of `cite` events), not a
   self-report (#70/#71 — the citation half of this same migration).
 
-## The bibliography core — fetch → cache → cite → weave (#256, 0.28.0)
+## The bibliography core — fetch → cache → cite → weave
 
-Citations are tool-managed end to end: blue never hand-types a footnote. A source is fetched
-**once** to a hash-addressed cache both sides read; `blue cite` splices an invisible immortal
-`<!--cite:c-…-->` anchor at the cited sentence; assembly resolves those anchors into a visible
-bibliography in EACH DOCUMENT OF THE REPORT SET that carries them — a footnote definition cannot
-cross a file boundary, so the layer is woven per file, never globally and split afterwards. The
-set of `cite` events is a strict **bijection** with the anchors in the document — the lockdown
-forbids removing one by a raw edit — so the record shows exactly what the report cites.
+Citations are tool-managed end to end, and the whole path — fetch, the run cache, `cite`, red's
+checks, and assembly into notes and a Bibliography — has its own page, with the known faults of each
+step: **[citations-and-bibliography.md](citations-and-bibliography.md)**. What this flow depends on:
 
-```mermaid
-flowchart TB
-  subgraph blue["blue synthesis / response seat"]
-    BC["blue cite --quote --url --title (+ --ocr-quote: the span from an OCR reading, located to its PDF page)"]
-  end
-  subgraph cache["run source cache (content-addressed)"]
-    CF["&lt;run&gt;/cache/&lt;sha256&gt;<br/>(download-once; index: url→sha)"]
-  end
-  subgraph record["THE RECORD"]
-    CEV["cite events<br/>(label c-&lt;hex&gt;, url, sha256, title, access_date)"]
-  end
-  RPT["blue/report.md<br/>invisible &lt;!--cite:c-…--&gt; anchor at the sentence"]
-  RED["red lens / chair<br/>fetch --url &lt;cited url&gt; (cache HIT = blue's exact bytes)"]
-  ASM["assembly (the report set)<br/>weave anchor → [^N] + a note per source and PDF page, then ## Bibliography with one line per URL, PER DOCUMENT"]
-  DET["scorecard unbacked_citations<br/>(cite labels ⊄ report anchors)"]
-  LOCK["blue edit lockdown<br/>(rejects an edit dropping/splitting a &lt;!--cite:--&gt; anchor)"]
-
-  BC -->|fetch once| CF
-  BC -->|emit| CEV
-  BC -->|splice invisible anchor| RPT
-  CF -->|same bytes| RED
-  RPT -->|immortal| LOCK
-  CEV --> ASM
-  RPT --> ASM
-  CEV --> DET
-  RPT --> DET
-```
-
-Invariants this encodes:
-- **`fetch` replaces WebFetch for every seat** — a cached, hash-verified read; a second fetch of a URL
-  is a cache hit, so red audits the exact bytes blue cited, never a page that drifted since.
-- **A citation is an invisible immortal anchor**, spliced by the same `lens.InsertAnchor` machinery as a
-  finding marker — but RESOLVED at assembly (finding markers are stripped).
-- **cite events ⟺ `<!--cite:-->` anchors is a strict bijection** — the blue-edit lockdown's guard is
-  class-swept to the finding∪citation union, so no raw edit can drop a citation; `unbacked_citations`
-  flags any divergence (a hand-typed footnote, a tampered anchor).
-- **The claim unit is the cite anchor** — `count-claims` counts a sentence carrying a `<!--cite:-->`
-  anchor; the hand-typed `[^label]` footnote is retired. Nothing counts the assembled report.
+- **A citation is a record event, and its marker is an insert op.** `cite` records the event and a
+  marker insertion at the quoted sentence; the report is its frozen base plus the replayed ops, so
+  there is no file to splice and no torn-splice window.
+- **cite events ⟺ `<!--cite:-->` anchors is a strict bijection.** `blue edit` refuses a span that
+  drops or splits an anchor of either class, and `unbacked_citations` flags any divergence.
+- **The claim unit is the cite anchor** — `count-claims` counts a sentence carrying one; nothing
+  counts the assembled report.
 
 ## Out of scope (separate concepts)
 
