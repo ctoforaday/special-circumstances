@@ -22,7 +22,7 @@ export const meta = {
 //   throws rather than guess a tier or inherit the session model: a silently expensive (or silently
 //   cheap) tier was the #111 trap. sonnet for development; --smoke sets BOTH to haiku. NEVER change
 //   `model` OR `judgmentModel` on a resume — they change agent() opts, bust the cache keys, and
-//   re-run completed rounds at full price.
+//   re-run completed sittings at full price.
 //   Per-role split (efficiency doctrine: cheapen redundancy and mechanics, never judgment or
 //   the adversary): `model` drives the BULK seats (frontier, blue lanes, red lenses, blue
 //   responses); `judgmentModel` drives the JUDGMENT seats (blue-synthesize, red-chair,
@@ -46,7 +46,7 @@ export const meta = {
 //   max-epochs), never a count passed here; the automatic severity-floor stop was REJECTED by the
 //   run-4 debate (it automates the one call that belongs to judgment). NEVER change
 //   model/judgmentModel on that resume.
-// The lead is a script: mechanics, round-keeping, termination. All file writes
+// The lead is a script: mechanics, dispatch, termination. All file writes
 // belong to the agents (the filesystem is the blackboard; the script has no
 // filesystem access by design). Judgment calls go to lead-judge, never round-to-round.
 // Defensive arg handling: args may arrive JSON-encoded (resume path); a stringified
