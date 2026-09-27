@@ -145,6 +145,16 @@ Write the questions so the answers can be weighed:
 - **The model can confabulate a coherent reason.** Two agents giving the same account independently
   is stronger than one; asking the same questions of a control session (one that behaved
   correctly) separates the cause from the rationalisation.
+- **A QUESTION THAT MISQUOTES THE INSTRUCTIONS MANUFACTURES ITS OWN FINDING, and two independent
+  agents will both agree with it.** Every question naming an instruction is a claim about what the
+  agent was told, so it is checked against the copy THAT AGENT RAN WITH — the installed, versioned
+  text — never the copy in the interviewer's own context, which is loaded from a different version
+  and may say the opposite. Measured: an interviewer asserted a duty its own cached copy of a skill
+  carried and the installed one had removed; both the subject and the control agreed it had failed
+  that duty, and each volunteered an account of why. The agreement of two sessions is the strength
+  this skill relies on everywhere else, and a false premise buys it just as cheaply as a true one.
+  AFTER any interview, YOU MUST re-read every instruction a question quoted, from the installed
+  surface, and discard the answers to any question whose premise does not survive.
 - **"WHAT WOULD HAVE HELPED" IS THE LEAST RELIABLE ANSWER IN THE INTERVIEW, and it is the one you
   most want to act on.** An agent asked what it lacked will describe, fluently and in the right
   shape, something it was already holding. Measured across two agents of one run: one complained it

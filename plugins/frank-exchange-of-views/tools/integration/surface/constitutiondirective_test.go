@@ -201,20 +201,28 @@ func TestEveryConstitutionStatesTheLogDutyAndNoneRestatesTheVerb(t *testing.T) {
 		// What counts as a report beyond a missing verb. This is a JUDGEMENT about the work,
 		// which is why it is constitutional rather than in the verb's help.
 		"TEMPLATE/PROTOCOL MISFIT",
-		// And the clean case owes an account, not silence — stated in the POSITIVE.
-		//
-		// THE PHRASE MOVED, and the old one is why. It used to read "say what you reached for and
-		// found", which is the wording seats took as a heading for a survey of every verb they
-		// read and rejected: 45.5% of one run's channel, with zero fix proposals anywhere in it.
-		// The clean sitting is now an ENTRY that asserts a nominal type, not an inventory.
-		"say so in the POSITIVE",
+		// AND THE CLEAN CASE FILES NOTHING, which is the opposite of what this gate used to
+		// require. It demanded "say so in the POSITIVE" — an ENTRY asserting the sitting was
+		// clean — and that entry's type was `nominal`, retired when clean became DERIVED from
+		// having sat and filed nothing (LogType's comment carries the measurement). The gate
+		// therefore held a duty alive whose vocabulary had been deleted, and a seat obeying it had
+		// to borrow a word meaning something else: 8 of 28 entries in universe-m12 and 6 of 35 in
+		// m11 assert nothing was wrong, six as `friction` and one as `defect`, in the one field the
+		// operator triages by. Both chair sittings said so in elicitation — one filed a `request`
+		// naming the missing type, the other used `friction` and then called it an error.
+		"clean is derived from having sat and filed nothing",
 	}
 	// What the log verb's help states, on every page, at the moment a seat reaches the channel. A
 	// constitution restating it is the fifth copy of a sentence that needs one.
+	//
+	// AND THE RETIRED DUTY, so it cannot come back by someone restoring a sentence that reads
+	// reasonable: an entry asserting a clean sitting has no type to assert it with.
 	banned := []string{
 		"Silence is not the empty case",
 		"not your mistake, it is the finding",
 		"An absent log reads identically",
+		"say so in the POSITIVE",
+		"an entry that says nothing is still an entry",
 	}
 	paths, err := repotree.Constitutions()
 	if err != nil {

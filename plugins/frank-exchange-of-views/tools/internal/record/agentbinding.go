@@ -31,11 +31,7 @@ func SeatOfAgent(run Run, agentID string) (string, bool, error) {
 	if agentID == "" {
 		return "", false, nil
 	}
-	// event_id is the record's own order, so the last match is the latest register.
-	var seat string
-	found, err := queryRow(run, []any{&seat},
-		`SELECT e."seat_id" FROM "register" r JOIN "events" e ON e."id" = r."event_id"
-		  WHERE r."agent_id" = ? ORDER BY r."event_id" DESC LIMIT 1`, agentID)
+	seat, found, err := RegisteredSeatOfAgent(run, agentID)
 	if err != nil {
 		return "", false, err
 	}
@@ -62,6 +58,32 @@ func SeatOfAgent(run Run, agentID string) (string, bool, error) {
 		return "", false, err
 	}
 	return seatID, true, nil
+}
+
+// RegisteredSeatOfAgent is the STRICT half: only a register event answers it, never the harness
+// bracket.
+//
+// THE TWO QUESTIONS ARE DIFFERENT AND ONE OF THEM GATES A WRITE. "Which seat is this agent" is
+// answered as generously as the record allows, because naming a seat after the fact is better than
+// reporting none — that is SeatOfAgent, and capture wants it. "May this agent write" is a narrower
+// question, because a register event does something a bracket cannot: it opens the sitting the
+// per-call cap counts in (sittingcap keys on the register header). An agent bound only by a bracket
+// that is allowed to write is therefore an UNCAPPED sitting — measured on universe-m12, where one
+// lens ran three sittings and 125 turns with no counter file at all, and the only party that
+// noticed was `verify`, reporting a failed invariant on a run the engine called VERIFIED.
+func RegisteredSeatOfAgent(run Run, agentID string) (string, bool, error) {
+	if agentID == "" {
+		return "", false, nil
+	}
+	// event_id is the record's own order, so the last match is the latest register.
+	var seat string
+	found, err := queryRow(run, []any{&seat},
+		`SELECT e."seat_id" FROM "register" r JOIN "events" e ON e."id" = r."event_id"
+		  WHERE r."agent_id" = ? ORDER BY r."event_id" DESC LIMIT 1`, agentID)
+	if err != nil || !found {
+		return "", false, err
+	}
+	return seat, true, nil
 }
 
 // SittingsOf is how many sittings a seat has opened — its own registers AND the harness brackets

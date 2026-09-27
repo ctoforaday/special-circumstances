@@ -7917,7 +7917,7 @@ const file_record_proto_rawDesc = "" +
 	"\x1bCORRECTION_TIER_UNSPECIFIED\x10\x00\x12\xb1\x01\n" +
 	"\x14CORRECTION_TIER_NONE\x10\x01\x1a\x96\x01\x8a\xb5\x18\x91\x01not correctable: the act creates an identity, decides a fate no restatement may move, or is written by the tool or the harness rather than a seat\x12\x9c\x01\n" +
 	"\x15CORRECTION_TIER_PROSE\x10\x02\x1a\x80\x01\x8a\xb5\x18|only the seat's own wording may change — the fields that declare (prose); every other field must equal the corrected act's\x12Y\n" +
-	"\x14CORRECTION_TIER_FULL\x10\x03\x1a?\x8a\xb5\x18;every field may change except the label the act is keyed on*\x81#\n" +
+	"\x14CORRECTION_TIER_FULL\x10\x03\x1a?\x8a\xb5\x18;every field may change except the label the act is keyed on*\xbd#\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12{\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1ab\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\xb8\xb5\x18\x01\x12i\n" +
@@ -7931,8 +7931,8 @@ const file_record_proto_rawDesc = "" +
 	"\x12EVENT_TYPE_CLOSING\x10\t\x1aN\x8a\xb5\x18Fa seat's closing statement on a gap: the argument, not the disposition\xb8\xb5\x18\x03\x12e\n" +
 	"\x12EVENT_TYPE_DECLARE\x10\n" +
 	"\x1aM\x8a\xb5\x18Ethe bench stating a holding that later sittings are expected to apply\xb8\xb5\x18\x02\x12W\n" +
-	"\x12EVENT_TYPE_FINDING\x10\v\x1a?\x8a\xb5\x187something red found, graded but not yet minted as a gap\xb8\xb5\x18\x01\x12\x90\x01\n" +
-	"\x0eEVENT_TYPE_LOG\x10\f\x1a|\x8a\xb5\x18tan entry addressed to the operator who can retool the seat: a defect, a request, an impediment, or a nominal sitting\xb8\xb5\x18\x03\x12h\n" +
+	"\x12EVENT_TYPE_FINDING\x10\v\x1a?\x8a\xb5\x187something red found, graded but not yet minted as a gap\xb8\xb5\x18\x01\x12\xcc\x01\n" +
+	"\x0eEVENT_TYPE_LOG\x10\f\x1a\xb7\x01\x8a\xb5\x18\xae\x01an entry addressed to the operator who can retool the seat: a defect, a request or an impediment — never a clean sitting, which is derived from having sat and filed nothing\xb8\xb5\x18\x03\x12h\n" +
 	"\x0fEVENT_TYPE_HALT\x10\x0e\x1aS\x8a\xb5\x18Kthe bench ending the run on a safety, ethics, consent or integrity boundary\xb8\xb5\x18\x02\x12f\n" +
 	"\x17EVENT_TYPE_MANIFEST_ROW\x10\x0f\x1aI\x8a\xb5\x18Aone row of the run's manifest, tying a gap to what shipped for it\xb8\xb5\x18\x03\x12q\n" +
 	"\x0fEVENT_TYPE_MINT\x10\x10\x1a\\\x8a\xb5\x18Ta gap put on the board — the act that creates the entity every other act refers to\xb8\xb5\x18\x01\x12r\n" +

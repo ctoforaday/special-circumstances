@@ -37,20 +37,45 @@ func TestTheBindingGuardCoversWritesAndNotReads(t *testing.T) {
 			"register into, and a first act that fails is a worse teacher than one that answers.", err)
 	}
 
-	// A WRITE is not, and the refusal names the one remedy.
+	// A WRITE NEEDS THE BINDING, and where the tool can establish it alone it DOES, rather than
+	// refusing. The split is not which seat but which SURFACE: a register that carries nothing but
+	// the binding is performed silently on the seat's first act, and one that carries something only
+	// the seat knows is still the seat's call. See TestAnAgentActingFirstIsRegisteredForIt.
 	for _, w := range []struct {
 		seat string
-		argv []string
+		// refused is true where this surface's register carries more than the binding — blue's
+		// --repair-sitting, the bench's --occasion — so nothing can supply it but the seat.
+		refused bool
+		argv    []string
 	}{
-		{"red-chair", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "c",
+		// EVERY VERB HERE MUST EXIST ON THAT SEAT'S SURFACE, and checking it is not pedantry: a
+		// wrong-surface refusal PRINTS THE WHOLE SURFACE, and that listing contains the word
+		// `register` — so a test asserting "the refusal names the remedy" passes on a command menu.
+		// Two of these rows were `mint` on the chair (it is the lens's) and `friction` on a lens (no
+		// such verb), and both read as the binding guard firing for three years' worth of runs.
+		{"red-chair", false, []string{"log", "--type", "defect", "--reason", "acting before any binding"}},
+		{"red-lens-evidence", false, []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "c",
 			"--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
-		{"red-lens-evidence", []string{"friction", "--reason", "the tool has no path for X"}},
-		{"blue-respond", []string{"revision", "--reason", "round record"}},
+		{"blue-respond", true, []string{"revision", "--reason", "round record"}},
 	} {
+		// ONE AGENT PER ROW, because an agent is ONE seat. These rows shared a handle, which was
+		// invisible while every write was refused: now the first row's silent register binds that
+		// handle, and the next row's --seat-id legitimately disagrees with it. A real run never
+		// shares one — 36 sittings of universe-m12 carried 36 distinct agent ids.
+		t.Setenv(seatenv.AgentVar, "agent_unbound_"+w.seat)
 		argv := append(append([]string{}, w.argv...), "--run", runDir, "--seat-id", w.seat)
 		_, err := run(t, argv...)
+		if !w.refused {
+			if err != nil {
+				t.Errorf("%s: %q was refused though its register carries nothing but the binding: %v\n\n"+
+					"The tool holds every fact that register would have recorded, so the refusal spent a "+
+					"call asking the seat to state what the tool already knew.", w.seat, w.argv[0], err)
+			}
+			continue
+		}
 		if err == nil {
-			t.Errorf("%s wrote %q with no binding on the record — the seat id was taken on trust", w.seat, w.argv[0])
+			t.Errorf("%s wrote %q with no binding on the record, and its register carries something only "+
+				"the seat knows — so registering it silently would have had to invent that", w.seat, w.argv[0])
 			continue
 		}
 		if !strings.Contains(err.Error(), "register") {

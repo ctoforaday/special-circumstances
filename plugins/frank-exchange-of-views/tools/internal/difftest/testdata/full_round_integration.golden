@@ -76,7 +76,7 @@ exit 0
 stdout:
 finding recorded: evidence-F1 — the run-unique label a gap's found_by names (id FINDING001)
 1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
 
 $ register --run {RUN} --seat-id red-lens-logic
 exit 0
@@ -95,7 +95,7 @@ exit 0
 stdout:
 finding recorded: logic-F1 — the run-unique label a gap's found_by names (id FINDING001)
 1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
 
 $ register --run {RUN} --seat-id red-chair
 exit 0
@@ -117,14 +117,14 @@ minted G1
   acceptance check RECORDED as: refetch and diff
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
 
 $ position --run {RUN} --seat-id red-chair --reason round one: FAIL
 exit 0
 stdout:
 position recorded [key red-chair:position:#1]
 3 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
-  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
   · gap G1 is open and material — PASS is refused while it is
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
@@ -133,7 +133,7 @@ exit 0
 stdout:
 verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}
 2 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
-  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
   · gap G1 is open and material — PASS is refused while it is
 
 ═══ EVENTS ═══

@@ -247,7 +247,7 @@ enum EventType {
   EVENT_TYPE_CLOSING = 9 [(correct) = CORRECTION_TIER_FULL, (means) = "a seat's closing statement on a gap: the argument, not the disposition"];
   EVENT_TYPE_DECLARE = 10 [(correct) = CORRECTION_TIER_PROSE, (means) = "the bench stating a holding that later sittings are expected to apply"];
   EVENT_TYPE_FINDING = 11 [(correct) = CORRECTION_TIER_NONE, (means) = "something red found, graded but not yet minted as a gap"];
-  EVENT_TYPE_LOG = 12 [(correct) = CORRECTION_TIER_FULL, (means) = "an entry addressed to the operator who can retool the seat: a defect, a request, an impediment, or a nominal sitting"];
+  EVENT_TYPE_LOG = 12 [(correct) = CORRECTION_TIER_FULL, (means) = "an entry addressed to the operator who can retool the seat: a defect, a request or an impediment — never a clean sitting, which is derived from having sat and filed nothing"];
   EVENT_TYPE_HALT = 14 [(correct) = CORRECTION_TIER_PROSE, (means) = "the bench ending the run on a safety, ethics, consent or integrity boundary"];
   EVENT_TYPE_MANIFEST_ROW = 15 [(correct) = CORRECTION_TIER_FULL, (means) = "one row of the run's manifest, tying a gap to what shipped for it"];
   EVENT_TYPE_MINT = 16 [(correct) = CORRECTION_TIER_NONE, (means) = "a gap put on the board — the act that creates the entity every other act refers to"];

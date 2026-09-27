@@ -33,7 +33,7 @@ exit 0
 stdout:
 position recorded [key red-chair:position:#1]
 2 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
-  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 $ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --reason quotes " ' `backtick` $(subshell) ${var}
@@ -48,7 +48,7 @@ minted G1
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
 
 $ finding --run {RUN} --seat-id red-lens-logic --key F1 --severity low --likelihood low --impact low --quote ## S2 --reason quotes " ' `backtick` $(subshell) ${var}
 newline	tab
@@ -60,7 +60,7 @@ exit 0
 stdout:
 finding recorded: logic-F1 — the run-unique label a gap's found_by names (id FINDING001)
 1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}

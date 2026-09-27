@@ -28,7 +28,7 @@ exit 0
 stdout:
 position recorded [key red-chair:position:#1]
 2 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
-  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 $ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem docketed
@@ -38,14 +38,14 @@ minted G1
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
 
 $ closing --run {RUN} --seat-id red-chair --id G1 --reason red's closing
 exit 0
 stdout:
 closing filed for G1 [key red-chair:closing:#1:G1]
 3 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
-  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
   · gap G1 is open and material — PASS is refused while it is
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
@@ -54,7 +54,7 @@ exit 0
 stdout:
 position recorded [key blue-respond:position:#0]
 2 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
-  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
   · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
 
 $ closing --run {RUN} --seat-id blue-respond --id G1 --reason blue's closing
@@ -62,7 +62,7 @@ exit 0
 stdout:
 closing filed for G1 [key blue-respond:closing:#0:G1]
 2 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
-  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
   · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
 
 $ revision --run {RUN} --seat-id blue-respond --reason repairs landed
@@ -70,21 +70,21 @@ exit 0
 stdout:
 revision recorded — this sitting's changes are on the record [key blue-respond:revision:#0]
 1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
 
 $ manifest-row --run {RUN} --seat-id blue-respond --id G1 --reason figures recomputed; check run: pass
 exit 0
 stdout:
 manifest row recorded for G1 [key blue-respond:manifest_row:#0:G1]
 1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
 
 $ motion grade file --run {RUN} --seat-id blue-respond --id G1 --dimension likelihood --proposed low --reason the harm needs two failures
 exit 0
 stdout:
 motion M1 filed (grade)
 1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
 
 $ verify --run {RUN} --seat-id red-lens-evidence --quote throughput doubled --title https://example.invalid/paper --trust high --access-date 2026-07-18
 exit 2
@@ -164,7 +164,7 @@ exit 0
 stdout:
 motion M2 filed (docket)
 5 STILL TO CLEAR before you may end your turn (of 5 item(s) open to you):
-  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
   · gap G1 is open and material — PASS is refused while it is
   · motion M1 (grade, ruled by the chair seat) was filed and never ruled — PASS is refused while it stands
   · motion M2 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
@@ -175,14 +175,14 @@ exit 0
 stdout:
 motion M2 ruled remanded [key judge:motion_rule:#1]
 1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
 
 $ certify --run {RUN} --seat-id judge --reason what a human should re-examine
 exit 0
 stdout:
 certification recorded [key judge:certify:#1]
 1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}

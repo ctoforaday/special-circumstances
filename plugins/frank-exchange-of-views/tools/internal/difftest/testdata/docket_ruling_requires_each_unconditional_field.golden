@@ -30,14 +30,14 @@ minted G1
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
 
 $ motion docket file --run {RUN} --seat-id red-chair --id G1 --reason contested, and not red's to close
 exit 0
 stdout:
 motion M1 filed (docket)
 4 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
-  · the log is open — you have neither reported a missing capability nor said that nothing blocked you
+  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
   · gap G1 is open and material — PASS is refused while it is
   · motion M1 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
   · your terminal act is missing — the run cannot say from its own record that it was ever verified

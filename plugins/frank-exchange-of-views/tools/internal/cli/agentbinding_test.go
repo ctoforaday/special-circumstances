@@ -1,12 +1,20 @@
 package cli
 
 import (
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingcap"
+
+	"google.golang.org/protobuf/proto"
 )
 
 // IDENTITY IS DETECTED, NOT ASSERTED — end to end, across the seam where it used to be dropped.
@@ -151,26 +159,146 @@ func applyExports(t *testing.T, payload string) {
 	}
 }
 
-// AN AGENT THAT NEVER REGISTERED CANNOT ACT, and that refusal is what makes the binding a
-// mechanism rather than a note.
+// AN AGENT THAT NEVER REGISTERED IS REGISTERED FOR IT, SILENTLY, ON ITS FIRST ACT — and the act
+// goes through.
 //
-// Without it a seat could skip `register`, keep typing --seat-id, and file events under any id
-// the tree will build for it — which is exactly the self-asserted identity this replaces. The
-// binding would be advisory, and an advisory guarantee is one the audit reads as enforced.
-func TestAnUnregisteredAgentIsRefused(t *testing.T) {
+// The binding is still a mechanism rather than a note: the claimed seat id goes through register's
+// own gates (the roster, the run's cast, the attested agent configuration), so nothing is taken on
+// trust. What changed is WHO SPENDS THE CALL. A register on these surfaces carries the binding and
+// nothing else, which is a fact the tool already holds, so the refusal asked the seat to tell the
+// tool what the tool knew. Measured on universe-m11: 8 of 9 sittings with nothing owed registered
+// anyway, and on universe-m12, 17 of the run's calls were registers.
+//
+// AND THE SITTING'S CAP IS ARMED BY IT, which is the half that makes this a defect fix rather than
+// a convenience. sittingcap keys its counter on the register header, so an agent permitted to write
+// without one is an UNCAPPED sitting — m12's red-lens-evidence ran three sittings and 125 turns
+// with no counter file at all.
+func TestAnAgentActingFirstIsRegisteredForIt(t *testing.T) {
 	runDir := seatRun(t)
-	t.Setenv(seatenv.AgentVar, "agent_never_registered")
+	const agent = "agent_that_never_registered"
+	t.Setenv(seatenv.AgentVar, agent)
 
-	_, err := run(t, "log", "--run", runDir, "--seat-id", "red-lens-evidence",
-		"--reason", "acting without an identity", "--type", "defect")
-	if err == nil {
-		t.Fatal("an agent with no binding on the record filed an event anyway — the seat id was taken on trust, which is the thing this replaces")
+	if _, err := run(t, "log", "--run", runDir, "--seat-id", "red-lens-evidence",
+		"--reason", "acting without having registered", "--type", "defect"); err != nil {
+		t.Fatalf("a lens's first act was refused rather than registered for it: %v", err)
 	}
-	// THE REFUSAL MUST NAME THE ONE REMEDY. A seat handed an unexplained refusal logs friction
-	// and works around it, losing the capability for the run — measured, and the reason every
-	// refusal in this tree carries its own way out.
-	if !strings.Contains(err.Error(), "register") {
-		t.Errorf("the refusal does not name the act that fixes it: %v", err)
+
+	// THE REGISTER IS ON THE RECORD, under the seat's own id. A silent registration that wrote
+	// nothing would leave `verify`'s register-before-append failing on a run the engine passes,
+	// which is the contradiction this replaces.
+	seat, found, err := record.RegisteredSeatOfAgent(runtest.Open(t, runDir), agent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !found || seat != "red-lens-evidence" {
+		t.Errorf("after acting, the agent resolves to %q/%v by REGISTER — a silent registration that "+
+			"leaves no register event arms no cap and vouches for no identity", seat, found)
+	}
+
+	// AND THE COUNTER EXISTS. This is the assertion the defect was invisible without: the header is
+	// what Count reads, and its absence is not an error anywhere — an agent with no header is simply
+	// never limited, so the hole reported nothing at all.
+	header := filepath.Join(runDir, sittingcap.Dir, agent+".json")
+	b, err := os.ReadFile(header)
+	if err != nil {
+		t.Fatalf("no per-sitting counter for an agent that acted: %v — the sitting is uncapped, and "+
+			"nothing downstream says so", err)
+	}
+	var h sittingcap.Header
+	if err := json.Unmarshal(b, &h); err != nil {
+		t.Fatal(err)
+	}
+	if h.SeatID != "red-lens-evidence" || h.Sitting < 1 {
+		t.Errorf("the counter names %q sitting %d, so the calls would be counted against the wrong window", h.SeatID, h.Sitting)
+	}
+}
+
+// A BRACKETED SEAT THAT ACTS IS REGISTERED AND CAPPED — the case between the two the design already
+// had, and the one universe-m12 lost a lens in.
+//
+// The free sitting (#1089) is deliberate: a woken seat with nothing owed runs ZERO commands, because
+// the harness bracket satisfies the dispatch and names the seat. Nothing here touches that — a seat
+// that makes no calls has nothing to register FOR. What the bracket must not do is stand in for a
+// register once the seat starts WRITING, because the per-sitting call cap keys on the register
+// header: on m12, red-lens-evidence was bracket-bound, never registered, and ran three sittings and
+// 125 turns with no counter file at all.
+//
+// So the bracket answers "who is this" (a read, and the free sitting needs it) and does not answer
+// "may this write" (a gate, and the cap depends on it).
+func TestABracketBoundSeatThatActsIsRegisteredAndCapped(t *testing.T) {
+	runDir := seatRun(t)
+	rec := runtest.Open(t, runDir)
+	const agent = "agent_bracketed_and_never_registered"
+
+	// The bracket exactly as SubagentStart's writer lays it down: the agent, the configuration it
+	// was dispatched as, and the seat that configuration resolves to.
+	if _, err := record.Append(record.Identity{Run: rec, SeatID: record.HarnessSeat},
+		&recordpb.SittingOpen{
+			AgentId:   proto.String(agent),
+			AgentType: proto.String("frank-exchange-of-views:red-lens-evidence"),
+			SeatId:    proto.String("red-lens-evidence"),
+		}); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(seatenv.AgentVar, agent)
+
+	// THE FREE SITTING STAYS REACHABLE: the bracket is identity enough to read the work list, which
+	// is what makes a zero-command sitting findable rather than merely permitted.
+	if _, err := run(t, "show", "work", "--run", runDir); err != nil {
+		t.Fatalf("a bracket-bound seat could not read its own work list: %v\n\n"+
+			"A seat can only learn it need not act BY looking, so a refusal here makes the free sitting "+
+			"unreachable and every seat registers anyway.", err)
+	}
+
+	// AN ACT IS DIFFERENT, and after it the counter exists.
+	if _, err := run(t, "log", "--run", runDir, "--type", "defect", "--reason", "acting on a bracket alone"); err != nil {
+		t.Fatalf("a bracket-bound seat's act was refused: %v", err)
+	}
+	if _, found, err := record.RegisteredSeatOfAgent(rec, agent); err != nil {
+		t.Fatal(err)
+	} else if !found {
+		t.Error("the bracket stood in for a register, so nothing opened the sitting the cap counts in")
+	}
+	if _, err := os.Stat(filepath.Join(runDir, sittingcap.Dir, agent+".json")); err != nil {
+		t.Errorf("a bracket-bound seat wrote to the record with no per-sitting counter: %v\n\n"+
+			"sittingcap.Count reads this header and treats its absence as \"not a seat, never limited\", so "+
+			"the sitting runs uncapped and no surface reports it.", err)
+	}
+}
+
+// THE TWO SURFACES WHOSE REGISTER CARRIES MORE THAN THE BINDING ARE STILL REFUSED, because what it
+// carries there cannot be supplied by anything but the seat:
+//
+//	bench   --occasion        which of its four questions this sitting answers
+//	blue    --repair-sitting  that this sitting completes the last one's record
+//
+// Registering either silently would have to INVENT the answer. The bench's four sittings would
+// become indistinguishable once the run is archived, and a blue repair would file against the wrong
+// sitting — so here the call is the seat's to spend, and the refusal names it.
+func TestASurfaceWhoseRegisterCarriesMoreStillRefuses(t *testing.T) {
+	runDir := seatRun(t)
+	t.Setenv(seatenv.AgentVar, "agent_on_a_bespoke_surface")
+
+	for _, w := range []struct {
+		seat string
+		argv []string
+	}{
+		{"judge", []string{"log", "--reason", "acting without having registered", "--type", "defect"}},
+		{"blue-respond", []string{"log", "--reason", "acting without having registered", "--type", "defect"}},
+	} {
+		argv := append(append([]string{}, w.argv...), "--run", runDir, "--seat-id", w.seat)
+		_, err := run(t, argv...)
+		if err == nil {
+			t.Errorf("%s acted unregistered, so its register was performed for it — but only %s knows what "+
+				"its register would have to say", w.seat, w.seat)
+			continue
+		}
+		// THE REFUSAL MUST NAME THE ONE REMEDY. A seat handed an unexplained refusal logs friction
+		// and works around it, losing the capability for the run — measured, and the reason every
+		// refusal in this tree carries its own way out.
+		if !strings.Contains(err.Error(), "register") {
+			t.Errorf("%s: the refusal does not name the act that fixes it: %v", w.seat, err)
+		}
 	}
 }
 
