@@ -55,8 +55,8 @@ loud changes what the next ten changes are, and it changes what the Workflow scr
 
 ### Non-goals
 
-- Replacing the Workflow tool. §III.6 is the conditional under which that becomes worth it; on
-  this box it is not the bottleneck (§II.4).
+- Replacing the Workflow tool. §III.6 is the conditional under which that becomes worth it;
+  concurrency is not what it would buy (§II.4).
 - Reducing judgment. The bench, the PASS/FAIL verdict and the lens's audit of an area remain
   whole reads; the change is to what surrounds a decision, not to the decision.
 
@@ -140,10 +140,15 @@ calls, and half of all sittings had nothing to do and read the whole report to l
   at the tool layer. Lens and lane envelopes do not use it today.
 - `pipeline(items, …)` runs each item through its stages with no barrier; the script has never
   called it.
-- **Concurrency is `min(16, CPUs − 2)` per workflow. This box has 4 cores: the cap is 2**, and
-  the 2026-08-23 programme measured its 29 seats running strictly sequentially. Every
-  "parallel" phase in the current script is two-wide here. This is not the Node event loop; it
-  is a CPU-derived cap, and no run recorded in the repository observed more than 2.
+- **Concurrency defaults to `min(16, CPUs − 2)` per workflow and is overridable.** On this
+  4-core box the default is 2, which is what the 2026-08-23 programme ran at (29 seats strictly
+  sequential) and what #753 and `debate.js:630` repeat as settled. `scripts/universe.sh` sets
+  `CLAUDE_CODE_WORKFLOW_MAX_CONCURRENT_AGENTS` (default 16) for every run it launches, so m10,
+  m11 and the smoke ran with the whole lens batch in one wave; the trajectory catalogue shows 8
+  subagents acting in the same minute on this box. The box is idle during a run — the time is
+  remote model time — so the cap is not the constraint on wall clock. **The epoch chain is**:
+  chair → lens wave → blue → bench is serial by construction, and m11's 56 min over 9 epochs is
+  about 6 min per epoch however wide the lens wave is.
 - Lifetime cap 1000 agents per workflow; no filesystem; no `Date.now()`; resume replays the
   longest unchanged prefix of `(prompt, opts)` from cache. A prompt that interpolates a
   volatile brief misses on resume; a prompt keyed on an item id and a record sequence hits.
@@ -283,11 +288,10 @@ Four vehicles were considered; the order is a recommendation, not a survey.
    the rig the CLAUDE.md warning describes, fires no subagent hooks, and nests a session inside
    a seat.
 
-On parallelism specifically: it is a hardware and billing question before it is an
-architecture question. Nothing in vehicles 1 or 2 makes this 4-core box run more than two
-seats, and the load average while this was written was 27. The design should be judged on
-context per decision and on staleness, which it changes on any box; parallelism is the
-dividend a bigger box pays, and only vehicle 2 collects all of it.
+On parallelism specifically: the Workflow tool already runs 16 seats wide when told to
+(§II.4), and the box does nothing while a seat thinks, so vehicle 2 buys no concurrency
+vehicle 1 lacks. What bounds wall clock today is the epoch chain, and that is what §III.2's
+`pipeline` over items removes; §IV.5 is the estimate.
 
 ## IV. Risks & Objections
 
@@ -323,13 +327,30 @@ kind that exists for that, minted by every accepted `edit`; the bench's `rule` a
 `verdict` keep whole-board briefs. What is lost is the incidental noticing a long sitting does
 for free; §V.0 counts it (defects found outside any item, per run) so the loss is a number.
 
-### IV.5 Item explosion
+### IV.5 Item explosion, and the wall-clock estimate
 
-A 50-gap run at four kinds per gap is ≈200 dispatches, inside the 1000 cap, but at concurrency
-2 and ≈130 s per dispatch it is ≈3.6 h of wall clock — longer than today's runs. The floor per
-dispatch (spawn, constitution, brief) is the number that decides this, and it is unmeasured.
-Batching same-kind items on one subject's neighbourhood is the fallback, and it is a partial
-return to the sitting.
+The item count roughly triples — an m11-scale run of 47 sittings becomes ≈120 dispatches: ≈19
+area audits, ≈48 gap items, ≈10 chair items, 6 bookends, ≈40 dispatch reads — and each item is
+shorter. A model, not a measurement (the per-kind turn counts are guesses §V.0 replaces): an
+area audit ≈25 turns, a response ≈10, an adjudication ≈6, a read ≈10 s, a per-dispatch floor of
+≈15 s for spawn plus two turns, 3.4–6.6 s per turn. Summed, ≈105 min against today's ≈100 min
+of summed sitting time.
+
+Wall clock is max(summed ÷ concurrency, the longest serial chain). At 16 wide the sum is not the
+bound; the chain is: frontier → lanes → synthesis (≈10 min) + the longest gap's lifecycle
+(mint → respond → adjudicate → respond → adjudicate → close, ≈5–6 min with a read between each)
++ verdict and assemble (≈3 min) ≈ **18–20 min**, against m11's measured 56 min, which is
+9 epochs of a serial chair → lens → blue → bench. That ≈3× is the epoch leaving, not the items
+getting faster; the 41% round-trip tail is per turn and unchanged. At the un-overridden default
+of 2 the sum binds instead and the rig is no faster than today.
+
+Two costs inside that estimate. **The dispatch read is a design variable**: one read per receipt
+spends a slot and ≈10 s of chain per item; the estimate assumes one read per tick with every
+ready item dispatched from it. **Rate limit**: sixteen seats thinking at once is sixteen
+concurrent model calls on one subscription, and the limit has not been measured.
+
+Batching same-kind items on one subject's neighbourhood is the fallback if the floor per
+dispatch is higher than modelled, and it is a partial return to the sitting.
 
 ### IV.6 The record grows a state machine it only half has
 
@@ -351,8 +372,9 @@ Instrument the current engine, no design change, on one dev run and one smoke:
    without building them.
 3. Discovery baseline: gaps minted per `audit` sitting per area, and defects found outside any
    engaged gap.
-4. Reproduce the concurrency cap on this box with a null workflow of 8 trivial agents (the
-   figure is from one run and is repeated as settled).
+4. From m11's record: achieved concurrency per epoch, and the critical chain — the sum of the
+   chair, the longest lens, blue and bench per epoch — against the run's wall clock. If the
+   chain is not most of the 56 min, §IV.5's estimate is wrong.
 
 The decision rule: if orientation is under a third of calls, or the modelled per-kind context is
 not under half the sitting's mean, the cost case fails and only §III.2 (the schema'd envelopes
