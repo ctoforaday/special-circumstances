@@ -2,6 +2,7 @@ package hookgate
 
 import (
 	"encoding/json"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -15,7 +16,10 @@ import (
 // file that does not exist until the run ends. A sentence had already failed to stop it, so this is
 // the mechanism, and each row is a way that mechanism could be wrong.
 func TestTheReportFileIsDeadToSeats(t *testing.T) {
-	const run = "/runs/2026-09-26_is-91-prime"
+	// BUILT FROM A REAL ABSOLUTE PATH, never a literal "/runs/…": on Windows a path with no drive
+	// letter is not absolute, the guard declines it as a relative path, and every refusal row fails.
+	root := t.TempDir()
+	run := filepath.Join(root, "2026-09-26_is-91-prime")
 	read := func(agent, path string) Input {
 		ti, _ := json.Marshal(map[string]string{"file_path": path})
 		return Input{AgentID: agent, ToolName: "Read", ToolInput: ti}
@@ -25,14 +29,14 @@ func TestTheReportFileIsDeadToSeats(t *testing.T) {
 		in     Input
 		denied bool
 	}{
-		{"a seat reads the run's report.md", read("a7cc47571ab8b015d", run+"/report.md"), true},
-		{"a seat reads a guessed location — m12 produced this one", read("af2ed6813771fb300", run+"/.records/report.md"), true},
-		{"a seat reads the assembled HTML twin", read("a7cc47571ab8b015d", run+"/report.html"), true},
+		{"a seat reads the run's report.md", read("a7cc47571ab8b015d", filepath.Join(run, "report.md")), true},
+		{"a seat reads a guessed location — m12 produced this one", read("af2ed6813771fb300", filepath.Join(run, ".records", "report.md")), true},
+		{"a seat reads the assembled HTML twin", read("a7cc47571ab8b015d", filepath.Join(run, "report.html")), true},
 		// THE OPERATOR IS NOT A SEAT. agent_id is absent on the main session's calls, and the
 		// person who ran the research reads the assembled report once it exists.
-		{"the operator reads the run's report.md", read("", run+"/report.md"), false},
-		{"a seat reads a report.md in some other directory", read("a7cc47571ab8b015d", "/elsewhere/report.md"), false},
-		{"a seat reads an ordinary file in the run", read("a7cc47571ab8b015d", run+"/cache/index.json"), false},
+		{"the operator reads the run's report.md", read("", filepath.Join(run, "report.md")), false},
+		{"a seat reads a report.md in some other directory", read("a7cc47571ab8b015d", filepath.Join(root, "elsewhere", "report.md")), false},
+		{"a seat reads an ordinary file in the run", read("a7cc47571ab8b015d", filepath.Join(run, "cache", "index.json")), false},
 		{"a relative path is not guessed at", read("a7cc47571ab8b015d", "report.md"), false},
 	} {
 		got, reason := PreOutcome(tc.in, run)
