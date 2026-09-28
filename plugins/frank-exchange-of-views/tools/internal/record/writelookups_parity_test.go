@@ -13,8 +13,8 @@ import (
 // THE WRITE-PATH LOOKUPS, HELD AGAINST THE FOLDS THEY REPLACED — step 4's second group. These
 // are the questions every mint, close and filing asks of the record before writing (the next
 // free id, "did I already do this", "does the thing I name exist"), so the fixture exercises the
-// edges those folds owned: a re-registered agent whose LAST binding wins, a moved line of
-// inquiry that must not count as a proposal, a key lookup that must return the FIRST match, and
+// edges those folds owned: a re-registered agent whose LAST binding wins, a moved avenue
+// that must not count as a proposal, a key lookup that must return the FIRST match, and
 // a marker id the torn-splice heal asks about.
 func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	runDir := newRun(t)
@@ -95,7 +95,7 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("MintGapID counts over the RUN: got (%q, %v)", id, err)
 	}
 
-	// A proposal counts toward the next inquiry id; a MOVE of the same line must not.
+	// A proposal counts toward the next avenue id; a MOVE of the same line must not.
 	if _, err := Append(blue, &recordpb.Avenue{AvenueId: proto.String("Q1"),
 		Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(), Line: proto.String("a direction")}); err != nil {
 		t.Fatal(err)
@@ -105,14 +105,14 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		SupersedesStatus: proto.String(recordpb.Word(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED))}); err != nil {
 		t.Fatal(err)
 	}
-	if id, err := MintInquiryID(run); err != nil || id != "Q2" {
-		t.Errorf("MintInquiryID = (%q, %v) — a move counted as a proposal, or the proposal was missed", id, err)
+	if id, err := MintAvenueID(run); err != nil || id != "Q2" {
+		t.Errorf("MintAvenueID = (%q, %v) — a move counted as a proposal, or the proposal was missed", id, err)
 	}
-	if err := RequireInquiryRef(run, "Q1"); err != nil {
-		t.Errorf("RequireInquiryRef(Q1) = %v", err)
+	if err := RequireAvenueRef(run, "Q1"); err != nil {
+		t.Errorf("RequireAvenueRef(Q1) = %v", err)
 	}
-	if err := RequireInquiryRef(run, "Q9"); err == nil {
-		t.Error("RequireInquiryRef accepted a line of inquiry nobody proposed")
+	if err := RequireAvenueRef(run, "Q9"); err == nil {
+		t.Error("RequireAvenueRef accepted an avenue nobody proposed")
 	}
 
 	// Findings and their markers: the label allocator, the key lookup, the anchor pair heal.

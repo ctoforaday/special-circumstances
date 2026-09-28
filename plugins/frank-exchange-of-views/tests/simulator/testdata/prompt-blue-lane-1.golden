@@ -1,16 +1,16 @@
-prompt sha256: a6c0833037086e7187d1de01efc8b1ea915ac3d52e855d1bde685bf1d5060c3f
+prompt sha256: 823421aafca0cb0a8a272c47552da5c154a0983c37fc8ac7eaaabb6bcb42bd18
 
 Blue lane 1 of 3 for topic: "the seat prompt contract".
-Read the frontier hypotheses from the RECORD — the `lines-of-inquiry` projection — where each carries an id and its hypothesis,.
+Read the frontier hypotheses from the RECORD — the `avenues` projection — where each carries an id and its hypothesis,.
 Research your assigned slice to saturation per the research protocol (spend at least one search in five on disconfirming evidence; note each source inline with its URL, title, and access date).
 Your assigned METHOD: adversarial-disconfirming-first (hunt evidence AGAINST the frontier hypotheses before evidence for them) — work primarily through this method's source class; take hypothesis 1 first, then breadth.
 YOUR SOURCES, IN PROSE (not footnotes): a lane writes its part of the report and does not cite — record each intended source as prose beside the claim (its URL, title, and access date) so the synthesizer can cite it once with the tool.
 Do NOT mint footnote labels; citations are tool-managed at synthesis and a hand-typed label backs nothing.
 Write your part of the report, in full, to research/2026-01-01_golden/blue/candidates/lane-1.md.
-LINES OF INQUIRY: record every genuinely distinct approach you CONSIDERED, not only the one you took — with the hypothesis that would be true if it paid off, and later with what became of it and what changed your mind.
+AVENUES: record every genuinely distinct approach you CONSIDERED, not only the one you took — with the hypothesis that would be true if it paid off, and later with what became of it and what changed your mind.
 The hypothesis is what makes the account honest, and the dead ends matter most: one you record is one the next run does not re-walk, and it is worth more than the tidy conclusion that survived.
 Alternatives reach the reader under their own headings — what you pursued, what you left for a later run, and what you weighed and rejected are three things a reader needs, not one list of winners.
-The line you propose and the reason you give when you move it ARE PRINTED IN THE REPORT word for word, so write them as research prose for a reader of the SUBJECT — the question the direction asks and what was found about it, never the steps you took.
+The line you propose and the reason you give when you move it ARE PRINTED IN THE REPORT word for word, so write them as research prose for a reader of the SUBJECT — the question the avenue asks and what was found about it, never the steps you took.
 Recording what you considered and declined is what makes "explore the alternatives" checkable instead of self-attested.
 SPEED: ONE MESSAGE IS ONE ROUND-TRIP, whatever it carries.
 Five independent tool calls in ONE message cost one round-trip; the same five in five messages cost five, and a round-trip is seconds.

@@ -490,7 +490,7 @@ var satisfiedByAnyOf = map[string][]string{
 	// mint copies --reason into `problem` when --problem is absent, and its help says so in the
 	// same sentence it calls the field required.
 	"problem": {flags.Problem, flags.Reason},
-	// A line of inquiry's own statement and a manifest receipt are the verb's prose, so they
+	// An avenue's own statement and a manifest receipt are the verb's prose, so they
 	// arrive through the same channel every other prose field does.
 	"line": {flags.Reason},
 	"row":  {flags.Reason},
@@ -821,12 +821,12 @@ func Prose(c *cobra.Command) *cobra.Command {
 
 // ReasonIs is what --reason IS on the verbs whose prose is the artifact itself rather than an
 // argument about an act. flags.DescReason asks "why you graded, closed, ruled or edited", which
-// misdescribes a line of inquiry, a receipt, a log entry or a holding. Keyed by verb name because
+// misdescribes an avenue, a receipt, a log entry or a holding. Keyed by verb name because
 // Prose is where the flag is registered; TestReasonIsNamesOnlyProseVerbs refuses a key no prose
 // verb carries, so a renamed verb cannot silently fall back to the generic text.
 var ReasonIs = map[string]string{
-	"propose":      "the line — research prose for a reader of the SUBJECT, printed in the report word for word",
-	"move":         "the account of what settled this fate, in the SUBJECT's terms — printed in the report beside the line",
+	"propose":      "the avenue — research prose for a reader of the SUBJECT, printed in the report word for word",
+	"move":         "the account of what settled this fate, in the SUBJECT's terms — printed in the report beside the avenue",
 	"cite":         "why this source backs the sentence — kept on the record and shown beside the source in the evidence view, never printed in the report",
 	"prove":        "the proof note — printed in the report as this computation's footnote, so say what it SHOWS about the subject, not what happened while you ran it",
 	"manifest-row": "the receipt: what you checked, and what checking it showed",

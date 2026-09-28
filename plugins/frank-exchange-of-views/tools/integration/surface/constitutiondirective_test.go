@@ -196,8 +196,10 @@ func normalizeWS(s string) string { return strings.Join(strings.Fields(s), " ") 
 // page a seat opens.
 func TestEveryConstitutionStatesTheLogDutyAndNoneRestatesTheVerb(t *testing.T) {
 	want := []string{
-		// The duty, including the sittings that went fine — the half that gets dropped.
-		"not only the ones that went wrong",
+		// THE DUTY IS THE EXCEPTIONS. It used to read "not only the ones that went wrong" and demand an
+		// entry every sitting, and seats obeyed by filing summaries and arguments about other lenses'
+		// gaps in a channel whose glossary says none of it is debate material.
+		"GOT IN YOUR WAY",
 		// What counts as a report beyond a missing verb. This is a JUDGEMENT about the work,
 		// which is why it is constitutional rather than in the verb's help.
 		"TEMPLATE/PROTOCOL MISFIT",
@@ -223,6 +225,10 @@ func TestEveryConstitutionStatesTheLogDutyAndNoneRestatesTheVerb(t *testing.T) {
 		"An absent log reads identically",
 		"say so in the POSITIVE",
 		"an entry that says nothing is still an entry",
+		// The retired every-sitting duty, in each of the three wordings it survived in.
+		"not only the ones that went wrong",
+		"WRITE TO THE LOG EVERY SITTING",
+		"including the ones that went well",
 	}
 	paths, err := repotree.Constitutions()
 	if err != nil {

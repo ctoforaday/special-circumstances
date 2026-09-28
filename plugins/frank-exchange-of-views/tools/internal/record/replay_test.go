@@ -316,19 +316,19 @@ func validateContractCases() []validateContract {
 
 		// An unknown status is UNREPRESENTABLE: AvenueStatus is an enum, so `shelved` cannot be built.
 		// What remains is the ABSENT case below, which the type cannot refuse.
-		{"a line of inquiry with no status at all", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Line: proto.String("l")}, "requires --as"},
-		{"a line of inquiry with no id", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("l")}, "requires an id"},
-		{"a deferred line of inquiry needs a reason", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_DEFERRED), Line: proto.String("l")}, "requires --reason"},
+		{"an avenue with no status at all", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Line: proto.String("l")}, "requires --as"},
+		{"an avenue with no id", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("l")}, "requires an id"},
+		{"a deferred avenue needs a reason", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_DEFERRED), Line: proto.String("l")}, "requires --reason"},
 		// THE REFUSAL NAMES --reason, NOT --line. The payload key is `line`; the flag that fills it
 		// is --reason, because prose reaches every verb through one channel. This expected "--line"
 		// for its whole life — a flag on no surface — and a seat believed it, invented the flag,
 		// was refused again as unknown, and filed friction about an undocumented --line (measured
 		// 2026-08-21). The refusal derives the flag name now.
-		{"a line of inquiry without --line", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED)}, "requires --reason"},
-		{"a declined line of inquiry needs a reason", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_DECLINED), Line: proto.String("l")}, "requires --reason"},
-		{"an abandoned line of inquiry needs a reason", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Line: proto.String("l")}, "requires --reason"},
-		{"a PURSUED line of inquiry does not need a reason", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("l")}, ""},
-		{"a declined line of inquiry with a reason", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_DECLINED), Line: proto.String("l"), Reason: proto.String("why")}, ""},
+		{"an avenue without --line", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED)}, "requires --reason"},
+		{"a declined avenue needs a reason", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_DECLINED), Line: proto.String("l")}, "requires --reason"},
+		{"an abandoned avenue needs a reason", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Line: proto.String("l")}, "requires --reason"},
+		{"a PURSUED avenue does not need a reason", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("l")}, ""},
+		{"a declined avenue with a reason", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_DECLINED), Line: proto.String("l"), Reason: proto.String("why")}, ""},
 
 		// The message must name the flag the PARSER accepts. It named --gap-id for as
 		// long as that flag existed and kept naming it after the rename, because the
@@ -1198,24 +1198,24 @@ func TestEveryGradeDimensionCanBeReadFromAGap(t *testing.T) {
 //
 // BoardState sorted a LOCAL COPY by (TS, SeatID, Seq) and published m.Events, which is
 // (Round, SeatID, Seq). So the reduction saw the corrected chronology and every consumer that
-// walks Board.Events — record.Inquiries behind `show lines-of-inquiry`, report assembly, the
+// walks Board.Events — record.Avenues behind `show avenues`, report assembly, the
 // scorecards, the graph renderer — read events ordered by how SEAT NAMES SORT.
 //
 // FOUND 2026-08-22 BY A BLUE SEAT mid-run, with this reproduction: `zulu` acts first in time,
 // `alpha` acts second, and alphabetical order silently reverses them. The seat then caught the
-// defect biting its own sitting — its line-of-inquiry moves replayed before the frontier
+// defect biting its own sitting — its avenue moves replayed before the frontier
 // proposals they answered, so the projection reported every line unmoved.
 func TestBoardPublishesEventsInTheOrderItReducedIn(t *testing.T) {
 	runDir := newRun(t)
 	// zulu proposes FIRST in wall-clock; alpha moves it SECOND. Alphabetically alpha < zulu.
 	writeShard(t, runDir, []*Event{
-		recordtest.Stamped(recordtest.At(t, "zulu", "zulu:line-of-inquiry:#1", &recordpb.Avenue{
+		recordtest.Stamped(recordtest.At(t, "zulu", "zulu:avenue:#1", &recordpb.Avenue{
 			AvenueId: proto.String("Q1"),
 			Status:   recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(),
 			Line:     proto.String("opened"),
 			Reason:   proto.String("opened"),
 		}), "2026-08-22T10:00:00.000000000Z"),
-		recordtest.Stamped(recordtest.At(t, "alpha", "alpha:line-of-inquiry:#1", &recordpb.Avenue{
+		recordtest.Stamped(recordtest.At(t, "alpha", "alpha:avenue:#1", &recordpb.Avenue{
 			AvenueId:         proto.String("Q1"),
 			Status:           recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED.Enum(),
 			SupersedesStatus: proto.String("proposed"),
@@ -1240,9 +1240,9 @@ func TestBoardPublishesEventsInTheOrderItReducedIn(t *testing.T) {
 
 	// AND THE CONSUMER THAT READS IT AGREES. This is the half that shipped broken: the reduction
 	// was already correct, so only a consumer walking Board.Events could see the defect.
-	inq := InquiriesOf(b.Events)
+	inq := AvenuesOf(b.Events)
 	if len(inq) != 1 {
-		t.Fatalf("expected one line of inquiry, got %d", len(inq))
+		t.Fatalf("expected one avenue, got %d", len(inq))
 	}
 	if got := inq[0].Status; got != "abandoned" {
 		t.Errorf("Q1 status = %q, want abandoned — the later event must win. %q means the projection "+

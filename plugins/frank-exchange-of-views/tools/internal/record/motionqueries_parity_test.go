@@ -9,9 +9,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// inquiryRulingFold is the fold InquiryRuling replaced, kept HERE as the parity oracle: the
+// avenueRulingFold is the fold AvenueRuling replaced, kept HERE as the parity oracle: the
 // query and the fold read the same record, and this test refuses to let them disagree.
-func inquiryRulingFold(run Run, inquiryID string) string {
+func avenueRulingFold(run Run, avenueID string) string {
 	b, err := FamilyOf(run)
 	if err != nil {
 		return ""
@@ -19,12 +19,12 @@ func inquiryRulingFold(run Run, inquiryID string) string {
 	ruling := ""
 	for _, e := range b.Events {
 		mr, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
-		if !ok || mr.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION || mr.GetMotionId() != inquiryID {
+		if !ok || mr.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_AVENUE || mr.GetMotionId() != avenueID {
 			continue
 		}
 		ruling = ""
-		if d, isDirection := mr.GetRuling().(*recordpb.MotionRule_Direction); isDirection {
-			ruling = strings.ReplaceAll(recordpb.Word(d.Direction), "_", "-")
+		if d, isAvenue := mr.GetRuling().(*recordpb.MotionRule_Avenue); isAvenue {
+			ruling = strings.ReplaceAll(recordpb.Word(d.Avenue), "_", "-")
 		}
 	}
 	return ruling
@@ -34,7 +34,7 @@ func inquiryRulingFold(run Run, inquiryID string) string {
 // ask-and-answer joins that used to be hand-written per reader (the eight-reader defect
 // views.go's motion_state documents). The fixture walks one motion through its whole
 // lifecycle — filed, ruled, appealed — asserting each guard's answer at each state, and rules
-// one line of inquiry to hold InquiryRuling to its fold.
+// one avenue to hold AvenueRuling to its fold.
 func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	runDir := newRun(t)
 	run := mustRun(t, runDir)
@@ -124,30 +124,30 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("RequireUnappealedMotion after an appeal = %v, want the appeal quoted", err)
 	}
 
-	// A line of inquiry: subject resolution falls through to the avenue, and the ruling read
+	// An avenue: subject resolution falls through to the avenue, and the ruling read
 	// agrees with the fold at every state.
 	if _, err := Append(blue, &recordpb.Avenue{AvenueId: proto.String("Q1"),
 		Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(), Line: proto.String("a direction")}); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := motionSubjectOf(run, "Q1"); err != nil || got != "inquiry" {
-		t.Errorf("motionSubjectOf(Q1) = (%q, %v) — a line of inquiry IS a direction motion by construction", got, err)
+	if got, err := motionSubjectOf(run, "Q1"); err != nil || got != "avenue" {
+		t.Errorf("motionSubjectOf(Q1) = (%q, %v) — an avenue IS a direction motion by construction", got, err)
 	}
 	if _, err := motionSubjectOf(run, "Z9"); err == nil {
-		t.Error("motionSubjectOf accepted an id that names neither a motion nor a line of inquiry")
+		t.Error("motionSubjectOf accepted an id that names neither a motion nor an avenue")
 	}
-	if got, want := InquiryRuling(run, "Q1"), inquiryRulingFold(run, "Q1"); got != want || got != "" {
-		t.Errorf("InquiryRuling before any ruling = %q, fold says %q", got, want)
+	if got, want := AvenueRuling(run, "Q1"), avenueRulingFold(run, "Q1"); got != want || got != "" {
+		t.Errorf("AvenueRuling before any ruling = %q, fold says %q", got, want)
 	}
 	if _, err := Append(red, &recordpb.MotionRule{
 		MotionId: proto.String("Q1"),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION),
+		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_AVENUE),
 		Opinion:  proto.String("worth the run's time"),
-		Ruling:   &recordpb.MotionRule_Direction{Direction: recordpb.DirectionRuling_DIRECTION_RULING_OUT_OF_SCOPE},
+		Ruling:   &recordpb.MotionRule_Avenue{Avenue: recordpb.AvenueRuling_AVENUE_RULING_OUT_OF_SCOPE},
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := InquiryRuling(run, "Q1"), inquiryRulingFold(run, "Q1"); got != want || got != "out-of-scope" {
-		t.Errorf("InquiryRuling = %q, fold says %q, want the hyphen join of the schema's word", got, want)
+	if got, want := AvenueRuling(run, "Q1"), avenueRulingFold(run, "Q1"); got != want || got != "out-of-scope" {
+		t.Errorf("AvenueRuling = %q, fold says %q, want the hyphen join of the schema's word", got, want)
 	}
 }

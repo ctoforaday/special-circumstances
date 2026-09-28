@@ -1,13 +1,13 @@
-prompt sha256: 7cd7e8cd6813a34164fb686191ffd810464a34247efa818c7023a901ae7d9fa3
+prompt sha256: 0ab77b0c6fc5b8b5ed142781f8c65817872e2510aba84b55e8aef127f851fb99
 
 Terminal disposition for topic "the seat prompt contract" (debate ended VERIFIED after 3 chair sitting(s); this sitting fires at the exit boundary). 1 motion(s) stand unruled on the record — read them back from the record's motions projection, read the transcript in full and the board back, and rule each with a reason.
 NOTHING CAN BE REMANDED AT A TERMINAL EXIT — there is no next sitting to remand it to.
 Each grade motion either moves to a corrected grade, which you state, or ships CONTESTED and the report records it as contested.
 LAW: if research/2026-01-01_golden/inputs/law/ exists, read it before ruling — statute > precedent > case-local argument; PRECEDENT IS ARGUMENT, NOT EVIDENCE (the artifact and the leaf are the only evidence; where a precedent conflicts with the leaf, the leaf wins and you flag the conflict for human review); a precedent either party cites MUST be addressed in your opinion; PERSUASIVE holdings persuade, only AFFIRMED ones bind; your rulings this run are harvested as PERSUASIVE proposals for human review — you propose law, you never enact it.
-LOG (judge) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's log field.
-YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU, not the other seats: what you reached for, what it did, and what you wanted instead.
-Where you set an act aside as a JUDGEMENT rather than for want of occasion, give that one sentence — the record shows what you ran, never what you weighed and declined.
-Where nothing impeded the work, say that instead.
+LOG (judge) — ONLY WHAT GOT IN YOUR WAY, on the record AND in the envelope's log field.
+YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU: what you reached for, what it did, what you wanted instead, and any act the tooling made you set aside.
+WHERE NOTHING GOT IN YOUR WAY, FILE NOTHING.
+What you concluded about the report is not a log entry, and a dispute with another seat's gap is a finding about that gap, which reaches the seat that can act on it.
 SPEED: ONE MESSAGE IS ONE ROUND-TRIP, whatever it carries.
 Five independent tool calls in ONE message cost one round-trip; the same five in five messages cost five, and a round-trip is seconds.
 So batch every call that does not need a prior call's OUTPUT as its input: all your projections together, independent fetches together, several file reads together.

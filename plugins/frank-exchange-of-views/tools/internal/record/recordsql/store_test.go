@@ -139,7 +139,7 @@ func TestAnAbsentFieldIsNull(t *testing.T) {
 // This asserted that the STORAGE refuses a ruling naming a motion that does not exist —
 // `motion_rule.motion_id` referencing `motion.motion_id`. It passed, and the constraint was false
 // for one subject in three: a DIRECTION motion has no motion row, because "the proposal IS the
-// filing" and `motion direction rule` names the line of inquiry's own id. The foreign key refused
+// filing" and `motion direction rule` names the avenue's own id. The foreign key refused
 // every direction ruling in the tool.
 //
 // A conditional foreign key is not expressible — a CHECK cannot hold a subquery — and a trigger

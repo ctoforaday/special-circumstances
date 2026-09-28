@@ -140,7 +140,7 @@ func TestAnAbandonmentWithNoPursuitSaysSo(t *testing.T) {
 		recordtest.Event(t, "blue-r0", &recordpb.Avenue{AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Line: proto.String("check a computer-algebra system")}),
 		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Reason: proto.String("no such system is available here")}),
 	})
-	alt := inquiries(board, "Alternatives considered", rejected)
+	alt := avenues(board, "Alternatives considered", rejected)
 	if !strings.Contains(alt, "**sieve to the square root** [abandoned] —") {
 		t.Errorf("a line pursued and then abandoned keeps the plain tag:\n%s", alt)
 	}
@@ -149,28 +149,28 @@ func TestAnAbandonmentWithNoPursuitSaysSo(t *testing.T) {
 	}
 }
 
-func TestInquiriesSplitByFate(t *testing.T) {
+func TestAvenuesSplitByFate(t *testing.T) {
 	board := record.NewFamily(nil, []*record.Event{
 		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("profile the hot path"), Method: proto.String("bench")}),
 		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Line: proto.String("rewrite in Rust"), Reason: proto.String("cost exceeds benefit")}),
 		recordtest.Event(t, "red-lens-r1", &recordpb.Avenue{AvenueId: proto.String("Q3"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_DECLINED), Line: proto.String("third-party audit"), Reason: proto.String("out of scope")}),
 	})
-	exp := inquiries(board, "Research areas", accepted)
+	exp := avenues(board, "Research areas", accepted)
 	if !strings.Contains(exp, "profile the hot path") || strings.Contains(exp, "rewrite in Rust") {
-		t.Errorf("research areas must carry ONLY pursued and proposed inquiries:\n%s", exp)
+		t.Errorf("research areas must carry ONLY pursued and proposed avenues:\n%s", exp)
 	}
-	alt := inquiries(board, "Alternatives considered", rejected)
+	alt := avenues(board, "Alternatives considered", rejected)
 	if !strings.Contains(alt, "rewrite in Rust") || !strings.Contains(alt, "cost exceeds benefit") {
-		t.Errorf("a rejected line of inquiry is an alternative considered, its reason the counter:\n%s", alt)
+		t.Errorf("a rejected avenue is an alternative considered, its reason the counter:\n%s", alt)
 	}
 	if !strings.Contains(alt, "third-party audit") {
-		t.Errorf("a declined line of inquiry is also an alternative considered:\n%s", alt)
+		t.Errorf("a declined avenue is also an alternative considered:\n%s", alt)
 	}
 	if strings.Contains(alt, "profile the hot path") {
-		t.Errorf("a pursued line of inquiry must not appear under alternatives:\n%s", alt)
+		t.Errorf("a pursued avenue must not appear under alternatives:\n%s", alt)
 	}
-	// No inquiries of a fate → flagged, not blank.
-	if none := inquiries((record.NewFamily(nil, nil)), "Research areas", accepted); !strings.Contains(none, "none on the record") {
+	// No avenues of a fate → flagged, not blank.
+	if none := avenues((record.NewFamily(nil, nil)), "Research areas", accepted); !strings.Contains(none, "none on the record") {
 		t.Errorf("empty fate should say so: %q", none)
 	}
 }
@@ -179,12 +179,12 @@ func TestInquiriesSplitByFate(t *testing.T) {
 //
 // # This test never looked at a status
 //
-// It ranged over `record.InquiryStatuses`, which is `[]EnumValue`, and passed the STRUCT to
+// It ranged over `record.AvenueStatuses`, which is `[]EnumValue`, and passed the STRUCT to
 // `Set("status", status)`. `Payload.Str` returns "" for a non-string, so `a.Status` was the empty
 // string on all five iterations. With `rejected` defined as the complement of `accepted`, "" fell
 // into alternatives every time and `in != inAlt` held — so it passed, five times, having exercised
 // no status at all. A test whose entire subject is "every status reaches a section" had never seen
-// one. Found 2026-08-16 while adding the third section. It ranges over InquiryStatusNames() now.
+// one. Found 2026-08-16 while adding the third section. It ranges over AvenueStatusNames() now.
 //
 // # The model this asserts: the lifecycle of a research topic through the report
 //
@@ -203,7 +203,7 @@ func TestInquiriesSplitByFate(t *testing.T) {
 //
 // EVERY status lands in EXACTLY ONE section, so a sixth that matches no predicate fails here
 // rather than vanishing the way `proposed` and `deferred` once did.
-func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
+func TestEveryAvenueStatusLandsWhereItsFateSays(t *testing.T) {
 	section := map[string]string{
 		"pursued":   "research",
 		"proposed":  "research", // an undecided line IS an area this run is researching
@@ -211,7 +211,7 @@ func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
 		"declined":  "alternatives",
 		"abandoned": "alternatives",
 	}
-	for _, status := range record.InquiryStatusNames() {
+	for _, status := range record.AvenueStatusNames() {
 		st, ok := record.AvenueStatusOf(status)
 		if !ok {
 			t.Fatalf("the declared status %q does not resolve to a schema value — the vocabulary and "+
@@ -230,9 +230,9 @@ func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
 			}),
 		})
 		in := map[string]bool{
-			"research":     strings.Contains(inquiries(board, "Research areas", accepted), "the only line"),
-			"future":       strings.Contains(inquiries(board, "Future research directions", deferred), "the only line"),
-			"alternatives": strings.Contains(inquiries(board, "Alternatives considered", rejected), "the only line"),
+			"research":     strings.Contains(avenues(board, "Research areas", accepted), "the only line"),
+			"future":       strings.Contains(avenues(board, "Future research directions", deferred), "the only line"),
+			"alternatives": strings.Contains(avenues(board, "Alternatives considered", rejected), "the only line"),
 		}
 		var got []string
 		for name, present := range in {
@@ -243,7 +243,7 @@ func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
 		sort.Strings(got)
 		switch {
 		case len(got) != 1:
-			t.Errorf("status %q rendered under %v, want exactly [%s] — a line of inquiry in two sections is an alternative to "+
+			t.Errorf("status %q rendered under %v, want exactly [%s] — an avenue in two sections is an alternative to "+
 				"itself, and one in NONE loses the seat's recorded prose entirely (TestFuzzDebate's A1-A3 class "+
 				"caught exactly that when `proposed` was excluded)", status, got, want)
 		case got[0] != want:
@@ -252,9 +252,9 @@ func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
 	}
 }
 
-// A MOVED LINE OF INQUIRY IS ONE LINE. Reading raw events rendered a line pursued in epoch 0 and
+// A MOVED AVENUE IS ONE LINE. Reading raw events rendered a line pursued in epoch 0 and
 // abandoned in epoch 2 under BOTH headings — as an expansion and as an alternative to itself.
-func TestAMovedInquiryIsRenderedOnce(t *testing.T) {
+func TestAMovedAvenueIsRenderedOnce(t *testing.T) {
 	board := record.NewFamily(nil, []*record.Event{
 		recordtest.Event(t, "blue-r0", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("rewrite the parser")}),
 		// Two chair sittings put the move in epoch 2 — the epoch is counted from the chair's
@@ -263,16 +263,16 @@ func TestAMovedInquiryIsRenderedOnce(t *testing.T) {
 		recordtest.Event(t, "red-chair", &recordpb.Register{}),
 		recordtest.Event(t, "blue-r2", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Line: proto.String("rewrite the parser"), Reason: proto.String("the grammar moved under it")}),
 	})
-	exp := inquiries(board, "Research areas", accepted)
-	alt := inquiries(board, "Alternatives considered", rejected)
+	exp := avenues(board, "Research areas", accepted)
+	alt := avenues(board, "Alternatives considered", rejected)
 	if strings.Contains(exp, "rewrite the parser") {
-		t.Errorf("a line of inquiry ABANDONED in epoch 2 is not an expansion — its latest status decides:\n%s", exp)
+		t.Errorf("an avenue ABANDONED in epoch 2 is not an expansion — its latest status decides:\n%s", exp)
 	}
 	if !strings.Contains(alt, "rewrite the parser") || !strings.Contains(alt, "the grammar moved under it") {
-		t.Errorf("the abandoned line of inquiry must carry its current reason:\n%s", alt)
+		t.Errorf("the abandoned avenue must carry its current reason:\n%s", alt)
 	}
 	// The substance came from the CREATION event and the reason from the MOVE. The PATH between
-	// them is the debate, not the subject: it renders in lines-of-inquiry.md, never in the report.
+	// them is the debate, not the subject: it renders in avenues.md, never in the report.
 	if strings.Contains(alt, "e0 pursued") || strings.Contains(alt, "history:") {
 		t.Errorf("the status history is reconstructable from the ledger and is not report text:\n%s", alt)
 	}
@@ -281,30 +281,30 @@ func TestAMovedInquiryIsRenderedOnce(t *testing.T) {
 // RED'S RULING AND BLUE'S APPEAL ARE THE DEBATE, NOT THE SUBJECT. The report used to print both
 // under the line, with the proposing seat's id after it; the report is research prose and tool
 // markers, and all three are on the ledger. The ruling's opinion renders in judgments.md, and the
-// ruling and the appeal together in lines-of-inquiry.md (view.TestAnAppealRendersBesideItsRuling).
-func TestInquiryRulingAppealAndSeatStayOutOfTheReport(t *testing.T) {
+// ruling and the appeal together in avenues.md (view.TestAnAppealRendersBesideItsRuling).
+func TestAvenueRulingAppealAndSeatStayOutOfTheReport(t *testing.T) {
 	board := record.NewFamily(nil, []*record.Event{
 		recordtest.Event(t, "blue-r0", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Line: proto.String("survey the adjacent literature")}),
-		// The LIVE vocabulary: red rules a direction through `motion inquiry rule`, whose motion_id
+		// The LIVE vocabulary: red rules a direction through `motion avenue rule`, whose motion_id
 		// IS the line's own id — the proposal is the filing, so there is no second identity. The
 		// fixture used to write the retired `avenue-rule` type, which nothing has written since
 		// the motion collapse and which no longer has a read arm.
 		recordtest.Event(t, "red-chair", &recordpb.MotionRule{
 			MotionId: proto.String("Q1"),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION),
+			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_AVENUE),
 			Opinion:  proto.String("a real question, not THIS run's"),
-			Ruling:   &recordpb.MotionRule_Direction{Direction: recordpb.DirectionRuling_DIRECTION_RULING_OUT_OF_SCOPE},
+			Ruling:   &recordpb.MotionRule_Avenue{Avenue: recordpb.AvenueRuling_AVENUE_RULING_OUT_OF_SCOPE},
 		}),
 		// Blue pursues it ANYWAY. `contests_ruling` was a payload key on the line; the defiance is
 		// its own act now — `motion direction appeal` — so what the report reads is the appeal.
 		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("survey the adjacent literature")}),
 		recordtest.Event(t, "blue-r1", &recordpb.MotionAppeal{
 			MotionId: proto.String("Q1"),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION),
+			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_AVENUE),
 			Reason:   proto.String("the adjacent literature is what the question turns on"),
 		}),
 	})
-	exp := inquiries(board, "Research areas", accepted)
+	exp := avenues(board, "Research areas", accepted)
 	if !strings.Contains(exp, "- **survey the adjacent literature**") {
 		t.Fatalf("the line itself must still reach the report:\n%s", exp)
 	}

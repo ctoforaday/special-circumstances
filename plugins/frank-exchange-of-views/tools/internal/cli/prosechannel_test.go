@@ -18,7 +18,7 @@ import (
 //
 // # The instance this was written for
 //
-// `line-of-inquiry propose` filled its `line` payload key from the raw --reason FLAG and its
+// `avenue propose` filled its `line` payload key from the raw --reason FLAG and its
 // `reason` key from the resolved CHANNEL. When the channel had a file spelling too, that spelling
 // filled only one of the two, and the write was refused for a missing field the seat had supplied.
 //
@@ -43,7 +43,7 @@ func TestProseLandsInEveryFieldThatReadsTheChannel(t *testing.T) {
 		args   []string
 		fields []string
 	}{
-		{blueSeat, []string{"line-of-inquiry", "propose", "--hypothesis", "h"}, []string{"line", "reason"}},
+		{blueSeat, []string{"avenue", "propose", "--hypothesis", "h"}, []string{"line", "reason"}},
 		{blueSeat, []string{"position"}, nil},
 		{blueSeat, []string{"revision"}, nil},
 		{blueSeat, []string{"log", "--type", "defect"}, nil},
@@ -109,7 +109,7 @@ func recordOnce(t *testing.T, seatID string, args []string, prose string) string
 // SMALL, AND CHECKED — which is the part that was missing either way. It began as a hand-kept
 // switch defended as "SMALL on purpose". I replaced it with a bare schema lookup on the verb name,
 // on the argument that the table was a second list beside the descriptor. That was wrong: a verb
-// and the event it writes are DIFFERENT NAMES, deliberately — `line-of-inquiry` writes an `avenue`
+// and the event it writes are DIFFERENT NAMES, deliberately — `avenue` writes an `avenue`
 // — so the lookup resolved nothing and the test asserted against a word the schema does not carry.
 //
 // The mapping is real and irreducible, so it stays; what it now does is RESOLVE through the
@@ -118,7 +118,7 @@ func recordOnce(t *testing.T, seatID string, args []string, prose string) string
 func recordTypeOf(t *testing.T, args []string) recordpb.EventType {
 	t.Helper()
 	word := args[0]
-	if w, ok := map[string]string{"line-of-inquiry": "avenue"}[word]; ok {
+	if w, ok := map[string]string{"avenue": "avenue"}[word]; ok {
 		word = w
 	}
 	vd, ok := recordpb.BySpelling(recordpb.EventType(0).Descriptor(), strings.ReplaceAll(word, "-", "_"))
@@ -144,7 +144,7 @@ func payloadOfLast(t *testing.T, runDir string, typ recordpb.EventType) string {
 	seen := map[string]string{}
 	body.ProtoReflect().Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
 		switch string(fd.Name()) {
-		case "inquiry_id", "gap_id":
+		case "avenue_id", "gap_id":
 			return true // minted per run; equality here would be a test of the id generator
 		}
 		keys = append(keys, string(fd.Name()))

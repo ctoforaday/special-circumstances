@@ -81,12 +81,13 @@ func TestADispatchedLensThatHasNotRegisteredOwesItsSitting(t *testing.T) {
 	if len(owedItems(s)) != 0 || !s.Complete {
 		t.Fatalf("after its register an empty sitting still owes: complete=%v open=%+v", s.Complete, s.Open)
 	}
-	// But a sitting that ACTED owes its log, and its first sitting's entry does not discharge it.
+	// A sitting that ACTED is offered the log — its first sitting's entry does not close the channel —
+	// and is complete without an entry: a sitting that hit nothing has nothing to file.
 	acted := b5Shape(t).register(voiceLens).
 		add(voiceLens, &recordpb.Finding{Label: proto.String("voice-F9"), Text: proto.String("an act this sitting made")}).seed()
 	s = sittingOfRunT(t, acted, "lens", voiceLens)
-	if !hasItem(s, "the log is open") {
-		t.Fatalf("a sitting that acted and filed no log is not told: complete=%v open=%+v", s.Complete, s.Open)
+	if !listsItem(s, "the log is open") || !s.Complete {
+		t.Fatalf("a sitting that acted and filed no log is not offered it, or cannot finish: complete=%v open=%+v", s.Complete, s.Open)
 	}
 	// It logs: the work list is complete, and dispatch agrees.
 	sat := b5Shape(t).register(voiceLens).logEntry(voiceLens).seed()

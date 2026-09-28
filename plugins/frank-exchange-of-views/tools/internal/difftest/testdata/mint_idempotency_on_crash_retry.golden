@@ -29,15 +29,13 @@ stdout:
 minted G1
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ mint --run {RUN} --seat-id red-lens-evidence --key L5-F3 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem minted once
 exit 0
 stdout:
 minted G1 (idempotent retry — existing id returned)
-1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ mint --run {RUN} --seat-id red-lens-evidence --key L6-F1 --class scope-creep --check-kind document --check y --severity low --likelihood low --impact low --problem a different key mints
 exit 0
@@ -45,8 +43,7 @@ stdout:
 minted G2
   acceptance check RECORDED as: y
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
@@ -57,10 +54,10 @@ minted G2
 {"key":"red-lens-evidence:mint:G2","mint":{"acceptance_check":"y","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"fix_basis":"proposed","gap_id":"G2","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"L6-F1","problem":"a different key mints","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
 
 ═══ RENDERS ═══
--- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
+-- avenues
+# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

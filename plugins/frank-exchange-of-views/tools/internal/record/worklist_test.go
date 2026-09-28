@@ -161,7 +161,7 @@ func TestChairWorkListStatesEveryGateRefusal(t *testing.T) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
 			b.docketMotion("red-chair", "M1", "G1")
 		}, "motion M1"},
-		{"no inquiry review", true, true, func(b *stage) {
+		{"no avenue review", true, true, func(b *stage) {
 			b.add("blue-synthesize", &recordpb.Avenue{AvenueId: proto.String("Q1"), Line: proto.String("a line"),
 				Hypothesis: proto.String("h"), Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum()})
 		}, "account of its own research"},

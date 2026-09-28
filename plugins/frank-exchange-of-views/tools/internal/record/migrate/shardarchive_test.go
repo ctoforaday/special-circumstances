@@ -26,15 +26,15 @@ func TestShardEraArchivesMigrate(t *testing.T) {
 		if len(res.Refusals) != 0 {
 			t.Fatalf("refusals: %+v", res.Refusals)
 		}
-		// 2 opinions -> 2 docket pairs; friction -> log; line-of-inquiry -> avenue;
-		// inquiry-support -> inquiry_review with its two retired fields dropped.
+		// 2 opinions -> 2 docket pairs; friction -> log; line_of_inquiry -> avenue;
+		// inquiry_support -> avenue_review with its two retired fields dropped.
 		//
 		// friction_none CONTRIBUTES NOTHING. It was the explicit empty form, and the type that
 		// carried it is retired: clean is derived from a bracketed sitting that filed nothing, so
 		// the old rows carry forward as an absence rather than as entries nobody can act on.
 		if res.Out["motion"] != res.In["motion"]+res.In["opinion"] ||
 			res.Out["avenue"] != res.In["line_of_inquiry"] ||
-			res.Out["inquiry_review"] != res.In["inquiry_support"] ||
+			res.Out["avenue_review"] != res.In["inquiry_support"] ||
 			res.Out["log"] != res.In["friction"] {
 			t.Fatalf("per-word arithmetic: in=%v out=%v", res.In, res.Out)
 		}

@@ -804,7 +804,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// The 2026-08-05 smoke produced ZERO proofs across a full run. Not because blue
 		// ignored the invitation — because NOTHING ASKED: all ten of red's acceptance checks
 		// were document probes. An optional field would be answered the same way the
-		// line of inquiry --hypothesis was before it was required, which is to say not at all. Making
+		// avenue --hypothesis was before it was required, which is to say not at all. Making
 		// red state what would settle each check is the behaviour change; `document` stays a
 		// legitimate answer, but it now has to be chosen.
 		//
@@ -1320,22 +1320,22 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			return err
 		}
 	case *recordpb.Avenue:
-		// EVERY LINE OF INQUIRY HAS AN ID, exactly as every gap, finding and citation does. A
+		// EVERY AVENUE HAS AN ID, exactly as every gap, finding and citation does. A
 		// record without one does not replay: a compatibility path for one subsystem is an
 		// asymmetry every reader then has to learn.
-		// A MOVE names a line of inquiry that exists. A proposal ASSIGNS the id, so only a move (which
+		// A MOVE names an avenue that exists. A proposal ASSIGNS the id, so only a move (which
 		// carries supersedes_status) is checked against the record.
-		// inquiry_id IS Avenue.avenue_id. The record has spelled this concept both ways for
-		// releases — the CLI writes `inquiry_id`, the schema and the frozen key census carry
-		// `avenue_id`, and the seat-facing verb is `line of inquiry` — and the schema's name is
+		// avenue_id IS Avenue.avenue_id. The record has spelled this concept both ways for
+		// releases — the CLI writes `avenue_id`, the schema and the frozen key census carry
+		// `avenue_id`, and the seat-facing verb is `avenue` — and the schema's name is
 		// the one that survives. Named here because it is a rename by judgement, not a match.
 		if b.GetSupersedesStatus() != "" {
-			if err := requireInquiry(run, b.GetAvenueId(), "blue line of inquiry", "--id"); err != nil {
+			if err := requireAvenue(run, b.GetAvenueId(), "blue avenue", "--id"); err != nil {
 				return err
 			}
 		}
 		if b.GetAvenueId() == "" {
-			return fmt.Errorf("record: line-of-inquiry requires an id — the tool assigns one on a proposal and --id names it on a move; a line of inquiry with no identity has no lifecycle and cannot be ruled on or revisited")
+			return fmt.Errorf("record: avenue requires an id — the tool assigns one on a proposal and --id names it on a move; an avenue with no identity has no lifecycle and cannot be ruled on or revisited")
 		}
 		// A MOVE (--id) carries only the new status and its reason; the substance lives on
 		// the proposal it moves, so requiring --line here would make a move impossible.
@@ -1352,9 +1352,9 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			// pointed it at a flag that does not exist. A refusal naming something the seat cannot
 			// type is worse than a bare "invalid": it is a false lead with the tool's authority
 			// behind it.
-			return fmt.Errorf("record: line-of-inquiry requires --%s (what you are going to try — an unnamed line teaches a future run nothing)", flags.ForPayloadKey("line"))
+			return fmt.Errorf("record: avenue requires --%s (what you are going to try — an unnamed avenue teaches a future run nothing)", flags.ForPayloadKey("line"))
 		}
-		// A declined or abandoned line of inquiry with no reason is the decoration this verb
+		// A declined or abandoned avenue with no reason is the decoration this verb
 		// exists to prevent: the road not taken is worthless without why.
 		// Guarded by the DECLARED set so an unknown status falls through to checkEnum at the
 		// end of validate, which names the set and the near-miss. Without the guard the
@@ -1367,13 +1367,13 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			st != recordpb.AvenueStatus_AVENUE_STATUS_PURSUED &&
 			st != recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED && b.GetReason() == "" {
 			if st == recordpb.AvenueStatus_AVENUE_STATUS_DEFERRED {
-				return fmt.Errorf("record: a deferred line of inquiry requires --reason — what a later run should pick it up FOR. A deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet")
+				return fmt.Errorf("record: a deferred avenue requires --reason — what a later run should pick it up FOR. A deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet")
 			}
-			return fmt.Errorf("record: a %s line of inquiry requires --reason (why it was not taken, or what killed it — the part a future run actually needs; a bare list of roads not taken is decoration)", recordpb.Word(st))
+			return fmt.Errorf("record: a %s avenue requires --reason (why it was not taken, or what killed it — the part a future run actually needs; a bare list of roads not taken is decoration)", recordpb.Word(st))
 		}
-	// THE PER-EPOCH READ OF THE REPORT AGAINST THE RECORD'S LINES OF INQUIRY.
+	// THE PER-EPOCH READ OF THE REPORT AGAINST THE RECORD'S AVENUES.
 	//
-	// The retired `inquiry-support` carried three checks; ONE survives and the other two retired
+	// The retired `avenue review` carried three checks; ONE survives and the other two retired
 	// with the shape rather than being dropped. `--id must be present` and `--id must name a line
 	// the record has` policed a PER-LINE vote, and there is no per-line vote: the lines reach the
 	// report on the worklist, generated from the record, so presence is not a question and the
@@ -1383,9 +1383,9 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 	// review with no quoted text is the self-attestation this channel exists to end. TrimSpace,
 	// not `== ""`, because a --reason of one space discharges the duty and says nothing — the
 	// stricter of the two tests is kept deliberately.
-	case *recordpb.InquiryReview:
+	case *recordpb.AvenueReview:
 		if strings.TrimSpace(b.GetReason()) == "" {
-			return fmt.Errorf("record: inquiry-review requires --reason (what the report SAYS where it accounts for this run's research — quote it). Silence cannot clear this duty: an absent review reads exactly like a report read and found sound, which is why the explicit negative must still be said. Where a line's research is thin or missing, that is a GAP — mint it; this event records only that the read happened")
+			return fmt.Errorf("record: avenue-review requires --reason (what the report SAYS where it accounts for this run's research — quote it). Silence cannot clear this duty: an absent review reads exactly like a report read and found sound, which is why the explicit negative must still be said. Where an avenue's research is thin or missing, that is a GAP — mint it; this event records only that the read happened")
 		}
 	case *recordpb.Halt:
 	case *recordpb.Certify:
@@ -1486,8 +1486,8 @@ func filingSubject(m *recordpb.Motion) recordpb.MotionSubject {
 		return recordpb.MotionSubject_MOTION_SUBJECT_GRADE
 	case *recordpb.Motion_Petition:
 		return recordpb.MotionSubject_MOTION_SUBJECT_PETITION
-	case *recordpb.Motion_Direction:
-		return recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION
+	case *recordpb.Motion_Avenue:
+		return recordpb.MotionSubject_MOTION_SUBJECT_AVENUE
 	case *recordpb.Motion_Docket:
 		return recordpb.MotionSubject_MOTION_SUBJECT_DOCKET
 	}
@@ -1501,8 +1501,8 @@ func rulingSubject(r *recordpb.MotionRule) recordpb.MotionSubject {
 		return recordpb.MotionSubject_MOTION_SUBJECT_GRADE
 	case *recordpb.MotionRule_Petition:
 		return recordpb.MotionSubject_MOTION_SUBJECT_PETITION
-	case *recordpb.MotionRule_Direction:
-		return recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION
+	case *recordpb.MotionRule_Avenue:
+		return recordpb.MotionSubject_MOTION_SUBJECT_AVENUE
 	case *recordpb.MotionRule_Docket:
 		return recordpb.MotionSubject_MOTION_SUBJECT_DOCKET
 	}
@@ -1516,8 +1516,8 @@ func rulingWord(r *recordpb.MotionRule) string {
 		return recordpb.Word(v.Grade)
 	case *recordpb.MotionRule_Petition:
 		return recordpb.Word(v.Petition)
-	case *recordpb.MotionRule_Direction:
-		return recordpb.Word(v.Direction)
+	case *recordpb.MotionRule_Avenue:
+		return recordpb.Word(v.Avenue)
 	case *recordpb.MotionRule_Docket:
 		// THE WORD IS ON THE MESSAGE, not the arm — the docket arm is the only one carrying a
 		// message rather than an enum, because the bench records reasoning as well as a verdict.
@@ -1534,8 +1534,8 @@ func rulingNames(s recordpb.MotionSubject) []string {
 		return recordpb.Names(recordpb.GradeRuling(0).Descriptor())
 	case recordpb.MotionSubject_MOTION_SUBJECT_PETITION:
 		return recordpb.Names(recordpb.PetitionRuling(0).Descriptor())
-	case recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION:
-		return recordpb.Names(recordpb.DirectionRuling(0).Descriptor())
+	case recordpb.MotionSubject_MOTION_SUBJECT_AVENUE:
+		return recordpb.Names(recordpb.AvenueRuling(0).Descriptor())
 	case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
 		// The shared Disposition set (#342), not a docket-specific enum: the bench's vocabulary
 		// is the one `merge close` uses, which is what "one vocabulary, whichever verb closed

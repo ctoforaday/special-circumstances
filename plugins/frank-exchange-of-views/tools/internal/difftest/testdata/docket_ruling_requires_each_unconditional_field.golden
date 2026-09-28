@@ -29,15 +29,13 @@ stdout:
 minted G1
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ motion docket file --run {RUN} --seat-id red-chair --id G1 --reason contested, and not red's to close
 exit 0
 stdout:
 motion M1 filed (docket)
-4 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
-  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
+3 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
   · gap G1 is open and material — PASS is refused while it is
   · motion M1 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
@@ -62,7 +60,7 @@ feov-record: record: motion rule requires --principle to say something (the rule
 
 rule on a docket motion — this verb is the bench seat's, and it appears only on that surface.
 
-EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
+EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
 
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
 your text, and records whatever the command printed — or nothing — in its place. Pass every
@@ -123,7 +121,7 @@ feov-record: record: motion docket rule requires --reopens-on (what would change
 
 rule on a docket motion — this verb is the bench seat's, and it appears only on that surface.
 
-EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
+EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
 
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
 your text, and records whatever the command printed — or nothing — in its place. Pass every
@@ -187,10 +185,10 @@ Global Flags:
 {"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":6,"type":"EVENT_TYPE_REGISTER"}
 
 ═══ RENDERS ═══
--- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
+-- avenues
+# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

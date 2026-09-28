@@ -126,7 +126,7 @@ func TestVerbPayloads(t *testing.T) {
 			args: []string{"--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it"},
 			typ:  recordpb.EventType_EVENT_TYPE_MOTION_RULE,
 			// THE RULING IS A ONEOF ARM, not a `ruling` field: `grade` carries GradeRuling,
-			// `petition` PetitionRuling, `direction` DirectionRuling. That separation is what
+			// `petition` PetitionRuling, `direction` AvenueRuling. That separation is what
 			// makes a ruling from the wrong subject's vocabulary unrepresentable, and it is why
 			// the old key could never match. The ruler's argument is `opinion`.
 			want: map[string]string{"motion_id": "M1", "subject": "grade", "grade": "rejected",
@@ -160,15 +160,15 @@ func TestVerbPayloads(t *testing.T) {
 			says: "retired: the claim as it stood",
 		},
 		{
-			name: "blue line of inquiry propose records the direction and its hypothesis",
-			path: []string{"line-of-inquiry", "propose"}, seatID: "blue-lane-1",
+			name: "blue avenue propose records the direction and its hypothesis",
+			path: []string{"avenue", "propose"}, seatID: "blue-lane-1",
 			args: []string{"--reason", "search the offline archive", "--method", "full-text search",
 				"--hypothesis", "the 1997 proceedings are scanned"},
 			typ: recordpb.EventType_EVENT_TYPE_AVENUE,
 			want: map[string]string{"line": "search the offline archive", "status": "proposed",
 				"reason": "search the offline archive", "method": "full-text search",
 				"hypothesis": "the 1997 proceedings are scanned"},
-			says: "line of inquiry Q1 recorded (proposed): search the offline archive",
+			says: "avenue Q1 recorded (proposed): search the offline archive",
 		},
 		{
 			name: "motion petition rule records the ruling and its opinion",
@@ -214,7 +214,7 @@ func TestVerbPayloads(t *testing.T) {
 			// THE VERB COMES FROM `typ`, NOT FROM THE TEST'S PROSE NAME.
 			//
 			// It was `strings.SplitN(tc.name, " ", 3)[1]` — the second word of a human-readable
-			// case name. Renaming the `avenue` verb to `line-of-inquiry` renamed the case with
+			// case name. Renaming the `avenue` verb to `avenue` renamed the case with
 			// it, and the runner then invoked `blue line`, which does not exist. The failure
 			// arrived as "no verb \"line\" exists on any seat", pointing at the tool rather than
 			// at the harness that had composed a verb out of a sentence.

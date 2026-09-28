@@ -73,7 +73,7 @@ func tallyByGap(f record.Family) map[string]*perGap {
 	// motion as what makes "a gap could reach the bench and get no ruling with nothing able to
 	// notice" noticeable — and the detector for exactly that shape could not see it.
 	//
-	// ONLY THE SUBJECTS THAT NAME A GAP. A petition and an inquiry carry no gap id, and `get("")`
+	// ONLY THE SUBJECTS THAT NAME A GAP. A petition and an avenue carry no gap id, and `get("")`
 	// would mint a phantom node keyed on the empty string.
 	for _, m := range record.MotionsOf(f.Events) {
 		switch m.Subject {

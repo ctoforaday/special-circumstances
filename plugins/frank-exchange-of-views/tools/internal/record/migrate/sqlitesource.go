@@ -220,8 +220,13 @@ func (s *SQLiteSource) tables() ([]string, error) {
 // the messages renamed since. `round_verdict` was message RoundVerdict; the epoch left the record
 // (plans/roundless.md §III.A.2) and the message is Gate, so a live record's table is `gate` and
 // tableForWord already says so — this is only the old spelling, read at migration and nowhere else.
+//
+// `inquiry_review` is read under the word it RECORDED, and a registry entry carries that word to
+// `avenue_review`. The concept has one name now — avenue — and the review of the set is one of its
+// acts; the table is the old spelling of that act, read here and nowhere else.
 var renamedBodyTables = map[string]string{
-	"round_verdict": "verdict",
+	"round_verdict":  "verdict",
+	"inquiry_review": "inquiry_review",
 }
 
 func (s *SQLiteSource) classify(t string, byTable map[string]string, byID map[int64]*OldEvent) error {

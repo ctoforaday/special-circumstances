@@ -6,7 +6,7 @@ import (
 )
 
 // AN ABSENCE HAS NO SENTENCE TO QUOTE, and borrowing an innocent one as a handle is what the verb
-// used to force. Measured in research/2026-09-02_quadratic-formula: a missing line of inquiry was
+// used to force. Measured in research/2026-09-02_quadratic-formula: a missing avenue was
 // pinned to the Diophantus sentence the finding itself called FINE, and a missing risk matrix —
 // the word "risk" occurs zero times in that report — was pinned to the opening of section F.
 // "A reader of the gap list will land on good prose and have to read three paragraphs to learn
@@ -62,7 +62,7 @@ func TestAFindingCannotClaimBothAnchors(t *testing.T) {
 func TestAnAboutReferenceIsCheckedAgainstTheRecord(t *testing.T) {
 	runDir := seatRun(t)
 	_, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-logic",
-		"--key", "F4", "--about-kind", "inquiry", "--about", "Q99",
+		"--key", "F4", "--about-kind", "avenue", "--about", "Q99",
 		"--reason", "the decline reason is a category error",
 		"--severity", "low", "--likelihood", "low", "--impact", "low")
 	if err == nil {

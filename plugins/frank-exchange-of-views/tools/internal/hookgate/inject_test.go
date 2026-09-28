@@ -214,7 +214,7 @@ func TestTheHeredocFormTheToolTeachesKeepsItsIdentity(t *testing.T) {
 func TestAnAliasedBinaryStillCarriesTheIdentity(t *testing.T) {
 	for _, cmd := range []string{
 		"RB=\"/tmp/x/runbin/feov-record\"\n$RB --seat-id blue-lane-1 register",
-		"RB=/tmp/x/runbin/feov-record\n$RB --seat-id blue-lane-1 line-of-inquiry propose --hypothesis h",
+		"RB=/tmp/x/runbin/feov-record\n$RB --seat-id blue-lane-1 avenue propose --hypothesis h",
 		"export RB=/tmp/x/feov-record\n\"$RB\" show board",
 		"alias fr='/tmp/x/feov-record'\nfr verify",
 	} {

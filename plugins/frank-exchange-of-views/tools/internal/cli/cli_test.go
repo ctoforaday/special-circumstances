@@ -1011,7 +1011,7 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 	}
 }
 
-// blue's verbs refuse the removals and empty inquiries the engine cares about.
+// blue's verbs refuse the removals and empty avenues the engine cares about.
 func TestBlueVerbContracts(t *testing.T) {
 	runDir := newRun(t)
 	seatID := "blue-lane-1"
@@ -1029,20 +1029,20 @@ func TestBlueVerbContracts(t *testing.T) {
 		}
 	})
 
-	t.Run("a line of inquiry is proposed, then moved with what changed", func(t *testing.T) {
-		out, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seatID,
+	t.Run("an avenue is proposed, then moved with what changed", func(t *testing.T) {
+		out, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seatID,
 			"--reason", "the road taken", "--hypothesis", "it leads somewhere")
 		if err != nil {
 			t.Fatalf("a proposal needs no fate: %v", err)
 		}
-		id := inquiryIDOf(out)
-		if _, err := run(t, "line-of-inquiry", "move", "--run", runDir, "--seat-id", seatID,
+		id := avenueIDOf(out)
+		if _, err := run(t, "avenue", "move", "--run", runDir, "--seat-id", seatID,
 			"--id", id, "--as", "declined"); err == nil {
 			t.Error("a move with no reason was accepted — a status that slides silently is decoration")
 		}
-		if _, err := run(t, "line-of-inquiry", "move", "--run", runDir, "--seat-id", seatID,
+		if _, err := run(t, "avenue", "move", "--run", runDir, "--seat-id", seatID,
 			"--id", id, "--as", "invented", "--reason", "r"); err == nil {
-			t.Error("an undefined line of inquiry status was accepted; the render groups BY status")
+			t.Error("an undefined avenue status was accepted; the render groups BY status")
 		}
 	})
 
@@ -1635,8 +1635,8 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 	}
 }
 
-// inquiryIDOf pulls the tool-assigned line-of-inquiry id out of a propose result.
-func inquiryIDOf(out string) string {
+// avenueIDOf pulls the tool-assigned avenue id out of a propose result.
+func avenueIDOf(out string) string {
 	m := regexp.MustCompile(`\b(Q\d+)\b`).FindStringSubmatch(out)
 	if m == nil {
 		return ""

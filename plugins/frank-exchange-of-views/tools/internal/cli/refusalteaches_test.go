@@ -47,8 +47,8 @@ func refusals() []struct {
 		name string
 		args []string
 	}{
-		{"a verb refusing on a missing required flag", []string{"line-of-inquiry", "propose", "--seat-id", "blue-respond"}},
-		{"a group invoked with no verb", []string{"line-of-inquiry", "--seat-id", "blue-respond"}},
+		{"a verb refusing on a missing required flag", []string{"avenue", "propose", "--seat-id", "blue-respond"}},
+		{"a group invoked with no verb", []string{"avenue", "--seat-id", "blue-respond"}},
 		{"a role with no verb", []string{"blue"}},
 		{"an unknown top-level command", []string{"frobnicate"}},
 		{"a motion subject with no such verb", []string{"motion", "petition", "appeal", "--seat-id", "blue-respond"}},
@@ -222,7 +222,7 @@ func TestABareSeatVerbIsToldWhereItLives(t *testing.T) {
 	root := NewRootFor(record.SampleSeatOf("blue"))
 
 	for _, tc := range []struct{ name, wantSeat string }{
-		{"inquiry-support", "chair"},
+		{"dispatch", "chair"},
 		{"close", "lens"},
 		{"reproduce", "lens"},
 		{"halt", "bench"},
@@ -243,5 +243,38 @@ func TestABareSeatVerbIsToldWhereItLives(t *testing.T) {
 	if !strings.Contains(absent, "no command named") {
 		t.Errorf("a genuinely absent command no longer says it is absent:\n%s\n\n"+
 			"Pointing a seat at a verb that does not exist is the same defect facing the other way.", absent)
+	}
+}
+
+// AN ACT IN A GROUP ANOTHER SEAT ALSO HOLDS IS REFUSED, AND THE HOLDER IS NAMED — and above all it is
+// not a silent success.
+//
+// A verb group with no RunE answered an unknown subcommand with its own help and EXIT 0: cobra read
+// the word as an argument to a command that cannot run, printed the help, and reported success. It
+// became reachable in earnest when the avenue concept collapsed to one verb — `avenue` is a group on
+// blue's surface (propose, move) and on the chair's (review), so each seat can type the other's act
+// under a group it does hold, and was told nothing. The measured case above is the same failure one
+// level down: a seat that meets a wrong-seat act as "nothing happened" works around it or stops.
+func TestAGroupedActIsToldWhereItLives(t *testing.T) {
+	for _, tc := range []struct {
+		seat     string
+		argv     []string
+		wantSeat string // empty where no seat holds the act
+	}{
+		{"blue-respond", []string{"avenue", "review"}, "chair"},
+		{"red-chair", []string{"avenue", "propose"}, "blue"},
+		{"blue-respond", []string{"avenue", "nonsense"}, ""},
+		{"blue-respond", []string{"motion", "nonsense"}, ""},
+	} {
+		_, err := run(t, append(append([]string{}, tc.argv...), "--seat-id", tc.seat)...)
+		if err == nil {
+			t.Errorf("%s typing `%s` SUCCEEDED — a group answered an act it does not hold with its help and "+
+				"exit 0, which a seat reads as having done the act", tc.seat, strings.Join(tc.argv, " "))
+			continue
+		}
+		if tc.wantSeat != "" && !strings.Contains(err.Error(), "the "+tc.wantSeat+" seat's act") {
+			t.Errorf("%s typing `%s` was refused without naming the %s seat that holds it:\n%v",
+				tc.seat, strings.Join(tc.argv, " "), tc.wantSeat, err)
+		}
 	}
 }

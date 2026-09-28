@@ -44,7 +44,7 @@ The merge seat put the mechanism more sharply than the metric ever could:
 ## The same blank, three different routes
 
 Every one of the three left the entire contestation surface untouched — `motion petition file`,
-`motion grade file`, `motion grade appeal`, `motion inquiry appeal`. They got there differently, and
+`motion grade file`, `motion grade appeal`, `motion avenue appeal`. They got there differently, and
 the difference is what a count cannot see:
 
 | seat | route | what it needs |

@@ -29,8 +29,7 @@ stdout:
 minted G1
   acceptance check RECORDED as: refetch
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ close --run {RUN} --seat-id red-lens-evidence --id G1
 exit 2
@@ -228,8 +227,7 @@ $ close --run {RUN} --seat-id red-lens-evidence --id G1 --as repaired --verified
 exit 0
 stdout:
 closed G1 (repaired) [key red-lens-evidence:close:#1:G1]
-1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
@@ -240,10 +238,10 @@ closed G1 (repaired) [key red-lens-evidence:close:#1:G1]
 {"close":{"anchor_seat":"L1","anchor_target":"https://example.invalid/spec#s3","anchor_tool":"WebFetch","closure_class":"DISPOSITION_REPAIRED","gap_id":"G1","prose":"refetched; the source now resolves and supports the claim"},"key":"red-lens-evidence:close:#1:G1","seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_CLOSE"}
 
 ═══ RENDERS ═══
--- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
+-- avenues
+# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

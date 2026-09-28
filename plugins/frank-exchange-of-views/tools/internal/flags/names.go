@@ -113,7 +113,7 @@ const (
 	// header declares.
 	Accept = "accept"
 
-	// A line of inquiry's ABSTRACT: what would be true if it pays off. Distinct from
+	// An avenue's ABSTRACT: what would be true if it pays off. Distinct from
 	// --problem (a defect) and --reason (the argument for an act) because it is a forward
 	// claim, and it is what makes a later abandonment checkable.
 	Hypothesis = "hypothesis"
@@ -128,7 +128,7 @@ const (
 	//
 	// As is the one word for "which value from a closed set describes what became of this" —
 	// a closure's class, a bench disposition, a verification's outcome, a ruling, a run's
-	// verdict, a line of inquiry's fate. Every set is closed, and each verb documents its own
+	// verdict, an avenue's fate. Every set is closed, and each verb documents its own
 	// through enumhelp.
 	As   = "as"
 	None = "none"
@@ -213,7 +213,7 @@ const (
 	At = "at"
 
 	// About names WHAT a finding is anchored to when the thing it names is not on the page — a
-	// section that is missing something, a line of inquiry whose stated reason you are arguing
+	// section that is missing something, an avenue whose stated reason you are arguing
 	// against, a gap already on the docket. AboutKind says which.
 	About     = "about"
 	AboutKind = "about-kind"
@@ -406,12 +406,7 @@ func ForPayloadKey(key string) string {
 // Only the keys whose flag is a DIFFERENT WORD need an entry. review_flag, principle,
 // tension and the rest are spelled by the fallback and would be noise here.
 var payloadFlag = map[string]string{
-	"gap_id": ID,
-	// The line-of-inquiry id a support verdict joins on. Typed as --id, the word every verb
-	// uses for the thing it is acting on, and stored as `inquiry_id` because the event schema
-	// names WHICH id it is — a payload carrying a bare `id` beside a gap's would be two facts
-	// wearing one key.
-	"inquiry_id":    ID,
+	"gap_id":        ID,
 	"disposition":   As,
 	"outcome":       As,
 	"status":        As,
@@ -434,7 +429,7 @@ var payloadFlag = map[string]string{
 	// Every prose payload key funnels through the one --reason flag. The keys stay distinct in
 	// the event schema — a dispute stores `evidence`, an opinion `rationale`, a close `prose`
 	// — while the WORD a seat types is `reason`.
-	// `line` is a line of inquiry's own statement and `row` a manifest receipt; both are the
+	// `line` is an avenue's own statement and `row` a manifest receipt; both are the
 	// verb's prose, and both are typed as --reason like every other prose field.
 	"line":      Reason,
 	"row":       Reason,

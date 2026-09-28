@@ -260,8 +260,8 @@ func TestNoManualLineOutrunsARead(t *testing.T) {
 func TestManualNamesOnlyThisSeatsCommands(t *testing.T) {
 	t.Parallel()
 	cases := []struct{ seat, has, hasNot string }{
-		{record.SampleSeatOf("blue"), "line-of-inquiry propose", "mint"},
-		{record.SampleSeatOf("lens"), "mint", "line-of-inquiry propose"},
+		{record.SampleSeatOf("blue"), "avenue propose", "mint"},
+		{record.SampleSeatOf("lens"), "mint", "avenue propose"},
 	}
 	for _, c := range cases {
 		_, pages := manualOf(t, c.seat)
@@ -377,14 +377,14 @@ func TestTheSurveyReadsARedirectedManualThroughItsRead(t *testing.T) {
 		use("a", "Bash", map[string]any{"command": `"` + bin + `" --seat-id ` + seatID + ` manual > ` + file}), res("a", ""),
 		use("r1", "Read", map[string]any{"file_path": file, "limit": half}), res("r1", readResult(lines[:half], 1)),
 		use("r2", "Read", map[string]any{"file_path": file, "offset": half + 1}), res("r2", readResult(lines[half:], half+1)),
-		use("b", "Bash", map[string]any{"command": `"` + bin + `" line-of-inquiry propose --reason x`}), res("b", "ok"),
+		use("b", "Bash", map[string]any{"command": `"` + bin + `" avenue propose --reason x`}), res("b", "ok"),
 	}
 	s, err := diagnostics.ReadSurvey(writeTrajectory(t, steps...), InvokedAs(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(s.FirstUses) != 1 || s.FirstUses[0].Command != "line-of-inquiry propose" || s.FirstUses[0].Depth != diagnostics.DepthCommand {
-		t.Errorf("first uses = %+v, want line-of-inquiry propose at depth command — its page was read from the file", s.FirstUses)
+	if len(s.FirstUses) != 1 || s.FirstUses[0].Command != "avenue propose" || s.FirstUses[0].Depth != diagnostics.DepthCommand {
+		t.Errorf("first uses = %+v, want avenue propose at depth command — its page was read from the file", s.FirstUses)
 	}
 	if got, want := len(s.HelpPages), len(surfaceOf(seatID)); got != want || s.ManualUnread != 0 {
 		t.Errorf("survey saw %d pages (unread %d), the manual printed %d", got, s.ManualUnread, want)

@@ -16,6 +16,7 @@ package hookgate
 import (
 	"encoding/json"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/buildid"
+	"path/filepath"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
@@ -54,7 +55,8 @@ type Input struct {
 }
 
 type toolInput struct {
-	Command string `json:"command"`
+	Command  string `json:"command"`
+	FilePath string `json:"file_path"`
 }
 
 // Outcome is what the PreToolUse hook should do with a tool call.
@@ -95,6 +97,55 @@ const (
 // the run and the identity. A needless `export` on a command that does not use the tool is
 // inert. A missing one destroys a seat's work.
 
+// THE REPORT FILE IS DEAD TO SEATS, and this is where that is a mechanism rather than a sentence.
+//
+// Every seat's dispatch prompt already says every read is a projection of the record and the .md
+// files under the run are for a HUMAN — and on universe-m12 seven different seats (four lenses, the
+// chair, the judge) called Read on report.md anyway. The one interviewed said what drew it: the
+// research-protocol skill's map of the run directory lists `report.md  # THE RESEARCH` at the root.
+// The instruction was present and read; something closer to the act overrode it. The file does not
+// exist during a run — it is assembled at the end for the human reader — so the Read failed, and
+// the seat then spent further calls searching for it before reaching the tool.
+//
+// SCOPED TO SEATS. agent_id is present only on a subagent's call, so the operator's own session,
+// which does read the assembled report once the run is over, is untouched.
+const reportIsReadThroughTheTool = "the report is not a file a seat reads: `show report` serves it " +
+	"from the record, where every read is a projection. A report.md under the run directory is assembled " +
+	"at the end for the human reader — during the run it does not exist, and afterwards it is a snapshot " +
+	"of a record that has moved."
+
+// Wants says which calls this gate acts on: every Bash call (the injection), and a Read whose
+// file is named like the assembled report. The name check is cheap and runs before anything touches
+// the disk, so an ordinary Read costs nothing here.
+func Wants(in Input) bool {
+	switch in.ToolName {
+	case "Bash":
+		return true
+	case "Read":
+		var ti toolInput
+		if json.Unmarshal(in.ToolInput, &ti) != nil {
+			return false
+		}
+		base := filepath.Base(ti.FilePath)
+		return base == "report.md" || base == "report.html"
+	}
+	return false
+}
+
+// isAssembledReport is a report file anywhere under the run directory — the root copy, and any
+// guessed location (m12 also produced a Read of `.records/report.md`).
+func isAssembledReport(path, runDir string) bool {
+	if !filepath.IsAbs(path) {
+		return false
+	}
+	rel, err := filepath.Rel(filepath.Clean(runDir), filepath.Clean(path))
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return false
+	}
+	base := filepath.Base(path)
+	return base == "report.md" || base == "report.html"
+}
+
 // PreOutcome is the SINGLE entry point for the PreToolUse decision: inject the run directory and
 // the calling agent's id into every Bash command in a live run, or say nothing.
 //
@@ -102,12 +153,18 @@ const (
 // payload, so every field on it is wire-supplied; a CLI-computed member would leave a reader
 // unable to tell a derived value from something the client sent.
 func PreOutcome(in Input, runDir string) (Outcome, string) {
-	if runDir == "" || in.ToolName != "Bash" {
+	if runDir == "" || !Wants(in) {
 		return OutcomeNone, ""
 	}
 	var ti toolInput
 	if err := json.Unmarshal(in.ToolInput, &ti); err != nil {
 		return OutcomeUnparsable, err.Error()
+	}
+	if in.ToolName == "Read" {
+		if in.AgentID != "" && isAssembledReport(ti.FilePath, runDir) {
+			return OutcomeDeny, reportIsReadThroughTheTool
+		}
+		return OutcomeNone, ""
 	}
 	if ti.Command == "" {
 		return OutcomeNone, ""

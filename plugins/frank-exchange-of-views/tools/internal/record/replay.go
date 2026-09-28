@@ -337,7 +337,7 @@ func missingGap(verb string, e *Event, gapID string) error {
 // reports. The miss and the honest zero were the same number.
 //
 // NOT A GENERAL RULE ABOUT SEPARATORS, then or now. Disposition really is `defect_accepted` on the
-// seat's surface, DirectionRuling really is `out_of_scope` (inquiry.go checked it), and a test
+// seat's surface, AvenueRuling really is `out_of_scope` (avenue.go checked it), and a test
 // treats the hyphenated forms as typos of them.
 //
 // "" for the unspecified zero, matching what `p.Str("severity")` returned when the key was absent,
@@ -469,13 +469,13 @@ func ExistingMintByKey(run Run, seatID, key string) (string, error) {
 	return id, nil
 }
 
-// ExistingProposalByText gives `line-of-inquiry propose` the same crash-retry idempotency mint has,
-// and it needs no key because the LINE IS THE IDENTITY of a line of inquiry.
+// ExistingProposalByText gives `avenue propose` the same crash-retry idempotency mint has,
+// and it needs no key because the LINE IS THE IDENTITY of an avenue.
 //
 // MEASURED, and it cost a run's ledger: on universe-m12 a blue seat's propose script ran, wrote five
 // lines, and returned NO OUTPUT AT ALL to the seat. Seeing nothing, it ran the identical script
 // again — the only reasonable act — and five more ids were minted for five byte-identical
-// hypotheses. The run then held ten lines of inquiry for five questions, blue moved all ten to
+// hypotheses. The run then held ten avenues for five questions, blue moved all ten to
 // pursued, and a lens filed a defect about the method count being redundant. Nothing refused any of
 // it, because the idempotency key is `<seat>:<verb>:#<ordinal>` and a repeat is BY DESIGN a new act.
 //

@@ -246,11 +246,11 @@ func TestFindingsAndCitations(t *testing.T) {
 func TestAvenueLifecycle(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
-		recordtest.At(t, "blue-synthesize", "blue-synthesize:line-of-inquiry:Q1", &recordpb.Avenue{
+		recordtest.At(t, "blue-synthesize", "blue-synthesize:avenue:Q1", &recordpb.Avenue{
 			AvenueId: proto.String("Q1"), Line: proto.String("survey the standard forms"),
 			Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Reason: proto.String("opening"),
 		}),
-		recordtest.At(t, "blue-respond", "blue-respond:line-of-inquiry:Q1", &recordpb.Avenue{
+		recordtest.At(t, "blue-respond", "blue-respond:avenue:Q1", &recordpb.Avenue{
 			AvenueId: proto.String("Q1"), Line: proto.String("survey the standard forms"),
 			Status:           recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED),
 			SupersedesStatus: proto.String("proposed"), Reason: proto.String("nothing standard exists"),
@@ -285,7 +285,7 @@ func TestMarkdownInjectionInProblemText(t *testing.T) {
 // between the two appends and an idempotent retry never looked.
 //
 // That reasoning held while EVERY finding named a quoted sentence. A finding may now anchor to a
-// section, a line of inquiry or a gap (#742, shipped #787) — things that are not report text, so
+// section, an avenue or a gap (#742, shipped #787) — things that are not report text, so
 // there is no marker to splice and no anchor event to pair with. The rule reported every one of
 // those as the crash it was written to detect, on a record that was entirely correct. Nothing
 // caught it because no drive passed --about; the release sweep found it the moment one did.
@@ -330,7 +330,7 @@ func TestAnchorRecordCatchesTheCrashAndSparesTheAbsence(t *testing.T) {
 	t.Run("an about-anchored finding has no marker to pair with and is not a violation", func(t *testing.T) {
 		for _, k := range []recordpb.AboutKind{
 			recordpb.AboutKind_ABOUT_KIND_SECTION,
-			recordpb.AboutKind_ABOUT_KIND_INQUIRY,
+			recordpb.AboutKind_ABOUT_KIND_AVENUE,
 			recordpb.AboutKind_ABOUT_KIND_GAP,
 		} {
 			dir := recordtest.TmpRun(t)

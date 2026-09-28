@@ -29,8 +29,7 @@ stdout:
 minted G1
   acceptance check RECORDED as: a
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ register --run {RUN} --seat-id red-chair
 exit 0
@@ -51,15 +50,13 @@ stdout:
 minted G2
   acceptance check RECORDED as: b
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ verdict --run {RUN} --seat-id red-chair --as FAIL
 exit 0
 stdout:
 verdict FAIL (2 open, 0 closed) and checkpointed to {MIRROR}
-2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
-  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
+1 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
   · gap G2 is open and material — PASS is refused while it is
 
 ═══ EVENTS ═══
@@ -73,10 +70,10 @@ verdict FAIL (2 open, 0 closed) and checkpointed to {MIRROR}
 {"key":"red-chair:verdict:#2","seat_id":"red-chair","ts":7,"type":"EVENT_TYPE_VERDICT","verdict":{"verdict":"VERDICT_FAIL"}}
 
 ═══ RENDERS ═══
--- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
+-- avenues
+# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

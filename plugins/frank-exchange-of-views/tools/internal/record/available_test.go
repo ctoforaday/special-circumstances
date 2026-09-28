@@ -164,12 +164,12 @@ func mentions(ds []Item, want string) bool {
 	return false
 }
 
-// inquiryAt builds one `line of inquiry` event, so a test can place a line at a status in a round.
-func inquiryAt(t *testing.T, id, status string) *Event {
+// avenueAt builds one `avenue` event, so a test can place a line at a status in a round.
+func avenueAt(t *testing.T, id, status string) *Event {
 	t.Helper()
 	st, ok := AvenueStatusOf(status)
 	if !ok {
-		t.Fatalf("%q is not a line-of-inquiry status", status)
+		t.Fatalf("%q is not an avenue status", status)
 	}
 	return recordtest.Event(t, "blue-respond", &recordpb.Avenue{
 		AvenueId: proto.String(id),
@@ -187,34 +187,34 @@ func chairSits(t *testing.T) *Event {
 
 // A REAFFIRMED LINE STOPS NAGGING; A NEGLECTED ONE DOES NOT. They used to be the same bytes.
 //
-// StaleInquiries and availableOf each carried `Status == "proposed" || Status == "pursued"` and
-// nothing else, while the affordance's text said a line of inquiry "has no fate THIS ROUND" and
-// StaleInquiries' own doc said "a line of inquiry still open LATE IN A RUN". Neither read `Inquiry.Round`,
+// StaleAvenues and availableOf each carried `Status == "proposed" || Status == "pursued"` and
+// nothing else, while the affordance's text said an avenue "has no fate THIS ROUND" and
+// StaleAvenues' own doc said "an avenue still open LATE IN A RUN". Neither read `Avenue.Round`,
 // which was populated on every event.
 //
 // So blue moving a line to `pursued` this round with what it learned — the enum's own definition
 // of that status, "you are following it, OR YOU FOLLOWED IT" — produced the identical line to a
 // line untouched since round 0. The only statuses that DID clear it were `declined`, `abandoned`
 // and `deferred`, all of which mean stop: the channel could express giving up and not carrying on.
-func TestAPursuedInquiryReaffirmedThisRoundIsNotStale(t *testing.T) {
+func TestAPursuedAvenueReaffirmedThisRoundIsNotStale(t *testing.T) {
 	b := NewFamily(nil, []*Event{
 		// Epoch 0: the base phase, before any chair has sat.
-		inquiryAt(t, "Q1", "proposed"),
-		inquiryAt(t, "Q1", "pursued"),
-		inquiryAt(t, "Q2", "pursued"),
-		inquiryAt(t, "Q3", "pursued"), // never revisited
-		inquiryAt(t, "Q4", "deferred"),
-		inquiryAt(t, "Q5", "abandoned"),
+		avenueAt(t, "Q1", "proposed"),
+		avenueAt(t, "Q1", "pursued"),
+		avenueAt(t, "Q2", "pursued"),
+		avenueAt(t, "Q3", "pursued"), // never revisited
+		avenueAt(t, "Q4", "deferred"),
+		avenueAt(t, "Q5", "abandoned"),
 		// The chair sits twice: everything below is in epoch 2, the current one.
 		chairSits(t),
 		chairSits(t),
-		inquiryAt(t, "Q2", "pursued"),  // reaffirmed in the current epoch
-		inquiryAt(t, "Q6", "proposed"), // undecided, and `proposed` owes a move whenever asked
-		inquiryAt(t, "Z", "pursued"),   // carries the epoch forward
+		avenueAt(t, "Q2", "pursued"),  // reaffirmed in the current epoch
+		avenueAt(t, "Q6", "proposed"), // undecided, and `proposed` owes a move whenever asked
+		avenueAt(t, "Z", "pursued"),   // carries the epoch forward
 	})
 
 	stale := map[string]bool{}
-	for _, a := range StaleInquiriesOf(b.Events) {
+	for _, a := range StaleAvenuesOf(b.Events) {
 		stale[a.ID] = true
 	}
 

@@ -96,7 +96,8 @@ CREATE TABLE "enum_event_type" (
   "correct" TEXT NOT NULL REFERENCES "enum_correction_tier"("value")
 ) STRICT;
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('anchor', 'evidence tied to a finding: where in the artifact the claim actually lives', 'none');
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('avenue', 'a line of inquiry, from proposed through pursued, declined, deferred or abandoned', 'prose');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('avenue', 'an avenue, from proposed through pursued, declined, deferred or abandoned', 'prose');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('avenue_review', 'a review of the avenues themselves, rather than of a finding', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('base_ingest', 'the report as blue ingested it, stored verbatim as the origin every recorded edit replays over', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('blue_edit', 'a change to the report, recorded as old and new so the edit itself is auditable', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('cast', 'the run''s admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against', 'none');
@@ -110,7 +111,6 @@ INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('declare', '
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('dispatch', 'the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('finding', 'something red found, graded but not yet minted as a gap', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('halt', 'the bench ending the run on a safety, ethics, consent or integrity boundary', 'prose');
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('inquiry_review', 'a review of the lines of inquiry themselves, rather than of a finding', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('log', 'an entry addressed to the operator who can retool the seat: a defect, a request or an impediment — never a clean sitting, which is derived from having sat and filed nothing', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('manifest_row', 'one row of the run''s manifest, tying a gap to what shipped for it', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('mint', 'a gap put on the board — the act that creates the entity every other act refers to', 'none');
@@ -162,7 +162,7 @@ CREATE TABLE "enum_motion_subject" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('direction', 'a ruling on a line of inquiry blue proposed; the id is the AVENUE''s own, because the proposal IS the filing');
+INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('avenue', 'a ruling on an avenue blue proposed; the id is the AVENUE''s own, because the proposal IS the filing');
 INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('docket', 'a gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap''s fate');
 INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('grade', 'you contest a gap''s grade on one dimension');
 INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('petition', 'you ask the bench to intervene — the constitutional short-circuit available to any party seat');
@@ -213,13 +213,13 @@ CREATE TABLE "enum_petition_ruling" (
 INSERT INTO "enum_petition_ruling" ("value", "means") VALUES ('denied', 'the petition fails; the run continues as it was');
 INSERT INTO "enum_petition_ruling" ("value", "means") VALUES ('granted', 'the relief asked for is ordered');
 
-CREATE TABLE "enum_direction_ruling" (
+CREATE TABLE "enum_avenue_ruling" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_direction_ruling" ("value", "means") VALUES ('endorsed', 'worth this run''s time — pursue it');
-INSERT INTO "enum_direction_ruling" ("value", "means") VALUES ('out_of_scope', 'a real question, but not THIS question');
-INSERT INTO "enum_direction_ruling" ("value", "means") VALUES ('too_thin', 'in scope, but the hypothesis does not carry its budget');
+INSERT INTO "enum_avenue_ruling" ("value", "means") VALUES ('endorsed', 'worth this run''s time — pursue it');
+INSERT INTO "enum_avenue_ruling" ("value", "means") VALUES ('out_of_scope', 'a real question, but not THIS question');
+INSERT INTO "enum_avenue_ruling" ("value", "means") VALUES ('too_thin', 'in scope, but the hypothesis does not carry its budget');
 
 CREATE TABLE "enum_disposition" (
   "value" TEXT PRIMARY KEY,
@@ -247,8 +247,8 @@ CREATE TABLE "enum_about_kind" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_about_kind" ("value", "means") VALUES ('gap', 'a gap already on the docket, by its id — a defect in the record rather than in the report');
-INSERT INTO "enum_about_kind" ("value", "means") VALUES ('inquiry', 'a line of inquiry, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty''s own anchor');
+INSERT INTO "enum_about_kind" ("value", "means") VALUES ('avenue', 'an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty''s own anchor');
+INSERT INTO "enum_about_kind" ("value", "means") VALUES ('gap', 'a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands');
 INSERT INTO "enum_about_kind" ("value", "means") VALUES ('section', 'a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there');
 
 CREATE TABLE "enum_check_kind" (
@@ -437,7 +437,7 @@ CREATE TABLE "motion_petition" (
   FOREIGN KEY ("class") REFERENCES "enum_petition_class"("value")
 ) STRICT;
 
-CREATE TABLE "motion_direction" (
+CREATE TABLE "motion_avenue" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "motion"("event_id"),
   "avenue_id" TEXT
 ) STRICT;
@@ -456,14 +456,14 @@ CREATE TABLE "motion_rule" (
   "binds" TEXT,
   "grade" TEXT,
   "petition" TEXT,
-  "direction" TEXT,
+  "avenue" TEXT,
   "ruling_case" TEXT,
-  CHECK (("grade" IS NOT NULL) + ("petition" IS NOT NULL) + ("direction" IS NOT NULL) + ("ruling_case" IS NOT NULL) <= 1),
+  CHECK (("grade" IS NOT NULL) + ("petition" IS NOT NULL) + ("avenue" IS NOT NULL) + ("ruling_case" IS NOT NULL) <= 1),
   FOREIGN KEY ("subject") REFERENCES "enum_motion_subject"("value"),
   FOREIGN KEY ("binds") REFERENCES "enum_ruling_binds"("value"),
   FOREIGN KEY ("grade") REFERENCES "enum_grade_ruling"("value"),
   FOREIGN KEY ("petition") REFERENCES "enum_petition_ruling"("value"),
-  FOREIGN KEY ("direction") REFERENCES "enum_direction_ruling"("value")
+  FOREIGN KEY ("avenue") REFERENCES "enum_avenue_ruling"("value")
 ) STRICT;
 
 CREATE TABLE "motion_rule_docket" (
@@ -795,7 +795,7 @@ CREATE TABLE "log" (
   FOREIGN KEY ("source") REFERENCES "enum_log_source"("value")
 ) STRICT;
 
-CREATE TABLE "inquiry_review" (
+CREATE TABLE "avenue_review" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "reason" TEXT
 ) STRICT;
@@ -1172,7 +1172,7 @@ WHERE NOT EXISTS (SELECT 1 FROM "correction" c WHERE c."replacement" = u."root")
 -- position "pos": its own id, or — for a replacement — the id of the act at the ROOT of its chain.
 -- A correction takes its target's place in every ordering: a reader picking the FIRST or the LATEST
 -- act orders by "pos", so a replacement cannot jump ahead of a later act by the same seat (a line of
--- inquiry's proposal corrected after it was moved must not become the line's latest status).
+-- avenue's proposal corrected after it was moved must not become the line's latest status).
 CREATE VIEW "live_event" AS
 SELECT e."id" AS "event_id", COALESCE(re."id", e."id") AS "pos"
 FROM "events" e
@@ -1457,21 +1457,21 @@ SELECT
 -- write precisely because it would replace the first in every later reader — so the view
 -- states the first-wins rule ONCE, where a legacy record carrying an illegal second row
 -- cannot multiply anybody's join. Keyed on the id alone rather than joined to 'motion',
--- because a direction motion has no filing row (the line of inquiry's proposal IS the
+-- because an avenue motion has no filing row (the avenue's proposal IS the
 -- filing) and its answers must be askable all the same.
 CREATE VIEW "motion_answers" AS
 SELECT
   ids."motion_id"                                        AS "motion_id",
   fr."grade"                                             AS "grade",
   fr."petition"                                          AS "petition",
-  fr."direction"                                         AS "direction",
+  fr."avenue"                                            AS "avenue",
   -- THE DOCKET ARM IS A TABLE, NOT A COLUMN, and that is why it is joined rather than read.
   -- Its three siblings are enums and land as columns on "motion_rule"; the bench's is a MESSAGE
   -- (it carries the principle, the tension and what would reopen it), so its disposition lives
   -- one table down. Left out of the COALESCE below, "ruling" is NULL for every bench ruling ever
   -- made and RequireUnruledMotion reads the whole docket as unanswered.
   rd."disposition"                                       AS "docket",
-  COALESCE(fr."grade", fr."petition", fr."direction", rd."disposition") AS "ruling",
+  COALESCE(fr."grade", fr."petition", fr."avenue", rd."disposition") AS "ruling",
   fre."seat_id"                                          AS "ruled_by",
   fre."id"                                            AS "ruled_seq",
   fa."reason"                                            AS "appeal_reason",
@@ -1490,13 +1490,13 @@ LEFT JOIN "motion_appeal" fa ON fa."event_id" =
     WHERE y."motion_id" = ids."motion_id" ORDER BY ly."pos" LIMIT 1)
 LEFT JOIN "events" fae ON fae."id" = fa."event_id";
 
--- A LINE OF INQUIRY, whole: proposed by whom, saying what, where its status stands now, and
--- how red last ruled the direction — the join that used to live in three separate readers
--- (the Inquiries fold, InquiryRuling, and the report's rows). The proposal row carries the
--- substance; the LATEST avenue event carries the status; the LATEST direction-subject
+-- A AVENUE, whole: proposed by whom, saying what, where its status stands now, and
+-- how red last ruled the avenue — the join that used to live in three separate readers
+-- (the Avenues fold, AvenueRuling, and the report's rows). The proposal row carries the
+-- substance; the LATEST avenue event carries the status; the LATEST avenue-subject
 -- ruling carries red's answer, including a later ruling that carried no word — an unset arm
 -- on the newest ruling is red ruling NOTHING, not an invitation to read an older one.
-CREATE VIEW "line_of_inquiry" AS
+CREATE VIEW "avenue_state" AS
 SELECT
   p."avenue_id"                        AS "avenue_id",
   pe."seat_id"                         AS "proposed_by",
@@ -1504,7 +1504,7 @@ SELECT
   fp."line"                            AS "line",
   ls."status"                          AS "status",
   lse."id"                          AS "status_seq",
-  lr."direction"                       AS "direction_ruling",
+  lr."avenue"                          AS "avenue_ruling",
   lre."seat_id"                        AS "ruled_by",
   lre."id"                          AS "ruled_seq"
 -- Only the acts that stand, in their "pos" order: a proposal corrected after it was moved keeps its
@@ -1521,7 +1521,7 @@ LEFT JOIN "avenue" ls ON ls."event_id" =
 LEFT JOIN "events" lse ON lse."id" = ls."event_id"
 LEFT JOIN "motion_rule" lr ON lr."event_id" =
   (SELECT y."event_id" FROM "motion_rule" y JOIN "live_event" ly ON ly."event_id" = y."event_id"
-     WHERE y."motion_id" = p."avenue_id" AND y."subject" = 'direction' ORDER BY ly."pos" DESC LIMIT 1)
+     WHERE y."motion_id" = p."avenue_id" AND y."subject" = 'avenue' ORDER BY ly."pos" DESC LIMIT 1)
 LEFT JOIN "events" lre ON lre."id" = lr."event_id";
 
 -- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report (#709). The

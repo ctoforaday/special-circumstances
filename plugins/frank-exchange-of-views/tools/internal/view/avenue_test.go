@@ -19,18 +19,18 @@ func TestAnAppealRendersBesideItsRuling(t *testing.T) {
 		recordtest.Event(t, "blue-r0", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Line: proto.String("survey the adjacent literature")}),
 		recordtest.Event(t, "red-chair", &recordpb.MotionRule{
 			MotionId: proto.String("Q1"),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION),
+			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_AVENUE),
 			Opinion:  proto.String("a real question, not this one's"),
-			Ruling:   &recordpb.MotionRule_Direction{Direction: recordpb.DirectionRuling_DIRECTION_RULING_OUT_OF_SCOPE},
+			Ruling:   &recordpb.MotionRule_Avenue{Avenue: recordpb.AvenueRuling_AVENUE_RULING_OUT_OF_SCOPE},
 		}),
 		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("survey the adjacent literature")}),
 		recordtest.Event(t, "blue-r1", &recordpb.MotionAppeal{
 			MotionId: proto.String("Q1"),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION),
+			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_AVENUE),
 			Reason:   proto.String("the adjacent literature is what the question turns on"),
 		}),
 	}
-	got := string(inquiryMD(Input{Events: evs}))
+	got := string(avenueMD(Input{Events: evs}))
 	ruled := strings.Index(got, "RED RULED **out_of_scope**")
 	appealed := strings.Index(got, "BLUE APPEALED the `out_of_scope` ruling")
 	if ruled < 0 || appealed < 0 || appealed < ruled {

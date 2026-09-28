@@ -249,9 +249,9 @@ func TestEveryBoardSentToTheTranscriptStagesOne(t *testing.T) {
 			}
 			// Build reads the minted id back off stdout rather than recomposing it, so the stub
 			// has to answer like the tool does or the build stops before it reaches the filing.
-			if len(args) > 1 && args[0] == "line-of-inquiry" && args[1] == "propose" {
+			if len(args) > 1 && args[0] == "avenue" && args[1] == "propose" {
 				q++
-				return fmt.Sprintf("recorded line of inquiry Q%d\n", q), nil
+				return fmt.Sprintf("recorded avenue Q%d\n", q), nil
 			}
 			return "", nil
 		}

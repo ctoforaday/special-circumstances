@@ -27,7 +27,7 @@ import (
 // event schema and a flag is a word a seat types, and they move on different schedules.
 //
 // ONLY UNCONDITIONAL REQUIREMENTS BELONG HERE. A rule like "repaired_with_regression
-// requires --successor" or "a declined line of inquiry requires --reason" depends on another
+// requires --successor" or "a declined avenue requires --reason" depends on another
 // field's value, so it cannot be a static annotation and stays as logic in validate. Those
 // are documented in the flag's own description instead, where the condition can be stated.
 // KEYS ARE PAYLOAD KEYS. The prose key differs per verb — a close stores `prose`, a

@@ -115,44 +115,44 @@ func (CorrectionTier) EnumDescriptor() ([]byte, []int) {
 type EventType int32
 
 const (
-	EventType_EVENT_TYPE_UNSPECIFIED    EventType = 0
-	EventType_EVENT_TYPE_REGISTER       EventType = 1
-	EventType_EVENT_TYPE_ANCHOR         EventType = 2
-	EventType_EVENT_TYPE_AVENUE         EventType = 3
-	EventType_EVENT_TYPE_BLUE_EDIT      EventType = 4
-	EventType_EVENT_TYPE_CERTIFY        EventType = 5
-	EventType_EVENT_TYPE_CITE           EventType = 6
-	EventType_EVENT_TYPE_CLASS_NEW      EventType = 7
-	EventType_EVENT_TYPE_CLOSE          EventType = 8
-	EventType_EVENT_TYPE_CLOSING        EventType = 9
-	EventType_EVENT_TYPE_DECLARE        EventType = 10
-	EventType_EVENT_TYPE_FINDING        EventType = 11
-	EventType_EVENT_TYPE_LOG            EventType = 12
-	EventType_EVENT_TYPE_HALT           EventType = 14
-	EventType_EVENT_TYPE_MANIFEST_ROW   EventType = 15
-	EventType_EVENT_TYPE_MINT           EventType = 16
-	EventType_EVENT_TYPE_MOTION         EventType = 17
-	EventType_EVENT_TYPE_MOTION_APPEAL  EventType = 18
-	EventType_EVENT_TYPE_MOTION_RULE    EventType = 19
-	EventType_EVENT_TYPE_OBSERVE        EventType = 20
-	EventType_EVENT_TYPE_OUTCOME        EventType = 22
-	EventType_EVENT_TYPE_POSITION       EventType = 23
-	EventType_EVENT_TYPE_PROOF          EventType = 24
-	EventType_EVENT_TYPE_REGRADE        EventType = 25
-	EventType_EVENT_TYPE_REPRODUCE      EventType = 26
-	EventType_EVENT_TYPE_RETIRE         EventType = 27
-	EventType_EVENT_TYPE_REVISION       EventType = 28
-	EventType_EVENT_TYPE_SPOT_CHECK     EventType = 29
-	EventType_EVENT_TYPE_VERDICT        EventType = 30
-	EventType_EVENT_TYPE_VERIFY         EventType = 31
-	EventType_EVENT_TYPE_INQUIRY_REVIEW EventType = 32
-	EventType_EVENT_TYPE_BASE_INGEST    EventType = 33
-	EventType_EVENT_TYPE_SITTING_OPEN   EventType = 34
-	EventType_EVENT_TYPE_SITTING_CLOSE  EventType = 35
-	EventType_EVENT_TYPE_CAST           EventType = 36
-	EventType_EVENT_TYPE_DISPATCH       EventType = 37
-	EventType_EVENT_TYPE_SITTING_LIMIT  EventType = 38
-	EventType_EVENT_TYPE_CORRECTION     EventType = 39
+	EventType_EVENT_TYPE_UNSPECIFIED   EventType = 0
+	EventType_EVENT_TYPE_REGISTER      EventType = 1
+	EventType_EVENT_TYPE_ANCHOR        EventType = 2
+	EventType_EVENT_TYPE_AVENUE        EventType = 3
+	EventType_EVENT_TYPE_BLUE_EDIT     EventType = 4
+	EventType_EVENT_TYPE_CERTIFY       EventType = 5
+	EventType_EVENT_TYPE_CITE          EventType = 6
+	EventType_EVENT_TYPE_CLASS_NEW     EventType = 7
+	EventType_EVENT_TYPE_CLOSE         EventType = 8
+	EventType_EVENT_TYPE_CLOSING       EventType = 9
+	EventType_EVENT_TYPE_DECLARE       EventType = 10
+	EventType_EVENT_TYPE_FINDING       EventType = 11
+	EventType_EVENT_TYPE_LOG           EventType = 12
+	EventType_EVENT_TYPE_HALT          EventType = 14
+	EventType_EVENT_TYPE_MANIFEST_ROW  EventType = 15
+	EventType_EVENT_TYPE_MINT          EventType = 16
+	EventType_EVENT_TYPE_MOTION        EventType = 17
+	EventType_EVENT_TYPE_MOTION_APPEAL EventType = 18
+	EventType_EVENT_TYPE_MOTION_RULE   EventType = 19
+	EventType_EVENT_TYPE_OBSERVE       EventType = 20
+	EventType_EVENT_TYPE_OUTCOME       EventType = 22
+	EventType_EVENT_TYPE_POSITION      EventType = 23
+	EventType_EVENT_TYPE_PROOF         EventType = 24
+	EventType_EVENT_TYPE_REGRADE       EventType = 25
+	EventType_EVENT_TYPE_REPRODUCE     EventType = 26
+	EventType_EVENT_TYPE_RETIRE        EventType = 27
+	EventType_EVENT_TYPE_REVISION      EventType = 28
+	EventType_EVENT_TYPE_SPOT_CHECK    EventType = 29
+	EventType_EVENT_TYPE_VERDICT       EventType = 30
+	EventType_EVENT_TYPE_VERIFY        EventType = 31
+	EventType_EVENT_TYPE_AVENUE_REVIEW EventType = 32
+	EventType_EVENT_TYPE_BASE_INGEST   EventType = 33
+	EventType_EVENT_TYPE_SITTING_OPEN  EventType = 34
+	EventType_EVENT_TYPE_SITTING_CLOSE EventType = 35
+	EventType_EVENT_TYPE_CAST          EventType = 36
+	EventType_EVENT_TYPE_DISPATCH      EventType = 37
+	EventType_EVENT_TYPE_SITTING_LIMIT EventType = 38
+	EventType_EVENT_TYPE_CORRECTION    EventType = 39
 )
 
 // Enum value maps for EventType.
@@ -188,7 +188,7 @@ var (
 		29: "EVENT_TYPE_SPOT_CHECK",
 		30: "EVENT_TYPE_VERDICT",
 		31: "EVENT_TYPE_VERIFY",
-		32: "EVENT_TYPE_INQUIRY_REVIEW",
+		32: "EVENT_TYPE_AVENUE_REVIEW",
 		33: "EVENT_TYPE_BASE_INGEST",
 		34: "EVENT_TYPE_SITTING_OPEN",
 		35: "EVENT_TYPE_SITTING_CLOSE",
@@ -198,44 +198,44 @@ var (
 		39: "EVENT_TYPE_CORRECTION",
 	}
 	EventType_value = map[string]int32{
-		"EVENT_TYPE_UNSPECIFIED":    0,
-		"EVENT_TYPE_REGISTER":       1,
-		"EVENT_TYPE_ANCHOR":         2,
-		"EVENT_TYPE_AVENUE":         3,
-		"EVENT_TYPE_BLUE_EDIT":      4,
-		"EVENT_TYPE_CERTIFY":        5,
-		"EVENT_TYPE_CITE":           6,
-		"EVENT_TYPE_CLASS_NEW":      7,
-		"EVENT_TYPE_CLOSE":          8,
-		"EVENT_TYPE_CLOSING":        9,
-		"EVENT_TYPE_DECLARE":        10,
-		"EVENT_TYPE_FINDING":        11,
-		"EVENT_TYPE_LOG":            12,
-		"EVENT_TYPE_HALT":           14,
-		"EVENT_TYPE_MANIFEST_ROW":   15,
-		"EVENT_TYPE_MINT":           16,
-		"EVENT_TYPE_MOTION":         17,
-		"EVENT_TYPE_MOTION_APPEAL":  18,
-		"EVENT_TYPE_MOTION_RULE":    19,
-		"EVENT_TYPE_OBSERVE":        20,
-		"EVENT_TYPE_OUTCOME":        22,
-		"EVENT_TYPE_POSITION":       23,
-		"EVENT_TYPE_PROOF":          24,
-		"EVENT_TYPE_REGRADE":        25,
-		"EVENT_TYPE_REPRODUCE":      26,
-		"EVENT_TYPE_RETIRE":         27,
-		"EVENT_TYPE_REVISION":       28,
-		"EVENT_TYPE_SPOT_CHECK":     29,
-		"EVENT_TYPE_VERDICT":        30,
-		"EVENT_TYPE_VERIFY":         31,
-		"EVENT_TYPE_INQUIRY_REVIEW": 32,
-		"EVENT_TYPE_BASE_INGEST":    33,
-		"EVENT_TYPE_SITTING_OPEN":   34,
-		"EVENT_TYPE_SITTING_CLOSE":  35,
-		"EVENT_TYPE_CAST":           36,
-		"EVENT_TYPE_DISPATCH":       37,
-		"EVENT_TYPE_SITTING_LIMIT":  38,
-		"EVENT_TYPE_CORRECTION":     39,
+		"EVENT_TYPE_UNSPECIFIED":   0,
+		"EVENT_TYPE_REGISTER":      1,
+		"EVENT_TYPE_ANCHOR":        2,
+		"EVENT_TYPE_AVENUE":        3,
+		"EVENT_TYPE_BLUE_EDIT":     4,
+		"EVENT_TYPE_CERTIFY":       5,
+		"EVENT_TYPE_CITE":          6,
+		"EVENT_TYPE_CLASS_NEW":     7,
+		"EVENT_TYPE_CLOSE":         8,
+		"EVENT_TYPE_CLOSING":       9,
+		"EVENT_TYPE_DECLARE":       10,
+		"EVENT_TYPE_FINDING":       11,
+		"EVENT_TYPE_LOG":           12,
+		"EVENT_TYPE_HALT":          14,
+		"EVENT_TYPE_MANIFEST_ROW":  15,
+		"EVENT_TYPE_MINT":          16,
+		"EVENT_TYPE_MOTION":        17,
+		"EVENT_TYPE_MOTION_APPEAL": 18,
+		"EVENT_TYPE_MOTION_RULE":   19,
+		"EVENT_TYPE_OBSERVE":       20,
+		"EVENT_TYPE_OUTCOME":       22,
+		"EVENT_TYPE_POSITION":      23,
+		"EVENT_TYPE_PROOF":         24,
+		"EVENT_TYPE_REGRADE":       25,
+		"EVENT_TYPE_REPRODUCE":     26,
+		"EVENT_TYPE_RETIRE":        27,
+		"EVENT_TYPE_REVISION":      28,
+		"EVENT_TYPE_SPOT_CHECK":    29,
+		"EVENT_TYPE_VERDICT":       30,
+		"EVENT_TYPE_VERIFY":        31,
+		"EVENT_TYPE_AVENUE_REVIEW": 32,
+		"EVENT_TYPE_BASE_INGEST":   33,
+		"EVENT_TYPE_SITTING_OPEN":  34,
+		"EVENT_TYPE_SITTING_CLOSE": 35,
+		"EVENT_TYPE_CAST":          36,
+		"EVENT_TYPE_DISPATCH":      37,
+		"EVENT_TYPE_SITTING_LIMIT": 38,
+		"EVENT_TYPE_CORRECTION":    39,
 	}
 )
 
@@ -829,7 +829,7 @@ func (Soundness) EnumDescriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{10}
 }
 
-// AvenueStatus is a line of inquiry's fate. The lines-of-inquiry projection groups BY status, so
+// AvenueStatus is an avenue's fate. The avenues projection groups BY status, so
 // a value outside the set did not fail — it silently vanished from the section that exists to
 // show the roads not taken.
 type AvenueStatus int32
@@ -898,7 +898,7 @@ const (
 	MotionSubject_MOTION_SUBJECT_UNSPECIFIED MotionSubject = 0
 	MotionSubject_MOTION_SUBJECT_GRADE       MotionSubject = 1
 	MotionSubject_MOTION_SUBJECT_PETITION    MotionSubject = 2
-	MotionSubject_MOTION_SUBJECT_DIRECTION   MotionSubject = 3
+	MotionSubject_MOTION_SUBJECT_AVENUE      MotionSubject = 3
 	MotionSubject_MOTION_SUBJECT_DOCKET      MotionSubject = 4
 )
 
@@ -908,14 +908,14 @@ var (
 		0: "MOTION_SUBJECT_UNSPECIFIED",
 		1: "MOTION_SUBJECT_GRADE",
 		2: "MOTION_SUBJECT_PETITION",
-		3: "MOTION_SUBJECT_DIRECTION",
+		3: "MOTION_SUBJECT_AVENUE",
 		4: "MOTION_SUBJECT_DOCKET",
 	}
 	MotionSubject_value = map[string]int32{
 		"MOTION_SUBJECT_UNSPECIFIED": 0,
 		"MOTION_SUBJECT_GRADE":       1,
 		"MOTION_SUBJECT_PETITION":    2,
-		"MOTION_SUBJECT_DIRECTION":   3,
+		"MOTION_SUBJECT_AVENUE":      3,
 		"MOTION_SUBJECT_DOCKET":      4,
 	}
 )
@@ -1048,55 +1048,55 @@ func (PetitionRuling) EnumDescriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{14}
 }
 
-type DirectionRuling int32
+type AvenueRuling int32
 
 const (
-	DirectionRuling_DIRECTION_RULING_UNSPECIFIED  DirectionRuling = 0
-	DirectionRuling_DIRECTION_RULING_ENDORSED     DirectionRuling = 1
-	DirectionRuling_DIRECTION_RULING_OUT_OF_SCOPE DirectionRuling = 2 // a real question, but not THIS question
-	DirectionRuling_DIRECTION_RULING_TOO_THIN     DirectionRuling = 3 // in scope, but the hypothesis does not carry its budget
+	AvenueRuling_AVENUE_RULING_UNSPECIFIED  AvenueRuling = 0
+	AvenueRuling_AVENUE_RULING_ENDORSED     AvenueRuling = 1
+	AvenueRuling_AVENUE_RULING_OUT_OF_SCOPE AvenueRuling = 2 // a real question, but not THIS question
+	AvenueRuling_AVENUE_RULING_TOO_THIN     AvenueRuling = 3 // in scope, but the hypothesis does not carry its budget
 )
 
-// Enum value maps for DirectionRuling.
+// Enum value maps for AvenueRuling.
 var (
-	DirectionRuling_name = map[int32]string{
-		0: "DIRECTION_RULING_UNSPECIFIED",
-		1: "DIRECTION_RULING_ENDORSED",
-		2: "DIRECTION_RULING_OUT_OF_SCOPE",
-		3: "DIRECTION_RULING_TOO_THIN",
+	AvenueRuling_name = map[int32]string{
+		0: "AVENUE_RULING_UNSPECIFIED",
+		1: "AVENUE_RULING_ENDORSED",
+		2: "AVENUE_RULING_OUT_OF_SCOPE",
+		3: "AVENUE_RULING_TOO_THIN",
 	}
-	DirectionRuling_value = map[string]int32{
-		"DIRECTION_RULING_UNSPECIFIED":  0,
-		"DIRECTION_RULING_ENDORSED":     1,
-		"DIRECTION_RULING_OUT_OF_SCOPE": 2,
-		"DIRECTION_RULING_TOO_THIN":     3,
+	AvenueRuling_value = map[string]int32{
+		"AVENUE_RULING_UNSPECIFIED":  0,
+		"AVENUE_RULING_ENDORSED":     1,
+		"AVENUE_RULING_OUT_OF_SCOPE": 2,
+		"AVENUE_RULING_TOO_THIN":     3,
 	}
 )
 
-func (x DirectionRuling) Enum() *DirectionRuling {
-	p := new(DirectionRuling)
+func (x AvenueRuling) Enum() *AvenueRuling {
+	p := new(AvenueRuling)
 	*p = x
 	return p
 }
 
-func (x DirectionRuling) String() string {
+func (x AvenueRuling) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (DirectionRuling) Descriptor() protoreflect.EnumDescriptor {
+func (AvenueRuling) Descriptor() protoreflect.EnumDescriptor {
 	return file_record_proto_enumTypes[15].Descriptor()
 }
 
-func (DirectionRuling) Type() protoreflect.EnumType {
+func (AvenueRuling) Type() protoreflect.EnumType {
 	return &file_record_proto_enumTypes[15]
 }
 
-func (x DirectionRuling) Number() protoreflect.EnumNumber {
+func (x AvenueRuling) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use DirectionRuling.Descriptor instead.
-func (DirectionRuling) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use AvenueRuling.Descriptor instead.
+func (AvenueRuling) EnumDescriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{15}
 }
 
@@ -1129,7 +1129,7 @@ type AboutKind int32
 const (
 	AboutKind_ABOUT_KIND_UNSPECIFIED AboutKind = 0
 	AboutKind_ABOUT_KIND_SECTION     AboutKind = 1
-	AboutKind_ABOUT_KIND_INQUIRY     AboutKind = 2
+	AboutKind_ABOUT_KIND_AVENUE      AboutKind = 2
 	AboutKind_ABOUT_KIND_GAP         AboutKind = 3
 )
 
@@ -1138,13 +1138,13 @@ var (
 	AboutKind_name = map[int32]string{
 		0: "ABOUT_KIND_UNSPECIFIED",
 		1: "ABOUT_KIND_SECTION",
-		2: "ABOUT_KIND_INQUIRY",
+		2: "ABOUT_KIND_AVENUE",
 		3: "ABOUT_KIND_GAP",
 	}
 	AboutKind_value = map[string]int32{
 		"ABOUT_KIND_UNSPECIFIED": 0,
 		"ABOUT_KIND_SECTION":     1,
-		"ABOUT_KIND_INQUIRY":     2,
+		"ABOUT_KIND_AVENUE":      2,
 		"ABOUT_KIND_GAP":         3,
 	}
 )
@@ -2059,7 +2059,7 @@ type Event struct {
 	//	*Event_Retire
 	//	*Event_ManifestRow
 	//	*Event_Log
-	//	*Event_InquiryReview
+	//	*Event_AvenueReview
 	//	*Event_BaseIngest
 	//	*Event_SittingOpen
 	//	*Event_SittingClose
@@ -2405,10 +2405,10 @@ func (x *Event) GetLog() *Log {
 	return nil
 }
 
-func (x *Event) GetInquiryReview() *InquiryReview {
+func (x *Event) GetAvenueReview() *AvenueReview {
 	if x != nil {
-		if x, ok := x.Body.(*Event_InquiryReview); ok {
-			return x.InquiryReview
+		if x, ok := x.Body.(*Event_AvenueReview); ok {
+			return x.AvenueReview
 		}
 	}
 	return nil
@@ -2597,8 +2597,8 @@ type Event_Log struct {
 	Log *Log `protobuf:"bytes,49,opt,name=log,proto3,oneof"`
 }
 
-type Event_InquiryReview struct {
-	InquiryReview *InquiryReview `protobuf:"bytes,51,opt,name=inquiry_review,json=inquiryReview,proto3,oneof"`
+type Event_AvenueReview struct {
+	AvenueReview *AvenueReview `protobuf:"bytes,51,opt,name=avenue_review,json=avenueReview,proto3,oneof"`
 }
 
 type Event_BaseIngest struct {
@@ -2687,7 +2687,7 @@ func (*Event_ManifestRow) isEvent_Body() {}
 
 func (*Event_Log) isEvent_Body() {}
 
-func (*Event_InquiryReview) isEvent_Body() {}
+func (*Event_AvenueReview) isEvent_Body() {}
 
 func (*Event_BaseIngest) isEvent_Body() {}
 
@@ -4635,53 +4635,53 @@ func (x *Reproduce) GetNote() string {
 	return ""
 }
 
-// InquiryReview is one seat's statement, ONCE THIS ROUND, that it read the current report against
-// the record's lines of inquiry.
+// AvenueReview is the chair's statement, ONCE PER EPOCH, that it read the current report against
+// the record's avenues.
 //
 // The report's account of its own research — "we pursued X", "we deferred Y" — reaches the page as
 // a row `assemble` GENERATES from the record. It carries no citation anchor, so `lens verify`
 // cannot reach it: without this event nothing on the record says those claims were ever read, and
 // an unread section and a sound one are the same bytes.
 //
-// ONE EVENT PER ROUND, NOT ONE PER LINE, AND THE CORRECTION IS THE POINT. A retired shape gave
-// every line its own verdict on whether the report still CARRIED it. That made presence the
-// question, and presence is not a question: the lines reach the report on the WORKLIST, generated
-// from the record, so blue cannot cut them. A line is on the page because the record says it is,
-// and a per-line `cut`/`absent` state named something no writer could produce.
+// ONE EVENT PER EPOCH, NOT ONE PER AVENUE, AND THE CORRECTION IS THE POINT. A retired shape gave
+// every avenue its own verdict on whether the report still CARRIED it. That made presence the
+// question, and presence is not a question: avenues reach the report generated from the record, so
+// blue cannot cut them. An avenue is on the page because the record says it is, and a per-avenue
+// `cut`/`absent` state named something no writer could produce.
 //
 // WHAT IS LEFT IS AN ORDINARY GAP. The live question is whether blue's BODY delivered the research
-// a line claims — thin treatment, an unanswered hypothesis, a method never run. That is a defect
+// an avenue claims — thin treatment, an unanswered hypothesis, a method never run. That is a defect
 // in the report, so it is minted as a gap and gets the lifecycle, the blue duty, the grade and the
 // PASS gate every other gap already has. A second vocabulary for the same fact is exactly the
 // aliasing this schema exists to remove.
 //
-// THE DISCHARGE IS MODELLED ON `friction --none`, for the same reason and with the same field.
-// Silence cannot clear a duty: an absent review reads identically whether the report was read and
-// found sound or nobody looked. So "nothing to say" must still be SAID — one event, this round,
-// carrying what the read found. `reason` is required at the write path for the reason
-// FrictionNone.text is: an explicit negative is only worth more than silence when it says what was
+// WHY SILENCE CANNOT DISCHARGE IT, when the log's clean case is derived from silence: the log is
+// for exceptions, and a sitting that recorded acts and filed nothing there is the clean reading.
+// This is a READ, and an absent read is indistinguishable from a read that found the section sound
+// — so the read is the act, stated once per epoch with what it found. `reason` is required at the
+// write path because an explicit negative is only worth more than silence when it says what was
 // looked at.
-type InquiryReview struct {
+type AvenueReview struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Reason        *string                `protobuf:"bytes,1,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *InquiryReview) Reset() {
-	*x = InquiryReview{}
+func (x *AvenueReview) Reset() {
+	*x = AvenueReview{}
 	mi := &file_record_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *InquiryReview) String() string {
+func (x *AvenueReview) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*InquiryReview) ProtoMessage() {}
+func (*AvenueReview) ProtoMessage() {}
 
-func (x *InquiryReview) ProtoReflect() protoreflect.Message {
+func (x *AvenueReview) ProtoReflect() protoreflect.Message {
 	mi := &file_record_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -4693,19 +4693,19 @@ func (x *InquiryReview) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use InquiryReview.ProtoReflect.Descriptor instead.
-func (*InquiryReview) Descriptor() ([]byte, []int) {
+// Deprecated: Use AvenueReview.ProtoReflect.Descriptor instead.
+func (*AvenueReview) Descriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{21}
 }
 
-func (x *InquiryReview) GetReason() string {
+func (x *AvenueReview) GetReason() string {
 	if x != nil && x.Reason != nil {
 		return *x.Reason
 	}
 	return ""
 }
 
-// Avenue is a line of inquiry with a lifecycle. A PROPOSAL assigns the id and carries the
+// Avenue is an avenue with a lifecycle. A PROPOSAL assigns the id and carries the
 // substance; a MOVE names the avenue and carries only the new status and its reason, which is
 // why `line` cannot be required unconditionally.
 type Avenue struct {
@@ -5310,7 +5310,7 @@ type Motion struct {
 	//
 	//	*Motion_Grade
 	//	*Motion_Petition
-	//	*Motion_Direction
+	//	*Motion_Avenue
 	//	*Motion_Docket
 	Filing        isMotion_Filing `protobuf_oneof:"filing"`
 	unknownFields protoimpl.UnknownFields
@@ -5400,10 +5400,10 @@ func (x *Motion) GetPetition() *PetitionMotion {
 	return nil
 }
 
-func (x *Motion) GetDirection() *DirectionMotion {
+func (x *Motion) GetAvenue() *AvenueMotion {
 	if x != nil {
-		if x, ok := x.Filing.(*Motion_Direction); ok {
-			return x.Direction
+		if x, ok := x.Filing.(*Motion_Avenue); ok {
+			return x.Avenue
 		}
 	}
 	return nil
@@ -5430,8 +5430,8 @@ type Motion_Petition struct {
 	Petition *PetitionMotion `protobuf:"bytes,11,opt,name=petition,proto3,oneof"`
 }
 
-type Motion_Direction struct {
-	Direction *DirectionMotion `protobuf:"bytes,12,opt,name=direction,proto3,oneof"`
+type Motion_Avenue struct {
+	Avenue *AvenueMotion `protobuf:"bytes,12,opt,name=avenue,proto3,oneof"`
 }
 
 type Motion_Docket struct {
@@ -5442,7 +5442,7 @@ func (*Motion_Grade) isMotion_Filing() {}
 
 func (*Motion_Petition) isMotion_Filing() {}
 
-func (*Motion_Direction) isMotion_Filing() {}
+func (*Motion_Avenue) isMotion_Filing() {}
 
 func (*Motion_Docket) isMotion_Filing() {}
 
@@ -5716,29 +5716,29 @@ func (x *DocketRuling) GetFinal() bool {
 	return false
 }
 
-// DirectionMotion rules on a line of inquiry blue proposed. The id is the AVENUE's own — a
+// AvenueMotion rules on an avenue blue proposed. The id is the AVENUE's own — a
 // direction has no separate filing, because blue's proposal IS the filing.
-type DirectionMotion struct {
+type AvenueMotion struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AvenueId      *string                `protobuf:"bytes,1,opt,name=avenue_id,json=avenueId,proto3,oneof" json:"avenue_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *DirectionMotion) Reset() {
-	*x = DirectionMotion{}
+func (x *AvenueMotion) Reset() {
+	*x = AvenueMotion{}
 	mi := &file_record_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *DirectionMotion) String() string {
+func (x *AvenueMotion) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DirectionMotion) ProtoMessage() {}
+func (*AvenueMotion) ProtoMessage() {}
 
-func (x *DirectionMotion) ProtoReflect() protoreflect.Message {
+func (x *AvenueMotion) ProtoReflect() protoreflect.Message {
 	mi := &file_record_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -5750,12 +5750,12 @@ func (x *DirectionMotion) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DirectionMotion.ProtoReflect.Descriptor instead.
-func (*DirectionMotion) Descriptor() ([]byte, []int) {
+// Deprecated: Use AvenueMotion.ProtoReflect.Descriptor instead.
+func (*AvenueMotion) Descriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{34}
 }
 
-func (x *DirectionMotion) GetAvenueId() string {
+func (x *AvenueMotion) GetAvenueId() string {
 	if x != nil && x.AvenueId != nil {
 		return *x.AvenueId
 	}
@@ -5789,7 +5789,7 @@ type MotionRule struct {
 	//
 	//	*MotionRule_Grade
 	//	*MotionRule_Petition
-	//	*MotionRule_Direction
+	//	*MotionRule_Avenue
 	//	*MotionRule_Docket
 	Ruling isMotionRule_Ruling `protobuf_oneof:"ruling"`
 	// binds is what the ruling OBLIGES of the coming seats. Enumerated on the ruling side, which
@@ -5876,13 +5876,13 @@ func (x *MotionRule) GetPetition() PetitionRuling {
 	return PetitionRuling_PETITION_RULING_UNSPECIFIED
 }
 
-func (x *MotionRule) GetDirection() DirectionRuling {
+func (x *MotionRule) GetAvenue() AvenueRuling {
 	if x != nil {
-		if x, ok := x.Ruling.(*MotionRule_Direction); ok {
-			return x.Direction
+		if x, ok := x.Ruling.(*MotionRule_Avenue); ok {
+			return x.Avenue
 		}
 	}
-	return DirectionRuling_DIRECTION_RULING_UNSPECIFIED
+	return AvenueRuling_AVENUE_RULING_UNSPECIFIED
 }
 
 func (x *MotionRule) GetDocket() *DocketRuling {
@@ -5913,8 +5913,8 @@ type MotionRule_Petition struct {
 	Petition PetitionRuling `protobuf:"varint,11,opt,name=petition,proto3,enum=feov.record.v1.PetitionRuling,oneof"`
 }
 
-type MotionRule_Direction struct {
-	Direction DirectionRuling `protobuf:"varint,12,opt,name=direction,proto3,enum=feov.record.v1.DirectionRuling,oneof"`
+type MotionRule_Avenue struct {
+	Avenue AvenueRuling `protobuf:"varint,12,opt,name=avenue,proto3,enum=feov.record.v1.AvenueRuling,oneof"`
 }
 
 type MotionRule_Docket struct {
@@ -5925,7 +5925,7 @@ func (*MotionRule_Grade) isMotionRule_Ruling() {}
 
 func (*MotionRule_Petition) isMotionRule_Ruling() {}
 
-func (*MotionRule_Direction) isMotionRule_Ruling() {}
+func (*MotionRule_Avenue) isMotionRule_Ruling() {}
 
 func (*MotionRule_Docket) isMotionRule_Ruling() {}
 
@@ -5934,7 +5934,7 @@ func (*MotionRule_Docket) isMotionRule_Ruling() {}
 type MotionAppeal struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// An appeal names the motion it appeals — and NOT as a foreign key, for the reason MotionRule
-	// records at length: a direction appeal names the line of inquiry's own id, because the proposal
+	// records at length: a direction appeal names the avenue's own id, because the proposal
 	// is the filing and there is no motion row. I added the reference here for symmetry with the
 	// ruling's, and it was wrong in both places for the same third of cases.
 	//
@@ -7235,7 +7235,7 @@ const file_record_proto_rawDesc = "" +
 	"\a_subsetB\x06\n" +
 	"\x04_whyB\r\n" +
 	"\v_referencesB\t\n" +
-	"\a_unique\"\x81\x12\n" +
+	"\a_unique\"\xfe\x11\n" +
 	"\x05Event\x12\x13\n" +
 	"\x02ts\x18\x02 \x01(\tH\x01R\x02ts\x88\x01\x01\x12\x1c\n" +
 	"\aseat_id\x18\x03 \x01(\tH\x02R\x06seatId\x88\x01\x01\x12\x17\n" +
@@ -7272,8 +7272,8 @@ const file_record_proto_rawDesc = "" +
 	"\brevision\x18. \x01(\v2\x18.feov.record.v1.RevisionH\x00R\brevision\x120\n" +
 	"\x06retire\x18/ \x01(\v2\x16.feov.record.v1.RetireH\x00R\x06retire\x12@\n" +
 	"\fmanifest_row\x180 \x01(\v2\x1b.feov.record.v1.ManifestRowH\x00R\vmanifestRow\x12'\n" +
-	"\x03log\x181 \x01(\v2\x13.feov.record.v1.LogH\x00R\x03log\x12F\n" +
-	"\x0einquiry_review\x183 \x01(\v2\x1d.feov.record.v1.InquiryReviewH\x00R\rinquiryReview\x12=\n" +
+	"\x03log\x181 \x01(\v2\x13.feov.record.v1.LogH\x00R\x03log\x12C\n" +
+	"\ravenue_review\x183 \x01(\v2\x1c.feov.record.v1.AvenueReviewH\x00R\favenueReview\x12=\n" +
 	"\vbase_ingest\x184 \x01(\v2\x1a.feov.record.v1.BaseIngestH\x00R\n" +
 	"baseIngest\x12@\n" +
 	"\fsitting_open\x185 \x01(\v2\x1b.feov.record.v1.SittingOpenH\x00R\vsittingOpen\x12C\n" +
@@ -7643,18 +7643,18 @@ const file_record_proto_rawDesc = "" +
 	"_soundnessB\x12\n" +
 	"\x10_recorded_outputB\x12\n" +
 	"\x10_observed_outputB\a\n" +
-	"\x05_note\"=\n" +
-	"\rInquiryReview\x12!\n" +
+	"\x05_note\"<\n" +
+	"\fAvenueReview\x12!\n" +
 	"\x06reason\x18\x01 \x01(\tB\x04\xc0\xb5\x18\x01H\x00R\x06reason\x88\x01\x01B\t\n" +
-	"\a_reason\"\xaa\x04\n" +
+	"\a_reason\"\xa0\x04\n" +
 	"\x06Avenue\x12 \n" +
 	"\tavenue_id\x18\x01 \x01(\tH\x00R\bavenueId\x88\x01\x01\x12w\n" +
 	"\x04line\x18\x02 \x01(\tB^\x82\xb5\x18V\x12\x06reason\x1aLwhat you are going to try — an unnamed avenue teaches a future run nothing\xc0\xb5\x18\x01H\x01R\x04line\x88\x01\x01\x12)\n" +
 	"\n" +
 	"hypothesis\x18\x03 \x01(\tB\x04\xc0\xb5\x18\x01H\x02R\n" +
 	"hypothesis\x88\x01\x01\x12!\n" +
-	"\x06method\x18\x04 \x01(\tB\x04\xc0\xb5\x18\x01H\x03R\x06method\x88\x01\x01\x12\x84\x01\n" +
-	"\x06status\x18\x05 \x01(\x0e2\x1c.feov.record.v1.AvenueStatusBI\x82\xb5\x18E\b\x01\x12\x02as\x1a=the line's fate; the lines-of-inquiry projection groups by itH\x04R\x06status\x88\x01\x01\x120\n" +
+	"\x06method\x18\x04 \x01(\tB\x04\xc0\xb5\x18\x01H\x03R\x06method\x88\x01\x01\x12{\n" +
+	"\x06status\x18\x05 \x01(\x0e2\x1c.feov.record.v1.AvenueStatusB@\x82\xb5\x18<\b\x01\x12\x02as\x1a4the line's fate; the avenues projection groups by itH\x04R\x06status\x88\x01\x01\x120\n" +
 	"\x11supersedes_status\x18\x06 \x01(\tH\x05R\x10supersedesStatus\x88\x01\x01\x12!\n" +
 	"\x06reason\x18\a \x01(\tB\x04\xc0\xb5\x18\x01H\x06R\x06reason\x88\x01\x01B\f\n" +
 	"\n" +
@@ -7716,7 +7716,7 @@ const file_record_proto_rawDesc = "" +
 	"\x05_textB\a\n" +
 	"\x05_typeB\t\n" +
 	"\a_sourceB\x0e\n" +
-	"\f_estopped_by\"\xca\x04\n" +
+	"\f_estopped_by\"\xc1\x04\n" +
 	"\x06Motion\x12\xa4\x01\n" +
 	"\tmotion_id\x18\x01 \x01(\tB\x81\x01\x82\xb5\x18}\b\x01\x1awthe id everything else joins on — the tool assigns it, and a motion without one cannot be ruled, appealed or rendered(\x01H\x01R\bmotionId\x88\x01\x01\x12<\n" +
 	"\asubject\x18\x02 \x01(\x0e2\x1d.feov.record.v1.MotionSubjectH\x02R\asubject\x88\x01\x01\x12\x19\n" +
@@ -7724,8 +7724,8 @@ const file_record_proto_rawDesc = "" +
 	"\x06relief\x18\x04 \x01(\tH\x04R\x06relief\x88\x01\x01\x123\n" +
 	"\x05grade\x18\n" +
 	" \x01(\v2\x1b.feov.record.v1.GradeMotionH\x00R\x05grade\x12<\n" +
-	"\bpetition\x18\v \x01(\v2\x1e.feov.record.v1.PetitionMotionH\x00R\bpetition\x12?\n" +
-	"\tdirection\x18\f \x01(\v2\x1f.feov.record.v1.DirectionMotionH\x00R\tdirection\x126\n" +
+	"\bpetition\x18\v \x01(\v2\x1e.feov.record.v1.PetitionMotionH\x00R\bpetition\x126\n" +
+	"\x06avenue\x18\f \x01(\v2\x1c.feov.record.v1.AvenueMotionH\x00R\x06avenue\x126\n" +
 	"\x06docket\x18\r \x01(\v2\x1c.feov.record.v1.DocketMotionH\x00R\x06docketB\b\n" +
 	"\x06filingB\f\n" +
 	"\n" +
@@ -7770,11 +7770,11 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"\b_settledB\r\n" +
 	"\v_reopens_onB\b\n" +
-	"\x06_final\"A\n" +
-	"\x0fDirectionMotion\x12 \n" +
+	"\x06_final\">\n" +
+	"\fAvenueMotion\x12 \n" +
 	"\tavenue_id\x18\x01 \x01(\tH\x00R\bavenueId\x88\x01\x01B\f\n" +
 	"\n" +
-	"_avenue_id\"\x8b\x06\n" +
+	"_avenue_id\"\x82\x06\n" +
 	"\n" +
 	"MotionRule\x12\xb3\x01\n" +
 	"\tmotion_id\x18\x01 \x01(\tB\x90\x01\x82\xb5\x18\x8b\x01\b\x01\x12\x02id\x1a\x82\x01the motion this answers — a ruling that names no motion is an answer to nothing, and the join it belongs to is the whole of #312H\x01R\bmotionId\x88\x01\x01\x12<\n" +
@@ -7782,8 +7782,8 @@ const file_record_proto_rawDesc = "" +
 	"\aopinion\x18\x03 \x01(\tB\x8a\x01\x82\xb5\x18\x81\x01\b\x01\x12\x06reason\x1authe ruling's argument in the ruler's words — a ruling with no reasoning is a verdict the losing party cannot answer\xc0\xb5\x18\x01H\x03R\aopinion\x88\x01\x01\x123\n" +
 	"\x05grade\x18\n" +
 	" \x01(\x0e2\x1b.feov.record.v1.GradeRulingH\x00R\x05grade\x12<\n" +
-	"\bpetition\x18\v \x01(\x0e2\x1e.feov.record.v1.PetitionRulingH\x00R\bpetition\x12?\n" +
-	"\tdirection\x18\f \x01(\x0e2\x1f.feov.record.v1.DirectionRulingH\x00R\tdirection\x126\n" +
+	"\bpetition\x18\v \x01(\x0e2\x1e.feov.record.v1.PetitionRulingH\x00R\bpetition\x126\n" +
+	"\x06avenue\x18\f \x01(\x0e2\x1c.feov.record.v1.AvenueRulingH\x00R\x06avenue\x126\n" +
 	"\x06docket\x18\r \x01(\v2\x1c.feov.record.v1.DocketRulingH\x00R\x06docket\x126\n" +
 	"\x05binds\x18\x04 \x01(\x0e2\x1b.feov.record.v1.RulingBindsH\x04R\x05binds\x88\x01\x01B\b\n" +
 	"\x06rulingB\f\n" +
@@ -7917,12 +7917,12 @@ const file_record_proto_rawDesc = "" +
 	"\x1bCORRECTION_TIER_UNSPECIFIED\x10\x00\x12\xb1\x01\n" +
 	"\x14CORRECTION_TIER_NONE\x10\x01\x1a\x96\x01\x8a\xb5\x18\x91\x01not correctable: the act creates an identity, decides a fate no restatement may move, or is written by the tool or the harness rather than a seat\x12\x9c\x01\n" +
 	"\x15CORRECTION_TIER_PROSE\x10\x02\x1a\x80\x01\x8a\xb5\x18|only the seat's own wording may change — the fields that declare (prose); every other field must equal the corrected act's\x12Y\n" +
-	"\x14CORRECTION_TIER_FULL\x10\x03\x1a?\x8a\xb5\x18;every field may change except the label the act is keyed on*\xbd#\n" +
+	"\x14CORRECTION_TIER_FULL\x10\x03\x1a?\x8a\xb5\x18;every field may change except the label the act is keyed on*\xab#\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12{\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1ab\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\xb8\xb5\x18\x01\x12i\n" +
-	"\x11EVENT_TYPE_ANCHOR\x10\x02\x1aR\x8a\xb5\x18Jevidence tied to a finding: where in the artifact the claim actually lives\xb8\xb5\x18\x01\x12p\n" +
-	"\x11EVENT_TYPE_AVENUE\x10\x03\x1aY\x8a\xb5\x18Qa line of inquiry, from proposed through pursued, declined, deferred or abandoned\xb8\xb5\x18\x02\x12q\n" +
+	"\x11EVENT_TYPE_ANCHOR\x10\x02\x1aR\x8a\xb5\x18Jevidence tied to a finding: where in the artifact the claim actually lives\xb8\xb5\x18\x01\x12h\n" +
+	"\x11EVENT_TYPE_AVENUE\x10\x03\x1aQ\x8a\xb5\x18Ian avenue, from proposed through pursued, declined, deferred or abandoned\xb8\xb5\x18\x02\x12q\n" +
 	"\x14EVENT_TYPE_BLUE_EDIT\x10\x04\x1aW\x8a\xb5\x18Oa change to the report, recorded as old and new so the edit itself is auditable\xb8\xb5\x18\x01\x12n\n" +
 	"\x12EVENT_TYPE_CERTIFY\x10\x05\x1aV\x8a\xb5\x18Na seat's signed statement about its own work — what it asserts on the record\xb8\xb5\x18\x02\x12v\n" +
 	"\x0fEVENT_TYPE_CITE\x10\x06\x1aa\x8a\xb5\x18Ya source brought into the debate, with the hash and access date that make it re-checkable\xb8\xb5\x18\x02\x12\x83\x01\n" +
@@ -7949,8 +7949,8 @@ const file_record_proto_rawDesc = "" +
 	"\x13EVENT_TYPE_REVISION\x10\x1c\x1a/\x8a\xb5\x18'a revision to a seat's own earlier text\xb8\xb5\x18\x03\x12r\n" +
 	"\x15EVENT_TYPE_SPOT_CHECK\x10\x1d\x1aW\x8a\xb5\x18Ored re-checking a sample of prior work, or stating that it checked none and why\xb8\xb5\x18\x03\x12f\n" +
 	"\x12EVENT_TYPE_VERDICT\x10\x1e\x1aN\x8a\xb5\x18Fthe chair's verdict for its epoch: PASS or FAIL against the open board\xb8\xb5\x18\x01\x12|\n" +
-	"\x11EVENT_TYPE_VERIFY\x10\x1f\x1ae\x8a\xb5\x18]a citation checked at the leaf: what the source did for the claim, and how sure the reader is\xb8\xb5\x18\x01\x12l\n" +
-	"\x19EVENT_TYPE_INQUIRY_REVIEW\x10 \x1aM\x8a\xb5\x18Ea review of the lines of inquiry themselves, rather than of a finding\xb8\xb5\x18\x03\x12\x82\x01\n" +
+	"\x11EVENT_TYPE_VERIFY\x10\x1f\x1ae\x8a\xb5\x18]a citation checked at the leaf: what the source did for the claim, and how sure the reader is\xb8\xb5\x18\x01\x12b\n" +
+	"\x18EVENT_TYPE_AVENUE_REVIEW\x10 \x1aD\x8a\xb5\x18<a review of the avenues themselves, rather than of a finding\xb8\xb5\x18\x03\x12\x82\x01\n" +
 	"\x16EVENT_TYPE_BASE_INGEST\x10!\x1af\x8a\xb5\x18^the report as blue ingested it, stored verbatim as the origin every recorded edit replays over\xb8\xb5\x18\x01\x12\x97\x01\n" +
 	"\x17EVENT_TYPE_SITTING_OPEN\x10\"\x1az\x8a\xb5\x18rthe harness dispatching an agent — one end of a sitting's span, observed by a hook rather than claimed by a seat\xb8\xb5\x18\x01\x12b\n" +
 	"\x18EVENT_TYPE_SITTING_CLOSE\x10#\x1aD\x8a\xb5\x18<the harness's agent returning — the other end of that span\xb8\xb5\x18\x01\x12\xaa\x01\n" +
@@ -8025,12 +8025,12 @@ const file_record_proto_rawDesc = "" +
 	"\x15AVENUE_STATUS_PURSUED\x10\x02\x1a@\x8a\xb5\x18<you took the line — what it produced belongs in the report\x12\x86\x02\n" +
 	"\x16AVENUE_STATUS_DEFERRED\x10\x03\x1a\xe9\x01\x8a\xb5\x18\xe4\x01not this run. REQUIRES a reason saying what a later run should pick it up FOR: a deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet\x12\x85\x01\n" +
 	"\x16AVENUE_STATUS_DECLINED\x10\x04\x1ai\x8a\xb5\x18eyou considered it and chose not to. REQUIRES a reason — the road not taken is worthless without why\x12\x86\x01\n" +
-	"\x17AVENUE_STATUS_ABANDONED\x10\x05\x1ai\x8a\xb5\x18eyou started and stopped. REQUIRES a reason — what killed it is the part a future run actually needs*\xcd\x04\n" +
+	"\x17AVENUE_STATUS_ABANDONED\x10\x05\x1ai\x8a\xb5\x18eyou started and stopped. REQUIRES a reason — what killed it is the part a future run actually needs*\xc2\x04\n" +
 	"\rMotionSubject\x12\x1e\n" +
 	"\x1aMOTION_SUBJECT_UNSPECIFIED\x10\x00\x12Q\n" +
 	"\x14MOTION_SUBJECT_GRADE\x10\x01\x1a7\x8a\xb5\x18*you contest a gap's grade on one dimension\xa2\xb5\x18\x05chair\x12\x89\x01\n" +
-	"\x17MOTION_SUBJECT_PETITION\x10\x02\x1al\x8a\xb5\x18_you ask the bench to intervene — the constitutional short-circuit available to any party seat\xa2\xb5\x18\x05bench\x12\x96\x01\n" +
-	"\x18MOTION_SUBJECT_DIRECTION\x10\x03\x1ax\x8a\xb5\x18ka ruling on a line of inquiry blue proposed; the id is the AVENUE's own, because the proposal IS the filing\xa2\xb5\x18\x05chair\x12\xa3\x01\n" +
+	"\x17MOTION_SUBJECT_PETITION\x10\x02\x1al\x8a\xb5\x18_you ask the bench to intervene — the constitutional short-circuit available to any party seat\xa2\xb5\x18\x05bench\x12\x8b\x01\n" +
+	"\x15MOTION_SUBJECT_AVENUE\x10\x03\x1ap\x8a\xb5\x18ca ruling on an avenue blue proposed; the id is the AVENUE's own, because the proposal IS the filing\xa2\xb5\x18\x05chair\x12\xa3\x01\n" +
 	"\x15MOTION_SUBJECT_DOCKET\x10\x04\x1a\x87\x01\x8a\xb5\x18za gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap's fate\xa2\xb5\x18\x05bench*\xa3\x01\n" +
 	"\vGradeRuling\x12\x1c\n" +
 	"\x18GRADE_RULING_UNSPECIFIED\x10\x00\x128\n" +
@@ -8039,17 +8039,17 @@ const file_record_proto_rawDesc = "" +
 	"\x0ePetitionRuling\x12\x1f\n" +
 	"\x1bPETITION_RULING_UNSPECIFIED\x10\x00\x12@\n" +
 	"\x17PETITION_RULING_GRANTED\x10\x01\x1a#\x8a\xb5\x18\x1fthe relief asked for is ordered\x12O\n" +
-	"\x16PETITION_RULING_DENIED\x10\x02\x1a3\x8a\xb5\x18/the petition fails; the run continues as it was*\xa5\x02\n" +
-	"\x0fDirectionRuling\x12 \n" +
-	"\x1cDIRECTION_RULING_UNSPECIFIED\x10\x00\x12F\n" +
-	"\x19DIRECTION_RULING_ENDORSED\x10\x01\x1a'\x8a\xb5\x18#worth this run's time — pursue it\x12M\n" +
-	"\x1dDIRECTION_RULING_OUT_OF_SCOPE\x10\x02\x1a*\x8a\xb5\x18&a real question, but not THIS question\x12Y\n" +
-	"\x19DIRECTION_RULING_TOO_THIN\x10\x03\x1a:\x8a\xb5\x186in scope, but the hypothesis does not carry its budget*\xf5\x03\n" +
+	"\x16PETITION_RULING_DENIED\x10\x02\x1a3\x8a\xb5\x18/the petition fails; the run continues as it was*\x96\x02\n" +
+	"\fAvenueRuling\x12\x1d\n" +
+	"\x19AVENUE_RULING_UNSPECIFIED\x10\x00\x12C\n" +
+	"\x16AVENUE_RULING_ENDORSED\x10\x01\x1a'\x8a\xb5\x18#worth this run's time — pursue it\x12J\n" +
+	"\x1aAVENUE_RULING_OUT_OF_SCOPE\x10\x02\x1a*\x8a\xb5\x18&a real question, but not THIS question\x12V\n" +
+	"\x16AVENUE_RULING_TOO_THIN\x10\x03\x1a:\x8a\xb5\x186in scope, but the hypothesis does not carry its budget*\xef\x03\n" +
 	"\tAboutKind\x12\x1a\n" +
 	"\x16ABOUT_KIND_UNSPECIFIED\x10\x00\x12\xad\x01\n" +
-	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x94\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there\x12\xa6\x01\n" +
-	"\x12ABOUT_KIND_INQUIRY\x10\x02\x1a\x8d\x01\x8a\xb5\x18\x88\x01a line of inquiry, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor\x12s\n" +
-	"\x0eABOUT_KIND_GAP\x10\x03\x1a_\x8a\xb5\x18[a gap already on the docket, by its id — a defect in the record rather than in the report*\x90\x05\n" +
+	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x94\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there\x12\x9d\x01\n" +
+	"\x11ABOUT_KIND_AVENUE\x10\x02\x1a\x85\x01\x8a\xb5\x18\x80\x01an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor\x12v\n" +
+	"\x0eABOUT_KIND_GAP\x10\x03\x1ab\x8a\xb5\x18^a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands*\x90\x05\n" +
 	"\x0eSourceTextRead\x12 \n" +
 	"\x1cSOURCE_TEXT_READ_UNSPECIFIED\x10\x00\x12\xb6\x01\n" +
 	"\x17SOURCE_TEXT_READ_UNREAD\x10\x01\x1a\x98\x01\x8a\xb5\x18\x93\x01the text was never read — the citation rests on a record that the source EXISTS (a bibliographic index, a search result), not on anything it says\x12\xf6\x01\n" +
@@ -8149,7 +8149,7 @@ var file_record_proto_goTypes = []any{
 	(MotionSubject)(0),                    // 12: feov.record.v1.MotionSubject
 	(GradeRuling)(0),                      // 13: feov.record.v1.GradeRuling
 	(PetitionRuling)(0),                   // 14: feov.record.v1.PetitionRuling
-	(DirectionRuling)(0),                  // 15: feov.record.v1.DirectionRuling
+	(AvenueRuling)(0),                     // 15: feov.record.v1.AvenueRuling
 	(AboutKind)(0),                        // 16: feov.record.v1.AboutKind
 	(SourceTextRead)(0),                   // 17: feov.record.v1.SourceTextRead
 	(SourceTextOrigin)(0),                 // 18: feov.record.v1.SourceTextOrigin
@@ -8182,7 +8182,7 @@ var file_record_proto_goTypes = []any{
 	(*Verify)(nil),                        // 45: feov.record.v1.Verify
 	(*Proof)(nil),                         // 46: feov.record.v1.Proof
 	(*Reproduce)(nil),                     // 47: feov.record.v1.Reproduce
-	(*InquiryReview)(nil),                 // 48: feov.record.v1.InquiryReview
+	(*AvenueReview)(nil),                  // 48: feov.record.v1.AvenueReview
 	(*Avenue)(nil),                        // 49: feov.record.v1.Avenue
 	(*BaseIngest)(nil),                    // 50: feov.record.v1.BaseIngest
 	(*BlueEdit)(nil),                      // 51: feov.record.v1.BlueEdit
@@ -8195,7 +8195,7 @@ var file_record_proto_goTypes = []any{
 	(*PetitionMotion)(nil),                // 58: feov.record.v1.PetitionMotion
 	(*DocketMotion)(nil),                  // 59: feov.record.v1.DocketMotion
 	(*DocketRuling)(nil),                  // 60: feov.record.v1.DocketRuling
-	(*DirectionMotion)(nil),               // 61: feov.record.v1.DirectionMotion
+	(*AvenueMotion)(nil),                  // 61: feov.record.v1.AvenueMotion
 	(*MotionRule)(nil),                    // 62: feov.record.v1.MotionRule
 	(*MotionAppeal)(nil),                  // 63: feov.record.v1.MotionAppeal
 	(*Register)(nil),                      // 64: feov.record.v1.Register
@@ -8247,7 +8247,7 @@ var file_record_proto_depIdxs = []int32{
 	53,  // 27: feov.record.v1.Event.retire:type_name -> feov.record.v1.Retire
 	54,  // 28: feov.record.v1.Event.manifest_row:type_name -> feov.record.v1.ManifestRow
 	55,  // 29: feov.record.v1.Event.log:type_name -> feov.record.v1.Log
-	48,  // 30: feov.record.v1.Event.inquiry_review:type_name -> feov.record.v1.InquiryReview
+	48,  // 30: feov.record.v1.Event.avenue_review:type_name -> feov.record.v1.AvenueReview
 	50,  // 31: feov.record.v1.Event.base_ingest:type_name -> feov.record.v1.BaseIngest
 	65,  // 32: feov.record.v1.Event.sitting_open:type_name -> feov.record.v1.SittingOpen
 	66,  // 33: feov.record.v1.Event.sitting_close:type_name -> feov.record.v1.SittingClose
@@ -8294,7 +8294,7 @@ var file_record_proto_depIdxs = []int32{
 	12,  // 74: feov.record.v1.Motion.subject:type_name -> feov.record.v1.MotionSubject
 	57,  // 75: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
 	58,  // 76: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
-	61,  // 77: feov.record.v1.Motion.direction:type_name -> feov.record.v1.DirectionMotion
+	61,  // 77: feov.record.v1.Motion.avenue:type_name -> feov.record.v1.AvenueMotion
 	59,  // 78: feov.record.v1.Motion.docket:type_name -> feov.record.v1.DocketMotion
 	23,  // 79: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
 	2,   // 80: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
@@ -8303,7 +8303,7 @@ var file_record_proto_depIdxs = []int32{
 	12,  // 83: feov.record.v1.MotionRule.subject:type_name -> feov.record.v1.MotionSubject
 	13,  // 84: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
 	14,  // 85: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
-	15,  // 86: feov.record.v1.MotionRule.direction:type_name -> feov.record.v1.DirectionRuling
+	15,  // 86: feov.record.v1.MotionRule.avenue:type_name -> feov.record.v1.AvenueRuling
 	60,  // 87: feov.record.v1.MotionRule.docket:type_name -> feov.record.v1.DocketRuling
 	25,  // 88: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
 	12,  // 89: feov.record.v1.MotionAppeal.subject:type_name -> feov.record.v1.MotionSubject
@@ -8366,7 +8366,7 @@ func file_record_proto_init() {
 		(*Event_Retire)(nil),
 		(*Event_ManifestRow)(nil),
 		(*Event_Log)(nil),
-		(*Event_InquiryReview)(nil),
+		(*Event_AvenueReview)(nil),
 		(*Event_BaseIngest)(nil),
 		(*Event_SittingOpen)(nil),
 		(*Event_SittingClose)(nil),
@@ -8404,7 +8404,7 @@ func file_record_proto_init() {
 	file_record_proto_msgTypes[29].OneofWrappers = []any{
 		(*Motion_Grade)(nil),
 		(*Motion_Petition)(nil),
-		(*Motion_Direction)(nil),
+		(*Motion_Avenue)(nil),
 		(*Motion_Docket)(nil),
 	}
 	file_record_proto_msgTypes[30].OneofWrappers = []any{}
@@ -8415,7 +8415,7 @@ func file_record_proto_init() {
 	file_record_proto_msgTypes[35].OneofWrappers = []any{
 		(*MotionRule_Grade)(nil),
 		(*MotionRule_Petition)(nil),
-		(*MotionRule_Direction)(nil),
+		(*MotionRule_Avenue)(nil),
 		(*MotionRule_Docket)(nil),
 	}
 	file_record_proto_msgTypes[36].OneofWrappers = []any{}

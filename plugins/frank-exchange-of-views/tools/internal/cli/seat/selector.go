@@ -287,8 +287,8 @@ func selectorNoun(view string) string {
 		return "citations and proofs"
 	case "motions":
 		return "motions"
-	case "lines-of-inquiry":
-		return "lines of inquiry"
+	case "avenues":
+		return "avenues"
 	}
 	return "entries"
 }

@@ -471,7 +471,7 @@ func ExistingCorroborationLabel(run Run, seatID, url, claim string) (string, err
 // mean inventing its severity, likelihood and impact — three grades nobody chose, feeding the
 // mass calculation that decides what a gap is worth. A fabricated grade reads exactly like a
 // judged one. So the duty is REPORTED and red grades its own finding, the way
-// InquiryReviewDue reports a read that has not happened rather than pretending it did.
+// AvenueReviewDue reports a read that has not happened rather than pretending it did.
 //
 // The match is deliberately loose — any finding by any lens quoting the same claim answers it.
 // A stricter join (same seat, same epoch) would refuse a contradiction one lens found and

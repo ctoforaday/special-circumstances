@@ -156,8 +156,8 @@ func TestStruckTextIsTrimmedSoTheStrikeRenders(t *testing.T) {
 	}
 }
 
-// THE LINES OF INQUIRY AND THE EVIDENCE LIST A STRUCK ACT, never drop it.
-func TestInquiryAndEvidenceListingsKeepTheStruckAct(t *testing.T) {
+// THE AVENUES AND THE EVIDENCE LIST A STRUCK ACT, never drop it.
+func TestAvenueAndEvidenceListingsKeepTheStruckAct(t *testing.T) {
 	prop := func(line string) *recordpb.Avenue {
 		return &recordpb.Avenue{AvenueId: proto.String("Q1"), Line: proto.String(line), Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum()}
 	}
@@ -174,7 +174,7 @@ func TestInquiryAndEvidenceListingsKeepTheStruckAct(t *testing.T) {
 		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:reproduce:#1~1", rerun("it computes primality")),
 		correctionOf(t, "red-lens-evidence", "red-lens-evidence:reproduce:#1"),
 	}
-	if got := StruckInquiryTexts(evs)["Q1"]; len(got) != 1 || got[0].Text != "try the  method" || got[0].By != "blue-respond" {
+	if got := StruckAvenueTexts(evs)["Q1"]; len(got) != 1 || got[0].Text != "try the  method" || got[0].By != "blue-respond" {
 		t.Errorf("the struck wording of Q1 = %+v, want the corrected proposal's", got)
 	}
 	ej := EvidenceJSONOf(evs)

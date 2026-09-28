@@ -107,7 +107,7 @@ declaration can require either half — and the contract falls back to prose ins
 the handler, where nothing refuses it at parse and `--help` cannot state it.
 The surface then grows synonym flags to keep the two modes apart, which is the
 visible symptom and not the defect.
-- **Instances**: `blue line-of-inquiry` was a proposal (no id, status defaulted)
+- **Instances**: `blue avenue` was a proposal (no id, status defaulted)
   and a move (id, status and reason all required), told apart by whether `--id`
   was passed — so both forms ran with every flag optional and a whole
   `conditionallyRequired` mechanism existed in the seat package to describe this

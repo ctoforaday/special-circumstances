@@ -557,7 +557,7 @@ func closureStatesOf(evs []*Event) (map[string]*closeState, []string) {
 		case *recordpb.MotionRule:
 			d, isDocket := m.GetRuling().(*recordpb.MotionRule_Docket)
 			if !isDocket {
-				continue // grade, petition and inquiry rulings settle no gap
+				continue // grade, petition and avenue rulings settle no gap
 			}
 			if !benchClosesGap(d.Docket.GetDisposition()) {
 				continue
@@ -1231,7 +1231,7 @@ type FindingJSON struct {
 	Impact     any    `json:"impact"`
 	Location   string `json:"location"`
 	// About names what this finding is anchored to when its subject is NOT in the report — a
-	// section it is missing from, a line of inquiry whose stated reason is being argued against,
+	// section it is missing from, an avenue whose stated reason is being argued against,
 	// or a gap. Empty means the finding anchors to `location`, a live sentence.
 	//
 	// A chair reading this list needs to know which: a finding with no location is not one whose

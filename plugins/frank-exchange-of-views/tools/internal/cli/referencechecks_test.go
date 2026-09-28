@@ -33,8 +33,8 @@ import (
 //	blue prove --cites      named the METHOD citation a computation applies, and was written
 //	                        straight into the payload. A proof could cite a citation that does not
 //	                        exist and the report would render the provenance.
-//	blue line-of-inquiry --id        required an id to be PRESENT, not to name anything. A move against an
-//	                        unknown line of inquiry renders as a direction being abandoned that nothing
+//	blue avenue --id        required an id to be PRESENT, not to name anything. A move against an
+//	                        unknown avenue renders as a direction being abandoned that nothing
 //	                        proposed.
 //	lens verify --anchor    (fixed 0.60.0, listed for the shape) — the citation being adjudicated.
 //
@@ -82,18 +82,13 @@ var referenceChecks = []struct {
 		extra: []string{"--reason", "r"}},
 	{verb: []string{"spot-check"}, flag: "--ids", against: "the closure archive", bogus: "G2",
 		extra: []string{"--reason", "n"}},
-	// Red's per-round support verdict joins on the LINE's own id, so a dangling one would record a
-	// vote about a line nobody proposed — and the chair's PASS gate counts votes, so it would
-	// discharge a duty for a line that does not exist.
-	{verb: []string{"inquiry-support"}, flag: "--id", against: "the lines of inquiry on the record", bogus: "Q9",
-		extra: []string{"--as", "supported", "--reason", "r"}},
 	{verb: []string{"closing"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--reason", "r"}},
 	{verb: []string{"manifest-row"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--reason", "checked"}},
 	{verb: []string{"edit"}, flag: "--answers", against: "the board", bogus: "G2",
 		extra: []string{"--quote", "the parser accepts an empty body in this line.", "--new", "the parser accepts an empty body on this line.", "--reason", "r"}},
-	{verb: []string{"line-of-inquiry", "move"}, flag: "--id", against: "the inquiries on the record", bogus: "Q9",
+	{verb: []string{"avenue", "move"}, flag: "--id", against: "the avenues on the record", bogus: "Q9",
 		extra: []string{"--as", "abandoned", "--reason", "r"}},
 	{verb: []string{"opinion"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--as", "remanded", "--principle", "p", "--tension", "t", "--review-flag", "false", "--settled", "the proposition this ruling bars", "--final", "--reason", "r"}},
@@ -107,15 +102,15 @@ var referenceChecks = []struct {
 	// them; nothing about a shape-only flag does.
 	{verb: []string{"motion", "docket", "file"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--reason", "r"}},
-	// THE INQUIRY SUBJECT KEYS ON Q, NOT M — a direction has no filing verb (the proposal is the
+	// THE AVENUE SUBJECT KEYS ON Q, NOT M — a direction has no filing verb (the proposal is the
 	// filing), so the ruling and the appeal both name the LINE and are checked against the lines on
 	// the record. `rule` sits only on the chair's tree, which is why seatHolding resolves the whole
 	// path: asked for "motion" alone it answered "lens", and the fixture ran a verb that seat cannot
 	// name. Both refusals come from the body and name the LINE, which is the right word for an id the
 	// subject keys on Q.
-	{verb: []string{"motion", "inquiry", "rule"}, flag: "--id", against: "the lines of inquiry on the record", bogus: "Q9",
+	{verb: []string{"motion", "avenue", "rule"}, flag: "--id", against: "the avenues on the record", bogus: "Q9",
 		extra: []string{"--as", "endorsed", "--reason", "r"}},
-	{verb: []string{"motion", "inquiry", "appeal"}, flag: "--id", against: "the lines of inquiry on the record", bogus: "Q9",
+	{verb: []string{"motion", "avenue", "appeal"}, flag: "--id", against: "the avenues on the record", bogus: "Q9",
 		extra: []string{"--reason", "r"}},
 	// FOUND BY TestEveryCheckedFlagIsInTheTable. All three carry a check and none was driven —
 	// exactly the hole the derived gate exists to close, caught the first time it ran.

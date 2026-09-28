@@ -59,10 +59,10 @@ func newFinding() *cobra.Command {
 		case strings.TrimSpace(location) == "" && !aboutSet:
 			return nil, fmt.Errorf("lens finding needs an anchor: --quote for text that IS in the report, " +
 				"or --about-kind/--about for something that is not.\n\n" +
-				"An ABSENCE has no sentence to quote. Borrowing an innocent one as a handle — a missing line of " +
-				"inquiry pinned to a sentence the finding itself calls fine — lands a reader of the gap list " +
+				"An ABSENCE has no sentence to quote. Borrowing an innocent one as a handle — a missing avenue " +
+				"pinned to a sentence the finding itself calls fine — lands a reader of the gap list " +
 				"on good prose. Anchor it to the section it " +
-				"is missing from, the line of inquiry whose reason you are arguing against, or the gap it is about")
+				"is missing from, the avenue whose reason you are arguing against, or the gap it is about")
 		case strings.TrimSpace(location) != "" && aboutSet:
 			return nil, fmt.Errorf("lens finding takes --quote OR --about, not both: a finding has one subject, " +
 				"and the gap it becomes would inherit the ambiguity")
@@ -163,8 +163,8 @@ func newFinding() *cobra.Command {
 	c.Flags().Var(&impact, flags.Impact, flags.DescImpact)
 	flags.Text(c, flags.Quote, flags.DescQuote+". The finding anchor is placed there")
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("finding", "about_kind"),
-		"anchor this finding to something that is NOT report text — use instead of --quote when the defect is an ABSENCE")
-	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, a line-of-inquiry id (Q1), or a gap id. It is CHECKED against the record")
+		"anchor this finding to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote. A finding about a gap reaches the seat that minted it, the one seat that can act on it")
+	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an avenue id (Q1), or a gap id. It is CHECKED against the record")
 	return c
 }
 

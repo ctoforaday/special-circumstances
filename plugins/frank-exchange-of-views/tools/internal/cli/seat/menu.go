@@ -15,7 +15,7 @@ import (
 //
 // MEASURED across nine probe sittings: seats do not learn this tool from `--help`. Every one of
 // them read it once or twice in twenty to forty tool calls. They learn it from REFUSALS — a seat
-// that guesses `blue line-of-inquiry` is told the verb does not exist, and that is the moment it
+// that guesses `blue avenue` is told the verb does not exist, and that is the moment it
 // finds out what it has.
 //
 // So the refusal was the primary channel and the LOSSY one. `blue --help` gives every verb with

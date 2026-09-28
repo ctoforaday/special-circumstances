@@ -107,7 +107,7 @@ func TestGolden(t *testing.T) {
 			// A view that errors on a given run (e.g. a pure-help/error scenario with no record)
 			// contributes nothing, so degenerate runs carry no RENDERS section — as before.
 			var renders strings.Builder
-			for _, v := range []string{"ledger", "archive", "debate", "changelog", "citation-ledger", "lines-of-inquiry"} {
+			for _, v := range []string{"ledger", "archive", "debate", "changelog", "citation-ledger", "avenues"} {
 				// THE SEAT SELECTS THE TREE, so the projection is read the way a chair seat reads
 				// it: `show <v> --seat-id red-chair`. This said `cmd{role: "chair", args:
 				// {"show", ...}}`, which composes `chair show ledger` — a path that stopped

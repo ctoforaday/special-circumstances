@@ -265,8 +265,8 @@ test('the chair runs the debate: relays the plan verbatim, mints nothing, closes
   const p = chair.prompt
   assert.ok(/you mint nothing and you close nothing/.test(p) && /ASK THE RECORD WHO SITS — the dispatch/.test(p) && /Relay its JSON VERBATIM as `plan`/.test(p))
   assert.ok(/THE STOPPING JUDGMENT IS YOURS/.test(p) && /record a PASS verdict/.test(p) && /FAIL over a converged board is refused/.test(p))
-  assert.ok(/CLOSING ARGUMENTS/.test(p) && /~120 words/.test(p) && /the spot-check; its assertable empty form/.test(p) && /VOTE EVERY LINE OF INQUIRY/.test(p) && /RULE ON BLUE'S DIRECTIONS/.test(p) && /RULE THE GRADE MOTIONS/.test(p))
-  assert.ok(!/dispatch next|--as |show (board|work|motions)|motion (grade|inquiry) rule/.test(p), 'the chair is told the ACT; the word it types is the help page\'s')
+  assert.ok(/CLOSING ARGUMENTS/.test(p) && /~120 words/.test(p) && /the spot-check; its assertable empty form/.test(p) && /VOTE EVERY AVENUE/.test(p) && /RULE ON BLUE'S AVENUES/.test(p) && /RULE THE GRADE MOTIONS/.test(p))
+  assert.ok(!/dispatch next|--as |show (board|work|motions)|motion (grade|avenue) rule/.test(p), 'the chair is told the ACT; the word it types is the help page\'s')
   assert.ok(!/COALESCE/.test(p) && !/only writer/.test(p), 'the coalescing chair is gone with the mechanism')
   assert.ok(chair.opts.schema.properties.plan && chair.opts.schema.required.includes('plan'), 'the envelope carries the plan')
   assert.ok(!chair.opts.schema.properties.gaps, 'and no gap list — the record holds the board')
@@ -334,7 +334,7 @@ test('blue is engaged on named gaps, told the board is authoritative, and files 
   assert.ok(/You are engaged on: G1, G2/.test(first))
   for (const want of ['YOUR FIRST READ COMES AFTER THE MANUAL', 'in one pass rather than two', 'lossy summary', "bench's latest dispositions",
     'REMANDED comes with a stated research direction you owe', 'YOU MAY COMPUTE AN ANSWER', 'DOCUMENT-PROBE', 'deferred acceptance test',
-    'LINES OF INQUIRY ARE A LIVING RECORD', 'THREE paths', 'ESTOPS', 'OWNERSHIP BINDS, AS IT DID AT SYNTHESIS', 'each edit naming the gap it answers', 'a grade motion on the axis', 'Compact and reorganize prose', 'retired on the record',
+    'AVENUES ARE A LIVING RECORD', 'THREE paths', 'ESTOPS', 'OWNERSHIP BINDS, AS IT DID AT SYNTHESIS', 'each edit naming the gap it answers', 'a grade motion on the axis', 'Compact and reorganize prose', 'retired on the record',
     'PROPAGATE EVERY CORRECTION TO ALL SITES', 'NULL TURN', 'AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP', 'manifest array', 'claim_count', 'never hand-count',
     'where the gap changes no reader decision or asks for complexity that does not pay, argue `defect_accepted` with that reason', "materiality is the class's default: always, never, or by grade from medium"]) {
     assert.ok(first.includes(want), `blue lost: ${want}`)
@@ -376,7 +376,7 @@ test('no seat prompt names a command path or spells a flag — the help page is 
   for (const c of world.calls) {
     const body = c.prompt.replace(/--help\b|--seat-id\b|--run\b|--reason(-file)?\b|--comments\b/g, '')
     assert.ok(!/--[a-z][a-z-]+\b/.test(body), `${c.opts.label} spells a flag: ${(body.match(/.{40}--[a-z][a-z-]+.{20}/) || [''])[0]}`)
-    assert.ok(!/\b(show (board|work|motions|closings|changes)|class new|dispatch next|motion (grade|inquiry|docket|petition) (file|rule|appeal)|near-match)\b/.test(body),
+    assert.ok(!/\b(show (board|work|motions|closings|changes)|class new|dispatch next|motion (grade|avenue|docket|petition) (file|rule|appeal)|near-match)\b/.test(body),
       `${c.opts.label} names a command path: ${(body.match(/.{40}(show \w+|class new|dispatch next|motion \w+ \w+|near-match).{20}/) || [''])[0]}`)
   }
 })
@@ -455,7 +455,7 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   assert.ok(!/minority|lane marker|exactly ONE lane/.test(synth), 'the synthesis prompt orders provenance into prose again')
   assert.ok(/every section names the reader's question it answers/.test(synth), "the synthesis is written to the reader's question")
   // THE CONTENT RULE IS THE VERBS', and the prompt points at it rather than restating it: the rule is
-  // on every verb whose text the report prints (edit, ingest, line-of-inquiry's propose and move, and
+  // on every verb whose text the report prints (edit, ingest, avenue's propose and move, and
   // prove's note and cite's title, which the Bibliography prints),
   // so a copy here is a second statement of a contract nothing keeps in step.
   assert.ok(/THE REPORT'S CONTENT RULE .* is on the verbs that write report text/.test(synth),
@@ -465,7 +465,7 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   assert.ok(synth.includes('## Open questions') && synth.includes('THE CATECHISM IS YOURS') && synth.includes('## The Catechism') && synth.includes('every risk-accepted residual'))
   assert.ok(synth.includes('## The board') && synth.includes('is FABRICATION') && synth.includes('ONLY WHAT YOU CAN AUTHOR'))
   assert.ok(/reorganize freely/i.test(synth) && /retired on the record/.test(synth))
-  assert.ok(/LINES OF INQUIRY/.test(synth) && /dead ends matter most/.test(synth) && /CONSIDERED, not only the one you took/.test(synth))
+  assert.ok(/AVENUES/.test(synth) && /dead ends matter most/.test(synth) && /CONSIDERED, not only the one you took/.test(synth))
   assert.ok(/what you weighed and rejected are three things a reader needs/.test(synth))
   // THE CARD IS RETIRED, VERB AND CLAUSE (#1126). `show work` and the scorecard were the same
   // intent from two designs; work is the one that kept it. Measured 2026-09-22: 36 reads and 36 of
@@ -492,8 +492,10 @@ test('every seat prompt carries the log clause, the speed clause and the record 
   for (const seat of ['blue-synthesize', 'red-chair', 'red-lens-evidence', 'blue-respond', 'judge #', 'judge · terminal', 'judge · assemble']) {
     const c = labelsOf(world, seat)[0]
     assert.ok(c, `${seat} sat`)
-    assert.ok(c.prompt.includes("envelope's log field") && /AUDIENCE IS THE OPERATOR/.test(c.prompt) && /JUDGEMENT rather than for want of occasion/.test(c.prompt), `${seat} lost the operator channel`)
-    assert.ok(!/OWES THE SURVEY/.test(c.prompt) && !/SILENCE IS NOT THE EMPTY CASE/.test(c.prompt), `${seat} restates a retired rule`)
+    assert.ok(c.prompt.includes("envelope's log field") && /AUDIENCE IS THE OPERATOR/.test(c.prompt) && /WHERE NOTHING GOT IN YOUR WAY, FILE NOTHING/.test(c.prompt) && /a dispute with another seat's gap is a finding about that gap/.test(c.prompt), `${seat} lost the operator channel`)
+    // THE RETIRED SHAPES all told a seat the log was owed whatever happened, and seats padded it
+    // with audit summaries and arguments about other lenses' gaps to discharge that.
+    assert.ok(!/OWES THE SURVEY/.test(c.prompt) && !/SILENCE IS NOT THE EMPTY CASE/.test(c.prompt) && !/CLOSE THIS CHANNEL/.test(c.prompt) && !/JUDGEMENT rather than for want of occasion/.test(c.prompt), `${seat} restates a retired rule`)
     assert.ok(c.prompt.includes(speedClauseText), `${seat} lost the speed clause`)
     assert.ok(c.prompt.includes('SEAT_ID:') && c.prompt.includes('/opt/feov/bin/feov-record'), `${seat} lost the record contract`)
   }

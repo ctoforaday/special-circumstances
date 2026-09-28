@@ -18,7 +18,7 @@ import (
 
 // EVERY VERB A PROMPT NAMES MUST EXIST.
 //
-// MEASURED, and it nearly shipped: the chair prompt told red to run `merge rule-line of inquiry`
+// MEASURED, and it nearly shipped: the chair prompt told red to run `merge rule-avenue`
 // while the verb is `avenue-rule`. The rename landed in four Go files and missed the one
 // surface an agent actually reads. Nothing caught it — the fuzzer drives verbs DIRECTLY, so
 // it exercised the real verb and the prompt's dead name went unexercised behind a green
@@ -42,8 +42,8 @@ import (
 // The ternary's close is `'feov-record'}`, and the anchor is that, not a bare `}`: a bare brace
 // also ends `${epoch}`, and "after ${epoch} chair sitting(s)" is prose, not an invocation.
 // A SEAT VERB IS NOT ALWAYS ONE WORD. The verbs that carried two contracts were split into
-// subgroups — `blue line-of-inquiry propose`, `lens class new` — so a pattern taking exactly one
-// word after the role reads `blue line-of-inquiry propose` as the GROUP `blue line-of-inquiry`,
+// subgroups — `blue avenue propose`, `lens class new` — so a pattern taking exactly one
+// word after the role reads `blue avenue propose` as the GROUP `blue avenue`,
 // which is not an invocable path. The forward gate then reports a verb the prompt names correctly
 // as missing, and the inverse gate reports both real verbs as named nowhere. Two words are
 // captured and the LONGER path wins where the tree has one (see promptPath).
@@ -93,7 +93,7 @@ func promptPath(m []string, real map[string]bool) string {
 // AND THE SUBJECT LIST IS BUILT FROM record.MotionSubjects, NOT RETYPED.
 //
 // It was `(grade|petition|direction)`, a hand-written copy of that slice. When `direction` became
-// `inquiry` the copy stayed, so `motion inquiry rule` and `motion inquiry appeal` matched nothing
+// `avenue` the copy stayed, so `motion avenue rule` and `motion avenue appeal` matched nothing
 // and the gate reported two live verbs as named nowhere — while the prompts named them plainly.
 // A gate that holds prompts to the command tree cannot hold its own vocabulary by hand.
 var promptMotion = regexp.MustCompile(
@@ -126,7 +126,7 @@ var promptMotion = regexp.MustCompile(
 // So: the role-less form of every real command path, generated from the tree. ONE-WORD paths are
 // excluded — `mint`, `close`, `edit`, `verify`, `friction` are ordinary English and matching them
 // bare would fire on prose describing the act, which is the register the prompts are supposed to
-// be written in. Two-or-more-word paths (`show board`, `class new`, `line-of-inquiry propose`) are
+// be written in. Two-or-more-word paths (`show board`, `class new`, `avenue propose`) are
 // not English; they are invocations with the role filed off.
 func promptRolelessPaths(real map[string]bool) *regexp.Regexp {
 	seen := map[string]bool{}
@@ -154,7 +154,7 @@ func promptRolelessPaths(real map[string]bool) *regexp.Regexp {
 	if len(alts) == 0 {
 		panic("no multi-word command paths at all — this matcher would match nothing and report a clean board forever")
 	}
-	// Longest first, so `show lines-of-inquiry` is not shadowed by a prefix of itself.
+	// Longest first, so `show avenues` is not shadowed by a prefix of itself.
 	sort.Slice(alts, func(i, j int) bool { return len(alts[i]) > len(alts[j]) })
 	return regexp.MustCompile(`(?:^|[^\w-])(` + strings.Join(alts, "|") + `)(?:$|[^\w-])`)
 }

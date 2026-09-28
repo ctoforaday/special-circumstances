@@ -24,7 +24,7 @@ import (
 //
 // # Both shapes this has taken
 //
-//	line-of-inquiry propose  registered the channel correctly and filled `line` from the raw flag,
+//	avenue propose  registered the channel correctly and filled `line` from the raw flag,
 //	                         so --reason worked and the then-file spelling was refused for a missing
 //	                         field the seat had supplied.
 //	spot-check, outcome      registered --reason by hand, skipping seat.Prose entirely, so neither

@@ -84,7 +84,7 @@ type ShapedValue struct {
 //
 // It exists because internal/record's id-namespace matrix carried its own hand-written copy of
 // every shape — `^A\d+$` and four siblings — which is the shape of defect that matrix exists to
-// prevent, one level up. Measured 2026-08-16: the line-of-inquiry id moved A -> Q here and the
+// prevent, one level up. Measured 2026-08-16: the avenue id moved A -> Q here and the
 // copy stayed, so the gate reported the MINTER as wrong against a pattern nobody had updated.
 func (v *ShapedValue) Shape() *regexp.Regexp { return v.re }
 
@@ -178,17 +178,17 @@ func CitationAnchor() *ShapedValue {
 		hint: "a citation anchor is a `<!--cite:c-…-->` token in the report or the c-<hex> inside one — paste either — while `f-` is a finding and `p-` is a computation, neither of which is a source; `show evidence` lists every citation by anchor"}
 }
 
-// inquiryIDShape is Q<n>, the id assigned when a line of inquiry is proposed.
+// avenueIDShape is Q<n>, the id assigned when an avenue is proposed.
 //
-// It was A<n>, for "line of inquiry" — the word this concept no longer uses. Q is for the QUESTION the
+// It was A<n>, for "avenue" — the word this concept no longer uses. Q is for the QUESTION the
 // line asks, which is what `--line` holds ("the question or approach you are proposing"), and it
 // was the only free letter: R is a gap, L a lens finding, M a motion.
-var inquiryIDShape = regexp.MustCompile(`^Q\d+$`)
+var avenueIDShape = regexp.MustCompile(`^Q\d+$`)
 
-// InquiryID refuses anything that is not Q<n>.
-func InquiryID() *ShapedValue {
-	return &ShapedValue{kind: "inquiry-id", re: inquiryIDShape,
-		hint: "a line-of-inquiry id looks like Q1 and is ASSIGNED when you propose the line; `show lines-of-inquiry` lists every one with its fate"}
+// AvenueID refuses anything that is not Q<n>.
+func AvenueID() *ShapedValue {
+	return &ShapedValue{kind: "avenue-id", re: avenueIDShape,
+		hint: "an avenue id looks like Q1 and is ASSIGNED when you propose the avenue; `show avenues` lists every one with its fate"}
 }
 
 // FindingLabel refuses anything that is not <area>-F<n> (or the archived L<n>-F<n>).

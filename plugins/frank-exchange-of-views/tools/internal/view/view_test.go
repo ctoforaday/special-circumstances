@@ -492,7 +492,7 @@ func TestTelemetryCarriesTheClassDistributionAndRepeatRate(t *testing.T) {
 // NULL, so the "undefined" severity bucket cannot be reached from a record. Keeping the test would
 // mean seeding a mint the record rejects, which is not a test of the projection at all.
 
-func TestMarkdownDebateAndInquiry(t *testing.T) {
+func TestMarkdownDebateAndAvenue(t *testing.T) {
 	runDir := t.TempDir()
 	merge := "red-chair"
 	blue := "blue-lane-1"
@@ -565,17 +565,17 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 		}
 	}
 
-	inquiry := md(t, runDir, "lines-of-inquiry")
-	pursuedAt := strings.Index(inquiry, "## pursued (1)")
-	abandonedAt := strings.Index(inquiry, "## abandoned (1)")
+	avenue := md(t, runDir, "avenues")
+	pursuedAt := strings.Index(avenue, "## pursued (1)")
+	abandonedAt := strings.Index(avenue, "## abandoned (1)")
 	if pursuedAt < 0 || abandonedAt < 0 || pursuedAt > abandonedAt {
-		t.Errorf("lines-of-inquiry sections are wrong or out of order:\n%s", inquiry)
+		t.Errorf("avenues sections are wrong or out of order:\n%s", avenue)
 	}
-	if !strings.Contains(inquiry, "- **Q1 try the archive** _(full-text search)_ — the archive is offline (blue-lane-1)") {
-		t.Errorf("an abandoned line of inquiry row is wrong:\n%s", inquiry)
+	if !strings.Contains(avenue, "- **Q1 try the archive** _(full-text search)_ — the archive is offline (blue-lane-1)") {
+		t.Errorf("an abandoned avenue row is wrong:\n%s", avenue)
 	}
-	if strings.Contains(inquiry, "## declined") {
-		t.Errorf("an empty status produced a heading:\n%s", inquiry)
+	if strings.Contains(avenue, "## declined") {
+		t.Errorf("an empty status produced a heading:\n%s", avenue)
 	}
 
 	// THE CITATION-LEDGER ASSERTIONS ARE GONE WITH THEIR RENDERER. `citation-ledger` and

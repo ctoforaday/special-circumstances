@@ -146,7 +146,7 @@ func TestDetailsDoNotRestateTheFlagsCobraPrints(t *testing.T) {
 // --confidence. A seat reading `--confidence refutes` is being taught a value the tool refuses.
 //
 // Four were wrong when this was written: --confidence took a value of --as, --id and --class took
-// COMMAND PATHS ("show lines-of-inquiry", "merge class new"), and --new took a verb name.
+// COMMAND PATHS ("show avenues", "merge class new"), and --new took a verb name.
 //
 // The gate is on the rendered placeholder rather than on backticks, because backticks are also used
 // DELIBERATELY here and correctly: --anchor renders `<!--cite:c-…-->`, and an enum flag renders

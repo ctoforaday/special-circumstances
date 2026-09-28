@@ -67,7 +67,7 @@ func graphEdges() (seats int, edges int, reached map[string][]string, unreachedR
 var referenceKinds = map[string]string{
 	"gap-id":          "a board gap, checked with record.GapExists",
 	"citation-anchor": "a c-<hex> citation label, checked with record.CitationExists",
-	"inquiry-id":      "a line of inquiry, checked with record.InquiryExists",
+	"avenue-id":       "an avenue, checked with record.AvenueExists",
 }
 
 // permittedReport renders the PERMITTED surface — what the tree allows — beside the observed one.

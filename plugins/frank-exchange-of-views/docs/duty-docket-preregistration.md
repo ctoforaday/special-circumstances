@@ -51,7 +51,7 @@ its own.
 
 ## What a null means
 
-If t > −1.69, the hypothesis is not supported and the duty-channel line of inquiry is closed —
+If t > −1.69, the hypothesis is not supported and the duty-channel avenue is closed —
 not "needs more data". Three runs at increasing n with a shrinking effect is an answer. The claim
 was already withdrawn in `seat-duty-channel.md`; a null here retires the subgroup that survived it,
 and nothing about the naming, the duty list or the gate changes on the strength of any of it.
@@ -148,7 +148,7 @@ Three runs at increasing n with a monotonically shrinking effect that never clea
 
 ## What this closes
 
-Per the rule declared in advance: **the duty-channel line of inquiry is closed, not "needs more
+Per the rule declared in advance: **the duty-channel avenue is closed, not "needs more
 data".** The cross-channel claim was already withdrawn; this retires the subgroup that survived it.
 
 Nothing about the constitution's naming, the duty list, or
@@ -167,11 +167,11 @@ instrument, and the numbers say which.
 
 | expectation | `off` | `shipped` |
 |---|---|---|
-| `line-of-inquiry` | 20/20 | 19/19 |
+| `avenue` | 20/20 | 19/19 |
 | `position` | **20/20** | **15/19** |
 | `closing` | 1/20 | 2/19 |
 | `motion grade appeal` | **0** | **0** |
-| `motion inquiry appeal` | **0** | **0** |
+| `motion avenue appeal` | **0** | **0** |
 
 Two expectations never fire in either arm. Two more sit at ceiling. **Every unit of measured
 variance comes from one expectation** — which is why the control arm's standard deviation is 0.218

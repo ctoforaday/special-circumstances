@@ -120,7 +120,7 @@ func dedupe(in []string) []string {
 func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 	// THE VERBS COME FROM THE TREE, not from a table of what exists. This gate used to carry a
 	// hand-kept event-type -> role map, and it broke the moment a verb that carried two contracts
-	// was split into the two verbs it already was: `line-of-inquiry` became a GROUP, the map still
+	// was split into the two verbs it already was: `avenue` became a GROUP, the map still
 	// named it, and the check read a help page with no flags on it.
 	//
 	// An event type now has one verb or several — `verify` and `corroborate` both write a verify,

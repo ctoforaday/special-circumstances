@@ -75,8 +75,7 @@ $ finding --run {RUN} --seat-id red-lens-evidence --key F1 --severity medium --l
 exit 0
 stdout:
 finding recorded: evidence-F1 — the run-unique label a gap's found_by names (id FINDING001)
-1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ register --run {RUN} --seat-id red-lens-logic
 exit 0
@@ -94,8 +93,7 @@ $ finding --run {RUN} --seat-id red-lens-logic --key F1 --severity high --likeli
 exit 0
 stdout:
 finding recorded: logic-F1 — the run-unique label a gap's found_by names (id FINDING001)
-1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ register --run {RUN} --seat-id red-chair
 exit 0
@@ -116,15 +114,13 @@ stdout:
 minted G1
   acceptance check RECORDED as: refetch and diff
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ position --run {RUN} --seat-id red-chair --reason round one: FAIL
 exit 0
 stdout:
 position recorded [key red-chair:position:#1]
-3 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
-  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
+2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
   · gap G1 is open and material — PASS is refused while it is
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
@@ -132,8 +128,7 @@ $ verdict --run {RUN} --seat-id red-chair --as FAIL
 exit 0
 stdout:
 verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}
-2 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
-  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
+1 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
   · gap G1 is open and material — PASS is refused while it is
 
 ═══ EVENTS ═══
@@ -151,10 +146,10 @@ verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}
 {"key":"red-chair:verdict:#1","seat_id":"red-chair","ts":11,"type":"EVENT_TYPE_VERDICT","verdict":{"verdict":"VERDICT_FAIL"}}
 
 ═══ RENDERS ═══
--- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
+-- avenues
+# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

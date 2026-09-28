@@ -9,9 +9,9 @@ import (
 // spanVoiceTells runs the PRESENCE advisory over the short spans a verb is about to record, and
 // renders each hit the one way every advising verb renders it (reportvoice.Found.String).
 //
-// EVERY SPAN-SIZED WRITER — `blue edit`'s --new, a line of inquiry, a move's reason, a line's
+// EVERY SPAN-SIZED WRITER — `blue edit`'s --new, an avenue, a move's reason, a line's
 // method, a proof's note, a citation's title. Each of these reaches report.md: edit through the
-// diff-stack, the line-of-inquiry fields through `inquiries()`, which composes Research areas,
+// diff-stack, the avenue fields through `avenues()`, which composes Research areas,
 // Future research directions and Alternatives considered, and the proof note and source title
 // through its note and the Bibliography. Blue is advised on the WHOLE list, the tells red's mint
 // refuses included: blue's writes are never refused, and a seat id in blue's prose is the same leak.

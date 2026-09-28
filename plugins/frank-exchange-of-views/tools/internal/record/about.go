@@ -34,15 +34,15 @@ func ResolveAbout(verb string, run Run, kind, ref string) (*recordpb.AboutKind, 
 	}
 	k, ok := AboutKindOf(kind)
 	if !ok || k == recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED {
-		return nil, nil, fmt.Errorf("%s: %q is not a thing this can be about (section | inquiry | gap)", verb, kind)
+		return nil, nil, fmt.Errorf("%s: %q is not a thing this can be about (section | avenue | gap)", verb, kind)
 	}
 	// THE REFERENCE IS CHECKED AGAINST THE RECORD, which is the whole advantage over a quote
 	// borrowed from a nearby paragraph: an avenue id either names a line this run proposed or it
 	// does not. A section name is not checked — the report's headings are blue's to change mid-run,
 	// and refusing on a stale one would refuse the finding rather than the staleness.
 	switch k {
-	case recordpb.AboutKind_ABOUT_KIND_INQUIRY:
-		if err := RequireInquiryRef(run, ref); err != nil {
+	case recordpb.AboutKind_ABOUT_KIND_AVENUE:
+		if err := RequireAvenueRef(run, ref); err != nil {
 			return nil, nil, err
 		}
 	case recordpb.AboutKind_ABOUT_KIND_GAP:

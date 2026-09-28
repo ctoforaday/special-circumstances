@@ -56,7 +56,7 @@ func TestEveryVerbTakingReasonRegistersTheChannel(t *testing.T) {
 // THE BEHAVIOURAL HALF IS THE SOURCE SCAN, NOT A CASE TABLE.
 //
 // Registering the channel is structural; filling one payload key from the resolver and another
-// from the raw flag is behavioural, and `line-of-inquiry propose` did exactly that with its flags
+// from the raw flag is behavioural, and `avenue propose` did exactly that with its flags
 // correctly registered. Driving every prose verb and comparing the record does not scale: 51
 // commands take prose, most need board state to run, and the version that existed covered eight,
 // with both hand-registered offenders outside them.

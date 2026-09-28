@@ -464,7 +464,7 @@ var correctionArms = []fuzzArm{
 	corrArm("chair closing corrected", []string{"red-chair"}, []string{"closing"}, func(t string) []string { return []string{"--id", "G1", "--reason", t} }, nil),
 	corrArm("log corrected", []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}, []string{"log"},
 		func(t string) []string { return []string{"--type", "defect", "--reason", t} }, nil),
-	corrArm("chair inquiry-support corrected", []string{"red-chair"}, []string{"inquiry-support"}, reasonOnly, nil),
+	corrArm("chair avenue review corrected", []string{"red-chair"}, []string{"avenue", "review"}, reasonOnly, nil),
 	corrArm("chair spot-check corrected", []string{"red-chair"}, []string{"spot-check"}, func(t string) []string { return []string{"--none", "--reason", t} }, nil),
 	corrArm("lens regrade corrected", []string{"red-lens-evidence"}, []string{"regrade"},
 		func(t string) []string { return []string{"--id", "G1", "--severity", "high", "--reason", t} }, nil),
@@ -482,7 +482,7 @@ var correctionArms = []fuzzArm{
 			return []string{"--id", "M1", "--as", "remanded", "--principle", "p", "--tension", "t", "--review-flag", "r",
 				"--settled", "the proposition this ruling bars", "--final", "--reason", t}
 		}, nil),
-	corrArm("blue line-of-inquiry propose corrected", blueSeats, []string{"line-of-inquiry", "propose"},
+	corrArm("blue avenue propose corrected", blueSeats, []string{"avenue", "propose"},
 		func(t string) []string { return []string{"--reason", t, "--hypothesis", "it would settle something"} }, nil),
 	corrArm("lens reproduce corrected", []string{"red-lens-evidence"}, []string{"reproduce"},
 		func(t string) []string { return []string{"--id", "{PROOF}", "--as", "sound", "--reason", t} }, nil),
