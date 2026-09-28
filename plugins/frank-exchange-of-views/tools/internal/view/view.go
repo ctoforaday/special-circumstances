@@ -830,7 +830,8 @@ func AvenueBody(evs []*record.Event) string {
 			"_Unsettled and not moved this epoch: "+strings.Join(ids, ", ")+". Each owes a move or a",
 			"REAFFIRMATION — re-recording `pursued` with what you learned settles it for this epoch just",
 			"as a fate does; an avenue declared once and never revisited records an intention, not a",
-			"choice. `declined`, `abandoned` and `deferred` are settled and never appear here._", "")
+			"choice. A line followed to its end is `concluded`; `concluded`, `declined`, `abandoned` and",
+			"`deferred` are settled and never appear here._", "")
 	}
 	return strings.Join(avenue, "\n") + "\n"
 }

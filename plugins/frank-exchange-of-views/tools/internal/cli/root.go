@@ -489,7 +489,7 @@ func Execute() {
 	defer record.InstallSignalGuard()()
 
 	root := newRoot()
-	if err := refuseUnknownCommandFirst(root, os.Args, dispatchedSeat()); err != nil {
+	if err := refuseUnknownCommandNoted(root, os.Args, dispatchedSeat()); err != nil {
 		// THROUGH THE SAME EMITTER AS EVERY OTHER TOP-LEVEL REFUSAL. This branch printed a bare
 		// sentence, so `--json` callers got prose from the one path that answers before cobra —
 		// a channel whose entire contract is that it is machine-readable.
@@ -553,6 +553,7 @@ func ExecuteRoot(root *cobra.Command) error {
 		}
 	}
 	cmd, err := root.ExecuteC()
+	noteRefusal(cmd, err)
 	if err == nil || cmd == nil || seat.Taught(err) || seat.RecordType(cmd) == "" {
 		return err
 	}

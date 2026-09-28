@@ -55,9 +55,10 @@ const writerName = "feov-sitting-write"
 // The values cannot drift silently: TestThePhaseStringsMatchTheWriters asserts them against
 // sittingwrite's own, from the test binary, where the heavy import costs nothing.
 const (
-	phaseOpen  = "open"
-	phaseClose = "close"
-	phaseLimit = "limit"
+	phaseOpen    = "open"
+	phaseClose   = "close"
+	phaseLimit   = "limit"
+	phaseRefusal = "refusal"
 )
 
 // Limit hands a sitting that has reached the run's tool-call limit to the writer, which puts it on
@@ -73,6 +74,19 @@ func Limit(runDir, agentID, agentType string, sitting, limit int) error {
 			writerName, agentID, sitting, limit)
 	}
 	return spawnLimit(writer, runDir, agentID, agentType, sitting, limit)
+}
+
+// Refusal hands a call the PreToolUse hook denied a seat to the writer, which logs it as the tool's
+// `refusal` entry under the seat the agent registered as.
+func Refusal(runDir, agentID, text string) error {
+	writer := writerPath()
+	if writer == "" {
+		return fmt.Errorf("%s is not beside this hook, so the call refused to %s is not on the record", writerName, agentID)
+	}
+	if out, err := exec.Command(writer, "-run", runDir, "-phase", phaseRefusal, "-agent-id", agentID, "-refused", text).CombinedOutput(); err != nil {
+		return fmt.Errorf("%s: %v: %s", writerName, err, out)
+	}
+	return nil
 }
 
 // spawnLimit is a variable for the reason spawn is.

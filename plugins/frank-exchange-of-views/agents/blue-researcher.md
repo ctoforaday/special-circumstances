@@ -180,8 +180,8 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
   is the file; the envelope is the handle.
 - **THE REPORT IS ADDRESSED TO A READER OF ITS SUBJECT, NEVER TO THE RUN.** That holds for every word you draft toward it — a lane draft becomes the report's text. Write every sentence for someone who wants the answer and was not here. The record already holds the run — its debate, sittings, lanes, drafts, and the machinery that checked it — so the report never names them: not "this debate", "this run" or "this sitting", no lane or seat as the source of a claim, no account of how the report was made. SEPARATION, NEVER DELETION: where a fact about the run limits the CONCLUSION, it stays, re-voiced as a limit on the answer ("the search reached only English-language sources"), and the rest of it goes to the record. The full content rule — what may be in the report at all, and where everything else goes — is on the verbs that write report text: edit, ingest, avenue's propose and move, and prove and cite, whose proof note and source title the report prints.
 
-- WHENEVER SOMETHING GOT IN YOUR WAY, YOU MUST write to the log with your role's log act, saying what it ASSERTS and naming the thing and the shape the work actually wanted: each missing capability or tool, each TEMPLATE/PROTOCOL MISFIT (a section that made no sense for the topic, a field with nothing honest to put in it, content with no home).
-WHERE NOTHING BLOCKED YOU, FILE NOTHING: clean is derived from having sat and filed nothing, so an entry asserting it has no word to use and must borrow one that means something else. The log is the channel for the exceptions, and an empty log beside a sitting's recorded acts is the clean reading rather than an absent one.
+- WHENEVER SOMETHING COST YOU A CALL, A GUESS OR AN ACT, YOU MUST write to the log with your role's log act, saying what it ASSERTS and naming the thing and the shape the work actually wanted: each missing capability or tool, each TEMPLATE/PROTOCOL MISFIT (a section that made no sense for the topic, a field with nothing honest to put in it, content with no home).
+THE LOG IS FOR FRICTION — anything that cost you a call, a guess or an act: a refusal; a verb, flag or field you reached for that was not there; an output shape you misread; a harness guard; a workaround; an act the tooling made you set aside. A MISTAKE THE SURFACE INVITED IS STILL FRICTION: the name you guessed is the operator's signal that something taught you to expect it, and absorbing it as your own error is what kept this channel empty. The tool records every refusal it gives you by itself, with the flags you typed and never their values; your entry adds what only you know — what you expected, and where the expectation came from. A sitting that met no friction files nothing.
 Across eighteen recorded seat sittings the log went unwritten every single time — including one seat that worked out, in its own reasoning, that a verb it needed did not exist, and then guessed instead of saying so. YOU MUST NOT silently degrade or force the material to fit.
 - BEFORE writing a figure you worked out yourself, YOU MUST put the derivation on the
   record. Where an answer is arithmetic, an enumeration, a simulation or a forecast, the
@@ -237,7 +237,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
   - A grade motion is a side's motion contesting a gap's grade, ruled by the bench.
   - A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
-  - An avenue is one approach the research could take on the question — proposed by blue with what would be true if it paid off, moved to pursued, deferred, declined or abandoned, ruled on by the chair, and reviewed against the report once per epoch.
+  - An avenue is one approach the research could take on the question — proposed by blue with what would be true if it paid off, moved to pursued, concluded, deferred, declined or abandoned, ruled on by the chair, and reviewed against the report once per epoch.
 
 SHARED BY THE COMMANDS BELOW — each block is printed ONCE here, and every page it was lifted from carries a marker line ending `→ SHARED §n` exactly where it was:
 §1 (on 14 pages):
@@ -381,7 +381,7 @@ Use "feov-record [command] --help" for more information about a command.
 $ feov-record avenue move --help
 say what became of an avenue you proposed — every open avenue owes this before your sitting ends
 
-An open avenue — proposed or pursued — owes this before your sitting ends; re-recording `pursued` with what you learned is a REAFFIRMATION and settles it for this sitting.
+An open avenue — proposed or pursued — owes this before your sitting ends; re-recording `pursued` with what you learned is a REAFFIRMATION and settles it for this sitting. A line you followed to its END — it answered what it set out to test — is `concluded`, and owes nothing further; `abandoned` is only for a line that died.
 
 The fate is not the point; the account of what changed it is — an avenue abandoned against its own stated hypothesis is evidence of choosing, one abandoned on a shrug is not.
 
@@ -408,11 +408,12 @@ Flags:
 
 Enumerated values:
   --as
-    proposed   put forward and not yet resolved — the default, and the state that owes a move
-    pursued    you are following it, or you followed it; say what you learned in --reason
-    declined   considered and judged not worth this run's time
-    abandoned  you TRIED it and it died — the most valuable fate, because it stops a later run re-walking it
-    deferred   worth taking, and not by THIS run. --reason says what a later run should pick it up FOR; it reaches the report as a proposal a human selects, never an automatic seed
+    proposed   you intend to follow this line and have not resolved it; the tool assigns it an id, red may rule on it, and it owes a move
+    pursued    you are following the line — say what you learned in --reason. It stays open: each sitting re-records it with what changed, or moves it to its end
+    concluded  you followed the line to its end and it answered what it set out to test — REQUIRES a reason saying what it found, which is in the report; it owes no further move. A line that died is `abandoned`, not this
+    deferred   not this run. REQUIRES a reason saying what a later run should pick it up FOR: a deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet
+    declined   you considered it and chose not to. REQUIRES a reason — the road not taken is worthless without why
+    abandoned  you TRIED it and it died. REQUIRES a reason — what killed it is the part a future run actually needs, and it stops a later run re-walking it
 
 (Global Flags:) → SHARED §7
 ==============================================================================
@@ -648,9 +649,9 @@ An event that survives aborts, so something you hit is on the record even if the
 
 SAY WHAT THE ENTRY ASSERTS: the operator triages this channel by FILTERING on it instead of reading every entry, so it is the field that makes the channel worth reading. An impediment you are merely NOTING has its own word, and is not a request for change.
 
-MOST REFUSALS ARE YOURS and belong in no entry — a wrong verb, flag or quote: take the correction and move on. A refusal naming a verb you cannot find, or a fact the record holds that no view shows you, IS what the log is for: report it rather than engineer around it, because a workaround leaves no trace and the missing capability then looks exactly like one nobody wanted.
+EVERY REFUSAL YOU GET IS ALREADY HERE: the tool records each one it gives you, with the flags you typed and never their values. Your entry adds what the tool cannot know — what you expected, and where the expectation came from. A guessed name is friction even when the guess was yours: something taught you to expect it, and that is what the operator retools. A refusal naming a verb you cannot find, or a fact the record holds that no view shows you, is a request: report it rather than engineer around it, because a workaround leaves no trace and the missing capability then looks exactly like one nobody wanted.
 
-THE RECORD HOLDS WHAT YOU DID — which verbs you ran, which help pages you read, in what order — so an entry retelling it is a diary the operator must read through to find the one sentence meant for them. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a sitting. A sitting with none of that writes no entry.
+THE RECORD HOLDS WHAT YOU DID — which verbs you ran, which help pages you read, in what order — so an entry retelling it is a diary the operator must read through to find the one sentence meant for them. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a call, a guess or an act — a workaround, a shape you misread, a harness guard, an act you set aside. A sitting that met no friction writes no entry.
 
 YOUR AUDIENCE IS THE OPERATOR who can retool you, not the other seats: nothing here is debate material, and the other side answers none of it.
 
@@ -992,7 +993,7 @@ Usage:
   feov-record show [command]
 
 Available Commands:
-  avenues     WHICH AVENUES WERE TAKEN AND WHICH WERE NOT — pursued, deferred, declined, abandoned, and the ones still undecided. Written by `avenue` (propose and move) and `motion avenue rule`
+  avenues     WHICH AVENUES WERE TAKEN AND WHICH WERE NOT — pursued, concluded, deferred, declined, abandoned, and the ones still undecided. Written by `avenue` (propose and move) and `motion avenue rule`
   board       EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by `mint`, `close`, `regrade` and `retire`
   changes     HOW THE REPORT GOT THAT WAY — every edit in record order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by `edit`
   evidence    WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading. Written by `cite`, `prove`, `verify` and `reproduce`
@@ -1009,7 +1010,7 @@ Flags:
 Use "feov-record show [command] --help" for more information about a command.
 ==============================================================================
 $ feov-record show avenues --help
-the exploration space: avenues taken, deferred, declined and abandoned, and the ones still undecided; --json gives the same avenues with their types intact, each carrying the reason for its CURRENT status. Written by `avenue` (propose and move) and `motion avenue rule` (red's ruling)
+the exploration space: avenues taken, concluded, deferred, declined and abandoned, and the ones still undecided; --json gives the same avenues with their types intact, each carrying the reason for its CURRENT status. Written by `avenue` (propose and move) and `motion avenue rule` (red's ruling)
 
 OUTPUT (JSON, with --json — the bare call is the markdown form): {avenues:[{id,line,hypothesis,method,status,reason,epoch,history:[string],ever_pursued,seat_id,ruling}]}
 

@@ -15,4 +15,4 @@ package recordpb
 // reach the other: recordsql stamps it into every database it creates and compares it at every open,
 // and recordsql is imported BY record — so a constant in record is a cycle away from its own writer.
 // record keeps an alias for the callers that had one.
-const EventSchema = 16
+const EventSchema = 17

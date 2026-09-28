@@ -417,7 +417,7 @@ func mintWithProposal(t *testing.T, runDir, key, fixOld, fixNew string) string {
 	t.Helper()
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	out, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	out, err := runMint(t, runDir, "--run", runDir, "--seat-id", lensSeat,
 		"--key", key, "--class", "overclaim", "--problem", "the defect",
 		"--fix", "drop the independence claim", "--check-kind", "document", "--check", "the section no longer claims it",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium",

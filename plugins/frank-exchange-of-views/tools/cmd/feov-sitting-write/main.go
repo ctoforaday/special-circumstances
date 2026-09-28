@@ -1,5 +1,5 @@
 // Command feov-sitting-write appends a harness-observed fact about a sitting to a run's record:
-// one end of its span, or that it reached the run's tool-call limit.
+// one end of its span, that it reached the run's tool-call limit, or a call the PreToolUse hook denied it.
 //
 // NOT A HOOK AND NOT A SEAT VERB. It is spawned by the SubagentStart/SubagentStop hooks once they
 // have established there is a live run and a real seat, and by the PreToolUse hook once per sitting
@@ -17,7 +17,7 @@ import (
 
 func main() {
 	run := flag.String("run", "", "the run directory whose record to append to")
-	phase := flag.String("phase", "", "open or close (an end of the span), or limit (the sitting reached the tool-call limit)")
+	phase := flag.String("phase", "", "open or close (an end of the span), limit (the sitting reached the tool-call limit), or refusal (the PreToolUse hook denied a call)")
 	agentID := flag.String("agent-id", "", "the harness handle for the subagent")
 	agentType := flag.String("agent-type", "", "the agent configuration it was dispatched as")
 	transcript := flag.String("transcript", "", "the finished seat's transcript, whose turns are ingested and whose path is recorded (SubagentStop only)")
@@ -25,12 +25,16 @@ func main() {
 	promptID := flag.String("prompt-id", "", "the dispatch's own id, from the hook payload — it changes when an agent is re-prompted and its agent id does not")
 	sitting := flag.Int("sitting", 0, "the seat's sitting that reached the limit (limit only)")
 	limit := flag.Int("limit", 0, "the per-sitting tool-call limit it reached (limit only)")
+	refused := flag.String("refused", "", "what the PreToolUse hook refused the seat, and why (refusal only)")
 	flag.Parse()
 
 	var err error
-	if sittingwrite.Phase(*phase) == sittingwrite.Limit {
+	switch sittingwrite.Phase(*phase) {
+	case sittingwrite.Limit:
 		err = sittingwrite.WriteLimit(*run, *agentID, *agentType, *sitting, *limit)
-	} else {
+	case sittingwrite.Refusal:
+		err = sittingwrite.WriteRefusal(*run, *agentID, *refused)
+	default:
 		// STDOUT IS THE SEAT'S CHANNEL, and stderr is the caller's. On the opening end this process
 		// prints the seat's work list here and the SubagentStart hook passes it to the dispatched
 		// subagent; a diagnostic printed to stdout would arrive in a seat's context as its work.

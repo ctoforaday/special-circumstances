@@ -105,7 +105,8 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	path, err := Assemble(runtest.Open(t, runDir))
+	a, err := Assemble(runtest.Open(t, runDir))
+	path := a.Report
 	if err != nil {
 		t.Fatalf("Assemble: %v", err)
 	}

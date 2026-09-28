@@ -799,6 +799,9 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		if err := requireMintWithinBudget(run, seatID); err != nil {
 			return err
 		}
+		if err := requireNotAnOpenGap(run, b); err != nil {
+			return err
+		}
 		// REQUIRED, not optional, and that is the whole remedy (#277).
 		//
 		// The 2026-08-05 smoke produced ZERO proofs across a full run. Not because blue
@@ -1368,6 +1371,9 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			st != recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED && b.GetReason() == "" {
 			if st == recordpb.AvenueStatus_AVENUE_STATUS_DEFERRED {
 				return fmt.Errorf("record: a deferred avenue requires --reason — what a later run should pick it up FOR. A deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet")
+			}
+			if st == recordpb.AvenueStatus_AVENUE_STATUS_CONCLUDED {
+				return fmt.Errorf("record: a concluded avenue requires --reason — what the line found, in the subject's terms. It is printed in the report beside the line, and a line that ended with nothing said about what it found reads as one that was dropped")
 			}
 			return fmt.Errorf("record: a %s avenue requires --reason (why it was not taken, or what killed it — the part a future run actually needs; a bare list of roads not taken is decoration)", recordpb.Word(st))
 		}

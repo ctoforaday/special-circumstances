@@ -838,9 +838,13 @@ const (
 	AvenueStatus_AVENUE_STATUS_UNSPECIFIED AvenueStatus = 0
 	AvenueStatus_AVENUE_STATUS_PROPOSED    AvenueStatus = 1
 	AvenueStatus_AVENUE_STATUS_PURSUED     AvenueStatus = 2
-	AvenueStatus_AVENUE_STATUS_DEFERRED    AvenueStatus = 3
-	AvenueStatus_AVENUE_STATUS_DECLINED    AvenueStatus = 4
-	AvenueStatus_AVENUE_STATUS_ABANDONED   AvenueStatus = 5
+	// CONCLUDED IS THE END OF A LINE THAT WORKED. Without it a line could only close by dying: on
+	// universe-m13 blue moved four confirmed hypotheses to `abandoned`, "the hypothesis was satisfied,
+	// not that they failed", and the report listed every successful line as a dead end.
+	AvenueStatus_AVENUE_STATUS_CONCLUDED AvenueStatus = 6
+	AvenueStatus_AVENUE_STATUS_DEFERRED  AvenueStatus = 3
+	AvenueStatus_AVENUE_STATUS_DECLINED  AvenueStatus = 4
+	AvenueStatus_AVENUE_STATUS_ABANDONED AvenueStatus = 5
 )
 
 // Enum value maps for AvenueStatus.
@@ -849,6 +853,7 @@ var (
 		0: "AVENUE_STATUS_UNSPECIFIED",
 		1: "AVENUE_STATUS_PROPOSED",
 		2: "AVENUE_STATUS_PURSUED",
+		6: "AVENUE_STATUS_CONCLUDED",
 		3: "AVENUE_STATUS_DEFERRED",
 		4: "AVENUE_STATUS_DECLINED",
 		5: "AVENUE_STATUS_ABANDONED",
@@ -857,6 +862,7 @@ var (
 		"AVENUE_STATUS_UNSPECIFIED": 0,
 		"AVENUE_STATUS_PROPOSED":    1,
 		"AVENUE_STATUS_PURSUED":     2,
+		"AVENUE_STATUS_CONCLUDED":   6,
 		"AVENUE_STATUS_DEFERRED":    3,
 		"AVENUE_STATUS_DECLINED":    4,
 		"AVENUE_STATUS_ABANDONED":   5,
@@ -1505,7 +1511,12 @@ const (
 	LogType_LOG_TYPE_DEFECT      LogType = 2
 	LogType_LOG_TYPE_REQUEST     LogType = 3
 	LogType_LOG_TYPE_FRICTION    LogType = 4
-	LogType_LOG_TYPE_ESTOPPEL    LogType = 5
+	// REFUSAL IS EVERY OTHER NO THE TOOL GIVES A SEAT, written by the tool at the moment it refuses.
+	// On universe-m13 seats met a dozen refusals — a flag guessed from another verb, a field name
+	// typed as a flag, a mint refused at its budget — and filed none: each was classed as the seat's
+	// own mistake. The guess is the operator's signal, whoever made it, so the tool keeps it.
+	LogType_LOG_TYPE_REFUSAL  LogType = 6
+	LogType_LOG_TYPE_ESTOPPEL LogType = 5
 )
 
 // Enum value maps for LogType.
@@ -1515,6 +1526,7 @@ var (
 		2: "LOG_TYPE_DEFECT",
 		3: "LOG_TYPE_REQUEST",
 		4: "LOG_TYPE_FRICTION",
+		6: "LOG_TYPE_REFUSAL",
 		5: "LOG_TYPE_ESTOPPEL",
 	}
 	LogType_value = map[string]int32{
@@ -1522,6 +1534,7 @@ var (
 		"LOG_TYPE_DEFECT":      2,
 		"LOG_TYPE_REQUEST":     3,
 		"LOG_TYPE_FRICTION":    4,
+		"LOG_TYPE_REFUSAL":     6,
 		"LOG_TYPE_ESTOPPEL":    5,
 	}
 )
@@ -3124,6 +3137,11 @@ type Mint struct {
 	// key would read as "lineage unknown" where the truth is "lineage none".
 	Supersedes []string `protobuf:"bytes,20,rep,name=supersedes,proto3" json:"supersedes,omitempty"`
 	FoundBy    []string `protobuf:"bytes,21,rep,name=found_by,json=foundBy,proto3" json:"found_by,omitempty"`
+	// distinct_from names each open gap the mint's duplicate screen matched and the minting seat
+	// judged a DIFFERENT defect — its claim, on the record, that it read the gap and this is not it.
+	// Two lenses sitting in parallel minted one semiprime-ordinal defect ten seconds apart on
+	// universe-m13 (G7, G8), and the second saw the first 22 seconds later and moved on.
+	DistinctFrom []string `protobuf:"bytes,26,rep,name=distinct_from,json=distinctFrom,proto3" json:"distinct_from,omitempty"`
 	// mint_reason is RED'S ARGUMENT FOR THE GAP, which is not the same fact as `problem`.
 	//
 	// `problem` is what is wrong with the report; this is why it is worth a gap — the case blue
@@ -3325,6 +3343,13 @@ func (x *Mint) GetSupersedes() []string {
 func (x *Mint) GetFoundBy() []string {
 	if x != nil {
 		return x.FoundBy
+	}
+	return nil
+}
+
+func (x *Mint) GetDistinctFrom() []string {
+	if x != nil {
+		return x.DistinctFrom
 	}
 	return nil
 }
@@ -7344,7 +7369,7 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"_down_massB\n" +
 	"\n" +
-	"\b_up_mass\"\xd4\x15\n" +
+	"\b_up_mass\"\xf9\x15\n" +
 	"\x04Mint\x12\x96\x01\n" +
 	"\x06gap_id\x18\x01 \x01(\tBz\x82\xb5\x18v\b\x01\x1apthe gap id is what every later act refers to; a mint without one is a finding nothing can cite, close or rule on(\x01H\x00R\x05gapId\x88\x01\x01\x12\x1e\n" +
 	"\bmint_key\x18\x02 \x01(\tH\x01R\amintKey\x88\x01\x01\x12\xf1\x01\n" +
@@ -7378,7 +7403,8 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"supersedes\x18\x14 \x03(\tR\n" +
 	"supersedes\x12\x19\n" +
-	"\bfound_by\x18\x15 \x03(\tR\afoundBy\x12$\n" +
+	"\bfound_by\x18\x15 \x03(\tR\afoundBy\x12#\n" +
+	"\rdistinct_from\x18\x1a \x03(\tR\fdistinctFrom\x12$\n" +
 	"\vmint_reason\x18\x16 \x01(\tH\x14R\n" +
 	"mintReason\x88\x01\x01\x12\xee\x01\n" +
 	"\x0eclass_material\x18\x19 \x01(\x0e2\x1d.feov.record.v1.ClassMaterialB\xa2\x01\x82\xb5\x18\x9d\x01\b\x01\x1a\x98\x01every reader of materiality — the dispatch, the PASS gate, the chair's work list — reads it; the tool stamps it from the class registry at the writeH\x15R\rclassMaterial\x88\x01\x01B\t\n" +
@@ -8018,14 +8044,15 @@ const file_record_proto_rawDesc = "" +
 	"\tSoundness\x12\x19\n" +
 	"\x15SOUNDNESS_UNSPECIFIED\x10\x00\x12V\n" +
 	"\x0fSOUNDNESS_SOUND\x10\x01\x1aA\x8a\xb5\x18=you READ the script and it computes what it claims to compute\x12\xb8\x01\n" +
-	"\x11SOUNDNESS_UNSOUND\x10\x02\x1a\xa0\x01\x8a\xb5\x18\x9b\x01it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to — the dangerous cell, because it looks maximally credible*\x96\x06\n" +
+	"\x11SOUNDNESS_UNSOUND\x10\x02\x1a\xa0\x01\x8a\xb5\x18\x9b\x01it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to — the dangerous cell, because it looks maximally credible*\xbc\t\n" +
 	"\fAvenueStatus\x12\x1d\n" +
-	"\x19AVENUE_STATUS_UNSPECIFIED\x10\x00\x12p\n" +
-	"\x16AVENUE_STATUS_PROPOSED\x10\x01\x1aT\x8a\xb5\x18Pyou intend to follow this line; the tool assigns it an id and red may rule on it\x12[\n" +
-	"\x15AVENUE_STATUS_PURSUED\x10\x02\x1a@\x8a\xb5\x18<you took the line — what it produced belongs in the report\x12\x86\x02\n" +
+	"\x19AVENUE_STATUS_UNSPECIFIED\x10\x00\x12\x9a\x01\n" +
+	"\x16AVENUE_STATUS_PROPOSED\x10\x01\x1a~\x8a\xb5\x18zyou intend to follow this line and have not resolved it; the tool assigns it an id, red may rule on it, and it owes a move\x12\xb5\x01\n" +
+	"\x15AVENUE_STATUS_PURSUED\x10\x02\x1a\x99\x01\x8a\xb5\x18\x94\x01you are following the line — say what you learned in --reason. It stays open: each sitting re-records it with what changed, or moves it to its end\x12\xf2\x01\n" +
+	"\x17AVENUE_STATUS_CONCLUDED\x10\x06\x1a\xd4\x01\x8a\xb5\x18\xcf\x01you followed the line to its end and it answered what it set out to test — REQUIRES a reason saying what it found, which is in the report; it owes no further move. A line that died is `abandoned`, not this\x12\x86\x02\n" +
 	"\x16AVENUE_STATUS_DEFERRED\x10\x03\x1a\xe9\x01\x8a\xb5\x18\xe4\x01not this run. REQUIRES a reason saying what a later run should pick it up FOR: a deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet\x12\x85\x01\n" +
-	"\x16AVENUE_STATUS_DECLINED\x10\x04\x1ai\x8a\xb5\x18eyou considered it and chose not to. REQUIRES a reason — the road not taken is worthless without why\x12\x86\x01\n" +
-	"\x17AVENUE_STATUS_ABANDONED\x10\x05\x1ai\x8a\xb5\x18eyou started and stopped. REQUIRES a reason — what killed it is the part a future run actually needs*\xc2\x04\n" +
+	"\x16AVENUE_STATUS_DECLINED\x10\x04\x1ai\x8a\xb5\x18eyou considered it and chose not to. REQUIRES a reason — the road not taken is worthless without why\x12\xb1\x01\n" +
+	"\x17AVENUE_STATUS_ABANDONED\x10\x05\x1a\x93\x01\x8a\xb5\x18\x8e\x01you TRIED it and it died. REQUIRES a reason — what killed it is the part a future run actually needs, and it stops a later run re-walking it*\xc2\x04\n" +
 	"\rMotionSubject\x12\x1e\n" +
 	"\x1aMOTION_SUBJECT_UNSPECIFIED\x10\x00\x12Q\n" +
 	"\x14MOTION_SUBJECT_GRADE\x10\x01\x1a7\x8a\xb5\x18*you contest a gap's grade on one dimension\xa2\xb5\x18\x05chair\x12\x89\x01\n" +
@@ -8079,12 +8106,13 @@ const file_record_proto_rawDesc = "" +
 	"\tLogSource\x12\x1a\n" +
 	"\x16LOG_SOURCE_UNSPECIFIED\x10\x00\x12@\n" +
 	"\x0fLOG_SOURCE_SEAT\x10\x01\x1a+\x8a\xb5\x18'a seat filed this about its own sitting\x12S\n" +
-	"\x0fLOG_SOURCE_TOOL\x10\x02\x1a>\x8a\xb5\x18:the tool emitted this itself, rather than a seat filing it*\xe9\a\n" +
+	"\x0fLOG_SOURCE_TOOL\x10\x02\x1a>\x8a\xb5\x18:the tool emitted this itself, rather than a seat filing it*\xad\v\n" +
 	"\aLogType\x12\x18\n" +
 	"\x14LOG_TYPE_UNSPECIFIED\x10\x00\x12\xef\x01\n" +
 	"\x0fLOG_TYPE_DEFECT\x10\x02\x1a\xd9\x01\x8a\xb5\x18\xd0\x01something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on\xb0\xb5\x18\x01\x12\xcf\x01\n" +
-	"\x10LOG_TYPE_REQUEST\x10\x03\x1a\xb8\x01\x8a\xb5\x18\xaf\x01a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair\xb0\xb5\x18\x01\x12\xdb\x01\n" +
-	"\x11LOG_TYPE_FRICTION\x10\x04\x1a\xc3\x01\x8a\xb5\x18\xba\x01the work was impeded and you are noting it; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect\xb0\xb5\x18\x01\x12\x89\x02\n" +
+	"\x10LOG_TYPE_REQUEST\x10\x03\x1a\xb8\x01\x8a\xb5\x18\xaf\x01a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair\xb0\xb5\x18\x01\x12\xf2\x02\n" +
+	"\x11LOG_TYPE_FRICTION\x10\x04\x1a\xda\x02\x8a\xb5\x18\xd1\x02something cost you a call, a guess or an act — a refusal, a name you reached for that was not there, a shape you misread, a workaround — and you are noting it with what you expected and why; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect\xb0\xb5\x18\x01\x12\xaa\x02\n" +
+	"\x10LOG_TYPE_REFUSAL\x10\x06\x1a\x93\x02\x8a\xb5\x18\x8a\x02the TOOL refused a seat's call, and recorded it as it refused: the command, the flags given (never their values) and the refusal's first line. Recorded by the tool, not filed by the seat; the seat's own entry says what it expected and where the expectation came from\xb0\xb5\x18\x00\x12\x89\x02\n" +
 	"\x11LOG_TYPE_ESTOPPEL\x10\x05\x1a\xf1\x01\x8a\xb5\x18\xe8\x01the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit\xb0\xb5\x18\x00\"\x04\b\x01\x10\x01*\x10LOG_TYPE_NOMINAL*\x96\x03\n" +
 	"\x0eGradeDimension\x12\x1f\n" +
 	"\x1bGRADE_DIMENSION_UNSPECIFIED\x10\x00\x12;\n" +

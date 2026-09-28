@@ -120,7 +120,7 @@ func run(t *testing.T, args ...string) (stdout string, err error) {
 	// THE HARNESS REPRODUCES THE BINARY, and this pre-check is part of it: Execute runs
 	// refuseUnknownCommandFirst before cobra parses anything, so a command named by a caller with
 	// no identity is answered about the identity rather than about its flags.
-	if err = refuseUnknownCommandFirst(root, append([]string{"feov-record"}, args...), seatID); err == nil {
+	if err = refuseUnknownCommandNoted(root, append([]string{"feov-record"}, args...), seatID); err == nil {
 		err = ExecuteRoot(root)
 	}
 	// THE HARNESS REPRODUCES THE BINARY. A flag-PARSE refusal never reaches seat.Emit, so
@@ -174,6 +174,20 @@ func help(t *testing.T, args ...string) string {
 }
 
 // events reads the merged event log the way every projection does.
+// withoutToolRefusals is every event but the refusals the TOOL logged. A refused call records one thing — its
+// refusal, written by the tool so the operator sees what a seat reached for — and nothing the seat
+// meant to write. "A refusal records nothing" is now "a refusal records only itself".
+func withoutToolRefusals(evs []*record.Event) []*record.Event {
+	var out []*record.Event
+	for _, e := range evs {
+		if l, ok := recordpb.BodyAs[*recordpb.Log](e); ok && l.GetType() == recordpb.LogType_LOG_TYPE_REFUSAL {
+			continue
+		}
+		out = append(out, e)
+	}
+	return out
+}
+
 func events(t *testing.T, runDir string) []*record.Event {
 	t.Helper()
 	m, err := record.MergedEvents(runtest.Open(t, runDir))
@@ -313,9 +327,9 @@ func TestRoleBindingIsEnforcedAtTheCLI(t *testing.T) {
 	if !strings.Contains(err.Error(), "the lens seat's verb") {
 		t.Errorf("the refusal must name the seat that holds the verb: %v", err)
 	}
-	// And nothing was written under the crossing.
-	if len(events(t, runDir)) != 0 {
-		t.Errorf("a refused cross-role write still produced events: %+v", events(t, runDir))
+	// And nothing was written under the crossing but the refusal itself.
+	if acts := withoutToolRefusals(events(t, runDir)); len(acts) != 0 {
+		t.Errorf("a refused cross-role write still produced events: %+v", acts)
 	}
 
 	// A seat id no dispatch created is refused too.
@@ -604,9 +618,9 @@ func TestBadGradeIsRefusedAtParseTimeWithATeachingMessage(t *testing.T) {
 			t.Errorf("the refusal does not offer %q: %v", g, err)
 		}
 	}
-	// Nothing was recorded: the refusal came before the write.
-	if len(events(t, runDir)) != 0 {
-		t.Errorf("a refused grade still produced events: %+v", events(t, runDir))
+	// Nothing was recorded but the refusal: it came before the write.
+	if acts := withoutToolRefusals(events(t, runDir)); len(acts) != 0 {
+		t.Errorf("a refused grade still produced events: %+v", acts)
 	}
 }
 
@@ -1426,8 +1440,8 @@ func TestVerbsRefusePositionalArguments(t *testing.T) {
 	if err == nil {
 		t.Fatal("a positional argument was silently dropped")
 	}
-	if len(events(t, runDir)) != 0 {
-		t.Errorf("a refused invocation still recorded: %+v", events(t, runDir))
+	if acts := withoutToolRefusals(events(t, runDir)); len(acts) != 0 {
+		t.Errorf("a refused invocation still recorded: %+v", acts)
 	}
 }
 

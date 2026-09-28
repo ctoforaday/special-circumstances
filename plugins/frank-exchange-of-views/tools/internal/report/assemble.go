@@ -277,22 +277,40 @@ func earliest(a, b string) string {
 	return a
 }
 
-func Assemble(run record.Run) (string, error) {
+// Assembled is what an assembly wrote: the verdict it stamped and how many documents, for the seat
+// that ran it, and the report's path for a caller that reads the file — a test, or the operator.
+//
+// THE SEAT GETS NO PATH. `assemble` printed "assembled <run>/report.md", and the judge read the file
+// two seconds later — the one seat on universe-m13 that tried, handed the path by the tool itself.
+// The stamp is derived from the outcome on the record, so the confirmation a seat needs is the
+// verdict the tool stamped, which it can state; the file is the human reader's.
+type Assembled struct {
+	Report    string
+	Documents int
+	Verdict   string
+}
+
+func Assemble(run record.Run) (Assembled, error) {
 	docs, err := AssembleAll(run)
 	if err != nil {
-		return "", err
+		return Assembled{}, err
 	}
 	fam, err := record.FamilyOf(run)
 	if err != nil {
-		return "", fmt.Errorf("assemble: board: %w", err)
+		return Assembled{}, fmt.Errorf("assemble: board: %w", err)
 	}
 	title := Title(run)
 
 	// The site is rendered BEFORE the index, because the index links it only if it is there.
 	if err := os.WriteFile(filepath.Join(run.Dir(), "report.html"), []byte(RenderSite(title, docs, fam)), 0o644); err != nil {
-		return "", fmt.Errorf("assemble: write report.html: %w", err)
+		return Assembled{}, fmt.Errorf("assemble: write report.html: %w", err)
 	}
-	return Write(run, title, docs, indexDoc(run, title, docs, fam, fam.Events))
+	path, err := Write(run, title, docs, indexDoc(run, title, docs, fam, fam.Events))
+	if err != nil {
+		return Assembled{}, err
+	}
+	// The docs, the index and the site.
+	return Assembled{Report: path, Documents: len(docs) + 2, Verdict: outcomeWord(outcomeOf(fam.Events))}, nil
 }
 
 // blueEmbed returns the parts of blue/report.md NOT already composed elsewhere. Blue's lifted
@@ -779,7 +797,9 @@ func truncateRunes(s string, n int) string {
 // rather than a heading that describes the omission.
 //
 // `rejected` stays a COMPLEMENT so a sixth status cannot silently match nothing.
-func accepted(status string) bool { return status == "pursued" || status == "proposed" }
+func accepted(status string) bool {
+	return status == "pursued" || status == "concluded" || status == "proposed"
+}
 func deferred(status string) bool { return status == "deferred" }
 
 func rejected(status string) bool { return !accepted(status) && !deferred(status) }

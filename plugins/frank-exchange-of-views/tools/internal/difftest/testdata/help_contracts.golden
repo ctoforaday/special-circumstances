@@ -212,7 +212,7 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  assemble     assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the record; no inputs
+  assemble     assemble the run's documents for the human reader, from the record — blue's audited sections lifted verbatim, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
   certify      what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
   count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
   declare      a holding that binds how the whole record is READ, when the dispute is over what a term MEANS and no gap moves

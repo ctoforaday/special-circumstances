@@ -6,6 +6,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
@@ -72,10 +73,11 @@ func mintGap(t *testing.T, runDir, key, class string) string {
 	// that mints.
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	out, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	out, err := run(t, append([]string{"mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", key, "--class", class, "--problem", "the defect", "--fix", "the fix",
 		"--check-kind", "document", "--check", "the acceptance check red runs at re-audit",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low")
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low"},
+		distinctFromOpen(t, runDir)...)...)
 	if err != nil {
 		t.Fatalf("mint %s: %v", key, err)
 	}
@@ -84,6 +86,28 @@ func mintGap(t *testing.T, runDir, key, class string) string {
 		t.Fatalf("mint returned no id: %q", out)
 	}
 	return id
+}
+
+// distinctFromOpen answers the mint's duplicate screen for a FIXTURE: its gaps are distinct by
+// construction — each exists to be closed, ruled or left a different way — and they share wording
+// because the wording is not what they test. It names every gap already open, or nothing.
+func distinctFromOpen(t *testing.T, runDir string) []string {
+	t.Helper()
+	b, err := record.BoardJSONOfRun(runtest.Open(t, runDir))
+	if err != nil || len(b.Open) == 0 {
+		return nil
+	}
+	ids := make([]string, len(b.Open))
+	for i, g := range b.Open {
+		ids[i] = g.ID
+	}
+	return []string{"--distinct-from", strings.Join(ids, ",")}
+}
+
+// runMint is `mint` with the fixture's answer to the duplicate screen appended — see distinctFromOpen.
+func runMint(t *testing.T, runDir string, args ...string) (string, error) {
+	t.Helper()
+	return run(t, append(append([]string{"mint"}, args...), distinctFromOpen(t, runDir)...)...)
 }
 
 // gapID pulls the tool-assigned id out of a mint's output.

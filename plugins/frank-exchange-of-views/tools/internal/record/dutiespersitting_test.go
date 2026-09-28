@@ -219,3 +219,30 @@ func TestARepairDoesNotReopenTheDutiesTheSittingDischarged(t *testing.T) {
 		t.Error("a genuine second sitting acted, filed no log, and the work list does not say so")
 	}
 }
+
+// A REFUSAL THE TOOL LOGGED IS NOT THE SEAT SPEAKING, AND IT IS FRICTION. The tool records every
+// refusal it gives a seat; if that entry counted as the seat's log, the first refused call would
+// close the channel it exists to open. And a sitting whose only events are refused calls recorded
+// no act, yet plainly met friction, so it is asked — with the count, so the seat knows the tool
+// already holds the refusals and only its expectation is missing.
+func TestARefusalTheToolLoggedAsksTheSeatForWhatItExpected(t *testing.T) {
+	refusal := func(b *stage) *stage {
+		return b.add(evLens, &recordpb.Log{Text: proto.String("refused `mint` with --acceptance-check: unknown flag"),
+			Type:   recordpb.LogType_LOG_TYPE_REFUSAL.Enum(),
+			Source: recordpb.LogSource_LOG_SOURCE_TOOL.Enum()})
+	}
+	sat := func() *stage {
+		return newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+			register("red-chair").dispatch(2, evLens).register(evLens)
+	}
+	s := sittingOfRunT(t, refusal(sat()).seed(), "lens", evLens)
+	if !listsItem(s, "has already recorded the 1 refusal") {
+		t.Fatalf("a sitting whose only events are refused calls is not asked what it expected: %+v", s.Open)
+	}
+	if !s.Complete {
+		t.Errorf("the ask blocks the sitting: %+v", s.Open)
+	}
+	if listsItem(sittingOfRunT(t, refusal(sat()).logEntry(evLens).seed(), "lens", evLens), "the log is open") {
+		t.Error("the seat filed its own entry and is still told the log is open")
+	}
+}

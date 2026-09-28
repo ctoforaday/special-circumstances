@@ -223,6 +223,8 @@ const (
 	Supersedes   = "supersedes"
 	SupersededBy = "superseded-by"
 	FoundBy      = "found-by"
+	// DistinctFrom answers the mint's duplicate screen: an open gap it matched that this one is not.
+	DistinctFrom = "distinct-from"
 	CarriedFrom  = "carried-from"
 
 	// Closure evidence: who checked it, with what, against what. NOT --anchor-*: --anchor is
@@ -332,7 +334,7 @@ func All() []string {
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class, Definition, Neighbor, Distinguisher, MaterialDefault,
 		Problem, Fix, Check, CheckKind, Type, SourceText, OCRQuote, Page, Via, At, About, AboutKind, Hypothesis, Script, Cites, ExpectError,
-		Supersedes, SupersededBy, FoundBy, CarriedFrom,
+		Supersedes, SupersededBy, FoundBy, DistinctFrom, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Match,
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Settled, ReopensOn, Final,

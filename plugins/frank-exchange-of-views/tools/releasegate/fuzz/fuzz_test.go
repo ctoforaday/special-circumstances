@@ -1170,7 +1170,25 @@ func (r *runner) mint(seatID string) string {
 			args = append(args, "--quote", "A § fuzz sentence to anchor findings.")
 		}
 	}
-	out, err := r.exec(args...)
+	// THE MINT SCREENS THE BOARD ITSELF, and every mint here shares one sentence and one problem, so
+	// after G1 the screen would refuse nearly all of them and starve every gap-dependent drive. The
+	// driver answers it as a seat does — it names the open gaps it read as distinct — and one mint in
+	// ten does not, which drives the refusal. A concurrent lens can mint between the board read and
+	// the mint, so a refusal is answered once more against the board as it now stands.
+	distinct := func(a []string) []string {
+		if open := r.openGaps(); len(open) > 0 {
+			return append(append([]string{}, a...), "--distinct-from", strings.Join(open, ","))
+		}
+		return a
+	}
+	first := args
+	if !r.coin(10) {
+		first = distinct(args)
+	}
+	out, err := r.exec(first...)
+	if err != nil && strings.Contains(out, "already holds an open gap") {
+		out, err = r.exec(distinct(args)...)
+	}
 	if err != nil {
 		return ""
 	}
@@ -1545,7 +1563,7 @@ var checkKinds = []string{"document", "computation", "source"}
 
 // `deferred` was added as a fate in #246 and never driven — a value the tool accepts, the
 // registry declares, and no run has ever recorded.
-var avenueStatus = []string{"proposed", "pursued", "abandoned", "declined", "deferred"}
+var avenueStatus = []string{"proposed", "pursued", "concluded", "abandoned", "declined", "deferred"}
 
 // nextAvenueStatus round-robins the undirected avenue's fate so every value is driven BY
 // CONSTRUCTION rather than by luck.

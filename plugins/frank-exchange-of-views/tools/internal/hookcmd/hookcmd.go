@@ -38,6 +38,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookfailures"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
@@ -56,6 +57,9 @@ const (
 	StageInput     hookfailures.Stage = "pretooluse-input"
 	StageToolInput hookfailures.Stage = "tool-input"
 	StageDeliver   hookfailures.Stage = "deliver"
+	// StageRefusalLog is the write of a denial to the log, apart from the denial: a seat refused
+	// correctly whose refusal could not be recorded is a different fault from a refusal that failed.
+	StageRefusalLog hookfailures.Stage = "refusal-log"
 )
 
 // Entry is a hook entry point: it reads the payload, writes its decision document (if any) to
@@ -187,6 +191,14 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 	case hookgate.OutcomeDeny:
 		emitPreDeny(stdout, payload)
 		rec.OK(StageToolInput)
+		// A DENIAL IS A REFUSAL, and the tool logs every refusal it gives a seat. This one is given
+		// outside every verb, so it is written here or not at all.
+		why, _, _ := strings.Cut(payload, ".")
+		if err := recordRefusal(inferred.Dir, in.AgentID, "refused a `"+in.ToolName+"` the run does not serve: "+why); err != nil {
+			rec.Fail(StageRefusalLog, "the hook refused a call and could not log the refusal: "+err.Error())
+		} else {
+			rec.OK(StageRefusalLog)
+		}
 	case hookgate.OutcomeUnparsable:
 		rec.Fail(StageToolInput, "a Bash call's tool_input does not parse ("+payload+") — the run directory was not injected, and the seat will hit the missing-run refusal from another layer")
 	default:
@@ -259,6 +271,9 @@ func noteInference(i runlive.Inferred, rec *hookfailures.Recorder) {
 
 // recordLimit is a variable so the hook's handoff can be tested without a built writer on disk.
 var recordLimit = sittinghook.Limit
+
+// recordRefusal is a variable for the same reason.
+var recordRefusal = sittinghook.Refusal
 
 // cwdOf pulls the seat's working directory out of the raw payload.
 //

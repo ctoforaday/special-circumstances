@@ -371,10 +371,12 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 		recordpb.EventType_EVENT_TYPE_MOTION,
 		recordpb.EventType_EVENT_TYPE_MOTION_RULE,
 		recordpb.EventType_EVENT_TYPE_REGRADE,
-		recordpb.EventType_EVENT_TYPE_FINDING)
+		recordpb.EventType_EVENT_TYPE_FINDING,
+		recordpb.EventType_EVENT_TYPE_VERIFY) // for each open gap's backing
 	if err != nil {
 		return out, err
 	}
+	verified := backingOf(Live(evs))
 	// THE CLOSURE IS A FOLD (the acts that stand); THE REGRADE HISTORY IS A LISTING (every regrade,
 	// a struck one marked `struck`). Read raw, a corrected regrade listed as two ordinary regrades
 	// and a struck close could be taken for the gap's closure.
@@ -443,6 +445,12 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 			MintReason: reason.String, RequiredFix: fix.String, AcceptanceGate: gate.String,
 			CheckKind: kind.String, AwaitingProof: awaiting,
 			FixBasis: basis.String, FixOld: loc.String, FixNew: fixNew.String,
+			Backing: []GapBackingJSON{},
+		}
+		// THE BACKING THE FIELD DOCUMENTS, which the board declared and never filled: every board
+		// read carried `backing: null` while the help promised the anchors behind each open gap.
+		if open {
+			gj.Backing = gapBacking(WorkGapState{Location: gj.Location, AboutRef: gj.AboutRef}, verified)
 		}
 		for _, l := range foundBy[mintedEvent] {
 			credited[l] = true
@@ -1493,9 +1501,10 @@ type DebateJSON struct {
 	Epochs []DebateEpochJSON `json:"epochs"`
 }
 
-// DebateEpochJSON mirrors one `## Epoch N` block of render.go. Red/Blue/Lead are always
-// present (possibly empty) arrays — a consumer counts `red.length` for the epoch's red
-// sitting, and a null would make that count throw. The richer sections omit when empty.
+// DebateEpochJSON mirrors one `## Epoch N` block of render.go. EVERY LIST IS ALWAYS PRESENT, possibly
+// empty: the help documents each as an array, a consumer iterates it, and a null throws. The
+// closings and `struck` were null or absent on a quiet epoch, and a judge on universe-m13 who
+// believed the help — `.red_closings | map(.gap_id)` — was told it could not iterate over null.
 type DebateEpochJSON struct {
 	Epoch int `json:"epoch"`
 	// Verdict is the epoch's RECORDED verdict, and it is here because `red` is PROSE. A position
@@ -1512,7 +1521,7 @@ type DebateEpochJSON struct {
 	// Struck is every act of this epoch's transcript that its seat corrected in the sitting that
 	// wrote it — listed with what it said, who struck it and why. The arrays above hold the acts
 	// that stand; this is where the struck ones remain visible.
-	Struck []DebateStruckJSON `json:"struck,omitempty"`
+	Struck []DebateStruckJSON `json:"struck"`
 }
 
 // DebateStruckJSON is one struck transcript act: its type and seat, the text it carried, and the
@@ -1591,7 +1600,9 @@ func DebateJSONOf(epochs []int, evs []*Event) DebateJSON {
 			}
 			return s
 		}
-		rj := DebateEpochJSON{Epoch: r, Red: []string{}, Blue: []string{}, Lead: []DebateOpinionJSON{}, Struck: struckIn[r]}
+		rj := DebateEpochJSON{Epoch: r, Red: []string{}, Blue: []string{}, Lead: []DebateOpinionJSON{},
+			RedClosings: []DebateClosingJSON{}, BlueClosings: []DebateClosingJSON{}, Struck: []DebateStruckJSON{}}
+		rj.Struck = append(rj.Struck, struckIn[r]...)
 		for _, e := range re {
 			if v, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
 				rj.Verdict = recordpb.Word(v.GetVerdict())

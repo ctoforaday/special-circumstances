@@ -17,11 +17,11 @@ import (
 // are lifted verbatim; the verdict, risk matrix, expansions, alternatives, findings, and the
 // debate transcript are composed from the event log. It takes NO inputs — everything it
 // needs is in the record (the verdict via the terminal `bench outcome` event) or in blue's
-// audited report. The seat's whole job is to run it and confirm report.md.
+// audited report. The seat's whole job is to run it; what it prints is the confirmation.
 func newAssemble() *cobra.Command {
 	c := &cobra.Command{
 		Use:          "assemble",
-		Short:        "assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the record; no inputs",
+		Short:        "assemble the run's documents for the human reader, from the record — blue's audited sections lifted verbatim, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`",
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 	}
@@ -31,11 +31,12 @@ func newAssemble() *cobra.Command {
 		if rerr != nil {
 			return rerr
 		}
-		path, err := report.Assemble(run)
+		a, err := report.Assemble(run)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "feov-record bench: assembled %s\n", path)
+		fmt.Fprintf(cmd.OutOrStdout(), "feov-record bench: assembled %d documents for the human reader, the verdict stamped %s from the outcome on the record. "+
+			"They are not for a seat to open — the report is read with `show report`.\n", a.Documents, a.Verdict)
 		return nil
 	}
 	return c

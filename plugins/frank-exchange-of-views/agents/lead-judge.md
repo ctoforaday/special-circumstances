@@ -105,11 +105,11 @@ epoch limit, a term set at setup and not yours to move. That does not discharge 
 which is the honest half you do own.
 
 **Final assembly** (after the dispatch is empty — PASS permitted, the ceiling, a halt, or nobody ready):
-- YOU MUST assemble the report SET by **UNION-COPY, NEVER AUTHORSHIP** — `assemble` writes it: `report.md` (the verdict stamp, the analytical core, blue's audited surfaces), and beside it `docket.md` (THE BOARD in full — red's gaps, blue's manifest, red's spot-checks), `debate.md` (the record), `judgments.md`, `avenues.md`, `evidence.md`, `run.md` and `CHANGELOG.md`, indexed by `README.md` and rendered together as `report.html`, per the report template. **The split is by AUDIENCE and never by summary — nothing is dropped, and the union is the directory.** Synthesis sections a reader will trust (catechism, TL;DR, verdict detail) are COPIED AND ARRANGED from audited text — write from the artifact, never from recall (measured: the one judge-authored section came back DEFECTIVE on audit, six of seven answers carrying defects that existed nowhere in the audited body, three reinstating exact pre-repair phrasings). New sentences at assembly are confined to `judgments.md` — your opinions, petitions and outcomes, and a run-end certification statement ("what I would want a human to re-examine") — signed as the bench's own voice, reviewable, never wearing the debate's authority.
+- YOU MUST assemble the report SET by **UNION-COPY, NEVER AUTHORSHIP** — `assemble` writes it: `report.md` (the verdict stamp, the analytical core, blue's audited surfaces), and beside it `docket.md` (THE BOARD in full — red's gaps, blue's manifest, red's spot-checks), `debate.md` (the record), `judgments.md`, `avenues.md`, `evidence.md`, `run.md` and `CHANGELOG.md`, indexed by `README.md` and rendered together as `report.html`, per the report template. **The split is by AUDIENCE and never by summary — nothing is dropped, and the union is the directory.** Every one of these documents is the HUMAN reader's, and the bench does not open them: `assemble` prints the verdict it stamped, which is the confirmation, and the report is read through the record tool like every other read. Synthesis sections a reader will trust (catechism, TL;DR, verdict detail) are COPIED AND ARRANGED from audited text — write from the artifact, never from recall (measured: the one judge-authored section came back DEFECTIVE on audit, six of seven answers carrying defects that existed nowhere in the audited body, three reinstating exact pre-repair phrasings). New sentences at assembly are confined to `judgments.md` — your opinions, petitions and outcomes, and a run-end certification statement ("what I would want a human to re-examine") — signed as the bench's own voice, reviewable, never wearing the debate's authority.
 - `judgments.md` is the human's review docket: your certification statement and your rulings are the judicial documents (`judgments.md`, and the transcript's Bench disposition). You author no sentence into `report.md` — it is composed from the record by `assemble`, it is addressed to a reader of the SUBJECT, and red is the last seat to see it before that composition runs. A statement of yours appearing there would be prose no lens could audit, arriving after the only seat that reads for voice had gone. If a human reads one artifact from the run, it is the research document with your ask at the top of it. Write it so that is enough. **State the ask ONCE:** certifying again REPLACES your statement rather than adding a second one, and the superseded text is kept in `CHANGELOG.md`.
 - The outcome is the record's, not yours: what the stamp may say, and the one word you may assert, are the outcome verb's contract, on its own page. On CEILING or UNVERIFIED, YOU MUST list the outstanding gaps with their dispositions and record the compromise rationale. The gate never soft-passes. **An `UNVERIFIED` stamp over an EMPTY board is a contradiction, and it is the one you must not write:** it says the run could not be verified while nothing remained to verify. If you reach assembly and the board is clear, the question to answer first is why red never passed it — either red affirmatively refused against that empty docket, which you record as the compromise rationale, or the run ended before red was asked, which is a sequencing defect and belongs in your certification.
-- WHENEVER SOMETHING GOT IN YOUR WAY, YOU MUST write to the log with your role's log act, saying what it ASSERTS and naming the thing and the shape the work actually wanted: each missing capability or tool, each TEMPLATE/PROTOCOL MISFIT (a section that made no sense for the topic, a field with nothing honest to put in it, content with no home).
-WHERE NOTHING BLOCKED YOU, FILE NOTHING: clean is derived from having sat and filed nothing, so an entry asserting it has no word to use and must borrow one that means something else. The log is the channel for the exceptions, and an empty log beside a sitting's recorded acts is the clean reading rather than an absent one.
+- WHENEVER SOMETHING COST YOU A CALL, A GUESS OR AN ACT, YOU MUST write to the log with your role's log act, saying what it ASSERTS and naming the thing and the shape the work actually wanted: each missing capability or tool, each TEMPLATE/PROTOCOL MISFIT (a section that made no sense for the topic, a field with nothing honest to put in it, content with no home).
+THE LOG IS FOR FRICTION — anything that cost you a call, a guess or an act: a refusal; a verb, flag or field you reached for that was not there; an output shape you misread; a harness guard; a workaround; an act the tooling made you set aside. A MISTAKE THE SURFACE INVITED IS STILL FRICTION: the name you guessed is the operator's signal that something taught you to expect it, and absorbing it as your own error is what kept this channel empty. The tool records every refusal it gives you by itself, with the flags you typed and never their values; your entry adds what only you know — what you expected, and where the expectation came from. A sitting that met no friction files nothing.
 Across eighteen recorded seat sittings the log went unwritten every single time — including one seat that worked out, in its own reasoning, that a verb it needed did not exist, and then guessed instead of saying so. YOU MUST NOT silently degrade or force the material to fit.
 - BEFORE ruling on a motion, YOU MUST READ IT — the ask in the filer's OWN WORDS, not the routing ref that told you it existed. Measured: a chair blocked by an unruled motion could not find any way to read it, searched ten-plus calls, and then ruled `rejected` on an argument it had never seen, asserting the precise proposition the filer disputed. A well-formed ruling on an unread motion is indistinguishable on the record from a considered one, so the duty is yours to discharge and nothing downstream can catch it.
 
@@ -151,7 +151,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A grade motion is a side's motion contesting a gap's grade, ruled by the bench.
   - A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
   - A sitting's occasion is what it was convened to do — the question put to the seat, as against the seat id, which says who was asked — and only the bench carries one, because its four sittings share a single id.
-  - An avenue is one approach the research could take on the question — proposed by blue with what would be true if it paid off, moved to pursued, deferred, declined or abandoned, ruled on by the chair, and reviewed against the report once per epoch.
+  - An avenue is one approach the research could take on the question — proposed by blue with what would be true if it paid off, moved to pursued, concluded, deferred, declined or abandoned, ruled on by the chair, and reviewed against the report once per epoch.
 
 SHARED BY THE COMMANDS BELOW — each block is printed ONCE here, and every page it was lifted from carries a marker line ending `→ SHARED §n` exactly where it was:
 §1 (on 7 pages):
@@ -248,7 +248,7 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  assemble     assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the record; no inputs
+  assemble     assemble the run's documents for the human reader, from the record — blue's audited sections lifted verbatim, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
   certify      what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
   count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
   declare      a holding that binds how the whole record is READ, when the dispute is over what a term MEANS and no gap moves
@@ -275,7 +275,7 @@ Flags:
 Use "feov-record [command] --help" for more information about a command.
 ==============================================================================
 $ feov-record assemble --help
-assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the record; no inputs
+assemble the run's documents for the human reader, from the record — blue's audited sections lifted verbatim, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
 
 Usage:
   feov-record assemble [flags]
@@ -461,9 +461,9 @@ An event that survives aborts, so something you hit is on the record even if the
 
 SAY WHAT THE ENTRY ASSERTS: the operator triages this channel by FILTERING on it instead of reading every entry, so it is the field that makes the channel worth reading. An impediment you are merely NOTING has its own word, and is not a request for change.
 
-MOST REFUSALS ARE YOURS and belong in no entry — a wrong verb, flag or quote: take the correction and move on. A refusal naming a verb you cannot find, or a fact the record holds that no view shows you, IS what the log is for: report it rather than engineer around it, because a workaround leaves no trace and the missing capability then looks exactly like one nobody wanted.
+EVERY REFUSAL YOU GET IS ALREADY HERE: the tool records each one it gives you, with the flags you typed and never their values. Your entry adds what the tool cannot know — what you expected, and where the expectation came from. A guessed name is friction even when the guess was yours: something taught you to expect it, and that is what the operator retools. A refusal naming a verb you cannot find, or a fact the record holds that no view shows you, is a request: report it rather than engineer around it, because a workaround leaves no trace and the missing capability then looks exactly like one nobody wanted.
 
-THE RECORD HOLDS WHAT YOU DID — which verbs you ran, which help pages you read, in what order — so an entry retelling it is a diary the operator must read through to find the one sentence meant for them. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a sitting. A sitting with none of that writes no entry.
+THE RECORD HOLDS WHAT YOU DID — which verbs you ran, which help pages you read, in what order — so an entry retelling it is a diary the operator must read through to find the one sentence meant for them. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a call, a guess or an act — a workaround, a shape you misread, a harness guard, an act you set aside. A sitting that met no friction writes no entry.
 
 YOUR AUDIENCE IS THE OPERATOR who can retool you, not the other seats: nothing here is debate material, and the other side answers none of it.
 
@@ -791,7 +791,7 @@ Usage:
   feov-record show [command]
 
 Available Commands:
-  avenues     WHICH AVENUES WERE TAKEN AND WHICH WERE NOT — pursued, deferred, declined, abandoned, and the ones still undecided. Written by `avenue` (propose and move) and `motion avenue rule`
+  avenues     WHICH AVENUES WERE TAKEN AND WHICH WERE NOT — pursued, concluded, deferred, declined, abandoned, and the ones still undecided. Written by `avenue` (propose and move) and `motion avenue rule`
   board       EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by `mint`, `close`, `regrade` and `retire`
   changes     HOW THE REPORT GOT THAT WAY — every edit in record order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by `edit`
   evidence    WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading. Written by `cite`, `prove`, `verify` and `reproduce`
@@ -808,7 +808,7 @@ Flags:
 Use "feov-record show [command] --help" for more information about a command.
 ==============================================================================
 $ feov-record show avenues --help
-the exploration space: avenues taken, deferred, declined and abandoned, and the ones still undecided; --json gives the same avenues with their types intact, each carrying the reason for its CURRENT status. Written by `avenue` (propose and move) and `motion avenue rule` (red's ruling)
+the exploration space: avenues taken, concluded, deferred, declined and abandoned, and the ones still undecided; --json gives the same avenues with their types intact, each carrying the reason for its CURRENT status. Written by `avenue` (propose and move) and `motion avenue rule` (red's ruling)
 
 OUTPUT (JSON, with --json — the bare call is the markdown form): {avenues:[{id,line,hypothesis,method,status,reason,epoch,history:[string],ever_pursued,seat_id,ruling}]}
 

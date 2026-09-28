@@ -33,13 +33,10 @@ import (
 // and it is the carrier for bootstrapping a later run. Deliberately a PROPOSAL for a human
 // to select rather than a seed: a run that queues its own successor is a loop with no human
 // in it.
-var AvenueStatuses = []EnumValue{
-	ev("proposed", "put forward and not yet resolved — the default, and the state that owes a move"),
-	ev("pursued", "you are following it, or you followed it; say what you learned in --reason"),
-	ev("declined", "considered and judged not worth this run's time"),
-	ev("abandoned", "you TRIED it and it died — the most valuable fate, because it stops a later run re-walking it"),
-	ev("deferred", "worth taking, and not by THIS run. --reason says what a later run should pick it up FOR; it reaches the report as a proposal a human selects, never an automatic seed"),
-}
+// DERIVED FROM THE ENUM'S OWN `means`, like every other vocabulary with a declaration. This was a
+// hand-kept second copy whose glosses had already drifted from the proto's, so a seat's --help and
+// the record's vocabulary table described the same five words differently.
+var AvenueStatuses = evsOf(recordpb.AvenueStatus(0).Descriptor())
 
 // AvenueStatusNames is the bare vocabulary, for readers that only need the words.
 func AvenueStatusNames() []string { return Names(AvenueStatuses) }
@@ -200,10 +197,12 @@ func AvenuesOf(evs []*Event) []*Avenue {
 			// deliberately — `Word(t.Status)` would pass a typed nil pointer into an interface
 			// that is not nil, and panic on the absent case this line exists to handle.
 			//
-			// AvenueStatus needs no hyphen join: none of proposed/pursued/deferred/declined/
-			// abandoned carries an underscore. AvenueRuling below is the opposite case.
+			// AvenueStatus needs no hyphen join: none of proposed/pursued/concluded/deferred/
+			// declined/abandoned carries an underscore. AvenueRuling below is the opposite case.
 			a.Status = recordpb.Word(t.GetStatus())
-			if t.GetStatus() == recordpb.AvenueStatus_AVENUE_STATUS_PURSUED {
+			// A CONCLUDED LINE WAS TAKEN: it ends a pursuit, so it is one whether or not the seat
+			// recorded `pursued` on the way.
+			if st := t.GetStatus(); st == recordpb.AvenueStatus_AVENUE_STATUS_PURSUED || st == recordpb.AvenueStatus_AVENUE_STATUS_CONCLUDED {
 				a.EverPursued = true
 			}
 			a.Reason, a.Epoch, a.SeatID = t.GetReason(), w.Epoch, e.GetSeatId()

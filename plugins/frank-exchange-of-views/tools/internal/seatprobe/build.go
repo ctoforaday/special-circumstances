@@ -142,13 +142,24 @@ func Build(run record.Run, b Board, exec Exec) error {
 	}
 	for i, g := range b.Gaps {
 		minter := stagingLenses[i%len(stagingLenses)]
-		if _, err := exec("mint", "--run", run.Dir(), "--seat-id", minter,
+		// A PROBE BOARD'S GAPS ARE DISTINCT BY CONSTRUCTION — each baits a different act — and the
+		// mint's duplicate screen reads two defects in one paragraph as near. The builder answers the
+		// screen with every gap it staged before this one, ids assigned in order on a fresh run.
+		args := []string{"mint", "--run", run.Dir(), "--seat-id", minter,
 			"--key", g.Key, "--class", g.Class,
 			"--quote", g.Location, "--problem", g.Problem, "--fix", g.Fix,
 			"--check", g.Check, "--check-kind", g.CheckKind,
 			"--severity", g.Severity, "--likelihood", g.Likelihood,
 			"--impact", g.Impact, "--complexity", g.Complexity,
-			"--reason", g.Problem+" (baits "+g.Baits+": "+g.Why+")"); err != nil {
+			"--reason", g.Problem + " (baits " + g.Baits + ": " + g.Why + ")"}
+		if i > 0 {
+			staged := make([]string, i)
+			for j := range staged {
+				staged[j] = fmt.Sprintf("G%d", j+1)
+			}
+			args = append(args, "--distinct-from", strings.Join(staged, ","))
+		}
+		if _, err := exec(args...); err != nil {
 			return fmt.Errorf("mint %s: %w", g.Key, err)
 		}
 		// THE CLOSINGS, WHERE THE BOARD CARRIES THEM. The bench's prompt states its ruling basis

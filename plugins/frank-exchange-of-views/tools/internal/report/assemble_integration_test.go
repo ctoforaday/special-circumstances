@@ -137,7 +137,8 @@ func TestAssembleEndToEnd(t *testing.T) {
 		Prose:   proto.String("the round ceiling arrived before red could pass the final revision"),
 	})
 
-	path, err := Assemble(runtest.Open(t, runDir))
+	a, err := Assemble(runtest.Open(t, runDir))
+	path := a.Report
 	if err != nil {
 		t.Fatalf("Assemble: %v", err)
 	}

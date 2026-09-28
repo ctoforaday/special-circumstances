@@ -420,11 +420,15 @@ enum Soundness {
 // show the roads not taken.
 enum AvenueStatus {
   AVENUE_STATUS_UNSPECIFIED = 0;
-  AVENUE_STATUS_PROPOSED = 1 [(means) = "you intend to follow this line; the tool assigns it an id and red may rule on it"];
-  AVENUE_STATUS_PURSUED = 2 [(means) = "you took the line — what it produced belongs in the report"];
+  AVENUE_STATUS_PROPOSED = 1 [(means) = "you intend to follow this line and have not resolved it; the tool assigns it an id, red may rule on it, and it owes a move"];
+  AVENUE_STATUS_PURSUED = 2 [(means) = "you are following the line — say what you learned in --reason. It stays open: each sitting re-records it with what changed, or moves it to its end"];
+  // CONCLUDED IS THE END OF A LINE THAT WORKED. Without it a line could only close by dying: on
+  // universe-m13 blue moved four confirmed hypotheses to `abandoned`, "the hypothesis was satisfied,
+  // not that they failed", and the report listed every successful line as a dead end.
+  AVENUE_STATUS_CONCLUDED = 6 [(means) = "you followed the line to its end and it answered what it set out to test — REQUIRES a reason saying what it found, which is in the report; it owes no further move. A line that died is `abandoned`, not this"];
   AVENUE_STATUS_DEFERRED = 3 [(means) = "not this run. REQUIRES a reason saying what a later run should pick it up FOR: a deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet"];
   AVENUE_STATUS_DECLINED = 4 [(means) = "you considered it and chose not to. REQUIRES a reason — the road not taken is worthless without why"];
-  AVENUE_STATUS_ABANDONED = 5 [(means) = "you started and stopped. REQUIRES a reason — what killed it is the part a future run actually needs"];
+  AVENUE_STATUS_ABANDONED = 5 [(means) = "you TRIED it and it died. REQUIRES a reason — what killed it is the part a future run actually needs, and it stops a later run re-walking it"];
 }
 
 // MotionSubject is what a motion is ABOUT. The ruling vocabulary is keyed on it, which is why
@@ -768,6 +772,11 @@ message Mint {
   // key would read as "lineage unknown" where the truth is "lineage none".
   repeated string supersedes = 20;
   repeated string found_by = 21;
+  // distinct_from names each open gap the mint's duplicate screen matched and the minting seat
+  // judged a DIFFERENT defect — its claim, on the record, that it read the gap and this is not it.
+  // Two lenses sitting in parallel minted one semiprime-ordinal defect ten seconds apart on
+  // universe-m13 (G7, G8), and the second saw the first 22 seconds later and moved on.
+  repeated string distinct_from = 26;
 
   // mint_reason is RED'S ARGUMENT FOR THE GAP, which is not the same fact as `problem`.
   //
@@ -1438,7 +1447,12 @@ enum LogType {
   reserved "LOG_TYPE_NOMINAL";
   LOG_TYPE_DEFECT = 2 [(seat_may_file) = true, (means) = "something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on"];
   LOG_TYPE_REQUEST = 3 [(seat_may_file) = true, (means) = "a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair"];
-  LOG_TYPE_FRICTION = 4 [(seat_may_file) = true, (means) = "the work was impeded and you are noting it; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect"];
+  LOG_TYPE_FRICTION = 4 [(seat_may_file) = true, (means) = "something cost you a call, a guess or an act — a refusal, a name you reached for that was not there, a shape you misread, a workaround — and you are noting it with what you expected and why; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect"];
+  // REFUSAL IS EVERY OTHER NO THE TOOL GIVES A SEAT, written by the tool at the moment it refuses.
+  // On universe-m13 seats met a dozen refusals — a flag guessed from another verb, a field name
+  // typed as a flag, a mint refused at its budget — and filed none: each was classed as the seat's
+  // own mistake. The guess is the operator's signal, whoever made it, so the tool keeps it.
+  LOG_TYPE_REFUSAL = 6 [(seat_may_file) = false, (means) = "the TOOL refused a seat's call, and recorded it as it refused: the command, the flags given (never their values) and the refusal's first line. Recorded by the tool, not filed by the seat; the seat's own entry says what it expected and where the expectation came from"];
   LOG_TYPE_ESTOPPEL = 5 [(seat_may_file) = false, (means) = "the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit"];
 }
 

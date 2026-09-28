@@ -31,7 +31,7 @@ func mintComputation(t *testing.T, runDir, key string) {
 	t.Helper()
 	registerChairOnce(t, runDir) // the chair sits first: the epoch is its sitting count
 	registerLensOnce(t, runDir)  // and the lens mints
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	if _, err := runMint(t, runDir, "--run", runDir, "--seat-id", lensSeat,
 		"--key", key, "--class", "unverified-arithmetic",
 		"--problem", "the primality claim is asserted, not computed",
 		"--check-kind", "computation", "--check", "trial division over 2..6 returns no divisor",
@@ -138,7 +138,7 @@ func TestCheckKindIsEnforcedAsAnEnum(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	registerLensOnce(t, runDir)
-	_, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	_, err := runMint(t, runDir, "--run", runDir, "--seat-id", lensSeat,
 		"--key", "G1", "--class", "x",
 		"--problem", "p",
 		"--check-kind", "compute", "--check", "c",

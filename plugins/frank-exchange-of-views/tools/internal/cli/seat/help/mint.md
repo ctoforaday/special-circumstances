@@ -8,6 +8,8 @@ The gap id is TOOL-assigned.
 
 Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
 
+THE MINT SCREENS THE OPEN BOARD ITSELF, at the write, because another lens may mint while you work: where your gap overlaps one already open, it is refused once, naming that gap and who minted it. If it IS your defect, do not mint it again — file a finding about that gap, which reaches the seat that minted it. If yours replaces it, mint it as that gap's successor. If you read it and yours is a different defect, say so on the mint by naming it as distinct, which puts that claim on the record.
+
 FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a lens area alone (`evidence`) or an invented label fails here rather than resolving to nothing.
 
 ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the tool logs the refusal as an `estoppel` entry. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.

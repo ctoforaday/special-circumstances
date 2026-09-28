@@ -26,7 +26,7 @@ import (
 // rather than being policed downstream.
 func newMint() *cobra.Command {
 	var severity, likelihood, impact, cx flags.GradeValue
-	var supersedes, foundBy flags.CSV
+	var supersedes, foundBy, distinctFrom flags.CSV
 
 	c := seat.Prose(seat.New("mint", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
@@ -181,6 +181,7 @@ func newMint() *cobra.Command {
 		p.ComplexityCost = seat.GradeOrNil(&cx)
 		p.Supersedes = supersedes.Value()
 		p.FoundBy = foundBy.Value()
+		p.DistinctFrom = distinctFrom.Value()
 
 		// ESTOPPEL: RED IS BOUND BY THE FIX IT PRESCRIBED (#267 stage 4).
 		//
@@ -233,7 +234,7 @@ func newMint() *cobra.Command {
 				if _, ferr := record.Append(s.Identity(), fr); ferr != nil {
 					return nil, ferr
 				}
-				return nil, errors.New(msg)
+				return nil, record.ToolLogged(errors.New(msg))
 			}
 		}
 
@@ -274,6 +275,7 @@ func newMint() *cobra.Command {
 	c.Flags().Var(&cx, flags.Complexity, flags.DescComplexity+", on the same scale")
 	c.Flags().Var(&supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; lineage is never dropped")
 	c.Flags().Var(&foundBy, flags.FoundBy, "comma-separated lens findings that surfaced it (evidence-F3,logic-F2)")
+	c.Flags().Var(&distinctFrom, flags.DistinctFrom, "comma-separated OPEN gaps the mint's duplicate screen matched that this gap is NOT — your claim, on the record, that you read each and it is a different defect. Where one IS this defect, do not mint: file a finding about it, which reaches the seat that minted it")
 	// THE GAP ID IS REQUIRED OF THE RECORD AND SUPPLIED BY THE VERB — declared here, at the code
 	// that does the supplying, so the fact and what makes it true cannot drift apart. Without it
 	// the contract gate reads "mint declares gap_id required and registers no --id" and is right

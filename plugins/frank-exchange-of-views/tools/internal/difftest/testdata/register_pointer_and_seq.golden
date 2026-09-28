@@ -41,9 +41,9 @@ An event that survives aborts, so something you hit is on the record even if the
 
 SAY WHAT THE ENTRY ASSERTS: the operator triages this channel by FILTERING on it instead of reading every entry, so it is the field that makes the channel worth reading. An impediment you are merely NOTING has its own word, and is not a request for change.
 
-MOST REFUSALS ARE YOURS and belong in no entry — a wrong verb, flag or quote: take the correction and move on. A refusal naming a verb you cannot find, or a fact the record holds that no view shows you, IS what the log is for: report it rather than engineer around it, because a workaround leaves no trace and the missing capability then looks exactly like one nobody wanted.
+EVERY REFUSAL YOU GET IS ALREADY HERE: the tool records each one it gives you, with the flags you typed and never their values. Your entry adds what the tool cannot know — what you expected, and where the expectation came from. A guessed name is friction even when the guess was yours: something taught you to expect it, and that is what the operator retools. A refusal naming a verb you cannot find, or a fact the record holds that no view shows you, is a request: report it rather than engineer around it, because a workaround leaves no trace and the missing capability then looks exactly like one nobody wanted.
 
-THE RECORD HOLDS WHAT YOU DID — which verbs you ran, which help pages you read, in what order — so an entry retelling it is a diary the operator must read through to find the one sentence meant for them. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a sitting. A sitting with none of that writes no entry.
+THE RECORD HOLDS WHAT YOU DID — which verbs you ran, which help pages you read, in what order — so an entry retelling it is a diary the operator must read through to find the one sentence meant for them. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a call, a guess or an act — a workaround, a shape you misread, a harness guard, an act you set aside. A sitting that met no friction writes no entry.
 
 YOUR AUDIENCE IS THE OPERATOR who can retool you, not the other seats: nothing here is debate material, and the other side answers none of it.
 
@@ -105,8 +105,9 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"blue-respond:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":3,"type":"EVENT_TYPE_REGISTER"}
 {"key":"blue-respond:revision:#1","revision":{"text":"first pass"},"seat_id":"blue-respond","ts":4,"type":"EVENT_TYPE_REVISION"}
-{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_MEDIUM","label":"logic-F1","likelihood":"GRADE_HIGH","location":"## S2","severity":"GRADE_MEDIUM","text":"unfounded leap"},"key":"red-lens-logic:finding:logic-F1","seat_id":"red-lens-logic","ts":5,"type":"EVENT_TYPE_FINDING"}
-{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-logic:anchor:FINDING001","seat_id":"red-lens-logic","ts":6,"type":"EVENT_TYPE_ANCHOR"}
+{"key":"blue-respond:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `log` with --reason: required flag(s) \"type\" not set","type":"LOG_TYPE_REFUSAL"},"seat_id":"blue-respond","ts":5,"type":"EVENT_TYPE_LOG"}
+{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_MEDIUM","label":"logic-F1","likelihood":"GRADE_HIGH","location":"## S2","severity":"GRADE_MEDIUM","text":"unfounded leap"},"key":"red-lens-logic:finding:logic-F1","seat_id":"red-lens-logic","ts":6,"type":"EVENT_TYPE_FINDING"}
+{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-logic:anchor:FINDING001","seat_id":"red-lens-logic","ts":7,"type":"EVENT_TYPE_ANCHOR"}
 
 ═══ RENDERS ═══
 -- avenues

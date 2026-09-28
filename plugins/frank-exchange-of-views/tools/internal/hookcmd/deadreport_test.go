@@ -17,6 +17,15 @@ import (
 // in a live run, which is the only place the door is.
 func TestTheHookRefusesASeatsReadOfTheReportFile(t *testing.T) {
 	cwd, runDir, _ := limitRun(t, 1000)
+	// THE DENIAL IS LOGGED AS A REFUSAL, the tool's entry for the seat it refused — the one refusal
+	// a seat meets outside every verb.
+	var logged []string
+	prev := recordRefusal
+	recordRefusal = func(dir, agent, text string) error {
+		logged = append(logged, agent+" | "+text)
+		return nil
+	}
+	t.Cleanup(func() { recordRefusal = prev })
 	pre := func(agent, path string) (string, string) {
 		p := map[string]any{"tool_name": "Read", "tool_input": map[string]string{"file_path": path}, "cwd": cwd}
 		if agent != "" {
@@ -51,10 +60,16 @@ func TestTheHookRefusesASeatsReadOfTheReportFile(t *testing.T) {
 	if !strings.Contains(reason, "show report") {
 		t.Errorf("the refusal does not name the read that works: %q", reason)
 	}
+	if len(logged) != 1 || !strings.HasPrefix(logged[0], "a7cc47571ab8b015d | refused a `Read`") {
+		t.Errorf("the denial was not handed to the log as the refused seat's refusal: %q", logged)
+	}
 	if d, _ := pre("", filepath.Join(runDir, "report.md")); d == "deny" {
 		t.Error("the operator's own Read of report.md was refused — agent_id is absent on the main session's calls, and the person who ran the research reads what it assembled")
 	}
 	if d, _ := pre("a7cc47571ab8b015d", filepath.Join(runDir, "inputs", "run-config.json")); d == "deny" {
 		t.Error("an ordinary Read in the run was refused")
+	}
+	if len(logged) != 1 {
+		t.Errorf("a call that was not refused was logged as one: %q", logged)
 	}
 }

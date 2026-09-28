@@ -127,7 +127,7 @@ func newCite() *cobra.Command {
 			if _, ferr := record.Append(s.Identity(), &recordpb.Log{Text: proto.String(msg), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_TOOL.Enum()}); ferr != nil {
 				return nil, ferr
 			}
-			return nil, errors.New(msg)
+			return nil, record.ToolLogged(errors.New(msg))
 		}
 
 		read := recordpb.SourceTextRead_SOURCE_TEXT_READ_UNREAD
