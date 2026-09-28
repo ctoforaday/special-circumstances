@@ -49,7 +49,7 @@ func GapExists(runDir string, id string) error {
 	return requireGap(run, id, "the", "--id")
 }
 
-// AvenueExists resolves a avenue.
+// AvenueExists resolves an avenue.
 func AvenueExists(runDir string, id string) error {
 	run, err := OpenRun(runDir)
 	if err != nil {

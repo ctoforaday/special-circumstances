@@ -29,8 +29,7 @@ stdout:
 minted G1
   acceptance check RECORDED as: refetch
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ close --run {RUN} --seat-id red-lens-evidence --id G1
 exit 2
@@ -228,8 +227,7 @@ $ close --run {RUN} --seat-id red-lens-evidence --id G1 --as repaired --verified
 exit 0
 stdout:
 closed G1 (repaired) [key red-lens-evidence:close:#1:G1]
-1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}

@@ -58,23 +58,26 @@ research/<date>_<slug>/
 │                      #  record with `show <name>` and never from disk — which is the
 │                      #  point: a run can be configured so that is the ONLY way, and then a
 │                      #  missing verb has to surface as friction instead of a workaround)
+│                      # EVERYTHING FROM README.md TO report.html IS ASSEMBLED LAST, from the record,
+│                      # by `assemble`, for the HUMAN reader. None of it exists while a seat sits, and
+│                      # a seat never opens one: the report is read through the record tool, and the rest
+│                      # are projections the tool serves live from the same record.
 ├── README.md          # the run's front door: verdict, gaps, and what each document holds
-├── report.md          # THE RESEARCH — verdict, Catechism, foundations, analysis, risks, open questions
+├── report.md          # the research — verdict, Catechism, foundations, analysis, risks, open questions
 ├── docket.md          # the board: every gap and how it closed, blue's manifest, red's spot-checks
 ├── debate.md          # the transcript, epoch by epoch, and the bench's terminal disposition
 ├── judgments.md       # motions — every contested question and how it was ruled
-├── avenues.md # each avenue's fate, the path it took, its ruling and appeal
+├── avenues.md         # each avenue's fate, the path it took, its ruling and appeal
 ├── evidence.md        # the computations, with script, output and sha256
-├── run.md             # friction, the record's invariant check, and cost
+├── run.md             # the log, the record's invariant check, and cost
 ├── CHANGELOG.md       # this report's own provenance: revisions, retired claims, repairs
 ├── report.html        # the same set with real tabs and cross-document links — one file, no server
-│                      # (ALL of the above are assembled LAST, from the record, by `assemble`. The
-│                      #  set exists because 70–76% of the single file was about the run and the
+│                      # (The set exists because 70–76% of the single file was about the run and the
 │                      #  research it was commissioned for was a quarter of the file.)
 ├── inputs/PINNED.md   # the evidence base, pinned: repo HEAD at launch + cited corpora's commit/revision
 ├── blue/
 │                      # (the opening hypotheses are AVENUES on the record, not a file — read
-│                      #  read them as the `avenues` projection. A hypothesis in a file is one red
+│                      #  them as the `avenues` projection. A hypothesis in a file is one red
 │                      #  cannot rule too-thin or out-of-scope, and the opening ones shape the
 │                      #  whole run)
 │   ├── report.md      # written by the synthesizer at synthesis, then frozen into the record

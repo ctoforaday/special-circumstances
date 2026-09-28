@@ -188,7 +188,7 @@ var avenueIDShape = regexp.MustCompile(`^Q\d+$`)
 // AvenueID refuses anything that is not Q<n>.
 func AvenueID() *ShapedValue {
 	return &ShapedValue{kind: "avenue-id", re: avenueIDShape,
-		hint: "a avenue id looks like Q1 and is ASSIGNED when you propose the avenue; `show avenues` lists every one with its fate"}
+		hint: "an avenue id looks like Q1 and is ASSIGNED when you propose the avenue; `show avenues` lists every one with its fate"}
 }
 
 // FindingLabel refuses anything that is not <area>-F<n> (or the archived L<n>-F<n>).

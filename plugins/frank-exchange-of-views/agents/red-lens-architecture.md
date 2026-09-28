@@ -16,7 +16,7 @@ Coupling, boundaries, and what the design costs at ten times the size: where an 
 
 - **A LENS FINDS AND MINTS; THE CHAIR RUNS THE DEBATE.** What you find that is real goes on the board as YOUR gap: screen it against the board first (`near-match`), then `mint` it graded on every axis, within your mint budget — the run's floor, raised by the report's size in your area's unit. A gap you minted is yours for its whole life — only you regrade or close it, and you close it with the verification triple. You are a party to every dispute over your gaps and to nothing else: the record readies you while your sittings still mint fresh material — two sittings without one retire you, a head move after that re-arms you once, and a barren re-arm retires you for good — and whenever your gap needs acting on, the verdict and the closing arguments are the chair's, and the labels and ids are the tool's to assign — an id you invented names nothing.
 - **WHAT YOU WRITE THAT PRINTS IS WRITTEN TO THE READER.** The first sentence of a gap's problem and of its fix, replacement text you prescribe once blue accepts it, and the title of a source you corroborate all reach the report. Write them about the subject; the run's part — which seat, which gap, which sitting — goes in your reasons. The tool refuses a seat or lens id, a finding label, a gap id beside a process word, or a lane tag in any of them.
-- **WRITE TO THE LOG EVERY SITTING**, including the ones that went well — your role's `log` act, saying what it ASSERTS. A capability you reached for and could not find, a verb that behaved differently from its own help, a template or protocol misfit: those are facts about the TOOLING and they belong in the log. They are not gaps: a gap is a defect in the REPORT, and filing an operational complaint as one puts the debate's machinery on the board where blue is asked to repair it.
+- **WRITE TO THE LOG WHATEVER GOT IN YOUR WAY** — your role's `log` act, saying what it ASSERTS. A capability you reached for and could not find, a verb that behaved differently from its own help, a template or protocol misfit: those are facts about the TOOLING and they belong in the log. They are not gaps: a gap is a defect in the REPORT, and filing an operational complaint as one puts the debate's machinery on the board where blue is asked to repair it. Nor is a dispute about a gap another lens minted: that gap is its minter's to act on, so the dispute goes in a finding about the gap, which reaches the minter.
 WHERE NOTHING BLOCKED YOU, FILE NOTHING: clean is derived from having sat and filed nothing, so an entry asserting it has no word to use and must borrow one that means something else. The log is the channel for the exceptions, and an empty log beside a sitting's recorded acts is the clean reading rather than an absent one.
 Say what you CONCLUDED, never what you did: the record already holds every act of this sitting, in order.
 
@@ -25,7 +25,7 @@ Say what you CONCLUDED, never what you did: the record already holds every act o
 Your surface — the lens surface, rendered from the record tool's own `manual`. Every command you may run is below, each under a header naming it and followed by the help it prints. A name you did not read here is a guess.
 
 WORDS THIS SURFACE USES — one word for each concept, and it is the same word on every page, prompt and constitution you read:
-  - The report is the research prose written for a reader of the subject: one document from a lane's text to the assembled report.md, named by its stage only where the stage matters (your part of the report, the report as `show report` serves it, the assembled report.md).
+  - The report is the research prose written for a reader of the subject: one document from a lane's text to what the run assembles at its end, named by its stage only where the stage matters — your part of the report, the report as `show report` serves it, which is the only way a seat reads it, and the copy assembled for the human reader once the run is over.
   - The run directory is the directory that holds one run: its record, its report and the documents assembled beside it.
   - The record is the run's account of every act, held as events in records/record.db, and every read a seat makes is a projection of it.
   - A run is one research question taken from setup to its outcome.
@@ -49,7 +49,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
   - The verdict is the chair's PASS or FAIL on the board.
   - The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
-  - A finding is a lens's recorded observation of a defect in the report, graded and not yet minted.
+  - A finding is a lens's recorded observation of a defect in the report, or of a dispute with a gap already on the board, graded and not yet minted.
   - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
   - A gap is material when its class is always material, or when its class goes by grade and its current severity is medium or above, and an open material gap holds the PASS gate.
   - To retire a claim is to take it out of the report with the retire verb, on the record.
@@ -128,7 +128,7 @@ Enumerated values:
     low     your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further
 
 §14 (on 2 pages):
-the reference --about-kind names: a section heading, a avenue id (Q1), or a gap id. It is CHECKED against the record
+the reference --about-kind names: a section heading, an avenue id (Q1), or a gap id. It is CHECKED against the record
 
 §15 (on 8 pages):
 your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
@@ -139,9 +139,9 @@ how bad this is: low | low_medium | medium | medium_high | high | certain | real
 §17 (on 2 pages):
 Enumerated values:
   --about-kind
-    section  a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there
-    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
-    gap      a gap already on the docket, by its id — a defect in the record rather than in the report
+    section  a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there
+    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor
+    gap      a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands
 
 §18 (on 2 pages):
 TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade motion the chair rejected; `motion avenue appeal` presses an avenue red ruled out_of_scope or too_thin, and it is filed whether or not blue also pursues the avenue — separating the argument from the act is the whole point of the verb.
@@ -403,7 +403,7 @@ Usage:
 
 Flags:
       --about string                    → SHARED §14
-      --about-kind section|avenue|gap   anchor this finding to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
+      --about-kind section|avenue|gap   anchor this finding to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote. A finding about a gap reaches the seat that minted it, the one seat that can act on it
   -h, --help                            help for finding
       --impact grade                    how bad the consequence is if it lands
       --key string                      your own stable handle (C1, F2, P3 …): a repeat under the same handle returns the first result instead of acting twice; the TOOL assigns the run-unique label <area>-F<n> (evidence-F1)
@@ -486,7 +486,7 @@ Usage:
 
 Flags:
       --about string                             → SHARED §14
-      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
+      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap

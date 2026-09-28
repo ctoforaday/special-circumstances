@@ -160,7 +160,12 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 		// half it could not discharge got filed under a word that means something else: 8 of 28 entries
 		// in universe-m12 and 6 of 35 in m11 assert that nothing was wrong, six of them as `friction`
 		// and one as `defect` — in the one field the operator triages the channel by.
-		add("the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry")
+		// NOT BLOCKING, and that is the fix rather than the wording. This item used `add`, so a seat
+		// that recorded acts and hit nothing could not reach `complete` without filing an entry —
+		// while the item said "nothing to report needs no entry". The mechanism overruled the text,
+		// and seats padded the log to finish: on universe-m12 audit summaries and arguments about
+		// other lenses' gaps, in the channel whose glossary says none of it is debate material.
+		may("the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry")
 	}
 
 	// EVERY DISPATCHED SEAT OWES THE SITTING IT WAS DISPATCHED FOR, and this list says so by the
@@ -388,9 +393,8 @@ func revisionOwed(evs []*Event, seatID string) bool {
 // shares: a sitting-record repair is a turn of its own and its acts are the repaired sitting's,
 // which is not what Clock counts. Starting the window at the seat's latest
 // register of ANY kind put the repair's own register there, so inside a repair the work list said
-// the log channel was open — a duty the repaired sitting had already discharged, and which
-// scorecard.channel_closure, reading the same attribution, scored as discharged. The seat was told
-// to file something it did not owe, on the one surface it reads to find out what it owes.
+// the log channel was open for a sitting that had already filed there. The seat was told to file
+// something it had done, on the one surface it reads to find out what is left.
 func seatDidThisSitting(evs []*Event, seatID string, typ recordpb.EventType) bool {
 	live := Live(evs)
 	start := 0

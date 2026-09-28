@@ -52,29 +52,34 @@ func (b *stage) closeGap(lens, gap string) *stage {
 		ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Prose: proto.String("verified at the leaf")})
 }
 
-// THE LOG IS OWED EVERY SITTING THAT DID ANYTHING. It read the whole record, so a seat's first log
-// entry discharged every later sitting's — that is the defect this pins.
+// THE LOG IS OFFERED EVERY SITTING THAT DID ANYTHING, AND BLOCKS NONE. The item read the whole
+// record, so a seat's first log entry closed the channel for every later sitting — the first half.
+// The second half: a sitting that acted and hit nothing is COMPLETE without an entry. While the item
+// blocked, seats padded the log to reach `complete` — audit summaries and arguments about other
+// lenses' gaps on universe-m12 — in the channel meant only for what got in their way.
 //
 // THE SECOND SITTING HERE MINTS, and that is load-bearing rather than scene-setting. A sitting with
-// no acts at all no longer owes a log: the hooks bracket it and `nominal` is derived from the
-// emptiness instead of asserted about it (#1089). So a second sitting that recorded NOTHING would
-// legitimately be complete, and this test would be asserting the old rule while appearing to
-// assert per-sitting duties. The mint makes it a sitting that genuinely owes an entry.
-func TestTheLogIsOwedEverySitting(t *testing.T) {
+// no acts at all is not offered the channel (#1089), so a second sitting that recorded NOTHING would
+// pass the first half while asserting the other rule. The mint makes it a sitting that acted.
+func TestTheLogIsOfferedEverySittingAndBlocksNone(t *testing.T) {
 	first := func() *stage {
 		return newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 			register("red-chair").dispatch(2, evLens).register(evLens).logEntry(evLens)
 	}
-	if hasItem(sittingOfRunT(t, first().seed(), "lens", evLens), "the log is open") {
+	if listsItem(sittingOfRunT(t, first().seed(), "lens", evLens), "the log is open") {
 		t.Fatal("a lens that logged this sitting is told its log is open")
 	}
 	again := first().register("red-chair").dispatch(2, evLens).register(evLens).add(evLens, &recordpb.Finding{Label: proto.String("evidence-F9"), Text: proto.String("something this sitting actually did")})
-	if !hasItem(sittingOfRunT(t, again.seed(), "lens", evLens), "the log is open") {
+	s := sittingOfRunT(t, again.seed(), "lens", evLens)
+	if !listsItem(s, "the log is open") {
 		t.Fatal("a lens in its second sitting, which acted and filed no log, is not told the log is open")
+	}
+	if !s.Complete {
+		t.Errorf("a sitting that acted and hit nothing cannot finish without a log entry: %+v", s.Open)
 	}
 }
 
-// AND A SITTING THAT DID NOTHING OWES NOTHING. This is the other half of the rule above, and the
+// AND A SITTING THAT DID NOTHING IS OFFERED NOTHING. This is the other half of the rule above, and the
 // whole point of #1089: a woken seat with no work should be able to end its turn having run no
 // commands at all. Its sitting is on the record either way — the hooks write sitting_open and
 // sitting_close around it, each carrying the agent's id and type.
@@ -82,7 +87,7 @@ func TestASittingThatRecordedNothingOwesNoLog(t *testing.T) {
 	st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").dispatch(2, evLens).register(evLens)
 	s := sittingOfRunT(t, st.seed(), "lens", evLens)
-	if hasItem(s, "the log is open") {
+	if listsItem(s, "the log is open") {
 		t.Error("a sitting that recorded nothing is told to file a log saying it recorded nothing")
 	}
 	if !s.Complete {
@@ -177,13 +182,12 @@ func TestRevisionOwedReadsWhatTheSittingFoundOpenWhetherOrNotItHasEnded(t *testi
 	}
 }
 
-// A REPAIR DOES NOT RE-OPEN A DUTY THE SITTING IT REPAIRS DISCHARGED (#1026). seatDidThisSitting is
+// A REPAIR DOES NOT RE-OPEN WHAT THE SITTING IT REPAIRS ALREADY DID (#1026). seatDidThisSitting is
 // a reader that ATTRIBUTES — it answers "did this sitting file its log", not "has this turn" — so
 // its window opens at the register that OPENED the sitting, never at a repair's own. Starting it at
-// the seat's latest register of any kind told a re-prompted seat that the log channel was open
-// while scorecard.channel_closure, reading the same attribution, scored that duty discharged: the
-// prompt says "put it on the record NOW — nothing else" and the work list then named something the
-// sitting did not owe.
+// the seat's latest register of any kind told a re-prompted seat that the log channel was open for a
+// sitting that had already filed there: the prompt says "put it on the record NOW — nothing else"
+// and the work list then named something the sitting had done.
 //
 // THE REVISION IS STILL OWED, which is the half that must not move with it: the repair exists
 // because that duty is outstanding, and a window that swallowed it would report the sitting complete.
@@ -198,7 +202,7 @@ func TestARepairDoesNotReopenTheDutiesTheSittingDischarged(t *testing.T) {
 
 	b, opened := sat(t)
 	s := sittingOfRunT(t, b.repairs("blue-respond", "blue-b", opened).seed(), "blue", "blue-respond")
-	if hasItem(s, "the log is open") {
+	if listsItem(s, "the log is open") {
 		t.Error("inside the repair the work list asks for a log the sitting it repairs already filed")
 	}
 	if !hasItem(s, "this sitting's revision is missing") {
@@ -206,12 +210,12 @@ func TestARepairDoesNotReopenTheDutiesTheSittingDischarged(t *testing.T) {
 	}
 
 	// THE CONTROL: a plain register is a real second sitting, and every per-sitting duty is owed
-	// again — for a sitting that DID something. An empty second sitting owes no log (#1089), so the
+	// again — for a sitting that DID something. An empty second sitting is offered no log (#1089), so the
 	// act here is what makes this a control on the repair window rather than on that rule.
 	again, _ := sat(t)
 	second := again.register("blue-respond").
 		add("blue-respond", &recordpb.Position{Text: proto.String("this sitting took a position")}).seed()
-	if !hasItem(sittingOfRunT(t, second, "blue", "blue-respond"), "the log is open") {
+	if !listsItem(sittingOfRunT(t, second, "blue", "blue-respond"), "the log is open") {
 		t.Error("a genuine second sitting acted, filed no log, and the work list does not say so")
 	}
 }

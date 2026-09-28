@@ -169,7 +169,7 @@ func avenueAt(t *testing.T, id, status string) *Event {
 	t.Helper()
 	st, ok := AvenueStatusOf(status)
 	if !ok {
-		t.Fatalf("%q is not a avenue status", status)
+		t.Fatalf("%q is not an avenue status", status)
 	}
 	return recordtest.Event(t, "blue-respond", &recordpb.Avenue{
 		AvenueId: proto.String(id),

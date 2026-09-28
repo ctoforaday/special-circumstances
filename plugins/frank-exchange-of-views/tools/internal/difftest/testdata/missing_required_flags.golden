@@ -34,8 +34,8 @@ Usage:
   feov-record mint [flags]
 
 Flags:
-      --about string                             the reference --about-kind names: a section heading, a avenue id (Q1), or a gap id. It is CHECKED against the record
-      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
+      --about string                             the reference --about-kind names: a section heading, an avenue id (Q1), or a gap id. It is CHECKED against the record
+      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
@@ -55,9 +55,9 @@ Flags:
 
 Enumerated values:
   --about-kind
-    section  a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there
-    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
-    gap      a gap already on the docket, by its id — a defect in the record rather than in the report
+    section  a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there
+    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor
+    gap      a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands
 
   --check-kind
     document     reading a shipped artifact settles it — the check is answered by prose that quotes what is there

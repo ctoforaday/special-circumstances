@@ -492,8 +492,10 @@ test('every seat prompt carries the log clause, the speed clause and the record 
   for (const seat of ['blue-synthesize', 'red-chair', 'red-lens-evidence', 'blue-respond', 'judge #', 'judge · terminal', 'judge · assemble']) {
     const c = labelsOf(world, seat)[0]
     assert.ok(c, `${seat} sat`)
-    assert.ok(c.prompt.includes("envelope's log field") && /AUDIENCE IS THE OPERATOR/.test(c.prompt) && /JUDGEMENT rather than for want of occasion/.test(c.prompt), `${seat} lost the operator channel`)
-    assert.ok(!/OWES THE SURVEY/.test(c.prompt) && !/SILENCE IS NOT THE EMPTY CASE/.test(c.prompt), `${seat} restates a retired rule`)
+    assert.ok(c.prompt.includes("envelope's log field") && /AUDIENCE IS THE OPERATOR/.test(c.prompt) && /WHERE NOTHING GOT IN YOUR WAY, FILE NOTHING/.test(c.prompt) && /a dispute with another seat's gap is a finding about that gap/.test(c.prompt), `${seat} lost the operator channel`)
+    // THE RETIRED SHAPES all told a seat the log was owed whatever happened, and seats padded it
+    // with audit summaries and arguments about other lenses' gaps to discharge that.
+    assert.ok(!/OWES THE SURVEY/.test(c.prompt) && !/SILENCE IS NOT THE EMPTY CASE/.test(c.prompt) && !/CLOSE THIS CHANNEL/.test(c.prompt) && !/JUDGEMENT rather than for want of occasion/.test(c.prompt), `${seat} restates a retired rule`)
     assert.ok(c.prompt.includes(speedClauseText), `${seat} lost the speed clause`)
     assert.ok(c.prompt.includes('SEAT_ID:') && c.prompt.includes('/opt/feov/bin/feov-record'), `${seat} lost the record contract`)
   }

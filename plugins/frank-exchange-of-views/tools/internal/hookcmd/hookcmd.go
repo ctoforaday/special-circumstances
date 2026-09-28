@@ -170,8 +170,9 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 	if denied {
 		return nil
 	}
-	// Injection is for Bash alone, so every other tool stops here, before the marker search.
-	if in.ToolName != "Bash" {
+	// The gate says which calls it acts on — every Bash call, and a Read of the report file — so
+	// every other tool stops here, before the marker search a Read would otherwise pay for.
+	if !hookgate.Wants(in) {
 		return nil
 	}
 	// The run directory is resolved from the payload's `cwd` — the SEAT's working directory,

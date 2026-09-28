@@ -948,7 +948,7 @@ enum AboutKind {
   ABOUT_KIND_UNSPECIFIED = 0;
   ABOUT_KIND_SECTION = 1 [(means) = "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there"];
   ABOUT_KIND_AVENUE = 2 [(means) = "an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor"];
-  ABOUT_KIND_GAP = 3 [(means) = "a gap already on the docket, by its id — a defect in the record rather than in the report"];
+  ABOUT_KIND_GAP = 3 [(means) = "a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands"];
 }
 
 message Finding {

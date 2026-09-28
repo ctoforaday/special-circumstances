@@ -157,8 +157,8 @@ func AvenuesOf(evs []*Event) []*Avenue {
 		w := clk.Advance(e)
 		body, ok := recordpb.Body(e)
 		if !ok {
-			// NO BODY IS NOT AN EMPTY ONE. An event the schema carries no body for names no line
-			// of avenue, which is the same outcome the old `Str("avenue_id") == ""` reached —
+			// NO BODY IS NOT AN EMPTY ONE. An event the schema carries no body for names no
+			// avenue, which is the same outcome the old `Str("avenue_id") == ""` reached —
 			// but reached here by asking the question rather than by a lookup that misses.
 			continue
 		}

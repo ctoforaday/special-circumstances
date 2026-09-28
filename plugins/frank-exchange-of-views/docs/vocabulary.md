@@ -49,7 +49,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 
 ## the report
 
-The report is the research prose written for a reader of the subject: one document from a lane's text to the assembled report.md, named by its stage only where the stage matters (your part of the report, the report as `show report` serves it, the assembled report.md).
+The report is the research prose written for a reader of the subject: one document from a lane's text to what the run assembles at its end, named by its stage only where the stage matters — your part of the report, the report as `show report` serves it, which is the only way a seat reads it, and the copy assembled for the human reader once the run is over.
 
 **Delivered to:** lens, chair, blue, bench, operator
 
@@ -377,7 +377,7 @@ The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
 
 ## finding
 
-A finding is a lens's recorded observation of a defect in the report, graded and not yet minted.
+A finding is a lens's recorded observation of a defect in the report, or of a dispute with a gap already on the board, graded and not yet minted.
 
 **Delivered to:** lens, chair, blue, bench, operator
 

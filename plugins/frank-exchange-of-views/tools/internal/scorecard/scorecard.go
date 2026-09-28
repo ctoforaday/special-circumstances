@@ -413,63 +413,14 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	rows = append(rows, Row{Clause: "Sitting on the record", Metric: "sitting_record_failures", Cls: "detector",
 		Value: claimed - attested, Note: note})
 
-	// THE LOG, MEASURED — the duty that was created BY a measurement and never got one.
-	//
-	// Every constitution carrying it says "AFTER every sitting — not only the ones that went
-	// wrong — YOU MUST write to the log", and cites the failure that produced the rule: across
-	// eighteen recorded sittings the log went unwritten every single time. Nothing has
-	// counted it since. Measured 2026-09-09 on two live runs: 10 of 11 seats closed it in one and
-	// 8 of 9 in the other, so one seat in each run never did and nothing noticed.
-	//
-	// A SITTING is the unit, because the duty is per sitting: a seat that sat four times and filed
-	// one entry discharged it once. So this counts sittings as the denominator and the distinct
-	// (seat, sitting) pairs that carry a log entry as the numerator — never the raw entry count,
-	// which two entries in one sitting would inflate.
-	//
-	// THIS METRIC ATTRIBUTES, so it reads record.ActClock: every bucket here is a sitting acts are
-	// filed INTO, and a sitting-record repair's acts are the repaired sitting's. A repair therefore
-	// opens no bucket — it re-names the one it repairs — and the log entry it files discharges that
-	// sitting's duty. Bucketing by the turn count instead would leave the repaired sitting scored
-	// as having closed nothing while charging the repair for a duty no act of its own can discharge:
-	// two false findings from one repair, on the detector built to catch a real one.
+	// THE LOG IS NOT SCORED FOR PRESENCE. A sitting that hit nothing files nothing — clean is derived
+	// from having sat and filed nothing — so a metric counting sittings without an entry scores the
+	// correct behaviour as a failure, and seats read their own scorecard. Two such metrics lived here
+	// (the share of sittings that filed an entry, and a detector for the ones that did not); they
+	// measured the retired every-sitting duty, and they were part of what drove seats to pad the log
+	// with audit summaries and arguments about other lenses' gaps. What the channel is worth is what
+	// a reader can FILTER, which is the type spread below.
 	if fam != nil {
-		sat := map[string]bool{}
-		closed := map[string]bool{}
-		var clk record.ActClock
-		for _, e := range fam.Live() {
-			w := clk.Advance(e)
-			key := fmt.Sprintf("%s#%d", e.GetSeatId(), w.Sitting)
-			switch e.GetType() {
-			case recordpb.EventType_EVENT_TYPE_REGISTER:
-				sat[key] = true
-			case recordpb.EventType_EVENT_TYPE_LOG:
-				closed[key] = true
-			}
-		}
-		// THE NUMERATOR IS AN INTERSECTION, NOT A CARDINALITY. Two set sizes divided is a ratio only
-		// while every `closed` key is a `sat` key, and nothing made that true: a log entry filed by a
-		// seat with no register of its own — the harness's, or a seat whose register is not on this
-		// stream — buckets under a key `sat` never holds, and the division then reports a closure
-		// rate ABOVE 1 and a negative count of sittings that closed nothing (measured: 2 and -1).
-		// Both are impossible readings of the duty, and a detector that can go negative is one whose
-		// sign nobody can act on. So the numerator counts the buckets present on BOTH sides, which
-		// makes key identity load-bearing rather than incidental: bucket `closed` by turns while
-		// `sat` buckets by acts and a repair's entry matches nothing, which is a visible 0 instead
-		// of an invisible 1.
-		if len(sat) > 0 {
-			discharged := 0
-			for key := range closed {
-				if sat[key] {
-					discharged++
-				}
-			}
-			rows = append(rows, Row{Clause: "The log", Metric: "channel_closure", Cls: "benchmark",
-				Value: float64(discharged) / float64(len(sat)),
-				Joint: "sittings that filed at least one log entry over sittings dispatched; the unit is the SITTING because the duty is per sitting, so a seat that sat four times and logged once discharged it once"})
-			rows = append(rows, Row{Clause: "The log", Metric: "sittings_never_closed", Cls: "detector",
-				Value: len(sat) - discharged,
-				Note:  "a sitting that recorded acts and closed no operator entry — the shape the duty exists to prevent"})
-		}
 		// TYPE COVERAGE, because the channel's worth is what a reader can FILTER on. An untyped
 		// distribution is the reading the type field exists to replace. Every surviving type
 		// asserts a problem, so the share below is 1.0 whenever anything was filed at all — what

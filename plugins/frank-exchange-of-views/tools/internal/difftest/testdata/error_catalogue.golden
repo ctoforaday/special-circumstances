@@ -33,8 +33,8 @@ Usage:
   feov-record mint [flags]
 
 Flags:
-      --about string                             the reference --about-kind names: a section heading, a avenue id (Q1), or a gap id. It is CHECKED against the record
-      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
+      --about string                             the reference --about-kind names: a section heading, an avenue id (Q1), or a gap id. It is CHECKED against the record
+      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
@@ -54,9 +54,9 @@ Flags:
 
 Enumerated values:
   --about-kind
-    section  a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there
-    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
-    gap      a gap already on the docket, by its id — a defect in the record rather than in the report
+    section  a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there
+    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor
+    gap      a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands
 
   --check-kind
     document     reading a shipped artifact settles it — the check is answered by prose that quotes what is there
@@ -104,8 +104,8 @@ Usage:
   feov-record mint [flags]
 
 Flags:
-      --about string                             the reference --about-kind names: a section heading, a avenue id (Q1), or a gap id. It is CHECKED against the record
-      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
+      --about string                             the reference --about-kind names: a section heading, an avenue id (Q1), or a gap id. It is CHECKED against the record
+      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
@@ -125,9 +125,9 @@ Flags:
 
 Enumerated values:
   --about-kind
-    section  a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there
-    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
-    gap      a gap already on the docket, by its id — a defect in the record rather than in the report
+    section  a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there
+    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor
+    gap      a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands
 
   --check-kind
     document     reading a shipped artifact settles it — the check is answered by prose that quotes what is there
@@ -175,8 +175,8 @@ Usage:
   feov-record mint [flags]
 
 Flags:
-      --about string                             the reference --about-kind names: a section heading, a avenue id (Q1), or a gap id. It is CHECKED against the record
-      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
+      --about string                             the reference --about-kind names: a section heading, an avenue id (Q1), or a gap id. It is CHECKED against the record
+      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
@@ -196,9 +196,9 @@ Flags:
 
 Enumerated values:
   --about-kind
-    section  a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there
-    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
-    gap      a gap already on the docket, by its id — a defect in the record rather than in the report
+    section  a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there
+    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor
+    gap      a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands
 
   --check-kind
     document     reading a shipped artifact settles it — the check is answered by prose that quotes what is there
@@ -246,8 +246,8 @@ Usage:
   feov-record mint [flags]
 
 Flags:
-      --about string                             the reference --about-kind names: a section heading, a avenue id (Q1), or a gap id. It is CHECKED against the record
-      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
+      --about string                             the reference --about-kind names: a section heading, an avenue id (Q1), or a gap id. It is CHECKED against the record
+      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
@@ -267,9 +267,9 @@ Flags:
 
 Enumerated values:
   --about-kind
-    section  a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there
-    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
-    gap      a gap already on the docket, by its id — a defect in the record rather than in the report
+    section  a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there
+    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor
+    gap      a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands
 
   --check-kind
     document     reading a shipped artifact settles it — the check is answered by prose that quotes what is there
@@ -317,8 +317,8 @@ Usage:
   feov-record mint [flags]
 
 Flags:
-      --about string                             the reference --about-kind names: a section heading, a avenue id (Q1), or a gap id. It is CHECKED against the record
-      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
+      --about string                             the reference --about-kind names: a section heading, an avenue id (Q1), or a gap id. It is CHECKED against the record
+      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
@@ -338,9 +338,9 @@ Flags:
 
 Enumerated values:
   --about-kind
-    section  a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there
-    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
-    gap      a gap already on the docket, by its id — a defect in the record rather than in the report
+    section  a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there
+    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor
+    gap      a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands
 
   --check-kind
     document     reading a shipped artifact settles it — the check is answered by prose that quotes what is there
@@ -388,8 +388,8 @@ Usage:
   feov-record mint [flags]
 
 Flags:
-      --about string                             the reference --about-kind names: a section heading, a avenue id (Q1), or a gap id. It is CHECKED against the record
-      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
+      --about string                             the reference --about-kind names: a section heading, an avenue id (Q1), or a gap id. It is CHECKED against the record
+      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
@@ -409,9 +409,9 @@ Flags:
 
 Enumerated values:
   --about-kind
-    section  a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there
-    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
-    gap      a gap already on the docket, by its id — a defect in the record rather than in the report
+    section  a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there
+    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor
+    gap      a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands
 
   --check-kind
     document     reading a shipped artifact settles it — the check is answered by prose that quotes what is there
@@ -459,8 +459,8 @@ Usage:
   feov-record mint [flags]
 
 Flags:
-      --about string                             the reference --about-kind names: a section heading, a avenue id (Q1), or a gap id. It is CHECKED against the record
-      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
+      --about string                             the reference --about-kind names: a section heading, an avenue id (Q1), or a gap id. It is CHECKED against the record
+      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
@@ -480,9 +480,9 @@ Flags:
 
 Enumerated values:
   --about-kind
-    section  a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there
-    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
-    gap      a gap already on the docket, by its id — a defect in the record rather than in the report
+    section  a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there
+    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor
+    gap      a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands
 
   --check-kind
     document     reading a shipped artifact settles it — the check is answered by prose that quotes what is there
@@ -1691,8 +1691,7 @@ Flags:
 ── correction target: the lens regrades G1
 exit 0
 regraded G1 [key red-lens-evidence:regrade:#1:G1]
-1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 ── correction without a why
 exit 2
@@ -1801,14 +1800,12 @@ exit 0
 minted G2
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 ── reliance target: the lens regrades G2
 exit 0
 regraded G2 [key red-lens-evidence:regrade:#1:G2]
-1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 ── reliance: another seat acts
 exit 0
@@ -1831,8 +1828,7 @@ feov-record: lens: record: another seat has acted since this regrade (event 6, a
 ── frozen field target: the lens closes G1
 exit 0
 closed G1 (repaired) [key red-lens-evidence:close:#1:G1]
-1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 ── a PROSE correction moving a frozen field
 exit 2

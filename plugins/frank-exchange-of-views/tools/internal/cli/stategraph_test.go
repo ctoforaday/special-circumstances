@@ -598,8 +598,8 @@ func avenueProbe() entityProbe {
 			}
 		},
 		accumulates: []string{"history"},
-		// NOTHING IS DECLARED TERMINAL HERE, and that is a claim rather than an omission: a line
-		// of avenue is a LIVING RECORD — debate.js tells blue "every round, revisit what is still
+		// NOTHING IS DECLARED TERMINAL HERE, and that is a claim rather than an omission: an
+		// avenue is a LIVING RECORD — debate.js tells blue "every round, revisit what is still
 		// open and say what became of it" — so every fate must remain movable. A fate that could
 		// not be left would be a line blue is forbidden to revisit, which is the opposite of what
 		// the lifecycle was built for.

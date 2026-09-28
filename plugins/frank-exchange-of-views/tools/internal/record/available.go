@@ -189,8 +189,72 @@ func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item 
 		for _, w := range blueAnswers(evs, gaps, seatID) {
 			add(w)
 		}
+		// ANOTHER LENS'S ARGUMENT ABOUT YOUR GAP REACHES YOU, because nobody else can act on it.
+		//
+		// A gap is its minter's from mint to close, so a lens that thinks another lens's gap is
+		// wrong has nothing it may DO about it — and until this item, nothing it filed reached the
+		// seat that could. So it filed in the log. Measured on universe-m12: three of ten `defect`
+		// entries were lenses arguing about gaps they did not mint ("G2 is incorrectly labeled as
+		// unverified", "G3 remains open and unanswered"), and the one interviewed said who it
+		// expected to read it — the operator, because the log was the only channel it believed
+		// reached anybody. `finding --about-kind gap` already existed for exactly this and was
+		// used zero times, because a finding anchored to a gap went to no one's list.
+		//
+		// It stays until the minter acts on that gap after the finding — a regrade, a close, a
+		// closing argument — so it asks for an answer, not for the finding to be acknowledged.
+		for _, w := range findingsAboutYourGaps(evs, gaps, minted, seatID) {
+			add(w)
+		}
 	}
 	return out
+}
+
+// findingsAboutYourGaps is each finding another seat anchored to an open gap this seat minted, that
+// this seat has not acted on since.
+func findingsAboutYourGaps(evs []*Event, gaps []WorkGapState, minted map[string]string, seatID string) []string {
+	open := map[string]bool{}
+	for _, g := range gaps {
+		if g.Open {
+			open[g.ID] = true
+		}
+	}
+	var out []string
+	for i, e := range evs {
+		f := e.GetFinding()
+		if f == nil || f.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_GAP || e.GetSeatId() == seatID {
+			continue
+		}
+		gap := f.GetAboutRef()
+		if !open[gap] || minted[gap] != seatID || actedOnGapAfter(evs[i+1:], seatID, gap) {
+			continue
+		}
+		what := f.GetText()
+		if r := []rune(what); len(r) > 160 {
+			what = string(r[:160]) + "…"
+		}
+		out = append(out, e.GetSeatId()+" filed a finding about your gap "+gap+" — "+what+
+			" — only you can act on "+gap+", so answer it: regrade it, close it, or record in a closing argument why it stands")
+	}
+	return out
+}
+
+// actedOnGapAfter is whether seatID recorded a regrade, close or closing argument on gap among evs.
+func actedOnGapAfter(evs []*Event, seatID, gap string) bool {
+	for _, e := range evs {
+		if e.GetSeatId() != seatID {
+			continue
+		}
+		if r := e.GetRegrade(); r != nil && r.GetGapId() == gap {
+			return true
+		}
+		if c := e.GetClose(); c != nil && c.GetGapId() == gap {
+			return true
+		}
+		if c := e.GetClosing(); c != nil && c.GetGapId() == gap {
+			return true
+		}
+	}
+	return false
 }
 
 // mintedBy maps each gap to the seat that minted it — the same fact requireOriginator reads off

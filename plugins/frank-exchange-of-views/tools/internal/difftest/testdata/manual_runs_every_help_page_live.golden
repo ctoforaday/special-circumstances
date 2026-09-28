@@ -4,7 +4,7 @@ stdout:
 feov-record manual — the bench surface, seat judge: 27 commands, each under a header naming it and followed by the help it prints, run live just now. LEAN ON PURPOSE: a block that repeats word for word on several pages is printed ONCE under SHARED below, and each page marks where it came out (`→ SHARED §n`); a group whose page would only list commands that have pages of their own is left out, and so is this command's own page. The surface's own page comes first.
 
 WORDS THIS SURFACE USES — one word for each concept, and it is the same word on every page, prompt and constitution you read:
-  - The report is the research prose written for a reader of the subject: one document from a lane's text to the assembled report.md, named by its stage only where the stage matters (your part of the report, the report as `show report` serves it, the assembled report.md).
+  - The report is the research prose written for a reader of the subject: one document from a lane's text to what the run assembles at its end, named by its stage only where the stage matters — your part of the report, the report as `show report` serves it, which is the only way a seat reads it, and the copy assembled for the human reader once the run is over.
   - The run directory is the directory that holds one run: its record, its report and the documents assembled beside it.
   - The record is the run's account of every act, held as events in records/record.db, and every read a seat makes is a projection of it.
   - A run is one research question taken from setup to its outcome.
@@ -29,7 +29,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
   - The verdict is the chair's PASS or FAIL on the board.
   - The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
-  - A finding is a lens's recorded observation of a defect in the report, graded and not yet minted.
+  - A finding is a lens's recorded observation of a defect in the report, or of a dispute with a gap already on the board, graded and not yet minted.
   - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
   - A gap is material when its class is always material, or when its class goes by grade and its current severity is medium or above, and an open material gap holds the PASS gate.
   - To retire a claim is to take it out of the report with the retire verb, on the record.
@@ -851,7 +851,7 @@ stdout:
 feov-record manual — the blue surface, seat blue-respond: 29 commands, each under a header naming it and followed by the help it prints, run live just now. LEAN ON PURPOSE: a block that repeats word for word on several pages is printed ONCE under SHARED below, and each page marks where it came out (`→ SHARED §n`); a group whose page would only list commands that have pages of their own is left out, and so is this command's own page. The surface's own page comes first.
 
 WORDS THIS SURFACE USES — one word for each concept, and it is the same word on every page, prompt and constitution you read:
-  - The report is the research prose written for a reader of the subject: one document from a lane's text to the assembled report.md, named by its stage only where the stage matters (your part of the report, the report as `show report` serves it, the assembled report.md).
+  - The report is the research prose written for a reader of the subject: one document from a lane's text to what the run assembles at its end, named by its stage only where the stage matters — your part of the report, the report as `show report` serves it, which is the only way a seat reads it, and the copy assembled for the human reader once the run is over.
   - The run directory is the directory that holds one run: its record, its report and the documents assembled beside it.
   - The record is the run's account of every act, held as events in records/record.db, and every read a seat makes is a projection of it.
   - A run is one research question taken from setup to its outcome.
@@ -878,7 +878,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
   - The verdict is the chair's PASS or FAIL on the board.
   - The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
-  - A finding is a lens's recorded observation of a defect in the report, graded and not yet minted.
+  - A finding is a lens's recorded observation of a defect in the report, or of a dispute with a gap already on the board, graded and not yet minted.
   - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
   - A gap is material when its class is always material, or when its class goes by grade and its current severity is medium or above, and an open material gap holds the PASS gate.
   - To retire a claim is to take it out of the report with the retire verb, on the record.
@@ -1814,7 +1814,7 @@ stdout:
 feov-record manual — the operator surface, seat operator: 16 commands, each under a header naming it and followed by the help it prints, run live just now. LEAN ON PURPOSE: a block that repeats word for word on several pages is printed ONCE under SHARED below, and each page marks where it came out (`→ SHARED §n`); a group whose page would only list commands that have pages of their own is left out, and so is this command's own page. The surface's own page comes first.
 
 WORDS THIS SURFACE USES — one word for each concept, and it is the same word on every page, prompt and constitution you read:
-  - The report is the research prose written for a reader of the subject: one document from a lane's text to the assembled report.md, named by its stage only where the stage matters (your part of the report, the report as `show report` serves it, the assembled report.md).
+  - The report is the research prose written for a reader of the subject: one document from a lane's text to what the run assembles at its end, named by its stage only where the stage matters — your part of the report, the report as `show report` serves it, which is the only way a seat reads it, and the copy assembled for the human reader once the run is over.
   - The run directory is the directory that holds one run: its record, its report and the documents assembled beside it.
   - The record is the run's account of every act, held as events in records/record.db, and every read a seat makes is a projection of it.
   - A run is one research question taken from setup to its outcome.
@@ -1840,7 +1840,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
   - The verdict is the chair's PASS or FAIL on the board.
   - The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
-  - A finding is a lens's recorded observation of a defect in the report, graded and not yet minted.
+  - A finding is a lens's recorded observation of a defect in the report, or of a dispute with a gap already on the board, graded and not yet minted.
   - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
   - A gap is material when its class is always material, or when its class goes by grade and its current severity is medium or above, and an open material gap holds the PASS gate.
   - To retire a claim is to take it out of the report with the retire verb, on the record.
