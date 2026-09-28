@@ -7,20 +7,20 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// THE LINE-OF-INQUIRY VERBS WRITE REPORT PROSE, SO THEY MEET THE VOICE ADVISORY.
+// THE LINE-OF-AVENUE VERBS WRITE REPORT PROSE, SO THEY MEET THE VOICE ADVISORY.
 //
 // #873 covered ingest and edit on the strength of a census that said they were the only writers of
-// report text. That was true of the RECORD's report and false of report.md: `inquiries()` composes
-// every line of inquiry into Research areas, Future research directions and Alternatives considered,
+// report text. That was true of the RECORD's report and false of report.md: `avenues()` composes
+// every avenue into Research areas, Future research directions and Alternatives considered,
 // and arm A of the #861 smoke carried a process-voice tell in Alternatives considered that came from
 // a blue lane's line. These drive the real verbs, because the defect #873 was — a guard that existed
 // and was never called — survives any test that exercises the helper instead of the call.
 
 func TestProposeAdvisesOnAVoicedLine(t *testing.T) {
 	runDir := newRun(t)
-	seat := inquirySeat(t, runDir)
+	seat := avenueSeat(t, runDir)
 	line := "This run grepped the repo for primality helpers [minority: lane-2]"
-	out, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seat,
+	out, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
 		"--reason", line, "--hypothesis", "a helper already exists")
 	if err != nil {
 		t.Fatalf("the advisory refused a proposal — it must refuse nothing: %v\n%s", err, out)
@@ -41,8 +41,8 @@ func TestProposeAdvisesOnAVoicedLine(t *testing.T) {
 // The method is composed into the same report.md row, as _(method)_, so it is advised too.
 func TestProposeAdvisesOnTheMethod(t *testing.T) {
 	runDir := newRun(t)
-	seat := inquirySeat(t, runDir)
-	out, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seat,
+	seat := avenueSeat(t, runDir)
+	out, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
 		"--reason", "trial division up to floor(sqrt(91))", "--hypothesis", "91 has a factor below 10",
 		"--method", "as the debate required")
 	if err != nil {
@@ -58,8 +58,8 @@ func TestProposeAdvisesOnTheMethod(t *testing.T) {
 // sees is noise — which is how a real note stops being read.
 func TestTheHypothesisIsNotAdvised(t *testing.T) {
 	runDir := newRun(t)
-	seat := inquirySeat(t, runDir)
-	out, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seat,
+	seat := avenueSeat(t, runDir)
+	out, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
 		"--reason", "trial division up to floor(sqrt(91))", "--hypothesis", "this run will find a factor below 10")
 	if err != nil {
 		t.Fatalf("propose: %v\n%s", err, out)
@@ -73,12 +73,12 @@ func TestTheHypothesisIsNotAdvised(t *testing.T) {
 func TestMoveAdvisesOnAVoicedReason(t *testing.T) {
 	runDir := newRun(t)
 	registerChairOnce(t, runDir)
-	seat := inquirySeat(t, runDir)
-	if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seat,
+	seat := avenueSeat(t, runDir)
+	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
 		"--reason", "survey primality libraries", "--hypothesis", "implementations disagree at small n"); err != nil {
 		t.Fatal(err)
 	}
-	out, err := run(t, "line-of-inquiry", "move", "--run", runDir, "--seat-id", seat,
+	out, err := run(t, "avenue", "move", "--run", runDir, "--seat-id", seat,
 		"--id", "Q1", "--as", "abandoned", "--reason", "the debate settled it, so the line was dropped")
 	if err != nil {
 		t.Fatalf("the advisory refused a move — it must refuse nothing: %v\n%s", err, out)
@@ -92,11 +92,11 @@ func TestMoveAdvisesOnAVoicedReason(t *testing.T) {
 }
 
 // Clean prose says nothing extra, on either verb.
-func TestACleanLineOfInquiryCarriesNoNote(t *testing.T) {
+func TestACleanAvenueCarriesNoNote(t *testing.T) {
 	runDir := newRun(t)
 	registerChairOnce(t, runDir)
-	seat := inquirySeat(t, runDir)
-	out, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seat,
+	seat := avenueSeat(t, runDir)
+	out, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
 		"--reason", "trial division up to floor(sqrt(91))", "--hypothesis", "91 has a factor below 10",
 		"--method", "exhaustive search")
 	if err != nil {
@@ -105,7 +105,7 @@ func TestACleanLineOfInquiryCarriesNoNote(t *testing.T) {
 	if strings.Contains(out, "NOTE") {
 		t.Errorf("a clean proposal carries an advisory:\n%s", out)
 	}
-	out, err = run(t, "line-of-inquiry", "move", "--run", runDir, "--seat-id", seat,
+	out, err = run(t, "avenue", "move", "--run", runDir, "--seat-id", seat,
 		"--id", "Q1", "--as", "pursued", "--reason", "7 divides 91, so the line paid off")
 	if err != nil {
 		t.Fatal(err)

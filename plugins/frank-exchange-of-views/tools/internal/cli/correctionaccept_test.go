@@ -93,7 +93,7 @@ func fileGradeMotion(t *testing.T, runDir string) string {
 
 func proposeQ1(t *testing.T, runDir string) {
 	t.Helper()
-	must(t, runDir, "line-of-inquiry", "propose", "--seat-id", "blue-respond", "--reason", "a seeded line")
+	must(t, runDir, "avenue", "propose", "--seat-id", "blue-respond", "--reason", "a seeded line")
 }
 
 func corrRows() map[string]corrRow {
@@ -134,13 +134,13 @@ func corrRows() map[string]corrRow {
 				return []string{"prove", "--quote", "the parser accepts an empty body in this line.", "--script", v["script"], "--reason", text}
 			}},
 		// F13: the correction keeps the line's id instead of minting a new one.
-		"blue line-of-inquiry propose": {seat: "blue-respond", act: func(_ corrVars, text string) []string {
-			return []string{"line-of-inquiry", "propose", "--reason", text, "--hypothesis", "it would settle something"}
+		"blue avenue propose": {seat: "blue-respond", act: func(_ corrVars, text string) []string {
+			return []string{"avenue", "propose", "--reason", text, "--hypothesis", "it would settle something"}
 		}},
-		"blue line-of-inquiry move": {seat: "blue-respond",
+		"blue avenue move": {seat: "blue-respond",
 			setup: func(t *testing.T, runDir string) corrVars { proposeQ1(t, runDir); return nil },
 			act: func(_ corrVars, text string) []string {
-				return []string{"line-of-inquiry", "move", "--id", "Q1", "--as", "pursued", "--reason", text}
+				return []string{"avenue", "move", "--id", "Q1", "--as", "pursued", "--reason", text}
 			}},
 		"blue log":       logRow("blue-respond"),
 		"lens log":       logRow(lensSeat),
@@ -185,10 +185,10 @@ func corrRows() map[string]corrRow {
 		"chair spot-check": {seat: "red-chair", act: func(_ corrVars, text string) []string {
 			return []string{"spot-check", "--none", "--reason", text}
 		}},
-		"chair inquiry-support": {seat: "red-chair", act: prose("inquiry-support")},
-		"bench declare":         {seat: "judge", act: prose("declare")},
-		"bench certify":         {seat: "judge", act: prose("certify")},
-		"bench halt":            {seat: "judge", act: prose("halt")},
+		"chair avenue review": {seat: "red-chair", act: prose("avenue", "review")},
+		"bench declare":       {seat: "judge", act: prose("declare")},
+		"bench certify":       {seat: "judge", act: prose("certify")},
+		"bench halt":          {seat: "judge", act: prose("halt")},
 		// F13: the verdict's basis and reasoning are the corrected act's, not re-derived.
 		"bench outcome": {seat: "judge", act: func(_ corrVars, text string) []string {
 			return []string{"outcome", "--as", "UNVERIFIED", "--reason", text}
@@ -207,10 +207,10 @@ func corrRows() map[string]corrRow {
 			act: func(v corrVars, text string) []string {
 				return []string{"motion", "petition", "rule", "--id", v["m"], "--as", "denied", "--reason", text}
 			}},
-		"motion inquiry rule": {seat: "red-chair",
+		"motion avenue rule": {seat: "red-chair",
 			setup: func(t *testing.T, runDir string) corrVars { proposeQ1(t, runDir); return nil },
 			act: func(_ corrVars, text string) []string {
-				return []string{"motion", "inquiry", "rule", "--id", "Q1", "--as", "endorsed", "--reason", text}
+				return []string{"motion", "avenue", "rule", "--id", "Q1", "--as", "endorsed", "--reason", text}
 			}},
 		// OPEN-1: a docket ruling's settled/reopens-on/review-flag are prose, correctable until relied on.
 		"motion docket rule": {seat: "judge",
@@ -232,14 +232,14 @@ func corrRows() map[string]corrRow {
 			act: func(v corrVars, text string) []string {
 				return []string{"motion", "grade", "appeal", "--id", v["m"], "--reason", text}
 			}},
-		"motion inquiry appeal": {seat: "blue-respond",
+		"motion avenue appeal": {seat: "blue-respond",
 			setup: func(t *testing.T, runDir string) corrVars {
 				proposeQ1(t, runDir)
-				must(t, runDir, "motion", "inquiry", "rule", "--seat-id", "red-chair", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question")
+				must(t, runDir, "motion", "avenue", "rule", "--seat-id", "red-chair", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question")
 				return nil
 			},
 			act: func(_ corrVars, text string) []string {
-				return []string{"motion", "inquiry", "appeal", "--id", "Q1", "--reason", text}
+				return []string{"motion", "avenue", "appeal", "--id", "Q1", "--reason", text}
 			}},
 	}
 }
@@ -316,9 +316,9 @@ func TestCorrectionAcceptedPerCorrectablePath(t *testing.T) {
 // F12 AND F13 THROUGH THE COMMAND LINE: a proposal corrected after the line was moved keeps its id.
 func TestCorrectingAProposalAfterItsMoveKeepsTheLine(t *testing.T) {
 	runDir := corrFixture(t)
-	k := correctionKeyOf(t, runDir, "blue-respond", []string{"line-of-inquiry", "propose", "--reason", "try the  method"})
-	must(t, runDir, "line-of-inquiry", "move", "--seat-id", "blue-respond", "--id", "Q1", "--as", "pursued", "--reason", "the method held")
-	if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond",
+	k := correctionKeyOf(t, runDir, "blue-respond", []string{"avenue", "propose", "--reason", "try the  method"})
+	must(t, runDir, "avenue", "move", "--seat-id", "blue-respond", "--id", "Q1", "--as", "pursued", "--reason", "the method held")
+	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", "blue-respond",
 		"--reason", "try the recorded method", "--corrects", k, "--correction-why", "the shell deleted a word"); err != nil {
 		t.Fatalf("correcting a moved proposal was refused: %v", err)
 	}

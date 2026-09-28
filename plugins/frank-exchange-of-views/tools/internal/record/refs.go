@@ -49,13 +49,13 @@ func GapExists(runDir string, id string) error {
 	return requireGap(run, id, "the", "--id")
 }
 
-// InquiryExists resolves a inquiry.
-func InquiryExists(runDir string, id string) error {
+// AvenueExists resolves a avenue.
+func AvenueExists(runDir string, id string) error {
 	run, err := OpenRun(runDir)
 	if err != nil {
 		return err
 	}
-	return requireInquiry(run, id, "the", "--id")
+	return requireAvenue(run, id, "the", "--id")
 }
 
 // THESE THREE KEEP A `runDir string`, AND IT IS NOT AN OVERSIGHT.
@@ -153,16 +153,16 @@ func requireCitation(run Run, label, verb, flag string) error {
 		verb, flag, label, len(known))
 }
 
-// requireInquiry refuses a move against a line of inquiry nobody proposed.
+// requireAvenue refuses a move against an avenue nobody proposed.
 //
-// `blue line-of-inquiry --id` required only that an id be PRESENT. A move naming an unknown line of inquiry wrote
-// a status change for a line of inquiry that was never opened — and the lines-of-inquiry view
+// `blue avenue --id` required only that an id be PRESENT. A move naming an unknown avenue wrote
+// a status change for an avenue that was never opened — and the avenues view
 // renders it, so the run shows a direction being abandoned that nothing ever proposed.
-func requireInquiry(run Run, id, verb, flag string) error {
+func requireAvenue(run Run, id, verb, flag string) error {
 	if id == "" {
 		return nil
 	}
-	// Inquiries(b) keys every line of inquiry on Avenue events carrying a non-empty avenue_id,
+	// Avenues(b) keys every avenue on Avenue events carrying a non-empty avenue_id,
 	// so membership is one existence question.
 	found, err := recordHas(run, `SELECT 1 FROM "avenue" WHERE "avenue_id" = ? LIMIT 1`, id)
 	if err != nil {
@@ -171,7 +171,7 @@ func requireInquiry(run Run, id, verb, flag string) error {
 	if found {
 		return nil
 	}
-	return fmt.Errorf("record: %s %s=%s names no line of inquiry on the record — `show lines-of-inquiry` lists every one with its id and fate. Propose it first (`blue line of inquiry --line …`, which ASSIGNS the id); --id moves a line of inquiry that already exists",
+	return fmt.Errorf("record: %s %s=%s names no avenue on the record — `show avenues` lists every one with its id and fate. Propose it first (`blue avenue --line …`, which ASSIGNS the id); --id moves an avenue that already exists",
 		verb, flag, id)
 }
 
@@ -381,7 +381,7 @@ func stampMigrationAdmission(run Run, g *recordpb.Gate) error {
 // reader decision. Refusing over ANY
 // open gap made "not material does not hold the gate" unreachable: a run minting one trifle per
 // sitting could never pass. The 2026-07-20 run recorded PASS with 9 plain open gaps (one HIGH) that
-// no lineage check saw. A FAIL is always allowed here, and unruled motions, the inquiry read and
+// no lineage check saw. A FAIL is always allowed here, and unruled motions, the avenue read and
 // unraised contradictions below hold a PASS whatever is material.
 func requirePassClosesAllMaterialGaps(run Run) error {
 	db, err := openRunForRead(run)
@@ -422,11 +422,11 @@ func requirePassClosesAllMaterialGaps(run Run) error {
 			"A motion is answered before the debate moves on, so a PASS over an unanswered ask claims a settlement that did not happen",
 			len(unruled), strings.Join(unruled, ", "))
 	}
-	if InquiryReviewDueOf(evs) {
-		return fmt.Errorf("record: verdict PASS refused — this epoch has no line-of-inquiry review. " +
+	if AvenueReviewDueOf(evs) {
+		return fmt.Errorf("record: verdict PASS refused — this epoch has no avenue review. " +
 			"READ THE REPORT ONCE (`show report`), list what the record claims this run investigated with " +
-			"`show lines-of-inquiry`, and answer in one act: `inquiry-support --reason \"<what the report " +
-			"says at those lines>\"`. Where a line's research is thin, missing or unsupported by the text, " +
+			"`show avenues`, and answer in one act: `avenue review --reason \"<what the report " +
+			"says at those avenues>\"`. Where an avenue's research is thin, missing or unsupported by the text, " +
 			"MINT A GAP for it — the shortfall is an ordinary defect and gets the ordinary lifecycle; this " +
 			"event only records that the read happened, because an absent review reads exactly like a sound " +
 			"one. A PASS claims the report is sound, and its account of what this run investigated is part " +

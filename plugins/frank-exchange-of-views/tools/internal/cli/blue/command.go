@@ -24,7 +24,7 @@ func Verbs() []*cobra.Command {
 		newProve(),
 		newRevision(),
 		newRetire(),
-		newInquiry(),
+		newAvenue(),
 		newManifestRow(),
 		newClaimIndex(),
 		seat.Position("position-blue"),

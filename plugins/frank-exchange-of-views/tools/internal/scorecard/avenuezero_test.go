@@ -21,17 +21,17 @@ func avenue(t *testing.T, id, line string, st recordpb.AvenueStatus, reason stri
 
 // THE RECORD HELD THE LINES AND THE SCORECARD SAID THERE WERE NONE.
 //
-// This row counted `inquiries` arrays out of the seat ENVELOPES. When those did not arrive in the
-// shape it expected it saw nothing and rendered "no inquiries recorded — think-around-problem is
+// This row counted `avenues` arrays out of the seat ENVELOPES. When those did not arrive in the
+// shape it expected it saw nothing and rendered "no avenues recorded — think-around-problem is
 // back to self-attested", which reads as a measured finding ABOUT THE RUN rather than as a failed
 // read. Measured in research/2026-09-02_quadratic-formula: the record held 35 distinct lines with
 // 113 pursued-moves while this row reported none, and a seat noticed only because
-// `show lines-of-inquiry` rendered 23 in the same sitting.
+// `show avenues` rendered 23 in the same sitting.
 //
 // The scorecard is HARVESTED INTO feov-memory, so the zero did not stay in the run — it became a
 // cross-run memory row asserting no alternatives were explored in a run that explored 35. A wrong
 // number is worse than a missing one precisely here, because the next run inherits it.
-func TestLinesOfInquiryComeFromTheRecordNotTheEnvelopes(t *testing.T) {
+func TestAvenuesComeFromTheRecordNotTheEnvelopes(t *testing.T) {
 	board := famOfEventsT([]*record.Event{
 		avenue(t, "Q1", "the ring-theoretic generalisation", recordpb.AvenueStatus_AVENUE_STATUS_PURSUED, ""),
 		avenue(t, "Q2", "non-English prior art", recordpb.AvenueStatus_AVENUE_STATUS_DECLINED,
@@ -40,9 +40,9 @@ func TestLinesOfInquiryComeFromTheRecordNotTheEnvelopes(t *testing.T) {
 	// The envelopes carry NOTHING — exactly the state that produced the false zero.
 	rows := blueRows(record.Run{}, []map[string]any{{"claim_count": float64(10)}}, nil, board, record.WhileRunning)
 
-	r := rowByMetric(rows, "lines_of_inquiry")
+	r := rowByMetric(rows, "avenues")
 	if r == nil {
-		t.Fatal("no lines_of_inquiry row at all")
+		t.Fatal("no avenues row at all")
 	}
 	if r.Value == nil {
 		t.Fatalf("the record holds two lines and the scorecard reported none: %q", r.Note)
@@ -69,7 +69,7 @@ func TestALineThatMovedIsCountedOnceUnderItsCurrentStatus(t *testing.T) {
 		}(),
 	})
 	rows := blueRows(record.Run{}, nil, nil, board, record.WhileRunning)
-	got := string(rowByMetric(rows, "lines_of_inquiry").Value.(objJSON))
+	got := string(rowByMetric(rows, "avenues").Value.(objJSON))
 	if !strings.Contains(got, `"pursued":1`) {
 		t.Errorf("a line that moved declined->pursued is not counted under its CURRENT status: %s", got)
 	}
@@ -79,10 +79,10 @@ func TestALineThatMovedIsCountedOnceUnderItsCurrentStatus(t *testing.T) {
 }
 
 // NOT MEASURED IS NOT ZERO. Without a board this row has not been computed, and saying "no
-// inquiries recorded" would be the same defect one layer up — a failed read wearing the words of
+// avenues recorded" would be the same defect one layer up — a failed read wearing the words of
 // a finding.
 func TestAnUnreadableRecordSaysNotMeasuredRatherThanNone(t *testing.T) {
-	r := rowByMetric(blueRows(record.Run{}, nil, nil, nil, record.WhileRunning), "lines_of_inquiry")
+	r := rowByMetric(blueRows(record.Run{}, nil, nil, nil, record.WhileRunning), "avenues")
 	if r == nil || r.Value != nil {
 		t.Fatalf("expected an uncomputed row, got %+v", r)
 	}

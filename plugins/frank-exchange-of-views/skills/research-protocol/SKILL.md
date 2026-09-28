@@ -11,7 +11,7 @@ Research that survives an adversary.
 
 ## Protocol
 
-- BEFORE searching, YOU MUST formulate 3–5 frontier hypotheses — what would be true if each candidate answer were right — and record each one as a LINE OF INQUIRY on the record — the approach, and what would be true if it paid off; searches then test hypotheses instead of wandering. On the record rather than in a file, because a hypothesis red cannot rule `too-thin` or `out-of-scope` is one nobody can contest — and the opening hypotheses are the ones that shape the entire run.
+- BEFORE searching, YOU MUST formulate 3–5 frontier hypotheses — what would be true if each candidate answer were right — and record each one as a AVENUE on the record — the approach, and what would be true if it paid off; searches then test hypotheses instead of wandering. On the record rather than in a file, because a hypothesis red cannot rule `too-thin` or `out-of-scope` is one nobody can contest — and the opening hypotheses are the ones that shape the entire run.
 - During research, YOU MUST search to **saturation**: stop only when new searches return already-seen sources (typically 20–30 searches for a deep topic).
 - During research, YOU MUST spend at least one search in five hunting **disconfirming** evidence against your current position. This is a drafting floor, not the verification: it keeps confirmation bias out of the draft; systematic disconfirmation is red's entire job.
 - During writing, YOU MUST add every citation with the TOOL, against the exact sentence it backs — never by hand. The tool fetches the source once into the run cache, then splices an INVISIBLE, IMMORTAL `<!--cite:c-…-->` anchor at that sentence; assembly weaves the anchors into the visible `[^N]` footnotes and composes the `## Bibliography`. A hand-typed `[^label]` is not a citation: nothing backs it, the claim counter does not see it, and the unbacked-citations detector flags it. An unreachable source is unusable — the cite is rejected, and the log is where you report it.
@@ -33,7 +33,7 @@ Research that survives an adversary.
 ## The exchange is TOOL-MEDIATED
 
 Everything the two sides exchange — findings, closures, citations, proofs, revisions,
-lines of inquiry, disputes, log entries, opinions — is an **event on the record**, written through a
+avenues, disputes, log entries, opinions — is an **event on the record**, written through a
 verb that can refuse it, and read back through a projection. This is the governing clause
 of the protocol, not a storage preference: a hand-written file is an exchange nothing
 validated, and a fact recovered from a filename or a prose substring is one only pretending
@@ -63,7 +63,7 @@ research/<date>_<slug>/
 ├── docket.md          # the board: every gap and how it closed, blue's manifest, red's spot-checks
 ├── debate.md          # the transcript, epoch by epoch, and the bench's terminal disposition
 ├── judgments.md       # motions — every contested question and how it was ruled
-├── lines-of-inquiry.md # the directions: each line's fate, the path it took, its ruling and appeal
+├── avenues.md # each avenue's fate, the path it took, its ruling and appeal
 ├── evidence.md        # the computations, with script, output and sha256
 ├── run.md             # friction, the record's invariant check, and cost
 ├── CHANGELOG.md       # this report's own provenance: revisions, retired claims, repairs
@@ -73,8 +73,8 @@ research/<date>_<slug>/
 │                      #  research it was commissioned for was a quarter of the file.)
 ├── inputs/PINNED.md   # the evidence base, pinned: repo HEAD at launch + cited corpora's commit/revision
 ├── blue/
-│                      # (the opening hypotheses are LINES OF INQUIRY on the record, not a file — read
-│                      #  read them as the `lines-of-inquiry` projection. A hypothesis in a file is one red
+│                      # (the opening hypotheses are AVENUES on the record, not a file — read
+│                      #  read them as the `avenues` projection. A hypothesis in a file is one red
 │                      #  cannot rule too-thin or out-of-scope, and the opening ones shape the
 │                      #  whole run)
 │   ├── report.md      # written by the synthesizer at synthesis, then frozen into the record
@@ -167,12 +167,12 @@ in it opens with a link bar to the others.
 first*) → **the Catechism** (`references/catechism_template.md` — the worth-our-time decision,
 adapted from Heilmeier) → analytical core (foundations / analysis / risk matrix graded
 likelihood × impact × complexity, including risk-accepted items with rationale) → the three
-inquiry areas → **open questions, left open by this run** (authored by blue into the report's `## Open questions`, audited by red every sitting it has moved, lifted verbatim) →
+avenue sections → **open questions, left open by this run** (authored by blue into the report's `## Open questions`, audited by red every sitting it has moved, lifted verbatim) →
 footnotes (with access dates; volatility noted for living sources).
 
 The debate's own documents are beside it, one per audience: `docket.md` (the board in
-full), `debate.md` (the transcript), `judgments.md` (motions and rulings), `lines-of-inquiry.md`
-(the directions and the path each took), `evidence.md` (the computations), `run.md` (friction, record verification, cost), `CHANGELOG.md` (the report's own
+full), `debate.md` (the transcript), `judgments.md` (motions and rulings), `avenues.md`
+(the avenues and the path each took), `evidence.md` (the computations), `run.md` (friction, record verification, cost), `CHANGELOG.md` (the report's own
 revisions and withdrawn claims). Nothing is summarized away by the split — the union is the
 directory, indexed by `README.md`.
 

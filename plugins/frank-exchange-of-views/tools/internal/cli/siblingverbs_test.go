@@ -13,7 +13,7 @@ import (
 // TWO VERBS THAT WRITE ONE EVENT TYPE ARE TWO CONTRACTS ON ONE ACT, AND EACH MUST NAME THE OTHER.
 //
 // #474 split four verbs whose required fields differed — `verify`/`corroborate`, `close`/`carry`,
-// and the two halves of `line-of-inquiry` — so that cobra could require either half's fields. The
+// and the two halves of `avenue` — so that cobra could require either half's fields. The
 // split is sound and the tree carries it. It did not reach the NEIGHBOURS' help, and that is where
 // a seat chooses.
 //
@@ -92,7 +92,7 @@ func TestSplitVerbsNameEachOtherInTheirHelp(t *testing.T) {
 
 	// AND AN EXPLICIT ANNOTATION IS WHAT MARKS THE SPLIT, not a shared leaf name.
 	//
-	// `motion grade appeal` and `motion inquiry appeal` both write an `appeal` event and neither
+	// `motion grade appeal` and `motion avenue appeal` both write an `appeal` event and neither
 	// carries a Records annotation: they are ONE contract applied to two subjects, parallel by
 	// design, and a seat picks between them by naming the subject it is appealing rather than by
 	// weighing two boundaries. Demanding they cross-reference would be this gate firing on the

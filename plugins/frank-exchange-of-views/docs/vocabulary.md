@@ -45,6 +45,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [grade motion](#grade-motion) | lens, chair, blue, bench, operator |
 | [scorecard](#scorecard) | lens, chair, blue, bench, operator |
 | [occasion](#occasion) | bench |
+| [avenue](#avenue) | lens, chair, blue, bench, operator |
 
 ## the report
 
@@ -284,7 +285,7 @@ The log is the entries a seat files for the operator with the `log` verb — a m
 
 **Collisions:**
 
-- **log** — `log` only ever writes; the operator reads the log with `show log`
+- **log** — `log` only ever writes; the operator reads the log with `ops log`
 
 ## friction
 
@@ -452,7 +453,7 @@ A disposition is the bench's ruling value on a docketed gap, and it decides whet
 
 **Collisions:**
 
-- **fate** — a line of inquiry's state keeps the word
+- **fate** — an avenue's state keeps the word
 
 ## grade motion
 
@@ -500,3 +501,23 @@ A sitting's occasion is what it was convened to do — the question put to the s
 **Collisions:**
 
 - **occasion (ordinary English)** — "for want of occasion" in the friction channel is the plain word and keeps it; the FIELD is the one a bench register carries
+
+## avenue
+
+An avenue is one approach the research could take on the question — proposed by blue with what would be true if it paid off, moved to pursued, deferred, declined or abandoned, ruled on by the chair, and reviewed against the report once per epoch.
+
+**Delivered to:** lens, chair, blue, bench, operator
+
+**Not:**
+
+| variant | kind | pattern | masks | allowed in |
+|---|---|---|---|---|
+| line of inquiry | GATED | `\blines? of inquiry\b` |  |  |
+| line-of-inquiry (the verb and the view) | GATED | `\blines?-of-inquiry\b` |  |  |
+| inquiry (an avenue) | GATED | `\binquir(y\|ies)\b` |  |  |
+| direction (an avenue) | REGISTRY-ONLY |  |  |  |
+
+**Collisions:**
+
+- **direction** — plain English only: a bench REMAND states a research direction the coming seat owes, and the report's own heading is Future research directions — neither is an avenue
+- **line** — an avenue's `line` is its statement, the text `--reason` fills, and never a name for the avenue itself

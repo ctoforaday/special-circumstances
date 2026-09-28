@@ -53,7 +53,7 @@ func TestEveryCorrectableVerbTeachesTheCorrection(t *testing.T) {
 //
 // The record type is what the correction's tier is read from and what the success line's key is
 // matched on. A verb whose RecordType is its NAME rather than its event's word (`manifest-row`,
-// `spot-check`, `inquiry-support`) resolves to no type: Correctable would refuse it, and the key
+// `spot-check`, `avenue review`) resolves to no type: Correctable would refuse it, and the key
 // suffix would never match. The reverse is the omission: a verb writing a FULL or PROSE act with no
 // way to correct it.
 func TestACommandIsCorrectableExactlyWhenItRecordsACorrectableType(t *testing.T) {

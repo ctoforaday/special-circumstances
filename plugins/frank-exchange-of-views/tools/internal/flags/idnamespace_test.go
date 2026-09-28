@@ -10,7 +10,7 @@ import (
 // CAN ONE --id CARRY EVERY ID? (gblock: "I'm ok for a single id to support all of the ids. That's
 // good. We can prove no collision." — and "some IDs on one flag and others on another make no sense.")
 //
-// `--id` already meant a gap, a motion, an inquiry and a proof digest depending on the verb, while
+// `--id` already meant a gap, a motion, an avenue and a proof digest depending on the verb, while
 // `--anchor` and `--sha` carried three more kinds under their own names (#1172). Consolidating them
 // onto one flag that resolves by SHAPE is sound only if the shapes decide a value unambiguously — so
 // this is the proof, and it is over the shapes the flag package ALREADY declares rather than a second
@@ -39,7 +39,7 @@ func idShapes(t *testing.T) []struct {
 	}{
 		{"gap-id", GapID(), "G7"},
 		{"motion-id", MotionID(), "M1"},
-		{"inquiry-id", InquiryID(), "Q1"},
+		{"avenue-id", AvenueID(), "Q1"},
 		{"anchor", AnchorID(), "f-7daddb6a"},
 		{"citation-anchor", CitationAnchor(), "c-a1b2c3d4"},
 		{"finding-label", FindingLabel(), "adversary-F2"},

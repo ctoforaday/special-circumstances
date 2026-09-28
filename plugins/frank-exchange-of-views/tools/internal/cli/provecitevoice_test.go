@@ -9,7 +9,7 @@ import (
 
 // THE BIBLIOGRAPHY PRINTS SEAT TEXT, SO PROVE AND CITE MEET THE VOICE ADVISORY.
 //
-// The census that put edit, ingest and the line-of-inquiry verbs under the advisory exempted cite
+// The census that put edit, ingest and the avenue verbs under the advisory exempted cite
 // and proof as "landing only in the Bibliography". The 2026-09-11 is-91-prime run's lane drafts and
 // frozen base carried no tell; its report.md carried four, every one in a [^PN] footnote — a proof's
 // --reason, printed word for word. A cite's --title is printed the same way, as its entry. These

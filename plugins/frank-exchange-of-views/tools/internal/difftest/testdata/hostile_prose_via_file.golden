@@ -73,10 +73,10 @@ finding recorded: logic-F1 — the run-unique label a gap's found_by names (id F
 {"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-logic:anchor:FINDING001","seat_id":"red-lens-logic","ts":7,"type":"EVENT_TYPE_ANCHOR"}
 
 ═══ RENDERS ═══
--- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
+-- avenues
+# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

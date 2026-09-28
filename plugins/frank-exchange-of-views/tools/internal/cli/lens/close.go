@@ -76,7 +76,7 @@ func newClose() *cobra.Command {
 	c.MarkFlagsRequiredTogether(flags.VerifiedBy, flags.VerifiedWith, flags.VerifiedAgainst)
 	_ = c.MarkFlagRequired(flags.VerifiedBy)
 	// THE ARGUMENT IS UNCONDITIONAL FOR THIS VERB, AND CONDITIONAL FOR THE MESSAGE — the same
-	// split `blue line-of-inquiry propose` makes for --reason, and for the same reason.
+	// split `blue avenue propose` makes for --reason, and for the same reason.
 	//
 	// `Close.prose` carried `required: true`, which refuses unconditionally and therefore refused
 	// a CARRY — a carry restates a closure an earlier sitting already argued. Making it conditional

@@ -270,15 +270,15 @@ var EnumFields = map[string][]EnumField{
 		Why: "the operator triages this channel by FILTERING on the type; an untyped entry hands the reader back the reading this field exists to replace, so the write refuses one",
 	}},
 	// `finding`, and the ABOUT is the anchor a quote could not provide. Measured: a missing line
-	// of inquiry pinned to a sentence the finding called fine, and a missing risk matrix pinned to
+	// of avenue pinned to a sentence the finding called fine, and a missing risk matrix pinned to
 	// a section opening, because a live quote was the only target the verb accepted.
 	"finding": {{
 		Key: "about_kind", Flag: flags.AboutKind, Optional: true, Values: []EnumValue{
 			ev("section", "a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there"),
-			ev("inquiry", "a line of inquiry, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned"),
+			ev("avenue", "an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned"),
 			ev("gap", "a gap already on the docket, by its id — a defect in the record rather than in the report"),
 		},
-		Why: "an absence has no sentence to quote, and borrowing an innocent one as a handle points a reader of the gap list at prose the finding itself calls fine. These targets are references the record can CHECK: an avenue id either names a line this run proposed or it does not",
+		Why: "an absence has no sentence to quote, and borrowing an innocent one as a handle points a reader of the gap list at prose the finding itself calls fine. These targets are references the record can CHECK: an avenue id either names an avenue this run proposed or it does not",
 	}},
 	// `cite`, and the READING is the half a citation could not previously state. A citation says
 	// a source backs a sentence; it never said whether anyone had read the source. That gap was
@@ -292,15 +292,15 @@ var EnumFields = map[string][]EnumField{
 		},
 		Why: "a claim about what a source SAYS rests on having read it; without this the report cannot distinguish a source read at the leaf from one known only through the summary of the party whose case depends on it",
 	}},
-	// `avenue`, the schema's word. It was "line-of-inquiry" — an event type the schema does not
+	// `avenue`, the schema's word. It was "avenue" — an event type the schema does not
 	// declare — so this whole set was advertised against a body that does not exist, and nothing
 	// noticed because the key was only ever looked up by the same stale name.
 	"avenue": {{
-		Key: "status", Flag: flags.As, Values: InquiryStatuses,
-		Why: "the lines-of-inquiry projection groups BY status, so a status outside the set does not fail — it silently vanishes from the section that exists to show the roads not taken",
+		Key: "status", Flag: flags.As, Values: AvenueStatuses,
+		Why: "the avenues projection groups BY status, so a status outside the set does not fail — it silently vanishes from the section that exists to show the roads not taken",
 	}},
-	// `inquiry-review` HAS NO ENTRY BECAUSE IT HAS NO CLOSED SET, and the absence is the ruling.
-	// Its predecessor `inquiry-support` carried a four-value `--as` (supported / weakened /
+	// `avenue-review` HAS NO ENTRY BECAUSE IT HAS NO CLOSED SET, and the absence is the ruling.
+	// Its predecessor `avenue review` carried a four-value `--as` (supported / weakened /
 	// unsupported / absent) answering "does the report still carry this line". Presence is not a
 	// question — the lines are generated onto the page from the record, so blue cannot cut them —
 	// and the surviving question, whether the body delivered the research, is an ORDINARY GAP with
@@ -345,7 +345,7 @@ var EnumFields = map[string][]EnumField{
 		{
 			Key: "about_kind", Flag: flags.AboutKind, Optional: true, Values: []EnumValue{
 				ev("section", "a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there"),
-				ev("inquiry", "a line of inquiry, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned"),
+				ev("avenue", "an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned"),
 				ev("gap", "a gap already on the docket, by its id — a defect in the record rather than in the report"),
 			},
 			Why: "a gap about an absence has no sentence to quote either, and the gap list is the surface a reader actually walks: an anchor that points at prose the gap calls fine sends them to the wrong paragraph. These targets are references the record can CHECK",

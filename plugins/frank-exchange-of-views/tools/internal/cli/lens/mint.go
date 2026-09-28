@@ -105,7 +105,7 @@ func newMint() *cobra.Command {
 		// read "for a gap about something MISSING, quote the sentence where it SHOULD be;
 		// that is how a lens finding anchors an omission" — and it was true when it was
 		// written. `lens finding` stopped anchoring that way (#742): an absence names the
-		// section it is missing from, the inquiry whose reason it argues against, or the gap
+		// section it is missing from, the avenue whose reason it argues against, or the gap
 		// it is about, and the record CHECKS the reference. Leaving the instruction here
 		// would have made a seat spell one act two ways across the two verbs of one act, and
 		// the gap minted from such a finding would re-acquire the handle the finding shed.
@@ -262,7 +262,7 @@ func newMint() *cobra.Command {
 	flags.Text(c, flags.Quote, flags.DescQuote)
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
 		"anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE")
-	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, a line-of-inquiry id (Q1), or a gap id. It is CHECKED against the record")
+	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, a avenue id (Q1), or a gap id. It is CHECKED against the record")
 	flags.Text(c, flags.Problem, "what is wrong (or pass it via --reason)")
 	flags.Text(c, flags.Fix, "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
 	flags.Text(c, flags.New, fmt.Sprintf("concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than %d characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified", bluedoc.MaxProposalGrowth))

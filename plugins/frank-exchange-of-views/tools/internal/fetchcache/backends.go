@@ -863,7 +863,7 @@ func EricRecord(f Fetcher, rawURL string) (*Attempt, error) {
 // A DOI IS DELIBERATELY NOT USED, and this was measured rather than reasoned. ERIC exposes no DOI
 // field, so a DOI can only go in as free text — and free text matches a DOI CITED INSIDE another
 // record. Asked for 10.5951/MT.82.1.0035 (the Savage column, 1989) it returned "How an
-// Inquiry-Oriented Textbook Shaped a Calculus Instructor's Planning" (2022), whose abstract cites
+// Avenue-Oriented Textbook Shaped a Calculus Instructor's Planning" (2022), whose abstract cites
 // a different 10.5951 DOI, and the backend would have presented that as the source. A confident
 // wrong paper is worse here than no answer: the seat has no way to tell, and the whole point of
 // this surface is to say what a source says.

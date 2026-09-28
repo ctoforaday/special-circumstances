@@ -16,7 +16,7 @@ import (
 
 // TestAssembleEndToEnd drives a minimal but real run through the record API and asserts the
 // assembled report.md combines the two ownership classes correctly: blue's audited sections
-// are lifted verbatim, and the verdict, findings, inquiries and debate are composed from the
+// are lifted verbatim, and the verdict, findings, avenues and debate are composed from the
 // event log. It is the driveable check the unit tests around each composer cannot give.
 func TestAssembleEndToEnd(t *testing.T) {
 	runDir := newRun(t)
@@ -90,8 +90,8 @@ func TestAssembleEndToEnd(t *testing.T) {
 	// replay as no-ops (skip-if-present).
 	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(blue)})
 
-	// Red mints a gap; the parties take positions; blue records one pursued line of inquiry (an
-	// expansion) and one abandoned line of inquiry (an alternative considered); the bench opines;
+	// Red mints a gap; the parties take positions; blue records one pursued avenue (an
+	// expansion) and one abandoned avenue (an alternative considered); the bench opines;
 	// the run's terminal verdict is recorded.
 	add("red-chair", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		GapId: proto.String("G1"), Problem: proto.String("eviction races the reader"),
@@ -223,26 +223,26 @@ func TestAssembleEndToEnd(t *testing.T) {
 		}
 	}
 
-	// THE DIRECTIONS SHIP. report.md files each line by its fate and nothing about how it got
+	// THE AVENUES SHIP. report.md files each avenue by its fate and nothing about how it got
 	// there; the path, the seat that last moved it and red's ruling were removed from it as debate,
 	// so they must land in a document a reader of the archived set can open — or they are data dead
 	// in the record. Q2 was recorded straight as `abandoned`, with no `pursued` step, and the
 	// report's tag must not claim a pursuit the record does not hold.
-	inquiryDoc := read(FileInquiry)
+	avenueDoc := read(FileAvenues)
 	for _, want := range []string{"## pursued (1)", "## abandoned (1)", "Q1 model-check the two-writer interleaving", "(blue-respond)"} {
-		if !strings.Contains(inquiryDoc, want) {
-			t.Errorf("lines-of-inquiry.md missing %q\n---\n%s", want, inquiryDoc)
+		if !strings.Contains(avenueDoc, want) {
+			t.Errorf("avenues.md missing %q\n---\n%s", want, avenueDoc)
 		}
 	}
 	if !strings.Contains(got, "rewrite the cache lock-free** [abandoned before pursuit]") {
-		t.Errorf("a line abandoned with no pursued step must say so in report.md, not claim a pursuit:\n%s", got)
+		t.Errorf("an avenue abandoned with no pursued step must say so in report.md, not claim a pursuit:\n%s", got)
 	}
-	if !strings.Contains(index, "[Directions](lines-of-inquiry.md)") {
-		t.Errorf("README.md does not name lines-of-inquiry.md — a document the index omits is one nobody opens\n---\n%s", index)
+	if !strings.Contains(index, "[Avenues](avenues.md)") {
+		t.Errorf("README.md does not name avenues.md — a document the index omits is one nobody opens\n---\n%s", index)
 	}
 	// The link bar is built over the documents actually written, so it reaches the new one.
-	if !strings.Contains(got, "[Directions](lines-of-inquiry.md)") {
-		t.Errorf("report.md's link bar does not reach lines-of-inquiry.md\n---\n%s", got)
+	if !strings.Contains(got, "[Avenues](avenues.md)") {
+		t.Errorf("report.md's link bar does not reach avenues.md\n---\n%s", got)
 	}
 	// EVERY DOCUMENT WRITTEN IS IN THE SET THE OUTSIDE READERS ASK FOR. Files() — docOrder — is what
 	// the capture screens, the archive and the fuzz oracle read, and what Write sweeps for stale
@@ -277,11 +277,11 @@ func TestAssembleEndToEnd(t *testing.T) {
 		}
 	}
 
-	// Fate is not crossed: the pursued line of inquiry is an expansion, not an alternative.
+	// Fate is not crossed: the pursued avenue is an expansion, not an alternative.
 	alt := got[strings.Index(got, "## Alternatives considered"):]
 	alt = alt[:strings.Index(alt, "## Open questions")]
 	if strings.Contains(alt, "model-check the two-writer") {
-		t.Errorf("a pursued line of inquiry leaked into Alternatives considered:\n%s", alt)
+		t.Errorf("a pursued avenue leaked into Alternatives considered:\n%s", alt)
 	}
 }
 

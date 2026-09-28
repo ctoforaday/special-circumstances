@@ -334,7 +334,7 @@ WHERE NOT EXISTS (SELECT 1 FROM "correction" c WHERE c."replacement" = u."root")
 -- position "pos": its own id, or — for a replacement — the id of the act at the ROOT of its chain.
 -- A correction takes its target's place in every ordering: a reader picking the FIRST or the LATEST
 -- act orders by "pos", so a replacement cannot jump ahead of a later act by the same seat (a line of
--- inquiry's proposal corrected after it was moved must not become the line's latest status).
+-- avenue's proposal corrected after it was moved must not become the line's latest status).
 CREATE VIEW "live_event" AS
 SELECT e."id" AS "event_id", COALESCE(re."id", e."id") AS "pos"
 FROM "events" e
@@ -619,21 +619,21 @@ SELECT
 -- write precisely because it would replace the first in every later reader — so the view
 -- states the first-wins rule ONCE, where a legacy record carrying an illegal second row
 -- cannot multiply anybody's join. Keyed on the id alone rather than joined to 'motion',
--- because a direction motion has no filing row (the line of inquiry's proposal IS the
+-- because an avenue motion has no filing row (the avenue's proposal IS the
 -- filing) and its answers must be askable all the same.
 CREATE VIEW "motion_answers" AS
 SELECT
   ids."motion_id"                                        AS "motion_id",
   fr."grade"                                             AS "grade",
   fr."petition"                                          AS "petition",
-  fr."direction"                                         AS "direction",
+  fr."avenue"                                            AS "avenue",
   -- THE DOCKET ARM IS A TABLE, NOT A COLUMN, and that is why it is joined rather than read.
   -- Its three siblings are enums and land as columns on "motion_rule"; the bench's is a MESSAGE
   -- (it carries the principle, the tension and what would reopen it), so its disposition lives
   -- one table down. Left out of the COALESCE below, "ruling" is NULL for every bench ruling ever
   -- made and RequireUnruledMotion reads the whole docket as unanswered.
   rd."disposition"                                       AS "docket",
-  COALESCE(fr."grade", fr."petition", fr."direction", rd."disposition") AS "ruling",
+  COALESCE(fr."grade", fr."petition", fr."avenue", rd."disposition") AS "ruling",
   fre."seat_id"                                          AS "ruled_by",
   fre."id"                                            AS "ruled_seq",
   fa."reason"                                            AS "appeal_reason",
@@ -652,13 +652,13 @@ LEFT JOIN "motion_appeal" fa ON fa."event_id" =
     WHERE y."motion_id" = ids."motion_id" ORDER BY ly."pos" LIMIT 1)
 LEFT JOIN "events" fae ON fae."id" = fa."event_id";
 
--- A LINE OF INQUIRY, whole: proposed by whom, saying what, where its status stands now, and
--- how red last ruled the direction — the join that used to live in three separate readers
--- (the Inquiries fold, InquiryRuling, and the report's rows). The proposal row carries the
--- substance; the LATEST avenue event carries the status; the LATEST direction-subject
+-- A AVENUE, whole: proposed by whom, saying what, where its status stands now, and
+-- how red last ruled the avenue — the join that used to live in three separate readers
+-- (the Avenues fold, AvenueRuling, and the report's rows). The proposal row carries the
+-- substance; the LATEST avenue event carries the status; the LATEST avenue-subject
 -- ruling carries red's answer, including a later ruling that carried no word — an unset arm
 -- on the newest ruling is red ruling NOTHING, not an invitation to read an older one.
-CREATE VIEW "line_of_inquiry" AS
+CREATE VIEW "avenue_state" AS
 SELECT
   p."avenue_id"                        AS "avenue_id",
   pe."seat_id"                         AS "proposed_by",
@@ -666,7 +666,7 @@ SELECT
   fp."line"                            AS "line",
   ls."status"                          AS "status",
   lse."id"                          AS "status_seq",
-  lr."direction"                       AS "direction_ruling",
+  lr."avenue"                          AS "avenue_ruling",
   lre."seat_id"                        AS "ruled_by",
   lre."id"                          AS "ruled_seq"
 -- Only the acts that stand, in their "pos" order: a proposal corrected after it was moved keeps its
@@ -683,7 +683,7 @@ LEFT JOIN "avenue" ls ON ls."event_id" =
 LEFT JOIN "events" lse ON lse."id" = ls."event_id"
 LEFT JOIN "motion_rule" lr ON lr."event_id" =
   (SELECT y."event_id" FROM "motion_rule" y JOIN "live_event" ly ON ly."event_id" = y."event_id"
-     WHERE y."motion_id" = p."avenue_id" AND y."subject" = 'direction' ORDER BY ly."pos" DESC LIMIT 1)
+     WHERE y."motion_id" = p."avenue_id" AND y."subject" = 'avenue' ORDER BY ly."pos" DESC LIMIT 1)
 LEFT JOIN "events" lre ON lre."id" = lr."event_id";
 
 -- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report (#709). The

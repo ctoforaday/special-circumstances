@@ -62,7 +62,7 @@ feov-record: record: motion rule requires --principle to say something (the rule
 
 rule on a docket motion — this verb is the bench seat's, and it appears only on that surface.
 
-EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
+EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
 
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
 your text, and records whatever the command printed — or nothing — in its place. Pass every
@@ -123,7 +123,7 @@ feov-record: record: motion docket rule requires --reopens-on (what would change
 
 rule on a docket motion — this verb is the bench seat's, and it appears only on that surface.
 
-EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
+EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
 
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
 your text, and records whatever the command printed — or nothing — in its place. Pass every
@@ -187,10 +187,10 @@ Global Flags:
 {"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":6,"type":"EVENT_TYPE_REGISTER"}
 
 ═══ RENDERS ═══
--- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
+-- avenues
+# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

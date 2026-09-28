@@ -16,7 +16,7 @@ import (
 // told it is finished by one surface and refused by another learns to trust neither — is real and
 // still holds. But a duty is derived only where omission already carries a mechanical consequence,
 // so it can name 4 of blue's verbs, 5 of merge's, 3 of bench's and 2 of lens's. Every act whose
-// omission is merely a QUALITY loss — a line of inquiry never revisited, a repair with no manifest
+// omission is merely a QUALITY loss — an avenue never revisited, a repair with no manifest
 // row, an archive never sampled, a citation nobody verified, a source blue never cited, a proof
 // nobody re-ran, a grade accepted and never moved — got no line. Those are exactly the acts the
 // probe boards bait and the measured runs skip.
@@ -57,17 +57,17 @@ func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item 
 	switch role {
 	case "blue":
 		// A line proposed and never revisited records an intention rather than a choice.
-		// Measured over six runs: 83 of 86 inquiries were declared in round 0 and not one was
+		// Measured over six runs: 83 of 86 avenues were declared in round 0 and not one was
 		// ever moved.
 		//
-		// THE PREDICATE IS StaleInquiries, NOT A SECOND COPY OF IT. This block used to inline
-		// `Status == "proposed" || Status == "pursued"`, which is what StaleInquiries also said,
+		// THE PREDICATE IS StaleAvenues, NOT A SECOND COPY OF IT. This block used to inline
+		// `Status == "proposed" || Status == "pursued"`, which is what StaleAvenues also said,
 		// so the two drifted together and were wrong together: neither read the epoch, though
 		// both texts promised one. The `How` also named a status set that excluded `pursued`,
 		// which is where a followed line comes to REST — so a seat that did the right thing
 		// was told to abandon or defer it. Both are fixed at the single predicate now.
-		for _, a := range StaleInquiriesOf(evs) {
-			add(fmt.Sprintf("line of inquiry %s is at %q and has not moved since epoch %d — a line declared once and never revisited records an intention rather than a choice", a.ID, a.Status, a.Epoch))
+		for _, a := range StaleAvenuesOf(evs) {
+			add(fmt.Sprintf("avenue %s is at %q and has not moved since epoch %d — an avenue declared once and never revisited records an intention rather than a choice", a.ID, a.Status, a.Epoch))
 		}
 		// A repair with no receipt is one nobody audited, including its author. THE PREDICATE IS
 		// ManifestOwed, the one the report and the scorecard read: a gap blue was dispatched onto,

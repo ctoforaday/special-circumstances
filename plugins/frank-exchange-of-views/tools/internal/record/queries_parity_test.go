@@ -133,12 +133,12 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("requireSupersededAreClosed = %v, want the stranded pair named", err)
 	}
 
-	// requireInquiry: the proposed line resolves, an unknown one is refused.
-	if err := requireInquiry(run, "Q1", "move", "--id"); err != nil {
-		t.Errorf("requireInquiry(Q1) = %v", err)
+	// requireAvenue: the proposed line resolves, an unknown one is refused.
+	if err := requireAvenue(run, "Q1", "move", "--id"); err != nil {
+		t.Errorf("requireAvenue(Q1) = %v", err)
 	}
-	if err := requireInquiry(run, "Q9", "move", "--id"); err == nil || !strings.Contains(err.Error(), "names no line of inquiry") {
-		t.Errorf("requireInquiry on an unknown id = %v, want the refusal", err)
+	if err := requireAvenue(run, "Q9", "move", "--id"); err == nil || !strings.Contains(err.Error(), "names no avenue") {
+		t.Errorf("requireAvenue on an unknown id = %v, want the refusal", err)
 	}
 
 	// Estoppel: the byte-exact pair, the proof join, the edit's old span.

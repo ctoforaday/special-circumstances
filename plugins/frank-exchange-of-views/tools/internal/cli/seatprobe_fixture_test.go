@@ -76,8 +76,8 @@ func TestWriteSeatProbeFixture(t *testing.T) {
 	}
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	buildBoard(t, dest, board)
-	t.Logf("board %q written to %s for seat %s: %d gap(s), %d inquiry(s), %d expectation(s)",
-		board.Name, dest, board.Seat, len(board.Gaps), len(board.Inquiries), len(board.Expect))
+	t.Logf("board %q written to %s for seat %s: %d gap(s), %d avenue(s), %d expectation(s)",
+		board.Name, dest, board.Seat, len(board.Gaps), len(board.Avenues), len(board.Expect))
 }
 
 // buildBoard materialises a board THROUGH THE REAL WRITE PATHS.
@@ -131,16 +131,16 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		}
 	}
 
-	for i, a := range b.Inquiries {
-		if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond",
+	for i, a := range b.Avenues {
+		if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", "blue-respond",
 			"--reason", a.Line, "--hypothesis", a.Hypothesis); err != nil {
-			t.Fatalf("line of inquiry %d: %v", i, err)
+			t.Fatalf("avenue %d: %v", i, err)
 		}
 		if a.Ruled == "" {
 			continue
 		}
 		id := fmt.Sprintf("A%d", i+1)
-		if _, err := run(t, "motion", "inquiry", "rule", "--run", runDir, "--seat-id", "red-chair",
+		if _, err := run(t, "motion", "avenue", "rule", "--run", runDir, "--seat-id", "red-chair",
 			"--id", id, "--as", a.Ruled,
 			"--reason", "ruled "+a.Ruled+" on the line as it was proposed"); err != nil {
 			t.Fatalf("rule %s: %v", id, err)

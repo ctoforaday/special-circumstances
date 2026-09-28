@@ -14,8 +14,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// THE STATE GRAPH (#673): which event may legally follow which, for a gap, a motion and a line of
-// inquiry — probed by EXECUTION.
+// THE STATE GRAPH (#673): which event may legally follow which, for a gap, a motion and an avenue
+// — probed by EXECUTION.
 //
 // #535 split this out because the SURFACE graph — role → verb → event, gated since #669 — can tell
 // you a verb is unreachable but not that an ENTITY can get stuck. "Dead end" means nothing without
@@ -25,7 +25,7 @@ import (
 // DERIVED, NOT MODELLED, which is #535's own rule. There is no transition table here to drift from
 // the code. Each state is BUILT by running the real verbs against a real record, each act is then
 // attempted for real, and the resulting state is read back off the record's own projections
-// (record.Gaps, record.Motions, record.Inquiries). What the matrix reports is what the shipped
+// (record.Gaps, record.Motions, record.Avenues). What the matrix reports is what the shipped
 // write path did.
 //
 // SEAT SCOPE IS FACTORED OUT ON PURPOSE. `close` is the chair's verb and the bench is refused it —
@@ -43,7 +43,7 @@ type probeAct struct {
 // entityProbe is one entity's lifecycle: how to build each state, how to read it back, and what
 // may be attempted from it.
 //
-// GENERIC BECAUSE THREE COPIES IS THREE PLACES TO FIX. The gap, the motion and the line of inquiry
+// GENERIC BECAUSE THREE COPIES IS THREE PLACES TO FIX. The gap, the motion and the avenue
 // have different verbs and different projections and the same question, and the first draft of this
 // file answered it for the motion alone. A second and third copy would have drifted the moment the
 // outcome vocabulary or the overwrite rule moved.
@@ -65,10 +65,10 @@ type entityProbe struct {
 	//
 	// THIS IS THE DIFFERENCE BETWEEN THE FINDING AND FOUR FALSE ONES. The first draft of this gate
 	// flagged every rewrite of an already-set field and reported five: `regrade` changing a
-	// severity, which is the verb's entire purpose, and a line of inquiry re-recording its own
+	// severity, which is the verb's entire purpose, and an avenue re-recording its own
 	// fate, which debate.js calls out as legitimate in terms — "Re-recording `pursued` WITH what
 	// it learned is a legitimate reaffirmation and settles the line for that round — do not read it
-	// as neglect". Both keep the prior value: Gap.Regrades is a list and Inquiry.History is a line
+	// as neglect". Both keep the prior value: Gap.Regrades is a list and Avenue.History is a line
 	// per move. The double appeal keeps nothing, which is why it is the one that survived.
 	accumulates []string
 	// terminal names the states from which nothing more is expected, with the reason each is a
@@ -180,7 +180,7 @@ func probeEntity(t *testing.T, e entityProbe) (edges []stateEdge, deadEnds, over
 			// OLD VALUE. Three distinctions, each load-bearing:
 			//
 			//   - a FIRST write into an empty field is an ordinary act that happens not to move
-			//     the state — red ruling a proposed line of inquiry, say;
+			//     the state — red ruling a proposed avenue, say;
 			//   - an append ALONGSIDE the rewrite means the prior value is still readable, so the
 			//     act records rather than replaces;
 			//   - only a replacement nothing preserves is the defect, because that is the one
@@ -201,7 +201,7 @@ func probeEntity(t *testing.T, e entityProbe) (edges []stateEdge, deadEnds, over
 				if was == "" {
 					// A FIRST WRITE IS NOT NOTHING, and calling it `inert` was this matrix
 					// naming the wrong thing with confidence — the failure mode #666 was
-					// corrected for. `motion inquiry rule` on a proposed line sets `ruling` and
+					// corrected for. `motion avenue rule` on a proposed line sets `ruling` and
 					// leaves the STATUS alone, which is the whole two-axis design: blue moves
 					// the line, red rules it. Reported as inert, that read as a verb the record
 					// ignores.
@@ -395,7 +395,7 @@ func gapOf(t *testing.T, runDir, id string) *record.Gap {
 // `prelude` is what must exist before the motion can: the gap a grade motion argues over, the
 // PROPOSAL a direction motion rules on. `order` maps each state to the act that reaches it, which
 // is where the direction motion differs — it has no `file` verb at all, because its filing half is
-// `line-of-inquiry propose` and the motion does not exist until red rules.
+// `avenue propose` and the motion does not exist until red rules.
 func motionProbe(subject, id string, prelude, acts []probeAct, states []string, order, terminal map[string]string) entityProbe {
 	return entityProbe{
 		name: "motion/" + subject, id: id,
@@ -507,18 +507,18 @@ func petitionMotionProbe() entityProbe {
 		})
 }
 
-// inquiryMotionProbe is the DIRECTION motion: the third subject, and the one shaped differently.
+// avenueMotionProbe is the DIRECTION motion: the third subject, and the one shaped differently.
 //
-// It has no `file` verb. Its filing half is `line-of-inquiry propose`, which records an `avenue`
+// It has no `file` verb. Its filing half is `avenue propose`, which records an `avenue`
 // rather than a motion event, and record.Motions only assembles the motion once a RULING arrives —
 // so `unruled` here means "the proposal exists and nobody has ruled it", not "nothing exists".
 // That asymmetry is why this subject was left unprobed in the first pass, and stating it was not
 // the same as covering it.
-func inquiryMotionProbe() entityProbe {
-	return motionProbe("inquiry", "Q1", []probeAct{inquiryPropose()}, []probeAct{
-		{"rule", []string{"motion", "inquiry", "rule", "--id", "Q1", "--as", "endorsed",
+func avenueMotionProbe() entityProbe {
+	return motionProbe("avenue", "Q1", []probeAct{avenuePropose()}, []probeAct{
+		{"rule", []string{"motion", "avenue", "rule", "--id", "Q1", "--as", "endorsed",
 			"--reason", "worth this run's time"}},
-		{"appeal", []string{"motion", "inquiry", "appeal", "--id", "Q1",
+		{"appeal", []string{"motion", "avenue", "appeal", "--id", "Q1",
 			"--reason", "pressing the ruling on new grounds"}},
 	}, []string{"unruled", "ruled", "appealed"},
 		map[string]string{"ruled": "rule", "appealed": "appeal"},
@@ -527,7 +527,7 @@ func inquiryMotionProbe() entityProbe {
 		})
 }
 
-// ---- the line of inquiry ----
+// ---- the avenue ----
 //
 // Its lifecycle has TWO AXES and only one of them is the state. Blue MOVES a line between
 // `proposed`, `pursued`, `declined`, `abandoned` and `deferred`; red RULES it `endorsed`,
@@ -535,28 +535,28 @@ func inquiryMotionProbe() entityProbe {
 // is content, which is why a first ruling reads here as an ordinary act that does not move the
 // state rather than as a transition.
 
-func inquiryPropose() probeAct {
-	return probeAct{"propose", []string{"line-of-inquiry", "propose",
+func avenuePropose() probeAct {
+	return probeAct{"propose", []string{"avenue", "propose",
 		"--reason", "a line worth taking", "--hypothesis", "it would settle the open question"}}
 }
 
-func inquiryProbe() entityProbe {
+func avenueProbe() entityProbe {
 	moveTo := func(status string) probeAct {
-		return probeAct{"move:" + status, []string{"line-of-inquiry", "move", "--id", "Q1",
+		return probeAct{"move:" + status, []string{"avenue", "move", "--id", "Q1",
 			"--as", status, "--reason", "what became of it"}}
 	}
 	return entityProbe{
-		name: "inquiry", id: "Q1",
+		name: "avenue", id: "Q1",
 		// Every status the vocabulary offers is built and probed, because a fate nobody can leave
 		// is exactly what this gate is for and `deferred` and `abandoned` are the two most likely
 		// to be one.
 		states: []string{"unproposed", "proposed", "pursued", "declined", "abandoned", "deferred"},
 		acts: []probeAct{
-			inquiryPropose(),
+			avenuePropose(),
 			moveTo("pursued"), moveTo("declined"), moveTo("abandoned"), moveTo("deferred"),
-			{"rule", []string{"motion", "inquiry", "rule", "--id", "Q1", "--as", "endorsed",
+			{"rule", []string{"motion", "avenue", "rule", "--id", "Q1", "--as", "endorsed",
 				"--reason", "worth this run's time"}},
-			{"appeal", []string{"motion", "inquiry", "appeal", "--id", "Q1",
+			{"appeal", []string{"motion", "avenue", "appeal", "--id", "Q1",
 				"--reason", "pressing the ruling on new grounds"}},
 		},
 		buildTo: func(t *testing.T, state string) string {
@@ -565,19 +565,19 @@ func inquiryProbe() entityProbe {
 			if state == "unproposed" {
 				return runDir
 			}
-			if !build(t, runDir, inquiryPropose()) {
-				t.Fatalf("no seat could propose a line of inquiry")
+			if !build(t, runDir, avenuePropose()) {
+				t.Fatalf("no seat could propose an avenue")
 			}
 			if state != "proposed" {
 				if !build(t, runDir, moveTo(state)) {
-					t.Fatalf("no seat could move a line of inquiry to %q", state)
+					t.Fatalf("no seat could move an avenue to %q", state)
 				}
 			}
 			return runDir
 		},
 		read: func(t *testing.T, runDir string) string {
 			t.Helper()
-			q := inquiryOf(t, runDir, "Q1")
+			q := avenueOf(t, runDir, "Q1")
 			if q == nil {
 				return "unproposed"
 			}
@@ -585,7 +585,7 @@ func inquiryProbe() entityProbe {
 		},
 		fields: func(t *testing.T, runDir string) map[string]string {
 			t.Helper()
-			q := inquiryOf(t, runDir, "Q1")
+			q := avenueOf(t, runDir, "Q1")
 			if q == nil {
 				return map[string]string{}
 			}
@@ -599,7 +599,7 @@ func inquiryProbe() entityProbe {
 		},
 		accumulates: []string{"history"},
 		// NOTHING IS DECLARED TERMINAL HERE, and that is a claim rather than an omission: a line
-		// of inquiry is a LIVING RECORD — debate.js tells blue "every round, revisit what is still
+		// of avenue is a LIVING RECORD — debate.js tells blue "every round, revisit what is still
 		// open and say what became of it" — so every fate must remain movable. A fate that could
 		// not be left would be a line blue is forbidden to revisit, which is the opposite of what
 		// the lifecycle was built for.
@@ -607,7 +607,7 @@ func inquiryProbe() entityProbe {
 	}
 }
 
-func inquiryOf(t *testing.T, runDir, id string) *record.Inquiry {
+func avenueOf(t *testing.T, runDir, id string) *record.Avenue {
 	t.Helper()
 	rn, err := record.OpenRun(runDir)
 	if err != nil {
@@ -617,7 +617,7 @@ func inquiryOf(t *testing.T, runDir, id string) *record.Inquiry {
 	if err != nil {
 		t.Fatalf("reading the board: %v", err)
 	}
-	for _, q := range record.InquiriesOf(b.Events) {
+	for _, q := range record.AvenuesOf(b.Events) {
 		if q.ID == id {
 			return q
 		}
@@ -635,9 +635,9 @@ var entityEvents = map[string][]string{
 	// motion_rule is here as well as under "motion" because a DOCKET ruling closes a gap: the
 	// bench's disposition is a motion ruling now, so the gap's third exit is an event the motion
 	// entity also owns. One event, two entities, and saying so is what keeps both graphs honest.
-	"gap":     {"mint", "close", "regrade", "opinion", "motion_rule"},
-	"motion":  {"motion", "motion_rule", "motion_appeal"},
-	"inquiry": {"avenue"},
+	"gap":    {"mint", "close", "regrade", "opinion", "motion_rule"},
+	"motion": {"motion", "motion_rule", "motion_appeal"},
+	"avenue": {"avenue"},
 }
 
 // TestEveryVerbThatTouchesAProbedEntityIsProbed keeps the act tables honest.
@@ -667,7 +667,7 @@ func TestEveryVerbThatTouchesAProbedEntityIsProbed(t *testing.T) {
 	}
 
 	probed := map[string]bool{}
-	for _, p := range []entityProbe{gapProbe(t), gradeMotionProbe(), petitionMotionProbe(), inquiryMotionProbe(), inquiryProbe()} {
+	for _, p := range []entityProbe{gapProbe(t), gradeMotionProbe(), petitionMotionProbe(), avenueMotionProbe(), avenueProbe()} {
 		for _, a := range p.acts {
 			var path []string
 			for _, w := range a.args {
@@ -730,7 +730,7 @@ func TestEveryVerbThatTouchesAProbedEntityIsProbed(t *testing.T) {
 func TestNoEntityCanReachAStateNothingCanLeave(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 
-	probes := []entityProbe{gapProbe(t), gradeMotionProbe(), petitionMotionProbe(), inquiryMotionProbe(), inquiryProbe()}
+	probes := []entityProbe{gapProbe(t), gradeMotionProbe(), petitionMotionProbe(), avenueMotionProbe(), avenueProbe()}
 
 	var edges []stateEdge
 	var deadEnds, overwrites []string

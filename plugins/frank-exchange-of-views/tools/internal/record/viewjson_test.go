@@ -116,7 +116,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 		t.Errorf("redRounds = %d, want 2", redRounds)
 	}
 	// The markdown debate render is cross-checked against these same events in the view
-	// package's tests (TestMarkdownDebateChangelogInquiryAndCitations); the render moved
+	// package's tests (TestMarkdownDebateChangelogAvenueAndCitations); the render moved
 	// out of this package, so the JSON view is pinned here and the markdown there.
 }
 

@@ -13,7 +13,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// line of inquiry: a line of inquiry, and what became of it.
+// avenue: an avenue, and what became of it.
 //
 // think-around-problem mandates exploring genuinely distinct alternatives before
 // a significant decision. terse-communication forbids narrating options. So the
@@ -41,7 +41,7 @@ import (
 //	propose  --reason "<the approach>" --hypothesis "<what would be true if it pays off>"
 //	move     --id A1 --as pursued|declined|abandoned|deferred --reason "<what changed>"
 //
-// The move form is the whole point. Measured over 86 line-of-inquiry events in six runs: ZERO
+// The move form is the whole point. Measured over 86 avenue events in six runs: ZERO
 // were ever recorded twice and ZERO statuses ever changed, because there was no id and no update
 // path. 83 of 86 landed in round 0 — so "pursued" meant "I intend to", nothing could ever
 // falsify it, and a direction that died mid-run had no way to say so.
@@ -54,17 +54,17 @@ import (
 //
 // --hypothesis is what makes a later move checkable: a line that says what would be true if it
 // paid off can be abandoned against its own claim rather than on a shrug.
-func newInquiry() *cobra.Command {
+func newAvenue() *cobra.Command {
 	c := &cobra.Command{
-		Use:          "line-of-inquiry",
-		Short:        "a direction the report could take, and what became of it — `propose` one, `move` one you already proposed",
+		Use:          "avenue",
+		Short:        "an approach the research could take, and what became of it — `propose` one, `move` one you already proposed",
 		SilenceUsage: true,
 	}
-	c.AddCommand(newInquiryPropose(), newInquiryMove())
+	c.AddCommand(newAvenuePropose(), newAvenueMove())
 	return c
 }
 
-func newInquiryPropose() *cobra.Command {
+func newAvenuePropose() *cobra.Command {
 	c := seat.Prose(seat.Records(seat.New("propose", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
@@ -75,7 +75,7 @@ func newInquiryPropose() *cobra.Command {
 			return nil, err
 		}
 		// CRASH-RETRY IDEMPOTENCY, before an id is minted. A seat whose call returned nothing retries
-		// it, and without this the retry is a second line of inquiry saying the same thing — ten for
+		// it, and without this the retry is a second avenue saying the same thing — ten for
 		// five on universe-m12. A CORRECTION is exempt: it re-states an act on purpose, and
 		// proposalID gives it the corrected line's own id.
 		if corrects, cerr := s.CorrectionTarget(); cerr == nil && corrects == nil {
@@ -84,7 +84,7 @@ func newInquiryPropose() *cobra.Command {
 				return nil, err
 			}
 			if prior != "" {
-				return inquiryResult{ID: prior, Status: "proposed", Line: why, Idempotent: true}, nil
+				return avenueResult{ID: prior, Status: "proposed", Line: why, Idempotent: true}, nil
 			}
 		}
 		id, err := proposalID(s, run)
@@ -110,7 +110,7 @@ func newInquiryPropose() *cobra.Command {
 		// whole. Both read seat.Reason, the one resolver.
 		body.Line = proto.String(why)
 		body.Reason = proto.String(why)
-		// THE ADVISORY, over exactly what `inquiries()` composes into report.md from this act: the
+		// THE ADVISORY, over exactly what `avenues()` composes into report.md from this act: the
 		// line (which is also the reason — propose writes the same resolved prose to both) and the
 		// method, rendered there as _(method)_. Not the hypothesis: report.md never shows it, so
 		// advising on it would be noise about text no reader of the report sees.
@@ -121,7 +121,7 @@ func newInquiryPropose() *cobra.Command {
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		return inquiryResult{ID: id, Status: "proposed", Line: body.GetLine(), VoiceTells: tells}, nil
+		return avenueResult{ID: id, Status: "proposed", Line: body.GetLine(), VoiceTells: tells}, nil
 	}), "avenue"))
 
 	seat.Supplies(c, "status", "a proposal starts at `proposed` — the state the field exists to express, and the one a seat would not think to type. A MOVE requires it")
@@ -133,7 +133,7 @@ func newInquiryPropose() *cobra.Command {
 	// is where a seat actually learns the verb. Without it the only refusal was validate's, which
 	// arrives later and teaches less.
 	_ = c.MarkFlagRequired(flags.Reason)
-	flags.Text(c, flags.Hypothesis, "what would be TRUE if this line pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug")
+	flags.Text(c, flags.Hypothesis, "what would be TRUE if this avenue pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug")
 	flags.Text(c, flags.Method, "the source class or technique it belonged to, when that is what distinguishes it")
 	return seat.Correctable(c)
 }
@@ -149,29 +149,29 @@ func proposalID(s seat.Context, run record.Run) (string, error) {
 	if a, ok := t.(*recordpb.Avenue); ok {
 		return a.GetAvenueId(), nil
 	}
-	return record.MintInquiryID(run)
+	return record.MintAvenueID(run)
 }
 
-func newInquiryMove() *cobra.Command {
+func newAvenueMove() *cobra.Command {
 	c := seat.Prose(seat.Records(seat.New("move", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
 			return nil, err
 		}
 		id := seat.Str(cmd, flags.ID)
-		if err := record.RequireInquiryRef(run, id); err != nil {
+		if err := record.RequireAvenueRef(run, id); err != nil {
 			return nil, err
 		}
 		st, known := record.AvenueStatusOf(seat.Str(cmd, flags.As))
 		if !known {
-			return nil, feov.Errorf(feov.Validation, "blue line-of-inquiry: %q is not a fate a line can take", seat.Str(cmd, flags.As))
+			return nil, feov.Errorf(feov.Validation, "blue avenue: %q is not a fate an avenue can take", seat.Str(cmd, flags.As))
 		}
 		body := &recordpb.Avenue{
 			AvenueId:         proto.String(id),
 			SupersedesStatus: proto.String("1"),
 			Status:           &st,
 		}
-		// THE CONTEST IS `motion inquiry appeal` (#344), NOT A FIELD HERE. `contests_ruling`
+		// THE CONTEST IS `motion avenue appeal` (#344), NOT A FIELD HERE. `contests_ruling`
 		// was set as a side effect of moving a line to `pursued` against an adverse ruling,
 		// and that coupling can only record disagreement that WINS: in one real record the
 		// merge ruled a line too thin, blue argued the reasoning at the leaf and then
@@ -188,41 +188,41 @@ func newInquiryMove() *cobra.Command {
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		return inquiryResult{ID: id, Status: recordpb.Word(body.GetStatus()), Moved: true, VoiceTells: tells}, nil
+		return avenueResult{ID: id, Status: recordpb.Word(body.GetStatus()), Moved: true, VoiceTells: tells}, nil
 	}), "avenue"))
 
-	c.Flags().Var(flags.InquiryID().WithCheck(record.InquiryExists), flags.ID, "the line of inquiry whose fate you are moving (Q1, Q2 …); the lines-of-inquiry projection lists every one")
+	c.Flags().Var(flags.AvenueID().WithCheck(record.AvenueExists), flags.ID, "the avenue whose fate you are moving (Q1, Q2 …); the avenues projection lists every one")
 	_ = c.MarkFlagRequired(flags.ID)
 	// THE VALUES ARE NOT RE-LISTED HERE. The hand-written line this replaced carried FOUR of the
-	// five statuses — `deferred` had been added to InquiryStatuses and never to the string — and
+	// five statuses — `deferred` had been added to AvenueStatuses and never to the string — and
 	// glossed the four it did carry differently from the enum. enumhelp renders every value with
 	// its own meaning from the record, so the usage line's job is to say what the FIELD is for.
-	enumhelp.Flag(c, flags.As, record.MustEnum("avenue", "status"), "the fate of this line of inquiry")
+	enumhelp.Flag(c, flags.As, record.MustEnum("avenue", "status"), "the fate of this avenue")
 	return seat.Correctable(c)
 }
 
-type inquiryResult struct {
-	ID     string `json:"inquiry_id"`
+type avenueResult struct {
+	ID     string `json:"avenue_id"`
 	Status string `json:"status"`
 	Line   string `json:"line,omitempty"`
 	Moved  bool   `json:"moved,omitempty"`
 	// Idempotent says this call recorded NOTHING and returned the line it already had — a retry of a
 	// propose whose first attempt the seat never saw the answer to.
 	Idempotent bool `json:"idempotent,omitempty"`
-	// VoiceTells is ADVICE, and the act is already recorded by the time it renders. A line of
-	// inquiry is composed into report.md, which is written for a reader of the SUBJECT; this names
+	// VoiceTells is ADVICE, and the act is already recorded by the time it renders. An avenue
+	// is composed into report.md, which is written for a reader of the SUBJECT; this names
 	// where the text sounds like the run talking about itself. It refuses nothing — a pattern cannot
 	// tell a line narrating its own process from a line naming a source that does.
 	VoiceTells []string `json:"voice_tells,omitempty"`
 }
 
-func (r inquiryResult) Human() string {
-	head := "line of inquiry " + r.ID + " recorded (" + r.Status + "): " + r.Line
+func (r avenueResult) Human() string {
+	head := "avenue " + r.ID + " recorded (" + r.Status + "): " + r.Line
 	if r.Idempotent {
-		head = "line of inquiry " + r.ID + " already records this line (idempotent retry — nothing written)"
+		head = "avenue " + r.ID + " already records this avenue (idempotent retry — nothing written)"
 	}
 	if r.Moved {
-		head = "line of inquiry " + r.ID + " moved to " + r.Status
+		head = "avenue " + r.ID + " moved to " + r.Status
 	}
 	if len(r.VoiceTells) == 0 {
 		return head

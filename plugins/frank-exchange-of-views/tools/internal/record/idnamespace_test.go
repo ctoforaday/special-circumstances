@@ -36,7 +36,7 @@ type idKind struct {
 	name string
 	// pattern must match every id this kind mints and NOTHING another kind mints. It is READ FROM
 	// internal/flags where the shape is declared, never restated here: this table used to carry
-	// its own `^A\d+$` and siblings, and when the line-of-inquiry id moved A -> Q the copy stayed,
+	// its own `^A\d+$` and siblings, and when the avenue id moved A -> Q the copy stayed,
 	// so the matrix reported the MINTER as wrong against a pattern nobody had updated. A matrix
 	// that exists to catch namespace drift cannot itself hold a second copy of the namespace.
 	// The finding label is the one exception below, with its reason.
@@ -53,9 +53,9 @@ func idKinds() []idKind {
 			mint:    func(run Run) (string, error) { return MintGapID(run) },
 		},
 		{
-			name:    "line-of-inquiry",
-			pattern: flags.InquiryID().Shape(),
-			mint:    MintInquiryID,
+			name:    "avenue",
+			pattern: flags.AvenueID().Shape(),
+			mint:    MintAvenueID,
 		},
 		{
 			name:    "motion",
@@ -193,7 +193,7 @@ func appendMintedFor(t *testing.T, runDir, kind, id string) error {
 	case "gap":
 		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 		return err
-	case "line-of-inquiry":
+	case "avenue":
 		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Avenue{AvenueId: proto.String(id), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Line: proto.String("a line"), Reason: proto.String("r")})
 		return err
 	case "motion":

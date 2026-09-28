@@ -144,7 +144,7 @@ func sample(fd protoreflect.FieldDescriptor) protoreflect.Value {
 // `line` cannot be required unconditionally". The annotation contradicted the paragraph above it,
 // and it did two things at once: CheckRequired refused every move before the conditional check in
 // record.go could run, and the derived DDL put NOT NULL on the column so the row could not be
-// stored either. `blue line-of-inquiry move` was unusable.
+// stored either. `blue avenue move` was unusable.
 //
 // # Why this test is shaped as a census rather than a case
 //

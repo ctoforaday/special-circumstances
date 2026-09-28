@@ -11,7 +11,7 @@ import (
 // ONE SECTION FOR EVERY ADJUDICATED EXCHANGE, joined on the motion id (#344).
 //
 // It replaces three renderers that had to be written, and fixed, separately. #315 found the
-// petition FILING unrendered while the line of inquiry RULING was found unrendered in the same sweep,
+// petition FILING unrendered while the avenue RULING was found unrendered in the same sweep,
 // because nothing said they were one mechanism. And #320 had to render filings and rulings SIDE
 // BY SIDE rather than joined, because `petition-rule` carried no id and pairing two filings by
 // one seat in one epoch would have been a guess. A motion has an id, so an ask and its answer are
@@ -110,8 +110,8 @@ func motionHead(m *record.Motion) string {
 		return fmt.Sprintf("grade of %s (%s to %s)", m.Fields["gap_id"], m.Fields["dimension"], m.Fields["proposed"])
 	case "petition":
 		return "petition (" + m.Fields["class"] + ")"
-	case "inquiry":
-		return "direction " + m.Fields["inquiry_id"]
+	case "avenue":
+		return "avenue " + m.Fields["avenue_id"]
 	case "docket":
 		// THE SECOND SUBJECT THAT IS ABOUT A GAP, and the row is unreadable without it. Left to
 		// the default arm this renders as the bare word "docket" — the bench's disposition of a

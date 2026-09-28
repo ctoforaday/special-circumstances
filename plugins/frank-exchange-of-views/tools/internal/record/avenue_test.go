@@ -21,9 +21,9 @@ import (
 // that the tool returned success and nothing persisted. The events had persisted perfectly:
 // CurrentRound was 2, and the only round-2 event on that board was `judge` calling `register`.
 //
-// RETARGETED, NOT INHERITED. This arrived aimed at `UnvotedInquiriesAt`, the per-line support vote
-// — a mechanism retired here in favour of ONE `inquiry-review` per round (see
-// TestTheInquiryReviewOffersNoRetiredFlags). The carrier changed and the defect did not: the
+// RETARGETED, NOT INHERITED. This arrived aimed at `UnvotedAvenuesAt`, the per-line support vote
+// — a mechanism retired here in favour of ONE `avenue-review` per round (see
+// TestTheAvenueReviewOffersNoRetiredFlags). The carrier changed and the defect did not: the
 // replacement asks the same "was this done in the board's HIGHEST round" question through the same
 // CurrentRound, so the rewrite inherited the bug main had already measured and fixed. Retargeting
 // is the point — deleting it with its old carrier would have dropped a guard over a live defect.
@@ -42,7 +42,7 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 		t.Fatal(err)
 	}
 	merge := Identity{Run: mustRun(t, dir), SeatID: "red-chair"}
-	if _, err := Append(merge, &recordpb.InquiryReview{
+	if _, err := Append(merge, &recordpb.AvenueReview{
 		Reason: proto.String("read the lines against the report as it now stands"),
 	}); err != nil {
 		t.Fatal(err)
@@ -52,7 +52,7 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if InquiryReviewDueOf(b.Events) {
+	if AvenueReviewDueOf(b.Events) {
 		t.Fatal("the round-1 review does not satisfy the round-1 duty")
 	}
 
@@ -67,7 +67,7 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	if got := CurrentEpochOf(b.Events); got != 1 {
 		t.Fatalf("a bare register advanced CurrentEpoch to %d — a seat that has written nothing must not move the board's idea of now", got)
 	}
-	if InquiryReviewDueOf(b.Events) {
+	if AvenueReviewDueOf(b.Events) {
 		t.Error("a bare register from judge made the round-1 merge's review stale.\n\n" +
 			"The chair can never satisfy this — it acts at its own round and the gate has moved past it — " +
 			"so the round's duty is refused forever while the verb keeps reporting success.")
@@ -93,7 +93,7 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	if got := CurrentEpochOf(b.Events); got != 2 {
 		t.Fatalf("real work in epoch 2 did not advance CurrentEpoch: got %d", got)
 	}
-	if !InquiryReviewDueOf(b.Events) {
+	if !AvenueReviewDueOf(b.Events) {
 		t.Error("round 2 owes its own review and the round-1 one answered for it — the round check is gone, not fixed")
 	}
 }

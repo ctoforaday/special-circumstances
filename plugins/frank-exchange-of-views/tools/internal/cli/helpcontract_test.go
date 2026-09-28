@@ -222,7 +222,7 @@ func seatHolding(path ...string) string {
 
 // cmdAt resolves a command PATH rather than a top-level name.
 //
-// `motion` is on all four seat trees and `motion inquiry rule` is on the chair's alone — only the
+// `motion` is on all four seat trees and `motion avenue rule` is on the chair's alone — only the
 // gavel-holder gets the verb — so a lookup that stopped at the first word answered "lens" and the
 // caller then invoked a verb that seat cannot name. That reads as the check being absent when it is
 // the fixture that is in the wrong tree.
@@ -263,7 +263,7 @@ func placeholderFor(c *cobra.Command, f *pflag.Flag, path []string) string {
 		return vals[0].Name
 	}
 	// AN ID MUST NAME SOMETHING THAT EXISTS, or the reference check fires first and masks the
-	// refusal under test. Which id depends on what the verb points AT — a gap, a line of inquiry, or a
+	// refusal under test. Which id depends on what the verb points AT — a gap, an avenue, or a
 	// motion — and getting that wrong made this gate report every bench-opinion flag as
 	// unnamed when the real refusal was about a gap called "placeholder".
 	if f.Name == "script" {
@@ -271,11 +271,11 @@ func placeholderFor(c *cobra.Command, f *pflag.Flag, path []string) string {
 	}
 	if f.Name == "id" {
 		// THE SHAPE DECIDES, NOT THE PATH. A flag declares the id kind it accepts
-		// (flags.InquiryID() types itself `inquiry-id`), so reading the declaration answers the
+		// (flags.AvenueID() types itself `avenue-id`), so reading the declaration answers the
 		// question the path was being used to guess at. The path form went stale the moment
-		// `motion direction` became `motion inquiry` — this branch used to say `motion direction`
+		// `motion direction` became `motion avenue` — this branch used to say `motion direction`
 		// and silently stopped matching, feeding a gap id to a flag that wanted a line's.
-		if f.Value.Type() == "inquiry-id" {
+		if f.Value.Type() == "avenue-id" {
 			return "Q1"
 		}
 		joined := strings.Join(path, " ")
@@ -335,9 +335,9 @@ func seatRunForContracts(t *testing.T) string {
 		"--reason", "the gap a probe's --id names"); err != nil {
 		t.Fatalf("seed gap: %v", err)
 	}
-	if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond",
+	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", "blue-respond",
 		"--reason", "a seeded line", "--hypothesis", "it would settle something"); err != nil {
-		t.Fatalf("seed line of inquiry: %v", err)
+		t.Fatalf("seed avenue: %v", err)
 	}
 	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
 		"--id", "G1", "--dimension", "severity", "--proposed", "low",
@@ -458,7 +458,7 @@ var flagToken = regexp.MustCompile("(?:^|[\\s(\"'`])--([a-z][a-z0-9-]*)")
 // FOUR INSTANCES ON ONE BRANCH, each found by a different accident:
 //
 //	`--as supports-with-bridge`  advertised in help, refused by the write path
-//	`--id Q1 --as supported|…`   advertised by inquiry-support after the schema retired both
+//	`--id Q1 --as supported|…`   advertised by avenue review after the schema retired both
 //	`retire requires --claim`    the FIELD name in a message that must carry the FLAG word
 //	`out-of-scope` / `too-thin`  the fuzz typing an enum's field spelling at the flag
 //

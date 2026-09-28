@@ -286,6 +286,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		return seat.RefuseAndTeach(cmd, unknownCommandRefusal(cmd.Root(), args[0])+noSeatNote(seatID))
 	}
 
+	teachUnknownSubcommand(root)
 	enumhelp.Install(root)
 	return root
 }
@@ -318,6 +319,70 @@ func whereItLives(_ *cobra.Command, name string) []string {
 			if c.Name() == name || c.HasAlias(name) {
 				out = append(out, role)
 				break
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// teachUnknownSubcommand gives every verb GROUP the refusal the root already gives: an act that is
+// not in the group is REFUSED, and where another seat's surface holds it, that seat is named.
+//
+// A GROUP WITH NO RunE ANSWERED AN UNKNOWN SUBCOMMAND WITH ITS OWN HELP AND EXIT 0. Cobra parses the
+// word as a positional argument to a command that cannot run, prints that command's help, and
+// reports success — so a seat typing an act it does not hold was told, in effect, that it had done
+// it. It became reachable in earnest when the avenue concept collapsed to one verb: `avenue` is a
+// group on blue's surface (propose, move) AND the chair's (review), so each seat can now type the
+// other's act under a group it does hold. `motion <no-such-subject>` did the same before that.
+//
+// THE HOLDER IS DERIVED, NEVER LISTED — whereSubcommandLives asks every role's real tree, the way
+// whereItLives does one level up, so a subcommand moved between surfaces is named correctly with no
+// second table to keep in step. It is read when the refusal is RENDERED, not when the tree is built,
+// because AllRoots builds every tree through this function.
+func teachUnknownSubcommand(root *cobra.Command) {
+	for _, g := range root.Commands() {
+		if !g.HasSubCommands() || g.RunE != nil || g.Run != nil {
+			continue
+		}
+		group := g
+		group.Args = cobra.ArbitraryArgs
+		group.RunE = func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return cmd.Help()
+			}
+			sub := args[0]
+			if at := whereSubcommandLives(group.Name(), sub); len(at) > 0 {
+				return seat.RefuseAndTeach(cmd, fmt.Sprintf("`%s %s` is not on your surface — it is the %s seat's act, and you are %s. "+
+					"That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to "+
+					"perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here.",
+					group.Name(), sub, strings.Join(at, " and "), seat.DispatchedAs(cmd)))
+			}
+			var have []string
+			for _, s := range group.Commands() {
+				if s.IsAvailableCommand() {
+					have = append(have, s.Name())
+				}
+			}
+			return seat.RefuseAndTeach(cmd, fmt.Sprintf("`%s` has no `%s` act on any seat's surface — yours has %s.",
+				group.Name(), sub, strings.Join(have, ", ")))
+		}
+	}
+}
+
+// whereSubcommandLives is whereItLives one level down: which roles hold `<group> <sub>`.
+func whereSubcommandLives(group, sub string) []string {
+	var out []string
+	for role, r := range AllRoots() {
+		for _, c := range r.Commands() {
+			if c.Name() != group {
+				continue
+			}
+			for _, s := range c.Commands() {
+				if s.Name() == sub || s.HasAlias(sub) {
+					out = append(out, role)
+					break
+				}
 			}
 		}
 	}

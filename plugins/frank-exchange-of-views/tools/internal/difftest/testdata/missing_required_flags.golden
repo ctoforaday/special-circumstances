@@ -34,8 +34,8 @@ Usage:
   feov-record mint [flags]
 
 Flags:
-      --about string                             the reference --about-kind names: a section heading, a line-of-inquiry id (Q1), or a gap id. It is CHECKED against the record
-      --about-kind section|inquiry|gap           anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
+      --about string                             the reference --about-kind names: a section heading, a avenue id (Q1), or a gap id. It is CHECKED against the record
+      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
@@ -56,7 +56,7 @@ Flags:
 Enumerated values:
   --about-kind
     section  a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there
-    inquiry  a line of inquiry, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
+    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
     gap      a gap already on the docket, by its id — a defect in the record rather than in the report
 
   --check-kind
@@ -110,23 +110,23 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  carry           restate an earlier sitting's closure, when the work is done and you are not re-attesting it
-  closing         your closing argument on one docketed gap, when the bench is about to rule on it
-  count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
-  dispatch        `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
-  fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  help            Help about any command
-  inquiry-support your one read, each sitting the report has moved, of its account of its lines of inquiry — required before a PASS
-  log             an entry for the operator who can retool you — what it asserts, said in the positive
-  position        your sitting's position — the argument the other side answers, rendered as this sitting's RED section
-  register        NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
-  spot-check      sample the closure archive — a duty every chair sitting owes, including the sittings with nothing to sample
-  verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+  carry        restate an earlier sitting's closure, when the work is done and you are not re-attesting it
+  closing      your closing argument on one docketed gap, when the bench is about to rule on it
+  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
+  dispatch     `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
+  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  help         Help about any command
+  log          an entry for the operator who can retool you — what it asserts, said in the positive
+  position     your sitting's position — the argument the other side answers, rendered as this sitting's RED section
+  register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
+  spot-check   sample the closure archive — a duty every chair sitting owes, including the sittings with nothing to sample
+  verdict      the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
 Command groups — each holds commands THIS page does not list:
-  inquest         READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
-  motion          file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). One mechanism, one id.
-  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
+  avenue       read the report against every avenue on the record — `review` states what that reading found
+  inquest      READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
+  motion       file and rule on a motion — grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). One mechanism, one id.
+  show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help             help for feov-record
@@ -143,10 +143,10 @@ Use "feov-record [command] --help" for more information about a command.
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
 
 ═══ RENDERS ═══
--- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
+-- avenues
+# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

@@ -17,7 +17,7 @@ import (
 
 // file: a seat asks for something, and the tool assigns the id everything else joins on.
 // fileSubjectSays is what filing each subject DOES, one sentence per subject that has a `file`.
-// `inquiry` has none: proposing the line is the filing, and its subgroup's Short says so.
+// `avenue` has none: proposing the line is the filing, and its subgroup's Short says so.
 var fileSubjectSays = map[string]string{
 	"grade":    "It disputes a gap's grade.",
 	"petition": "It raises an ethical, safety, integrity or constitutional objection, heard BEFORE the debate continues.",
@@ -35,7 +35,7 @@ func fileSays(subject string) string {
 	return s
 }
 
-// article is the indefinite article for a subject word — "an inquiry", "a grade".
+// article is the indefinite article for a subject word — "an avenue", "a grade".
 func article(word string) string {
 	if word != "" && strings.ContainsRune("aeiou", rune(word[0])) {
 		return "an"
@@ -309,12 +309,12 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 					return feov.Errorf(feov.Validation, "motion petition rule: %q is not a ruling on a petition", word)
 				}
 				body.Ruling = &recordpb.MotionRule_Petition{Petition: v}
-			case recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION:
-				v, ok := enumOf[recordpb.DirectionRuling](recordpb.DirectionRuling(0).Descriptor(), word)
+			case recordpb.MotionSubject_MOTION_SUBJECT_AVENUE:
+				v, ok := enumOf[recordpb.AvenueRuling](recordpb.AvenueRuling(0).Descriptor(), word)
 				if !ok {
-					return feov.Errorf(feov.Validation, "motion inquiry rule: %q is not a ruling on a direction", word)
+					return feov.Errorf(feov.Validation, "motion avenue rule: %q is not a ruling on a direction", word)
 				}
-				body.Ruling = &recordpb.MotionRule_Direction{Direction: v}
+				body.Ruling = &recordpb.MotionRule_Avenue{Avenue: v}
 			case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
 				d, ok := record.DispositionOf(word)
 				if !ok {
@@ -400,8 +400,8 @@ func newAppeal(subject string) *cobra.Command {
 		Long: "press " + article(subject) + " " + subject + " motion after a ruling — a ruling is an ARGUMENT, not a " +
 			"command, so the losing side may answer it on the record.\n\n" +
 			"TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade motion the chair " +
-			"rejected; `motion inquiry appeal` presses a line of inquiry red ruled out_of_scope or " +
-			"too_thin, and it is filed whether or not blue also pursues the line — separating the " +
+			"rejected; `motion avenue appeal` presses an avenue red ruled out_of_scope or " +
+			"too_thin, and it is filed whether or not blue also pursues the avenue — separating the " +
 			"argument from the act is the whole point of the verb.\n\n" +
 			"A BENCH-RULED MOTION (petition, docket) HAS NO APPEAL, and that absence is the design rather " +
 			"than an omission: the bench hears it BEFORE the debate continues, so there is nothing to escalate to.",
@@ -458,7 +458,7 @@ func newAppeal(subject string) *cobra.Command {
 }
 
 // refHelp names WHICH id the subject joins on. `direction` has no filing verb, so its id is the
-// line of inquiry's; saying "the motion id" there would send a seat looking for an M-number that does not
+// avenue's; saying "the motion id" there would send a seat looking for an M-number that does not
 // exist, and a seat that cannot find the id it was told to pass logs friction and works around the
 // verb — losing the capability for the run rather than reporting a wrong flag.
 // refHelp is the --id line, and it carries the REQUIRED marker because the flag is.
@@ -475,8 +475,8 @@ func newAppeal(subject string) *cobra.Command {
 // walks this tree now and markRequired is the one writer of that word, so a hand-written copy here
 // rendered "REQUIRED — REQUIRED — the motion id".
 func refHelp(subject string) string {
-	if subject == "inquiry" {
-		return "the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number"
+	if subject == "avenue" {
+		return "the AVENUE id (Q1, Q2 …): an avenue's filing is the proposal, so it joins on the avenue's own id, not an M-number"
 	}
 	return "the motion id (M1, M2 …)"
 }
@@ -540,22 +540,22 @@ var ruleFlagHelp = map[string]string{
 // wrong-kind value is refused by its shape rather than by a lookup that reports "no such motion" for a
 // perfectly good gap id.
 //
-// THE INQUIRY SUBJECT IS THE ASYMMETRY, and refHelp already states it: a direction's filing joins on
-// the line of inquiry's own id, "not an M-number", so every inquiry motion verb keys on Q. For the
+// THE AVENUE SUBJECT IS THE ASYMMETRY, and refHelp already states it: a direction's filing joins on
+// the avenue's own id, "not an M-number", so every avenue motion verb keys on Q. For the
 // other subjects the FILING names the thing being disputed — a gap — while the ruling and the appeal
 // name the motion. Registering all of them as a plain string is what made the help print `string`
 // nine times and refuse nothing (internal/cli/idshape_test.go).
 //
 // SHAPE ONLY, NO EXISTENCE CHECK, and that is measured rather than assumed. These arms carried
-// `.WithCheck(record.GapExists)` and `.WithCheck(record.InquiryExists)` for one commit; deleting both
+// `.WithCheck(record.GapExists)` and `.WithCheck(record.AvenueExists)` for one commit; deleting both
 // left the whole suite green and left every refusal BYTE-IDENTICAL, because each verb's own body
 // already resolves the reference — `RequireGapRef` at the filing, `RequireMotionSubjectRef` at the
 // ruling, `RequireRuledMotion` at the appeal — and the last two are STRONGER than existence, being
 // bound to the subject and to the ruled state. A checker here would have been a second
 // implementation of a check that already refuses, in front of one that also knows more.
 func idShapeFor(subject string, filing bool) *flags.ShapedValue {
-	if subject == "inquiry" {
-		return flags.InquiryID()
+	if subject == "avenue" {
+		return flags.AvenueID()
 	}
 	if filing {
 		return flags.GapID()

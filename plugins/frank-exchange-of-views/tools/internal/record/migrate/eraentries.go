@@ -58,7 +58,7 @@ func eraEntries() Registry {
 		// two fields die: the four-value `as` answered "does the report still carry this
 		// line", and presence stopped being a question when the lines became GENERATED onto
 		// the page (f516261a). The reason — the seat's actual reading — is the survivor.
-		"inquiry_support": mapped("inquiry_review", nil, drops{
+		"inquiry_support": mapped("avenue_review", nil, drops{
 			"inquiry_id": "inquiry-review is a per-round statement about the whole live set; the per-line id answered the presence question the schema retired (f516261a)",
 			"as":         "the closed set {supported, weakened, unsupported, absent} answered report-presence, which is generated now and cannot be cut — the schema deleted the flag rather than accept-and-discard it (f516261a)",
 		}, nil),
@@ -120,7 +120,7 @@ func eraMotionEntry(old OldEvent, dst record.Run) ([]proto.Message, error) {
 	// tables — that shape is the CURRENT one and translates by identity; only the flat shard
 	// shape (dimension/proposed beside the subject) needs this entry.
 	if len(old.Arms) > 0 || old.Fields["dimension"] == nil && old.Fields["proposed"] == nil && old.Fields["gap_id"] == nil {
-		return (Registry{}).Translate(old, dst)
+		return (Registry{}).Translate(avenueArm(old), dst)
 	}
 	if s, _ := old.Fields["subject"].(string); s != "grade" {
 		return nil, fmt.Errorf("migrate: era motion subject %q has no authored arm mapping — the era's census held only grade motions, so this is a new fact to rule on, not a shape to guess", s)
@@ -158,13 +158,13 @@ func eraMotionEntry(old OldEvent, dst record.Run) ([]proto.Message, error) {
 
 // eraMotionRuleEntry: the era's ruling was a WORD beside a subject; the schema keyed the
 // verdict set on the subject as one oneof arm per subject. The era's `inquiry` subject is
-// today's `direction` — the ruling on a line of inquiry, whose motion_id is the avenue's own
-// id, which is exactly what the era wrote there.
+// today's `avenue` — the ruling on an avenue, whose motion_id is the avenue's own id, which is
+// exactly what the era wrote there.
 func eraMotionRuleEntry(old OldEvent, dst record.Run) ([]proto.Message, error) {
 	// Same two-era split as the motion: an arm-shaped ruling is the current decomposition
 	// and translates by identity; only the flat `ruling`-word shape is this era's.
 	if _, flat := old.Fields["ruling"]; !flat {
-		return (Registry{}).Translate(old, dst)
+		return (Registry{}).Translate(avenueArm(old), dst)
 	}
 	r := &recordpb.MotionRule{}
 	subject, _ := old.Fields["subject"].(string)
@@ -189,14 +189,41 @@ func eraMotionRuleEntry(old OldEvent, dst record.Run) ([]proto.Message, error) {
 		}
 		r.Ruling = &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling(num)}
 	case "inquiry":
-		r.Subject = recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION.Enum()
-		num, err := enumNumberOf(recordpb.DirectionRuling(0).Descriptor(), ruling)
+		r.Subject = recordpb.MotionSubject_MOTION_SUBJECT_AVENUE.Enum()
+		num, err := enumNumberOf(recordpb.AvenueRuling(0).Descriptor(), ruling)
 		if err != nil {
-			return nil, fmt.Errorf("migrate: motion_rule.ruling (inquiry->direction): %w", err)
+			return nil, fmt.Errorf("migrate: motion_rule.ruling (inquiry->avenue): %w", err)
 		}
-		r.Ruling = &recordpb.MotionRule_Direction{Direction: recordpb.DirectionRuling(num)}
+		r.Ruling = &recordpb.MotionRule_Avenue{Avenue: recordpb.AvenueRuling(num)}
 	default:
 		return nil, fmt.Errorf("migrate: era motion-rule subject %q has no authored mapping — the era's census held grade and inquiry, so this is a new fact to rule on", subject)
 	}
 	return []proto.Message{r}, nil
+}
+
+// avenueArm carries the SQLite era's `direction` arm to `avenue`, the one word the concept has
+// now. A motion stored it as an arm TABLE (motion_direction → Arms) and a ruling as an enum COLUMN
+// (motion_rule.direction → Fields), so both are renamed; the values inside are unchanged, and the
+// subject's own `direction` value is carried by valueRenames. Identity refuses an arm the current
+// body does not declare, which is why this runs before it rather than being left to it.
+func avenueArm(old OldEvent) OldEvent {
+	if a, ok := old.Arms["direction"]; ok {
+		arms := map[string]map[string]any{}
+		for k, v := range old.Arms {
+			arms[k] = v
+		}
+		delete(arms, "direction")
+		arms["avenue"] = a
+		old.Arms = arms
+	}
+	if v, ok := old.Fields["direction"]; ok {
+		fields := map[string]any{}
+		for k, fv := range old.Fields {
+			fields[k] = fv
+		}
+		delete(fields, "direction")
+		fields["avenue"] = v
+		old.Fields = fields
+	}
+	return old
 }

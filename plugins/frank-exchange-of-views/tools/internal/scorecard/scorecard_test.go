@@ -236,15 +236,15 @@ func TestHeadlineRanking(t *testing.T) {
 func TestRenderCardFormat(t *testing.T) {
 	rows := []Row{
 		{Clause: "Durable repairs", Metric: "repair_regression_ratio", Cls: "benchmark", Value: 0.5, Joint: "reads WITH red rigour"},
-		{Clause: "Alternatives explored", Metric: "lines_of_inquiry", Cls: "diagnostic", Value: objJSON(`{"pursued":2,"abandoned":1}`)},
+		{Clause: "Alternatives explored", Metric: "avenues", Cls: "diagnostic", Value: objJSON(`{"pursued":2,"abandoned":1}`)},
 	}
 	out := RenderCard(rows, "this run")
 	for _, want := range []string{
 		"## this run",
 		"- `repair_regression_ratio` [benchmark] — Durable repairs: **0.5**",
 		"  - reads WITH red rigour",
-		"- `lines_of_inquiry` [diagnostic] — Alternatives explored: **{\"pursued\":2,\"abandoned\":1}**",
-		"HEADLINE: repair_regression_ratio 0.5 [BENCHMARK] · lines_of_inquiry {\"pursued\":2,\"abandoned\":1} [DIAGNOSTIC]",
+		"- `avenues` [diagnostic] — Alternatives explored: **{\"pursued\":2,\"abandoned\":1}**",
+		"HEADLINE: repair_regression_ratio 0.5 [BENCHMARK] · avenues {\"pursued\":2,\"abandoned\":1} [DIAGNOSTIC]",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("RenderCard missing %q:\n%s", want, out)

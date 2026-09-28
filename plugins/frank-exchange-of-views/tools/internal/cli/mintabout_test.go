@@ -60,7 +60,7 @@ func TestAGapsAboutReferenceIsCheckedAgainstTheRecord(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	registerLensOnce(t, runDir)
 	_, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
-		"--key", "G3", "--class", "scope-creep", "--about-kind", "inquiry", "--about", "Q99",
+		"--key", "G3", "--class", "scope-creep", "--about-kind", "avenue", "--about", "Q99",
 		"--problem", "p", "--check-kind", "document", "--check", "c",
 		"--severity", "low", "--likelihood", "low", "--impact", "low")
 	if err == nil {

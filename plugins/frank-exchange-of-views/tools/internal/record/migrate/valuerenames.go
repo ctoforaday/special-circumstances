@@ -18,6 +18,10 @@ import (
 // holds one.
 var valueRenames = map[protoreflect.FullName]map[string]string{
 	"feov.record.v1.Disposition": {"carried": "remanded"},
+	// ONE CONCEPT, ONE WORD. What blue proposes and the chair rules on is an avenue; the record
+	// called the motion subject `direction` and the anchor kind `inquiry` for the same thing.
+	"feov.record.v1.MotionSubject": {"direction": "avenue"},
+	"feov.record.v1.AboutKind":     {"inquiry": "avenue"},
 }
 
 // enumValue resolves an archived enum word: the authored respelling first, then the schema's

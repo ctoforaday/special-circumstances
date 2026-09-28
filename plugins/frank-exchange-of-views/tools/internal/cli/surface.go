@@ -137,7 +137,7 @@ func sharedAcrossSeats(path string) bool {
 // cobra's own `help` and `completion` left out, because they are not part of the contract a seat
 // learns.
 //
-// The path handed to fn is what a seat TYPES on that surface (`line-of-inquiry propose`,
+// The path handed to fn is what a seat TYPES on that surface (`avenue propose`,
 // `motion grade file`, `show`), never a join key. Everything that asks "what is on this surface"
 // walks here — the gates through commandsByPath, and `manual` directly — so the two cannot come to
 // disagree about what a surface holds.

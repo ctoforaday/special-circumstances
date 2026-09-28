@@ -33,8 +33,8 @@ Usage:
   feov-record mint [flags]
 
 Flags:
-      --about string                             the reference --about-kind names: a section heading, a line-of-inquiry id (Q1), or a gap id. It is CHECKED against the record
-      --about-kind section|inquiry|gap           anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
+      --about string                             the reference --about-kind names: a section heading, a avenue id (Q1), or a gap id. It is CHECKED against the record
+      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
@@ -55,7 +55,7 @@ Flags:
 Enumerated values:
   --about-kind
     section  a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there
-    inquiry  a line of inquiry, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
+    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
     gap      a gap already on the docket, by its id — a defect in the record rather than in the report
 
   --check-kind
@@ -104,8 +104,8 @@ Usage:
   feov-record mint [flags]
 
 Flags:
-      --about string                             the reference --about-kind names: a section heading, a line-of-inquiry id (Q1), or a gap id. It is CHECKED against the record
-      --about-kind section|inquiry|gap           anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
+      --about string                             the reference --about-kind names: a section heading, a avenue id (Q1), or a gap id. It is CHECKED against the record
+      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
@@ -126,7 +126,7 @@ Flags:
 Enumerated values:
   --about-kind
     section  a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there
-    inquiry  a line of inquiry, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
+    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
     gap      a gap already on the docket, by its id — a defect in the record rather than in the report
 
   --check-kind
@@ -175,8 +175,8 @@ Usage:
   feov-record mint [flags]
 
 Flags:
-      --about string                             the reference --about-kind names: a section heading, a line-of-inquiry id (Q1), or a gap id. It is CHECKED against the record
-      --about-kind section|inquiry|gap           anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
+      --about string                             the reference --about-kind names: a section heading, a avenue id (Q1), or a gap id. It is CHECKED against the record
+      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
@@ -197,7 +197,7 @@ Flags:
 Enumerated values:
   --about-kind
     section  a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there
-    inquiry  a line of inquiry, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
+    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
     gap      a gap already on the docket, by its id — a defect in the record rather than in the report
 
   --check-kind
@@ -246,8 +246,8 @@ Usage:
   feov-record mint [flags]
 
 Flags:
-      --about string                             the reference --about-kind names: a section heading, a line-of-inquiry id (Q1), or a gap id. It is CHECKED against the record
-      --about-kind section|inquiry|gap           anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
+      --about string                             the reference --about-kind names: a section heading, a avenue id (Q1), or a gap id. It is CHECKED against the record
+      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
@@ -268,7 +268,7 @@ Flags:
 Enumerated values:
   --about-kind
     section  a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there
-    inquiry  a line of inquiry, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
+    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
     gap      a gap already on the docket, by its id — a defect in the record rather than in the report
 
   --check-kind
@@ -317,8 +317,8 @@ Usage:
   feov-record mint [flags]
 
 Flags:
-      --about string                             the reference --about-kind names: a section heading, a line-of-inquiry id (Q1), or a gap id. It is CHECKED against the record
-      --about-kind section|inquiry|gap           anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
+      --about string                             the reference --about-kind names: a section heading, a avenue id (Q1), or a gap id. It is CHECKED against the record
+      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
@@ -339,7 +339,7 @@ Flags:
 Enumerated values:
   --about-kind
     section  a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there
-    inquiry  a line of inquiry, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
+    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
     gap      a gap already on the docket, by its id — a defect in the record rather than in the report
 
   --check-kind
@@ -388,8 +388,8 @@ Usage:
   feov-record mint [flags]
 
 Flags:
-      --about string                             the reference --about-kind names: a section heading, a line-of-inquiry id (Q1), or a gap id. It is CHECKED against the record
-      --about-kind section|inquiry|gap           anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
+      --about string                             the reference --about-kind names: a section heading, a avenue id (Q1), or a gap id. It is CHECKED against the record
+      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
@@ -410,7 +410,7 @@ Flags:
 Enumerated values:
   --about-kind
     section  a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there
-    inquiry  a line of inquiry, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
+    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
     gap      a gap already on the docket, by its id — a defect in the record rather than in the report
 
   --check-kind
@@ -459,8 +459,8 @@ Usage:
   feov-record mint [flags]
 
 Flags:
-      --about string                             the reference --about-kind names: a section heading, a line-of-inquiry id (Q1), or a gap id. It is CHECKED against the record
-      --about-kind section|inquiry|gap           anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
+      --about string                             the reference --about-kind names: a section heading, a avenue id (Q1), or a gap id. It is CHECKED against the record
+      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
@@ -481,7 +481,7 @@ Flags:
 Enumerated values:
   --about-kind
     section  a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there
-    inquiry  a line of inquiry, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
+    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned
     gap      a gap already on the docket, by its id — a defect in the record rather than in the report
 
   --check-kind
@@ -814,7 +814,7 @@ the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
 After it, the record is mirrored to the recovery copy.
 
-A PASS is REFUSED while anything still blocks it — an open material gap (material by its class, else graded medium or above), a superseded gap still open, an unruled motion, no line-of-inquiry review this sitting, a contradicting source no finding raises, a ready lens or no ingested report, a stale area no spot-check this sitting names. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
+A PASS is REFUSED while anything still blocks it — an open material gap (material by its class, else graded medium or above), a superseded gap still open, an unruled motion, no avenue review this sitting, a contradicting source no finding raises, a ready lens or no ingested report, a stale area no spot-check this sitting names. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -850,7 +850,7 @@ the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
 After it, the record is mirrored to the recovery copy.
 
-A PASS is REFUSED while anything still blocks it — an open material gap (material by its class, else graded medium or above), a superseded gap still open, an unruled motion, no line-of-inquiry review this sitting, a contradicting source no finding raises, a ready lens or no ingested report, a stale area no spot-check this sitting names. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
+A PASS is REFUSED while anything still blocks it — an open material gap (material by its class, else graded medium or above), a superseded gap still open, an unruled motion, no avenue review this sitting, a contradicting source no finding raises, a ready lens or no ingested report, a stale area no spot-check this sitting names. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -942,7 +942,7 @@ feov-record: invalid argument "halt" for "--as" flag: --as must be one of grante
 
 rule on a petition motion — this verb is the bench seat's, and it appears only on that surface.
 
-EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
+EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
 
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
 your text, and records whatever the command printed — or nothing — in its place. Pass every
@@ -1071,7 +1071,7 @@ feov-record: invalid argument "banana" for "--dimension" flag: --dimension must 
 
 file a grade motion — the tool assigns its id.
 
-ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules).
+ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules).
 
 It disputes a gap's grade.
 
@@ -1427,7 +1427,7 @@ feov-record: invalid argument "banana" for "--class" flag: --class must be one o
 
 file a petition motion — the tool assigns its id.
 
-ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules).
+ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules).
 
 It raises an ethical, safety, integrity or constitutional objection, heard BEFORE the debate continues.
 
@@ -1520,7 +1520,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   class        the gap-class registry: what KINDS of defect this run recognises
-  motion       file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). One mechanism, one id.
+  motion       file and rule on a motion — grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). One mechanism, one id.
   show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -1549,26 +1549,26 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  cite            attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
-  claim-index     locate every site of each FOOTNOTED claim in your report (read-only)
-  closing         your closing argument on one docketed gap, when the bench is about to rule on it
-  count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
-  edit            change the report — the only path into report.md, and how every repair lands
-  fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  help            Help about any command
-  ingest          freeze the synthesized report into the record and remove the file — done once, by its author
-  log             an entry for the operator who can retool you — what it asserts, said in the positive
-  manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
-  position        your sitting's position — the argument the other side answers, rendered as this sitting's BLUE section
-  prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
-  register        NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
-  retire          take a claim out of the report, when it cannot stand and no edit will save it
-  revision        your revision — what changed this sitting, once, after your edits have landed
+  cite         attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
+  claim-index  locate every site of each FOOTNOTED claim in your report (read-only)
+  closing      your closing argument on one docketed gap, when the bench is about to rule on it
+  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
+  edit         change the report — the only path into report.md, and how every repair lands
+  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  help         Help about any command
+  ingest       freeze the synthesized report into the record and remove the file — done once, by its author
+  log          an entry for the operator who can retool you — what it asserts, said in the positive
+  manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
+  position     your sitting's position — the argument the other side answers, rendered as this sitting's BLUE section
+  prove        settle a claim by RUNNING something, when computing the answer beats arguing about it
+  register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
+  retire       take a claim out of the report, when it cannot stand and no edit will save it
+  revision     your revision — what changed this sitting, once, after your edits have landed
 
 Command groups — each holds commands THIS page does not list:
-  line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
-  motion          file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). One mechanism, one id.
-  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
+  avenue       an approach the research could take, and what became of it — `propose` one, `move` one you already proposed
+  motion       file and rule on a motion — grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). One mechanism, one id.
+  show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help             help for feov-record
@@ -1609,7 +1609,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   inquest      READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
-  motion       file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). One mechanism, one id.
+  motion       file and rule on a motion — grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). One mechanism, one id.
   show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -1638,23 +1638,23 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  carry           restate an earlier sitting's closure, when the work is done and you are not re-attesting it
-  closing         your closing argument on one docketed gap, when the bench is about to rule on it
-  count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
-  dispatch        `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
-  fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  help            Help about any command
-  inquiry-support your one read, each sitting the report has moved, of its account of its lines of inquiry — required before a PASS
-  log             an entry for the operator who can retool you — what it asserts, said in the positive
-  position        your sitting's position — the argument the other side answers, rendered as this sitting's RED section
-  register        NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
-  spot-check      sample the closure archive — a duty every chair sitting owes, including the sittings with nothing to sample
-  verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+  carry        restate an earlier sitting's closure, when the work is done and you are not re-attesting it
+  closing      your closing argument on one docketed gap, when the bench is about to rule on it
+  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
+  dispatch     `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
+  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  help         Help about any command
+  log          an entry for the operator who can retool you — what it asserts, said in the positive
+  position     your sitting's position — the argument the other side answers, rendered as this sitting's RED section
+  register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
+  spot-check   sample the closure archive — a duty every chair sitting owes, including the sittings with nothing to sample
+  verdict      the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
 Command groups — each holds commands THIS page does not list:
-  inquest         READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
-  motion          file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). One mechanism, one id.
-  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
+  avenue       read the report against every avenue on the record — `review` states what that reading found
+  inquest      READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
+  motion       file and rule on a motion — grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). One mechanism, one id.
+  show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help             help for feov-record
@@ -1724,7 +1724,7 @@ feov-record: unknown flag: --corrects
 
 file a grade motion — the tool assigns its id.
 
-ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules).
+ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules).
 
 It disputes a gap's grade.
 
@@ -1771,7 +1771,7 @@ the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
 After it, the record is mirrored to the recovery copy.
 
-A PASS is REFUSED while anything still blocks it — an open material gap (material by its class, else graded medium or above), a superseded gap still open, an unruled motion, no line-of-inquiry review this sitting, a contradicting source no finding raises, a ready lens or no ingested report, a stale area no spot-check this sitting names. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
+A PASS is REFUSED while anything still blocks it — an open material gap (material by its class, else graded medium or above), a superseded gap still open, an unruled motion, no avenue review this sitting, a contradicting source no finding raises, a ready lens or no ingested report, a stale area no spot-check this sitting names. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you

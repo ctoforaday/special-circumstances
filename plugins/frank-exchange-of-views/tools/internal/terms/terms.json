@@ -487,7 +487,7 @@
       "collisions": [
         {
           "word": "log",
-          "resolution": "`log` only ever writes; the operator reads the log with `show log`"
+          "resolution": "`log` only ever writes; the operator reads the log with `ops log`"
         }
       ]
     },
@@ -800,7 +800,7 @@
       "collisions": [
         {
           "word": "fate",
-          "resolution": "a line of inquiry's state keeps the word"
+          "resolution": "an avenue's state keeps the word"
         }
       ]
     },
@@ -878,6 +878,48 @@
         {
           "word": "occasion (ordinary English)",
           "resolution": "\"for want of occasion\" in the friction channel is the plain word and keeps it; the FIELD is the one a bench register carries"
+        }
+      ]
+    },
+    {
+      "term": "avenue",
+      "definition": "An avenue is one approach the research could take on the question — proposed by blue with what would be true if it paid off, moved to pursued, deferred, declined or abandoned, ruled on by the chair, and reviewed against the report once per epoch.",
+      "seats": [
+        "lens",
+        "chair",
+        "blue",
+        "bench",
+        "operator"
+      ],
+      "bans": [
+        {
+          "variant": "line of inquiry",
+          "kind": "GATED",
+          "pattern": "\\blines? of inquiry\\b"
+        },
+        {
+          "variant": "line-of-inquiry (the verb and the view)",
+          "kind": "GATED",
+          "pattern": "\\blines?-of-inquiry\\b"
+        },
+        {
+          "variant": "inquiry (an avenue)",
+          "kind": "GATED",
+          "pattern": "\\binquir(y|ies)\\b"
+        },
+        {
+          "variant": "direction (an avenue)",
+          "kind": "REGISTRY-ONLY"
+        }
+      ],
+      "collisions": [
+        {
+          "word": "direction",
+          "resolution": "plain English only: a bench REMAND states a research direction the coming seat owes, and the report's own heading is Future research directions — neither is an avenue"
+        },
+        {
+          "word": "line",
+          "resolution": "an avenue's `line` is its statement, the text `--reason` fills, and never a name for the avenue itself"
         }
       ]
     }

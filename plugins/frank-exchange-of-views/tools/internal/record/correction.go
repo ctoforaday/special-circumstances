@@ -82,7 +82,7 @@ func readTarget(db *sql.DB, key string) (*correctionTarget, error) {
 }
 
 // TargetBody is the body of the act a correcting verb names, for the handlers that must RE-STATE a
-// value the act already holds rather than re-derive it (F13): a line of inquiry's id, a proof's
+// value the act already holds rather than re-derive it (F13): an avenue's id, a proof's
 // reproduced outputs, an outcome's derived verdict. It is loud on every miss — absent, another
 // seat's, another type — because a handler that silently fell back to deriving would write a
 // replacement the frozen compare then refuses, for a reason the seat cannot see.
@@ -292,7 +292,7 @@ func supersedingAct(typ recordpb.EventType) string {
 	case recordpb.EventType_EVENT_TYPE_CLOSE:
 		return "a motion on the gap"
 	case recordpb.EventType_EVENT_TYPE_AVENUE:
-		return "a move of the line"
+		return "a move of the avenue"
 	}
 	return "a new act"
 }

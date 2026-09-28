@@ -14,7 +14,7 @@ import (
 //
 // It used to be one argument arriving three ways — `--reason` inline, `--reason-file <path>`, and
 // `--reason-file -` from stdin — and held as loose flags that fact was true only for verbs that
-// remembered every spelling. Three did not: `line-of-inquiry propose` filled its `line` from the raw
+// remembered every spelling. Three did not: `avenue propose` filled its `line` from the raw
 // inline flag, so the file form was refused for a field the seat had supplied; `spot-check` and
 // `outcome` registered the inline flag by hand and shipped with no file form at all. A convention
 // that has to be remembered at fifty call sites is not a mechanism, so the channel became a value

@@ -12,13 +12,13 @@ facts: On the 2026-09-02 quadratic-formula run, blue's report stated "Executing 
   ran that loop itself the store held EIGHTEEN scripts, THIRTEEN reproducing — and the five that
   did not were the same five, by name, with the same exit statuses. The denominator had moved
   because blue deposited round-2 proofs while repairing the sentence that counts them. The same
-  mechanism appears twice more on that record: the lines-of-inquiry denominator ran 23, then 26,
+  mechanism appears twice more on that record: the avenues denominator ran 23, then 26,
   then 31 across three rounds, and blue's own repair note observes that correcting 23 to 26 "would
   have shipped the same defect with a fresher number".
 question: Is a count over the run's own apparatus, correct when written and overtaken by the same
   round's later work, a fresh instance of the figure-recount defect class?
 holding: No. A count the report states over the run's OWN APPARATUS — programs written, proofs
-  deposited, lines of inquiry filed, edits recorded — that was CORRECT WHEN WRITTEN and has since
+  deposited, avenues filed, edits recorded — that was CORRECT WHEN WRITTEN and has since
   been overtaken by the same round's later work is a STALENESS ARTIFACT OF THE MEASURING CADENCE,
   and is read rather than docked. It is a defect only if (a) it was wrong when written, or (b) the
   report presents it as current at a site where a reader acts on it and the drift changes what the
@@ -66,7 +66,7 @@ facts: R2-5 was withheld from the bench's docket as "minted fresh this round, so
   narrative, blue at length under its own heading in its round-2 position. The same withholding
   then misfired twice more in the same run: R3-1, which red made the headline of its round-3 filing
   and blue the headline of its answer, and R3-4, which red raised against a defect its own seat had
-  caused and blue answered under its own heading with a control and a filed line of inquiry.
+  caused and blue answered under its own heading with a control and a filed avenue.
 question: When may a freshly minted gap be withheld from the bench's docket as "not a persisting
   dispute"?
 holding: Only when BOTH limbs hold: freshly minted AND not argued by both sides. A gap both parties

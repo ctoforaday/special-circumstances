@@ -64,7 +64,7 @@ func CommandWords(fields []string) []string {
 			// because the tool was recognised in an ASSIGNMENT and the invocation comes after.
 			//
 			// The measured shape, and it is the majority one: `B="…/feov-record"; $B --seat-id X
-			// show lines-of-inquiry 2>&1 | head`. BinFields matches on the path inside the quotes,
+			// show avenues 2>&1 | head`. BinFields matches on the path inside the quotes,
 			// so the fields handed here begin `; $B --seat-id …` — and breaking on that `;`
 			// returned no path at all. blue-synthesize made 27 non-help invocations in
 			// 2026-08-22_record-store-authority and 26 were unreadable this way, so the traversal

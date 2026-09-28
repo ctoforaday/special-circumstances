@@ -90,26 +90,26 @@ manifest row recorded for G1 [key blue-respond:manifest_row:#1:G1~1]
   · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
   · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
 
-$ line-of-inquiry propose --run {RUN} --seat-id blue-respond --reason try the  method
+$ avenue propose --run {RUN} --seat-id blue-respond --reason try the  method
 exit 0
 stdout:
-line of inquiry Q1 recorded (proposed): try the  method [key blue-respond:avenue:#1]
+avenue Q1 recorded (proposed): try the  method [key blue-respond:avenue:#1]
 2 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
   · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
   · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
 
-$ line-of-inquiry move --run {RUN} --seat-id blue-respond --id Q1 --as pursued --reason the method held
+$ avenue move --run {RUN} --seat-id blue-respond --id Q1 --as pursued --reason the method held
 exit 0
 stdout:
-line of inquiry Q1 moved to pursued [key blue-respond:avenue:#2]
+avenue Q1 moved to pursued [key blue-respond:avenue:#2]
 2 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
   · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
 
-$ line-of-inquiry propose --run {RUN} --seat-id blue-respond --reason try the recorded method --corrects blue-respond:avenue:#1 --correction-why a word was lost
+$ avenue propose --run {RUN} --seat-id blue-respond --reason try the recorded method --corrects blue-respond:avenue:#1 --correction-why a word was lost
 exit 0
 stdout:
-line of inquiry Q1 recorded (proposed): try the recorded method [key blue-respond:avenue:#1~1]
+avenue Q1 recorded (proposed): try the recorded method [key blue-respond:avenue:#1~1]
 2 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
   · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
@@ -130,7 +130,7 @@ motion M1 ruled rejected [key red-chair:motion_rule:#1]
   · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
   · gap G1 is open and material — PASS is refused while it is
   · gap G2 is open and material — PASS is refused while it is
-  · the report's account of its own research has not been read this epoch — PASS is refused until one `inquiry-support` says what the read found (and any shortfall is minted as a gap)
+  · the report's account of its own research has not been read this epoch — PASS is refused until one `avenue review` says what the read found (and any shortfall is minted as a gap)
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 $ motion grade rule --run {RUN} --seat-id red-chair --id M1 --as rejected --reason the evidence does not reach it --corrects red-chair:motion_rule:#1 --correction-why a word was lost
@@ -141,7 +141,7 @@ motion M1 ruled rejected [key red-chair:motion_rule:#1~1]
   · the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry
   · gap G1 is open and material — PASS is refused while it is
   · gap G2 is open and material — PASS is refused while it is
-  · the report's account of its own research has not been read this epoch — PASS is refused until one `inquiry-support` says what the read found (and any shortfall is minted as a gap)
+  · the report's account of its own research has not been read this epoch — PASS is refused until one `avenue review` says what the read found (and any shortfall is minted as a gap)
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 $ motion grade appeal --run {RUN} --seat-id blue-respond --id M1 --reason pressing it on  grounds
@@ -244,8 +244,8 @@ outcome recorded: UNVERIFIED (asserted) [key judge:outcome:#1~1]
 {"correction":{"corrects":"judge:outcome:#1","replacement":"judge:outcome:#1~1","why":"a word was lost"},"key":"judge:correction:judge:outcome:#1","seat_id":"judge","ts":31,"type":"EVENT_TYPE_CORRECTION"}
 
 ═══ RENDERS ═══
--- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
+-- avenues
+# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
 ## pursued (1)
 
@@ -258,7 +258,7 @@ outcome recorded: UNVERIFIED (asserted) [key judge:outcome:#1~1]
 ═══ REPORT ═══
 # _(blue/report.md has no title — not authored here)_
 
-**Report** · [Board](docket.md) · [Debate](debate.md) · [Judgments](judgments.md) · [Directions](lines-of-inquiry.md) · [Run](run.md)
+**Report** · [Board](docket.md) · [Debate](debate.md) · [Judgments](judgments.md) · [Avenues](avenues.md) · [Run](run.md)
 
 ---
 

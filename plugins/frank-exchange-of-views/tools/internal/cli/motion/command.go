@@ -3,7 +3,7 @@
 // Three exchanges — a grade dispute, a petition, a ruling on a proposed direction — were three
 // verb pairs with three vocabularies and no shared identity. `ruling`/`ruling`/`response` for one
 // concept, three renderers, and nothing tying an ask to its answer. #315 found the petition
-// FILING unrendered while the line of inquiry RULING was found unrendered SEPARATELY in the same sweep,
+// FILING unrendered while the avenue RULING was found unrendered SEPARATELY in the same sweep,
 // because nothing said they were the same mechanism; #312 is the same root.
 //
 // A motion has an ID, and the ask and its answer join on it.
@@ -85,8 +85,8 @@ func NewCommandFor(actingRole string) *cobra.Command {
 		"put a GAP before the bench: any seat files, the BENCH rules, and its disposition decides the gap's fate",
 		[]string{flags.ID},
 		[]string{flags.Principle, flags.Tension, flags.ReviewFlag, flags.Settled, flags.ReopensOn, flags.Final}))
-	c.AddCommand(subject(actingRole, "inquiry",
-		"rule on a line blue proposed: the chair rules. NO file verb — the proposal (`line-of-inquiry propose`) is the filing",
+	c.AddCommand(subject(actingRole, "avenue",
+		"rule on an avenue blue proposed: the chair rules. NO file verb — the proposal (`avenue propose`) is the filing",
 		nil, nil))
 	seat.MarkTree(c)
 	return c
@@ -130,7 +130,7 @@ func rulerFor(name string) string {
 }
 
 // subject builds one subgroup. `direction` gets no `file`: red rules on a line blue already
-// proposed, so a filing verb here would be a second way to say what `blue line of inquiry` already says.
+// proposed, so a filing verb here would be a second way to say what `blue avenue` already says.
 func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cobra.Command {
 	ruler := rulerFor(name)
 	c := &cobra.Command{

@@ -16,7 +16,7 @@
 // BYTE-IDENTITY NOTES:
 //   - `+(x).toFixed(2)` (epoch to 2 decimals, then Number→string dropping trailing zeros) is
 //     jsToFixed2Num.
-//   - The two OBJECT-valued rows (lines_of_inquiry byStatus; citation_yield_by_epoch) render via
+//   - The two OBJECT-valued rows (avenues byStatus; citation_yield_by_epoch) render via
 //     JSON.stringify in INSERTION order; Go maps sort, so they are built as literal JSON strings
 //     (objJSON) preserving first-seen order — never marshaled from a map.
 package scorecard
@@ -552,29 +552,29 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	// is 0 by construction and the tampering they watched for cannot occur. Removed rather than kept
 	// as a check that can never fire — a detector that always reads 0 is a plausible zero.
 
-	// lines_of_inquiry (object value, insertion-order byStatus)
+	// avenues (object value, insertion-order byStatus)
 	//
 	// READ FROM THE RECORD, NOT FROM THE ENVELOPES, and that is the whole of this row's history.
 	//
-	// It used to count `inquiries` arrays out of the seat RESULTS. When those did not arrive in
-	// the shape it expected it saw nothing, and rendered "no inquiries recorded — think-around-
+	// It used to count `avenues` arrays out of the seat RESULTS. When those did not arrive in
+	// the shape it expected it saw nothing, and rendered "no avenues recorded — think-around-
 	// problem is back to self-attested" — a sentence that reads as a measured finding about the
 	// run. Measured in research/2026-09-02_quadratic-formula: the record held 35 distinct lines
 	// with 113 pursued-moves while this row said none were recorded, and a seat caught it only
-	// because `show lines-of-inquiry` rendered 23 in the same sitting.
+	// because `show avenues` rendered 23 in the same sitting.
 	//
 	// THE SCORECARD IS HARVESTED INTO feov-memory, so that zero did not stay in the run: it became
 	// a cross-run memory row asserting no alternatives were explored, in a run that explored 35.
 	// A wrong number is worse than a missing one exactly here, because the next run inherits it.
 	//
-	// record.Inquiries replays proposals AND moves, so a line that was declined and later pursued
+	// record.Avenues replays proposals AND moves, so a line that was declined and later pursued
 	// counts once, under the status it currently holds.
 	var statusOrder []string
 	statusCount := map[string]int{}
 	total := 0
 	var thinLines []string
 	if fam != nil {
-		for _, q := range record.InquiriesOf(fam.Events) {
+		for _, q := range record.AvenuesOf(fam.Events) {
 			total++
 			st := q.Status
 			if _, seen := statusCount[st]; !seen {
@@ -598,20 +598,20 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 			sb.WriteString(strconv.Itoa(statusCount[st]))
 		}
 		sb.WriteByte('}')
-		rows = append(rows, Row{Clause: "Alternatives explored", Metric: "lines_of_inquiry", Cls: "diagnostic",
+		rows = append(rows, Row{Clause: "Alternatives explored", Metric: "avenues", Cls: "diagnostic",
 			Value: objJSON(sb.String()),
-			Joint: "reads WITH the report: breadth means nothing if the pursued line was chosen before the others were weighed"})
+			Joint: "reads WITH the report: breadth means nothing if the pursued avenue was chosen before the others were weighed"})
 	} else if fam == nil {
 		// NOT MEASURED IS NOT ZERO. Without a board this row has not been computed, and saying
-		// "no inquiries recorded" would be the same defect one layer up.
-		rows = append(rows, Row{Clause: "Alternatives explored", Metric: "lines_of_inquiry", Cls: "diagnostic",
+		// "no avenues recorded" would be the same defect one layer up.
+		rows = append(rows, Row{Clause: "Alternatives explored", Metric: "avenues", Cls: "diagnostic",
 			Note: "NOT MEASURED — the record could not be read, so this is not a statement about the run"})
 	} else {
-		rows = append(rows, Row{Clause: "Alternatives explored", Metric: "lines_of_inquiry", Cls: "diagnostic",
-			Note: "no inquiries recorded — think-around-problem is back to self-attested for this run"})
+		rows = append(rows, Row{Clause: "Alternatives explored", Metric: "avenues", Cls: "diagnostic",
+			Note: "no avenues recorded — think-around-problem is back to self-attested for this run"})
 	}
 
-	// thin_inquiry_reasons
+	// thin_avenue_reasons
 	thinNote := ""
 	if len(thinLines) > 0 {
 		n := thinLines
@@ -620,7 +620,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 		}
 		thinNote = strings.Join(n, "; ")
 	}
-	rows = append(rows, Row{Clause: "Alternatives explored", Metric: "thin_inquiry_reasons", Cls: "detector",
+	rows = append(rows, Row{Clause: "Alternatives explored", Metric: "thin_avenue_reasons", Cls: "detector",
 		Value: len(thinLines), Note: thinNote})
 
 	// `confidence_vs_survival` IS GONE (0.54.0). It reported "BLOCKED until per-claim confidence

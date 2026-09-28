@@ -39,7 +39,7 @@ func TestShowPrintsExactlyTheSharedProjection(t *testing.T) {
 	// one's account, so the raw transcript is not a working seat's read (see seat.Inquest).
 	for _, c := range []struct{ group, seat, name string }{
 		{"inquest", "judge", "debate"},
-		{"show", "red-chair", "lines-of-inquiry"},
+		{"show", "red-chair", "avenues"},
 	} {
 		name, group := c.name, c.group
 		t.Run(name, func(t *testing.T) {
@@ -212,14 +212,14 @@ func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 	}
 	// --json on a view with no JSON form is still refused, and `report` is the one that means it:
 	// it is prose by nature and its structured answer is a QUERY over sections, not a dump (#1086).
-	// lines-of-inquiry used to be named here and now HAS a form, so the assertion moved rather than
+	// avenues used to be named here and now HAS a form, so the assertion moved rather than
 	// being deleted — the rule is unchanged, the set it applies to shrank.
 	if _, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "report", "--json"); err == nil {
 		t.Error("show report --json was accepted; it has no JSON form and must refuse")
 	}
 	// AND THE ONE THAT NOW ANSWERS, checked here so the two halves cannot drift apart.
-	if _, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "lines-of-inquiry", "--json"); err != nil {
-		t.Errorf("show lines-of-inquiry --json was refused: %v", err)
+	if _, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "avenues", "--json"); err != nil {
+		t.Errorf("show avenues --json was refused: %v", err)
 	}
 }
 

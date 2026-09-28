@@ -14,13 +14,13 @@ import (
 //
 // MEASURED, 2026-08-10, from a haiku seat's transcript on the seatprobe board:
 //
-//	FEOV blue show --view lines-of-inquiry     <- it read the projection
-//	FEOV blue line-of-inquiry --id A1 --decision pursued --conclusion "..."   <- INVENTED
-//	FEOV blue line-of-inquiry --id A1 --decision pursued --conclusion "..."            <- invented flags
-//	FEOV blue line of inquiry --help                    <- only NOW did it read the contract
+//	FEOV blue show --view avenues     <- it read the projection
+//	FEOV blue avenue --id A1 --decision pursued --conclusion "..."   <- INVENTED
+//	FEOV blue avenue --id A1 --decision pursued --conclusion "..."            <- invented flags
+//	FEOV blue avenue --help                    <- only NOW did it read the contract
 //
 // It built a verb name out of the VIEW name, singularised, and invented two flags to go with it.
-// The verb is `line of inquiry`; nothing in the projection it had just read says so. In 32 tool calls that
+// The verb is `avenue`; nothing in the projection it had just read says so. In 32 tool calls that
 // seat read `--help` exactly once, and only after two invented calls failed — so the working
 // theory that a seat learns its surface from `<role> --help` is false in practice. It learns it
 // from what the tool prints back.
@@ -30,8 +30,8 @@ import (
 //
 // # What this test does and does not claim
 //
-// It does NOT require the view and the verb to share a name — `lines-of-inquiry` is the right
-// word for the reader of a report and `line of inquiry` is the right word for the seat proposing one, and
+// It does NOT require the view and the verb to share a name — `avenues` is the right
+// word for the reader of a report and `avenue` is the right word for the seat proposing one, and
 // collapsing them would cost more than it saves. It requires only that the view's own help SAY
 // which verb fills it, so the seat that reads the projection has the verb in the same breath.
 
@@ -52,10 +52,10 @@ var viewWriters = map[string][]string{
 	"changes":  {"edit"},
 	// All four, because the view answers two different questions with one table: what blue
 	// offered as backing (`cite`, `prove`) and what red made of it (`verify`, `reproduce`).
-	"evidence":         {"cite", "prove", "verify", "reproduce"},
-	"lines-of-inquiry": {"line-of-inquiry", "propose"},
-	"telemetry":        {},
-	"board":            {"mint", "close", "regrade", "retire"},
+	"evidence":  {"cite", "prove", "verify", "reproduce"},
+	"avenues":   {"avenue", "propose"},
+	"telemetry": {},
+	"board":     {"mint", "close", "regrade", "retire"},
 }
 
 // EVERY VIEW'S HELP NAMES THE VERB THAT FILLS IT.
@@ -103,7 +103,7 @@ func TestEveryViewNamesTheVerbThatFillsIt(t *testing.T) {
 		}
 		if !named {
 			t.Errorf("`%s --help` describes view %q without naming any verb that fills it (%s).\n"+
-				"A seat reads the projection and builds a verb name out of it: measured, one read `--view lines-of-inquiry` and typed `blue line-of-inquiry`, which does not exist. Name the verb in the view's own description so the two arrive together.",
+				"A seat reads the projection and builds a verb name out of it: measured, one read `--view avenues` and typed `blue avenue`, which does not exist. Name the verb in the view's own description so the two arrive together.",
 				seat.GroupOf(view), view, strings.Join(writers, ", "))
 		}
 	}
@@ -132,7 +132,7 @@ func TestViewWritersHasNoStaleEntries(t *testing.T) {
 // runs a command which is refused, and the refusal it gets — "unknown view" — reads as its own
 // mistake rather than the tool's.
 //
-// This is the `--view lines-of-inquiry` failure in reverse. There, a seat invented a VERB from a
+// This is the `--view avenues` failure in reverse. There, a seat invented a VERB from a
 // view name; here the tool invents a VIEW name for a seat. Both come from a projection vocabulary
 // referenced in prose that nothing checks, which is why the check is mechanical: every `--view X`
 // written anywhere in the tree must name a projection that exists.

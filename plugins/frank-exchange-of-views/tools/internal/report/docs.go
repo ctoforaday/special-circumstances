@@ -49,7 +49,7 @@ const (
 	FileDocket    = "docket.md"
 	FileDebate    = "debate.md"
 	FileJudgments = "judgments.md"
-	FileInquiry   = "lines-of-inquiry.md"
+	FileAvenues   = "avenues.md"
 	FileEvidence  = "evidence.md"
 	FileRun       = "run.md"
 	FileChangelog = "CHANGELOG.md"
@@ -57,7 +57,7 @@ const (
 )
 
 // docOrder is the reading order, and the link bar's order. Research first, process behind it.
-var docOrder = []string{FileReport, FileDocket, FileDebate, FileJudgments, FileInquiry, FileEvidence, FileRun, FileChangelog}
+var docOrder = []string{FileReport, FileDocket, FileDebate, FileJudgments, FileAvenues, FileEvidence, FileRun, FileChangelog}
 
 // Files is the document set's names, for the readers OUTSIDE this package — the capture
 // screens, the audits, the archive. They exist because a check that reads report.md alone now
@@ -119,10 +119,10 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	r.add(sectionOr(blue, "Technical foundations"))
 	r.add(sectionOr(blue, "Analysis"))
 	r.add(riskMatrix(bj))
-	// THREE DESCRIPTIVE AREAS, and every line of inquiry lands in exactly one.
-	r.add(inquiries(fam, "Research areas", accepted))
-	r.add(inquiries(fam, "Future research directions", deferred))
-	r.add(inquiries(fam, "Alternatives considered", rejected))
+	// THREE DESCRIPTIVE AREAS, and every avenue lands in exactly one.
+	r.add(avenues(fam, "Research areas", accepted))
+	r.add(avenues(fam, "Future research directions", deferred))
+	r.add(avenues(fam, "Alternatives considered", rejected))
 	r.add(sectionOr(blue, "Open questions"))
 	// The embed carries ONLY blue content not already composed above — its lifted synthesis
 	// surfaces and any tool-owned sections it wrongly authored are dropped (see blueEmbed).
@@ -142,13 +142,13 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	var jud sections
 	jud.add(motions(fam))
 
-	// lines-of-inquiry.md — THE DIRECTIONS, and the one home of each line's PATH. report.md files a
+	// avenues.md — THE DIRECTIONS, and the one home of each line's PATH. report.md files a
 	// line by its final fate (the fate word is subject content: `abandoned` means it was tried and
 	// died), and stopped carrying who moved it, the epoch-by-epoch path, and the ruling beside it,
 	// because those are the debate. Shipping only the query view would have left the path in no
 	// document a reader of the archived set can open, so it ships here — the SAME rendering
-	// `show lines-of-inquiry` prints (view.InquiryBody), not a second account of it.
-	inq := view.InquiryBody(evs)
+	// `show avenues` prints (view.AvenueBody), not a second account of it.
+	inq := view.AvenueBody(evs)
 
 	var runsec sections
 	// FIRST, because it is the fact about the run a reader of the verdict most needs: what actually
@@ -184,12 +184,12 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 			Blurb: "the transcript, epoch by epoch — red's audits, blue's answers, the closings, and the bench's terminal disposition", Body: deb.String()},
 		{File: FileJudgments, Nav: "Judgments", Title: "judgments",
 			Blurb: "every contested question and how it was answered: grade motions, petitions, and the bench's opinions", Body: jud.String()},
-		{File: FileInquiry, Nav: "Directions", Title: "lines of inquiry",
-			Blurb: "every direction the research proposed, took, deferred, declined or abandoned: the path each one took, the seat that last moved it, red's ruling and any appeal", Body: inq},
+		{File: FileAvenues, Nav: "Avenues", Title: "avenues",
+			Blurb: "every avenue the research proposed, took, deferred, declined or abandoned: the path each one took, the seat that last moved it, red's ruling and any appeal", Body: inq},
 		{File: FileEvidence, Nav: "Evidence", Title: "evidence",
 			Blurb: "the computations this run ran, with the exact script, the output, the sha256, and red's independent re-run", Body: ""},
 		{File: FileRun, Nav: "Run", Title: "the run",
-			Blurb: "how the machinery behaved: the friction the seats hit, the record's own invariant check, and what the run cost", Body: runsec.String()},
+			Blurb: "how the machinery behaved: what the seats logged, the record's own invariant check, and what the run cost", Body: runsec.String()},
 		{File: FileChangelog, Nav: "Changelog", Title: "changelog",
 			Blurb: "the provenance of this report: every revision, every claim withdrawn, and any post-run repair", Body: chg.String()},
 	}

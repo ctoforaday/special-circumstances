@@ -21,7 +21,7 @@ func Verbs() []*cobra.Command {
 		seat.Register(),
 		newCarry(),
 		newSpotCheck(),
-		newInquirySupport(),
+		newAvenue(),
 		seat.Position("position-red"),
 		seat.Closing("closing-red"),
 		newVerdict(),

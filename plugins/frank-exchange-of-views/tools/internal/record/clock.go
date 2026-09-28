@@ -82,7 +82,7 @@ func (c *ActClock) Advance(e *Event) recordsql.Window {
 // CurrentEpochOf is the epoch the debate's work has reached: the epoch of the last event that
 // is not a register. A chair that has just sat opens a new epoch on the record, but until
 // something is done in it the current one is still the last with work in it — which is what
-// "stale since the current epoch" has to mean for a line of inquiry pursued in the previous one.
+// "stale since the current epoch" has to mean for an avenue pursued in the previous one.
 func CurrentEpochOf(evs []*Event) int {
 	var clk Clock
 	cur := 0

@@ -83,10 +83,10 @@ func TestARootListingDoesNotCreditTheRole(t *testing.T) {
 // direct child, so Top is all-or-nothing per sitting; a subgroup's children need the subgroup
 // opened, so Leaf is the finer question.
 func TestTopAndLeafAnswerDifferentQuestions(t *testing.T) {
-	acts := []string{"line-of-inquiry propose", "line-of-inquiry move", "edit"}
+	acts := []string{"avenue propose", "avenue move", "edit"}
 	top := "Available Commands:\n" +
 		"  edit            change the report\n" +
-		"  line-of-inquiry propose and move a direction\n" +
+		"  avenue propose and move a direction\n" +
 		"\n"
 	got, err := ReadSeen(trajectory(t, resultLine(t, top)), acts)
 	if err != nil {

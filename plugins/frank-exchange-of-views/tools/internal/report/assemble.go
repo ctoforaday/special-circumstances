@@ -12,7 +12,7 @@
 //     writes them. A missing one is FLAGGED, never filled in.
 //
 //   - TOOL-COMPOSED FROM THE RECORD: the verdict (the terminal `outcome` event), the risk
-//     matrix (the board), the three research areas (line-of-inquiry events by fate), the red
+//     matrix (the board), the three research areas (avenue events by fate), the red
 //     findings (the board's gaps), and the debate transcript (position/closing/motion/
 //     motion-rule/halt/certify events). The event log is the source of truth; the
 //     rendered projection .md files are in-run artifacts for the seats, NOT read here.
@@ -784,8 +784,8 @@ func deferred(status string) bool { return status == "deferred" }
 
 func rejected(status string) bool { return !accepted(status) && !deferred(status) }
 
-// inquiries renders the line of inquiry LIFECYCLE under the given heading — replayed state, one row per
-// line of inquiry, not one row per event. Reading raw events double-listed every line of inquiry that MOVED: a
+// avenues renders the avenue LIFECYCLE under the given heading — replayed state, one row per
+// avenue, not one row per event. Reading raw events double-listed every avenue that MOVED: a
 // line pursued at r0 and abandoned at r2 rendered under both headings at once, as an expansion
 // and as an alternative to itself.
 //
@@ -793,14 +793,14 @@ func rejected(status string) bool { return !accepted(status) && !deferred(status
 // to append the id of the seat that last moved the line, the epoch-by-epoch status history, red's
 // ruling with its opinion, and a sentence that blue had moved against that ruling. All four are
 // the DEBATE, not the subject, and all four are reconstructable from the ledger, so none of them is
-// report text: lines-of-inquiry.md (view.InquiryBody) ships the seat, path, ruling and appeal, and
+// report text: avenues.md (view.AvenueBody) ships the seat, path, ruling and appeal, and
 // judgments.md the ruling's opinion and the appeal's reason with the other motions. The fate word
 // itself stays, because it is subject content: `abandoned` means the line was tried and died. What a reader of the report
 // needs is which lines the research followed, which it kept for later, and which it weighed and
 // set down, each with the reason in its own words.
-func inquiries(fam record.Family, heading string, want func(string) bool) string {
+func avenues(fam record.Family, heading string, want func(string) bool) string {
 	var rows []string
-	for _, a := range record.InquiriesOf(fam.Events) {
+	for _, a := range record.AvenuesOf(fam.Events) {
 		if !want(a.Status) {
 			continue
 		}
@@ -834,9 +834,9 @@ func inquiries(fam record.Family, heading string, want func(string) bool) string
 		// question: the lines reach the report on the WORKLIST generated from this projection, so
 		// blue cannot cut them, and what remains (did blue's body deliver the research) is an
 		// ORDINARY GAP that renders under The board with an id, a grade and a PASS gate.
-		// record.Inquiry's own header states the same decision from the projection's side.
+		// record.Avenue's own header states the same decision from the projection's side.
 		//
-		// What replaced it is ONE per-epoch `InquiryReview`, read by record.InquiryReviewDue.
+		// What replaced it is ONE per-epoch `AvenueReview`, read by record.AvenueReviewDue.
 		// Whether the report should carry a line saying that read happened — and where — is a
 		// composition decision, not a conversion, so nothing is invented here.
 		rows = append(rows, row)

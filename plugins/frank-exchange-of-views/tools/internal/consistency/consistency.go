@@ -208,7 +208,7 @@ func walk(events []*record.Event) *groundTruth {
 			if id := m.GetFindingId(); id != "" {
 				// A FINDING ANCHORED TO SOMETHING THAT IS NOT REPORT TEXT SPLICES NO MARKER, so
 				// it emits no anchor event and must not be required to have one. `--about-kind
-				// section|inquiry|gap` (#742, shipped #787) is the anchor an ABSENCE gets — there
+				// section|avenue|gap` (#742, shipped #787) is the anchor an ABSENCE gets — there
 				// is no sentence to mark — and before this the rule below reported every one of
 				// them as the crash window it was written to detect.
 				if m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED {
@@ -455,12 +455,12 @@ func Check(run record.Run) ([]string, error) {
 		}
 	}
 	if len(gt.avenues) > 0 {
-		if inq, err := view.MarkdownFrom(rin, "lines-of-inquiry", ""); err != nil {
-			add("inquiry-md", "render failed: %v", err)
+		if inq, err := view.MarkdownFrom(rin, "avenues", ""); err != nil {
+			add("avenue-md", "render failed: %v", err)
 		} else {
 			for id := range gt.avenues {
 				if !strings.Contains(string(inq), id) {
-					add("inquiry-md", "avenue %s missing from lines-of-inquiry", id)
+					add("avenue-md", "avenue %s missing from avenues", id)
 				}
 			}
 		}

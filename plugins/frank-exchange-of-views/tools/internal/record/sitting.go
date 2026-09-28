@@ -199,8 +199,8 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 			// like non-compliance.
 			add("gap " + id + " was minted --check-kind computation and no proof answers it; prose cannot close it")
 		}
-		// THERE IS NO PER-LINE INQUIRY DUTY HERE ANY MORE, and the deletion is a ruling rather
-		// than a dropped check. This arm read `UnsupportedInquiries` — the lines red had voted
+		// THERE IS NO PER-LINE AVENUE DUTY HERE ANY MORE, and the deletion is a ruling rather
+		// than a dropped check. This arm read `UnsupportedAvenues` — the lines red had voted
 		// `unsupported` or `absent`. Presence is not a question: the lines reach the report on
 		// the worklist, generated from the record, so blue cannot cut them. Where blue's body
 		// genuinely failed to deliver a line's research, red MINTS A GAP, and an open gap already
@@ -212,7 +212,7 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 	case "chair":
 		// EVERY REFUSAL THE GATE MAKES HAS AN ITEM HERE, AND NOTHING HERE BLOCKS WHAT THE GATE
 		// ADMITS — so `complete` agrees with the gate. Each item is read from what its refusal
-		// reads: the gap view's `stranded` and `material` columns, the motions, the inquiry read,
+		// reads: the gap view's `stranded` and `material` columns, the motions, the avenue read,
 		// unansweredContradictions and the lens fold. The FAIL-only convergence refusal has no item:
 		// this list claims nothing about a FAIL. B9's chair was told two gaps that did not hold the
 		// gate refused PASS while dispatch said pass_permitted and the verdict accepted it; it settled
@@ -261,15 +261,15 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 				add("motion " + m.ID + " (" + phrase + ") was filed and never ruled — PASS is refused while it stands")
 			}
 		}
-		// THE LINES OF INQUIRY ARE READ ONCE, EVERY EPOCH.
+		// THE AVENUES ARE READ ONCE, EVERY EPOCH.
 		//
 		// One statement per epoch, not one per line: presence is not the question, because the
 		// lines are generated onto the page from the record. What the read owes is a judgement on
 		// whether the BODY delivered them, and where it did not, a gap. The report is regenerated
 		// each epoch, so a review recorded before this epoch's edits answers a question about a
 		// document that no longer exists.
-		if InquiryReviewDueOf(evs) {
-			add("the report's account of its own research has not been read this epoch — PASS is refused until one `inquiry-support` says what the read found (and any shortfall is minted as a gap)")
+		if AvenueReviewDueOf(evs) {
+			add("the report's account of its own research has not been read this epoch — PASS is refused until one `avenue review` says what the read found (and any shortfall is minted as a gap)")
 		}
 		if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_VERDICT) {
 			add("your terminal act is missing — the run cannot say from its own record that it was ever verified")

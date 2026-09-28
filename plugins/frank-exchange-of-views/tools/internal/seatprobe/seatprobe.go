@@ -27,7 +27,7 @@
 // the thing a constitution has to teach, and therefore the thing worth testing.
 //
 // MEASURED WITH HAIKU, 2026-08-10, on the four-gap board Boards()["mixed-repair"] builds: the
-// seat used 4 of its 14 verbs — register, edit, line of inquiry, position. It never reached `prove`, on a
+// seat used 4 of its 14 verbs — register, edit, avenue, position. It never reached `prove`, on a
 // board whose first gap is `--check-kind computation` precisely because a computation check
 // cannot be closed by prose. It answered the `self-attestation` gap by writing a NEW self-
 // attestation: "The per-source totals were summed and verified to equal the stated total". No
@@ -81,7 +81,7 @@ func NewSurface(paths []string) Surface {
 		switch {
 		case len(parts) >= 2 && isRole(parts[0]):
 			// A ROLE VERB IS NOT ALWAYS ONE WORD. The verbs that carried two contracts are
-			// subgroups now — `blue line-of-inquiry propose`, `lens class new` — and a case
+			// subgroups now — `blue avenue propose`, `lens class new` — and a case
 			// matching exactly two fields dropped them from the surface entirely. The coverage
 			// gate then reported full coverage of a surface it could not see, and its inverse
 			// called a real verb one the role does not offer.
@@ -146,22 +146,22 @@ func isRole(s string) bool {
 // vocabularies are joined, and it is the only place they are.
 //
 // TWO ENTRIES ARE PRESERVED DEFECTS, carried forward unchanged rather than quietly repaired
-// while converting: `class-new` and `line-of-inquiry` match no path the tree offers (`class new`
-// takes a space, and an avenue's verb is `line-of-inquiry propose` or `line-of-inquiry move`,
+// while converting: `class-new` and `avenue` match no path the tree offers (`class new`
+// takes a space, and an avenue's verb is `avenue propose` or `avenue move`,
 // which the event type alone does not distinguish). They named nothing before this change and
 // name nothing after it. Reported, not fixed here.
 var verbOfEvent = map[recordpb.EventType]string{
-	recordpb.EventType_EVENT_TYPE_ANCHOR:         "finding",
-	recordpb.EventType_EVENT_TYPE_AVENUE:         "line-of-inquiry",
-	recordpb.EventType_EVENT_TYPE_BLUE_EDIT:      "edit",
-	recordpb.EventType_EVENT_TYPE_CLASS_NEW:      "class-new",
-	recordpb.EventType_EVENT_TYPE_INQUIRY_REVIEW: "inquiry-support",
-	recordpb.EventType_EVENT_TYPE_MANIFEST_ROW:   "manifest-row",
-	recordpb.EventType_EVENT_TYPE_MOTION:         "motion file",
-	recordpb.EventType_EVENT_TYPE_MOTION_APPEAL:  "motion appeal",
-	recordpb.EventType_EVENT_TYPE_MOTION_RULE:    "motion rule",
-	recordpb.EventType_EVENT_TYPE_PROOF:          "prove",
-	recordpb.EventType_EVENT_TYPE_SPOT_CHECK:     "spot-check",
+	recordpb.EventType_EVENT_TYPE_ANCHOR:        "finding",
+	recordpb.EventType_EVENT_TYPE_AVENUE:        "avenue",
+	recordpb.EventType_EVENT_TYPE_BLUE_EDIT:     "edit",
+	recordpb.EventType_EVENT_TYPE_CLASS_NEW:     "class-new",
+	recordpb.EventType_EVENT_TYPE_AVENUE_REVIEW: "avenue review",
+	recordpb.EventType_EVENT_TYPE_MANIFEST_ROW:  "manifest-row",
+	recordpb.EventType_EVENT_TYPE_MOTION:        "motion file",
+	recordpb.EventType_EVENT_TYPE_MOTION_APPEAL: "motion appeal",
+	recordpb.EventType_EVENT_TYPE_MOTION_RULE:   "motion rule",
+	recordpb.EventType_EVENT_TYPE_PROOF:         "prove",
+	recordpb.EventType_EVENT_TYPE_SPOT_CHECK:    "spot-check",
 }
 
 // motionSubject is the SUBGROUP a seat typed, read off whichever motion body the event carries.
@@ -184,15 +184,15 @@ func motionSubject(e *record.Event) string {
 // subjectVerb spells a motion subject the way the COMMAND TREE spells it, which for one of the
 // three is not the enum's word.
 //
-// `MOTION_SUBJECT_DIRECTION` is typed `motion inquiry rule` / `motion inquiry appeal` — the
-// schema re-conceived the subject as a DIRECTION (it rules on a line of inquiry blue proposed,
-// and `DirectionMotion` carries the avenue's own id) while the CLI subgroup, its help text and
-// every board expectation still say `inquiry`. Rendering the enum's word here would report a
-// verb no role offers, making both `motion inquiry` expectations unmeetable BY CONSTRUCTION —
+// `MOTION_SUBJECT_AVENUE` is typed `motion avenue rule` / `motion avenue appeal` — the
+// schema re-conceived the subject as a DIRECTION (it rules on an avenue blue proposed,
+// and `AvenueMotion` carries the avenue's own id) while the CLI subgroup, its help text and
+// every board expectation still say `avenue`. Rendering the enum's word here would report a
+// verb no role offers, making both `motion avenue` expectations unmeetable BY CONSTRUCTION —
 // the failure mode this file's own comment warns about, arriving through the rename.
 func subjectVerb(s recordpb.MotionSubject) string {
-	if s == recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION {
-		return "inquiry"
+	if s == recordpb.MotionSubject_MOTION_SUBJECT_AVENUE {
+		return "avenue"
 	}
 	return recordpb.Word(s)
 }

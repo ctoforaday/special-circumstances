@@ -55,20 +55,20 @@
 |---|---|---|---|---|
 | <risk> | low/med/high | low/med/high | low/med/high | <mitigation, or `defect_accepted` + rationale> |
 
-## Research areas                        <!-- [RECORD] lines of inquiry PURSUED — a research topic followed, and what it yielded -->
+## Research areas                        <!-- [RECORD] avenues PURSUED — a research topic followed, and what it yielded -->
 
-## Future research directions            <!-- [RECORD] lines of inquiry DEFERRED — kept, not rejected: worth taking and not by THIS
+## Future research directions            <!-- [RECORD] avenues DEFERRED — kept, not rejected: worth taking and not by THIS
                                               run. --reason says what a later run should pick it up FOR. It reaches the
                                               report as a proposal a human selects, never an automatic seed. This is its
                                               OWN section because filing it under "Alternatives considered" said the
                                               opposite of its fate. -->
 
-## Alternatives considered               <!-- [RECORD] lines of inquiry DECLINED (weighed, not taken) and ABANDONED (tried, died) —
+## Alternatives considered               <!-- [RECORD] avenues DECLINED (weighed, not taken) and ABANDONED (tried, died) —
                                               each with its reason (the counter), in the subject's terms. A line abandoned
                                               with no `pursued` step on the record is tagged [abandoned before pursuit], so
                                               the tag never claims a pursuit the record does not hold. Who proposed a
                                               line, the path its status took, red's ruling and any appeal are the debate,
-                                              not the subject: they render in lines-of-inquiry.md and judgments.md. -->
+                                              not the subject: they render in avenues.md and judgments.md. -->
 
 ## Open questions                        <!-- [BLUE] what the debate could not resolve; a question nobody could answer is a finding -->
 
@@ -104,14 +104,14 @@
 ## Motions                               <!-- [RECORD] every adjudicated exchange, joined on its id: the FILING (class, basis,
                                               relief sought) and its ruling, never the ruling alone. -->
 
-# lines-of-inquiry.md — the directions
+# avenues.md — each avenue and what became of it
 
-## (by fate)                             <!-- [RECORD] every line of inquiry grouped by its current fate, each with its hypothesis,
+## (by fate)                             <!-- [RECORD] every avenue grouped by its current fate, each with its hypothesis,
                                               the PATH its status took epoch by epoch, the seat that last moved it, red's
-                                              ruling and any appeal; then the lines still awaiting a decision. The same
-                                              rendering a seat reads through the tool. report.md carries only each line's
+                                              ruling and any appeal; then the avenues still awaiting a decision. The same
+                                              rendering a seat reads through the tool. report.md carries only each avenue's
                                               fate and reason; this is where how it got there lives. Omitted when the run
-                                              recorded no line of inquiry. -->
+                                              recorded no avenue. -->
 
 # evidence.md — the computations
 

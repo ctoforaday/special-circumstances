@@ -17,7 +17,7 @@
 // A `describe` command was the other candidate and was rejected: it splits the answer from the
 // question and costs a round trip, and a seat that must run a second command to understand the
 // first will guess instead. That is not speculation — it is the measured failure this package
-// answers (a seat read `--view lines-of-inquiry`, guessed the verb, and invented one).
+// answers (a seat read `--view avenues`, guessed the verb, and invented one).
 //
 // # What it does
 //

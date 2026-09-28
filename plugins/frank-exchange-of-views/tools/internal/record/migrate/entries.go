@@ -20,6 +20,9 @@ func Entries() Registry {
 		"opinion":       {Translate: opinionEntry},
 		"cite":          {Translate: citeEntry},
 		"register":      {Translate: registerEntry},
+		// The review of the set is an act of the avenue concept and is named for it. The
+		// columns are unchanged; only the word moves.
+		"inquiry_review": mapped("avenue_review", nil, nil, nil),
 	}
 	for w, e := range eraEntries() {
 		reg[w] = e

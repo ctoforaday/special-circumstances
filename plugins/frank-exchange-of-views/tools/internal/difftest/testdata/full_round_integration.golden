@@ -151,10 +151,10 @@ verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}
 {"key":"red-chair:verdict:#1","seat_id":"red-chair","ts":11,"type":"EVENT_TYPE_VERDICT","verdict":{"verdict":"VERDICT_FAIL"}}
 
 ═══ RENDERS ═══
--- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
+-- avenues
+# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

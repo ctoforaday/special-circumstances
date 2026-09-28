@@ -134,7 +134,7 @@ func TestMotionAnswersStatesFirstWinsOnce(t *testing.T) {
 	}
 }
 
-func TestLineOfInquiryCarriesTheWholeLine(t *testing.T) {
+func TestAvenueCarriesTheWholeLine(t *testing.T) {
 	db := store(t)
 	if _, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{
 		AvenueId: proto.String("Q1"), Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(),
@@ -149,20 +149,20 @@ func TestLineOfInquiryCarriesTheWholeLine(t *testing.T) {
 	// Two direction rulings; the LATEST wins, and its unset arm is red ruling NOTHING —
 	// not an invitation to read the older word.
 	if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
-		MotionId: proto.String("Q1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION.Enum(),
+		MotionId: proto.String("Q1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_AVENUE.Enum(),
 		Opinion: proto.String("o"),
-		Ruling:  &recordpb.MotionRule_Direction{Direction: recordpb.DirectionRuling_DIRECTION_RULING_ENDORSED}})); err != nil {
+		Ruling:  &recordpb.MotionRule_Avenue{Avenue: recordpb.AvenueRuling_AVENUE_RULING_ENDORSED}})); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Insert(db, event(t, 3, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
-		MotionId: proto.String("Q1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION.Enum(),
+		MotionId: proto.String("Q1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_AVENUE.Enum(),
 		Opinion: proto.String("reconsidered, no word")})); err != nil {
 		t.Fatal(err)
 	}
 
 	var line, status string
 	var ruling sql.NullString
-	if err := db.QueryRow(`SELECT "line", "status", "direction_ruling" FROM "line_of_inquiry" WHERE "avenue_id" = 'Q1'`).
+	if err := db.QueryRow(`SELECT "line", "status", "avenue_ruling" FROM "avenue_state" WHERE "avenue_id" = 'Q1'`).
 		Scan(&line, &status, &ruling); err != nil {
 		t.Fatal(err)
 	}
@@ -173,13 +173,13 @@ func TestLineOfInquiryCarriesTheWholeLine(t *testing.T) {
 		t.Errorf("status = %q, want the latest move's", status)
 	}
 	if ruling.Valid {
-		t.Errorf("direction_ruling = %q, want NULL — the latest ruling carried no word, and that is the answer", ruling.String)
+		t.Errorf("avenue_ruling = %q, want NULL — the latest ruling carried no word, and that is the answer", ruling.String)
 	}
 	var n int
-	if err := db.QueryRow(`SELECT count(*) FROM "line_of_inquiry"`).Scan(&n); err != nil {
+	if err := db.QueryRow(`SELECT count(*) FROM "avenue_state"`).Scan(&n); err != nil {
 		t.Fatal(err)
 	}
 	if n != 1 {
-		t.Errorf("line_of_inquiry has %d rows for one line moved once, want 1", n)
+		t.Errorf("avenue has %d rows for one line moved once, want 1", n)
 	}
 }

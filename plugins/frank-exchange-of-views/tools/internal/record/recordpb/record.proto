@@ -238,7 +238,7 @@ enum EventType {
   EVENT_TYPE_UNSPECIFIED = 0;
   EVENT_TYPE_REGISTER = 1 [(correct) = CORRECTION_TIER_NONE, (means) = "a seat took its seat — the first act of any seat, stamping the tool version it ran under"];
   EVENT_TYPE_ANCHOR = 2 [(correct) = CORRECTION_TIER_NONE, (means) = "evidence tied to a finding: where in the artifact the claim actually lives"];
-  EVENT_TYPE_AVENUE = 3 [(correct) = CORRECTION_TIER_PROSE, (means) = "a line of inquiry, from proposed through pursued, declined, deferred or abandoned"];
+  EVENT_TYPE_AVENUE = 3 [(correct) = CORRECTION_TIER_PROSE, (means) = "an avenue, from proposed through pursued, declined, deferred or abandoned"];
   EVENT_TYPE_BLUE_EDIT = 4 [(correct) = CORRECTION_TIER_NONE, (means) = "a change to the report, recorded as old and new so the edit itself is auditable"];
   EVENT_TYPE_CERTIFY = 5 [(correct) = CORRECTION_TIER_PROSE, (means) = "a seat's signed statement about its own work — what it asserts on the record"];
   EVENT_TYPE_CITE = 6 [(correct) = CORRECTION_TIER_PROSE, (means) = "a source brought into the debate, with the hash and access date that make it re-checkable"];
@@ -270,7 +270,7 @@ enum EventType {
   EVENT_TYPE_SPOT_CHECK = 29 [(correct) = CORRECTION_TIER_FULL, (means) = "red re-checking a sample of prior work, or stating that it checked none and why"];
   EVENT_TYPE_VERDICT = 30 [(correct) = CORRECTION_TIER_NONE, (means) = "the chair's verdict for its epoch: PASS or FAIL against the open board"];
   EVENT_TYPE_VERIFY = 31 [(correct) = CORRECTION_TIER_NONE, (means) = "a citation checked at the leaf: what the source did for the claim, and how sure the reader is"];
-  EVENT_TYPE_INQUIRY_REVIEW = 32 [(correct) = CORRECTION_TIER_FULL, (means) = "a review of the lines of inquiry themselves, rather than of a finding"];
+  EVENT_TYPE_AVENUE_REVIEW = 32 [(correct) = CORRECTION_TIER_FULL, (means) = "a review of the avenues themselves, rather than of a finding"];
   EVENT_TYPE_BASE_INGEST = 33 [(correct) = CORRECTION_TIER_NONE, (means) = "the report as blue ingested it, stored verbatim as the origin every recorded edit replays over"];
   EVENT_TYPE_SITTING_OPEN = 34 [(correct) = CORRECTION_TIER_NONE, (means) = "the harness dispatching an agent — one end of a sitting's span, observed by a hook rather than claimed by a seat"];
   EVENT_TYPE_SITTING_CLOSE = 35 [(correct) = CORRECTION_TIER_NONE, (means) = "the harness's agent returning — the other end of that span"];
@@ -415,7 +415,7 @@ enum Soundness {
   SOUNDNESS_UNSOUND = 2 [(means) = "it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to — the dangerous cell, because it looks maximally credible"];
 }
 
-// AvenueStatus is a line of inquiry's fate. The lines-of-inquiry projection groups BY status, so
+// AvenueStatus is an avenue's fate. The avenues projection groups BY status, so
 // a value outside the set did not fail — it silently vanished from the section that exists to
 // show the roads not taken.
 enum AvenueStatus {
@@ -433,7 +433,7 @@ enum MotionSubject {
   MOTION_SUBJECT_UNSPECIFIED = 0;
   MOTION_SUBJECT_GRADE = 1 [(means) = "you contest a gap's grade on one dimension", (ruled_by) = "chair"];
   MOTION_SUBJECT_PETITION = 2 [(means) = "you ask the bench to intervene — the constitutional short-circuit available to any party seat", (ruled_by) = "bench"];
-  MOTION_SUBJECT_DIRECTION = 3 [(means) = "a ruling on a line of inquiry blue proposed; the id is the AVENUE's own, because the proposal IS the filing", (ruled_by) = "chair"];
+  MOTION_SUBJECT_AVENUE = 3 [(means) = "a ruling on an avenue blue proposed; the id is the AVENUE's own, because the proposal IS the filing", (ruled_by) = "chair"];
   MOTION_SUBJECT_DOCKET = 4 [(means) = "a gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap's fate", (ruled_by) = "bench"];
 }
 
@@ -452,11 +452,11 @@ enum PetitionRuling {
   PETITION_RULING_DENIED = 2 [(means) = "the petition fails; the run continues as it was"];
 }
 
-enum DirectionRuling {
-  DIRECTION_RULING_UNSPECIFIED = 0;
-  DIRECTION_RULING_ENDORSED = 1 [(means) = "worth this run's time — pursue it"];
-  DIRECTION_RULING_OUT_OF_SCOPE = 2 [(means) = "a real question, but not THIS question"];  // a real question, but not THIS question
-  DIRECTION_RULING_TOO_THIN = 3 [(means) = "in scope, but the hypothesis does not carry its budget"];      // in scope, but the hypothesis does not carry its budget
+enum AvenueRuling {
+  AVENUE_RULING_UNSPECIFIED = 0;
+  AVENUE_RULING_ENDORSED = 1 [(means) = "worth this run's time — pursue it"];
+  AVENUE_RULING_OUT_OF_SCOPE = 2 [(means) = "a real question, but not THIS question"];  // a real question, but not THIS question
+  AVENUE_RULING_TOO_THIN = 3 [(means) = "in scope, but the hypothesis does not carry its budget"];      // in scope, but the hypothesis does not carry its budget
 }
 
 // Event is the log line.
@@ -567,7 +567,7 @@ message Event {
     Retire retire = 47;
     ManifestRow manifest_row = 48;
     Log log = 49;
-    InquiryReview inquiry_review = 51;
+    AvenueReview avenue_review = 51;
     BaseIngest base_ingest = 52;
     SittingOpen sitting_open = 53;
     SittingClose sitting_close = 54;
@@ -578,7 +578,7 @@ message Event {
   }
 
   // 59-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
-  // claimed now rather than negotiated later. 51 was drawn from it for `inquiry_review`, 52 for
+  // claimed now rather than negotiated later. 51 was drawn from it for `avenue_review`, 52 for
   // `base_ingest`, 53-54 for the sitting span, 55-56 for the cast and the dispatch
   // (plans/roundless.md §III.B.1), 57 for the sitting limit and 58 for the correction, which is
   // what the reserve is for —
@@ -947,7 +947,7 @@ message SpotCheck {
 enum AboutKind {
   ABOUT_KIND_UNSPECIFIED = 0;
   ABOUT_KIND_SECTION = 1 [(means) = "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there"];
-  ABOUT_KIND_INQUIRY = 2 [(means) = "a line of inquiry, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor"];
+  ABOUT_KIND_AVENUE = 2 [(means) = "an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor"];
   ABOUT_KIND_GAP = 3 [(means) = "a gap already on the docket, by its id — a defect in the record rather than in the report"];
 }
 
@@ -1231,37 +1231,37 @@ message Reproduce {
   optional string note = 6 [(sql) = { flag: "reason" }, (prose) = true];
 }
 
-// InquiryReview is one seat's statement, ONCE THIS ROUND, that it read the current report against
-// the record's lines of inquiry.
+// AvenueReview is the chair's statement, ONCE PER EPOCH, that it read the current report against
+// the record's avenues.
 //
 // The report's account of its own research — "we pursued X", "we deferred Y" — reaches the page as
 // a row `assemble` GENERATES from the record. It carries no citation anchor, so `lens verify`
 // cannot reach it: without this event nothing on the record says those claims were ever read, and
 // an unread section and a sound one are the same bytes.
 //
-// ONE EVENT PER ROUND, NOT ONE PER LINE, AND THE CORRECTION IS THE POINT. A retired shape gave
-// every line its own verdict on whether the report still CARRIED it. That made presence the
-// question, and presence is not a question: the lines reach the report on the WORKLIST, generated
-// from the record, so blue cannot cut them. A line is on the page because the record says it is,
-// and a per-line `cut`/`absent` state named something no writer could produce.
+// ONE EVENT PER EPOCH, NOT ONE PER AVENUE, AND THE CORRECTION IS THE POINT. A retired shape gave
+// every avenue its own verdict on whether the report still CARRIED it. That made presence the
+// question, and presence is not a question: avenues reach the report generated from the record, so
+// blue cannot cut them. An avenue is on the page because the record says it is, and a per-avenue
+// `cut`/`absent` state named something no writer could produce.
 //
 // WHAT IS LEFT IS AN ORDINARY GAP. The live question is whether blue's BODY delivered the research
-// a line claims — thin treatment, an unanswered hypothesis, a method never run. That is a defect
+// an avenue claims — thin treatment, an unanswered hypothesis, a method never run. That is a defect
 // in the report, so it is minted as a gap and gets the lifecycle, the blue duty, the grade and the
 // PASS gate every other gap already has. A second vocabulary for the same fact is exactly the
 // aliasing this schema exists to remove.
 //
-// THE DISCHARGE IS MODELLED ON `friction --none`, for the same reason and with the same field.
-// Silence cannot clear a duty: an absent review reads identically whether the report was read and
-// found sound or nobody looked. So "nothing to say" must still be SAID — one event, this round,
-// carrying what the read found. `reason` is required at the write path for the reason
-// FrictionNone.text is: an explicit negative is only worth more than silence when it says what was
+// WHY SILENCE CANNOT DISCHARGE IT, when the log's clean case is derived from silence: the log is
+// for exceptions, and a sitting that recorded acts and filed nothing there is the clean reading.
+// This is a READ, and an absent read is indistinguishable from a read that found the section sound
+// — so the read is the act, stated once per epoch with what it found. `reason` is required at the
+// write path because an explicit negative is only worth more than silence when it says what was
 // looked at.
-message InquiryReview {
+message AvenueReview {
   optional string reason = 1 [(prose) = true];
 }
 
-// Avenue is a line of inquiry with a lifecycle. A PROPOSAL assigns the id and carries the
+// Avenue is an avenue with a lifecycle. A PROPOSAL assigns the id and carries the
 // substance; a MOVE names the avenue and carries only the new status and its reason, which is
 // why `line` cannot be required unconditionally.
 message Avenue {
@@ -1284,7 +1284,7 @@ message Avenue {
   optional AvenueStatus status = 5 [(sql) = {
     required: true
     flag: "as"
-    why: "the line's fate; the lines-of-inquiry projection groups by it"
+    why: "the line's fate; the avenues projection groups by it"
   }];
 
   // supersedes_status marks this event as a MOVE rather than a proposal.
@@ -1496,7 +1496,7 @@ message Motion {
   oneof filing {
     GradeMotion grade = 10;
     PetitionMotion petition = 11;
-    DirectionMotion direction = 12;
+    AvenueMotion avenue = 12;
     DocketMotion docket = 13;
   }
 }
@@ -1575,7 +1575,7 @@ message DocketMotion {
 // because the vocabulary is subject-keyed — which docket satisfies, since its vocabulary IS the
 // shared Disposition enum. The departure is forced by the reasoning fields, not by the words.
 message DocketRuling {
-  // ONE QUESTION, TWO ASSERTABLE ANSWERS — the `friction --none` shape.
+  // ONE QUESTION, TWO ASSERTABLE ANSWERS — a negative that must be stated rather than left empty.
   //
   // "What would reopen this?" has a real answer of "nothing", and that answer must be POSITIVE.
   // Left as an empty `reopens_on` it is indistinguishable from a bench that skipped the field,
@@ -1640,9 +1640,9 @@ message DocketRuling {
   optional bool final = 7;
 }
 
-// DirectionMotion rules on a line of inquiry blue proposed. The id is the AVENUE's own — a
+// AvenueMotion rules on an avenue blue proposed. The id is the AVENUE's own — a
 // direction has no separate filing, because blue's proposal IS the filing.
-message DirectionMotion {
+message AvenueMotion {
   optional string avenue_id = 1;
 }
 
@@ -1664,7 +1664,7 @@ message MotionRule {
     //
     // It carried `references: "motion.motion_id"`, which reads right and is false for one subject
     // in three: a DIRECTION motion has no motion row. "The proposal IS the filing" — `motion
-    // direction rule` names the line of inquiry's own id, so the referent is an `avenue`, not a
+    // direction rule` names the avenue's own id, so the referent is an `avenue`, not a
     // `motion`. The foreign key refused every direction ruling in the tool.
     //
     // A conditional foreign key is not expressible (a CHECK cannot hold a subquery), and a trigger
@@ -1698,7 +1698,7 @@ message MotionRule {
   oneof ruling {
     GradeRuling grade = 10;
     PetitionRuling petition = 11;
-    DirectionRuling direction = 12;
+    AvenueRuling avenue = 12;
     DocketRuling docket = 13;
   }
 
@@ -1738,7 +1738,7 @@ enum RulingBinds {
 // and then yielding belongs on the record instead of vanishing.
 message MotionAppeal {
   // An appeal names the motion it appeals — and NOT as a foreign key, for the reason MotionRule
-  // records at length: a direction appeal names the line of inquiry's own id, because the proposal
+  // records at length: a direction appeal names the avenue's own id, because the proposal
   // is the filing and there is no motion row. I added the reference here for symmetry with the
   // ruling's, and it was wrong in both places for the same third of cases.
   //

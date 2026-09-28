@@ -203,10 +203,10 @@ certification recorded [key judge:certify:#1]
 {"certify":{"statement":"what a human should re-examine"},"key":"judge:certify:#1","seat_id":"judge","ts":15,"type":"EVENT_TYPE_CERTIFY"}
 
 ═══ RENDERS ═══
--- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: the record, records/record.db)
+-- avenues
+# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 
