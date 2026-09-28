@@ -177,9 +177,37 @@ func newRunner(bin, runDir string, rng *lockedRand) *runner {
 	return &runner{bin: bin, runDir: runDir, runHandle: run, rng: rng, registered: map[string]bool{}}
 }
 
+// gapSet is a set of gap ids that concurrent seats mark and read. Each carries its OWN lock rather
+// than r.mu: the seats mark these from envelopeFor, which runs on a goroutine per seat on purpose
+// (sibling lanes contend on one run directory — the contention this gate exists to create), and a
+// lock scoped to one set is held for a map access and nothing else, so it can neither span a
+// subprocess nor nest inside a caller that already holds r.mu.
+type gapSet struct {
+	mu sync.Mutex
+	m  map[string]bool
+}
+
+func (g *gapSet) add(ids ...string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.m == nil {
+		g.m = map[string]bool{}
+	}
+	for _, id := range ids {
+		g.m[id] = true
+	}
+}
+
+func (g *gapSet) has(id string) bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.m[id]
+}
+
 // runner shells the real binary for one run's seats. runDir + bin are fixed per fuzz iteration.
 type runner struct {
-	// mu guards every mutable field below. The seats run concurrently as of #630 phase 3, and
+	// mu guards every mutable field below that has no guard of its own (classMu, and each
+	// gapSet's lock, are named where they sit). The seats run concurrently as of #630 phase 3, and
 	// these were single-threaded by accident rather than by design. It is held around the state
 	// itself and NEVER across r.exec — a lock spanning a subprocess would put the serialization
 	// back one layer down and buy nothing but a slower version of the old behaviour.
@@ -219,12 +247,18 @@ type runner struct {
 	// CHECKS its reference against the record, so a drive needs a real one — a composed "Q1"
 	// would drive the refusal and never the success.
 	avenueIDs []string
+	// classMu guards classMade and is HELD ACROSS THE COIN, the one lock here that spans a
+	// subprocess, because the coin is a dependency rather than a contention: every mint names
+	// `--class fuzzcls`, and a lens minting while another is still coining it is refused "unknown
+	// class" — a mint that silently never reaches the board. Held once per run until it succeeds;
+	// after that it is a flag read.
+	classMu   sync.Mutex
 	classMade bool
 	// #277: the gap ids minted with --check-kind computation. Such a gap CANNOT be closed
 	// until a proof answers it, so closeGap satisfies it first — otherwise the fuzzer
 	// accumulates unclosable gaps and every open-gap-scaled drive grows with them (measured:
 	// a uniform draw took the 60-run sweep from 47s to a 900s timeout).
-	computationGaps map[string]bool
+	computationGaps gapSet
 	// #62 Stage 2: disputes blue RAISED (event emitted + envelope ref), awaiting red's answer
 	// next round — mirrors debate.js's pendingDisputes so the fuzz drives the docket machinery
 	// through the ENVELOPE, not just the events. Each: {gap_id, dimension, proposed}.
@@ -237,14 +271,14 @@ type runner struct {
 	ruledMotions []string
 	// presented records the gaps a responder was actually shown: a gap minted in the terminal
 	// round never reaches blue, so its scenario was never dispatched and cannot be asserted.
-	presented map[string]bool
+	presented gapSet
 	// evaluated records the gaps red actually SAT ON after blue had responded — the only ones
 	// whose terminal fate red is answerable for. Blue repairing in the final round leaves a
 	// satisfied gap legitimately open, because red never sits again.
-	evaluated map[string]bool
+	evaluated gapSet
 	// reproduced records the PROVE gaps whose proof a lens re-ran and confirmed. Red closes on
 	// THIS, not on its own assertion that a computation happened.
-	reproduced map[string]bool
+	reproduced gapSet
 	// applyMisses counts, by CAUSE, every time the verbatim-apply branch declined to apply.
 	// Reported beside the verbatim tally so a zero there names its reason instead of implying one.
 	applyMisses map[string]int
@@ -1050,6 +1084,7 @@ func (r *runner) mint(seatID string) string {
 	// COINING IS ITS OWN VERB (`lens class new`), so the fuzz drives it as one. It used to be
 	// four flags on the first mint, which meant the coining path ran exactly once per run and
 	// only ever in company with a mint.
+	r.classMu.Lock()
 	if !r.classMade {
 		r.classMade = true
 		// THE COIN'S FAILURE IS NOT OPTIONAL, and swallowing it made this file lie about what it
@@ -1094,6 +1129,7 @@ func (r *runner) mint(seatID string) string {
 			}
 		}
 	}
+	r.classMu.Unlock()
 	args = append(args, "--class", "fuzzcls")
 	if r.coin(40) {
 		// --key is mint's crash-retry idempotency handle: a retried mint under the same key
@@ -1150,10 +1186,7 @@ func (r *runner) mint(seatID string) string {
 		r.noteMint(seatID, env.Result.GapID)
 	}
 	if kind == "computation" && env.Result.GapID != "" {
-		if r.computationGaps == nil {
-			r.computationGaps = map[string]bool{}
-		}
-		r.computationGaps[env.Result.GapID] = true
+		r.computationGaps.add(env.Result.GapID)
 	}
 	return env.Result.GapID
 }
@@ -1293,7 +1326,7 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 	// set grew with them. Answering it here drives the SATISFIED path on every computation
 	// gap, which is the branch a probabilistic prove would mostly skip, and the refusal is
 	// still covered by the integration tests that assert it.
-	if r.computationGaps[id] {
+	if r.computationGaps.has(id) {
 		// A SEAT REGISTERS BEFORE IT APPENDS, AND THIS ONE DID NOT (#664).
 		//
 		// closeGap is driven from the CHAIR's branch, and it proves as `blue-respond` —
@@ -1988,12 +2021,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// looked at what red had actually asked for.
 		r.answerAvenueRulings(seatID)
 		r.disputedThisRound = nil
-		if r.presented == nil {
-			r.presented = map[string]bool{}
-		}
-		for _, id := range open {
-			r.presented[id] = true
-		}
+		r.presented.add(open...)
 		r.blueRespondTo(seatID, open)
 		disputes := r.disputedThisRound
 		// debate.js rejects an EMPTY manifest on a round with open gaps — a repair must show its
@@ -2101,27 +2129,24 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// (active, or re-armed once). Either way it audits (the shared lens acts below the
 		// fallthrough) and may put new gaps on the board against its own budget.
 		r.sit("lens", seatID)
-		if r.evaluated == nil {
-			r.evaluated = map[string]bool{}
-		}
 		engaged := r.engaged(seatID)
 		for _, id := range engaged {
 			d := r.scenarioOf(id)
-			if r.presented[id] {
-				r.evaluated[id] = true
+			if r.presented.has(id) {
+				r.evaluated.add(id)
 			}
 			// BLUE SITS AFTER THE LENSES IN AN EPOCH, so a gap the plan engages both on has not
 			// been answered yet the first time the lens sees it: closing it then is red closing
 			// on nothing — which is exactly what left `--answers`, verbatim application and the
 			// estoppel guard undriven across forty runs. A lens closes a gap blue has SAT on.
 			switch {
-			case satisfied(d) && r.presented[id]:
+			case satisfied(d) && r.presented.has(id):
 				// ONE COIN, NOT TWO — see closeGap: the regression close is sampled in exactly
 				// one place, so it is driven rather than multiplied down to noise.
 				r.closeGap(seatID, id, true)
-			case d == dirProve && r.reproduced[id]:
+			case d == dirProve && r.reproduced.has(id):
 				r.closeGap(seatID, id, false)
-			case d == dirDisputeWon && r.presented[id]:
+			case d == dirDisputeWon && r.presented.has(id):
 				r.closeGap(seatID, id, false)
 			default:
 				// A GAP NEITHER MOVED NOR CLOSED IS A NULL TURN, which counts toward impasse; a
@@ -3023,7 +3048,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			id := g.ID
 			// Only gaps a responder was SHOWN can be judged: one minted in the terminal round
 			// never reaches blue, so its scenario was never dispatched.
-			if g == nil || g.Mint == nil || !r.presented[id] {
+			if g == nil || g.Mint == nil || !r.presented.has(id) {
 				continue
 			}
 			switch g.Mint.GetRequiredFix() {
@@ -3049,7 +3074,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 					res.err = "scenario PROVE: " + id + " has no proof answering it — the computation the scenario specified left no artifact red could re-run"
 					return res
 				}
-				if r.evaluated[id] && !g.Open && !r.reproduced[id] {
+				if r.evaluated.has(id) && !g.Open && !r.reproduced.has(id) {
 					res.err = "scenario PROVE: " + id + " was CLOSED without its proof reproducing — red accepted a computation on somebody's word, which is the one thing re-running exists to prevent"
 					return res
 				}
@@ -3064,7 +3089,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			// run simply ended CEILING with work sitting done-but-open, and nothing said so.
 			// Scoped to gaps red actually sat on after blue answered: a repair landed in the
 			// final round leaves the gap legitimately open, because red never sits again.
-			if satisfied(g.Mint.GetRequiredFix()) && r.evaluated[id] && g.Open {
+			if satisfied(g.Mint.GetRequiredFix()) && r.evaluated.has(id) && g.Open {
 				res.err = "scenario " + g.Mint.GetRequiredFix() + ": " + id + " is still OPEN after red sat on the repaired board — work was done and the board never recorded it as finished"
 				return res
 			}
@@ -4412,9 +4437,6 @@ func (r *runner) reproveOpenProofs(seatID string) {
 	if err != nil {
 		return
 	}
-	if r.reproduced == nil {
-		r.reproduced = map[string]bool{}
-	}
 	proofFor := map[string]string{} // gap -> sha
 	for _, e := range b.Events {
 		if p, ok := recordpb.BodyAs[*recordpb.Proof](e); ok && p.GetAnswers() != "" && p.GetProofSha() != "" {
@@ -4439,9 +4461,7 @@ func (r *runner) reproveOpenProofs(seatID string) {
 			} `json:"result"`
 		}
 		if json.Unmarshal([]byte(strings.TrimSpace(out)), &env) == nil && env.Result.Matches {
-			r.mu.Lock()
-			r.reproduced[id] = true
-			r.mu.Unlock()
+			r.reproduced.add(id)
 		}
 	}
 }
