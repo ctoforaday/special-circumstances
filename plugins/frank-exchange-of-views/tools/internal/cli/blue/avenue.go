@@ -39,7 +39,7 @@ import (
 // TWO FORMS, AND THEY ARE TWO VERBS (#246).
 //
 //	propose  --reason "<the approach>" --hypothesis "<what would be true if it pays off>"
-//	move     --id A1 --as pursued|declined|abandoned|deferred --reason "<what changed>"
+//	move     --id A1 --as pursued|concluded|declined|abandoned|deferred --reason "<what changed>"
 //
 // The move form is the whole point. Measured over 86 avenue events in six runs: ZERO
 // were ever recorded twice and ZERO statuses ever changed, because there was no id and no update

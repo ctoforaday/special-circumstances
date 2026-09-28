@@ -334,11 +334,12 @@ CREATE TABLE "enum_avenue_status" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('abandoned', 'you started and stopped. REQUIRES a reason — what killed it is the part a future run actually needs');
+INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('abandoned', 'you TRIED it and it died. REQUIRES a reason — what killed it is the part a future run actually needs, and it stops a later run re-walking it');
+INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('concluded', 'you followed the line to its end and it answered what it set out to test — REQUIRES a reason saying what it found, which is in the report; it owes no further move. A line that died is `abandoned`, not this');
 INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('declined', 'you considered it and chose not to. REQUIRES a reason — the road not taken is worthless without why');
 INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('deferred', 'not this run. REQUIRES a reason saying what a later run should pick it up FOR: a deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet');
-INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('proposed', 'you intend to follow this line; the tool assigns it an id and red may rule on it');
-INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('pursued', 'you took the line — what it produced belongs in the report');
+INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('proposed', 'you intend to follow this line and have not resolved it; the tool assigns it an id, red may rule on it, and it owes a move');
+INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('pursued', 'you are following the line — say what you learned in --reason. It stays open: each sitting re-records it with what changed, or moves it to its end');
 
 CREATE TABLE "enum_log_type" (
   "value" TEXT PRIMARY KEY,
@@ -347,7 +348,8 @@ CREATE TABLE "enum_log_type" (
 ) STRICT;
 INSERT INTO "enum_log_type" ("value", "means", "seat_may_file") VALUES ('defect', 'something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on', 1);
 INSERT INTO "enum_log_type" ("value", "means", "seat_may_file") VALUES ('estoppel', 'the TOOL refused a mint because the defect lives in text blue applied verbatim from red''s own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit', 0);
-INSERT INTO "enum_log_type" ("value", "means", "seat_may_file") VALUES ('friction', 'the work was impeded and you are noting it; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect', 1);
+INSERT INTO "enum_log_type" ("value", "means", "seat_may_file") VALUES ('friction', 'something cost you a call, a guess or an act — a refusal, a name you reached for that was not there, a shape you misread, a workaround — and you are noting it with what you expected and why; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect', 1);
+INSERT INTO "enum_log_type" ("value", "means", "seat_may_file") VALUES ('refusal', 'the TOOL refused a seat''s call, and recorded it as it refused: the command, the flags given (never their values) and the refusal''s first line. Recorded by the tool, not filed by the seat; the seat''s own entry says what it expected and where the expectation came from', 0);
 INSERT INTO "enum_log_type" ("value", "means", "seat_may_file") VALUES ('request', 'a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair', 1);
 
 CREATE TABLE "enum_log_source" (
@@ -531,6 +533,13 @@ CREATE TABLE "mint_supersedes" (
 ) STRICT;
 
 CREATE TABLE "mint_found_by" (
+  "event_id" INTEGER NOT NULL REFERENCES "mint"("event_id"),
+  "ord"      INTEGER NOT NULL,
+  "value"    TEXT    NOT NULL,
+  PRIMARY KEY ("event_id", "ord")
+) STRICT;
+
+CREATE TABLE "mint_distinct_from" (
   "event_id" INTEGER NOT NULL REFERENCES "mint"("event_id"),
   "ord"      INTEGER NOT NULL,
   "value"    TEXT    NOT NULL,

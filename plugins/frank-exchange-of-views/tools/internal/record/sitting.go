@@ -152,7 +152,12 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 	//
 	// Measured across eight runs: 48% of wakeups recorded nothing and still cost as much as the
 	// productive ones — 46% of every command in the run.
-	if !seatDidThisSitting(evs, seatID, recordpb.EventType_EVENT_TYPE_LOG) && !sittingRecordedNothing(evs, seatID) {
+	// THE SEAT'S OWN ENTRY IS WHAT THIS ASKS FOR. The tool now logs every refusal it gives a seat,
+	// so "a log event this sitting" stopped meaning "the seat has spoken" — a refused call would have
+	// closed the channel it exists to open. A sitting whose only events are refused calls recorded no
+	// act and still met friction, so it is asked too.
+	own, refused := logsThisSitting(evs, seatID)
+	if own == 0 && (refused > 0 || !sittingRecordedNothing(evs, seatID)) {
 		// THE ITEM NAMES ONLY WHAT CAN BE FILED. It used to end "nor said that nothing blocked you",
 		// which no type can say: `nominal` was retired when clean became DERIVED from having sat and
 		// filed nothing (LogType's own comment carries the measurement — 40 of 40 and 42 of 42 entries
@@ -165,7 +170,14 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 		// while the item said "nothing to report needs no entry". The mechanism overruled the text,
 		// and seats padded the log to finish: on universe-m12 audit summaries and arguments about
 		// other lenses' gaps, in the channel whose glossary says none of it is debate material.
-		may("the log is open — a missing capability, a defect in the tooling or an impediment goes here; nothing to report needs no entry")
+		// FRICTION, NOT ONLY BLOCKAGE. The item said "a missing capability, a defect in the tooling or
+		// an impediment", and on universe-m13 every seat read that as "something that stopped me" and
+		// filed nothing across a dozen refusals, guessed flags and workarounds (seven interviews).
+		if refused > 0 {
+			may(fmt.Sprintf("the log is open, and the tool has already recorded the %d refusal(s) it gave you this sitting — your entry adds what only you know: what you expected, and where the expectation came from. Any other friction goes there too: a workaround, a shape you misread, an act you set aside", refused))
+		} else {
+			may("the log is open — for friction: anything that cost you a call, a guess or an act. A sitting that met none files nothing")
+		}
 	}
 
 	// EVERY DISPATCHED SEAT OWES THE SITTING IT WAS DISPATCHED FOR, and this list says so by the
@@ -396,6 +408,17 @@ func revisionOwed(evs []*Event, seatID string) bool {
 // the log channel was open for a sitting that had already filed there. The seat was told to file
 // something it had done, on the one surface it reads to find out what is left.
 func seatDidThisSitting(evs []*Event, seatID string, typ recordpb.EventType) bool {
+	for _, e := range thisSitting(evs, seatID) {
+		if e.GetType() == typ {
+			return true
+		}
+	}
+	return false
+}
+
+// thisSitting is the seat's own live events in the window seatDidThisSitting reads: from the
+// register that opened the sitting its acts are attributed to.
+func thisSitting(evs []*Event, seatID string) []*Event {
 	live := Live(evs)
 	start := 0
 	for i, e := range live {
@@ -403,12 +426,32 @@ func seatDidThisSitting(evs []*Event, seatID string, typ recordpb.EventType) boo
 			start = i
 		}
 	}
+	var out []*Event
 	for _, e := range live[start:] {
-		if e.GetSeatId() == seatID && e.GetType() == typ {
-			return true
+		if e.GetSeatId() == seatID {
+			out = append(out, e)
 		}
 	}
-	return false
+	return out
+}
+
+// logsThisSitting splits the sitting's log entries by who wrote them: the seat's own, and the
+// refusals the TOOL recorded against it. They answer different questions — whether the seat has
+// spoken, and whether it met friction the tool could see — so neither may stand in for the other.
+func logsThisSitting(evs []*Event, seatID string) (seatEntries, toolRefusals int) {
+	for _, e := range thisSitting(evs, seatID) {
+		l, ok := recordpb.BodyAs[*recordpb.Log](e)
+		if !ok {
+			continue
+		}
+		switch {
+		case l.GetSource() == recordpb.LogSource_LOG_SOURCE_TOOL && l.GetType() == recordpb.LogType_LOG_TYPE_REFUSAL:
+			toolRefusals++
+		case l.GetSource() != recordpb.LogSource_LOG_SOURCE_TOOL:
+			seatEntries++
+		}
+	}
+	return seatEntries, toolRefusals
 }
 
 // gapsAwaitingProofOn is gone: the gap rows carry awaiting_proof off the view, the same join

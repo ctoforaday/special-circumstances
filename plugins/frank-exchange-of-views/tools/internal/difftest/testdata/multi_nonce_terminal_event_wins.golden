@@ -44,7 +44,7 @@ TWO CONSEQUENCES:
 1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
-$ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check b --severity high --likelihood high --impact high --problem from the live dispatch
+$ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check b --severity high --likelihood high --problem from the live dispatch --impact high --distinct-from G1
 exit 0
 stdout:
 minted G2
@@ -66,7 +66,7 @@ verdict FAIL (2 open, 0 closed) and checkpointed to {MIRROR}
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:mint:G1","mint":{"acceptance_check":"a","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"fix_basis":"proposed","gap_id":"G1","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"from the stale dispatch","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_MINT"}
 {"key":"red-chair:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":5,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-lens-evidence:mint:G2","mint":{"acceptance_check":"b","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"fix_basis":"proposed","gap_id":"G2","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"from the live dispatch","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:mint:G2","mint":{"acceptance_check":"b","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"distinct_from":["G1"],"fix_basis":"proposed","gap_id":"G2","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"from the live dispatch","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_MINT"}
 {"key":"red-chair:verdict:#2","seat_id":"red-chair","ts":7,"type":"EVENT_TYPE_VERDICT","verdict":{"verdict":"VERDICT_FAIL"}}
 
 ═══ RENDERS ═══

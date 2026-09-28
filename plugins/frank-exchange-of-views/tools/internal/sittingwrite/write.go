@@ -48,7 +48,34 @@ const (
 	// written by WriteLimit. It is a phase so the one writer binary carries every harness-observed
 	// fact about a sitting.
 	Limit Phase = "limit"
+	// Refusal is a call the PreToolUse hook DENIED a seat — a Read of the assembled report — written
+	// by WriteRefusal as the same tool-written entry a refused verb gets. The hook refuses outside
+	// every verb, so without this phase the one refusal a seat met at the harness left no trace.
+	Refusal Phase = "refusal"
 )
+
+// WriteRefusal records a call the PreToolUse hook refused a seat, as a `refusal` log entry the tool
+// wrote, under the seat the agent registered as. An agent with no register is no seat, and nothing
+// is written for it.
+func WriteRefusal(runDir, agentID, text string) error {
+	if agentID == "" || text == "" {
+		return fmt.Errorf("sittingwrite: a hook refusal needs the agent it refused and what it refused")
+	}
+	run, err := record.NewRun(runDir)
+	if err != nil {
+		return err
+	}
+	seat, found, err := record.SeatOfAgent(run, agentID)
+	if err != nil || !found || record.RecordedOutcome(run) != "" {
+		return err // no seat, or a run that is over: its record is closed to seats
+	}
+	_, err = record.Append(record.Identity{Run: run, SeatID: seat}, &recordpb.Log{
+		Text:   proto.String(text),
+		Type:   recordpb.LogType_LOG_TYPE_REFUSAL.Enum(),
+		Source: recordpb.LogSource_LOG_SOURCE_TOOL.Enum(),
+	})
+	return err
+}
 
 // WriteLimit records that a seat's sitting reached the run's per-sitting tool-call limit and was
 // stopped by the PreToolUse hook.

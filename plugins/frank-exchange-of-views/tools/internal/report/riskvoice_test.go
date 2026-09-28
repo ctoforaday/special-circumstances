@@ -51,7 +51,8 @@ func TestRiskMatrixCarriesOnlyWhatMintWrote(t *testing.T) {
 		ComplexityCost:  recordtest.P(recordpb.Grade_GRADE_LOW),
 	})
 
-	path, err := Assemble(runtest.Open(t, runDir))
+	a, err := Assemble(runtest.Open(t, runDir))
+	path := a.Report
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -205,6 +205,7 @@ func TestAPursuedAvenueReaffirmedThisRoundIsNotStale(t *testing.T) {
 		avenueAt(t, "Q3", "pursued"), // never revisited
 		avenueAt(t, "Q4", "deferred"),
 		avenueAt(t, "Q5", "abandoned"),
+		avenueAt(t, "Q7", "concluded"), // followed to its end in epoch 0, never touched again
 		// The chair sits twice: everything below is in epoch 2, the current one.
 		chairSits(t),
 		chairSits(t),
@@ -228,10 +229,17 @@ func TestAPursuedAvenueReaffirmedThisRoundIsNotStale(t *testing.T) {
 	if !stale["Q6"] {
 		t.Error("A6 is `proposed` — the enum calls that \"the state that owes a move\", with no round condition")
 	}
-	for _, settled := range []string{"Q4", "Q5"} {
+	// CONCLUDED IS A SETTLED FATE FOR A LINE THAT WORKED. Without it a line could only stop nagging
+	// by dying: universe-m13's blue moved four confirmed hypotheses to `abandoned` to settle them.
+	for _, settled := range []string{"Q4", "Q5", "Q7"} {
 		if stale[settled] {
 			t.Errorf("%s is at a settled fate and is reported as owing a decision — `deferred` in particular is a "+
 				"DECISION (worth taking, not by this run), not an omission", settled)
+		}
+	}
+	for _, a := range AvenuesOf(b.Events) {
+		if a.ID == "Q7" && !a.EverPursued {
+			t.Error("Q7 was concluded — a line followed to its end — and the fold says it was never pursued")
 		}
 	}
 }

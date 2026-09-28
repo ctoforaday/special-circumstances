@@ -364,7 +364,8 @@ func TestAToolWrittenLogTypeIsOffTheSeatSurface(t *testing.T) {
 			t.Errorf("log type %q does not say whether a seat may file it — defaulting that would "+
 				"answer on behalf of whoever added the word", recordpb.Word(lt))
 		}
-		if want := recordpb.Word(lt) != "estoppel"; may != want {
+		// The tool's own entries: an estoppel, and every other refusal it gives a seat.
+		if want := recordpb.Word(lt) != "estoppel" && recordpb.Word(lt) != "refusal"; may != want {
 			t.Errorf("log type %q: seat_may_file = %v, want %v", recordpb.Word(lt), may, want)
 		}
 	}

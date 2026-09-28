@@ -251,7 +251,7 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 	prologue := []cmd{
 		{verb: "register", args: []string{"--run", "{RUN}", "--seat-id", "red-lens-evidence"}},
 		{verb: "mint", args: mintArgs("the open gap the fuzz starts from")},
-		{verb: "mint", args: mintArgs("the gap the fuzz starts with before the bench")},
+		{verb: "mint", args: mintArgs("a contested claim awaiting a bench ruling")},
 		{verb: "motion", args: []string{"docket", "file", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "G2",
 			"--reason", "contested, and not red's to close"}},
 	}
@@ -360,6 +360,11 @@ var fuzzArms = []fuzzArm{
 			f := []string{"--class", pick(rng, fuzzClasses), "--check-kind", "document", "--check", "acceptance check",
 				"--severity", pick(rng, fuzzGrades), "--likelihood", pick(rng, fuzzGrades),
 				"--impact", pick(rng, fuzzGrades), "--problem", fmt.Sprintf("problem %d", rng.Intn(1000))}
+			// G1 is on the board from the prologue, so naming it distinct drives the field the mint's
+			// duplicate screen is answered with.
+			if rng.Intn(4) == 0 {
+				f = append(f, "--distinct-from", "G1")
+			}
 			if rng.Intn(3) == 0 {
 				f = append(f, "--complexity", pick(rng, fuzzGrades))
 			}

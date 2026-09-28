@@ -504,7 +504,7 @@ A sitting's occasion is what it was convened to do — the question put to the s
 
 ## avenue
 
-An avenue is one approach the research could take on the question — proposed by blue with what would be true if it paid off, moved to pursued, deferred, declined or abandoned, ruled on by the chair, and reviewed against the report once per epoch.
+An avenue is one approach the research could take on the question — proposed by blue with what would be true if it paid off, moved to pursued, concluded, deferred, declined or abandoned, ruled on by the chair, and reviewed against the report once per epoch.
 
 **Delivered to:** lens, chair, blue, bench, operator
 

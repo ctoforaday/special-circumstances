@@ -27,14 +27,14 @@ func corroborateRun(t *testing.T) string {
 const corroborated = "§2 the finding prose lands in a quoted sentence."
 
 // assembled runs the composer and returns the report's TEXT. Assemble writes the file and
-// returns its PATH, which reads like markdown to a Contains check and always fails to match.
+// returns what it wrote, and its report path reads like markdown to a Contains check and always fails to match.
 func assembled(t *testing.T, runDir string) string {
 	t.Helper()
-	path, err := report.Assemble(runtest.Open(t, runDir))
+	a, err := report.Assemble(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	md, err := os.ReadFile(path)
+	md, err := os.ReadFile(a.Report)
 	if err != nil {
 		t.Fatal(err)
 	}

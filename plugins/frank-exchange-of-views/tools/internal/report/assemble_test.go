@@ -206,6 +206,7 @@ func TestAvenuesSplitByFate(t *testing.T) {
 func TestEveryAvenueStatusLandsWhereItsFateSays(t *testing.T) {
 	section := map[string]string{
 		"pursued":   "research",
+		"concluded": "research", // a line followed to its end is one the research took
 		"proposed":  "research", // an undecided line IS an area this run is researching
 		"deferred":  "future",
 		"declined":  "alternatives",

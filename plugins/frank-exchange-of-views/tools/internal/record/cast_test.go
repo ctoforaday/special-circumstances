@@ -128,6 +128,20 @@ func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
 	if g, ok := by["c-99887766"]; !ok || g.Outcome != "" {
 		t.Errorf("an unchecked anchor is missing or claims an outcome: %+v", g)
 	}
+	// THE BOARD CARRIES THE SAME BACKING. It declared the field and never filled it, so every board
+	// read showed `backing: null` beside a help page promising the anchors behind each open gap.
+	board, err := BoardJSONOfRun(mustRun(t, dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(board.Open) != 1 || len(board.Open[0].Backing) != 2 {
+		t.Fatalf("the board's open gap does not carry both anchors: %+v", board.Open)
+	}
+	for _, b := range board.Open[0].Backing {
+		if b != by[b.Anchor] {
+			t.Errorf("the board and the work list disagree on %s: board %+v, work %+v", b.Anchor, b, by[b.Anchor])
+		}
+	}
 }
 
 // OWNERSHIP IS ANSWERED, NOT DERIVED (gblock's ruling: work is self-sufficient for any job that is
@@ -143,10 +157,15 @@ func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
 // pass — which is how #1162 shipped a field that reached no seat.
 func TestTheWorkListAnswersWhetherAGapIsYoursToClose(t *testing.T) {
 	dir := newRun(t)
+	// Two DIFFERENT defects: the mint screens the open board, and one defect minted twice is refused.
+	problem := map[string]string{
+		"G1": "the retention figure contradicts the stated universal",
+		"G2": "the survey sample is too small for the precision claimed",
+	}
 	mint := func(seat, gap string) {
 		if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: seat}, &recordpb.Mint{
 			GapId: proto.String(gap), Class: proto.String("c"),
-			Problem:     proto.String("the claim rests on one source"),
+			Problem:     proto.String(problem[gap]),
 			Location:    proto.String("A sentence"),
 			RequiredFix: proto.String("qualify it"), AcceptanceCheck: proto.String("the sentence names the range"),
 			CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),

@@ -56,7 +56,7 @@ minted G1
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
-$ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check b --severity high --likelihood high --impact high --problem the second gap
+$ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check b --severity high --likelihood high --impact high --problem the second gap --distinct-from G1
 exit 0
 stdout:
 minted G2
@@ -197,7 +197,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 {"key":"blue-respond:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":4,"type":"EVENT_TYPE_REGISTER"}
 {"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":5,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:mint:G1","mint":{"acceptance_check":"a","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"fix_basis":"proposed","gap_id":"G1","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"the first gap","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_MINT"}
-{"key":"red-lens-evidence:mint:G2","mint":{"acceptance_check":"b","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"fix_basis":"proposed","gap_id":"G2","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"the second gap","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:mint:G2","mint":{"acceptance_check":"b","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"distinct_from":["G1"],"fix_basis":"proposed","gap_id":"G2","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"the second gap","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_MINT"}
 {"key":"blue-respond:manifest_row:#1:G1","manifest_row":{"gap_id":"G1","row":"G1 is reproducible via "},"seat_id":"blue-respond","ts":8,"type":"EVENT_TYPE_MANIFEST_ROW"}
 {"key":"blue-respond:manifest_row:#1:G1~1","manifest_row":{"gap_id":"G1","row":"G1 is reproducible via the recorded proof"},"seat_id":"blue-respond","ts":9,"type":"EVENT_TYPE_MANIFEST_ROW"}
 {"correction":{"corrects":"blue-respond:manifest_row:#1:G1","replacement":"blue-respond:manifest_row:#1:G1~1","why":"the row lost its method"},"key":"blue-respond:correction:blue-respond:manifest_row:#1:G1","seat_id":"blue-respond","ts":10,"type":"EVENT_TYPE_CORRECTION"}

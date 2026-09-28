@@ -94,7 +94,8 @@ func scenarios() []scenario {
 					"--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "from the stale dispatch"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"), // re-dispatch rotates the nonce
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "b",
-					"--severity", "high", "--likelihood", "high", "--impact", "high", "--problem", "from the live dispatch"),
+					"--severity", "high", "--likelihood", "high", "--problem", "from the live dispatch",
+					"--impact", "high", "--distinct-from", "G1"), // a second gap, and the mint's screen is told so
 				base("verdict", "--run", "{RUN}", "--seat-id", "red-chair", "--as", "FAIL"),
 			},
 		},
@@ -158,7 +159,8 @@ func scenarios() []scenario {
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "a",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--problem", "the first gap"),
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "b",
-					"--severity", "high", "--likelihood", "high", "--impact", "high", "--problem", "the second gap"),
+					"--severity", "high", "--likelihood", "high", "--impact", "high", "--problem", "the second gap",
+					"--distinct-from", "G1"), // a second gap, and the mint's screen is told so
 				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "G1", "--reason", "G1 is reproducible via "),
 				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "G1", "--reason", "G1 is reproducible via the recorded proof",
 					"--corrects", "blue-respond:manifest_row:#1:G1", "--correction-why", "the row lost its method"),
