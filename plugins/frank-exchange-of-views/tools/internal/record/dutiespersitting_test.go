@@ -236,7 +236,7 @@ func TestARefusalTheToolLoggedAsksTheSeatForWhatItExpected(t *testing.T) {
 			register("red-chair").dispatch(2, evLens).register(evLens)
 	}
 	s := sittingOfRunT(t, refusal(sat()).seed(), "lens", evLens)
-	if !listsItem(s, "has already recorded the 1 refusal") {
+	if !listsItem(s, "has already recorded 1 refused or failed call") {
 		t.Fatalf("a sitting whose only events are refused calls is not asked what it expected: %+v", s.Open)
 	}
 	if !s.Complete {

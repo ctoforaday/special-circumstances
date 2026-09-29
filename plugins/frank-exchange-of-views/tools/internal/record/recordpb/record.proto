@@ -1453,6 +1453,10 @@ enum LogType {
   // typed as a flag, a mint refused at its budget — and filed none: each was classed as the seat's
   // own mistake. The guess is the operator's signal, whoever made it, so the tool keeps it.
   LOG_TYPE_REFUSAL = 6 [(seat_may_file) = false, (means) = "the TOOL refused a seat's call, and recorded it as it refused: the command, the flags given (never their values) and the refusal's first line. Recorded by the tool, not filed by the seat; the seat's own entry says what it expected and where the expectation came from"];
+  // FAILURE IS WHAT A REFUSAL CANNOT SEE: a seat's tool call that failed outside the record tool — a
+  // jq that misread a shape, a Read of a path that is not there, a script that exited non-zero. On
+  // universe-m13 and m14 every one of these went unlogged by the seats that hit them.
+  LOG_TYPE_FAILURE = 7 [(seat_may_file) = false, (means) = "a seat's tool call FAILED and the harness saw it: the tool, what it was aimed at, and the error's first line. Recorded by the tool, not filed by the seat; a refusal the record tool gave is `refusal`, not this"];
   LOG_TYPE_ESTOPPEL = 5 [(seat_may_file) = false, (means) = "the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit"];
 }
 

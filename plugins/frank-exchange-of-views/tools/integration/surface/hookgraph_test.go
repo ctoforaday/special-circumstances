@@ -35,6 +35,7 @@ var hookBinaries = []string{
 	"./cmd/feov-pretooluse",
 	"./cmd/feov-subagentstart",
 	"./cmd/feov-subagentstop",
+	"./cmd/feov-posttoolusefailure",
 }
 
 // hookLocalPackages is the module-local import graph each registered hook binary is ALLOWED to
@@ -95,6 +96,13 @@ var hookLocalPackages = map[string][]string{
 	// themselves — and sittingcap the same way, through hookcmd, whose Run they use. Listed because
 	// this allowlist is per-binary and states each graph as its own claim, so an inherited
 	// dependency is still a dependency that binary pays for.
+	// feov-posttoolusefailure fires on EVERY failed tool call in every session, so it is held to the
+	// same graph as the tool-call hook. It hands a seat's failure to feov-sitting-write, which carries
+	// the record, through sittinghook; everything else is what hookcmd.Run already links.
+	"./cmd/feov-posttoolusefailure": {
+		"internal/feov", "internal/seatenv", "internal/hookgate", "internal/runlive", "internal/hookcmd",
+		"internal/sittinghook", "internal/buildid", "internal/sittingcap", "internal/hookfailures",
+	},
 	"./cmd/feov-subagentstart": {
 		"internal/feov", "internal/seatenv", "internal/hookgate", "internal/runlive", "internal/hookcmd",
 		"internal/sittinghook", "internal/buildid", "internal/sittingcap",

@@ -174,7 +174,7 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 		// an impediment", and on universe-m13 every seat read that as "something that stopped me" and
 		// filed nothing across a dozen refusals, guessed flags and workarounds (seven interviews).
 		if refused > 0 {
-			may(fmt.Sprintf("the log is open, and the tool has already recorded the %d refusal(s) it gave you this sitting — your entry adds what only you know: what you expected, and where the expectation came from. Any other friction goes there too: a workaround, a shape you misread, an act you set aside", refused))
+			may(fmt.Sprintf("the log is open, and the tool has already recorded %d refused or failed call(s) of yours this sitting — your entry adds what only you know: what you expected, and where the expectation came from. Any other friction goes there too: a workaround, an act you set aside", refused))
 		} else {
 			may("the log is open — for friction: anything that cost you a call, a guess or an act. A sitting that met none files nothing")
 		}
@@ -436,7 +436,7 @@ func thisSitting(evs []*Event, seatID string) []*Event {
 }
 
 // logsThisSitting splits the sitting's log entries by who wrote them: the seat's own, and the
-// refusals the TOOL recorded against it. They answer different questions — whether the seat has
+// refusals and failed calls the TOOL recorded against it. They answer different questions — whether the seat has
 // spoken, and whether it met friction the tool could see — so neither may stand in for the other.
 func logsThisSitting(evs []*Event, seatID string) (seatEntries, toolRefusals int) {
 	for _, e := range thisSitting(evs, seatID) {
@@ -445,7 +445,8 @@ func logsThisSitting(evs []*Event, seatID string) (seatEntries, toolRefusals int
 			continue
 		}
 		switch {
-		case l.GetSource() == recordpb.LogSource_LOG_SOURCE_TOOL && l.GetType() == recordpb.LogType_LOG_TYPE_REFUSAL:
+		case l.GetSource() == recordpb.LogSource_LOG_SOURCE_TOOL &&
+			(l.GetType() == recordpb.LogType_LOG_TYPE_REFUSAL || l.GetType() == recordpb.LogType_LOG_TYPE_FAILURE):
 			toolRefusals++
 		case l.GetSource() != recordpb.LogSource_LOG_SOURCE_TOOL:
 			seatEntries++

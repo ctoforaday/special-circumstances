@@ -7,6 +7,10 @@ import (
 	"strings"
 )
 
+// RecordBin is the record tool's name as a seat invokes it — the name its wrapper and its own
+// refusal lines carry ("feov-record: …").
+const RecordBin = "feov-record"
+
 // LimitReason is what a seat reads when a tool call is refused because its sitting is past the
 // run's call limit. The first clause is the instruction; the rest is the fact behind it.
 func LimitReason(count, limit int) string {
@@ -37,7 +41,7 @@ func InvokesRegister(in Input) bool {
 	fields := strings.Fields(ti.Command)
 	for i, f := range fields {
 		base := path.Base(strings.ReplaceAll(strings.Trim(f, `"'`), `\`, "/"))
-		if base != "feov-record" && base != "feov-record.exe" {
+		if base != RecordBin && base != RecordBin+".exe" {
 			continue
 		}
 		for _, g := range fields[i+1:] {

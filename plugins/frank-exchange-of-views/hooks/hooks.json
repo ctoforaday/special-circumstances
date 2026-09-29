@@ -40,6 +40,16 @@
           }
         ]
       }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/feov-posttoolusefailure\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; F=\"${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook PostToolUseFailure; fi; echo 'frank-exchange-of-views: hook binaries missing — run /prosthetic-conscience:doctor --fix' >&2"
+          }
+        ]
+      }
     ]
   }
 }
