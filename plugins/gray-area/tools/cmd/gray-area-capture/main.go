@@ -282,6 +282,10 @@ type manifestRow struct {
 //
 // Sorted so two rows are comparable at a glance; a set, not a sequence, because JSON object
 // order carries no meaning and an unstable list would read as a changing payload.
+
+// ensure is a variable so a test can answer the version check without a fetch-bin.sh on disk.
+var ensure = hookfailures.Ensure
+
 func payloadKeys(raw []byte) []string {
 	var m map[string]json.RawMessage
 	if json.Unmarshal(raw, &m) != nil {
@@ -505,10 +509,21 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	_ = json.Unmarshal(raw, &in)
 
 	r := newReport(*event, now, stderr)
+	// THE VERSION CHECK IS THIS HOOK'S TOO on SessionStart, so the event has one hook in this plugin.
+	healed := ""
+	if *event == "SessionStart" {
+		msg, err := ensure("SessionStart")
+		if err != nil {
+			r.fail(hookfailures.StageEnsure, err.Error())
+		} else {
+			r.OK(hookfailures.StageEnsure)
+		}
+		healed = msg
+	}
 	capture(in, raw, *event, projectDir, now, stat, r)
 	// This hook emits no document of its own on any event it fires on, so the message is the
 	// whole response. A hook that DOES emit one merges the text into it instead.
-	hookfailures.Emit(stdout, r.Settle())
+	hookfailures.Emit(stdout, hookfailures.JoinMessages(healed, r.Settle()))
 	return 0
 }
 

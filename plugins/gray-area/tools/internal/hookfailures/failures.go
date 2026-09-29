@@ -51,6 +51,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -252,6 +253,58 @@ func Emit(stdout io.Writer, msg string) {
 		return
 	}
 	fmt.Fprintln(stdout, string(b))
+}
+
+// StageEnsure is the version check a SessionStart hook runs through Ensure: a binary set that is not
+// this plugin's own release, and the fetch that heals it.
+const StageEnsure Stage = "ensure"
+
+// Ensure runs this plugin's `fetch-bin.sh ensure <event>` — are the installed binaries this plugin's
+// own release, and if not, start the fetch — and returns what it would have said.
+//
+// ONE HOOK PER EVENT PER PLUGIN. The version check was a second SessionStart entry beside a plugin's
+// own SessionStart binary, so two processes answered one event and either could speak. A plugin that
+// has its own SessionStart binary calls this from it and merges the message into its ONE response;
+// a plugin with none keeps the check as its SessionStart entry. fetch-bin.sh stays the one
+// implementation of the check, the fetch and the throttle on what it says.
+//
+// Outside a plugin hook — no CLAUDE_PLUGIN_ROOT — there is nothing to ensure and it returns nothing.
+func Ensure(event string) (string, error) {
+	root := os.Getenv("CLAUDE_PLUGIN_ROOT")
+	if root == "" {
+		return "", nil
+	}
+	script := filepath.Join(root, "hooks", "fetch-bin.sh")
+	if _, err := os.Stat(script); err != nil {
+		return "", fmt.Errorf("the version check cannot run, so a stale binary would stay: %w", err)
+	}
+	out, err := exec.Command("sh", script, "ensure", event).Output()
+	if err != nil {
+		return "", fmt.Errorf("fetch-bin.sh ensure %s: %w", event, err)
+	}
+	line := strings.TrimSpace(string(out))
+	if line == "" {
+		return "", nil
+	}
+	var doc struct {
+		SystemMessage string `json:"systemMessage"`
+	}
+	if err := json.Unmarshal([]byte(line), &doc); err != nil {
+		return "", fmt.Errorf("fetch-bin.sh ensure %s printed %q, which is not the message document it speaks in", event, line)
+	}
+	return doc.SystemMessage, nil
+}
+
+// JoinMessages is two messages as the one a response carries: either alone, or both, a blank line
+// apart.
+func JoinMessages(a, b string) string {
+	switch {
+	case a == "":
+		return b
+	case b == "":
+		return a
+	}
+	return a + "\n\n" + b
 }
 
 // merge loads the record, applies this invocation and saves it when anything changed. A healthy

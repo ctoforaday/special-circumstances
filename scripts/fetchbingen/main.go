@@ -106,7 +106,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "fetchbingen: edit %s and run `go -C scripts run ./fetchbingen`; a guard's event literal must be the key it sits under.\n", src)
 		os.Exit(1)
 	}
-	fmt.Printf("fetchbingen: %d plugin(s) match %s, and every guard names its own event\n", len(plugins), src)
+	fmt.Printf("fetchbingen: %d plugin(s) match %s, every guard names its own event, and every event has one hook\n", len(plugins), src)
 }
 
 // render is the generated form of the authored script.
@@ -162,16 +162,22 @@ func guardProblems(plugin string, data []byte) []string {
 	sort.Strings(events)
 
 	var out []string
-	guards, ensures := 0, 0
+	guards := 0
+	hooks := map[string]int{}
+	checksVersion := false
 	for _, ev := range events {
 		for _, entry := range doc.Hooks[ev] {
 			for _, h := range entry.Hooks {
+				hooks[ev]++
 				if ev == "SessionStart" && h.Command == ensureEntry {
-					ensures++
+					checksVersion = true
 					continue
 				}
 				if !strings.Contains(h.Command, "${CLAUDE_PLUGIN_ROOT}/bin/") {
 					continue
+				}
+				if ev == "SessionStart" {
+					checksVersion = true // the plugin's own SessionStart binary, which runs hookfailures.Ensure
 				}
 				guards++
 				if !strings.Contains(h.Command, fetchVar) {
@@ -184,11 +190,22 @@ func guardProblems(plugin string, data []byte) []string {
 			}
 		}
 	}
-	// The version question is asked once per session, from SessionStart. A plugin without this
-	// entry heals only when a binary is missing outright, which is the state frank-exchange-of-views
-	// was in: three guards, no SessionStart hook at all, and a stale binary would have stayed.
-	if ensures != 1 {
-		out = append(out, fmt.Sprintf("plugins/%s: wants exactly one SessionStart entry running `fetch-bin.sh ensure SessionStart`, found %d", plugin, ensures))
+	// ONE HOOK PER EVENT PER PLUGIN. Two hooks on one event are two processes answering it, either of
+	// which may speak, and two documents on one stdout are no response at all. A second duty on an
+	// event is folded into the hook already there — the version check into a plugin's own
+	// SessionStart binary, through hookfailures.Ensure.
+	for _, ev := range events {
+		if hooks[ev] != 1 {
+			out = append(out, fmt.Sprintf("plugins/%s: %s has %d hooks — one hook per event per plugin; fold the second duty into the first", plugin, ev, hooks[ev]))
+		}
+	}
+	// The version question is asked once per session, from SessionStart. A plugin with no SessionStart
+	// hook heals only when a binary is missing outright, which is the state frank-exchange-of-views was
+	// in: three guards, no SessionStart hook at all, and a stale binary would have stayed. The hook is
+	// either the ensure entry itself or the plugin's own SessionStart binary, which runs the check
+	// through hookfailures.Ensure — each such binary's tests pin that it does.
+	if !checksVersion {
+		out = append(out, fmt.Sprintf("plugins/%s: no SessionStart hook runs the version check — its one SessionStart hook must be the ensure entry, or a guarded binary that calls hookfailures.Ensure", plugin))
 	}
 	// Zero guards in a plugin that ships binaries means the pattern moved, not that all is well.
 	if guards == 0 {
@@ -203,7 +220,6 @@ func guardProblems(plugin string, data []byte) []string {
 // FEOV_RELEASE_GATE=1: when #980 added the entry without it, no PR gate noticed and the 1.69.0 tag's
 // release run failed on it. This check runs everywhere.
 var ensureCopies = []string{
-	"plugins/prosthetic-conscience/tools/internal/hookinvocation/invocation_test.go",
 	"plugins/frank-exchange-of-views/tools/releasegate/fuzz/hookinvocation_test.go",
 }
 

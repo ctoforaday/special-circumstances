@@ -117,7 +117,7 @@ func TestAnEnsureCopyThatDriftedIsReported(t *testing.T) {
 	root := t.TempDir()
 	for i, rel := range ensureCopies {
 		body := "const ensureCommand = `" + ensureEntry + "`"
-		if i == 1 {
+		if i == len(ensureCopies)-1 {
 			body = "const ensureCommand = `sh fetch-bin.sh ensure SessionStart`"
 		}
 		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, rel)), 0o755); err != nil {
@@ -128,7 +128,24 @@ func TestAnEnsureCopyThatDriftedIsReported(t *testing.T) {
 		}
 	}
 	got := ensureCopyProblems(root)
-	if len(got) != 1 || !strings.Contains(got[0], ensureCopies[1]) {
+	if len(got) != 1 || !strings.Contains(got[0], ensureCopies[len(ensureCopies)-1]) {
 		t.Fatalf("want exactly the drifted copy reported, got %v", got)
+	}
+}
+
+// ONE HOOK PER EVENT PER PLUGIN: a second hook on an event is two processes answering it.
+func TestTwoHooksOnOneEventFail(t *testing.T) {
+	doc := hooksDoc(t, "SessionStart", guardCmd("x", "SessionStart")) // a SessionStart binary AND the ensure entry
+	got := guardProblems("p", doc)
+	if len(got) != 1 || !strings.Contains(got[0], "SessionStart has 2 hooks") {
+		t.Fatalf("want the one-hook problem naming SessionStart, got %v", got)
+	}
+}
+
+// A plugin's own SessionStart binary carries the version check, so it stands in for the ensure entry.
+func TestASessionStartBinaryCarriesTheVersionCheck(t *testing.T) {
+	doc := hooksDocWith(t, "SessionStart", guardCmd("x", "SessionStart"), false)
+	if got := guardProblems("p", doc); len(got) != 0 {
+		t.Fatalf("a plugin whose one SessionStart hook is its own binary was refused: %v", got)
 	}
 }

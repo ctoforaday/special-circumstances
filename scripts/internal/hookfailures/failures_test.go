@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -427,5 +428,42 @@ func TestPersistRecordsWithoutMarkingAnythingSaid(t *testing.T) {
 	next := New(plugin, "test-hook", "Stop", noon.Add(time.Second), io.Discard)
 	if msg := next.Settle(); !strings.Contains(msg, "could not speak on this call") {
 		t.Errorf("the next displaying call did not say it: %q", msg)
+	}
+}
+
+// ENSURE RETURNS WHAT fetch-bin.sh WOULD HAVE SAID, for a binary to merge into its one response —
+// and nothing when there is nothing to say or no plugin root to say it from.
+func TestEnsureReturnsTheVersionChecksMessage(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fetch-bin.sh is a POSIX shell script; the hooks run it through sh")
+	}
+	root := t.TempDir()
+	script := filepath.Join(root, "hooks", "fetch-bin.sh")
+	if err := os.MkdirAll(filepath.Dir(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write := func(body string) {
+		t.Helper()
+		if err := os.WriteFile(script, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("CLAUDE_PLUGIN_ROOT", root)
+
+	write(`[ "$1" = ensure ] && [ "$2" = SessionStart ] && printf '{"systemMessage":"installing v2","hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"installing v2"}}\n'`)
+	if got, err := Ensure("SessionStart"); err != nil || got != "installing v2" {
+		t.Errorf("a stale install's message did not come back: %q %v", got, err)
+	}
+	write(`exit 0`)
+	if got, err := Ensure("SessionStart"); err != nil || got != "" {
+		t.Errorf("an up-to-date install said something: %q %v", got, err)
+	}
+	write(`echo not json`)
+	if _, err := Ensure("SessionStart"); err == nil {
+		t.Error("output that is not the message document was taken as a message")
+	}
+	t.Setenv("CLAUDE_PLUGIN_ROOT", "")
+	if got, err := Ensure("SessionStart"); err != nil || got != "" {
+		t.Errorf("outside a plugin hook there is nothing to ensure: %q %v", got, err)
 	}
 }

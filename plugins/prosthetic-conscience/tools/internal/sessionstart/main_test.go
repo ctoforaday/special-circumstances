@@ -159,3 +159,32 @@ func TestRealUnitsRestoreANote(t *testing.T) {
 
 // No test in this package may write the developer's own state.
 func TestMain(m *testing.M) { os.Exit(hooktest.Isolated(m)) }
+
+// THE VERSION CHECK SPEAKS IN THIS HOOK'S ONE RESPONSE. It was a second SessionStart hook beside this
+// one; folded in, its message rides the systemMessage this binary already sends, and a check that
+// cannot run is recorded rather than lost.
+func TestTheVersionCheckSpeaksInTheOneResponse(t *testing.T) {
+	prev := ensure
+	t.Cleanup(func() { ensure = prev })
+
+	ensure = func(event string) (string, error) {
+		if event != "SessionStart" {
+			t.Errorf("the check was asked about %q", event)
+		}
+		return "installing prosthetic-conscience v2", nil
+	}
+	out, spoke, _ := fire(t, t.TempDir(), `{"source":"startup"}`, []hookunit.Unit{stub("a", "")})
+	if !spoke || !strings.Contains(out.SystemMessage, "installing prosthetic-conscience v2") {
+		t.Fatalf("the version check's message is not in the response: spoke=%v %+v", spoke, out)
+	}
+
+	ensure = func(string) (string, error) { return "", errString("fetch-bin.sh is missing") }
+	out, spoke, _ = fire(t, t.TempDir(), `{"source":"startup"}`, []hookunit.Unit{stub("a", "")})
+	if !spoke || !strings.Contains(out.SystemMessage, "fetch-bin.sh is missing") {
+		t.Fatalf("a version check that could not run went unsaid: spoke=%v %+v", spoke, out)
+	}
+}
+
+type errString string
+
+func (e errString) Error() string { return string(e) }

@@ -516,3 +516,28 @@ func TestAManifestAppendThatFailsIsRecorded(t *testing.T) {
 		t.Fatalf("a failed append is not recorded as one: %+v", recorded(t))
 	}
 }
+
+// THE VERSION CHECK SPEAKS IN THIS HOOK'S ONE RESPONSE on SessionStart, and on no other event. It was
+// a second SessionStart hook beside this one; folded in, its message is merged into the one
+// systemMessage, and a check that cannot run is recorded rather than lost.
+func TestTheVersionCheckSpeaksInTheOneSessionStartResponse(t *testing.T) {
+	prev := ensure
+	t.Cleanup(func() { ensure = prev })
+	asked := 0
+	ensure = func(event string) (string, error) {
+		asked++
+		return "installing gray-area v2", nil
+	}
+	e := newHookEnv(t)
+	now := time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC)
+	if msg, _ := hook(t, e.input(), e.project, now, "SessionStart"); !strings.Contains(msg, "installing gray-area v2") {
+		t.Fatalf("the version check's message is not in the SessionStart response: %q", msg)
+	}
+	if _, _ = hook(t, e.input(), e.project, now, "Stop"); asked != 1 {
+		t.Errorf("the version check ran %d times across SessionStart and Stop, want once", asked)
+	}
+	ensure = func(string) (string, error) { return "", errors.New("fetch-bin.sh is missing") }
+	if msg, _ := hook(t, e.input(), e.project, now.Add(time.Hour), "SessionStart"); !strings.Contains(msg, "fetch-bin.sh is missing") {
+		t.Fatalf("a version check that could not run went unsaid: %q", msg)
+	}
+}
