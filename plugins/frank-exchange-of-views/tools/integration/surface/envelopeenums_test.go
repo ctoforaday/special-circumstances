@@ -102,7 +102,9 @@ var envelopeEnumBinding = map[string]enumBind{
 	//
 	// That is the same shape as JUDGE_ENVELOPE.disposition above: an exemption whose reason is
 	// true, protecting a direction nobody was checking.
-	"CHAIR_ENVELOPE.verdict": {typ: "verdict", key: "verdict"},
+	// null is the envelope's "recorded none" — the same as the field's absence, and never a value
+	// the chair writes: a sitting that records no verdict writes no verdict event at all.
+	"CHAIR_ENVELOPE.verdict": {typ: "verdict", key: "verdict", engineOnly: []string{"null"}},
 	"GRADE.<self>":           {typ: "grade", key: "<self>"},
 
 	// The run's terminal word, which was four bare string literals in a ternary until this sweep

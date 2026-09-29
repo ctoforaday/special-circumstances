@@ -255,6 +255,38 @@ func injectEnv(command string, vars [][2]string) (string, bool) {
 	return prefix.String() + command, true
 }
 
+// WithoutInjection is the command as the seat wrote it: injectEnv's prefix — whole `export FEOV_…='…'; `
+// statements, prepended — taken off again. A reader of a rewritten call (the failure hook, which is
+// handed the input AFTER this hook changed it) would otherwise name the engine's exports as the
+// thing the seat ran: every failed Bash call on universe-m15 was logged as `export FEOV_RUN=…`.
+func WithoutInjection(command string) string {
+	for strings.HasPrefix(command, "export FEOV_") {
+		eq := strings.Index(command, "='")
+		if eq < 0 || strings.ContainsAny(command[len("export "):eq], " ;'") {
+			return command
+		}
+		// The value is single-quoted with `'` written as `'\''`, exactly as injectEnv writes it.
+		i := eq + 2
+		for {
+			j := strings.IndexByte(command[i:], '\'')
+			if j < 0 {
+				return command
+			}
+			i += j
+			if strings.HasPrefix(command[i:], `'\''`) {
+				i += len(`'\''`)
+				continue
+			}
+			break
+		}
+		if !strings.HasPrefix(command[i:], "'; ") {
+			return command
+		}
+		command = command[i+len("'; "):]
+	}
+	return command
+}
+
 // hasControl reports whether a value carries a byte that would break out of the single-quoted
 // export statement it is about to be spliced into.
 func hasControl(v string) bool {
