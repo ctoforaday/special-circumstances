@@ -1,5 +1,6 @@
 // Command feov-sitting-write appends a harness-observed fact about a sitting to a run's record:
-// one end of its span, that it reached the run's tool-call limit, or a call the PreToolUse hook denied it.
+// one end of its span, that it reached the run's tool-call limit, or a call of its that a hook saw
+// denied or failing.
 //
 // NOT A HOOK AND NOT A SEAT VERB. It is spawned by the SubagentStart/SubagentStop hooks once they
 // have established there is a live run and a real seat, and by the PreToolUse hook once per sitting
@@ -17,7 +18,7 @@ import (
 
 func main() {
 	run := flag.String("run", "", "the run directory whose record to append to")
-	phase := flag.String("phase", "", "open or close (an end of the span), limit (the sitting reached the tool-call limit), or refusal (the PreToolUse hook denied a call)")
+	phase := flag.String("phase", "", "open or close (an end of the span), limit (the sitting reached the tool-call limit), refusal (the PreToolUse hook denied a call) or failure (a call failed)")
 	agentID := flag.String("agent-id", "", "the harness handle for the subagent")
 	agentType := flag.String("agent-type", "", "the agent configuration it was dispatched as")
 	transcript := flag.String("transcript", "", "the finished seat's transcript, whose turns are ingested and whose path is recorded (SubagentStop only)")
@@ -25,15 +26,15 @@ func main() {
 	promptID := flag.String("prompt-id", "", "the dispatch's own id, from the hook payload — it changes when an agent is re-prompted and its agent id does not")
 	sitting := flag.Int("sitting", 0, "the seat's sitting that reached the limit (limit only)")
 	limit := flag.Int("limit", 0, "the per-sitting tool-call limit it reached (limit only)")
-	refused := flag.String("refused", "", "what the PreToolUse hook refused the seat, and why (refusal only)")
+	entry := flag.String("entry", "", "what a hook saw happen to the seat's call — refused, or failed (refusal and failure only)")
 	flag.Parse()
 
 	var err error
 	switch sittingwrite.Phase(*phase) {
 	case sittingwrite.Limit:
 		err = sittingwrite.WriteLimit(*run, *agentID, *agentType, *sitting, *limit)
-	case sittingwrite.Refusal:
-		err = sittingwrite.WriteRefusal(*run, *agentID, *refused)
+	case sittingwrite.Refusal, sittingwrite.Failure:
+		err = sittingwrite.WriteToolEntry(*run, sittingwrite.Phase(*phase), *agentID, *entry)
 	default:
 		// STDOUT IS THE SEAT'S CHANNEL, and stderr is the caller's. On the opening end this process
 		// prints the seat's work list here and the SubagentStart hook passes it to the dispatched

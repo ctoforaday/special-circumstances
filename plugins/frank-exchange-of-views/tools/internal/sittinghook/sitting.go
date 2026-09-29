@@ -59,6 +59,7 @@ const (
 	phaseClose   = "close"
 	phaseLimit   = "limit"
 	phaseRefusal = "refusal"
+	phaseFailure = "failure"
 )
 
 // Limit hands a sitting that has reached the run's tool-call limit to the writer, which puts it on
@@ -76,14 +77,23 @@ func Limit(runDir, agentID, agentType string, sitting, limit int) error {
 	return spawnLimit(writer, runDir, agentID, agentType, sitting, limit)
 }
 
-// Refusal hands a call the PreToolUse hook denied a seat to the writer, which logs it as the tool's
-// `refusal` entry under the seat the agent registered as.
+// Refusal hands a call the PreToolUse hook denied a seat to the writer, and Failure a call of the
+// seat's that failed; the writer logs each as the tool's entry under the seat the agent registered as.
 func Refusal(runDir, agentID, text string) error {
+	return toolEntry(runDir, phaseRefusal, agentID, text)
+}
+
+// Failure is Refusal's twin for a call that failed rather than one a hook denied.
+func Failure(runDir, agentID, text string) error {
+	return toolEntry(runDir, phaseFailure, agentID, text)
+}
+
+func toolEntry(runDir, phase, agentID, text string) error {
 	writer := writerPath()
 	if writer == "" {
-		return fmt.Errorf("%s is not beside this hook, so the call refused to %s is not on the record", writerName, agentID)
+		return fmt.Errorf("%s is not beside this hook, so what happened to %s's call is not on the record", writerName, agentID)
 	}
-	if out, err := exec.Command(writer, "-run", runDir, "-phase", phaseRefusal, "-agent-id", agentID, "-refused", text).CombinedOutput(); err != nil {
+	if out, err := exec.Command(writer, "-run", runDir, "-phase", phase, "-agent-id", agentID, "-entry", text).CombinedOutput(); err != nil {
 		return fmt.Errorf("%s: %v: %s", writerName, err, out)
 	}
 	return nil

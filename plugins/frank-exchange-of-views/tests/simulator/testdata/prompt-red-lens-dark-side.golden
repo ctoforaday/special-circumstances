@@ -1,4 +1,4 @@
-prompt sha256: 4a5c78c305381deb90a8bca491f016d9c0b9316a211a50222c979e30d60dd352
+prompt sha256: f833b2867ff677f1c5032dcbccd2d5fcb8c118872d69ba41905bb94bf587a32a
 
 Red lens sitting, area dark-side, topic "the seat prompt contract".
 STEELMAN DUTY: read the exploration space via the `avenues` projection (the tool renders it fresh from the avenue events on the record).
@@ -41,7 +41,7 @@ If you are about to send a message with one tool call in it, ask what else you a
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
 LOG (red-lens-dark-side) — FRICTION, on the record AND in the envelope's log field: whatever cost you a call, a guess or an act — a refusal, a name that was not there, a misread shape, a workaround, an act set aside.
-The tool records refusals itself; you add what you expected and why, because a mistake the surface invited is the operator's signal.
+The tool records refusals and failed calls itself; you add what you expected and why — a mistake the surface invited is the operator's signal.
 YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU.
 Conclusions about the report and disputes with another seat's gap are findings, not log entries.
 A sitting with nothing to do runs no commands — it says so in the envelope and stops.

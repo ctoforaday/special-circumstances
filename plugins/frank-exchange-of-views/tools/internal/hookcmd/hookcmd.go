@@ -60,6 +60,8 @@ const (
 	// StageRefusalLog is the write of a denial to the log, apart from the denial: a seat refused
 	// correctly whose refusal could not be recorded is a different fault from a refusal that failed.
 	StageRefusalLog hookfailures.Stage = "refusal-log"
+	// StageFailureLog is the PostToolUseFailure hook's one job: a seat's failed call to the log.
+	StageFailureLog hookfailures.Stage = "failure-log"
 )
 
 // Entry is a hook entry point: it reads the payload, writes its decision document (if any) to
@@ -226,15 +228,7 @@ func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfail
 	if agentID == "" {
 		return false, nil
 	}
-	inferred := runlive.InferRunDir(cwd)
-	noteInference(inferred, rec)
-	runDir := inferred.Dir
-	if runDir == "" {
-		runDir = os.Getenv(seatenv.Var)
-	}
-	if runDir == "" {
-		runDir = os.Getenv(seatenv.VarWrapper)
-	}
+	runDir := seatRunDir(cwd, rec)
 	d, counted, err := sittingcap.Count(runDir, agentID)
 	if err != nil || !counted || !d.Over || hookgate.InvokesRegister(in) {
 		return false, err
@@ -250,6 +244,20 @@ func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfail
 	}
 	emitPreDeny(stdout, hookgate.LimitReason(d.Count, d.Limit))
 	return true, err
+}
+
+// seatRunDir is the run a seat's call belongs to: the marker its working directory finds, else the
+// run the engine put in the process environment. One resolution for every hook that attributes a
+// seat's call, so the turn limit and the failure log cannot disagree about which run it was in.
+func seatRunDir(cwd string, rec *hookfailures.Recorder) string {
+	inferred := runlive.InferRunDir(cwd)
+	noteInference(inferred, rec)
+	for _, dir := range []string{inferred.Dir, os.Getenv(seatenv.Var), os.Getenv(seatenv.VarWrapper)} {
+		if dir != "" {
+			return dir
+		}
+	}
+	return ""
 }
 
 // noteInference records a marker that is a FAULT, and clears the entry when the marker is usable.
@@ -272,8 +280,11 @@ func noteInference(i runlive.Inferred, rec *hookfailures.Recorder) {
 // recordLimit is a variable so the hook's handoff can be tested without a built writer on disk.
 var recordLimit = sittinghook.Limit
 
-// recordRefusal is a variable for the same reason.
-var recordRefusal = sittinghook.Refusal
+// recordRefusal and recordFailure are variables for the same reason.
+var (
+	recordRefusal = sittinghook.Refusal
+	recordFailure = sittinghook.Failure
+)
 
 // cwdOf pulls the seat's working directory out of the raw payload.
 //

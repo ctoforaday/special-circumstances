@@ -19,6 +19,7 @@ package sittingwrite
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"io"
 	"os"
 
@@ -48,18 +49,26 @@ const (
 	// written by WriteLimit. It is a phase so the one writer binary carries every harness-observed
 	// fact about a sitting.
 	Limit Phase = "limit"
-	// Refusal is a call the PreToolUse hook DENIED a seat — a Read of the assembled report — written
-	// by WriteRefusal as the same tool-written entry a refused verb gets. The hook refuses outside
-	// every verb, so without this phase the one refusal a seat met at the harness left no trace.
+	// Refusal is a call the PreToolUse hook DENIED a seat — a Read of the assembled report — and
+	// Failure a call of the seat's that FAILED, from the PostToolUseFailure hook. Both are written by
+	// WriteToolEntry as log entries the TOOL wrote: the harness saw them, and no verb did.
 	Refusal Phase = "refusal"
+	Failure Phase = "failure"
 )
 
-// WriteRefusal records a call the PreToolUse hook refused a seat, as a `refusal` log entry the tool
-// wrote, under the seat the agent registered as. An agent with no register is no seat, and nothing
-// is written for it.
-func WriteRefusal(runDir, agentID, text string) error {
+// WriteToolEntry records what a hook saw happen to a seat's call — a denial or a failure — as the
+// tool's log entry of that phase's type, under the seat the agent registered as. An agent with no
+// register is no seat, and a run with an outcome is over; nothing is written for either.
+func WriteToolEntry(runDir string, phase Phase, agentID, text string) error {
+	typ, ok := map[Phase]recordpb.LogType{
+		Refusal: recordpb.LogType_LOG_TYPE_REFUSAL,
+		Failure: recordpb.LogType_LOG_TYPE_FAILURE,
+	}[phase]
+	if !ok {
+		return fmt.Errorf("sittingwrite: %q is not a phase a hook logs", phase)
+	}
 	if agentID == "" || text == "" {
-		return fmt.Errorf("sittingwrite: a hook refusal needs the agent it refused and what it refused")
+		return fmt.Errorf("sittingwrite: a %s entry needs the agent and what happened to its call", phase)
 	}
 	run, err := record.NewRun(runDir)
 	if err != nil {
@@ -69,9 +78,12 @@ func WriteRefusal(runDir, agentID, text string) error {
 	if err != nil || !found || record.RecordedOutcome(run) != "" {
 		return err // no seat, or a run that is over: its record is closed to seats
 	}
+	// THE ANNOTATION LAYER IS NOT TEXT: an error can quote an anchor, and a live `<!--fx:…-->` in a
+	// log entry is a marker in every document that renders it. Stripped here, in the writer, so the
+	// hooks that hand these over link nothing more than they did.
 	_, err = record.Append(record.Identity{Run: run, SeatID: seat}, &recordpb.Log{
-		Text:   proto.String(text),
-		Type:   recordpb.LogType_LOG_TYPE_REFUSAL.Enum(),
+		Text:   proto.String(anchortext.Visible(text)),
+		Type:   typ.Enum(),
 		Source: recordpb.LogSource_LOG_SOURCE_TOOL.Enum(),
 	})
 	return err
