@@ -62,6 +62,9 @@ type hookOutput struct {
 // never arrives, which used to be discarded with `_ =` and read as a session with no note.
 const StageEncode hookfailures.Stage = "encode"
 
+// ensure is a variable so a test can answer the version check without a fetch-bin.sh on disk.
+var ensure = hookfailures.Ensure
+
 // merge composes one response from several units.
 //
 // IT USED TO READ ONLY Stdout AND Watch, which meant a unit's Stderr — the channel hookunit puts a
@@ -100,6 +103,15 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	_ = json.Unmarshal(raw, &in)
 
 	rec := hookfailures.New("prosthetic-conscience", "sc-sessionstart", "SessionStart", now, stderr)
+	// THE VERSION CHECK IS THIS HOOK'S TOO, so SessionStart has one hook in this plugin. It runs
+	// before the project root is resolved: the binaries are the machine's, and a session with no
+	// root still heals — only the message waits, because such a session writes nothing to stdout.
+	healed, err := ensure("SessionStart")
+	if err != nil {
+		rec.Fail(hookfailures.StageEnsure, "sc-sessionstart: "+err.Error())
+	} else {
+		rec.OK(hookfailures.StageEnsure)
+	}
 	ctx := hookunit.NewCtx("SessionStart", raw, hookenv.ProjectDir(projectDir, in.CWD), now, rec)
 	if !hookenv.Explain(ctx.ProjectDir, rec, "sc-sessionstart") {
 		// Recorded, and NOT said here: a hook with no project root writes nothing to stdout
@@ -113,7 +125,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	if logged != "" {
 		fmt.Fprintln(stderr, logged)
 	}
-	said := rec.Settle()
+	said := hookfailures.JoinMessages(healed, rec.Settle())
 	// Silence is a valid outcome and MUST stay silent. watchPaths alone is reason enough to
 	// speak: a note can be worth watching with nothing to say about it.
 	if strings.TrimSpace(text) == "" && len(watch) == 0 && said == "" {
