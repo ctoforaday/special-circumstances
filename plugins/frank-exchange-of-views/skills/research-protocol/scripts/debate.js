@@ -533,7 +533,11 @@ const CHAIR_ENVELOPE = {
   required: ['plan', 'unruled_motions'],
   properties: {
     plan: PLAN,
-    verdict: { type: 'string', enum: ['PASS', 'FAIL'], description: 'the verdict you RECORDED this sitting, restated — the record is the original; absent if you recorded none' },
+    // NULL IS "RECORDED NONE", as absence is. Two smokes running, the chair returned `verdict: null` for a
+    // sitting that recorded no verdict, was refused by the schema, and spent a call re-sending it —
+    // m14's chair then logged the refusal as the schema forcing a verdict it could not give. Every
+    // reader below treats a missing verdict and null alike.
+    verdict: { type: ['string', 'null'], enum: ['PASS', 'FAIL', null], description: 'the verdict you RECORDED this sitting, restated — the record is the original; null or absent if you recorded none' },
     unruled_motions: { type: 'integer', minimum: 0, description: 'motions on the record with no ruling, read back from the motions projection of the record — what the terminal bench sitting exists to dispose of' },
     petitions: PETITIONS,
     notes: { type: 'string' },

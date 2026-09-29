@@ -91,7 +91,9 @@ func failureEntry(tool string, input json.RawMessage, errText string) (string, b
 	_ = json.Unmarshal(input, &ti)
 	target := ti.FilePath
 	if ti.Command != "" {
-		target, _, _ = strings.Cut(strings.TrimSpace(ti.Command), "\n")
+		// The input arrives as the PreToolUse hook REWROTE it; the seat's own command is what it
+		// reached for.
+		target, _, _ = strings.Cut(strings.TrimSpace(hookgate.WithoutInjection(ti.Command)), "\n")
 	}
 	aimed := ""
 	if target = clip(target, 160); target != "" {
