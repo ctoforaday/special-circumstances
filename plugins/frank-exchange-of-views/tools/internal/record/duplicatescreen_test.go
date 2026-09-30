@@ -96,6 +96,31 @@ func TestAMintMatchingAnOpenGapIsAskedWhichItIs(t *testing.T) {
 			t.Fatalf("an unrelated mint was refused: %v", err)
 		}
 	})
+	t.Run("under Migrating an unanswered match lands: an archived mint is what a seat DID", func(t *testing.T) {
+		dir := withG1(t)
+		m, seat := mint("red-lens-computation", "G2", ordinal, nil)
+		Migrating = true
+		err := appendAs(t, dir, seat, m)
+		Migrating = false
+		if err != nil {
+			t.Fatalf("migration re-judged a pre-screen mint under the duplicate screen: %v", err)
+		}
+		// The same mint, live, is still asked — the exemption is migration's, not the screen's.
+		m2, seat2 := mint("red-lens-evidence", "G3", ordinal, nil)
+		if err := appendAs(t, dir, seat2, m2); err == nil || !strings.Contains(err.Error(), "--distinct-from") {
+			t.Fatalf("the live screen let the same defect through after a migrated mint: %v", err)
+		}
+	})
+	t.Run("under Migrating a distinction from a gap that does not exist is still refused: that is structure", func(t *testing.T) {
+		dir := withG1(t)
+		m, seat := mint("red-lens-computation", "G2", ordinal, func(m *recordpb.Mint) { m.DistinctFrom = []string{"G9"} })
+		Migrating = true
+		err := appendAs(t, dir, seat, m)
+		Migrating = false
+		if err == nil || !strings.Contains(err.Error(), "G9") {
+			t.Fatalf("migration admitted a --distinct-from naming no gap: %v", err)
+		}
+	})
 	t.Run("a CLOSED match does not block: the screen is of what is open", func(t *testing.T) {
 		dir := withG1(t)
 		if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: "red-lens-dark-side"}, &recordpb.Close{

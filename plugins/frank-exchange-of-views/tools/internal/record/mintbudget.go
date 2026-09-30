@@ -164,8 +164,9 @@ func RegisterReportRenderer(fn func(Run) (string, error)) { reportRenderer = fn 
 // whose budget is spent still sits while the record readies it: it verifies, records findings,
 // regrades and closes its own gaps, and with no fresh mint its sittings are barren, so it retires
 // within two. The count is the record's own — this seat's mint events — not a counter
-// the seat carries. Only a lens is bounded: the chair mints nothing, and a seed or a migration
-// writing under another seat is not a lens spending a budget.
+// the seat carries. Only a lens is bounded: the chair mints nothing, and a seed writing under
+// another seat is not a lens spending a budget. Migration replays under the archived seat id and
+// is exempted by its caller: the archived lens spent the budget of its own run.
 //
 // BELOW THE FLOOR NOTHING IS MEASURED. The budget is at least the floor, so a mint under it lands
 // whatever the report holds; the units are read only when they can decide the answer.

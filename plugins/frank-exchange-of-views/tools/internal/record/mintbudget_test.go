@@ -197,6 +197,24 @@ func TestTheRefusalStatesTheArithmetic(t *testing.T) {
 	}
 }
 
+// Migration replays an archived lens's mints under its own seat id, and the budget judges what a
+// lens may do NEXT: an archived mint past today's budget is what the lens DID under the budget of
+// its day, so the replay does not count it. Live, the same seat is still bounded (#1214).
+func TestMigratingReplaySkipsTheMintBudget(t *testing.T) {
+	id := budgetRun(t, 1, 3, 0, "red-lens-evidence")
+	Migrating = true
+	for _, g := range []string{"G1", "G2", "G3"} {
+		if _, err := Append(id, budgetMint(g)); err != nil {
+			Migrating = false
+			t.Fatalf("migration re-judged an archived mint under today's budget: %s: %v", g, err)
+		}
+	}
+	Migrating = false
+	if _, err := Append(id, budgetMint("G4")); err == nil || !strings.Contains(err.Error(), "budget") {
+		t.Fatalf("the live budget is not read after a migrated mint: %v", err)
+	}
+}
+
 // The budget is read at each mint, so a report that grows lifts it.
 func TestTheBudgetGrowsWithTheReport(t *testing.T) {
 	id := budgetRun(t, 1, 0, 0, "red-lens-voice")
