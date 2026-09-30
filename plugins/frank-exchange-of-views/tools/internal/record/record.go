@@ -799,8 +799,13 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		if err := requireMintWithinBudget(run, seatID); err != nil {
 			return err
 		}
-		if err := requireNotAnOpenGap(run, b); err != nil {
-			return err
+		// THE DUPLICATE SCREEN JUDGES A SEAT'S NEXT MINT, so a migration does not run it: a gap an
+		// archived run minted beside a near match is what a seat DID, and refusing it drops a real
+		// event and every act citing it — eight of the 28 known runs, when the screen shipped.
+		if !Migrating {
+			if err := requireNotAnOpenGap(run, b); err != nil {
+				return err
+			}
 		}
 		// REQUIRED, not optional, and that is the whole remedy (#277).
 		//
