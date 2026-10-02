@@ -196,11 +196,15 @@ func newEdit() *cobra.Command {
 	}))
 
 	c.Flags().String(flags.Key, "", flags.DescKey)
-	flags.Text(c, flags.Quote, flags.DescQuote+". A finding anchor or citation anchor typed into it is rejected")
+	// --quote is refused when absent UNLESS --accept supplies it, so its marker states the
+	// condition rather than the bare word — the bare marker would tell an accepting seat to type
+	// what the tool fills in.
+	flags.Text(c, flags.Quote, "REQUIRED unless --accept — "+flags.DescQuote+". A finding anchor or citation anchor typed into it is rejected")
 	flags.Text(c, flags.New, "the text that span should become")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this edit responds to (G4) — the provenance join key; omit only for an edit that answers no gap")
 	c.Flags().Bool(flags.Accept, false, flags.DescAccept)
-	return c
+	// The handler refuses an edit with no argument; the marker says so where the seat reads.
+	return seat.SaysRequired(c, flags.Reason)
 }
 
 // planEdit is the PURE core: it computes the new report from replacing the span of `old`

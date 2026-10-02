@@ -43,7 +43,7 @@ Usage:
 
 Flags:
       --access-date YYYY-MM-DD       YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger
-      --anchor <!--cite:c-…-->     the c-<hex> of the citation you checked, from the report's <!--cite:c-…--> token — resolve it with `show evidence`
+      --anchor <!--cite:c-…-->     REQUIRED — the c-<hex> of the citation you checked, from the report's <!--cite:c-…--> token — resolve it with `show evidence`
       --as as-value                  REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade. Absent is refused on a copy fetch recorded as the work's abstract, or as not the work
       --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts
   -h, --help                         help for verify

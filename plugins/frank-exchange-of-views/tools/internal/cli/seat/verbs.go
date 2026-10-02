@@ -179,11 +179,13 @@ func Log() *cobra.Command {
 	// seat reads to choose.
 	enumhelp.Flag(c, flags.Type, record.SeatLogTypeEnum(),
 		"what this entry asserts")
-	return Correctable(c)
+	// validate refuses an entry with no sentence; the marker says so where the seat reads.
+	return Correctable(SaysRequired(c, flags.Reason))
 }
 
 func Position(key string) *cobra.Command {
-	return Correctable(Prose(NewKeyed("position", key, func(s Context, cmd *cobra.Command) (Result, error) {
+	// validate refuses an empty position — "a duty discharged by nothing".
+	return Correctable(SaysRequired(Prose(NewKeyed("position", key, func(s Context, cmd *cobra.Command) (Result, error) {
 		text, err := Reason(cmd)
 		if err != nil {
 			return nil, err
@@ -192,7 +194,7 @@ func Position(key string) *cobra.Command {
 			return nil, err
 		}
 		return Msg{Message: "position recorded"}, nil
-	})))
+	})), flags.Reason))
 }
 
 func Closing(key string) *cobra.Command {
@@ -210,7 +212,8 @@ func Closing(key string) *cobra.Command {
 		return closingResult{ID: Str(cmd, flags.ID)}, nil
 	}))
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id this closing argues")
-	return Correctable(c)
+	// validate refuses a closing that names no gap — "a receipt naming no gap cannot be audited".
+	return Correctable(SaysRequired(c, flags.ID))
 }
 
 // views are the projections a seat may read. `defaultFor` is the role whose default this view

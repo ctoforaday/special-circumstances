@@ -27,7 +27,7 @@ func newCarry() *cobra.Command {
 	}), "close")
 
 	seat.ClosureFlags(c)
-	c.Flags().String(flags.CarriedFrom, "", "the epoch (chair sitting) whose closure this restates")
+	c.Flags().String(flags.CarriedFrom, "", "REQUIRED — the epoch (chair sitting) whose closure this restates")
 	_ = c.MarkFlagRequired(flags.CarriedFrom)
 	return seat.Correctable(seat.Prose(c))
 }

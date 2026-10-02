@@ -234,7 +234,7 @@ type ErrAnchorIntroduced struct {
 }
 
 func (e *ErrAnchorIntroduced) Error() string {
-	return fmt.Sprintf("%s: your replacement introduces %s, which was not in the span it replaces — anchors are placed by `lens finding` and `cite`, never typed into a replacement (got %d occurrence(s))", e.Verb, anchor.Label(e.ID), e.Count)
+	return fmt.Sprintf("%s: your replacement introduces %s, which was not in the span it replaces — anchors are placed by `finding` and `cite`, never typed into a replacement (got %d occurrence(s))", e.Verb, anchor.Label(e.ID), e.Count)
 }
 
 // MaxProposalGrowth bounds how much longer a CONCRETE proposed fix may be than the span it

@@ -42,9 +42,10 @@ func newNearMatch() *cobra.Command {
 	// THE SAME TWO WORDS `mint` TAKES. This verb screens what that one would file, and it spelled
 	// the identical two facts --candidate and --location — so a seat learned one vocabulary to ask
 	// the question and a different one to act on the answer.
-	flags.Text(c, flags.Problem, "what is wrong, as you would state it in the mint — screened against the board for a near-duplicate")
+	flags.Text(c, flags.Problem, "REQUIRED — what is wrong, as you would state it in the mint — screened against the board for a near-duplicate")
 	_ = c.MarkFlagRequired(flags.Problem)
-	flags.Text(c, flags.Quote, flags.DescQuote+" — scored for a location-match bonus")
+	// DescQuoteAlone: this verb has no --reason for the section to go in.
+	flags.Text(c, flags.Quote, flags.DescQuoteAlone+" — scored for a location-match bonus")
 	return c
 }
 

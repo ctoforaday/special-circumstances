@@ -171,7 +171,7 @@ func requireAvenue(run Run, id, verb, flag string) error {
 	if found {
 		return nil
 	}
-	return fmt.Errorf("record: %s %s=%s names no avenue on the record — `show avenues` lists every one with its id and fate. Propose it first (`blue avenue --line …`, which ASSIGNS the id); --id moves an avenue that already exists",
+	return fmt.Errorf("record: %s %s=%s names no avenue on the record — `show avenues` lists every one with its id and fate. Propose it first (`avenue propose --reason …`, which ASSIGNS the id); --id moves an avenue that already exists",
 		verb, flag, id)
 }
 
@@ -435,7 +435,7 @@ func requirePassClosesAllMaterialGaps(run Run) error {
 	if open := unansweredContradictions(evs); len(open) > 0 {
 		sort.Strings(open)
 		return fmt.Errorf("record: verdict PASS refused — red read a source that CONTRADICTS or does not support %d claim(s), and no finding was ever raised about them:\n  %s\n"+
-			"Each is red's own reading that the report says something its source does not. Raise it with `lens finding --quote \"<the claim>\" --reason \"<what the source actually says>\"` graded on every axis, so it enters the board with the lifecycle, the blue duty and the gate every other defect has. "+
+			"Each is red's own reading that the report says something its source does not. Raise it with `finding --quote \"<the claim>\" --reason \"<what the source actually says>\"` graded on every axis, so it enters the board with the lifecycle, the blue duty and the gate every other defect has. "+
 			"Read them with `show evidence`. A PASS claims the report is sound; these say otherwise on the record. Raise them, or issue `--as FAIL`",
 			len(open), strings.Join(open, "\n  "))
 	}

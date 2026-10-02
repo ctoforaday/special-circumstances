@@ -72,7 +72,7 @@ Flags:
       --correction-why string   what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
       --corrects string         the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
   -h, --help                    help for regrade
-      --id gap-id               the gap id
+      --id gap-id               REQUIRED — the gap id
       --impact grade            how bad the consequence is if it lands
       --likelihood grade        how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --reason string           REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran

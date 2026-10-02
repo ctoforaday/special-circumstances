@@ -78,7 +78,7 @@ Flags:
       --correction-why string          what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
       --corrects string                the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
   -h, --help                           help for log
-      --reason string                  the entry: what you concluded about the tooling
+      --reason string                  REQUIRED — the entry: what you concluded about the tooling
       --type defect|request|friction   REQUIRED — what this entry asserts
 
 Enumerated values:

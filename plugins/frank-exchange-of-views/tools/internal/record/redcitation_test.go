@@ -156,7 +156,7 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 	if !strings.Contains(err.Error(), claim) {
 		t.Errorf("the refusal does not name the claim, so red cannot tell which reading is unanswered: %v", err)
 	}
-	if !strings.Contains(err.Error(), "lens finding") {
+	if !strings.Contains(err.Error(), "`finding --quote") {
 		t.Errorf("the refusal does not name the act that clears it — a blocking message that does not say how to unblock is an invitation to guess: %v", err)
 	}
 

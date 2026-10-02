@@ -296,8 +296,8 @@ WHAT MAY BE IN THE REPORT: research prose for a reader of the SUBJECT, and the m
 §11 (on 2 pages):
 your own stable handle (C1, F2, P3 …): a repeat under the same handle returns the first result instead of acting twice
 
-§12 (on 6 pages):
-your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
+§12 (on 7 pages):
+REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 §13 (on 3 pages):
 CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong — a lost word, a
@@ -403,7 +403,7 @@ Flags:
       --correction-why string   → SHARED §5
       --corrects string         → SHARED §6
   -h, --help                    help for move
-      --id avenue-id            the avenue whose fate you are moving (Q1, Q2 …); the avenues projection lists every one
+      --id avenue-id            REQUIRED — the avenue whose fate you are moving (Q1, Q2 …); the avenues projection lists every one
       --reason string           the account of what settled this fate, in the SUBJECT's terms — printed in the report beside the avenue
 
 Enumerated values:
@@ -449,7 +449,7 @@ Flags:
   -h, --help                    help for propose
       --hypothesis string       what would be TRUE if this avenue pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug
       --method string           the source class or technique it belonged to, when that is what distinguishes it
-      --reason string           the avenue — research prose for a reader of the SUBJECT, printed in the report word for word
+      --reason string           REQUIRED — the avenue — research prose for a reader of the SUBJECT, printed in the report word for word
 
 (Global Flags:) → SHARED §7
 ==============================================================================
@@ -488,11 +488,11 @@ Flags:
   -h, --help                    help for cite
       --key string              your own stable handle (C1, F2, P3 …): a repeat under the same handle returns the first result instead of acting twice; the TOOL assigns the c-<hex> label
       --ocr-quote string        for OCR-derived text: the span you quote, verbatim from the source's reading (not the report). The tool records the PDF page it sits on; required with --source-text leaf
-      --quote string            the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. A mis-quote is rejected rather than guessed at
+      --quote string            REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. A mis-quote is rejected rather than guessed at
       --reason string           why this source backs the sentence — kept on the record and shown beside the source in the evidence view, never printed in the report
       --source-text unread      how much of the source you actually READ; omitted records unread. A leaf reading is refused on a copy fetch recorded as the work's abstract, or as not the work
-      --title string            the source's name, as it appears in the composed bibliography
-      --url string              the source's http/https URL — fetched once and cached, so both sides read the same bytes
+      --title string            REQUIRED — the source's name, as it appears in the composed bibliography
+      --url string              REQUIRED — the source's http/https URL — fetched once and cached, so both sides read the same bytes
 
 Enumerated values:
   --source-text
@@ -535,7 +535,7 @@ Flags:
       --correction-why string   → SHARED §5
       --corrects string         → SHARED §6
   -h, --help                    help for closing
-      --id gap-id               the gap id this closing argues
+      --id gap-id               REQUIRED — the gap id this closing argues
       --reason string           REQUIRED — your closing argument on this gap — your THINKING, not your process. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 (Global Flags:) → SHARED §7
@@ -593,7 +593,7 @@ Flags:
   -h, --help             help for edit
       --key string       → SHARED §11
       --new string       the text that span should become
-      --quote string     the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. A finding anchor or citation anchor typed into it is rejected
+      --quote string     REQUIRED unless --accept — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. A finding anchor or citation anchor typed into it is rejected
       --reason string    → SHARED §12
 
 (Global Flags:) → SHARED §7
@@ -672,7 +672,7 @@ Flags:
       --correction-why string          → SHARED §5
       --corrects string                → SHARED §6
   -h, --help                           help for log
-      --reason string                  the entry: what you concluded about the tooling
+      --reason string                  REQUIRED — the entry: what you concluded about the tooling
       --type defect|request|friction   REQUIRED — what this entry asserts
 
 Enumerated values:
@@ -703,8 +703,8 @@ Flags:
       --correction-why string   → SHARED §5
       --corrects string         → SHARED §6
   -h, --help                    help for manifest-row
-      --id gap-id               the gap id this receipt covers
-      --reason string           the receipt: what you checked, and what checking it showed
+      --id gap-id               REQUIRED — the gap id this receipt covers
+      --reason string           REQUIRED — the receipt: what you checked, and what checking it showed
 
 (Global Flags:) → SHARED §7
 ==============================================================================
@@ -728,7 +728,7 @@ Flags:
       --correction-why string   → SHARED §5
       --corrects string         → SHARED §6
   -h, --help                    help for appeal
-      --id avenue-id            the AVENUE id (Q1, Q2 …): an avenue's filing is the proposal, so it joins on the avenue's own id, not an M-number — the motion being appealed, which must already have been ruled
+      --id avenue-id            REQUIRED — the AVENUE id (Q1, Q2 …): an avenue's filing is the proposal, so it joins on the avenue's own id, not an M-number — the motion being appealed, which must already have been ruled
       --reason string           → SHARED §12
 
 (Global Flags:) → SHARED §7
@@ -776,7 +776,7 @@ Flags:
       --correction-why string   → SHARED §5
       --corrects string         → SHARED §6
   -h, --help                    help for appeal
-      --id motion-id            the motion id (M1, M2 …) — the motion being appealed, which must already have been ruled
+      --id motion-id            REQUIRED — the motion id (M1, M2 …) — the motion being appealed, which must already have been ruled
       --reason string           → SHARED §12
 
 (Global Flags:) → SHARED §7
@@ -801,7 +801,7 @@ Flags:
       --dimension dimension-value   REQUIRED for a grade motion
   -h, --help                        help for file
       --id gap-id                   REQUIRED for a grade motion
-      --proposed grade              the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --proposed grade              REQUIRED for a grade motion — the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --reason string               → SHARED §12
 
 Enumerated values:
@@ -864,7 +864,7 @@ Flags:
       --correction-why string   → SHARED §5
       --corrects string         → SHARED §6
   -h, --help                    help for position
-      --reason string           your sitting's argument — your THINKING, not your process. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string           REQUIRED — your sitting's argument — your THINKING, not your process. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 (Global Flags:) → SHARED §7
 ==============================================================================
@@ -893,14 +893,14 @@ Usage:
   feov-record prove [flags]
 
 Flags:
-      --answers gap-id          the gap id this computation settles (G4) — REQUIRED to close a gap red minted with --check-kind computation, which prose cannot answer
+      --answers gap-id          the gap id this computation settles (G4) — REQUIRED to close a gap whose check kind is computation, which prose cannot answer
       --cites citation-anchor   the citation label of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed
       --correction-why string   → SHARED §5
       --corrects string         → SHARED §6
       --expect-error            this proof's POINT is a failing command (a path that must be absent, a tool that must be missing) — record the environment error as the result instead of refusing it
   -h, --help                    help for prove
       --key string              → SHARED §11
-      --quote string            the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs
+      --quote string            REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs
       --reason string           the proof note — printed in the report as this computation's footnote, so say what it SHOWS about the subject, not what happened while you ran it
       --script string           REQUIRED — path under the run directory of the program that settles it (.py, .js, .mjs, .sh or .go)
 
@@ -950,8 +950,8 @@ Flags:
       --anchor list     a marker the edit left inside a sentence that backed only this claim (c-…, p-… or f-…; comma-separated) — it leaves with the claim
   -h, --help            help for retire
       --new string      the claim that replaces it, when one does
-      --quote string    REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs — the claim being removed, as it stood before you edited it out
-      --reason string   REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --quote string    REQUIRED — the claim being removed, verbatim as it stood in the report BEFORE the edit that took it out — the WHOLE of what that edit cut, and nothing else. It must be ABSENT from the report now — edit it out first, then retire — and a match against the recorded edit's old span is what verifies the removal
+      --reason string   → SHARED §12
 
 (Global Flags:) → SHARED §7
 ==============================================================================
@@ -977,7 +977,7 @@ Flags:
       --correction-why string   → SHARED §5
       --corrects string         → SHARED §6
   -h, --help                    help for revision
-      --reason string           what changed this sitting. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string           REQUIRED — what changed this sitting. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 (Global Flags:) → SHARED §7
 ==============================================================================

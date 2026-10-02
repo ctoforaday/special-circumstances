@@ -559,9 +559,9 @@ Flags:
       --id gap-id                 REQUIRED — the gap id
       --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
-      --verified-against string   AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in
-      --verified-by string        WHO verified it — the seat that read the evidence
-      --verified-with string      WITH WHAT — the tool or command that showed it
+      --verified-against string   REQUIRED — AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in
+      --verified-by string        REQUIRED — WHO verified it — the seat that read the evidence
+      --verified-with string      REQUIRED — WITH WHAT — the tool or command that showed it
 
 Enumerated values:
   --as
@@ -622,9 +622,9 @@ Flags:
       --id gap-id                 REQUIRED — the gap id
       --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
-      --verified-against string   AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in
-      --verified-by string        WHO verified it — the seat that read the evidence
-      --verified-with string      WITH WHAT — the tool or command that showed it
+      --verified-against string   REQUIRED — AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in
+      --verified-by string        REQUIRED — WHO verified it — the seat that read the evidence
+      --verified-with string      REQUIRED — WITH WHAT — the tool or command that showed it
 
 Enumerated values:
   --as
@@ -685,9 +685,9 @@ Flags:
       --id gap-id                 REQUIRED — the gap id
       --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
-      --verified-against string   AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in
-      --verified-by string        WHO verified it — the seat that read the evidence
-      --verified-with string      WITH WHAT — the tool or command that showed it
+      --verified-against string   REQUIRED — AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in
+      --verified-by string        REQUIRED — WHO verified it — the seat that read the evidence
+      --verified-with string      REQUIRED — WITH WHAT — the tool or command that showed it
 
 Enumerated values:
   --as
@@ -748,9 +748,9 @@ Flags:
       --id gap-id                 REQUIRED — the gap id
       --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
-      --verified-against string   AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in
-      --verified-by string        WHO verified it — the seat that read the evidence
-      --verified-with string      WITH WHAT — the tool or command that showed it
+      --verified-against string   REQUIRED — AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in
+      --verified-by string        REQUIRED — WHO verified it — the seat that read the evidence
+      --verified-with string      REQUIRED — WITH WHAT — the tool or command that showed it
 
 Enumerated values:
   --as
@@ -808,7 +808,7 @@ Flags:
       --correction-why string   what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
       --corrects string         the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
   -h, --help                    help for regrade
-      --id gap-id               the gap id
+      --id gap-id               REQUIRED — the gap id
       --impact grade            how bad the consequence is if it lands
       --likelihood grade        how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --reason string           REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
@@ -986,7 +986,7 @@ Usage:
   feov-record motion petition rule [flags]
 
 Flags:
-      --as granted|denied       your ruling
+      --as granted|denied       REQUIRED — your ruling
       --binds blue|red|both     who granted relief BINDS — set it when you grant, or the relief reaches no prompt and nothing reports that it did not
       --correction-why string   what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
       --corrects string         the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
@@ -1061,9 +1061,9 @@ Flags:
       --id gap-id                 REQUIRED — the gap id
       --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
-      --verified-against string   AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in
-      --verified-by string        WHO verified it — the seat that read the evidence
-      --verified-with string      WITH WHAT — the tool or command that showed it
+      --verified-against string   REQUIRED — AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in
+      --verified-by string        REQUIRED — WHO verified it — the seat that read the evidence
+      --verified-with string      REQUIRED — WITH WHAT — the tool or command that showed it
 
 Enumerated values:
   --as
@@ -1115,8 +1115,8 @@ Flags:
       --dimension dimension-value   REQUIRED for a grade motion
   -h, --help                        help for file
       --id gap-id                   REQUIRED for a grade motion
-      --proposed grade              the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
-      --reason string               your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --proposed grade              REQUIRED for a grade motion — the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --reason string               REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 Enumerated values:
   --dimension
@@ -1163,7 +1163,7 @@ Usage:
 
 Flags:
       --access-date YYYY-MM-DD       YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger
-      --anchor <!--cite:c-…-->     the c-<hex> of the citation you checked, from the report's <!--cite:c-…--> token — resolve it with `show evidence`
+      --anchor <!--cite:c-…-->     REQUIRED — the c-<hex> of the citation you checked, from the report's <!--cite:c-…--> token — resolve it with `show evidence`
       --as as-value                  REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade. Absent is refused on a copy fetch recorded as the work's abstract, or as not the work
       --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts
   -h, --help                         help for verify
@@ -1223,7 +1223,7 @@ Usage:
 
 Flags:
       --access-date YYYY-MM-DD       YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger
-      --anchor <!--cite:c-…-->     the c-<hex> of the citation you checked, from the report's <!--cite:c-…--> token — resolve it with `show evidence`
+      --anchor <!--cite:c-…-->     REQUIRED — the c-<hex> of the citation you checked, from the report's <!--cite:c-…--> token — resolve it with `show evidence`
       --as as-value                  REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade. Absent is refused on a copy fetch recorded as the work's abstract, or as not the work
       --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts
   -h, --help                         help for verify
@@ -1283,7 +1283,7 @@ Usage:
 
 Flags:
       --access-date YYYY-MM-DD       YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger
-      --anchor <!--cite:c-…-->     the c-<hex> of the citation you checked, from the report's <!--cite:c-…--> token — resolve it with `show evidence`
+      --anchor <!--cite:c-…-->     REQUIRED — the c-<hex> of the citation you checked, from the report's <!--cite:c-…--> token — resolve it with `show evidence`
       --as as-value                  REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade. Absent is refused on a copy fetch recorded as the work's abstract, or as not the work
       --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts
   -h, --help                         help for verify
@@ -1343,7 +1343,7 @@ Usage:
 
 Flags:
       --access-date YYYY-MM-DD       YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger
-      --anchor <!--cite:c-…-->     the c-<hex> of the citation you checked, from the report's <!--cite:c-…--> token — resolve it with `show evidence`
+      --anchor <!--cite:c-…-->     REQUIRED — the c-<hex> of the citation you checked, from the report's <!--cite:c-…--> token — resolve it with `show evidence`
       --as as-value                  REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade. Absent is refused on a copy fetch recorded as the work's abstract, or as not the work
       --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts
   -h, --help                         help for verify
@@ -1409,7 +1409,7 @@ Usage:
 
 Flags:
       --access-date YYYY-MM-DD       YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger
-      --anchor <!--cite:c-…-->     the c-<hex> of the citation you checked, from the report's <!--cite:c-…--> token — resolve it with `show evidence`
+      --anchor <!--cite:c-…-->     REQUIRED — the c-<hex> of the citation you checked, from the report's <!--cite:c-…--> token — resolve it with `show evidence`
       --as as-value                  REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade. Absent is refused on a copy fetch recorded as the work's abstract, or as not the work
       --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts
   -h, --help                         help for verify
@@ -1470,7 +1470,7 @@ Usage:
 Flags:
       --class class-value   REQUIRED for a petition motion
   -h, --help                help for file
-      --reason string       your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string       REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --relief string       REQUIRED for a petition motion
 
 Enumerated values:
@@ -1767,8 +1767,8 @@ Flags:
       --dimension dimension-value   REQUIRED for a grade motion
   -h, --help                        help for file
       --id gap-id                   REQUIRED for a grade motion
-      --proposed grade              the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
-      --reason string               your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --proposed grade              REQUIRED for a grade motion — the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --reason string               REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 Enumerated values:
   --dimension

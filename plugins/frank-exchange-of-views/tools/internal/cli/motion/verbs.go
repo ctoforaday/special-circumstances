@@ -153,7 +153,8 @@ func newFile(subject string, required []string) *cobra.Command {
 			return seat.Emit(cmd, filed{ID: id, Subject: subject}, nil)
 		},
 	}
-	seat.Prose(c)
+	// prose() refuses a filing with no argument; the marker says so where the seat reads.
+	seat.SaysRequired(seat.Prose(c), flags.Reason)
 	for _, f := range required {
 		// THE FLAG'S TYPE IS THE FIRST REFUSAL, and the first draft threw it away. `--proposed`
 		// takes a GRADE and is a pflag.Value that refuses a non-grade at parse — before any RunE
@@ -164,7 +165,7 @@ func newFile(subject string, required []string) *cobra.Command {
 		switch {
 		case f == flags.Proposed:
 			p := new(flags.GradeValue)
-			c.Flags().Var(p, f, flags.GradeUsage("the grade you say it should be"))
+			c.Flags().Var(p, f, flags.GradeUsage("REQUIRED for a "+subject+" motion — the grade you say it should be"))
 		default:
 			if e, ok := record.MotionFieldEnum(subject, payloadKey(f), f); ok {
 				enumhelp.Flag(c, f, e, "REQUIRED for a "+subject+" motion")
@@ -300,25 +301,25 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			case recordpb.MotionSubject_MOTION_SUBJECT_GRADE:
 				v, ok := enumOf[recordpb.GradeRuling](recordpb.GradeRuling(0).Descriptor(), word)
 				if !ok {
-					return feov.Errorf(feov.Validation, "motion grade rule: %q is not a ruling on a grade motion", word)
+					return feov.Errorf(feov.Validation, "motion grade rule: --as %q is not a ruling on a grade motion", word)
 				}
 				body.Ruling = &recordpb.MotionRule_Grade{Grade: v}
 			case recordpb.MotionSubject_MOTION_SUBJECT_PETITION:
 				v, ok := enumOf[recordpb.PetitionRuling](recordpb.PetitionRuling(0).Descriptor(), word)
 				if !ok {
-					return feov.Errorf(feov.Validation, "motion petition rule: %q is not a ruling on a petition", word)
+					return feov.Errorf(feov.Validation, "motion petition rule: --as %q is not a ruling on a petition", word)
 				}
 				body.Ruling = &recordpb.MotionRule_Petition{Petition: v}
 			case recordpb.MotionSubject_MOTION_SUBJECT_AVENUE:
 				v, ok := enumOf[recordpb.AvenueRuling](recordpb.AvenueRuling(0).Descriptor(), word)
 				if !ok {
-					return feov.Errorf(feov.Validation, "motion avenue rule: %q is not a ruling on a direction", word)
+					return feov.Errorf(feov.Validation, "motion avenue rule: --as %q is not a ruling on a direction", word)
 				}
 				body.Ruling = &recordpb.MotionRule_Avenue{Avenue: v}
 			case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
 				d, ok := record.DispositionOf(word)
 				if !ok {
-					return feov.Errorf(feov.Validation, "motion docket rule: %q is not a disposition", word)
+					return feov.Errorf(feov.Validation, "motion docket rule: --as %q is not a disposition", word)
 				}
 				dr := &recordpb.DocketRuling{
 					Disposition: &d,
@@ -362,11 +363,16 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 	}
 	seat.Prose(c)
 	c.Flags().Var(idShapeFor(subject, false), flags.ID, refHelp(subject))
-	enumhelp.Flag(c, flags.As, e, "your ruling")
+	// The ruling switch above refuses a word that is not a ruling, and "" is not one.
+	enumhelp.Flag(c, flags.As, e, "REQUIRED — your ruling")
 	for _, f := range ruleFlags {
 		switch f {
 		case flags.Final:
 			c.Flags().Bool(f, false, ruleFlagHelp[f])
+		case flags.Principle:
+			// Required by DocketRuling's schema — a NESTED message, which markRequired's walk of
+			// the body's own fields does not reach — so the marker is written here.
+			flags.Text(c, f, "REQUIRED — "+ruleFlagHelp[f])
 		default:
 			flags.Text(c, f, ruleFlagHelp[f])
 		}
@@ -450,8 +456,9 @@ func newAppeal(subject string) *cobra.Command {
 			return seat.Emit(cmd, appealed{ID: id}, nil)
 		},
 	}
-	seat.Prose(c)
-	c.Flags().Var(idShapeFor(subject, false), flags.ID, refHelp(subject)+" — the motion being appealed, which must already have been ruled")
+	// prose() refuses an appeal with no argument, and the record one naming no motion.
+	seat.SaysRequired(seat.Prose(c), flags.Reason)
+	c.Flags().Var(idShapeFor(subject, false), flags.ID, "REQUIRED — "+refHelp(subject)+" — the motion being appealed, which must already have been ruled")
 	// The record type, for the contract gate — see newFile.
 	seat.Records(c, "motion_appeal")
 	return seat.Correctable(c)
