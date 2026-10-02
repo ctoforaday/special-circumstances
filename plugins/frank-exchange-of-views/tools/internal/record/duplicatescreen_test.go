@@ -6,6 +6,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
@@ -100,25 +101,91 @@ func TestAMintMatchingAnOpenGapIsAskedWhichItIs(t *testing.T) {
 		dir := withG1(t)
 		m, seat := mint("red-lens-computation", "G2", ordinal, nil)
 		Migrating = true
-		err := appendAs(t, dir, seat, m)
-		Migrating = false
-		if err != nil {
+		defer func() { Migrating = false }()
+		if err := appendAs(t, dir, seat, m); err != nil {
 			t.Fatalf("migration re-judged a pre-screen mint under the duplicate screen: %v", err)
 		}
+		Migrating = false
 		// The same mint, live, is still asked — the exemption is migration's, not the screen's.
 		m2, seat2 := mint("red-lens-evidence", "G3", ordinal, nil)
 		if err := appendAs(t, dir, seat2, m2); err == nil || !strings.Contains(err.Error(), "--distinct-from") {
 			t.Fatalf("the live screen let the same defect through after a migrated mint: %v", err)
 		}
 	})
+	t.Run("under Migrating a mint carrying --distinct-from is checked for the reference only: the match is not re-asked", func(t *testing.T) {
+		// A replayed mint with a distinction reads the board (the reference must exist) and then
+		// leaves: an archived mint that matched a second gap it never named is what the seat DID.
+		// Delete the gate after the reference check and this lands on the lexical screen.
+		dir := withG1(t)
+		other, seat := mint("red-lens-voice", "G2", "The closing section narrates how the run searched instead of addressing the subject.", nil)
+		other.Location = proto.String("This run searched three databases.")
+		if err := appendAs(t, dir, seat, other); err != nil {
+			t.Fatal(err)
+		}
+		m, seat := mint("red-lens-computation", "G3", "The closing section narrates how the run searched rather than addressing the subject.", func(m *recordpb.Mint) { m.DistinctFrom = []string{"G1"} })
+		m.Location = proto.String("This run searched three databases.")
+		Migrating = true
+		defer func() { Migrating = false }()
+		if err := appendAs(t, dir, seat, m); err != nil {
+			t.Fatalf("migration re-asked the lexical match of a mint that answered for another gap: %v", err)
+		}
+		Migrating = false
+		// Live, the same mint is asked about G2 — the fixture matches, and only replay is exempt.
+		m2, seat2 := mint("red-lens-evidence", "G4", "The closing section narrates how the run searched rather than addressing the subject.", func(m *recordpb.Mint) { m.DistinctFrom = []string{"G1"} })
+		m2.Location = proto.String("This run searched three databases.")
+		if err := appendAs(t, dir, seat2, m2); err == nil || !strings.Contains(err.Error(), "G2 (open") {
+			t.Fatalf("the live screen did not match G2, so the replayed mint above proved nothing: %v", err)
+		}
+	})
 	t.Run("under Migrating a distinction from a gap that does not exist is still refused: that is structure", func(t *testing.T) {
 		dir := withG1(t)
 		m, seat := mint("red-lens-computation", "G2", ordinal, func(m *recordpb.Mint) { m.DistinctFrom = []string{"G9"} })
 		Migrating = true
-		err := appendAs(t, dir, seat, m)
-		Migrating = false
-		if err == nil || !strings.Contains(err.Error(), "G9") {
+		defer func() { Migrating = false }()
+		if err := appendAs(t, dir, seat, m); err == nil || !strings.Contains(err.Error(), "G9") {
 			t.Fatalf("migration admitted a --distinct-from naming no gap: %v", err)
+		}
+	})
+	t.Run("a board that cannot be read refuses the mint with that error, never admits it", func(t *testing.T) {
+		// A read failure and an empty board must not share an answer: the screen swallowed every
+		// FamilyOf error as "no board yet", and on that path the --distinct-from check went unasked
+		// too. The failure is staged in the record itself — a docket ruling whose filing is not on
+		// the record, which FamilyOf refuses to fold — so what is tested is the screen's answer to
+		// the read, not a stand-in for it.
+		dir := withG1(t)
+		recordtest.Seed(t, dir, recordtest.At(t, "judge", "judge:motion_rule:M9", &recordpb.MotionRule{
+			MotionId: proto.String("M9"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+			Opinion: proto.String("ruled"),
+			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Principle: proto.String("p"),
+				Tension: proto.String("t"), ReviewFlag: proto.String("r"), Settled: proto.String("s"), Final: proto.Bool(true)}},
+		}))
+		if _, err := FamilyOf(mustRun(t, dir)); err == nil {
+			t.Fatal("the staged record still reads — the fixture proves nothing")
+		}
+		distinct := func(m *recordpb.Mint) { m.DistinctFrom = []string{"G1"} }
+		// Under Migrating a mint with a distinction still reads the board for the reference, so the
+		// read failure is its refusal too.
+		for _, tc := range []struct {
+			name      string
+			migrating bool
+			answer    func(*recordpb.Mint)
+		}{{"live, unanswered", false, nil}, {"live, --distinct-from", false, distinct}, {"migrating, --distinct-from", true, distinct}} {
+			Migrating = tc.migrating
+			m, seat := mint("red-lens-computation", "G2", ordinal, tc.answer)
+			err := appendAs(t, dir, seat, m)
+			Migrating = false
+			if err == nil {
+				t.Fatalf("%s: a mint was admitted over a board that could not be read", tc.name)
+			}
+			// The refusal is the MINT's, coded, and names the read as its cause — not the fold's
+			// own sentence about a docket ruling, which two other readers emit word for word.
+			if !strings.HasPrefix(err.Error(), "record: mint refused — the board could not be read, so the screen cannot run: ") {
+				t.Fatalf("%s: the refusal is not the mint's own, naming the read: %v", tc.name, err)
+			}
+			if feov.CodeOf(err) != string(feov.Conflict) {
+				t.Errorf("%s: the refusal carries code %q, not %q", tc.name, feov.CodeOf(err), feov.Conflict)
+			}
 		}
 	})
 	t.Run("a CLOSED match does not block: the screen is of what is open", func(t *testing.T) {

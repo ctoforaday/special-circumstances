@@ -547,12 +547,12 @@ var Now = func() time.Time { return time.Now().UTC() }
 // Migrating is set by `feov-record migrate` while it re-drives an archived record through this
 // write path (plans/roundless.md §III.A.5). Every STRUCTURAL refusal stays on — a reference to a
 // gap nobody minted, a second cast, a seat outside the cast — because a migrated record must be a
-// record. The refusals that shape LIVE behaviour are gated off: the convergence refusal on a FAIL,
-// the material-gap, lens-ready and stale-area refusals on a PASS, and the budget, the duplicate
-// screen and the report-voice refusals on a mint judge what a seat may do NEXT, and an archived gate
-// or mint is what a seat DID. Refusing it would drop a real event and call the loss a translation. A PASS the material
-// exemption admits carries the gaps it was admitted over (stampMigrationAdmission), so verify tells
-// the admission from a violated gate.
+// record. A refusal that judges what a seat may do NEXT is gated off, because an archived act is
+// what a seat DID: refusing it would drop a real event and call the loss a translation. Each
+// exemption sits beside the check it exempts, with its reason; `grep -n Migrating` is the list,
+// and TestEveryArchivedRunMigrates (internal/record/migrate) is what a missing one fails. A PASS
+// the material exemption admits carries the gaps it was admitted over (stampMigrationAdmission),
+// so verify tells the admission from a violated gate.
 var Migrating bool
 
 // stamp formats an event time at NANOSECOND precision.
@@ -797,20 +797,15 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 	case *recordpb.ClassNew:
 		return validateClassNew(run, b)
 	case *recordpb.Mint:
-		// The budget and the duplicate screen judge what a lens may do NEXT against the current
-		// board; an archived mint is what a lens DID under the budget of its day (#1214).
-		if !Migrating {
-			if err := requireMintWithinBudget(run, seatID); err != nil {
-				return err
-			}
+		// Every check here that replay exempts carries its own Migrating gate beside the part it
+		// exempts, with its reason, so this arm reads the same live and on replay: the budget's
+		// arithmetic, the screen's match and the report-voice refusal are off, the roster and the
+		// --distinct-from reference stay on.
+		if err := requireMintWithinBudget(run, seatID); err != nil {
+			return err
 		}
-		// THE DUPLICATE SCREEN JUDGES A SEAT'S NEXT MINT, so a migration does not run it: a gap an
-		// archived run minted beside a near match is what a seat DID, and refusing it drops a real
-		// event and every act citing it — eight of the 28 known runs, when the screen shipped.
-		if !Migrating {
-			if err := requireNotAnOpenGap(run, b); err != nil {
-				return err
-			}
+		if err := requireNotAnOpenGap(run, b); err != nil {
+			return err
 		}
 		// REQUIRED, not optional, and that is the whole remedy (#277).
 		//
@@ -853,10 +848,8 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 				return fmt.Errorf("record: mint requires --%s — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded", g.flag)
 			}
 		}
-		if !Migrating {
-			if err := refuseMintReportVoice(b); err != nil {
-				return err
-			}
+		if err := refuseMintReportVoice(b); err != nil {
+			return err
 		}
 		if err := validateClass(run, b); err != nil {
 			return err
@@ -1467,10 +1460,8 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		if b.GetConfidence() == recordpb.Confidence_CONFIDENCE_UNSPECIFIED {
 			return fmt.Errorf("record: verify requires --confidence high|medium|low — how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different facts, and low confidence is a call for more evidence rather than a fail")
 		}
-		if !Migrating {
-			if err := refuseCorroborationTitleVoice(b); err != nil {
-				return err
-			}
+		if err := refuseCorroborationTitleVoice(b); err != nil {
+			return err
 		}
 	}
 	// The closed sets, checked from one declaration (enums.go) rather than five

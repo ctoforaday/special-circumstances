@@ -165,8 +165,8 @@ func RegisterReportRenderer(fn func(Run) (string, error)) { reportRenderer = fn 
 // regrades and closes its own gaps, and with no fresh mint its sittings are barren, so it retires
 // within two. The count is the record's own — this seat's mint events — not a counter
 // the seat carries. Only a lens is bounded: the chair mints nothing, and a seed writing under
-// another seat is not a lens spending a budget. Migration replays under the archived seat id and
-// is exempted by its caller: the archived lens spent the budget of its own run.
+// another seat is not a lens spending a budget. Migration replays under the archived seat id, so
+// the arithmetic — not the roster — is exempted under Migrating, below.
 //
 // BELOW THE FLOOR NOTHING IS MEASURED. The budget is at least the floor, so a mint under it lands
 // whatever the report holds; the units are read only when they can decide the answer.
@@ -187,6 +187,14 @@ func requireMintWithinBudget(run Run, seatID string) error {
 	}
 	if _, err := mintScaleOf(area); err != nil {
 		return feov.Errorf(feov.Validation, "record: mint refused — %s: %v", seatID, err)
+	}
+	// THE BUDGET JUDGES WHAT A LENS MAY DO NEXT; an archived mint is what a lens DID under the budget
+	// of its day, and a replay counts it against today's: the floor is the archive's own, but the
+	// allowance above it is this table's `per` over the replayed record, and a row that moves turns
+	// an admitted mint into a refusal that drops the gap and every act citing it. The roster checks
+	// above are structure — a seat off the roster is off it in any year — and stay on.
+	if Migrating {
+		return nil
 	}
 	p, err := RunParams(run)
 	if err != nil {
