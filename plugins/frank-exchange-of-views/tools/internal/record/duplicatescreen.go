@@ -38,6 +38,14 @@ func requireNotAnOpenGap(run Run, m *recordpb.Mint) error {
 				"record: mint refused — --distinct-from %s names no gap on the board; it answers the duplicate screen, so it names a gap the screen matched", id)
 		}
 	}
+	// THE SCREEN JUDGES WHAT A SEAT MAY DO NEXT; an archived mint is what a seat DID. A mint recorded
+	// before the screen existed carries neither answer and can be given none by a replay, so under
+	// Migrating the match is not asked — the distinction check above is structure and stays on. b8
+	// (2026-09-11) holds a report-voice mint scoring 0.56 against an open gap of another class, and
+	// ten events that name it fall with it if this asks (#1214).
+	if Migrating {
+		return nil
+	}
 	answered := map[string]bool{}
 	for _, id := range append(append([]string{}, m.GetSupersedes()...), m.GetDistinctFrom()...) {
 		answered[id] = true

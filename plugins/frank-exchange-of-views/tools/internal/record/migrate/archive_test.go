@@ -259,3 +259,53 @@ func TestAnArchivedRunRecordsNoConversationItNeverHad(t *testing.T) {
 	}
 	t.Logf("identity carried %d opening and %d closing span(s) forward with no invented conversation", opens, closes)
 }
+
+// A MINT RECORDED BEFORE THE DUPLICATE SCREEN EXISTED IS A DECISION ALREADY MADE.
+//
+// b8 holds a report-voice mint (G4) whose problem statement overlaps an open gap of another class
+// (G1, 0.56 against the screen's 0.40) and, minted before the screen, carries neither --supersedes
+// nor --distinct-from. The screen judges what a seat may do NEXT; under Migrating the mint is what a
+// seat DID, and the ten events that name G4 come forward with it. This is the archived-run test the
+// screen landed without (#1214).
+func TestB8ArchiveMigratesWithNoRefusal(t *testing.T) {
+	tarball := archivePath(t, "2026-09-11_is-91-prime-b8.tar.gz")
+	runDir := t.TempDir()
+	untar(t, tarball, runDir)
+	toDir := recordtest.TmpRun(t)
+	res, merr := migrate.Migrate(runDir, toDir, migrate.Entries(), migrate.Options{})
+	if res == nil {
+		t.Fatalf("no manifest at all: %v", merr)
+	}
+	if len(res.Refusals) > 0 {
+		var sample []string
+		for _, r := range res.Refusals {
+			if len(sample) < 12 {
+				sample = append(sample, r.Word+": "+firstLine(r.Err))
+			}
+		}
+		t.Fatalf("%d refusal(s):\n  %s", len(res.Refusals), strings.Join(sample, "\n  "))
+	}
+	if merr != nil {
+		t.Fatalf("Migrate returned an error with no refusals: %v", merr)
+	}
+	if res.In["mint"] != 4 || res.Out["mint"] != 4 {
+		t.Fatalf("mint census: in=%d out=%d, want 4 and 4 — the source moved or a mint was dropped", res.In["mint"], res.Out["mint"])
+	}
+	fam, err := record.FamilyOf(runtest.Open(t, toDir))
+	if err != nil {
+		t.Fatalf("the migrated record does not read as a record: %v", err)
+	}
+	g4 := fam.Gap("G4")
+	if g4 == nil || g4.Mint == nil {
+		t.Fatal("G4, the mint the screen refused, is not on the migrated board")
+	}
+	if len(g4.Mint.GetDistinctFrom()) != 0 || len(g4.Mint.GetSupersedes()) != 0 {
+		t.Errorf("a pre-screen mint came forward with an invented answer: distinct_from=%v supersedes=%v",
+			g4.Mint.GetDistinctFrom(), g4.Mint.GetSupersedes())
+	}
+	for _, c := range verify.Run(fam) {
+		if !c.OK {
+			t.Errorf("verify [%s] fails on the migrated record: %s", c.Name, c.Detail)
+		}
+	}
+}

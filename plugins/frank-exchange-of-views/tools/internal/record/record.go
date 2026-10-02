@@ -548,10 +548,11 @@ var Now = func() time.Time { return time.Now().UTC() }
 // write path (plans/roundless.md §III.A.5). Every STRUCTURAL refusal stays on — a reference to a
 // gap nobody minted, a second cast, a seat outside the cast — because a migrated record must be a
 // record. The refusals that shape LIVE behaviour are gated off: the convergence refusal on a FAIL,
-// and the material-gap, lens-ready and stale-area refusals on a PASS, judge what a seat may do NEXT,
-// and an archived gate is what a seat DID. Refusing it would drop a real event and call the loss a
-// translation. A PASS the material exemption admits carries the gaps it was admitted over
-// (stampMigrationAdmission), so verify tells the admission from a violated gate.
+// the material-gap, lens-ready and stale-area refusals on a PASS, and the budget, the duplicate
+// screen and the report-voice refusals on a mint judge what a seat may do NEXT, and an archived gate
+// or mint is what a seat DID. Refusing it would drop a real event and call the loss a translation. A PASS the material
+// exemption admits carries the gaps it was admitted over (stampMigrationAdmission), so verify tells
+// the admission from a violated gate.
 var Migrating bool
 
 // stamp formats an event time at NANOSECOND precision.
@@ -796,8 +797,12 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 	case *recordpb.ClassNew:
 		return validateClassNew(run, b)
 	case *recordpb.Mint:
-		if err := requireMintWithinBudget(run, seatID); err != nil {
-			return err
+		// The budget and the duplicate screen judge what a lens may do NEXT against the current
+		// board; an archived mint is what a lens DID under the budget of its day (#1214).
+		if !Migrating {
+			if err := requireMintWithinBudget(run, seatID); err != nil {
+				return err
+			}
 		}
 		// THE DUPLICATE SCREEN JUDGES A SEAT'S NEXT MINT, so a migration does not run it: a gap an
 		// archived run minted beside a near match is what a seat DID, and refusing it drops a real
