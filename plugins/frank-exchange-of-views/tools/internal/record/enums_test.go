@@ -175,42 +175,90 @@ func TestBothClosureSetsShareOneVocabulary(t *testing.T) {
 	}
 }
 
-// EVERY WORD A TABLE DECLARES MUST BE A WORD THE SCHEMA CARRIES.
+// EVERY WORD A TABLE DECLARES MUST BE A WORD THE SCHEMA CARRIES, WITH THE SCHEMA'S MEANING,
+// AND EVERY WORD THE SCHEMA CARRIES MUST BE ON THE TABLE.
 //
-// EnumFields, MotionVerdicts and MotionFields are what `--help` renders and what `contract` prints,
-// so a value in one of them that the schema does not have is a value a seat is TOLD to use and the
-// record then refuses. That is #342 in one sentence: the engine declared `unresolved`, `moot` and
-// `grade_adjusted`, the constitution instructed all three, and the write path rejected every one —
-// so a bench following its own constitution could record nothing.
+// EnumFields is what `--help` renders and what the inlined manual of every agent definition
+// carries, so a value in it that the schema does not have is a value a seat is TOLD to use and
+// the record then refuses. That is #342 in one sentence: the engine declared `unresolved`, `moot`
+// and `grade_adjusted`, the constitution instructed all three, and the write path rejected every
+// one — so a bench following its own constitution could record nothing.
 //
-// The check is resolution through the schema's own spelling table, not a string compare against a
-// second list, because a second list is the thing that drifted.
+// The first pass at this test checked one direction — table ⊆ schema — and only the WORDS. Both
+// halves it left unchecked drifted (#1208). The meanings: `LOG_TYPE_FRICTION`'s `(means)` was
+// rewritten in PR #1197 and the table kept the old sentence, so the rewrite that PR was for never
+// reached a seat; `RUN_OUTCOME_CEILING` lost "at impasse … with nobody ready and PASS not
+// permitted" the same way. The coverage: `log.type` listed four of LogType's six values, and a
+// one-way subset check cannot see an omission. So the check now runs both ways and compares the
+// prose, resolving each word through the schema's own spelling table rather than a string compare
+// against a second list, because a second list is the thing that drifted.
+// EVERY TABLE IS A VIEW OF ITS DESCRIPTOR, and this is the gate that refuses the next hand-typed
+// row. It runs over every set rather than a list of the hand-kept ones: an allowlist of "tables
+// that cannot be generated" is itself a hand-kept copy, and today it would be empty — the two
+// capitalised sets are the descriptor's words through `loud`, and `close` is narrowed by the
+// `closes` facet in dispositionsWhere. The checks that still bite are structural: the field the
+// table names exists in the schema and is an enum, no set is empty, every value carries a
+// meaning, and a narrowing is declared by a facet (narrowedBy) rather than typed.
 func TestEveryDeclaredValueIsAWordTheSchemaCarries(t *testing.T) {
 	checked := 0
-	check := func(t *testing.T, owner, key string, vs []EnumValue, resolve func(string) bool) {
-		t.Helper()
-		if len(vs) == 0 {
-			t.Errorf("%s.%s declares an empty set — it would render as no choices at all", owner, key)
-		}
-		for _, v := range vs {
-			checked++
-			if !resolve(v.Name) {
-				t.Errorf("%s.%s declares %q, which the schema does not carry — a seat reading --help "+
-					"is told to use a word the write path refuses", owner, key, v.Name)
-			}
-			if v.Means == "" {
-				t.Errorf("%s.%s value %q carries no meaning; a set rendered as bare words leaves a "+
-					"seat to guess which situation warrants which", owner, key, v.Name)
-			}
-		}
-	}
 	for typ, fields := range EnumFields {
 		for _, f := range fields {
 			ef := f
 			t.Run(typ+"."+ef.Key, func(t *testing.T) {
-				check(t, typ, ef.Key, ef.Values, func(word string) bool {
-					return schemaCarries(t, typ, ef.Key, word)
-				})
+				if len(ef.Values) == 0 {
+					t.Errorf("%s.%s declares an empty set — it would render as no choices at all", typ, ef.Key)
+				}
+				ed := schemaEnumFor(t, typ, ef.Key)
+				for _, v := range ef.Values {
+					checked++
+					if v.Means == "" {
+						t.Errorf("%s.%s value %q carries no meaning; a set rendered as bare words leaves a "+
+							"seat to guess which situation warrants which", typ, ef.Key, v.Name)
+					}
+					if ed == nil {
+						continue // the one open set: its vocabulary is enforced by checkOpenSets, not by a type
+					}
+					vd, ok := schemaValue(ed, v.Name)
+					if !ok {
+						t.Errorf("%s.%s declares %q, which the schema does not carry — a seat reading --help "+
+							"is told to use a word the write path refuses", typ, ef.Key, v.Name)
+						continue
+					}
+					// THE MEANING IS THE SCHEMA'S, VERBATIM. The table is a view of the descriptor, and a
+					// view that paraphrases is a second author: the `(means)` is where the sentence is
+					// edited, and this is what carries the edit to the help a seat reads.
+					want, err := recordpb.EnumValueDoc(vd)
+					if err != nil {
+						t.Errorf("%s.%s: %v", typ, ef.Key, err)
+						continue
+					}
+					if v.Means != want {
+						t.Errorf("%s.%s value %q restates the schema's meaning in other words — the help a seat "+
+							"reads no longer says what the schema says\n  table:  %q\n  schema: %q",
+							typ, ef.Key, v.Name, v.Means, want)
+					}
+				}
+				if ed == nil {
+					return
+				}
+				// EVERY VALUE THE SCHEMA CARRIES IS ON THE TABLE. A tool-only word is listed too — it
+				// carries ToolOnly off its facet and SeatFilable drops it from a seat's surface — so the
+				// line the tool renders about its own acts is generated from the same row. The only
+				// principled narrowing is declared by a FACET, once, in narrowedBy.
+				narrow := narrowedBy[[2]string{typ, ef.Key}]
+				for i := 0; i < ed.Values().Len(); i++ {
+					vd := ed.Values().Get(i)
+					if vd.Number() == 0 {
+						continue // UNSPECIFIED is the absence of a choice, never offered
+					}
+					if narrow != nil && narrow(t, vd) {
+						continue
+					}
+					if !tableCarries(ef.Values, vd) {
+						t.Errorf("%s.%s omits %s, which the schema carries — a value the table does not list "+
+							"reaches no help page, so a seat cannot learn what the word means", typ, ef.Key, vd.Name())
+					}
+				}
 			})
 		}
 	}
@@ -219,9 +267,90 @@ func TestEveryDeclaredValueIsAWordTheSchemaCarries(t *testing.T) {
 	}
 }
 
-// schemaCarries answers whether the record can hold this word in this field, by asking the
-// DESCRIPTOR rather than a list beside it.
-func schemaCarries(t *testing.T, typ, key, word string) bool {
+// THE RULER'S MENU IS THE SCHEMA'S SENTENCE, for the motion vocabularies as for EnumFields.
+// MotionVerdicts is keyed on the subject, which EnumFields cannot express, so the check above does
+// not reach it — and `GRADE_RULING_ACCEPTED` said "the proposed grade stands" while the chair's
+// menu said the lens moves the grade with `regrade`, for as long as nothing compared them. Each
+// subject's enum is resolved through MotionRule's `ruling` oneof, so a new arm fails here rather
+// than slipping in with a set nothing checks.
+func TestEveryMotionVerdictCarriesTheSchemasMeaning(t *testing.T) {
+	od := (&recordpb.MotionRule{}).ProtoReflect().Descriptor().Oneofs().ByName("ruling")
+	if od == nil {
+		t.Fatal("MotionRule carries no `ruling` oneof")
+	}
+	checked := 0
+	for i := 0; i < od.Fields().Len(); i++ {
+		fd := od.Fields().Get(i)
+		subject := string(fd.Name())
+		if fd.Kind() != protoreflect.EnumKind {
+			// `docket` is a message, and its disposition is the shared Disposition set, which
+			// TestBothClosureSetsShareOneVocabulary already holds to the descriptor.
+			continue
+		}
+		vs, ok := MotionVerdicts[subject]
+		if !ok {
+			t.Errorf("MotionRule rules on %q and MotionVerdicts carries no set for it", subject)
+			continue
+		}
+		ed := fd.Enum()
+		for _, v := range vs {
+			checked++
+			vd, found := recordpb.BySpelling(ed, v.Name)
+			if !found {
+				t.Errorf("MotionVerdicts[%q] offers %q, which %s does not carry", subject, v.Name, ed.FullName())
+				continue
+			}
+			want, err := recordpb.EnumValueDoc(vd)
+			if err != nil {
+				t.Errorf("MotionVerdicts[%q]: %v", subject, err)
+				continue
+			}
+			if v.Means != want {
+				t.Errorf("MotionVerdicts[%q] value %q restates the schema's meaning in other words — the "+
+					"ruler's menu no longer says what the schema says\n  table:  %q\n  schema: %q",
+					subject, v.Name, v.Means, want)
+			}
+		}
+		for j := 0; j < ed.Values().Len(); j++ {
+			vd := ed.Values().Get(j)
+			if vd.Number() != 0 && !tableCarries(vs, vd) {
+				t.Errorf("MotionVerdicts[%q] omits %s, which the schema carries", subject, vd.Name())
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no motion verdict was checked — an empty traversal passes this test on every set")
+	}
+}
+
+// narrowedBy names the ONE set that lists fewer words than its enum carries, and the facet that
+// says why: red closes a gap with a Disposition that `closes`, and `remanded` is declared not to.
+// A narrowing that no facet declares is a hand-restated set, and the coverage check above refuses it.
+var narrowedBy = map[[2]string]func(t *testing.T, vd protoreflect.EnumValueDescriptor) bool{
+	{"close", "closure_class"}: func(t *testing.T, vd protoreflect.EnumValueDescriptor) bool {
+		closes, declared, err := recordpb.Facet(vd, "closes")
+		if err != nil || !declared {
+			t.Fatalf("Disposition %s declares no `closes` facet: %v", vd.Name(), err)
+		}
+		return !closes
+	},
+}
+
+// tableCarries answers whether the table lists this schema value, under the schema's spelling or
+// the LOUDER one two converters accept (see schemaValue).
+func tableCarries(vs []EnumValue, vd protoreflect.EnumValueDescriptor) bool {
+	word := recordpb.Spelling(vd)
+	for _, v := range vs {
+		if v.Name == word || strings.ToLower(v.Name) == word {
+			return true
+		}
+	}
+	return false
+}
+
+// schemaEnumFor resolves (event type, payload key) to the enum the record holds there, by asking
+// the DESCRIPTOR rather than a list beside it. nil is the one open set, whose field is a string.
+func schemaEnumFor(t *testing.T, typ, key string) protoreflect.EnumDescriptor {
 	t.Helper()
 	md, ok := bodyDescriptorFor(typ)
 	if !ok {
@@ -233,20 +362,24 @@ func schemaCarries(t *testing.T, typ, key, word string) bool {
 			"whole set is advertised against nothing", typ, key)
 	}
 	if fd.Kind() != protoreflect.EnumKind {
-		// The one open set. Its vocabulary is enforced by checkOpenSets rather than by a type.
-		return true
+		return nil
 	}
-	if _, found := recordpb.BySpelling(fd.Enum(), word); found {
-		return true
+	return fd.Enum()
+}
+
+// schemaValue resolves a table word to the schema value it names.
+//
+// A CONVERTER MAY FOLD CASE, and two deliberately do. `chair verdict --as PASS` and `bench
+// outcome --as VERIFIED` are the seat's words in capitals — that is the surface, and VerdictOf
+// and RunOutcomeOf lowercase before resolving. BySpelling is exact by design (its own test
+// pins that `PASS` does not resolve to `pass`), so the fold is checked here rather than
+// weakened there. It is one-way: a declared word may be louder than the schema's, never
+// different from it.
+func schemaValue(ed protoreflect.EnumDescriptor, word string) (protoreflect.EnumValueDescriptor, bool) {
+	if vd, found := recordpb.BySpelling(ed, word); found {
+		return vd, true
 	}
-	// A CONVERTER MAY FOLD CASE, and two deliberately do. `chair verdict --as PASS` and `bench
-	// outcome --as VERIFIED` are the seat's words in capitals — that is the surface, and VerdictOf
-	// and RunOutcomeOf lowercase before resolving. BySpelling is exact by design (its own test
-	// pins that `PASS` does not resolve to `pass`), so the fold is checked here rather than
-	// weakened there. It is one-way: a declared word may be louder than the schema's, never
-	// different from it.
-	_, found := recordpb.BySpelling(fd.Enum(), strings.ToLower(word))
-	return found
+	return recordpb.BySpelling(ed, strings.ToLower(word))
 }
 
 // bodyDescriptorFor resolves an event type's WORD to the body message the schema pairs with it,
@@ -344,12 +477,17 @@ func TestArtifactStateSeparatesTheDisputeFromTheDefect(t *testing.T) {
 // channel is documented to do — could not tell the two apart.
 //
 // THREE ARMS, because the fix has three surfaces and any one of them alone leaves the hole open:
-// the schema must carry the fact, the seat's word list must not offer it, and the write path must
+// the schema must carry the fact, the seat's surface must not offer it, and the write path must
 // refuse it under a seat's name while still admitting the tool's own.
+//
+// THE TOOL-ONLY WORDS ARE READ OFF THE FACET, not listed here: a hand map beside the facet is a
+// second copy of the fact, and the first version of this test checked `estoppel` alone while the
+// surface had grown two more tool-written words.
 func TestAToolWrittenLogTypeIsOffTheSeatSurface(t *testing.T) {
 	// 1. THE SCHEMA CARRIES IT, and every value answers. A facet declared on some values and not
 	// others is refused at schema build, so this also pins that nobody added a word without an
 	// answer — the exact way `grade_adjusted` once acquired a closing meaning nobody chose.
+	var seatWords, toolWords []string
 	vals := recordpb.LogType(0).Descriptor().Values()
 	for i := 0; i < vals.Len(); i++ {
 		lt := recordpb.LogType(vals.Get(i).Number())
@@ -364,38 +502,32 @@ func TestAToolWrittenLogTypeIsOffTheSeatSurface(t *testing.T) {
 			t.Errorf("log type %q does not say whether a seat may file it — defaulting that would "+
 				"answer on behalf of whoever added the word", recordpb.Word(lt))
 		}
-		// The tool's own entries: an estoppel, every other refusal it gives a seat, and a seat's
-		// failed call the harness saw.
-		toolOnly := map[string]bool{"estoppel": true, "refusal": true, "failure": true}
-		if want := !toolOnly[recordpb.Word(lt)]; may != want {
-			t.Errorf("log type %q: seat_may_file = %v, want %v", recordpb.Word(lt), may, want)
+		if may {
+			seatWords = append(seatWords, recordpb.Word(lt))
+		} else {
+			toolWords = append(toolWords, recordpb.Word(lt))
 		}
+	}
+	// Anti-vacuity: both halves exist, or the loops below check nothing. The tool writes its own
+	// entries (an estoppel, every other refusal it gives, a seat's failed call the harness saw)
+	// and a seat files the rest.
+	if len(toolWords) == 0 || len(seatWords) == 0 {
+		t.Fatalf("LogType must carry both tool-only and seat-filable words: tool=%v seat=%v", toolWords, seatWords)
 	}
 
-	// 2. THE SEAT'S WORD LIST OMITS IT — and still carries the three, which is the anti-vacuity
-	// half: a list that narrowed to nothing would satisfy the omission check and break the verb.
-	words := SeatLogTypeWords()
-	for _, w := range []string{"defect", "request", "friction"} {
-		if !slices.Contains(words, w) {
-			t.Errorf("a seat may file %q and the surface does not offer it: %v", w, words)
+	// 2. THE SEAT'S SURFACE OMITS EVERY TOOL-ONLY WORD and carries every seat-filable one, in
+	// schema order — the one derivation (SeatLogTypeEnum, through the ToolOnly facet init stamps)
+	// agrees with the facet read directly.
+	if help := Names(SeatLogTypeEnum().Values); !slices.Equal(help, seatWords) {
+		t.Errorf("the seat's log surface disagrees with the seat_may_file facet: help=%v facet=%v", help, seatWords)
+	}
+	// 3. The FULL table still carries every tool-only word — this narrows the seat's surface, not
+	// the record's. The vocabulary table and every reader still know the words.
+	for _, w := range toolWords {
+		if !slices.Contains(Names(MustEnum("log", "type").Values), w) {
+			t.Errorf("narrowing the seat surface removed %q from the record's vocabulary — the "+
+				"tool still writes it and every reader still has to resolve it", w)
 		}
-	}
-	if slices.Contains(words, "estoppel") {
-		t.Errorf("the seat surface offers `estoppel`, which only the tool writes: %v", words)
-	}
-	// The narrowed EnumField the help is built from agrees with the word list.
-	var help []string
-	for _, v := range SeatLogTypeEnum().Values {
-		help = append(help, v.Name)
-	}
-	if !slices.Equal(help, words) {
-		t.Errorf("the help's enum set and the refusal's word list disagree: help=%v words=%v", help, words)
-	}
-	// And the FULL vocabulary still carries estoppel — this narrows the seat's surface, not the
-	// record's. The vocabulary table and every reader still know the word.
-	if !slices.Contains(LogTypeWords(), "estoppel") {
-		t.Error("narrowing the seat surface removed `estoppel` from the record's vocabulary — the " +
-			"tool still writes it and every reader still has to resolve it")
 	}
 }
 

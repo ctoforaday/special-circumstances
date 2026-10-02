@@ -44,7 +44,6 @@ func TestEveryEnumValueSaysWhatItIsFor(t *testing.T) {
 		}
 	}
 	check("AvenueStatuses", AvenueStatuses)
-	check("AvenueRulings", AvenueRulings)
 	check("ClosureClasses", ClosureClasses)
 }
 

@@ -926,7 +926,10 @@ func TestEveryEnumValueNamedInAPromptIsAccepted(t *testing.T) {
 			if byFlag[e.Flag] == nil {
 				byFlag[e.Flag] = map[string]bool{}
 			}
-			for _, v := range record.Names(e.Values) {
+			// THE SEAT'S SET, not the record's: a tool-only word (`estoppel`, `refusal`, `failure`)
+			// is one the write path refuses under a seat's name, so a prompt that told a seat to
+			// type it would be exactly the defect this gate exists to catch.
+			for _, v := range record.Names(record.SeatFilable(e.Values)) {
 				byFlag[e.Flag][v] = true
 			}
 		}

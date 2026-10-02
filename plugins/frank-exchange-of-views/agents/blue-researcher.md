@@ -496,9 +496,9 @@ Flags:
 
 Enumerated values:
   --source-text
-    leaf          the source's own text, in the bytes this run cached — the only reading that licenses a claim about what it SAYS
-    summary_only  someone else's account of it: an abstract, a secondary description, or the summary of an INTERESTED party
-    unread        never read — the citation rests on a record that the source EXISTS, not on anything it says
+    unread        the text was never read — the citation rests on a record that the source EXISTS (a bibliographic index, a search result), not on anything it says
+    summary_only  read only through someone else's account of it — an abstract, a secondary description, or the summary of an INTERESTED party. Everything the report says about its contents is that account, not the source
+    leaf          the source's own text was read at the leaf, in the bytes the run cached. The only value that licenses a claim about what the source SAYS
 
 (Global Flags:) → SHARED §7
 ==============================================================================
@@ -677,9 +677,9 @@ Flags:
 
 Enumerated values:
   --type
-    defect    something is broken: it did the wrong thing, or failed where it should have worked
-    request   a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong
-    friction  the work was impeded and you are NOTING it; NOT necessarily actionable and not necessarily advisable to change, which is why it has its own word rather than posing as a defect
+    defect    something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on
+    request   a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair
+    friction  something cost you a call, a guess or an act — a refusal, a name you reached for that was not there, a shape you misread, a workaround — and you are noting it with what you expected and why; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect
 
 (Global Flags:) → SHARED §7
 ==============================================================================

@@ -227,6 +227,19 @@ func evsOf(ed protoreflect.EnumDescriptor) []EnumValue {
 	return out
 }
 
+// loud spells a generated set in capitals, for the two verbs whose seat-facing word is the
+// schema's in upper case: `chair verdict --as PASS` and `bench outcome --as VERIFIED`. VerdictOf
+// and RunOutcomeOf lowercase before resolving, so the fold is a rendering rule applied once to the
+// descriptor's set, not a second table that spells the same words its own way.
+func loud(vs []EnumValue) []EnumValue {
+	out := make([]EnumValue, len(vs))
+	for i, v := range vs {
+		v.Name = strings.ToUpper(v.Name)
+		out[i] = v
+	}
+	return out
+}
+
 // facetedEnums maps a declared set to the schema enum that carries its facets, so a fact
 // annotated on a proto value reaches the Go table that builds the help.
 //

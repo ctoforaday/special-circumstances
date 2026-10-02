@@ -444,23 +444,32 @@ enum MotionSubject {
 // The ruling sets, one per subject. A single flat set cannot express this: one motion-rule
 // event carries granted|denied for a petition and accepted|rejected for a grade, and a ruling
 // nothing recognizes reads as no ruling at all — so a refusal silently becomes permission.
+//
+// Each `(means)` is the sentence the ruler reads in `motion <subject> rule --as`: MotionVerdicts
+// in record/motion.go carries the same words, and TestEveryMotionVerdictCarriesTheSchemasMeaning
+// holds the two equal, so an edit here is the edit the chair and the bench see.
 enum GradeRuling {
   GRADE_RULING_UNSPECIFIED = 0;
-  GRADE_RULING_ACCEPTED = 1 [(means) = "the proposed grade stands"];
-  GRADE_RULING_REJECTED = 2 [(means) = "the grade on the board stands"];
+  // ACCEPTING MOVES NOTHING. This value read "the proposed grade stands" while no code applied a
+  // proposed grade: the originating lens moves it with `regrade`, MotionVerdicts tells the chair
+  // so, and the lens's own work list carries the owed regrade until it is filed. On the b9 run the
+  // chair ruled M1 accepted and wrote that the minting lens owns applying it; the record holds no
+  // regrade after the ruling, which is the duty the old sentence would have called satisfied.
+  GRADE_RULING_ACCEPTED = 1 [(means) = "the filer is right and the grade should move. The ruling moves nothing itself: the gap's originating lens moves it with `regrade`, so say in --reason which grade and to what"];
+  GRADE_RULING_REJECTED = 2 [(means) = "the grade stands. Your --reason is what the filer appeals against, so it carries the argument, not the conclusion"];
 }
 
 enum PetitionRuling {
   PETITION_RULING_UNSPECIFIED = 0;
-  PETITION_RULING_GRANTED = 1 [(means) = "the relief asked for is ordered"];
-  PETITION_RULING_DENIED = 2 [(means) = "the petition fails; the run continues as it was"];
+  PETITION_RULING_GRANTED = 1 [(means) = "the objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow"];
+  PETITION_RULING_DENIED = 2 [(means) = "the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest"];
 }
 
 enum AvenueRuling {
   AVENUE_RULING_UNSPECIFIED = 0;
-  AVENUE_RULING_ENDORSED = 1 [(means) = "worth this run's time — pursue it"];
-  AVENUE_RULING_OUT_OF_SCOPE = 2 [(means) = "a real question, but not THIS question"];  // a real question, but not THIS question
-  AVENUE_RULING_TOO_THIN = 3 [(means) = "in scope, but the hypothesis does not carry its budget"];      // in scope, but the hypothesis does not carry its budget
+  AVENUE_RULING_ENDORSED = 1 [(means) = "worth this run's time — blue should take it up"];
+  AVENUE_RULING_OUT_OF_SCOPE = 2 [(means) = "a real question, but not THIS question"];
+  AVENUE_RULING_TOO_THIN = 3 [(means) = "in scope, and the hypothesis does not carry its budget as stated"];
 }
 
 // Event is the log line.
@@ -1463,11 +1472,10 @@ enum LogType {
 // Log is the channel addressed to the OPERATOR WHO CAN RETOOL THE SEAT — not to the debate. It
 // keeps a missing tool from becoming a silent workaround, and records the tool's own refusals.
 //
-// THERE IS NO SEPARATE EMPTY FORM. A clean sitting is logged in the POSITIVE, as
-// `{source: SEAT, type: NOMINAL}`: "none" is an answer to a question about friction, and an entry
-// that says "none" is still an entry. The property the old explicit negative existed for survives
-// because a NOMINAL entry is still an EVENT — an attested-clean sitting stays distinguishable from
-// a channel nobody used, which is what silence could never say.
+// THERE IS NO EMPTY FORM. A clean sitting files nothing here: the harness brackets every dispatch
+// with sitting_open and sitting_close, so "sat and filed nothing" is on the record without a seat
+// asserting it, and an attested-clean sitting stays distinguishable from a channel nobody used.
+// Every entry on this channel carries something to act on.
 message Log {
   optional string text = 1 [(sql) = { flag: "reason" }, (prose) = true];
   optional LogType type = 2 [(sql) = {
