@@ -68,9 +68,16 @@ type openGap struct {
 	id, mintedBy, severity string
 	// material is the gap view's column — the one definition — and classMaterial the class's
 	// default, which the reason names when the class alone makes the gap not material.
-	material         bool
-	classMaterial    string
-	dockets, rulings int
+	material      bool
+	classMaterial string
+	// docketed is whether a docket motion has ever been filed on the gap. unruledFiled is the
+	// events.id of the newest docket motion on the gap that stands with no ruling among the acts
+	// that stand (live_event), 0 when every docket motion is ruled — asked per motion, the way the
+	// gap view's `awaiting_docket` and the PASS gate ask it, never as a count of rulings against a
+	// count of dockets. The plan's "a docket stands unruled" is unruledFiled > 0, and the bench's
+	// sitting for it is keyed on that filing (benchSatFor).
+	docketed     bool
+	unruledFiled int64
 	// supersededBy is the successor that names this gap as an ancestor, when one does and this gap
 	// is still open — the gap view's `stranded`. The PASS gate refuses a verdict over one.
 	supersededBy string
@@ -168,12 +175,12 @@ func PlanDispatch(run Run) (Plan, error) {
 		// discretion alone), and a trifle may be escalated too. Either way the motion stands until
 		// the bench rules it, PASS is refused while it stands, and a bench that sat for it and
 		// ruled nothing is not re-readied — the run cannot end in a verdict while it stands.
-		if g.rulings < g.dockets {
+		if g.unruledFiled > 0 {
 			unruledDocket = true
 			if !trifle {
 				materialOpen++
 			}
-			if benchSatFor(evs, ids, g.id, satIDs) {
+			if benchSatFor(evs, ids, g.id, g.unruledFiled, satIDs) {
 				plan.Why = append(plan.Why, fmt.Sprintf("%s: docketed, the bench sat and ruled nothing — one bench sitting per docketing, so this gap is not re-readied; the run cannot end in a verdict while it stands", g.id))
 				continue
 			}
@@ -201,7 +208,7 @@ func PlanDispatch(run Run) (Plan, error) {
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: open, material, %s — below its limits", g.id, x.Counted()))
 			continue
 		}
-		if g.dockets == 0 {
+		if !g.docketed {
 			plan.Docket = append(plan.Docket, g.id)
 			engage("judge", g.id)
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse (%s) — docketed for the bench", g.id, x.Counted()))
@@ -676,9 +683,20 @@ func lensPins(evs []*Event, ids []int64) (map[string]int64, map[string][]int64) 
 	return pins, sat
 }
 
-// benchSatFor reports whether the bench registered after the latest dispatch engaging it on gapID
-// — it had its sitting for this docketing.
-func benchSatFor(evs []*Event, ids []int64, gapID string, sat map[string][]int64) bool {
+// benchSatFor reports whether the bench has had its sitting for EVERY docket motion standing
+// unruled on gapID: since the newest unruled docket motion on the gap was filed (unruledFiled, its
+// events.id, off openGaps), a dispatch engaged the bench on the gap and the bench registered after
+// it. The newest unruled filing is the key because a sitting that answers it answers every older
+// one too. One bench sitting per docketing — a bench that sat for a docket and ruled nothing is
+// not re-readied for it, and a new filing on the gap is a new docketing.
+//
+// KEYED ON THE UNRULED FILING, NOT ON THE LAST DISPATCH ALONE. Keyed on the latest dispatch naming
+// the gap, the bench that sat for G1's first docket and ruled M1 read as having sat for M2 too:
+// blue filed M2 after that sitting, a judge register stood after the last dispatch naming G1, and
+// nobody was engaged while M2 stood unruled for the run (#1201). Keyed on the NEWEST filing
+// rather than the newest unruled one, a motion blue filed into an open sitting and the bench
+// ruled there re-readied the bench for the older motion it had already sat for and left alone.
+func benchSatFor(evs []*Event, ids []int64, gapID string, unruledFiled int64, sat map[string][]int64) bool {
 	var last int64
 	for i, e := range evs {
 		if b, ok := recordpb.BodyAs[*recordpb.Dispatch](e); ok && b.GetSeatId() == "judge" {
@@ -689,7 +707,7 @@ func benchSatFor(evs []*Event, ids []int64, gapID string, sat map[string][]int64
 			}
 		}
 	}
-	if last == 0 {
+	if last == 0 || last < unruledFiled {
 		return false
 	}
 	for _, r := range sat["judge"] {
@@ -701,15 +719,30 @@ func benchSatFor(evs []*Event, ids []int64, gapID string, sat map[string][]int64
 }
 
 // openGaps reads the open gaps with what the plan needs of each: who minted it, its current
-// severity, and whether it has been docketed and ruled. All off the gap view and the motion
-// tables — the same fold every reader uses.
+// severity, whether it is stranded, and its docket — all off the gap view and the motion tables,
+// the same fold every reader uses.
+//
+// THE DOCKET IS ASKED PER MOTION, AMONG THE ACTS THAT STAND. A docket ruling is correctable in
+// its sitting, and the correction is a second `motion_rule` row for one live act; a count of
+// ruling rows against a count of dockets read a corrected ruling as two and took the gap's next
+// docket as ruled (#1201), and a count of LIVE rulings would still take two live rulings on one
+// motion as covering an unruled sibling. The predicate is the one the gap view's `awaiting_docket`
+// arm (recordsql/views.go) and the PASS gate (MotionsOf) ask: a docket motion with no ruling. The
+// view's arm is the sibling definition, kept apart from this one because it is a view change
+// (every in-flight run would refuse the stale view) — slimming plan 02 (one motion-state read,
+// unfiled) folds the two into one.
+//
+// The docket filing is not joined to live_event: EVENT_TYPE_MOTION is CORRECTION_TIER_NONE, so
+// every filing stands, and the join would be identically true. The ruling is.
 func openGaps(db *sql.DB) ([]openGap, error) {
 	rows, err := db.Query(`SELECT g."gap_id", COALESCE(g."minted_by", ''), COALESCE(g."current_severity", ''),
 	    g."material", COALESCE(g."class_material", ''),
 	    CASE WHEN g."stranded" THEN COALESCE(g."superseded_by", '') ELSE '' END,
-	    (SELECT count(*) FROM "motion_docket" md WHERE md."gap_id" = g."gap_id"),
-	    (SELECT count(*) FROM "motion_rule" mr JOIN "motion" m ON m."motion_id" = mr."motion_id"
-	       JOIN "motion_docket" md ON md."event_id" = m."event_id" WHERE md."gap_id" = g."gap_id")
+	    EXISTS(SELECT 1 FROM "motion_docket" md WHERE md."gap_id" = g."gap_id"),
+	    COALESCE((SELECT max(m."event_id") FROM "motion_docket" md JOIN "motion" m ON m."event_id" = md."event_id"
+	              WHERE md."gap_id" = g."gap_id"
+	                AND NOT EXISTS(SELECT 1 FROM "motion_rule" mr JOIN "live_event" lr ON lr."event_id" = mr."event_id"
+	                               WHERE mr."motion_id" = m."motion_id")), 0)
 	  FROM "gap" g WHERE g."open" ORDER BY g."minted_event"`)
 	if err != nil {
 		return nil, fmt.Errorf("record: asking the record for its open gaps: %w", err)
@@ -718,7 +751,7 @@ func openGaps(db *sql.DB) ([]openGap, error) {
 	var out []openGap
 	for rows.Next() {
 		var g openGap
-		if err := rows.Scan(&g.id, &g.mintedBy, &g.severity, &g.material, &g.classMaterial, &g.supersededBy, &g.dockets, &g.rulings); err != nil {
+		if err := rows.Scan(&g.id, &g.mintedBy, &g.severity, &g.material, &g.classMaterial, &g.supersededBy, &g.docketed, &g.unruledFiled); err != nil {
 			return nil, err
 		}
 		out = append(out, g)
