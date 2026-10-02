@@ -45,7 +45,12 @@ func noteRefusal(cmd *cobra.Command, err error) {
 	// A SITTING TO ATTRIBUTE IT TO. A seat that never registered has none, and the record refuses an
 	// append from it; a run with an outcome is over, and its record is closed to seats — a refusal
 	// then belongs to no sitting and would land after the documents the run assembled.
-	if n, err := record.SittingsOf(run, sc.SeatID); err != nil || n == 0 || record.RecordedOutcome(run) != "" {
+	// Folded with SittingsOf's error, for the same reason: a refusal is logged on a record that can
+	// take it, and one that cannot be read now gets no entry rather than a second failure.
+	if n, err := record.SittingsOf(run, sc.SeatID); err != nil || n == 0 {
+		return
+	}
+	if v, err := record.RecordedOutcome(run); err != nil || v != "" {
 		return
 	}
 	var given []string

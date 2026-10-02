@@ -235,16 +235,24 @@ func (l Liveness) Says() string {
 // remover is `capture`, so a killed run left it watching forever, #270), and capture's own
 // liveness audit, which cannot tell a finished run from a killed one without it. The record
 // knows what the marker cannot.
-func TerminalVerdict(run Run) string {
+//
+// The error is a record that could not be read, and it is returned rather than folded into "":
+// "" says the run has not ended, and a caller keying a liveness verdict or a server's lifetime to
+// that answer must not take an unreadable record for a run in flight.
+func TerminalVerdict(run Run) (string, error) {
 	// The bench's own terminal act, latest wins — one query (queries.go), not a fold, and the
 	// same query the dashboard reads so the two surfaces cannot fold the answer differently.
-	if v := RecordedOutcome(run); v != "" {
-		return v
+	v, err := RecordedOutcome(run)
+	if err != nil {
+		return "", err
+	}
+	if v != "" {
+		return v, nil
 	}
 	// Or what the record decides for itself. ok is false only where the record holds no
 	// terminal state — in flight, or ended early — and that is a real answer, not a gap to paper over.
 	if v, _, ok := DeriveVerdict(run); ok {
-		return v
+		return v, nil
 	}
-	return ""
+	return "", nil
 }

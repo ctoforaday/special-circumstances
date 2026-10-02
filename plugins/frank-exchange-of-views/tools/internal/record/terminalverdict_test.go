@@ -41,8 +41,8 @@ func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
 	// it: a hardcoded "HALTED" was really asserting how the payload record happened to store the
 	// seat's uppercase word.
 	want := recordpb.Word(recordpb.RunOutcome_RUN_OUTCOME_HALTED)
-	if got := TerminalVerdict(mustRun(t, runDir)); got != want {
-		t.Errorf("readTerminalVerdict = %q, want %q — the record holds the verdict as a field and the report is a rendering of it", got, want)
+	if got, err := TerminalVerdict(mustRun(t, runDir)); err != nil || got != want {
+		t.Errorf("readTerminalVerdict = (%q, %v), want %q — the record holds the verdict as a field and the report is a rendering of it", got, err, want)
 	}
 }
 
@@ -62,7 +62,7 @@ func TestTerminalVerdictIsEmptyWhenTheRecordCannotSay(t *testing.T) {
 		[]byte("# report\n\n**Outcome:** UNVERIFIED — the run ended without the question being answered.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if got := TerminalVerdict(mustRun(t, runDir)); got != "" {
-		t.Errorf("readTerminalVerdict = %q from a run whose record carries no terminal act — the word was read out of prose no record backs", got)
+	if got, err := TerminalVerdict(mustRun(t, runDir)); err != nil || got != "" {
+		t.Errorf("readTerminalVerdict = (%q, %v) from a run whose record carries no terminal act — the word was read out of prose no record backs", got, err)
 	}
 }

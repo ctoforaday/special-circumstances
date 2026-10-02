@@ -1068,6 +1068,29 @@ func TestLivenessReportsNotMeasuredRatherThanPassing(t *testing.T) {
 	}
 }
 
+// A RECORD THAT CANNOT BE READ IS NOT A RUN IN FLIGHT. TerminalVerdict's "" means "no outcome
+// recorded", and the audit would convict a healthy, finished run as TERMINATED on a transient read
+// failure if the error folded into it. The failure is made by dropping the view through the run's
+// cached handle, the same way every later read of that run would then fail.
+func TestLivenessReportsAnUnreadableRecordRatherThanConvicting(t *testing.T) {
+	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
+	run := writeRunForLiveness(t, 10, 20*time.Second, now, true)
+	db, err := recordsql.Open(filepath.Join(run.Records(), "record.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`DROP VIEW "live_event"`); err != nil {
+		t.Fatal(err)
+	}
+	a := LivenessAudit(run, now.Add(41*time.Minute))
+	if a.Verdict != "SKIP" {
+		t.Errorf("a finished run whose record cannot be read audited %s — want SKIP:\n%s", a.Verdict, a.Detail)
+	}
+	if !strings.Contains(a.Detail, "could not be read") || !strings.Contains(a.Detail, "live_event") {
+		t.Errorf("the SKIP does not carry the read error:\n%s", a.Detail)
+	}
+}
+
 // ---- record archive ----
 
 func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {

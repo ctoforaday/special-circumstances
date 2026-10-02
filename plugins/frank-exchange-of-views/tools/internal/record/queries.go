@@ -65,24 +65,20 @@ func BoardCounts(run Run) (open, closed int, err error) {
 // (TerminalVerdict does), and callers that must not substitute a derivation for the bench's act
 // (the dashboard's server lifetime, #270) read this directly.
 //
-// Read errors fold into "" deliberately — both former copies of this fold did the same, because
-// every caller treats "cannot read" and "not recorded" identically: keep watching.
+// A read that fails is the caller's error, never "": the two former copies of this query folded
+// it, and a caller that means "keep watching" on a record it cannot read folds it at its own
+// site, with the reason written there. It is never re-asked of a query that ignores corrections.
 //
 // THE LATEST OUTCOME THAT STANDS, in its place: a corrected outcome is answered by its replacement,
-// ordered where the corrected act stood. A record older than the live_event view has no correction
-// to honour, so it is asked the question it always was — not handed "" for a view it never had.
-func RecordedOutcome(run Run) string {
+// ordered where the corrected act stood.
+func RecordedOutcome(run Run) (string, error) {
 	var v string
 	if _, err := queryRow(run, []any{&v},
 		`SELECT o."verdict" FROM "outcome" o JOIN "live_event" l ON l."event_id" = o."event_id"
-		  ORDER BY l."pos" DESC LIMIT 1`); err == nil {
-		return v
+		  ORDER BY l."pos" DESC LIMIT 1`); err != nil {
+		return "", err
 	}
-	if _, err := queryRow(run, []any{&v},
-		`SELECT "verdict" FROM "outcome" ORDER BY "event_id" DESC LIMIT 1`); err != nil {
-		return ""
-	}
-	return v
+	return v, nil
 }
 
 // MintCheckKind is the check_kind a gap was minted with. A gap not on the record answers

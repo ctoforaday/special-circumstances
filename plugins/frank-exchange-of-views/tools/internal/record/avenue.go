@@ -60,15 +60,15 @@ func MintAvenueID(run Run) (string, error) {
 	// proposal — the schema says so in as many words — so the id counter reads presence (a
 	// NULL column), not the string. A move whose marker was written empty would still carry a
 	// non-NULL column and is not counted, exactly as the fold's pointer test had it.
+	//
+	// ONE QUERY, over the proposals that STAND. A read that fails is the caller's error: the open
+	// already held this record to the binary's schema, so the failure is a real one (busy, locked,
+	// malformed), and an id minted from any other count would be a plausible wrong number.
 	var n int
 	if _, err := queryRow(run, []any{&n},
 		`SELECT count(*) FROM "avenue" a JOIN "live_event" l ON l."event_id" = a."event_id"
 		  WHERE COALESCE(a."avenue_id", '') != '' AND a."supersedes_status" IS NULL`); err != nil {
-		// A record older than the live_event view holds no correction to discount.
-		if _, err := queryRow(run, []any{&n},
-			`SELECT count(*) FROM "avenue" WHERE COALESCE("avenue_id", '') != '' AND "supersedes_status" IS NULL`); err != nil {
-			return "", err
-		}
+		return "", err
 	}
 	return fmt.Sprintf("Q%d", n+1), nil
 }
