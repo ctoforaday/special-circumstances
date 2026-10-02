@@ -26,9 +26,27 @@ const duplicateScore = 0.40
 // A match is answered, not overridden: --supersedes if the new gap replaces it, --distinct-from if
 // the seat read it and it is a different defect — recorded on the mint, so the claim is auditable.
 func requireNotAnOpenGap(run Run, m *recordpb.Mint) error {
+	// THE SCREEN JUDGES WHAT A SEAT MAY DO NEXT; an archived mint is what a seat DID. A mint recorded
+	// before the screen existed carries neither answer and can be given none by a replay, so under
+	// Migrating the match below is not asked — only the distinction check, which is structure (a
+	// reference to a gap nobody minted), stays on. b8 (2026-09-11) holds a report-voice mint scoring
+	// 0.56 against an open gap of another class, and ten events that name it fall with it if this
+	// asks (#1214). A replayed mint with no distinction to check leaves before the board is read:
+	// FamilyOf is a full-record read, once per mint of the archive.
+	if Migrating && len(m.GetDistinctFrom()) == 0 {
+		return nil
+	}
+	// AN EMPTY BOARD IS AN EMPTY FAMILY, NOT AN ERROR: the first mint's ordinary state reads back
+	// as no gaps. An error here is a record that could not be read, and a mint admitted over it is
+	// a mint screened against no board at all — the read failure and the honest empty board must
+	// not share an answer.
 	f, err := FamilyOf(run)
 	if err != nil {
-		return nil // no board yet is the first mint's ordinary state, not a duplicate
+		// CODED AND NAMED AS THE MINT'S REFUSAL: bare, the seat read a sentence about a docket
+		// ruling with no "mint refused" and no code, and could not tell its own act was the one
+		// turned away. Conflict is the record contradicting itself, which is what a fold that
+		// cannot complete is; the cause stays reachable through Unwrap.
+		return feov.Wrap(feov.Conflict, err, "record: mint refused — the board could not be read, so the screen cannot run: %v", err)
 	}
 	// A DISTINCTION IS FROM A GAP THAT EXISTS. The field is a seat's claim that it read the gap; a
 	// claim about a gap the board has never held is a claim about nothing.
@@ -38,11 +56,6 @@ func requireNotAnOpenGap(run Run, m *recordpb.Mint) error {
 				"record: mint refused — --distinct-from %s names no gap on the board; it answers the duplicate screen, so it names a gap the screen matched", id)
 		}
 	}
-	// THE SCREEN JUDGES WHAT A SEAT MAY DO NEXT; an archived mint is what a seat DID. A mint recorded
-	// before the screen existed carries neither answer and can be given none by a replay, so under
-	// Migrating the match is not asked — the distinction check above is structure and stays on. b8
-	// (2026-09-11) holds a report-voice mint scoring 0.56 against an open gap of another class, and
-	// ten events that name it fall with it if this asks (#1214).
 	if Migrating {
 		return nil
 	}
