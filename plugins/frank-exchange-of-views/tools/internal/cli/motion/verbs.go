@@ -165,24 +165,27 @@ func newFile(subject string, required []string) *cobra.Command {
 		switch {
 		case f == flags.Proposed:
 			p := new(flags.GradeValue)
-			c.Flags().Var(p, f, flags.GradeUsage("REQUIRED for a "+subject+" motion — the grade you say it should be"))
+			c.Flags().Var(p, f, flags.GradeUsage(fileFlagHelp[f]))
 		default:
 			if e, ok := record.MotionFieldEnum(subject, payloadKey(f), f); ok {
-				enumhelp.Flag(c, f, e, "REQUIRED for a "+subject+" motion")
-				continue
+				enumhelp.Flag(c, f, e, fileFlagHelp[f])
+				break
 			}
 			// A docket names a gap (--id); a petition asks for relief in words (--relief).
 			if flags.ClosedForm(f) {
 				if f == flags.ID {
 					// THE FILING NAMES WHAT IS BEING DISPUTED, and its kind depends on the subject.
-					c.Flags().Var(idShapeFor(subject, true), f, "REQUIRED for a "+subject+" motion")
-					continue
+					c.Flags().Var(idShapeFor(subject, true), f, fileFlagHelp[f])
+					break
 				}
-				c.Flags().String(f, "", "REQUIRED for a "+subject+" motion")
+				c.Flags().String(f, "", fileFlagHelp[f])
 			} else {
-				flags.Text(c, f, "REQUIRED for a "+subject+" motion")
+				flags.Text(c, f, fileFlagHelp[f])
 			}
 		}
+		// The handler's check above refuses the subject's flags too, in the subject's words; the
+		// marker and cobra's refusal are written here so the page says it before the call is spent.
+		seat.Require(c, f)
 	}
 	// THE RECORD TYPE, DECLARED. These verbs are built as raw cobra commands rather than through
 	// seat.New, so they carried no `records` annotation — and the contract gate joins commands to
@@ -364,15 +367,19 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 	seat.Prose(c)
 	c.Flags().Var(idShapeFor(subject, false), flags.ID, refHelp(subject))
 	// The ruling switch above refuses a word that is not a ruling, and "" is not one.
-	enumhelp.Flag(c, flags.As, e, "REQUIRED — your ruling")
+	enumhelp.Flag(c, flags.As, e, "your ruling")
+	seat.Require(c, flags.As)
 	for _, f := range ruleFlags {
 		switch f {
 		case flags.Final:
 			c.Flags().Bool(f, false, ruleFlagHelp[f])
 		case flags.Principle:
 			// Required by DocketRuling's schema — a NESTED message, which markRequired's walk of
-			// the body's own fields does not reach — so the marker is written here.
-			flags.Text(c, f, "REQUIRED — "+ruleFlagHelp[f])
+			// the body's own fields does not reach — so the marker is written here. The refusal
+			// stays the schema's: it says what the principle is FOR, which cobra's "required
+			// flag(s) not set" cannot.
+			flags.Text(c, f, ruleFlagHelp[f])
+			seat.SaysRequired(c, f)
 		default:
 			flags.Text(c, f, ruleFlagHelp[f])
 		}
@@ -458,7 +465,8 @@ func newAppeal(subject string) *cobra.Command {
 	}
 	// prose() refuses an appeal with no argument, and the record one naming no motion.
 	seat.SaysRequired(seat.Prose(c), flags.Reason)
-	c.Flags().Var(idShapeFor(subject, false), flags.ID, "REQUIRED — "+refHelp(subject)+" — the motion being appealed, which must already have been ruled")
+	c.Flags().Var(idShapeFor(subject, false), flags.ID, refHelp(subject)+" — the motion being appealed, which must already have been ruled")
+	seat.Require(c, flags.ID)
 	// The record type, for the contract gate — see newFile.
 	seat.Records(c, "motion_appeal")
 	return seat.Correctable(c)
@@ -534,6 +542,16 @@ func enumOf[E ~int32](d protoreflect.EnumDescriptor, word string) (E, bool) {
 // ruleFlagHelp is what each subject-specific ruling flag asks for. Written here rather than at the
 // registration so the two subjects that share a flag would share its words — and so a flag added
 // to ruleFlags without a line here renders an empty usage, which is visible immediately.
+// fileFlagHelp is the usage line of each flag a subject's filing requires; the subject's page is
+// the one the seat reads, so the line says what the flag IS rather than which subject wants it.
+var fileFlagHelp = map[string]string{
+	flags.ID:        "the gap this motion is about (G4)",
+	flags.Dimension: "the grade axis you contest",
+	flags.Proposed:  "the grade you say it should be",
+	flags.Class:     "the class of objection",
+	flags.Relief:    "what you ask the bench to do about it",
+}
+
 var ruleFlagHelp = map[string]string{
 	flags.Principle:  "the rule you applied, stated so a later sitting can apply the same one",
 	flags.Tension:    "the values that pulled against each other — empty is a real answer when none did",

@@ -86,7 +86,7 @@ func NewCommandFor(actingRole string) *cobra.Command {
 		[]string{flags.ID},
 		[]string{flags.Principle, flags.Tension, flags.ReviewFlag, flags.Settled, flags.ReopensOn, flags.Final}))
 	c.AddCommand(subject(actingRole, "avenue",
-		"rule on an avenue blue proposed: the chair rules. NO file verb — the proposal (`avenue propose`) is the filing",
+		"rule on an avenue blue proposed: the chair rules. NO file verb — the proposal (blue's `avenue propose`) is the filing",
 		nil, nil))
 	seat.MarkTree(c)
 	return c

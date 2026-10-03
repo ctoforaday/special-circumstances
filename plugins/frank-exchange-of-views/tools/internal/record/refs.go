@@ -149,7 +149,7 @@ func requireCitation(run Run, label, verb, flag string) error {
 	// "blue has cited" WAS TRUE AND IS NOT. The set now includes red's supporting
 	// corroborations, which mint a label of their own — so a count described as blue's would
 	// misstate what a seat is being compared against.
-	return fmt.Errorf("record: %s %s=%s names no citation on the record — %d source(s) are cited (blue's, and red's corroborations), and `show evidence` lists them by anchor. Cite the method with `cite` first; a proof pointing at a citation that does not exist claims a provenance it does not have",
+	return fmt.Errorf("record: %s %s=%s names no citation on the record — %d source(s) are cited (blue's, and red's corroborations), and `show evidence` lists them by anchor. The method is cited first, with blue's `cite`; a proof pointing at a citation that does not exist claims a provenance it does not have",
 		verb, flag, label, len(known))
 }
 
@@ -393,7 +393,7 @@ func requirePassClosesAllMaterialGaps(run Run) error {
 		return err
 	}
 	if len(open) != 0 {
-		return fmt.Errorf("record: verdict PASS refused — %d material gap(s) still OPEN: %s. PASS requires every material gap resolved through `close --id <id> --as repaired|defect_accepted|not_a_defect|defect_owed_elsewhere`; close them, or issue `--as FAIL`",
+		return fmt.Errorf("record: verdict PASS refused — %d material gap(s) still OPEN: %s. PASS requires every material gap resolved, and a gap is closed only by the lens that minted it, with the lens's `close --id <id> --as repaired|defect_accepted|not_a_defect|defect_owed_elsewhere`. PASS waits for those closures; `--as FAIL` does not",
 			len(open), strings.Join(open, ", "))
 	}
 
@@ -435,8 +435,8 @@ func requirePassClosesAllMaterialGaps(run Run) error {
 	if open := unansweredContradictions(evs); len(open) > 0 {
 		sort.Strings(open)
 		return fmt.Errorf("record: verdict PASS refused — red read a source that CONTRADICTS or does not support %d claim(s), and no finding was ever raised about them:\n  %s\n"+
-			"Each is red's own reading that the report says something its source does not. Raise it with `finding --quote \"<the claim>\" --reason \"<what the source actually says>\"` graded on every axis, so it enters the board with the lifecycle, the blue duty and the gate every other defect has. "+
-			"Read them with `show evidence`. A PASS claims the report is sound; these say otherwise on the record. Raise them, or issue `--as FAIL`",
+			"Each is red's own reading that the report says something its source does not. A lens raises it with the lens's `finding --quote \"<the claim>\" --reason \"<what the source actually says>\"`, graded on every axis, so it enters the board with the lifecycle, the blue duty and the gate every other defect has. "+
+			"Read them with `show evidence`. A PASS claims the report is sound; these say otherwise on the record. Raising them is a lens's act; PASS waits for it, and `--as FAIL` does not",
 			len(open), strings.Join(open, "\n  "))
 	}
 	return nil

@@ -477,7 +477,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, pluginDir, model, debatePat
 	// The reasoning, where the seat produced any. It is the half a record cannot hold: the record
 	// says which verb was taken, and this says what the seat was weighing when it chose.
 	if recordRoot != "" {
-		report += fmt.Sprintf("\n_record kept at %s — query the board with `show --run %s --view <name>`_\n", recordRoot, runDir)
+		report += fmt.Sprintf("\n_record kept at %s — query the board with `show <view> --run %s`_\n", recordRoot, runDir)
 	}
 	if t := readThinking(trajectoryPath(runDir)); t != "" {
 		report += "\n### What the seat was reasoning about\n\n" + t + "\n"

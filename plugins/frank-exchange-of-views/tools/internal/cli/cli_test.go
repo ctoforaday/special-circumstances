@@ -126,6 +126,7 @@ func run(t *testing.T, args ...string) (stdout string, err error) {
 	// THE HARNESS REPRODUCES THE BINARY. A flag-PARSE refusal never reaches seat.Emit, so
 	// Execute() renders it as a --json envelope itself; a harness that skipped that step would
 	// measure a wire shape the binary does not produce.
+	assertRefusalSpeaksToItsSeat(t, seatID, root, err)
 	if err != nil {
 		EmitTopLevelError(&out, args, err)
 	} else {

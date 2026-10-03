@@ -132,8 +132,7 @@ func newAvenuePropose() *cobra.Command {
 	// Marked here so cobra refuses before an event exists and the refusal carries the help, which
 	// is where a seat actually learns the verb. Without it the only refusal was validate's, which
 	// arrives later and teaches less.
-	_ = c.MarkFlagRequired(flags.Reason)
-	seat.SaysRequired(c, flags.Reason)
+	seat.Require(c, flags.Reason)
 	flags.Text(c, flags.Hypothesis, "what would be TRUE if this avenue pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug")
 	flags.Text(c, flags.Method, "the source class or technique it belonged to, when that is what distinguishes it")
 	return seat.Correctable(c)
@@ -192,8 +191,8 @@ func newAvenueMove() *cobra.Command {
 		return avenueResult{ID: id, Status: recordpb.Word(body.GetStatus()), Moved: true, VoiceTells: tells}, nil
 	}), "avenue"))
 
-	c.Flags().Var(flags.AvenueID().WithCheck(record.AvenueExists), flags.ID, "REQUIRED — the avenue whose fate you are moving (Q1, Q2 …); the avenues projection lists every one")
-	_ = c.MarkFlagRequired(flags.ID)
+	c.Flags().Var(flags.AvenueID().WithCheck(record.AvenueExists), flags.ID, "the avenue whose fate you are moving (Q1, Q2 …); the avenues projection lists every one")
+	seat.Require(c, flags.ID)
 	// THE VALUES ARE NOT RE-LISTED HERE. The hand-written line this replaced carried FOUR of the
 	// five statuses — `deferred` had been added to AvenueStatuses and never to the string — and
 	// glossed the four it did carry differently from the enum. enumhelp renders every value with

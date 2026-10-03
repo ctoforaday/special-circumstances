@@ -194,7 +194,7 @@ func AvenueID() *ShapedValue {
 // FindingLabel refuses anything that is not <area>-F<n> (or the archived L<n>-F<n>).
 func FindingLabel() *ShapedValue {
 	return &ShapedValue{kind: "finding-label", re: findingLabelShape,
-		hint: "a finding label looks like adversary-F2 (the lens's area, then its finding number) and is ASSIGNED by `finding`; `show findings` lists them"}
+		hint: "a finding label looks like adversary-F2 (the lens's area, then its finding number) and is ASSIGNED by the lens's `finding`; `show findings` lists them"}
 }
 
 // MotionID refuses anything that is not M<n>.

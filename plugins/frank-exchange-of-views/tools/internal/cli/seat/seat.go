@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
@@ -545,14 +546,6 @@ func markRequired(c *cobra.Command, verb string) {
 			// "default" in the same sentence.
 			continue
 		}
-		// THE SCHEMA'S WRITER OF THIS WORD. A dozen call sites also hand-wrote "REQUIRED — " at
-		// the front of their own usage, so the rendered line read "REQUIRED — REQUIRED — what the
-		// source ACTUALLY DID" on every flag that had both. Two copies of a fact the mechanism
-		// already supplies, and the seat reading it twice cannot tell which one is authoritative.
-		// SaysRequired writes it for the requirements this walk cannot see (a handler's check, a
-		// nested message's field, a bare MarkFlagRequired) and skips a usage already marked.
-		f.Usage = "REQUIRED — " + f.Usage
-
 		// AND COBRA ENFORCES IT. This only ever rewrote the usage string, so the help said
 		// REQUIRED and the parser accepted the command without it — the tool asserting a
 		// constraint nothing held. Measured: `blue friction` and `blue revision`, no flags,
@@ -570,12 +563,71 @@ func markRequired(c *cobra.Command, verb string) {
 				}
 			}
 			if len(present) > 1 {
+				// The marker without the per-flag enforcement: the alternative satisfies it,
+				// and the usage says so in the same sentence.
+				mark(f)
 				c.MarkFlagsOneRequired(present...)
 				continue
 			}
 		}
-		_ = c.MarkFlagRequired(f.Name)
+		Require(c, f.Name)
 	}
+}
+
+// requiredMarker is the ONE spelling of the word a seat reads, at the head of a usage line.
+const requiredMarker = "REQUIRED — "
+
+// markedUsage is how the marker is READ: at the head of the usage, bare ("REQUIRED — …") or with
+// its condition between the word and the dash ("REQUIRED unless --accept — …"). Anywhere else
+// the word is prose — `mint --fix`'s "the required fix" is a field name, `prove --answers`'s
+// "REQUIRED to close a gap whose check kind is computation" is a condition on a flag that is
+// optional on its own — and prose claims nothing about the flag.
+var markedUsage = regexp.MustCompile(`^REQUIRED(?: unless [^—]+)? — `)
+
+// IsMarked says whether a usage line carries the marker, conditional or not. It is the one reader
+// of the marker's shape: the writers below skip a usage it accepts, and the gates that hold the
+// help to the enforcement (requiredmarker_test, helpcontract_test) read it through this and not
+// through a regex of their own.
+func IsMarked(usage string) bool { return markedUsage.MatchString(usage) }
+
+// MarkedCondition is the condition a marker states — "unless --accept" — or "" for an
+// unconditional one; ok is false when the usage carries no marker at all. A conditional marker is
+// a promise about ONE case, so the gate that invokes a verb without a marked flag and demands a
+// refusal holds the unconditional markers and leaves the conditional ones to the probes, which
+// drive the condition.
+func MarkedCondition(usage string) (cond string, ok bool) {
+	if !IsMarked(usage) {
+		return "", false
+	}
+	head := usage[:strings.Index(usage, " — ")]
+	return strings.TrimSpace(strings.TrimPrefix(head, "REQUIRED")), true
+}
+
+// mark writes the marker ONCE. Every writer of the word goes through here, so a flag the schema
+// requires and a verb also hand-marks renders one marker rather than "REQUIRED — REQUIRED — …",
+// whichever writer ran first.
+func mark(f *pflag.Flag) {
+	if !IsMarked(f.Usage) {
+		f.Usage = requiredMarker + f.Usage
+	}
+}
+
+// Require is what a verb calls for a flag it cannot run without: the marker at the head of the
+// usage AND cobra's refusal when it is omitted, in one act, so the two cannot come apart. A dozen
+// verbs wrote them as a pair — `"REQUIRED — " + usage` beside a bare MarkFlagRequired — and the
+// pairs drifted both ways: `reproduce --id` carried the word with no refusal, `near-match --problem`
+// the refusal with no word. A flag the verb never registered is a programming error, and is
+// refused at construction rather than skipped.
+func Require(c *cobra.Command, names ...string) *cobra.Command {
+	for _, n := range names {
+		f := c.Flags().Lookup(n)
+		if f == nil {
+			panic("seat.Require: `" + c.Name() + "` has no flag --" + n)
+		}
+		mark(f)
+		_ = c.MarkFlagRequired(n)
+	}
+	return c
 }
 
 // Begin runs a verb's preconditions and returns its seat context. It is a plain function
@@ -854,15 +906,13 @@ var ReasonIs = map[string]string{
 //
 // Both halves here, so they cannot come apart again.
 func ProseRequired(c *cobra.Command) *cobra.Command {
-	c = Prose(c)
-	_ = c.MarkFlagRequired(flags.Reason)
-	return SaysRequired(c, flags.Reason)
+	return Require(Prose(c), flags.Reason)
 }
 
-// SaysRequired writes the REQUIRED marker on flags whose refusal lives somewhere the help cannot
-// see: the verb's own handler ("lens finding requires --reason: …"), validate's field checks, or a
-// bare MarkFlagRequired beside this call. It changes no enforcement — the tool refused these
-// omissions before it said so.
+// SaysRequired writes the REQUIRED marker on flags whose refusal DELIBERATELY lives in the verb's
+// own handler ("finding requires --reason: …" names what the prose is FOR, which cobra's "required
+// flag(s) not set" cannot) or in validate's field checks. It changes no enforcement; a flag whose
+// refusal may be cobra's takes Require instead, which writes both halves.
 //
 // Measured before it existed: twenty-two flags across every seat surface refused when omitted
 // and rendered with no marker, and the m13/m14 seats paid one call each to learn what the help
@@ -872,9 +922,11 @@ func ProseRequired(c *cobra.Command) *cobra.Command {
 // TestHelpSaysRequiredExactlyWhereOmissionIsRefused holds every call here to the refusal it claims.
 func SaysRequired(c *cobra.Command, names ...string) *cobra.Command {
 	for _, n := range names {
-		if f := c.Flags().Lookup(n); f != nil && !strings.HasPrefix(f.Usage, "REQUIRED") {
-			f.Usage = "REQUIRED — " + f.Usage
+		f := c.Flags().Lookup(n)
+		if f == nil {
+			panic("seat.SaysRequired: `" + c.Name() + "` has no flag --" + n)
 		}
+		mark(f)
 	}
 	return c
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -31,13 +32,20 @@ import (
 // one sitting, ten consecutive failures, and the sitting spent on the matcher rather than the
 // audit. Nothing failed anywhere in this repo, because the help was prose and the prose was wrong.
 
-// requiredInHelp matches the MARKER CONVENTION, not the word.
+// markedUnconditionally reads the MARKER CONVENTION through seat.IsMarked, the one reader of the
+// shape every writer produces, and keeps only the unconditional markers. A conditional one
+// ("REQUIRED unless --accept — …") promises a refusal in ONE case; this gate invokes the verb
+// without the flag and nothing else, so it holds the unconditional promise and leaves the
+// conditional ones to requiredmarker_test.go's probes, which drive the condition.
 //
 // The first draft matched `required` case-insensitively anywhere in the usage, and `lens mint
 // --fix` reads "the required fix, as prose" — where "required" is part of the FIELD NAME
 // (required_fix) and claims nothing about the flag. A gate that fires on prose trains its reader
-// to skim, so this matches only what markRequired actually writes.
-var requiredInHelp = regexp.MustCompile(`REQUIRED\s+—`)
+// to skim.
+func markedUnconditionally(usage string) bool {
+	cond, ok := seat.MarkedCondition(usage)
+	return ok && cond == ""
+}
 
 // satisfiedByAnother are flags whose help says REQUIRED and names an alternative in the same
 // breath, with what satisfies them. The help is telling the truth in both halves; the gate's
@@ -96,7 +104,7 @@ func TestEveryRequiredFlagIsActuallyRefused(t *testing.T) {
 				return
 			}
 			c.Flags().VisitAll(func(f *pflag.Flag) {
-				if !requiredInHelp.MatchString(f.Usage) || notEnforcedAtTheFlag[f.Name] != "" || satisfiedByAnother[f.Name] != "" {
+				if !markedUnconditionally(f.Usage) || notEnforcedAtTheFlag[f.Name] != "" || satisfiedByAnother[f.Name] != "" {
 					return
 				}
 				checked++
@@ -110,7 +118,7 @@ func TestEveryRequiredFlagIsActuallyRefused(t *testing.T) {
 					}
 					// Supply every OTHER required flag, so the refusal under test is this one's.
 					c.Flags().VisitAll(func(o *pflag.Flag) {
-						if o.Name == f.Name || !requiredInHelp.MatchString(o.Usage) {
+						if o.Name == f.Name || !markedUnconditionally(o.Usage) {
 							return
 						}
 						args = append(args, "--"+o.Name, placeholderFor(c, o, path))

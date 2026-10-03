@@ -123,18 +123,17 @@ func newClassNew() *cobra.Command {
 		return classResult{Slug: seat.Str(cmd, flags.Class)}, nil
 	}), "class_new")
 
-	c.Flags().String(flags.Class, "", "REQUIRED — the slug you are coining — lowercase, hyphenated, and NOT one the registry already has")
-	flags.Text(c, flags.Definition, "REQUIRED — what this class is, in one line")
-	c.Flags().String(flags.Neighbor, "", "REQUIRED — the existing class it sits closest to")
-	flags.Text(c, flags.Distinguisher, "REQUIRED — the tie-break question that tells the two apart — without it a new class is a synonym, and the registry stops discriminating")
+	c.Flags().String(flags.Class, "", "the slug you are coining — lowercase, hyphenated, and NOT one the registry already has")
+	flags.Text(c, flags.Definition, "what this class is, in one line")
+	c.Flags().String(flags.Neighbor, "", "the existing class it sits closest to")
+	flags.Text(c, flags.Distinguisher, "the tie-break question that tells the two apart — without it a new class is a synonym, and the registry stops discriminating")
 	enumhelp.Flag(c, flags.MaterialDefault, record.MustEnum("class_new", "material_default"),
 		"where materiality starts for every gap of this class (default by_grade) — always for a class whose defects change a conclusion or a figure, never for one whose defects change none")
-	_ = c.MarkFlagRequired(flags.Class)
 	// COBRA SAYS THE TRIO TRAVELS TOGETHER. It was a boolean plus three optional flags checked
 	// in a handler, so a coining missing its distinguisher was composed, sent, and refused after
 	// the fact — if it was refused at all.
 	c.MarkFlagsRequiredTogether(flags.Definition, flags.Neighbor, flags.Distinguisher)
-	_ = c.MarkFlagRequired(flags.Definition)
+	seat.Require(c, flags.Class, flags.Definition, flags.Neighbor, flags.Distinguisher)
 	return c
 }
 

@@ -566,7 +566,7 @@ func outcomeWord(o *recordpb.Outcome) string {
 // paragraph a reader meets, which is where the argument was always addressed.
 func verdictGloss(o *recordpb.Outcome) string {
 	if o == nil {
-		return "_(no terminal outcome recorded — `bench outcome` was not run before assembly.)_"
+		return "_(no terminal outcome recorded — the bench's `outcome` was not run before assembly.)_"
 	}
 	var lead string
 	switch o.GetVerdict() {
@@ -619,7 +619,7 @@ func verdictWhy(o *recordpb.Outcome) string {
 func basisNote(basis string) string {
 	switch basis {
 	case record.VerdictDerived:
-		return " — **derived from the record**, not claimed: the events themselves decide this verdict, and `bench outcome` refuses an `--as` that contradicts them."
+		return " — **derived from the record**, not claimed: the events themselves decide this verdict, and the bench's `outcome` refuses an `--as` that contradicts them."
 	case record.VerdictAsserted:
 		return " — **asserted by the bench.** The record holds no terminal state — no halt, no PASS, no board at its ceiling — so the run ended before it reached one, and this word rests on the bench's account rather than on the events; read it as an opinion with authority, not as a mechanical result."
 	default:
@@ -913,7 +913,7 @@ func withdrawnClaims(evs []*record.Event) string {
 	if len(rows) == 0 {
 		return ""
 	}
-	return "## Claims retired\n\n_Substance leaves this report only through the `retire` verb, which records the claim as it stood and why it went. These were argued and then removed; the reasoning is part of what the debate decided._\n\n" + strings.Join(rows, "\n")
+	return "## Claims retired\n\n_Substance leaves this report only through blue's `retire` verb, which records the claim as it stood and why it went. These were argued and then removed; the reasoning is part of what the debate decided._\n\n" + strings.Join(rows, "\n")
 }
 
 // provenance renders which lens findings surfaced a gap, IN THE FINDING'S OWN WORDS.
