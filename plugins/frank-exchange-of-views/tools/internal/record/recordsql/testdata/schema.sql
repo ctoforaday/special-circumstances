@@ -1312,9 +1312,10 @@ SELECT
      AND m."check_kind" = 'computation'
      AND NOT EXISTS(SELECT 1 FROM "proof" p WHERE p."answers" = m."gap_id"))          AS "awaiting_proof",
   -- THE DOCKET MOTION STANDING UNRULED, by its filing's events.id: the newest docket motion on the
-  -- gap that no ruling names, NULL when every one is ruled. This is THE ONE DEFINITION of "a docket
-  -- stands unruled": the dispatch plan reads it to ready the bench and to key the bench's sitting
-  -- on the filing, and awaiting_docket (outer select) reads it as its "nothing pending" arm.
+  -- gap that no ruling names, NULL when every one is ruled. The dispatch plan reads it to ready the
+  -- bench and to key the bench's sitting on the filing, and awaiting_docket (outer select) reads it
+  -- as its "nothing pending" arm. The PASS gate still answers the same question separately, through
+  -- MotionsOf over motion_answers; folding the two is #1228.
   --
   -- ASKED PER MOTION, NEVER AS A COUNT. A docket ruling is correctable in its sitting, and the
   -- correction is a second motion_rule row for one live act; a count of ruling rows against a

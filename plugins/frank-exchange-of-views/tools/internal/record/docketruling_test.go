@@ -95,6 +95,12 @@ func TestADocketStandsUnruledPerMotionAndReadiesTheBenchOncePerDocketing(t *test
 			ruleM1(t, sit(t, run, "judge"), false)
 			fileM2(t, run)
 		}, []string{"G1"}, benchReady},
+		{"another seat dispatched after the filing", func(t *testing.T, run Run) {
+			ruleM1(t, sit(t, run, "judge"), false)
+			fileM2(t, run)
+			mustAppend(t, sit(t, run, "red-chair"), &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String(evLens), GapIds: []string{"G1"}})
+			sit(t, run, "judge")
+		}, []string{"G1"}, benchReady},
 		{"ruled twice", func(t *testing.T, run Run) {
 			judge := sit(t, run, "judge")
 			mustAppend(t, judge, docketRule("M1", "first"))
