@@ -14,6 +14,11 @@
 > scoped; §III.6 still said "concurrency 2 on this box" after §II.4 was corrected; the cap row
 > predated #1192; every `debate.js` line reference was off by one after #1185's own edits; and
 > two m11 measurements cited a box-local note when commits 0b3715e7 and 2fe606cb carry them.
+>
+> Added 2026-10-02 (#1222): §III.6 gains a fifth channel — a plain process can post into a live
+> session's inbox socket with no model call, and that channel addresses a process, not an
+> in-process Workflow seat — and gblock's ruling that every host surface the rig drives sits
+> behind a harness boundary so Antigravity can be swapped in (`plans/dual-target-claude-antigravity.md`).
 
 ## I. Summary & Goals
 
@@ -321,6 +326,60 @@ On parallelism specifically: the Workflow tool already runs 16 seats wide when t
 vehicle 1 lacks. What bounds wall clock today is the epoch chain, and that is what §III.2's
 `pipeline` over items removes; §IV.5 is the estimate.
 
+**Added 2026-10-02 (#1222) — a fifth channel, and the harness boundary.**
+
+*The channel.* Every non-bare Claude Code session binds an inbox socket
+(`~/.claude/sessions/<pid>.json` → `messagingSocketPath`; `$CLAUDE_CODE_MESSAGING_SOCKET` inside
+its hooks and Bash). The wire is newline-delimited JSON: one optional auth line carrying
+`$CLAUDE_CODE_MESSAGING_TOKEN`, then one stream-json user message. Proven 2026-09-28 from a
+Python process: the probe arrived in the receiving session mid-turn as a peer message. A post
+costs no model call, which is the cost the dispatch read above (§III.2) was paying. Measured
+2026-10-02 in this session: a subagent spawned here reports the PARENT's socket path and no
+agent-scoped one. So the socket addresses a **process-level session** — a `claude -p` seat — and
+not an in-process Workflow seat, whose only inbox is the lead's. The channel therefore belongs
+to vehicle 2 and does not create a hybrid of vehicle 1: "Workflow spawns and caps the seats, the
+record drives them over the socket" has no address to drive. What it changes in the table above:
+vehicle 2's "needs no dispatch-read call" is now a push into a seat that is already sitting, so a
+`-p` seat can take item after item without a process start per item, and the brief for the next
+item rides the same wire the first one did. Limits, measured: a post has no reply address (the
+receipt is the seat's record write, which §III.2 already makes the return); an unattended `-p`
+seat accepts an unknown sender only with `--settings '{"crossSessionInbound":"accept"}'`, while a
+post from the seat's own child process is delivered without hold on Linux; `--bare` binds no
+socket. The other ways in are a full turn (`--resume`), the spawned seat's own stdin
+(`--input-format stream-json`), or a cloud session (`claude -p --cloud <id>`); none reaches a
+running local session for less than the socket does.
+
+*The ruling.* gblock, 2026-10-02: every host API the rig drives goes behind an abstraction, so
+that the Antigravity port swaps the host without touching the rig. The vocabulary already exists
+and is extended, not rivalled: `plans/dual-target-claude-antigravity.md` names the discriminator
+(`Harness`, values `claude` and `antigravity`) and `hookcore` as the normaliser for hook
+payloads; `record.HarnessSeat` is the pseudo-seat the host writes under today. The rig's
+seat-control surface gets the same shape in FEOV's tools module — one interface, one
+implementation per `Harness`, and above it only items, seats, briefs and receipts:
+
+| Operation the rig needs | `claude` carrier today | `antigravity` carrier (from the dual-target plan's measurements) |
+|---|---|---|
+| Spawn a seat with a brief | Workflow `agent()`; or a `claude -p` process | `invoke_subagent`, or an `agy -p` process |
+| Deliver context at seat start | `SubagentStart` → `additionalContext` (measured to land, §II.2) | `SessionStart` → `injectSteps` |
+| Post into a sitting seat | the inbox socket (process-level only, above) | not measured — `PreInvocation` → `injectSteps` is pulled per turn, not pushed |
+| Identify the seat to the record | `PreToolUse` env rewrite (`FEOV_RUN`, `FEOV_AGENT_ID`) | `conversationId` on every payload |
+| Observe the sitting's end | `SubagentStop` / `Stop` | `Stop` (`terminationReason`) |
+| Cap the sitting | `sittingcap` in `PreToolUse` | `PreToolUse` deny (`decision: "deny"`) |
+
+Three consequences for the vehicles. First, nothing above the interface may name a socket path,
+an environment variable, a hook event, or a JSON key — the gate is a test that greps the rig's
+packages for the `claude` carrier's names, the same shape as `pluginparity`'s import gate.
+Second, the interface is written from the carrier census, not from the table: today's direct
+readers of Claude Code's hook and transcript shapes in FEOV's `internal/` (non-test) are
+`record/recordsql/views.go` (31 sites), `sittinghook/sitting.go`, `record/seattiming.go`,
+`record/seatturn.go`, `hookgate/hookgate.go`, `hookcmd/hookcmd.go`, `record/recordsql/schema.go`,
+`record/migrate/sqlitesource.go`, `record/agentbinding.go` and `record/recordsql/store.go`, with
+`CLAUDE_CONFIG_DIR` read at ten sites and `CLAUDE_PROJECT_DIR` at three; each is either moved
+behind the boundary or recorded as host-neutral with the reason. Third, the Antigravity column
+is a hole where it says *not measured*: the mid-sitting post has no proven carrier there, so a
+rig that depends on it is a rig that runs on one host until that cell is measured the way the
+Claude one was. The boundary is not a reason to build vehicle 2 sooner; §V.0 still gates it.
+
 ## IV. Risks & Objections
 
 ### IV.1 The punch list crowds out the survey — the strongest objection
@@ -424,6 +483,11 @@ and the cheap dispatch read) stands on its own merits.
   refused naming the first; the `as_of` field on `Item` in `record.proto` with `migrate` on an
   archived run. *Re-arms on record.proto, dispatch.go, sitting.go.*
 - §III.3: `agentgen -check` green per kind; the `manual` golden per kind read line by line.
+- §III.6 (added 2026-10-02): a test that fails any rig package naming a `claude` carrier — a
+  socket path, a `CLAUDE_*` or `FEOV_*` variable, a hook event name, a hook JSON key — outside the
+  `claude` implementation; the Antigravity cell for the mid-sitting post is *not measured* until
+  a probe posted from a plain process arrives inside a running `agy -p` seat, the way the socket
+  probe did on 2026-09-28. *Re-arms on any new reader of a hook payload or `CLAUDE_*` variable.*
 - The engine still runs: `universe.sh build` + `run` on `--smoke`, the installed copy grepped
   for a phrase from the change, `stream-json` watched, never `--output-format json`.
 - `FEOV_RELEASE_GATE=1 go test ./releasegate/fuzz/` by hand before any record or hook-shape
