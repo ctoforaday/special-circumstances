@@ -12,7 +12,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
@@ -67,12 +66,8 @@ type Judiciary struct {
 	MigDown       int
 	MigUp         int
 	MigFlat       int
-	// Legacy names the pre-disposition envelope keys this journal carries (scorecard.LegacyKeys).
-	// Set, the counts above were not measured, and the page says so rather than printing them.
-	Legacy        []string
 	LatestVerdict string
-	// VerdictEpoch is which chair sitting delivered LatestVerdict — counted off the journal's
-	// verdict envelopes, one per chair sitting, so it is the epoch (plans/roundless.md §III.A.0).
+	// VerdictEpoch is the epoch whose recorded gate delivered LatestVerdict.
 	VerdictEpoch int
 }
 
@@ -340,7 +335,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		}
 	}
 
-	jud := buildJudiciary(journal)
+	jud := buildJudiciary(fam)
 	// CHRONOLOGICAL, NOT JOURNAL ORDER. idOrder is first-appearance in the workflow journal, which
 	// is DISPATCH order — and dispatch order is arbitrary for a parallel() batch (the round-1
 	// lenses landed L6, L5, L1) and is reshuffled again by a resume, where cached agents replay
@@ -404,23 +399,61 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 
 func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
 
-// buildJudiciary ports the journal-envelope analytics: rulings by type, dispute traffic, and
-// argument longevity over supersedes chains (union-find), with grade migration.
-func buildJudiciary(journal []map[string]any) Judiciary {
+// buildJudiciary reads the bench's traffic off the record: judge sittings, rulings by disposition,
+// grade-motion traffic, the latest recorded verdict, and how long arguments live over supersedes
+// chains (union-find), with grade migration.
+//
+// THE RECORD, NOT THE JOURNAL. The record holds every input as a field a writer can refuse —
+// docket and grade motions with their rulings, the chair's gate, each gap's mint and close epoch,
+// its grades then and now, and what it supersedes. A journal envelope carries only what its
+// seat's schema declares, and a key no schema declares reads as an empty list on every run: the
+// page for a bench that never sat.
+func buildJudiciary(fam record.Family) Judiciary {
 	j := Judiciary{Rulings: map[string]int{}, ChainSpans: map[int]int{}}
-	var results []map[string]any
-	for _, env := range journal {
-		if r, ok := env["result"].(map[string]any); ok {
-			results = append(results, r)
+	for _, e := range fam.Live() {
+		reg, ok := recordpb.BodyAs[*recordpb.Register](e)
+		if !ok {
+			continue
+		}
+		switch reg.GetOccasion() {
+		case recordpb.Occasion_OCCASION_DOCKET, recordpb.Occasion_OCCASION_TERMINAL:
+			j.JudgeSittings++
 		}
 	}
-	j.Legacy = scorecard.LegacyKeys(results)
-	type ge struct {
+	// MotionsOf reads the acts that stand, so a ruling struck in its sitting is not counted.
+	for _, m := range record.MotionsOf(fam.Events) {
+		switch m.Subject {
+		case "docket":
+			if m.Ruled() {
+				j.Rulings[m.Ruling]++
+			}
+		case "grade":
+			j.Disputes.Raised++
+			switch m.Ruling {
+			case "accepted":
+				j.Disputes.Accepted++
+			case "rejected":
+				j.Disputes.Rejected++
+			}
+		}
+	}
+	// The epoch an open gap has lived to is the record's current one: the last epoch its clock
+	// assigns, on the same skeleton the verdict is read from.
+	current := 0
+	for _, ep := range record.DebateJSONOfEvents(fam.Events).Epochs {
+		current = ep.Epoch
+		if ep.Verdict != "" {
+			j.LatestVerdict, j.VerdictEpoch = strings.ToUpper(ep.Verdict), ep.Epoch
+		}
+	}
+
+	// A gap lives from its mint epoch to its close epoch, or to the current epoch while open. Its
+	// first mass is the grades it was minted at; its last is the grades it holds now.
+	type life struct {
 		first, last         int
 		firstMass, lastMass float64
 	}
-	gapEpochs := map[string]*ge{}
-	var gapOrder []string
+	lives := map[string]life{}
 	parent := map[string]string{}
 	var find func(string) string
 	find = func(x string) string {
@@ -432,77 +465,39 @@ func buildJudiciary(journal []map[string]any) Judiciary {
 			x = p
 		}
 	}
-	redSeen := 0
-	for _, env := range journal {
-		r, _ := env["result"].(map[string]any)
-		if r == nil {
+	var gapOrder []string
+	for _, g := range fam.Gaps {
+		mint := g.Mint
+		if mint == nil {
 			continue
 		}
-		if res, ok := r["dispositions"].([]any); ok {
-			j.JudgeSittings++
-			for _, x := range res {
-				m, _ := x.(map[string]any)
-				if s, ok := m["disposition"].(string); ok {
-					j.Rulings[s]++
-				}
-			}
+		last := current
+		if g.HasClosed {
+			last = g.ClosedEpoch
 		}
-		if gd, ok := r["grade_motions"].([]any); ok {
-			j.Disputes.Raised += len(gd)
+		lives[g.ID] = life{
+			first: g.Epoch, last: max(last, g.Epoch),
+			firstMass: record.GapMass(recordpb.Word(mint.GetLikelihood()), recordpb.Word(mint.GetImpact())),
+			lastMass:  record.GapMass(recordpb.Word(g.Likelihood), recordpb.Word(g.Impact)),
 		}
-		if dr, ok := r["dispute_responses"].([]any); ok {
-			for _, d := range dr {
-				m, _ := d.(map[string]any)
-				switch m["response"] {
-				case "accepted":
-					j.Disputes.Accepted++
-				case "rejected":
-					j.Disputes.Rejected++
-				}
-			}
-		}
-		gaps, hasGaps := r["gaps"].([]any)
-		if v, ok := r["verdict"].(string); ok && hasGaps {
-			redSeen++
-			j.LatestVerdict = v
-			j.VerdictEpoch = redSeen
-			for _, gx := range gaps {
-				g, _ := gx.(map[string]any)
-				id, _ := g["id"].(string)
-				gm := record.GapMass(anyStr(g["likelihood"]), anyStr(g["impact"]))
-				e := gapEpochs[id]
-				if e == nil {
-					e = &ge{first: redSeen, firstMass: gm}
-					gapEpochs[id] = e
-					gapOrder = append(gapOrder, id)
-				}
-				e.last = redSeen
-				e.lastMass = gm
-				if sup, ok := g["supersedes"].([]any); ok {
-					for _, a := range sup {
-						if anc, ok := a.(string); ok {
-							parent[id] = find(anc)
-						}
-					}
-				}
-			}
+		gapOrder = append(gapOrder, g.ID)
+		for _, anc := range mint.GetSupersedes() {
+			parent[g.ID] = find(anc)
 		}
 	}
 	type chain struct {
 		first, last         int
 		firstMass, lastMass float64
-		ids                 int
 	}
 	chains := map[string]*chain{}
 	for _, id := range gapOrder {
-		e := gapEpochs[id]
+		e := lives[id]
 		root := find(id)
 		c := chains[root]
 		if c == nil {
 			c = &chain{first: e.first, last: e.last, firstMass: e.firstMass, lastMass: e.lastMass}
 			chains[root] = c
 		}
-		c.ids++
 		if e.first <= c.first {
 			c.first = e.first
 			c.firstMass = e.firstMass

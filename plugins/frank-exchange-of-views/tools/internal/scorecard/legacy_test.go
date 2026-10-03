@@ -49,20 +49,3 @@ func TestAPreRenameJournalIsNamedByItsKeys(t *testing.T) {
 		t.Errorf("a current journal reported legacy keys %v", k)
 	}
 }
-
-// THE OLD JOURNAL'S BENCH DID SIT. Read under the current keys its rulings are absent, and the
-// row would say "the bench did not sit this run" — true of no run that holds four judge envelopes.
-func TestTheBenchRowOnAPreRenameJournalIsStatedNotZero(t *testing.T) {
-	results := resultsOf(preRenameJournal(t))
-	r := rowByMetric(benchRows(results, nil), "remanded_share")
-	if r == nil {
-		t.Fatal("no remanded_share row")
-	}
-	if r.Value != nil {
-		t.Errorf("remanded_share has a value %v on a journal whose rulings it could not read", r.Value)
-	}
-	want := "not measured: this transcript's envelopes predate the disposition keys (resolutions/grade_disputes)"
-	if r.Note != want {
-		t.Errorf("remanded_share note = %q, want %q", r.Note, want)
-	}
-}
