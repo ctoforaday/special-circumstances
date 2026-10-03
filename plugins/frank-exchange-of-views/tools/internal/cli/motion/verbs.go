@@ -245,10 +245,21 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			"the debate continues.",
 		// Through Begin, as the filing is — see newFile.
 		RunE: seat.HandlerRunE(func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+			run, err := s.Run()
+			if err != nil {
+				return nil, err
+			}
 			id := seat.Str(cmd, flags.ID)
-			// THE MOTION'S SUBJECT AND STATE ARE THE WRITE'S TO REFUSE (#1205): the reference, the
-			// subject it was filed under, and that it is still unruled are checked by record.Append,
-			// which every writer reaches — this verb included, correction exemption and all.
+			// ORDER IS THE MESSAGE. The motion's own subject is established FIRST, because every
+			// later refusal is phrased in terms of it: a lens typing `motion grade rule` at a
+			// petition should be told it named the wrong subgroup, not that grade motions belong
+			// to the chair — which is true, irrelevant, and sends it to the wrong fix. This verb
+			// refuses an unreasoned ruling and an unknown --as itself, so the subject is asked
+			// here, before either; record.Append asks it again for every writer, and owns the
+			// motion's state (#1205) — still unruled — under its write lock.
+			if err := record.RequireSubjectMatches(run, mustSubject(subject), id, record.MotionRuling); err != nil {
+				return nil, err
+			}
 			//
 			// NO requireRuler HERE ANY MORE. This verb only exists in the gavel-holder's tree, so
 			// a seat that cannot rule this subject cannot name the command — the same boundary the
@@ -389,9 +400,17 @@ func newAppeal(subject string) *cobra.Command {
 			"than an omission: the bench hears it BEFORE the debate continues, so there is nothing to escalate to.",
 		// Through Begin, as the filing is — see newFile.
 		RunE: seat.HandlerRunE(func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+			run, err := s.Run()
+			if err != nil {
+				return nil, err
+			}
 			id := seat.Str(cmd, flags.ID)
-			// The motion's subject and state — filed under this subject, ruled, not yet appealed
-			// (#673, #1205) — are the write's to refuse; record.Append checks them for every writer.
+			// ORDER IS THE MESSAGE, as in newRule: the subject first, before this verb's own refusal
+			// of an appeal with no argument. The motion's state — ruled, not yet appealed (#673,
+			// #1205) — is the write's to refuse; record.Append checks it for every writer.
+			if err := record.RequireSubjectMatches(run, mustSubject(subject), id, record.MotionAppealing); err != nil {
+				return nil, err
+			}
 			reason, err := prose(cmd, "appeal", "why you are pressing on. Going against a ruling without saying why is the disagreement disappearing, which is what the record exists to prevent")
 			if err != nil {
 				return nil, err
@@ -520,10 +539,10 @@ var ruleFlagHelp = map[string]string{
 // SHAPE ONLY, NO EXISTENCE CHECK, and that is measured rather than assumed. These arms carried
 // `.WithCheck(record.GapExists)` and `.WithCheck(record.AvenueExists)` for one commit; deleting both
 // left the whole suite green and left every refusal BYTE-IDENTICAL, because the write already
-// resolves the reference — `RequireGapRef` at the filing, `RequireMotionSubjectRef` at the
-// ruling, `RequireRuledMotion` at the appeal — and the last two are STRONGER than existence, being
-// bound to the subject and to the ruled state. A checker here would have been a second
-// implementation of a check that already refuses, in front of one that also knows more.
+// resolves the reference — `requireGap` at the filing, `RequireSubjectMatches` at the ruling and
+// the appeal, then `RequireRuledMotion` at the appeal — and the last two are STRONGER than
+// existence, being bound to the subject and to the ruled state. A checker here would have been a
+// second implementation of a check that already refuses, in front of one that also knows more.
 func idShapeFor(subject string, filing bool) *flags.ShapedValue {
 	if subject == "avenue" {
 		return flags.AvenueID()

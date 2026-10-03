@@ -63,15 +63,6 @@ type correctionTarget struct {
 	Body   proto.Message
 }
 
-// key is the corrected act's key, "" for an ordinary write — the `correcting` argument the
-// first-wins guards take, so a correction of the act a guard finds passes it.
-func (t *correctionTarget) key() string {
-	if t == nil {
-		return ""
-	}
-	return t.Key
-}
-
 // readTarget reads the act `key` names. Absent is an ERROR: a correction of nothing is a seat that
 // mistyped a key, and saying "nothing to correct" would read like success.
 func readTarget(db *sql.DB, key string) (*correctionTarget, error) {
@@ -393,6 +384,11 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 			recordpb.Word(target.Type), fid, ftype, fseat)
 	case !errors.Is(err, sql.ErrNoRows):
 		return nil, fmt.Errorf("record: asking whether another seat has acted since %s: %w", target.Key, err)
+	}
+	// A MOTION IS ANSWERED ONCE, under the lock as on an ordinary write (insertNumbered); the act
+	// this corrects is the answer that stands, so the guard passes it and refuses any other.
+	if err := requireUnanswered(tx, seatID, body, target.Key); err != nil {
+		return nil, err
 	}
 	// THE CHAIN: the replacement's key is the chain's ROOT key and its depth, both walked here from
 	// the correction rows — never parsed out of a key.

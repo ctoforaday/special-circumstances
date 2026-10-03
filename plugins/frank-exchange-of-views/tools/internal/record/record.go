@@ -681,6 +681,11 @@ func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType
 	if err := requireOncePerSitting(tx, seatID, typ, body); err != nil {
 		return err
 	}
+	// A MOTION IS ANSWERED ONCE, asked here for the same reason: under the lock, so two rulings or
+	// two appeals racing each other resolve to one answer and one refusal (motion.go).
+	if err := requireUnanswered(tx, seatID, body, ""); err != nil {
+		return err
+	}
 	envelope(ev, Now().UTC().Format(stampLayout), seatID, key)
 	if _, err := recordsql.InsertTx(tx, ev); err != nil {
 		// A KEY COLLISION IS A SEAT REPEATING A LABELLED ACT, and the raw constraint text teaches
@@ -768,6 +773,26 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 	if m, ok := body.(*recordpb.Mint); ok {
 		if err := stampClassMaterial(run, m); err != nil {
 			return err
+		}
+	}
+	// ORDER IS THE MESSAGE. A ruling's or an appeal's motion is established FIRST — that it exists
+	// and was filed under the subject this act names — because every later refusal is phrased in
+	// terms of it: a bench typing `motion docket rule` at a grade motion should be told it named the
+	// wrong subject, not that a docket ruling needs --settled, which is true, irrelevant, and sends
+	// it to the wrong fix. With no id there is no motion to establish, and the required-field walk
+	// below names the missing --id in the annotation's words.
+	switch b := body.(type) {
+	case *recordpb.MotionRule:
+		if b.GetMotionId() != "" {
+			if err := RequireSubjectMatches(run, b.GetSubject(), b.GetMotionId(), MotionRuling); err != nil {
+				return err
+			}
+		}
+	case *recordpb.MotionAppeal:
+		if b.GetMotionId() != "" {
+			if err := RequireSubjectMatches(run, b.GetSubject(), b.GetMotionId(), MotionAppealing); err != nil {
+				return err
+			}
 		}
 	}
 	if err := recordpb.CheckRequired(verbOf(typ), body); err != nil {
@@ -1160,20 +1185,16 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		}
 	case *recordpb.MotionAppeal:
 		// THE MOTION'S STATE IS THE WRITE'S TO GUARD, not a verb's (#1205): every writer — the
-		// verbs, migrate, a fixture, the fuzz — reaches the record here, and a second appeal or an
-		// appeal of nothing is a record MotionsOf and motion_answers would each answer differently.
-		// The subject first, because every later refusal is phrased in its terms; then the state.
-		// No Migrating gate: these are structural, and no archived run holds such an appeal.
-		if err := RequireMotionSubjectRef(run, b.GetSubject(), b.GetMotionId()); err != nil {
+		// verbs, migrate, a fixture, the fuzz — reaches the record here. Its subject was matched
+		// above, before the required fields; what remains is that the subject takes an appeal at
+		// all and that the motion has a ruling to press. Both are settled facts once true, so
+		// reading them before the writing transaction is safe; "not yet appealed" is not, and
+		// requireUnanswered asks it inside the transaction. No Migrating gate: these are
+		// structural, and no archived run holds such an appeal.
+		if err := requireAppealable(b.GetSubject(), b.GetMotionId()); err != nil {
 			return err
 		}
-		if err := RequireSubjectMatches(run, motionSubjectWord(b.GetSubject()), b.GetMotionId()); err != nil {
-			return err
-		}
-		if err := RequireRuledMotion(run, b.GetSubject(), b.GetMotionId()); err != nil {
-			return err
-		}
-		return RequireUnappealedMotion(run, b.GetMotionId(), seatID, target.key())
+		return RequireRuledMotion(run, b.GetSubject(), b.GetMotionId())
 	case *recordpb.MotionRule:
 		// WHAT WOULD REOPEN THIS, ANSWERED ONE WAY OR THE OTHER (#502) — the bench's ruling only.
 		//
@@ -1200,28 +1221,16 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 				return fmt.Errorf("record: --final says nothing would reopen this and --reopens-on names what would. They are opposite answers to one question; pass exactly one")
 			}
 		}
+		// The motion's reference, its subject and the subject's being one at all were settled above,
+		// before the required fields. A MOTION IS ANSWERED ONCE (#1205), and that is asked inside the
+		// writing transaction by requireUnanswered: read here, two rulings racing both pass.
+		//
 		// THE VERDICT SET IS KEYED ON (SUBJECT, RULING), which EnumFields cannot express: it is
 		// keyed by event TYPE, and one `motion-rule` carries granted|denied for a petition and
 		// accepted|rejected for a grade. So the check lives here, and the CLI's help is generated
 		// from the SAME table (MotionVerdictEnum) — one source, two readers, which is the rule
 		// enums.go exists to keep.
-		if err := RequireMotionSubjectRef(run, b.GetSubject(), b.GetMotionId()); err != nil {
-			return err
-		}
-		if b.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED {
-			return fmt.Errorf("record: %q is not a motion subject — one of %s", recordpb.Word(b.GetSubject()), strings.Join(MotionSubjects, " | "))
-		}
-		// A MOTION IS ANSWERED ONCE, under the subject it was filed as (#1205). These were the
-		// rule verb's alone, so any other writer could put a second ruling on the record — and
-		// after one, MotionsOf reads the last and motion_answers the first. Pressing a ruling is
-		// an appeal, which keeps both positions. A correction of the ruling the guard finds is
-		// that ruling restated in its place, not a second one. No Migrating gate: structural.
-		if err := RequireSubjectMatches(run, motionSubjectWord(b.GetSubject()), b.GetMotionId()); err != nil {
-			return err
-		}
-		if err := RequireUnruledMotion(run, b.GetMotionId(), seatID, target.key()); err != nil {
-			return err
-		}
+		//
 		// THE VERDICT SET IS KEYED ON (SUBJECT, RULING), and the schema now says so in its own
 		// syntax: one `ruling` oneof, one case per subject, each with its own closed enum. So a
 		// ruling from the WRONG subject's vocabulary is unrepresentable, and what remains to

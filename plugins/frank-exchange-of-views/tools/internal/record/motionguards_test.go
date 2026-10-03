@@ -2,7 +2,9 @@ package record
 
 import (
 	"database/sql"
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -41,8 +43,8 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 
 	for _, tc := range []struct {
 		name string
-		// act runs on a record holding grade motion M1 (gap G1), docket motion M2 (gap G2) and
-		// avenue Q1, all unruled; its LAST write is the one under test.
+		// act runs on a record holding grade motion M1 (gap G1), docket motion M2 (gap G2),
+		// avenue Q1 and petition M3, all unruled; its LAST write is the one under test.
 		act func(t *testing.T, run Run) error
 		// wants is what the refusal must say; nil means the last write is admitted.
 		wants []string
@@ -148,8 +150,59 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 				_, err := Append(sit(t, run, "blue-respond"), appeal(recordpb.MotionSubject_MOTION_SUBJECT_PETITION, "pressed as a petition"))
 				return err
 			},
-			wants:  []string{"motion M1 was filed as a grade motion and you are ruling it as a petition"},
+			// Worded for the act: an appellant is told it is appealing, and pointed at the appeal
+			// the motion's own subject takes.
+			wants:  []string{"motion M1 was filed as a grade motion and you are appealing it as a petition", "`motion grade appeal`"},
 			motion: "M1", ruling: "rejected",
+		},
+		{
+			name: "an appeal of a docket ruling is refused",
+			act: func(t *testing.T, run Run) error {
+				mustAppend(t, sit(t, run, "judge"), docketRule("M2", "the bench rules"))
+				_, err := Append(sit(t, run, "blue-respond"), &recordpb.MotionAppeal{MotionId: proto.String("M2"),
+					Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET), Reason: proto.String("pressed past the bench")})
+				return err
+			},
+			wants:  []string{"docket motion M2 has no appeal: the bench rules it", "file a NEW motion"},
+			motion: "M2", ruling: "remanded",
+		},
+		{
+			name: "an appeal of a petition ruling is refused",
+			act: func(t *testing.T, run Run) error {
+				mustAppend(t, sit(t, run, "judge"), &recordpb.MotionRule{MotionId: proto.String("M3"),
+					Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION), Opinion: proto.String("o"),
+					Ruling: &recordpb.MotionRule_Petition{Petition: recordpb.PetitionRuling_PETITION_RULING_DENIED}})
+				_, err := Append(sit(t, run, evLens), &recordpb.MotionAppeal{MotionId: proto.String("M3"),
+					Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION), Reason: proto.String("pressed past the bench")})
+				return err
+			},
+			wants:  []string{"petition motion M3 has no appeal: the bench rules it"},
+			motion: "M3", ruling: "denied",
+		},
+		{
+			name: "an appeal of a docket ruling under another subject is refused for the subject",
+			act: func(t *testing.T, run Run) error {
+				mustAppend(t, sit(t, run, "judge"), docketRule("M2", "the bench rules"))
+				_, err := Append(sit(t, run, "blue-respond"), &recordpb.MotionAppeal{MotionId: proto.String("M2"),
+					Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE), Reason: proto.String("pressed as a grade")})
+				return err
+			},
+			// The appellant is told the motion takes no appeal at all, not sent to a verb that refuses it.
+			wants:  []string{"motion M2 was filed as a docket motion and you are appealing it as a grade", "docket motion M2 has no appeal"},
+			motion: "M2", ruling: "remanded",
+		},
+		{
+			name: "a docket ruling on a grade motion is refused for the subject before its fields",
+			act: func(t *testing.T, run Run) error {
+				r := docketRule("M1", "the bench rules a grade")
+				r.GetDocket().Settled = nil
+				_, err := Append(sit(t, run, "judge"), r)
+				return err
+			},
+			// ORDER IS THE MESSAGE: --settled is missing too, and naming it would send the bench
+			// to supply a field for a ruling it cannot make.
+			wants:  []string{"motion M1 was filed as a grade motion and you are ruling it as a docket", "the chair's `motion grade rule`"},
+			motion: "M1",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -161,6 +214,9 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 				}
 			} else {
 				mustRefuse(t, err, tc.wants...)
+				if strings.Contains(err.Error(), "settled") {
+					t.Errorf("the refusal names a field before the subject:\n%v", err)
+				}
 				if strings.Contains(err.Error(), "MOTION_SUBJECT_") {
 					t.Errorf("the refusal prints the enum's name rather than the subject's word:\n%v", err)
 				}
@@ -174,8 +230,8 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 	}
 }
 
-// motionGuardRun is a record with three unruled motions: grade M1 on G1 (filed by the lens),
-// docket M2 on G2 (filed by blue) and avenue Q1 (proposed by blue).
+// motionGuardRun is a record with four unruled motions: grade M1 on G1 (filed by the lens),
+// docket M2 on G2 (filed by blue), avenue Q1 (proposed by blue) and petition M3 (filed by the lens).
 func motionGuardRun(t *testing.T) Run {
 	t.Helper()
 	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
@@ -189,6 +245,9 @@ func motionGuardRun(t *testing.T) Run {
 	mustAppend(t, blue, docketMotion("M2", "G2"))
 	mustAppend(t, blue, &recordpb.Avenue{AvenueId: proto.String("Q1"),
 		Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(), Line: proto.String("a direction")})
+	mustAppend(t, sit(t, run, evLens), &recordpb.Motion{MotionId: proto.String("M3"),
+		Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION), Basis: proto.String("the run is proceeding past a safety objection"),
+		Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_SAFETY)}}})
 	return run
 }
 
@@ -247,3 +306,93 @@ func motionReadersAgree(t *testing.T, run Run) map[string]motionAnswer {
 
 // motionAnswer is one motion's answer as a reader states it.
 type motionAnswer struct{ ruling, by, appealedBy, appealReason string }
+
+// A MOTION IS ANSWERED ONCE WHEN EVERY SEAT ANSWERS AT ONCE. The first-wins guards read the record
+// and then the write inserts; outside the writing transaction that is check-then-insert, and every
+// seat that read "unanswered" before the first insert committed lands its own answer. Each
+// goroutine is a different seat, so no idempotency key collides to hide a missing guard: exactly
+// one answer may land, every other is refused in the guard's own words, and the two readers
+// still name one answer.
+func TestAMotionIsAnsweredOnceWhenSeatsWriteAtOnce(t *testing.T) {
+	seats := []string{evLens, "red-lens-logic", "red-lens-voice", "red-lens-adversary",
+		"red-lens-architecture", "red-lens-computation", "red-lens-dark-side", "red-chair", "blue-respond", "judge"}
+	for _, tc := range []struct {
+		name string
+		// ruled says whether the motion is ruled before the race, which an appeal needs.
+		ruled   bool
+		act     func(i int) proto.Message
+		refusal string
+	}{
+		{
+			name: "rulings",
+			act: func(i int) proto.Message {
+				return &recordpb.MotionRule{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
+					Opinion: proto.String(fmt.Sprintf("ruling %d", i)), Ruling: &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED}}
+			},
+			refusal: "motion M1 is already ruled",
+		},
+		{
+			name:  "appeals",
+			ruled: true,
+			act: func(i int) proto.Message {
+				return &recordpb.MotionAppeal{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
+					Reason: proto.String(fmt.Sprintf("appeal %d", i))}
+			},
+			refusal: "motion M1 is already appealed",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			st := newStage(t).cast(seats...).ingest().register("red-chair")
+			for _, s := range seats {
+				if strings.HasPrefix(s, "red-lens-") {
+					st = st.dispatch(2, s)
+				}
+			}
+			run := st.register(evLens).mint(evLens, "G1", "high").seed()
+			mustAppend(t, sit(t, run, evLens), &recordpb.Motion{MotionId: proto.String("M1"),
+				Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE), Basis: proto.String("severity is overstated"),
+				Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
+					Dimension: recordtest.P(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY), Proposed: recordtest.P(recordpb.Grade_GRADE_LOW)}}})
+			if tc.ruled {
+				mustAppend(t, sit(t, run, "red-chair"), &recordpb.MotionRule{MotionId: proto.String("M1"),
+					Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE), Opinion: proto.String("the grade stands"),
+					Ruling: &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED}})
+			}
+			// Every seat sits BEFORE the race: a register is a write too, and the race under test
+			// is the answers', not the sittings'.
+			ids := make([]Identity, len(seats))
+			for i, s := range seats {
+				ids[i] = sit(t, run, s)
+			}
+			start := make(chan struct{})
+			errs := make([]error, len(ids))
+			var wg sync.WaitGroup
+			for i := range ids {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					<-start
+					_, errs[i] = Append(ids[i], tc.act(i))
+				}()
+			}
+			close(start)
+			wg.Wait()
+			landed := 0
+			for i, err := range errs {
+				switch {
+				case err == nil:
+					landed++
+				case !strings.Contains(err.Error(), tc.refusal):
+					t.Errorf("%s was refused for something other than the answer already standing: %v", seats[i], err)
+				}
+			}
+			if landed != 1 {
+				t.Errorf("%d of %d concurrent %s landed; want exactly one", landed, len(ids), tc.name)
+			}
+			got := motionReadersAgree(t, run)["M1"]
+			if got.ruling != "rejected" || (tc.ruled && got.appealReason == "") {
+				t.Errorf("motion M1 reads %+v after the race", got)
+			}
+		})
+	}
+}
