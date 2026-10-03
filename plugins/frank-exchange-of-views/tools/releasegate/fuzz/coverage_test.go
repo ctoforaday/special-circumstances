@@ -68,15 +68,13 @@ var enumExemptions = map[string]string{
 	// fuzz bench returned a literal `deadlock: false` — dressed as a claim about debate.js, and
 	// a real run falsified it on 2026-08-22. Both are driven now; if either stops being
 	// reachable the sweep should say so rather than an exemption explaining why it never was.
-	"log --type estoppel": "the TOOL writes this one, never a seat: lens/mint.go records it when it refuses a mint " +
-		"against text blue applied verbatim from red's own --fix-new. This gate measures VALUES PASSED AS FLAGS, and " +
-		"there is no honest flag call that produces it — driving `log --type estoppel` from a seat would manufacture a " +
-		"refusal that never happened and teach the sweep an act the enum's own text forbids. " +
-		"IT IS STILL MEASURED, and that is what makes this an exemption rather than a blind spot: the sweep drives the " +
-		"real path (mintEstopped) and TestFuzzDebate FAILS on zero tool-written estoppel entries, counted off the " +
-		"RECORD with source=TOOL. Read that assertion, not this line, to know whether the guard still fires. " +
-		"Note the seat verb currently ACCEPTS `--type estoppel` and stamps source=SEAT (#782); this exemption is about " +
-		"what the sweep should drive, not a claim that the flag refuses it.",
+	// NO ROW FOR A TOOL-ONLY WORD. `log --type estoppel` sat here with a paragraph of reason; the
+	// reason is a fact the schema already carries as the value's `seat_may_file` facet, and
+	// unreachedEnumValues reads it off the table (EnumValue.ToolOnly) rather than off a row a
+	// hand would have to add for `refusal` and `failure` too. What the row's paragraph promised
+	// still holds and is asserted where it is measured: the sweep drives the real path
+	// (mintEstopped) and TestFuzzDebate FAILS on zero tool-written estoppel entries, counted off
+	// the RECORD with source=TOOL. No equivalent assertion exists for `refusal` or `failure`.
 }
 
 // unreachedPersistentFlags is the same question for the flags inherited onto every command.
@@ -150,7 +148,13 @@ func unreachedEnumValues() []string {
 	var missing []string
 	for typ, fields := range record.EnumFields {
 		for _, e := range fields {
-			for _, v := range record.Names(e.Values) {
+			// THE SEAT'S SET. This gate measures VALUES PASSED AS FLAGS, and a tool-only word
+			// (`estoppel`, `refusal`, `failure`) is refused at flag parse: there is no honest flag
+			// call that produces one, and driving it from a seat would manufacture a refusal that
+			// never happened. `estoppel` is measured where the tool writes it, off the record
+			// (TestFuzzDebate fails on zero source=TOOL estoppel entries); `refusal` and `failure`
+			// are NOT asserted by this sweep — a tool-written entry of either is counted nowhere here.
+			for _, v := range record.Names(record.SeatFilable(e.Values)) {
 				if seen[e.Flag][v] {
 					continue
 				}

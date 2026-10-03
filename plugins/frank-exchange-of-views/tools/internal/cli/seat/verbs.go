@@ -149,21 +149,23 @@ func Log() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		// THE TYPE IS THE TRIAGE, so it is asked for and refused rather than defaulted. A default
-		// would put every entry in one bucket and hand the reader back the job of working out
-		// which it was — which is the reading this field exists to replace.
-		if word == "" {
-			return nil, fmt.Errorf("record: a log entry requires --type. Say what this entry ASSERTS: %s. A clean sitting is `nominal` — logged in the positive, because an entry saying nothing is still an entry", strings.Join(record.LogTypeWords(), " | "))
+		// THE TYPE IS THE TRIAGE, so it is required and refused rather than defaulted — at flag
+		// parse, not here. The schema marks the field required, so cobra refuses a call without
+		// --type before this closure runs, and the flag's own enum set is SeatLogTypeEnum, so a
+		// word outside the three a seat may file — a tool-only word included — is refused at parse
+		// with the seat's set listed. A branch here that refused an empty word could never fire,
+		// and the one that did told a seat "a clean sitting is `nominal`" after the value was
+		// retired (#1123): a refusal no test drives is where a retired word survives. The miss
+		// below is the same kind of branch, so it lists no set — the seat's set has ONE
+		// derivation, the ToolOnly facet SeatLogTypeEnum reads, and a word list here would be
+		// a second.
+		lt, ok := record.LogTypeOf(word)
+		if !ok {
+			return nil, fmt.Errorf("record: %q is not a log type this record can carry", word)
 		}
-		lt, known := record.LogTypeOf(word)
-		if !known || lt == recordpb.LogType_LOG_TYPE_UNSPECIFIED {
-			return nil, fmt.Errorf("record: %q is not a log type this record can carry (%s)", word, strings.Join(record.SeatLogTypeWords(), " | "))
-		}
-		// NO SEAT-SIDE FACET CHECK HERE, and its absence is the design. The --type flag's own
-		// enum set is SeatLogTypeEnum, so a tool-only word is refused at flag parse with the
-		// four a seat may file listed; a second check in this closure could never fire. The
-		// invariant that holds for every writer — a tool-only word carries source=TOOL — lives
-		// at the record's write path, where the tool's own estoppel write passes it too.
+		// NO SEAT-SIDE FACET CHECK HERE EITHER. The invariant that holds for every writer — a
+		// tool-only word carries source=TOOL — lives at the record's write path, where the
+		// tool's own estoppel write passes it too.
 		src := recordpb.LogSource_LOG_SOURCE_SEAT
 		if _, err := record.Append(s.Identity(), &recordpb.Log{
 			Text:   proto.String(text),

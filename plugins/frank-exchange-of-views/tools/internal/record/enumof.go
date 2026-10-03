@@ -103,20 +103,6 @@ func SourceTextReadOf(word string) (recordpb.SourceTextRead, bool) {
 	return enumOf[recordpb.SourceTextRead](recordpb.SourceTextRead(0).Descriptor(), word)
 }
 
-// LogTypeWords lists the log types a seat may choose, derived from the descriptor and skipping the
-// UNSPECIFIED zero — the same skip the SQL vocabulary table makes, so the surface and the storage
-// admit exactly the same set.
-func LogTypeWords() []string {
-	d := recordpb.LogType(0).Descriptor().Values()
-	out := make([]string, 0, d.Len())
-	for i := 0; i < d.Len(); i++ {
-		if w := recordpb.Word(recordpb.LogType(d.Get(i).Number())); w != "" {
-			out = append(out, w)
-		}
-	}
-	return out
-}
-
 // LogTypeOf resolves the word a seat types on the log verb. Derived from the descriptor, so the
 // allowed set is the schema's and there is no second list to keep in step.
 func LogTypeOf(word string) (recordpb.LogType, bool) {
@@ -131,25 +117,6 @@ func CheckKindOf(word string) (recordpb.CheckKind, bool) {
 // the registry row and `class new --material-default` spell it.
 func ClassMaterialOf(word string) (recordpb.ClassMaterial, bool) {
 	return enumOf[recordpb.ClassMaterial](recordpb.ClassMaterial(0).Descriptor(), word)
-}
-
-// SeatLogTypeWords are the log types a SEAT may file, in schema order — the set `log --type`
-// accepts, which is not the whole vocabulary. `estoppel` is the tool's own word and is excluded
-// by its `seat_may_file` facet rather than by a list here (#782).
-//
-// It PANICS on an unannotated value, matching rulerFor's reasoning: this feeds a refusal message
-// and a help page, both built at command construction, so a vocabulary that stopped answering the
-// question fails at startup for every seat rather than at the moment one tries to file.
-func SeatLogTypeWords() []string {
-	ts, err := recordpb.SeatFilableLogTypes()
-	if err != nil {
-		panic("record: " + err.Error())
-	}
-	out := make([]string, 0, len(ts))
-	for _, t := range ts {
-		out = append(out, recordpb.Word(t))
-	}
-	return out
 }
 
 // SeatLogTypeEnum is the `log --type` set narrowed to what a seat may file, so the generated help

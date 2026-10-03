@@ -494,9 +494,9 @@ Flags:
 
 Enumerated values:
   --type
-    defect    something is broken: it did the wrong thing, or failed where it should have worked
-    request   a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong
-    friction  the work was impeded and you are NOTING it; NOT necessarily actionable and not necessarily advisable to change, which is why it has its own word rather than posing as a defect
+    defect    something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on
+    request   a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair
+    friction  something cost you a call, a guess or an act — a refusal, a name you reached for that was not there, a shape you misread, a workaround — and you are noting it with what you expected and why; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect
 
 (Global Flags:) → SHARED §2
 ==============================================================================
@@ -744,7 +744,7 @@ Flags:
 Enumerated values:
   --as
     VERIFIED    red passed the board and the bench agrees the question was answered
-    CEILING     every open material gap reached its limit — ruled by the bench and remanded — with work still open: NOT a judged failure to verify, and the stamp says so
+    CEILING     every open material gap reached its limit — at impasse, ruled by the bench and remanded — with nobody ready and PASS not permitted; NOT a judged failure to verify, and the stamp says so
     HALTED      the bench ended the run on a safety, ethics, consent or integrity boundary
     UNVERIFIED  the run ended without the question being answered, and no ceiling or halt explains it
 

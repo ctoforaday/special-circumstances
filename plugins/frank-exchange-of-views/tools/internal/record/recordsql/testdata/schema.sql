@@ -203,23 +203,23 @@ CREATE TABLE "enum_grade_ruling" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_grade_ruling" ("value", "means") VALUES ('accepted', 'the proposed grade stands');
-INSERT INTO "enum_grade_ruling" ("value", "means") VALUES ('rejected', 'the grade on the board stands');
+INSERT INTO "enum_grade_ruling" ("value", "means") VALUES ('accepted', 'the filer is right and the grade should move. The ruling moves nothing itself: the gap''s originating lens moves it with `regrade`, so say in --reason which grade and to what');
+INSERT INTO "enum_grade_ruling" ("value", "means") VALUES ('rejected', 'the grade stands. Your --reason is what the filer appeals against, so it carries the argument, not the conclusion');
 
 CREATE TABLE "enum_petition_ruling" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_petition_ruling" ("value", "means") VALUES ('denied', 'the petition fails; the run continues as it was');
-INSERT INTO "enum_petition_ruling" ("value", "means") VALUES ('granted', 'the relief asked for is ordered');
+INSERT INTO "enum_petition_ruling" ("value", "means") VALUES ('denied', 'the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest');
+INSERT INTO "enum_petition_ruling" ("value", "means") VALUES ('granted', 'the objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow');
 
 CREATE TABLE "enum_avenue_ruling" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_avenue_ruling" ("value", "means") VALUES ('endorsed', 'worth this run''s time — pursue it');
+INSERT INTO "enum_avenue_ruling" ("value", "means") VALUES ('endorsed', 'worth this run''s time — blue should take it up');
 INSERT INTO "enum_avenue_ruling" ("value", "means") VALUES ('out_of_scope', 'a real question, but not THIS question');
-INSERT INTO "enum_avenue_ruling" ("value", "means") VALUES ('too_thin', 'in scope, but the hypothesis does not carry its budget');
+INSERT INTO "enum_avenue_ruling" ("value", "means") VALUES ('too_thin', 'in scope, and the hypothesis does not carry its budget as stated');
 
 CREATE TABLE "enum_disposition" (
   "value" TEXT PRIMARY KEY,

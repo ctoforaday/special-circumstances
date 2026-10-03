@@ -186,6 +186,23 @@ func setFlags(c *cobra.Command, out map[string]string) {
 	}
 }
 
+// offers answers whether a rendered set-shaped help ADVERTISES a value — by the value column,
+// not by substring. A menu (record.Menu: one value per line, the name first) carries meanings
+// too, and a meaning may name another value in passing: `friction`'s says "a refusal", and a
+// substring match read that as the seat's help offering the tool-only `refusal`. A usage line
+// (`a | b — what`) has no meanings column and keeps the substring read.
+func offers(usage, name string) bool {
+	if !strings.HasPrefix(usage, "    ") {
+		return strings.Contains(usage, name)
+	}
+	for _, line := range strings.Split(usage, "\n") {
+		if f := strings.Fields(line); len(f) > 0 && f[0] == name {
+			return true
+		}
+	}
+	return false
+}
+
 func TestEverySetShapedFlagIsEitherDeclaredOrExempt(t *testing.T) {
 	found := map[string]string{}
 	for _, r := range AllRoots() {
@@ -230,7 +247,7 @@ func TestEverySetShapedFlagIsEitherDeclaredOrExempt(t *testing.T) {
 			// declared set asking itself a question rather than a second list.
 			var absent []string
 			for _, v := range record.Names(record.SeatFilable(e.Values)) {
-				if !strings.Contains(usage, v) {
+				if !offers(usage, v) {
 					absent = append(absent, v)
 				}
 			}
@@ -238,7 +255,7 @@ func TestEverySetShapedFlagIsEitherDeclaredOrExempt(t *testing.T) {
 			// tool-only word must NOT appear. Without this, dropping the facet would put the
 			// word back in the help and nothing here would notice.
 			for _, v := range e.Values {
-				if v.ToolOnly && strings.Contains(usage, v.Name) {
+				if v.ToolOnly && offers(usage, v.Name) {
 					t.Errorf("%s help offers %q, which only the TOOL writes — a seat reading this "+
 						"page is being shown a word its own write path refuses", site, v.Name)
 				}

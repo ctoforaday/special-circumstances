@@ -216,6 +216,10 @@ type EnumField struct {
 	// Values carry their MEANINGS, not only their spellings: a set rendered as six words and
 	// one shared sentence leaves a seat to guess which situation warrants which, and the
 	// guessing is measurable (see enumvalue.go).
+	//
+	// EVERY SET IS READ OFF ITS DESCRIPTOR (evsOf), never typed beside it. A hand-written row
+	// is a second author of the value's `(means)`, and eight of them had drifted before the
+	// tables were generated; TestEveryDeclaredValueIsAWordTheSchemaCarries refuses the next one.
 	Values []EnumValue
 	Why    string // what a near-miss did before this was enforced; the seat reads it
 
@@ -240,33 +244,27 @@ var EnumFields = map[string][]EnumField{
 		Why: "the bench is ONE seat asked four different questions — rule the docket, hear a petition, dispose at the exit, assemble the report — so the seat id cannot say which sitting this is. " +
 			"It was recoverable only by matching the first words of the prompt, and that read has already returned the wrong answer once: every FINISHED run reported \"running\" forever on the dashboard, and the assembly's spend merged into a docket ruling's row",
 	}},
+	// LOUD: `chair verdict --as PASS` and `bench outcome --as VERIFIED` are the seat's words in
+	// capitals, and VerdictOf / RunOutcomeOf lowercase before resolving. The fold is applied to
+	// the generated set rather than typed into a second table.
 	"verdict": {{
-		Key: "verdict", Flag: flags.As, Values: []EnumValue{
-			ev("PASS", "nothing on the board holds the gate — no material gap open, no lens ready, every stale area spot-checked — and this is CHECKED against the board, not taken on your word"),
-			ev("FAIL", "a material defect still stops you — a FAIL over a converged board is refused"),
-		},
+		Key: "verdict", Flag: flags.As, Values: loud(evsOf(recordpb.Verdict(0).Descriptor())),
 		Why: "a PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass",
 	}},
 	"outcome": {{
-		Key: "verdict", Flag: flags.As, Values: []EnumValue{
-			ev("VERIFIED", "red passed the board and the bench agrees the question was answered"),
-			ev("CEILING", "every open material gap reached its limit — ruled by the bench and remanded — with work still open: NOT a judged failure to verify, and the stamp says so"),
-			ev("HALTED", "the bench ended the run on a safety, ethics, consent or integrity boundary"),
-			ev("UNVERIFIED", "the run ended without the question being answered, and no ceiling or halt explains it"),
-		},
+		Key: "verdict", Flag: flags.As, Values: loud(evsOf(recordpb.RunOutcome(0).Descriptor())),
 		Why: "the report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses the \"this is NOT a judged failure to verify\" caveat the stamp exists to carry",
 	}},
 	// `log`, and the TYPE is the whole reason the channel is worth reading. Measured on
 	// 2026-09-02_quadratic-formula the channel ran 142,891 characters with no types on it, so an
 	// operator had to READ all of it to learn which entries were actionable — 46% were, 48% was
 	// mandated ceremony, and nothing on the entry said which was which.
+	//
+	// EVERY LogType VALUE, FROM THE DESCRIPTOR. The three the tool alone writes are listed too:
+	// the init in enumvalue.go marks them ToolOnly off the `seat_may_file` facet and SeatFilable
+	// drops them from a seat's help and refusal, so the one row serves both surfaces.
 	"log": {{
-		Key: "type", Flag: flags.Type, Values: []EnumValue{
-			ev("defect", "something is broken: it did the wrong thing, or failed where it should have worked"),
-			ev("request", "a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong"),
-			ev("friction", "the work was impeded and you are NOTING it; NOT necessarily actionable and not necessarily advisable to change, which is why it has its own word rather than posing as a defect"),
-			ev("estoppel", "the TOOL refused a mint against text the other side prescribed — recorded by the tool, not filed by a seat"),
-		},
+		Key: "type", Flag: flags.Type, Values: evsOf(recordpb.LogType(0).Descriptor()),
 		Why: "the operator triages this channel by FILTERING on the type; an untyped entry hands the reader back the reading this field exists to replace, so the write refuses one",
 	}},
 	// `finding`, and the ABOUT is the anchor a quote could not provide. Measured: a missing
@@ -281,11 +279,7 @@ var EnumFields = map[string][]EnumField{
 	// the load-bearing caveat of a whole run, carried as the prose substring "unreachable from
 	// this container" and miscounted twice by grep.
 	"cite": {{
-		Key: "source_text_read", Flag: flags.SourceText, Optional: true, Values: []EnumValue{
-			ev("leaf", "the source's own text, in the bytes this run cached — the only reading that licenses a claim about what it SAYS"),
-			ev("summary_only", "someone else's account of it: an abstract, a secondary description, or the summary of an INTERESTED party"),
-			ev("unread", "never read — the citation rests on a record that the source EXISTS, not on anything it says"),
-		},
+		Key: "source_text_read", Flag: flags.SourceText, Optional: true, Values: evsOf(recordpb.SourceTextRead(0).Descriptor()),
 		Why: "a claim about what a source SAYS rests on having read it; without this the report cannot distinguish a source read at the leaf from one known only through the summary of the party whose case depends on it",
 	}},
 	// `avenue`, the schema's word. It was "avenue" — an event type the schema does not
@@ -318,20 +312,12 @@ var EnumFields = map[string][]EnumField{
 	// `class new`, and the DEFAULT is where a coined class's gaps start: every mint of the class is
 	// stamped with it, and it decides whether an open gap of the class holds the PASS gate.
 	"class_new": {{
-		Key: "material_default", Flag: flags.MaterialDefault, Optional: true, Values: []EnumValue{
-			ev("always", "every gap of this class is material, whatever its grade — it changes a conclusion or a figure a reader relies on"),
-			ev("never", "no gap of this class is material, whatever its grade — it stays on the board and never holds the gate"),
-			ev("by_grade", "a gap of this class is material when its current severity is medium or above"),
-		},
+		Key: "material_default", Flag: flags.MaterialDefault, Optional: true, Values: evsOf(recordpb.ClassMaterial(0).Descriptor()),
 		Why: "the default is stamped on every gap minted under the class and decides whether an open one holds the PASS gate, so a word outside the set would leave the gate to guess",
 	}},
 	"mint": {
 		{
-			Key: "check_kind", Flag: flags.CheckKind, Values: []EnumValue{
-				ev("document", "reading a shipped artifact settles it — the check is answered by prose that quotes what is there"),
-				ev("computation", "RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind"),
-				ev("source", "verifying an external source settles it — the claim stands or falls on what the cited material actually says"),
-			},
+			Key: "check_kind", Flag: flags.CheckKind, Values: evsOf(recordpb.CheckKind(0).Descriptor()),
 			Why: "the kind says WHAT WOULD SETTLE the acceptance check, and it is the lever that asks blue for a program. A run whose checks are all document probes can only ever ask whether the report SAYS something; a `computation` check is a demand that cannot be answered in prose",
 		},
 		// THE SAME SET `finding` CARRIES, FROM THE SAME DECLARATION, because it is the same question asked at
@@ -344,32 +330,17 @@ var EnumFields = map[string][]EnumField{
 		},
 	},
 	"reproduce": {{
-		Key: "soundness", Flag: flags.As, Values: []EnumValue{
-			ev("sound", "you READ the script and it computes what it claims to compute"),
-			ev("unsound", "it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to — the dangerous cell, because it looks maximally credible"),
-		},
+		Key: "soundness", Flag: flags.As, Values: evsOf(recordpb.Soundness(0).Descriptor()),
 		Why: "REPRODUCING IS NOT PROVING. Re-running a script and getting the same bytes measures DETERMINISM; `print(\"7 is prime\")` reproduces perfectly forever. Whether the script actually establishes the claim it is anchored to cannot be computed — red must READ it — so it is judged, and it is required. The dangerous cell is reproduces+unsound: a proof that looks maximally credible and establishes nothing",
 	}},
+	// The values are the schema's spelling, underscores included: it was `supports-with-bridge`
+	// here once, the only hyphenated value in any set, offered by --help and refused by the write
+	// path (#342 in miniature) — a table read off the descriptor cannot spell a word its own way.
 	"verify": {{
-		Key: "outcome", Flag: flags.As, Values: []EnumValue{
-			ev("supports", "you read the source and it says what the claim says. Where the run's copy of it is only the work's abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows"),
-			// UNDERSCORE, matching the schema. It was `supports-with-bridge` — the only hyphenated value in
-			// any set — so `--help` offered a word `SourceOutcomeOf` then refused: "not a source outcome
-			// this record can carry", for the value the tool had just told the seat to use. That is #342
-			// in miniature, and it survived because nothing compared the advertised set to the schema's.
-			ev("supports_with_bridge", "it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement"),
-			ev("weak", "it gestures at the claim, or is itself uncorroborated: thin support, not none"),
-			ev("refutes", "you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry"),
-			ev("absent", "you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was"),
-			ev("unreachable", "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit"),
-		},
+		Key: "outcome", Flag: flags.As, Values: evsOf(recordpb.SourceOutcome(0).Descriptor()),
 		Why: "THE NEGATIVE HALF IS THE POINT. A citation that does NOT hold is recorded here — `refutes`, `absent`, `unreachable` — and not left as prose, because the audit that catches a report shipping a refuted citation reads this field and nothing else. This is WHAT THE SOURCE DID, and it is a different question from how sure you are of it, which is --confidence",
 	}, {
-		Key: "confidence", Flag: flags.Confidence, Values: []EnumValue{
-			ev("high", "you read the source at the leaf and would defend this determination as it stands"),
-			ev("medium", "you are reasonably sure, but the reading bridges something — a summary, a secondary source, a near-restatement rather than the exact statement"),
-			ev("low", "your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further"),
-		},
+		Key: "confidence", Flag: flags.Confidence, Values: evsOf(recordpb.Confidence(0).Descriptor()),
 		Why: "CONFIDENCE IS IN THE DETERMINATION, WHATEVER THE DETERMINATION IS. It is orthogonal to --outcome: `refutes` at low confidence (this source may contradict the claim, I am not certain) and `refutes` at high confidence (I read it, it says the opposite) are different facts, and a reader who cannot tell them apart cannot decide what to do about either.\n\nIt is NOT a property of the source and NOT a support scale — how well the source backs the claim is --outcome, and this axis is not a positive-only one. Low confidence is a call for more evidence, so blue digs further; it is not an automatic fail",
 	}},
 }

@@ -41,15 +41,6 @@ var AvenueStatuses = evsOf(recordpb.AvenueStatus(0).Descriptor())
 // AvenueStatusNames is the bare vocabulary, for readers that only need the words.
 func AvenueStatusNames() []string { return Names(AvenueStatuses) }
 
-// AvenueRulings are red's fates for a proposed direction. Red AUDITS and RULES; it never
-// proposes one — directing research is what a gap's required_fix already does, and a second
-// spelling for it is the aliasing this vocabulary exists to prevent.
-var AvenueRulings = []EnumValue{
-	ev("endorsed", "worth this run's time — blue should take it up"),
-	ev("out_of_scope", "a real question, but not THIS question"),
-	ev("too_thin", "in scope, and the hypothesis does not carry its budget as stated"),
-}
-
 // MintAvenueID assigns the next run-unique avenue id (Q1, Q2 …).
 //
 // Run-unique rather than epoch-scoped, unlike a gap: an avenue OUTLIVES the epoch that
@@ -244,12 +235,9 @@ func AvenuesOf(evs []*Event) []*Avenue {
 			// direction ruling and must leave Avenue.Ruling empty — `GetAvenue()` alone
 			// returns UNSPECIFIED for all three cases and cannot tell them apart.
 			//
-			// NO `_` -> `-` JOIN, AND THE COMMENT THAT DEMANDED ONE WAS STALE. It said the seat
-			// types `out-of-scope`, that AvenueRulings spells it with a hyphen, and that the
-			// underscore form "is a word no surface recognizes". Checked: AvenueRuling spells
-			// AVENUE_RULING_OUT_OF_SCOPE, `Word` yields `out_of_scope`, and AvenueRulings
-			// carries `out_of_scope` too. The hyphen is what no surface recognizes now, so the
-			// word goes through unchanged and there is no third spelling to keep in step.
+			// NO `_` -> `-` JOIN. AvenueRuling spells AVENUE_RULING_OUT_OF_SCOPE and `Word` yields
+			// `out_of_scope`, which is the word every surface recognizes, so it goes through
+			// unchanged and there is no second spelling to keep in step.
 			a.Ruling = ""
 			if d, isAvenue := t.GetRuling().(*recordpb.MotionRule_Avenue); isAvenue {
 				a.Ruling = recordpb.Word(d.Avenue)

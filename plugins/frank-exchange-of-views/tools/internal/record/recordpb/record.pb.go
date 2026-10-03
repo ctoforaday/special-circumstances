@@ -956,12 +956,21 @@ func (MotionSubject) EnumDescriptor() ([]byte, []int) {
 // The ruling sets, one per subject. A single flat set cannot express this: one motion-rule
 // event carries granted|denied for a petition and accepted|rejected for a grade, and a ruling
 // nothing recognizes reads as no ruling at all — so a refusal silently becomes permission.
+//
+// Each `(means)` is the sentence the ruler reads in `motion <subject> rule --as`: MotionVerdicts
+// in record/motion.go carries the same words, and TestEveryMotionVerdictCarriesTheSchemasMeaning
+// holds the two equal, so an edit here is the edit the chair and the bench see.
 type GradeRuling int32
 
 const (
 	GradeRuling_GRADE_RULING_UNSPECIFIED GradeRuling = 0
-	GradeRuling_GRADE_RULING_ACCEPTED    GradeRuling = 1
-	GradeRuling_GRADE_RULING_REJECTED    GradeRuling = 2
+	// ACCEPTING MOVES NOTHING. This value read "the proposed grade stands" while no code applied a
+	// proposed grade: the originating lens moves it with `regrade`, MotionVerdicts tells the chair
+	// so, and the lens's own work list carries the owed regrade until it is filed. On the b9 run the
+	// chair ruled M1 accepted and wrote that the minting lens owns applying it; the record holds no
+	// regrade after the ruling, which is the duty the old sentence would have called satisfied.
+	GradeRuling_GRADE_RULING_ACCEPTED GradeRuling = 1
+	GradeRuling_GRADE_RULING_REJECTED GradeRuling = 2
 )
 
 // Enum value maps for GradeRuling.
@@ -1059,8 +1068,8 @@ type AvenueRuling int32
 const (
 	AvenueRuling_AVENUE_RULING_UNSPECIFIED  AvenueRuling = 0
 	AvenueRuling_AVENUE_RULING_ENDORSED     AvenueRuling = 1
-	AvenueRuling_AVENUE_RULING_OUT_OF_SCOPE AvenueRuling = 2 // a real question, but not THIS question
-	AvenueRuling_AVENUE_RULING_TOO_THIN     AvenueRuling = 3 // in scope, but the hypothesis does not carry its budget
+	AvenueRuling_AVENUE_RULING_OUT_OF_SCOPE AvenueRuling = 2
+	AvenueRuling_AVENUE_RULING_TOO_THIN     AvenueRuling = 3
 )
 
 // Enum value maps for AvenueRuling.
@@ -5236,11 +5245,10 @@ func (x *ManifestRow) GetRow() string {
 // Log is the channel addressed to the OPERATOR WHO CAN RETOOL THE SEAT — not to the debate. It
 // keeps a missing tool from becoming a silent workaround, and records the tool's own refusals.
 //
-// THERE IS NO SEPARATE EMPTY FORM. A clean sitting is logged in the POSITIVE, as
-// `{source: SEAT, type: NOMINAL}`: "none" is an answer to a question about friction, and an entry
-// that says "none" is still an entry. The property the old explicit negative existed for survives
-// because a NOMINAL entry is still an EVENT — an attested-clean sitting stays distinguishable from
-// a channel nobody used, which is what silence could never say.
+// THERE IS NO EMPTY FORM. A clean sitting files nothing here: the harness brackets every dispatch
+// with sitting_open and sitting_close, so "sat and filed nothing" is on the record without a seat
+// asserting it, and an attested-clean sitting stays distinguishable from a channel nobody used.
+// Every entry on this channel carries something to act on.
 type Log struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Text  *string                `protobuf:"bytes,1,opt,name=text,proto3,oneof" json:"text,omitempty"`
@@ -8064,20 +8072,20 @@ const file_record_proto_rawDesc = "" +
 	"\x14MOTION_SUBJECT_GRADE\x10\x01\x1a7\x8a\xb5\x18*you contest a gap's grade on one dimension\xa2\xb5\x18\x05chair\x12\x89\x01\n" +
 	"\x17MOTION_SUBJECT_PETITION\x10\x02\x1al\x8a\xb5\x18_you ask the bench to intervene — the constitutional short-circuit available to any party seat\xa2\xb5\x18\x05bench\x12\x8b\x01\n" +
 	"\x15MOTION_SUBJECT_AVENUE\x10\x03\x1ap\x8a\xb5\x18ca ruling on an avenue blue proposed; the id is the AVENUE's own, because the proposal IS the filing\xa2\xb5\x18\x05chair\x12\xa3\x01\n" +
-	"\x15MOTION_SUBJECT_DOCKET\x10\x04\x1a\x87\x01\x8a\xb5\x18za gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap's fate\xa2\xb5\x18\x05bench*\xa3\x01\n" +
+	"\x15MOTION_SUBJECT_DOCKET\x10\x04\x1a\x87\x01\x8a\xb5\x18za gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap's fate\xa2\xb5\x18\x05bench*\x8f\x03\n" +
 	"\vGradeRuling\x12\x1c\n" +
-	"\x18GRADE_RULING_UNSPECIFIED\x10\x00\x128\n" +
-	"\x15GRADE_RULING_ACCEPTED\x10\x01\x1a\x1d\x8a\xb5\x18\x19the proposed grade stands\x12<\n" +
-	"\x15GRADE_RULING_REJECTED\x10\x02\x1a!\x8a\xb5\x18\x1dthe grade on the board stands*\xc4\x01\n" +
+	"\x18GRADE_RULING_UNSPECIFIED\x10\x00\x12\xce\x01\n" +
+	"\x15GRADE_RULING_ACCEPTED\x10\x01\x1a\xb2\x01\x8a\xb5\x18\xad\x01the filer is right and the grade should move. The ruling moves nothing itself: the gap's originating lens moves it with `regrade`, so say in --reason which grade and to what\x12\x90\x01\n" +
+	"\x15GRADE_RULING_REJECTED\x10\x02\x1au\x8a\xb5\x18qthe grade stands. Your --reason is what the filer appeals against, so it carries the argument, not the conclusion*\xf5\x02\n" +
 	"\x0ePetitionRuling\x12\x1f\n" +
-	"\x1bPETITION_RULING_UNSPECIFIED\x10\x00\x12@\n" +
-	"\x17PETITION_RULING_GRANTED\x10\x01\x1a#\x8a\xb5\x18\x1fthe relief asked for is ordered\x12O\n" +
-	"\x16PETITION_RULING_DENIED\x10\x02\x1a3\x8a\xb5\x18/the petition fails; the run continues as it was*\x96\x02\n" +
+	"\x1bPETITION_RULING_UNSPECIFIED\x10\x00\x12\x8f\x01\n" +
+	"\x17PETITION_RULING_GRANTED\x10\x01\x1ar\x8a\xb5\x18nthe objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow\x12\xaf\x01\n" +
+	"\x16PETITION_RULING_DENIED\x10\x02\x1a\x92\x01\x8a\xb5\x18\x8d\x01the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest*\xad\x02\n" +
 	"\fAvenueRuling\x12\x1d\n" +
-	"\x19AVENUE_RULING_UNSPECIFIED\x10\x00\x12C\n" +
-	"\x16AVENUE_RULING_ENDORSED\x10\x01\x1a'\x8a\xb5\x18#worth this run's time — pursue it\x12J\n" +
-	"\x1aAVENUE_RULING_OUT_OF_SCOPE\x10\x02\x1a*\x8a\xb5\x18&a real question, but not THIS question\x12V\n" +
-	"\x16AVENUE_RULING_TOO_THIN\x10\x03\x1a:\x8a\xb5\x186in scope, but the hypothesis does not carry its budget*\xef\x03\n" +
+	"\x19AVENUE_RULING_UNSPECIFIED\x10\x00\x12P\n" +
+	"\x16AVENUE_RULING_ENDORSED\x10\x01\x1a4\x8a\xb5\x180worth this run's time — blue should take it up\x12J\n" +
+	"\x1aAVENUE_RULING_OUT_OF_SCOPE\x10\x02\x1a*\x8a\xb5\x18&a real question, but not THIS question\x12`\n" +
+	"\x16AVENUE_RULING_TOO_THIN\x10\x03\x1aD\x8a\xb5\x18@in scope, and the hypothesis does not carry its budget as stated*\xef\x03\n" +
 	"\tAboutKind\x12\x1a\n" +
 	"\x16ABOUT_KIND_UNSPECIFIED\x10\x00\x12\xad\x01\n" +
 	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x94\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there\x12\x9d\x01\n" +
