@@ -1,0 +1,139 @@
+package record
+
+import (
+	"strings"
+	"testing"
+
+	"google.golang.org/protobuf/proto"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+)
+
+// The bench's docket ruling, as the bench files it (#1201).
+func docketRule(id, opinion string) *recordpb.MotionRule {
+	return &recordpb.MotionRule{MotionId: proto.String(id),
+		Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+		Opinion: proto.String(opinion),
+		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+			Disposition: recordpb.Disposition_DISPOSITION_REMANDED.Enum(),
+			Principle:   proto.String("pr"), Tension: proto.String("tn"), ReviewFlag: proto.String("rf"),
+			Settled: proto.String("st"), ReopensOn: proto.String("new evidence")}}}
+}
+
+const (
+	benchReady   = "G1: docketed and unruled — the bench is ready"
+	benchSatIdle = "G1: docketed, the bench sat and ruled nothing — one bench sitting per docketing, so this gap is not re-readied"
+)
+
+// docketBoard is the plan over one open gap and the parties it engages, by seat.
+func docketBoard(t *testing.T, run Run) (Plan, map[string][]string) {
+	t.Helper()
+	plan, err := PlanDispatch(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	engaged := map[string][]string{}
+	for _, p := range plan.Parties {
+		engaged[p.SeatID] = p.GapIDs
+	}
+	return plan, engaged
+}
+
+// A DOCKET STANDS UNRULED PER MOTION, AND A NEW FILING IS A NEW DOCKETING. Blue dockets G1; the
+// chair dispatches the bench for it; what the bench does in its sitting and what blue files next
+// varies by arm. Every arm drives the real `dispatch judge [G1]` step before the bench sits — the
+// step the first fixture skipped, which is why `last == 0` hid the bench-sat branch.
+//
+// Three readings of "a docket stands unruled", and two keys for the bench's sitting, are told
+// apart, so a regression in each fails its own arm:
+//
+//   - a count of ruling ROWS against a count of dockets: a ruling corrected in its sitting is a
+//     second `motion_rule` row for one live act, so dockets=2 rulings=2 took M2 as ruled and readied
+//     the minting lens and blue while the bench was never dispatched (#1201) — "corrected";
+//   - a count of LIVE rulings against a count of dockets: two live rulings on one motion cover an
+//     unruled sibling — "ruled twice" (the record write admits the second ruling; the verb refuses
+//     it, and #1205 moves that guard into the write);
+//   - the bench's sitting keyed on the newest FILING rather than the newest UNRULED filing: a
+//     motion blue files into the bench's open sitting and the bench rules there is newer than the
+//     dispatch, so the bench reads as not having sat for the older motion it left alone and is
+//     readied again for it — "ruled the newer one in the sitting";
+//   - the bench's sitting keyed on the last dispatch alone: a judge register after the dispatch
+//     for M1 read as a sitting for M2 too, and nobody was engaged (#1201) — every arm that readies
+//     the bench after it sat.
+//
+// "left as written" is the control for the first, and "sat for both" the control for the key: the
+// bench dispatched twice with M1 standing has sat for it, under either key. Blue and the lens are
+// engaged in no arm: the gap is the bench's while a docket stands.
+func TestADocketStandsUnruledPerMotionAndReadiesTheBenchOncePerDocketing(t *testing.T) {
+	type arm struct {
+		name    string
+		sitting func(t *testing.T, run Run) // the bench's sitting after `dispatch judge [G1]` with M1 standing, and what blue files
+		judge   []string                    // the gaps the bench is engaged on
+		reason  string                      // the plan's line for G1
+	}
+	ruleM1 := func(t *testing.T, run Run, judge Identity, correct bool) {
+		k := mustAppend(t, judge, docketRule("M1", "typo")).GetKey()
+		if correct {
+			if _, err := Append(correcting(judge, recordpb.EventType_EVENT_TYPE_MOTION_RULE, k, "typo"), docketRule("M1", "fixed")); err != nil {
+				t.Fatalf("correcting the docket ruling refused: %v", err)
+			}
+		}
+	}
+	fileM2 := func(t *testing.T, run Run) { mustAppend(t, sit(t, run, "blue-respond"), docketMotion("M2", "G1")) }
+	for _, tc := range []arm{
+		{"corrected", func(t *testing.T, run Run) {
+			ruleM1(t, run, sit(t, run, "judge"), true)
+			fileM2(t, run)
+		}, []string{"G1"}, benchReady},
+		{"left as written", func(t *testing.T, run Run) {
+			ruleM1(t, run, sit(t, run, "judge"), false)
+			fileM2(t, run)
+		}, []string{"G1"}, benchReady},
+		{"ruled twice", func(t *testing.T, run Run) {
+			fileM2(t, run)
+			judge := sit(t, run, "judge")
+			mustAppend(t, judge, docketRule("M1", "first"))
+			mustAppend(t, judge, docketRule("M1", "again"))
+		}, []string{"G1"}, benchReady},
+		{"ruled the newer one in the sitting", func(t *testing.T, run Run) {
+			judge := sit(t, run, "judge")
+			fileM2(t, run)
+			mustAppend(t, judge, docketRule("M2", "ruled the newer"))
+		}, nil, benchSatIdle},
+		{"sat for both", func(t *testing.T, run Run) {
+			sit(t, run, "judge")
+			fileM2(t, run)
+			mustAppend(t, sit(t, run, "red-chair"), &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: []string{"G1"}})
+			mustAppend(t, sit(t, run, "judge"), docketRule("M2", "ruled the newer"))
+		}, nil, benchSatIdle},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+				register("red-chair").dispatch(2, evLens).register(evLens).
+				mint(evLens, "G1", "high").seed()
+			mustAppend(t, sit(t, run, "blue-respond"), docketMotion("M1", "G1"))
+			mustAppend(t, sit(t, run, "red-chair"), &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: []string{"G1"}})
+			tc.sitting(t, run)
+			sit(t, run, "red-chair")
+
+			plan, engaged := docketBoard(t, run)
+			if got := engaged["judge"]; strings.Join(got, ",") != strings.Join(tc.judge, ",") {
+				t.Errorf("the bench is engaged on %v, want %v; parties %v", got, tc.judge, engaged)
+			}
+			if len(engaged["blue-respond"]) != 0 || len(engaged[evLens]) != 0 {
+				t.Errorf("blue or the lens is engaged on a gap that is the bench's: %v", engaged)
+			}
+			if plan.PassPermitted {
+				t.Error("PASS is not permitted while a docket motion stands unruled")
+			}
+			if plan.Ceiling {
+				t.Error("a docket standing unruled is not the run at its ceiling")
+			}
+			why := strings.Join(plan.Why, "\n")
+			if !strings.Contains(why, tc.reason) {
+				t.Errorf("the plan's line for G1 must read %q:\n%s", tc.reason, why)
+			}
+		})
+	}
+}
