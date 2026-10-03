@@ -755,9 +755,10 @@ func benchRows(results []map[string]any, fam *record.Family) []Row {
 		rows = append(rows, Row{Clause: "Direction-uptake (headline)", Metric: "blue_sections_citing_direction", Cls: "benchmark", Note: n})
 	}
 
-	// undeclared_inspection_risk (always 0), over the bench's recorded opinions: each docket
-	// ruling's principle and the ruler's argument. The write requires a principle on every
-	// docket ruling, so there is no opinionless ruling to skip.
+	// undeclared_inspection_risk (always 0), over the same docket rulings remanded_share counts —
+	// one standing ruling per motion — reading each one's principle and the ruler's argument. A
+	// motion ruled again in a later sitting is one ruling, not two. The write requires a
+	// principle on every docket ruling, so there is no opinionless ruling to skip.
 	inspRow := Row{Clause: "Evidence confinement", Metric: "undeclared_inspection_risk", Cls: "detector",
 		Joint: "reads WITH the attestation-integrity audit at capture: this counts declarations, that reconciles claims against actual tool calls"}
 	if fam == nil {
@@ -765,11 +766,9 @@ func benchRows(results []map[string]any, fam *record.Family) []Row {
 	} else {
 		declaredReads := 0
 		decl := regexp.MustCompile(`(?i)trajector|inspect|tool call`)
-		for _, ep := range record.DebateJSONOfEvents(fam.Events).Epochs {
-			for _, op := range ep.Lead {
-				if decl.MatchString(op.Rationale + op.Principle) {
-					declaredReads++
-				}
+		for _, r := range rulings {
+			if decl.MatchString(r.Opinion + " " + r.Principle) {
+				declaredReads++
 			}
 		}
 		inspRow.Value, inspRow.Note = 0, "no opinion referenced trajectory evidence this run"

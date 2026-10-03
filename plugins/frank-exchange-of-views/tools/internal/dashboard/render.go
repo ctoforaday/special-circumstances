@@ -333,7 +333,11 @@ func RenderHTML(m Model) string {
 			verdictLabel += " (epoch " + itoa(m.Judiciary.VerdictEpoch) + ")"
 		}
 	}
-	if verdict == "" {
+	switch {
+	case verdict != "":
+	case !m.Judiciary.Measured:
+		verdict = "not measured"
+	default:
 		verdict = "—"
 	}
 	tile(esc(verdict), verdictLabel)
@@ -392,8 +396,11 @@ func RenderHTML(m Model) string {
 	// Judiciary.
 	w("\n<h2>Judiciary (rulings, grade motions, and how long arguments actually run)</h2>\n")
 	// Gated on any judiciary figure the record holds: grade motions and argument chains exist
-	// before the bench first sits.
-	if m.Judiciary.JudgeSittings != 0 || m.Judiciary.Disputes.Raised != 0 || m.Judiciary.Chains != 0 {
+	// before the bench first sits. An unread record is not a bench that never sat.
+	switch {
+	case !m.Judiciary.Measured:
+		w(`<p class="muted">not measured — the record could not be read</p>`)
+	case m.Judiciary.JudgeSittings != 0 || m.Judiciary.Disputes.Raised != 0 || m.Judiciary.Chains != 0:
 		rulingsStr := "—"
 		if len(m.Judiciary.Rulings) > 0 {
 			keys := sortedKeys(m.Judiciary.Rulings)
@@ -421,7 +428,7 @@ func RenderHTML(m Model) string {
 		w(fmt.Sprintf(`<tr><td>argument chains (supersedes-aware)</td><td>%d chains · by epochs alive: %s <span class="muted">(epochs from mint to close, or to now while open)</span></td></tr>`+"\n", m.Judiciary.Chains, strings.Join(spanParts, " · ")))
 		w(fmt.Sprintf(`<tr><td>grade migration on multi-epoch chains</td><td>down %d · up %d · flat %d <span class="muted">(first-vs-last mass along the chain — the downgrade process)</span></td></tr>`+"\n", m.Judiciary.MigDown, m.Judiciary.MigUp, m.Judiciary.MigFlat))
 		w("</table>")
-	} else {
+	default:
 		w(`<p class="muted">no judge sittings, grade motions or gaps on the record yet</p>`)
 	}
 

@@ -58,6 +58,9 @@ type Rate struct {
 }
 
 type Judiciary struct {
+	// Measured is false when the record could not be read: every figure below is then not
+	// measured, never zero, and the page says so.
+	Measured      bool
 	JudgeSittings int
 	Rulings       map[string]int
 	Disputes      struct{ Raised, Accepted, Rejected int }
@@ -335,7 +338,10 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		}
 	}
 
-	jud := buildJudiciary(fam)
+	var jud Judiciary
+	if haveRecord {
+		jud = buildJudiciary(fam)
+	}
 	// CHRONOLOGICAL, NOT JOURNAL ORDER. idOrder is first-appearance in the workflow journal, which
 	// is DISPATCH order — and dispatch order is arbitrary for a parallel() batch (the round-1
 	// lenses landed L6, L5, L1) and is reshuffled again by a resume, where cached agents replay
@@ -409,14 +415,17 @@ func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
 // seat's schema declares, and a key no schema declares reads as an empty list on every run: the
 // page for a bench that never sat.
 func buildJudiciary(fam record.Family) Judiciary {
-	j := Judiciary{Rulings: map[string]int{}, ChainSpans: map[int]int{}}
+	j := Judiciary{Measured: true, Rulings: map[string]int{}, ChainSpans: map[int]int{}}
+	// A judge sitting is a register that opens a sitting and names an occasion: the record refuses
+	// an occasion on any seat but the bench and requires one on the bench, so every occasion —
+	// docket, petition, terminal, assemble — is the bench sitting. A register that repairs a
+	// sitting opens none.
 	for _, e := range fam.Live() {
 		reg, ok := recordpb.BodyAs[*recordpb.Register](e)
-		if !ok {
+		if !ok || !recordpb.OpensASitting(e) {
 			continue
 		}
-		switch reg.GetOccasion() {
-		case recordpb.Occasion_OCCASION_DOCKET, recordpb.Occasion_OCCASION_TERMINAL:
+		if reg.GetOccasion() != recordpb.Occasion_OCCASION_UNSPECIFIED {
 			j.JudgeSittings++
 		}
 	}
@@ -437,11 +446,11 @@ func buildJudiciary(fam record.Family) Judiciary {
 			}
 		}
 	}
-	// The epoch an open gap has lived to is the record's current one: the last epoch its clock
-	// assigns, on the same skeleton the verdict is read from.
-	current := 0
+	// The epoch an open gap has lived to is the record's current one: the last with work in it.
+	// A chair that has just sat opens an epoch nothing has happened in yet, and a gap has not
+	// lived through it.
+	current := record.CurrentEpochOf(fam.Events)
 	for _, ep := range record.DebateJSONOfEvents(fam.Events).Epochs {
-		current = ep.Epoch
 		if ep.Verdict != "" {
 			j.LatestVerdict, j.VerdictEpoch = strings.ToUpper(ep.Verdict), ep.Epoch
 		}
@@ -481,8 +490,11 @@ func buildJudiciary(fam record.Family) Judiciary {
 			lastMass:  record.GapMass(recordpb.Word(g.Likelihood), recordpb.Word(g.Impact)),
 		}
 		gapOrder = append(gapOrder, g.ID)
+		// UNION THE ROOTS: a gap superseding several ancestors joins all their chains into one.
 		for _, anc := range mint.GetSupersedes() {
-			parent[g.ID] = find(anc)
+			if ra, rg := find(anc), find(g.ID); ra != rg {
+				parent[ra] = rg
+			}
 		}
 	}
 	type chain struct {

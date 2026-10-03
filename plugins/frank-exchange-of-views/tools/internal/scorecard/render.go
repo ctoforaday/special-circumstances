@@ -114,14 +114,6 @@ func num(v any) (float64, bool) {
 	return 0, false
 }
 
-// str returns a string value or "".
-func str(v any) string {
-	if s, ok := v.(string); ok {
-		return s
-	}
-	return ""
-}
-
 // truthy mirrors JS truthiness for a filter predicate (`t.flag`): a present non-zero number,
 // non-empty string, true, or any non-null object/array is truthy.
 func truthy(v any) bool {

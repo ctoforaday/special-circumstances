@@ -75,9 +75,12 @@ an all-bench run, which is the same plausible zero arriving through the fix.
 | Direction-uptake (BENCHMARK — the bench headline, per E0.5d: in-run ruling reversal is ~0 by traffic-class construction and measures nothing) | blue citations of LEAD direction per round (baseline ~100%) + defects-found-by-bar (registered-figure errors surfaced by judge-directed recomputes; baseline: the 4x dollar error both adversaries missed) | CHANGELOG/### BLUE citation grep + bar-outcome log | E0.5d-amended |
 | Precedent quality (the LAW-layer reversal rate — the only reversal metric that survives E0.5d) | human promote/ignore/reverse per proposed holding | law/proposed review outcomes | W2e SHIPPED (harvest live) |
 | Evidence confinement | demanded-read compliance: opinions' named reads vs actual tool calls (DETECTOR) | tool-call index cross-check | NEW — scriptable |
-| Opinion form | % rulings carrying principle+tension+review-flag (DETECTOR) | format grep | W2c |
 | Petition handling | count + latency (rounds to hearing) (MEASURE) | engine events | W2c |
 | LOSS: authorship at assembly | propagation-screen hits; assembly-audit findings (DETECTOR) | W1.4 + periodic catechism-class audit | SHIPPED / protocolized |
+
+Opinion form has no row. The record refuses a docket ruling without a principle at the write,
+so a detector counting opinionless rulings over the record can only print 0; the form is
+enforced where it is written, not measured after.
 
 ### Honest residue (not mechanically measurable — say so, do not fake it)
 Hedging-into-unfalsifiability, scope-lawyering, and rhetoric-vs-substance need judgment:
