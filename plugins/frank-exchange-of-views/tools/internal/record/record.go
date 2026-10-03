@@ -1159,7 +1159,21 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			}
 		}
 	case *recordpb.MotionAppeal:
-		return RequireMotionSubjectRef(run, b.GetSubject(), b.GetMotionId())
+		// THE MOTION'S STATE IS THE WRITE'S TO GUARD, not a verb's (#1205): every writer — the
+		// verbs, migrate, a fixture, the fuzz — reaches the record here, and a second appeal or an
+		// appeal of nothing is a record MotionsOf and motion_answers would each answer differently.
+		// The subject first, because every later refusal is phrased in its terms; then the state.
+		// No Migrating gate: these are structural, and no archived run holds such an appeal.
+		if err := RequireMotionSubjectRef(run, b.GetSubject(), b.GetMotionId()); err != nil {
+			return err
+		}
+		if err := RequireSubjectMatches(run, motionSubjectWord(b.GetSubject()), b.GetMotionId()); err != nil {
+			return err
+		}
+		if err := RequireRuledMotion(run, b.GetSubject(), b.GetMotionId()); err != nil {
+			return err
+		}
+		return RequireUnappealedMotion(run, b.GetMotionId(), seatID, target.key())
 	case *recordpb.MotionRule:
 		// WHAT WOULD REOPEN THIS, ANSWERED ONE WAY OR THE OTHER (#502) — the bench's ruling only.
 		//
@@ -1196,6 +1210,17 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		}
 		if b.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED {
 			return fmt.Errorf("record: %q is not a motion subject — one of %s", recordpb.Word(b.GetSubject()), strings.Join(MotionSubjects, " | "))
+		}
+		// A MOTION IS ANSWERED ONCE, under the subject it was filed as (#1205). These were the
+		// rule verb's alone, so any other writer could put a second ruling on the record — and
+		// after one, MotionsOf reads the last and motion_answers the first. Pressing a ruling is
+		// an appeal, which keeps both positions. A correction of the ruling the guard finds is
+		// that ruling restated in its place, not a second one. No Migrating gate: structural.
+		if err := RequireSubjectMatches(run, motionSubjectWord(b.GetSubject()), b.GetMotionId()); err != nil {
+			return err
+		}
+		if err := RequireUnruledMotion(run, b.GetMotionId(), seatID, target.key()); err != nil {
+			return err
 		}
 		// THE VERDICT SET IS KEYED ON (SUBJECT, RULING), and the schema now says so in its own
 		// syntax: one `ruling` oneof, one case per subject, each with its own closed enum. So a

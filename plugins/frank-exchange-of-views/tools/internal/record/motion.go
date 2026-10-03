@@ -672,7 +672,7 @@ func RequireRuledMotion(run Run, subject recordpb.MotionSubject, id string) erro
 	if found {
 		return nil
 	}
-	return fmt.Errorf("record: %s motion %s has no ruling to appeal — an appeal presses on after an answer, and there is no answer on the record yet", subject, id)
+	return fmt.Errorf("record: %s motion %s has no ruling to appeal — an appeal presses on after an answer, and there is no answer on the record yet", motionSubjectWord(subject), id)
 }
 
 // MotionVerdictEnum builds the enum entry for a subject's ruling, so the CLI's help and the write

@@ -63,6 +63,15 @@ type correctionTarget struct {
 	Body   proto.Message
 }
 
+// key is the corrected act's key, "" for an ordinary write — the `correcting` argument the
+// first-wins guards take, so a correction of the act a guard finds passes it.
+func (t *correctionTarget) key() string {
+	if t == nil {
+		return ""
+	}
+	return t.Key
+}
+
 // readTarget reads the act `key` names. Absent is an ERROR: a correction of nothing is a seat that
 // mistyped a key, and saying "nothing to correct" would read like success.
 func readTarget(db *sql.DB, key string) (*correctionTarget, error) {

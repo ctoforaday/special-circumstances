@@ -245,29 +245,15 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			"the debate continues.",
 		// Through Begin, as the filing is — see newFile.
 		RunE: seat.HandlerRunE(func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			run, err := s.Run()
-			if err != nil {
-				return nil, err
-			}
 			id := seat.Str(cmd, flags.ID)
-			// ORDER IS THE MESSAGE. The motion's own subject is established FIRST, because every
-			// later refusal is phrased in terms of it: a lens typing `motion grade rule` at a
-			// petition should be told it named the wrong subgroup, not that grade motions belong
-			// to the chair — which is true, irrelevant, and sends it to the wrong fix.
-			if err := record.RequireMotionSubjectRef(run, mustSubject(subject), id); err != nil {
-				return nil, err
-			}
-			if err := record.RequireSubjectMatches(run, subject, id); err != nil {
-				return nil, err
-			}
+			// THE MOTION'S SUBJECT AND STATE ARE THE WRITE'S TO REFUSE (#1205): the reference, the
+			// subject it was filed under, and that it is still unruled are checked by record.Append,
+			// which every writer reaches — this verb included, correction exemption and all.
+			//
 			// NO requireRuler HERE ANY MORE. This verb only exists in the gavel-holder's tree, so
 			// a seat that cannot rule this subject cannot name the command — the same boundary the
 			// verb set draws everywhere else, instead of a runtime comparison of two copies of the
 			// acting role.
-			// A motion is answered ONCE; pressing it is an appeal, which keeps both positions.
-			if err := record.RequireUnruledMotion(run, id, s.SeatID, s.CorrectionKey()); err != nil {
-				return nil, err
-			}
 			opinion, err := prose(cmd, "rule", "an unreasoned ruling is the decoration the filer cannot contest, and contesting it is the whole reason a ruling is not a command")
 			if err != nil {
 				return nil, err
@@ -403,23 +389,9 @@ func newAppeal(subject string) *cobra.Command {
 			"than an omission: the bench hears it BEFORE the debate continues, so there is nothing to escalate to.",
 		// Through Begin, as the filing is — see newFile.
 		RunE: seat.HandlerRunE(func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			run, err := s.Run()
-			if err != nil {
-				return nil, err
-			}
 			id := seat.Str(cmd, flags.ID)
-			if err := record.RequireRuledMotion(run, mustSubject(subject), id); err != nil {
-				return nil, err
-			}
-			if err := record.RequireSubjectMatches(run, subject, id); err != nil {
-				return nil, err
-			}
-			// #673: a second appeal REPLACED the first in every reader. The state graph found it
-			// by probing every act from every state — accepted, the state unchanged, the argument
-			// rewritten.
-			if err := record.RequireUnappealedMotion(run, id, s.SeatID, s.CorrectionKey()); err != nil {
-				return nil, err
-			}
+			// The motion's subject and state — filed under this subject, ruled, not yet appealed
+			// (#673, #1205) — are the write's to refuse; record.Append checks them for every writer.
 			reason, err := prose(cmd, "appeal", "why you are pressing on. Going against a ruling without saying why is the disagreement disappearing, which is what the record exists to prevent")
 			if err != nil {
 				return nil, err
@@ -547,8 +519,8 @@ var ruleFlagHelp = map[string]string{
 //
 // SHAPE ONLY, NO EXISTENCE CHECK, and that is measured rather than assumed. These arms carried
 // `.WithCheck(record.GapExists)` and `.WithCheck(record.AvenueExists)` for one commit; deleting both
-// left the whole suite green and left every refusal BYTE-IDENTICAL, because each verb's own body
-// already resolves the reference — `RequireGapRef` at the filing, `RequireMotionSubjectRef` at the
+// left the whole suite green and left every refusal BYTE-IDENTICAL, because the write already
+// resolves the reference — `RequireGapRef` at the filing, `RequireMotionSubjectRef` at the
 // ruling, `RequireRuledMotion` at the appeal — and the last two are STRONGER than existence, being
 // bound to the subject and to the ruled state. A checker here would have been a second
 // implementation of a check that already refuses, in front of one that also knows more.

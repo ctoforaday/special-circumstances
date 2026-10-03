@@ -53,8 +53,8 @@ func docketBoard(t *testing.T, run Run) (Plan, map[string][]string) {
 //     second `motion_rule` row for one live act, so dockets=2 rulings=2 took M2 as ruled and readied
 //     the minting lens and blue while the bench was never dispatched (#1201) — "corrected";
 //   - a count of LIVE rulings against a count of dockets: two live rulings on one motion cover an
-//     unruled sibling — "ruled twice" (the record write admits the second ruling; the verb refuses
-//     it, and #1205 moves that guard into the write);
+//     unruled sibling — "ruled twice" (the record write refuses the second ruling, #1205, so the arm
+//     holds that refusal and that the refused attempt leaves the sibling standing unruled);
 //   - the bench's sitting keyed on the newest FILING rather than the newest UNRULED filing: a
 //     motion blue files into the bench's open sitting and the bench rules there is newer than the
 //     dispatch, so the bench reads as not having sat for the older motion it left alone and is
@@ -104,7 +104,9 @@ func TestADocketStandsUnruledPerMotionAndReadiesTheBenchOncePerDocketing(t *test
 		{"ruled twice", func(t *testing.T, run Run) {
 			judge := sit(t, run, "judge")
 			mustAppend(t, judge, docketRule("M1", "first"))
-			mustAppend(t, judge, docketRule("M1", "again"))
+			if _, err := Append(judge, docketRule("M1", "again")); err == nil {
+				t.Fatal("the write admitted a second ruling on M1")
+			}
 			fileM2(t, run)
 		}, []string{"G1"}, benchReady},
 		{"ruled the newer one in the sitting", func(t *testing.T, run Run) {
