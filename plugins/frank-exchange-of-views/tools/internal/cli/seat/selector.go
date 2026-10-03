@@ -159,8 +159,8 @@ func SelectorOf(c *cobra.Command) (Selector, error) {
 }
 
 // selectReportLines renders every line the selector hits, under the heading it sits beneath, with
-// its line number — the three things a gap's `location` must carry (the SKILL: "location MUST name
-// the section heading and quote the challenged sentence").
+// its line number — what a lens needs to quote the challenged sentence exactly and name its section
+// in the mint reason (the adversarial-audit SKILL).
 //
 // THE COUNT IS STATED AND NOTHING IS CUT. A pattern that selects most of the document says so by its
 // total, which is the seat's signal to narrow; a capped list would read as a narrow pattern that

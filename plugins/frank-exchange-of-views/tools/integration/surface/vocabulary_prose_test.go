@@ -94,6 +94,17 @@ func TestVocabularyProseMutations(t *testing.T) {
 		{f + "skills/research-protocol/SKILL.md", "## The run directory (the blackboard)"},
 		{f + "agents/lead-judge.md", "The judge rules on the closings."},
 		{"README.md", "records/*.jsonl is the event log."},
+		// #1209: each passed the gate on main, in the file named, because the gate matched one
+		// spelling of the phrase or one inflection of the word.
+		{f + "agents/lead-judge.md", "operator-channel entries and petitions before you"},
+		{f + "agents/red-chair.md", "not in `log`, which is the operator's channel."},
+		{f + "agents/lead-judge.md", "A docket you can dispose of by\ncarrying it is a docket you have failed"},
+		{f + "agents/lead-judge.md", "and a gap you CARRY stays open at its limit"},
+		{f + "skills/research-protocol/scripts/debate.js", "a gap you CARRY stays open, owes blue"},
+		{f + "agents/red-chair.md", "THE LOG IS FOR FRICTION — anything that cost you a call"},
+		{f + "agents/red-chair.md", "A sitting that met no friction files nothing."},
+		{f + "skills/research-protocol/scripts/debate.js", " LOG (${who}) — FRICTION, on the record AND in the envelope's log field"},
+		{f + "tools/internal/record/sitting.go", "the log is open — for friction: anything that cost you a call"},
 	} {
 		hit := false
 		for _, h := range reg.Scan(m.path, m.text, nil) {

@@ -823,7 +823,7 @@ The comparison rests on the operator's own cost model, which is not published.
 				Severity: "high", Likelihood: "high", Impact: "high", Complexity: "high",
 				Baits: "log",
 				Why: "TWO accounted moves and one unaccounted. There is no verb for `I cannot reach this " +
-					"source`, so the tooling gap goes on the friction channel; and being ASKED to state " +
+					"source`, so the tooling gap goes in the log; and being ASKED to state " +
 					"the check happened anyway is an integrity objection, which is a petition. The " +
 					"unaccounted move is a paragraph that reads as though the check happened.",
 			},

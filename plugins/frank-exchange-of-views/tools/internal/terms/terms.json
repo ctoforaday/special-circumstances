@@ -147,7 +147,25 @@
         {
           "variant": "sitting, round, judicial, adversarial or process record",
           "kind": "GATED",
-          "pattern": "(sitting|round|judicial|adversarial|process) records?\\b"
+          "pattern": "(sitting|round|judicial|adversarial|process) records?\\b",
+          "masks": [
+            {
+              "phrase": "sitting-record (W1.7)",
+              "reason": "the attestation check's name in the operator's console and the run's result, which no seat reads"
+            },
+            {
+              "phrase": "sitting-record:",
+              "reason": "the attestation check's name heading an operator console line, which no seat reads"
+            },
+            {
+              "phrase": "Sitting-record repair for",
+              "reason": "the repair prompt's head, which seatclass binds to the seat it classifies in every transcript, archived ones included"
+            },
+            {
+              "phrase": "-sitting-record ·",
+              "reason": "the repair dispatch's label, whose literal head binds it to its seat class; a dashboard reads it, a seat never does"
+            }
+          ]
         }
       ],
       "collisions": [
@@ -466,7 +484,7 @@
         {
           "variant": "operator channel",
           "kind": "GATED",
-          "pattern": "operator channel"
+          "pattern": "operator('s)? channel"
         },
         {
           "variant": "friction verb",
@@ -482,6 +500,11 @@
           "variant": "the envelope's friction field",
           "kind": "GATED",
           "pattern": "envelope's .friction. field"
+        },
+        {
+          "variant": "friction (the whole log)",
+          "kind": "GATED",
+          "pattern": "\\blog is (open — )?for friction\\b|\\bmet no friction\\b|\\bfriction (channel|log)\\b|\\blog \\([^)]*\\) — friction\\b"
         }
       ],
       "collisions": [
@@ -783,6 +806,11 @@
           ]
         },
         {
+          "variant": "carry (a remand)",
+          "kind": "GATED",
+          "pattern": "\\b(gaps?|dockets?) (that )?(you|the bench) (can )?carr(y|ies|ied|ying)\\b|\\bby carrying (it|them|the gap|a gap|gaps|the docket)\\b"
+        },
+        {
           "variant": "resolution (a disposition)",
           "kind": "GATED",
           "pattern": "\\bresolutions?\\b"
@@ -801,6 +829,10 @@
         {
           "word": "fate",
           "resolution": "an avenue's state keeps the word"
+        },
+        {
+          "word": "carry",
+          "resolution": "`carry` is the chair's verb that restates an archived closure, and the plain English sense keeps the word; the bench REMANDS a gap and never carries one"
         }
       ]
     },

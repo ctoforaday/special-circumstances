@@ -96,7 +96,7 @@ The record is the run's account of every act, held as events in records/record.d
 | ledger | GATED | `\bledgers?\b` |  |  |
 | narrative | GATED | `\bnarratives?\b` |  |  |
 | event log | GATED | `event log` |  |  |
-| sitting, round, judicial, adversarial or process record | GATED | `(sitting\|round\|judicial\|adversarial\|process) records?\b` |  |  |
+| sitting, round, judicial, adversarial or process record | GATED | `(sitting\|round\|judicial\|adversarial\|process) records?\b` | `sitting-record (W1.7)` — the attestation check's name in the operator's console and the run's result, which no seat reads<br>`sitting-record:` — the attestation check's name heading an operator console line, which no seat reads<br>`Sitting-record repair for` — the repair prompt's head, which seatclass binds to the seat it classifies in every transcript, archived ones included<br>`-sitting-record ·` — the repair dispatch's label, whose literal head binds it to its seat class; a dashboard reads it, a seat never does |  |
 
 **Collisions:**
 
@@ -278,10 +278,11 @@ The log is the entries a seat files for the operator with the `log` verb — a m
 
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
-| operator channel | GATED | `operator channel` |  |  |
+| operator channel | GATED | `operator('s)? channel` |  |  |
 | friction verb | GATED | `friction verb` |  |  |
 | complaint channel | GATED | `complaint channel` |  |  |
 | the envelope's friction field | GATED | `envelope's .friction. field` |  |  |
+| friction (the whole log) | GATED | `\blog is (open — )?for friction\b\|\bmet no friction\b\|\bfriction (channel\|log)\b\|\blog \([^)]*\) — friction\b` |  |  |
 
 **Collisions:**
 
@@ -447,6 +448,7 @@ A disposition is the bench's ruling value on a docketed gap, and it decides whet
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
 | carried (a disposition) | GATED | `\bcarried\b` | `--carried-from` — the carry verb's flag: carry restates an earlier closure, which is its own meaning<br>`carried the closure of` — the carry verb's own result<br>`carried from` — the carry verb's result as the archive view prints it: a closure carried from an earlier epoch, which is the flag --carried-from in words |  |
+| carry (a remand) | GATED | `\b(gaps?\|dockets?) (that )?(you\|the bench) (can )?carr(y\|ies\|ied\|ying)\b\|\bby carrying (it\|them\|the gap\|a gap\|gaps\|the docket)\b` |  |  |
 | resolution (a disposition) | GATED | `\bresolutions?\b` |  |  |
 | unmapped fate | GATED | `unmapped fate` |  |  |
 | fate (a disposition) | REGISTRY-ONLY |  |  |  |
@@ -454,6 +456,7 @@ A disposition is the bench's ruling value on a docketed gap, and it decides whet
 **Collisions:**
 
 - **fate** — an avenue's state keeps the word
+- **carry** — `carry` is the chair's verb that restates an archived closure, and the plain English sense keeps the word; the bench REMANDS a gap and never carries one
 
 ## grade motion
 

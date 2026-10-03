@@ -85,6 +85,41 @@ func TestScanFoldsWhitespaceMasksAndAllows(t *testing.T) {
 	}
 }
 
+// A BANNED PHRASE IS BANNED HOWEVER ITS WORDS ARE JOINED. "operator channel" passed the gate as
+// "operator-channel" in a seat's constitution (#1209); a space in a pattern now matches a space or
+// a hyphen, and a space inside a character class keeps its own meaning. A possessive is NOT folded:
+// "a sitting's record" and "the source's note" are ordinary English for a different thing, so a ban
+// that means the possessive too says so in its own pattern.
+func TestABanMatchesItsPhraseHyphenated(t *testing.T) {
+	r, err := Parse([]byte(`{"entries":[{"term":"the log","definition":"The log is entries.","seats":["blue"],"bans":[
+		{"variant":"operator channel","kind":"GATED","pattern":"operator channel"},
+		{"variant":"method lens","kind":"GATED","pattern":"method[- ]lens"}],"collisions":[]}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, text := range []string{"the operator channel", "the operator-channel entries", "THE OPERATOR\n CHANNEL", "a method-lens", "a method lens"} {
+		if hs := r.Scan("x.md", text, nil); len(hs) != 1 {
+			t.Errorf("%q: %d hit(s), want 1", text, len(hs))
+		}
+	}
+	for _, text := range []string{"the operatorchannel", "the operator's channel", "a method_lens"} {
+		if hs := r.Scan("x.md", text, nil); len(hs) != 0 {
+			t.Errorf("%q: %d hit(s), want none — only a space or a hyphen joins the words", text, len(hs))
+		}
+	}
+	for pat, want := range map[string]string{
+		"operator channel":  `operator[ -]channel`,
+		"sitting[- ]kinds?": "sitting[- ]kinds?",
+		`a\ b`:              `a\ b`,
+		"[^ ]x y":           `[^ ]x[ -]y`,
+		"[] ]z":             "[] ]z",
+	} {
+		if got := joinsWords(pat); got != want {
+			t.Errorf("joinsWords(%q) = %q, want %q", pat, got, want)
+		}
+	}
+}
+
 func TestForSeatDeliversOnlyThatSeatsEntries(t *testing.T) {
 	r, err := Parse([]byte(`{"entries":[
 		{"term":"a","definition":"A is a.","seats":["blue"],"bans":[],"collisions":[]},

@@ -1,6 +1,6 @@
 ---
 name: blue-synthesizer
-description: The AUTHOR of the research debate's opening report — merges the lane drafts into blue/report.md by union and writes the report's authored surfaces (title, TL;DR, Catechism, framing, open questions). It is the ONE seat permitted to write report.md directly; every later response seat is locked to the edit verb. The invoker feeds the topic, the run directory, and the lane drafts; blue brings breadth, depth, and its own first audit.
+description: The AUTHOR of the research debate's opening report — merges the lane drafts into blue/report.md by union and writes the report's authored surfaces, which its prompt names. It is the ONE seat permitted to write report.md directly; every later response seat is locked to the edit verb. The invoker feeds the topic, the run directory, and the lane drafts; blue brings breadth, depth, and its own first audit.
 @include fragments/seat-tools.md
 skills: [frank-exchange-of-views:research-protocol, prosthetic-conscience:critical-stance, prosthetic-conscience:think-around-problem, prosthetic-conscience:terse-communication]
 memory: project

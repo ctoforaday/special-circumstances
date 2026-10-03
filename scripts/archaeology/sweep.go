@@ -71,7 +71,17 @@ var markers = []marker{
 	{regexp.MustCompile(`\bno longer\s+(exists?|creates?|writes?|replays?|runs?|fires?|reads?|carries|carry)\b`), "names a capability that is gone"},
 	{regexp.MustCompile(`\b(has|have)\s+been\s+(removed|retired|deleted)\b`), "names a thing that is gone"},
 	{regexp.MustCompile(`\b(was|were)\s+(removed|deleted)\b`), "names a thing that is gone"},
+	// MEASURED HISTORY AS PERSUASION. "Measured: a seat did X once" argues for a rule with an
+	// event the seat cannot act on, and goes false as the system moves under it — "the log went
+	// unwritten every time" stayed in five constitutions after seats logged ~30 entries a run
+	// (#1209). The rule stays, in the present tense; the measurement goes in the commit or a code
+	// comment. Present-tense scoring ("your docket is measured by…") has no colon and stays quiet.
+	{regexp.MustCompile(`(?i)\bmeasured(\s+\d{4}-\d{2}-\d{2})?\s*:`), measuredWhy},
+	{regexp.MustCompile(`\bMEASURED,`), measuredWhy},
+	{regexp.MustCompile(`(?i)\bempirical basis\s*:`), measuredWhy},
 }
+
+const measuredWhy = "cites a past measurement as the reason; state the rule in the present tense and put the measurement in the commit"
 
 // finding is one archaeology phrase on one added line.
 type finding struct {

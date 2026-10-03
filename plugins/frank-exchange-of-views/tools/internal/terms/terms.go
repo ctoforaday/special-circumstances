@@ -12,7 +12,8 @@
 // GATED variant anywhere a seat reads; and by scripts/vocabdoc, which generates
 // docs/vocabulary.md from the same file.
 //
-// A GATED ban is a phrase-exact pattern that cannot hit a legitimate sense of a word. A word with
+// A GATED ban is a phrase-exact pattern that cannot hit a legitimate sense of a word; a space in
+// it matches a space or a hyphen (joinsWords). A word with
 // a legitimate neighbour sense stays REGISTRY-ONLY: defined and delivered, not gated. RE2 has no
 // lookahead, so a legitimate phrase that contains a banned one is a MASK, blanked before
 // matching. An ALLOW exempts a path, and says why.
@@ -166,7 +167,7 @@ func (b *Ban) compile(term string) error {
 		if strings.TrimSpace(b.Pattern) == "" {
 			return fmt.Errorf("terms: %q bans %q as GATED with no pattern — a gate with nothing to match passes everything", term, b.Variant)
 		}
-		re, err := regexp.Compile("(?i)" + b.Pattern)
+		re, err := regexp.Compile("(?i)" + joinsWords(b.Pattern))
 		if err != nil {
 			return fmt.Errorf("terms: %q bans %q: the pattern is not RE2: %w", term, b.Variant, err)
 		}
@@ -199,6 +200,50 @@ func (b *Ban) compile(term string) error {
 		a.re = globRe(a.Path)
 	}
 	return nil
+}
+
+// wordJoin is what a literal space in a ban pattern matches: the space itself or a hyphen. A banned
+// phrase is one CONCEPT, and "operator channel" and "operator-channel" are one concept spelled two
+// ways — a pattern that matched only the first passed the second in a seat's constitution (#1209).
+// A possessive is not folded: "a sitting's record" is plain English for something else, so a ban
+// that means the possessive spells it in its own pattern.
+const wordJoin = `[ -]`
+
+// joinsWords rewrites each literal space in a ban pattern as wordJoin. A space inside a character
+// class or after a backslash is the pattern's own syntax and is left as written.
+func joinsWords(pattern string) string {
+	var b strings.Builder
+	inClass := false
+	for i := 0; i < len(pattern); i++ {
+		c := pattern[i]
+		switch {
+		case c == '\\' && i+1 < len(pattern):
+			b.WriteByte(c)
+			i++
+			b.WriteByte(pattern[i])
+			continue
+		case inClass && c == ']':
+			inClass = false
+		case !inClass && c == '[':
+			inClass = true
+			// A ']' first in a class is a literal, not its end.
+			b.WriteByte(c)
+			if i+1 < len(pattern) && pattern[i+1] == '^' {
+				i++
+				b.WriteByte('^')
+			}
+			if i+1 < len(pattern) && pattern[i+1] == ']' {
+				i++
+				b.WriteByte(']')
+			}
+			continue
+		case !inClass && c == ' ':
+			b.WriteString(wordJoin)
+			continue
+		}
+		b.WriteByte(c)
+	}
+	return b.String()
 }
 
 // globRe turns a path glob into an anchored regexp: `**` crosses segments, `*` and `?` do not.
