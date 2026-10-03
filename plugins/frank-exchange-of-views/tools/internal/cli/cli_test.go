@@ -1106,7 +1106,8 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	// --tension, --review-flag and --settled are NOT omitted here: the verb writes an omitted one as
 	// the empty string, so omitting it is not refused. The schema marks all three required, and
 	// this loop only appeared to hold them to it while a motion refusal carried the verb's whole
-	// help page, which names every flag.
+	// help page, which names every flag. That unenforced requirement is #1234; when it is
+	// enforced, the three move into `required`.
 	required := map[string]string{"id": "M1", "as": "remanded", "principle": "correctness first"}
 	full := map[string]string{
 		"tension": "correctness vs economy", "review-flag": "no",

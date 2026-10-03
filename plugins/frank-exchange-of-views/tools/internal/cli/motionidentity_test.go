@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -82,8 +84,13 @@ func TestAMotionRefusalIsTheVerbEnvelope(t *testing.T) {
 	runDir := seatRun(t)
 	// A HANDLER'S refusal, past parsing: no motion M9 exists to appeal, and that is refused before
 	// the argument is read.
-	out, _ := run(t, "motion", "grade", "appeal", "--json", "--run", runDir, "--seat-id", "red-lens-evidence",
-		"--id", "M9")
+	// --reason is passed so the refusal reached is the record's, and so the harness's unread-reason
+	// check cannot stand in for it.
+	out, err := run(t, "motion", "grade", "appeal", "--json", "--run", runDir, "--seat-id", "red-lens-evidence",
+		"--id", "M9", "--reason", "the grade understates the gap")
+	if err == nil {
+		t.Fatalf("a --json refusal returned no error, so the call exits 0 and the refusal log never sees it:\n%s", out)
+	}
 	var env struct {
 		Verb string  `json:"verb"`
 		Role *string `json:"role"`
@@ -118,21 +125,15 @@ func TestEveryWritingVerbRefusesWhatBeginRefuses(t *testing.T) {
 	r := runtest.Open(t, runDir)
 	n := 0
 	for role, root := range AllRoots() {
-		if role == record.OperatorRole {
-			continue
-		}
 		surface := seat.DispatchedAs(root)
+		// Neither owes an --occasion: the bench is the one seat whose register carries one.
 		elsewhere := "red-lens-evidence"
 		if surface == elsewhere {
 			elsewhere = "red-chair"
 		}
 		boundAgent := "agent_bound_as_" + elsewhere + "_for_" + role
 		t.Setenv(seatenv.AgentVar, boundAgent)
-		args := []string{"register", "--run", runDir, "--seat-id", elsewhere}
-		if record.SeatOwesOccasion(elsewhere) {
-			args = append(args, "--occasion", "docket")
-		}
-		if _, err := run(t, args...); err != nil {
+		if _, err := run(t, "register", "--run", runDir, "--seat-id", elsewhere); err != nil {
 			t.Fatalf("register %s: %v", elsewhere, err)
 		}
 
@@ -172,20 +173,18 @@ func TestEveryWritingVerbRefusesWhatBeginRefuses(t *testing.T) {
 	}
 }
 
-// writingLeaves is every leaf under root that declares the record type it writes.
+// writingLeaves is every command under root that declares the record type it writes — a parent
+// with subcommands included, since nothing stops one from writing too.
 func writingLeaves(root *cobra.Command) [][]string {
 	var out [][]string
 	var walk func(c *cobra.Command, path []string)
 	walk = func(c *cobra.Command, path []string) {
 		for _, sub := range c.Commands() {
 			p := append(append([]string{}, path...), sub.Name())
-			if sub.HasSubCommands() {
-				walk(sub, p)
-				continue
-			}
 			if seat.RecordType(sub) != "" {
 				out = append(out, p)
 			}
+			walk(sub, p)
 		}
 	}
 	walk(root, nil)
@@ -241,4 +240,31 @@ func motionsOnRecord(t *testing.T, runDir string) int {
 		}
 	}
 	return n
+}
+
+// A BINDING LOOKUP THAT CANNOT ANSWER REFUSES A WRITE, NOT A READ.
+//
+// Only a binding that DISAGREES with --seat-id is a refusal for every verb. A record the lookup
+// cannot read — an archived run, a schema this binary does not know — says nothing about who the
+// agent is, and a read that does not need the record proceeds as it would with no agent handle.
+func TestAnUnreadableBindingRefusesAWriteAndNotARead(t *testing.T) {
+	no := false
+	dir, sha := cacheScan(t, &no, "application/pdf")
+	db := filepath.Join(dir, "records", "record.db")
+	if err := os.MkdirAll(filepath.Dir(db), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(db, []byte("not a database"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(seatenv.AgentVar, "agent_on_an_unreadable_record")
+	if _, _, err := record.RegisteredSeatOfAgent(runtest.Open(t, dir), "agent_on_an_unreadable_record"); err == nil {
+		t.Fatal("the binding lookup answered — this test is not exercising a lookup that fails")
+	}
+	if out, err := run(t, "ocr", "pages", "--seat-id", "operator", "--sha", sha, "--dpi", "72", "--run", dir); err != nil {
+		t.Fatalf("a read that needs no record was refused because the binding could not be read: %v\n%s", err, out)
+	}
+	if _, err := run(t, "log", "--run", dir, "--seat-id", "red-lens-evidence", "--type", "defect", "--reason", "x"); err == nil {
+		t.Fatal("a write was accepted with no readable binding to attribute it to")
+	}
 }

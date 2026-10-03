@@ -34,12 +34,10 @@ func noteRefusal(cmd *cobra.Command, err error) {
 	if err == nil || cmd == nil || record.IsToolLogged(err) {
 		return
 	}
-	sc := seat.Of(cmd)
-	if sc.SeatID == "" || sc.SeatID == record.OperatorRole {
-		return
-	}
-	run, rerr := sc.Run()
-	if rerr != nil {
+	// THE REGISTERED SEAT, not Run's: a --seat-id disagreeing with the registration is itself a
+	// refusal, Run refuses with it, and the act is the registered seat's.
+	run, seatID, rerr := seat.Of(cmd).RefusalSeat()
+	if rerr != nil || seatID == "" || seatID == record.OperatorRole {
 		return
 	}
 	// A SITTING TO ATTRIBUTE IT TO. A seat that never registered has none, and the record refuses an
@@ -47,7 +45,7 @@ func noteRefusal(cmd *cobra.Command, err error) {
 	// then belongs to no sitting and would land after the documents the run assembled.
 	// Folded with SittingsOf's error, for the same reason: a refusal is logged on a record that can
 	// take it, and one that cannot be read now gets no entry rather than a second failure.
-	if n, err := record.SittingsOf(run, sc.SeatID); err != nil || n == 0 {
+	if n, err := record.SittingsOf(run, seatID); err != nil || n == 0 {
 		return
 	}
 	if v, err := record.RecordedOutcome(run); err != nil || v != "" {
@@ -77,7 +75,7 @@ func noteRefusal(cmd *cobra.Command, err error) {
 		what = "`" + strings.TrimPrefix(cmd.CommandPath(), cmd.Root().Name()+" ") + "`"
 	}
 	lt, src := recordpb.LogType_LOG_TYPE_REFUSAL, recordpb.LogSource_LOG_SOURCE_TOOL
-	_, _ = record.Append(record.Identity{Run: run, SeatID: sc.SeatID}, &recordpb.Log{
+	_, _ = record.Append(record.Identity{Run: run, SeatID: seatID}, &recordpb.Log{
 		Text: proto.String(fmt.Sprintf("refused %s%s: %s", what, with, why)),
 		Type: &lt, Source: &src,
 	})
