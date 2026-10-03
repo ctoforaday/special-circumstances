@@ -34,7 +34,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 $ carry --run {RUN} --seat-id red-chair --id G1 --carried-from 1
 exit 2
 stderr:
-feov-record: chair: record: carry claims gap G1 was closed in an earlier sitting, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through `lens close` with --verified-by/--verified-with/--verified-against
+feov-record: chair: record: carry claims gap G1 was closed in an earlier sitting, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through `close` with --verified-by/--verified-with/--verified-against
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
@@ -42,7 +42,7 @@ feov-record: chair: record: carry claims gap G1 was closed in an earlier sitting
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:mint:G1","mint":{"acceptance_check":"reread","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"fix_basis":"proposed","gap_id":"G1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"carried case","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_MINT"}
-{"key":"red-chair:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `carry` with --carried-from --id: chair: record: carry claims gap G1 was closed in an earlier sitting, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through `lens close` with --verified-by/--verified-with/--verified-against","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-chair","ts":5,"type":"EVENT_TYPE_LOG"}
+{"key":"red-chair:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `carry` with --carried-from --id: chair: record: carry claims gap G1 was closed in an earlier sitting, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through `close` with --verified-by/--verified-with/--verified-against","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-chair","ts":5,"type":"EVENT_TYPE_LOG"}
 
 ═══ RENDERS ═══
 -- avenues

@@ -5,6 +5,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -105,7 +106,8 @@ func newAvenueReview() *cobra.Command {
 	// The verb's name is not its event's word — it records an avenue_review — so the event is
 	// declared.
 	seat.Records(c, "avenue_review")
-	return seat.Correctable(c)
+	// validate refuses a review that says nothing — silence cannot clear the duty.
+	return seat.Correctable(seat.SaysRequired(c, flags.Reason))
 }
 
 type avenueReviewResult struct{}

@@ -54,7 +54,9 @@ func TestAComputationCheckCannotBeClosedWithoutAProof(t *testing.T) {
 	if err == nil {
 		t.Fatal("a computation gap closed with no proof — red accepted the one kind of evidence it declared insufficient")
 	}
-	for _, want := range []string{"check-kind computation", "blue prove"} {
+	// THE WAY OUT IS A PATH A SEAT CAN TYPE: the verb as blue's surface lists it, with the flag it
+	// registers. It said `blue prove --location`, and neither the role word nor the flag exists.
+	for _, want := range []string{"check-kind computation", "`prove --quote"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not mention %q, so nobody learns the way out:\n%v", want, err)
 		}

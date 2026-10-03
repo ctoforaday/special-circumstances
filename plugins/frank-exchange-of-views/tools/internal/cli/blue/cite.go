@@ -227,9 +227,9 @@ func newCite() *cobra.Command {
 
 	enumhelp.Flag(c, flags.SourceText, record.MustEnum("cite", "source_text_read"),
 		"how much of the source you actually READ; omitted records `unread`. A leaf reading is refused on a copy fetch recorded as the work's abstract, or as not the work")
-	flags.Text(c, flags.Quote, flags.DescQuote+". A mis-quote is rejected rather than guessed at")
-	c.Flags().String(flags.URL, "", flags.DescURL)
-	flags.Text(c, flags.Title, flags.DescTitle)
+	flags.Text(c, flags.Quote, "REQUIRED — "+flags.DescQuote+". A mis-quote is rejected rather than guessed at")
+	c.Flags().String(flags.URL, "", "REQUIRED — "+flags.DescURL)
+	flags.Text(c, flags.Title, "REQUIRED — "+flags.DescTitle)
 	flags.Text(c, flags.OCRQuote, "for OCR-derived text: the span you quote, verbatim from the source's reading (not the report). The tool records the PDF page it sits on; required with --source-text leaf")
 	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL assigns the c-<hex> label")
 	return seat.Correctable(c)

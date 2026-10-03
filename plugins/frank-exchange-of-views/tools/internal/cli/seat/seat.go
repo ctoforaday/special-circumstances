@@ -545,10 +545,12 @@ func markRequired(c *cobra.Command, verb string) {
 			// "default" in the same sentence.
 			continue
 		}
-		// THE ONE WRITER OF THIS WORD. A dozen call sites also hand-wrote "REQUIRED — " at the
-		// front of their own usage, so the rendered line read "REQUIRED — REQUIRED — what the
+		// THE SCHEMA'S WRITER OF THIS WORD. A dozen call sites also hand-wrote "REQUIRED — " at
+		// the front of their own usage, so the rendered line read "REQUIRED — REQUIRED — what the
 		// source ACTUALLY DID" on every flag that had both. Two copies of a fact the mechanism
 		// already supplies, and the seat reading it twice cannot tell which one is authoritative.
+		// SaysRequired writes it for the requirements this walk cannot see (a handler's check, a
+		// nested message's field, a bare MarkFlagRequired) and skips a usage already marked.
 		f.Usage = "REQUIRED — " + f.Usage
 
 		// AND COBRA ENFORCES IT. This only ever rewrote the usage string, so the help said
@@ -853,10 +855,27 @@ var ReasonIs = map[string]string{
 // Both halves here, so they cannot come apart again.
 func ProseRequired(c *cobra.Command) *cobra.Command {
 	c = Prose(c)
-	if f := c.Flags().Lookup(flags.Reason); f != nil {
-		f.Usage = "REQUIRED — " + f.Usage
-	}
 	_ = c.MarkFlagRequired(flags.Reason)
+	return SaysRequired(c, flags.Reason)
+}
+
+// SaysRequired writes the REQUIRED marker on flags whose refusal lives somewhere the help cannot
+// see: the verb's own handler ("lens finding requires --reason: …"), validate's field checks, or a
+// bare MarkFlagRequired beside this call. It changes no enforcement — the tool refused these
+// omissions before it said so.
+//
+// Measured before it existed: twenty-two flags across every seat surface refused when omitted
+// and rendered with no marker, and the m13/m14 seats paid one call each to learn what the help
+// could have told them (`near-match --problem` twice, `position --reason`, `motion docket rule
+// --reason`). markRequired writes the word from the schema and ProseRequired from the verb; this
+// is the writer for the requirements the other two mechanisms cannot see, and
+// TestHelpSaysRequiredExactlyWhereOmissionIsRefused holds every call here to the refusal it claims.
+func SaysRequired(c *cobra.Command, names ...string) *cobra.Command {
+	for _, n := range names {
+		if f := c.Flags().Lookup(n); f != nil && !strings.HasPrefix(f.Usage, "REQUIRED") {
+			f.Usage = "REQUIRED — " + f.Usage
+		}
+	}
 	return c
 }
 

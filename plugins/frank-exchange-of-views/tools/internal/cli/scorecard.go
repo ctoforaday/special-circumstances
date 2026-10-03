@@ -16,8 +16,8 @@ import (
 // newScorecard is the operator command that prints this run's scorecards.
 //
 // It is NOT the seat's work list: scorecard measures how the run is GOING, `show` says what is
-// LEFT. The seat-facing read is `show scorecard`, which prints the one card the seat is measured
-// on and takes no selector.
+// LEFT. No seat surface carries a scorecard view (#1089 took the seat's read out: an empty
+// sitting reads as empty everywhere, and a card that said otherwise was an instruction).
 //
 // ALL THREE BY DEFAULT. An operator is not a party and has no card of its own, so the question
 // it asks is "how is the run going", and the answer is every card. Making it name one before it
@@ -29,11 +29,11 @@ import (
 func newScorecard() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "scorecard --run <dir> [--card red|blue|bench]",
-		Short: "print this run's scorecards — red, blue and bench, or one with --card. OPERATOR ANALYTICS ACROSS CARDS. A seat reads its own with `show scorecard`, which takes no selector",
+		Short: "print this run's scorecards — red, blue and bench, or one with --card. OPERATOR ANALYTICS ACROSS CARDS; no seat surface carries a scorecard view",
 		Long: "scorecard prints this run's scorecards — red, blue and bench, in that order, each under its own `# <card> scorecard` heading — or only the one --card names. " +
 			"A card's rows are computed from the run's record (the board, findings and debate projections, read in-process), its journal envelopes and its board telemetry: the same numbers the dashboard and the human see. " +
 			"The envelope-derived rows read \"not computed\" until capture assembles the journal. " +
-			"OPERATOR ANALYTICS ACROSS CARDS: a seat reads its own with `show scorecard`, which takes no selector because the seat it registered as decides its card. " +
+			"OPERATOR ANALYTICS ACROSS CARDS: no seat surface carries a scorecard view. " +
 			"A record that cannot be read is refused before any card is printed.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,

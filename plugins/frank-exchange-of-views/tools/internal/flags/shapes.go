@@ -154,7 +154,7 @@ func (v *ShapedValue) Type() string { return v.kind }
 // GapID refuses anything that is not G<n>.
 func GapID() *ShapedValue {
 	return &ShapedValue{kind: "gap-id", re: gapIDShape,
-		hint: "a gap id looks like G7 (the number the mint returned); `show board` and `show work list` list them"}
+		hint: "a gap id looks like G7 (the number the mint returned); `show board` lists them"}
 }
 
 // AnchorID refuses anything that is not a tool-inserted anchor id of any class.
@@ -194,7 +194,7 @@ func AvenueID() *ShapedValue {
 // FindingLabel refuses anything that is not <area>-F<n> (or the archived L<n>-F<n>).
 func FindingLabel() *ShapedValue {
 	return &ShapedValue{kind: "finding-label", re: findingLabelShape,
-		hint: "a finding label looks like adversary-F2 (the lens's area, then its finding number) and is ASSIGNED by `lens finding`; `show findings` lists them"}
+		hint: "a finding label looks like adversary-F2 (the lens's area, then its finding number) and is ASSIGNED by `finding`; `show findings` lists them"}
 }
 
 // MotionID refuses anything that is not M<n>.

@@ -60,7 +60,7 @@ func newReproduce() *cobra.Command {
 			// beside the sentence it backs". It is not: the report carries an opaque
 			// `<!--proof:p-…-->` anchor, and the sha lives on the record. A seat reading the
 			// document had the token this verb does not take and no path to the one it does.
-			return nil, fmt.Errorf("lens reproduce requires --id: the sha256 of the proof to re-run. Reading the report and holding a `<!--proof:p-…-->` anchor, resolve it with `lens show evidence --run <runDir>` — every proof is listed there with its anchor, its sha256, its script, and whether anyone has re-run it yet")
+			return nil, fmt.Errorf("lens reproduce requires --id: the sha256 of the proof to re-run. Reading the report and holding a `<!--proof:p-…-->` anchor, resolve it with `show evidence` — every proof is listed there with its anchor, its sha256, its script, and whether anyone has re-run it yet")
 		}
 		// A CORRECTION RE-STATES THE REPRODUCTION; it does not re-run the proof. What the re-run
 		// showed is the corrected act's, and a corrected note must not hang on whether the proof's
@@ -117,7 +117,8 @@ func newReproduce() *cobra.Command {
 	// refused by the proof lookup rather than by its shape — the refusal named no kind.
 	c.Flags().Var(flags.SHA(), flags.ID, "REQUIRED — the sha256 of the recorded proof to re-run")
 	enumhelp.Flag(c, flags.As, record.MustEnum("reproduce", "soundness"), ("REQUIRED — having READ the script: does it actually establish the claim it is anchored to?"))
-	return seat.Correctable(c)
+	// The handler refuses a verdict with no reading behind it; the marker says so where the seat reads.
+	return seat.Correctable(seat.SaysRequired(c, flags.Reason))
 }
 
 // truncateOutput keeps a mismatch legible without copying a whole run's output onto the record.

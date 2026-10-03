@@ -7,6 +7,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -25,7 +26,8 @@ func newRevision() *cobra.Command {
 	// the live path — the epoch narrative is a position event and the sitting record was
 	// hand-written in a file (retired, #251). #70 moved the count to the deterministic `count-claims` command and
 	// dropped this flag, so there is exactly one way the number is produced.
-	return seat.Correctable(seat.Prose(seat.New("revision", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	// validate refuses an empty revision — "a duty discharged by nothing".
+	return seat.Correctable(seat.SaysRequired(seat.Prose(seat.New("revision", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
 			return nil, err
@@ -49,7 +51,7 @@ func newRevision() *cobra.Command {
 		// `prove` from 0 uses in eighteen sittings to 1 in nine, which says a seat reading
 		// a property still does not read a debt.
 		return revisionResult{Owed: record.GapsAwaitingProof(run)}, nil
-	})))
+	})), flags.Reason))
 }
 
 type revisionResult struct {
@@ -64,8 +66,8 @@ func (r revisionResult) Human() string {
 		return m
 	}
 	return m + "\n\nSTILL AWAITING A COMPUTATION: " + strings.Join(r.Owed, ", ") +
-		". These gaps were minted --check-kind computation, which prose cannot close — the chair " +
-		"is REFUSED if it tries, so an unanswered one carries into the next epoch rather than " +
-		"settling. Settle each with `blue prove --location \"<the sentence>\" --script <path> " +
+		". These gaps were minted --check-kind computation, which prose cannot close — the lens " +
+		"that minted one is REFUSED if it tries, so an unanswered one carries into the next epoch " +
+		"rather than settling. Settle each with `prove --quote \"<the sentence>\" --script <path> " +
 		"--answers <gap>`, or argue in your next edit's --reason why the demand is wrong."
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -49,7 +50,8 @@ import (
 // worse than an unread finding: an unread finding costs a reader, an undelivered ruling costs
 // compliance, and nothing reports that it was not delivered.
 func newDeclare() *cobra.Command {
-	return seat.Correctable(seat.Prose(seat.New("declare", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	// The handler above refuses an empty holding; the marker says so where the seat reads.
+	return seat.Correctable(seat.SaysRequired(seat.Prose(seat.New("declare", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		text, err := seat.Reason(cmd)
 		if err != nil {
 			return nil, err
@@ -61,5 +63,5 @@ func newDeclare() *cobra.Command {
 			return nil, err
 		}
 		return seat.Msg{Message: "declaration recorded — it renders under ### LEAD in `inquest debate`, where both seats read it"}, nil
-	})))
+	})), flags.Reason))
 }

@@ -203,8 +203,9 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 
 	switch role {
 	case "blue":
-		// A computation demand prose cannot answer. The chair is REFUSED if it tries to close
-		// one unproved, so an unanswered demand does not settle — it carries into the next epoch.
+		// A computation demand prose cannot answer. The lens that minted it is REFUSED if it
+		// tries to close one unproved, so an unanswered demand does not settle — it carries into
+		// the next epoch.
 		for _, g := range gaps {
 			if !g.AwaitingProof {
 				continue
