@@ -272,7 +272,7 @@ func TestAGroupedActIsToldWhereItLives(t *testing.T) {
 				"exit 0, which a seat reads as having done the act", tc.seat, strings.Join(tc.argv, " "))
 			continue
 		}
-		if tc.wantSeat != "" && !strings.Contains(err.Error(), "the "+tc.wantSeat+" seat's act") {
+		if tc.wantSeat != "" && !strings.Contains(err.Error(), "the "+tc.wantSeat+"'s `"+strings.Join(tc.argv, " ")+"`") {
 			t.Errorf("%s typing `%s` was refused without naming the %s seat that holds it:\n%v",
 				tc.seat, strings.Join(tc.argv, " "), tc.wantSeat, err)
 		}

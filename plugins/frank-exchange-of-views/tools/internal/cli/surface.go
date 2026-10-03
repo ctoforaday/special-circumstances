@@ -179,14 +179,14 @@ func walkSurface(root *cobra.Command, fn func(path []string, c *cobra.Command)) 
 //
 // IT ASKS WHETHER A CHECKER IS ATTACHED, not whether the value has the method, and the difference
 // is the whole claim this function makes. Every shaped flag has Check — it returns nil when no
-// checker is set — so `interface{ Check(string) error }` alone selects every SHAPED flag and this
+// checker is set — so `interface{ Check(string, string) error }` alone selects every SHAPED flag and this
 // map reported flags that point at NOTHING as references. The release gate is where it surfaced:
 // its vocabulary check demanded `motion-id` and `sha256` be declared as entity classes "with what
 // they point at", and neither points at anything, because shape and existence are different halves.
 // internal/cli/referencechecks_test.go carries the same distinction for the fixture table.
 func CommandReferences() map[string]map[string]string {
 	type referenceChecker interface {
-		Check(string) error
+		Check(string, string) error
 		Checked() bool
 	}
 	out := map[string]map[string]string{}

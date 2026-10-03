@@ -60,9 +60,11 @@ func newFetch() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			// cobra refuses an OMITTED --url (seat.Require), so this fires only on one passed empty —
+			// `--url ""`, or a shell variable that expanded to nothing — and says that.
 			url, _ := cmd.Flags().GetString(flags.URL)
 			if url == "" {
-				return feov.Errorf(feov.MissingField, "fetch: --url <url> is required")
+				return feov.Errorf(feov.MissingField, "fetch: --url is empty — it was passed with no value; give it the http/https URL to read")
 			}
 			via, _ := cmd.Flags().GetString(flags.Via)
 			at, _ := cmd.Flags().GetString(flags.At)

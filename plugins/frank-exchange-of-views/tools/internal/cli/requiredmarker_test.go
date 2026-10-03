@@ -1,6 +1,9 @@
 package cli
 
 import (
+	"fmt"
+	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -193,17 +196,53 @@ func TestNoUsageCarriesTwoMarkers(t *testing.T) {
 		walk(r, func(c *cobra.Command, path []string) {
 			c.LocalNonPersistentFlags().VisitAll(func(f *pflag.Flag) {
 				checked++
-				if n := strings.Count(f.Usage, "REQUIRED — "); n > 1 {
-					t.Errorf("%s: `%s --%s` carries the marker %d times:\n\n%s", role, strings.Join(path, " "), f.Name, n, f.Usage)
-				}
-				if strings.Contains(f.Usage, "REQUIRED") && !seat.IsMarked(f.Usage) && strings.HasPrefix(f.Usage, "REQUIRED") {
-					t.Errorf("%s: `%s --%s` begins with REQUIRED in a shape IsMarked does not read, so one gate counts it marked and another does not:\n\n%s", role, strings.Join(path, " "), f.Name, f.Usage)
+				if p := markerProblem(f.Usage); p != "" {
+					t.Errorf("%s: `%s --%s` %s:\n\n%s", role, strings.Join(path, " "), f.Name, p, f.Usage)
 				}
 			})
 		})
 	}
 	if checked < 100 {
 		t.Fatalf("only %d flags checked — the walk is not reaching the tree", checked)
+	}
+}
+
+// anyMarker is the marker in either shape, ANYWHERE in a usage: bare ("REQUIRED — ") or conditional
+// ("REQUIRED unless --accept — "). Counting only the bare spelling let "REQUIRED unless --accept —
+// REQUIRED — …" read as one marker.
+var anyMarker = regexp.MustCompile(`REQUIRED(?: unless [^—]+)? — `)
+
+// markerProblem is what is wrong with a usage's marker, or "".
+func markerProblem(usage string) string {
+	if n := len(anyMarker.FindAllStringIndex(usage, -1)); n > 1 {
+		return fmt.Sprintf("carries the marker %d times", n)
+	}
+	if strings.HasPrefix(usage, "REQUIRED") && !seat.IsMarked(usage) {
+		return "begins with REQUIRED in a shape IsMarked does not read, so one gate counts it marked and another does not"
+	}
+	if seat.IsMarked(usage) && strings.TrimSpace(anyMarker.ReplaceAllString(usage, "")) == "" {
+		return "says REQUIRED and nothing about what to supply"
+	}
+	return ""
+}
+
+// The marker gate's reader, on the shapes the tree does not hold today: a test of the walk above
+// passes on a clean tree whether or not the reader would notice a doubled conditional marker.
+func TestMarkerProblemSeesEveryShape(t *testing.T) {
+	for usage, wantProblem := range map[string]bool{
+		"REQUIRED — the gap id":                            false,
+		"REQUIRED unless --accept — the span":              false,
+		"the gap id — REQUIRED to close a computation gap": false,
+		"REQUIRED — REQUIRED — the gap id":                 true,
+		"REQUIRED unless --accept — REQUIRED — the span":   true,
+		"REQUIRED — REQUIRED unless --accept — the span":   true,
+		"REQUIRED: the gap id":                             true,
+		"REQUIRED — ":                                      true,
+		"REQUIRED unless --about names the subject — ":     true,
+	} {
+		if got := markerProblem(usage) != ""; got != wantProblem {
+			t.Errorf("markerProblem(%q) found a problem: %v, want %v", usage, got, wantProblem)
+		}
 	}
 }
 
@@ -304,15 +343,26 @@ func TestHelpSaysRequiredExactlyWhereOmissionIsRefused(t *testing.T) {
 
 // refusalNames says whether a refusal names the flag AS A FLAG — `--id`, not the letters "id"
 // inside "valid". It reads the same `--flag` token helpcontract_test.go's assertNamedFlagsExist
-// reads, and cobra's own `required flag(s) "id" not set`, which quotes the bare name.
+// reads; cobra's own `required flag(s) "id" not set`, which quotes the bare name; and cobra's
+// group refusals, which list bare names in brackets — `at least one of the flags in the group
+// [quote anchor] is required`.
 func refusalNames(err error, flag string) bool {
 	for _, m := range flagToken.FindAllStringSubmatch(err.Error(), -1) {
 		if m[1] == flag {
 			return true
 		}
 	}
+	for _, m := range flagGroup.FindAllStringSubmatch(err.Error(), -1) {
+		if slices.Contains(strings.Fields(m[1]), flag) {
+			return true
+		}
+	}
 	return strings.Contains(err.Error(), `"`+flag+`"`)
 }
+
+// flagGroup is cobra's rendering of a flag group in its refusals: bare names, space-separated, in
+// brackets.
+var flagGroup = regexp.MustCompile(`\[([a-z][a-z-]*(?: [a-z][a-z-]*)*)\]`)
 
 // pathOf is the command path at the head of an argument list: every token before the first flag.
 func pathOf(args []string) []string {

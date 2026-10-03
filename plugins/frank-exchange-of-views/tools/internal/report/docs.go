@@ -321,7 +321,7 @@ func indexDoc(run record.Run, title string, set []Doc, fam record.Family, evs []
 	if _, err := os.Stat(filepath.Join(run.Dir(), "report.html")); err == nil {
 		b.WriteString("\n[**report.html**](report.html) is the same set with real tabs and cross-document links — one self-contained file, no server and no network.\n")
 	}
-	b.WriteString("\nThe record these were rendered from is `records/`; the computations are cached under `proofs/`. Both survive the run; every document here can be rebuilt from them with the bench's `assemble`.\n")
+	b.WriteString("\nThe record these were rendered from is `records/`; the computations are cached under `proofs/`. Both survive the run; every document here can be rebuilt from them with `feov-record --seat-id <bench seat id> assemble --run <run dir>` — the bench's seat id is the `judge` one this run recorded.\n")
 	return b.String()
 }
 

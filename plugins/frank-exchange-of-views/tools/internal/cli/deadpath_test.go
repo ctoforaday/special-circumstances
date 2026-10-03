@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -80,53 +79,186 @@ var staleRoles = map[string]bool{"lens": true, "chair": true, "blue": true, "ben
 
 var backtickSpan = regexp.MustCompile("`([^`]+)`")
 
-// attributed matches the prose that hands a verb to ANOTHER seat: "the chair's `carry`", "blue's
+// attributed matches the prose that hands a verb to a NAMED seat: "the chair's `carry`", "Blue's
 // `edit`", or the seat as the actor with up to three words between ("is the chair's to restate
-// with `carry`", "the gap's originating lens moves it with `regrade`"). A span so attributed is not an instruction to the reader, so it may name a verb the
-// reader's own tree lacks; an unattributed span naming another seat's verb is the regression this
-// gate exists for — "use `carry --carried-from <epoch>`" in a refusal only a lens ever reads, and
-// the lens that obeys it is told no such command exists.
-var attributed = regexp.MustCompile(`\b(?:lens|chair|blue|bench)(?:'s|’s)?(?:\s+[a-z]+){0,3}\s*$`)
+// with `carry`", "the gap's originating lens moves it with `regrade`"). The seat it captures is
+// the one the span is then resolved against: an attribution is a claim that THAT seat holds the
+// verb, and a claim nothing checks lets "the lens's `carry`" through as readily as "the chair's".
+// An unattributed span naming another seat's verb is the regression this gate exists for — "use
+// `carry --carried-from <epoch>`" in a refusal only a lens ever reads, and the lens that obeys it
+// is told no such command exists. Case-insensitive: a sentence may begin with the seat.
+var attributed = regexp.MustCompile(`(?i)\b(lens|chair|blue|bench)(?:'s|’s)?(?:\s+[a-z]+){0,3}\s*$`)
 
 // listContinuation is what may sit between one attributed span and the next in the same list:
 // "the lens's `mint`, `close` and `regrade`".
 var listContinuation = regexp.MustCompile(`^(?:,|,?\s+and|,?\s+or|/)?\s*$`)
 
-// seatSpan is one backtick span in a message, and whether the prose before it hands it to a named
-// seat.
+// seatSpan is one backtick span in a message, and the seat the prose before it hands it to ("" when
+// it is unattributed).
 type seatSpan struct {
-	text       string
-	attributed bool
+	text string
+	seat string
 }
 
-// spansIn reads a message's backtick spans with their attribution. carried is the attribution a
-// list continues: set by "the chair's `a`", kept across ", `b` and `c`", dropped at the first
-// other prose.
+// spansIn reads a message's backtick spans with their attribution. carried is the seat a list
+// continues: set by "the chair's `a`", kept across ", `b` and `c`", dropped at the first other
+// prose.
 func spansIn(text string) []seatSpan {
 	var out []seatSpan
-	carried := false
+	carried := ""
 	prevEnd := 0
 	for _, m := range backtickSpan.FindAllStringSubmatchIndex(text, -1) {
-		here := attributed.MatchString(text[:m[0]]) || (carried && listContinuation.MatchString(text[prevEnd:m[0]]))
+		here := ""
+		if a := attributed.FindStringSubmatch(text[:m[0]]); a != nil {
+			here = strings.ToLower(a[1])
+		} else if carried != "" && listContinuation.MatchString(text[prevEnd:m[0]]) {
+			here = carried
+		}
 		prevEnd = m[1]
 		carried = here
-		out = append(out, seatSpan{text: text[m[2]:m[3]], attributed: here})
+		out = append(out, seatSpan{text: text[m[2]:m[3]], seat: here})
 	}
 	return out
 }
 
-// seatTrees is every seat's command tree and the operator's, keyed by role.
-func seatTrees() map[string]*cobra.Command {
-	trees := map[string]*cobra.Command{record.OperatorRole: NewRootFor(record.OperatorRole)}
-	for _, role := range []string{"lens", "chair", "blue", "bench"} {
-		trees[role] = NewRootFor(record.SampleSeatOf(role))
+// seatRoles is the order every walk over the trees takes. A map range picked a different tree's
+// copy of a shared verb from run to run, so a flag check could pass on one run and fail the next.
+var seatRoles = []string{"lens", "chair", "blue", "bench"}
+
+// roleTree is one role's command tree.
+type roleTree struct {
+	role string
+	root *cobra.Command
+}
+
+// seatTrees is every seat's command tree and then the operator's, in seatRoles order.
+func seatTrees() []roleTree {
+	var trees []roleTree
+	for _, role := range seatRoles {
+		trees = append(trees, roleTree{role, NewRootFor(record.SampleSeatOf(role))})
 	}
-	return trees
+	return append(trees, roleTree{record.OperatorRole, NewRootFor(record.OperatorRole)})
+}
+
+// treeOf is the named role's tree, or nil.
+func treeOf(trees []roleTree, role string) *cobra.Command {
+	for _, t := range trees {
+		if t.role == role {
+			return t.root
+		}
+	}
+	return nil
+}
+
+// spanCheck is one span resolved on one tree: how many path words the tree consumed (0 when the
+// first word is no command there), and the problem with the rest — a path word the command has no
+// subcommand for, an argument it refuses, a flag it does not register — or "" when the WHOLE span
+// is something this tree accepts.
+type spanCheck struct {
+	consumed int
+	problem  string
+}
+
+// checkOnTree resolves words on one tree, all of them: a span is sound for a reader only when its
+// whole command path is on that reader's tree and every `--flag` in it is on the command it reaches.
+// A prefix is not enough — `motion docket rule --id G1` begins with `motion`, which a lens holds,
+// and the lens that obeys it is told `docket` has no `rule` for it.
+func checkOnTree(root *cobra.Command, words []string, known map[string]bool) spanCheck {
+	cmd, n := resolveIn(root, words)
+	if n == 0 {
+		return spanCheck{}
+	}
+	rest := words[n:]
+	if len(rest) > 0 && strings.HasPrefix(rest[0], "<") && cmd.HasSubCommands() {
+		// A template over a group's subcommands (`motion <subject> rule --id <id>`): the flags
+		// belong to whichever leaf the placeholder stands for, and every leaf has its own page.
+		return spanCheck{consumed: n}
+	}
+	// Positionals before the first flag are the command's own to accept.
+	var positionals []string
+	for len(rest) > 0 && !strings.HasPrefix(rest[0], "--") && isWord(rest[0]) {
+		positionals = append(positionals, rest[0])
+		rest = rest[1:]
+	}
+	if len(positionals) > 0 {
+		if cmd.HasSubCommands() {
+			return spanCheck{n, "`" + strings.Join(positionals, " ") + "` is not a subcommand of `" + cmd.CommandPath() + "`"}
+		}
+		if cmd.Args != nil {
+			if err := cmd.Args(cmd, positionals); err != nil {
+				return spanCheck{n, "`" + cmd.CommandPath() + "` refuses the argument(s) `" + strings.Join(positionals, " ") + "`: " + err.Error()}
+			}
+		}
+	}
+	for _, w := range rest {
+		if !strings.HasPrefix(w, "--") {
+			continue // a value, a placeholder, or prose after the command
+		}
+		name := strings.TrimPrefix(w, "--")
+		if i := strings.IndexByte(name, '='); i >= 0 {
+			name = name[:i]
+		}
+		if !isWord(name) || name == "help" {
+			continue
+		}
+		if cmd.Flags().Lookup(name) == nil && cmd.InheritedFlags().Lookup(name) == nil {
+			if known[name] {
+				return spanCheck{n, "`--" + name + "` is not a flag of `" + cmd.CommandPath() + "` (another verb has it)"}
+			}
+			return spanCheck{n, "`--" + name + "` is a flag no command registers"}
+		}
+	}
+	return spanCheck{consumed: n}
+}
+
+// holdersOf is every SEAT role whose tree accepts the whole span, in seatRoles order.
+func holdersOf(trees []roleTree, words []string, known map[string]bool) []string {
+	var holders []string
+	for _, t := range trees {
+		if t.role == record.OperatorRole {
+			continue
+		}
+		if c := checkOnTree(t.root, words, known); c.consumed > 0 && c.problem == "" {
+			holders = append(holders, t.role)
+		}
+	}
+	return holders
+}
+
+// anyTreeNames says whether the span's first word is a command on any tree at all — the line
+// between a command reference and prose that happens to sit in backticks.
+func anyTreeNames(trees []roleTree, words []string) bool {
+	for _, t := range trees {
+		if _, n := resolveIn(t.root, words); n > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// attributedProblem checks a span the prose hands to a named seat against THAT seat's tree. It is
+// "" when the seat holds the whole span, and for a span no tree names at all (prose).
+func attributedProblem(trees []roleTree, seat string, words []string, known map[string]bool) string {
+	if !anyTreeNames(trees, words) {
+		return ""
+	}
+	c := checkOnTree(treeOf(trees, seat), words, known)
+	switch {
+	case c.consumed == 0:
+		holders := holdersOf(trees, words, known)
+		if len(holders) == 0 {
+			return "is attributed to the " + seat + ", which has no such command — and no seat holds it whole"
+		}
+		return "is attributed to the " + seat + ", which has no such command (it is " + holderPhrase(holders) + ")"
+	case c.problem != "":
+		return "is attributed to the " + seat + ", and on the " + seat + "'s surface " + c.problem
+	}
+	return ""
 }
 
 var (
 	seatTreesOnce   sync.Once
-	seatTreesShared map[string]*cobra.Command
+	seatTreesShared []roleTree
 )
 
 // EVERY REFUSAL A SEAT RECEIVES NAMES ONLY VERBS ON THAT SEAT'S SURFACE, OR HANDS THE VERB TO ITS
@@ -145,30 +277,51 @@ func assertRefusalSpeaksToItsSeat(t *testing.T, seatID string, own *cobra.Comman
 		return
 	}
 	seatTreesOnce.Do(func() { seatTreesShared = seatTrees() })
-	for _, s := range spansIn(err.Error()) {
+	seatKnownOnce.Do(func() { seatKnown = knownFlagNames(t) })
+	if p := refusalProblems(seatTreesShared, own, err.Error(), seatKnown); len(p) > 0 {
+		t.Errorf("seat %s was refused with %s.\n\nrefusal: %v", seatID, strings.Join(p, "; and "), err)
+	}
+}
+
+var (
+	seatKnownOnce sync.Once
+	seatKnown     map[string]bool
+)
+
+// refusalProblems reads one refusal against the tree of the seat that received it (own), and
+// returns each span that seat cannot obey as written. An attributed span must be on the NAMED
+// seat's tree, whole; an unattributed one must be on own's, whole — path and every flag.
+func refusalProblems(trees []roleTree, own *cobra.Command, text string, known map[string]bool) []string {
+	var out []string
+	for _, s := range spansIn(text) {
 		words := strings.Fields(s.text)
-		if s.attributed || len(words) == 0 || words[0] == "feov-record" || strings.HasPrefix(words[0], "-") {
+		if len(words) == 0 || words[0] == "feov-record" || strings.HasPrefix(words[0], "-") {
 			continue
 		}
-		if _, n := resolveIn(own, words); n > 0 {
+		if s.seat != "" {
+			if p := attributedProblem(trees, s.seat, words, known); p != "" {
+				out = append(out, "`"+s.text+"`, which "+p)
+			}
 			continue
 		}
-		var holders []string
-		for role, r := range seatTreesShared {
-			if role == record.OperatorRole {
-				continue
-			}
-			if _, n := resolveIn(r, words); n > 0 {
-				holders = append(holders, role)
-			}
+		c := checkOnTree(own, words, known)
+		if c.consumed > 0 && c.problem == "" {
+			continue
 		}
-		if len(holders) == 0 {
+		if !anyTreeNames(trees, words) {
 			continue // not a command anywhere: prose, or a dead path TestEveryCommandPathNamedInAStringResolves reports
 		}
-		sort.Strings(holders)
-		t.Errorf("seat %s was refused with `%s`, which is not on its surface (it is %s) — a seat that obeys it is told no such command exists. Attribute it in prose (\"the %s's `%s`\") or name the seat's own act.\n\nrefusal: %v",
-			seatID, s.text, holderPhrase(holders), holders[0], s.text, err)
+		holders := holdersOf(trees, words, known)
+		switch {
+		case len(holders) > 0:
+			out = append(out, "`"+s.text+"`, which is not on its surface (it is "+holderPhrase(holders)+") — a seat that obeys it is told no such command exists. Attribute it in prose (\"the "+holders[0]+"'s `"+s.text+"`\") or name the seat's own act")
+		case c.consumed > 0:
+			out = append(out, "`"+s.text+"`, which this seat cannot type as written: "+c.problem)
+		default:
+			out = append(out, "`"+s.text+"`, which is not on its surface and which no seat holds whole")
+		}
 	}
+	return out
 }
 
 func TestEveryCommandPathNamedInAStringResolves(t *testing.T) {
@@ -180,7 +333,7 @@ func TestEveryCommandPathNamedInAStringResolves(t *testing.T) {
 		role := roleOfDir(lit.pkg)
 		for _, s := range spansIn(lit.text) {
 			spans++
-			problem, isRef := resolveSpan(trees, role, known, s.text, s.attributed)
+			problem, isRef := resolveSpan(trees, role, known, s.text, s.seat)
 			if isRef {
 				references++
 			}
@@ -235,13 +388,18 @@ func TestEveryFlagAHelpPageNamesIsOnThatPage(t *testing.T) {
 // shared and may reach any seat). It returns the problem (empty when the span is sound or is not a
 // command reference at all) and whether the span was a command reference.
 //
-// A span resolves PER TREE where the producing site's role is known. In a role package it must
-// resolve on that role's tree: a verb another seat holds is a dead path for this reader unless the
-// prose attributes it ("the chair's `carry`"). In a shared package the reader is not knowable from
-// the source — `show`'s listing says which verbs WRITE a view, to every seat — so the span need
-// only resolve on some tree here, and assertRefusalSpeaksToItsSeat holds every refusal a test
-// delivers to the seat that received it. The flags are checked on whichever tree holds the verb.
-func resolveSpan(trees map[string]*cobra.Command, role string, known map[string]bool, span string, attributedHere bool) (problem string, isRef bool) {
+// A span resolves on ONE NAMED TREE wherever the source says whose it is, and only a shared,
+// unattributed span falls back to the whole set:
+//   - attributed in prose ("the chair's `carry`"): on the named seat's tree, path and flags;
+//   - in a role package: on that role's tree, and a verb another seat holds is a dead path for this
+//     reader unless the prose attributes it;
+//   - shared and unattributed: the reader is not knowable from the source — `show`'s listing says
+//     which verbs WRITE a view, to every seat — so some tree must accept it whole, and
+//     assertRefusalSpeaksToItsSeat holds every refusal a test delivers to the seat that received it.
+//
+// Trees are walked in seatRoles order, so which copy of a shared verb a flag is checked against
+// never depends on a map's iteration order.
+func resolveSpan(trees []roleTree, role string, known map[string]bool, span, attributedTo string) (problem string, isRef bool) {
 	words := strings.Fields(span)
 	if len(words) == 0 {
 		return "", false
@@ -252,7 +410,7 @@ func resolveSpan(trees map[string]*cobra.Command, role string, known map[string]
 	if len(words) > 0 && words[0] == "feov-record" {
 		words = words[1:]
 		isRef = true
-		role = "" // the operator's spelling reaches whichever tree the --seat-id selects
+		role, attributedTo = "", "" // the operator's spelling reaches whichever tree the --seat-id selects
 	}
 	if len(words) == 0 {
 		return "", isRef
@@ -260,24 +418,7 @@ func resolveSpan(trees map[string]*cobra.Command, role string, known map[string]
 	if staleRoles[words[0]] && len(words) > 1 && isWord(words[1]) {
 		return "begins with the role word `" + words[0] + "`, which left the command path when the surface became seat-scoped — a seat types the verb alone, and prose hands another seat's verb to it as \"the " + words[0] + "'s `" + strings.Join(words[1:], " ") + "`\"", true
 	}
-	// The longest command path any tree resolves, and which trees reach it.
-	var cmd *cobra.Command
-	consumed := 0
-	var holders []string
-	for name, r := range trees {
-		c, n := resolveIn(r, words)
-		if n == 0 {
-			continue
-		}
-		if n > consumed {
-			cmd, consumed, holders = c, n, nil
-		}
-		if n == consumed {
-			holders = append(holders, name)
-		}
-	}
-	sort.Strings(holders)
-	if consumed == 0 {
+	if !anyTreeNames(trees, words) {
 		if strings.HasPrefix(words[0], "--") {
 			// A bare flag span (`--as FAIL`): the flag must exist somewhere in the tree.
 			name := strings.TrimPrefix(words[0], "--")
@@ -291,51 +432,34 @@ func resolveSpan(trees map[string]*cobra.Command, role string, known map[string]
 		}
 		return "names no command in any tree", true
 	}
-	isRef = true
-	if !attributedHere && role != "" && !slices.Contains(holders, role) {
-		return "is not on the " + role + "'s surface (it is " + holderPhrase(holders) + ") — a " + role + " reading this has no such command; attribute it in prose (\"the " + holders[0] + "'s `" + span + "`\") if it is another seat's act", true
+	if attributedTo != "" {
+		return attributedProblem(trees, attributedTo, words, known), true
 	}
-	rest := words[consumed:]
-	if len(rest) > 0 && strings.HasPrefix(rest[0], "<") && cmd.HasSubCommands() {
-		// A template over a group's subcommands (`motion <subject> rule --id <id>`): the flags
-		// belong to whichever leaf the placeholder stands for, and every leaf has its own page.
-		return "", true
-	}
-	// Positionals before the first flag are the command's own to accept.
-	var positionals []string
-	for len(rest) > 0 && !strings.HasPrefix(rest[0], "--") && isWord(rest[0]) {
-		positionals = append(positionals, rest[0])
-		rest = rest[1:]
-	}
-	if len(positionals) > 0 {
-		if cmd.HasSubCommands() {
-			return "`" + strings.Join(positionals, " ") + "` is not a subcommand of `" + cmd.CommandPath() + "`", true
+	if role != "" {
+		c := checkOnTree(treeOf(trees, role), words, known)
+		if c.consumed > 0 && c.problem == "" {
+			return "", true
 		}
-		if cmd.Args != nil {
-			if err := cmd.Args(cmd, positionals); err != nil {
-				return "`" + cmd.CommandPath() + "` refuses the argument(s) `" + strings.Join(positionals, " ") + "`: " + err.Error(), true
-			}
+		if holders := holdersOf(trees, words, known); len(holders) > 0 {
+			return "is not on the " + role + "'s surface (it is " + holderPhrase(holders) + ") — a " + role + " reading this has no such command; attribute it in prose (\"the " + holders[0] + "'s `" + span + "`\") if it is another seat's act", true
+		}
+		if c.consumed > 0 {
+			return c.problem, true
 		}
 	}
-	for _, w := range rest {
-		if !strings.HasPrefix(w, "--") {
-			continue // a value, a placeholder, or prose after the command
+	// Shared and unattributed, or a role-package span no tree accepts whole: the problem the
+	// deepest-reaching tree reports, the first in seatRoles order on a tie.
+	best := spanCheck{}
+	for _, t := range trees {
+		c := checkOnTree(t.root, words, known)
+		if c.consumed > 0 && c.problem == "" {
+			return "", true
 		}
-		name := strings.TrimPrefix(w, "--")
-		if i := strings.IndexByte(name, '='); i >= 0 {
-			name = name[:i]
-		}
-		if !isWord(name) || name == "help" {
-			continue
-		}
-		if cmd.Flags().Lookup(name) == nil && cmd.InheritedFlags().Lookup(name) == nil {
-			if known[name] {
-				return "`--" + name + "` is not a flag of `" + cmd.CommandPath() + "` (another verb has it)", true
-			}
-			return "`--" + name + "` is a flag no command registers", true
+		if c.consumed > best.consumed {
+			best = c
 		}
 	}
-	return "", true
+	return best.problem, true
 }
 
 // holderPhrase names the trees that hold a verb: "the chair's", "the chair's and the bench's".
@@ -512,5 +636,56 @@ func TestThePassRefusalOverAContradictionNamesWhoRaisesIt(t *testing.T) {
 	_, err := run(t, "verdict", "--run", runDir, "--seat-id", "red-chair", "--as", "PASS")
 	if err == nil || !strings.Contains(err.Error(), corroborated) {
 		t.Fatalf("the chair's PASS over a contradiction nobody raised was not refused over it: %v", err)
+	}
+}
+
+// THE GATE ITSELF, on the refusals it must refuse. Each case is a span a seat could not obey as
+// written; a gate that read only the first word, never the flags, or took an attribution on
+// trust passed every one of them.
+func TestARefusalASeatCannotObeyFailsTheGate(t *testing.T) {
+	trees := seatTrees()
+	known := knownFlagNames(t)
+	lens := treeOf(trees, "lens")
+	for _, c := range []struct {
+		name, text string
+		bad        bool
+	}{
+		{"another seat's path under a group the lens holds", "rule it with `motion docket rule --id G1`", true},
+		{"the lens's own verb with the chair's flag", "use `close --carried-from <epoch>` instead", true},
+		{"an attribution to a seat that does not hold the verb", "the lens's `carry --carried-from <epoch>`", true},
+		{"an attribution whose flag is not on the named seat's verb", "the chair's `carry --anchor c-1`", true},
+		{"an attribution, capitalised, to the holder", "The Chair's `carry --carried-from <epoch>`", false},
+		{"a list continuing an attribution", "the bench's `motion docket rule` and `inquest debate`", false},
+		{"the lens's own verb, whole", "close it with `close --id G1 --as repaired`", false},
+		{"another seat's verb, attributed to its holder", "the bench's `motion docket rule --id G1`", false},
+		{"prose in backticks", "the `awaiting_docket` field", false},
+	} {
+		got := refusalProblems(trees, lens, c.text, known)
+		if (len(got) > 0) != c.bad {
+			t.Errorf("%s: %q to a lens — problems %q, want a problem: %v", c.name, c.text, got, c.bad)
+		}
+	}
+}
+
+// THE UNKNOWN-VIEW REFUSAL, DELIVERED TO EVERY SEAT. It carries its group's listing, and each row
+// says which verbs write that view — so it is a refusal in every seat's terms at once, and only a
+// test that delivers it to each seat lets the harness read it against each tree. The inquest
+// listing reached only the bench and the chair, and no test sent it to the bench, so its
+// "Written by `position`, `closing`" — verbs the bench does not hold — went unread.
+func TestTheUnknownViewRefusalSpeaksToEverySeat(t *testing.T) {
+	runDir := seatRun(t)
+	for _, role := range seatRoles {
+		id := record.SampleSeatOf(role)
+		groups := []string{"show"}
+		if cmdAt(NewRootFor(id), []string{"inquest"}) != nil {
+			groups = append(groups, "inquest")
+		}
+		for _, g := range groups {
+			// run hands the refusal to assertRefusalSpeaksToItsSeat with this seat's tree.
+			_, err := run(t, g, "nonesuch", "--run", runDir, "--seat-id", id)
+			if err == nil || !strings.Contains(err.Error(), "nonesuch") {
+				t.Errorf("%s: `%s nonesuch` was not refused about the view it named: %v", role, g, err)
+			}
+		}
 	}
 }

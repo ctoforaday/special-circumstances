@@ -156,6 +156,9 @@ func newFile(subject string, required []string) *cobra.Command {
 	// prose() refuses a filing with no argument; the marker says so where the seat reads.
 	seat.SaysRequired(seat.Prose(c), flags.Reason)
 	for _, f := range required {
+		if fileFlagHelp[f] == "" {
+			panic("motion: the " + subject + " filing requires --" + f + " and fileFlagHelp has no line for it — its page would say REQUIRED and nothing about what to supply")
+		}
 		// THE FLAG'S TYPE IS THE FIRST REFUSAL, and the first draft threw it away. `--proposed`
 		// takes a GRADE and is a pflag.Value that refuses a non-grade at parse — before any RunE
 		// runs, with the help and the refusal generated from one list. `--dimension` and
@@ -539,11 +542,10 @@ func enumOf[E ~int32](d protoreflect.EnumDescriptor, word string) (E, bool) {
 	return E(vd.Number()), true
 }
 
-// ruleFlagHelp is what each subject-specific ruling flag asks for. Written here rather than at the
-// registration so the two subjects that share a flag would share its words — and so a flag added
-// to ruleFlags without a line here renders an empty usage, which is visible immediately.
 // fileFlagHelp is the usage line of each flag a subject's filing requires; the subject's page is
 // the one the seat reads, so the line says what the flag IS rather than which subject wants it.
+// newFile refuses, at construction, a required flag with no line here: its page would read a bare
+// "REQUIRED — " and nothing about what to supply.
 var fileFlagHelp = map[string]string{
 	flags.ID:        "the gap this motion is about (G4)",
 	flags.Dimension: "the grade axis you contest",
@@ -552,6 +554,9 @@ var fileFlagHelp = map[string]string{
 	flags.Relief:    "what you ask the bench to do about it",
 }
 
+// ruleFlagHelp is what each subject-specific ruling flag asks for. Written here rather than at the
+// registration so the two subjects that share a flag would share its words — and so a flag added
+// to ruleFlags without a line here renders an empty usage, which is visible immediately.
 var ruleFlagHelp = map[string]string{
 	flags.Principle:  "the rule you applied, stated so a later sitting can apply the same one",
 	flags.Tension:    "the values that pulled against each other — empty is a real answer when none did",

@@ -41,21 +41,21 @@ import (
 // The subject is named as the FLAG, not the verb: this refusal arrives while the seat is looking
 // at one command, so "--id names gap R9-9, which no mint event created" is the whole sentence it
 // needs. validate's copy keeps the verb too, because there it can be reached by any caller.
-func GapExists(runDir string, id string) error {
+func GapExists(runDir, flag, id string) error {
 	run, err := OpenRun(runDir)
 	if err != nil {
 		return err
 	}
-	return requireGap(run, id, "the", "--id")
+	return requireGap(run, id, "the", flag)
 }
 
 // AvenueExists resolves an avenue.
-func AvenueExists(runDir string, id string) error {
+func AvenueExists(runDir, flag, id string) error {
 	run, err := OpenRun(runDir)
 	if err != nil {
 		return err
 	}
-	return requireAvenue(run, id, "the", "--id")
+	return requireAvenue(run, id, "the", flag)
 }
 
 // THESE THREE KEEP A `runDir string`, AND IT IS NOT AN OVERSIGHT.
@@ -68,14 +68,24 @@ func AvenueExists(runDir string, id string) error {
 //
 // The alternative is real but larger than this change: move the flag-NAME constants `record`
 // reaches for into a leaf package, which breaks the cycle and lets Checker take a Run.
-// CitationExists resolves a citation anchor.
-func CitationExists(runDir string, label string) error {
-	run, err := OpenRun(runDir)
-	if err != nil {
-		return err
+// CitationExists resolves a citation anchor, and its refusal ends with the CALLER's advice, because
+// two verbs on two seats take a citation and want different words: a lens's `verify --anchor`
+// names the citation it adjudicated, blue's `prove --cites` the method a computation applies. A
+// refusal naming --cites and blue's `cite` to the lens that typed --anchor sends it to a flag its
+// verb does not have.
+func CitationExists(advice string) func(runDir, flag, label string) error {
+	return func(runDir, flag, label string) error {
+		run, err := OpenRun(runDir)
+		if err != nil {
+			return err
+		}
+		return requireCitation(run, label, "the", flag, advice)
 	}
-	return requireCitation(run, label, "the", "--cites")
 }
+
+// ProveCitesAdvice is what a proof naming no citation is told, by the flag check and by validate's
+// copy of the same refusal alike: blue's own act, in blue's words.
+const ProveCitesAdvice = "The method is cited first, with blue's `cite`; a proof pointing at a citation that does not exist claims a provenance it does not have"
 
 func requireGap(run Run, id, verb, flag string) error {
 	if id == "" {
@@ -133,7 +143,7 @@ func requireFindings(run Run, labels []string, verb, flag string) error {
 // cite a citation that does not exist and the assembled report would carry the link as though it
 // meant something. That is the same hole `lens verify --anchor` had until 0.60.0, on the same
 // axis, one verb over.
-func requireCitation(run Run, label, verb, flag string) error {
+func requireCitation(run Run, label, verb, flag, advice string) error {
 	if label == "" {
 		return nil
 	}
@@ -149,8 +159,8 @@ func requireCitation(run Run, label, verb, flag string) error {
 	// "blue has cited" WAS TRUE AND IS NOT. The set now includes red's supporting
 	// corroborations, which mint a label of their own — so a count described as blue's would
 	// misstate what a seat is being compared against.
-	return fmt.Errorf("record: %s %s=%s names no citation on the record — %d source(s) are cited (blue's, and red's corroborations), and `show evidence` lists them by anchor. The method is cited first, with blue's `cite`; a proof pointing at a citation that does not exist claims a provenance it does not have",
-		verb, flag, label, len(known))
+	return fmt.Errorf("record: %s %s=%s names no citation on the record — %d source(s) are cited (blue's, and red's corroborations), and `show evidence` lists them by anchor. %s",
+		verb, flag, label, len(known), advice)
 }
 
 // requireAvenue refuses a move against an avenue nobody proposed.

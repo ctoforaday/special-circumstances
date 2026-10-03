@@ -342,7 +342,7 @@ Flags:
 (Global Flags:) → SHARED §8
 ==============================================================================
 $ feov-record inquest debate --help
-the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by `position`, `closing` and the bench's `motion docket rule`
+the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by blue's and the chair's `position` and `closing`, and the bench's `motion docket rule`
 
 OUTPUT (JSON, with --json — the bare call is the markdown form): {epochs:[{epoch,verdict,red:[string],blue:[string],lead:[{gap_id,disposition,principle,tension,review_flag,rationale}],red_closings:[{gap_id,text}],blue_closings:[{gap_id,text}],struck:[{type,seat_id,text,replacement,by,why}]}]}
 

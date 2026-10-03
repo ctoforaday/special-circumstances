@@ -863,7 +863,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		}
 		for _, anc := range b.GetSupersedes() {
 			if !ids[anc] {
-				return fmt.Errorf("record: mint supersedes %s, which no mint event has created — dangling lineage refused", anc)
+				return fmt.Errorf("record: mint --supersedes names %s, which no mint event has created — dangling lineage refused", anc)
 			}
 		}
 	case *recordpb.Proof:
@@ -871,10 +871,10 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// and a dangling reference is refused HERE rather than accepted and dropped at
 		// replay. It is optional — a proof can back a claim nobody challenged — but a
 		// `computation` gap can be closed ONLY by one that names it (see merge close).
-		if err := requireGap(run, b.GetAnswers(), "blue prove", "--answers"); err != nil {
+		if err := requireGap(run, b.GetAnswers(), "blue's `prove`", "--answers"); err != nil {
 			return err
 		}
-		if err := requireCitation(run, b.GetCites(), "blue prove", "--cites"); err != nil {
+		if err := requireCitation(run, b.GetCites(), "blue's `prove`", "--cites", ProveCitesAdvice); err != nil {
 			return err
 		}
 	case *recordpb.BlueEdit:
@@ -883,7 +883,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// --answers names the gap this edit responds to, and it is checked against the board
 		// like every other reference in this file (refs.go: twelve of twelve were once
 		// unchecked, and a dangling reference is ACCEPTED here and DROPPED at replay).
-		if err := requireGap(run, b.GetAnswers(), "blue edit", "--answers"); err != nil {
+		if err := requireGap(run, b.GetAnswers(), "blue's `edit`", "--answers"); err != nil {
 			return err
 		}
 		// And the convention it replaces is REFUSED, not merely deprecated. Measured on the
@@ -1336,7 +1336,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// `avenue_id`, and the seat-facing verb is `avenue` — and the schema's name is
 		// the one that survives. Named here because it is a rename by judgement, not a match.
 		if b.GetSupersedesStatus() != "" {
-			if err := requireAvenue(run, b.GetAvenueId(), "blue avenue", "--id"); err != nil {
+			if err := requireAvenue(run, b.GetAvenueId(), "blue's `avenue move`", "--id"); err != nil {
 				return err
 			}
 		}

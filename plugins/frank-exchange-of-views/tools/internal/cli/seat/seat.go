@@ -682,7 +682,7 @@ func Begin(cmd *cobra.Command) (Context, error) {
 // referenceChecker is what a typed flag implements when it knows what it is checked against.
 // Declared here rather than imported so the flags package keeps no dependency on this one.
 type referenceChecker interface {
-	Check(runDir string) error
+	Check(runDir, flag string) error
 }
 
 // CheckFlagReferences resolves every flag that carries an existence check.
@@ -713,7 +713,7 @@ func CheckFlagReferences(cmd *cobra.Command, runDir string) error {
 			return
 		}
 		if c, ok := f.Value.(referenceChecker); ok {
-			err = c.Check(runDir)
+			err = c.Check(runDir, "--"+f.Name)
 		}
 	})
 	return err

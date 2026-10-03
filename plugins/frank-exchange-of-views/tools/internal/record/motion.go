@@ -509,8 +509,17 @@ func RequireSubjectMatches(run Run, subject, id string) error {
 		return err
 	}
 	if got != subject {
-		return fmt.Errorf("record: motion %s was filed as a %s motion and you are ruling it as a %s — rule it under `motion %s rule`. The subject decides BOTH who holds the gavel and which verdicts exist, so ruling under the wrong one answers with a vocabulary the motion does not have",
-			id, got, subject, got)
+		// THE RULING VERB IS NAMED AS ITS GAVEL-HOLDER'S, because it is often not the reader's: a
+		// chair ruling a petition as a grade is told the bench's `motion petition rule`, which no
+		// chair can type.
+		ruler := "its ruler"
+		if subj, ok := MotionSubjectEnum(got); ok {
+			if r, err := recordpb.SubjectRuler(subj); err == nil {
+				ruler = "the " + r
+			}
+		}
+		return fmt.Errorf("record: motion %s was filed as a %s motion and you are ruling it as a %s — it is ruled with %s's `motion %s rule`. The subject decides BOTH who holds the gavel and which verdicts exist, so ruling under the wrong one answers with a vocabulary the motion does not have",
+			id, got, subject, ruler, got)
 	}
 	return nil
 }
