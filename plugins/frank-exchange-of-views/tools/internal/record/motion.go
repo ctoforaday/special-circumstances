@@ -2,8 +2,11 @@ package record
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"strings"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
@@ -469,6 +472,35 @@ func MotionsOf(evs []*Event) []*Motion {
 	return out
 }
 
+// rowQuerier is what a motion guard reads through: the run's handle, or the writing transaction,
+// which holds the write lock from its BEGIN.
+type rowQuerier interface {
+	QueryRow(string, ...any) *sql.Row
+}
+
+// rowOf is queryRow over a querier the caller already holds. found=false is no row.
+func rowOf(q rowQuerier, dest []any, query string, args ...any) (found bool, err error) {
+	if err := q.QueryRow(query, args...).Scan(dest...); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, fmt.Errorf("record: asking the record: %w", err)
+	}
+	return true, nil
+}
+
+// MotionAct is what a seat is doing to a motion when a check is asked on its behalf. A refusal
+// names the act and points the asker at the one it can perform: a ruler is sent to the subject's
+// gavel, an appellant to the subject's appeal or, where the bench ruled, to a new motion.
+type MotionAct int
+
+const (
+	// MotionRuling is the gavel-holder answering a motion.
+	MotionRuling MotionAct = iota
+	// MotionAppealing is a seat pressing a ruled motion on.
+	MotionAppealing
+)
+
 // RequireMotionSubjectRef refuses a ruling or appeal naming a motion no filing created — the same
 // discipline every other cross-reference gets, for the same reason: a dangling reference is
 // accepted at write time and dropped at replay, where nobody sees it go.
@@ -478,24 +510,41 @@ func MotionsOf(evs []*Event) []*Motion {
 // the proposal is the filing — so it joins on the LINE's own id, and the thing that must exist
 // is the avenue, not a motion event. Passing the subject keeps that difference in one place
 // instead of pushing it into each RunE.
-func RequireMotionSubjectRef(run Run, subject recordpb.MotionSubject, id string) error {
+//
+// IT RETURNS THE SUBJECT THE MOTION WAS FILED UNDER, read by the same lookup that proves it exists.
+// An appeal resolved its id three times — here, again inside RequireRuledMotion, and again to read
+// the filed subject — so the reference is resolved once and the answer passed down.
+func RequireMotionSubjectRef(run Run, subject recordpb.MotionSubject, id string) (filed string, err error) {
 	if id == "" {
-		return fmt.Errorf("record: --id is required — a ruling names the motion it answers, and that join is the whole of #312")
+		return "", fmt.Errorf("record: --id is required — a ruling names the motion it answers, and that join is the whole of #312")
 	}
+	// A direction has no filing event — the proposal is the filing — so an id that resolves to an
+	// avenue IS an avenue motion by construction.
 	if subject == recordpb.MotionSubject_MOTION_SUBJECT_AVENUE {
-		return RequireAvenueRef(run, id)
+		if err := RequireAvenueRef(run, id); err != nil {
+			return "", err
+		}
+		return motionSubjectWord(subject), nil
 	}
-	found, err := recordHas(run, `SELECT 1 FROM "motion" WHERE "motion_id" = ? LIMIT 1`, id)
+	// The stored word is the schema's spelling; the SURFACE word goes through the same
+	// motionSubjectWord mapping the fold uses.
+	var word sql.NullString
+	found, err := queryRow(run, []any{&word},
+		`SELECT "subject" FROM "motion" WHERE "motion_id" = ? ORDER BY "event_id" LIMIT 1`, id)
 	if err != nil {
-		return err
+		return "", err
 	}
-	if found {
-		return nil
+	if !found {
+		return "", fmt.Errorf("record: --id names motion %s, which no filing created — a dangling reference is accepted here and dropped at replay", id)
 	}
-	return fmt.Errorf("record: --id names motion %s, which no filing created — a dangling reference is accepted here and dropped at replay", id)
+	if vd, ok := recordpb.BySpelling(recordpb.MotionSubject(0).Descriptor(), word.String); ok {
+		return motionSubjectWord(recordpb.MotionSubject(vd.Number())), nil
+	}
+	return word.String, nil
 }
 
-// RequireSubjectMatches refuses a ruling whose SUBGROUP disagrees with the motion's own subject.
+// RequireSubjectMatches refuses a ruling or an appeal whose SUBGROUP disagrees with the motion's
+// own subject.
 //
 // MEASURED BY PROBING, and it is the defect the collapse was supposed to remove, reintroduced one
 // level down. `motion <subject> rule` takes its subject from its POSITION IN THE TREE — which
@@ -506,57 +555,82 @@ func RequireMotionSubjectRef(run Run, subject recordpb.MotionSubject, id string)
 // "petition (safety) … ruled accepted".
 //
 // A fact recovered from tree position rather than read from the record is exactly what
-// facts-are-fields is about. The record carries the subject; this reads it.
-func RequireSubjectMatches(run Run, subject, id string) error {
-	got, err := motionSubjectOf(run, id)
+// facts-are-fields is about. The record carries the subject; this reads it, once.
+func RequireSubjectMatches(run Run, subject recordpb.MotionSubject, id string, act MotionAct) error {
+	filed, err := RequireMotionSubjectRef(run, subject, id)
 	if err != nil {
 		return err
 	}
-	if got != subject {
-		// THE RULING VERB IS NAMED AS ITS GAVEL-HOLDER'S, because it is often not the reader's: a
-		// chair ruling a petition as a grade is told the bench's `motion petition rule`, which no
-		// chair can type.
-		ruler := "its ruler"
-		if subj, ok := MotionSubjectEnum(got); ok {
-			if r, err := recordpb.SubjectRuler(subj); err == nil {
-				ruler = "the " + r
-			}
-		}
-		return fmt.Errorf("record: motion %s was filed as a %s motion and you are ruling it as a %s — it is ruled with %s's `motion %s rule`. The subject decides BOTH who holds the gavel and which verdicts exist, so ruling under the wrong one answers with a vocabulary the motion does not have",
-			id, got, subject, ruler, got)
+	if subject == recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED {
+		return fmt.Errorf("record: %q is not a motion subject — one of %s", recordpb.Word(subject), strings.Join(MotionSubjects, " | "))
 	}
-	return nil
+	asked := motionSubjectWord(subject)
+	if filed == asked {
+		return nil
+	}
+	// THE NEXT ACT IS NAMED AS THE FILED SUBJECT'S, because it is often not the reader's verb: a
+	// chair ruling a petition as a grade is told the bench's `motion petition rule`, which no
+	// chair can type, and an appellant is told whether the filed subject takes an appeal at all.
+	ruler := "its ruler"
+	appealable := true
+	if subj, ok := MotionSubjectEnum(filed); ok {
+		if r, err := recordpb.SubjectRuler(subj); err == nil {
+			ruler = "the " + r
+			appealable = r != benchRole
+		}
+	}
+	if act == MotionAppealing {
+		next := fmt.Sprintf("appeal it as what it is, with `motion %s appeal`", filed)
+		if !appealable {
+			next = noAppeal(filed, id)
+		}
+		return fmt.Errorf("record: motion %s was filed as a %s motion and you are appealing it as a %s — %s. The subject decides who ruled the motion and whether that ruling can be pressed, so an appeal under the wrong one presses a ruling the motion does not have",
+			id, filed, asked, next)
+	}
+	return fmt.Errorf("record: motion %s was filed as a %s motion and you are ruling it as a %s — it is ruled with %s's `motion %s rule`. The subject decides BOTH who holds the gavel and which verdicts exist, so ruling under the wrong one answers with a vocabulary the motion does not have",
+		id, filed, asked, ruler, filed)
 }
 
-// motionSubjectOf reports what a motion is ABOUT, from the record rather than from the caller.
+// requireAppealable refuses an appeal under a subject the BENCH rules.
 //
-// A direction has no filing event — the proposal is the filing — so an id that resolves to an
-// avenue IS a direction motion by construction.
-func motionSubjectOf(run Run, id string) (string, error) {
-	// The stored word is the schema's spelling; the SURFACE word goes through the same
-	// motionSubjectWord mapping the fold used (direction speaks as `avenue`).
-	var word sql.NullString
-	found, err := queryRow(run, []any{&word},
-		`SELECT "subject" FROM "motion" WHERE "motion_id" = ? ORDER BY "event_id" LIMIT 1`, id)
+// The verb tree expresses this by absence — no `motion petition appeal`, no `motion docket
+// appeal` — and absence binds only the command line: any other writer could put an appeal on a
+// bench ruling, and the record would then carry an escalation from the last forum to nowhere.
+// WHICH subjects take an appeal is read off the gavel on the enum value (`ruled_by`), the fact the
+// tree's own exclusion keys on, so a subject added with the bench's gavel is unappealable here
+// without a list to extend.
+func requireAppealable(subject recordpb.MotionSubject, id string) error {
+	ruler, err := recordpb.SubjectRuler(subject)
 	if err != nil {
-		return "", err
+		return err
 	}
-	if found {
-		if vd, ok := recordpb.BySpelling(recordpb.MotionSubject(0).Descriptor(), word.String); ok {
-			return motionSubjectWord(recordpb.MotionSubject(vd.Number())), nil
-		}
-		return word.String, nil
+	if ruler != benchRole {
+		return nil
 	}
-	// ANY avenue event, proposal or move: the question is whether this id names an avenue
-	// at all, and an avenue that has since moved status is still an avenue.
-	isLine, err := recordHas(run, `SELECT 1 FROM "avenue" WHERE "avenue_id" = ? LIMIT 1`, id)
-	if err != nil {
-		return "", err
+	return fmt.Errorf("record: %s", noAppeal(motionSubjectWord(subject), id))
+}
+
+// noAppeal is the sentence for a bench-ruled motion, and what its appellant may do instead.
+func noAppeal(word, id string) string {
+	return fmt.Sprintf("%s motion %s has no appeal: the bench rules it, and the bench is the last forum — it hears the motion BEFORE the debate continues, so there is nothing to escalate to. If you have new grounds, file a NEW motion on them",
+		word, id)
+}
+
+// requireUnanswered is the first-wins half of the motion guards: a second ruling, a second
+// appeal. It runs INSIDE the writing transaction — insertNumbered's, or appendCorrected's — which
+// takes the write lock at BEGIN. Read before the transaction, it was check-then-insert: every seat
+// that read "unanswered" before the first answer committed landed its own, and the record then
+// held two answers MotionsOf and motion_answers each picked differently.
+//
+// correcting is the key a correction names ("" for an ordinary write).
+func requireUnanswered(q rowQuerier, seatID string, body proto.Message, correcting string) error {
+	switch b := body.(type) {
+	case *recordpb.MotionRule:
+		return RequireUnruledMotion(q, b.GetMotionId(), seatID, correcting)
+	case *recordpb.MotionAppeal:
+		return RequireUnappealedMotion(q, b.GetMotionId(), seatID, correcting)
 	}
-	if isLine {
-		return "avenue", nil
-	}
-	return "", fmt.Errorf("record: --id names motion %s, which no filing created — a dangling reference is accepted here and dropped at replay", id)
+	return nil
 }
 
 // RequireUnruledMotion refuses a SECOND ruling on a motion already answered.
@@ -570,18 +644,19 @@ func motionSubjectOf(run Run, id string) (string, error) {
 // giving moves a single writer; a ruling had no such guard. The escalation path is an APPEAL,
 // which is a new event that preserves both positions, rather than a second ruling that erases one.
 //
-// seatID is the seat asking to rule, and correcting is the key its --corrects names ("" for an
-// ordinary ruling). A CORRECTION OF THE RULING THIS FINDS IS NOT A SECOND RULING: it restates the
-// first in its place, so the guard passes when the ruling it finds IS that act. When the ruling is
-// the asker's own and from its current sitting, the refusal also offers the correction — whether
-// one would be admitted (no other seat has acted since) is the write's to decide.
-func RequireUnruledMotion(run Run, id, seatID, correcting string) error {
+// q is the writing transaction (requireUnanswered). seatID is the seat asking to rule, and
+// correcting is the key its --corrects names ("" for an ordinary ruling). A CORRECTION OF THE
+// RULING THIS FINDS IS NOT A SECOND RULING: it restates the first in its place, so the guard
+// passes when the ruling it finds IS that act. When the ruling is the asker's own and from its
+// current sitting, the refusal also offers the correction — whether one would be admitted (no
+// other seat has acted since) is the write's to decide.
+func RequireUnruledMotion(q rowQuerier, id, seatID, correcting string) error {
 	// motion_answers is the one statement of first-wins: the FIRST ruling is the one quoted,
 	// its word whichever arm the rule carried, "" when it carried none. A row whose ruled_by
 	// is NULL is an appeal with no ruling — not a ruling, so it does not refuse.
 	var word, seat, key sql.NullString
 	var seq sql.NullInt64
-	found, err := queryRow(run, []any{&word, &seat, &key, &seq},
+	found, err := rowOf(q, []any{&word, &seat, &key, &seq},
 		`SELECT a."ruling", a."ruled_by", e."key", a."ruled_seq" FROM "motion_answers" a
 		   JOIN "events" e ON e."id" = a."ruled_seq"
 		  WHERE a."motion_id" = ? AND a."ruled_by" IS NOT NULL`, id)
@@ -593,7 +668,7 @@ func RequireUnruledMotion(run Run, id, seatID, correcting string) error {
 	}
 	if found {
 		return fmt.Errorf("record: motion %s is already ruled %q by %s. A second ruling does not overturn the first — the second is simply the one a later reader sees, and the first stops being the answer. To press it, `appeal` it: an appeal keeps both positions on the record, which is the whole reason a ruling is an argument rather than a command%s",
-			id, word.String, seat.String, correctionOffer(run, seatID, seat.String, key.String, seq, "ruling"))
+			id, word.String, seat.String, correctionOffer(q, seatID, seat.String, key.String, seq, "ruling"))
 	}
 	return nil
 }
@@ -601,12 +676,12 @@ func RequireUnruledMotion(run Run, id, seatID, correcting string) error {
 // correctionOffer is the sentence a first-wins refusal adds when the act it found is the asker's
 // own, from its current sitting — the one case where the act may still be corrected rather than
 // only answered. Empty otherwise, so every other refusal reads exactly as before.
-func correctionOffer(run Run, asker, by, key string, seq sql.NullInt64, noun string) string {
+func correctionOffer(q rowQuerier, asker, by, key string, seq sql.NullInt64, noun string) string {
 	if asker == "" || by != asker || key == "" || !seq.Valid {
 		return ""
 	}
 	var before, now int
-	found, err := queryRow(run, []any{&before, &now}, sittingBeforeAndNowSQL, asker, seq.Int64)
+	found, err := rowOf(q, []any{&before, &now}, sittingBeforeAndNowSQL, asker, seq.Int64)
 	if err != nil || !found || before != now {
 		return ""
 	}
@@ -631,12 +706,13 @@ func correctionOffer(run Run, asker, by, key string, seq sql.NullInt64, noun str
 // drives (`grade_dispute_re_raised`). That keeps both arguments, which is the whole point of an
 // appeal being an event rather than a field.
 //
-// seatID and correcting are RequireUnruledMotion's: a correction of the appeal this finds passes,
-// and the asker's own appeal from this sitting is offered the correction.
-func RequireUnappealedMotion(run Run, id, seatID, correcting string) error {
+// q, seatID and correcting are RequireUnruledMotion's: it runs in the writing transaction, a
+// correction of the appeal this finds passes, and the asker's own appeal from this sitting is
+// offered the correction.
+func RequireUnappealedMotion(q rowQuerier, id, seatID, correcting string) error {
 	var seat, reason, key sql.NullString
 	var seq sql.NullInt64
-	found, err := queryRow(run, []any{&seat, &reason, &key, &seq},
+	found, err := rowOf(q, []any{&seat, &reason, &key, &seq},
 		`SELECT a."appealed_by", a."appeal_reason", e."key", a."appealed_seq" FROM "motion_answers" a
 		   JOIN "events" e ON e."id" = a."appealed_seq"
 		  WHERE a."motion_id" = ? AND a."appealed_by" IS NOT NULL`, id)
@@ -648,7 +724,7 @@ func RequireUnappealedMotion(run Run, id, seatID, correcting string) error {
 	}
 	if found {
 		return fmt.Errorf("record: motion %s is already appealed by %s (%q). A second appeal does not add to the first — it REPLACES it in every reader, and the argument already on the record stops being the one anybody sees. If you are pressing on new grounds, file a NEW motion for this epoch: two motions keep two arguments, which is what an appeal being an event rather than a field is for%s",
-			id, seat.String, reason.String, correctionOffer(run, seatID, seat.String, key.String, seq, "appeal"))
+			id, seat.String, reason.String, correctionOffer(q, seatID, seat.String, key.String, seq, "appeal"))
 	}
 	return nil
 }
@@ -660,10 +736,11 @@ func RequireUnappealedMotion(run Run, id, seatID, correcting string) error {
 // has no honest sentence for. The check covers every subject rather than the one that surfaced it:
 // appealing an unruled grade is the same nonsense as appealing an unruled direction, and fixing
 // only the instance is how the class survives.
+//
+// THE REFERENCE IS THE CALLER'S, resolved once by RequireSubjectMatches. A ruling is never taken
+// back, so "ruled" read before the writing transaction stays true through it — unlike "not yet
+// ruled", which is why this one runs in validate and requireUnanswered does not.
 func RequireRuledMotion(run Run, subject recordpb.MotionSubject, id string) error {
-	if err := RequireMotionSubjectRef(run, subject, id); err != nil {
-		return err
-	}
 	found, err := recordHas(run,
 		`SELECT 1 FROM "motion_answers" WHERE "motion_id" = ? AND "ruled_by" IS NOT NULL`, id)
 	if err != nil {
@@ -672,7 +749,7 @@ func RequireRuledMotion(run Run, subject recordpb.MotionSubject, id string) erro
 	if found {
 		return nil
 	}
-	return fmt.Errorf("record: %s motion %s has no ruling to appeal — an appeal presses on after an answer, and there is no answer on the record yet", subject, id)
+	return fmt.Errorf("record: %s motion %s has no ruling to appeal — an appeal presses on after an answer, and there is no answer on the record yet", motionSubjectWord(subject), id)
 }
 
 // MotionVerdictEnum builds the enum entry for a subject's ruling, so the CLI's help and the write

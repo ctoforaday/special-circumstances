@@ -73,18 +73,21 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("MintMotionID after one filing = (%q, %v)", id, err)
 	}
 
-	if got, err := motionSubjectOf(run, "M1"); err != nil || got != "grade" {
-		t.Errorf("motionSubjectOf(M1) = (%q, %v)", got, err)
+	if got, err := RequireMotionSubjectRef(run, recordpb.MotionSubject_MOTION_SUBJECT_GRADE, "M1"); err != nil || got != "grade" {
+		t.Errorf("RequireMotionSubjectRef on a filed motion = (%q, %v), want it resolved as filed: grade", got, err)
 	}
-	if err := RequireMotionSubjectRef(run, recordpb.MotionSubject_MOTION_SUBJECT_GRADE, "M1"); err != nil {
-		t.Errorf("RequireMotionSubjectRef on a filed motion = %v", err)
-	}
-	if err := RequireMotionSubjectRef(run, recordpb.MotionSubject_MOTION_SUBJECT_GRADE, "M9"); err == nil {
+	if _, err := RequireMotionSubjectRef(run, recordpb.MotionSubject_MOTION_SUBJECT_GRADE, "M9"); err == nil {
 		t.Error("RequireMotionSubjectRef accepted a motion no filing created")
+	}
+	// The first-wins guards read through the handle they are given — the writing transaction, on a
+	// write; the run's handle here.
+	db, err := openRunForRead(run)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	// Unruled: filing exists, no answer yet.
-	if err := RequireUnruledMotion(run, "M1", "", ""); err != nil {
+	if err := RequireUnruledMotion(db, "M1", "", ""); err != nil {
 		t.Errorf("RequireUnruledMotion before any ruling = %v", err)
 	}
 	if err := RequireRuledMotion(run, recordpb.MotionSubject_MOTION_SUBJECT_GRADE, "M1"); err == nil {
@@ -100,14 +103,14 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Ruled: the second-ruling refusal quotes the FIRST ruling's word and ruler.
-	err := RequireUnruledMotion(run, "M1", "", "")
+	err = RequireUnruledMotion(db, "M1", "", "")
 	if err == nil || !strings.Contains(err.Error(), `ruled "rejected" by red-chair`) {
 		t.Errorf("RequireUnruledMotion after a ruling = %v, want the first ruling quoted", err)
 	}
 	if err := RequireRuledMotion(run, recordpb.MotionSubject_MOTION_SUBJECT_GRADE, "M1"); err != nil {
 		t.Errorf("RequireRuledMotion after a ruling = %v", err)
 	}
-	if err := RequireUnappealedMotion(run, "M1", "", ""); err != nil {
+	if err := RequireUnappealedMotion(db, "M1", "", ""); err != nil {
 		t.Errorf("RequireUnappealedMotion before any appeal = %v", err)
 	}
 
@@ -118,7 +121,7 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	err = RequireUnappealedMotion(run, "M1", "", "")
+	err = RequireUnappealedMotion(db, "M1", "", "")
 	if err == nil || !strings.Contains(err.Error(), "blue-respond") ||
 		!strings.Contains(err.Error(), "the ruling reads past the argument") {
 		t.Errorf("RequireUnappealedMotion after an appeal = %v, want the appeal quoted", err)
@@ -130,11 +133,11 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(), Line: proto.String("a direction")}); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := motionSubjectOf(run, "Q1"); err != nil || got != "avenue" {
-		t.Errorf("motionSubjectOf(Q1) = (%q, %v) — an avenue IS a direction motion by construction", got, err)
+	if got, err := RequireMotionSubjectRef(run, recordpb.MotionSubject_MOTION_SUBJECT_AVENUE, "Q1"); err != nil || got != "avenue" {
+		t.Errorf("RequireMotionSubjectRef(Q1) = (%q, %v) — an avenue IS an avenue motion by construction", got, err)
 	}
-	if _, err := motionSubjectOf(run, "Z9"); err == nil {
-		t.Error("motionSubjectOf accepted an id that names neither a motion nor an avenue")
+	if _, err := RequireMotionSubjectRef(run, recordpb.MotionSubject_MOTION_SUBJECT_AVENUE, "Z9"); err == nil {
+		t.Error("RequireMotionSubjectRef accepted an id that names no avenue")
 	}
 	if got, want := AvenueRuling(run, "Q1"), avenueRulingFold(run, "Q1"); got != want || got != "" {
 		t.Errorf("AvenueRuling before any ruling = %q, fold says %q", got, want)

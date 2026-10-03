@@ -385,6 +385,11 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 	case !errors.Is(err, sql.ErrNoRows):
 		return nil, fmt.Errorf("record: asking whether another seat has acted since %s: %w", target.Key, err)
 	}
+	// A MOTION IS ANSWERED ONCE, under the lock as on an ordinary write (insertNumbered); the act
+	// this corrects is the answer that stands, so the guard passes it and refuses any other.
+	if err := requireUnanswered(tx, seatID, body, target.Key); err != nil {
+		return nil, err
+	}
 	// THE CHAIN: the replacement's key is the chain's ROOT key and its depth, both walked here from
 	// the correction rows — never parsed out of a key.
 	root, depth := target.Key, 0

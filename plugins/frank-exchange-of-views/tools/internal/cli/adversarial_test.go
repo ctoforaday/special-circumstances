@@ -87,6 +87,15 @@ func adversarialCases() []adversarialCase {
 				"bench may answer) AND the verdict set (`accepted`, not a petition ruling at all).",
 		},
 		{
+			name:    "the wrong subgroup is named before the verb's own refusals",
+			setup:   []seatStep{filePetition},
+			act:     seatStep{"motion", "grade", "rule", "--seat-id", "red-chair", "--id", "M1", "--as", "accepted", "--reason", ""},
+			refused: "was filed as a petition motion and you are ruling it as a grade",
+			guards: "ORDER IS THE MESSAGE. The verb refuses an unreasoned ruling itself, before the " +
+				"write; asked first, that would send the chair to write a reason for a ruling it " +
+				"cannot make. The subject is established before anything phrased in its terms.",
+		},
+		{
 			name:    "a grade motion cannot be ruled through the petition subgroup",
 			setup:   []seatStep{mint, fileGrade},
 			act:     seatStep{"motion", "petition", "rule", "--seat-id", "judge", "--id", "M1", "--as", "granted", "--reason", "the bench takes the chair's docket"},

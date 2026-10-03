@@ -253,21 +253,18 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			// ORDER IS THE MESSAGE. The motion's own subject is established FIRST, because every
 			// later refusal is phrased in terms of it: a lens typing `motion grade rule` at a
 			// petition should be told it named the wrong subgroup, not that grade motions belong
-			// to the chair — which is true, irrelevant, and sends it to the wrong fix.
-			if err := record.RequireMotionSubjectRef(run, mustSubject(subject), id); err != nil {
+			// to the chair — which is true, irrelevant, and sends it to the wrong fix. This verb
+			// refuses an unreasoned ruling and an unknown --as itself, so the subject is asked
+			// here, before either; record.Append asks it again for every writer, and owns the
+			// motion's state (#1205) — still unruled — under its write lock.
+			if err := record.RequireSubjectMatches(run, mustSubject(subject), id, record.MotionRuling); err != nil {
 				return nil, err
 			}
-			if err := record.RequireSubjectMatches(run, subject, id); err != nil {
-				return nil, err
-			}
+			//
 			// NO requireRuler HERE ANY MORE. This verb only exists in the gavel-holder's tree, so
 			// a seat that cannot rule this subject cannot name the command — the same boundary the
 			// verb set draws everywhere else, instead of a runtime comparison of two copies of the
 			// acting role.
-			// A motion is answered ONCE; pressing it is an appeal, which keeps both positions.
-			if err := record.RequireUnruledMotion(run, id, s.SeatID, s.CorrectionKey()); err != nil {
-				return nil, err
-			}
 			opinion, err := prose(cmd, "rule", "an unreasoned ruling is the decoration the filer cannot contest, and contesting it is the whole reason a ruling is not a command")
 			if err != nil {
 				return nil, err
@@ -408,16 +405,10 @@ func newAppeal(subject string) *cobra.Command {
 				return nil, err
 			}
 			id := seat.Str(cmd, flags.ID)
-			if err := record.RequireRuledMotion(run, mustSubject(subject), id); err != nil {
-				return nil, err
-			}
-			if err := record.RequireSubjectMatches(run, subject, id); err != nil {
-				return nil, err
-			}
-			// #673: a second appeal REPLACED the first in every reader. The state graph found it
-			// by probing every act from every state — accepted, the state unchanged, the argument
-			// rewritten.
-			if err := record.RequireUnappealedMotion(run, id, s.SeatID, s.CorrectionKey()); err != nil {
+			// ORDER IS THE MESSAGE, as in newRule: the subject first, before this verb's own refusal
+			// of an appeal with no argument. The motion's state — ruled, not yet appealed (#673,
+			// #1205) — is the write's to refuse; record.Append checks it for every writer.
+			if err := record.RequireSubjectMatches(run, mustSubject(subject), id, record.MotionAppealing); err != nil {
 				return nil, err
 			}
 			reason, err := prose(cmd, "appeal", "why you are pressing on. Going against a ruling without saying why is the disagreement disappearing, which is what the record exists to prevent")
@@ -547,11 +538,11 @@ var ruleFlagHelp = map[string]string{
 //
 // SHAPE ONLY, NO EXISTENCE CHECK, and that is measured rather than assumed. These arms carried
 // `.WithCheck(record.GapExists)` and `.WithCheck(record.AvenueExists)` for one commit; deleting both
-// left the whole suite green and left every refusal BYTE-IDENTICAL, because each verb's own body
-// already resolves the reference — `RequireGapRef` at the filing, `RequireMotionSubjectRef` at the
-// ruling, `RequireRuledMotion` at the appeal — and the last two are STRONGER than existence, being
-// bound to the subject and to the ruled state. A checker here would have been a second
-// implementation of a check that already refuses, in front of one that also knows more.
+// left the whole suite green and left every refusal BYTE-IDENTICAL, because the write already
+// resolves the reference — `requireGap` at the filing, `RequireSubjectMatches` at the ruling and
+// the appeal, then `RequireRuledMotion` at the appeal — and the last two are STRONGER than
+// existence, being bound to the subject and to the ruled state. A checker here would have been a
+// second implementation of a check that already refuses, in front of one that also knows more.
 func idShapeFor(subject string, filing bool) *flags.ShapedValue {
 	if subject == "avenue" {
 		return flags.AvenueID()
