@@ -13,6 +13,8 @@ import (
 	"github.com/klippa-app/go-pdfium/requests"
 	"github.com/klippa-app/go-pdfium/webassembly"
 	"github.com/tetratelabs/wazero"
+	"github.com/tetratelabs/wazero/api"
+	"github.com/tetratelabs/wazero/experimental"
 )
 
 // PDFExtractor reads PDFs with PDFium compiled to WebAssembly, run under wazero.
@@ -64,7 +66,7 @@ type PDFExtractor struct{}
 // it reads the module file itself.
 const (
 	extractorModule          = "github.com/klippa-app/go-pdfium"
-	extractorFallbackVersion = "v1.19.8"
+	extractorFallbackVersion = "v1.21.0"
 )
 
 func extractorIdentity() string {
@@ -209,9 +211,14 @@ func pdfiumInstance(cacheDir string) (pdfium.Pdfium, func(), error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("wazero compilation cache unavailable: %w", err)
 	}
+	// The bundled PDFium lowers setjmp/longjmp to WebAssembly exception handling, so the module
+	// does not compile without that core feature. go-pdfium enables it only in the config it
+	// builds when none is passed; a custom config has to carry it too.
 	pool, err := webassembly.Init(webassembly.Config{
 		MinIdle: 1, MaxIdle: 1, MaxTotal: 1,
-		RuntimeConfig: wazero.NewRuntimeConfig().WithCompilationCache(cache),
+		RuntimeConfig: wazero.NewRuntimeConfig().
+			WithCoreFeatures(api.CoreFeaturesV2 | experimental.CoreFeaturesExceptionHandling).
+			WithCompilationCache(cache),
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("pdf runtime failed to start: %w", err)
