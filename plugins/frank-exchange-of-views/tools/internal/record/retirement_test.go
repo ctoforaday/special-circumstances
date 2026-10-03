@@ -233,8 +233,8 @@ func TestWhyCarriesState(t *testing.T) {
 }
 
 // THE LENS READS ITS LAST SITTING FROM ITS WORK VIEW, after registering for the dispatch it is
-// sitting for — which is why the fact cannot come from lensPins, whose answer is the current
-// sitting once the register lands.
+// sitting for — which is why the fact cannot be the latest dispatch's own sitting (sittingFor),
+// which is the current one once the register lands.
 func TestLensWorkCarriesLastSitting(t *testing.T) {
 	last := func(t *testing.T, b *stage) LastSittingJSON {
 		t.Helper()
