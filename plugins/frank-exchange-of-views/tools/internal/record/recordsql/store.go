@@ -415,9 +415,11 @@ func openUncached(path string) (*sql.DB, error) {
 // retry alike — one figure, because connect exists to give the connect-time pragmas the wait the
 // pragma itself cannot give them. A variable so a test can shorten it.
 //
-// SIBLING COPY: gray-area's catalogue/open.go carries the same mechanism under the same names —
-// openBusyBudget, isBusy and busyBackoff. It is a separate module and cannot import this one, so a fix here is
-// swept there by hand.
+// SIBLING COPY: gray-area's catalogue/open.go carries the same mechanism — openBusyBudget and
+// isBusy under the same names, and the same 5s budget. Its backoff is a named function,
+// busyBackoff, on a different schedule (5ms doubling to 160ms); connect below inlines its own
+// (1ms doubling to 50ms). Both are jittered. It is a separate module and cannot import this one,
+// so a fix here is swept there by hand.
 var openBusyBudget = 5 * time.Second
 
 // connect opens the pool's one connection, waiting out SQLITE_BUSY for openBusyBudget and failing on

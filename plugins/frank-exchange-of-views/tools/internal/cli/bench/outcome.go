@@ -60,7 +60,9 @@ func newOutcome() *cobra.Command {
 		if !correcting {
 			derived, why, ok, err = record.DeriveVerdict(run)
 			if err != nil {
-				return nil, err
+				// Not a refusal of the verdict: the record could not be read to derive one, so the
+				// call is retried as it stands.
+				return nil, fmt.Errorf("outcome: the record could not be read to derive the run's verdict, so --as was neither checked nor refused — retry the call: %w", err)
 			}
 		}
 		switch {

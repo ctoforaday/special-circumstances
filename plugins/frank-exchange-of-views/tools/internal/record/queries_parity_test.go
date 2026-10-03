@@ -180,8 +180,9 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	if v, err := RecordedOutcome(run); err != nil || v != want {
 		t.Errorf("RecordedOutcome = (%q, %v), want %q", v, err, want)
 	}
-	if v, err := TerminalVerdict(run); err != nil || v != want {
-		t.Errorf("TerminalVerdict = (%q, %v), want the bench's own act %q", v, err, want)
+	// TerminalVerdict serves the same act in the seat's capitals.
+	if v, err := TerminalVerdict(run); err != nil || v != strings.ToUpper(want) {
+		t.Errorf("TerminalVerdict = (%q, %v), want the bench's own act %q", v, err, strings.ToUpper(want))
 	}
 }
 

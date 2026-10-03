@@ -159,6 +159,10 @@ func TestOpenGivesUpWhenTheLockOutlivesTheBudget(t *testing.T) {
 	if !isBusy(err) {
 		t.Fatalf("the budget expired with an error that is not busy: %v", err)
 	}
+	// An exhausted wait names its budget, so it reads differently from an immediate refusal.
+	if want := "still busy after " + openBusyBudget.String(); !strings.Contains(err.Error(), want) {
+		t.Errorf("the exhausted wait does not say %q: %v", want, err)
+	}
 	if took < openBusyBudget {
 		t.Fatalf("gave up after %v, before the %v budget", took, openBusyBudget)
 	}

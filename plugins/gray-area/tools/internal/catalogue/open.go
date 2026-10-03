@@ -315,7 +315,9 @@ func Open(path string, notice io.Writer) (*sql.DB, error) {
 			return nil, err
 		}
 		if !time.Now().Before(deadline) {
-			return nil, fmt.Errorf("catalogue: still busy after %v: %w", openBusyBudget, err)
+			// The busy error already carries the package's prefix; the budget is appended, so an
+			// exhausted wait reads differently from an immediate refusal.
+			return nil, fmt.Errorf("%w — still busy after %v", err, openBusyBudget)
 		}
 		time.Sleep(busyBackoff(attempt))
 	}

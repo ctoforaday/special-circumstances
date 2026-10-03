@@ -1028,3 +1028,52 @@ func BenchmarkOpen(b *testing.B) {
 		db.Close()
 	}
 }
+
+// OPEN GIVES UP WHEN THE LOCK OUTLIVES THE BUDGET, and says so. A lock held past openBusyBudget
+// comes back as the busy error, never as a hang, and names the budget it waited out so it reads
+// differently from an immediate refusal — with the package's prefix once, not twice. The holder is
+// a plain rollback-journal connection with a write transaction open: its RESERVED lock denies the
+// write URI's `journal_mode(WAL)` conversion, which is the BUSY Open retries. The budget is
+// shortened so the test proves the expiry rather than waiting five seconds for it.
+func TestOpenGivesUpWhenTheLockOutlivesTheBudget(t *testing.T) {
+	was := openBusyBudget
+	openBusyBudget = 150 * time.Millisecond
+	t.Cleanup(func() { openBusyBudget = was })
+
+	p := filepath.Join(t.TempDir(), "catalogue.db")
+	holder := rawOpen(t, p)
+	defer holder.Close()
+	tx, err := holder.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.Exec(`CREATE TABLE placeholder (x)`); err != nil {
+		t.Fatal(err)
+	}
+
+	started := time.Now()
+	db, err := Open(p, io.Discard)
+	took := time.Since(started)
+	if db != nil {
+		_ = db.Close()
+	}
+	if err == nil {
+		t.Fatal("opened against a lock that was never released")
+	}
+	if !isBusy(err) {
+		t.Fatalf("the budget expired with an error that is not busy: %v", err)
+	}
+	if want := "still busy after " + openBusyBudget.String(); !strings.Contains(err.Error(), want) {
+		t.Errorf("the exhausted wait does not say %q: %v", want, err)
+	}
+	if n := strings.Count(err.Error(), "catalogue:"); n != 1 {
+		t.Errorf("the error carries the package prefix %d times, want once: %v", n, err)
+	}
+	if took < openBusyBudget {
+		t.Fatalf("gave up after %v, before the %v budget", took, openBusyBudget)
+	}
+	if took > was {
+		t.Fatalf("gave up after %v — the shortened %v budget was not the one waited with", took, openBusyBudget)
+	}
+}

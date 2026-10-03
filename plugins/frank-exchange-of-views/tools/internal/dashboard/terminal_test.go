@@ -83,10 +83,9 @@ func TestARecordedOutcomeIsTerminal(t *testing.T) {
 	if !m.Terminal {
 		t.Error("the bench recorded an outcome; the run is terminal")
 	}
-	// THE SPELLING IS THE SCHEMA'S, not a literal. The point is that the verdict comes off the
-	// OUTCOME EVENT rather than the rendered report; a hardcoded "CEILING" was really pinning how
-	// the payload record stored the seat's uppercase word.
-	if want := recordpb.Word(recordpb.RunOutcome_RUN_OUTCOME_CEILING); m.TerminalVerdict != want {
+	// THE WORD IS THE SCHEMA'S, in the capitals record.TerminalVerdict answers in. The point is that
+	// the verdict comes off the OUTCOME EVENT rather than the rendered report.
+	if want := strings.ToUpper(recordpb.Word(recordpb.RunOutcome_RUN_OUTCOME_CEILING)); m.TerminalVerdict != want {
 		t.Errorf("the verdict comes off the outcome event; got %q, want %q", m.TerminalVerdict, want)
 	}
 }
