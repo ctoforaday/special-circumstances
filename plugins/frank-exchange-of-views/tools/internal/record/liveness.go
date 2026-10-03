@@ -36,6 +36,7 @@ package record
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -228,7 +229,7 @@ func (l Liveness) Says() string {
 //
 // The honest answer when the record cannot say is that the record cannot say, and the renderer
 // already says it well: an empty terminal verdict falls through to the epoch verdict off the
-// record and is RELABELLED from "final verdict" to "latest verdict (rN)". The operator sees a
+// record and is RELABELLED from "final verdict" to "latest verdict (epoch N)". The operator sees a
 // different claim rather than the same claim from a worse source.
 // It is exported for every caller that needs to know whether the bench recorded an outcome —
 // the dashboard SERVER, whose lifetime was keyed only to the run-live marker (a file whose only
@@ -239,6 +240,13 @@ func (l Liveness) Says() string {
 // The error is a record that could not be read, and it is returned rather than folded into "":
 // "" says the run has not ended, and a caller keying a liveness verdict or a server's lifetime to
 // that answer must not take an unreadable record for a run in flight.
+//
+// ONE SPELLING, THE SEAT'S: the verdict comes back in capitals whichever read answers it.
+// RunOutcome is stored as the schema's word (`ceiling`) and typed by the bench in capitals
+// (`--as CEILING`), which is also how DeriveVerdict names it; every consumer — the dashboard's
+// verdict tile, capture's liveness audit, the dashboard server's exit line — shows it to an
+// operator looking for the state a seat recorded. Folded here, once, so no consumer has to know
+// which of the two reads produced the word.
 func TerminalVerdict(run Run) (string, error) {
 	// The bench's own terminal act, latest wins — one query (queries.go), not a fold, and the
 	// same query the dashboard reads so the two surfaces cannot fold the answer differently.
@@ -247,11 +255,18 @@ func TerminalVerdict(run Run) (string, error) {
 		return "", err
 	}
 	if v != "" {
-		return v, nil
+		return strings.ToUpper(v), nil
 	}
 	// Or what the record decides for itself. ok is false only where the record holds no
-	// terminal state — in flight, or ended early — and that is a real answer, not a gap to paper over.
-	if v, _, ok := DeriveVerdict(run); ok {
+	// terminal state — in flight, or ended early — and that is a real answer, not a gap to paper
+	// over. Its reads fail the same way the first one does, and are surfaced the same way: a
+	// busy record under the halt or gate read folded into ("", nil) convicted a finished run as
+	// TERMINATED just as the first read's fold did.
+	v, _, ok, err := DeriveVerdict(run)
+	if err != nil {
+		return "", err
+	}
+	if ok {
 		return v, nil
 	}
 	return "", nil

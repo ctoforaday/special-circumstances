@@ -40,9 +40,9 @@ func vev(t *testing.T, seat string, round int, body proto.Message) *Event {
 // A PASS on the record is VERIFIED, without anyone saying so.
 func TestVerifiedIsDerivedFromThePassEvent(t *testing.T) {
 	dir := runWith(t, "3", []*Event{vev(t, "red-chair", 1, &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})})
-	got, why, ok := DeriveVerdict(mustRun(t, dir))
-	if !ok || got != "VERIFIED" {
-		t.Errorf("got %q (ok=%v) — want VERIFIED: %s", got, ok, why)
+	got, why, ok, err := DeriveVerdict(mustRun(t, dir))
+	if err != nil || !ok || got != "VERIFIED" {
+		t.Errorf("got %q (ok=%v, err=%v) — want VERIFIED: %s", got, ok, err, why)
 	}
 }
 
@@ -75,9 +75,9 @@ func TestCeilingIsDerivedFromEveryMaterialGapAtItsLimit(t *testing.T) {
 	if len(plan.Parties) != 0 || !plan.Ceiling || plan.PassPermitted {
 		t.Fatalf("plan = %+v, want nobody ready and ceiling", plan)
 	}
-	got, why, ok := DeriveVerdict(run)
-	if !ok || got != "CEILING" {
-		t.Errorf("got %q (ok=%v) — want CEILING: %s", got, ok, why)
+	got, why, ok, err := DeriveVerdict(run)
+	if err != nil || !ok || got != "CEILING" {
+		t.Errorf("got %q (ok=%v, err=%v) — want CEILING: %s", got, ok, err, why)
 	}
 }
 
@@ -88,9 +88,9 @@ func TestHaltOutranksAPass(t *testing.T) {
 		vev(t, "red-chair", 1, &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
 		vev(t, "judge", 1, &recordpb.Halt{Opinion: proto.String("consent gate")}),
 	})
-	got, _, ok := DeriveVerdict(mustRun(t, dir))
-	if !ok || got != "HALTED" {
-		t.Errorf("got %q (ok=%v) — a halt must outrank a pass", got, ok)
+	got, _, ok, err := DeriveVerdict(mustRun(t, dir))
+	if err != nil || !ok || got != "HALTED" {
+		t.Errorf("got %q (ok=%v, err=%v) — a halt must outrank a pass", got, ok, err)
 	}
 }
 
@@ -99,7 +99,10 @@ func TestHaltOutranksAPass(t *testing.T) {
 // record cannot tell that from a run still in flight, so it refuses to derive rather than guess.
 func TestARunThatEndedEarlyIsNotDerivable(t *testing.T) {
 	dir := runWith(t, "5", []*Event{vev(t, "red-chair", 1, &recordpb.Position{Text: proto.String("x")})})
-	got, why, ok := DeriveVerdict(mustRun(t, dir))
+	got, why, ok, err := DeriveVerdict(mustRun(t, dir))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if ok {
 		t.Errorf("derived %q from a record that cannot decide — the ended-early case must stay honest", got)
 	}

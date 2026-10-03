@@ -58,7 +58,12 @@ func newOutcome() *cobra.Command {
 		prior, correcting := target.(*recordpb.Outcome)
 		derived, why, ok := "", "", false
 		if !correcting {
-			derived, why, ok = record.DeriveVerdict(run)
+			derived, why, ok, err = record.DeriveVerdict(run)
+			if err != nil {
+				// Not a refusal of the verdict: the record could not be read to derive one, so the
+				// call is retried as it stands.
+				return nil, fmt.Errorf("outcome: the record could not be read to derive the run's verdict, so --as was neither checked nor refused — retry the call: %w", err)
+			}
 		}
 		switch {
 		case correcting:

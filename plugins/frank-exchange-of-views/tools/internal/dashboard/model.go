@@ -391,7 +391,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		// the assembler wrote the report" while blue-lane-1 was visibly live in the very next
 		// section, and went on saying it for 55 minutes.
 		//
-		// The essay on readTerminalVerdict below is about precisely this shape — a fact the record
+		// The essay on record.TerminalVerdict is about precisely this shape — a fact the record
 		// holds, recovered from the prose or the filename it was rendered into. It was written one
 		// line above the field that did it.
 		TerminalVerdict: terminalVerdict, Terminal: terminalVerdict != "",
@@ -403,53 +403,6 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 }
 
 func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
-
-// readTerminalVerdict answers from the RECORD, and from nothing else.
-//
-// IT WAS A REGEX OVER report.md, and then briefly a regex kept "as a last resort", which is not a
-// justification. The verdict is a FIELD on the `outcome` event — the bench's terminal act writes
-// it — so parsing it back out of the prose it was rendered into is the shape [[facts-are-fields]]
-// names, and keeping the parse as a fallback keeps the shape.
-//
-// WHAT THE FALLBACK ACTUALLY SERVED, measured across the 9 assembled runs in research/ rather than
-// assumed:
-//
-//	2  carry an `outcome` event — the record answers
-//	1  carries an epoch `verdict` event and no terminal act
-//	5  carry NO terminal act at all, and their reports say "UNVERIFIED"
-//	1  has no verdict in the report either
-//
-// Those five are pre-#289 artifacts, assembled before the terminal act was an event. Their
-// "UNVERIFIED" is backed by no record anywhere — so the fallback's job was to read a word out of
-// prose and hand it to an operator as the run's verdict, which is exactly the unbacked assertion
-// `basisNote` exists to keep out of the report. A fact that no record holds is not recovered by
-// finding it written down.
-//
-// The honest answer when the record cannot say is that the record cannot say, and the renderer
-// already says it well: an empty terminal verdict falls through to the chair's latest gate off the
-// record and is RELABELLED from "final verdict" to "latest verdict (epoch N)". The operator sees a
-// different claim rather than the same claim from a worse source.
-// TerminalVerdict is readTerminalVerdict for callers outside this package: has the bench recorded
-// this run's outcome? Exported for the dashboard SERVER, whose lifetime was keyed only to the
-// run-live marker — a file whose only remover is `capture`, so a killed run left the server
-// watching forever (#270). The record knows what the marker cannot.
-func TerminalVerdict(run record.Run) string { return readTerminalVerdict(run) }
-
-func readTerminalVerdict(run record.Run) string {
-	// The bench's own terminal act, latest wins — record.RecordedOutcome is the ONE reader of
-	// that fact now; this was a byte-for-byte second copy of the fold in record/liveness.go,
-	// which is exactly the drift the record-sqlite plan's step 4 retires.
-	// Folded as BuildModel folds TerminalVerdict's error: the dashboard re-reads on the next tick.
-	if v, err := record.RecordedOutcome(run); err == nil && v != "" {
-		return strings.ToUpper(v)
-	}
-	// Or what the record decides for itself. ok is false only where the record holds no
-	// terminal state — in flight, or ended early — and that is a real answer, not a gap to paper over.
-	if v, _, ok := record.DeriveVerdict(run); ok {
-		return v
-	}
-	return ""
-}
 
 // buildJudiciary ports the journal-envelope analytics: rulings by type, dispute traffic, and
 // argument longevity over supersedes chains (union-find), with grade migration.

@@ -311,8 +311,13 @@ func Open(path string, notice io.Writer) (*sql.DB, error) {
 			}
 			return db, nil
 		}
-		if !isBusy(err) || !time.Now().Before(deadline) {
+		if !isBusy(err) {
 			return nil, err
+		}
+		if !time.Now().Before(deadline) {
+			// The busy error already carries the package's prefix; the budget is appended, so an
+			// exhausted wait reads differently from an immediate refusal.
+			return nil, fmt.Errorf("%w — still busy after %v", err, openBusyBudget)
 		}
 		time.Sleep(busyBackoff(attempt))
 	}

@@ -96,9 +96,9 @@ func TestATerminalVerdictStatesTheDimensionsNobodyAudited(t *testing.T) {
 		if _, err := Append(judge, &recordpb.Halt{Opinion: proto.String("consent gate")}); err != nil {
 			t.Fatal(err)
 		}
-		v, why, ok := DeriveVerdict(run)
-		if !ok || v != "HALTED" {
-			t.Fatalf("verdict = %q %q ok=%v, want HALTED", v, why, ok)
+		v, why, ok, err := DeriveVerdict(run)
+		if err != nil || !ok || v != "HALTED" {
+			t.Fatalf("verdict = %q %q ok=%v err=%v, want HALTED", v, why, ok, err)
 		}
 		return v, why
 	}
