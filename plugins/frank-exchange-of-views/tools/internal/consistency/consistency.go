@@ -259,13 +259,13 @@ func Check(run record.Run) ([]string, error) {
 	// Two homes state which acts a correction struck and where each standing act stands: the SQL
 	// views every winner query reads (`struck`, `live_event`) and the Go overlay every fold and
 	// listing reads (StruckIndex, Live). They must agree act for act, in order.
-	if sk, measured, err := record.StruckKeys(run); err != nil {
+	if sk, err := record.StruckKeys(run); err != nil {
 		add("struck-vs-live", "the struck view could not be read: %v", err)
-	} else if measured {
+	} else {
 		if goKeys := record.StruckIndexOf(m.Events).Keys(); !sameSet(sk, goKeys) {
 			add("struck-vs-live", "the struck view names %v and the Go overlay strikes %v", sk, goKeys)
 		}
-		lk, _, err := record.LiveKeys(run)
+		lk, err := record.LiveKeys(run)
 		if err != nil {
 			add("struck-vs-live", "live_event could not be read: %v", err)
 		} else {

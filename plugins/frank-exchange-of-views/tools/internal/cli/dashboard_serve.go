@@ -202,7 +202,10 @@ func runHasEnded(marker string, run record.Run) (bool, string) {
 	if _, err := os.Stat(marker); err != nil {
 		return true, "run-live marker gone"
 	}
-	if v := record.TerminalVerdict(run); v != "" {
+	// A record that cannot be read now is a run still being watched: the next tick asks again, and
+	// the marker's removal ends the watch whatever the record says. The error is folded here, at
+	// the one site that means "keep watching", and nowhere upstream.
+	if v, err := record.TerminalVerdict(run); err == nil && v != "" {
 		// IN THE SEAT'S OWN SPELLING. RunOutcome is stored as the schema's word (`unverified`) and
 		// typed by the bench in capitals (`--as UNVERIFIED`); this line is read by an OPERATOR
 		// looking for the state a seat recorded, so it shouts the word the seat used rather than

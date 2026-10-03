@@ -169,19 +169,19 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	}
 
 	// The bench records the outcome; RecordedOutcome is that act and TerminalVerdict serves it.
-	if v := RecordedOutcome(run); v != "" {
-		t.Errorf("RecordedOutcome before any outcome = %q, want the honest empty", v)
+	if v, err := RecordedOutcome(run); err != nil || v != "" {
+		t.Errorf("RecordedOutcome before any outcome = (%q, %v), want the honest empty", v, err)
 	}
 	if _, err := Append(judge, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_HALTED),
 		Prose: proto.String("ended on safety grounds")}); err != nil {
 		t.Fatal(err)
 	}
 	want := recordpb.Word(recordpb.RunOutcome_RUN_OUTCOME_HALTED)
-	if v := RecordedOutcome(run); v != want {
-		t.Errorf("RecordedOutcome = %q, want %q", v, want)
+	if v, err := RecordedOutcome(run); err != nil || v != want {
+		t.Errorf("RecordedOutcome = (%q, %v), want %q", v, err, want)
 	}
-	if v := TerminalVerdict(run); v != want {
-		t.Errorf("TerminalVerdict = %q, want the bench's own act %q", v, want)
+	if v, err := TerminalVerdict(run); err != nil || v != want {
+		t.Errorf("TerminalVerdict = (%q, %v), want the bench's own act %q", v, err, want)
 	}
 }
 
@@ -194,8 +194,8 @@ func TestQueriesAnswerTheHonestZeroOverNoRecord(t *testing.T) {
 	if open, closed, err := BoardCounts(run); open != 0 || closed != 0 || err != nil {
 		t.Errorf("BoardCounts = (%d, %d, %v)", open, closed, err)
 	}
-	if v := RecordedOutcome(run); v != "" {
-		t.Errorf("RecordedOutcome = %q", v)
+	if v, err := RecordedOutcome(run); err != nil || v != "" {
+		t.Errorf("RecordedOutcome = (%q, %v)", v, err)
 	}
 	if closed, err := gapState(run, "G1"); closed || err != nil {
 		t.Errorf("gapState = (%v, %v)", closed, err)

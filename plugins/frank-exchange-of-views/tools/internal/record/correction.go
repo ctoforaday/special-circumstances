@@ -340,9 +340,6 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 		return nil, err
 	}
 	defer tx.Rollback()
-	if err := recordsql.RequireTable(tx, recordpb.Word(recordpb.EventType_EVENT_TYPE_CORRECTION)); err != nil {
-		return nil, err
-	}
 	// THE RETRY AGAIN, under the lock: two invocations of one correction racing each other must
 	// resolve to one write and one idempotent answer, not two refusals or two replacements.
 	var prior string
@@ -445,10 +442,6 @@ func closedByTarget(run Run, gapID string, target *correctionTarget) bool {
 // the idempotent success (0 new events, the stored replacement returned so its key is shown), a
 // different one is refused naming the act that stands now. (nil, nil) means no prior correction.
 func correctionRetry(db *sql.DB, seatID, key string, body proto.Message) (*Event, error) {
-	has, err := recordsql.HasTable(db, recordpb.Word(recordpb.EventType_EVENT_TYPE_CORRECTION))
-	if err != nil || !has {
-		return nil, err
-	}
 	var replacement string
 	switch err := db.QueryRow(`SELECT c."replacement" FROM "correction" c JOIN "events" e ON e."id" = c."event_id" WHERE e."key" = ?`,
 		correctionKey(seatID, key)).Scan(&replacement); {

@@ -372,7 +372,10 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 	}
 	eta := projectCompletion(seats, nowMs)
 
-	terminalVerdict := record.TerminalVerdict(run)
+	// A record the dashboard cannot read renders as a run with no terminal verdict: the next
+	// render asks again, and the Model has no surface for a read error — the other instruments
+	// on this page read the same record and show its state. Folded here, at the render, for that.
+	terminalVerdict, _ := record.TerminalVerdict(run)
 	return Model{
 		Run: run, Telemetry: telemetry, Latest: latest, Seats: seats,
 		Cost: costTotal, CostRows: costRows, APIRounds: apiRounds, Agents: agents, Friction: friction,
@@ -436,7 +439,8 @@ func readTerminalVerdict(run record.Run) string {
 	// The bench's own terminal act, latest wins — record.RecordedOutcome is the ONE reader of
 	// that fact now; this was a byte-for-byte second copy of the fold in record/liveness.go,
 	// which is exactly the drift the record-sqlite plan's step 4 retires.
-	if v := record.RecordedOutcome(run); v != "" {
+	// Folded as BuildModel folds TerminalVerdict's error: the dashboard re-reads on the next tick.
+	if v, err := record.RecordedOutcome(run); err == nil && v != "" {
 		return strings.ToUpper(v)
 	}
 	// Or what the record decides for itself. ok is false only where the record holds no

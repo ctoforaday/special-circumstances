@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"math/rand/v2"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -12,14 +13,17 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	// THE DRIVER BELONGS TO THE PACKAGE THAT OPENS THE DATABASE, not to its tests.
 	//
 	// It lived in schema_test.go, so database/sql had a registered "sqlite" driver throughout the
 	// suite and none in the shipped binary. Every test passed and the first real `chair register`
 	// failed with `unknown driver "sqlite"`. A blank import is invisible to the compiler's unused
-	// check, which is exactly why the wrong file stayed good enough.
-	_ "modernc.org/sqlite"
+	// check, which is exactly why the wrong file stayed good enough. isBusy now names the driver's
+	// error type, so the import is no longer blank — the registration still rides on it.
+	"modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -55,7 +59,26 @@ import (
 // one case percent-encoding cannot: a path beginning `//` would parse as an AUTHORITY, and
 // url.URL emits an explicit empty authority (`file:////server/share`) so the path survives whole.
 // RawQuery is written verbatim, which is what keeps `busy_timeout(5000)`'s parentheses intact.
-func dsnFor(path string) string {
+func dsnFor(path string) string { return dsnWithQuery(path, writeQuery()) }
+
+// writeQuery is the write connection's settings, read at each open so that the busy_timeout it
+// carries is the budget connect is waiting with. BUSY_TIMEOUT COMES FIRST, AND THE ORDER IS THE
+// POINT. Pragmas apply left to right, and converting a fresh database to WAL takes an EXCLUSIVE
+// lock — so with the timeout set after it, the conversion is the one operation that runs with no
+// timeout in force. A second opener arriving in that window got SQLITE_BUSY immediately instead
+// of waiting: measured on the Windows CI leg, TestConcurrentOpenOnFreshDatabase failing in 0.04s
+// with "database is locked" (#801), where a live 5-second timeout would have waited and then
+// succeeded. The production shape is the fuzz's concurrent lanes (#630), several seat processes
+// creating the schema at once on round 0; `setup` creating the database in advance is the
+// accident that hides it the rest of the time.
+func writeQuery() string {
+	return fmt.Sprintf("_txlock=immediate&_pragma=busy_timeout(%d)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)", busyTimeout.Milliseconds())
+}
+
+// dsnWithQuery is the one place a path becomes a `file:` URI — every connection to a record,
+// including a test's deliberately plain one, is built here rather than spliced by hand. rawQuery
+// is written verbatim after `?`, or omitted when empty.
+func dsnWithQuery(path, rawQuery string) string {
 	// A WINDOWS PATH IS NOT A URI PATH, AND url.URL CANNOT KNOW THAT. `C:\\Users\\x` has no
 	// leading slash, so String() writes `file://` and then the path — putting `C:` where the
 	// AUTHORITY goes. SQLite accepts an empty authority or `localhost` and nothing else, so every
@@ -72,20 +95,7 @@ func dsnFor(path string) string {
 	if !strings.HasPrefix(p, "/") {
 		p = "/" + p
 	}
-	u := url.URL{
-		Scheme: "file",
-		Path:   p,
-		// BUSY_TIMEOUT COMES FIRST, AND THE ORDER IS THE POINT. Pragmas apply left to right, and
-		// converting a fresh database to WAL takes an EXCLUSIVE lock — so with the timeout set
-		// after it, the conversion is the one operation that runs with no timeout in force. A
-		// second opener arriving in that window got SQLITE_BUSY immediately instead of waiting:
-		// measured on the Windows CI leg, TestConcurrentOpenOnFreshDatabase failing in 0.04s with
-		// "database is locked" (#801), where a live 5-second timeout would have waited and then
-		// succeeded. The production shape is the fuzz's concurrent lanes (#630), several seat
-		// processes creating the schema at once on round 0; `setup` creating the database in
-		// advance is the accident that hides it the rest of the time.
-		RawQuery: "_txlock=immediate&_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)",
-	}
+	u := url.URL{Scheme: "file", Path: p, RawQuery: rawQuery}
 	return u.String()
 }
 
@@ -363,8 +373,22 @@ func openUncached(path string) (*sql.DB, error) {
 	// now load-bearing, not incidental.
 	db.SetMaxOpenConns(1)
 
-	existed := hasEvents(db)
-	if err := ensureSchema(db); err != nil {
+	// THE CONNECTION IS MADE HERE, ON PURPOSE, rather than by the first read below. Every read
+	// after this point fails the open on any error, so the one transient error the open path can
+	// meet has to be waited out before the first of them — and it is met at connect, not at a read.
+	if err := connect(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("recordsql: preparing %s: %w", path, err)
+	}
+
+	// WHETHER THIS OPEN CREATED THE RECORD is decided inside the transaction that creates it, and
+	// a read that fails on the way decides nothing: it is this open's error. It was a lock-free
+	// read taken BEFORE ensureSchema: the loser of a concurrent first-create saw no table, lost
+	// the create to another binary, and took "did not exist" as leave to skip the check below —
+	// then died on a bare "no such column" from the other binary's schema. The host cache's
+	// feov-record and a run's own .bin are two such binaries, and the repository has met the mix.
+	created, err := ensureSchema(db)
+	if err != nil {
 		db.Close()
 		return nil, fmt.Errorf("recordsql: preparing %s: %w", path, err)
 	}
@@ -373,13 +397,66 @@ func openUncached(path string) (*sql.DB, error) {
 	// read naming a column added since fails with SQLite's "no such column", which names neither
 	// the cause nor the way out. Refused here by CONTENT — what the database lacks — never by a
 	// recorded version.
-	if existed {
+	if !created {
 		if err := requireDeclaredSchema(db); err != nil {
 			db.Close()
 			return nil, err
 		}
 	}
 	return db, nil
+}
+
+// busyTimeout is how long a contended lock is waited for, in the DSN's pragma and in connect's
+// retry alike — one figure, because connect exists to give the connect-time pragmas the wait the
+// pragma itself cannot give them. A variable so a test can shorten it.
+//
+// SIBLING COPY: gray-area's catalogue/open.go carries the same mechanism as openBusyBudget,
+// isBusy and busyBackoff. It is a separate module and cannot import this one, so a fix here is
+// swept there by hand.
+var busyTimeout = 5 * time.Second
+
+// connect opens the pool's one connection, waiting out SQLITE_BUSY for busyTimeout and failing on
+// anything else at once.
+//
+// THE CONNECT-TIME PRAGMAS RUN WITH NO BUSY HANDLER THAT CAN HELP THEM. The driver applies the
+// DSN's pragmas on every new connection, busy_timeout first — and on a FRESH database
+// `journal_mode(WAL)` is a conversion that takes an exclusive lock and returns SQLITE_BUSY
+// immediately when another connection holds the file, without consulting the busy handler that
+// was just installed. Six openers of one fresh database, released together: measured here, the
+// loser fails inside 0.1s against a 5s timeout, and the failing statement is the connect's pragma,
+// never the SELECT that follows it (600 openers probed, every failure at connect).
+//
+// This is the wait the swallow used to provide by accident. hasEvents answered "no" to a failed
+// read, ensureSchema re-asked on a second connection attempt, and Begin made a third; three
+// implicit retries hid the busy along with every other read error. The retries are kept, HERE, for
+// the one error that is transient; every other error the connect or a read returns is this open's.
+//
+// Once the database is WAL the pragma is a no-op on every later connection, so this is a
+// first-open concern — which is exactly when several seats create the record at once (#630).
+func connect(db *sql.DB) error {
+	deadline := time.Now().Add(busyTimeout)
+	delay := time.Millisecond
+	for {
+		err := db.Ping()
+		if err == nil {
+			return nil
+		}
+		if !isBusy(err) || time.Now().After(deadline) {
+			return fmt.Errorf("connecting: %w", err)
+		}
+		// Jittered, unlike SQLite's own fixed schedule: waiters released together should not
+		// wake together and collide again.
+		time.Sleep(delay + rand.N(delay))
+		delay = min(delay*2, 50*time.Millisecond)
+	}
+}
+
+// isBusy reports whether err is SQLite's SQLITE_BUSY in any of its extended forms — the one result
+// that means "try again", as opposed to a refused or unreadable database. gray-area's
+// catalogue/open.go has the sibling copy (see busyTimeout).
+func isBusy(err error) bool {
+	var se *sqlite.Error
+	return errors.As(err, &se) && se.Code()&0xff == sqlite3.SQLITE_BUSY
 }
 
 // declared is this binary's own table/column set, built once per process from the schema applied
@@ -599,15 +676,19 @@ func requireDeclaredSchema(db *sql.DB) error {
 // The DSN carries _txlock=immediate, so Begin takes the WRITE lock before any read: a second
 // opener queues on busy_timeout rather than racing, and re-reads after the first commits. A
 // writer waiting for a writer is a queue; that is the same property the seat write path relies on.
-func ensureSchema(db *sql.DB) error {
+//
+// created reports whether THIS call wrote the schema. It is decided under the same lock as the
+// create, so the loser of the race answers false and openUncached holds the record it did not
+// create to this binary's declared schema — the lock-free read cannot make that distinction.
+func ensureSchema(db *sql.DB) (created bool, err error) {
 	// The fast path stays lock-free: an existing database is the overwhelmingly common case, and
 	// taking a write lock on every open would put every reader behind the writer queue.
-	if hasEvents(db) {
-		return nil
+	if has, err := hasEvents(db); err != nil || has {
+		return false, err
 	}
 	tx, err := db.Begin()
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer func() { _ = tx.Rollback() }() // no-op after Commit; the whole point on the loser's path
 	// RE-READ UNDER THE LOCK. This is the half that makes it a check-then-create no longer: the
@@ -615,22 +696,26 @@ func ensureSchema(db *sql.DB) error {
 	// created.
 	var n int
 	if err := tx.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type='table' AND name='events'`).Scan(&n); err != nil {
-		return err
+		return false, err
 	}
 	if n > 0 {
-		return nil
+		return false, nil
 	}
-	return applySchemaTx(tx)
+	if err := applySchemaTx(tx); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
-// hasEvents reports whether the record's table is already there. A read error answers "no" and
-// lets the transactional path produce the real diagnosis rather than two spellings of one fault.
-func hasEvents(db *sql.DB) bool {
+// hasEvents reports whether the record's table is already there. A read that fails is the error,
+// never "no": ensureSchema's created answer is keyed to it, and "no" would send a database this
+// binary cannot read into the create path.
+func hasEvents(db *sql.DB) (bool, error) {
 	var n int
 	if err := db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type='table' AND name='events'`).Scan(&n); err != nil {
-		return false
+		return false, fmt.Errorf("asking whether the record has its events table: %w", err)
 	}
-	return n > 0
+	return n > 0, nil
 }
 
 // applySchema creates the whole record in ONE transaction.

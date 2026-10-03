@@ -27,24 +27,9 @@ func EventByKey(db *sql.DB, key string) (ev *recordpb.Event, id int64, found boo
 	return evs[0], id, true, nil
 }
 
-// HasTable answers whether the record's database holds a table. A run's schema is fixed when its
-// database is created, so a table added since is absent from an older run — and for a table whose
-// rows only this binary can write (the correction), its absence is the true answer "none were
-// written", not a miss.
-func HasTable(q queryRower, table string) (bool, error) {
-	var n int
-	if err := q.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&n); err != nil {
-		return false, fmt.Errorf("recordsql: asking whether the record has a %q table: %w", table, err)
-	}
-	return n > 0, nil
-}
-
-// RequireTable refuses a write that needs a table an older run's database does not have, in the
-// words olderSchema uses for the same fact on the read path: the cause, and the migration that is
-// the way out.
-// viewSQL is the text SQLite stored for this view, or "" if the database has no such view. Separate
-// from HasTable because sqlite_master distinguishes the two, and it returns the DEFINITION rather than
-// a bool because a view that is present and DIFFERENT is its own answer — see requireDeclaredSchema.
+// viewSQL is the text SQLite stored for this view, or "" if the database has no such view. It
+// returns the DEFINITION rather than a bool because a view that is present and DIFFERENT is its own
+// answer — see requireDeclaredSchema.
 func viewSQL(q queryRower, view string) (string, error) {
 	var sqlText sql.NullString
 	err := q.QueryRow(`SELECT "sql" FROM sqlite_master WHERE type = 'view' AND "name" = ?`, view).Scan(&sqlText)
@@ -55,15 +40,4 @@ func viewSQL(q queryRower, view string) (string, error) {
 		return "", err
 	}
 	return sqlText.String, nil
-}
-
-func RequireTable(q queryRower, table string) error {
-	ok, err := HasTable(q, table)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return fmt.Errorf("recordsql: this run's record has no %q table — %s", table, olderRunAdvice)
-	}
-	return nil
 }

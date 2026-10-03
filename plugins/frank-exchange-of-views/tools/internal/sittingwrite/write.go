@@ -75,8 +75,11 @@ func WriteToolEntry(runDir string, phase Phase, agentID, text string) error {
 		return err
 	}
 	seat, found, err := record.SeatOfAgent(run, agentID)
-	if err != nil || !found || record.RecordedOutcome(run) != "" {
-		return err // no seat, or a run that is over: its record is closed to seats
+	if err != nil || !found {
+		return err // no seat for this agent
+	}
+	if v, err := record.RecordedOutcome(run); err != nil || v != "" {
+		return err // a run that is over: its record is closed to seats
 	}
 	// THE ANNOTATION LAYER IS NOT TEXT: an error can quote an anchor, and a live `<!--fx:…-->` in a
 	// log entry is a marker in every document that renders it. Stripped here, in the writer, so the

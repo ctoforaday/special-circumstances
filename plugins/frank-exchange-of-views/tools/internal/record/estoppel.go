@@ -327,23 +327,11 @@ func FindingMarkerHold(run Run, findingID string) (string, error) {
 // event that took it out with its claim. found is false for an anchor no retire named — then it
 // is a stale reference or another run's id, and the caller says so.
 func AnchorRetiredAt(run Run, id string) (event int64, claim string, found bool, err error) {
-	// A run older than the table retired no anchor: answer not-found, not SQLite's error.
-	if has, err := HasTable(run, "retire_anchors"); err != nil || !has {
-		return 0, "", false, err
-	}
 	var c sql.NullString
 	found, err = queryRow(run, []any{&event, &c},
 		`SELECT r."event_id", r."claim" FROM "retire_anchors" ra JOIN "retire" r ON r."event_id" = ra."event_id"
 		 WHERE ra."value" = ? ORDER BY r."event_id" LIMIT 1`, id)
 	return event, c.String, found, err
-}
-
-// HasTable reports whether the run's record has a table. The schema is fixed when a run's
-// database is created — there is no migration, on purpose (recordsql.ensureSchema) — so a run
-// started by an older binary lacks every table added since, and a writer that needs one asks
-// first rather than failing on the insert with SQLite's "no such table".
-func HasTable(run Run, name string) (bool, error) {
-	return recordHas(run, `SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`, name)
 }
 
 // GapsAwaitingProof lists the OPEN gaps minted --check-kind computation that no proof answers,

@@ -176,7 +176,12 @@ func LivenessAudit(run record.Run, now time.Time) Audit {
 	//	quiet + an outcome on the record  -> it ran its course and was captured later
 	//	still moving, no outcome yet      -> captured mid-run, unusual but the operator's call
 	//	quiet + NO outcome                -> it stopped without finishing: TERMINATED
-	verdict := record.TerminalVerdict(run)
+	verdict, err := record.TerminalVerdict(run)
+	if err != nil {
+		// Unreadable is neither finished nor terminated, and it is not SKIP's silent cousin: the
+		// detail carries the read error so the operator sees what could not be read.
+		return Audit{Check: "liveness", Verdict: "SKIP", Detail: "cannot tell whether this run finished or was terminated — the record could not be read: " + err.Error()}
+	}
 	l := record.Assess(run, now, verdict != "")
 	if verdict != "" {
 		return Audit{Check: "liveness", Verdict: "PASS", Detail: fmt.Sprintf(
