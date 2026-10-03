@@ -176,7 +176,7 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 		if refused > 0 {
 			may(fmt.Sprintf("the log is open, and the tool has already recorded %d refused or failed call(s) of yours this sitting — your entry adds what only you know: what you expected, and where the expectation came from. Any other friction goes there too: a workaround, an act you set aside", refused))
 		} else {
-			may("the log is open — for friction: anything that cost you a call, a guess or an act. A sitting that met none files nothing")
+			may("the log is open — for anything that cost you a call, a guess or an act. A sitting where nothing cost you anything files nothing")
 		}
 	}
 

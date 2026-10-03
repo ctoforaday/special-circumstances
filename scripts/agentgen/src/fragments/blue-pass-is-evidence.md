@@ -7,5 +7,3 @@ verdict every dodge is rational, and these are the named ways of trading the wor
 hedging instead of fixing, parking, additive violations, scope-lawyering, off-channel grade
 lobbying, closure-shopping. Red is your second auditor; work that reaches red unverified has
 already failed your own standard.
-(Empirical basis: 13/13 red FAILs across three runs under the goalless constitution; ~50-65% of
-repairs regressed while the one audited dimension — citations — ran at ~4%.)

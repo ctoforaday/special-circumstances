@@ -57,7 +57,7 @@ research/<date>_<slug>/
 │                      #  here instead. Nothing changes for a seat, because a seat reads the
 │                      #  record with `show <name>` and never from disk — which is the
 │                      #  point: a run can be configured so that is the ONLY way, and then a
-│                      #  missing verb has to surface as friction instead of a workaround)
+│                      #  missing verb has to surface in the log instead of a workaround)
 │                      # EVERYTHING FROM README.md TO report.html IS ASSEMBLED LAST, from the record,
 │                      # by `assemble`, for the HUMAN reader. None of it exists while a seat sits, and
 │                      # a seat never opens one: the report is read through the record tool, and the rest
@@ -91,7 +91,7 @@ verb that WRITES each one are in your role's help, which your own configuration 
 full — generated from the command tree, so it cannot disagree with it. A catalogue here would
 be a second copy that can.
 
-  run this first, and again before you stop: your work — everything open to you, each item
+  your work list — read it first, and again before you stop: everything open to you, each item
   saying whether it is what blocks you closing, plus whether the sitting may close at all.
   `complete: true` with items still open means the gates are satisfied, NOT that you are done.
 
@@ -115,7 +115,7 @@ permitted (VERIFIED), or every open material gap at its limit, ruled by the benc
 (CEILING) — or when the run reaches its epoch limit with parties still ready (CEILING, the limit
 named as the reason). The bounds are the run's terms, recorded at setup: the exchanges a gap gets before
 impasse (k-max), the floor of the gaps a lens may mint (mint-budget), which the record raises
-with the report's size in each lens's unit — citations, proofs, claims or prose paragraphs (plans/roundless.md §III.B.2) — and
+with the report's size in each lens's unit — citations, proofs, claims or prose paragraphs — and
 the chair sittings the run gets (max-epochs, default 12). One stop is the engine's own: a dispatch
 plan identical for three chair sittings in a row — the same parties readied against the same
 head for the same reasons — is a loop nothing on the board is moving, and the engine ends the run
@@ -143,21 +143,20 @@ There is no search index, and there are two access modes:
    is the one already performed, and performing it again returns the same bytes to the same reader.
 2. **Leaf-node fetch for verification** — a citation is checked against its source, never against a
    summary. For a source BLUE CITED, read the exact bytes blue read from the run cache
-   (a cache hit, so you audit the same artifact, not a page that may have drifted since). For a source you discover yourself, pull it verbatim (Bash `curl`, or the run's cached source read for a PDF).
+   (a cache hit, so you audit the same artifact, not a page that may have drifted since). For a source you discover yourself, pull it verbatim through the run's cached source read, so every seat that reads it after you reads the same bytes.
    WebFetch is not used: it returns a summary, not the source.
 
 To find text inside the run's own artifacts, use `Grep` — the terms you want are the terms you
 already have, and a lexical match over a known file beats a ranked guess over a corpus.
 
-## Harness contract (one referenceable paragraph — three seats re-derived this at token cost)
+## Harness contract
 
 The Workflow script's `log()` is operator-console-EPHEMERAL: it persists nowhere. The
 transcript directory's `journal.jsonl` is the HARNESS's lifecycle record — `started`/`result`
 events only, never script logs. Per-agent API transcripts are `agent-*.jsonl` (the cost
 audit's input). Durable in-run state lives ONLY in the run directory (git-tracked run files) or
 in envelopes; anything else evaporates with the session. Tool footguns with live recurrences:
-Grep's count mode counts LINES, not occurrences (anchor patterns when counting); quoted
-heredocs can eat backslashes (prefer the Write tool for scripts); the Read tool caps ~25k
+Grep's count mode counts LINES, not occurrences (anchor patterns when counting); the Read tool caps ~25k
 tokens — a full-document read over that cap is consecutive whole windows, which satisfies the
 full-re-read MUST without a confidence discount.
 
@@ -175,20 +174,10 @@ footnotes (with access dates; volatility noted for living sources).
 
 The debate's own documents are beside it, one per audience: `docket.md` (the board in
 full), `debate.md` (the transcript), `judgments.md` (motions and rulings), `avenues.md`
-(the avenues and the path each took), `evidence.md` (the computations), `run.md` (friction, record verification, cost), `CHANGELOG.md` (the report's own
+(the avenues and the path each took), `evidence.md` (the computations), `run.md` (the log, record verification, cost), `CHANGELOG.md` (the report's own
 revisions and withdrawn claims). Nothing is summarized away by the split — the union is the
 directory, indexed by `README.md`.
 
 THE CITATION AND PROOF LAYERS ARE WOVEN PER DOCUMENT. A footnote definition cannot cross a file
 boundary, so each document numbers and defines the references it actually carries; proof numbers
 are run-wide, so `P3` is the same computation wherever it is cited.
-
-## The log
-
-A subagent's only voice is its return value — so capability complaints travel in the envelope.
-
-- AFTER any task where a missing tool, denied permission, or missing capability impeded you, YOU MUST report it in the envelope's `log` field: name the capability and what you would have done with it.
-- AFTER any task where the material did not fit the shape you were given — a template section that made no sense for the topic, a protocol step that fought the work, an envelope field you had nothing honest to put in, content with no home — YOU MUST report the misfit as friction: name the template/step/field and what shape the work actually wanted.
-- AFTER any task where something cost you a call, a guess or an act — a refusal, a name you reached for that was not there, an output shape you misread, a harness guard, a workaround — YOU MUST report it as friction: what you expected, and where the expectation came from. The tool records by itself every refusal it gives you and every tool call of yours that fails; a mistake the surface invited is still friction, because the operator retools the surface, not you.
-- YOU MUST NOT silently work around a missing capability — the workaround destroys the signal that would get you retooled.
-- The log is on the RECORD through each role's `log` verb — every seat that met friction writes it, and the tool writes its own refusals and your failed calls there as they happen (a sitting that met none files nothing), and the read is the OPERATOR's, on the operator's own surface and not on yours, because a missing capability is a report to the human who can retool the seat, not material for the debate; capture reconciles every envelope's `log` field against it, and the self-improvement loop consumes it. Complaints are how the system learns what its agents actually need.

@@ -300,12 +300,15 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
   for (const want of ['YOU MINT YOUR OWN GAPS', 'for a near match', 'then mint', 'registering a new class first', 'mintBudget', 'names the gaps it supersedes', "says so in the check's kind", 'THE ORIGINATOR CLOSES', 'LINEAGE IS NEVER DROPPED',
     'ASK FOR THE ANSWER TO BE PRODUCED, NOT ASSERTED', 'DOCUMENT-PROBE', 'LIVE-PROBE', 'BELIEVE NO BYTES', 'PRESCRIBE TEXT ONLY WHERE THE DEFECT IS TEXTUAL',
     'ANCHOR EVERY FINDING TO A QUOTED SENTENCE', "labels on your findings are the tool's to assign", 'read it whole in consecutive windows',
-    'counts LINES, not occurrences', 'prefer the Write tool over quoted heredocs',
+    'counts LINES, not occurrences',
     "a gap that is not material — by its class, or graded below medium — does not hold the gate", "run it from the proof store; a clean exit or '0 failing' is not an output"]) {
     assert.ok(evidence.includes(want), `the lens prompt lost: ${want}`)
   }
   assert.ok(!/gap ids are the chair's/.test(evidence), 'the ids are the tool\'s, minted by the lens')
   assert.ok(evidence.includes(CITATION_CLAUSE) && /VERBATIM READS ONLY/.test(evidence) && /--comments/.test(evidence), 'the evidence lens carries the ledger clause')
+  // #1209: the manual's shared block MANDATES a quoted heredoc for free text, and a source a lens
+  // finds is read through the run's cache so every later seat reads the same bytes.
+  assert.ok(!/heredoc/.test(evidence) && !/curl/.test(evidence), 'the lens prompt contradicts its manual on heredocs or bypasses the shared source cache')
   assert.ok(/STEELMAN DUTY/.test(firstPrompt(world, 'red-lens-logic')) && /STEELMAN DUTY/.test(firstPrompt(world, 'red-lens-dark-side')), 'logic and dark-side audit the declines')
   assert.ok(!/STEELMAN DUTY/.test(evidence) && !/take slice|instance \d+ of/.test(evidence), 'the evidence seat verifies sources and owns no slice')
 
@@ -332,7 +335,7 @@ test('blue is engaged on named gaps, told the board is authoritative, and files 
   await world.run(script, ARGS)
   const [first, second] = labelsOf(world, 'blue-respond').map((c) => c.prompt)
   assert.ok(/You are engaged on: G1, G2/.test(first))
-  for (const want of ['YOUR FIRST READ COMES AFTER THE MANUAL', 'in one pass rather than two', 'lossy summary', "bench's latest dispositions",
+  for (const want of ['READ YOUR MANUAL FIRST', 'together, in one message', 'lossy summary', "bench's latest dispositions",
     'REMANDED comes with a stated research direction you owe', 'YOU MAY COMPUTE AN ANSWER', 'DOCUMENT-PROBE', 'deferred acceptance test',
     'AVENUES ARE A LIVING RECORD', 'THREE paths', 'ESTOPS', 'OWNERSHIP BINDS, AS IT DID AT SYNTHESIS', 'each edit naming the gap it answers', 'a grade motion on the axis', 'Compact and reorganize prose', 'retired on the record',
     'PROPAGATE EVERY CORRECTION TO ALL SITES', 'NULL TURN', 'AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP', 'manifest array', 'claim_count', 'never hand-count',
@@ -342,14 +345,17 @@ test('blue is engaged on named gaps, told the board is authoritative, and files 
   assert.ok(/CLOSING ARGUMENTS: the following are DOCKETED for adjudication AFTER your response this sitting: G2/.test(first) && /argue in ~120 words/.test(first))
   assert.ok(!/CLOSING ARGUMENTS/.test(second), 'no docket this sitting, no closing demanded')
   assert.ok(!/round \d/.test(first), 'no round is named to blue')
+  // #1209: blue rules nothing, so the bench's law clause is not blue's; every read is a projection,
+  // so no scratch-file copy of one; and a clean sitting owes no log entry.
+  assert.ok(!/ LAW: /.test(first) && !/concatenat/.test(first) && !/log entry saying so/.test(first), 'blue was handed a duty that is not its own')
 })
 
-test('the bench rules on docketed gaps from the closings, the transcript and the live artifact; carried is the gap\'s deadlock', async () => {
+test('the bench rules on docketed gaps from the closings, the transcript and the live artifact; a remanded gap is its deadlock', async () => {
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('judge', 'G1', 'G2')], { docket: ['G1'] }) }), passChair()] }))
   await world.run(script, ARGS)
   const bench = firstPrompt(world, 'judge')
   for (const want of ['Docketed for you: G1, G2', 'THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE', 'read them FRESH before ruling', 'AS IT NOW STANDS', 'Re-run each document-probe acceptance check',
-    'RULING BASIS IS CONFINED TO', 'counts AGAINST the side that made it', "READ THE NAMED ANCESTORS' RECORDS", 'the docket ruling', 'barring as settled', 'CARRY', 'NAMED infrastructure debt',
+    'RULING BASIS IS CONFINED TO', 'counts AGAINST the side that made it', "READ THE NAMED ANCESTORS' RECORDS", 'the docket ruling', 'barring as settled', 'a gap you REMAND stays open', 'NAMED infrastructure debt',
     'rules nothing is a workflow error', 'PRECEDENT IS ARGUMENT, NOT EVIDENCE']) {
     assert.ok(bench.includes(want), `the bench lost: ${want}`)
   }
@@ -492,7 +498,7 @@ test('every seat prompt carries the log clause, the speed clause and the record 
   for (const seat of ['blue-synthesize', 'red-chair', 'red-lens-evidence', 'blue-respond', 'judge #', 'judge · terminal', 'judge · assemble']) {
     const c = labelsOf(world, seat)[0]
     assert.ok(c, `${seat} sat`)
-    assert.ok(c.prompt.includes("envelope's log field") && /AUDIENCE IS THE OPERATOR/.test(c.prompt) && /FRICTION, on the record/.test(c.prompt) && /what you expected and why/.test(c.prompt) && /disputes with another seat's gap are findings/.test(c.prompt), `${seat} lost the operator channel`)
+    assert.ok(c.prompt.includes("envelope's log field") && /AUDIENCE IS THE OPERATOR/.test(c.prompt) && /LOG \([^)]*\), on the record/.test(c.prompt) && /what you expected and why/.test(c.prompt) && /disputes with another seat's gap are findings/.test(c.prompt), `${seat} lost the operator channel`)
     // THE RETIRED SHAPES, in both directions. The first four told a seat the log was owed whatever
     // happened, and seats padded it; the last two narrowed it to what BLOCKED a seat, and on
     // universe-m13 every seat classed its refusals and guesses as its own mistakes and filed nothing.
@@ -604,16 +610,16 @@ test('the sitting record (W1.7): blue is re-prompted once, continues with fricti
   const unresolved = makeWorld(makeResponder({ chair, blueRespond: [blueEnv({ sitting_record_appended: false })] }))
   const out = await unresolved.run(script, ARGS)
   assert.ok(unresolved.calls.some((c) => c.opts.label.startsWith('blue-respond-sitting-record')), 'the seat was re-prompted for its sitting record')
-  assert.ok(out.friction.some((f) => /sitting-record.*UNRESOLVED/.test(f)))
+  assert.ok(out.friction.some((f) => /attestation UNRESOLVED/.test(f)))
   const synth = makeWorld(makeResponder({ chair: [passChair()], blueSynth: [blueEnv({ sitting_record_appended: false })] }))
   const out2 = await synth.run(script, ARGS)
-  assert.ok(synth.calls.some((c) => c.opts.label.startsWith('blue-synthesize-sitting-record')) && labelsOf(synth, 'red-chair').length === 1 && out2.friction.some((f) => /sitting-record.*UNRESOLVED/.test(f)))
+  assert.ok(synth.calls.some((c) => c.opts.label.startsWith('blue-synthesize-sitting-record')) && labelsOf(synth, 'red-chair').length === 1 && out2.friction.some((f) => /attestation UNRESOLVED/.test(f)))
   const recovered = makeWorld((p, o) => {
     if (o.label.startsWith('blue-synthesize-sitting-record')) return { sitting_record_appended: true }
     return makeResponder({ chair: [passChair()], blueSynth: [blueEnv({ sitting_record_appended: false })] })(p, o)
   })
   const out3 = await recovered.run(script, ARGS)
-  assert.ok(!out3.friction.some((f) => /sitting-record/.test(f)), 'a recovered attestation logs no friction')
+  assert.ok(!out3.friction.some((f) => /attestation UNRESOLVED/.test(f)), 'a recovered attestation logs no friction')
 })
 
 // W2b, OWED GAPS ONLY, NEVER AN ABORT (gblock's ruling on #868). The B4 ordering: the plan engaged

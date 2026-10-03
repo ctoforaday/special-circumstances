@@ -1456,7 +1456,7 @@ enum LogType {
   reserved "LOG_TYPE_NOMINAL";
   LOG_TYPE_DEFECT = 2 [(seat_may_file) = true, (means) = "something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on"];
   LOG_TYPE_REQUEST = 3 [(seat_may_file) = true, (means) = "a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair"];
-  LOG_TYPE_FRICTION = 4 [(seat_may_file) = true, (means) = "something cost you a call, a guess or an act — a refusal, a name you reached for that was not there, a shape you misread, a workaround — and you are noting it with what you expected and why; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect"];
+  LOG_TYPE_FRICTION = 4 [(seat_may_file) = true, (means) = "something cost you a call, a guess or an act — a refusal, a name you guessed, a shape you misread, a workaround — and you are noting it with what you expected and why; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect. An act that no surface offers at all is a request, not this"];
   // REFUSAL IS EVERY OTHER NO THE TOOL GIVES A SEAT, written by the tool at the moment it refuses.
   // On universe-m13 seats met a dozen refusals — a flag guessed from another verb, a field name
   // typed as a flag, a mint refused at its budget — and filed none: each was classed as the seat's

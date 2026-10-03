@@ -92,8 +92,8 @@ func TestAnUnresolvableInterpreterRefusesAndRoutes(t *testing.T) {
 	if err == nil {
 		t.Fatal("a .py proof was accepted with an empty PATH")
 	}
-	if !strings.Contains(err.Error(), "friction") {
-		t.Errorf("with no interpreter at all the seat is not pointed at the friction channel:\n%v", err)
+	if !strings.Contains(err.Error(), "in the log as a request") {
+		t.Errorf("with no interpreter at all the seat is not pointed at the log:\n%v", err)
 	}
 	if strings.Contains(err.Error(), "DOES have") {
 		t.Errorf("an empty environment is offered alternatives it does not have:\n%v", err)

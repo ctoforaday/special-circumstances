@@ -63,7 +63,7 @@ The report is the research prose written for a reader of the subject: one docume
 | document or artifact under audit | GATED | `(document\|artifact) under audit` |  |  |
 | synthesis (the document) | REGISTRY-ONLY |  |  |  |
 | deliverable | GATED | `deliverables?` |  |  |
-| frozen base, diff-stack | GATED | `frozen base\|diff-stack` |  | `plugins/frank-exchange-of-views/tools/internal/cli/seat/help/ingest.md` — ingest is the act that freezes the base, and its own help says what it builds<br>`plugins/frank-exchange-of-views/tools/internal/cli/blue/ingest.go` — ingest's own refusals and result describe the base it builds |
+| frozen base, diff-stack | GATED | `frozen base\|diff stack` |  | `plugins/frank-exchange-of-views/tools/internal/cli/seat/help/ingest.md` — ingest is the act that freezes the base, and its own help says what it builds<br>`plugins/frank-exchange-of-views/tools/internal/cli/blue/ingest.go` — ingest's own refusals and result describe the base it builds |
 | blue/report.md after ingest | GATED | `blue/report\.md` | `synthesize ${runDir}/blue/report.md by UNION` — the synthesizer's own prompt: blue/report.md is that seat's file until ingest removes it<br>`INTO ${runDir}/blue/report.md at synthesis` — the synthesizer's own prompt, as above<br>`bash cp it to ${runDir}/blue/report.md, the one path ingest reads` — the synthesizer's own prompt, at the write step: the path it copies its draft to before ingest | `plugins/frank-exchange-of-views/agents/blue-synthesizer.md` — the synthesizer writes blue/report.md before ingest; it is that seat's file<br>`plugins/frank-exchange-of-views/skills/research-protocol/SKILL.md` — the run-directory layout describes the synthesizer's file and its removal at ingest<br>`plugins/frank-exchange-of-views/tools/internal/cli/blue/ingest.go` — ingest consumes blue/report.md and removes it; its refusal names the file it could not remove |
 
 **Collisions:**
@@ -96,7 +96,7 @@ The record is the run's account of every act, held as events in records/record.d
 | ledger | GATED | `\bledgers?\b` |  |  |
 | narrative | GATED | `\bnarratives?\b` |  |  |
 | event log | GATED | `event log` |  |  |
-| sitting, round, judicial, adversarial or process record | GATED | `(sitting\|round\|judicial\|adversarial\|process) records?\b` |  |  |
+| sitting, round, judicial, adversarial or process record | GATED | `(sitting\|round\|judicial\|adversarial\|process) records?\b` | `sitting-record repair` — the registry's own term for the sitting that files what an earlier one owed; the repair prompt opens with it, and seatclass binds that opening to the seat it classifies in every transcript, archived ones included<br>`sitting-record ·` — the repair dispatch's label, whose literal head binds it to its seat class; a dashboard reads it, a seat never does |  |
 
 **Collisions:**
 
@@ -129,7 +129,7 @@ An epoch runs from one chair sitting to the next: the chair relays who sits, the
 
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
-| round | GATED | `\brounds?\b\|round-0` | `round-trip` — a round-trip is a request and its answer, not a unit of the run |  |
+| round | GATED | `\brounds?\b` | `round-trip` — a round-trip is a request and its answer, not a unit of the run |  |
 
 ## sitting
 
@@ -203,8 +203,8 @@ The chair is red's running seat: it relays who sits, rules blue's motions, spot-
 
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
-| red-merge, merge seat, red merged | GATED | `red-merge\|merge seat\|red merged` |  |  |
-| merge (the chair's role) | GATED | `\bmerge (carry\|close\|verdict\|position\|closing\|spot-check\|show)\b\|lens\\|merge` |  |  |
+| red-merge, merge seat, red merged | GATED | `red merge\|merge seat\|red merged` |  |  |
+| merge (the chair's role) | GATED | `\bmerge (carry\|close\|verdict\|position\|closing\|spot check\|show)\b\|lens\\|merge` |  |  |
 
 **Collisions:**
 
@@ -220,7 +220,7 @@ The bench is the seat that adjudicates the contested docket, rules on motions an
 
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
-| the judge | GATED | `the judge([^-a-z]\|$)` |  |  |
+| the judge | GATED | `the judge([^a-z]\|$)` |  |  |
 
 **Collisions:**
 
@@ -237,7 +237,7 @@ A lane is one of blue's parallel first passes at the report, written by one rese
 
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
-| method lens | GATED | `method[- ]lens` |  |  |
+| method lens | GATED | `method lens` |  |  |
 
 ## synthesizer
 
@@ -255,7 +255,7 @@ The engine is the workflow script that dispatches the seats the record says are 
 
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
-| the lead | GATED | `the lead([^-a-z]\|$)` |  |  |
+| the lead | GATED | `the lead([^a-z]\|$)` |  |  |
 | harness (the engine) | REGISTRY-ONLY |  |  |  |
 
 **Collisions:**
@@ -278,10 +278,11 @@ The log is the entries a seat files for the operator with the `log` verb — a m
 
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
-| operator channel | GATED | `operator channel` |  |  |
+| operator channel | GATED | `operator('s)? channel` |  |  |
 | friction verb | GATED | `friction verb` |  |  |
 | complaint channel | GATED | `complaint channel` |  |  |
 | the envelope's friction field | GATED | `envelope's .friction. field` |  |  |
+| friction (the whole log) | GATED | `\blog is (open — )?for friction\b\|\bmet no friction\b\|\bfriction (channel\|log)\b\|\blog \([^)]*\) — friction\b\|\b(collated\|collected\|aggregated\|gathered) friction\b\|\bfriction (so far\|collected\|collated\|aggregated\|gathered)\b\|\bthe (run\|sitting\|seat\|bench\|chair)'s friction\b` |  |  |
 
 **Collisions:**
 
@@ -350,7 +351,7 @@ A finding anchor is the anchor a lens's finding leaves at the sentence the findi
 
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
-| finding-marker, marker layer | GATED | `finding[- ]markers?\|marker layer` |  |  |
+| finding-marker, marker layer | GATED | `finding markers?\|marker layer` |  |  |
 
 **Collisions:**
 
@@ -446,7 +447,8 @@ A disposition is the bench's ruling value on a docketed gap, and it decides whet
 
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
-| carried (a disposition) | GATED | `\bcarried\b` | `--carried-from` — the carry verb's flag: carry restates an earlier closure, which is its own meaning<br>`carried the closure of` — the carry verb's own result<br>`carried from` — the carry verb's result as the archive view prints it: a closure carried from an earlier epoch, which is the flag --carried-from in words |  |
+| carried (a disposition) | GATED | `\bcarried\b` | `carried the closure of` — the carry verb's own result<br>`carried from` — the carry verb's flag --carried-from, and its result as the archive view prints it: a closure carried from an earlier epoch |  |
+| carry (a remand) | GATED | `\b(gaps?\|dockets?) (that )?(you\|the bench) (can )?carr(y\|ies\|ied\|ying)\b\|\bcarr(y\|ies\|ied\|ying) (the gaps?\|a gap\|gaps\|the dockets?)\b\|\b(by\|you\|the bench\|or\|may\|can\|must) carr(y\|ies\|ied\|ying) (it\|them)\b\|\bcarried (gaps?\|dockets?)\b\|\bcarr(y\|ies\|ied\|ying)\b[^.]{0,60}\bdeadlock` |  |  |
 | resolution (a disposition) | GATED | `\bresolutions?\b` |  |  |
 | unmapped fate | GATED | `unmapped fate` |  |  |
 | fate (a disposition) | REGISTRY-ONLY |  |  |  |
@@ -454,6 +456,7 @@ A disposition is the bench's ruling value on a docketed gap, and it decides whet
 **Collisions:**
 
 - **fate** — an avenue's state keeps the word
+- **carry** — `carry` is the chair's verb that restates an archived closure, and the plain English sense keeps the word; the bench REMANDS a gap and never carries one
 
 ## grade motion
 
@@ -494,13 +497,13 @@ A sitting's occasion is what it was convened to do — the question put to the s
 
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
-| sitting kind | GATED | `sitting[- ]kinds?\b` |  |  |
-| sitting type | GATED | `sitting[- ]types?\b` |  |  |
+| sitting kind | GATED | `sitting kinds?\b` |  |  |
+| sitting type | GATED | `sitting types?\b` |  |  |
 | bench mode | REGISTRY-ONLY |  |  |  |
 
 **Collisions:**
 
-- **occasion (ordinary English)** — "for want of occasion" in the friction channel is the plain word and keeps it; the FIELD is the one a bench register carries
+- **occasion (ordinary English)** — "for want of occasion" in a log entry is the plain word and keeps it; the FIELD is the one a bench register carries
 
 ## avenue
 
@@ -512,8 +515,7 @@ An avenue is one approach the research could take on the question — proposed b
 
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
-| line of inquiry | GATED | `\blines? of inquiry\b` |  |  |
-| line-of-inquiry (the verb and the view) | GATED | `\blines?-of-inquiry\b` |  |  |
+| line of inquiry, line-of-inquiry (the verb and the view) | GATED | `\blines? of inquiry\b` |  |  |
 | inquiry (an avenue) | GATED | `\binquir(y\|ies)\b` |  |  |
 | direction (an avenue) | REGISTRY-ONLY |  |  |  |
 

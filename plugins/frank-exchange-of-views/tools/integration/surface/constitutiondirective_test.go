@@ -187,13 +187,15 @@ func TestTheDutyDoesNotSmuggleAVerbListBackIn(t *testing.T) {
 // "never compared".
 func normalizeWS(s string) string { return strings.Join(strings.Fields(s), " ") }
 
-// THE FRICTION CLAUSE IS FOUR HAND-KEPT COPIES, so something has to hold them together.
+// THE LOG DUTY IS HAND-KEPT IN SEVERAL CARRIERS, so something has to hold them together.
 //
 // Same shape as the surface-discovery gate above and the same justification: the constitutions are
 // authored markdown the harness reads directly, so the text cannot be generated, and a guard is
 // what the rules allow when generation is impossible. What it holds is the DUTY and the account
 // owed when nothing blocked you; what it refuses is any copy of what the log verb's help says on the
-// page a seat opens.
+// page a seat opens, and any retired duty — in the constitution AND in every prompt a seat is
+// handed, because a prompt that asks for "your log entry saying so" on a clean sitting contradicts
+// the constitution beside it, and a gate reading only constitutions passed it (#1209).
 func TestEveryConstitutionStatesTheLogDutyAndNoneRestatesTheVerb(t *testing.T) {
 	want := []string{
 		// THE DUTY IS FRICTION, NOT BLOCKAGE. It swung twice: "not only the ones that went wrong"
@@ -206,9 +208,10 @@ func TestEveryConstitutionStatesTheLogDutyAndNoneRestatesTheVerb(t *testing.T) {
 		"TEMPLATE/PROTOCOL MISFIT",
 		// The reading that emptied the channel: each seat classed its own refusals as its mistakes.
 		"A MISTAKE THE SURFACE INVITED IS STILL FRICTION",
-		// AND A SITTING THAT MET NONE FILES NOTHING — no entry asserting a clean sitting, which has no
-		// type to assert it with (`nominal` is retired; LogType's comment carries the measurement).
-		"A sitting that met no friction files nothing",
+		// AND A SITTING WHERE NOTHING DID FILES NOTHING — no entry asserting a clean sitting, which has
+		// no type to assert it with (`nominal` is retired; LogType's comment carries the measurement).
+		// Said without "friction", which is ONE type of entry, never the whole log (#1209).
+		"A sitting where nothing cost you anything files nothing",
 	}
 	// What the log verb's help states, on every page, at the moment a seat reaches the channel. A
 	// constitution restating it is the fifth copy of a sentence that needs one.
@@ -228,6 +231,12 @@ func TestEveryConstitutionStatesTheLogDutyAndNoneRestatesTheVerb(t *testing.T) {
 		"MOST REFUSALS ARE YOURS",
 		"WHATEVER GOT IN YOUR WAY",
 		"WHENEVER SOMETHING GOT IN YOUR WAY",
+		// #1209: an entry demanded of a sitting with nothing to report, the whole log named after one
+		// of its types, and the measured history that persuaded nobody.
+		"log entry saying so",
+		"THE LOG IS FOR FRICTION",
+		"met no friction",
+		"Across eighteen recorded seat sittings",
 	}
 	paths, err := repotree.Constitutions()
 	if err != nil {
@@ -251,9 +260,26 @@ func TestEveryConstitutionStatesTheLogDutyAndNoneRestatesTheVerb(t *testing.T) {
 		}
 		for _, w := range banned {
 			if strings.Contains(text, normalizeWS(w)) {
-				t.Errorf("%s restates %q, which `friction --help` says on the page a seat opens when it "+
-					"reaches for the channel. The constitution carries the duty; the verb carries the verb.",
-					filepath.Base(p), w)
+				t.Errorf("%s restates %q, which `log --help` says on the page a seat opens when it "+
+					"reaches for the log, or which is a retired duty. The constitution carries the duty; "+
+					"the verb carries the verb.", filepath.Base(p), w)
+			}
+		}
+	}
+	goldens, err := repotree.Glob("plugins", "frank-exchange-of-views", "tests", "simulator", "testdata", "prompt-*.golden")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range goldens {
+		b, err := os.ReadFile(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := normalizeWS(string(b))
+		for _, w := range banned {
+			if strings.Contains(text, normalizeWS(w)) {
+				t.Errorf("%s hands a seat %q — a retired log duty, or a copy of `log --help` — in the "+
+					"prompt beside a constitution that says otherwise.", filepath.Base(p), w)
 			}
 		}
 	}

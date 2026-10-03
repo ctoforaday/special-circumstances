@@ -1,3 +1,2 @@
 - WHENEVER SOMETHING COST YOU A CALL, A GUESS OR AN ACT, YOU MUST write to the log with your role's log act, saying what it ASSERTS and naming the thing and the shape the work actually wanted: each missing capability or tool, each TEMPLATE/PROTOCOL MISFIT (a section that made no sense for the topic, a field with nothing honest to put in it, content with no home).
-@include fragments/log-is-friction.md
-Across eighteen recorded seat sittings the log went unwritten every single time — including one seat that worked out, in its own reasoning, that a verb it needed did not exist, and then guessed instead of saying so. YOU MUST NOT silently degrade or force the material to fit.
+@include fragments/log-what-it-is-for.md

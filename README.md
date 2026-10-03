@@ -150,7 +150,7 @@ The run lands in `research/<date>_<slug>/`:
 | `README.md` | The run's front door — verdict, gaps, and what each document below holds |
 | `report.md` | The research — verdict, TL;DR, the Catechism, foundations, analysis, risks, open questions |
 | `docket.md`, `debate.md`, `judgments.md` | The record's documents: the board all three parties wrote, the epoch-by-epoch transcript, the motions and their rulings |
-| `evidence.md`, `run.md`, `CHANGELOG.md` | The computations in full; the friction, record check and cost; the report's own revisions |
+| `evidence.md`, `run.md`, `CHANGELOG.md` | The computations in full; the log, record check and cost; the report's own revisions |
 | `report.html` | The whole set with real tabs and cross-document links — one self-contained file, no server |
 | `records/record.db` | The record — one SQLite store, the authoritative account of every act |
 | `blue/`, `red/` | The seats' working surfaces — blue's lane drafts |

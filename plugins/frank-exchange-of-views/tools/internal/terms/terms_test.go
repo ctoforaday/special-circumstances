@@ -1,6 +1,7 @@
 package terms
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -82,6 +83,67 @@ func TestScanFoldsWhitespaceMasksAndAllows(t *testing.T) {
 	}
 	if st := r.Stale(NewUsage()); len(st) != 2 {
 		t.Errorf("with nothing scanned, the mask and the allow are both stale; Stale says %q", st)
+	}
+}
+
+// A BANNED PHRASE IS BANNED HOWEVER ITS WORDS ARE JOINED. "operator channel" passed the gate as
+// "operator-channel" in a seat's constitution (#1209). The scan folds the TEXT once — whitespace
+// and hyphen runs to one space, a typographic apostrophe to an ASCII one — and bans and masks both
+// run over that, so a mask covers every spelling its ban matches. A possessive is NOT folded away:
+// "a sitting's record" is ordinary English for a different thing, so a ban that means the
+// possessive says so in its own pattern.
+func TestABanMatchesItsPhraseHowEverItIsJoined(t *testing.T) {
+	r, err := Parse([]byte(`{"entries":[{"term":"the log","definition":"The log is entries.","seats":["blue"],"bans":[
+		{"variant":"operator channel","kind":"GATED","pattern":"operator('s)? channel"},
+		{"variant":"method lens","kind":"GATED","pattern":"method[- ]lens"},
+		{"variant":"sitting record","kind":"GATED","pattern":"sitting records?\\b",
+		 "masks":[{"phrase":"sitting-record repair","reason":"the term"}]}],"collisions":[]}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for text, match := range map[string]string{
+		"the operator channel":         "operator channel",
+		"the operator-channel entries": "operator-channel",
+		"THE OPERATOR\n CHANNEL":       "OPERATOR\n CHANNEL",
+		"the operator\u2019s channel":  "operator\u2019s channel",
+		"the operator's - channel":     "operator's - channel",
+		"a method-lens":                "method-lens",
+		"a method lens":                "method lens",
+		"the sitting-record":           "sitting-record",
+	} {
+		hs := r.Scan("x.md", text, nil)
+		if len(hs) != 1 {
+			t.Errorf("%q: %d hit(s), want 1", text, len(hs))
+			continue
+		}
+		if hs[0].Match != match {
+			t.Errorf("%q: reported %q, want the text as written, %q", text, hs[0].Match, match)
+		}
+	}
+	for _, text := range []string{"the operatorchannel", "a method_lens", "a sitting record repair", "a sitting-record repair", "a Sitting-record\nrepair"} {
+		if hs := r.Scan("x.md", text, nil); len(hs) != 0 {
+			t.Errorf("%q: %d hit(s), want none", text, len(hs))
+		}
+	}
+}
+
+// A HYPHEN IN A PATTERN WOULD NEVER MATCH, because the text it runs over has none left. The
+// loader refuses one rather than load a ban that passes everything it names; a hyphen inside a
+// character class is a range or a member and is not refused.
+func TestTheRegistryRefusesAHyphenTheTextNoLongerHas(t *testing.T) {
+	for pat, refused := range map[string]bool{
+		"diff-stack":          true,
+		"red-merge|merged":    true,
+		`round\-0`:            true,
+		"diff stack":          false,
+		"method[- ]lens":      false,
+		"the judge([^a-z]|$)": false,
+		"[[:alpha:] ]x":       false,
+	} {
+		_, err := Parse([]byte(`{"entries":[{"term":"t","definition":"T is t.","seats":["blue"],"bans":[{"variant":"v","kind":"GATED","pattern":` + strconv.Quote(pat) + `}],"collisions":[]}]}`))
+		if got := err != nil && strings.Contains(err.Error(), "literal hyphen"); got != refused {
+			t.Errorf("pattern %q: refused=%v (%v), want refused=%v", pat, got, err, refused)
+		}
 	}
 }
 
