@@ -62,37 +62,28 @@ func newFile(subject string, required []string) *cobra.Command {
 			"ONE EVENT, DIFFERENT CONTRACTS: " + GavelRoll() + ".\n\n" +
 			fileSays(subject) + "\n\n" +
 			"Any seat may file; exactly one rules, and `rule` appears only on that seat's surface.",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			s := seat.Of(cmd)
-			// AND IT MUST BE THE RUN THE ENGINE DISPATCHED. Same reason as the seat check below,
-			// on the other axis: Begin is not on this path, so the run refusal is not either, and
-			// these verbs WRITE — a motion filed against a contradicted run directory is the
-			// attribution failure the check exists for, one field over.
+		// THROUGH BEGIN, like every other writing verb: the filer is the seat this agent registered
+		// as, an agent with no register is registered first or refused, and the refusal renders in
+		// the envelope every verb's does. The filer id is what found_by, estoppel and the bench read.
+		RunE: seat.HandlerRunE(func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			run, err := s.Run()
 			if err != nil {
-				return err
-			}
-			// THE FILER MUST BE A SEAT THE ENGINE CREATED. These verbs read the context with
-			// seat.Of, which only parses flags — seat.Begin, which runs the identity checks, is
-			// never on this path. Measured: `motion grade file --seat-id totally-invented`
-			// recorded a motion, while `blue position` with the same id was refused.
-			if err := record.RequireDispatchedSeat(s.SeatID); err != nil {
-				return err
+				return nil, err
 			}
 			basis, err := prose(cmd, "file", "the ASK in your own words — a motion with no argument is a demand, and the ruler has nothing to rule on")
 			if err != nil {
-				return err
+				return nil, err
 			}
 			for _, f := range required {
 				if strings.TrimSpace(seat.Str(cmd, f)) == "" {
-					return feov.Errorf(feov.Validation,
+					return nil, feov.Errorf(feov.Validation,
 						"a %s motion requires --%s. The subjects have different contracts, which is why they are subgroups: cobra cannot express \"required only when the subject is %s\", so the requirement lives here where it can refuse",
 						subject, f, subject)
 				}
 			}
 			id, err := record.MintMotionID(run)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			// THE UNTYPED LOOP CANNOT SURVIVE A TYPED FILING, and that is the migration working
 			// rather than a cost of it. `for _, f := range required { p.Set(payloadKey(f), …) }`
@@ -102,7 +93,7 @@ func newFile(subject string, required []string) *cobra.Command {
 			// a oneof, so a grade's fields cannot be written onto a petition at all.
 			subj, ok := record.MotionSubjectEnum(subject)
 			if !ok {
-				return feov.Errorf(feov.Validation, "motion %s file: %q is not a motion subject", subject, subject)
+				return nil, feov.Errorf(feov.Validation, "motion %s file: %q is not a motion subject", subject, subject)
 			}
 			body := &recordpb.Motion{
 				MotionId: proto.String(id),
@@ -113,11 +104,11 @@ func newFile(subject string, required []string) *cobra.Command {
 			case recordpb.MotionSubject_MOTION_SUBJECT_GRADE:
 				dim, known := record.GradeDimensionOf(seat.Str(cmd, flags.Dimension))
 				if !known {
-					return feov.Errorf(feov.Validation, "motion grade file: %q is not a grade dimension", seat.Str(cmd, flags.Dimension))
+					return nil, feov.Errorf(feov.Validation, "motion grade file: %q is not a grade dimension", seat.Str(cmd, flags.Dimension))
 				}
 				prop, known := record.GradeOf(seat.Str(cmd, flags.Proposed))
 				if !known {
-					return feov.Errorf(feov.Validation, "motion grade file: %q is not a grade", seat.Str(cmd, flags.Proposed))
+					return nil, feov.Errorf(feov.Validation, "motion grade file: %q is not a grade", seat.Str(cmd, flags.Proposed))
 				}
 				body.Filing = &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
 					GapId:     proto.String(seat.Str(cmd, flags.ID)),
@@ -127,7 +118,7 @@ func newFile(subject string, required []string) *cobra.Command {
 			case recordpb.MotionSubject_MOTION_SUBJECT_PETITION:
 				cls, known := record.PetitionClassOf(seat.Str(cmd, flags.Class))
 				if !known {
-					return feov.Errorf(feov.Validation, "motion petition file: %q is not a petition class", seat.Str(cmd, flags.Class))
+					return nil, feov.Errorf(feov.Validation, "motion petition file: %q is not a petition class", seat.Str(cmd, flags.Class))
 				}
 				body.Filing = &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: &cls}}
 			case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
@@ -142,16 +133,16 @@ func newFile(subject string, required []string) *cobra.Command {
 				// reader can act on.
 				//
 				// Loud here, because the alternative is a record that looks written.
-				return feov.Errorf(feov.Conflict, "motion %s file: this binary knows the subject and has no filing arm for it — the schema and the CLI have diverged, and writing the motion would record an ask with no substance", subject)
+				return nil, feov.Errorf(feov.Conflict, "motion %s file: this binary knows the subject and has no filing arm for it — the schema and the CLI have diverged, and writing the motion would record an ask with no substance", subject)
 			}
 			if r := seat.Str(cmd, flags.Relief); r != "" {
 				body.Relief = proto.String(r)
 			}
 			if _, err := record.Append(s.Identity(), body); err != nil {
-				return err
+				return nil, err
 			}
-			return seat.Emit(cmd, filed{ID: id, Subject: subject}, nil)
-		},
+			return filed{ID: id, Subject: subject}, nil
+		}),
 	}
 	// prose() refuses a filing with no argument; the marker says so where the seat reads.
 	seat.SaysRequired(seat.Prose(c), flags.Reason)
@@ -252,22 +243,11 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			"appears only on that surface.\n\n" +
 			"EVERY SUBJECT AND ITS GAVEL: " + GavelRoll() + ". The bench's two are heard BEFORE " +
 			"the debate continues.",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			s := seat.Of(cmd)
-			// AND IT MUST BE THE RUN THE ENGINE DISPATCHED. Same reason as the seat check below,
-			// on the other axis: Begin is not on this path, so the run refusal is not either, and
-			// these verbs WRITE — a motion filed against a contradicted run directory is the
-			// attribution failure the check exists for, one field over.
+		// Through Begin, as the filing is — see newFile.
+		RunE: seat.HandlerRunE(func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			run, err := s.Run()
 			if err != nil {
-				return err
-			}
-			// THE FILER MUST BE A SEAT THE ENGINE CREATED. These verbs read the context with
-			// seat.Of, which only parses flags — seat.Begin, which runs the identity checks, is
-			// never on this path. Measured: `motion grade file --seat-id totally-invented`
-			// recorded a motion, while `blue position` with the same id was refused.
-			if err := record.RequireDispatchedSeat(s.SeatID); err != nil {
-				return err
+				return nil, err
 			}
 			id := seat.Str(cmd, flags.ID)
 			// ORDER IS THE MESSAGE. The motion's own subject is established FIRST, because every
@@ -275,10 +255,10 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			// petition should be told it named the wrong subgroup, not that grade motions belong
 			// to the chair — which is true, irrelevant, and sends it to the wrong fix.
 			if err := record.RequireMotionSubjectRef(run, mustSubject(subject), id); err != nil {
-				return err
+				return nil, err
 			}
 			if err := record.RequireSubjectMatches(run, subject, id); err != nil {
-				return err
+				return nil, err
 			}
 			// NO requireRuler HERE ANY MORE. This verb only exists in the gavel-holder's tree, so
 			// a seat that cannot rule this subject cannot name the command — the same boundary the
@@ -286,11 +266,11 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			// acting role.
 			// A motion is answered ONCE; pressing it is an appeal, which keeps both positions.
 			if err := record.RequireUnruledMotion(run, id, s.SeatID, s.CorrectionKey()); err != nil {
-				return err
+				return nil, err
 			}
 			opinion, err := prose(cmd, "rule", "an unreasoned ruling is the decoration the filer cannot contest, and contesting it is the whole reason a ruling is not a command")
 			if err != nil {
-				return err
+				return nil, err
 			}
 			// THE VERDICT SET IS KEYED ON (SUBJECT, RULING) and the schema says so with a oneof:
 			// granted|denied can only reach the petition arm, accepted|rejected the grade arm. The
@@ -307,25 +287,25 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			case recordpb.MotionSubject_MOTION_SUBJECT_GRADE:
 				v, ok := enumOf[recordpb.GradeRuling](recordpb.GradeRuling(0).Descriptor(), word)
 				if !ok {
-					return feov.Errorf(feov.Validation, "motion grade rule: --as %q is not a ruling on a grade motion", word)
+					return nil, feov.Errorf(feov.Validation, "motion grade rule: --as %q is not a ruling on a grade motion", word)
 				}
 				body.Ruling = &recordpb.MotionRule_Grade{Grade: v}
 			case recordpb.MotionSubject_MOTION_SUBJECT_PETITION:
 				v, ok := enumOf[recordpb.PetitionRuling](recordpb.PetitionRuling(0).Descriptor(), word)
 				if !ok {
-					return feov.Errorf(feov.Validation, "motion petition rule: --as %q is not a ruling on a petition", word)
+					return nil, feov.Errorf(feov.Validation, "motion petition rule: --as %q is not a ruling on a petition", word)
 				}
 				body.Ruling = &recordpb.MotionRule_Petition{Petition: v}
 			case recordpb.MotionSubject_MOTION_SUBJECT_AVENUE:
 				v, ok := enumOf[recordpb.AvenueRuling](recordpb.AvenueRuling(0).Descriptor(), word)
 				if !ok {
-					return feov.Errorf(feov.Validation, "motion avenue rule: --as %q is not a ruling on a direction", word)
+					return nil, feov.Errorf(feov.Validation, "motion avenue rule: --as %q is not a ruling on a direction", word)
 				}
 				body.Ruling = &recordpb.MotionRule_Avenue{Avenue: v}
 			case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
 				d, ok := record.DispositionOf(word)
 				if !ok {
-					return feov.Errorf(feov.Validation, "motion docket rule: --as %q is not a disposition", word)
+					return nil, feov.Errorf(feov.Validation, "motion docket rule: --as %q is not a disposition", word)
 				}
 				dr := &recordpb.DocketRuling{
 					Disposition: &d,
@@ -349,7 +329,7 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 				// The ruling half of the same silence: no arm leaves Ruling nil, `rulingWord`
 				// returns "", and record.go refuses — but naming the SUBJECT rather than the
 				// word is what tells the reader the binary is behind its own schema.
-				return feov.Errorf(feov.Conflict, "motion %s rule: this binary knows the subject and has no ruling arm for it — the schema and the CLI have diverged", subject)
+				return nil, feov.Errorf(feov.Conflict, "motion %s rule: this binary knows the subject and has no ruling arm for it — the schema and the CLI have diverged", subject)
 			}
 			// WHO THE RELIEF BINDS travels with the ruling that grants it (#360). Optional,
 			// because a denial binds nobody — and a grant that names no addressee is exactly the
@@ -357,15 +337,15 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			if w := seat.Str(cmd, flags.Binds); w != "" {
 				b, ok := enumOf[recordpb.RulingBinds](recordpb.RulingBinds(0).Descriptor(), w)
 				if !ok {
-					return feov.Errorf(feov.Validation, "motion %s rule: %q is not an addressee the relief can bind", subject, w)
+					return nil, feov.Errorf(feov.Validation, "motion %s rule: %q is not an addressee the relief can bind", subject, w)
 				}
 				body.Binds = &b
 			}
 			if _, err := record.Append(s.Identity(), body); err != nil {
-				return err
+				return nil, err
 			}
-			return seat.Emit(cmd, ruled{ID: id, Ruling: seat.Str(cmd, flags.As)}, nil)
-		},
+			return ruled{ID: id, Ruling: seat.Str(cmd, flags.As)}, nil
+		}),
 	}
 	seat.Prose(c)
 	c.Flags().Var(idShapeFor(subject, false), flags.ID, refHelp(subject))
@@ -421,39 +401,28 @@ func newAppeal(subject string) *cobra.Command {
 			"argument from the act is the whole point of the verb.\n\n" +
 			"A BENCH-RULED MOTION (petition, docket) HAS NO APPEAL, and that absence is the design rather " +
 			"than an omission: the bench hears it BEFORE the debate continues, so there is nothing to escalate to.",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			s := seat.Of(cmd)
-			// AND IT MUST BE THE RUN THE ENGINE DISPATCHED. Same reason as the seat check below,
-			// on the other axis: Begin is not on this path, so the run refusal is not either, and
-			// these verbs WRITE — a motion filed against a contradicted run directory is the
-			// attribution failure the check exists for, one field over.
+		// Through Begin, as the filing is — see newFile.
+		RunE: seat.HandlerRunE(func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			run, err := s.Run()
 			if err != nil {
-				return err
-			}
-			// THE FILER MUST BE A SEAT THE ENGINE CREATED. These verbs read the context with
-			// seat.Of, which only parses flags — seat.Begin, which runs the identity checks, is
-			// never on this path. Measured: `motion grade file --seat-id totally-invented`
-			// recorded a motion, while `blue position` with the same id was refused.
-			if err := record.RequireDispatchedSeat(s.SeatID); err != nil {
-				return err
+				return nil, err
 			}
 			id := seat.Str(cmd, flags.ID)
 			if err := record.RequireRuledMotion(run, mustSubject(subject), id); err != nil {
-				return err
+				return nil, err
 			}
 			if err := record.RequireSubjectMatches(run, subject, id); err != nil {
-				return err
+				return nil, err
 			}
 			// #673: a second appeal REPLACED the first in every reader. The state graph found it
 			// by probing every act from every state — accepted, the state unchanged, the argument
 			// rewritten.
 			if err := record.RequireUnappealedMotion(run, id, s.SeatID, s.CorrectionKey()); err != nil {
-				return err
+				return nil, err
 			}
 			reason, err := prose(cmd, "appeal", "why you are pressing on. Going against a ruling without saying why is the disagreement disappearing, which is what the record exists to prevent")
 			if err != nil {
-				return err
+				return nil, err
 			}
 			subj := mustSubject(subject)
 			if _, err := record.Append(s.Identity(), &recordpb.MotionAppeal{
@@ -461,10 +430,10 @@ func newAppeal(subject string) *cobra.Command {
 				Subject:  &subj,
 				Reason:   proto.String(reason),
 			}); err != nil {
-				return err
+				return nil, err
 			}
-			return seat.Emit(cmd, appealed{ID: id}, nil)
-		},
+			return appealed{ID: id}, nil
+		}),
 	}
 	// prose() refuses an appeal with no argument, and the record one naming no motion.
 	seat.SaysRequired(seat.Prose(c), flags.Reason)

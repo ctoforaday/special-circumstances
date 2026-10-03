@@ -56,124 +56,12 @@ TWO CONSEQUENCES:
 $ motion docket rule --run {RUN} --seat-id judge --id M1 --as repaired --reason r
 exit 2
 stderr:
-feov-record: record: motion rule requires --principle to say something (the rule the bench applied, stated so a later sitting can apply the same one)
-
-rule on a docket motion — this verb is the bench seat's, and it appears only on that surface.
-
-EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
-
-FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
-your text, and records whatever the command printed — or nothing — in its place. Pass every
-free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
-
-  X=$(cat <<'EOF'
-  your text — backticks, apostrophes and $ signs are all literal here
-  EOF
-  )
-  … "$X"
-
-CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong — a lost word, a
-wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
-printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
-struck beside its replacement. You may correct only your own act, only in the sitting that recorded
-it, and only until another seat has acted; after that, say it in a new act. A correction may change
-only your wording (--principle, --reason, --reopens-on, --review-flag, --settled, --tension); every
-other flag must repeat what the act recorded.
-
-Usage:
-  feov-record motion docket rule [flags]
-
-Flags:
-      --as as-value             REQUIRED — your ruling
-      --correction-why string   what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
-      --corrects string         the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
-      --final                   nothing would reopen this. The assertable empty case for --reopens-on: pass exactly one of the two
-  -h, --help                    help for rule
-      --id motion-id            REQUIRED — the motion id (M1, M2 …)
-      --principle string        REQUIRED — the rule you applied, stated so a later sitting can apply the same one
-      --reason string           REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
-      --reopens-on string       the evidence or condition that would make this worth raising again — or pass --final to say nothing would
-      --review-flag string      what a human should look at again — empty when nothing needs it
-      --settled string          what the losing party may no longer assert, in one sentence
-      --tension string          the values that pulled against each other — empty is a real answer when none did
-
-Enumerated values:
-  --as
-    repaired                  the repair was verified at the leaf and nothing regressed
-    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — its lineage is the supersedes the gap was minted with; the close itself carries none and nothing checks it
-    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
-    remanded                  NOT a closure: the gap stays open into a later sitting with a stated research direction the coming seat owes
-    moot                      the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired
-
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
-      --schema           print the event-schema epoch this binary writes, and exit
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
+feov-record: bench: record: motion rule requires --principle to say something (the rule the bench applied, stated so a later sitting can apply the same one)
 
 $ motion docket rule --run {RUN} --seat-id judge --id M1 --as repaired --reason r --principle p --tension t
 exit 2
 stderr:
-feov-record: record: motion docket rule requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted sitting
-
-rule on a docket motion — this verb is the bench seat's, and it appears only on that surface.
-
-EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
-
-FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
-your text, and records whatever the command printed — or nothing — in its place. Pass every
-free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
-
-  X=$(cat <<'EOF'
-  your text — backticks, apostrophes and $ signs are all literal here
-  EOF
-  )
-  … "$X"
-
-CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong — a lost word, a
-wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
-printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
-struck beside its replacement. You may correct only your own act, only in the sitting that recorded
-it, and only until another seat has acted; after that, say it in a new act. A correction may change
-only your wording (--principle, --reason, --reopens-on, --review-flag, --settled, --tension); every
-other flag must repeat what the act recorded.
-
-Usage:
-  feov-record motion docket rule [flags]
-
-Flags:
-      --as as-value             REQUIRED — your ruling
-      --correction-why string   what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
-      --corrects string         the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
-      --final                   nothing would reopen this. The assertable empty case for --reopens-on: pass exactly one of the two
-  -h, --help                    help for rule
-      --id motion-id            REQUIRED — the motion id (M1, M2 …)
-      --principle string        REQUIRED — the rule you applied, stated so a later sitting can apply the same one
-      --reason string           REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
-      --reopens-on string       the evidence or condition that would make this worth raising again — or pass --final to say nothing would
-      --review-flag string      what a human should look at again — empty when nothing needs it
-      --settled string          what the losing party may no longer assert, in one sentence
-      --tension string          the values that pulled against each other — empty is a real answer when none did
-
-Enumerated values:
-  --as
-    repaired                  the repair was verified at the leaf and nothing regressed
-    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — its lineage is the supersedes the gap was minted with; the close itself carries none and nothing checks it
-    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
-    remanded                  NOT a closure: the gap stays open into a later sitting with a stated research direction the coming seat owes
-    moot                      the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired
-
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
-      --schema           print the event-schema epoch this binary writes, and exit
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
+feov-record: bench: record: motion docket rule requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted sitting
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
@@ -183,8 +71,8 @@ Global Flags:
 {"key":"red-lens-evidence:mint:G1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"fix_basis":"proposed","gap_id":"G1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_MINT"}
 {"key":"red-chair:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"G1"},"motion_id":"M1","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"red-chair","ts":5,"type":"EVENT_TYPE_MOTION"}
 {"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":6,"type":"EVENT_TYPE_REGISTER"}
-{"key":"judge:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --reason: record: motion rule requires --principle to say something (the rule the bench applied, stated so a later sitting can apply the same one)","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":7,"type":"EVENT_TYPE_LOG"}
-{"key":"judge:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --principle --reason --tension: record: motion docket rule requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted sitting","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":8,"type":"EVENT_TYPE_LOG"}
+{"key":"judge:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --reason: bench: record: motion rule requires --principle to say something (the rule the bench applied, stated so a later sitting can apply the same one)","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":7,"type":"EVENT_TYPE_LOG"}
+{"key":"judge:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --principle --reason --tension: bench: record: motion docket rule requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted sitting","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":8,"type":"EVENT_TYPE_LOG"}
 
 ═══ RENDERS ═══
 -- avenues

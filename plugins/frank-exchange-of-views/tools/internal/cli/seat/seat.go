@@ -145,6 +145,12 @@ type Context struct {
 	// states, one byte, and the healthy one wins by default.
 	RunErr error
 
+	// seatErr is the identity resolution's refusal: a --seat-id disagreeing with the seat this
+	// agent registered as, or a binding the record could not answer. Carried for the same reason
+	// RunErr is — Of keeps the flag's value as SeatID, so a reader that never consults this acts
+	// under an identity the record contradicts. Run, RequireRun and Begin all refuse on it.
+	seatErr error
+
 	// cmd is the command this context was read from: the key its write log and its correction are
 	// held under (see Correctable).
 	cmd *cobra.Command
@@ -162,7 +168,16 @@ func (c Context) Run() (record.Run, error) {
 	if c.RunErr != nil {
 		return record.Run{}, c.RunErr
 	}
-	return record.OpenRun(c.runDir)
+	r, err := record.OpenRun(c.runDir)
+	if err != nil {
+		return record.Run{}, err
+	}
+	// AFTER the existence check: a run that is not there is the first thing to fix, and a binding
+	// lookup on it answers nothing.
+	if c.seatErr != nil {
+		return record.Run{}, c.seatErr
+	}
+	return r, nil
 }
 
 // RunDirRaw is the unresolved string, for the two callers that legitimately have no run yet.
@@ -200,11 +215,6 @@ func (c Context) Identity() record.Identity {
 	return id
 }
 
-// Of reads the seat context from the inherited persistent flags, inferring the run
-// directory when the flag is absent.
-// It stays error-free by design: the resolution that CAN fail (an injected run directory
-// disagreeing with a typed --run) is surfaced by Begin, which already has an error to return.
-// Threading one through Of would have changed every caller for a case only Begin acts on.
 // requireBound refuses an act by an agent that has not registered.
 //
 // THE ASYMMETRY IS THE MECHANISM. `register` is the one verb that may run unbound, because it is
@@ -318,6 +328,13 @@ func BoundSeat(run record.Run) func() (string, error) {
 	}
 }
 
+// Of reads the seat context from the inherited persistent flags, inferring the run
+// directory when the flag is absent.
+//
+// It returns no error: the two resolutions that can fail — the run and the seat identity — are
+// carried on the Context as RunErr and seatErr, and Run, RequireRun and Begin refuse on them. A
+// WRITING verb does not call Of: it goes through Begin (see HandlerRunE), which also holds the agent to
+// register-first.
 func Of(cmd *cobra.Command) Context {
 	runDir, _ := cmd.Flags().GetString(flags.Run)
 	resolved, via, err := seatenv.ResolveWithSource(runDir, func() string { return runlive.InferRunDir("").Dir })
@@ -327,17 +344,19 @@ func Of(cmd *cobra.Command) Context {
 		return Context{RunErr: err, Role: roleOf(cmd), RunVia: seatenv.RunUnresolved, cmd: cmd}
 	}
 	runDir = resolved
-	// Identity resolves the same way (#348): injected wins, a disagreeing flag is refused by
-	// Begin. There is no epoch here: the record computes the epoch at each write.
+	// Identity resolves the same way (#348): the binding wins, and a disagreeing flag is carried
+	// as seatErr rather than kept as the seat. There is no epoch here: the record computes the
+	// epoch at each write.
 	seatID, _ := cmd.Flags().GetString(flags.SeatID)
 	// NewRun, not OpenRun: Of() must hand back a Context even for a run that is not on disk —
 	// these two are best-effort reads whose errors are already discarded, and the existence
 	// check belongs at Run(), where a verb actually acts on the run.
 	run, _ := record.NewRun(runDir)
-	if id, rerr := seatenv.ResolveSeat(seatID, BoundSeat(run)); rerr == nil {
+	id, serr := seatenv.ResolveSeat(seatID, BoundSeat(run))
+	if serr == nil {
 		seatID = id.ID
 	}
-	return Context{runDir: runDir, SeatID: seatID, Role: roleOf(cmd), RunVia: via, cmd: cmd}
+	return Context{runDir: runDir, SeatID: seatID, Role: roleOf(cmd), RunVia: via, seatErr: serr, cmd: cmd}
 }
 
 // roleOf answers WHICH SEAT is running this command, from the identity the engine injected.
@@ -360,7 +379,7 @@ func (c Context) RequireRun(verb string) (record.Run, error) {
 	// The verb-named message above is kept for the UNSUPPLIED case, because "scorecard: --run
 	// is required" tells an operator which invocation to fix and record's own wording cannot.
 	// Everything past it is the same refusal Run() gives, for the same reason.
-	return record.OpenRun(c.runDir)
+	return c.Run()
 }
 
 func roleOf(cmd *cobra.Command) string {
@@ -636,22 +655,21 @@ func Require(c *cobra.Command, names ...string) *cobra.Command {
 func Begin(cmd *cobra.Command) (Context, error) {
 	// The disagreement refusal fires FIRST — before "--run is required" and before the seat-id
 	// checks — because a seat pointed at the wrong run must not get a message about anything
-	// else. Of() swallows the error to stay signature-compatible; this is where it is honoured.
+	// else. Of() carries the run refusal as RunErr; this is where a writing verb meets it.
 	flagRun, _ := cmd.Flags().GetString(flags.Run)
 	if _, err := seatenv.Resolve(flagRun, nil); err != nil {
 		return Of(cmd), err
 	}
-	// AND THE IDENTITY DISAGREEMENT, which Of's own comment said was refused here and which
-	// nothing refused anywhere. Measured: with FEOV_SEAT=blue-respond injected, a call
+	// AND THE IDENTITY DISAGREEMENT, which Of resolves and carries as seatErr. Measured before
+	// anything refused it: with FEOV_SEAT=blue-respond injected, a call
 	// passing --seat-id blue-respond was ACCEPTED and filed under r9 — a seat no dispatch
 	// ever created, carrying its own register event and its own shard. Attribution is the one
 	// fact a seat must not be able to get wrong; every found_by, estoppel and parity check
 	// reads it, and this is the guarantee #348 shipped a message for and no code behind.
-	seatFlag, _ := cmd.Flags().GetString(flags.SeatID)
-	if _, err := seatenv.ResolveSeat(seatFlag, BoundSeat(Of(cmd).handle())); err != nil {
-		return Of(cmd), err
-	}
 	s := Of(cmd)
+	if s.seatErr != nil {
+		return s, s.seatErr
+	}
 	if s.runDir == "" {
 		return s, feov.Errorf(feov.MissingField, "--run <runDir> is required")
 	}
@@ -836,14 +854,7 @@ func NewKeyed(name, key string, run Handler) *cobra.Command {
 		Args:         cobra.NoArgs,
 		SilenceUsage: true, // a validation refusal is a teaching message, not a usage dump
 		Annotations:  map[string]string{recordsKey: name},
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			s, err := Begin(cmd)
-			if err != nil {
-				return Emit(cmd, nil, err)
-			}
-			res, werr := run(s, cmd)
-			return Emit(cmd, res, werr)
-		},
+		RunE:         HandlerRunE(run),
 	}
 	// Render-on-mutation is GONE (2026-07-19). It re-rendered every projection from the full
 	// event log after every write — O(events) per mutation — to keep the markdown current
@@ -859,6 +870,21 @@ func NewKeyed(name, key string, run Handler) *cobra.Command {
 	// finding about the tooling) rather than text dropped into an unqueryable channel.
 
 	return c
+}
+
+// HandlerRunE is the RunE every writing verb holds: Begin (identity, register-first, the dispatched seat,
+// flag references) -> the work -> Emit. New wires it; a verb built as a raw cobra command — the
+// motion verbs, whose help is composed per subject — sets it as its RunE, so its preconditions and
+// its refusal's envelope are the same as every other verb's.
+func HandlerRunE(run Handler) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, _ []string) error {
+		s, err := Begin(cmd)
+		if err != nil {
+			return Emit(cmd, nil, err)
+		}
+		res, werr := run(s, cmd)
+		return Emit(cmd, res, werr)
+	}
 }
 
 // Prose adds the shared prose payload channel — --reason, and the quoting rule in the verb's help —
