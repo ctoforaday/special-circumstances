@@ -46,7 +46,7 @@ func ResolveAbout(verb string, run Run, kind, ref string) (*recordpb.AboutKind, 
 			return nil, nil, err
 		}
 	case recordpb.AboutKind_ABOUT_KIND_GAP:
-		if err := GapExists(run.Dir(), ref); err != nil {
+		if err := requireGap(run, ref, verb, "--about"); err != nil {
 			return nil, nil, err
 		}
 	}

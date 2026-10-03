@@ -644,7 +644,7 @@ Global Flags:
 
 ── close without anchor
 exit 2
-feov-record: required flag(s) "reason", "verified-by" not set
+feov-record: required flag(s) "reason", "verified-against", "verified-by", "verified-with" not set
 
 close a gap with the verification you did THIS sitting, naming what you checked it against
 
@@ -846,7 +846,7 @@ Usage:
   feov-record verdict [flags]
 
 Flags:
-      --as PASS|FAIL   the seat's terminal act
+      --as PASS|FAIL   REQUIRED — the seat's terminal act
   -h, --help           help for verdict
 
 Enumerated values:
@@ -882,7 +882,7 @@ Usage:
   feov-record verdict [flags]
 
 Flags:
-      --as PASS|FAIL   the seat's terminal act
+      --as PASS|FAIL   REQUIRED — the seat's terminal act
   -h, --help           help for verdict
 
 Enumerated values:
@@ -1112,10 +1112,10 @@ Usage:
   feov-record motion grade file [flags]
 
 Flags:
-      --dimension dimension-value   REQUIRED for a grade motion
+      --dimension dimension-value   REQUIRED — the grade axis you contest
   -h, --help                        help for file
-      --id gap-id                   REQUIRED for a grade motion
-      --proposed grade              REQUIRED for a grade motion — the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --id gap-id                   REQUIRED — the gap this motion is about (G4)
+      --proposed grade              REQUIRED — the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --reason string               REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 Enumerated values:
@@ -1468,10 +1468,10 @@ Usage:
   feov-record motion petition file [flags]
 
 Flags:
-      --class class-value   REQUIRED for a petition motion
+      --class class-value   REQUIRED — the class of objection
   -h, --help                help for file
       --reason string       REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
-      --relief string       REQUIRED for a petition motion
+      --relief string       REQUIRED — what you ask the bench to do about it
 
 Enumerated values:
   --class
@@ -1764,10 +1764,10 @@ Usage:
   feov-record motion grade file [flags]
 
 Flags:
-      --dimension dimension-value   REQUIRED for a grade motion
+      --dimension dimension-value   REQUIRED — the grade axis you contest
   -h, --help                        help for file
-      --id gap-id                   REQUIRED for a grade motion
-      --proposed grade              REQUIRED for a grade motion — the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --id gap-id                   REQUIRED — the gap this motion is about (G4)
+      --proposed grade              REQUIRED — the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --reason string               REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 Enumerated values:
@@ -1802,7 +1802,7 @@ Usage:
   feov-record verdict [flags]
 
 Flags:
-      --as PASS|FAIL   the seat's terminal act
+      --as PASS|FAIL   REQUIRED — the seat's terminal act
   -h, --help           help for verdict
 
 Enumerated values:

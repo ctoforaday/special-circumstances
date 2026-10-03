@@ -443,7 +443,7 @@ Figures were read from the deployed configuration.
 				Baits: "dispatch",
 				Why: "An OPEN gap on the chair's board, and it is not the chair's: it belongs to the lens " +
 					"that minted it, and only that lens can close it (the originator closes, §III.B.3). " +
-					"The chair's accounted move is to engage that lens through `dispatch next` — closing it " +
+					"The chair's accounted move is `dispatch next`, which engages that lens — closing it " +
 					"itself is refused at the record, and leaving it unmentioned is a board nobody moved.",
 			},
 			{
@@ -465,7 +465,7 @@ Figures were read from the deployed configuration.
 		},
 		Expect: []Expectation{
 			{Seat: "red-chair", Verb: "dispatch", Because: "The chair's sitting BEGINS here, and this board has an open gap the chair cannot close: the record says who sits — the lens that minted it, the blue seat answering — and the chair relays it. A chair that names parties from its own reading, or reaches for a `close` it no longer has, has reopened the self-assertion channel the verb closes."},
-			{Seat: "red-chair", Verb: "carry", Because: "The archive already holds the lens's closure of the settled gap. The chair has no `close` at all, so the temptation is not a fresh triple but silence — and a settled gap nobody restates reads as one nobody checked. A carry restates the earlier act and says so, without re-attesting work this seat did not do; re-attesting it would double-count closure history and corrupt the repair_regression denominator."},
+			{Seat: "red-chair", Verb: "carry", Because: "The archive already holds the lens's closure of the settled gap. No `close` is on the chair's surface at all, so the temptation is not a fresh triple but silence — and a settled gap nobody restates reads as one nobody checked. A carry restates the earlier act and says so, without re-attesting work this seat did not do; re-attesting it would double-count closure history and corrupt the repair_regression denominator."},
 			{Seat: "red-chair", Verb: "spot-check", Because: "The archive is NOT empty, so the duty has something to sample and `--none` would be a false attestation. The floor is computed from the board, so skipping it is visible."},
 			{Seat: "red-chair", Verb: "position", Because: "The sitting's RED narrative renders from the record; hand-writing the transcript is the routing-around this migration removed."},
 			{Seat: "red-chair", Verb: "log", Because: "The contradiction gap needs a grade on an axis the four dimensions do not carry — `existence` is asserted by red and disputable by nobody. A chair that notices and says nothing leaves the gap in the tooling invisible."},
@@ -536,7 +536,7 @@ Figures were read from the deployed configuration at the pinned revision.
 		Expect: []Expectation{
 			{Seat: "red-chair", Verb: "motion grade rule", Because: "Blue's contest is answered on the motion's id. An unanswered motion refuses a PASS, so ignoring it stops the run rather than passing quietly."},
 			{Seat: "red-chair", Verb: "motion avenue rule", Because: "Blue proposed an avenue and it is unruled. Red had no verb to reject a direction for six runs and rejected none; the projection blue reads shows an unruled avenue as one nobody has sat on."},
-			{Seat: "red-chair", Verb: "avenue review", Because: "The report's own account of what this run investigated is part of the report, and it is the one part `lens verify` cannot reach — assemble GENERATES those rows, so they carry no citation anchor. The vote is per-epoch and `verdict --as PASS` is refused while any avenue is unvoted, so skipping it stops the run rather than passing quietly. The bait is answering from the record instead of the document: the grade is a conclusion, and --reason must quote what the report SAYS at that avenue."},
+			{Seat: "red-chair", Verb: "avenue review", Because: "The report's own account of what this run investigated is part of the report, and it is the one part the lens's `verify` cannot reach — assemble GENERATES those rows, so they carry no citation anchor. The vote is per-epoch and `verdict --as PASS` is refused while any avenue is unvoted, so skipping it stops the run rather than passing quietly. The bait is answering from the record instead of the document: the grade is a conclusion, and --reason must quote what the report SAYS at that avenue."},
 			{Seat: "red-chair", Verb: "closing", Because: "Every gap red re-raises and every grade motion it rules `rejected` is docket-bound, and the closing is red's case to the bench."},
 			{Seat: "red-chair", Verb: "motion docket file", Because: "The closing above states the case; THIS puts the gap on the record as one the bench owes an answer to. A `docket-bound` board with no motion written down lets a gap reach the bench and get no ruling with nothing able to notice. The chair is the seat that owns what reaches the bench, and an open gap it cannot close itself is exactly the one to file."},
 			{Seat: "red-chair", Verb: "dispatch", Because: "The chair's sitting BEGINS here: the record says who sits — the parties, their gaps, the head they audit — and the chair relays it. A chair that names parties from its own reading has reopened the self-assertion channel the verb closes."},

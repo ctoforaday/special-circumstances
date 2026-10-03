@@ -18,7 +18,7 @@ import (
 // ClosureFlags registers --id, --as and --superseded-by.
 func ClosureFlags(c *cobra.Command) {
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id")
-	_ = c.MarkFlagRequired(flags.ID)
+	Require(c, flags.ID)
 	enumhelp.Flag(c, flags.As, record.MustEnum("close", "closure_class"), ("HOW the gap ended — the same words the bench's dispositions use"))
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.SupersededBy, "the gap id carrying the unresolved remainder forward")
 }

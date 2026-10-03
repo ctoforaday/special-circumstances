@@ -90,8 +90,6 @@ var referenceChecks = []struct {
 		extra: []string{"--quote", "the parser accepts an empty body in this line.", "--new", "the parser accepts an empty body on this line.", "--reason", "r"}},
 	{verb: []string{"avenue", "move"}, flag: "--id", against: "the avenues on the record", bogus: "Q9",
 		extra: []string{"--as", "abandoned", "--reason", "r"}},
-	{verb: []string{"opinion"}, flag: "--id", against: "the board", bogus: "G2",
-		extra: []string{"--as", "remanded", "--principle", "p", "--tension", "t", "--review-flag", "false", "--settled", "the proposition this ruling bars", "--final", "--reason", "r"}},
 	{verb: []string{"motion", "grade", "file"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--dimension", "severity", "--proposed", "low", "--reason", "r"}},
 	// THE THREE BELOW DRIVE THE VERB BODY'S OWN REFERENCE CHECK, not a flag checker — see idShapeFor,
@@ -195,11 +193,11 @@ func TestEveryCheckedFlagIsInTheTable(t *testing.T) {
 	}
 
 	// ASKS WHETHER A CHECKER IS ATTACHED, not whether the value could hold one. Every ShapedValue
-	// has Check, so `interface{ Check(string) error }` alone selects every SHAPED flag and this gate
+	// has Check, so `interface{ Check(string, string) error }` alone selects every SHAPED flag and this gate
 	// then demanded a reference fixture for `reproduce --id` (a sha256, resolved against nothing).
 	// Shape is the other half and is proven in internal/cli/idshape_test.go.
 	type carrier interface {
-		Check(string) error
+		Check(string, string) error
 		Checked() bool
 	}
 	var missing []string
@@ -247,8 +245,14 @@ func TestEveryDeclaredReferenceIsActuallyChecked(t *testing.T) {
 				stageClassRegistry(t, runDir)
 			}
 
+			// A PATH NO SEAT HOLDS IS REFUSED FOR ITS IDENTITY, and that refusal satisfied "it was
+			// refused" — an `opinion` case outlived its verb and went on passing, measuring nothing.
+			holder := seatHolding(c.verb...)
+			if holder == "" {
+				t.Fatalf("no seat holds `%s`, so the case is refused before its flag is read and measures nothing — drop it, or name the verb that took its place", strings.Join(c.verb, " "))
+			}
 			argv := append([]string{}, c.verb...)
-			argv = append(argv, "--run", runDir, "--seat-id", seatHolding(c.verb...))
+			argv = append(argv, "--run", runDir, "--seat-id", holder)
 			argv = append(argv, c.flag, c.bogus)
 			argv = append(argv, c.extra...)
 
@@ -261,6 +265,24 @@ func TestEveryDeclaredReferenceIsActuallyChecked(t *testing.T) {
 			// command rather than the read that would give it a real one.
 			if !strings.Contains(err.Error(), c.bogus) && !strings.Contains(err.Error(), strings.TrimPrefix(c.flag, "--")) {
 				t.Errorf("%s refused, but the message names neither the value nor the flag — a seat cannot act on it: %v", name, err)
+			}
+			// AND IT NAMES THE FLAG THE SEAT TYPED, as a flag. One checker serves two verbs: the
+			// lens's `verify --anchor` was refused about `--cites`, blue's flag on blue's verb, and
+			// the value matching above passed it because the label was in the message.
+			if !refusalNames(err, strings.TrimPrefix(c.flag, "--")) {
+				t.Errorf("%s refused without naming %s — the seat that typed it is told about some other flag:\n\n%v", name, c.flag, err)
+			}
+			// The prose OUTSIDE backtick spans speaks about the verb the seat ran, so every flag it
+			// names is that verb's. A span may name another verb's flags (`class new --definition`);
+			// the harness reads spans against the seat's tree, in assertRefusalSpeaksToItsSeat.
+			verb := cmdAt(NewRootFor(holder), c.verb)
+			for _, m := range flagToken.FindAllStringSubmatch(backtickSpan.ReplaceAllString(err.Error(), ""), -1) {
+				if m[1] == "help" {
+					continue
+				}
+				if verb.Flags().Lookup(m[1]) == nil && verb.InheritedFlags().Lookup(m[1]) == nil {
+					t.Errorf("%s refused naming --%s, which `%s` does not take — a seat that follows it types a flag its verb refuses:\n\n%v", name, m[1], strings.Join(c.verb, " "), err)
+				}
 			}
 		})
 	}

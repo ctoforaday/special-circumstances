@@ -56,7 +56,7 @@ func newClose() *cobra.Command {
 		// strand an epoch, and the check is a demand, not a safety property.
 		if kind, gerr := computationGapKind(run, seat.Str(cmd, flags.ID)); gerr == nil && kind {
 			if !record.ProofAnswers(run, seat.Str(cmd, flags.ID)) {
-				return nil, fmt.Errorf("lens close: %s was minted --check-kind computation, and no proof answers it. Its acceptance check is settled by RUNNING something, not by reading the report — so closing it on prose would accept the one kind of evidence you declared insufficient. Blue settles it with `prove --quote \"<the sentence>\" --script <path> --answers %s`; if the demand was wrong, regrade or supersede the gap rather than closing it unproved",
+				return nil, fmt.Errorf("lens close: %s was minted --check-kind computation, and no proof answers it. Its acceptance check is settled by RUNNING something, not by reading the report — so closing it on prose would accept the one kind of evidence you declared insufficient. It is settled by blue's `prove --quote \"<the sentence>\" --script <path> --answers %s`; if the demand was wrong, regrade or supersede the gap rather than closing it unproved",
 					seat.Str(cmd, flags.ID), seat.Str(cmd, flags.ID))
 			}
 		}
@@ -67,14 +67,14 @@ func newClose() *cobra.Command {
 	})
 
 	seat.ClosureFlags(c)
-	c.Flags().String(flags.VerifiedBy, "", "REQUIRED — WHO verified it — the seat that read the evidence")
-	flags.Text(c, flags.VerifiedWith, "REQUIRED — WITH WHAT — the tool or command that showed it")
-	c.Flags().String(flags.VerifiedAgainst, "", "REQUIRED — AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in")
+	c.Flags().String(flags.VerifiedBy, "", "WHO verified it — the seat that read the evidence")
+	flags.Text(c, flags.VerifiedWith, "WITH WHAT — the tool or command that showed it")
+	c.Flags().String(flags.VerifiedAgainst, "", "AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in")
 	// ALL THREE OR NONE, said by cobra rather than by a refusal after the fact. `validate` reads
 	// them as one fact (`anchored`), so two of three was never a partial closure — it was an
 	// unanchored one that spent the seat's turn before saying so.
 	c.MarkFlagsRequiredTogether(flags.VerifiedBy, flags.VerifiedWith, flags.VerifiedAgainst)
-	_ = c.MarkFlagRequired(flags.VerifiedBy)
+	seat.Require(c, flags.VerifiedBy, flags.VerifiedWith, flags.VerifiedAgainst)
 	// THE ARGUMENT IS UNCONDITIONAL FOR THIS VERB, AND CONDITIONAL FOR THE MESSAGE — the same
 	// split `blue avenue propose` makes for --reason, and for the same reason.
 	//

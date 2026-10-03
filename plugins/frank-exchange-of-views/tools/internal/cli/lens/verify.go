@@ -84,6 +84,10 @@ import (
 // cannot express "required only when", so a mode-discerned verb puts its contract into
 // hand-written validation where nothing can refuse it at parse. As two verbs, each marks what it
 // genuinely requires and cobra refuses the nonsense before the handler runs.
+// verifyAnchorAdvice is what a lens naming no citation is told: --anchor adjudicates a citation
+// already on the record, so the act is to read the real label, not to create one.
+const verifyAnchorAdvice = "--anchor names the citation you checked, so it is read off the record, not chosen: take the c-<hex> from the report's `<!--cite:c-…-->` token beside the claim"
+
 func newVerify() *cobra.Command {
 	c := seat.Prose(seat.New("verify", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		body := &recordpb.Verify{Anchor: proto.String(strings.TrimSpace(seat.Str(cmd, flags.Anchor)))}
@@ -93,8 +97,8 @@ func newVerify() *cobra.Command {
 		return writeVerify(s, cmd, body, adjudates)
 	}))
 
-	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists), flags.Anchor, "REQUIRED — the c-<hex> of the citation you checked, from the report's `<!--cite:c-…-->` token — resolve it with `show evidence`")
-	_ = c.MarkFlagRequired(flags.Anchor)
+	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists(verifyAnchorAdvice)), flags.Anchor, "the c-<hex> of the citation you checked, from the report's `<!--cite:c-…-->` token — resolve it with `show evidence`")
+	seat.Require(c, flags.Anchor)
 	c.Flags().Int(flags.Page, 0, "for a citation with pages: the page whose image you checked, drawn first with render-page")
 	verifyAxes(c)
 	return c
@@ -188,10 +192,9 @@ func newCorroborate() *cobra.Command {
 		}, cites)
 	}), "verify"))
 
-	c.Flags().String(flags.URL, "", "REQUIRED — "+flags.DescURL)
-	flags.Text(c, flags.Title, "REQUIRED — "+flags.DescTitle)
-	_ = c.MarkFlagRequired(flags.URL)
-	_ = c.MarkFlagRequired(flags.Title)
+	c.Flags().String(flags.URL, "", flags.DescURL)
+	flags.Text(c, flags.Title, flags.DescTitle)
+	seat.Require(c, flags.URL, flags.Title)
 	verifyAxes(c)
 	return c
 }

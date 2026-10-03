@@ -173,7 +173,7 @@ func newOCRPages() *cobra.Command {
 	c.Flags().IntVar(&dpi, flags.DPI, fetchcache.DefaultRenderDPI,
 		fmt.Sprintf("render resolution, %d–%d", fetchcache.MinRenderDPI, fetchcache.MaxRenderDPI))
 	c.Flags().BoolVar(&force, flags.Force, false, "render even though a text layer was already extracted")
-	_ = c.MarkFlagRequired(flags.Sha)
+	seat.Require(c, flags.Sha)
 	return c
 }
 
@@ -288,7 +288,7 @@ func newOCRRead() *cobra.Command {
 	}
 	c.Flags().StringVar(&sha, flags.Sha, "", "sha256 of a document whose pages ocr pages has already rendered")
 	c.Flags().BoolVar(&force, flags.Force, false, "read again even though a reading of these exact images exists")
-	_ = c.MarkFlagRequired(flags.Sha)
+	seat.Require(c, flags.Sha)
 	return c
 }
 

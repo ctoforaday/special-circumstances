@@ -55,8 +55,8 @@ func newVerdict() *cobra.Command {
 		return verdictResult{Verdict: seat.Str(cmd, flags.As), Open: open, Closed: closed, Checkpoint: mirror}, nil
 	})
 
-	enumhelp.Flag(c, flags.As, record.MustEnum("verdict", "verdict"), ("the seat's terminal act"))
-	return c
+	enumhelp.Flag(c, flags.As, record.MustEnum("verdict", "verdict"), "the seat's terminal act")
+	return seat.Require(c, flags.As)
 }
 
 // checkpoint copies records/ to a per-run directory under the user cache, keyed

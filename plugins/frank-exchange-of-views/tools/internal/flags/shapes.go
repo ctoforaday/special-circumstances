@@ -61,7 +61,11 @@ var shaShape = regexp.MustCompile(`^[0-9a-f]{64}$`)
 // parsing is a single pass in argv order, so `--id` may be Set before `--run` ever is. The check
 // therefore runs after parse — see seat.CheckFlagReferences — and the flag's job is to CARRY it,
 // not to run it.
-type Checker func(runDir, value string) error
+//
+// It takes the FLAG as the seat typed it ("--answers") because one checker serves several flags:
+// GapExists backs --id, --answers, --supersedes and --superseded-by, and a refusal naming a flag
+// the seat never typed sends it to re-read the wrong part of its command.
+type Checker func(runDir, flag, value string) error
 
 // ShapedValue is a pflag.Value that refuses a value whose FORM is wrong, whatever the record
 // holds — and carries the check for whether the record actually has it.
@@ -91,11 +95,11 @@ func (v *ShapedValue) Shape() *regexp.Regexp { return v.re }
 // Check resolves this flag's value against the record, or returns nil when the flag was not
 // passed or carries no checker. The value is checked ONLY when set: an absent optional reference
 // is not a dangling one.
-func (v *ShapedValue) Check(runDir string) error {
+func (v *ShapedValue) Check(runDir, flag string) error {
 	if v == nil || !v.set || v.check == nil {
 		return nil
 	}
-	return v.check(runDir, v.val)
+	return v.check(runDir, flag, v.val)
 }
 
 // Checked reports whether an existence check is ATTACHED, which is not the same question as
@@ -194,7 +198,7 @@ func AvenueID() *ShapedValue {
 // FindingLabel refuses anything that is not <area>-F<n> (or the archived L<n>-F<n>).
 func FindingLabel() *ShapedValue {
 	return &ShapedValue{kind: "finding-label", re: findingLabelShape,
-		hint: "a finding label looks like adversary-F2 (the lens's area, then its finding number) and is ASSIGNED by `finding`; `show findings` lists them"}
+		hint: "a finding label looks like adversary-F2 (the lens's area, then its finding number) and is ASSIGNED by the lens's `finding`; `show findings` lists them"}
 }
 
 // MotionID refuses anything that is not M<n>.

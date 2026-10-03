@@ -335,7 +335,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	}
 	// The registry decides whether `--class` means anything this run.
 	if registry.Written {
-		fmt.Fprintf(stdout, "  class registry: %d class(es) staged — `--class` is validated; `--class-new` extends it\n", registry.Files)
+		fmt.Fprintf(stdout, "  class registry: %d class(es) staged — `--class` is validated; the lens's `class new` extends it\n", registry.Files)
 	} else {
 		fmt.Fprintf(stdout, "  class registry: NOT STAGED — %s\n", registry.Reason)
 	}

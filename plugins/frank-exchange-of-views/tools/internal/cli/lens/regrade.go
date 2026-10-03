@@ -37,12 +37,12 @@ func newRegrade() *cobra.Command {
 		return regradeResult{GapID: seat.Str(cmd, flags.ID)}, nil
 	})
 
-	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "REQUIRED — the gap id")
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id")
 	// COBRA NAMES THE MISSING ID. Without this the only refusal was the record's foreign key —
 	// `recording a regrade: constraint failed: FOREIGN KEY constraint failed` — which names no flag;
 	// requireOriginator and requireGap both pass an empty id through on the note that the
 	// missing-id refusal is the verb's own, and this verb had none.
-	_ = c.MarkFlagRequired(flags.ID)
+	seat.Require(c, flags.ID)
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage("how bad this is"))
 	c.Flags().Var(&likelihood, flags.Likelihood, flags.DescLikelihood)
 	c.Flags().Var(&impact, flags.Impact, flags.DescImpact)

@@ -83,7 +83,7 @@ func ReadAround(report, anchorID string, n int) (Window, error) {
 				// and `edit` refuses a duplicate, so a second one means the invariant broke;
 				// picking either would hide that behind a plausible answer.
 				return Window{}, fmt.Errorf("anchor: anchor %s appears on lines %d AND %d — an anchor is unique by construction "+
-					"(`edit` refuses one that duplicates), so two occurrences is a broken invariant rather than an ambiguous read",
+					"(blue's `edit` refuses one that duplicates), so two occurrences is a broken invariant rather than an ambiguous read",
 					anchorID, at+1, i+1)
 			}
 			at = i

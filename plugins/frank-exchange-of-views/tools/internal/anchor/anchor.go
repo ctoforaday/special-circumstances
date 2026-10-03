@@ -88,9 +88,9 @@ func Kind(id string) string {
 func Label(id string) string {
 	switch {
 	case strings.HasPrefix(id, "c-"):
-		return "citation anchor " + id + " (citations are tool-managed — a cited claim leaves by `edit` down to the bare anchor, then `retire`, which takes the anchor out with it; never by a raw edit)"
+		return "citation anchor " + id + " (citations are tool-managed — a cited claim leaves by blue's `edit` down to the bare anchor, then blue's `retire`, which takes the anchor out with it; never by a raw edit)"
 	case strings.HasPrefix(id, "p-"):
-		return "proof anchor " + id + " (a computation backs this sentence — the script and its output are cached; the claim leaves by `edit` down to the bare anchor, then `retire`, which takes the anchor out with it; never by a raw edit)"
+		return "proof anchor " + id + " (a computation backs this sentence — the script and its output are cached; the claim leaves by blue's `edit` down to the bare anchor, then blue's `retire`, which takes the anchor out with it; never by a raw edit)"
 	case strings.HasPrefix(id, "f-"):
 		return "finding-marker " + id
 	default:

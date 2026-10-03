@@ -1542,7 +1542,7 @@ func HarvestPrecedents(run record.Run, results []map[string]any, lawDir string, 
 	var body []string
 	body = append(body, "# proposed holdings — "+slug+" [ALL PERSUASIVE — awaiting human review per law/README.md]",
 		"",
-		"Each entry is a `bench declare` — a construction the bench stated deliberately, so its text IS",
+		"Each entry is the bench's `declare` — a construction the bench stated deliberately, so its text IS",
 		"the holding. `facts` and `scope-limits` remain the reviewer's to write from the cited record.",
 		"Ordinary rulings are NOT here: they dispose of a gap and are on the record, and a run's other",
 		"lessons about the law arrive as scope-limit proposals against an existing holding.", "")

@@ -73,10 +73,9 @@ func newRenderPage() *cobra.Command {
 		}
 		return out, nil
 	})
-	c.Flags().String(flags.Sha, "", "REQUIRED — the cached document's sha256, as the evidence view lists it beside the citation")
-	c.Flags().Int(flags.Page, 0, "REQUIRED — the 1-based PDF page to draw — one of a citation's pages, as the evidence view lists them")
-	_ = c.MarkFlagRequired(flags.Sha)
-	_ = c.MarkFlagRequired(flags.Page)
+	c.Flags().String(flags.Sha, "", "the cached document's sha256, as the evidence view lists it beside the citation")
+	c.Flags().Int(flags.Page, 0, "the 1-based PDF page to draw — one of a citation's pages, as the evidence view lists them")
+	seat.Require(c, flags.Sha, flags.Page)
 	return c
 }
 

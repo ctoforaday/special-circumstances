@@ -312,7 +312,7 @@ func Reproduce(runDir, sha string) (matches bool, got, want string, err error) {
 		// A refusal that describes the tool's plumbing instead of the seat's mistake is the same
 		// misdirection as a refusal naming a flag that does not exist. The seat believes it.
 		return false, "", "", fmt.Errorf("proof: no recorded proof %s in this run — --id takes the sha256 "+
-			"of a proof a `prove` call recorded, and the evidence projection lists every one under `proofs`", sha)
+			"of a proof blue's `prove` recorded, and the evidence projection lists every one under `proofs`", sha)
 	}
 	rec := Result{Output: string(recorded)}
 	entries, err := os.ReadDir(dir)

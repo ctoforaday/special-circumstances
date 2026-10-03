@@ -863,7 +863,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		}
 		for _, anc := range b.GetSupersedes() {
 			if !ids[anc] {
-				return fmt.Errorf("record: mint supersedes %s, which no mint event has created — dangling lineage refused", anc)
+				return fmt.Errorf("record: mint --supersedes names %s, which no mint event has created — dangling lineage refused", anc)
 			}
 		}
 	case *recordpb.Proof:
@@ -871,10 +871,10 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// and a dangling reference is refused HERE rather than accepted and dropped at
 		// replay. It is optional — a proof can back a claim nobody challenged — but a
 		// `computation` gap can be closed ONLY by one that names it (see merge close).
-		if err := requireGap(run, b.GetAnswers(), "blue prove", "--answers"); err != nil {
+		if err := requireGap(run, b.GetAnswers(), "blue's `prove`", "--answers"); err != nil {
 			return err
 		}
-		if err := requireCitation(run, b.GetCites(), "blue prove", "--cites"); err != nil {
+		if err := requireCitation(run, b.GetCites(), "blue's `prove`", "--cites", ProveCitesAdvice); err != nil {
 			return err
 		}
 	case *recordpb.BlueEdit:
@@ -883,7 +883,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// --answers names the gap this edit responds to, and it is checked against the board
 		// like every other reference in this file (refs.go: twelve of twelve were once
 		// unchecked, and a dangling reference is ACCEPTED here and DROPPED at replay).
-		if err := requireGap(run, b.GetAnswers(), "blue edit", "--answers"); err != nil {
+		if err := requireGap(run, b.GetAnswers(), "blue's `edit`", "--answers"); err != nil {
 			return err
 		}
 		// And the convention it replaces is REFUSED, not merely deprecated. Measured on the
@@ -926,7 +926,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// `p.Has` asked exactly that and the check below is what stops it laundering an
 		// unverified closure past the anchor requirement.
 		if !anchored && b.CarriedFrom == nil {
-			return fmt.Errorf("record: close requires the verification triple (--verified-by --verified-with --verified-against) — an unverified closure is unauditable (E0.5a). To restate a closure an earlier sitting already made, use `carry --carried-from <epoch>` instead")
+			return fmt.Errorf("record: close requires the verification triple (--verified-by --verified-with --verified-against) — an unverified closure is unauditable (E0.5a). A closure an earlier sitting already made is restated by the chair's `carry --carried-from <epoch>`, not closed again")
 		}
 		// --carried-from IS A LINEAGE CLAIM, so it is checked like one.
 		//
@@ -950,7 +950,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 				return err
 			}
 			if len(prior) == 0 {
-				return fmt.Errorf("record: carry claims gap %s was closed in an earlier sitting, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through `close` with --verified-by/--verified-with/--verified-against", b.GetGapId())
+				return fmt.Errorf("record: carry claims gap %s was closed in an earlier sitting, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through the lens's `close` with --verified-by/--verified-with/--verified-against", b.GetGapId())
 			}
 		}
 		if err := requireGap(run, b.GetSuccessor(), "close", "--superseded-by"); err != nil {
@@ -968,7 +968,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// is separately checked against a real prior closure below.
 		if b.CarriedFrom == nil && !closedByTarget(run, b.GetGapId(), target) {
 			if err := requireOpenGap(run, b.GetGapId(), "close", "--id",
-				"closing it twice double-counts closure history and corrupts the repair_regression denominator; use `carry --carried-from <epoch>` to RESTATE an earlier closure"); err != nil {
+				"closing it twice double-counts closure history and corrupts the repair_regression denominator; the chair's `carry --carried-from <epoch>` RESTATES an earlier closure"); err != nil {
 				return err
 			}
 		}
@@ -1318,7 +1318,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			}
 			for _, a := range areas {
 				if !strings.HasPrefix(a, "red-lens-") || !inCast[a] {
-					return fmt.Errorf("record: spot-check --areas names %q, which is not a lens seat in this run's cast — name the stale areas `dispatch next` lists, by seat", a)
+					return fmt.Errorf("record: spot-check --areas names %q, which is not a lens seat in this run's cast — name the stale areas the chair's `dispatch next` lists, by seat", a)
 				}
 			}
 		}
@@ -1336,7 +1336,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// `avenue_id`, and the seat-facing verb is `avenue` — and the schema's name is
 		// the one that survives. Named here because it is a rename by judgement, not a match.
 		if b.GetSupersedesStatus() != "" {
-			if err := requireAvenue(run, b.GetAvenueId(), "blue avenue", "--id"); err != nil {
+			if err := requireAvenue(run, b.GetAvenueId(), "blue's `avenue move`", "--id"); err != nil {
 				return err
 			}
 		}

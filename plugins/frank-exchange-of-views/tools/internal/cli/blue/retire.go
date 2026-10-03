@@ -132,7 +132,7 @@ func newRetire() *cobra.Command {
 	// NOT DescQuote. Every other --quote is matched against the report; this one must be ABSENT
 	// from it — the edit that took the claim out comes first, and the retire is refused while the
 	// text still stands. What it is matched against is that edit's old span.
-	flags.Text(c, flags.Quote, "the claim being removed, verbatim as it stood in the report BEFORE the edit that took it out — the WHOLE of what that edit cut, and nothing else. It must be ABSENT from the report now — edit it out first, then retire — and a match against the recorded edit's old span is what verifies the removal")
+	flags.Text(c, flags.Quote, "the claim being removed, verbatim as it stood in the report BEFORE the edit that took it out — a sub-span of what that edit cut. It must be ABSENT from the report now (edit it out first, then retire; the retire is refused while the text still stands). Found inside a recorded edit's old span, the removal is recorded as verified; found in none, the retire is still recorded, with its removal basis recorded as asserted rather than verified — a removal the record cannot show")
 	flags.Text(c, flags.New, "the claim that replaces it, when one does")
 	c.Flags().Var(&named, flags.Anchor, "a marker the edit left inside a sentence that backed only this claim (c-…, p-… or f-…; comma-separated) — it leaves with the claim")
 	return c

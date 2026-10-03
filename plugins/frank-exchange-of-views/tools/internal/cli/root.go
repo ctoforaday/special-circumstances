@@ -353,10 +353,16 @@ func teachUnknownSubcommand(root *cobra.Command) {
 			}
 			sub := args[0]
 			if at := whereSubcommandLives(group.Name(), sub); len(at) > 0 {
-				return seat.RefuseAndTeach(cmd, fmt.Sprintf("`%s %s` is not on your surface — it is the %s seat's act, and you are %s. "+
+				// THE ACT IS NAMED AS ITS HOLDER'S. Quoted bare, `avenue review` reads to blue as a
+				// command it can type; it is the chair's, and the sentence says so where the path is.
+				holders := make([]string, len(at))
+				for i, a := range at {
+					holders[i] = "the " + a + "'s"
+				}
+				return seat.RefuseAndTeach(cmd, fmt.Sprintf("This act is %s `%s %s`, and it is not on your surface: you are %s. "+
 					"That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to "+
 					"perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here.",
-					group.Name(), sub, strings.Join(at, " and "), seat.DispatchedAs(cmd)))
+					strings.Join(holders, " and "), group.Name(), sub, seat.DispatchedAs(cmd)))
 			}
 			var have []string
 			for _, s := range group.Commands() {

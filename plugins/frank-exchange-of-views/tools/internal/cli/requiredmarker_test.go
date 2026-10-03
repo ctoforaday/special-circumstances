@@ -1,12 +1,17 @@
 package cli
 
 import (
+	"fmt"
+	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
@@ -28,9 +33,15 @@ import (
 //	ran clean without it, help REQUIRED → a seat types what it does not have to (the halved defect)
 //	a flag the clean set never passed  → optional by demonstration, so the help must not mark it
 //
-// The marker is read the way markRequired writes it: at the head of the usage. "REQUIRED to close
-// a gap red minted with --check-kind computation" mid-sentence on `prove --answers` is a condition,
+// The marker is read through seat.IsMarked — the one reader of the shape every writer produces —
+// so this gate and helpcontract_test.go cannot disagree about what counts. "REQUIRED to close a
+// gap red minted with --check-kind computation" mid-sentence on `prove --answers` is a condition,
 // not a marker, and `mint --fix`'s "the required fix" is a field name.
+//
+// EVERY LEAF A SEAT CAN RUN IS IN THE TABLE OR EXEMPTED WITH A REASON. The first table was
+// corrRows plus a hand-typed dozen, and `verdict --as` and `fetch --url` — refused when omitted,
+// unmarked — were neither probed nor exempt, so the gate was green over the defect it exists for.
+// TestEveryRunnableLeafIsProbedForItsMarkers is the census.
 
 // requiredProbe is one verb with an argument set that RUNS CLEAN on the correction fixture.
 type requiredProbe struct {
@@ -114,7 +125,125 @@ func requiredProbes() map[string]requiredProbe {
 		"--class", "safety", "--relief", "stop", "--reason", "r")}
 	probes["motion docket file"] = requiredProbe{seat: "red-chair", args: fixed("motion", "docket", "file",
 		"--id", "G1", "--reason", "r")}
+	probes["fetch"] = requiredProbe{seat: lensSeat,
+		setup: func(t *testing.T, runDir string) corrVars {
+			withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://src/f": []byte("<html>the source</html>")}})
+			return nil
+		},
+		args: fixed("fetch", "--url", "https://src/f")}
+	probes["chair verdict"] = requiredProbe{seat: "red-chair", args: fixed("verdict", "--as", "FAIL")}
+	// The fixture registers every seat; a second register is the bench's own again, under the
+	// occasion the bench alone is asked for.
+	probes["bench register"] = requiredProbe{seat: "judge", args: fixed("register", "--occasion", "docket")}
+	probes["blue register"] = requiredProbe{seat: "blue-respond", args: fixed("register")}
 	return probes
+}
+
+// unprobedLeaves are the runnable seat leaves with local flags that no probe drives, each with
+// the reason. A leaf here is a leaf the gate does not measure, named rather than left looking
+// covered.
+var unprobedLeaves = map[string]string{
+	"show":    "a read: its --id/--match/--quote narrow a projection and none is required",
+	"inquest": "a read: --match/--quote narrow the record and neither is required",
+}
+
+// TestEveryRunnableLeafIsProbedForItsMarkers holds the probe table to the tree: every runnable
+// verb on any seat's surface that takes a local flag is driven by requiredProbes or named in
+// unprobedLeaves. Keyed on the verb's PATH, not the seat: a verb on several surfaces is built by
+// one constructor, so one seat's probe measures its flags for all of them.
+func TestEveryRunnableLeafIsProbedForItsMarkers(t *testing.T) {
+	probed := map[string]bool{}
+	for _, p := range requiredProbes() {
+		probed[strings.Join(pathOf(p.args(nil)), " ")] = true
+	}
+	var seen int
+	for role, r := range AllRoots() {
+		if !isSeatRole(role) {
+			continue
+		}
+		walk(r, func(c *cobra.Command, path []string) {
+			if !c.Runnable() {
+				return
+			}
+			var local []string
+			c.LocalNonPersistentFlags().VisitAll(func(f *pflag.Flag) {
+				if f.Name != "help" {
+					local = append(local, "--"+f.Name)
+				}
+			})
+			if len(local) == 0 {
+				return
+			}
+			seen++
+			verb := strings.Join(path, " ")
+			if probed[verb] || unprobedLeaves[path[0]] != "" {
+				return
+			}
+			t.Errorf("%s: `%s` takes %s and no probe drives it — add it to requiredProbes, or to unprobedLeaves with the reason.\n\nA verb outside the table can refuse an unmarked flag and the gate stays green.", role, verb, strings.Join(local, " "))
+		})
+	}
+	if seen < 40 {
+		t.Fatalf("only %d leaves with local flags seen — the walk is not reaching the tree", seen)
+	}
+}
+
+// TestNoUsageCarriesTwoMarkers holds the writers to one marker per flag. The schema's walk
+// (markRequired) and a verb's own Require can both reach a flag; before they shared one
+// idempotent writer the page read "REQUIRED — REQUIRED — …" wherever both did.
+func TestNoUsageCarriesTwoMarkers(t *testing.T) {
+	var checked int
+	for role, r := range AllRoots() {
+		walk(r, func(c *cobra.Command, path []string) {
+			c.LocalNonPersistentFlags().VisitAll(func(f *pflag.Flag) {
+				checked++
+				if p := markerProblem(f.Usage); p != "" {
+					t.Errorf("%s: `%s --%s` %s:\n\n%s", role, strings.Join(path, " "), f.Name, p, f.Usage)
+				}
+			})
+		})
+	}
+	if checked < 100 {
+		t.Fatalf("only %d flags checked — the walk is not reaching the tree", checked)
+	}
+}
+
+// anyMarker is the marker in either shape, ANYWHERE in a usage: bare ("REQUIRED — ") or conditional
+// ("REQUIRED unless --accept — "). Counting only the bare spelling let "REQUIRED unless --accept —
+// REQUIRED — …" read as one marker.
+var anyMarker = regexp.MustCompile(`REQUIRED(?: unless [^—]+)? — `)
+
+// markerProblem is what is wrong with a usage's marker, or "".
+func markerProblem(usage string) string {
+	if n := len(anyMarker.FindAllStringIndex(usage, -1)); n > 1 {
+		return fmt.Sprintf("carries the marker %d times", n)
+	}
+	if strings.HasPrefix(usage, "REQUIRED") && !seat.IsMarked(usage) {
+		return "begins with REQUIRED in a shape IsMarked does not read, so one gate counts it marked and another does not"
+	}
+	if seat.IsMarked(usage) && strings.TrimSpace(anyMarker.ReplaceAllString(usage, "")) == "" {
+		return "says REQUIRED and nothing about what to supply"
+	}
+	return ""
+}
+
+// The marker gate's reader, on the shapes the tree does not hold today: a test of the walk above
+// passes on a clean tree whether or not the reader would notice a doubled conditional marker.
+func TestMarkerProblemSeesEveryShape(t *testing.T) {
+	for usage, wantProblem := range map[string]bool{
+		"REQUIRED — the gap id":                            false,
+		"REQUIRED unless --accept — the span":              false,
+		"the gap id — REQUIRED to close a computation gap": false,
+		"REQUIRED — REQUIRED — the gap id":                 true,
+		"REQUIRED unless --accept — REQUIRED — the span":   true,
+		"REQUIRED — REQUIRED unless --accept — the span":   true,
+		"REQUIRED: the gap id":                             true,
+		"REQUIRED — ":                                      true,
+		"REQUIRED unless --about names the subject — ":     true,
+	} {
+		if got := markerProblem(usage) != ""; got != wantProblem {
+			t.Errorf("markerProblem(%q) found a problem: %v, want %v", usage, got, wantProblem)
+		}
+	}
 }
 
 func TestHelpSaysRequiredExactlyWhereOmissionIsRefused(t *testing.T) {
@@ -173,7 +302,7 @@ func TestHelpSaysRequiredExactlyWhereOmissionIsRefused(t *testing.T) {
 				if f.Name == "help" {
 					return
 				}
-				marked := strings.HasPrefix(f.Usage, "REQUIRED")
+				marked := seat.IsMarked(f.Usage)
 				checked++
 				omitted, present := without(full, f)
 				if !present {
@@ -190,7 +319,7 @@ func TestHelpSaysRequiredExactlyWhereOmissionIsRefused(t *testing.T) {
 					// The clean set is refused too, so a refusal is THIS flag's only when it is a
 					// different one that names the flag — cobra's "required flag(s) not set" against
 					// the verb's own "no such document".
-					isThisFlag := err != nil && (fullErr == nil || err.Error() != fullErr.Error()) && strings.Contains(err.Error(), f.Name)
+					isThisFlag := err != nil && (fullErr == nil || err.Error() != fullErr.Error()) && refusalNames(err, f.Name)
 					if isThisFlag && !marked {
 						t.Errorf("`%s` is REFUSED without --%s and its help does not say so.\n\nusage: %s\nrefusal: %v", verb, f.Name, f.Usage, err)
 					}
@@ -201,7 +330,7 @@ func TestHelpSaysRequiredExactlyWhereOmissionIsRefused(t *testing.T) {
 					t.Errorf("`%s` is REFUSED without --%s and its help does not say so.\n\nusage: %s\nrefusal: %v\n\nA seat reads the flag as optional, omits it, and loses the call — measured twice on near-match --problem in one run.", verb, f.Name, f.Usage, err)
 				case err == nil && marked:
 					t.Errorf("`%s --%s` says REQUIRED and the verb ran clean without it.\n\nusage: %s", verb, f.Name, f.Usage)
-				case err != nil && !strings.Contains(err.Error(), f.Name):
+				case err != nil && !refusalNames(err, f.Name):
 					t.Errorf("`%s` refused without --%s and the refusal does not NAME it:\n\n%v", verb, f.Name, err)
 				}
 			})
@@ -211,6 +340,29 @@ func TestHelpSaysRequiredExactlyWhereOmissionIsRefused(t *testing.T) {
 		t.Fatalf("only %d flags checked — the table is not reaching the tree, and a walk that finds nothing passes forever", checked)
 	}
 }
+
+// refusalNames says whether a refusal names the flag AS A FLAG — `--id`, not the letters "id"
+// inside "valid". It reads the same `--flag` token helpcontract_test.go's assertNamedFlagsExist
+// reads; cobra's own `required flag(s) "id" not set`, which quotes the bare name; and cobra's
+// group refusals, which list bare names in brackets — `at least one of the flags in the group
+// [quote anchor] is required`.
+func refusalNames(err error, flag string) bool {
+	for _, m := range flagToken.FindAllStringSubmatch(err.Error(), -1) {
+		if m[1] == flag {
+			return true
+		}
+	}
+	for _, m := range flagGroup.FindAllStringSubmatch(err.Error(), -1) {
+		if slices.Contains(strings.Fields(m[1]), flag) {
+			return true
+		}
+	}
+	return strings.Contains(err.Error(), `"`+flag+`"`)
+}
+
+// flagGroup is cobra's rendering of a flag group in its refusals: bare names, space-separated, in
+// brackets.
+var flagGroup = regexp.MustCompile(`\[([a-z][a-z-]*(?: [a-z][a-z-]*)*)\]`)
 
 // pathOf is the command path at the head of an argument list: every token before the first flag.
 func pathOf(args []string) []string {
