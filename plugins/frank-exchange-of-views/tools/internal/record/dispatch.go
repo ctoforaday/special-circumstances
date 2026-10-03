@@ -26,8 +26,11 @@ type Plan struct {
 	// Docket names the gaps that reached impasse with no docket motion yet: the verb files one for
 	// each under the chair's authorship the moment impasse is first computed, so "docketed" and
 	// "at impasse" are one fact and no seat's discretion sits between a stalled gap and the bench.
-	Docket        []string `json:"docket"`
-	PassPermitted bool     `json:"pass_permitted"` // a report ingested, no material gap open (IsMaterial: by its class, else graded medium or above), no cast lens ready, every docket ruled, nobody dispatched
+	Docket []string `json:"docket"`
+	// PassPermitted: a report is ingested, nobody is dispatched, and every blocker left on the gate's
+	// list (PassBlockers) is the chair's own to clear this sitting — its avenue review, its
+	// spot-check of the stale areas. Its work list marks those blocking until they are done.
+	PassPermitted bool `json:"pass_permitted"`
 	// StaleAreas is every lens retired for good whose pin the head has moved past. The chair reads
 	// the changes since each pin against that area's duties and names the areas in its spot-check;
 	// a PASS is refused until it has.
@@ -142,11 +145,9 @@ func PlanDispatch(run Run) (Plan, error) {
 		}
 		parties[seat] = append(parties[seat], gaps...)
 	}
-	noLensReady := true
 	for _, f := range folds {
 		if f.ready {
 			engage(f.seat)
-			noLensReady = false
 		}
 		plan.Why = append(plan.Why, f.why)
 	}
@@ -159,7 +160,7 @@ func PlanDispatch(run Run) (Plan, error) {
 	}
 	exch := exchangesOf(evs, ids, params, WhileRunning)
 	materialOpen, materialSettled := 0, 0
-	unruledDocket := false
+	statedMotion := map[string]bool{} // the docket motions a gap's reason below already names
 	for _, g := range gaps {
 		// A STRANDED GAP IS READY WORK WHATEVER ITS CLASS OR GRADE. Superseding is a promise to
 		// replace, and the PASS gate refuses a verdict while the ancestor is open (refs.go) — so a
@@ -176,7 +177,7 @@ func PlanDispatch(run Run) (Plan, error) {
 		// the bench rules it, PASS is refused while it stands, and a bench that sat for it and
 		// ruled nothing is not re-readied — the run cannot end in a verdict while it stands.
 		if g.unruledFiled > 0 {
-			unruledDocket = true
+			statedMotion[g.unruledMotion] = true
 			if !trifle {
 				materialOpen++
 			}
@@ -220,7 +221,20 @@ func PlanDispatch(run Run) (Plan, error) {
 	for _, s := range order {
 		plan.Parties = append(plan.Parties, Party{SeatID: s, GapIDs: parties[s]})
 	}
-	plan.PassPermitted = plan.Head > 0 && materialOpen == 0 && noLensReady && !unruledDocket && len(plan.Parties) == 0
+	// PASS_PERMITTED IS THE GATE'S OWN LIST, read through passBlockersOf: nobody is ready, and every
+	// blocker left is the chair's to clear in this sitting (its avenue review, its spot-check of
+	// the stale areas). A blocker another seat must clear — an unruled petition, a contradiction no
+	// lens has raised, a docket motion on a gap that has since closed — holds it, and its reason is
+	// stated here, so the plan never says PASS where the gate refuses one the chair cannot clear
+	// (#1202).
+	chairOnly := true
+	for _, b := range passBlockersOf(evs, ids, blockerGapsOfOpen(gaps), fresh) {
+		chairOnly = chairOnly && b.ChairOwned()
+		if why := kindOf(b.Kind).why; why != nil && !(b.Kind == BlockerUnruledMotion && statedMotion[b.Subject]) {
+			plan.Why = append(plan.Why, why(b))
+		}
+	}
+	plan.PassPermitted = plan.Head > 0 && len(plan.Parties) == 0 && chairOnly
 	plan.Ceiling = len(plan.Parties) == 0 && materialOpen > 0 && materialSettled == materialOpen
 
 	// THE EPOCH LIMIT IS A TERM OF THE RUN, read like k and kMax. The chair sitting that opens the
@@ -530,6 +544,10 @@ func registeredBetween(registers []int64, a, b int64) bool {
 
 // chairSeat is the seat whose registers the clock counts as epochs.
 const chairSeat = "red-chair"
+
+// benchSeat is the bench's seat — the one that holds the gavel for the subjects the schema gives
+// the bench.
+const benchSeat = "judge"
 
 // blueRespondSeat is blue's responding seat — the one the chair dispatches onto gaps.
 const blueRespondSeat = "blue-respond"

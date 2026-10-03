@@ -36,7 +36,7 @@ exit 0
 stdout:
 motion M1 filed (docket)
 3 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
-  · gap G1 is open and material — PASS is refused while it is
+  · gap G1 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · motion M1 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 

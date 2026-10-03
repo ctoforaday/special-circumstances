@@ -1302,38 +1302,17 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		if err := stampMigrationAdmission(run, b); err != nil {
 			return err
 		}
-		// The seat's terminal act is where completion duties belong: it is the last
-		// moment the seat is still there to discharge them.
-		if err := requireSupersededAreClosed(run); err != nil {
-			return err
-		}
 		// A PASS is a claim that nothing left on the board holds the gate. Enforce it here, at the
 		// one write path, so no verdict route can record a PASS over an unadjudicated board (the
-		// 2026-07-20 rubber-stamp: PASS with 9 open gaps).
-		if b.GetVerdict() == recordpb.Verdict_VERDICT_FAIL && !Migrating {
-			if err := requireFailIsNotConvergent(run); err != nil {
-				return err
-			}
+		// 2026-07-20 rubber-stamp: PASS with 9 open gaps). What holds it is PassBlockers — the one
+		// list the chair's work list, the plan's pass_permitted and the FAIL convergence refusal
+		// also read (passblockers.go).
+		blockers, err := PassBlockers(run)
+		if err != nil {
+			return err
 		}
-		if b.GetVerdict() == recordpb.Verdict_VERDICT_PASS && !Migrating {
-			// NOT UNDER A MIGRATION (gblock, 2026-09-11). Migrate translates history; it does not
-			// re-judge an archived PASS under a materiality rule that did not exist when the PASS
-			// was issued. The archived b7 and b9 runs' PASSes stand over gaps their classes now make
-			// material, and refusing them would drop a real event and call the loss a translation.
-			// The exemption is not silent: stampMigrationAdmission above records those gaps on the
-			// PASS, and verify reads them there.
-			if err := requirePassClosesAllMaterialGaps(run); err != nil {
-				return err
-			}
-			// THE LENS CONDITION MIRRORS pass_permitted (gblock, round 4): the retirement fold the
-			// dispatch readies from, so a PASS over an active lens or an owed re-arm is refused here
-			// whatever the chair read off the plan. Then the stale areas the chair must have read.
-			if err := requireNoCastLensReady(run); err != nil {
-				return err
-			}
-			if err := requirePassCoversStaleAreas(run); err != nil {
-				return err
-			}
+		if err := requireNoBlockers(run, b.GetVerdict(), blockers); err != nil {
+			return err
 		}
 	case *recordpb.SpotCheck:
 		if err := requireGaps(run, b.GetIds(), "spot-check", "--ids"); err != nil {
@@ -1441,6 +1420,14 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// The verdict itself is derived and needs no defence. How the SITTING ended is not, and
 		// where a run ended UNVERIFIED — before the record reached a terminal state — nothing
 		// else records why; DeriveVerdict says so itself.
+		//
+		// A correction re-states an outcome already recorded, and a migration replays one, so
+		// neither is held to the bench's motions.
+		if target == nil && !Migrating {
+			if err := requireBenchMotionsRuled(run); err != nil {
+				return err
+			}
+		}
 	case *recordpb.Cite:
 		// WHERE THE CITED TEXT CAME FROM IS THE TOOL'S TO STAMP, and an unstamped cite is a tool
 		// defect, not a seat's omission — so the refusal names no flag. The OCR pins are refused

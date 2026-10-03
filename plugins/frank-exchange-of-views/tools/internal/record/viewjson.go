@@ -910,8 +910,8 @@ type WorkGapState struct {
 	FoundBy, Supersedes              []string
 	// Material, ClassMaterial, Stranded and SupersededBy are the view's columns the PASS gate
 	// reads, so the chair's work list states the gate from the same facts the gate refuses on:
-	// an open material gap holds PASS (requirePassClosesAllMaterialGaps), and an open gap somebody
-	// superseded holds every verdict (requireSupersededAreClosed). Material is the class's answer
+	// an open material gap holds PASS, and an open gap somebody superseded holds every verdict
+	// (passBlockersOf). Material is the class's answer
 	// whether or not the gap is open; a reader of the gate asks Open first.
 	Material      bool
 	ClassMaterial string

@@ -228,66 +228,37 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 			add("this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)")
 		}
 	case "chair":
-		// EVERY REFUSAL THE GATE MAKES HAS AN ITEM HERE, AND NOTHING HERE BLOCKS WHAT THE GATE
-		// ADMITS — so `complete` agrees with the gate. Each item is read from what its refusal
-		// reads: the gap view's `stranded` and `material` columns, the motions, the avenue read,
-		// unansweredContradictions and the lens fold. The FAIL-only convergence refusal has no item:
-		// this list claims nothing about a FAIL. B9's chair was told two gaps that did not hold the
-		// gate refused PASS while dispatch said pass_permitted and the verdict accepted it; it settled
-		// the contradiction by trying the verdict.
+		// THE GATE'S BLOCKERS ARE THE BLOCKING ITEMS HERE, from the one list the gate refuses on
+		// (passBlockersOf), so `complete` agrees with the gate and nothing here blocks what the gate
+		// admits. Each item names the seat whose act clears it: an unruled petition still blocks a
+		// chair PASS, and the chair is told whose answer it is waiting for. The FAIL-only
+		// convergence refusal has no item: this list claims nothing about a FAIL.
+		//
+		// A gap's item stands in the gap's place on the board, and an open gap that holds nothing
+		// is listed there too, as work that is not owed.
+		blockers := passBlockersOf(evs, ids, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps))
+		gapItem := map[string]string{}
+		for _, b := range blockers {
+			if b.Kind == BlockerStrandedGap || b.Kind == BlockerMaterialGap {
+				gapItem[b.Subject] = b.WorkItem()
+			}
+		}
 		for _, g := range gaps {
 			if !g.Open {
 				continue
 			}
-			switch {
-			case g.Stranded:
-				// requireSupersededAreClosed refuses EVERY verdict over it, whatever its grade.
-				add("gap " + g.ID + " is open and superseded by " + g.SupersededBy + " — every verdict is refused while it is; close it with `--superseded-by`")
-			case g.Material:
-				add("gap " + g.ID + " is open and material — PASS is refused while it is")
-			default:
-				grade, _ := g.Severity.(string)
-				s.Open = append(s.Open, Item{Blocks: false, What: "gap " + g.ID + " is open and not material (" +
-					notMaterialBecause(g.ClassMaterial, grade) + ") — it does not hold PASS; your PASS lists it by class with why it changes no reader decision"})
+			if it, holds := gapItem[g.ID]; holds {
+				add(it)
+				continue
 			}
+			grade, _ := g.Severity.(string)
+			s.Open = append(s.Open, Item{Blocks: false, What: "gap " + g.ID + " is open and not material (" +
+				notMaterialBecause(g.ClassMaterial, grade) + ") — it does not hold PASS; your PASS lists it by class with why it changes no reader decision"})
 		}
-		for _, claim := range unansweredContradictions(evs) {
-			add("red read a source that contradicts or does not support the claim " + fmt.Sprintf("%q", claim) + " and no finding raises it — PASS is refused until one does")
-		}
-		for _, st := range passLensGateOf(evs, ids, freshMaterialOfStates(gaps)).statements() {
-			add(st)
-		}
-		// THE VIEW NAMES THE GAVEL BECAUSE THE REFUSAL DOES. requirePassClosesAllMaterialGaps refuses
-		// PASS over any unruled motion and says who rules each one; this list said only that the
-		// motion stood. A chair seat reading it saw work it appeared to owe, and the item it
-		// could not rule looked the same as the ones it could — which is the wedge the refusal's
-		// message was rewritten to close, arriving on the other surface.
-		//
-		// WHO IS BLOCKED DOES NOT CHANGE HERE. An unruled petition still blocks a chair PASS: the
-		// run is not finished until the bench answers it. What changes is that the seat is told
-		// whose answer it is waiting for.
-		for _, m := range MotionsOf(evs) {
-			if m != nil && !m.Ruled() {
-				phrase, err := rulerPhrase(m.Subject)
-				if err != nil {
-					// A SCHEMA DEFECT MUST NOT SILENTLY SHORTEN A WORK LIST. SittingOf has no
-					// error to return, so the item is still reported and says what it could not
-					// resolve — the alternative is dropping a blocking motion from the one list
-					// a seat reads to find out what it owes.
-					phrase = m.Subject + ", and this binary cannot say who rules it: " + err.Error()
-				}
-				add("motion " + m.ID + " (" + phrase + ") was filed and never ruled — PASS is refused while it stands")
+		for _, b := range blockers {
+			if b.Kind != BlockerStrandedGap && b.Kind != BlockerMaterialGap {
+				add(b.WorkItem())
 			}
-		}
-		// THE AVENUES ARE READ ONCE, EVERY EPOCH.
-		//
-		// One statement per epoch, not one per line: presence is not the question, because the
-		// lines are generated onto the page from the record. What the read owes is a judgement on
-		// whether the BODY delivered them, and where it did not, a gap. The report is regenerated
-		// each epoch, so a review recorded before this epoch's edits answers a question about a
-		// document that no longer exists.
-		if AvenueReviewDueOf(evs) {
-			add("the report's account of its own research has not been read this epoch — PASS is refused until one `avenue review` says what the read found (and any shortfall is minted as a gap)")
 		}
 		if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_VERDICT) {
 			add("your terminal act is missing — the run cannot say from its own record that it was ever verified")

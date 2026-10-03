@@ -57,7 +57,7 @@ exit 0
 stdout:
 verdict FAIL (2 open, 0 closed) and checkpointed to {MIRROR}
 1 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
-  · gap G2 is open and material — PASS is refused while it is
+  · gap G2 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}

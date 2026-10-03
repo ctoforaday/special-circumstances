@@ -515,6 +515,9 @@ func TestAFailOnAConvergentBoardIsRefused(t *testing.T) {
 		st.add(evLens, &recordpb.Mint{GapId: proto.String("G2"), Class: proto.String("x"), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
 			CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: &low,
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)})
+		// Two barren sittings retire the lens. A ready lens holds the PASS and is not the chair's
+		// to clear, and the refusal stands only where the PASS is the chair's to record.
+		st.register("red-chair").sit(2, evLens).sit(2, evLens).register("red-chair")
 		return st, Run{}
 	}
 	st, _ := stage()

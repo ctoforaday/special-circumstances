@@ -129,8 +129,8 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	}
 
 	// The stranded-ancestor join: G1 is superseded by G2 and still open.
-	if err := requireSupersededAreClosed(run); err == nil || !strings.Contains(err.Error(), "G1 (superseded by G2)") {
-		t.Errorf("requireSupersededAreClosed = %v, want the stranded pair named", err)
+	if err := passRefusalOver(t, run, BlockerStrandedGap); err == nil || !strings.Contains(err.Error(), "G1 (superseded by G2)") {
+		t.Errorf("the stranded refusal = %v, want the stranded pair named", err)
 	}
 
 	// requireAvenue: the proposed line resolves, an unknown one is refused.
@@ -201,8 +201,8 @@ func TestQueriesAnswerTheHonestZeroOverNoRecord(t *testing.T) {
 	if closed, err := gapState(run, "G1"); closed || err != nil {
 		t.Errorf("gapState = (%v, %v)", closed, err)
 	}
-	if err := requireSupersededAreClosed(run); err != nil {
-		t.Errorf("requireSupersededAreClosed = %v", err)
+	if err := passRefusalOver(t, run, BlockerStrandedGap); err != nil {
+		t.Errorf("the stranded refusal = %v", err)
 	}
 	if got := GapsAwaitingProof(run); got != nil {
 		t.Errorf("GapsAwaitingProof = %v", got)

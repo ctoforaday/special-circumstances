@@ -259,62 +259,6 @@ func requireClosedGaps(run Run, ids []string, verb, flag string) error {
 	return nil
 }
 
-// requireSupersededAreClosed is a COMPLETION duty, checked at the seat's terminal act.
-//
-// INVESTIGATED RATHER THAN ASSUMED. "Superseding an open gap" happened 9 times in the
-// 2026-07-18 run and I first read the frequency as proof it was intended. Tracing what each
-// one actually did splits them in two:
-//
-//	7 are STRUCTURALLY REQUIRED. The protocol is mint-the-successor, then close the
-//	  ancestor naming it — so the ancestor is necessarily still open at mint time, and it
-//	  cannot be otherwise, because the closure has to name a successor that already exists.
-//	2 are a DEFECT nobody caught. R3-1 superseded R2-1 and R2-5 and neither was ever
-//	  closed, so all three finished OPEN on the board. The run reported 9 open gaps; 7
-//	  were distinct defects and one was counted three times.
-//
-// That is why the rule is not "supersedes must name a closed gap" — that would refuse all
-// 9, including the 7 the protocol demands. The duty is that a superseded ancestor must not
-// still be open when the seat FINISHES: superseding is a promise to replace, and a promise
-// kept open inflates every count the board reports.
-//
-// Checked at verdict because that is the seat's terminal act and the last moment it is
-// still there to close them.
-func requireSupersededAreClosed(run Run) error {
-	// The gap view answers this whole: `stranded` is an open gap somebody promised to replace,
-	// and superseded_by is the LAST gap that made the promise — the same last-writer answer the
-	// fold's map produced. An ancestor named in supersedes but never minted has no gap row and
-	// drops out, as it dropped out of the board lookup.
-	db, err := openRunForRead(run)
-	if err != nil {
-		return err
-	}
-	if db == nil {
-		return nil // no record yet: nothing superseded, nothing stranded
-	}
-	rows, err := db.Query(`SELECT "gap_id", "superseded_by" FROM "gap" WHERE "stranded"`)
-	if err != nil {
-		return fmt.Errorf("record: asking the record for stranded ancestors: %w", err)
-	}
-	defer rows.Close()
-	var stranded []string
-	for rows.Next() {
-		var anc, successor string
-		if err := rows.Scan(&anc, &successor); err != nil {
-			return err
-		}
-		stranded = append(stranded, fmt.Sprintf("%s (superseded by %s)", anc, successor))
-	}
-	if err := rows.Err(); err != nil {
-		return err
-	}
-	if len(stranded) == 0 {
-		return nil
-	}
-	sort.Strings(stranded)
-	return fmt.Errorf("record: verdict refused — %d superseded gap(s) are still OPEN: %s. Superseding is a promise to replace, and an ancestor left open is the same defect counted twice: the run then reports more open gaps than it has distinct ones. Close each ancestor (--superseded-by names its replacement), or if it is genuinely still live, it was not superseded",
-		len(stranded), strings.Join(stranded, ", "))
-}
-
 // openMaterialGaps is the board's open MATERIAL gaps, sorted: the set the PASS gate refuses over
 // and the set a migrated PASS records as admitted. One query, so the gate and the admission it
 // is exempt from cannot disagree about which gaps they mean.
@@ -381,77 +325,6 @@ func stampMigrationAdmission(run Run, g *recordpb.Gate) error {
 	return nil
 }
 
-// requirePassClosesAllMaterialGaps refuses PASS while any open gap is MATERIAL, by the one
-// definition the gap view's "material" column carries: its class is `always`, or its class goes
-// by grade and its current severity is medium or above (IsMaterial). It refuses at the write path,
-// so no verdict route can bypass it; requireSupersededAreClosed holds the lineage case. The
-// chair's work list names exactly these gaps (sitting.go), and dispatch's pass_permitted counts
-// the same ones. An open gap that is not material stays open on the board, not auto-disposed, not
-// carried, not accepted: the chair's PASS lists it by class, on the record, with why it changes no
-// reader decision. Refusing over ANY
-// open gap made "not material does not hold the gate" unreachable: a run minting one trifle per
-// sitting could never pass. The 2026-07-20 run recorded PASS with 9 plain open gaps (one HIGH) that
-// no lineage check saw. A FAIL is always allowed here, and unruled motions, the avenue read and
-// unraised contradictions below hold a PASS whatever is material.
-func requirePassClosesAllMaterialGaps(run Run) error {
-	db, err := openRunForRead(run)
-	if err != nil || db == nil {
-		return err
-	}
-	open, err := openMaterialGaps(run)
-	if err != nil {
-		return err
-	}
-	if len(open) != 0 {
-		return fmt.Errorf("record: verdict PASS refused — %d material gap(s) still OPEN: %s. PASS requires every material gap resolved, and a gap is closed only by the lens that minted it, with the lens's `close --id <id> --as repaired|defect_accepted|not_a_defect|defect_owed_elsewhere`. PASS waits for those closures; `--as FAIL` does not",
-			len(open), strings.Join(open, ", "))
-	}
-
-	m, err := MergedEvents(run)
-	if err != nil {
-		return err
-	}
-	evs := m.Events
-	var unruled []string
-	for _, mo := range MotionsOf(evs) {
-		if mo.Ruled() {
-			continue
-		}
-		phrase, err := rulerPhrase(mo.Subject)
-		if err != nil {
-			return err
-		}
-		unruled = append(unruled, mo.ID+" ("+phrase+")")
-	}
-	if len(unruled) != 0 {
-		sort.Strings(unruled)
-		return fmt.Errorf("record: verdict PASS refused — %d motion(s) filed and never ruled: %s. "+
-			"Read what each one asks with `inquest motions` (its `basis` is the filer's argument, which your ruling answers), "+
-			"then rule it with `motion <subject> rule --id <id> --as <verdict> --reason \"...\"` — IF THE GAVEL NAMED ABOVE IS YOURS. "+
-			"Where it is not, the ruling is not yours to make and not yours to wait for silently: issue `--as FAIL` so the sitting ends on the record and the seat that holds it can answer. "+
-			"A motion is answered before the debate moves on, so a PASS over an unanswered ask claims a settlement that did not happen",
-			len(unruled), strings.Join(unruled, ", "))
-	}
-	if AvenueReviewDueOf(evs) {
-		return fmt.Errorf("record: verdict PASS refused — this epoch has no avenue review. " +
-			"READ THE REPORT ONCE (`show report`), list what the record claims this run investigated with " +
-			"`show avenues`, and answer in one act: `avenue review --reason \"<what the report " +
-			"says at those avenues>\"`. Where an avenue's research is thin, missing or unsupported by the text, " +
-			"MINT A GAP for it — the shortfall is an ordinary defect and gets the ordinary lifecycle; this " +
-			"event only records that the read happened, because an absent review reads exactly like a sound " +
-			"one. A PASS claims the report is sound, and its account of what this run investigated is part " +
-			"of the report; record the review, or issue `--as FAIL`")
-	}
-	if open := unansweredContradictions(evs); len(open) > 0 {
-		sort.Strings(open)
-		return fmt.Errorf("record: verdict PASS refused — red read a source that CONTRADICTS or does not support %d claim(s), and no finding was ever raised about them:\n  %s\n"+
-			"Each is red's own reading that the report says something its source does not. A lens raises it with the lens's `finding --quote \"<the claim>\" --reason \"<what the source actually says>\"`, graded on every axis, so it enters the board with the lifecycle, the blue duty and the gate every other defect has. "+
-			"Read them with `show evidence`. A PASS claims the report is sound; these say otherwise on the record. Raising them is a lens's act; PASS waits for it, and `--as FAIL` does not",
-			len(open), strings.Join(open, "\n  "))
-	}
-	return nil
-}
-
 // gapNamedIn returns the first gap id from the board that appears as a WHOLE TOKEN in
 // prose, or "". It exists for one refusal: `blue edit` prose that names the gap the edit
 // answers while `--answers` is empty (validate, case "blue_edit").
@@ -489,7 +362,7 @@ func gapNamedIn(run Run, prose string) (string, error) {
 // REFUSING or LISTING that motion.
 //
 // ONE PHRASE, TWO SURFACES, BECAUSE THEY DESCRIBE ONE BLOCKAGE. The refusal
-// (requirePassClosesAllMaterialGaps) and the sitting view (SittingOf) both tell a seat that a motion is
+// (the gate's, from passblockers.go) and the sitting view (SittingOf) both tell a seat that a motion is
 // unruled, and only the refusal named who could rule it. A seat reading "motion M1 was filed and
 // never ruled" on its work list and "M1 (petition, ruled by the bench seat)" from the gate is
 // being told two different things about one fact, and sitting.go's own header says what that

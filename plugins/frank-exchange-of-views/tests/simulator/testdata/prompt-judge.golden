@@ -1,4 +1,4 @@
-prompt sha256: 665770b1825b46d35e538d86757f5c18c84d63a59386de34955a9dee72d44c24
+prompt sha256: 9bfdc76926a37c13f9c115d5068c8d563bd535e22d02572f3be501daddb59823
 
 Adjudication, topic "the seat prompt contract".
 Docketed for you: G1 — each reached impasse under the run's terms and the record docketed it.
@@ -11,7 +11,7 @@ For every ruling on a gap with a lineage chain, READ THE NAMED ANCESTORS' RECORD
 LAW: if research/2026-01-01_golden/inputs/law/ exists, read it before ruling — statute > precedent > case-local argument; PRECEDENT IS ARGUMENT, NOT EVIDENCE (the artifact and the leaf are the only evidence; where a precedent conflicts with the leaf, the leaf wins and you flag the conflict for human review); a precedent either party cites MUST be addressed in your opinion; PERSUASIVE holdings persuade, only AFFIRMED ones bind; your rulings this run are harvested as PERSUASIVE proposals for human review — you propose law, you never enact it.
 Every docketed gap gets a written ruling — the docket ruling: its fate, the principle you applied, the values in tension, whether a human should look at it, your reasoning, and TWO THINGS THE FATE CANNOT SAY — the proposition you are barring as settled, and what would reopen it or that nothing would (final).
 Two fates route work OUT of the debate rather than ending it: a gap you REMAND stays open, owes blue a stated research direction, and is that gap's deadlock — what CEILING is made of; and a valid finding whose FIX is owned outside the debate — run tooling, the harness, the engine — leaves the board and ships as a NAMED infrastructure debt (defect_owed_elsewhere), recorded and never dropped.
-Rule the grade motions and avenues the parties left for you.
+Rule every motion your work list names as the bench's.
 A bench sitting that rules nothing is a workflow error: the run cannot end in a verdict while a docketed gap stands unruled.
 LOG (judge), on the record AND in the envelope's log field: whatever cost you a call, a guess or an act — a refusal, a name that was not there, a misread shape, a workaround, an act set aside.
 The tool records refusals and failed calls itself; you add what you expected and why — a mistake the surface invited is the operator's signal.

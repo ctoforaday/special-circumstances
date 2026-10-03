@@ -201,9 +201,9 @@ func reportHeadOf(evs []*Event, ids []int64) int64 {
 	return head
 }
 
-// passLensGate is the PASS gate's lens conditions as ONE fold both halves read: the Gate write path
-// refuses from it (requireNoCastLensReady, requirePassCoversStaleAreas), and the chair's work list
-// states each of its items from it, so the list cannot say a PASS is open that the gate refuses.
+// passLensGate is the PASS gate's lens conditions as ONE fold: passBlockersOf reads its ready
+// lenses and uncovered stale areas, so the gate, the chair's work list and the plan state them
+// from the same answer.
 // The dispatch readies from the same lensStates fold.
 type passLensGate struct {
 	cast    bool
@@ -271,24 +271,6 @@ func readyReason(f lensFold) string {
 	return "active"
 }
 
-// statements is every refusal the gate would make, one item per reason, for the chair's list.
-func (g passLensGate) statements() []string {
-	if !g.cast {
-		return nil
-	}
-	if g.head == 0 {
-		return []string{"no report has been ingested — PASS is refused"}
-	}
-	var out []string
-	for _, f := range g.ready() {
-		out = append(out, fmt.Sprintf("lens %s is ready (%s) — PASS is refused while it is", f.seat, readyReason(f)))
-	}
-	for _, a := range g.uncovered() {
-		out = append(out, fmt.Sprintf("area %s is behind its pin %d — PASS is refused until a spot-check this sitting names it", a.SeatID, a.Pin))
-	}
-	return out
-}
-
 // passLensGateOfRun reads the gate's inputs off the run.
 func passLensGateOfRun(run Run) (passLensGate, bool, error) {
 	db, err := openRunForRead(run)
@@ -308,50 +290,6 @@ func passLensGateOfRun(run Run) (passLensGate, bool, error) {
 		return passLensGate{}, false, err
 	}
 	return passLensGateOf(evs, ids, fresh), true, nil
-}
-
-// requireNoCastLensReady refuses a PASS while the retirement fold leaves any cast lens ready — the
-// same fold the dispatch readies from, so a chair that ignores pass_permitted cannot record a PASS
-// over an active lens or an owed re-arm. It keeps the head-0 refusal. A record with no cast has no
-// lenses to wait for.
-func requireNoCastLensReady(run Run) error {
-	g, ok, err := passLensGateOfRun(run)
-	if err != nil || !ok || !g.cast {
-		return err
-	}
-	if g.head == 0 {
-		return fmt.Errorf("record: verdict PASS refused — no report has been ingested or edited, so there is nothing a lens could have audited")
-	}
-	ready := g.ready()
-	if len(ready) == 0 {
-		return nil
-	}
-	var why []string
-	for _, f := range ready {
-		why = append(why, f.why)
-	}
-	return fmt.Errorf("record: verdict PASS refused — %d cast lens(es) are ready: %s. A lens is ready while it is active (it minted fresh material within its last two sittings) or retired with its one re-arm owed; `dispatch next` readies them",
-		len(ready), strings.Join(why, "; "))
-}
-
-// requirePassCoversStaleAreas refuses a PASS until a spot-check in the chair's current sitting names
-// every stale area: text changed behind a lens retired for good, and the chair's read is what stands
-// in for the sitting that lens will not take.
-func requirePassCoversStaleAreas(run Run) error {
-	g, ok, err := passLensGateOfRun(run)
-	if err != nil || !ok || !g.cast {
-		return err
-	}
-	un := g.uncovered()
-	if len(un) == 0 {
-		return nil
-	}
-	var names []string
-	for _, a := range un {
-		names = append(names, fmt.Sprintf("%s (pin %d)", a.SeatID, a.Pin))
-	}
-	return fmt.Errorf("record: verdict PASS refused — the report changed behind %d lens(es) retired for good: %s. Read the changes since each pin against that area's duties, and name the areas in a spot-check this sitting (--areas) before a PASS; a defect you find there goes in that spot-check",
-		len(un), strings.Join(names, ", "))
 }
 
 // LastSittingJSON is a lens's last sitting, as its work view carries it: the latest sitting STRICTLY

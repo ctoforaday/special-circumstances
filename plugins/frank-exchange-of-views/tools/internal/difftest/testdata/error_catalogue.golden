@@ -828,14 +828,16 @@ feov-record: a docket motion is ruled by the bench seat, so `rule` is not on you
 exit 2
 feov-record: invalid argument "pass" for "--as" flag: --as must be one of PASS|FAIL (got "pass") — "pass" differs from "PASS" only in case, and a PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass
 
-    PASS  nothing on the board holds the gate — no material gap open, no lens ready, every stale area spot-checked — and this is CHECKED against the board, not taken on your word
+    PASS  nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word
     FAIL  a material defect still stops you — a FAIL over a converged board is refused
 
 the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
 After it, the record is mirrored to the recovery copy.
 
-A PASS is REFUSED while anything still blocks it — an open material gap (material by its class, else graded medium or above), a superseded gap still open, an unruled motion, no avenue review this sitting, a contradicting source no finding raises, a ready lens or no ingested report, a stale area no spot-check this sitting names. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
+A PASS is REFUSED while anything still holds it — a superseded gap still open (this holds a FAIL too), an open material gap (material by its class, else graded medium or above), a contradicting source no finding raises, no ingested report, a ready lens, a stale area no spot-check this sitting names, an unruled motion, no avenue review this epoch. The refusal lists every one, each with what clears it and whose act that is. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
+
+A FAIL is refused while a superseded gap is still open, and over a converged board — nothing material open and the board a small fraction of its peak — where nothing another seat must clear holds the PASS: raise something material, or PASS.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -851,7 +853,7 @@ Flags:
 
 Enumerated values:
   --as
-    PASS  nothing on the board holds the gate — no material gap open, no lens ready, every stale area spot-checked — and this is CHECKED against the board, not taken on your word
+    PASS  nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word
     FAIL  a material defect still stops you — a FAIL over a converged board is refused
 
 Global Flags:
@@ -864,14 +866,16 @@ Global Flags:
 exit 2
 feov-record: invalid argument "banana" for "--as" flag: --as must be one of PASS|FAIL (got "banana") — a PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass
 
-    PASS  nothing on the board holds the gate — no material gap open, no lens ready, every stale area spot-checked — and this is CHECKED against the board, not taken on your word
+    PASS  nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word
     FAIL  a material defect still stops you — a FAIL over a converged board is refused
 
 the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
 After it, the record is mirrored to the recovery copy.
 
-A PASS is REFUSED while anything still blocks it — an open material gap (material by its class, else graded medium or above), a superseded gap still open, an unruled motion, no avenue review this sitting, a contradicting source no finding raises, a ready lens or no ingested report, a stale area no spot-check this sitting names. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
+A PASS is REFUSED while anything still holds it — a superseded gap still open (this holds a FAIL too), an open material gap (material by its class, else graded medium or above), a contradicting source no finding raises, no ingested report, a ready lens, a stale area no spot-check this sitting names, an unruled motion, no avenue review this epoch. The refusal lists every one, each with what clears it and whose act that is. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
+
+A FAIL is refused while a superseded gap is still open, and over a converged board — nothing material open and the board a small fraction of its peak — where nothing another seat must clear holds the PASS: raise something material, or PASS.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -887,7 +891,7 @@ Flags:
 
 Enumerated values:
   --as
-    PASS  nothing on the board holds the gate — no material gap open, no lens ready, every stale area spot-checked — and this is CHECKED against the board, not taken on your word
+    PASS  nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word
     FAIL  a material defect still stops you — a FAIL over a converged board is refused
 
 Global Flags:
@@ -908,6 +912,8 @@ feov-record: invalid argument "ceiling" for "--as" flag: --as must be one of VER
 stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
 
 The verdict is derived from the record — a halt, the chair's PASS, or the dispatch plan's ceiling (every open material gap at its limit and ruled, or the run's epoch limit reached) — and the word you give is checked against it. The one word you may assert is UNVERIFIED, for a run that stopped before the record reached a terminal state.
+
+It is refused while a motion whose gavel is the bench's stands unruled, unless the run halted: the refusal names each one. You hold that gavel — rule each, then record the outcome.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -1791,7 +1797,9 @@ the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
 After it, the record is mirrored to the recovery copy.
 
-A PASS is REFUSED while anything still blocks it — an open material gap (material by its class, else graded medium or above), a superseded gap still open, an unruled motion, no avenue review this sitting, a contradicting source no finding raises, a ready lens or no ingested report, a stale area no spot-check this sitting names. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
+A PASS is REFUSED while anything still holds it — a superseded gap still open (this holds a FAIL too), an open material gap (material by its class, else graded medium or above), a contradicting source no finding raises, no ingested report, a ready lens, a stale area no spot-check this sitting names, an unruled motion, no avenue review this epoch. The refusal lists every one, each with what clears it and whose act that is. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
+
+A FAIL is refused while a superseded gap is still open, and over a converged board — nothing material open and the board a small fraction of its peak — where nothing another seat must clear holds the PASS: raise something material, or PASS.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -1807,7 +1815,7 @@ Flags:
 
 Enumerated values:
   --as
-    PASS  nothing on the board holds the gate — no material gap open, no lens ready, every stale area spot-checked — and this is CHECKED against the board, not taken on your word
+    PASS  nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word
     FAIL  a material defect still stops you — a FAIL over a converged board is refused
 
 Global Flags:
@@ -1838,8 +1846,8 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 3 STILL TO CLEAR before you may end your turn (of 5 item(s) open to you):
-  · gap G1 is open and material — PASS is refused while it is
-  · gap G2 is open and material — PASS is refused while it is
+  · gap G1 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · gap G2 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 ── correction after another seat has acted

@@ -100,7 +100,7 @@ func (r dispatchResult) Human() string {
 		case r.EpochLimitReached:
 			fmt.Fprintf(&b, "dispatch: the epoch limit (%d) is reached — nobody is dispatched, and the run ends CEILING\n", r.MaxEpochs)
 		case r.PassPermitted:
-			b.WriteString("dispatch: nobody is ready and PASS is permitted — issue the verdict\n")
+			b.WriteString("dispatch: nobody is ready and PASS is permitted — clear what your work list still marks blocking (your own items), then issue the verdict\n")
 		case r.Ceiling:
 			b.WriteString("dispatch: nobody is ready and every open material gap is at its limit — the run ends CEILING\n")
 		default:
