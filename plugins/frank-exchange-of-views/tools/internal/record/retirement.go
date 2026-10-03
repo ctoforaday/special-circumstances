@@ -362,9 +362,9 @@ type LastSittingJSON struct {
 	Head int64  `json:"head"`
 }
 
-// lastSittingBefore is NOT read from lensPins. The lens reads its work view after registering, and
-// sittingFor counts that register as having sat — so lensPins would report the current sitting and
-// every lens would read `unchanged`. D is the latest dispatch naming the seat (the one it sits for,
+// lastSittingBefore is NOT the latest dispatch's own sitting. The lens reads its work view after
+// registering, and sittingFor counts that register as having sat — so the sitting for the latest
+// dispatch is the current one, and every lens would read `unchanged`. D is the latest dispatch naming the seat (the one it sits for,
 // or owes); a prior sitting is a dispatch d before D whose sitting register is also before D, so an
 // unsat earlier dispatch cannot borrow the current register.
 func lastSittingBefore(evs []*Event, ids []int64, seatID string) LastSittingJSON {

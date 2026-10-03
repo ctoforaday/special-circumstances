@@ -137,7 +137,7 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 			case m.ceiling:
 				e["plan"] = plan([]any{}, false, true, nil, "every open material gap is at its limit")
 			case m.stall:
-				e["plan"] = plan([]any{}, false, false, nil, "the bench sat and ruled nothing")
+				e["plan"] = plan([]any{}, false, false, nil, "G1: docket motion M1 stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied")
 			case m.halt:
 				engaged = []any{"G1"}
 				e["plan"] = plan([]any{party("blue-respond", "G1")}, false, false, nil, "engaged")

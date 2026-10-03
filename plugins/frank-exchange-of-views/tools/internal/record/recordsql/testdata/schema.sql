@@ -1219,7 +1219,37 @@ CREATE VIEW "gap" AS
 SELECT
   gb.*,
   (gb."class_material" = 'always'
-     OR (gb."class_material" = 'by_grade' AND COALESCE(gm."mass", 0.0) >= 2.0)) AS "material"
+     OR (gb."class_material" = 'by_grade' AND COALESCE(gm."mass", 0.0) >= 2.0)) AS "material",
+  -- THE BENCH HEARD IT AND KEPT IT ALIVE, and this is the column that lets a seat be told so.
+  --
+  -- carried is 76 of 77 bench rulings in the measured base rate, and it ANSWERS its motion: the
+  -- gap comes back by being docketed again next epoch. Without this the chair was told only
+  -- "gap G1 is open and material — PASS is refused while it is", which is true of a gap nobody has ever put
+  -- before the bench and of one the bench has considered twice and deliberately deferred. Same
+  -- sentence, two very different situations, and the seat cannot act differently on them.
+  --
+  -- ORDER-FREE, ON PURPOSE (#759). The tempting predicate is "the LATEST docket ruling is
+  -- carried", and there is no key to say which that is at the level this was first specified:
+  -- motion ids are Sprintf M%d so lexicographic order breaks at M10, and two docket motions in
+  -- one epoch have no defined latest. Stated as set membership the question does not need an
+  -- order at all: the gap is OPEN, at least one docket ruling on it carried, and nothing is
+  -- pending. A closing ruling cannot coexist with open — bc is in the openness test — so that
+  -- arm is implied rather than repeated.
+  --
+  -- AND NOTHING PENDING, which is the arm that keeps this from double-counting. A gap already
+  -- re-docketed and awaiting an answer is not awaiting a FILING, and reporting it as such would
+  -- ask the chair to file the same question at the bench twice. "Nothing pending" is
+  -- unruled_docket_filed below, read off the inner select so that the two columns cannot answer
+  -- "does a docket motion stand unruled" differently — which is why this column sits out here
+  -- rather than beside the other derived ones.
+  (gb."open"
+     AND gb."unruled_docket_filed" IS NULL
+     AND EXISTS(SELECT 1 FROM "motion_docket" md2
+                  JOIN "motion" mo2 ON mo2."event_id" = md2."event_id"
+                  JOIN "motion_rule" mr2 ON mr2."motion_id" = mo2."motion_id"
+                  JOIN "motion_rule_docket" rd2 ON rd2."event_id" = mr2."event_id"
+                  JOIN "enum_disposition" d2 ON d2."value" = rd2."disposition"
+                WHERE md2."gap_id" = gb."gap_id" AND NOT d2."closes"))                 AS "awaiting_docket"
 FROM (
 SELECT
   m."gap_id"                                   AS "gap_id",
@@ -1281,37 +1311,25 @@ SELECT
   (c."event_id" IS NULL AND bc."event_id" IS NULL
      AND m."check_kind" = 'computation'
      AND NOT EXISTS(SELECT 1 FROM "proof" p WHERE p."answers" = m."gap_id"))          AS "awaiting_proof",
-  -- THE BENCH HEARD IT AND KEPT IT ALIVE, and this is the column that lets a seat be told so.
+  -- THE DOCKET MOTION STANDING UNRULED, by its filing's events.id: the newest docket motion on the
+  -- gap that no ruling names, NULL when every one is ruled. The dispatch plan reads it to ready the
+  -- bench and to key the bench's sitting on the filing, and awaiting_docket (outer select) reads it
+  -- as its "nothing pending" arm. The PASS gate still answers the same question separately, through
+  -- MotionsOf over motion_answers; folding the two is #1228.
   --
-  -- carried is 76 of 77 bench rulings in the measured base rate, and it ANSWERS its motion: the
-  -- gap comes back by being docketed again next epoch. Without this the chair was told only
-  -- "gap G1 is open and material — PASS is refused while it is", which is true of a gap nobody has ever put
-  -- before the bench and of one the bench has considered twice and deliberately deferred. Same
-  -- sentence, two very different situations, and the seat cannot act differently on them.
-  --
-  -- ORDER-FREE, ON PURPOSE (#759). The tempting predicate is "the LATEST docket ruling is
-  -- carried", and there is no key to say which that is at the level this was first specified:
-  -- motion ids are Sprintf M%d so lexicographic order breaks at M10, and two docket motions in
-  -- one epoch have no defined latest. Stated as set membership the question does not need an
-  -- order at all: the gap is OPEN, at least one docket ruling on it carried, and nothing is
-  -- pending. A closing ruling cannot coexist with open — bc is in the openness test above — so
-  -- that arm is implied rather than repeated.
-  --
-  -- AND NOTHING PENDING, which is the arm that keeps this from double-counting. A gap already
-  -- re-docketed and awaiting an answer is not awaiting a FILING, and reporting it as such would
-  -- ask the chair to file the same question at the bench twice.
-  (c."event_id" IS NULL AND bc."event_id" IS NULL
-     AND EXISTS(SELECT 1 FROM "motion_docket" md2
-                  JOIN "motion" mo2 ON mo2."event_id" = md2."event_id"
-                  JOIN "motion_rule" mr2 ON mr2."motion_id" = mo2."motion_id"
-                  JOIN "motion_rule_docket" rd2 ON rd2."event_id" = mr2."event_id"
-                  JOIN "enum_disposition" d2 ON d2."value" = rd2."disposition"
-                WHERE md2."gap_id" = m."gap_id" AND NOT d2."closes")
-     AND NOT EXISTS(SELECT 1 FROM "motion_docket" md3
-                      JOIN "motion" mo3 ON mo3."event_id" = md3."event_id"
-                    WHERE md3."gap_id" = m."gap_id"
-                      AND NOT EXISTS(SELECT 1 FROM "motion_rule" mr3
-                                     WHERE mr3."motion_id" = mo3."motion_id"))) AS "awaiting_docket",
+  -- ASKED PER MOTION, NEVER AS A COUNT. A docket ruling is correctable in its sitting, and the
+  -- correction is a second motion_rule row for one live act; a count of ruling rows against a
+  -- count of dockets read a corrected ruling as two and took the gap's next docket as ruled
+  -- (#1201), and a count of LIVE rulings still takes two live rulings on one motion as covering an
+  -- unruled sibling. The ruling is NOT joined to live_event: a correction keeps the act's label
+  -- (validateCorrection), so a replacement ruling rules the same motion, and the join would be
+  -- identically true. The filing is not either: a motion is CORRECTION_TIER_NONE, so every filing
+  -- stands.
+  (SELECT max(md3."event_id") FROM "motion_docket" md3
+     JOIN "motion" mo3 ON mo3."event_id" = md3."event_id"
+   WHERE md3."gap_id" = m."gap_id"
+     AND NOT EXISTS(SELECT 1 FROM "motion_rule" mr3
+                    WHERE mr3."motion_id" = mo3."motion_id"))                           AS "unruled_docket_filed",
   -- WHAT THE BENCH SAID WOULD BRING IT BACK. A carried ruling must carry reopens_on or final
   -- and cannot carry both (the DocketRuling CHECKs), so on a carry this is the stated condition
   -- and it is the substance of the deferral — the difference between "the bench deferred this"

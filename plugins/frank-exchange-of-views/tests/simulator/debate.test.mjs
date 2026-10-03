@@ -159,12 +159,12 @@ test('CEILING: nobody ready and every open material gap at its limit — the sta
 })
 
 test('UNVERIFIED: nobody ready, neither PASS nor CEILING — the plan\'s reasons are the account', async () => {
-  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([], { why: ['G1: docketed, the bench sat and ruled nothing'] }) })] }))
+  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([], { why: ['G1: docket motion M1 stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied'] }) })] }))
   const out = await world.run(script, ARGS)
   assert.equal(out.verdict, 'UNVERIFIED')
-  assert.deepEqual(out.termination, { pass_permitted: false, ceiling: false, epoch_limit_reached: false, why: ['G1: docketed, the bench sat and ruled nothing'], no_progress: null })
+  assert.deepEqual(out.termination, { pass_permitted: false, ceiling: false, epoch_limit_reached: false, why: ['G1: docket motion M1 stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied'], no_progress: null })
   const asm = firstPrompt(world, 'judge · assemble')
-  assert.ok(/ended UNVERIFIED/.test(asm) && /the bench sat and ruled nothing/.test(asm), 'the reason reaches the stamp')
+  assert.ok(/ended UNVERIFIED/.test(asm) && /the bench has sat since it was filed/.test(asm), 'the reason reaches the stamp')
 })
 
 // ── the no-progress valve: a plan that repeats identically stops the debate ─────────────────
