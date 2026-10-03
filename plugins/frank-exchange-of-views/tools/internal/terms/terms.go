@@ -12,8 +12,10 @@
 // GATED variant anywhere a seat reads; and by scripts/vocabdoc, which generates
 // docs/vocabulary.md from the same file.
 //
-// A GATED ban is a phrase-exact pattern that cannot hit a legitimate sense of a word; a space in
-// it matches a space or a hyphen (joinsWords). A word with
+// A GATED ban is a phrase-exact pattern that cannot hit a legitimate sense of a word. Every text
+// is normalised once before any ban or mask runs (fold): a run of whitespace and hyphens is one
+// space, and a typographic apostrophe is an ASCII one, so a pattern spells a joined phrase with a
+// space and a possessive with ' and matches every spelling of each. A word with
 // a legitimate neighbour sense stays REGISTRY-ONLY: defined and delivered, not gated. RE2 has no
 // lookahead, so a legitimate phrase that contains a banned one is a MASK, blanked before
 // matching. An ALLOW exempts a path, and says why.
@@ -25,6 +27,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"regexp/syntax"
 	"strings"
 )
 
@@ -167,9 +170,14 @@ func (b *Ban) compile(term string) error {
 		if strings.TrimSpace(b.Pattern) == "" {
 			return fmt.Errorf("terms: %q bans %q as GATED with no pattern — a gate with nothing to match passes everything", term, b.Variant)
 		}
-		re, err := regexp.Compile("(?i)" + joinsWords(b.Pattern))
+		re, err := regexp.Compile("(?i)" + b.Pattern)
 		if err != nil {
 			return fmt.Errorf("terms: %q bans %q: the pattern is not RE2: %w", term, b.Variant, err)
+		}
+		// A HYPHEN IN A PATTERN NEVER MATCHES: fold turns every hyphen in the text into a space
+		// before the pattern runs, so a literal one would make the ban pass everything it names.
+		if literalHyphen(b.Pattern) {
+			return fmt.Errorf("terms: %q bans %q: the pattern %q has a literal hyphen, which never matches — the scan folds every hyphen in the text to a space, so spell the join as a space", term, b.Variant, b.Pattern)
 		}
 		b.re = re
 	case RegistryOnly:
@@ -185,7 +193,7 @@ func (b *Ban) compile(term string) error {
 		}
 		// A MASK THE PATTERN CANNOT MATCH BLANKS NOTHING. It would sit in the registry reading as
 		// a legitimate neighbour the gate knows about while protecting nothing.
-		if !b.re.MatchString(m.Phrase) {
+		if p, _, _ := fold(m.Phrase); !b.re.MatchString(p) {
 			return fmt.Errorf("terms: %q bans %q: the mask %q does not contain a match for the pattern, so it blanks nothing", term, b.Variant, m.Phrase)
 		}
 	}
@@ -202,48 +210,27 @@ func (b *Ban) compile(term string) error {
 	return nil
 }
 
-// wordJoin is what a literal space in a ban pattern matches: the space itself or a hyphen. A banned
-// phrase is one CONCEPT, and "operator channel" and "operator-channel" are one concept spelled two
-// ways — a pattern that matched only the first passed the second in a seat's constitution (#1209).
-// A possessive is not folded: "a sitting's record" is plain English for something else, so a ban
-// that means the possessive spells it in its own pattern.
-const wordJoin = `[ -]`
-
-// joinsWords rewrites each literal space in a ban pattern as wordJoin. A space inside a character
-// class or after a backslash is the pattern's own syntax and is left as written.
-func joinsWords(pattern string) string {
-	var b strings.Builder
-	inClass := false
-	for i := 0; i < len(pattern); i++ {
-		c := pattern[i]
-		switch {
-		case c == '\\' && i+1 < len(pattern):
-			b.WriteByte(c)
-			i++
-			b.WriteByte(pattern[i])
-			continue
-		case inClass && c == ']':
-			inClass = false
-		case !inClass && c == '[':
-			inClass = true
-			// A ']' first in a class is a literal, not its end.
-			b.WriteByte(c)
-			if i+1 < len(pattern) && pattern[i+1] == '^' {
-				i++
-				b.WriteByte('^')
-			}
-			if i+1 < len(pattern) && pattern[i+1] == ']' {
-				i++
-				b.WriteByte(']')
-			}
-			continue
-		case !inClass && c == ' ':
-			b.WriteString(wordJoin)
-			continue
-		}
-		b.WriteByte(c)
+// literalHyphen reports whether a pattern can only match a hyphen it names outright: a literal
+// '-' anywhere in its parsed tree. A hyphen inside a character class is a range or a member, and
+// a class that also matches a space still matches the folded text, so classes are not refused.
+func literalHyphen(pattern string) bool {
+	re, err := syntax.Parse(pattern, syntax.Perl)
+	if err != nil {
+		return false
 	}
-	return b.String()
+	var walk func(*syntax.Regexp) bool
+	walk = func(r *syntax.Regexp) bool {
+		if r.Op == syntax.OpLiteral && strings.ContainsRune(string(r.Rune), '-') {
+			return true
+		}
+		for _, sub := range r.Sub {
+			if walk(sub) {
+				return true
+			}
+		}
+		return false
+	}
+	return walk(re)
 }
 
 // globRe turns a path glob into an anchored regexp: `**` crosses segments, `*` and `?` do not.
@@ -322,10 +309,11 @@ func maskKey(term, variant, phrase string) string { return term + "\x00" + varia
 
 // Scan runs every GATED ban over one text from one repository-relative path.
 //
-// Whitespace runs are folded to one space before matching, so a phrase hard-wrapped across two
-// lines of markdown or a template literal is still one phrase. Line numbers are the original's.
+// The text is normalised once (fold) and every ban and mask runs over the same normalised bytes,
+// so a phrase hard-wrapped across two lines, joined with a hyphen, or written with a typographic
+// apostrophe is still the phrase. Line numbers and the reported match are the original's.
 func (r *Registry) Scan(path, text string, u *Usage) []Hit {
-	norm, offs := fold(text)
+	norm, starts, ends := fold(text)
 	var hits []Hit
 	for _, e := range r.Entries {
 		for _, b := range e.Bans {
@@ -341,7 +329,11 @@ func (r *Registry) Scan(path, text string, u *Usage) []Hit {
 				}
 			}
 			for _, loc := range b.re.FindAllStringIndex(masked, -1) {
-				h := Hit{Term: e.Term, Variant: b.Variant, Match: norm[loc[0]:loc[1]], Line: lineAt(text, offs[loc[0]])}
+				end := starts[loc[0]]
+				if loc[1] > loc[0] {
+					end = ends[loc[1]-1]
+				}
+				h := Hit{Term: e.Term, Variant: b.Variant, Match: text[starts[loc[0]]:end], Line: lineAt(text, starts[loc[0]])}
 				for _, a := range b.Allow {
 					if a.Covers(path) {
 						h.AllowedBy = a.Path
@@ -380,34 +372,53 @@ func (r *Registry) Stale(u *Usage) []string {
 	return out
 }
 
-// fold collapses each whitespace run to one space, returning the folded text and, for each of its
-// bytes, the offset of the byte it came from.
-func fold(s string) (string, []int) {
+// fold is the scan's ONE normalisation, applied to every text and every mask phrase before any
+// pattern runs. A run of whitespace and hyphens becomes one space — "operator channel",
+// "operator-channel" and a phrase wrapped across lines are one concept spelled three ways, and a
+// pattern that matched only the first passed the second in a seat's constitution (#1209). A
+// typographic apostrophe (U+2019) becomes an ASCII one, so "operator’s" is "operator's". A
+// possessive is not otherwise folded: "a sitting's record" is plain English for something else,
+// so a ban that means the possessive spells it in its own pattern.
+//
+// For each byte of the folded text it returns the offset of the original byte it came from and the
+// offset just past the original character, so a match is reported as it was written.
+func fold(s string) (string, []int, []int) {
+	const rsquo = "\u2019"
 	var b strings.Builder
-	offs := make([]int, 0, len(s))
+	starts := make([]int, 0, len(s))
+	ends := make([]int, 0, len(s))
 	inSpace := false
 	for i := 0; i < len(s); i++ {
 		c := s[i]
-		if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
+		if c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '-' {
 			if inSpace {
 				continue
 			}
 			inSpace = true
 			b.WriteByte(' ')
-			offs = append(offs, i)
+			starts = append(starts, i)
+			ends = append(ends, i+1)
 			continue
 		}
 		inSpace = false
+		if strings.HasPrefix(s[i:], rsquo) {
+			b.WriteByte('\'')
+			starts = append(starts, i)
+			ends = append(ends, i+len(rsquo))
+			i += len(rsquo) - 1
+			continue
+		}
 		b.WriteByte(c)
-		offs = append(offs, i)
+		starts = append(starts, i)
+		ends = append(ends, i+1)
 	}
-	return b.String(), offs
+	return b.String(), starts, ends
 }
 
-// blank replaces every case-insensitive occurrence of phrase (whitespace-folded) with NUL bytes of
-// the same length, so offsets survive and no word boundary appears inside the blanked span.
+// blank replaces every case-insensitive occurrence of phrase (folded as the text is) with NUL bytes
+// of the same length, so offsets survive and no word boundary appears inside the blanked span.
 func blank(s, phrase string) (string, int) {
-	p, _ := fold(phrase)
+	p, _, _ := fold(phrase)
 	re := regexp.MustCompile("(?i)" + regexp.QuoteMeta(p))
 	n := 0
 	out := re.ReplaceAllStringFunc(s, func(m string) string {

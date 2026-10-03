@@ -72,7 +72,7 @@ func TestNoSeatsRootIsMissingTheFrictionFooter(t *testing.T) {
 			t.Errorf("the %s seat's root help is missing the friction footer", role)
 		}
 		if !strings.Contains(root.Long, "with 'log', as a request") {
-			t.Errorf("the %s seat's root help does not name the friction channel", role)
+			t.Errorf("the %s seat's root help does not name the log as where a request goes", role)
 		}
 	}
 }

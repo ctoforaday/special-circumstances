@@ -1,4 +1,4 @@
-prompt sha256: ba97a2da7a8425b10a1f2bc32e4b7d70e4c7053c6e2f1a9ee9a5994dcf1d9e93
+prompt sha256: 44f8a331a33594a8a16df97e00d5c6b913f3ef9ec04c6dc254781b9004c5e25a
 
 Final assembly for topic "the seat prompt contract", run directory research/2026-01-01_golden.
 Debate outcome: VERIFIED after 3 chair sitting(s) — the chair recorded PASS with the board permitting it.
@@ -18,7 +18,7 @@ A tool cannot mis-author a synthesis surface — the TL;DR and the catechism are
 An open gap that is not material stays open on the board and in the risk matrix; the chair's PASS listed it by class, on the record.
 THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: read it back and report it as open_gaps in your envelope.
 Infra debts the bench named: [].
-Collated friction so far (report any of your own as well): [].
+The log entries the seats returned so far (log any of your own as well): [].
 LAW: if research/2026-01-01_golden/inputs/law/ exists, read it before ruling — statute > precedent > case-local argument; PRECEDENT IS ARGUMENT, NOT EVIDENCE (the artifact and the leaf are the only evidence; where a precedent conflicts with the leaf, the leaf wins and you flag the conflict for human review); a precedent either party cites MUST be addressed in your opinion; PERSUASIVE holdings persuade, only AFFIRMED ones bind; your rulings this run are harvested as PERSUASIVE proposals for human review — you propose law, you never enact it.
 LOG (judge), on the record AND in the envelope's log field: whatever cost you a call, a guess or an act — a refusal, a name that was not there, a misread shape, a workaround, an act set aside.
 The tool records refusals and failed calls itself; you add what you expected and why — a mistake the surface invited is the operator's signal.
@@ -51,4 +51,4 @@ It is your case to the other seats, where they can answer it.
 NEVER the research report: that document is addressed to a reader of the subject and carries no argument about the run.
 And write the SUBSTANCE — what it rests on, and what answers it — not a label for what you did — the record already holds every act of this sitting, in order, so an account of the verbs you ran narrates what the record reconstructs.
 An act you got wrong is corrected by the command that recorded it, before another seat acts.
-Return your envelope: a 5-line synopsis, open_gaps from the board, and your own friction if any.
+Return your envelope: a 5-line synopsis, open_gaps from the board, and your own log entries if any.

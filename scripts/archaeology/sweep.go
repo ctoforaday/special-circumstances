@@ -75,8 +75,10 @@ var markers = []marker{
 	// event the seat cannot act on, and goes false as the system moves under it — "the log went
 	// unwritten every time" stayed in five constitutions after seats logged ~30 entries a run
 	// (#1209). The rule stays, in the present tense; the measurement goes in the commit or a code
-	// comment. Present-tense scoring ("your docket is measured by…") has no colon and stays quiet.
-	{regexp.MustCompile(`(?i)\bmeasured(\s+\d{4}-\d{2}-\d{2})?\s*:`), measuredWhy},
+	// comment. The shape is "Measured" OPENING a sentence or a parenthesis, optionally dated, then
+	// a colon; present-tense prose ("as measured: …", "your docket is measured: …") puts a verb or
+	// a preposition before it and stays quiet.
+	{regexp.MustCompile(`(?:^\s*|[.;!?—]\s+)(?:Measured|MEASURED)(\s+\d{4}-\d{2}-\d{2})?\s*:|\((?i:measured)(\s+\d{4}-\d{2}-\d{2})?\s*:`), measuredWhy},
 	{regexp.MustCompile(`\bMEASURED,`), measuredWhy},
 	{regexp.MustCompile(`(?i)\bempirical basis\s*:`), measuredWhy},
 }

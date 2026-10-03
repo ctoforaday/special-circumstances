@@ -610,16 +610,16 @@ test('the sitting record (W1.7): blue is re-prompted once, continues with fricti
   const unresolved = makeWorld(makeResponder({ chair, blueRespond: [blueEnv({ sitting_record_appended: false })] }))
   const out = await unresolved.run(script, ARGS)
   assert.ok(unresolved.calls.some((c) => c.opts.label.startsWith('blue-respond-sitting-record')), 'the seat was re-prompted for its sitting record')
-  assert.ok(out.friction.some((f) => /sitting-record.*UNRESOLVED/.test(f)))
+  assert.ok(out.friction.some((f) => /attestation UNRESOLVED/.test(f)))
   const synth = makeWorld(makeResponder({ chair: [passChair()], blueSynth: [blueEnv({ sitting_record_appended: false })] }))
   const out2 = await synth.run(script, ARGS)
-  assert.ok(synth.calls.some((c) => c.opts.label.startsWith('blue-synthesize-sitting-record')) && labelsOf(synth, 'red-chair').length === 1 && out2.friction.some((f) => /sitting-record.*UNRESOLVED/.test(f)))
+  assert.ok(synth.calls.some((c) => c.opts.label.startsWith('blue-synthesize-sitting-record')) && labelsOf(synth, 'red-chair').length === 1 && out2.friction.some((f) => /attestation UNRESOLVED/.test(f)))
   const recovered = makeWorld((p, o) => {
     if (o.label.startsWith('blue-synthesize-sitting-record')) return { sitting_record_appended: true }
     return makeResponder({ chair: [passChair()], blueSynth: [blueEnv({ sitting_record_appended: false })] })(p, o)
   })
   const out3 = await recovered.run(script, ARGS)
-  assert.ok(!out3.friction.some((f) => /sitting-record/.test(f)), 'a recovered attestation logs no friction')
+  assert.ok(!out3.friction.some((f) => /attestation UNRESOLVED/.test(f)), 'a recovered attestation logs no friction')
 })
 
 // W2b, OWED GAPS ONLY, NEVER AN ABORT (gblock's ruling on #868). The B4 ordering: the plan engaged

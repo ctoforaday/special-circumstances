@@ -105,6 +105,15 @@ func TestVocabularyProseMutations(t *testing.T) {
 		{f + "agents/red-chair.md", "A sitting that met no friction files nothing."},
 		{f + "skills/research-protocol/scripts/debate.js", " LOG (${who}) — FRICTION, on the record AND in the envelope's log field"},
 		{f + "tools/internal/record/sitting.go", "the log is open — for friction: anything that cost you a call"},
+		// The #1235 review: rewordings of the same two variants that passed the first widening.
+		{f + "skills/research-protocol/scripts/debate.js", "Collated friction so far (report any of your own as well)"},
+		{f + "skills/research-protocol/scripts/debate.js", "the friction collected from every seat"},
+		{f + "agents/lead-judge.md", "read the run’s friction before you certify"},
+		{f + "agents/lead-judge.md", "carry the gap to the next sitting"},
+		{f + "agents/lead-judge.md", "a carried gap stays open"},
+		{f + "agents/lead-judge.md", "rule the gap or CARRY it"},
+		{f + "agents/lead-judge.md", "carried is the gap's deadlock"},
+		{f + "agents/red-chair.md", "not in the log, which is the operator’s channel."},
 	} {
 		hit := false
 		for _, h := range reg.Scan(m.path, m.text, nil) {

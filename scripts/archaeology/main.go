@@ -100,10 +100,11 @@ func runSelftest() error {
 +(Empirical basis: 13/13 red FAILs across three runs under the goalless constitution; ~50-65% of
 +MEASURED, WHICH IS WHY IT ARRIVES WITH YOU RATHER THAN BEING FETCHED.
 +A PASS the board permits is the chair's to record. Measured 2026-08-22: red refused PASS with two gaps open.
++discharge it; ASKING it at the moment of the act does (measured: lanes verifiably read
 `
 	got := scan(bad)
-	if len(got) < 7 {
-		return fmt.Errorf("fired on %d of 7 planted archaeology lines — the patterns have gone stale, and a stale matcher reports a clean board", len(got))
+	if len(got) < 8 {
+		return fmt.Errorf("fired on %d of 8 planted archaeology lines — the patterns have gone stale, and a stale matcher reports a clean board", len(got))
 	}
 
 	// LIVE PROSE MUST STAY QUIET, or the gate trains authors to route around it. Each of these
@@ -114,6 +115,8 @@ func runSelftest() error {
 +Read the whole list before your first act.
 +Your certification honesty is measured across runs: precision, recall, and grade stability.
 +Your quality is measured by your docket: ruling diversity and reversal rate.
++The ratio, as measured: one closure per two sittings.
++What the bench is judged on is measured: ruling diversity and reversal rate.
 `
 	if got := scan(good); len(got) != 0 {
 		return fmt.Errorf("fired on live prose (%d false positive(s)): %v", len(got), got)

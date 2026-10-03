@@ -42,7 +42,7 @@
         {
           "variant": "frozen base, diff-stack",
           "kind": "GATED",
-          "pattern": "frozen base|diff-stack",
+          "pattern": "frozen base|diff stack",
           "allow": [
             {
               "path": "plugins/frank-exchange-of-views/tools/internal/cli/seat/help/ingest.md",
@@ -150,19 +150,11 @@
           "pattern": "(sitting|round|judicial|adversarial|process) records?\\b",
           "masks": [
             {
-              "phrase": "sitting-record (W1.7)",
-              "reason": "the attestation check's name in the operator's console and the run's result, which no seat reads"
+              "phrase": "sitting-record repair",
+              "reason": "the registry's own term for the sitting that files what an earlier one owed; the repair prompt opens with it, and seatclass binds that opening to the seat it classifies in every transcript, archived ones included"
             },
             {
-              "phrase": "sitting-record:",
-              "reason": "the attestation check's name heading an operator console line, which no seat reads"
-            },
-            {
-              "phrase": "Sitting-record repair for",
-              "reason": "the repair prompt's head, which seatclass binds to the seat it classifies in every transcript, archived ones included"
-            },
-            {
-              "phrase": "-sitting-record ·",
+              "phrase": "sitting-record ·",
               "reason": "the repair dispatch's label, whose literal head binds it to its seat class; a dashboard reads it, a seat never does"
             }
           ]
@@ -217,7 +209,7 @@
         {
           "variant": "round",
           "kind": "GATED",
-          "pattern": "\\brounds?\\b|round-0",
+          "pattern": "\\brounds?\\b",
           "masks": [
             {
               "phrase": "round-trip",
@@ -358,12 +350,12 @@
         {
           "variant": "red-merge, merge seat, red merged",
           "kind": "GATED",
-          "pattern": "red-merge|merge seat|red merged"
+          "pattern": "red merge|merge seat|red merged"
         },
         {
           "variant": "merge (the chair's role)",
           "kind": "GATED",
-          "pattern": "\\bmerge (carry|close|verdict|position|closing|spot-check|show)\\b|lens\\|merge"
+          "pattern": "\\bmerge (carry|close|verdict|position|closing|spot check|show)\\b|lens\\|merge"
         }
       ],
       "collisions": [
@@ -387,7 +379,7 @@
         {
           "variant": "the judge",
           "kind": "GATED",
-          "pattern": "the judge([^-a-z]|$)"
+          "pattern": "the judge([^a-z]|$)"
         }
       ],
       "collisions": [
@@ -413,7 +405,7 @@
         {
           "variant": "method lens",
           "kind": "GATED",
-          "pattern": "method[- ]lens"
+          "pattern": "method lens"
         }
       ],
       "collisions": []
@@ -443,7 +435,7 @@
         {
           "variant": "the lead",
           "kind": "GATED",
-          "pattern": "the lead([^-a-z]|$)"
+          "pattern": "the lead([^a-z]|$)"
         },
         {
           "variant": "harness (the engine)",
@@ -504,7 +496,7 @@
         {
           "variant": "friction (the whole log)",
           "kind": "GATED",
-          "pattern": "\\blog is (open — )?for friction\\b|\\bmet no friction\\b|\\bfriction (channel|log)\\b|\\blog \\([^)]*\\) — friction\\b"
+          "pattern": "\\blog is (open — )?for friction\\b|\\bmet no friction\\b|\\bfriction (channel|log)\\b|\\blog \\([^)]*\\) — friction\\b|\\b(collated|collected|aggregated|gathered) friction\\b|\\bfriction (so far|collected|collated|aggregated|gathered)\\b|\\bthe (run|sitting|seat|bench|chair)'s friction\\b"
         }
       ],
       "collisions": [
@@ -625,7 +617,7 @@
         {
           "variant": "finding-marker, marker layer",
           "kind": "GATED",
-          "pattern": "finding[- ]markers?|marker layer"
+          "pattern": "finding markers?|marker layer"
         }
       ],
       "collisions": [
@@ -792,23 +784,19 @@
           "pattern": "\\bcarried\\b",
           "masks": [
             {
-              "phrase": "--carried-from",
-              "reason": "the carry verb's flag: carry restates an earlier closure, which is its own meaning"
-            },
-            {
               "phrase": "carried the closure of",
               "reason": "the carry verb's own result"
             },
             {
               "phrase": "carried from",
-              "reason": "the carry verb's result as the archive view prints it: a closure carried from an earlier epoch, which is the flag --carried-from in words"
+              "reason": "the carry verb's flag --carried-from, and its result as the archive view prints it: a closure carried from an earlier epoch"
             }
           ]
         },
         {
           "variant": "carry (a remand)",
           "kind": "GATED",
-          "pattern": "\\b(gaps?|dockets?) (that )?(you|the bench) (can )?carr(y|ies|ied|ying)\\b|\\bby carrying (it|them|the gap|a gap|gaps|the docket)\\b"
+          "pattern": "\\b(gaps?|dockets?) (that )?(you|the bench) (can )?carr(y|ies|ied|ying)\\b|\\bcarr(y|ies|ied|ying) (the gaps?|a gap|gaps|the dockets?)\\b|\\b(by|you|the bench|or|may|can|must) carr(y|ies|ied|ying) (it|them)\\b|\\bcarried (gaps?|dockets?)\\b|\\bcarr(y|ies|ied|ying)\\b[^.]{0,60}\\bdeadlock"
         },
         {
           "variant": "resolution (a disposition)",
@@ -894,12 +882,12 @@
         {
           "variant": "sitting kind",
           "kind": "GATED",
-          "pattern": "sitting[- ]kinds?\\b"
+          "pattern": "sitting kinds?\\b"
         },
         {
           "variant": "sitting type",
           "kind": "GATED",
-          "pattern": "sitting[- ]types?\\b"
+          "pattern": "sitting types?\\b"
         },
         {
           "variant": "bench mode",
@@ -909,7 +897,7 @@
       "collisions": [
         {
           "word": "occasion (ordinary English)",
-          "resolution": "\"for want of occasion\" in the friction channel is the plain word and keeps it; the FIELD is the one a bench register carries"
+          "resolution": "\"for want of occasion\" in a log entry is the plain word and keeps it; the FIELD is the one a bench register carries"
         }
       ]
     },
@@ -925,14 +913,9 @@
       ],
       "bans": [
         {
-          "variant": "line of inquiry",
+          "variant": "line of inquiry, line-of-inquiry (the verb and the view)",
           "kind": "GATED",
           "pattern": "\\blines? of inquiry\\b"
-        },
-        {
-          "variant": "line-of-inquiry (the verb and the view)",
-          "kind": "GATED",
-          "pattern": "\\blines?-of-inquiry\\b"
         },
         {
           "variant": "inquiry (an avenue)",

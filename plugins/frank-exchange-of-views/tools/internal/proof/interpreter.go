@@ -141,7 +141,7 @@ func (r *resolver) interpreterFor(path string) ([]string, error) {
 		msg += fmt.Sprintf(". This environment DOES have %s — write the proof in a language one of those runs, and it will execute here",
 			strings.Join(avail, ", "))
 	} else {
-		msg += ". This environment has NONE of the supported interpreters, so no proof can run in it at all — record that with the friction verb rather than dropping the proof silently"
+		msg += ". This environment has NONE of the supported interpreters, so no proof can run in it at all — record that in the log as a request rather than dropping the proof silently"
 	}
 	return nil, fmt.Errorf("%s", msg)
 }
