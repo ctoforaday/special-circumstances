@@ -36,7 +36,7 @@ func telFixture() []*recordpb.TelemetryLine {
 }
 
 func judFixture() Judiciary {
-	j := Judiciary{JudgeSittings: 1, Rulings: map[string]int{"remanded": 2, "repaired": 1},
+	j := Judiciary{Measured: true, JudgeSittings: 1, Rulings: map[string]int{"remanded": 2, "repaired": 1},
 		ChainSpans: map[int]int{1: 2, 2: 1}, Chains: 3, MigDown: 1, MigUp: 0, MigFlat: 0, LatestVerdict: "FAIL", VerdictEpoch: 2}
 	j.Disputes.Raised, j.Disputes.Accepted, j.Disputes.Rejected = 2, 1, 1
 	return j
@@ -88,8 +88,8 @@ func TestRenderHTMLTerminal(t *testing.T) {
 	m.TerminalVerdict = "VERIFIED"
 	m.Eta = Eta{State: "complete"}
 	m.Seats = []Seat{
-		{Label: "frontier", Seat: "frontier", Done: true, Result: `{"verdict":"PASS","claim_count":15,"gaps":[]}`},
-		{Label: "red-chair #1", Seat: "red-chair", Epoch: 1, Sitting: 1, Done: true, Result: `{"verdict":"FAIL","gaps":[1,2],"dispositions":[1]}`},
+		{Label: "frontier", Seat: "frontier", Done: true, Result: `{"verdict":"PASS","claim_count":15}`},
+		{Label: "red-chair #1", Seat: "red-chair", Epoch: 1, Sitting: 1, Done: true, Result: `{"verdict":"FAIL","dispositions":[1]}`},
 		{Label: "red-chair #1", Seat: "red-chair", Epoch: 1, Sitting: 1, Done: false, StartedMs: fp(1000)}, // superseded (a done one shares the label)
 		{Label: "judge #1", Seat: "judge", Epoch: 1, Sitting: 1, Done: false, StartedMs: fp(1000)},         // did not finish
 	}
@@ -126,8 +126,8 @@ func TestRenderHTMLLive(t *testing.T) {
 
 func TestSummarizeResult(t *testing.T) {
 	cases := []struct{ in, want string }{
-		{`{"verdict":"FAIL","claim_count":15,"gaps":[1,2,3],"dispositions":[1],"citations_checked":4,"log":["x"]}`,
-			"verdict FAIL · 15 claims · 3 gaps · 1 ruling · 4 citations checked · 1 friction"},
+		{`{"verdict":"FAIL","claim_count":15,"dispositions":[1],"log":["x"]}`,
+			"verdict FAIL · 15 claims · 1 ruling · 1 friction"},
 		{`{"dispositions":[1,2]}`, "2 rulings"},
 		{`not json`, "not json"},
 		{`{}`, "{}"},

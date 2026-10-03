@@ -28,7 +28,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -699,49 +698,41 @@ func LegacyNote(keys []string) string {
 	return "not measured: this transcript's envelopes predate the disposition keys (" + strings.Join(keys, "/") + ")"
 }
 
-func benchRows(results []map[string]any, fam *record.Family) []Row {
-	var rows []Row
-	var rulings []map[string]any
-	for _, r := range results {
-		if rs, ok := r["dispositions"].([]any); ok {
-			for _, x := range rs {
-				if m, ok := x.(map[string]any); ok {
-					rulings = append(rulings, m)
-				}
-			}
+// docketRulings are the bench's live docket rulings on the record: every docket motion with a
+// ruling that stands. The record refuses a disposition outside the vocabulary at the write, so
+// each word here is one the reader knows.
+func docketRulings(fam *record.Family) []*record.Motion {
+	var out []*record.Motion
+	for _, m := range record.MotionsOf(fam.Events) {
+		if m.Subject == "docket" && m.Ruled() {
+			out = append(out, m)
 		}
 	}
+	return out
+}
+
+// benchRows reads the bench's rulings and opinions off the RECORD. The journal's judge envelopes
+// restate only some of the dispositions and carry no opinion at all, so a card built on them
+// counted fewer rulings than the bench made and scored every ruling opinionless. results is read
+// for petitions_filed alone.
+func benchRows(results []map[string]any, fam *record.Family) []Row {
+	var rows []Row
+	const unread = "the record could not be read — not measured"
 
 	// remanded_share
-	//
-	// A WORD THIS BINARY DOES NOT KNOW MAKES THE ROW UNMEASURED, NOT SMALLER. A transcript is
-	// not a record and migrate never touches it, so one captured under an older vocabulary holds
-	// the deferring disposition under its old spelling. Counting only the current word would put
-	// every such ruling in the denominator and none in the numerator: a bench that deferred 76 of
-	// 77 would score 0, which reads exactly like a bench that decided everything.
+	var rulings []*record.Motion
+	if fam != nil {
+		rulings = docketRulings(fam)
+	}
 	remanded := 0
-	var foreign []string
-	seen := map[string]bool{}
 	for _, r := range rulings {
-		w := str(r["disposition"])
-		if _, ok := record.DispositionOf(w); !ok {
-			if !seen[w] {
-				seen[w] = true
-				foreign = append(foreign, strconv.Quote(w))
-			}
-			continue
-		}
-		if w == record.DispositionRemanded {
+		if r.Ruling == record.DispositionRemanded {
 			remanded++
 		}
 	}
-	legacy := LegacyKeys(results)
 	switch {
-	case slices.Contains(legacy, "resolutions"):
-		rows = append(rows, Row{Clause: "Not a router", Metric: "remanded_share", Cls: "benchmark", Note: LegacyNote(legacy)})
-	case len(foreign) > 0:
-		rows = append(rows, Row{Clause: "Not a router", Metric: "remanded_share", Cls: "benchmark",
-			Note: "not measured: disposition " + strings.Join(foreign, ", ") + " is not in this binary's vocabulary"})
+	case fam == nil:
+		rows = append(rows, Row{Clause: "Not a router", Metric: "remanded_share", Cls: "benchmark", Note: unread})
 	case len(rulings) > 0:
 		rows = append(rows, Row{Clause: "Not a router", Metric: "remanded_share", Cls: "benchmark",
 			Value: float64(remanded) / float64(len(rulings)),
@@ -764,39 +755,28 @@ func benchRows(results []map[string]any, fam *record.Family) []Row {
 		rows = append(rows, Row{Clause: "Direction-uptake (headline)", Metric: "blue_sections_citing_direction", Cls: "benchmark", Note: n})
 	}
 
-	// rulings_without_opinion
-	opinionated := 0
-	for _, r := range rulings {
-		_, hasFlag := r["review_flag"]
-		if str(r["principle"]) != "" && str(r["tension"]) != "" && hasFlag {
-			opinionated++
-		}
-	}
-	if len(rulings) > 0 {
-		rows = append(rows, Row{Clause: "Opinion form", Metric: "rulings_without_opinion", Cls: "detector",
-			Value: len(rulings) - opinionated})
+	// undeclared_inspection_risk (always 0), over the same docket rulings remanded_share counts —
+	// one standing ruling per motion — reading each one's principle and the ruler's argument. A
+	// motion ruled again in a later sitting is one ruling, not two. The write requires a
+	// principle on every docket ruling, so there is no opinionless ruling to skip.
+	inspRow := Row{Clause: "Evidence confinement", Metric: "undeclared_inspection_risk", Cls: "detector",
+		Joint: "reads WITH the attestation-integrity audit at capture: this counts declarations, that reconciles claims against actual tool calls"}
+	if fam == nil {
+		inspRow.Note = unread
 	} else {
-		rows = append(rows, Row{Clause: "Opinion form", Metric: "rulings_without_opinion", Cls: "detector", Note: "no rulings this run"})
-	}
-
-	// undeclared_inspection_risk (always 0)
-	declaredReads := 0
-	decl := regexp.MustCompile(`(?i)trajector|inspect|tool call`)
-	for _, r := range rulings {
-		if str(r["principle"]) == "" {
-			continue
+		declaredReads := 0
+		decl := regexp.MustCompile(`(?i)trajector|inspect|tool call`)
+		for _, r := range rulings {
+			if decl.MatchString(r.Opinion + " " + r.Principle) {
+				declaredReads++
+			}
 		}
-		if decl.MatchString(str(r["rationale"]) + str(r["principle"])) {
-			declaredReads++
+		inspRow.Value, inspRow.Note = 0, "no opinion referenced trajectory evidence this run"
+		if declaredReads > 0 {
+			inspRow.Note = strconv.Itoa(declaredReads) + " opinion(s) reference trajectory evidence; capture's attestation-integrity audit is the cross-check"
 		}
 	}
-	inspNote := "no opinion referenced trajectory evidence this run"
-	if declaredReads > 0 {
-		inspNote = strconv.Itoa(declaredReads) + " opinion(s) reference trajectory evidence; capture's attestation-integrity audit is the cross-check"
-	}
-	rows = append(rows, Row{Clause: "Evidence confinement", Metric: "undeclared_inspection_risk", Cls: "detector",
-		Value: 0, Note: inspNote,
-		Joint: "reads WITH the attestation-integrity audit at capture: this counts declarations, that reconciles claims against actual tool calls"})
+	rows = append(rows, inspRow)
 
 	// petitions_filed
 	petitions := 0

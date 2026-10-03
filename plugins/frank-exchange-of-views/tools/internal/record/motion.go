@@ -255,6 +255,9 @@ type Motion struct {
 	RulingEpoch   int
 	RulingSitting int
 	Opinion       string
+	// Principle is the principle a docket ruling states, which the write requires of every one.
+	// Only the docket arm carries one; any other subject's ruling leaves it "".
+	Principle string
 
 	// Appeal is the filer pressing on after a ruling — blue pursuing a direction ruled
 	// out-of-scope, or re-disputing a rejected grade. `contests_ruling` was a bespoke field on
@@ -453,6 +456,7 @@ func MotionsOf(evs []*Event) []*Motion {
 		case *recordpb.MotionRule:
 			m.Ruling, m.RulingBy, m.RulingEpoch, m.RulingSitting = motionRulingWord(f), e.GetSeatId(), w.Epoch, w.Sitting
 			m.Opinion = f.GetOpinion()
+			m.Principle = f.GetDocket().GetPrinciple()
 		case *recordpb.MotionAppeal:
 			m.Appealed, m.AppealReason = true, f.GetReason()
 		}
