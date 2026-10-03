@@ -1073,8 +1073,8 @@ func TestBlueVerbContracts(t *testing.T) {
 	})
 }
 
-// The bench rules with reasons or it does not rule: every one of its fields is required, and
-// the refusal names the missing flag.
+// The bench rules with reasons or it does not rule: each field the verb enforces is refused when
+// omitted, and the refusal names the missing flag.
 //
 // IT IS `motion docket rule` NOW. The contract is the deleted `bench opinion`'s, unchanged: the
 // same six words, the same "name the flag a seat can type" duty. What moved is the carrier and
@@ -1098,19 +1098,31 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 		"--id", "G1", "--reason", "contested, and not mine to close"); err != nil {
 		t.Fatalf("the docket filing was refused, so the ruling has nothing to answer: %v", err)
 	}
-	// EVERY ENTRY HERE IS UNCONDITIONALLY REQUIRED, because the loop below omits each in turn
-	// and asserts the refusal names it. --reopens-on is NOT unconditional (--final answers the
+	// EVERY ENTRY IN `required` IS UNCONDITIONALLY REQUIRED, because the loop below omits each in
+	// turn and asserts the refusal names it. --reopens-on is NOT unconditional (--final answers the
 	// same question the other way), so it is supplied separately for the complete call and is
 	// not a subtest of its own (#502).
+	//
+	// --tension, --review-flag and --settled are NOT omitted here: the verb writes an omitted one as
+	// the empty string, so omitting it is not refused. The schema marks all three required, and
+	// this loop only appeared to hold them to it while a motion refusal carried the verb's whole
+	// help page, which names every flag. That unenforced requirement is #1234; when it is
+	// enforced, the three move into `required`.
+	required := map[string]string{"id": "M1", "as": "remanded", "principle": "correctness first"}
 	full := map[string]string{
-		"id": "M1", "as": "remanded", "principle": "correctness first",
 		"tension": "correctness vs economy", "review-flag": "no",
 		"settled": "blue must repair c-65ca0a9e",
 	}
-	for missing := range full {
+	for k, v := range required {
+		full[k] = v
+	}
+	for missing := range required {
 		t.Run("missing --"+missing, func(t *testing.T) {
+			// --final answers the reopens-on question, so the refusal reached is the omitted field's
+			// own. Without it the record refuses on reopens-on first, and only a refusal that
+			// carried the verb's whole help page could still name the omitted flag.
 			args := []string{"motion", "docket", "rule", "--run", runDir, "--seat-id", seatID,
-				"--reason", "the rationale"}
+				"--reason", "the rationale", "--final"}
 			for k, v := range full {
 				if k != missing {
 					args = append(args, "--"+k, v)

@@ -11,8 +11,9 @@ import (
 
 // newAssemble builds `feov-record bench assemble` — the report assembler.
 //
-// It is a run-level operation like render, not a board act, so it is a plain command (no
-// seat context, no envelope). It reads the record and blue/report.md and writes report.md:
+// It is a run-level operation like render, not a board act, so it writes no event and renders no
+// envelope — but it WRITES the run's documents, so it goes through seat.Begin like every writer:
+// the bench seat the agent registered as, on the run it was dispatched into. It reads the record and blue/report.md and writes report.md:
 // blue's synthesis surfaces (title, TL;DR, Catechism, foundations, analysis, open questions)
 // are lifted verbatim; the verdict, risk matrix, expansions, alternatives, findings, and the
 // debate transcript are composed from the event log. It takes NO inputs — everything it
@@ -26,8 +27,11 @@ func newAssemble() *cobra.Command {
 		SilenceUsage: true,
 	}
 	c.RunE = func(cmd *cobra.Command, _ []string) error {
-		// Resolved, so the injected run reaches this read as it does every write.
-		run, rerr := seat.Of(cmd).RequireRun("bench assemble")
+		s, berr := seat.Begin(cmd)
+		if berr != nil {
+			return berr
+		}
+		run, rerr := s.Run()
 		if rerr != nil {
 			return rerr
 		}

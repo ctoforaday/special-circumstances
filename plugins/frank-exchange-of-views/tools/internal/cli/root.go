@@ -573,6 +573,12 @@ func ExecuteRoot(root *cobra.Command) error {
 // every test — the harness would go on measuring a shape the binary does not produce, which is
 // the same defect one layer up from the one this fixes.
 func EmitTopLevelError(w io.Writer, argv []string, err error) bool {
+	// A HANDLER'S REFUSAL ARRIVES ALREADY RENDERED: seat.Emit wrote its envelope, with the verb and
+	// role this point no longer knows, and returned the error only so the call exits non-zero. A
+	// second envelope here would put two objects on a channel whose consumer parses one.
+	if seat.Enveloped(err) {
+		return true
+	}
 	if !jsonRequested(argv) {
 		return false
 	}

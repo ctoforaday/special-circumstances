@@ -1,12 +1,15 @@
 package cli
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
 // THE TOOL LOGS EVERY REFUSAL IT GIVES A SEAT, because the seats do not.
@@ -90,3 +93,79 @@ func TestTheToolLogsTheRefusalsItGivesASeat(t *testing.T) {
 type errString string
 
 func (e errString) Error() string { return string(e) }
+
+// toolRefusals is every refusal entry the tool logged, as "seat | text".
+func toolRefusals(t *testing.T, runDir string) []string {
+	t.Helper()
+	evs, err := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_LOG)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []string
+	for _, e := range evs {
+		if l, ok := recordpb.BodyAs[*recordpb.Log](e); ok && l.GetType() == recordpb.LogType_LOG_TYPE_REFUSAL &&
+			l.GetSource() == recordpb.LogSource_LOG_SOURCE_TOOL {
+			out = append(out, e.GetSeatId()+" | "+l.GetText())
+		}
+	}
+	return out
+}
+
+// A --json REFUSAL IS A REFUSAL: the call fails, and the log records it.
+//
+// seat.Emit writes a refusal's envelope for a --json caller. Returning the write's own result —
+// nil — in place of the refusal made every --json refusal of every verb exit 0, and the refusal
+// log, which keys on the returned error, recorded none of them. Driven through the harness, which
+// runs ExecuteRoot as the binary does; Execute exits 2 on the error this returns.
+func TestAJSONRefusalFailsTheCallAndIsLogged(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		args []string
+	}{
+		// A motion: no motion M9 exists to appeal.
+		{"a motion verb", []string{"motion", "grade", "appeal", "--id", "M9", "--reason", "the grade understates it"}},
+		// A verb built by seat.New: --id names no gap on the record.
+		{"a writing verb outside motion", []string{"close", "--id", "G99", "--as", "repaired", "--reason", "the report now cites the primary",
+			"--verified-by", "red-lens-evidence", "--verified-with", "show report", "--verified-against", "blue/report.md"}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			runDir := seatRun(t)
+			args := append(append([]string{}, c.args...), "--json", "--run", runDir, "--seat-id", "red-lens-evidence")
+			out, err := run(t, args...)
+			if err == nil {
+				t.Fatalf("the --json refusal returned no error, so the binary exits 0:\n%s", out)
+			}
+			var env map[string]any
+			if e := json.Unmarshal([]byte(strings.TrimSpace(out)), &env); e != nil {
+				t.Fatalf("not exactly one JSON envelope (%v):\n%s", e, out)
+			}
+			if env["ok"] != false || env["verb"] == nil {
+				t.Errorf("not the verb's refusal envelope: %s", out)
+			}
+			got := toolRefusals(t, runDir)
+			if len(got) != 1 || !strings.HasPrefix(got[0], "red-lens-evidence | ") {
+				t.Fatalf("want one refusal entry under red-lens-evidence, got %q", got)
+			}
+		})
+	}
+}
+
+// A --seat-id THAT DISAGREES WITH THE REGISTRATION IS LOGGED UNDER THE REGISTRATION.
+//
+// The disagreement is the refusal, and Run refuses with it — so a logger reading the run through
+// Run recorded nothing. The act was the registered seat's, typing a wrong id.
+func TestAnIdentityRefusalIsLoggedUnderTheBoundSeat(t *testing.T) {
+	runDir := seatRun(t)
+	t.Setenv(seatenv.AgentVar, "agent_registered_as_evidence")
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-evidence"); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	_, err := run(t, "log", "--run", runDir, "--seat-id", "red-lens-logic", "--type", "defect", "--reason", "x")
+	if feov.CodeOf(err) != string(feov.Conflict) {
+		t.Fatalf("want the identity disagreement refused as a conflict, got %v", err)
+	}
+	got := toolRefusals(t, runDir)
+	if len(got) != 1 || !strings.HasPrefix(got[0], "red-lens-evidence | ") {
+		t.Fatalf("want one refusal entry under the bound seat red-lens-evidence, got %q", got)
+	}
+}
