@@ -42,7 +42,7 @@ func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
 	// seat's uppercase word.
 	want := recordpb.Word(recordpb.RunOutcome_RUN_OUTCOME_HALTED)
 	if got, err := TerminalVerdict(mustRun(t, runDir)); err != nil || got != want {
-		t.Errorf("readTerminalVerdict = (%q, %v), want %q — the record holds the verdict as a field and the report is a rendering of it", got, err, want)
+		t.Errorf("TerminalVerdict = (%q, %v), want %q — the record holds the verdict as a field and the report is a rendering of it", got, err, want)
 	}
 }
 
@@ -63,6 +63,6 @@ func TestTerminalVerdictIsEmptyWhenTheRecordCannotSay(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got, err := TerminalVerdict(mustRun(t, runDir)); err != nil || got != "" {
-		t.Errorf("readTerminalVerdict = (%q, %v) from a run whose record carries no terminal act — the word was read out of prose no record backs", got, err)
+		t.Errorf("TerminalVerdict = (%q, %v) from a run whose record carries no terminal act — the word was read out of prose no record backs", got, err)
 	}
 }

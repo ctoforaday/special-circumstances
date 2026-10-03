@@ -29,11 +29,16 @@ func LiveKeys(run Run) ([]string, error) {
 }
 
 // correctionQuery reads one column of keys through the correction views. The open held the record
-// to this binary's schema, so the views are there; a read that fails is the caller's error.
+// to this binary's schema, so the views are there; a read that fails is the caller's error. A run
+// with no record yet holds no acts, so it answers the same empty list a record with no correction
+// does — one zero, not a nil beside it.
 func correctionQuery(run Run, q string) ([]string, error) {
 	db, err := openRunForRead(run)
-	if err != nil || db == nil {
+	if err != nil {
 		return nil, err
+	}
+	if db == nil {
+		return []string{}, nil
 	}
 	rows, err := db.Query(q)
 	if err != nil {

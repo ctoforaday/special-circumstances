@@ -62,17 +62,22 @@ import (
 func dsnFor(path string) string { return dsnWithQuery(path, writeQuery()) }
 
 // writeQuery is the write connection's settings, read at each open so that the busy_timeout it
-// carries is the budget connect is waiting with. BUSY_TIMEOUT COMES FIRST, AND THE ORDER IS THE
-// POINT. Pragmas apply left to right, and converting a fresh database to WAL takes an EXCLUSIVE
-// lock — so with the timeout set after it, the conversion is the one operation that runs with no
-// timeout in force. A second opener arriving in that window got SQLITE_BUSY immediately instead
-// of waiting: measured on the Windows CI leg, TestConcurrentOpenOnFreshDatabase failing in 0.04s
-// with "database is locked" (#801), where a live 5-second timeout would have waited and then
-// succeeded. The production shape is the fuzz's concurrent lanes (#630), several seat processes
-// creating the schema at once on round 0; `setup` creating the database in advance is the
-// accident that hides it the rest of the time.
+// carries is the budget connect is waiting with.
+//
+// BUSY_TIMEOUT IS APPLIED FIRST, AND THE DRIVER IS WHAT ORDERS IT — not this string. modernc
+// sorts the `_pragma` values before running them and puts busy_timeout ahead of the rest
+// whatever position it was written in (sqlite.go, after cznic/sqlite#198), so the timeout is in
+// force for the pragmas that follow, including the journal_mode(WAL) conversion that takes an
+// exclusive lock on a fresh database. The pragma is written first here so the string reads as
+// the driver runs it; moving it changes nothing. What the wait at that conversion really rests on
+// is connect: the conversion answers SQLITE_BUSY without consulting the handler the timeout
+// installed — measured on the Windows CI leg, TestConcurrentOpenOnFreshDatabase failing in 0.04s
+// with "database is locked" (#801) — and connect retries the connect-time pragmas for
+// openBusyBudget. The production shape is the fuzz's concurrent lanes (#630), several seat
+// processes creating the schema at once on round 0; `setup` creating the database in advance is
+// the accident that hides it the rest of the time.
 func writeQuery() string {
-	return fmt.Sprintf("_txlock=immediate&_pragma=busy_timeout(%d)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)", busyTimeout.Milliseconds())
+	return fmt.Sprintf("_txlock=immediate&_pragma=busy_timeout(%d)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)", openBusyBudget.Milliseconds())
 }
 
 // dsnWithQuery is the one place a path becomes a `file:` URI — every connection to a record,
@@ -406,16 +411,16 @@ func openUncached(path string) (*sql.DB, error) {
 	return db, nil
 }
 
-// busyTimeout is how long a contended lock is waited for, in the DSN's pragma and in connect's
+// openBusyBudget is how long a contended lock is waited for, in the DSN's pragma and in connect's
 // retry alike — one figure, because connect exists to give the connect-time pragmas the wait the
 // pragma itself cannot give them. A variable so a test can shorten it.
 //
-// SIBLING COPY: gray-area's catalogue/open.go carries the same mechanism as openBusyBudget,
-// isBusy and busyBackoff. It is a separate module and cannot import this one, so a fix here is
+// SIBLING COPY: gray-area's catalogue/open.go carries the same mechanism under the same names —
+// openBusyBudget, isBusy and busyBackoff. It is a separate module and cannot import this one, so a fix here is
 // swept there by hand.
-var busyTimeout = 5 * time.Second
+var openBusyBudget = 5 * time.Second
 
-// connect opens the pool's one connection, waiting out SQLITE_BUSY for busyTimeout and failing on
+// connect opens the pool's one connection, waiting out SQLITE_BUSY for openBusyBudget and failing on
 // anything else at once.
 //
 // THE CONNECT-TIME PRAGMAS RUN WITH NO BUSY HANDLER THAT CAN HELP THEM. The driver applies the
@@ -434,15 +439,20 @@ var busyTimeout = 5 * time.Second
 // Once the database is WAL the pragma is a no-op on every later connection, so this is a
 // first-open concern — which is exactly when several seats create the record at once (#630).
 func connect(db *sql.DB) error {
-	deadline := time.Now().Add(busyTimeout)
+	deadline := time.Now().Add(openBusyBudget)
 	delay := time.Millisecond
 	for {
 		err := db.Ping()
 		if err == nil {
 			return nil
 		}
-		if !isBusy(err) || time.Now().After(deadline) {
+		if !isBusy(err) {
 			return fmt.Errorf("connecting: %w", err)
+		}
+		if time.Now().After(deadline) {
+			// An exhausted wait reads differently from an immediate refusal: the budget is
+			// named, so a reader can tell the two apart.
+			return fmt.Errorf("connecting: still busy after %v: %w", openBusyBudget, err)
 		}
 		// Jittered, unlike SQLite's own fixed schedule: waiters released together should not
 		// wake together and collide again.
@@ -453,7 +463,7 @@ func connect(db *sql.DB) error {
 
 // isBusy reports whether err is SQLite's SQLITE_BUSY in any of its extended forms — the one result
 // that means "try again", as opposed to a refused or unreadable database. gray-area's
-// catalogue/open.go has the sibling copy (see busyTimeout).
+// catalogue/open.go has the sibling copy (see openBusyBudget).
 func isBusy(err error) bool {
 	var se *sqlite.Error
 	return errors.As(err, &se) && se.Code()&0xff == sqlite3.SQLITE_BUSY

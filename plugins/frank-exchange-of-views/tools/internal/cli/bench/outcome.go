@@ -58,7 +58,10 @@ func newOutcome() *cobra.Command {
 		prior, correcting := target.(*recordpb.Outcome)
 		derived, why, ok := "", "", false
 		if !correcting {
-			derived, why, ok = record.DeriveVerdict(run)
+			derived, why, ok, err = record.DeriveVerdict(run)
+			if err != nil {
+				return nil, err
+			}
 		}
 		switch {
 		case correcting:

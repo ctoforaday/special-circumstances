@@ -38,7 +38,10 @@ const (
 //
 // ok is false ONLY when the record holds no terminal state — the run is still in flight, or it
 // ended before reaching one (UNVERIFIED) — which is a finding rather than a defect in this
-// function. Everything else is already recorded:
+// function. A record that could not be read is the error, with ok false and no verdict beside
+// it: it is never folded into "no terminal state", because a caller keying a liveness verdict or
+// a server's lifetime to that answer would take a busy record for a run in flight. Everything
+// else is already recorded:
 //
 //	HALTED    a halt event exists — the bench ended the run on its own authority
 //	VERIFIED  the chair recorded a PASS verdict
@@ -47,15 +50,15 @@ const (
 //
 // The order matters: a halt outranks a pass, because a run stopped on safety or integrity
 // grounds did not end by passing however clean the board looked when it stopped.
-func DeriveVerdict(run Run) (verdict, why string, ok bool) {
+func DeriveVerdict(run Run) (verdict, why string, ok bool, err error) {
 	halted, err := recordHas(run, `SELECT 1 FROM "halt" LIMIT 1`)
 	if err != nil {
-		return "", "the record could not be read: " + err.Error(), false
+		return "", "", false, err
 	}
 	passed, err := recordHas(run, `SELECT 1 FROM "gate" WHERE "verdict" = ? LIMIT 1`,
 		recordpb.Word(recordpb.Verdict_VERDICT_PASS))
 	if err != nil {
-		return "", "the record could not be read: " + err.Error(), false
+		return "", "", false, err
 	}
 	// THE COVERAGE LIMIT RIDES ON THE BASIS, for every terminal verdict and not only a PASS.
 	//
@@ -66,32 +69,40 @@ func DeriveVerdict(run Run) (verdict, why string, ok bool) {
 	// UnseatedAreas returns nothing when the record holds no cast, which is the state the
 	// CEILING arm below already distinguishes.
 	coverage := ""
-	if unseated, hasCast, cerr := UnseatedAreas(run); cerr == nil && hasCast && len(unseated) > 0 {
+	unseated, hasCast, err := UnseatedAreas(run)
+	if err != nil {
+		return "", "", false, err
+	}
+	if hasCast && len(unseated) > 0 {
 		coverage = " (" + CoverageNote(unseated) + ")"
 	}
 	switch {
 	case halted:
-		return "HALTED", "a halt event is on the record" + coverage, true
+		return "HALTED", "a halt event is on the record" + coverage, true, nil
 	case passed:
-		return "VERIFIED", "the chair recorded a PASS verdict" + coverage, true
+		return "VERIFIED", "the chair recorded a PASS verdict" + coverage, true, nil
 	}
 	// CEILING IS THE DISPATCH PLAN'S (plans/roundless.md §III.B.2), for one of two reasons: every
 	// open material gap is at impasse and has had its bench ruling — carried, since it is still
 	// open — or the chair has sat for the run's last epoch under its epoch limit, a term setup
 	// records. A record with no cast cannot reach it.
-	if cast, err := CastOf(run); err == nil && cast != nil {
+	cast, err := CastOf(run)
+	if err != nil {
+		return "", "", false, err
+	}
+	if cast != nil {
 		plan, err := PlanDispatch(run)
 		if err != nil {
-			return "", "the record could not be read: " + err.Error(), false
+			return "", "", false, err
 		}
 		switch {
 		case plan.EpochLimitReached:
-			return "CEILING", fmt.Sprintf("epoch limit %d reached — the run's term; the parties still ready were not dispatched and PASS is not permitted", plan.MaxEpochs) + coverage, true
+			return "CEILING", fmt.Sprintf("epoch limit %d reached — the run's term; the parties still ready were not dispatched and PASS is not permitted", plan.MaxEpochs) + coverage, true, nil
 		case plan.Ceiling:
-			return "CEILING", "every open material gap is at its limit and the bench has ruled on each — nobody is ready and PASS is not permitted" + coverage, true
+			return "CEILING", "every open material gap is at its limit and the bench has ruled on each — nobody is ready and PASS is not permitted" + coverage, true, nil
 		}
 	}
-	return "", "no pass, no halt, and the board is not at its ceiling — the run ended before a terminal state was reached, and the record says so rather than guessing", false
+	return "", "no pass, no halt, and the board is not at its ceiling — the run ended before a terminal state was reached, and the record says so rather than guessing", false, nil
 }
 
 // RunOutcomeOf is the seat's verdict word to the schema's value, and it lives beside DeriveVerdict

@@ -311,8 +311,11 @@ func Open(path string, notice io.Writer) (*sql.DB, error) {
 			}
 			return db, nil
 		}
-		if !isBusy(err) || !time.Now().Before(deadline) {
+		if !isBusy(err) {
 			return nil, err
+		}
+		if !time.Now().Before(deadline) {
+			return nil, fmt.Errorf("catalogue: still busy after %v: %w", openBusyBudget, err)
 		}
 		time.Sleep(busyBackoff(attempt))
 	}

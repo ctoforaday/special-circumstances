@@ -250,8 +250,15 @@ func TerminalVerdict(run Run) (string, error) {
 		return v, nil
 	}
 	// Or what the record decides for itself. ok is false only where the record holds no
-	// terminal state — in flight, or ended early — and that is a real answer, not a gap to paper over.
-	if v, _, ok := DeriveVerdict(run); ok {
+	// terminal state — in flight, or ended early — and that is a real answer, not a gap to paper
+	// over. Its reads fail the same way the first one does, and are surfaced the same way: a
+	// busy record under the halt or gate read folded into ("", nil) convicted a finished run as
+	// TERMINATED just as the first read's fold did.
+	v, _, ok, err := DeriveVerdict(run)
+	if err != nil {
+		return "", err
+	}
+	if ok {
 		return v, nil
 	}
 	return "", nil

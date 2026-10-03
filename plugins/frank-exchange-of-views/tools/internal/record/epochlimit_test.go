@@ -29,9 +29,9 @@ func TestTheSittingThatOpensTheLastEpochDispatchesNobodyAndTheRunEndsCeiling(t *
 	if !strings.Contains(strings.Join(plan.Why, "\n"), "epoch limit 2 reached") {
 		t.Errorf("why does not name the limit: %v", plan.Why)
 	}
-	got, why, ok := DeriveVerdict(run)
-	if !ok || got != "CEILING" || !strings.Contains(why, "epoch limit 2 reached") {
-		t.Errorf("derived (%q, %q, %v), want CEILING naming the epoch limit", got, why, ok)
+	got, why, ok, err := DeriveVerdict(run)
+	if err != nil || !ok || got != "CEILING" || !strings.Contains(why, "epoch limit 2 reached") {
+		t.Errorf("derived (%q, %q, %v, %v), want CEILING naming the epoch limit", got, why, ok, err)
 	}
 
 	// Under the limit the board's parties are dispatched as ever.

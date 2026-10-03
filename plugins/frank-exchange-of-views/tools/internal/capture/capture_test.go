@@ -1070,24 +1070,39 @@ func TestLivenessReportsNotMeasuredRatherThanPassing(t *testing.T) {
 
 // A RECORD THAT CANNOT BE READ IS NOT A RUN IN FLIGHT. TerminalVerdict's "" means "no outcome
 // recorded", and the audit would convict a healthy, finished run as TERMINATED on a transient read
-// failure if the error folded into it. The failure is made by dropping the view through the run's
-// cached handle, the same way every later read of that run would then fail.
+// failure if the error folded into it. TerminalVerdict makes two reads — the bench's recorded
+// outcome, and the record's own derivation when the bench is silent — and each is failed in turn,
+// because the fold was removed from the first and left on the second, where a busy record under
+// the halt read convicted exactly as before. The failure is made by dropping the view or table
+// through the run's cached handle, the same way every later read of that run would then fail.
 func TestLivenessReportsAnUnreadableRecordRatherThanConvicting(t *testing.T) {
 	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
-	run := writeRunForLiveness(t, 10, 20*time.Second, now, true)
-	db, err := recordsql.Open(filepath.Join(run.Records(), "record.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.Exec(`DROP VIEW "live_event"`); err != nil {
-		t.Fatal(err)
-	}
-	a := LivenessAudit(run, now.Add(41*time.Minute))
-	if a.Verdict != "SKIP" {
-		t.Errorf("a finished run whose record cannot be read audited %s — want SKIP:\n%s", a.Verdict, a.Detail)
-	}
-	if !strings.Contains(a.Detail, "could not be read") || !strings.Contains(a.Detail, "live_event") {
-		t.Errorf("the SKIP does not carry the read error:\n%s", a.Detail)
+	for _, tc := range []struct {
+		name    string
+		outcome bool   // the bench recorded one, so RecordedOutcome is the read that answers
+		drop    string // what the failing read asks for
+		object  string // its name, which the SKIP must carry
+	}{
+		{"the recorded outcome", true, `DROP VIEW "live_event"`, "live_event"},
+		{"the derived verdict", false, `DROP TABLE "halt"`, "halt"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			run := writeRunForLiveness(t, 10, 20*time.Second, now, tc.outcome)
+			db, err := recordsql.Open(filepath.Join(run.Records(), "record.db"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.Exec(tc.drop); err != nil {
+				t.Fatal(err)
+			}
+			a := LivenessAudit(run, now.Add(41*time.Minute))
+			if a.Verdict != "SKIP" {
+				t.Errorf("a finished run whose record cannot be read audited %s — want SKIP:\n%s", a.Verdict, a.Detail)
+			}
+			if !strings.Contains(a.Detail, "could not be read") || !strings.Contains(a.Detail, tc.object) {
+				t.Errorf("the SKIP does not carry the read error:\n%s", a.Detail)
+			}
+		})
 	}
 }
 

@@ -79,27 +79,36 @@ func TestOpenWaitsOutALockedFreshDatabase(t *testing.T) {
 	tx := holdFresh(t, path)
 
 	const held = 300 * time.Millisecond
-	done := make(chan error, 1)
-	started := time.Now()
+	type opened struct {
+		at  time.Time // when the open RETURNED, read in the goroutine
+		err error
+	}
+	done := make(chan opened, 1)
 	go func() {
 		db, err := openUncached(path)
 		if db != nil {
 			_ = db.Close()
 		}
-		done <- err
+		done <- opened{time.Now(), err}
 	}()
 	time.Sleep(held)
 	if _, err := tx.Exec(`DROP TABLE placeholder`); err != nil {
 		t.Fatal(err)
 	}
+	// The lock is released inside Commit, so an open that waited returns no earlier than the
+	// moment Commit was entered. An open that did not wait returned during the Sleep above. The
+	// clock is read before Commit rather than after it, because the waiter can return between
+	// the release inside Commit and a reading taken on Commit's return.
+	committing := time.Now()
 	if err := tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
-	if err := <-done; err != nil {
-		t.Fatalf("open against a briefly locked fresh database: %v", err)
+	got := <-done
+	if got.err != nil {
+		t.Fatalf("open against a briefly locked fresh database: %v", got.err)
 	}
-	if waited := time.Since(started); waited < held {
-		t.Fatalf("open returned after %v while the lock was held for %v — it did not wait", waited, held)
+	if got.at.Before(committing) {
+		t.Fatalf("open returned %v before the lock was released, which was held for %v — it did not wait", committing.Sub(got.at), held)
 	}
 }
 
@@ -127,12 +136,12 @@ func holdFresh(t *testing.T, path string) *sql.Tx {
 }
 
 // TestOpenGivesUpWhenTheLockOutlivesTheBudget is the deadline half of connect's contract: a lock
-// held past busyTimeout comes back as the busy error, never as a hang. The budget is shortened so
+// held past openBusyBudget comes back as the busy error, never as a hang. The budget is shortened so
 // the test proves the expiry rather than waiting five seconds for it.
 func TestOpenGivesUpWhenTheLockOutlivesTheBudget(t *testing.T) {
-	was := busyTimeout
-	busyTimeout = 150 * time.Millisecond
-	t.Cleanup(func() { busyTimeout = was })
+	was := openBusyBudget
+	openBusyBudget = 150 * time.Millisecond
+	t.Cleanup(func() { openBusyBudget = was })
 
 	path := filepath.Join(t.TempDir(), "fresh.db")
 	tx := holdFresh(t, path)
@@ -150,11 +159,11 @@ func TestOpenGivesUpWhenTheLockOutlivesTheBudget(t *testing.T) {
 	if !isBusy(err) {
 		t.Fatalf("the budget expired with an error that is not busy: %v", err)
 	}
-	if took < busyTimeout {
-		t.Fatalf("gave up after %v, before the %v budget", took, busyTimeout)
+	if took < openBusyBudget {
+		t.Fatalf("gave up after %v, before the %v budget", took, openBusyBudget)
 	}
 	if took > was {
-		t.Fatalf("gave up after %v — the shortened %v budget was not the one waited with", took, busyTimeout)
+		t.Fatalf("gave up after %v — the shortened %v budget was not the one waited with", took, openBusyBudget)
 	}
 }
 
@@ -264,7 +273,7 @@ func TestOpenFailsAtOnceOnAnUnreadableDatabase(t *testing.T) {
 	if isBusy(err) {
 		t.Fatalf("refused as busy rather than unreadable: %v", err)
 	}
-	if took := time.Since(started); took >= busyTimeout {
+	if took := time.Since(started); took >= openBusyBudget {
 		t.Fatalf("an unreadable database took %v to refuse — it was waited for as if busy", took)
 	}
 }
