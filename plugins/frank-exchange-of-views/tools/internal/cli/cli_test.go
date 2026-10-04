@@ -1103,16 +1103,12 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	// same question the other way), so it is supplied separately for the complete call and is
 	// not a subtest of its own (#502).
 	//
-	// --tension, --review-flag and --settled are NOT omitted here: the verb writes an omitted one as
-	// the empty string, so omitting it is not refused. The schema marks all three required, and
-	// this loop only appeared to hold them to it while a motion refusal carried the verb's whole
-	// help page, which names every flag. That unenforced requirement is #1234; when it is
-	// enforced, the three move into `required`.
-	required := map[string]string{"id": "M1", "as": "remanded", "principle": "correctness first"}
-	full := map[string]string{
+	// --tension, --review-flag and --settled are required by PRESENCE (#1234): an omitted one is
+	// refused, and an empty one is an answer — TestBenchDocketRuleTakesAnHonestBlank holds that half.
+	required := map[string]string{"id": "M1", "as": "remanded", "principle": "correctness first",
 		"tension": "correctness vs economy", "review-flag": "no",
-		"settled": "blue must repair c-65ca0a9e",
-	}
+		"settled": "blue must repair c-65ca0a9e"}
+	full := map[string]string{}
 	for k, v := range required {
 		full[k] = v
 	}
@@ -1173,6 +1169,35 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	// carries — where the retired verb kept it on `Opinion.rationale`.
 	if got := lastBody(t, runDir, &recordpb.MotionRule{}).GetOpinion(); got != "the rationale" {
 		t.Errorf("the ruler's argument = %q", got)
+	}
+}
+
+// AN OMITTED --tension IS REFUSED AND AN EMPTY ONE IS AN ANSWER, and the verb keeps the two apart.
+//
+// The three are required by presence (operator, 2026-08-22: demanding prose would produce
+// invented tension and pro-forma flags). The verb used to write an omitted flag as "", which
+// made omission and the honest blank the same bytes — so the requirement refused nothing (#1234).
+// This is the other half: the REQUIRED marking must not harden into "non-empty".
+func TestBenchDocketRuleTakesAnHonestBlank(t *testing.T) {
+	runDir := newRun(t)
+	registerChairOnce(t, runDir)
+	registerLensOnce(t, runDir)
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+		"--key", "k", "--class", "x", "--check-kind", "document", "--check", "c",
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+		t.Fatal(err)
+	}
+	m := docketFile(t, runDir, "red-chair", "G1", "contested, and not mine to close")
+	if _, err := run(t, "motion", "docket", "rule", "--run", runDir, "--seat-id", "judge",
+		"--id", m, "--as", "remanded", "--principle", "correctness first",
+		"--tension", "", "--review-flag", "", "--settled", "", "--final", "--reason", "the rationale"); err != nil {
+		t.Fatalf("a ruling that answers each of the three with an honest blank was refused: %v", err)
+	}
+	d := lastBody(t, runDir, &recordpb.MotionRule{}).GetDocket()
+	for name, v := range map[string]*string{"tension": d.Tension, "review_flag": d.ReviewFlag, "settled": d.Settled} {
+		if v == nil || *v != "" {
+			t.Errorf("%s = %v, want present and empty — the blank the bench passed", name, v)
+		}
 	}
 }
 

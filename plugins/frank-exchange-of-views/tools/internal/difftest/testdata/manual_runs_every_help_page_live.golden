@@ -461,9 +461,9 @@ Flags:
       --principle string        REQUIRED — the rule you applied, stated so a later sitting can apply the same one
       --reason string           → SHARED §13
       --reopens-on string       the evidence or condition that would make this worth raising again — or pass --final to say nothing would
-      --review-flag string      what a human should look at again — empty when nothing needs it
-      --settled string          what the losing party may no longer assert, in one sentence
-      --tension string          the values that pulled against each other — empty is a real answer when none did
+      --review-flag string      REQUIRED — what a human should look at again — pass "" when nothing needs it
+      --settled string          REQUIRED — what the losing party may no longer assert, in one sentence — pass "" when the ruling bars nothing
+      --tension string          REQUIRED — the values that pulled against each other — pass "" when none did: empty is a real answer
 
 Enumerated values:
   --as

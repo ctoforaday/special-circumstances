@@ -307,9 +307,12 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 				dr := &recordpb.DocketRuling{
 					Disposition: &d,
 					Principle:   proto.String(seat.Str(cmd, flags.Principle)),
-					Tension:     proto.String(seat.Str(cmd, flags.Tension)),
-					ReviewFlag:  proto.String(seat.Str(cmd, flags.ReviewFlag)),
-					Settled:     proto.String(seat.Str(cmd, flags.Settled)),
+					// PRESENCE IS THE REQUIREMENT for these three: "" is an answer, so an omitted
+					// flag stays ABSENT and the write refuses it, rather than arriving as the
+					// same "" an honest blank is (#1234).
+					Tension:    seat.OptStr(cmd, flags.Tension),
+					ReviewFlag: seat.OptStr(cmd, flags.ReviewFlag),
+					Settled:    seat.OptStr(cmd, flags.Settled),
 				}
 				// EXACTLY ONE OF THESE, and the schema refuses the other two states. Set only
 				// what was passed: an empty `reopens_on` written as present would satisfy the
@@ -360,6 +363,11 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			// flag(s) not set" cannot.
 			flags.Text(c, f, ruleFlagHelp[f])
 			seat.SaysRequired(c, f)
+		case flags.Tension, flags.ReviewFlag, flags.Settled:
+			// Required by PRESENCE — an empty value is the bench's answer — so cobra's refusal,
+			// which keys on the flag being passed and not on its value, is exactly the rule.
+			flags.Text(c, f, ruleFlagHelp[f])
+			seat.Require(c, f)
 		default:
 			flags.Text(c, f, ruleFlagHelp[f])
 		}
@@ -519,9 +527,9 @@ var fileFlagHelp = map[string]string{
 // to ruleFlags without a line here renders an empty usage, which is visible immediately.
 var ruleFlagHelp = map[string]string{
 	flags.Principle:  "the rule you applied, stated so a later sitting can apply the same one",
-	flags.Tension:    "the values that pulled against each other — empty is a real answer when none did",
-	flags.ReviewFlag: "what a human should look at again — empty when nothing needs it",
-	flags.Settled:    "what the losing party may no longer assert, in one sentence",
+	flags.Tension:    `the values that pulled against each other — pass "" when none did: empty is a real answer`,
+	flags.ReviewFlag: `what a human should look at again — pass "" when nothing needs it`,
+	flags.Settled:    `what the losing party may no longer assert, in one sentence — pass "" when the ruling bars nothing`,
 	flags.ReopensOn:  "the evidence or condition that would make this worth raising again — or pass --final to say nothing would",
 	flags.Final:      "nothing would reopen this. The assertable empty case for --reopens-on: pass exactly one of the two",
 }
