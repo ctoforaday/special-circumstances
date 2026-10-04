@@ -66,7 +66,7 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// both texts promised one. The `How` also named a status set that excluded `pursued`,
 		// which is where a followed line comes to REST — so a seat that did the right thing
 		// was told to abandon or defer it. Both are fixed at the single predicate now.
-		for _, a := range StaleAvenuesOf(evs) {
+		for _, a := range StaleAvenuesOf(evs, win) {
 			add(fmt.Sprintf("avenue %s is at %q and has not moved since epoch %d — an avenue declared once and never revisited records an intention rather than a choice", a.ID, a.Status, a.Epoch))
 		}
 		// A repair with no receipt is one nobody audited, including its author. THE PREDICATE IS
@@ -115,7 +115,7 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// An UNRULED motion suppresses it, because filing a second time while the first is pending
 		// asks the bench the same question twice.
 		pending := map[string]bool{}
-		for _, m := range MotionsOf(evs) {
+		for _, m := range MotionsOf(evs, win) {
 			if m != nil && m.Subject == "docket" && m.GapID != "" && !m.Ruled() {
 				pending[m.GapID] = true
 			}
@@ -159,7 +159,7 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// which offered the chair an act its own write path refuses and left the one seat that
 		// could perform it with nothing on its list at all.
 		minted := mintedBy(evs)
-		for _, id := range gapsWithAcceptedMotionAndNoRegrade(evs) {
+		for _, id := range gapsWithAcceptedMotionAndNoRegrade(evs, win) {
 			if minted[id] != seatID {
 				continue
 			}
@@ -319,7 +319,7 @@ func anyClosedGap(gaps []WorkGapState) bool {
 // replay interleaves, so a ruling can arrive before the motion it answers; motion.go carries the
 // two-pass projection that survives that, and its header records shipping the single-pass bug
 // once already. A private join here would re-earn it.
-func gapsWithAcceptedMotionAndNoRegrade(evs []*Event) []string {
+func gapsWithAcceptedMotionAndNoRegrade(evs []*Event, win WindowIndex) []string {
 	regraded := map[string]bool{}
 	for i := range evs {
 		body, ok := recordpb.Body(evs[i])
@@ -337,7 +337,7 @@ func gapsWithAcceptedMotionAndNoRegrade(evs []*Event) []string {
 	}
 	var out []string
 	seen := map[string]bool{}
-	for _, m := range MotionsOf(evs) {
+	for _, m := range MotionsOf(evs, win) {
 		if m.Subject != "grade" || m.Ruling != "accepted" {
 			continue
 		}

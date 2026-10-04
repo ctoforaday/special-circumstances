@@ -78,7 +78,7 @@ func TestTheLogViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 		t.Fatal(err)
 	}
 	// THE SEAT HAS SAT, so it is already clean — it opened a sitting and has said nothing.
-	j := LogJSONOf(b.Events)
+	j := LogJSONOf(b.Events, b.At)
 	if j.Counts.Total != 0 || j.Counts.Clean != 1 {
 		t.Fatalf("a seat that sat and said nothing: total=%d clean=%d, want 0/1", j.Counts.Total, j.Counts.Clean)
 	}
@@ -87,7 +87,7 @@ func TestTheLogViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, _ = FamilyOf(mustRun(t, runDir))
-	j = LogJSONOf(b.Events)
+	j = LogJSONOf(b.Events, b.At)
 	// ONCE IT SPEAKS IT IS NO LONGER CLEAN, and what it filed asserts a problem. Every surviving
 	// type does, so the entry counts toward the total and the seat leaves the clean set.
 	if j.Counts.Total != 1 {

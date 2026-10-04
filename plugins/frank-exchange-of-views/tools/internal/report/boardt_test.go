@@ -43,7 +43,7 @@ type boardT struct {
 
 func (b *boardT) fam() record.Family {
 	if b == nil {
-		return record.NewFamily(nil, nil)
+		return record.NewFamily(nil, record.Merged{})
 	}
 	var ordered []*record.Gap
 	for _, id := range b.GapOrder {
@@ -53,5 +53,40 @@ func (b *boardT) fam() record.Family {
 		}
 		ordered = append(ordered, g)
 	}
-	return record.NewFamily(ordered, b.Events)
+	return record.NewFamily(ordered, record.Merged{Events: b.Events})
+}
+
+// famOf is the family of evs as the write path stores them: every epoch and `seat #N` a section
+// prints is the stored window, so a section's fixture is seeded and loaded back.
+func famOf(t *testing.T, evs []*record.Event) record.Family {
+	t.Helper()
+	return runtest.Family(t, nil, evs...)
+}
+
+// debateT is debate over evs as the write path stores them.
+func debateT(t *testing.T, evs []*record.Event) string {
+	t.Helper()
+	f := famOf(t, evs)
+	return debate(f)
+}
+
+// withdrawnClaimsT is withdrawnClaims over evs as the write path stores them.
+func withdrawnClaimsT(t *testing.T, evs []*record.Event) string {
+	t.Helper()
+	f := famOf(t, evs)
+	return withdrawnClaims(f)
+}
+
+// revisionHistoryT is revisionHistory over evs as the write path stores them.
+func revisionHistoryT(t *testing.T, evs []*record.Event) string {
+	t.Helper()
+	f := famOf(t, evs)
+	return revisionHistory(f)
+}
+
+// logSectionT is logSection over evs as the write path stores them.
+func logSectionT(t *testing.T, evs []*record.Event) string {
+	t.Helper()
+	f := famOf(t, evs)
+	return logSection(f)
 }

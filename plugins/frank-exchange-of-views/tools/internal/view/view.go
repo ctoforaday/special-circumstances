@@ -228,19 +228,22 @@ func MarkdownViews() []string {
 type Input struct {
 	Gaps   []*record.Gap
 	Events []*record.Event
+	// At is where each of Events sits on the record, as the loader read it (record.WindowIndex):
+	// every epoch and `seat #N` a view prints is read here.
+	At record.WindowIndex
 }
 
 // InputOf assembles the render input from the record.
 func InputOf(run record.Run) (Input, error) {
-	gaps, err := record.GapStates(run)
-	if err != nil {
-		return Input{}, err
-	}
 	m, err := record.MergedEvents(run)
 	if err != nil {
 		return Input{}, err
 	}
-	return Input{Gaps: gaps, Events: m.Events}, nil
+	gaps, err := record.GapStates(run, m)
+	if err != nil {
+		return Input{}, err
+	}
+	return Input{Gaps: gaps, Events: m.Events, At: m.At}, nil
 }
 
 // Markdown returns one markdown projection, rendered in-memory from the record.
@@ -433,10 +436,10 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 	// itself the convergence signal: a zero row says "nothing moved", a missing row says nothing
 	// at all. Dense also makes the audit's premise true by construction rather than by luck.
 	//
-	// The epoch is COUNTED from the record (red-chair registers at or before each row), never
-	// read off an event: Gap.Epoch/ClosedEpoch and CurrentEpochOf are the same count.
+	// The epoch is the record's (the chair's sittings opened at or before each row, events_w):
+	// Gap.Epoch/ClosedEpoch and the index's CurrentEpoch read the same stored windows.
 	seenEpoch := map[int]bool{}
-	for r := 1; r <= record.CurrentEpochOf(in.Events); r++ {
+	for r := 1; r <= in.At.CurrentEpoch(in.Events); r++ {
 		seenEpoch[r] = true
 	}
 	// Defensive: a gap minted or closed outside the event epoch span still gets its row.
@@ -598,17 +601,16 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 
 // debateMD — the epoch-by-epoch transcript. Trailing newline (render.go parity).
 //
-// The bucket is the EPOCH (red-chair registers at or before the event), counted here with the
-// Clock rather than read off the envelope — the record carries no epoch column. The twin in
-// record/viewjson.go (DebateJSONOf) buckets the same way, one `## Epoch N` per chair sitting.
+// The bucket is the EPOCH the record holds each act in (in.At) — the chair's sittings opened at or
+// before it. The twin in record/viewjson.go (DebateJSONOf) buckets the same way, one `## Epoch N`
+// per chair sitting.
 func debateMD(in Input) []byte {
 	var epochOrder []int
 	// THE LISTING, NOT THE RAW STREAM: an act corrected in its sitting is shown struck, with who
 	// struck it and why, beside the act that replaced it — never as two acts, and never hidden.
 	byEpoch := map[int][]record.Listed{}
-	var clk record.Clock
 	for _, l := range record.Listing(in.Events) {
-		r := clk.Advance(l.Event).Epoch
+		r := in.At.Of(l.Event).Epoch
 		if _, seen := byEpoch[r]; !seen {
 			epochOrder = append(epochOrder, r)
 		}
@@ -742,7 +744,7 @@ func debateMD(in Input) []byte {
 // avenueMD — the exploration space grouped by fate. Trailing newline (render.go parity).
 func avenueMD(in Input) []byte {
 	avenue := []string{"# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)", ""}
-	body := AvenueBody(in.Events)
+	body := AvenueBody(in.Events, in.At)
 	if body == "" {
 		avenue = append(avenue, "_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration",
 			"either did not happen or was not written down, and a report with no roads-not-taken is",
@@ -763,8 +765,8 @@ func avenueMD(in Input) []byte {
 // why, and what red said about it. That sequence is the evidence of choosing; a flat list by final
 // status records only the outcome — which is exactly what report.md now carries, and why the path
 // has to ship somewhere.
-func AvenueBody(evs []*record.Event) string {
-	avs := record.AvenuesOf(evs)
+func AvenueBody(evs []*record.Event, win record.WindowIndex) string {
+	avs := record.AvenuesOf(evs, win)
 	if len(avs) == 0 {
 		return ""
 	}
@@ -821,7 +823,7 @@ func AvenueBody(evs []*record.Event) string {
 	// The revisit duty, made visible: an avenue still open late in a run is one nobody has
 	// decided. The measured failure was not bad choosing, it was that nothing ever asked
 	// blue to choose again after epoch 0.
-	if stale := record.StaleAvenuesOf(evs); len(stale) > 0 {
+	if stale := record.StaleAvenuesOf(evs, win); len(stale) > 0 {
 		ids := make([]string, len(stale))
 		for i, a := range stale {
 			ids[i] = a.ID

@@ -13,7 +13,7 @@ import (
 // AN UNRULED MOTION IS SAID, not omitted. A filing with no answer means the sitting did not
 // happen, and silence there reads identically to a run that never asked.
 func TestAnUnruledMotionIsReported(t *testing.T) {
-	b := record.NewFamily(nil, []*record.Event{
+	b := famOf(t, []*record.Event{
 		recordtest.Event(t, "blue-respond", &recordpb.Motion{
 			MotionId: proto.String("M1"),
 			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION),

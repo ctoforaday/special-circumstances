@@ -134,7 +134,7 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 // then died", and `move` accepts abandoning straight from `proposed` — once each in #861's B and
 // B3, both real attempts whose seat skipped the `pursued` move. The row says which it was.
 func TestAnAbandonmentWithNoPursuitSaysSo(t *testing.T) {
-	board := record.NewFamily(nil, []*record.Event{
+	board := famOf(t, []*record.Event{
 		recordtest.Event(t, "blue-r0", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("sieve to the square root")}),
 		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Reason: proto.String("the bound is 9, so the sieve adds nothing")}),
 		recordtest.Event(t, "blue-r0", &recordpb.Avenue{AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Line: proto.String("check a computer-algebra system")}),
@@ -150,7 +150,7 @@ func TestAnAbandonmentWithNoPursuitSaysSo(t *testing.T) {
 }
 
 func TestAvenuesSplitByFate(t *testing.T) {
-	board := record.NewFamily(nil, []*record.Event{
+	board := famOf(t, []*record.Event{
 		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("profile the hot path"), Method: proto.String("bench")}),
 		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Line: proto.String("rewrite in Rust"), Reason: proto.String("cost exceeds benefit")}),
 		recordtest.Event(t, "red-lens-r1", &recordpb.Avenue{AvenueId: proto.String("Q3"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_DECLINED), Line: proto.String("third-party audit"), Reason: proto.String("out of scope")}),
@@ -170,7 +170,7 @@ func TestAvenuesSplitByFate(t *testing.T) {
 		t.Errorf("a pursued avenue must not appear under alternatives:\n%s", alt)
 	}
 	// No avenues of a fate → flagged, not blank.
-	if none := avenues((record.NewFamily(nil, nil)), "Research areas", accepted); !strings.Contains(none, "none on the record") {
+	if none := avenues((record.NewFamily(nil, record.Merged{})), "Research areas", accepted); !strings.Contains(none, "none on the record") {
 		t.Errorf("empty fate should say so: %q", none)
 	}
 }
@@ -225,7 +225,7 @@ func TestEveryAvenueStatusLandsWhereItsFateSays(t *testing.T) {
 				"by accident", status)
 			continue
 		}
-		board := record.NewFamily(nil, []*record.Event{
+		board := famOf(t, []*record.Event{
 			recordtest.Event(t, "blue-r1", &recordpb.Avenue{
 				AvenueId: proto.String("Q1"), Status: st.Enum(), Line: proto.String("the only line"),
 			}),
@@ -256,7 +256,7 @@ func TestEveryAvenueStatusLandsWhereItsFateSays(t *testing.T) {
 // A MOVED AVENUE IS ONE LINE. Reading raw events rendered a line pursued in epoch 0 and
 // abandoned in epoch 2 under BOTH headings — as an expansion and as an alternative to itself.
 func TestAMovedAvenueIsRenderedOnce(t *testing.T) {
-	board := record.NewFamily(nil, []*record.Event{
+	board := famOf(t, []*record.Event{
 		recordtest.Event(t, "blue-r0", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("rewrite the parser")}),
 		// Two chair sittings put the move in epoch 2 — the epoch is counted from the chair's
 		// registers, not read off the seat id.
@@ -284,7 +284,7 @@ func TestAMovedAvenueIsRenderedOnce(t *testing.T) {
 // markers, and all three are on the ledger. The ruling's opinion renders in judgments.md, and the
 // ruling and the appeal together in avenues.md (view.TestAnAppealRendersBesideItsRuling).
 func TestAvenueRulingAppealAndSeatStayOutOfTheReport(t *testing.T) {
-	board := record.NewFamily(nil, []*record.Event{
+	board := famOf(t, []*record.Event{
 		recordtest.Event(t, "blue-r0", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Line: proto.String("survey the adjacent literature")}),
 		// The LIVE vocabulary: red rules a direction through `motion avenue rule`, whose motion_id
 		// IS the line's own id — the proposal is the filing, so there is no second identity. The
@@ -318,6 +318,7 @@ func TestAvenueRulingAppealAndSeatStayOutOfTheReport(t *testing.T) {
 
 func TestDebateTranscriptFromEvents(t *testing.T) {
 	evs := []*record.Event{
+		mintT(t, "red-lens-logic", "G1"), // the gap the docket motion below names
 		// The chair's register opens epoch 1; everything below sits in it.
 		recordtest.Event(t, "red-chair", &recordpb.Register{}),
 		recordtest.Event(t, "red-chair", &recordpb.Position{Text: proto.String("gap A stands")}),
@@ -357,7 +358,7 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 		recordtest.Event(t, "judge", &recordpb.Halt{Opinion: proto.String("safety gate tripped")}),
 		recordtest.Event(t, "judge", &recordpb.Certify{Statement: proto.String("re-examine the cost model")}),
 	}
-	d := debate((record.NewFamily(nil, evs)), evs)
+	d := debateT(t, evs)
 	for _, want := range []string{
 		"### Epoch 1", "### RED — NO VERDICT RECORDED THIS EPOCH\ngap A stands", "### BLUE\ngap A repaired",
 		"G1: remanded",
@@ -372,7 +373,7 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 			t.Errorf("debate transcript missing %q:\n%s", want, d)
 		}
 	}
-	if empty := debate((record.NewFamily(nil, nil)), nil); !strings.Contains(empty, "no debate on the record") {
+	if empty := debate(record.NewFamily(nil, record.Merged{})); !strings.Contains(empty, "no debate on the record") {
 		t.Errorf("empty debate should say so: %q", empty)
 	}
 }
@@ -443,7 +444,7 @@ func TestFixBasisAndTheConcreteProposalReachTheReader(t *testing.T) {
 // A PHANTOM RETIREMENT CANCELS REAL LOSS in the scorecard's additive-integrity detector, and
 // only the basis distinguishes one from an honest epoch-0 rewrite.
 func TestRemovalBasisReachesTheReader(t *testing.T) {
-	v := withdrawnClaims([]*record.Event{
+	v := withdrawnClaimsT(t, []*record.Event{
 		recordtest.Event(t, "blue-r2", &recordpb.Register{}),
 		recordtest.Event(t, "blue-r2", &recordpb.Retire{Claim: proto.String("the parser is linear"), Reason: proto.String("r"), RemovalBasis: proto.String(record.RemovalVerified)}),
 	})
@@ -455,7 +456,7 @@ func TestRemovalBasisReachesTheReader(t *testing.T) {
 	if !strings.Contains(v, "(blue-r2 #1)") {
 		t.Errorf("the retiring seat's sitting must render beside its name:\n%s", v)
 	}
-	a := withdrawnClaims([]*record.Event{recordtest.Event(t, "blue-r0", &recordpb.Retire{Claim: proto.String("the parser is linear"), Reason: proto.String("r"), RemovalBasis: proto.String(record.RemovalAsserted)})})
+	a := withdrawnClaimsT(t, []*record.Event{recordtest.Event(t, "blue-r0", &recordpb.Retire{Claim: proto.String("the parser is linear"), Reason: proto.String("r"), RemovalBasis: proto.String(record.RemovalAsserted)})})
 	if !strings.Contains(a, "**asserted**") || !strings.Contains(a, "nothing on the record shows it was ever present") {
 		t.Errorf("an asserted removal must say the record cannot show it:\n%s", a)
 	}
@@ -470,7 +471,7 @@ func TestAnUnansweredPetitionIsReported(t *testing.T) {
 	// the detector counted zero filings and could not fire — the warning it exists to raise was
 	// unreachable while this test went on passing.
 	filed := []*record.Event{recordtest.Event(t, "red-chair", &recordpb.Motion{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION), Basis: proto.String("the demand would bury a hazard")})}
-	d := debate((record.NewFamily(nil, filed)), filed)
+	d := debateT(t, filed)
 	if !strings.Contains(d, "1 petition(s) received no ruling") {
 		t.Errorf("a petition with no ruling must be reported, not silently absent:\n%s", d)
 	}
@@ -485,7 +486,7 @@ func TestAnUnansweredPetitionIsReported(t *testing.T) {
 		Opinion:  proto.String("the hazard is graded, not buried"),
 		Ruling:   &recordpb.MotionRule_Petition{Petition: recordpb.PetitionRuling_PETITION_RULING_DENIED},
 	}))
-	if d := debate((record.NewFamily(nil, answered)), answered); strings.Contains(d, "received no ruling") {
+	if d := debateT(t, answered); strings.Contains(d, "received no ruling") {
 		t.Errorf("an answered petition must not be reported as unanswered:\n%s", d)
 	}
 }
@@ -501,13 +502,13 @@ func TestWithdrawnClaimsReachTheReader(t *testing.T) {
 		Reason:       proto.String("refuted at the leaf"),
 		SupersededBy: proto.String("the parser is O(n) except on backtracking inputs"),
 	})}
-	w := withdrawnClaims(evs)
+	w := withdrawnClaimsT(t, evs)
 	for _, want := range []string{"the parser is O(n) in the input size", "refuted at the leaf", "superseded by: the parser is O(n) except on backtracking inputs"} {
 		if !strings.Contains(w, want) {
 			t.Errorf("withdrawn claims missing %q:\n%s", want, w)
 		}
 	}
-	if withdrawnClaims(nil) != "" {
+	if withdrawnClaims(record.NewFamily(nil, record.Merged{})) != "" {
 		t.Error("a run that retired nothing omits the section rather than showing it empty")
 	}
 }
@@ -656,9 +657,9 @@ func TestLogSectionRendered(t *testing.T) {
 		// A SEAT THAT SAT AND FILED NOTHING is named in its own section, not among the problems.
 		// It asserts nothing: the harness bracket is the whole evidence, so the seat spends no call.
 		recordtest.Event(t, record.HarnessSeat, &recordpb.SittingOpen{AgentId: proto.String("agent-judge-1"), AgentType: proto.String("frank-exchange-of-views:lead-judge"), SeatId: proto.String("judge")}),
-		recordtest.Event(t, "red-chair", &recordpb.Mint{Problem: proto.String("not a log entry")}),
+		mintT(t, "red-lens-logic", "G1"), // not a log entry
 	}
-	f := logSection(evs)
+	f := logSectionT(t, evs)
 	// THE TYPE RENDERS BESIDE THE SEAT, which is the whole point of the channel: an operator
 	// triages by reading the type, not by reading the prose to work out which kind it was.
 	for _, want := range []string{
@@ -672,7 +673,7 @@ func TestLogSectionRendered(t *testing.T) {
 			t.Errorf("log section missing %q:\n%s", want, f)
 		}
 	}
-	if empty := logSection(nil); empty != "" {
+	if empty := logSection(record.NewFamily(nil, record.Merged{})); empty != "" {
 		t.Errorf("no log events should render nothing, got: %q", empty)
 	}
 }
@@ -695,7 +696,7 @@ func TestRevisionHistoryFromEvents(t *testing.T) {
 		recordtest.Event(t, "blue-respond", &recordpb.Revision{Text: proto.String("addressed G1 in the analysis")}),
 		recordtest.Event(t, "red-chair", &recordpb.Position{Text: proto.String("not a revision")}),
 	}
-	got := revisionHistory(evs)
+	got := revisionHistoryT(t, evs)
 	if !strings.Contains(got, "## Report revision history") {
 		t.Fatalf("missing heading:\n%s", got)
 	}
@@ -708,7 +709,7 @@ func TestRevisionHistoryFromEvents(t *testing.T) {
 	if strings.Contains(got, "not a revision") {
 		t.Errorf("a non-revision event leaked into the revision history:\n%s", got)
 	}
-	if revisionHistory(nil) != "" {
+	if revisionHistory(record.NewFamily(nil, record.Merged{})) != "" {
 		t.Error("no revisions must yield empty (section omitted), not a bare heading")
 	}
 }

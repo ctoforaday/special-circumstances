@@ -31,9 +31,7 @@ func loadedT(t *testing.T, evs ...*Event) Merged {
 func loadedFamilyT(t *testing.T, gaps []*Gap, evs []*Event) Family {
 	t.Helper()
 	m := loadedT(t, evs...)
-	f := NewFamily(gaps, m.Events)
-	f.At = m.At
-	return f
+	return NewFamily(gaps, m)
 }
 
 // blueAnswersT is blueAnswers over evs as the write path stores them.
@@ -406,10 +404,24 @@ func TestAChairSpotCheckBeforeItsPairedRegisterIsInItsSitting(t *testing.T) {
 // sitting from no index at all, both panic: either read as 0 is "never sat", the same bytes as a
 // seat that has not sat.
 func TestAWindowIndexTheLoaderDidNotBuildPanics(t *testing.T) {
-	m := loadedT(t, recordtest.Event(t, "red-chair", &recordpb.Register{}))
+	dir := newRun(t)
+	recordtest.Seed(t, dir, recordtest.Event(t, "red-chair", &recordpb.Register{}),
+		recordtest.Event(t, "red-chair", &recordpb.Position{Text: proto.String("the chair relays the plan")}))
+	m, err := MergedEvents(mustRun(t, dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	narrowedEvs, narrowed, err := EventsOf(mustRun(t, dir), recordpb.EventType_EVENT_TYPE_POSITION)
+	if err != nil || len(narrowedEvs) != 1 {
+		t.Fatalf("the narrowed read: %v, %d events", err, len(narrowedEvs))
+	}
 	for name, ask := range map[string]func(){
-		"Of a hand-built event":        func() { m.At.Of(recordtest.Event(t, "red-chair", &recordpb.Register{})) },
-		"LatestSittingOf a zero index": func() { WindowIndex{}.LatestSittingOf("red-chair") },
+		"Of a hand-built event":            func() { m.At.Of(recordtest.Event(t, "red-chair", &recordpb.Register{})) },
+		"LatestSittingOf a zero index":     func() { WindowIndex{}.LatestSittingOf("red-chair") },
+		"LatestSittingOf a narrowed index": func() { narrowed.LatestSittingOf("red-chair") },
+		// The last work act of a narrowed slice is not the record's: the slice need not hold it.
+		"CurrentEpoch of a narrowed index": func() { narrowed.CurrentEpoch(narrowedEvs) },
+		"LastEpoch of a narrowed index":    func() { narrowed.LastEpoch(narrowedEvs) },
 	} {
 		t.Run(name, func(t *testing.T) {
 			defer func() {
@@ -422,6 +434,99 @@ func TestAWindowIndexTheLoaderDidNotBuildPanics(t *testing.T) {
 	}
 	if m.At.LatestSittingOf("red-chair") == 0 {
 		t.Error("the loaded index reads the chair's register as no sitting")
+	}
+	if m.At.CurrentEpoch(m.Events) != 1 || m.At.LastEpoch(m.Events) != 1 {
+		t.Error("the loaded index does not answer the epoch the record has reached")
+	}
+	// A run with no record yet is the whole record, empty: epoch 0, not a panic.
+	empty, err := MergedEvents(mustRun(t, newRun(t)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if empty.At.CurrentEpoch(empty.Events) != 0 || empty.At.LastEpoch(empty.Events) != 0 {
+		t.Error("an empty record's epoch is not 0")
+	}
+}
+
+// THE CURRENT EPOCH IS THE LAST ONE WITH WORK IN IT, and nothing the harness writes is work. A chair
+// that registers and stops leaves its register, its hook bracket and its hook's stop in the new
+// epoch; none of them is an act of the debate, so an avenue moved in the previous epoch is not stale
+// yet. A limit the hook stopped a sitting at is the same: the harness's word, not a seat's.
+func TestTheCurrentEpochSkipsEveryActTheHarnessWrote(t *testing.T) {
+	m := loadedT(t,
+		recordtest.Event(t, "red-chair", &recordpb.Register{AgentId: proto.String("C1")}),
+		recordtest.Event(t, "blue-respond", &recordpb.Avenue{AvenueId: proto.String("Q1"),
+			Status: recordpb.AvenueStatus_AVENUE_STATUS_PURSUED.Enum(), Line: proto.String("a direction"), Method: proto.String("read it")}),
+		// The chair sits again, registers and stops: epoch 2 holds only bookkeeping.
+		recordtest.Event(t, HarnessSeat, &recordpb.SittingOpen{AgentId: proto.String("C2"),
+			AgentType: proto.String("frank-exchange-of-views:red-chair"), SeatId: proto.String("red-chair")}),
+		recordtest.Event(t, "red-chair", &recordpb.Register{AgentId: proto.String("C2")}),
+		recordtest.Event(t, HarnessSeat, &recordpb.SittingLimit{AgentId: proto.String("C2"),
+			SeatId: proto.String("red-chair"), Sitting: proto.Int32(2), Limit: proto.Int32(40)}),
+		recordtest.Event(t, HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("C2"),
+			AgentType: proto.String("frank-exchange-of-views:red-chair")}),
+	)
+	if got := m.At.LastEpoch(m.Events); got != 2 {
+		t.Fatalf("the fixture's record reaches epoch %d, want 2", got)
+	}
+	if got := m.At.CurrentEpoch(m.Events); got != 1 {
+		t.Errorf("CurrentEpoch = %d, want 1: epoch 2 holds a register and the harness's own rows, and no work", got)
+	}
+	if stale := StaleAvenuesOf(m.Events, m.At); len(stale) != 0 {
+		t.Errorf("an avenue pursued in epoch 1 reads stale in an epoch with no work in it: %+v", stale)
+	}
+}
+
+// EPOCHS IS EVERY EPOCH THE RECORD TOUCHED, read off two rows: the same set the DISTINCT scan over
+// events_w returns, on records that start before the chair's first sitting and at it, and that open
+// chair sittings by register and by bracket.
+func TestEpochsIsTheDistinctSetOfStoredEpochs(t *testing.T) {
+	chairBracket := func(agent string) *Event {
+		return recordtest.Event(t, HarnessSeat, &recordpb.SittingOpen{AgentId: proto.String(agent),
+			AgentType: proto.String("frank-exchange-of-views:red-chair"), SeatId: proto.String("red-chair")})
+	}
+	lens := func() *Event {
+		return recordtest.Event(t, "red-lens-logic", &recordpb.Position{Text: proto.String("x")})
+	}
+	chair := func() *Event { return recordtest.Event(t, "red-chair", &recordpb.Register{}) }
+	for name, evs := range map[string][]*Event{
+		"no events":                         nil,
+		"before the chair ever sat":         {lens(), lens()},
+		"the chair first":                   {chair(), lens(), chair()},
+		"a base phase, then sittings":       {lens(), chair(), lens(), chairBracket("C2"), chair(), lens()},
+		"a bracket-only chair sitting last": {lens(), chair(), chairBracket("C2")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir := newRun(t)
+			recordtest.Seed(t, dir, evs...)
+			run := mustRun(t, dir)
+			got, err := Epochs(run)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var want []int
+			if len(evs) > 0 {
+				db, err := openRunForRead(run)
+				if err != nil {
+					t.Fatal(err)
+				}
+				rows, err := db.Query(`SELECT DISTINCT "epoch" FROM "events_w" ORDER BY "epoch"`)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for rows.Next() {
+					var r int
+					if err := rows.Scan(&r); err != nil {
+						t.Fatal(err)
+					}
+					want = append(want, r)
+				}
+				rows.Close()
+			}
+			if !slices.Equal(got, want) {
+				t.Errorf("Epochs = %v, the distinct stored epochs = %v", got, want)
+			}
+		})
 	}
 }
 
@@ -441,4 +546,18 @@ func TestTheWorkListsEpochIsTheStoredSitting(t *testing.T) {
 	if c := w.Counterparty; c.LastEpoch != 1 || c.ActsThisEpoch != 1 {
 		t.Errorf("counterparty = %+v, want the chair's dispatch in epoch 1, blue's own epoch", c)
 	}
+}
+
+// evidenceJSONT is EvidenceJSONOf over evs as the write path stores them.
+func evidenceJSONT(t *testing.T, evs []*Event) EvidenceJSON {
+	t.Helper()
+	m := loadedT(t, evs...)
+	return EvidenceJSONOf(m.Events, m.At)
+}
+
+// findingsJSONT is FindingsJSONOf over evs as the write path stores them.
+func findingsJSONT(t *testing.T, evs []*Event) FindingsJSON {
+	t.Helper()
+	m := loadedT(t, evs...)
+	return FindingsJSONOf(m.Events, m.At)
 }

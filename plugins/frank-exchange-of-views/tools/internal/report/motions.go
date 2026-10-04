@@ -23,7 +23,7 @@ import (
 // disputes and no petitions. That compatibility layer is gone — see the note above record.Motions
 // for why its premise did not hold and what it costs if that judgement was wrong.
 func motions(fam record.Family) string {
-	ms := record.MotionsOf(fam.Events)
+	ms := record.MotionsOf(fam.Events, fam.At)
 	if len(ms) == 0 {
 		return ""
 	}

@@ -285,7 +285,7 @@ func TestBlueCiteRefusesALeafReadingOfAnAbstract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ev := record.EvidenceJSONOf(m.Events)
+	ev := record.EvidenceJSONOf(m.Events, m.At)
 	if len(ev.Sources) != 1 || ev.Sources[0].SourceCompleteness != "abstract" {
 		t.Errorf("the evidence view does not show the citation rests on an abstract: %+v", ev.Sources)
 	}

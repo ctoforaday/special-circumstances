@@ -75,7 +75,7 @@ func tallyByGap(f record.Family) map[string]*perGap {
 	//
 	// ONLY THE SUBJECTS THAT NAME A GAP. A petition and an avenue carry no gap id, and `get("")`
 	// would mint a phantom node keyed on the empty string.
-	for _, m := range record.MotionsOf(f.Events) {
+	for _, m := range record.MotionsOf(f.Events, f.At) {
 		switch m.Subject {
 		case "grade", "docket":
 			if m.GapID == "" {
@@ -106,8 +106,8 @@ func Mermaid(f record.Family) string {
 	return out.String()
 }
 
-// seatFlowMermaid groups seats into epoch subgraphs (one per chair sitting, counted with the
-// Clock — the record carries no epoch column), each seat labelled with its event tally — so an
+// seatFlowMermaid groups seats into epoch subgraphs (one per chair sitting, the epoch the record
+// holds each act in), each seat labelled with its event tally — so an
 // epoch where a seat emitted nothing it should have (an empty debate, a skipped ruling) shows as
 // a thin node.
 func seatFlowMermaid(f record.Family) string {
@@ -118,9 +118,8 @@ func seatFlowMermaid(f record.Family) string {
 	}
 	byEpoch := map[int]map[string]*seat{}
 	var epochs []int
-	var clk record.Clock
 	for _, e := range f.Live() {
-		epoch, seatID := clk.Advance(e).Epoch, e.GetSeatId()
+		epoch, seatID := f.At.Of(e).Epoch, e.GetSeatId()
 		if byEpoch[epoch] == nil {
 			byEpoch[epoch] = map[string]*seat{}
 			epochs = append(epochs, epoch)

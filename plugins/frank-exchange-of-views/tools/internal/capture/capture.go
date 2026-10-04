@@ -590,7 +590,7 @@ func AssemblyScreen(run record.Run) Audit {
 	if err != nil {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
 	}
-	ev := record.EvidenceJSONOf(fam.Events)
+	ev := record.EvidenceJSONOf(fam.Events, fam.At)
 	if ev.Counts.Sources == 0 {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "no citations on the record — nothing to screen"}
 	}
@@ -1421,15 +1421,11 @@ func rulingsFromRecord(evs []*record.Event) []ruling {
 	}
 
 	// THE GAP A DISPOSITION SETTLES RIDES THE FILING, never the ruling — a `motion-rule` carries
-	// the ask's id and nothing else that identifies its subject matter. record.Motions is the one
-	// place that pairing is computed; harvesting the gap any other way keys every disposition on
-	// the empty string, which is the shape of the defect this function was written to escape.
-	docketGapOf := map[string]string{}
-	for _, m := range record.MotionsOf(evs) {
-		if m != nil && m.Subject == "docket" {
-			docketGapOf[m.ID] = m.GapID
-		}
-	}
+	// the ask's id and nothing else that identifies its subject matter. record.DocketGapByMotion is
+	// that filing join, the one the closure fold reads; harvesting the gap any other way keys every
+	// disposition on the empty string, which is the shape of the defect this function was written
+	// to escape.
+	docketGapOf := record.DocketGapByMotion(evs)
 
 	var out []ruling
 	for _, e := range evs {
@@ -1864,7 +1860,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	redEpochs := 0
 	onRecord := []record.LogEntryJSON{}
 	if fam != nil {
-		dj := record.DebateJSONOfEvents(fam.Events)
+		dj := record.DebateJSONOfEvents(fam.Events, fam.At)
 		for _, r := range dj.Epochs {
 			if len(r.Red) > 0 {
 				redEpochs++
@@ -1874,7 +1870,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		// type appended separately, then a `nominal` entry on this list; `nominal` is retired and
 		// clean is derived from having sat and filed nothing, so this list holds the exceptions and
 		// a sitting absent from it is the clean reading rather than an unused channel.
-		fj := record.LogJSONOf(fam.Events)
+		fj := record.LogJSONOf(fam.Events, fam.At)
 		onRecord = append(onRecord, fj.Log...)
 	}
 

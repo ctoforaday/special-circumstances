@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // A RUN THAT LOST A LANE LOOKS EXACTLY LIKE A RUN THAT ASKED FOR FEWER.
@@ -41,14 +40,14 @@ import (
 // id by pattern, which made the audit the last reader in the tree recovering a fact from a name.
 // The ids are GENERATED from the declared lane count (record.LaneSeatIDs), so membership is a
 // comparison and the answer a reader wants — WHICH lane is missing — is a name already in hand.
-func laneSeatsThatSat(evs []*record.Event, lanes []string) map[string]bool {
+func laneSeatsThatSat(evs []*record.Event, win record.WindowIndex, lanes []string) map[string]bool {
 	want := map[string]bool{}
 	for _, id := range lanes {
 		want[id] = false
 	}
 	sat := map[string]bool{}
 	for i := range evs {
-		if seat, opens := recordpb.SeatOpeningSitting(evs[i]); opens {
+		if seat, opens := win.Opens(evs[i]); opens {
 			if _, isLane := want[seat]; isLane {
 				sat[seat] = true
 			}
@@ -71,7 +70,7 @@ func LaneCoverageAudit(run record.Run) Audit {
 	}
 	// A LANE THAT WAS BRACKETED BUT NEVER REGISTERED STILL SAT. Since #1089 a seat woken with
 	// nothing to do need not register, so an audit that counted registers would report a lane that
-	// worked as absent. SeatOpeningSitting is the one predicate that answers what opened a sitting.
+	// worked as absent. The stored sitting (fam.At) is the one answer to what opened a sitting.
 	// THE CAST NAMES THE LANES; run-config says how many were ASKED FOR. Both are read, because the
 	// two disagreeing is exactly what this audit exists to report.
 	lanes := record.LaneSeatsOf(run)
@@ -79,7 +78,7 @@ func LaneCoverageAudit(run record.Run) Audit {
 		return Audit{Check: "lane-coverage", Verdict: "SKIP",
 			Detail: fmt.Sprintf("run-config declares %d lane(s) and the record's cast names none, so there is nothing to hold them to — NOT a run whose lanes were checked", want)}
 	}
-	sat := laneSeatsThatSat(fam.Events, lanes)
+	sat := laneSeatsThatSat(fam.Events, fam.At, lanes)
 
 	var missing []string
 	for _, id := range lanes {

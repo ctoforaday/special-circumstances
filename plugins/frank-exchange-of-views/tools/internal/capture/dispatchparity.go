@@ -212,7 +212,7 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 			compared = fmt.Sprintf("; %d relayed plan(s) matched their dispatch rows on parties, gap_ids, occasions and head", len(relays))
 		}
 		if last, ok := lastRelayedPlan(results); ok {
-			if d := benchBlockerDepartures(last, fam.Events); d != "" {
+			if d := benchBlockerDepartures(last, fam.Events, fam.At); d != "" {
 				findings = append(findings, d)
 			} else {
 				compared += "; the last plan's bench blockers matched the record at the end of the chair's last sitting"
@@ -328,7 +328,7 @@ func lastRelayedPlan(results []map[string]any) (map[string]any, bool) {
 // benchBlockerDepartures holds the last relayed plan's bench-owned motion blockers to the record's
 // unruled bench-gavel motions at the end of the chair's last sitting: the first sitting another seat
 // opens after the chair's last act, or the end of the record. "" when they agree.
-func benchBlockerDepartures(plan map[string]any, evs []*recordpb.Event) string {
+func benchBlockerDepartures(plan map[string]any, evs []*record.Event, win record.WindowIndex) string {
 	last := -1
 	for i, e := range evs {
 		if e.GetSeatId() == "red-chair" {
@@ -340,13 +340,13 @@ func benchBlockerDepartures(plan map[string]any, evs []*recordpb.Event) string {
 	}
 	end := len(evs)
 	for i := last + 1; i < len(evs); i++ {
-		if seat, opens := recordpb.SeatOpeningSitting(evs[i]); opens && seat != "red-chair" {
+		if seat, opens := win.Opens(evs[i]); opens && seat != "red-chair" {
 			end = i
 			break
 		}
 	}
 	var onRecord, relayed []string
-	for _, b := range record.MotionBlockersOf(evs[:end]) {
+	for _, b := range record.MotionBlockersOf(evs[:end], win) {
 		if record.SeatOwesOccasion(b.Owner) {
 			onRecord = append(onRecord, b.Subject)
 		}

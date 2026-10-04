@@ -218,7 +218,7 @@ func TestAPursuedAvenueReaffirmedThisRoundIsNotStale(t *testing.T) {
 	})
 
 	stale := map[string]bool{}
-	for _, a := range StaleAvenuesOf(b.Events) {
+	for _, a := range StaleAvenuesOf(b.Events, b.At) {
 		stale[a.ID] = true
 	}
 
@@ -240,7 +240,7 @@ func TestAPursuedAvenueReaffirmedThisRoundIsNotStale(t *testing.T) {
 				"DECISION (worth taking, not by this run), not an omission", settled)
 		}
 	}
-	for _, a := range AvenuesOf(b.Events) {
+	for _, a := range AvenuesOf(b.Events, b.At) {
 		if a.ID == "Q7" && !a.EverPursued {
 			t.Error("Q7 was concluded — a line followed to its end — and the fold says it was never pursued")
 		}
@@ -273,12 +273,14 @@ func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
 	}
 	// All three are MATERIAL: the docket is offered only on a gap that holds PASS, and this test is
 	// about which of three such gaps the offer stands on.
-	b := NewFamily([]*Gap{
+	b := loadedFamilyT(t, []*Gap{
 		{ID: "G-carried", Open: true, Material: true},
 		{ID: "G-pending", Open: true, Material: true},
 		{ID: "G-fresh", Open: true, Material: true},
 	},
 		[]*Event{
+			mintsGap(t, "red-lens-logic", "G-carried"),
+			mintsGap(t, "red-lens-logic", "G-pending"),
 			file("M1", "G-carried"),
 			recordtest.Event(t, "judge", &recordpb.MotionRule{
 				MotionId: proto.String("M1"),
@@ -287,6 +289,7 @@ func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
 				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 					Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 					ReopensOn:   proto.String("blue reporting what the stated direction found"),
+					Principle:   proto.String("p"), Tension: proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s"),
 				}},
 			}),
 			file("M2", "G-pending"),

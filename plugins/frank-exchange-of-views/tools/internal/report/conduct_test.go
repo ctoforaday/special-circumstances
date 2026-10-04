@@ -25,7 +25,7 @@ func registers(t *testing.T, rows ...[3]string) record.Family {
 		}
 		evs = append(evs, recordtest.Event(t, r[0], reg))
 	}
-	return record.NewFamily(nil, evs)
+	return record.NewFamily(nil, record.Merged{Events: evs})
 }
 
 // THE SUBSTITUTION HAS TO REACH THE READER, because the reader is the only party who can act on
@@ -107,7 +107,7 @@ func TestAnUnsubstitutedRunStillNamesWhatAnswered(t *testing.T) {
 // fixtures and partial runs; a heading with no rows under it is a claim that the question was
 // asked and came back blank, which is not what happened.
 func TestNoRegistersRendersNoSection(t *testing.T) {
-	if got := conduct(record.Run{}, (record.NewFamily(nil, nil))); got != "" {
+	if got := conduct(record.Run{}, (record.NewFamily(nil, record.Merged{}))); got != "" {
 		t.Errorf("a board with no register events rendered a section:\n%s", got)
 	}
 }

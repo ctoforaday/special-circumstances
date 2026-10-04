@@ -41,7 +41,7 @@ func TestGapHoleHeuristic(t *testing.T) {
 			}),
 		},
 	}
-	m := gapFlowMermaid(b.fam())
+	m := gapFlowMermaid(b.fam(t))
 
 	// A chair close with a closure_class is closed, NOT a hole.
 	if lineClass(m, "g_MERGE_CLOSED") != "closed" {
@@ -77,11 +77,11 @@ func TestSeatFlowTalliesEvents(t *testing.T) {
 	b := &boardT{
 		Events: []*record.Event{
 			recordtest.Event(t, "red-chair", &recordpb.Register{}),
-			recordtest.Event(t, "red-chair", &recordpb.Mint{}),
-			recordtest.Event(t, "red-chair", &recordpb.Mint{}),
+			recordtest.Event(t, "red-chair", recordedMint("G1")),
+			recordtest.Event(t, "red-chair", recordedMint("G2")),
 		},
 	}
-	m := seatFlowMermaid(b.fam())
+	m := seatFlowMermaid(b.fam(t))
 	if !strings.Contains(m, "mint×2") || !strings.Contains(m, "red-chair") {
 		t.Errorf("seat flow should tally events per seat:\n%s", m)
 	}
@@ -108,12 +108,13 @@ func TestRuledGradeMotionIsNotAHole(t *testing.T) {
 			recordtest.Event(t, "red-chair", &recordpb.MotionRule{
 				MotionId: proto.String("M1"),
 				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
+				Opinion:  proto.String("the grade was argued and holds"),
 				Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_ACCEPTED},
 			}),
 		},
 	}
-	if got := lineClass(gapFlowMermaid(b.fam()), "g_ANSWERED"); got != "open" {
-		t.Errorf("a ruled grade motion must not be a hole, got %q:\n%s", got, gapFlowMermaid(b.fam()))
+	if got := lineClass(gapFlowMermaid(b.fam(t)), "g_ANSWERED"); got != "open" {
+		t.Errorf("a ruled grade motion must not be a hole, got %q:\n%s", got, gapFlowMermaid(b.fam(t)))
 	}
 }
 
@@ -122,6 +123,13 @@ func TestRuledGradeMotionIsNotAHole(t *testing.T) {
 // a real state and inventing one would make each fixture say more than the test means.
 func mint() *recordpb.Mint {
 	return &recordpb.Mint{Class: proto.String("c")}
+}
+
+// recordedMint is a mint the record can hold: every field the write path requires, on gap id.
+func recordedMint(id string) *recordpb.Mint {
+	return &recordpb.Mint{GapId: proto.String(id), Class: proto.String("c"), Problem: proto.String("p"),
+		AcceptanceCheck: proto.String("a"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+		Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}
 }
 
 // A GAP THAT REACHED THE BENCH AND GOT NO RULING IS THE SHAPE THIS DETECTOR IS FOR.
@@ -151,6 +159,7 @@ func TestAnUnruledDocketMotionIsAHoleAndARuledOneIsNot(t *testing.T) {
 					// disposition would make this pass for the wrong reason.
 					Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 					ReopensOn:   proto.String("the stated direction reporting back"),
+					Principle:   proto.String("p"), Tension: proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s"),
 				}},
 			}))
 		}
@@ -166,7 +175,7 @@ func TestAnUnruledDocketMotionIsAHoleAndARuledOneIsNot(t *testing.T) {
 	}
 	b.Events = append(docket("UNHEARD", "M1", false), docket("HEARD", "M2", true)...)
 
-	out := gapFlowMermaid(b.fam())
+	out := gapFlowMermaid(b.fam(t))
 	if got := lineClass(out, "g_UNHEARD"); got != "hole" {
 		t.Errorf("a gap put before the bench and never ruled is not flagged, got %q:\n%s", got, out)
 	}

@@ -52,7 +52,7 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if AvenueReviewDueOf(b.Events) {
+	if AvenueReviewDueOf(b.Events, b.At) {
 		t.Fatal("the round-1 review does not satisfy the round-1 duty")
 	}
 
@@ -64,10 +64,10 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := CurrentEpochOf(b.Events); got != 1 {
+	if got := b.At.CurrentEpoch(b.Events); got != 1 {
 		t.Fatalf("a bare register advanced CurrentEpoch to %d — a seat that has written nothing must not move the board's idea of now", got)
 	}
-	if AvenueReviewDueOf(b.Events) {
+	if AvenueReviewDueOf(b.Events, b.At) {
 		t.Error("a bare register from judge made the round-1 merge's review stale.\n\n" +
 			"The chair can never satisfy this — it acts at its own round and the gate has moved past it — " +
 			"so the round's duty is refused forever while the verb keeps reporting success.")
@@ -90,10 +90,10 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := CurrentEpochOf(b.Events); got != 2 {
+	if got := b.At.CurrentEpoch(b.Events); got != 2 {
 		t.Fatalf("real work in epoch 2 did not advance CurrentEpoch: got %d", got)
 	}
-	if !AvenueReviewDueOf(b.Events) {
+	if !AvenueReviewDueOf(b.Events, b.At) {
 		t.Error("round 2 owes its own review and the round-1 one answered for it — the round check is gone, not fixed")
 	}
 }

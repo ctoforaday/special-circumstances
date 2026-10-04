@@ -1,6 +1,8 @@
 package record
 
 import (
+	"encoding/json"
+	"maps"
 	"slices"
 	"testing"
 
@@ -35,6 +37,7 @@ func TestAFindingSaysWhichGapsCreditIt(t *testing.T) {
 			GapId: proto.String(gap), Class: proto.String("self-attestation"),
 			Problem: proto.String("p"), RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("a"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), FoundBy: foundBy,
+			Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		})
 	}
 	evs := []*Event{
@@ -43,7 +46,7 @@ func TestAFindingSaysWhichGapsCreditIt(t *testing.T) {
 		mint("R1-1", "L5-F1", "L6-F1"),
 	}
 	by := map[string][]string{}
-	for _, f := range FindingsJSONOf(evs).Findings {
+	for _, f := range findingsJSONT(t, evs).Findings {
 		by[f.Label] = f.MintedAs
 	}
 
@@ -79,13 +82,14 @@ func TestWithoutTheMintEventsEveryFindingReadsAsDropped(t *testing.T) {
 		GapId: proto.String("R1-1"), Class: proto.String("self-attestation"),
 		Problem: proto.String("p"), RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("a"),
 		CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), FoundBy: []string{"L5-F1"},
+		Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 	})
-	withMint := FindingsJSONOf([]*Event{finding, minted}).Findings
+	withMint := findingsJSONT(t, []*Event{finding, minted}).Findings
 	if len(withMint) != 1 || len(withMint[0].MintedAs) != 1 {
 		t.Fatalf("with the mint present the credit must be seen: %+v", withMint)
 	}
 	// The same finding, same label, mint withheld: the view cannot tell this from a real drop.
-	withoutMint := FindingsJSONOf([]*Event{finding}).Findings
+	withoutMint := findingsJSONT(t, []*Event{finding}).Findings
 	if len(withoutMint[0].MintedAs) != 0 {
 		t.Fatalf("unexpected credit with no mint in the stream: %+v", withoutMint)
 	}
@@ -94,43 +98,50 @@ func TestWithoutTheMintEventsEveryFindingReadsAsDropped(t *testing.T) {
 		t.Error("FindingsJSONBytes does not fetch MINT, so minted_as is empty for every finding on " +
 			"every run — reporting 'nothing was minted from any finding' in the same bytes as a drop")
 	}
-	// AND REGISTER, WHICH IS THE SAME DEFECT ALREADY LIVE IN THIS FUNCTION. Clock.Advance moves
-	// epoch and sitting on a register event and on nothing else, so a stream without them leaves
-	// every finding at epoch 0.
-	//
-	// Measured on origin/main before this line existed: all 20 findings of
-	// 2026-08-23_research-loop-counterparts — a run spanning four epochs — reported epoch 0. Not
-	// an error, a uniform plausible number. One function, two derived values, both depending on
-	// events the typed read did not ask for; the second was already broken when the first was
-	// added, which is why this asserts the whole list rather than the flag of the day.
-	if !slices.Contains(findingsViewEventTypes(), recordpb.EventType_EVENT_TYPE_REGISTER) {
-		t.Error("FindingsJSONBytes does not fetch REGISTER, so the Clock never advances and every " +
-			"finding reports epoch 0 — a run's whole history flattened to one number that looks real")
-	}
 }
 
-// THE EPOCH IS DERIVED FROM REGISTER EVENTS, and this is what it looks like when they are absent.
-//
-// Paired with the assertion above rather than replacing it: that one pins the typed READ, this one
-// pins the CONSEQUENCE, so a reader who changes the list learns what breaks rather than only that
-// something does.
-func TestWithoutRegisterEventsEveryFindingReadsAsEpochZero(t *testing.T) {
-	reg := func(seat string) *Event {
-		return recordtest.Event(t, seat, &recordpb.Register{ToolVersion: proto.String("test")})
-	}
+// A NARROWED READ CARRIES THE STORED EPOCH. The findings view reads two event families and no act
+// that opens a sitting, and each finding still reports the chair sitting the record holds it in —
+// including a chair sitting the hook opened with no register, which no count over the slice could
+// see. A loader that dropped the windows from the narrowed read would put every finding at 0.
+func TestANarrowedReadCarriesTheStoredEpoch(t *testing.T) {
 	find := func(label string) *Event {
 		return recordtest.Event(t, "red-lens-r1-L5", &recordpb.Finding{
 			FindingId: proto.String("f-" + label), Label: proto.String(label), Text: proto.String("x"),
 		})
 	}
-	// A chair register opens an epoch; the finding after it belongs to that epoch.
-	withReg := FindingsJSONOf([]*Event{reg("red-chair"), find("A"), reg("red-chair"), find("B")}).Findings
-	if len(withReg) != 2 || withReg[0].Epoch == withReg[1].Epoch {
-		t.Fatalf("two chair sittings must put the two findings in different epochs: %+v", withReg)
+	dir := newRun(t)
+	recordtest.Seed(t, dir,
+		find("A"), // epoch 0: before the chair has sat
+		recordtest.Event(t, "red-chair", &recordpb.Register{ToolVersion: proto.String("test")}),
+		find("B"), // epoch 1: the chair's register opened it
+		recordtest.Event(t, HarnessSeat, &recordpb.SittingOpen{AgentId: proto.String("chair-2"),
+			AgentType: proto.String("frank-exchange-of-views:red-chair"), SeatId: proto.String("red-chair")}),
+		find("C"), // epoch 2: the hook's bracket opened it, and the chair never registered
+	)
+	run := mustRun(t, dir)
+	evs, win, err := EventsOf(run, findingsViewEventTypes()...)
+	if err != nil {
+		t.Fatal(err)
 	}
-	// The same findings with the registers withheld: both collapse to one number.
-	withoutReg := FindingsJSONOf([]*Event{find("A"), find("B")}).Findings
-	if withoutReg[0].Epoch != 0 || withoutReg[1].Epoch != 0 {
-		t.Fatalf("expected the clock to stay at zero with no registers: %+v", withoutReg)
+	got := map[string]int{}
+	for _, f := range FindingsJSONOf(evs, win).Findings {
+		got[f.Label] = f.Epoch
+	}
+	if want := map[string]int{"A": 0, "B": 1, "C": 2}; !maps.Equal(got, want) {
+		t.Errorf("findings epochs off the narrowed read = %v, want %v (the chair sittings the record holds each in)", got, want)
+	}
+	out, err := FindingsJSONBytes(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fj FindingsJSON
+	if err := json.Unmarshal(out, &fj); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range fj.Findings {
+		if f.Epoch != got[f.Label] {
+			t.Errorf("show findings prints %s at epoch %d; the record holds it in %d", f.Label, f.Epoch, got[f.Label])
+		}
 	}
 }

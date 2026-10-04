@@ -27,7 +27,7 @@ import (
 )
 
 // chairRegister opens an epoch: the epoch is the count of red-chair sittings at or before an
-// event (record.Clock), so a fixture that means "in epoch N" must seat the chair N times. The
+// event (events_w), so a fixture that means "in epoch N" must seat the chair N times. The
 // seat id used to carry the number (red-chair-r2); it carries nothing now, and a seat that does
 // not register is in epoch 0 whatever it is called.
 func chairRegister(t *testing.T, sitting int) *recordpb.Event {
@@ -176,7 +176,7 @@ func recordFriction(t *testing.T, runDir string) []record.LogEntryJSON {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fj := record.LogJSONOf(b.Events)
+	fj := record.LogJSONOf(b.Events, b.At)
 	return append(append([]record.LogEntryJSON{}, fj.Log...), fj.Log...)
 }
 
@@ -575,7 +575,7 @@ func TestHarvestPrecedents(t *testing.T) {
 	if len(longRationale) <= 600 {
 		t.Fatal("fixture must exceed the old 600-char cap")
 	}
-	board := record.NewFamily(nil, []*record.Event{
+	board := record.NewFamily(nil, record.Merged{Events: []*record.Event{
 		// THE BENCH'S DISPOSITION IS A DOCKET MOTION'S RULING, and it takes both events. The
 		// gap rides the FILING — the harvest joins them through record.Motions to learn which
 		// gap a disposition settled — so a fixture with only the ruling would anchor every
@@ -645,7 +645,7 @@ func TestHarvestPrecedents(t *testing.T) {
 			Opinion:  proto.String("disclosure does not lower likelihood"),
 			Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED},
 		}),
-	})
+	}})
 
 	r := HarvestPrecedents(runtest.New(t, runDir), nil, filepath.Join(repo, "law"), board.Events)
 	// ONLY THE DECLARATION. The board above also holds two docket dispositions and a granted

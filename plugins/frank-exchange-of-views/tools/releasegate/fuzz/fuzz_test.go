@@ -1013,7 +1013,7 @@ func (r *runner) someCitation() string {
 	if !ok {
 		return ""
 	}
-	sources := record.EvidenceJSONOf(b.Events).Sources
+	sources := record.EvidenceJSONOf(b.Events, b.At).Sources
 	if len(sources) == 0 {
 		return ""
 	}
@@ -1306,11 +1306,11 @@ func (r *runner) someFinding() string {
 	// EventsOf(run, FINDING) into FindingsJSONOf — so this reproduces the CLI's own path rather
 	// than the board it used to ask for (#719). Byte-identity is the property that keeps this
 	// safe against the RNG, and it is identity with what the VERB does, not with what it did.
-	evs, err := record.EventsOf(r.runHandle, recordpb.EventType_EVENT_TYPE_FINDING)
+	evs, win, err := record.EventsOf(r.runHandle, recordpb.EventType_EVENT_TYPE_FINDING)
 	if err != nil {
 		return ""
 	}
-	findings := record.FindingsJSONOf(evs).Findings
+	findings := record.FindingsJSONOf(evs, win).Findings
 	if len(findings) == 0 {
 		return ""
 	}
@@ -3215,7 +3215,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 				contests[a.GetMotionId()] = "appealed"
 			}
 		}
-		for _, a := range record.AvenuesOf(board.Events) {
+		for _, a := range record.AvenuesOf(board.Events, board.At) {
 			ruling := record.AvenueRuling(runtest.Open(t, runDir), a.ID)
 			if ruling == "" || a.Status == "proposed" {
 				continue // never ruled, or blue has not answered yet
@@ -4482,7 +4482,7 @@ func (r *runner) ruleOpenAvenues(seatID string) {
 	if err != nil {
 		return
 	}
-	for _, a := range record.AvenuesOf(b.Events) {
+	for _, a := range record.AvenuesOf(b.Events, b.At) {
 		if rulingFor(a.Line) == "" || directionRuling(b, r.run(), a.ID) != "" {
 			continue
 		}
@@ -4501,7 +4501,7 @@ func directionRuling(b record.Family, run record.Run, avenueID string) string {
 	if v := record.AvenueRuling(run, avenueID); v != "" {
 		return v
 	}
-	for _, m := range record.MotionsOf(b.Events) {
+	for _, m := range record.MotionsOf(b.Events, b.At) {
 		if m.Subject == "avenue" && m.Fields["avenue_id"] == avenueID && m.Ruled() {
 			return m.Ruling
 		}
@@ -4516,7 +4516,7 @@ func (r *runner) answerAvenueRulings(seatID string) {
 	if err != nil {
 		return
 	}
-	for _, a := range record.AvenuesOf(b.Events) {
+	for _, a := range record.AvenuesOf(b.Events, b.At) {
 		ruling := directionRuling(b, r.run(), a.ID)
 		if ruling == "" || a.Status != "proposed" {
 			continue

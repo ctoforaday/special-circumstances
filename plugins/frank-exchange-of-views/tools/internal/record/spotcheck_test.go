@@ -10,7 +10,8 @@ import (
 )
 
 // board builds a Board with the gaps and events a spot-check audit reads.
-func spotBoard(gaps map[string]*Gap, evs ...*Event) Family {
+func spotBoard(t *testing.T, gaps map[string]*Gap, evs ...*Event) Family {
+	t.Helper()
 	// Sorted ids so the fixture family is deterministic, as the fold's GapOrder was.
 	var order []string
 	for id := range gaps {
@@ -25,7 +26,7 @@ func spotBoard(gaps map[string]*Gap, evs ...*Event) Family {
 		}
 		ordered = append(ordered, g)
 	}
-	return NewFamily(ordered, evs)
+	return loadedFamilyT(t, ordered, evs)
 }
 
 func closedIn(epoch int) *Gap { return &Gap{HasClosed: true, ClosedEpoch: epoch, Open: false} }
@@ -36,10 +37,10 @@ func closedIn(epoch int) *Gap { return &Gap{HasClosed: true, ClosedEpoch: epoch,
 // to write itself.
 func TestSpotCheckDebtOnlyWhereTheArchiveWasNonEmpty(t *testing.T) {
 	// A gap archived in epoch 1; the chair sits twice and acts in epoch 2 without sampling it.
-	b := spotBoard(map[string]*Gap{"G1": closedIn(1)},
+	b := spotBoard(t, map[string]*Gap{"G1": closedIn(1)},
 		chairSits(t), chairSits(t),
-		recordtest.Event(t, "red-chair", &recordpb.Close{}),
-		recordtest.Event(t, "red-chair", &recordpb.Position{}),
+		chairActs(t),
+		chairActs(t),
 	)
 	_, debt, _ := SpotCheckAudit(b)
 	if len(debt) != 1 || debt[0] != 2 {
@@ -48,9 +49,9 @@ func TestSpotCheckDebtOnlyWhereTheArchiveWasNonEmpty(t *testing.T) {
 
 	// The SAME shape with the closure landing IN epoch 2 owes nothing: the archive was empty
 	// when the epoch opened, which is the whole point of keying on its start.
-	b = spotBoard(map[string]*Gap{"G2": closedIn(2)},
+	b = spotBoard(t, map[string]*Gap{"G2": closedIn(2)},
 		chairSits(t), chairSits(t),
-		recordtest.Event(t, "red-chair", &recordpb.Close{}),
+		chairActs(t),
 	)
 	if _, debt, _ := SpotCheckAudit(b); len(debt) != 0 {
 		t.Errorf("a closure made DURING the epoch was not in the archive at its start; no debt is owed: %v", debt)
@@ -59,11 +60,11 @@ func TestSpotCheckDebtOnlyWhereTheArchiveWasNonEmpty(t *testing.T) {
 	// An epoch the chair never ACTED in owes nothing — the chair's second register opens it, but
 	// only blue does anything there. Demanding a sample from an absent seat is the round-number
 	// keying W1.8 replaced, in a new spelling.
-	b = spotBoard(map[string]*Gap{"G1": closedIn(1)},
+	b = spotBoard(t, map[string]*Gap{"G1": closedIn(1)},
 		chairSits(t),
-		recordtest.Event(t, "red-chair", &recordpb.Close{}),
+		chairActs(t),
 		chairSits(t),
-		recordtest.Event(t, "blue-respond", &recordpb.Position{}),
+		recordtest.Event(t, "blue-respond", &recordpb.Position{Text: proto.String("blue acts")}),
 	)
 	if _, debt, _ := SpotCheckAudit(b); len(debt) != 0 {
 		t.Errorf("the chair did not act in epoch 2; no duty was skipped: %v", debt)
@@ -72,9 +73,9 @@ func TestSpotCheckDebtOnlyWhereTheArchiveWasNonEmpty(t *testing.T) {
 
 // A discharge clears the debt.
 func TestSpotCheckDischargeClearsTheDebt(t *testing.T) {
-	b := spotBoard(map[string]*Gap{"G1": closedIn(1)},
+	b := spotBoard(t, map[string]*Gap{"G1": closedIn(1)},
 		chairSits(t), chairSits(t),
-		recordtest.Event(t, "red-chair", &recordpb.Close{}),
+		chairActs(t),
 		recordtest.Event(t, "red-chair", &recordpb.SpotCheck{Ids: []string{"G1"}, Reason: proto.String("the anchor still resolves")}),
 	)
 	checks, debt, falseEmpty := SpotCheckAudit(b)
@@ -93,9 +94,9 @@ func TestSpotCheckDischargeClearsTheDebt(t *testing.T) {
 // board can now refuse it. Every repair before this one asked the seat for the number it was
 // being checked against.
 func TestAFalseEmptyClaimIsCaught(t *testing.T) {
-	b := spotBoard(map[string]*Gap{"G1": closedIn(1)},
+	b := spotBoard(t, map[string]*Gap{"G1": closedIn(1)},
 		chairSits(t), chairSits(t),
-		recordtest.Event(t, "red-chair", &recordpb.Close{}),
+		chairActs(t),
 		recordtest.Event(t, "red-chair", &recordpb.SpotCheck{None: proto.Bool(true), Reason: proto.String("nothing archived")}),
 	)
 	_, debt, falseEmpty := SpotCheckAudit(b)
@@ -112,7 +113,7 @@ func TestAFalseEmptyClaimIsCaught(t *testing.T) {
 	}
 
 	// An HONEST --none, against an archive the board agrees was empty, is a discharge.
-	b = spotBoard(map[string]*Gap{},
+	b = spotBoard(t, map[string]*Gap{},
 		recordtest.Event(t, "red-chair", &recordpb.SpotCheck{None: proto.Bool(true), Reason: proto.String("nothing archived")}),
 	)
 	if _, _, fe := SpotCheckAudit(b); len(fe) != 0 {
@@ -121,7 +122,14 @@ func TestAFalseEmptyClaimIsCaught(t *testing.T) {
 }
 
 func TestSpotCheckAuditHandlesANilBoard(t *testing.T) {
-	if c, d, f := SpotCheckAudit(NewFamily(nil, nil)); c != nil || d != nil || f != nil {
+	if c, d, f := SpotCheckAudit(NewFamily(nil, Merged{})); c != nil || d != nil || f != nil {
 		t.Errorf("a nil board must not panic or invent violations: %v %v %v", c, d, f)
 	}
+}
+
+// chairActs is an act of the chair's in the sitting it is in — what makes an epoch one the chair
+// worked in.
+func chairActs(t *testing.T) *Event {
+	t.Helper()
+	return recordtest.Event(t, "red-chair", &recordpb.Position{Text: proto.String("the chair acts")})
 }

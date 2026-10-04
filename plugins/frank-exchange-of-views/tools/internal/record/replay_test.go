@@ -1240,7 +1240,7 @@ func TestBoardPublishesEventsInTheOrderItReducedIn(t *testing.T) {
 
 	// AND THE CONSUMER THAT READS IT AGREES. This is the half that shipped broken: the reduction
 	// was already correct, so only a consumer walking Board.Events could see the defect.
-	inq := AvenuesOf(b.Events)
+	inq := AvenuesOf(b.Events, b.At)
 	if len(inq) != 1 {
 		t.Fatalf("expected one avenue, got %d", len(inq))
 	}

@@ -23,7 +23,7 @@ func TestAHookRefusalIsLoggedUnderTheRefusedSeat(t *testing.T) {
 	if err := WriteToolEntry(runDir, Refusal, "agent-nobody", "refused a `Read`"); err != nil {
 		t.Fatalf("an unregistered agent is no seat and is skipped, not an error: %v", err)
 	}
-	evs, err := record.EventsOf(run, recordpb.EventType_EVENT_TYPE_LOG)
+	evs, _, err := record.EventsOf(run, recordpb.EventType_EVENT_TYPE_LOG)
 	if err != nil {
 		t.Fatal(err)
 	}

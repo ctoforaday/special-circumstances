@@ -42,7 +42,7 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	j := motionsJSONOf(b.Events)
+	j := motionsJSONOf(b.Events, b.At)
 	if len(j.Motions) != 1 {
 		t.Fatalf("projected %d motions, want 1", len(j.Motions))
 	}
@@ -72,7 +72,7 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, _ = FamilyOf(mustRun(t, runDir))
-	j = motionsJSONOf(b.Events)
+	j = motionsJSONOf(b.Events, b.At)
 	m = j.Motions[0]
 	if !m.Ruled || m.Ruling != "rejected" || m.Opinion == "" {
 		t.Fatalf("ruling not projected: %+v", m)

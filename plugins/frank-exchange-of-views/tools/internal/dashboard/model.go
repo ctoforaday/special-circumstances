@@ -175,7 +175,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 	// class plus an epoch PARSED OUT OF THE TRANSCRIPT HEAD; the record already holds the binding
 	// as a field on `register` and counts both windows off the stream, so the head no longer says
 	// which sitting this is — only which CLASS of seat, which is seatclass's job and stays so.
-	bindings := cost.SeatBindingsOf(fam.Events)
+	bindings := cost.SeatBindingsOf(fam.Events, fam.At)
 
 	// Lifecycle by agentId; class by transcript-head classification; identity (which seat, which
 	// sitting) from the record; times from the file.
@@ -304,8 +304,8 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		if bjErr != nil {
 			bj = record.BoardJSON{Open: []record.GapJSON{}, Closed: []record.GapJSON{}, Anomalies: []string{}}
 		}
-		fj := record.FindingsJSONOf(fam.Events)
-		frj := record.LogJSONOf(fam.Events)
+		fj := record.FindingsJSONOf(fam.Events, fam.At)
+		frj := record.LogJSONOf(fam.Events, fam.At)
 		friction.Count = frj.Counts.Total
 		if n := len(frj.Log); n > 0 {
 			last := frj.Log[n-1]
@@ -416,21 +416,24 @@ func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
 // page for a bench that never sat.
 func buildJudiciary(fam record.Family) Judiciary {
 	j := Judiciary{Measured: true, Rulings: map[string]int{}, ChainSpans: map[int]int{}}
-	// A judge sitting is a register that opens a sitting and names an occasion: the record refuses
-	// an occasion on any seat but the bench and requires one on the bench, so every occasion —
-	// docket, petition, terminal, assemble — is the bench sitting. A register that repairs a
-	// sitting opens none.
+	// A judge sitting is a stored sitting whose register names an occasion: the record refuses an
+	// occasion on any seat but the bench and requires one on the bench, so every occasion — docket,
+	// petition, terminal, assemble — is the bench sitting. Counted by the sitting the record holds
+	// each register in, so a register that joined its hook's bracket, a second register in one
+	// sitting, or a repair's register adds none.
+	judgeSat := map[int64]bool{}
 	for _, e := range fam.Live() {
 		reg, ok := recordpb.BodyAs[*recordpb.Register](e)
-		if !ok || !recordpb.OpensASitting(e) {
+		if !ok || reg.GetOccasion() == recordpb.Occasion_OCCASION_UNSPECIFIED {
 			continue
 		}
-		if reg.GetOccasion() != recordpb.Occasion_OCCASION_UNSPECIFIED {
-			j.JudgeSittings++
+		if id := fam.At.Of(e).SittingID; id != 0 {
+			judgeSat[id] = true
 		}
 	}
+	j.JudgeSittings = len(judgeSat)
 	// MotionsOf reads the acts that stand, so a ruling struck in its sitting is not counted.
-	for _, m := range record.MotionsOf(fam.Events) {
+	for _, m := range record.MotionsOf(fam.Events, fam.At) {
 		switch m.Subject {
 		case "docket":
 			if m.Ruled() {
@@ -449,8 +452,8 @@ func buildJudiciary(fam record.Family) Judiciary {
 	// The epoch an open gap has lived to is the record's current one: the last with work in it.
 	// A chair that has just sat opens an epoch nothing has happened in yet, and a gap has not
 	// lived through it.
-	current := record.CurrentEpochOf(fam.Events)
-	for _, ep := range record.DebateJSONOfEvents(fam.Events).Epochs {
+	current := fam.At.CurrentEpoch(fam.Events)
+	for _, ep := range record.DebateJSONOfEvents(fam.Events, fam.At).Epochs {
 		if ep.Verdict != "" {
 			j.LatestVerdict, j.VerdictEpoch = strings.ToUpper(ep.Verdict), ep.Epoch
 		}

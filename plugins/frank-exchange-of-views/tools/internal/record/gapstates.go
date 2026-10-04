@@ -16,20 +16,14 @@ import (
 //
 // It is the one assembly of the family (plans/board-as-views.md wave 3); the markdown renders
 // and their oracle read it in place of BoardState.
-func GapStates(run Run) ([]*Gap, error) {
-	evs, err := EventsOf(run,
-		// REGISTER IS NOT READ FOR ITS BODY. The fold's Clock counts chair registers to place each
-		// closure in its epoch, and a slice filtered to the body types would leave every closure
-		// in epoch 0 — silently, which is how the parity test found it.
-		recordpb.EventType_EVENT_TYPE_REGISTER,
-		recordpb.EventType_EVENT_TYPE_MINT,
-		recordpb.EventType_EVENT_TYPE_REGRADE,
-		recordpb.EventType_EVENT_TYPE_CLOSE,
-		recordpb.EventType_EVENT_TYPE_MOTION,
-		recordpb.EventType_EVENT_TYPE_MOTION_RULE)
-	if err != nil {
-		return nil, err
-	}
+//
+// IT TAKES THE WHOLE-RECORD READ ITS CALLER ALREADY HOLDS (m), not a read of its own. Every caller
+// also renders the stream, and a windowed read ranks every sitting on the record however narrow its
+// WHERE — so a second, narrowed read here paid that ranking twice for acts m already carries, each
+// with the same stored window.
+func GapStates(run Run, m Merged) ([]*Gap, error) {
+	evs := gapFamilyActs(m.Events)
+	win := m.At
 	// THE HISTORY IS A LISTING: every regrade, a struck one marked, before the fold below narrows
 	// the stream to the acts that stand.
 	history := map[string][]RegradeEntry{}
@@ -52,7 +46,7 @@ func GapStates(run Run) ([]*Gap, error) {
 			regrades[m.GetGapId()] = append(regrades[m.GetGapId()], m)
 		}
 	}
-	closures, unpairedDocket := closureStatesOf(evs)
+	closures, unpairedDocket := closureStatesOf(evs, win)
 	if len(unpairedDocket) > 0 {
 		return nil, fmt.Errorf("record: docket ruling(s) on motion(s) %s have no filing on this record — the gap each settles rides its FILING, so an unpaired ruling would leave a disposed gap reading as open", strings.Join(unpairedDocket, ", "))
 	}
@@ -156,25 +150,40 @@ func (f Family) Live() []*Event { return Live(f.Events) }
 // Listing is the stream a listing renders: the acts that stand, each preceded by what it struck.
 func (f Family) Listing() []Listed { return Listing(f.Events) }
 
-// FamilyOf assembles the family from the record: the gap view + typed loader (GapStates) and
-// the stream.
+// FamilyOf assembles the family from the record: one whole-record read (MergedEvents), and the gap
+// view + typed loader (GapStates) over it.
 func FamilyOf(run Run) (Family, error) {
-	gaps, err := GapStates(run)
-	if err != nil {
-		return Family{}, err
-	}
 	m, err := MergedEvents(run)
 	if err != nil {
 		return Family{}, err
 	}
-	f := NewFamily(gaps, m.Events)
-	f.At = m.At
-	return f, nil
+	gaps, err := GapStates(run, m)
+	if err != nil {
+		return Family{}, err
+	}
+	return NewFamily(gaps, m), nil
 }
 
-// NewFamily indexes the family once, so a lineage lookup is a map hit for every consumer.
-func NewFamily(gaps []*Gap, evs []*Event) Family {
-	return Family{Gaps: gaps, Events: evs, Struck: StruckIndexOf(evs), byID: GapsByID(gaps)}
+// NewFamily indexes the family once, so a lineage lookup is a map hit for every consumer. The stream
+// and its window index come from the one read that loaded them (m); a Merged built by hand has no
+// index, and a fold that asks it panics rather than read a zero.
+func NewFamily(gaps []*Gap, m Merged) Family {
+	return Family{Gaps: gaps, Events: m.Events, At: m.At, Struck: StruckIndexOf(m.Events), byID: GapsByID(gaps)}
+}
+
+// gapFamilyActs narrows the whole stream to the acts the gap family folds — the mints, regrades,
+// closes and motions, and the corrections that strike them — in record order.
+func gapFamilyActs(evs []*Event) []*Event {
+	var out []*Event
+	for _, e := range evs {
+		switch e.GetType() {
+		case recordpb.EventType_EVENT_TYPE_MINT, recordpb.EventType_EVENT_TYPE_REGRADE,
+			recordpb.EventType_EVENT_TYPE_CLOSE, recordpb.EventType_EVENT_TYPE_MOTION,
+			recordpb.EventType_EVENT_TYPE_MOTION_RULE, recordpb.EventType_EVENT_TYPE_CORRECTION:
+			out = append(out, e)
+		}
+	}
+	return out
 }
 
 // Gap is the family's index: the gap by id, or nil — the same answer b.Gaps[id] gave.

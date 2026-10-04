@@ -72,7 +72,7 @@ func TestAPetitionALensFilesConvenesTheBench(t *testing.T) {
 	if plan.PassPermitted {
 		t.Errorf("pass_permitted over an unheard petition")
 	}
-	rows, err := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_DISPATCH)
+	rows, _, err := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_DISPATCH)
 	if err != nil {
 		t.Fatal(err)
 	}

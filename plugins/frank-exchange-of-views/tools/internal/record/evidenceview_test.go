@@ -34,7 +34,7 @@ func TestEvidence_CitationAnchorResolvesToItsSource(t *testing.T) {
 		Location: proto.String("Seven is prime."), AccessDate: proto.String("2026-08-12"),
 	}))
 
-	got := EvidenceJSONOf(b)
+	got := evidenceJSONT(t, b)
 	if len(got.Sources) != 1 {
 		t.Fatalf("Sources = %d, want 1", len(got.Sources))
 	}
@@ -57,7 +57,7 @@ func TestEvidence_RedLensCiteIsNotASource(t *testing.T) {
 		evidenceEvent(t, 1, "lens-r1", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Text: proto.String("checked something")}),            // no label: red's
 		evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Label: proto.String("c-1"), Url: proto.String("u")}), // blue's
 	)
-	got := EvidenceJSONOf(b)
+	got := evidenceJSONT(t, b)
 	if len(got.Sources) != 1 || got.Sources[0].Anchor != "c-1" {
 		t.Fatalf("Sources = %+v, want only the labelled blue cite", got.Sources)
 	}
@@ -74,7 +74,7 @@ func TestEvidence_ProofCarriesAnchorAndTheShaReproduceTakes(t *testing.T) {
 		Exit: proto.Int32(0),
 	}))
 
-	got := EvidenceJSONOf(b)
+	got := evidenceJSONT(t, b)
 	if len(got.Proofs) != 1 {
 		t.Fatalf("Proofs = %d, want 1", len(got.Proofs))
 	}
@@ -97,7 +97,7 @@ func TestEvidence_UnverifiedProofSaysSoInTheJSON(t *testing.T) {
 	b := evidenceBoard(evidenceEvent(t, 1, "blue-r1", &recordpb.Proof{
 		ProofId: proto.String("p-1"), ProofSha: proto.String("s1"),
 	}))
-	out, err := json.Marshal(EvidenceJSONOf(b))
+	out, err := json.Marshal(evidenceJSONT(t, b))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestEvidence_ReproduceJoinsItsProofAndKeepsTheAxesApart(t *testing.T) {
 			Note:      proto.String("it prints its conclusion"),
 		}),
 	)
-	got := EvidenceJSONOf(b)
+	got := evidenceJSONT(t, b)
 	v := got.Proofs[0].Verified
 	if v == nil {
 		t.Fatal("Verified = nil — the proof_sha join did not happen")
@@ -147,7 +147,7 @@ func TestEvidence_VerificationAttachesToItsCitation(t *testing.T) {
 			Text:       proto.String("the abstract says it"),
 		}),
 	)
-	got := EvidenceJSONOf(b)
+	got := evidenceJSONT(t, b)
 	if len(got.Sources) != 1 || len(got.Sources[0].Verified) != 1 {
 		t.Fatalf("Sources = %+v, want the citation carrying its one verification", got.Sources)
 	}
@@ -167,11 +167,12 @@ func TestEvidence_IndependentChecksStandApart(t *testing.T) {
 		evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Label: proto.String("c-1"), Url: proto.String("https://example.org/p")}),
 		evidenceEvent(t, 1, "lens-r1", &recordpb.Verify{
 			Claim: proto.String("seven is prime"), Url: proto.String("a textbook I found"),
-			Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS),
-			Text:    proto.String("chapter 2"),
+			Outcome:    recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS),
+			Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH),
+			Text:       proto.String("chapter 2"),
 		}),
 	)
-	got := EvidenceJSONOf(b)
+	got := evidenceJSONT(t, b)
 	if len(got.Independent) != 1 {
 		t.Fatalf("Independent = %+v, want red's anchorless check", got.Independent)
 	}
@@ -184,7 +185,7 @@ func TestEvidence_IndependentChecksStandApart(t *testing.T) {
 // is what red reads to decide where its next pass goes.
 func TestEvidence_UncheckedSourceSaysSoInTheJSON(t *testing.T) {
 	b := evidenceBoard(evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Label: proto.String("c-1"), Url: proto.String("u")}))
-	out, err := json.Marshal(EvidenceJSONOf(b))
+	out, err := json.Marshal(evidenceJSONT(t, b))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,10 +205,10 @@ func TestEvidence_RefutedCitationsAreCounted(t *testing.T) {
 			evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Label: proto.String("c-1"), Url: proto.String("u")}),
 			evidenceEvent(t, 2, "lens-r2", &recordpb.Verify{
 				Anchor: proto.String("c-1"), Claim: proto.String("x"),
-				Outcome: outcome.Enum(), Text: proto.String("read it"),
+				Outcome: outcome.Enum(), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH), Text: proto.String("read it"),
 			}),
 		)
-		got := EvidenceJSONOf(b)
+		got := evidenceJSONT(t, b)
 		if got.Counts.SourcesRefuted != 1 {
 			t.Errorf("outcome %q: SourcesRefuted = %d, want 1 — a source red found against must be countable",
 				recordpb.Word(outcome), got.Counts.SourcesRefuted)
@@ -221,10 +222,10 @@ func TestEvidence_RefutedCitationsAreCounted(t *testing.T) {
 		evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Label: proto.String("c-1"), Url: proto.String("u")}),
 		evidenceEvent(t, 2, "lens-r2", &recordpb.Verify{
 			Anchor: proto.String("c-1"), Claim: proto.String("x"),
-			Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_WEAK), Text: proto.String("thin"),
+			Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_WEAK), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH), Text: proto.String("thin"),
 		}),
 	)
-	if got := EvidenceJSONOf(b); got.Counts.SourcesRefuted != 0 {
+	if got := evidenceJSONT(t, b); got.Counts.SourcesRefuted != 0 {
 		t.Errorf("`weak` counted as refuted — thin support is not contradiction, and conflating them turns a grading nuance into an assembly failure")
 	}
 }
@@ -232,7 +233,7 @@ func TestEvidence_RefutedCitationsAreCounted(t *testing.T) {
 // EMPTY IS EMPTY ARRAYS, NOT NULLS. A seat reading `"sources": null` has to know that means the
 // same as `[]`; the arrays are initialised so a fresh run answers in the shape a full one does.
 func TestEvidence_EmptyRunRendersArraysNotNulls(t *testing.T) {
-	out, err := json.Marshal(EvidenceJSONOf(evidenceBoard()))
+	out, err := json.Marshal(evidenceJSONT(t, evidenceBoard()))
 	if err != nil {
 		t.Fatal(err)
 	}

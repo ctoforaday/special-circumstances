@@ -527,7 +527,9 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 	// computes over the events (a lens registered and no chair has, so 0). The seat id used to
 	// carry a round; it carries nothing now, and no event stamps one.
 	env := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_FINDING)
-	if got := record.CurrentEpochOf(events(t, runDir)); got != 0 {
+	if m, err := record.MergedEvents(runtest.Open(t, runDir)); err != nil {
+		t.Fatal(err)
+	} else if got := m.At.CurrentEpoch(m.Events); got != 0 {
 		t.Errorf("epoch = %d, want 0 — no chair has registered in this run", got)
 	}
 	if env.GetKey() != seatID+":finding:evidence-F1" {

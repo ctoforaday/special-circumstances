@@ -47,8 +47,8 @@ func TestTheReportShowsACorrectedActStruck(t *testing.T) {
 	struck := func(text string) string { return "~~" + text + "~~ (struck by blue-respond: a word was lost)" }
 	sections := map[string]string{
 		"correctness manifest": correctnessManifest(fam),
-		"debate":               debate(fam, evs),
-		"log":                  logSection(evs),
+		"debate":               debate(fam),
+		"log":                  logSection(fam),
 	}
 	for name, want := range map[string][]string{
 		"correctness manifest": {"### Blue's correctness manifest (1)", struck("G1 is reproducible via"), "G1 is reproducible via the recorded proof"},
@@ -77,12 +77,13 @@ func TestJudgmentsShowACorrectedRulingStruck(t *testing.T) {
 				Tension: proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s"), ReopensOn: proto.String("r")}}}
 	}
 	evs := []*record.Event{
+		mintT(t, "red-lens-logic", "G1"),
 		recordtest.At(t, "red-chair", "red-chair:motion:#1", &recordpb.Motion{MotionId: proto.String("M1"),
 			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET), Basis: proto.String("red cannot settle G1"),
 			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}),
 	}
 	evs = append(evs, corrected(t, "judge", "judge:motion_rule:#1", ruling("because  refuses"), ruling("because the gate refuses"))...)
-	got := motions((&boardT{Events: evs}).fam())
+	got := motions((&boardT{Events: evs}).famT(t))
 	struck := strings.Index(got, "~~ruled by judge — because  refuses~~ (struck by judge: a word was lost)")
 	stands := strings.Index(got, "because the gate refuses")
 	if struck < 0 || stands < 0 || stands < struck {

@@ -135,14 +135,13 @@ func StruckAvenueTexts(evs []*Event) map[string][]StruckText {
 	return out
 }
 
-func AvenuesOf(evs []*Event) []*Avenue {
+func AvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 	// The acts that stand: a proposal or move corrected in its sitting is read as its replacement.
 	evs = Live(evs)
 	byID := map[string]*Avenue{}
 	var order []string
-	var clk Clock
 	for _, e := range evs {
-		w := clk.Advance(e)
+		w := win.Of(e)
 		body, ok := recordpb.Body(e)
 		if !ok {
 			// NO BODY IS NOT AN EMPTY ONE. An event the schema carries no body for names no
@@ -299,10 +298,10 @@ func RequireAvenueRef(run Run, id string) error {
 }
 
 // StaleAvenuesOf is StaleAvenues over the events themselves.
-func StaleAvenuesOf(evs []*Event) []*Avenue {
-	now := CurrentEpochOf(evs)
+func StaleAvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
+	now := win.CurrentEpoch(evs)
 	var out []*Avenue
-	for _, a := range AvenuesOf(evs) {
+	for _, a := range AvenuesOf(evs, win) {
 		switch a.Status {
 		case "proposed":
 			out = append(out, a)
@@ -336,15 +335,14 @@ func AvenueRuling(run Run, avenueID string) string {
 }
 
 // AvenueReviewDueOf is AvenueReviewDue over the events themselves.
-func AvenueReviewDueOf(evs []*Event) bool {
+func AvenueReviewDueOf(evs []*Event, win WindowIndex) bool {
 	evs = Live(evs)
-	if len(AvenuesOf(evs)) == 0 {
+	if len(AvenuesOf(evs, win)) == 0 {
 		return false
 	}
-	now := CurrentEpochOf(evs)
-	var clk Clock
+	now := win.CurrentEpoch(evs)
 	for _, e := range evs {
-		w := clk.Advance(e)
+		w := win.Of(e)
 		// THE BODY IS THE TYPE, as everywhere else in this file: a match on the message cannot go
 		// stale against the enum. No field is read — the event's existence in this epoch IS the
 		// fact — but the type test still goes through the body so a renamed enum value fails to
@@ -388,9 +386,9 @@ type AvenuesJSON struct {
 
 // AvenuesJSONOf folds the events into the wire form, in the same order the rendered projection
 // walks them, so the two accounts of the same directions cannot disagree about order.
-func AvenuesJSONOf(evs []*Event) AvenuesJSON {
+func AvenuesJSONOf(evs []*Event, win WindowIndex) AvenuesJSON {
 	out := AvenuesJSON{Avenues: []AvenueJSON{}}
-	for _, a := range AvenuesOf(evs) {
+	for _, a := range AvenuesOf(evs, win) {
 		out.Avenues = append(out.Avenues, AvenueJSON{
 			ID: a.ID, Line: a.Line, Hypothesis: a.Hypothesis, Method: a.Method,
 			Status: a.Status, Reason: a.Reason, Epoch: a.Epoch, History: a.History,

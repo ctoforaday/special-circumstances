@@ -10,6 +10,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -34,19 +35,19 @@ func registerFor(t *testing.T, seat, agent string, occ recordpb.Occasion) *recor
 	return recordtest.Event(t, seat, reg)
 }
 
-// THE EPOCH AND THE SITTING ARE COUNTED OFF THE REGISTERS, NOT STAMPED. A lens that sits before
-// the chair has ever sat is in epoch 0; the chair's own register opens the epoch it is in; a
-// seat's second register is its sitting 2 whatever epoch it lands in.
-func TestSeatBindingsCountTheWindowsOffTheRegisters(t *testing.T) {
-	evs := []*record.Event{
+// THE EPOCH AND THE SITTING ARE THE ONES THE RECORD STORES EACH REGISTER IN, NOT STAMPED. A lens
+// that sits before the chair has ever sat is in epoch 0; the chair's own register opens the epoch
+// it is in; a seat's second register is its sitting 2 whatever epoch it lands in.
+func TestSeatBindingsReadTheStoredWindowOfEachRegister(t *testing.T) {
+	fam := runtest.Family(t, nil,
 		register(t, "red-lens-evidence", "L1"), // epoch 0, sitting 1
 		register(t, "red-chair", "C1"),         // opens epoch 1, sitting 1
 		register(t, "blue-respond", "B1"),      // epoch 1, sitting 1
 		register(t, "red-chair", "C2"),         // opens epoch 2, sitting 2
 		register(t, "red-lens-evidence", "L2"), // epoch 2, sitting 2
 		register(t, "judge", ""),               // no agent id: binds nothing
-	}
-	got := SeatBindingsOf(evs)
+	)
+	got := SeatBindingsOf(fam.Events, fam.At)
 	want := map[string]SeatBinding{
 		"L1": {SeatID: "red-lens-evidence", Epoch: 0, Sitting: 1},
 		"C1": {SeatID: "red-chair", Epoch: 1, Sitting: 1},
@@ -67,12 +68,55 @@ func TestSeatBindingsCountTheWindowsOffTheRegisters(t *testing.T) {
 // THE LAST REGISTER WINS, as record.SeatOfAgent has it: a resumed seat arrives under a new agent
 // id claiming a seat already bound, and an agent that registers twice is bound to its latest claim.
 func TestSeatBindingsTakeTheLatestRegister(t *testing.T) {
-	got := SeatBindingsOf([]*record.Event{
+	fam := runtest.Family(t, nil,
 		register(t, "red-chair", "A"),
 		register(t, "red-chair", "A"),
-	})
+	)
+	got := SeatBindingsOf(fam.Events, fam.At)
 	if got["A"] != (SeatBinding{SeatID: "red-chair", Epoch: 2, Sitting: 2}) {
 		t.Errorf("A = %+v, want the second register's window", got["A"])
+	}
+}
+
+// bracket is the SubagentStart hook's sitting_open: it opens seat's sitting under agent, and names
+// the seat when the configuration resolves to one ("" for blue's lanes, which it does not).
+func bracket(t *testing.T, seat, agent string) *recordpb.Event {
+	t.Helper()
+	open := &recordpb.SittingOpen{AgentId: proto.String(agent), AgentType: proto.String("frank-exchange-of-views:x")}
+	if seat != "" {
+		open.SeatId = proto.String(seat)
+	}
+	return recordtest.Event(t, record.HarnessSeat, open)
+}
+
+// A SITTING THE HOOK BRACKETED AND NO REGISTER JOINED IS STILL BOUND, by its bracket, as the
+// seat_of_agent view binds it: a lens woken with nothing to do need not register (#1089). Where a
+// register names the agent too, the register wins, whichever came first; a bracket naming no seat
+// binds nothing.
+func TestSeatBindingsBindABracketOnlySitting(t *testing.T) {
+	fam := runtest.Family(t, nil,
+		bracket(t, "red-lens-voice", "V1"),   // bracket only: voice sitting 1, epoch 0
+		bracket(t, "red-chair", "C1"),        // epoch 1
+		register(t, "red-chair", "C1"),       // joins C1's bracket: the register binds
+		bracket(t, "red-lens-voice", "V2"),   // bracket only: voice sitting 2, epoch 1
+		bracket(t, "", "LANE"),               // names no seat
+		register(t, "red-lens-logic", "X"),   // a register, then a bracket naming another seat:
+		bracket(t, "red-lens-evidence", "X"), // the register wins, as in seat_of_agent
+	)
+	got := SeatBindingsOf(fam.Events, fam.At)
+	want := map[string]SeatBinding{
+		"V1": {SeatID: "red-lens-voice", Epoch: 0, Sitting: 1},
+		"C1": {SeatID: "red-chair", Epoch: 1, Sitting: 1},
+		"V2": {SeatID: "red-lens-voice", Epoch: 1, Sitting: 2},
+		"X":  {SeatID: "red-lens-logic", Epoch: 1, Sitting: 1},
+	}
+	if len(got) != len(want) {
+		t.Errorf("bound %d agents, want %d: %+v", len(got), len(want), got)
+	}
+	for id, w := range want {
+		if got[id] != w {
+			t.Errorf("%s = %+v, want %+v", id, got[id], w)
+		}
 	}
 }
 

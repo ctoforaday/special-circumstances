@@ -3,10 +3,11 @@
 //
 // # The sitting is the register
 //
-// The record already defines a sitting: a seat's Nth sitting is the window opened by its Nth
-// register event (record.Clock, events_w). This counts in that same window rather than inventing
-// a second one. `register` writes a header naming the agent's seat and sitting number, and every
-// call after it is counted against that sitting until the next register replaces the header.
+// The record stores a seat's sittings (events.sitting_id, ranked by events_w): the hook's bracket
+// opens one and the seat's register under the same agent joins it. This counts from the register,
+// the one act every sitting that writes performs: `register` writes a header naming the agent's
+// seat and sitting number, and every call after it is counted against that sitting until the next
+// register replaces the header.
 //
 // SubagentStart and the sitting_open span were the other candidates, and both mark a DISPATCH
 // rather than a sitting. A warm session resumed for a second sitting fires neither, and a seat

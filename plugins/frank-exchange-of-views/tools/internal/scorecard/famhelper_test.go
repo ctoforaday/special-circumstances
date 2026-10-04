@@ -18,7 +18,7 @@ import (
 func famSeededT(t *testing.T, evs []*record.Event) *record.Family {
 	t.Helper()
 	var mints []*record.Event
-	for _, g := range []string{"G1", "G2", "G3"} {
+	for _, g := range []string{"G1", "G2", "G3", "G4", "G5"} {
 		mints = append(mints, recordtest.Event(t, "red-lens-logic", &recordpb.Mint{GapId: proto.String(g), Class: proto.String("x"),
 			Problem: proto.String("p"), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}))
@@ -30,6 +30,6 @@ func famSeededT(t *testing.T, evs []*record.Event) *record.Family {
 // famOfEventsT builds an events-only family fixture; nil stays nil where a test means
 // "record unreadable".
 func famOfEventsT(evs []*record.Event) *record.Family {
-	f := record.NewFamily(nil, evs)
+	f := record.NewFamily(nil, record.Merged{Events: evs})
 	return &f
 }

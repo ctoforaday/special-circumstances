@@ -28,7 +28,7 @@ func TestANarrowedReadOverAnUndeclaredTypeIsRefused(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	evs, err := EventsOfTypes(db, "log")
+	evs, _, err := EventsOfTypes(db, "log")
 	if err == nil {
 		t.Fatalf("a narrowed read over an undeclared vocabulary returned %d events and no error — "+
 			"that empty result is what renders as a clean board", len(evs))
@@ -52,7 +52,7 @@ func TestANarrowedReadForATypeTheRecordDoesNotHoldIsStillZero(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO "events" ("seat_id","ts","type","key") VALUES ('s','t','position','k')`); err != nil {
 		t.Fatal(err)
 	}
-	evs, err := EventsOfTypes(db, "finding")
+	evs, _, err := EventsOfTypes(db, "finding")
 	if err != nil {
 		t.Fatalf("a record with a wholly declared vocabulary was refused: %v", err)
 	}

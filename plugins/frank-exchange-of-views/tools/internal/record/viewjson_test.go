@@ -41,7 +41,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 		// section is carried by its position, which is what this test reads.
 	})
 	// THE BENCH'S DISPOSITION IS A DOCKET MOTION'S RULING, and it takes two events: the FILING
-	// carries the gap (that is the join the Lead rows read through MotionsOf(b.Events)) and the RULING
+	// carries the gap (that is the join the Lead rows read through MotionsOf(b.Events, b.At)) and the RULING
 	// carries the disposition and the bench's prose. Seeding only the ruling would leave the
 	// Lead row naming no gap, which is exactly the silent-empty this split exists to remove.
 	writeShard(t, runDir, []*Event{
@@ -75,7 +75,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dj := DebateJSONOfEvents(m.Events)
+	dj := DebateJSONOfEvents(m.Events, m.At)
 
 	if len(dj.Epochs) != 2 {
 		t.Fatalf("want 2 epochs, got %d: %+v", len(dj.Epochs), dj.Epochs)

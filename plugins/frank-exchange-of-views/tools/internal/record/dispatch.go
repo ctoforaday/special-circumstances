@@ -333,23 +333,12 @@ func PlanDispatch(run Run) (Plan, error) {
 	// the chair records the PASS as ever. The docket stands — filing a motion dispatches no seat,
 	// and the terminal bench rules what stays unruled at the exit.
 	plan.MaxEpochs = params.MaxEpochs
-	if params.MaxEpochs > 0 && len(plan.Parties) > 0 && epochOf(evs) >= params.MaxEpochs {
+	if params.MaxEpochs > 0 && len(plan.Parties) > 0 && win.LastEpoch(evs) >= params.MaxEpochs {
 		plan.Why = append(plan.Why, fmt.Sprintf("epoch limit %d reached — this chair sitting opens the run's last epoch, so the %d party(ies) above are not dispatched", params.MaxEpochs, len(plan.Parties)))
 		plan.Parties = []Party{}
 		plan.EpochLimitReached, plan.Ceiling = true, true
 	}
 	return plan, nil
-}
-
-// epochOf is the epoch the record's clock has reached — one per chair register, the clock every
-// reader of "epoch" uses.
-func epochOf(evs []*Event) int {
-	var clk Clock
-	epoch := 0
-	for _, e := range evs {
-		epoch = clk.Advance(e).Epoch
-	}
-	return epoch
 }
 
 // dispatchRow is one dispatch event: where it sits in the stream, the head it pinned, the seat it
@@ -617,10 +606,10 @@ func (c sittingCloser) end(seat string, from int64) (int64, bool) {
 // sequences the two, so a dispatch row after a register belongs to a later chair sitting, and one
 // before any register belongs to the same.
 //
-// NOT THE CLOCK'S CHAIR-SITTING COUNT, and the difference is measured. The clock counts the
-// chair's registers, and a warm chair — a later sitting resuming the same session — registered
-// ONCE per run on all four archived is-91-prime B runs (B3–B6), so every chair sitting read as
-// sitting 1 and every dispatch of the run as one. Nor one row set per `dispatch next`: the B5 and
+// NOT THE EPOCH, and the difference is measured. The epoch counts the chair's stored sittings, and
+// a warm chair — a later sitting resuming the same session — opens none: it registered ONCE per run
+// on all four archived is-91-prime B runs (B3–B6), so every chair sitting read as sitting 1 and
+// every dispatch of the run as one. Nor one row set per `dispatch next`: the B5 and
 // B6 chairs each ran the verb twice in their first sitting, once for the prose and once for
 // --json, and wrote the plan twice, 4 s apart, with nobody sitting in between.
 type DispatchGroup struct {
@@ -696,7 +685,7 @@ func registeredBetween(registers []int64, a, b int64) bool {
 	return ok && r < b
 }
 
-// chairSeat is the seat whose registers the clock counts as epochs.
+// chairSeat is the seat whose sittings are the record's epochs.
 const chairSeat = "red-chair"
 
 // benchSeat is the bench's seat — the one that holds the gavel for the subjects the schema gives
@@ -708,15 +697,15 @@ const blueRespondSeat = "blue-respond"
 
 // unopenedChairSitting is the chair's latest dispatch when a party has SAT for it (sittingFor)
 // and the chair has not registered since recording it. The workflow comes back to the chair only
-// after the parties sit, so that is a new chair sitting no register opened: the clock would read
-// it as the previous epoch, and the dispatch groups would have only the parties' registers to
-// split on. Every seat's sitting opens with a register; this is the chair's owed one.
+// after the parties sit, so that is a new chair sitting no register opened: unless the hook
+// bracketed it, the record holds its acts in the previous epoch, and the dispatch groups would have
+// only the parties' registers to split on. Every seat's sitting opens with a register; this is the chair's owed one.
 //
 // THE EXCHANGE COUNT NO LONGER DEPENDS ON IT. exchangesOf closed a party's sitting at the chair's
 // next register, so a chair that skipped this register silently zeroed the fold; it now closes a
 // sitting at the sitting seat's OWN next register or its own agent's stop, whichever is first
 // (#1002). This item stands on its own ground —
-// the clock and the groups — and the fold stands on the parties'.
+// the epoch and the groups — and the fold stands on the parties'.
 func unopenedChairSitting(evs []*Event, win WindowIndex) (DispatchGroup, bool) {
 	groups := DispatchGroups(evs, win)
 	if len(groups) == 0 {
@@ -738,7 +727,7 @@ func unopenedChairSitting(evs []*Event, win WindowIndex) (DispatchGroup, bool) {
 func dispatchEventsOf(run Run) ([]*Event, WindowIndex, error) {
 	db, err := openRunForRead(run)
 	if err != nil || db == nil {
-		return nil, WindowIndex{}, err
+		return nil, windowIndexOf(nil, nil), err
 	}
 	return eventsAt(db)
 }

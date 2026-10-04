@@ -6,6 +6,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // A CORROBORATION THAT PLACED A MARKER IS A SOURCE (gblock's ruling, 2026-09-11). In B9 red-lens-
@@ -15,11 +16,13 @@ import (
 func TestEvidence_ACorroborationThatPlacedAMarkerIsASource(t *testing.T) {
 	b := evidenceBoard(
 		evidenceEvent(t, 1, "red-lens-evidence", &recordpb.Verify{Claim: proto.String("the textbook example"),
-			Label: proto.String("c-d49a32c4"), Url: proto.String("https://w/fp"), Title: proto.String("Fermat pseudoprime")}),
+			Label: proto.String("c-d49a32c4"), Url: proto.String("https://w/fp"), Title: proto.String("Fermat pseudoprime"),
+			Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH), Text: proto.String("read it")}),
 		evidenceEvent(t, 1, "red-lens-evidence", &recordpb.Verify{Claim: proto.String("a check with no marker"),
-			Url: proto.String("https://w/other"), Title: proto.String("Other")}),
+			Url: proto.String("https://w/other"), Title: proto.String("Other"),
+			Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH), Text: proto.String("read it")}),
 	)
-	got := EvidenceJSONOf(b)
+	got := evidenceJSONT(t, b)
 
 	var src *EvidenceSourceJSON
 	for i := range got.Sources {

@@ -100,15 +100,16 @@ func MintCheckKind(run Run, gapID string) (recordpb.CheckKind, error) {
 
 // EventsOf reads back only the named event families, in record order — the read for a
 // projection that renders one kind of act (findings, friction, the debate prose) and has no
-// business hauling the whole record through the loader to get it. A run with no record yet
-// holds none of anything.
-func EventsOf(run Run, types ...recordpb.EventType) ([]*Event, error) {
+// business hauling the whole record through the loader to get it — with each event's stored window
+// (WindowIndex), so the projection prints the epoch and sitting the record holds without loading
+// the acts that opened them. A run with no record yet holds none of anything.
+func EventsOf(run Run, types ...recordpb.EventType) ([]*Event, WindowIndex, error) {
 	db, err := openRunForRead(run)
 	if err != nil {
-		return nil, err
+		return nil, WindowIndex{}, err
 	}
 	if db == nil {
-		return nil, nil
+		return nil, WindowIndex{}, nil
 	}
 	words := make([]string, len(types))
 	correctable := false
@@ -122,12 +123,23 @@ func EventsOf(run Run, types ...recordpb.EventType) ([]*Event, error) {
 	if correctable {
 		words = append(words, recordpb.Word(recordpb.EventType_EVENT_TYPE_CORRECTION))
 	}
-	return recordsql.EventsOfTypes(db, words...)
+	evs, ws, err := recordsql.EventsOfTypes(db, words...)
+	if err != nil {
+		return nil, WindowIndex{}, err
+	}
+	return evs, narrowedIndexOf(evs, ws), nil
 }
 
 // Epochs lists every epoch the record touched, ascending — the skeleton a per-epoch
 // projection hangs on, INCLUDING epochs whose only acts are outside that projection's
 // families (an epoch of nothing but mints still renders as an empty debate epoch).
+//
+// TWO ROWS ARE READ, NOT EVERY ROW. A row's epoch (events_w) is the count of the chair's sittings
+// opened at or before it: a step function of the row id that rises by exactly one at each chair
+// opening, and every opening is itself a row. So the epochs touched are every integer from the first
+// row's epoch to the last row's, and those two rows are all this asks events_w for. The DISTINCT scan
+// it replaces ranked every row on the record — a second whole-record pass beside the narrowed read
+// of the projection that asks.
 func Epochs(run Run) ([]int, error) {
 	db, err := openRunForRead(run)
 	if err != nil {
@@ -136,20 +148,29 @@ func Epochs(run Run) ([]int, error) {
 	if db == nil {
 		return nil, nil
 	}
-	rows, err := db.Query(`SELECT DISTINCT "epoch" FROM "events_w" ORDER BY "epoch"`)
+	rows, err := db.Query(`SELECT "epoch" FROM "events_w"
+	  WHERE "id" = (SELECT MIN("id") FROM "events") OR "id" = (SELECT MAX("id") FROM "events")
+	  ORDER BY "id"`)
 	if err != nil {
 		return nil, fmt.Errorf("record: asking the record for its epochs: %w", err)
 	}
 	defer rows.Close()
-	var out []int
+	var ends []int
 	for rows.Next() {
 		var r int
 		if err := rows.Scan(&r); err != nil {
 			return nil, err
 		}
+		ends = append(ends, r)
+	}
+	if err := rows.Err(); err != nil || len(ends) == 0 {
+		return nil, err
+	}
+	var out []int
+	for r := ends[0]; r <= ends[len(ends)-1]; r++ {
 		out = append(out, r)
 	}
-	return out, rows.Err()
+	return out, nil
 }
 
 // RegisteredSeats lists the seat ids that registered in this run, in event order — every seat
