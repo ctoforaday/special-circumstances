@@ -11,6 +11,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -1185,33 +1186,96 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	}
 }
 
-// AN OMITTED --tension IS REFUSED AND AN EMPTY ONE IS AN ANSWER, and the verb keeps the two apart.
+// THE VERB REFUSES A BLANK --tension OR --review-flag AND A REMAND WITH NO DIRECTION, and takes a
+// blank --settled (gblock, 2026-10-04).
 //
-// The three are required by presence (operator, 2026-08-22: demanding prose would produce
-// invented tension and pro-forma flags). The verb used to write an omitted flag as "", which
-// made omission and the honest blank the same bytes — so the requirement refused nothing (#1234).
-// This is the other half: the REQUIRED marking must not harden into "non-empty".
-func TestBenchDocketRuleTakesAnHonestBlank(t *testing.T) {
-	runDir := newRun(t)
-	registerChairOnce(t, runDir)
-	registerLensOnce(t, runDir)
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
-		"--key", "k", "--class", "x", "--check-kind", "document", "--check", "c",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
-		t.Fatal(err)
+// An empty tension or review flag cannot be told from a bench that skipped the question; a remand
+// sends the gap back for one more exchange owing the direction its --reopens-on states, and
+// --final says nothing would reopen a gap the remand is reopening. A ruling may bar no
+// proposition, so --settled "" stays an answer — and the verb writes it present, not absent
+// (#1234): omission and the blank are kept apart.
+func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(t *testing.T) {
+	stated := map[string]string{
+		"--tension":     "correctness against economy",
+		"--review-flag": "none: the reproduction the remand asks for settles it",
+		"--settled":     "",
+		"--reopens-on":  "a reproduction on the shipped binary",
 	}
-	m := docketFile(t, runDir, "red-chair", "G1", "contested, and not mine to close")
-	if _, err := run(t, "motion", "docket", "rule", "--run", runDir, "--seat-id", "judge",
-		"--id", m, "--as", "remanded", "--principle", "correctness first",
-		"--tension", "", "--review-flag", "", "--settled", "", "--final", "--reason", "the rationale"); err != nil {
-		t.Fatalf("a ruling that answers each of the three with an honest blank was refused: %v", err)
-	}
-	d := lastBody(t, runDir, &recordpb.MotionRule{}).GetDocket()
-	for name, v := range map[string]*string{"tension": d.Tension, "review_flag": d.ReviewFlag, "settled": d.Settled} {
-		if v == nil || *v != "" {
-			t.Errorf("%s = %v, want present and empty — the blank the bench passed", name, v)
+	rule := func(t *testing.T, runDir, m string, set map[string]string, final bool) error {
+		args := []string{"motion", "docket", "rule", "--run", runDir, "--seat-id", "judge",
+			"--id", m, "--as", "remanded", "--principle", "correctness first", "--reason", "the rationale"}
+		for _, f := range []string{"--tension", "--review-flag", "--settled", "--reopens-on"} {
+			if v, ok := set[f]; ok {
+				args = append(args, f, v)
+			}
 		}
+		if final {
+			args = append(args, "--final")
+		}
+		_, err := run(t, args...)
+		return err
 	}
+	docket := func(t *testing.T) (string, string) {
+		runDir := newRun(t)
+		registerChairOnce(t, runDir)
+		registerLensOnce(t, runDir)
+		if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+			"--key", "k", "--class", "x", "--check-kind", "document", "--check", "c",
+			"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+			t.Fatal(err)
+		}
+		return runDir, docketFile(t, runDir, "red-chair", "G1", "contested, and not mine to close")
+	}
+	// with is the stated set with f answered v; omitting is the stated set with f never passed.
+	with := func(f, v string) map[string]string {
+		out := maps.Clone(stated)
+		out[f] = v
+		return out
+	}
+	omitting := func(f string) map[string]string {
+		out := maps.Clone(stated)
+		delete(out, f)
+		return out
+	}
+	for _, c := range []struct {
+		name, want string
+		set        map[string]string
+		final      bool
+	}{
+		{"blank --tension", "requires --tension to say something", with("--tension", ""), false},
+		{"whitespace --tension", "requires --tension to say something", with("--tension", "  \t "), false},
+		{"blank --review-flag", "requires --review-flag to say something", with("--review-flag", ""), false},
+		{"whitespace --review-flag", "requires --review-flag to say something", with("--review-flag", "\n "), false},
+		{"remand with --final", "--as remanded requires --reopens-on", omitting("--reopens-on"), true},
+		{"remand with a direction and --final", "--as remanded requires --reopens-on, and never --final", stated, true},
+		{"remand with neither", "--as remanded requires --reopens-on", omitting("--reopens-on"), false},
+		{"remand with a blank direction", "--as remanded requires --reopens-on", with("--reopens-on", ""), false},
+		{"remand with a whitespace direction", "--as remanded requires --reopens-on", with("--reopens-on", " \t"), false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			runDir, m := docket(t)
+			err := rule(t, runDir, m, c.set, c.final)
+			if err == nil {
+				t.Fatalf("the verb recorded a ruling with %s", c.name)
+			}
+			if !strings.Contains(err.Error(), c.want) {
+				t.Errorf("the refusal does not say %q: %v", c.want, err)
+			}
+		})
+	}
+	t.Run("stated, with a blank --settled", func(t *testing.T) {
+		runDir, m := docket(t)
+		if err := rule(t, runDir, m, stated, false); err != nil {
+			t.Fatalf("a remand stating its tension, review flag and direction was refused: %v", err)
+		}
+		d := lastBody(t, runDir, &recordpb.MotionRule{}).GetDocket()
+		if d.Settled == nil || *d.Settled != "" {
+			t.Errorf("settled = %v, want present and empty — the blank the bench passed", d.Settled)
+		}
+		if d.GetReopensOn() != stated["--reopens-on"] {
+			t.Errorf("reopens_on = %q, want the direction the bench stated", d.GetReopensOn())
+		}
+	})
 }
 
 // THE SUBJECT IS ASKED BEFORE THE FIELDS. A docket ruling naming a PETITION motion, with a
@@ -1227,8 +1291,8 @@ func TestBenchDocketRuleNamesTheWrongSubjectBeforeAMissingField(t *testing.T) {
 	for _, omit := range []string{"principle", "tension", "review-flag", "settled"} {
 		t.Run("omitted --"+omit, func(t *testing.T) {
 			args := []string{"motion", "docket", "rule", "--run", runDir, "--seat-id", "judge",
-				"--id", m, "--as", "remanded", "--final", "--reason", "the rationale"}
-			for k, v := range map[string]string{"principle": "p", "tension": "t", "review-flag": "", "settled": "s"} {
+				"--id", m, "--as", "remanded", "--reopens-on", "a reproduction on the shipped binary", "--reason", "the rationale"}
+			for k, v := range map[string]string{"principle": "p", "tension": "t", "review-flag": "r", "settled": "s"} {
 				if k != omit {
 					args = append(args, "--"+k, v)
 				}

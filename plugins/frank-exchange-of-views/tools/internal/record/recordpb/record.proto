@@ -195,10 +195,10 @@ message Sql {
   // "" is a duty discharged by silence — measured, and it took a seat from two outstanding duties
   // to `complete: true` while the channel reported one entry saying nothing.
   //
-  // The exception is real and narrow: `--review-flag false` is a legitimate ruling ("no, a human
-  // need not look at this"), so an empty answer there is an ANSWER. Presence-only requiredness is
-  // the exception and says so at the field, rather than being the silent default it briefly became
-  // when the Go table's two flavours collapsed into one annotation.
+  // The exception is real and narrow: a docket ruling's `settled` may be empty, because a ruling
+  // can bar no proposition — a remand sends the gap back to the debate undecided. Presence-only
+  // requiredness is the exception and says so at the field, rather than being the silent default it
+  // briefly became when the Go table's two flavours collapsed into one annotation.
   optional bool allow_empty = 7;
 
   // subset names a VALUE FACET this column's values must carry — `subset: "closes"` admits only
@@ -361,7 +361,7 @@ enum Disposition {
   // `remanded` is reachable by the BENCH only: red closing a gap is asserting a repair, and
   // "I repaired it by carrying it" is not a sentence. The subset is enforced, not documented —
   // see Close.closure_class, whose `subset: "closes"` generates the CHECK from this annotation.
-  DISPOSITION_REMANDED = 7 [(means) = "NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states as what would reopen it. If that exchange leaves it at impasse it is docketed again, if it moves the gap the gap's limits count afresh from the ruling, and a second remand at impasse leaves it open at its limit", (closes) = false];
+  DISPOSITION_REMANDED = 7 [(means) = "NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states — a remand closes nothing, so it states a direction and never --final. If that exchange leaves it at impasse it is docketed again, if it moves the gap the gap's limits count afresh from the ruling, and a second remand at impasse leaves it open at its limit", (closes) = false];
   // MOOT IS NOT not_a_defect, AND THAT DISTINCTION IS WHY IT EXISTS (#847).
   //
   // `not_a_defect` asserts that blue argued the finding was wrong and the argument HELD — a
@@ -1620,6 +1620,18 @@ message DocketRuling {
     why: "--final says nothing would reopen this and --reopens-on names what would; they are opposite answers to one question, so pass exactly one"
   };
 
+  // A REMAND STATES ITS DIRECTION. A remand sends the gap back to the debate for one more exchange,
+  // and the dispatch hands that exchange's two seats — blue and the minting lens — the ruling's
+  // `reopens_on` as the research direction they owe. `final` says nothing would reopen the gap,
+  // which a remand contradicts: with the check above, a remand states `reopens_on` and never
+  // `final`. A blank is no direction: the check trims what the write path's strings.TrimSpace
+  // trims in ASCII (space, tab, newline, carriage return), and a NULL reopens_on fails it, where a
+  // bare `trim(NULL) <> ''` would be NULL and pass.
+  option (check) = {
+    expr: "\"disposition\" <> 'remanded' OR coalesce(trim(\"reopens_on\", ' ' || char(9, 10, 13)), '') <> ''"
+    why: "a remand sends the gap back for one more exchange, and --reopens-on is the research direction that exchange owes blue and the minting lens; a blank one is no direction, and --final says nothing would reopen a closed gap — a remand closes nothing"
+  };
+
   // NO `subset` HERE, AND THAT IS THE POINT OF THE FIELD.
   //
   // `subset: "closes"` would admit only the values annotated `(closes) = true` — which is every
@@ -1637,17 +1649,18 @@ message DocketRuling {
     why: "the rule the bench applied, stated so a later sitting can apply the same one"
   }, (prose) = true];
 
+  // STATED, NEVER BLANK. An empty tension or review flag cannot be told from a bench that skipped
+  // the question, so each `why` names what is true to write when the bench has no conflict, or
+  // nothing for a human, to report.
   optional string tension = 3 [(sql) = {
     required: true
-    allow_empty: true
-    why: "the values that pulled against each other, or empty when none did — an empty answer here is an answer"
+    why: "the values that pulled against each other — or, where none did, the ruling's weakest point: what a party would argue against the rule you applied"
   }, (prose) = true];
 
   optional string review_flag = 4 [(sql) = {
     required: true
-    allow_empty: true
     flag: "review-flag"
-    why: "what a human should look at again, or empty when nothing needs it"
+    why: "what a human should look at again — or, where nothing needs a human, what on the record already settles it"
   }, (prose) = true];
 
   optional string settled = 5 [(sql) = {
@@ -1656,9 +1669,13 @@ message DocketRuling {
     why: "what the losing party may no longer assert, as one sentence — not the gap id, and not the disposition"
   }, (prose) = true];
 
+  // ONE COLUMN, TWO MEANINGS, SPLIT BY THE DISPOSITION. On a ruling that closes the gap it is the
+  // condition that would reopen it; on a remand, which closes nothing, it is the research direction
+  // the remand's exchange owes. Every reader of a remand reads it as the direction (the "remand"
+  // view, the dispatch plan's remand_owed, the work lists), and the help says both.
   optional string reopens_on = 6 [(sql) = {
     flag: "reopens-on"
-    why: "the evidence or condition that would make this worth raising again"
+    why: "on a ruling that closes the gap, the evidence or condition that would make it worth raising again; on a remand, the research direction its one more exchange owes blue and the minting lens"
   }, (prose) = true];
 
   // Recorded only when TRUE. Absent means the ruling answered with `reopens_on` instead; the

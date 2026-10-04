@@ -345,8 +345,8 @@ WHERE NOT EXISTS (SELECT 1 FROM "correction" c WHERE c."corrects" = e."key");
 -- THE BENCH'S REMANDS: every docket ruling that stands (live_event) with a disposition that does not
 -- close the gap ("remanded"), one row per ruling — the gap it is about, its events.id, its place
 -- "pos" (a correction takes its target's place), the sitting it was ruled in, and the research
--- direction it states. A ruling must state reopens_on or final and cannot state both (the
--- DocketRuling CHECKs), so on a remand reopens_on is the direction the remand's exchange owes.
+-- direction it states. A remand must state reopens_on and cannot state final (the DocketRuling
+-- CHECKs), so reopens_on is the direction the remand's exchange owes.
 --
 -- ONE DEFINITION FOR EVERY READER OF A REMAND. The gap view's "remanded" and "docket_reopens_on"
 -- read it, and so does the dispatch's remand fold (record.remandRulingsOf), which groups the rows

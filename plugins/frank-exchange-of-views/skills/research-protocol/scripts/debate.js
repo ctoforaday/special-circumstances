@@ -501,7 +501,11 @@ const PLAN = {
       },
     },
     docket: { type: 'array', items: { type: 'string' }, description: 'gaps the verb docketed for the bench at this sitting' },
-    remand_owed: { type: 'array', items: { type: 'string' }, description: "gaps the bench remanded whose one more exchange this plan readies: their minting lens and blue are among the parties for it" },
+    remand_owed: {
+      type: 'array',
+      description: "gaps the bench remanded whose one more exchange this plan readies, each with the research direction the remand states: their minting lens and blue are among the parties for it",
+      items: { type: 'object', required: ['gap_id', 'direction'], properties: { gap_id: { type: 'string' }, direction: { type: 'string' } } },
+    },
     pass_permitted: { type: 'boolean' },
     ceiling: { type: 'boolean' },
     max_epochs: { type: 'integer', minimum: 0, description: "the run's epoch limit, a term setup records; 0 when the run is held to none" },
@@ -539,6 +543,12 @@ const requirePlan = (plan, epoch) => {
   })
   plan.blockers.forEach((b, i) => {
     for (const f of ['kind', 'subject', 'owner']) if (!b || !typeOk(b[f], 'string')) refuse(`blockers[${i}].${f}`, b && b[f], 'string')
+  })
+  // A REMAND'S DIRECTION IS THE RECORD'S, and the record refuses it blank on a remand: a blank one
+  // here was lost on the way, and blue would be handed a remand owing nothing.
+  plan.remand_owed.forEach((o, i) => {
+    if (!o || !typeOk(o.gap_id, 'string')) refuse(`remand_owed[${i}].gap_id`, o && o.gap_id, 'string')
+    if (!(typeOk(o.direction, 'string') && o.direction.trim())) refuse(`remand_owed[${i}].direction`, o.direction, 'string')
   })
   plan.stale_areas.forEach((a, i) => {
     if (!a || !typeOk(a.seat_id, 'string')) refuse(`stale_areas[${i}].seat_id`, a && a.seat_id, 'string')
@@ -583,9 +593,12 @@ const JUDGE_ENVELOPE = {
           // answer, and the record's own gate would not catch it because the record is
           // written by the seat's tool call and this array is the seat's account of it.
           settled: { type: 'string' },
-          // Exactly one of these is the answer to "what would reopen this". `final: true` is
-          // the assertable empty case — the `friction --none` shape — so a decided question
-          // stays distinguishable from a skipped field.
+          // Exactly one of these is the answer to "what would reopen this" on a CLOSING ruling.
+          // `final: true` is the assertable empty case — the `friction --none` shape — so a
+          // decided question stays distinguishable from a skipped field. A REMAND reopens nothing
+          // — the gap is still open — and neither is read for it: the direction its exchange owes
+          // reaches blue and the lens from the record, through the plan's remand_owed, never from
+          // this account of the ruling.
           reopens_on: { type: 'string' },
           final: { type: 'boolean' },
           // THIS LIST IS THE RECORD'S DISPOSITION VOCABULARY, EXACTLY, and the envelope/record
@@ -789,14 +802,14 @@ const BLUE_DUTY_BY_DISPOSITION = {
   not_a_defect: 'THE BENCH FOUND NO DEFECT — your position was vindicated. Keep the text as it stands; do not "repair" what the bench has just blessed. You may rely on this ruling as established for the rest of the run.',
   defect_accepted: 'YOUR RISK-ACCEPTANCE ARGUMENT WAS ACCEPTED. Record the acceptance where the report discusses the risk; do not spend a sitting fixing what the bench agreed may stand.',
   repaired: 'Your fix was accepted. Stop working this one.',
-  remanded: 'The gap is back in the debate for ONE more exchange: you and its minting lens are dispatched on it, and you owe the research direction the ruling states (its reopens_on). A sitting that ignores it is a null turn — and if that exchange leaves the gap at impasse it goes back to the bench, where a second remand leaves it open at its limit, which is what CEILING is made of.',
+  remanded: 'The gap is back in the debate for ONE more exchange: you and its minting lens are dispatched on it, and you owe the research direction the ruling states (its direction). A sitting that ignores it is a null turn — and if that exchange leaves the gap at impasse it goes back to the bench, where a second remand leaves it open at its limit, which is what CEILING is made of.',
   defect_owed_elsewhere: 'The finding was UPHELD and the fix is owned outside this debate. Stop trying to fix it in the report; expect the debt to be named rather than closed here.',
   moot: 'Adjudicated out of existence — the text it attached to is gone, so there is nothing left to repair. Drop it; this is NOT a finding that was argued down.',
   repaired_with_regression: 'Your fix was accepted AND something else broke. Stop working this one and expect a successor gap naming the regression — answer that one, not this.',
   amends_prior: 'A defect found between two repairs that each closed clean. The ruling names what it supersedes; work the lineage it states rather than re-opening the ancestor.',
 }
 // rulingsInEffect holds the bench's latest ruling per gap — settled, reopens_on, final and the
-// fate — and travels to BOTH parties, because debate.js reads no record: a ruling reaches a seat's
+// fate; a remand's direction joins it from the plan — and travels to BOTH parties, because debate.js reads no record: a ruling reaches a seat's
 // prompt here or not at all (#517, #524). The reasoning stays on the record, deliberately.
 const rulingsInEffect = new Map()
 // A REMAND'S DUTY LASTS AS LONG AS ITS EXCHANGE IS OWED. The ruling stays in effect after the
@@ -804,18 +817,23 @@ const rulingsInEffect = new Map()
 // "you and its minting lens are dispatched on it" is then false; the plan names the gaps whose
 // remand exchange it readies (remand_owed), so the duty is told for those and no others.
 const BLUE_REMAND_NOT_OWED = 'The bench remanded this gap, and the one more exchange the remand granted is not owed now — it has been had, or the gap is at its limit — so its direction is not a duty of this sitting. If you are engaged on the gap, answer it as you answer any open gap.'
+// remandOwed is the plan's entry for a gap whose remand exchange it readies, carrying the direction
+// the record states; undefined when the plan owes none.
+const remandOwed = (gap) => (lastPlan ? lastPlan.remand_owed.find((o) => o.gap_id === gap) : undefined)
 const blueDuty = (r) => {
-  if (r.disposition === 'remanded' && !(lastPlan && lastPlan.remand_owed.includes(r.gap_id))) return BLUE_REMAND_NOT_OWED
+  if (r.disposition === 'remanded' && !remandOwed(r.gap_id)) return BLUE_REMAND_NOT_OWED
   return BLUE_DUTY_BY_DISPOSITION[r.disposition] || `UNMAPPED DISPOSITION ${r.disposition} — read the opinion on the record before acting on it`
 }
 const rulingsClause = (party) => {
   if (!rulingsInEffect.size) return ''
-  const rows = [...rulingsInEffect.values()].map((r) => party === 'blue' ? { ...r, your_duty: blueDuty(r) } : r)
+  // A REMAND'S ROW CARRIES ITS DIRECTION WHILE ITS EXCHANGE IS OWED, and only then: the plan's.
+  const withDirection = (r) => (r.disposition === 'remanded' && remandOwed(r.gap_id) ? { ...r, direction: remandOwed(r.gap_id).direction } : r)
+  const rows = [...rulingsInEffect.values()].map((r) => party === 'blue' ? { ...withDirection(r), your_duty: blueDuty(r) } : withDirection(r))
   const barred = rows.some((r) => r.settled !== undefined)
   const duty = party === 'blue'
     ? ' THE BAR IS ON THE PROPOSITION, NOT THE GAP: what you may no longer re-argue in the report is the sentence under settled, not everything the finding touched. WHERE A RULING WENT YOUR WAY IT IS YOURS TO INVOKE — say so on the record and rely on it, rather than quietly re-fixing text the bench has already blessed.'
     : barred ? ' YOU ARE ESTOPPED on each settled proposition: do not re-raise it as a fresh gap or a successor; a defect that survives the ruling arrives as the reopens_on condition or not at all.' : ''
-  return ` GAPS THE BENCH HAS RULED, AND WHAT EACH RULING OBLIGES OF YOU: ${JSON.stringify(rows)}.${duty} A ruling marked final does not reopen; one carrying a reopens_on condition reopens only on that condition and not on a re-reading. THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT — read the bench's opinion for any fate you are about to rely on or work around, because a fate you never read is one you can neither honour nor invoke.`
+  return ` GAPS THE BENCH HAS RULED, AND WHAT EACH RULING OBLIGES OF YOU: ${JSON.stringify(rows)}.${duty} A closing ruling marked final does not reopen; one carrying a reopens_on condition reopens only on that condition and not on a re-reading. A REMANDED gap was never closed: it is back in the debate, and the direction its row carries is what this exchange owes, not a condition for reopening. THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT — read the bench's opinion for any fate you are about to rely on or work around, because a fate you never read is one you can neither honour nor invoke.`
 }
 const reliefInEffect = []
 
@@ -1032,7 +1050,7 @@ ANSWER EVERY GAP YOU ARE ENGAGED ON, ADDITIVELY, in the report through \`edit\` 
 AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP (W2b; your constitution carries the full standard): figures recomputed, universals enumerated, consistency sites swept report-wide — one manifest row per gap you REPAIRED — one an edit of yours this sitting answers — and the manifest array in your envelope names them; a gap you rebut without an edit owes none. A gap you are engaged on that the board shows CLOSED when you sit — its lens sat before you and closed it — owes no row: name it in found_closed, from the board you read. When EVERY gap you are engaged on is closed when you sit, the sitting owes no position and no revision — found_closed is its record. Otherwise record the sitting's revision with the tool's claim_count; never hand-count it — the tool computes claim_count with the tool's own read.${logClause('blue-respond', 'blue')}${petitionClause}`
 const benchPrompt = (gaps) => `Adjudication, topic "${topic}". Docketed for you: ${gaps.join(', ')} — each reached impasse under the run's terms and the record docketed it. THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE. It carries ids; a gap's problem text and its acceptance check live on the board, and you read them FRESH before ruling. Re-run each document-probe acceptance check against the artifact AS IT NOW STANDS, and rule on what you find rather than on what any snapshot asserts.
 YOUR RULING BASIS IS CONFINED TO THREE THINGS: the two sides' recorded closings, the full transcript, and the final state of the artifacts — the board and the report as the record now renders them. Weigh each closing as that side's best case, and a claim in a closing that the record does not support counts AGAINST the side that made it. For every ruling on a gap with a lineage chain, READ THE NAMED ANCESTORS' RECORDS first and NAME what you read in your rationale.${holdingsClause()}${lawClause}${declareClause}${inspectionClause}
-Every docketed gap gets a written ruling — the docket ruling: its fate, the principle you applied, the values in tension, whether a human should look at it, your reasoning, and TWO THINGS THE FATE CANNOT SAY — the proposition you are barring as settled, and what would reopen it or that nothing would (final). Two fates send the work on rather than ending it: a gap you REMAND goes back to the debate for ONE more exchange between its minting lens and blue, on the research direction you state as what would reopen it — if that exchange leaves it at impasse it comes back to you, and a gap you remand at impasse a second time stays open at its limit, that gap's deadlock and what CEILING is made of; and a valid finding whose FIX is owned outside the debate — run tooling, the harness, the engine — leaves the board and ships as a NAMED infrastructure debt (defect_owed_elsewhere), recorded and never dropped. Rule every motion your work list names as the bench's. A bench sitting that rules nothing is a workflow error: the run cannot end in a verdict while a docketed gap stands unruled.${logClause('judge', 'bench')}${speedClause}${recordClause('judge', DOCKET_OCCASION)} Return your envelope.`
+Every docketed gap gets a written ruling — the docket ruling: its fate, the principle you applied, the values in tension (where none pulled, the ruling's weakest point: what a party would argue against the rule you applied), what a human should look at again (where nothing needs a human, what on the record already settles it), your reasoning, and TWO THINGS THE FATE CANNOT SAY — the proposition you are barring as settled, and, for a ruling that closes the gap, what would reopen it or that nothing would (final). Two fates send the work on rather than ending it: a gap you REMAND was never closed, so a remand is never final — it goes back to the debate for ONE more exchange between its minting lens and blue, on the research direction you state, which the record refuses blank — if that exchange leaves it at impasse it comes back to you, and a gap you remand at impasse a second time stays open at its limit, that gap's deadlock and what CEILING is made of; and a valid finding whose FIX is owned outside the debate — run tooling, the harness, the engine — leaves the board and ships as a NAMED infrastructure debt (defect_owed_elsewhere), recorded and never dropped. Rule every motion your work list names as the bench's. A bench sitting that rules nothing is a workflow error: the run cannot end in a verdict while a docketed gap stands unruled.${logClause('judge', 'bench')}${speedClause}${recordClause('judge', DOCKET_OCCASION)} Return your envelope.`
 
 phase('Red')
 const sittings = {} // seat -> how many times this loop has dispatched it, for the labels
@@ -1122,7 +1140,13 @@ while (!halted) {
       // "ESTOPPED on each settled proposition" over a blank, an estoppel nobody ruled. The record
       // accepts the blank; the prompt omits it.
       const settled = typeof r.settled === 'string' && r.settled.trim() ? r.settled : undefined
-      rulingsInEffect.set(r.gap_id, { gap_id: r.gap_id, disposition: r.disposition, settled, reopens_on: r.reopens_on, final: !!r.final, epoch })
+      // A REMAND'S DIRECTION IS NOT TAKEN FROM HERE. This array is the bench's account of what it
+      // recorded; the record holds the direction, refuses it blank, and the plan relays it in
+      // remand_owed for exactly the sittings that owe the exchange. A remand reopens nothing, so
+      // its row carries no reopens_on and no final.
+      rulingsInEffect.set(r.gap_id, r.disposition === 'remanded'
+        ? { gap_id: r.gap_id, disposition: r.disposition, settled, epoch }
+        : { gap_id: r.gap_id, disposition: r.disposition, settled, reopens_on: r.reopens_on, final: !!r.final, epoch })
       if (r.disposition === 'defect_owed_elsewhere') infraDebts.push({ gap_id: r.gap_id, owed_fix: r.rationale, epoch })
     }
     takeFriction('judge', judge)

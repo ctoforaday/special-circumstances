@@ -40,7 +40,7 @@ func docketFiled(t *testing.T, motion, gap string) *recordpb.Event {
 
 func docketRuled(t *testing.T, motion string, d recordpb.Disposition, principle, opinion string) *recordpb.Event {
 	t.Helper()
-	r := &recordpb.DocketRuling{Disposition: recordtest.P(d), Principle: proto.String(principle), Tension: proto.String(""), ReviewFlag: proto.String(""), Settled: proto.String("whether the gap stands")}
+	r := &recordpb.DocketRuling{Disposition: recordtest.P(d), Principle: proto.String(principle), Tension: proto.String("economy"), ReviewFlag: proto.String("none: the acceptance check settles it"), Settled: proto.String("whether the gap stands")}
 	if d == recordpb.Disposition_DISPOSITION_REMANDED {
 		r.ReopensOn = proto.String("the stated direction reporting back")
 	} else {

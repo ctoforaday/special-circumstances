@@ -34,20 +34,38 @@ func TestARequiredFieldIsRefusedWhenAbsent(t *testing.T) {
 
 // PRESENT AND EMPTY IS NOT ABSENT, and the distinction is one a seat relies on.
 //
-// `--review-flag ""` is a legitimate ruling: the bench says there is nothing a human need look at.
-// A check written against emptiness rather than presence would refuse it, and the seat would have
-// no way to say that at all.
+// `--settled ""` is a legitimate ruling: the bench bars no proposition, which is what a remand
+// does. A check written against emptiness rather than presence would refuse it, and the seat would
+// have no way to say that at all.
 func TestAnEmptyValueTheSeatPassedSatisfiesTheRequirement(t *testing.T) {
 	body := &DocketRuling{
 		Disposition: Disposition_DISPOSITION_REMANDED.Enum(),
 		Principle:   proto.String("p"),
 		Tension:     proto.String("t"),
-		ReviewFlag:  proto.String(""), // said, and said to be nothing
-		Settled:     proto.String("the claim as it stood may not be re-asserted"),
+		ReviewFlag:  proto.String("the reproduction the remand asks for settles it"),
+		Settled:     proto.String(""), // said, and said to be nothing
 		ReopensOn:   proto.String("a reproduction on the shipped binary"),
 	}
 	if err := CheckRequired("motion docket rule", body); err != nil {
-		t.Errorf("an explicitly empty review flag was refused: %v", err)
+		t.Errorf("an explicitly empty settled was refused: %v", err)
+	}
+}
+
+// WHITESPACE IS SILENCE. A required prose field that is all spaces says what "" says, and a check
+// against "" alone would take it as an answer.
+func TestAWhitespaceValueIsRefusedWhereEmptyIs(t *testing.T) {
+	for _, blank := range []string{" ", "\t\n ", "\u00a0"} {
+		body := &DocketRuling{
+			Disposition: Disposition_DISPOSITION_REMANDED.Enum(),
+			Principle:   proto.String("p"),
+			Tension:     proto.String(blank),
+			ReviewFlag:  proto.String("r"),
+			Settled:     proto.String(""),
+			ReopensOn:   proto.String("a reproduction on the shipped binary"),
+		}
+		if err := CheckRequired("motion docket rule", body); err == nil || !strings.Contains(err.Error(), "--tension to say something") {
+			t.Errorf("a tension of %q was taken as an answer: %v", blank, err)
+		}
 	}
 }
 

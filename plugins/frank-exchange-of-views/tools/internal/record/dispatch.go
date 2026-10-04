@@ -35,6 +35,13 @@ type PlanBlocker struct {
 	Owner   string      `json:"owner"`
 }
 
+// RemandOwed is one gap whose remand's exchange the plan readies, and the direction that exchange
+// owes — the gap view's `docket_reopens_on`, which the record refuses blank on a remand.
+type RemandOwed struct {
+	GapID     string `json:"gap_id"`
+	Direction string `json:"direction"`
+}
+
 // Plan is what `feov-record dispatch next` computes FROM THE BOARD (plans/roundless.md §III.B.1).
 // The chair relays it; the workflow dispatches what it says; nothing in it is a seat's assertion.
 type Plan struct {
@@ -46,10 +53,12 @@ type Plan struct {
 	// Asked again in the same sitting, the plan still names them — the chair relays the plan it asks
 	// for last, and blue owes closings on what this sitting docketed.
 	Docket []string `json:"docket"`
-	// RemandOwed names the gaps whose remand's one more exchange this plan readies (routeRemandOwed):
-	// their minting lens and blue are among Parties for it. The workflow tells blue the remand's duty
-	// for these gaps and no others, so the duty lasts exactly as long as the exchange is owed.
-	RemandOwed []string `json:"remand_owed"`
+	// RemandOwed names the gaps whose remand's one more exchange this plan readies (routeRemandOwed),
+	// each with the research direction the remand states: their minting lens and blue are among
+	// Parties for it. The workflow tells blue the remand's duty for these gaps and no others, so the
+	// duty lasts exactly as long as the exchange is owed — and it quotes THIS direction, the
+	// record's, never the bench envelope's account of its own ruling.
+	RemandOwed []RemandOwed `json:"remand_owed"`
 	// ToFile is the part of Docket with no docket motion yet: what the verb files. Never relayed.
 	ToFile []string `json:"-"`
 	// PassPermitted: a report is ingested, nobody is dispatched, and every blocker left on the gate's
@@ -198,7 +207,7 @@ func planReadsAt(q recordsql.Querier) (planReads, error) {
 // refuses as a missing array. B9's chair relayed a PASS-permitted plan verbatim, "parties": null, and
 // the engine aborted the run at the sitting that should have ended it.
 func emptyPlan() Plan {
-	return Plan{Parties: []Party{}, Docket: []string{}, RemandOwed: []string{}, Why: []string{}, StaleAreas: []StaleArea{}, Blockers: []PlanBlocker{}}
+	return Plan{Parties: []Party{}, Docket: []string{}, RemandOwed: []RemandOwed{}, Why: []string{}, StaleAreas: []StaleArea{}, Blockers: []PlanBlocker{}}
 }
 
 // foldPlan folds the plan from the answers planReadsAt read, under the run's terms. It asks the record
@@ -315,9 +324,9 @@ func foldPlan(params Params, r planReads) Plan {
 			toBench(g, fmt.Sprintf("%s: at impasse (%s) after the exchange its remand granted — docketed for the bench again", g.id, x.Counted()))
 		case routeRemandOwed:
 			debate(g)
-			plan.RemandOwed = append(plan.RemandOwed, g.id)
+			plan.RemandOwed = append(plan.RemandOwed, RemandOwed{GapID: g.id, Direction: g.direction})
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse (%s) and remanded by the bench — its minting lens and blue are ready for the one more exchange the remand grants, on the ruling's direction: %s",
-				g.id, x.Counted(), remandDirectionWords(g.direction)))
+				g.id, x.Counted(), g.direction))
 		case routeAtLimit:
 			materialSettled++
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse and remanded again after the exchange its first remand granted — at its limit", g.id))

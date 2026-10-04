@@ -41,14 +41,19 @@ func docketFile(t *testing.T, runDir, filer, gapID, basis string) string {
 }
 
 // benchRuleArgs is the ruling half's invocation, less the run and the seat. `as` is the
-// disposition; the rest is the reasoning a bench owes with it.
+// disposition; the rest is the reasoning a bench owes with it. A remand states its direction; every
+// other disposition says nothing would reopen the gap.
 func benchRuleArgs(motionID, as, principle string) []string {
-	return []string{"motion", "docket", "rule", "--id", motionID, "--as", as,
+	reopen := []string{"--final"}
+	if as == "remanded" {
+		reopen = []string{"--reopens-on", "a reproduction on the shipped binary"}
+	}
+	return append([]string{"motion", "docket", "rule", "--id", motionID, "--as", as,
 		"--principle", principle,
 		"--tension", "thoroughness against ceremony",
 		"--review-flag", "no — the ruling is mechanical",
 		"--settled", "the proposition this ruling bars",
-		"--final", "--reason", "the ruling as reasoned"}
+		"--reason", "the ruling as reasoned"}, reopen...)
 }
 
 // benchDisposes is the whole act: file, then rule, from the seat that holds the gavel.

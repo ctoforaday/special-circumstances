@@ -56,22 +56,32 @@ TWO CONSEQUENCES:
 $ motion docket rule --run {RUN} --seat-id judge --id M1 --as repaired --reason r --principle p --tension t
 exit 2
 stderr:
-feov-record: bench: record: motion rule requires --review-flag (what a human should look at again, or empty when nothing needs it)
+feov-record: bench: record: motion rule requires --review-flag (what a human should look at again — or, where nothing needs a human, what on the record already settles it)
 
-$ motion docket rule --run {RUN} --seat-id judge --id M1 --as repaired --reason r --principle p --review-flag "" --settled s
+$ motion docket rule --run {RUN} --seat-id judge --id M1 --as repaired --reason r --principle p --review-flag none --settled s
 exit 2
 stderr:
-feov-record: bench: record: motion rule requires --tension (the values that pulled against each other, or empty when none did — an empty answer here is an answer)
+feov-record: bench: record: motion rule requires --tension (the values that pulled against each other — or, where none did, the ruling's weakest point: what a party would argue against the rule you applied)
 
-$ motion docket rule --run {RUN} --seat-id judge --id M1 --as repaired --reason r --tension t --review-flag "" --settled s
+$ motion docket rule --run {RUN} --seat-id judge --id M1 --as repaired --reason r --tension t --review-flag none --settled s
 exit 2
 stderr:
 feov-record: bench: record: motion rule requires --principle (the rule the bench applied, stated so a later sitting can apply the same one)
 
-$ motion docket rule --run {RUN} --seat-id judge --id M1 --as repaired --reason r --principle p --tension t --review-flag "" --settled s
+$ motion docket rule --run {RUN} --seat-id judge --id M1 --as repaired --reason r --principle p --tension t --review-flag none --settled s
 exit 2
 stderr:
 feov-record: bench: record: motion docket rule requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted sitting
+
+$ motion docket rule --run {RUN} --seat-id judge --id M1 --as repaired --reason r --principle p --tension "" --review-flag none --settled s --final
+exit 2
+stderr:
+feov-record: bench: record: motion rule requires --tension to say something (the values that pulled against each other — or, where none did, the ruling's weakest point: what a party would argue against the rule you applied)
+
+$ motion docket rule --run {RUN} --seat-id judge --id M1 --as remanded --reason r --principle p --tension t --review-flag none --settled s --final
+exit 2
+stderr:
+feov-record: bench: record: motion docket rule --as remanded requires --reopens-on, and never --final: --reopens-on is the research direction the remand's one more exchange owes blue and the minting lens, and --final says nothing would reopen a closed gap — a remand closes nothing
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
@@ -81,10 +91,12 @@ feov-record: bench: record: motion docket rule requires --reopens-on (what would
 {"key":"red-lens-evidence:mint:G1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"fix_basis":"proposed","gap_id":"G1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_MINT"}
 {"key":"red-chair:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"G1"},"motion_id":"M1","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"red-chair","ts":5,"type":"EVENT_TYPE_MOTION"}
 {"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":6,"type":"EVENT_TYPE_REGISTER"}
-{"key":"judge:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --principle --reason --tension: bench: record: motion rule requires --review-flag (what a human should look at again, or empty when nothing needs it)","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":7,"type":"EVENT_TYPE_LOG"}
-{"key":"judge:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --principle --reason --review-flag --settled: bench: record: motion rule requires --tension (the values that pulled against each other, or empty when none did — an empty answer here is an answer)","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":8,"type":"EVENT_TYPE_LOG"}
+{"key":"judge:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --principle --reason --tension: bench: record: motion rule requires --review-flag (what a human should look at again — or, where nothing needs a human, what on the record already settles it)","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":7,"type":"EVENT_TYPE_LOG"}
+{"key":"judge:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --principle --reason --review-flag --settled: bench: record: motion rule requires --tension (the values that pulled against each other — or, where none did, the ruling's weakest point: what a party would argue against the rule you applied)","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":8,"type":"EVENT_TYPE_LOG"}
 {"key":"judge:log:#3","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --reason --review-flag --settled --tension: bench: record: motion rule requires --principle (the rule the bench applied, stated so a later sitting can apply the same one)","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":9,"type":"EVENT_TYPE_LOG"}
 {"key":"judge:log:#4","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --principle --reason --review-flag --settled --tension: bench: record: motion docket rule requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted sitting","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":10,"type":"EVENT_TYPE_LOG"}
+{"key":"judge:log:#5","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --final --id --principle --reason --review-flag --settled --tension: bench: record: motion rule requires --tension to say something (the values that pulled against each other — or, where none did, the ruling's weakest point: what a party would argue against the rule you applied)","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":11,"type":"EVENT_TYPE_LOG"}
+{"key":"judge:log:#6","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --final --id --principle --reason --review-flag --settled --tension: bench: record: motion docket rule --as remanded requires --reopens-on, and never --final: --reopens-on is the research direction the remand's one more exchange owes blue and the minting lens, and --final says nothing would reopen a closed gap — a remand closes nothing","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":12,"type":"EVENT_TYPE_LOG"}
 
 ═══ RENDERS ═══
 -- avenues

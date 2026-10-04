@@ -593,7 +593,7 @@ func TestHarvestPrecedents(t *testing.T) {
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED.Enum(),
 				Principle:   proto.String("a known cost beats an unknown one"),
-				Tension:     proto.String(""), ReviewFlag: proto.String(""),
+				Tension:     proto.String("economy"), ReviewFlag: proto.String("none: the acceptance check settles it"),
 				Settled: proto.String("the claim as it stood may not be re-asserted"),
 				Final:   proto.Bool(true),
 			}},
@@ -627,7 +627,7 @@ func TestHarvestPrecedents(t *testing.T) {
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordpb.Disposition_DISPOSITION_REMANDED.Enum(),
 				Principle:   proto.String("a deferral still owes a direction"),
-				Tension:     proto.String(""), ReviewFlag: proto.String(""),
+				Tension:     proto.String("economy"), ReviewFlag: proto.String("none: the acceptance check settles it"),
 				Settled:   proto.String(""),
 				ReopensOn: proto.String("a reproduction on the shipped binary"),
 			}},

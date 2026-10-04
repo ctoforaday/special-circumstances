@@ -242,7 +242,7 @@ var goldenClasses = []string{
 }
 
 // transcriptArgs renders an invocation's arguments for the golden. An EMPTY argument is written
-// `""`: joined bare, `--review-flag ""` and an omitted --review-flag read alike, and on a flag
+// `""`: joined bare, `--settled ""` and an omitted --settled read alike, and on a flag
 // whose blank is an answer and whose omission is refused that is the whole difference.
 func transcriptArgs(args []string) string {
 	out := make([]string, len(args))

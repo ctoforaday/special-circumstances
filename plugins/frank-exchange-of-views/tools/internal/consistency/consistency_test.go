@@ -62,16 +62,21 @@ func docketed(t *testing.T, seat string, motionID, gapID string) *recordpb.Event
 // benchRule is the RULING half: the disposition, and the reasoning that travels with it.
 func benchRule(t *testing.T, seat string, motionID string, d recordpb.Disposition) *recordpb.Event {
 	t.Helper()
+	dr := &recordpb.DocketRuling{
+		Disposition: d.Enum(),
+		Principle:   proto.String("correctness first"), Tension: proto.String("economy"),
+		ReviewFlag: proto.String("none: the acceptance check settles it"),
+		Settled:    proto.String("the claim as it stood"), Final: proto.Bool(true),
+	}
+	// A remand states the direction its exchange owes, never --final.
+	if d == recordpb.Disposition_DISPOSITION_REMANDED {
+		dr.Final, dr.ReopensOn = nil, proto.String("a reproduction on the shipped binary")
+	}
 	return recordtest.At(t, seat, seat+":motion-rule:"+motionID, &recordpb.MotionRule{
 		MotionId: proto.String(motionID),
 		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 		Opinion:  proto.String("ruled on the merits"),
-		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-			Disposition: d.Enum(),
-			Principle:   proto.String("correctness first"), Tension: proto.String("economy"),
-			ReviewFlag: proto.String(""),
-			Settled:    proto.String("the claim as it stood"), Final: proto.Bool(true),
-		}},
+		Ruling:   &recordpb.MotionRule_Docket{Docket: dr},
 	})
 }
 

@@ -155,10 +155,11 @@ func TestADocketStandsUnruledPerMotionAndReadiesTheBenchOncePerDocketing(t *test
 	}
 }
 
-// THE WRITE REFUSES A DOCKET RULING THAT OMITS --tension, --review-flag OR --settled, and takes an
-// empty one (#1234). These three are required by presence: the empty answer is an answer
-// (operator, 2026-08-22), so what the write can refuse is only the field never said — which is
-// why the verb must leave an omitted flag ABSENT rather than write it as "".
+// THE WRITE REFUSES A DOCKET RULING THAT OMITS --tension, --review-flag OR --settled (#1234), and
+// takes an empty --settled: a ruling may bar no proposition, so for that field alone the empty
+// answer is an answer and what the write can refuse is only the field never said — which is why
+// the verb must leave an omitted flag ABSENT rather than write it as "". An empty --tension or
+// --review-flag is refused (TestTheBenchStatesItsRuleItsTensionAndItsReviewFlag).
 func TestTheDocketRulingWriteRefusesAnOmittedPresenceField(t *testing.T) {
 	for _, c := range []struct {
 		flag  string
@@ -181,13 +182,57 @@ func TestTheDocketRulingWriteRefusesAnOmittedPresenceField(t *testing.T) {
 			}
 		})
 	}
-	t.Run("all three present and empty", func(t *testing.T) {
+	t.Run("settled present and empty", func(t *testing.T) {
+		run := mustRun(t, docketRunDir(t))
+		o := docketRule("M1", "the ruling")
+		o.GetDocket().Settled = proto.String("")
+		if _, err := Append(sit(t, run, "judge"), o); err != nil {
+			t.Errorf("a ruling that bars no proposition was refused: %v", err)
+		}
+	})
+}
+
+// EVERY REMAND STATES ITS DIRECTION (gblock, 2026-10-04). A remand sends the gap back for one more
+// exchange, and the dispatch hands blue and the minting lens the ruling's reopens_on as what that
+// exchange owes; a remand that said --final would hand them nothing. --final says nothing would
+// reopen the gap, which a remand contradicts, so the pair is refused rather than given a meaning.
+func TestARemandStatesItsDirection(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		set  func(*recordpb.DocketRuling)
+	}{
+		{"remanded --final", func(d *recordpb.DocketRuling) { d.ReopensOn, d.Final = nil, proto.Bool(true) }},
+		{"remanded with neither", func(d *recordpb.DocketRuling) { d.ReopensOn = nil }},
+		{"remanded with a direction and --final", func(d *recordpb.DocketRuling) { d.Final = proto.Bool(true) }},
+		{"remanded with a blank direction", func(d *recordpb.DocketRuling) { d.ReopensOn = proto.String("") }},
+		{"remanded with a whitespace direction", func(d *recordpb.DocketRuling) { d.ReopensOn = proto.String(" \t\n") }},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			run := mustRun(t, docketRunDir(t))
+			o := docketRule("M1", "the ruling")
+			c.set(o.GetDocket())
+			_, err := Append(sit(t, run, "judge"), o)
+			if err == nil {
+				t.Fatal("a remand stating no direction reached the record — blue and the minting lens would be dispatched owing nothing")
+			}
+			if !strings.Contains(err.Error(), "--as remanded requires --reopens-on") {
+				t.Errorf("the refusal does not name --reopens-on, so the bench cannot tell what the remand owes: %v", err)
+			}
+		})
+	}
+	t.Run("remanded --reopens-on", func(t *testing.T) {
+		run := mustRun(t, docketRunDir(t))
+		if _, err := Append(sit(t, run, "judge"), docketRule("M1", "the ruling")); err != nil {
+			t.Errorf("a remand stating its direction was refused: %v", err)
+		}
+	})
+	t.Run("a disposition that ends the gap still takes --final", func(t *testing.T) {
 		run := mustRun(t, docketRunDir(t))
 		o := docketRule("M1", "the ruling")
 		d := o.GetDocket()
-		d.Tension, d.ReviewFlag, d.Settled = proto.String(""), proto.String(""), proto.String("")
+		d.Disposition, d.ReopensOn, d.Final = recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(), nil, proto.Bool(true)
 		if _, err := Append(sit(t, run, "judge"), o); err != nil {
-			t.Errorf("an honest blank in each of the three was refused: %v", err)
+			t.Errorf("a final not_a_defect ruling was refused: %v", err)
 		}
 	})
 }

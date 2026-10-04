@@ -247,7 +247,7 @@ func scenarios() []scenario {
 					"--reason", "contested, and not red's to close"),
 				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M2", "--as", "remanded",
 					"--principle", "correctness over economy", "--tension", "thoroughness vs cost",
-					"--review-flag", "the figure was never recomputed", "--settled", "the proposition this ruling bars", "--final", "--reason", "the rationale body"),
+					"--review-flag", "the figure was never recomputed", "--settled", "the proposition this ruling bars", "--reopens-on", "the figure recomputed from its source", "--reason", "the rationale body"),
 				base("certify", "--run", "{RUN}", "--seat-id", "judge", "--reason", "what a human should re-examine"),
 			},
 		},
@@ -276,8 +276,10 @@ func scenarios() []scenario {
 			// scenario is named for. The four DocketRuling fields are refused at the RECORD write,
 			// with the schema's reason (#1234): the first attempt omits --review-flag and
 			// --settled, the second --tension, the third --principle, each pinning the refusal
-			// for the first field it lacks; the last supplies all four, so the reopens-on/final
-			// refusal answers.
+			// for the first field it lacks; the fourth supplies all four, so the reopens-on/final
+			// refusal answers. The fifth states --tension as "", which the write refuses as a
+			// question skipped, and the sixth remands with --final, which the write refuses
+			// because a remand owes the direction its --reopens-on states.
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
@@ -290,11 +292,15 @@ func scenarios() []scenario {
 				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M1",
 					"--as", "repaired", "--reason", "r", "--principle", "p", "--tension", "t"),
 				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M1",
-					"--as", "repaired", "--reason", "r", "--principle", "p", "--review-flag", "", "--settled", "s"),
+					"--as", "repaired", "--reason", "r", "--principle", "p", "--review-flag", "none", "--settled", "s"),
 				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M1",
-					"--as", "repaired", "--reason", "r", "--tension", "t", "--review-flag", "", "--settled", "s"),
+					"--as", "repaired", "--reason", "r", "--tension", "t", "--review-flag", "none", "--settled", "s"),
 				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M1",
-					"--as", "repaired", "--reason", "r", "--principle", "p", "--tension", "t", "--review-flag", "", "--settled", "s"),
+					"--as", "repaired", "--reason", "r", "--principle", "p", "--tension", "t", "--review-flag", "none", "--settled", "s"),
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M1",
+					"--as", "repaired", "--reason", "r", "--principle", "p", "--tension", "", "--review-flag", "none", "--settled", "s", "--final"),
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M1",
+					"--as", "remanded", "--reason", "r", "--principle", "p", "--tension", "t", "--review-flag", "none", "--settled", "s", "--final"),
 			},
 		},
 		{
