@@ -32,17 +32,30 @@ func TestEveryMotionSubjectNamesItsRuler(t *testing.T) {
 			t.Errorf("%s: %v", v.Name(), err)
 			continue
 		}
-		// The role must be one a seat id can actually resolve to, or the refusal names a seat
+		// The role must resolve, through the roster, to one seat, or the refusal names a seat
 		// that does not exist — which teaches worse than naming none.
-		switch ruler {
-		case "chair", "bench":
-		default:
-			t.Errorf("%s is ruled by %q, which is not a seat role — a refusal naming it sends the reader nowhere", v.Name(), ruler)
+		if _, err := gavelSeatOf(ruler); err != nil {
+			t.Errorf("%s: %v", v.Name(), err)
 		}
 		checked++
 	}
 	if checked < 3 {
 		t.Errorf("only %d subjects carry a gavel — the sweep is meant to cover the whole enum", checked)
+	}
+}
+
+// A GAVEL RESOLVES THROUGH THE ROLE ROSTER TO ONE SEAT, and a word no single seat holds is an
+// error rather than a role word printed as a seat id.
+func TestAGavelResolvesToOneSeat(t *testing.T) {
+	for ruler, want := range map[string]string{"chair": chairSeat, "bench": benchSeat} {
+		if got, err := gavelSeatOf(ruler); err != nil || got != want {
+			t.Errorf("gavelSeatOf(%q) = %q, %v; want %q", ruler, got, err, want)
+		}
+	}
+	for _, ruler := range []string{"lens", "blue", "nobody", ""} {
+		if got, err := gavelSeatOf(ruler); err == nil {
+			t.Errorf("gavelSeatOf(%q) = %q, want an error — no single seat holds that gavel", ruler, got)
+		}
 	}
 }
 

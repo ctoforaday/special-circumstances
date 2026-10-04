@@ -279,24 +279,14 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 	// therefore has an EMPTY blocking set and a non-empty work list, which is the accurate
 	// statement: available work, none of it owed.
 	case "bench":
-		// THE SUBJECTS THE BENCH RULES, FROM THE SCHEMA — not the literal "petition" this
-		// arm used to test. The gavel is an annotation on the MotionSubject enum, and a
-		// hand-written subject name here is a fourth copy of it that goes stale the moment a
-		// bench-ruled subject is added: the new subject's unruled motions would simply not appear
-		// on the bench's list, which reads as a bench with nothing outstanding.
-		for _, m := range MotionsOf(evs) {
-			if m == nil || m.Ruled() {
-				continue
+		// THE BENCH'S MOTIONS ARE THE GATE'S LIST, read through passBlockersOf: every unruled motion
+		// whose gavel the schema gives the bench, the same set the outcome refusal names
+		// (requireBenchMotionsRuled). A second walk of the motions here could disagree with that
+		// refusal, which is the drift the one list exists to end (#1202).
+		for _, b := range passBlockersOf(evs, ids, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
+			if b.Kind == BlockerUnruledMotion && b.Owner == benchSeat {
+				add("motion " + b.Subject + " (" + b.Detail + ") is unruled, and the bench's motions are heard BEFORE the debate continues")
 			}
-			subj, known := MotionSubjectEnum(m.Subject)
-			if !known {
-				continue
-			}
-			ruler, err := recordpb.SubjectRuler(subj)
-			if err != nil || ruler != "bench" {
-				continue
-			}
-			add(m.Subject + " " + m.ID + " is unruled, and the bench's motions are heard BEFORE the debate continues")
 		}
 	}
 	// THE AFFORDANCES GO ON THE SAME LIST, and they go on it LAST so the blocking items read

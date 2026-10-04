@@ -86,6 +86,28 @@ func ownerPhrase(b Blocker, role, fallback string) string {
 	return "its " + role + ", " + b.Owner + ","
 }
 
+// ownerOr is the seat that clears a blocker, bare, or the fallback where the record names no seat —
+// the same fallback the kind's other wordings use, so no surface prints an empty name.
+func ownerOr(b Blocker, fallback string) string {
+	if b.Owner == "" {
+		return fallback
+	}
+	return b.Owner
+}
+
+// contradictionReader is who raises a contradiction when the record names no reader.
+const contradictionReader = "a lens"
+
+// planHold is the plan's verdict on a blocker, by its owner: the chair's own is cleared in its
+// sitting and leaves pass_permitted standing, so its line must not say a PASS is not permitted;
+// another seat's holds pass_permitted false, and the line says so.
+func planHold(b Blocker, notPermitted string) string {
+	if b.ChairOwned() {
+		return "yours to clear before a PASS"
+	}
+	return notPermitted
+}
+
 func subjects(bs []Blocker) []string {
 	out := make([]string, 0, len(bs))
 	for _, b := range bs {
@@ -126,7 +148,7 @@ var blockerKinds = []blockerKind{
 		kind:  BlockerContradiction,
 		gloss: "a contradicting source no finding raises",
 		item: func(b Blocker) string {
-			return fmt.Sprintf("red read a source that contradicts or does not support the claim %q and no finding raises it — PASS is refused until one does; %s raises it", b.Subject, ownerPhrase(b, "reader", "a lens"))
+			return fmt.Sprintf("red read a source that contradicts or does not support the claim %q and no finding raises it — PASS is refused until one does; %s raises it", b.Subject, ownerPhrase(b, "reader", contradictionReader))
 		},
 		refusal: func(bs []Blocker) string {
 			var named []string
@@ -143,7 +165,7 @@ var blockerKinds = []blockerKind{
 				len(bs), strings.Join(named, "\n  "))
 		},
 		why: func(b Blocker) string {
-			return fmt.Sprintf("a source %s read contradicts or does not support %q and no finding raises it — PASS is not permitted until one does", b.Owner, b.Subject)
+			return fmt.Sprintf("a source %s read contradicts or does not support %q and no finding raises it — %s", ownerOr(b, contradictionReader), b.Subject, planHold(b, "PASS is not permitted until one does"))
 		},
 	},
 	{
@@ -203,7 +225,7 @@ var blockerKinds = []blockerKind{
 				len(bs), strings.Join(named, ", "))
 		},
 		why: func(b Blocker) string {
-			return fmt.Sprintf("%s: motion (%s) filed and never ruled — PASS is not permitted while it stands", b.Subject, b.Detail)
+			return fmt.Sprintf("%s: motion (%s) filed and never ruled — %s", b.Subject, b.Detail, planHold(b, "PASS is not permitted while it stands"))
 		},
 	},
 	// THE AVENUES ARE READ ONCE, EVERY EPOCH. One statement per epoch, not one per line: presence is
@@ -227,8 +249,8 @@ var blockerKinds = []blockerKind{
 				"one. A PASS claims the report is sound, and its account of what this run investigated is part " +
 				"of the report; record the review, or issue `--as FAIL`"
 		},
-		why: func(Blocker) string {
-			return "this epoch has no avenue review — the chair's own read before a PASS"
+		why: func(b Blocker) string {
+			return "this epoch has no avenue review — " + planHold(b, "PASS is not permitted until one is recorded")
 		},
 	},
 }
@@ -284,25 +306,6 @@ func blockerGapsOfOpen(gaps []openGap) []blockerGap {
 	return out
 }
 
-// rulerSeat is the seat holding a motion subject's gavel, "" when the subject is unknown or names
-// no ruler.
-func rulerSeat(subject string) string {
-	subj, known := MotionSubjectEnum(subject)
-	if !known {
-		return ""
-	}
-	switch ruler, err := recordpb.SubjectRuler(subj); {
-	case err != nil:
-		return ""
-	case ruler == "chair":
-		return chairSeat
-	case ruler == "bench":
-		return benchSeat
-	default:
-		return ruler
-	}
-}
-
 // passBlockersOf is THE answer to "what holds a PASS", off the stream, its row ids, the open gaps
 // and the fresh-material set. The order is the kind table's, and within a kind the record's.
 func passBlockersOf(evs []*Event, ids []int64, gaps []blockerGap, fresh map[string]bool) []Blocker {
@@ -336,13 +339,13 @@ func passBlockersOf(evs []*Event, ids []int64, gaps []blockerGap, fresh map[stri
 		if m == nil || m.Ruled() {
 			continue
 		}
-		phrase, err := rulerPhrase(m.Subject)
+		g, err := gavelOf(m.Subject)
 		if err != nil {
 			// A SCHEMA DEFECT MUST NOT SILENTLY SHORTEN THE LIST. The motion still holds the gate,
-			// and the wording says what could not be resolved.
-			phrase = m.Subject + ", and this binary cannot say who rules it: " + err.Error()
+			// owned by no seat, and the wording says what could not be resolved.
+			g = gavel{phrase: m.Subject + ", and this binary cannot say who rules it: " + err.Error()}
 		}
-		out = append(out, Blocker{Kind: BlockerUnruledMotion, Subject: m.ID, Owner: rulerSeat(m.Subject), Detail: phrase, About: m.GapID})
+		out = append(out, Blocker{Kind: BlockerUnruledMotion, Subject: m.ID, Owner: g.seat, Detail: g.phrase, About: m.GapID})
 	}
 	if AvenueReviewDueOf(evs) {
 		out = append(out, Blocker{Kind: BlockerAvenueReview, Owner: chairSeat})
@@ -464,5 +467,5 @@ func blockerRefusal(holding []Blocker) error {
 	for i := range paras {
 		paras[i] = fmt.Sprintf("%d. %s", i+1, paras[i])
 	}
-	return fmt.Errorf("%s%d things hold it, each with what clears it:\n\n%s", head, len(paras), strings.Join(paras, "\n\n"))
+	return fmt.Errorf("%s%d things hold it, in %d kinds, each with what clears it:\n\n%s", head, len(holding), len(paras), strings.Join(paras, "\n\n"))
 }

@@ -156,7 +156,51 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			if plan.PassPermitted != c.wantPermitted {
 				t.Errorf("pass_permitted = %v, want %v (why %q)", plan.PassPermitted, c.wantPermitted, plan.Why)
 			}
+			if plan.PassPermitted {
+				for _, w := range plan.Why {
+					if strings.Contains(w, "not permitted") {
+						t.Errorf("pass_permitted is true beside the line %q", w)
+					}
+				}
+			}
 		})
+	}
+
+	// THE CLASS, NOT THE FIXTURE: every kind's plan line agrees with pass_permitted for every owner.
+	// A chair-owned blocker leaves pass_permitted standing, so its line must not say a PASS is not
+	// permitted; another seat's, or no seat's, holds it false, and its line must say so. Every
+	// wording names a seat or its fallback, never an empty one.
+	for _, k := range blockerKinds {
+		for _, owner := range []string{chairSeat, benchSeat, evLens, ""} {
+			b := Blocker{Kind: k.kind, Subject: "X1", Owner: owner, Detail: "a detail", foldWhy: "a reason"}
+			lines := []string{k.item(b), k.refusal([]Blocker{b})}
+			if k.why != nil {
+				why := k.why(b)
+				lines = append(lines, why)
+				if says := strings.Contains(why, "not permitted"); says == b.ChairOwned() {
+					t.Errorf("%s owned by %q: the plan line %q says PASS is not permitted = %v, but pass_permitted stands over it = %v", k.kind, owner, why, says, b.ChairOwned())
+				}
+			}
+			for _, l := range lines {
+				// "\n  " indents a refusal's list; any other double space is a name left empty.
+				if l = strings.ReplaceAll(l, "\n  ", "\n"); strings.Contains(l, "  ") || strings.Contains(l, "()") {
+					t.Errorf("%s owned by %q: %q interpolates an empty name", k.kind, owner, l)
+				}
+			}
+		}
+	}
+}
+
+// THE REFUSAL COUNTS BLOCKERS, NOT KINDS. Two material gaps and a contradiction are three things
+// holding the PASS; the paragraphs group them by kind.
+func TestTheBlockerRefusalCountsBlockers(t *testing.T) {
+	err := blockerRefusal([]Blocker{
+		{Kind: BlockerMaterialGap, Subject: "G1", Owner: evLens},
+		{Kind: BlockerMaterialGap, Subject: "G2", Owner: evLens},
+		{Kind: BlockerContradiction, Subject: "a claim", Owner: evLens},
+	})
+	if err == nil || !strings.Contains(err.Error(), "3 things hold it, in 2 kinds") {
+		t.Errorf("refusal = %v, want it to count 3 blockers in 2 kinds", err)
 	}
 }
 
@@ -349,6 +393,41 @@ func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 		run := b.register("judge").seed()
 		if _, err := Append(Identity{Run: run, SeatID: "judge"}, outcome()); err != nil {
 			t.Errorf("outcome over an unruled grade motion = %v, want it admitted — the bench holds no gavel for it", err)
+		}
+	})
+	t.Run("the bench's work list names exactly what the refusal names", func(t *testing.T) {
+		b := board(t)
+		b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
+		b.add("blue-respond", petitionMotion("M1"))
+		b.docketMotion("red-chair", "M2", "G1")
+		b.add("blue-respond", &recordpb.Motion{MotionId: proto.String("M3"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
+			Basis: proto.String("b"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
+				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}})
+		run := b.register("judge").seed()
+		_, err := Append(Identity{Run: run, SeatID: "judge"}, outcome())
+		if err == nil {
+			t.Fatal("outcome admitted over the bench's unruled motions")
+		}
+		var listed []string
+		for _, it := range blockingItems(sittingOfRunT(t, run, "bench", "judge")) {
+			if strings.HasPrefix(it, "motion ") {
+				listed = append(listed, it)
+			}
+		}
+		for _, want := range []string{"M1 (petition, ruled by the bench seat)", "M2 (docket, ruled by the bench seat)"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("the outcome refusal does not name %q: %v", want, err)
+			}
+			found := false
+			for _, it := range listed {
+				found = found || strings.Contains(it, want)
+			}
+			if !found {
+				t.Errorf("the bench's work list does not name %q: %q", want, listed)
+			}
+		}
+		if len(listed) != 2 || strings.Contains(err.Error(), "M3") {
+			t.Errorf("the chair's grade motion M3 is the bench's on one surface: work list %q, refusal %v", listed, err)
 		}
 	})
 	t.Run("a halt is exempt", func(t *testing.T) {

@@ -29,7 +29,8 @@ type Plan struct {
 	Docket []string `json:"docket"`
 	// PassPermitted: a report is ingested, nobody is dispatched, and every blocker left on the gate's
 	// list (PassBlockers) is the chair's own to clear this sitting — its avenue review, its
-	// spot-check of the stale areas. Its work list marks those blocking until they are done.
+	// spot-check of the stale areas, its ruling on each unruled motion whose gavel is the chair's
+	// (grade, avenue). Its work list marks those blocking until they are done.
 	PassPermitted bool `json:"pass_permitted"`
 	// StaleAreas is every lens retired for good whose pin the head has moved past. The chair reads
 	// the changes since each pin against that area's duties and names the areas in its spot-check;
@@ -223,7 +224,7 @@ func PlanDispatch(run Run) (Plan, error) {
 	}
 	// PASS_PERMITTED IS THE GATE'S OWN LIST, read through passBlockersOf: nobody is ready, and every
 	// blocker left is the chair's to clear in this sitting (its avenue review, its spot-check of
-	// the stale areas). A blocker another seat must clear — an unruled petition, a contradiction no
+	// the stale areas, its ruling on a grade or avenue motion). A blocker another seat must clear — an unruled petition, a contradiction no
 	// lens has raised, a docket motion on a gap that has since closed — holds it, and its reason is
 	// stated here, so the plan never says PASS where the gate refuses one the chair cannot clear
 	// (#1202).

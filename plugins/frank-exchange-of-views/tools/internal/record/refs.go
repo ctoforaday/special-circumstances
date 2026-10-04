@@ -358,32 +358,39 @@ func gapNamedIn(run Run, prose string) (string, error) {
 	return "", nil
 }
 
-// rulerPhrase names a motion's subject and the seat holding its gavel, for a message that is
-// REFUSING or LISTING that motion.
+// gavel is who rules a motion: the seat holding its gavel ("" for a subject this binary does not
+// know), and the phrase a message that is REFUSING or LISTING the motion names it by.
+type gavel struct {
+	seat, phrase string
+}
+
+// gavelOf resolves a motion subject to its gavel: the schema's `ruled_by` role, through the role
+// roster (gavelSeatOf) to the one seat that holds it.
 //
-// ONE PHRASE, TWO SURFACES, BECAUSE THEY DESCRIBE ONE BLOCKAGE. The refusal
-// (the gate's, from passblockers.go) and the sitting view (SittingOf) both tell a seat that a motion is
-// unruled, and only the refusal named who could rule it. A seat reading "motion M1 was filed and
-// never ruled" on its work list and "M1 (petition, ruled by the bench seat)" from the gate is
-// being told two different things about one fact, and sitting.go's own header says what that
-// costs: "a seat told it was finished by one surface and refused by another learns to trust
-// neither".
+// ONE PHRASE, EVERY SURFACE, BECAUSE THEY DESCRIBE ONE BLOCKAGE. The gate's refusal, the chair's
+// and the bench's work lists and the outcome refusal all tell a seat that a motion is unruled, off
+// one Blocker (passblockers.go). A seat reading "motion M1 was filed and never ruled" on its work
+// list and "M1 (petition, ruled by the bench seat)" from the gate is being told two different
+// things about one fact, and sitting.go's own header says what that costs: "a seat told it was
+// finished by one surface and refused by another learns to trust neither".
 //
-// THE UNKNOWN SUBJECT IS STATED, NEVER EMPTY. SittingOf returns no error and cannot propagate the
-// second failure mode, so this function must not hand it a blank name to interpolate: the natural
-// shape, `"ruled by the " + ruler + " seat"` with an empty ruler, renders `ruled by the  seat` —
-// a miss that looks like a typo rather than a broken lookup. An unknown subject says so in words.
-// The err return carries only the case a caller CAN discharge: a known subject whose enum value
-// declares no ruler, which is a schema defect rather than a bad input, and which
-// TestEveryMotionSubjectNamesItsRuler already refuses at the descriptor.
-func rulerPhrase(subject string) (string, error) {
+// THE UNKNOWN SUBJECT IS STATED, NEVER EMPTY: the natural shape, `"ruled by the " + ruler + "
+// seat"` with an empty ruler, renders `ruled by the  seat` — a miss that looks like a typo rather
+// than a broken lookup. The err return carries the schema defects: a known subject whose enum value
+// declares no ruler, or declares a role no single seat holds. TestEveryMotionSubjectNamesItsRuler
+// refuses both at the descriptor.
+func gavelOf(subject string) (gavel, error) {
 	subj, known := MotionSubjectEnum(subject)
 	if !known {
-		return subject + ", a subject this binary does not know — it cannot say who rules it", nil
+		return gavel{phrase: subject + ", a subject this binary does not know — it cannot say who rules it"}, nil
 	}
 	ruler, err := recordpb.SubjectRuler(subj)
 	if err != nil {
-		return "", err
+		return gavel{}, err
 	}
-	return subject + ", ruled by the " + ruler + " seat", nil
+	seat, err := gavelSeatOf(ruler)
+	if err != nil {
+		return gavel{}, fmt.Errorf("motion subject %s: %w", subject, err)
+	}
+	return gavel{seat: seat, phrase: subject + ", ruled by the " + ruler + " seat"}, nil
 }

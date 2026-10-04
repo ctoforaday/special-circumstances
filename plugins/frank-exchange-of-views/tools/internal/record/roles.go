@@ -1,6 +1,8 @@
 package record
 
 import (
+	"fmt"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 
 	"strings"
@@ -87,6 +89,25 @@ var scorecardOfRole = map[string]string{
 func ScorecardOf(role string) (card string, ok bool) {
 	c, ok := scorecardOfRole[role]
 	return c, ok
+}
+
+// gavelSeatOf resolves a motion's `ruled_by` role to the one seat that holds the gavel, through
+// roleSeats — the roster every other role question reads, so a gavel cannot rest with a seat the
+// roster does not give that role. A gavel rests with ONE seat: a role whose roster entry is a
+// family of seats (the lenses, blue) or not a seat at all is an error, as is a word that names no
+// role. Printing the word as though it were a seat id would send the reader to a seat that does
+// not exist.
+func gavelSeatOf(ruler string) (string, error) {
+	prefixes, known := roleSeats[ruler]
+	if !known {
+		return "", fmt.Errorf("its gavel is held by %q, which is no role in the roster — a motion nobody can rule", ruler)
+	}
+	if len(prefixes) == 1 {
+		if s, ok := seatclass.Seats[prefixes[0]]; ok && s.Role == ruler {
+			return prefixes[0], nil
+		}
+	}
+	return "", fmt.Errorf("its gavel is held by the %s role, whose roster entry (%s) is not one seat — a gavel rests with one seat", ruler, strings.Join(prefixes, ", "))
 }
 
 // roleOfSeat reports which role a seat id belongs to, for the error message.
