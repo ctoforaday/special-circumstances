@@ -1189,12 +1189,8 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	if err != nil {
 		return WorkJSON{}, err
 	}
-	ids, err := eventIDsOfRun(run)
-	if err != nil {
-		return WorkJSON{}, err
-	}
 	w := workJSONOfGaps(gaps, epochOfSeatOnBoard(m.Events, seatID)-1, backingOf(m.Events), seatID)
-	w.Sitting = SittingOf(m.Events, ids, gaps, role, seatID)
+	w.Sitting = SittingOf(m.Events, m.At.IDs(m.Events), m.At, gaps, role, seatID)
 	w.Counterparty = counterpartyOf(m.Events, role, epochOfSeatOnBoard(m.Events, seatID))
 	return w, nil
 }

@@ -47,11 +47,8 @@ func sittingOfRunT(t *testing.T, run Run, role, seatID string) SittingJSON {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ids, err := eventIDsOfRun(run)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return SittingOf(m.Events, ids, gaps, role, seatID)
+	ids := m.At.IDs(m.Events)
+	return SittingOf(m.Events, ids, m.At, gaps, role, seatID)
 }
 
 // positions stands in for events.id on a hand-built stream with no database: 1..n in stream

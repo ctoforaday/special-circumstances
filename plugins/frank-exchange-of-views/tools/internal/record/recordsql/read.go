@@ -39,29 +39,42 @@ import (
 // record's event types use, which the schema bounds. Validation still walks the events in record
 // order, so the first refusal an interleaved read would have raised is the same refusal this one
 // raises.
-func Events(db *sql.DB) ([]*recordpb.Event, error) {
-	evs, _, err := eventsWhere(db, false, ``)
-	return evs, err
+//
+// # Each event comes back with the window it sits in
+//
+// The second slice is aligned with the first by position: where each event sits on the record,
+// read off events_w and the stored sitting_id in the same read. A reader that needs which sitting
+// an act belongs to takes it from here rather than counting openings over the slice — the write
+// path decided that once (sittingOf), and a second count is a second definition.
+func Events(db *sql.DB) ([]*recordpb.Event, []Window, error) {
+	return eventsWhere(db, ``)
 }
 
-// Window is where an event sits on the record's two clocks (plans/roundless.md §III.A.0): the
-// EPOCH — how many times the chair had registered at or before this row — and the SITTING — how
-// many times this row's own seat had. Both are read off the events_w view, which numbers the
-// SITTINGS by window function and joins them; neither is stamped on the row. (This said the windows
-// were derived "by window function from id", and for a long time they were not: the view ran two
-// correlated scalar subqueries per row, which EXPLAIN QUERY PLAN names as such. The sentence
-// described the intended mechanism, and reading it was how the quadratic one went unnoticed.) The envelope's own history says why:
-// seq, nonce and epoch were each a derivation stored at the write, each cost the write a read,
-// and each was retired once the record could simply be asked.
+// Window is where an event sits on the record: its row, the sitting it belongs to, and that
+// sitting's place on the record's two clocks (plans/roundless.md §III.A.0).
+//
+// SittingID is the stored fact — events.sitting_id, stamped once at the write by sittingOf — and
+// the rest is read beside it. OWNER is the seat whose sitting that is (the `sittings` view's owner:
+// a register's seat, or the seat a hook bracket's body names). SITTING is the rank of that sitting
+// among its owner's, and EPOCH is how many of the chair's sittings opened at or before this row.
+// Both numbers come off the events_w view, which ranks the stored sittings; neither is stamped on
+// the row, and nothing in Go counts them again. The envelope's own history says why: seq, nonce and
+// epoch were each a derivation stored at the write, each cost the write a read, and each was
+// retired once the record could simply be asked.
+//
+// A row in no sitting — the harness's own bookkeeping, a cast, a seat's act before it ever sat —
+// has SittingID 0, Owner "" and Sitting 0. An OPENING is a row whose SittingID is its own ID.
 type Window struct {
-	Epoch   int
-	Sitting int
+	ID        int64
+	SittingID int64
+	Owner     string
+	Epoch     int
+	Sitting   int
 }
 
-// EventsW is Events with each event's Window beside it, aligned by position. A reader that
-// buckets by epoch or labels by sitting takes this; one that only needs the sequence takes Events.
-func EventsW(db *sql.DB) ([]*recordpb.Event, []Window, error) {
-	return eventsWhere(db, true, ``)
+// Opens is the seat whose sitting this row opened, and whether it opened one.
+func (w Window) Opens() (string, bool) {
+	return w.Owner, w.ID != 0 && w.SittingID == w.ID
 }
 
 // EventsOfTypes is Events narrowed to the named type words, in the same record order — for a
@@ -87,28 +100,32 @@ func EventsW(db *sql.DB) ([]*recordpb.Event, []Window, error) {
 // is no epoch to compare and nothing here knows what the words used to be. It asks the one question
 // the data can answer on its own — does this record spell its events in words this schema declares
 // — and the schema's own enum is the whole authority.
-func EventsOfTypes(db *sql.DB, words ...string) ([]*recordpb.Event, error) {
+func EventsOfTypes(db *sql.DB, words ...string) ([]*recordpb.Event, []Window, error) {
 	if len(words) == 0 {
-		return nil, nil
+		return nil, nil, nil
 	}
 	if err := refuseUndeclaredTypes(db); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	marks := strings.TrimSuffix(strings.Repeat("?, ", len(words)), ", ")
 	args := make([]any, len(words))
 	for i, w := range words {
 		args[i] = w
 	}
-	evs, _, err := eventsWhere(db, false, ` WHERE type IN (`+marks+`)`, args...)
-	return evs, err
+	return eventsWhere(db, ` WHERE w."type" IN (`+marks+`)`, args...)
 }
 
-func eventsWhere(db *sql.DB, withWindows bool, where string, args ...any) ([]*recordpb.Event, []Window, error) {
-	cols, from := `id, seat_id, ts, type, key`, `events`
-	if withWindows {
-		cols, from = `id, seat_id, ts, type, key, epoch, sitting`, `events_w`
+// eventsWhere is the one read path. Every load reads events_w once, with the stored sitting_id
+// beside it, and each sitting's owner once off the `sittings` view — never a join per reader.
+// Measured at 5-13 ms per load on the archived runs (317 and 821 events), less than the body load
+// it rides on.
+func eventsWhere(db *sql.DB, where string, args ...any) ([]*recordpb.Event, []Window, error) {
+	owners, err := sittingOwners(db)
+	if err != nil {
+		return nil, nil, err
 	}
-	rows, err := db.Query(`SELECT `+cols+` FROM `+from+where+` ORDER BY id`, args...)
+	rows, err := db.Query(`SELECT w."id", w."seat_id", w."ts", w."type", w."key", w."epoch", w."sitting", COALESCE(e."sitting_id", 0)
+		FROM "events_w" w JOIN "events" e ON e."id" = w."id"`+where+` ORDER BY w."id"`, args...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("recordsql: reading the record: %w", err)
 	}
@@ -122,13 +139,10 @@ func eventsWhere(db *sql.DB, withWindows bool, where string, args ...any) ([]*re
 		var seatID, ts, typ string
 		var key *string
 		var w Window
-		dst := []any{&id, &seatID, &ts, &typ, &key}
-		if withWindows {
-			dst = append(dst, &w.Epoch, &w.Sitting)
-		}
-		if err := rows.Scan(dst...); err != nil {
+		if err := rows.Scan(&id, &seatID, &ts, &typ, &key, &w.Epoch, &w.Sitting, &w.SittingID); err != nil {
 			return nil, nil, err
 		}
+		w.ID, w.Owner = id, owners[w.SittingID]
 		t, ok := eventTypeOf(typ)
 		if !ok {
 			return nil, nil, fmt.Errorf("recordsql: event %d has type %q, which the schema does not declare", id, typ)
@@ -143,9 +157,7 @@ func eventsWhere(db *sql.DB, withWindows bool, where string, args ...any) ([]*re
 		}
 		out = append(out, ev)
 		ids = append(ids, id)
-		if withWindows {
-			windows = append(windows, w)
-		}
+		windows = append(windows, w)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, nil, err
@@ -154,6 +166,25 @@ func eventsWhere(db *sql.DB, withWindows bool, where string, args ...any) ([]*re
 		return nil, nil, err
 	}
 	return out, windows, nil
+}
+
+// sittingOwners is each sitting's owner, keyed by the id of the event that opened it.
+func sittingOwners(db *sql.DB) (map[int64]string, error) {
+	rows, err := db.Query(`SELECT "id", "seat_id" FROM "sittings"`)
+	if err != nil {
+		return nil, fmt.Errorf("recordsql: reading the record's sittings: %w", err)
+	}
+	defer rows.Close()
+	out := map[int64]string{}
+	for rows.Next() {
+		var id int64
+		var seat string
+		if err := rows.Scan(&id, &seat); err != nil {
+			return nil, err
+		}
+		out[id] = seat
+	}
+	return out, rows.Err()
 }
 
 // refuseUndeclaredTypes fails a record that spells its events in words this schema does not

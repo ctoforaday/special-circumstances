@@ -122,7 +122,8 @@ func EventsOf(run Run, types ...recordpb.EventType) ([]*Event, error) {
 	if correctable {
 		words = append(words, recordpb.Word(recordpb.EventType_EVENT_TYPE_CORRECTION))
 	}
-	return recordsql.EventsOfTypes(db, words...)
+	evs, _, err := recordsql.EventsOfTypes(db, words...)
+	return evs, err
 }
 
 // Epochs lists every epoch the record touched, ascending — the skeleton a per-epoch

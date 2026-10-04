@@ -63,6 +63,9 @@ type shardInfo struct {
 // different producer and are untouched.
 type Merged struct {
 	Events []*Event
+	// At is where each of Events sits — its row id and its stored sitting — as the same read
+	// loaded it (WindowIndex).
+	At WindowIndex
 }
 
 // THE MTIME TIE-BREAK IS GONE, and its test with it (winnertie_test.go).
@@ -100,11 +103,11 @@ func MergedEvents(run Run) (Merged, error) {
 	if db == nil {
 		return Merged{}, nil
 	}
-	evs, err := recordsql.Events(db)
+	evs, ws, err := recordsql.Events(db)
 	if err != nil {
 		return Merged{}, err
 	}
-	return Merged{Events: evs}, nil
+	return Merged{Events: evs, At: windowIndexOf(evs, ws)}, nil
 }
 
 // Gap is the replayed state of one board gap.

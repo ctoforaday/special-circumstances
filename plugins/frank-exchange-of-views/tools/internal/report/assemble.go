@@ -1121,7 +1121,7 @@ func correctnessManifest(fam record.Family) string {
 	// Read while the run is running: the bench assembles the report as a seat of the run. The owed
 	// gaps are the same at either reading, and a sitting the record cannot close is process state
 	// for the scorecard, never a line of the report.
-	unmanifested := record.ManifestUnreceipted(fam.Events, record.WhileRunning).Gaps
+	unmanifested := record.ManifestUnreceipted(fam.Events, fam.At, record.WhileRunning).Gaps
 	if len(rows) == 0 && len(unmanifested) == 0 {
 		return ""
 	}

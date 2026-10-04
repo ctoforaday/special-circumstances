@@ -96,7 +96,7 @@ func TestIs91PrimeBsReprompt(t *testing.T) {
 	if reprompts != 1 {
 		t.Fatalf("found %d sitting-record re-prompt registers, want the one this archive carries", reprompts)
 	}
-	ss := record.BlueSittings(fam.Events, record.AfterTheRun)
+	ss := record.BlueSittings(fam.Events, fam.At, record.AfterTheRun)
 	if len(ss) != 3 {
 		t.Fatalf("blue sittings = %d, want 3", len(ss))
 	}

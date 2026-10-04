@@ -78,7 +78,7 @@ func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 		}
 	}
 
-	evs, err := Events(db)
+	evs, _, err := Events(db)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +117,7 @@ func TestAnEventRowWithNoBodyRowIsRefused(t *testing.T) {
 		VALUES ('red-chair', '2026-01-01T00:00:00Z', 'mint', 'red-chair:act:#0')`); err != nil {
 		t.Fatal(err)
 	}
-	_, err := Events(db)
+	_, _, err := Events(db)
 	if err == nil || !strings.Contains(err.Error(), "has no mint body") {
 		t.Fatalf("err = %v, want the missing-body refusal", err)
 	}
@@ -174,7 +174,7 @@ func BenchmarkEvents(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		evs, err := Events(db)
+		evs, _, err := Events(db)
 		if err != nil {
 			b.Fatal(err)
 		}

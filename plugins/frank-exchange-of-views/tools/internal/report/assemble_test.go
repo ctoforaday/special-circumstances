@@ -731,7 +731,7 @@ func TestTheBenchsOwnClosuresAreNotBluesUnauditedRepairs(t *testing.T) {
 		// G2 is not blue's repair.
 		Events: blueSatOn(t, []string{"G1", "G2"}, "G1"),
 	}
-	got := correctnessManifest(board.fam())
+	got := correctnessManifest(board.famT(t))
 	if !strings.Contains(got, "G1") {
 		t.Errorf("blue's own unaudited repair left the list:\n%s", got)
 	}
@@ -752,7 +752,7 @@ func TestABlueRepairTheBenchLaterRuledOnIsStillCharged(t *testing.T) {
 	g.BenchClosure = &recordpb.DocketRuling{}
 	g.ClosedByBench = true
 
-	got := correctnessManifest((&boardT{GapOrder: []string{"G1"}, Gaps: map[string]*record.Gap{"G1": g}, Events: blueSatOn(t, []string{"G1"}, "G1")}).fam())
+	got := correctnessManifest((&boardT{GapOrder: []string{"G1"}, Gaps: map[string]*record.Gap{"G1": g}, Events: blueSatOn(t, []string{"G1"}, "G1")}).famT(t))
 	if !strings.Contains(got, "G1") {
 		t.Errorf("a missing receipt disappeared because the bench later ruled on the gap:\n%s", got)
 	}
@@ -777,11 +777,11 @@ func blueSatOn(t *testing.T, engaged []string, repaired ...string) []*record.Eve
 // blue owed and receipted, and nothing about the reading.
 func TestTheManifestSectionCarriesNoNotMeasuredLine(t *testing.T) {
 	g := &record.Gap{ID: "G1"}
-	withEdit := correctnessManifest((&boardT{GapOrder: []string{"G1"}, Gaps: map[string]*record.Gap{"G1": g}, Events: blueSatOn(t, []string{"G1"}, "G1")}).fam())
+	withEdit := correctnessManifest((&boardT{GapOrder: []string{"G1"}, Gaps: map[string]*record.Gap{"G1": g}, Events: blueSatOn(t, []string{"G1"}, "G1")}).famT(t))
 	if !strings.Contains(withEdit, "**1 repaired gap(s) carry no manifest row (G1).**") || strings.Contains(withEdit, "NOT MEASURED") {
 		t.Errorf("an unreceipted repair in a sitting nothing closed renders its line and no not-measured line:\n%s", withEdit)
 	}
-	if got := correctnessManifest((&boardT{GapOrder: []string{"G1"}, Gaps: map[string]*record.Gap{"G1": g}, Events: blueSatOn(t, []string{"G1"})}).fam()); got != "" {
+	if got := correctnessManifest((&boardT{GapOrder: []string{"G1"}, Gaps: map[string]*record.Gap{"G1": g}, Events: blueSatOn(t, []string{"G1"})}).famT(t)); got != "" {
 		t.Errorf("a sitting nothing closed that owed no row renders no section, got:\n%s", got)
 	}
 }
@@ -794,7 +794,7 @@ func TestARebuttedGapIsNotChargedAsAnUnauditedRepair(t *testing.T) {
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", HasClosed: true, Closure: &recordpb.Close{}}},
 		Events:   blueSatOn(t, []string{"G1"}),
 	}
-	if got := correctnessManifest(board.fam()); strings.Contains(got, "G1") {
+	if got := correctnessManifest(board.famT(t)); strings.Contains(got, "G1") {
 		t.Errorf("blue is charged a receipt for a gap it rebutted without an edit:\n%s", got)
 	}
 }
@@ -811,16 +811,17 @@ func TestAGapClosedBeforeBlueSatIsNotChargedToBlue(t *testing.T) {
 			"G2": {ID: "G2", HasClosed: true, Closure: &recordpb.Close{}},
 		},
 		Events: []*record.Event{
+			mintT(t, "red-lens-logic", "G1"), mintT(t, "red-lens-voice", "G2"),
 			recordtest.Event(t, "red-chair", &recordpb.Dispatch{Pin: proto.Int64(1), SeatId: proto.String("blue-respond"), GapIds: []string{"G1", "G2"}}),
-			recordtest.Event(t, "red-lens-logic", &recordpb.Close{GapId: proto.String("G1")}),
+			closeT(t, "red-lens-logic", "G1"),
 			recordtest.Event(t, "blue-respond", &recordpb.Register{}),
 			// An edit naming G1 after its lens closed it is not a repair of an open gap.
 			recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Answers: proto.String("G1")}),
 			recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Answers: proto.String("G2")}),
-			recordtest.Event(t, "red-lens-voice", &recordpb.Close{GapId: proto.String("G2")}),
+			closeT(t, "red-lens-voice", "G2"),
 		},
 	}
-	got := correctnessManifest(board.fam())
+	got := correctnessManifest(board.famT(t))
 	if strings.Contains(got, "G1") {
 		t.Errorf("blue is charged a row for a gap its lens closed before blue sat:\n%s", got)
 	}

@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // WHAT HOLDS A PASS IS DECIDED HERE, ONCE.
@@ -313,7 +312,7 @@ func blockerGapsOfOpen(gaps []openGap) []blockerGap {
 
 // passBlockersOf is THE answer to "what holds a PASS", off the stream, its row ids, the open gaps
 // and the fresh-material set. The order is the kind table's, and within a kind the record's.
-func passBlockersOf(evs []*Event, ids []int64, gaps []blockerGap, fresh map[string]bool) []Blocker {
+func passBlockersOf(evs []*Event, ids []int64, at WindowIndex, gaps []blockerGap, fresh map[string]bool) []Blocker {
 	var out []Blocker
 	for _, g := range gaps {
 		if g.supersededBy != "" {
@@ -331,7 +330,7 @@ func passBlockersOf(evs []*Event, ids []int64, gaps []blockerGap, fresh map[stri
 	for _, c := range unansweredContradictionsBy(evs) {
 		out = append(out, Blocker{Kind: BlockerContradiction, Subject: c.claim, Owner: c.reader, since: ids[c.at]})
 	}
-	if lg := passLensGateOf(evs, ids, fresh); lg.cast {
+	if lg := passLensGateOf(evs, ids, at, fresh); lg.cast {
 		if lg.head == 0 {
 			out = append(out, Blocker{Kind: BlockerNoReport})
 		} else {
@@ -391,11 +390,7 @@ func PassBlockers(run Run) ([]Blocker, error) {
 	if err != nil || db == nil {
 		return nil, err
 	}
-	evs, _, err := recordsql.EventsW(db)
-	if err != nil {
-		return nil, err
-	}
-	ids, err := eventIDs(db)
+	evs, at, err := eventsAt(db)
 	if err != nil {
 		return nil, err
 	}
@@ -407,7 +402,7 @@ func PassBlockers(run Run) ([]Blocker, error) {
 	if err != nil {
 		return nil, err
 	}
-	return passBlockersOf(evs, ids, blockerGapsOfOpen(gaps), fresh), nil
+	return passBlockersOf(evs, at.IDs(evs), at, blockerGapsOfOpen(gaps), fresh), nil
 }
 
 // requireNoBlockers is the verdict gate. A PASS is refused over every blocker; any verdict, and

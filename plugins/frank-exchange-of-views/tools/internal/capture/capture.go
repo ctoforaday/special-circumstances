@@ -781,7 +781,7 @@ func RecordParityAudit(run record.Run) Audit {
 	if err != nil {
 		return Audit{Check: "record-parity", Verdict: "FAIL", Detail: "the record could not be read: " + err.Error()}
 	}
-	sittings := record.BlueSittings(fam.Events, record.AfterTheRun)
+	sittings := record.BlueSittings(fam.Events, fam.At, record.AfterTheRun)
 	if len(sittings) == 0 {
 		return Audit{Check: "record-parity", Verdict: "SKIP", Detail: "no blue sitting for a dispatch on record"}
 	}

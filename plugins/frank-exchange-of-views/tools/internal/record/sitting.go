@@ -94,10 +94,10 @@ type SittingJSON struct {
 // them a second time (plans/board-as-views.md wave 1c). ids are the events' row ids, aligned with
 // evs: the PASS gate's lens condition compares recorded pins with the report head, both row ids,
 // and the chair's list states that condition from the same fold the gate refuses from.
-func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID string) SittingJSON {
+func SittingOf(evs []*Event, ids []int64, at WindowIndex, gaps []WorkGapState, role, seatID string) SittingJSON {
 	s := SittingJSON{Seat: seatID, Role: role, Open: []Item{}}
 	if role == "lens" {
-		ls := lastSittingBefore(evs, ids, seatID)
+		ls := lastSittingBefore(evs, ids, at, seatID)
 		s.LastSitting = &ls
 	}
 	add := func(what string) { s.Open = append(s.Open, Item{What: what, Blocks: true}) }
@@ -156,8 +156,8 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 	// so "a log event this sitting" stopped meaning "the seat has spoken" — a refused call would have
 	// closed the channel it exists to open. A sitting whose only events are refused calls recorded no
 	// act and still met friction, so it is asked too.
-	own, refused := logsThisSitting(evs, seatID)
-	if own == 0 && (refused > 0 || !sittingRecordedNothing(evs, seatID)) {
+	own, refused := logsThisSitting(evs, at, seatID)
+	if own == 0 && (refused > 0 || !sittingRecordedNothing(evs, at, seatID)) {
 		// THE ITEM NAMES ONLY WHAT CAN BE FILED. It used to end "nor said that nothing blocked you",
 		// which no type can say: `nominal` was retired when clean became DERIVED from having sat and
 		// filed nothing (LogType's own comment carries the measurement — 40 of 40 and 42 of 42 entries
@@ -186,7 +186,7 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 	// the docketing, no exchange is counted for blue or the minting lens — so the seat is readied
 	// again, epoch after epoch, until it registers. That covers every seat a dispatch names: the
 	// lenses, blue-respond and the bench.
-	if d, owed := owedSitting(evs, seatID); owed {
+	if d, owed := owedSitting(evs, at, seatID); owed {
 		add(fmt.Sprintf("you were dispatched against report head %d and have not registered since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting", d.pin))
 	}
 	// THE CHAIR OWES THE SAME REGISTER, AND NO DISPATCH NAMES IT, so the item above never reaches
@@ -196,7 +196,7 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 	// dispatch, and `dispatch next` — the chair's first act — refuses until the register lands,
 	// which is the enforcement the rule at the top of this file asks of every item here.
 	if seatID == chairSeat {
-		if g, owed := unopenedChairSitting(evs); owed {
+		if g, owed := unopenedChairSitting(evs, at); owed {
 			add(chairRegisterOwed(g) + " — register for this sitting")
 		}
 	}
@@ -224,7 +224,7 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 		// genuinely failed to deliver a line's research, red MINTS A GAP, and an open gap already
 		// reaches blue through the ordinary route with a grade and a required fix — with the PASS
 		// gate behind it when the gap is material by its class or grade. Restoring a second duty here would be the same fact told twice.
-		if revisionOwed(evs, seatID) && !seatDidThisSitting(evs, seatID, recordpb.EventType_EVENT_TYPE_REVISION) {
+		if revisionOwed(evs, at, seatID) && !seatDidThisSitting(evs, at, seatID, recordpb.EventType_EVENT_TYPE_REVISION) {
 			add("this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)")
 		}
 	case "chair":
@@ -236,7 +236,7 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 		//
 		// A gap's item stands in the gap's place on the board, and an open gap that holds nothing
 		// is listed there too, as work that is not owed.
-		blockers := passBlockersOf(evs, ids, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps))
+		blockers := passBlockersOf(evs, ids, at, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps))
 		gapItem := map[string]string{}
 		for _, b := range blockers {
 			if b.Kind == BlockerStrandedGap || b.Kind == BlockerMaterialGap {
@@ -274,7 +274,7 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 	// from availableOf and land on this same list carrying Blocks:false: available work, none of
 	// it owed.
 	case "lens":
-		for _, b := range passBlockersOf(evs, ids, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
+		for _, b := range passBlockersOf(evs, ids, at, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
 			if b.Kind == BlockerContradiction && b.Owner == seatID {
 				add(b.WorkItem())
 			}
@@ -284,7 +284,7 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 		// whose gavel the schema gives the bench, the same set the outcome refusal names
 		// (requireBenchMotionsRuled). A second walk of the motions here could disagree with that
 		// refusal, which is the drift the one list exists to end (#1202).
-		for _, b := range passBlockersOf(evs, ids, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
+		for _, b := range passBlockersOf(evs, ids, at, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
 			if b.Kind == BlockerUnruledMotion && b.Owner == benchSeat {
 				add("motion " + b.Subject + " (" + b.Detail + ") is unruled and the gavel is yours — the run cannot end in a verdict while it stands")
 			}
@@ -292,7 +292,7 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 	}
 	// THE AFFORDANCES GO ON THE SAME LIST, and they go on it LAST so the blocking items read
 	// first. They carry Blocks:false, so they are visible without being owed.
-	s.Open = append(s.Open, availableOf(evs, gaps, role, seatID)...)
+	s.Open = append(s.Open, availableOf(evs, at, gaps, role, seatID)...)
 
 	// AN EMPTY LIST MUST SAY IT IS EMPTY. `complete: true, open: []` is the answer a seat with
 	// nothing to do gets, and it is indistinguishable from a command that failed to find anything —
@@ -345,33 +345,32 @@ func seatDid(evs []*Event, seatID string, typ recordpb.EventType) bool {
 // fixed at blue's register — the dispatch and the closes before it — and never reads where the
 // sitting ended. The latest sitting is unresolved exactly while blue is sitting it, which is when
 // this list is read: an in-flight sitting still owes what it found open. Whether the owed revision
-// was FILED is seatDidThisSitting's question, read from blue's latest register onward.
-func revisionOwed(evs []*Event, seatID string) bool {
+// was FILED is seatDidThisSitting's question, read off blue's latest sitting.
+func revisionOwed(evs []*Event, at WindowIndex, seatID string) bool {
 	if seatID != blueRespondSeat {
 		return true
 	}
-	ss := BlueSittings(evs, WhileRunning) // the work list is read while blue sits
+	ss := BlueSittings(evs, at, WhileRunning) // the work list is read while blue sits
 	if len(ss) == 0 {
 		return true
 	}
 	return len(ss[len(ss)-1].Open) > 0
 }
 
-// seatDidThisSitting is seatDid for a duty the seat owes EVERY SITTING: only its acts since the
-// register that OPENED the sitting its acts are attributed to count. seatDid reads the whole record,
+// seatDidThisSitting is seatDid for a duty the seat owes EVERY SITTING: only its acts in the sitting
+// the write path stored them in count (thisSitting). seatDid reads the whole record,
 // so the first sitting's act discharged every later one: in B9 blue sat in epoch 5 with G4 open,
 // filed no revision, and read `complete` because its epoch-4 revision was on the record. A seat that
 // has not registered has no earlier sitting to borrow from, so the whole record is its sitting.
 //
 // IT ATTRIBUTES, SO A REPAIR OPENS NO WINDOW (#1026). This is a reader of "which sitting does this
-// act belong to", so the window opens at opensASitting, the one definition every attribution reader
-// shares: a sitting-record repair is a turn of its own and its acts are the repaired sitting's,
-// which is not what Clock counts. Starting the window at the seat's latest
-// register of ANY kind put the repair's own register there, so inside a repair the work list said
+// act belong to", so it reads the stored sitting, the one definition every attribution reader
+// shares: the write path stores a sitting-record repair, and its acts, in the sitting it repairs.
+// Starting the window at the seat's latest register of ANY kind put the repair's own register there, so inside a repair the work list said
 // the log channel was open for a sitting that had already filed there. The seat was told to file
 // something it had done, on the one surface it reads to find out what is left.
-func seatDidThisSitting(evs []*Event, seatID string, typ recordpb.EventType) bool {
-	for _, e := range thisSitting(evs, seatID) {
+func seatDidThisSitting(evs []*Event, at WindowIndex, seatID string, typ recordpb.EventType) bool {
+	for _, e := range thisSitting(evs, at, seatID) {
 		if e.GetType() == typ {
 			return true
 		}
@@ -379,19 +378,16 @@ func seatDidThisSitting(evs []*Event, seatID string, typ recordpb.EventType) boo
 	return false
 }
 
-// thisSitting is the seat's own live events in the window seatDidThisSitting reads: from the
-// register that opened the sitting its acts are attributed to.
-func thisSitting(evs []*Event, seatID string) []*Event {
-	live := Live(evs)
-	start := 0
-	for i, e := range live {
-		if s, opens := recordpb.SeatOpeningSitting(e); opens && s == seatID {
-			start = i
-		}
-	}
+// thisSitting is the seat's own live events in the window seatDidThisSitting reads: the acts the
+// write path stored in the seat's latest sitting. That sitting opened at the hook's bracket or at a
+// register, and a register under the bracketed agent joined it — so a log filed between the
+// bracket and that register is in the sitting, as the record says. A seat that has never sat has
+// no earlier sitting to borrow from: its acts are in none, and that is its window.
+func thisSitting(evs []*Event, at WindowIndex, seatID string) []*Event {
+	latest := at.LatestSittingOf(seatID)
 	var out []*Event
-	for _, e := range live[start:] {
-		if e.GetSeatId() == seatID {
+	for _, e := range Live(evs) {
+		if e.GetSeatId() == seatID && at.Of(e).SittingID == latest {
 			out = append(out, e)
 		}
 	}
@@ -401,8 +397,8 @@ func thisSitting(evs []*Event, seatID string) []*Event {
 // logsThisSitting splits the sitting's log entries by who wrote them: the seat's own, and the
 // refusals and failed calls the TOOL recorded against it. They answer different questions — whether the seat has
 // spoken, and whether it met friction the tool could see — so neither may stand in for the other.
-func logsThisSitting(evs []*Event, seatID string) (seatEntries, toolRefusals int) {
-	for _, e := range thisSitting(evs, seatID) {
+func logsThisSitting(evs []*Event, at WindowIndex, seatID string) (seatEntries, toolRefusals int) {
+	for _, e := range thisSitting(evs, at, seatID) {
 		l, ok := recordpb.BodyAs[*recordpb.Log](e)
 		if !ok {
 			continue
@@ -428,27 +424,16 @@ func logsThisSitting(evs []*Event, seatID string) (seatEntries, toolRefusals int
 // predicate exists to excuse, and sitting_open/sitting_close are the hooks' own. Counting any of
 // them would make every sitting look busy and the empty case unreachable.
 //
-// It reads the same window seatDidThisSitting does, so "this sitting" means one thing on this
-// surface: from the event that opened the seat's latest sitting — its register, or the hook's
-// sitting_open where the configuration names one seat — to the end of the record.
-func sittingRecordedNothing(evs []*Event, seatID string) bool {
-	live := Live(evs)
-	start := 0
-	opened := false
-	for i, e := range live {
-		if s, opens := recordpb.SeatOpeningSitting(e); opens && s == seatID {
-			start, opened = i, true
-		}
-	}
-	if !opened {
+// It reads the same window seatDidThisSitting does (thisSitting), so "this sitting" means one thing
+// on this surface: the seat's acts the write path stored in its latest sitting — opened by its
+// register, or by the hook's sitting_open where the configuration names one seat.
+func sittingRecordedNothing(evs []*Event, at WindowIndex, seatID string) bool {
+	if at.LatestSittingOf(seatID) == 0 {
 		// No sitting has opened for this seat at all, so there is no empty sitting to excuse —
 		// and saying "nothing recorded" here would discharge a duty the seat has not reached.
 		return false
 	}
-	for _, e := range live[start:] {
-		if e.GetSeatId() != seatID {
-			continue
-		}
+	for _, e := range thisSitting(evs, at, seatID) {
 		switch e.GetType() {
 		case recordpb.EventType_EVENT_TYPE_REGISTER,
 			recordpb.EventType_EVENT_TYPE_LOG,

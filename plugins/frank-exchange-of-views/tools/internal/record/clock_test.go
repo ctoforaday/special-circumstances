@@ -40,12 +40,16 @@ func TestClockAgreesWithEventsW(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	evs, want, err := recordsql.EventsW(db)
+	evs, ws, err := recordsql.Events(db)
 	if err != nil {
 		t.Fatal(err)
 	}
+	want := make([]recordsql.Window, len(ws))
+	for i, w := range ws {
+		want[i] = recordsql.Window{Epoch: w.Epoch, Sitting: w.Sitting} // the two numbers Clock counts
+	}
 	if len(evs) != 7 || len(want) != 7 {
-		t.Fatalf("seeded 7 events, EventsW returned %d events and %d windows", len(evs), len(want))
+		t.Fatalf("seeded 7 events, Events returned %d events and %d windows", len(evs), len(want))
 	}
 	var clk Clock
 	for i, e := range evs {

@@ -47,7 +47,7 @@ import (
 // (whether you disagree, whether the claim should go) that no derivation can make for the seat.
 // An affordance line for those would be an expectation that cannot be honestly met, which is the
 // defect TestEveryExpectationIsReachableOnItsBoard exists to catch one layer up.
-func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item {
+func availableOf(evs []*Event, at WindowIndex, gaps []WorkGapState, role, seatID string) []Item {
 	out := []Item{}
 	// Blocks is FALSE on every one of these: an affordance is open work, not owed work,
 	// and that distinction is the whole content of the rule this file used to split a list
@@ -76,7 +76,7 @@ func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item 
 		// NO NOT-MEASURED LINE HERE. A later register closes every earlier blue sitting, so the only
 		// sitting the record can leave unresolved is the latest — and while this list is read, that
 		// is the sitting reading it. Its unreceipted edits are the receipts it can still file.
-		for _, id := range ManifestUnreceipted(evs, WhileRunning).Gaps {
+		for _, id := range ManifestUnreceipted(evs, at, WhileRunning).Gaps {
 			add("gap " + id + " was answered by an edit and carries no manifest row — the report names a gap YOU repaired that carries no row as a repair nobody audited, including its author")
 		}
 	case "chair":
@@ -144,7 +144,7 @@ func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item 
 			}
 			add("gap " + g.ID + " is open and you have not closed it — `motion docket file` puts it before the bench, which is the channel for a gap you cannot settle yourself")
 		}
-		if anyClosedGap(gaps) && !seatDidThisSitting(evs, seatID, recordpb.EventType_EVENT_TYPE_SPOT_CHECK) {
+		if anyClosedGap(gaps) && !seatDidThisSitting(evs, at, seatID, recordpb.EventType_EVENT_TYPE_SPOT_CHECK) {
 			add("the closure archive is not empty and this sitting has sampled none of it")
 		}
 	case "lens":
@@ -186,7 +186,7 @@ func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item 
 		//
 		// ON THE ORIGINATOR'S LIST, by the same rule as the regrade line above: only the minting seat
 		// re-audits and closes its gap, so this is news for that seat and noise for any other.
-		for _, w := range blueAnswers(evs, gaps, seatID) {
+		for _, w := range blueAnswers(evs, at, gaps, seatID) {
 			add(w)
 		}
 		// ANOTHER LENS'S ARGUMENT ABOUT YOUR GAP REACHES YOU, because nobody else can act on it.

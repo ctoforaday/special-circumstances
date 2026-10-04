@@ -465,7 +465,7 @@ func TestCaptureClosesTheLastSittingALiveReaderCannot(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	live := record.BlueSittings(fam.Events, record.WhileRunning)
+	live := record.BlueSittings(fam.Events, fam.At, record.WhileRunning)
 	if len(live) != 2 || live[0].Unresolved || !live[1].Unresolved {
 		t.Fatalf("while the run runs, the first sitting is closed by blue's next register and the last is unresolved: %+v", live)
 	}
@@ -479,7 +479,7 @@ func TestCaptureClosesTheLastSittingALiveReaderCannot(t *testing.T) {
 		t.Errorf("a live scorecard cannot close the last sitting and must say so: note %q", note)
 	}
 
-	after := record.BlueSittings(fam.Events, record.AfterTheRun)
+	after := record.BlueSittings(fam.Events, fam.At, record.AfterTheRun)
 	if len(after) != 2 || after[0].Unresolved || after[1].Unresolved {
 		t.Fatalf("after the run, the end of the record closes the last sitting: %+v", after)
 	}

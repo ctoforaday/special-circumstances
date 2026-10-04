@@ -322,7 +322,7 @@ func registerSeat(id Identity, runVia string, repair bool, occasion string) (dis
 		if err != nil {
 			return 0, "", "", err
 		}
-		if repairs, err = repairTarget(m.Events, seatID); err != nil {
+		if repairs, err = repairTarget(m.Events, m.At, seatID); err != nil {
 			return 0, "", "", err
 		}
 		reg.RepairsSitting = proto.String(repairs)

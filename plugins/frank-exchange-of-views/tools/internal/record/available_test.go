@@ -21,14 +21,14 @@ import (
 // So the same guarantee, on one list: affordances appear, affordances carry Blocks:false, and
 // `complete` reads the blocking items alone.
 func TestAnAffordanceIsListedAndDoesNotBlock(t *testing.T) {
-	b := NewFamily(nil, []*Event{
+	b := loadedFamilyT(t, nil, []*Event{
 		dispatchBlue(t, "G1"), registers(t, "blue-respond"),
 		recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Answers: proto.String("G1")}),
 		// Both duties a blue seat owes on an empty board, discharged, so nothing blocks.
-		recordtest.Event(t, "blue-respond", &recordpb.Log{}),
+		recordtest.Event(t, "blue-respond", seatLog("nothing in the way")),
 		recordtest.Event(t, "blue-respond", &recordpb.Revision{}),
 	})
-	s := SittingOf(b.Events, positions(b.Events), workStatesOfFamilyT(b), "blue", "blue-respond")
+	s := SittingOf(b.Events, b.At.IDs(b.Events), b.At, workStatesOfFamilyT(b), "blue", "blue-respond")
 
 	var afforded, blocking int
 	for _, it := range s.Open {
@@ -65,11 +65,12 @@ func TestAnAffordanceIsListedAndDoesNotBlock(t *testing.T) {
 func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 
 	t.Run("manifest row missing after an edit", func(t *testing.T) {
-		b := NewFamily(nil, []*Event{
+		b := loadedFamilyT(t, nil, []*Event{
+			mintsGap(t, "red-lens-logic", "G2"),
 			dispatchBlue(t, "G2", "G3"), registers(t, "blue-respond"),
 			recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Answers: proto.String("G2")}),
 		})
-		got := availableOf(b.Events, workStatesOfFamilyT(b), "blue", "blue-respond")
+		got := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "blue", "blue-respond")
 		if !mentions(got, "gap G2 was answered by an edit and carries no manifest row") {
 			t.Fatalf("an edit answering G2 with no manifest row afforded nothing: %v", hows(got))
 		}
@@ -78,14 +79,17 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 			t.Errorf("a rebutted gap was offered a manifest receipt: %v", hows(got))
 		}
 		// And it stops once the receipt exists, or the line is a nag rather than a fact.
-		b.Events = append(b.Events, recordtest.Event(t, "blue-respond", &recordpb.ManifestRow{GapId: proto.String("G2")}))
-		if got := availableOf(b.Events, workStatesOfFamilyT(b), "blue", "blue-respond"); mentions(got, "gap G2 was answered by an edit and carries no manifest row") {
+		b = loadedFamilyT(t, nil, append(b.Events, recordtest.Event(t, "blue-respond", &recordpb.ManifestRow{GapId: proto.String("G2")})))
+		if got := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "blue", "blue-respond"); mentions(got, "gap G2 was answered by an edit and carries no manifest row") {
 			t.Errorf("the manifest affordance survived its own discharge: %v", hows(got))
 		}
 	})
 
 	t.Run("grade accepted and never moved", func(t *testing.T) {
-		b := NewFamily(nil, []*Event{
+		b := loadedFamilyT(t, nil, []*Event{
+			// THE ORIGINATOR'S ACT, SO THE ORIGINATOR'S LIST. requireOriginator refuses a regrade
+			// from any other seat, so the line belongs to the lens that minted G1 and to nobody else.
+			recordtest.Event(t, "red-lens-evidence", corrMint("G1")),
 			// THE FIXTURE IS NOW A REAL EXCHANGE, because the join demands one. The gap id lives
 			// on the FILING and the verdict on the RULING, in different shards, and Motions()
 			// pairs them on the motion id — so a lone motion-rule carrying a gap_id, which is what
@@ -98,23 +102,21 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 			recordtest.Event(t, "red-chair", &recordpb.MotionRule{
 				MotionId: proto.String("M1"),
 				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
+				Opinion:  proto.String("ruled"),
 				Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_ACCEPTED},
 			}),
 		})
-		// THE ORIGINATOR'S ACT, SO THE ORIGINATOR'S LIST. requireOriginator refuses a regrade from
-		// any other seat, so the line belongs to the lens that minted G1 and to nobody else.
-		b.Events = append([]*Event{recordtest.Event(t, "red-lens-evidence", &recordpb.Mint{GapId: proto.String("G1")})}, b.Events...)
-		got := availableOf(b.Events, workStatesOfFamilyT(b), "lens", "red-lens-evidence")
+		got := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "lens", "red-lens-evidence")
 		if !mentions(got, "gap G1 had a grade motion ACCEPTED and no regrade") {
 			t.Fatalf("an accepted grade motion with no regrade afforded nothing to the lens that minted it: %v", hows(got))
 		}
 		for _, other := range []struct{ role, seat string }{{"chair", "red-chair"}, {"lens", "red-lens-logic"}} {
-			if got := availableOf(b.Events, workStatesOfFamilyT(b), other.role, other.seat); mentions(got, "no regrade followed it") {
+			if got := availableOf(b.Events, b.At, workStatesOfFamilyT(b), other.role, other.seat); mentions(got, "no regrade followed it") {
 				t.Errorf("%s was offered a regrade its write path refuses — G1 is red-lens-evidence's: %v", other.seat, hows(got))
 			}
 		}
-		b.Events = append(b.Events, recordtest.Event(t, "red-lens-evidence", &recordpb.Regrade{GapId: proto.String("G1")}))
-		if got := availableOf(b.Events, workStatesOfFamilyT(b), "lens", "red-lens-evidence"); mentions(got, "gap G1 had a grade motion ACCEPTED and no regrade") {
+		b = loadedFamilyT(t, nil, append(b.Events, recordtest.Event(t, "red-lens-evidence", &recordpb.Regrade{GapId: proto.String("G1"), Basis: proto.String("b")})))
+		if got := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "lens", "red-lens-evidence"); mentions(got, "gap G1 had a grade motion ACCEPTED and no regrade") {
 			t.Errorf("the regrade affordance survived the regrade: %v", hows(got))
 		}
 	})
@@ -122,7 +124,8 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 	// A REJECTED motion owes no regrade, and saying it does would be the unmeetable expectation
 	// this package's own coverage gate exists to refuse.
 	t.Run("a rejected motion affords no regrade", func(t *testing.T) {
-		b := NewFamily(nil, []*Event{
+		b := loadedFamilyT(t, nil, []*Event{
+			recordtest.Event(t, "red-lens-evidence", corrMint("G1")),
 			// THE FIXTURE IS NOW A REAL EXCHANGE, because the join demands one. The gap id lives
 			// on the FILING and the verdict on the RULING, in different shards, and Motions()
 			// pairs them on the motion id — so a lone motion-rule carrying a gap_id, which is what
@@ -135,11 +138,11 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 			recordtest.Event(t, "red-chair", &recordpb.MotionRule{
 				MotionId: proto.String("M1"),
 				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
+				Opinion:  proto.String("ruled"),
 				Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED},
 			}),
 		})
-		b.Events = append([]*Event{recordtest.Event(t, "red-lens-evidence", &recordpb.Mint{GapId: proto.String("G1")})}, b.Events...)
-		if got := availableOf(b.Events, workStatesOfFamilyT(b), "lens", "red-lens-evidence"); mentions(got, "no regrade followed it") {
+		if got := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "lens", "red-lens-evidence"); mentions(got, "no regrade followed it") {
 			t.Errorf("a REJECTED grade motion afforded a regrade: %v", hows(got))
 		}
 	})
@@ -197,7 +200,7 @@ func chairSits(t *testing.T) *Event {
 // line untouched since round 0. The only statuses that DID clear it were `declined`, `abandoned`
 // and `deferred`, all of which mean stop: the channel could express giving up and not carrying on.
 func TestAPursuedAvenueReaffirmedThisRoundIsNotStale(t *testing.T) {
-	b := NewFamily(nil, []*Event{
+	b := loadedFamilyT(t, nil, []*Event{
 		// Epoch 0: the base phase, before any chair has sat.
 		avenueAt(t, "Q1", "proposed"),
 		avenueAt(t, "Q1", "pursued"),
@@ -288,7 +291,7 @@ func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
 			}),
 			file("M2", "G-pending"),
 		})
-	open := availableOf(b.Events, workStatesOfFamilyT(b), "chair", "red-chair")
+	open := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "chair", "red-chair")
 
 	for _, want := range []string{"G-carried", "G-fresh"} {
 		if !mentions(open, "gap "+want+" is open") {
@@ -320,7 +323,7 @@ func TestACarriedGapReadsDifferentlyFromOneNobodyDocketed(t *testing.T) {
 			DocketReopensOn: "blue reporting what the stated direction found"},
 		{ID: "FRESH", Open: true, Material: true},
 	}
-	open := availableOf(nil, gaps, "chair", "red-chair")
+	open := availableOf(nil, WindowIndex{}, gaps, "chair", "red-chair")
 
 	find := func(id string) string {
 		t.Helper()

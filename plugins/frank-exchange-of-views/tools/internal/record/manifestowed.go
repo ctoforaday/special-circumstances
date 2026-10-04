@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -34,10 +35,10 @@ import (
 // and while the run is running Unresolved says those sittings may yet hold more.
 // A dispatch blue never sat owes nothing: no register, no sitting, and a missing sitting is the
 // sitting-record audit's finding, not the manifest's.
-func ManifestOwed(evs []*Event, when ReadWhen) ManifestOwing {
+func ManifestOwed(evs []*Event, at WindowIndex, when ReadWhen) ManifestOwing {
 	var o ManifestOwing
 	seen := map[string]bool{}
-	for _, s := range BlueSittings(evs, when) {
+	for _, s := range BlueSittings(evs, at, when) {
 		if s.Unresolved {
 			o.Unresolved++
 		}
@@ -130,15 +131,23 @@ func (s BlueSitting) Owes() []recordpb.EventType {
 // ENGAGED IS THE LAST DISPATCH BEFORE THE REGISTER. A chair that writes the plan twice leaves two
 // rows for one sitting, and the later is the dispatch; a close counts as "closed first" only
 // between that row and the register.
-func BlueSittings(evs []*Event, when ReadWhen) []BlueSitting {
+func BlueSittings(evs []*Event, at WindowIndex, when ReadWhen) []BlueSitting {
 	// The acts that stand: a corrected close or row is read as its replacement, in its place.
 	evs = Live(evs)
+	// NO DISPATCH OF BLUE, NO SITTING FOR ONE — whatever sat. Asked first because it needs nothing
+	// but the dispatch rows, so a record blue was never dispatched on is answered without the index.
+	if !slices.ContainsFunc(evs, func(e *Event) bool {
+		d, ok := recordpb.BodyAs[*recordpb.Dispatch](e)
+		return ok && d.GetSeatId() == blueRespondSeat
+	}) {
+		return nil
+	}
 	seq := make([]int64, len(evs))
 	for i := range seq {
 		seq[i] = int64(i)
 	}
-	ds, registers := dispatchLedger(evs, seq)
-	closer := sittingCloserOf(evs, seq, registers, when)
+	ds, registers := dispatchLedger(evs, seq, at)
+	closer := sittingCloserOf(evs, seq, at, registers, when)
 	var out []BlueSitting
 	for k, d := range ds {
 		if d.seat != blueRespondSeat {
@@ -188,7 +197,7 @@ func laterBlueDispatchBefore(later []dispatchRow, register int64) bool {
 // ManifestUnreceipted is ManifestOwed less every gap a manifest-row event names, in the same order:
 // the repairs nobody audited, including their author. Unresolved carries over: a sitting the record
 // cannot close may yet file the row, so its unreceipted gaps are what the record holds so far.
-func ManifestUnreceipted(evs []*Event, when ReadWhen) ManifestOwing {
+func ManifestUnreceipted(evs []*Event, at WindowIndex, when ReadWhen) ManifestOwing {
 	evs = Live(evs)
 	rowed := map[string]bool{}
 	for _, e := range evs {
@@ -196,7 +205,7 @@ func ManifestUnreceipted(evs []*Event, when ReadWhen) ManifestOwing {
 			rowed[mr.GetGapId()] = true
 		}
 	}
-	owed := ManifestOwed(evs, when)
+	owed := ManifestOwed(evs, at, when)
 	out := ManifestOwing{Unresolved: owed.Unresolved}
 	for _, g := range owed.Gaps {
 		if !rowed[g] {

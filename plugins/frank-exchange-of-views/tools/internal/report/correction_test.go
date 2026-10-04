@@ -26,7 +26,7 @@ func corrected(t *testing.T, seat, key string, was, is proto.Message) []*record.
 // THE REPORT SHOWS A CORRECTED ACT STRUCK, BESIDE THE ACT THAT REPLACED IT — never hidden, and
 // never counted as a second act. B3's manifest rows are the case that made this necessary.
 func TestTheReportShowsACorrectedActStruck(t *testing.T) {
-	evs := blueSatOn(t, []string{"G1"}, "G1")
+	evs := append([]*record.Event{mintT(t, "red-lens-logic", "G1")}, blueSatOn(t, []string{"G1"}, "G1")...)
 	evs = append(evs, corrected(t, "blue-respond", "blue-respond:manifest_row:#1:G1",
 		&recordpb.ManifestRow{GapId: proto.String("G1"), Row: proto.String("G1 is reproducible via ")},
 		&recordpb.ManifestRow{GapId: proto.String("G1"), Row: proto.String("G1 is reproducible via the recorded proof")})...)
@@ -41,7 +41,8 @@ func TestTheReportShowsACorrectedActStruck(t *testing.T) {
 		&recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED.Enum(), Prose: proto.String("it stopped because the gate refused")})...)
 	fam := (&boardT{GapOrder: []string{"G1"},
 		Gaps:   map[string]*record.Gap{"G1": {ID: "G1", HasClosed: true, Closure: &recordpb.Close{}}},
-		Events: evs}).fam()
+		Events: evs}).famT(t)
+	evs = fam.Events // the loaded events: the sections below read the same record the manifest does
 
 	struck := func(text string) string { return "~~" + text + "~~ (struck by blue-respond: a word was lost)" }
 	sections := map[string]string{

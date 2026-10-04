@@ -1,13 +1,11 @@
 package record
 
 import (
-	"database/sql"
 	"fmt"
 	"math"
 	"sort"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // GapExchanges is what the record says about one gap's dispute (plans/roundless.md §III.B.2).
@@ -29,7 +27,7 @@ type GapExchanges struct {
 	Stalled   int  // consecutive exchanges with no movement — resets on movement
 	Impasse   bool // Stalled >= K or Exchanges >= KMax
 	// Unresolved is the sittings engaged on G that the record cannot close (see partySitting):
-	// the seat sat, and neither its next register nor its agent's stop is on the record since.
+	// the seat sat, and neither its next sitting nor its agent's stop is on the record since.
 	// They are NOT counted as exchanges and NOT reported as zero — the miss and the honest zero are
 	// different answers, and Counted words them apart.
 	Unresolved int
@@ -43,7 +41,7 @@ func (x *GapExchanges) Counted() string {
 	case x.Unresolved == 0:
 		return fmt.Sprintf("%d exchange(s) (%d stalled)", x.Exchanges, x.Stalled)
 	case x.Exchanges == 0:
-		return fmt.Sprintf("exchanges NOT MEASURED — %d sitting(s) the record cannot close (the seat has not registered since and its agent's stop is not on the record), so this is not a count of zero", x.Unresolved)
+		return fmt.Sprintf("exchanges NOT MEASURED — %d sitting(s) the record cannot close (the seat has not sat again since and its agent's stop is not on the record), so this is not a count of zero", x.Unresolved)
 	default:
 		return fmt.Sprintf("%d exchange(s) (%d stalled), %d sitting(s) NOT MEASURED — the record cannot close them", x.Exchanges, x.Stalled, x.Unresolved)
 	}
@@ -77,54 +75,21 @@ func Exchanges(run Run, p Params) (map[string]*GapExchanges, error) {
 	if err != nil || db == nil {
 		return map[string]*GapExchanges{}, err
 	}
-	evs, _, err := recordsql.EventsW(db)
+	evs, at, err := eventsAt(db)
 	if err != nil {
 		return nil, err
 	}
-	ids, err := eventIDs(db)
-	if err != nil {
-		return nil, err
-	}
-	return exchangesOf(evs, ids, p, WhileRunning), nil
-}
-
-// eventIDs is events."id" per position — the sequence the folds compare against, which the proto
-// Event does not carry (see recordsql.Window for why nothing derived is stamped on the row).
-// eventIDsOfRun is eventIDs for a caller holding the run: the events' row ids in stream order,
-// aligned with MergedEvents, or nil for a run with no record yet.
-func eventIDsOfRun(run Run) ([]int64, error) {
-	db, err := openRunForRead(run)
-	if err != nil || db == nil {
-		return nil, err
-	}
-	return eventIDs(db)
-}
-
-func eventIDs(db *sql.DB) ([]int64, error) {
-	rows, err := db.Query(`SELECT "id" FROM "events" ORDER BY "id"`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		out = append(out, id)
-	}
-	return out, rows.Err()
+	return exchangesOf(evs, at.IDs(evs), at, p, WhileRunning), nil
 }
 
 // exchangesOf is the fold. It takes when the record is read from its caller: the chair's dispatch
-// plan is its reader, and a plan is computed while the run is running.
-func exchangesOf(evs []*Event, ids []int64, p Params, when ReadWhen) map[string]*GapExchanges {
+// plan is its reader, and a plan is computed while the run is running. ids is evs's places.
+func exchangesOf(evs []*Event, ids []int64, at WindowIndex, p Params, when ReadWhen) map[string]*GapExchanges {
 	minted := map[string]string{}    // gap -> the lens that minted it
 	grades := map[string][3]string{} // gap -> current severity, likelihood, impact
 	movement := map[string][]int64{} // gap -> ids of movement events
-	dispatches, registers := dispatchLedger(evs, ids)
-	closer := sittingCloserOf(evs, ids, registers, when)
+	dispatches, registers := dispatchLedger(evs, ids, at)
+	closer := sittingCloserOf(evs, ids, at, registers, when)
 
 	for i, e := range evs {
 		id := ids[i]
@@ -160,7 +125,7 @@ func exchangesOf(evs []*Event, ids []int64, p Params, when ReadWhen) map[string]
 		}
 	}
 
-	// A party's sitting for a dispatch: sittingFor, its first register after the dispatch, ended
+	// A party's sitting for a dispatch: sittingFor, the first it opened after the dispatch, ended
 	// where sittingCloser says — by facts about THAT seat alone, so no rule enforced at another
 	// seat's write path can decide what this read reports.
 	sittings := map[string][]partySitting{}
