@@ -38,18 +38,35 @@ func (c *Convergence) atFraction(fraction float64) {
 }
 
 // convergenceOf is the board at the record's newest event — the point a verdict being written is
-// judged at.
+// judged at. A run with no record has no board and has not converged. A record that HAS events and
+// no row at its newest one is an error, never "not converged": that miss would read exactly like a
+// board the rule does not hold on, and admit the FAIL the refusal exists to stop.
 func convergenceOf(run Run) (Convergence, error) {
 	var c Convergence
-	p, err := RunParams(run)
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		return c, err
+	}
+	var events int
+	if _, err := queryRowAt(db, []any{&events}, `SELECT count(*) FROM "events"`); err != nil {
+		return c, err
+	}
+	if events == 0 {
+		return c, nil
+	}
+	found, err := queryRowAt(db, c.dest(), `SELECT `+convergenceColumns+` FROM "convergence_at"
+	  WHERE "seq" = (SELECT MAX("id") FROM "events")`)
 	if err != nil {
 		return c, err
 	}
-	if _, err := queryRow(run, c.dest(), `SELECT `+convergenceColumns+` FROM "convergence_at"
-	  WHERE "seq" = (SELECT MAX("id") FROM "events")`); err != nil {
+	if !found {
+		return c, fmt.Errorf("record: convergence_at has no row at this record's newest event, so whether the board has converged cannot be read: the view does not answer for the record it is over")
+	}
+	fraction, err := runConvergenceFraction(run)
+	if err != nil {
 		return c, err
 	}
-	c.atFraction(p.ConvergenceFraction)
+	c.atFraction(fraction)
 	return c, nil
 }
 

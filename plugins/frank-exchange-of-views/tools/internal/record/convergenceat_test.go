@@ -1,8 +1,6 @@
 package record
 
 import (
-	"os"
-	"path/filepath"
 	"strconv"
 	"testing"
 
@@ -44,14 +42,7 @@ const (
 // setFraction writes the run's terms with the given convergence fraction, as setup does.
 func setFraction(t *testing.T, run Run, f float64) {
 	t.Helper()
-	dir := filepath.Join(run.Dir(), "inputs")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	body := []byte(`{"convergenceFraction":` + strconv.FormatFloat(f, 'g', -1, 64) + `}`)
-	if err := os.WriteFile(filepath.Join(dir, "run-config.json"), body, 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeRunConfig(t, run.Dir(), `{"convergenceFraction":`+strconv.FormatFloat(f, 'g', -1, 64)+`}`)
 }
 
 // B4: G1 (high/high) minted, FAILed over and closed; G2 minted low/low and regraded to high/high
@@ -171,27 +162,50 @@ func TestTheConvergenceFractionIsTheRuns(t *testing.T) {
 
 // THE GATE AND THE SCORECARD COMPUTE ONE QUANTITY. Every edge a gap can stand in relative to a
 // verdict — never regraded, regraded before it, regraded after it, closed before it, closed after it,
-// minted after it in its own epoch — is seeded, and at each FAIL the write path's convergence over
-// the record as it stood just before that FAIL is compared field by field with the scorecard's row
-// for that FAIL, read off the whole record afterwards. The run's fraction is 0.5, which is what makes
-// FAIL #4 converged (mass 11 against a peak of 32); at setup's default it would not be.
+// minted after it in its own epoch, and an act the verdict read corrected after it or before it — is
+// seeded, and at each FAIL the write path's convergence over the record as it stood just before that
+// FAIL is compared field by field with the scorecard's row for that FAIL, read off the whole record
+// afterwards. The run's fraction is 0.5, which is what makes FAIL #4 converged (mass 21 against a
+// peak of 46); at setup's default it would not be.
+//
+// A CORRECTION WRITTEN AFTER A VERDICT DOES NOT CHANGE THAT VERDICT'S BOARD. A corrected act keeps
+// its place in every ordering ("pos"), but whether it STOOD at the verdict is a question of when it
+// and its correction were written: R's regrade and S's close are corrected after FAIL #2, which read
+// the originals, and K's regrade is corrected before it, so FAIL #2 read the replacement.
 func TestTheGateAndTheScorecardJudgeEveryVerdictAlike(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		// Epoch 1: five gaps, then FAIL #1 over all of them.
+		// Epoch 1: eight gaps, then FAIL #1 over all of them.
 		register("red-chair").register(evLens).
 		add(evLens, gradedMint("A", gHigh, gHigh, gHigh)). // regraded only after FAIL #3
 		add(evLens, gradedMint("B", gLow, gLow, gLow)).    // regraded up before FAIL #2
 		add(evLens, gradedMint("C", gMed, gMed, gMed)).    // regraded down after FAIL #2, up after FAIL #4
 		add(evLens, gradedMint("D", gHigh, gHigh, gHigh)). // closed before FAIL #2
 		add(evLens, gradedMint("E", gHigh, gHigh, gHigh)). // closed after FAIL #2
+		add(evLens, gradedMint("R", gLow, gLow, gLow)).    // regraded before FAIL #2, the regrade corrected after it
+		add(evLens, gradedMint("S", gLow, gLow, gLow)).    // closed before FAIL #2, the close corrected after it
+		add(evLens, gradedMint("K", gLow, gLow, gLow)).    // regraded and the regrade corrected, both before FAIL #2
 		add("red-chair", failVerdict()).
 		// Epoch 2.
 		register("red-chair").
 		add(evLens, gradedRegrade("B", gHigh, gHigh, gHigh)).
 		add(evLens, repairClose("D")).
+		add(evLens, gradedRegrade("R", gLow, gHigh, gHigh))
+	regradeR := b.lastKey()
+	b.add(evLens, repairClose("S"))
+	closeS := b.lastKey()
+	b.add(evLens, gradedRegrade("K", gLow, gMed, gMed))
+	regradeK := b.lastKey()
+	b.add(evLens, gradedRegrade("K", gLow, gHigh, gMed))
+	b.add(evLens, &recordpb.Correction{Corrects: proto.String(regradeK), Replacement: proto.String(b.lastKey()), Why: proto.String("impact misread")}).
 		add("red-chair", failVerdict()).
 		add(evLens, gradedRegrade("C", gLow, gLow, gLow)).
 		add(evLens, repairClose("E")).
+		add(evLens, gradedRegrade("R", gLow, gMed, gMed))
+	b.add(evLens, &recordpb.Correction{Corrects: proto.String(regradeR), Replacement: proto.String(b.lastKey()), Why: proto.String("overstated")})
+	reworded := repairClose("S")
+	reworded.Prose = proto.String("fixed, as the source now reads")
+	b.add(evLens, reworded)
+	b.add(evLens, &recordpb.Correction{Corrects: proto.String(closeS), Replacement: proto.String(b.lastKey()), Why: proto.String("reworded")}).
 		// Epoch 3: F is fresh and material before FAIL #3; G is minted after it in the same epoch.
 		register("red-chair").
 		add(evLens, gradedMint("F", gMed, gMed, gMed)).
@@ -208,12 +222,13 @@ func TestTheGateAndTheScorecardJudgeEveryVerdictAlike(t *testing.T) {
 		add(evLens, repairClose("C")).
 		add(evLens, gradedMint("H", gMed, gLow, gLow)) // after FAIL #4, in its epoch: material, and not fresh to it
 
-	// What each FAIL stood over, by hand. Masses: low 1, medium 2, high 3.
+	// What each FAIL stood over, by hand. Masses: low 1, medium 2, high 3. R, S and K are low in
+	// severity throughout, so they move the mass and never the material count.
 	want := []Convergence{
-		{Mass: 32, Peak: 32, MaxSeverityMass: 3, MaterialOpen: 4, FreshMaterialMints: 4, Fraction: 0.5},              // A9 B1 C4 D9 E9
-		{Mass: 31, Peak: 32, MaxSeverityMass: 3, MaterialOpen: 4, FreshMaterialMints: 0, Fraction: 0.5},              // A9 B9 C4 E9
-		{Mass: 23, Peak: 32, MaxSeverityMass: 3, MaterialOpen: 3, FreshMaterialMints: 1, Fraction: 0.5},              // A9 B9 C1 F4
-		{Mass: 11, Peak: 32, MaxSeverityMass: 1, MaterialOpen: 0, FreshMaterialMints: 0, Fraction: 0.5, Holds: true}, // A1 C1 G9
+		{Mass: 35, Peak: 35, MaxSeverityMass: 3, MaterialOpen: 4, FreshMaterialMints: 4, Fraction: 0.5},              // A9 B1 C4 D9 E9 R1 S1 K1
+		{Mass: 46, Peak: 46, MaxSeverityMass: 3, MaterialOpen: 4, FreshMaterialMints: 0, Fraction: 0.5},              // A9 B9 C4 E9 R9 K6
+		{Mass: 33, Peak: 46, MaxSeverityMass: 3, MaterialOpen: 3, FreshMaterialMints: 1, Fraction: 0.5},              // A9 B9 C1 F4 R4 K6
+		{Mass: 21, Peak: 46, MaxSeverityMass: 1, MaterialOpen: 0, FreshMaterialMints: 0, Fraction: 0.5, Holds: true}, // A1 C1 G9 R4 K6
 	}
 
 	// The gate: the record as it stood just before each FAIL was written.
@@ -273,7 +288,67 @@ func TestTheGateAndTheScorecardJudgeEveryVerdictAlike(t *testing.T) {
 	  WHERE g."open"`); err != nil {
 		t.Fatal(err)
 	}
-	if now.Mass != cur.Mass || now.MaxSeverityMass != cur.MaxSeverityMass || now.MaterialOpen != cur.MaterialOpen || now.Mass != 11 || now.MaterialOpen != 1 {
-		t.Errorf("at the newest event the board = %+v, the gap view's current board = %+v (want mass 11 — A1 G9 H1 — and H material)", now, cur)
+	if now.Mass != cur.Mass || now.MaxSeverityMass != cur.MaxSeverityMass || now.MaterialOpen != cur.MaterialOpen || now.Mass != 21 || now.MaterialOpen != 1 {
+		t.Errorf("at the newest event the board = %+v, the gap view's current board = %+v (want mass 21 — A1 G9 H1 R4 K6 — and H material)", now, cur)
+	}
+}
+
+// The rule reads ONE term of the run, and only that term can refuse it. An epoch limit of 0 is a bad
+// term for the dispatch, and says nothing about the fraction; a run with no record has nothing to
+// judge, whatever its config holds. A fraction outside (0, 1] is the one config error the detector
+// must report.
+func TestTheDetectorIsRefusedOnlyByABadFraction(t *testing.T) {
+	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").register(evLens).
+		add(evLens, gradedMint("G1", gHigh, gHigh, gHigh)).
+		add("red-chair", failVerdict()).seed()
+
+	writeRunConfig(t, run.Dir(), `{"maxEpochs":0,"convergenceFraction":0.5}`)
+	if _, err := RunParams(run); err == nil {
+		t.Fatal("RunParams accepted maxEpochs 0 — the fixture no longer holds a term the detector must ignore")
+	}
+	eps, err := ConvergenceVsVerdict(run)
+	if err != nil || len(eps) != 1 || eps[0].Fraction != 0.5 {
+		t.Errorf("ConvergenceVsVerdict beside maxEpochs 0 = (%+v, %v), want one row at fraction 0.5", eps, err)
+	}
+	if c, err := convergenceOf(run); err != nil || c.Fraction != 0.5 {
+		t.Errorf("the gate beside maxEpochs 0 = (%+v, %v), want fraction 0.5", c, err)
+	}
+
+	writeRunConfig(t, run.Dir(), `{"convergenceFraction":0}`)
+	if eps, err := ConvergenceVsVerdict(run); err == nil {
+		t.Errorf("ConvergenceVsVerdict at fraction 0 = %+v, want the error", eps)
+	}
+
+	empty := mustRun(t, newRun(t))
+	writeRunConfig(t, empty.Dir(), `{`)
+	if eps, err := ConvergenceVsVerdict(empty); err != nil || eps != nil {
+		t.Errorf("ConvergenceVsVerdict over no record with a config that does not parse = (%+v, %v), want (nil, nil)", eps, err)
+	}
+}
+
+// A RECORD THAT CANNOT ANSWER IS NOT A BOARD THAT HAS NOT CONVERGED. With events on the record and no
+// convergence_at row at the newest one, a zero Convergence reads exactly like a board the rule does
+// not hold on, and the refusal would admit the FAIL it exists to stop.
+func TestAMissingConvergenceRowIsAnError(t *testing.T) {
+	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").register(evLens).
+		add(evLens, gradedMint("G1", gLow, gLow, gLow)).seed()
+	if _, err := convergenceOf(run); err != nil {
+		t.Fatalf("the healthy read failed: %v", err)
+	}
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		t.Fatalf("open the run's handle: (%v, %v)", db, err)
+	}
+	if _, err := db.Exec(`DROP VIEW "convergence_at"`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`CREATE VIEW "convergence_at" AS SELECT 0 AS "seq", 0.0 AS "mass", 0.0 AS "peak",
+	  0.0 AS "max_severity_mass", 0 AS "material_open", 0 AS "fresh_material_mints" WHERE 0`); err != nil {
+		t.Fatal(err)
+	}
+	if c, err := convergenceOf(run); err == nil {
+		t.Errorf("convergenceOf with no row at the newest event = %+v, nil — want the error", c)
 	}
 }
