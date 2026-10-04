@@ -1,7 +1,7 @@
 $ manual --seat-id operator --for judge
 exit 0
 stdout:
-feov-record manual — the bench surface, seat judge: 27 commands, each under a header naming it and followed by the help it prints, run live just now. LEAN ON PURPOSE: a block that repeats word for word on several pages is printed ONCE under SHARED below, and each page marks where it came out (`→ SHARED §n`); a group whose page would only list commands that have pages of their own is left out, and so is this command's own page. The surface's own page comes first.
+feov-record manual — the bench surface, seat judge: 26 commands, each under a header naming it and followed by the help it prints, run live just now. LEAN ON PURPOSE: a block that repeats word for word on several pages is printed ONCE under SHARED below, and each page marks where it came out (`→ SHARED §n`); a group whose page would only list commands that have pages of their own is left out, and so is this command's own page. The surface's own page comes first.
 
 WORDS THIS SURFACE USES — one word for each concept, and it is the same word on every page, prompt and constitution you read:
   - The report is the research prose written for a reader of the subject: one document from a lane's text to what the run assembles at its end, named by its stage only where the stage matters — your part of the report, the report as `show report` serves it, which is the only way a seat reads it, and the copy assembled for the human reader once the run is over.
@@ -46,19 +46,19 @@ do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with 'log', as a request — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
-§2 (on 20 pages):
+§2 (on 19 pages):
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
       --schema           print the event-schema epoch this binary writes, and exit
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
 
-§3 (on 22 pages):
+§3 (on 21 pages):
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
 your text, and records whatever the command printed — or nothing — in its place. Pass every
 free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
 
-§4 (on 22 pages):
+§4 (on 21 pages):
   X=$(cat <<'EOF'
   your text — backticks, apostrophes and $ signs are all literal here
   EOF
@@ -92,19 +92,19 @@ THIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-fo
 TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade motion the chair rejected; `motion avenue appeal` presses an avenue red ruled out_of_scope or too_thin, and it is filed whether or not blue also pursues the avenue — separating the argument from the act is the whole point of the verb.
 
 §12 (on 2 pages):
-A BENCH-RULED MOTION (petition, docket) HAS NO APPEAL, and that absence is the design rather than an omission: the bench hears it BEFORE the debate continues, so there is nothing to escalate to.
+A BENCH-RULED MOTION (petition, docket) HAS NO APPEAL, and that absence is the design rather than an omission: the bench is the last forum, so there is nothing to escalate to.
 
-§13 (on 7 pages):
+§13 (on 6 pages):
 REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
-§14 (on 3 pages):
+§14 (on 2 pages):
 ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules).
 
-§15 (on 3 pages):
+§15 (on 2 pages):
 Any seat may file; exactly one rules, and `rule` appears only on that seat's surface.
 
 §16 (on 2 pages):
-EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues.
+EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). The bench's two each convene a sitting of their own: a petition at the next chair sitting, before any party of that epoch sits; a docket after blue has sat on the gap.
 
 §17 (on 7 pages):
 Global Flags:
@@ -535,37 +535,6 @@ Enumerated values:
 
 (Global Flags:) → SHARED §2
 ==============================================================================
-$ feov-record motion petition file --help
-file a petition motion — the tool assigns its id.
-
-(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §14
-
-It raises an ethical, safety, integrity or constitutional objection, heard BEFORE the debate continues.
-
-(Any seat may file; exactly one r…) → SHARED §15
-
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
-
-(X=$(cat <<'EOF') → SHARED §4
-
-Usage:
-  feov-record motion petition file [flags]
-
-Flags:
-      --class class-value   REQUIRED — the class of objection
-  -h, --help                help for file
-      --reason string       → SHARED §13
-      --relief string       REQUIRED — what you ask the bench to do about it
-
-Enumerated values:
-  --class
-    integrity       proceeding would require asserting what you believe false, or burying a real finding
-    safety          proceeding would create or conceal a hazard
-    ethical         proceeding would require acting against the interests of someone the run affects
-    constitutional  the instruction itself conflicts with the rules the run is bound by
-
-(Global Flags:) → SHARED §2
-==============================================================================
 $ feov-record motion petition rule --help
 rule on a petition motion — this verb is the bench seat's, and it appears only on that surface.
 
@@ -658,7 +627,7 @@ Flags:
 Enumerated values:
   --occasion
     docket    ruling the docket: the gaps that reached impasse and were docketed for adjudication. The chair dispatches this sitting
-    petition  hearing a petition filed by a seat, before the debate continues. The engine convenes it the moment one is filed
+    petition  hearing the petitions filed since the bench last sat to hear one. The chair's plan convenes it at the next chair sitting, before any party of that epoch sits
     terminal  the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here
     assemble  assembling the final report by union-copy. The last step of the run
 
@@ -958,7 +927,7 @@ anything the act says.
 TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade motion the chair rejected; `motion avenue appeal` presses an avenue red ruled out_of_scope or too_thin, and it is filed whether or not blue also pursues the avenue — separating the argument from the act is the whole point of the verb.
 
 §15 (on 2 pages):
-A BENCH-RULED MOTION (petition, docket) HAS NO APPEAL, and that absence is the design rather than an omission: the bench hears it BEFORE the debate continues, so there is nothing to escalate to.
+A BENCH-RULED MOTION (petition, docket) HAS NO APPEAL, and that absence is the design rather than an omission: the bench is the last forum, so there is nothing to escalate to.
 
 §16 (on 3 pages):
 ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules).
@@ -1465,7 +1434,7 @@ file a petition motion — the tool assigns its id.
 
 (ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §16
 
-It raises an ethical, safety, integrity or constitutional objection, heard BEFORE the debate continues.
+It raises an ethical, safety, integrity or constitutional objection. The bench hears it at the next chair sitting, before any party of that epoch sits.
 
 (Any seat may file; exactly one r…) → SHARED §17
 
