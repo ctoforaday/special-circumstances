@@ -864,6 +864,13 @@ CREATE TABLE "dispatch_gap_ids" (
   PRIMARY KEY ("event_id", "ord")
 ) STRICT;
 
+CREATE TABLE "dispatch_occasions" (
+  "event_id" INTEGER NOT NULL REFERENCES "dispatch"("event_id"),
+  "ord"      INTEGER NOT NULL,
+  "value"    TEXT    NOT NULL,
+  PRIMARY KEY ("event_id", "ord")
+) STRICT;
+
 CREATE TABLE "sitting_limit" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "agent_id" TEXT,
