@@ -60,10 +60,9 @@ var envelopeEnumBinding = map[string]enumBind{
 	// After #344 the adjudication vocabularies are keyed on (SUBJECT, key) rather than by event
 	// type, so these bind to a motion SUBJECT. The `typ` field carries `motion:<subject>` for
 	// those, which recordEnumValues resolves against record.MotionVerdicts / record.MotionFields.
-	// The envelope still speaks in per-exchange schemas — PETITIONS, PETITION_RULING,
+	// The envelope still speaks in per-exchange schemas — PETITION_RULING,
 	// DISPUTE_DIMENSION — because the ENGINE routes them separately; what collapsed is the
 	// RECORD's vocabulary, and this gate is precisely the check that the two still agree.
-	"PETITIONS.class":        {typ: "motion:petition", key: "class"},
 	"PETITION_RULING.ruling": {typ: "motion:petition", key: "ruling"},
 	// WHO GRANTED RELIEF BINDS. The engine routes the relief into that party's prompt, and the
 	// record stores the same word on the ruling — so a value the record would refuse must not be
@@ -112,6 +111,11 @@ var envelopeEnumBinding = map[string]enumBind{
 	// straight on to `bench outcome --as`. An enum a gate cannot SEE is not an exempt one; it is an
 	// unchecked one that leaves no trace of being unchecked.
 	"RUN_OUTCOME.<self>": {typ: "outcome", key: "verdict"},
+
+	// WHAT THE PLAN CONVENES THE BENCH FOR. `dispatch next` readies the bench for two of its four
+	// sittings; the terminal sitting and the assembly are the engine's own, convened at the exit,
+	// so the plan never names them.
+	"PLAN.occasions": {typ: "register", key: "occasion", recordOnly: []string{"terminal", "assemble"}},
 }
 
 // envelopeEnumExempt are envelope enums with no record counterpart, each with its reason. These
@@ -136,6 +140,23 @@ func TestEveryEnvelopeEnumAgreesWithTheRecord(t *testing.T) {
 	// another, and keying on the bare name silently bound the first to the second — this gate's
 	// own first draft did that, which is the same collision it exists to catch.
 	schemaDecl := regexp.MustCompile(`^const ([A-Z_]+) = \{`)
+	// AN ENUM SPELLED WITH THE ENGINE'S OWN CONSTANTS IS READ THROUGH THEM: `[DOCKET_OCCASION,
+	// PETITION_OCCASION]` is the two words those constants hold, and an identifier this file does
+	// not declare as a string stays itself — which no record enum holds, so it fails loudly.
+	words := map[string]string{}
+	for _, m := range regexp.MustCompile(`(?m)^const ([A-Z_]+) = '([^']*)'$`).FindAllStringSubmatch(string(b), -1) {
+		words[m[1]] = m[2]
+	}
+	parse := func(raw string) []string {
+		out := parseJSValues(raw)
+		for i, v := range out {
+			if w, ok := words[v]; ok {
+				out[i] = w
+			}
+		}
+		sort.Strings(out)
+		return out
+	}
 	current := ""
 	found := 0
 	seen := map[string]bool{}
@@ -167,7 +188,7 @@ func TestEveryEnvelopeEnumAgreesWithTheRecord(t *testing.T) {
 			continue
 		}
 		want := recordEnumValues(t, bind.typ, bind.key)
-		got := parseJSValues(raw)
+		got := parse(raw)
 		// EACH ASYMMETRY MUST BE DECLARED. A value the envelope has and the record does not is
 		// legal only if named in engineOnly; a value the record has and the envelope does not is
 		// legal only if named in recordOnly. Anything else is drift, and the message says which

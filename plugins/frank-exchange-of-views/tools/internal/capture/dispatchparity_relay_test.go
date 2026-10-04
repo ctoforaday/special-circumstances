@@ -74,8 +74,7 @@ func chairResult(head int64, parties ...row) map[string]any {
 		ps = append(ps, map[string]any{"seat_id": p.seat, "gap_ids": gs})
 	}
 	return map[string]any{
-		"plan":            map[string]any{"head": head, "parties": ps, "docket": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{}},
-		"unruled_motions": []any{},
+		"plan": map[string]any{"head": head, "parties": ps, "docket": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{}, "blockers": []any{}},
 	}
 }
 

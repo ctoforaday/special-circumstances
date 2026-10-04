@@ -91,10 +91,15 @@ func sittingOf(label string) int {
 	return n
 }
 
+// party is a plan party as `dispatch next` prints it: the bench's carries the occasion it is
+// convened for — its docket, here.
 func party(seat string, gaps ...string) map[string]any {
 	g := []any{}
 	for _, x := range gaps {
 		g = append(g, x)
+	}
+	if seat == "judge" {
+		return map[string]any{"seat_id": seat, "gap_ids": g, "occasions": []any{"docket"}}
 	}
 	return map[string]any{"seat_id": seat, "gap_ids": g}
 }
@@ -104,7 +109,7 @@ func plan(parties []any, pass, ceiling bool, docket []any, why string) map[strin
 		docket = []any{}
 	}
 	return map[string]any{"head": 2, "parties": parties, "docket": docket, "pass_permitted": pass, "ceiling": ceiling,
-		"max_epochs": 0, "epoch_limit_reached": false, "why": []any{why}, "stale_areas": []any{}}
+		"max_epochs": 0, "epoch_limit_reached": false, "why": []any{why}, "stale_areas": []any{}, "blockers": []any{}}
 }
 
 func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch, debatejs.Outcome, *board) {
@@ -122,9 +127,9 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 	var engaged []any // the gap ids the last plan engaged blue on — blue manifests exactly those
 	backend := func(seatID, label, prompt string) debatejs.Envelope {
 		e := debatejs.Envelope{
-			"synopsis": "termination", "petitions": []any{}, "log": []any{}, "rulings": []any{},
+			"synopsis": "termination", "log": []any{}, "rulings": []any{},
 			"dispositions": []any{}, "holdings": []any{}, "manifest": []any{}, "claim_count": 3,
-			"saturation_reached": false, "sitting_record_appended": true, "unruled_motions": 0,
+			"saturation_reached": false, "sitting_record_appended": true,
 		}
 		switch {
 		case seatID == "red-chair":
@@ -140,8 +145,10 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 				e["plan"] = plan([]any{}, false, false, nil, "G1: docket motion M1 stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied")
 			case m.halt:
 				engaged = []any{"G1"}
-				e["plan"] = plan([]any{party("blue-respond", "G1")}, false, false, nil, "engaged")
-				e["petitions"] = []any{map[string]any{"class": "safety", "argument": "halt this run"}}
+				// A petition on the record convenes the bench, through the plan; the halt is its ruling.
+				p := plan([]any{party("blue-respond", "G1"), map[string]any{"seat_id": "judge", "gap_ids": []any{}, "occasions": []any{"petition"}}}, false, false, nil, "engaged")
+				p["blockers"] = []any{map[string]any{"kind": "unruled_motion", "subject": "M1", "owner": "judge"}}
+				e["plan"] = p
 			case m.bench:
 				b.raised["G1"] = true
 				e["plan"] = plan([]any{party("judge", "G1")}, false, false, []any{"G1"}, "G1 at impasse")

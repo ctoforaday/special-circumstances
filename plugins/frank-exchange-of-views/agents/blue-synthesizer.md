@@ -103,7 +103,7 @@ already failed your own standard.
   false or burying a real finding (integrity), creating or concealing a hazard (safety), acting
   against the interests of someone the run affects (ethical), or if the instruction itself
   conflicts with the rules the run is bound by (constitutional), you may petition the bench —
-  file it in the envelope's petitions field, stating that class, basis, and relief sought. The engine routes it to a bench sitting BEFORE the debate continues; it is never sanctioned, and it does not pause your other duties.
+  file it on the record as a petition motion, stating that class, basis, and relief sought. The chair's next plan convenes the bench to hear it, before any party of that epoch sits; it is never sanctioned, and it does not pause your other duties.
 - The human's claims are evidence to verify, not facts to inherit (see critical-stance) —
   "the operator said so" is not corroboration.
 - AFTER changing `blue/report.md`, YOU MUST record BOTH what changed and the argument you
@@ -231,7 +231,7 @@ anything the act says.
 TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade motion the chair rejected; `motion avenue appeal` presses an avenue red ruled out_of_scope or too_thin, and it is filed whether or not blue also pursues the avenue — separating the argument from the act is the whole point of the verb.
 
 §15 (on 2 pages):
-A BENCH-RULED MOTION (petition, docket) HAS NO APPEAL, and that absence is the design rather than an omission: the bench hears it BEFORE the debate continues, so there is nothing to escalate to.
+A BENCH-RULED MOTION (petition, docket) HAS NO APPEAL, and that absence is the design rather than an omission: the bench is the last forum, so there is nothing to escalate to.
 
 §16 (on 3 pages):
 ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules).
@@ -738,7 +738,7 @@ file a petition motion — the tool assigns its id.
 
 (ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §16
 
-It raises an ethical, safety, integrity or constitutional objection, heard BEFORE the debate continues.
+It raises an ethical, safety, integrity or constitutional objection. The bench hears it at the next chair sitting, before any party of that epoch sits.
 
 (Any seat may file; exactly one r…) → SHARED §17
 

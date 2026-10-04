@@ -12,8 +12,9 @@ package fuzz
 // dispute-respond/spot-check/verdict/petition), blue (position/closing/dispute
 // across all four dimensions/manifest-row/avenue/revision/retire/petition), bench
 // (opinion/outcome/certify/assemble/petition-rule). The
-// petition->petition-rule docket and the disputes docket are driven through the ENVELOPE (see
-// maybePetition/rulePetitions, raiseDisputes/answerDisputes), so debate.js's routing runs too.
+// disputes docket is driven through the ENVELOPE (raiseDisputes/answerDisputes) and the
+// petition->petition-rule docket through the RECORD and the plan that relays it
+// (maybePetition/rulePetitions), so debate.js's routing runs too.
 //
 // ORACLES per run: (1) verify passes — whatever path the debate took, the record satisfies every
 // invariant; (2) the JSON views (findings/friction/debate) exit 0 and parse; (2c) the six markdown
@@ -302,10 +303,14 @@ type runner struct {
 	// #111: every model an agent() call carried, one per dispatch ("unset" if absent). The tier
 	// oracle asserts all equal the configured tier — map-free, needs no bulk-seat list here.
 	models []string
-	// petition docket: petitions a party seat RAISED (event emitted + envelope entry), awaiting
-	// the judge-petition sitting hearPetitions dispatches next. Each: {who, class}. Mirrors the
-	// disputes machinery (raised) so the fuzz drives the petition/petition-rule path end to end.
+	// petition docket: petitions a party seat FILED on the record, awaiting the petition sitting the
+	// chair's next plan convenes. Each: {who, class, motion}. Mirrors the disputes machinery
+	// (raised) so the fuzz drives the petition/petition-rule path end to end.
 	petitioned []map[string]any
+	// petitionsFiled is every petition filed, with the chair sitting it was filed in; petitionRuledAt
+	// is the bench occasion each was ruled at. The petition oracle reads the two.
+	petitionsFiled  []filedPetition
+	petitionRuledAt map[string]string
 	// forceUnverified drives the run to the UNVERIFIED terminal verdict, which the random sweep
 	// reaches about once in sixty — debate.js computes UNVERIFIED only when the bench declares
 	// deadlock AND gaps remain open, and a bench that disposes its whole docket clears the board
@@ -583,39 +588,71 @@ func (r *runner) answerDisputes(seatID string) []map[string]any {
 	return refs
 }
 
-// maybePetition sometimes files a petition (W2c, the constitutional short-circuit): it emits the
-// petition event AND returns the envelope's petitions entry, tracking {who,class} so the
-// judge-petition sitting hearPetitions dispatches next can rule on it. Only the seats debate.js
-// actually routes to hearPetitions are eligible (blue-synthesize/blue-respond/red-chair); the
-// random path never returns a HALT ruling, so the run continues. Returns arr() (no petition) most
-// of the time — a petition detours the run through a bench sitting, so it stays occasional.
-func (r *runner) maybePetition(role, seatID string) []any {
+// filedPetition is one petition the fuzz filed: its motion id, its filer, and the chair sitting it
+// was filed in — a petition filed before the last chair plan is one that plan must convene the
+// bench for.
+type filedPetition struct {
+	id, filer    string
+	chairSitting int
+}
+
+// maybePetition sometimes files a petition (W2c) ON THE RECORD — the only channel a petition has —
+// tracking {who,class,motion} so the petition sitting the chair's next plan convenes can rule on it.
+// Every party seat is eligible, the lenses included: a lens returns prose, and the record is how
+// its petition reaches the bench. The random path never returns a HALT ruling, so the run
+// continues. It files nothing most of the time — a petition detours the run through a bench
+// sitting, so it stays occasional.
+func (r *runner) maybePetition(seatID string) {
 	if !r.forceHalt && !r.coin(20) { // forceHalt guarantees a petition so the halt sitting fires
-		return arr()
+		return
 	}
+	r.filePetition(seatID)
+}
+
+// filePetition files one petition as seatID, and tracks it for the bench.
+func (r *runner) filePetition(seatID string) {
 	class := pick(r.rng, petitionClasses)
 	basis := "fuzz petition basis from " + seatID
-	entry := map[string]any{"who": seatID, "class": class}
 	out, err := r.exec("--json", "motion", "petition", "file", "--seat-id", seatID,
 		"--class", class, "--relief", "fuzz relief", "--reason", basis)
 	if err != nil {
-		return arr()
+		return
 	}
 	id := motionIDOf(out)
 	if id == "" {
-		return arr()
+		return
 	}
-	entry["motion"] = id
-	r.petitioned = append(r.petitioned, entry)
-	return arr(map[string]any{"class": class, "basis": basis, "relief": "fuzz relief"})
+	r.petitioned = append(r.petitioned, map[string]any{"who": seatID, "class": class, "motion": id})
+	r.petitionsFiled = append(r.petitionsFiled, filedPetition{id: id, filer: seatID, chairSitting: r.chairRegisters})
 }
 
-// rulePetitions is the judge-petition sitting: it rules on every pending petition and returns the
+// rulePetitions is the petition sitting: it rules on every pending petition and returns the
 // envelope rulings, clearing the docket. petition-rule takes only granted|denied (a halt is its
 // OWN verb), so a forceHalt run emits `bench halt` and returns a halt ruling — the dedicated
 // halt-path test; the random path rules granted/denied and the run continues.
 func (r *runner) rulePetitions(seatID string) map[string]any {
-	var rulings []any
+	rulings := r.rulePending(seatID, "petition")
+	env := map[string]any{"rulings": rulings, "log": arr()}
+	if r.forceHalt {
+		// `bench halt` writes the record; the envelope's halt object is only what stops the
+		// engine. The fake already drove the verb correctly before #329 — it was the PROMPT
+		// that told a real judge to record a halt through petition-rule, where the enum refuses
+		// it. The fuzz stayed green over a production path that could not work.
+		haltOpinion := "fuzz judicial halt — safety boundary"
+		_, _ = r.exec("halt", "--seat-id", seatID, "--reason", haltOpinion)
+		env["halt"] = map[string]any{"opinion": haltOpinion}
+	}
+	return env
+}
+
+// rulePending rules every pending petition at the bench sitting of the given occasion — the
+// petition sitting a plan convened, the terminal sitting, or the assembly that holds the gavel for
+// one filed after the last plan — and returns the envelope rulings.
+func (r *runner) rulePending(seatID, occasion string) []any {
+	rulings := arr()
+	if r.petitionRuledAt == nil {
+		r.petitionRuledAt = map[string]string{}
+	}
 	for _, p := range r.petitioned {
 		who, _ := p["who"].(string)
 		class, _ := p["class"].(string)
@@ -636,24 +673,33 @@ func (r *runner) rulePetitions(seatID string) map[string]any {
 		if ruling == "granted" {
 			args = append(args, "--binds", binds)
 		}
-		_, _ = r.exec(args...)
+		if _, err := r.exec(args...); err == nil {
+			r.petitionRuledAt[id] = occasion
+		}
 		rulings = append(rulings, map[string]any{"petitioner": who, "class": class, "ruling": ruling, "relief": opinion, "binds": binds})
 	}
 	r.petitioned = nil
-	if rulings == nil {
-		rulings = arr()
+	return rulings
+}
+
+// petitionOracle holds every petition the run filed to its route: each is ruled, and one filed
+// before the last chair plan is ruled at the sitting a plan convened for it — a petition sitting,
+// or the terminal sitting at the exit — never left to the assembly's backstop. A halted run is
+// exempt: the bench stopped it, and the outcome refusal exempts a halt too. "" when it holds.
+func (r *runner) petitionOracle(halted bool) string {
+	if halted {
+		return ""
 	}
-	env := map[string]any{"rulings": rulings, "log": arr()}
-	if r.forceHalt {
-		// `bench halt` writes the record; the envelope's halt object is only what stops the
-		// engine. The fake already drove the verb correctly before #329 — it was the PROMPT
-		// that told a real judge to record a halt through petition-rule, where the enum refuses
-		// it. The fuzz stayed green over a production path that could not work.
-		haltOpinion := "fuzz judicial halt — safety boundary"
-		_, _ = r.exec("halt", "--seat-id", seatID, "--reason", haltOpinion)
-		env["halt"] = map[string]any{"opinion": haltOpinion}
+	for _, p := range r.petitionsFiled {
+		at, ruled := r.petitionRuledAt[p.id]
+		switch {
+		case !ruled:
+			return fmt.Sprintf("petition oracle: %s, filed by %s in chair sitting %d, was never ruled", p.id, p.filer, p.chairSitting)
+		case at != "petition" && at != "terminal" && p.chairSitting < r.chairRegisters:
+			return fmt.Sprintf("petition oracle: %s, filed by %s in chair sitting %d of %d, was ruled at the %s sitting — a later plan should have convened the bench for it", p.id, p.filer, p.chairSitting, r.chairRegisters, at)
+		}
 	}
-	return env
+	return ""
 }
 
 // exec runs one seat command. THE ERROR CARRIES WHAT THE TOOL SAID.
@@ -671,14 +717,14 @@ func (r *runner) dispatchNext(seatID string) map[string]any {
 	out, err := r.exec("--json", "dispatch", "next", "--seat-id", seatID)
 	if err != nil {
 		r.noteEstoppelMiss("dispatch next refused: " + err.Error())
-		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch refused: " + err.Error()}, "max_epochs": 0, "epoch_limit_reached": false, "stale_areas": []any{}}
+		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch refused: " + err.Error()}, "max_epochs": 0, "epoch_limit_reached": false, "stale_areas": []any{}, "blockers": []any{}}
 	}
 	var env struct {
 		OK     bool           `json:"ok"`
 		Result map[string]any `json:"result"`
 	}
 	if err := json.Unmarshal([]byte(out), &env); err != nil || !env.OK || env.Result == nil {
-		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch envelope unreadable"}, "max_epochs": 0, "epoch_limit_reached": false, "stale_areas": []any{}}
+		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch envelope unreadable"}, "max_epochs": 0, "epoch_limit_reached": false, "stale_areas": []any{}, "blockers": []any{}}
 	}
 	// RELAYED EXACTLY AS PRINTED. The verb emits every array as an array, never null, and the
 	// engine refuses a plan missing one — so a patch here would hide the defect the relay check
@@ -686,8 +732,6 @@ func (r *runner) dispatchNext(seatID string) map[string]any {
 	return env.Result
 }
 
-// chairEnvelope is what the chair returns: the plan it relayed, the verdict it recorded this
-// sitting (if any), and its petitions. Gaps, closures and dispute responses are the record's.
 // engaged is the gap ids the current plan dispatched seatID on — the party's gap_ids, or none
 // when the plan does not name the seat (a fresh lens sitting, or a seat outside this epoch).
 func (r *runner) engaged(seatID string) []string {
@@ -743,46 +787,18 @@ func (r *runner) staleAreas() []string {
 	return out
 }
 
-// outstandingMotions is how many motions stand unruled on the record, read from the projection.
-//
-// A FAILED READ RETURNS ZERO AND SAYS SO IS NOT POSSIBLE HERE: the per-role sweep drives
-// `inquest motions` for the chair strictly, so a broken read fails the run there rather than
-// silently reporting "nothing outstanding" and skipping the terminal sitting again.
-func (r *runner) outstandingMotions(seatID string) int {
-	out, err := r.exec(seat.GroupOf("motions"), "motions", "--seat-id", seatID)
-	if err != nil {
-		return 0
-	}
-	var page struct {
-		Counts struct {
-			Outstanding int `json:"outstanding"`
-		} `json:"counts"`
-	}
-	if json.Unmarshal([]byte(out), &page) != nil {
-		return 0
-	}
-	return page.Counts.Outstanding
-}
-
+// chairEnvelope is what the chair returns: the plan it relayed — whose blockers are what the
+// terminal bench sitting fires on — and the verdict it recorded this sitting, if any. Gaps,
+// closures, dispute responses and petitions are the record's.
 func (r *runner) chairEnvelope(seatID, verdict string, responses []map[string]any) map[string]any {
 	_ = responses // grade motions are ruled on the record; the envelope no longer restates them
 	plan := r.planThisSitting
 	if plan == nil {
 		plan = map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false,
-			"max_epochs": 0, "epoch_limit_reached": false, "why": []any{}, "stale_areas": []any{}}
+			"max_epochs": 0, "epoch_limit_reached": false, "why": []any{}, "stale_areas": []any{}, "blockers": []any{}}
 	}
-	// UNRULED MOTIONS COME FROM THE RECORD, NOT FROM A LITERAL ZERO.
-	//
-	// This said 0, always — and debate.js dispatches the TERMINAL bench sitting only when the chair
-	// reports `unruled_motions > 0`. So that whole dispatch site, its prompt and its `terminal`
-	// occasion were unreachable in this sweep: the flag-coverage gate reported `register --occasion
-	// terminal` undriven and could not say why, because the run it needed could not be generated.
-	// A hardcoded zero in a stub is a branch of the product that no amount of fuzzing reaches.
-	//
-	// The chair carries `inquest`, so it can ask; the count is the motions projection's own
-	// `counts.outstanding`, which is what the PASS refusal counts too.
-	e := map[string]any{"plan": plan, "unruled_motions": r.outstandingMotions(seatID),
-		"petitions": r.maybePetition("chair", seatID), "log": arr()}
+	r.maybePetition(seatID)
+	e := map[string]any{"plan": plan, "log": arr()}
 	if verdict != "" {
 		e["verdict"] = verdict
 	}
@@ -1955,7 +1971,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	case strings.HasPrefix(seatID, "blue-synthesize"):
 		r.sit("blue", seatID)
 		r.extras("blue", seatID, nil)
-		return map[string]any{"sitting_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "petitions": r.maybePetition("blue", seatID), "log": arr()}
+		r.maybePetition(seatID)
+		return map[string]any{"sitting_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "log": arr()}
 
 	case strings.HasPrefix(seatID, "red-chair"):
 		r.sit("chair", seatID)
@@ -2074,7 +2091,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// ONE SITTING IN FIVE DOES NOT ATTEST ITS RECORD, so the engine's re-prompt — and the register
 		// that repairs a sitting — is driven. Its revision is filed only some of the time (extras), so
 		// the repair is admitted where the sitting owes one and refused where it owes nothing.
-		return map[string]any{"sitting_record_appended": !r.coin(20), "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_motions": disputes, "petitions": r.maybePetition("blue", seatID), "log": arr()}
+		r.maybePetition(seatID)
+		return map[string]any{"sitting_record_appended": !r.coin(20), "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_motions": disputes, "log": arr()}
 
 	// THE BENCH IS ONE SEAT ASKED FOUR QUESTIONS, so `seatID` no longer discriminates its sittings:
 	// every bench prompt renders `SEAT_ID: judge`. Routing on the id sent the petition sitting and
@@ -2094,11 +2112,21 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	// is told and types at `register` — so the fuzz stands in for the seat instead of guessing at it.
 	case debatejs.OccasionOf(prompt) == "petition":
 		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
+		// THE FORCED-UNVERIFIED SHAPE SITS AND RULES NOTHING, so the petition stands to the exit,
+		// is not re-readied, and the terminal sitting — convened by the plan's bench-owned
+		// blocker — is what rules it.
+		if r.forceUnverified {
+			return map[string]any{"rulings": arr(), "log": arr()}
+		}
 		return r.rulePetitions(seatID) // rule every pending petition (petition-rule events + envelope rulings)
 
 	case strings.HasPrefix(seatID, "judge") && debatejs.OccasionOf(prompt) != "assemble": // adjudication + terminal
 		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
 		r.extras("bench", seatID, nil)
+		// THE TERMINAL SITTING RULES WHAT STILL STANDS whose gavel is the bench's: the petitions.
+		if debatejs.OccasionOf(prompt) == "terminal" {
+			r.rulePending(seatID, "terminal")
+		}
 		// THE BENCH RULES ON WHAT HAPPENED, not on a coin. A gap reaches the docket because
 		// its scenario left it open, and the scenario says why: a LOST dispute is a contest
 		// red refused and the bench settles it; an IGNORE is blue owing work, which is what
@@ -2154,6 +2182,12 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// (two 40% coins once, then read off this prompt) is retired with the roundless record:
 		// CEILING is derived from the board, deadlock is per gap, and the verdict read from the
 		// prompt three lines up is the whole terminal fact.
+		//
+		// A PETITION FILED AFTER THE LAST PLAN has had no sitting, and `bench outcome` refuses while
+		// it stands; the assembling bench holds the gavel, so it rules it first, as the refusal says.
+		if !r.forceHalt {
+			r.rulePending(seatID, "assemble")
+		}
 		_, _ = r.exec(oargs...)
 		// THE ASSEMBLY IS THE BENCH. `--seat-id assemble` was the seat that ran this verb; the bench
 		// is one seat now and `assemble` is refused at the surface, so the call recorded nothing and
@@ -2355,7 +2389,15 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				r.extras("lens", seatID, nil)
 			}
 		}
-		return map[string]any{"synopsis": "fuzz", "petitions": arr(), "log": arr(), "rulings": arr()}
+		// A LENS PETITIONS ON THE RECORD — its return is prose, so the record is its only channel.
+		// The forced-UNVERIFIED run guarantees one, which its petition sitting then leaves unruled
+		// so the terminal sitting is the one that rules it.
+		if r.forceUnverified && len(r.petitionsFiled) == 0 {
+			r.filePetition(seatID)
+		} else {
+			r.maybePetition(seatID)
+		}
+		return map[string]any{"synopsis": "fuzz", "log": arr(), "rulings": arr()}
 	}
 }
 
@@ -2804,6 +2846,11 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	if r.passOverAnotherSeat != "" {
 		res.err = "pass_permitted oracle: the plan permitted a PASS while " + r.passOverAnotherSeat + " stood, and the gate refused it: " + r.lastPassRefusal
+		return res
+	}
+	halted, _ := result["halted"].(bool)
+	if o := r.petitionOracle(halted); o != "" {
+		res.err = o
 		return res
 	}
 	if r.lastPassRefusal != "" && res.verdict != "VERIFIED" {

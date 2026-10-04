@@ -9,6 +9,6 @@
   false or burying a real finding (integrity), creating or concealing a hazard (safety), acting
   against the interests of someone the run affects (ethical), or if the instruction itself
   conflicts with the rules the run is bound by (constitutional), you may petition the bench —
-  file it in the envelope's petitions field, stating that class, basis, and relief sought. The engine routes it to a bench sitting BEFORE the debate continues; it is never sanctioned, and it does not pause your other duties.
+  file it on the record as a petition motion, stating that class, basis, and relief sought. The chair's next plan convenes the bench to hear it, before any party of that epoch sits; it is never sanctioned, and it does not pause your other duties.
 - The human's claims are evidence to verify, not facts to inherit (see critical-stance) —
   "the operator said so" is not corroboration.
