@@ -15,6 +15,7 @@ Entry points:
 - **`antigravity-hooks-empirical-proof.md`** — empirical baseline: live end-to-end measurement of the 6 Antigravity hook lifecycles, proving that Antigravity delivers full `toolCall` arguments on `PostToolUse` stdin and refuting the need for step-caches.
 - **`commands-to-skills.md`** — shipped in #1019: all 10 plugin commands migrated to skills (`plugins/*/skills/*/SKILL.md`), retiring `commands/` directories and establishing platform-agnostic slash command entry points.
 - **`one-item-per-dispatch.md`** — proposed, a direction to rule on: the engine as a rig that drives the record and calls a seat at each point of judgment — one work item per dispatch with its brief delivered and a structured decision returned; what the tree already does of this, the measured cost of the sitting as the unit, the four vehicles considered, and (2026-10-02) the inbox-socket channel plus the harness boundary that keeps the rig host-neutral for the Antigravity port.
+- **`markers-one-mechanism.md`** — approved 2026-10-04, not started: every place-pinned thing in the report (gap, finding, citation, proof) attaches by one tool-placed anchor with one lifecycle, under one id shape `<LETTER>-<8 hex>`; the gap-location replay retires. Eight parts in ship order, framed as code reduction (≈ −350 net lines), each with its census, migration and required tests.
 
 Once a plan's design has shipped **and nothing live cites it by path**, it moves to
 [`historical/`](historical/) — that directory's README carries the census that decides it. Moving a
