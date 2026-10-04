@@ -7,6 +7,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // A LENS'S MINT BUDGET SCALES WITH WHAT IT AUDITS (plans/roundless.md §III.B.2.2 sets the bound;
@@ -144,7 +145,7 @@ func countInReport(count func(string) int) func(Run) (int, error) {
 		if reportRenderer == nil {
 			return 0, fmt.Errorf("this binary registers no report renderer (internal/reportproj registers one wherever it is linked)")
 		}
-		md, err := reportRenderer(run)
+		md, err := renderReport(run)
 		if err != nil {
 			return 0, err
 		}
@@ -152,12 +153,25 @@ func countInReport(count func(string) int) func(Run) (int, error) {
 	}
 }
 
-// reportRenderer renders the current report from the record. It is REGISTERED, not imported: the
-// renderer (internal/reportproj) imports this package, so the write path is handed it instead.
-var reportRenderer func(Run) (string, error)
+// reportRenderer renders the current report from the record, asked of q — the run's handle, or a
+// projection's read transaction (nil on a run with no record yet). It is REGISTERED, not imported:
+// the renderer (internal/reportproj) imports this package, so the write path is handed it instead.
+var reportRenderer func(q recordsql.Querier) (string, error)
 
 // RegisterReportRenderer hands the write path the renderer the report-sized budgets read.
-func RegisterReportRenderer(fn func(Run) (string, error)) { reportRenderer = fn }
+func RegisterReportRenderer(fn func(q recordsql.Querier) (string, error)) { reportRenderer = fn }
+
+// renderReport renders the run's current report on the run's own handle.
+func renderReport(run Run) (string, error) {
+	db, err := openRunForRead(run)
+	if err != nil {
+		return "", err
+	}
+	if db == nil {
+		return reportRenderer(nil)
+	}
+	return reportRenderer(db)
+}
 
 // requireMintWithinBudget is the run-level bound that is not a clock: each cast lens may mint at
 // most its budget (above) in the run, a SUPERSEDING mint included — lineage is a new gap. A lens

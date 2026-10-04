@@ -49,7 +49,7 @@ import (
 //
 // One statement is one snapshot. Read as two on a pooled handle, a sitting a seat opened between
 // them loads with its id and no owner, and the seat's latest sitting is then the one before.
-func Events(db *sql.DB) ([]*recordpb.Event, []Window, error) {
+func Events(db Querier) ([]*recordpb.Event, []Window, error) {
 	return eventsWhere(db, true, ``)
 }
 
@@ -108,7 +108,7 @@ func (w Window) Opens() (string, bool) {
 // is no epoch to compare and nothing here knows what the words used to be. It asks the one question
 // the data can answer on its own — does this record spell its events in words this schema declares
 // — and the schema's own enum is the whole authority.
-func EventsOfTypes(db *sql.DB, words ...string) ([]*recordpb.Event, []Window, error) {
+func EventsOfTypes(db Querier, words ...string) ([]*recordpb.Event, []Window, error) {
 	if len(words) == 0 {
 		return nil, nil, nil
 	}
@@ -128,7 +128,7 @@ func EventsOfTypes(db *sql.DB, words ...string) ([]*recordpb.Event, []Window, er
 // read is the events table alone. events_w ranks every sitting on the record, so a windowed read
 // pays for the whole record however narrow its WHERE: a read by one key, which prints no window,
 // does not ask for one.
-func eventsWhere(db *sql.DB, withWindows bool, where string, args ...any) ([]*recordpb.Event, []Window, error) {
+func eventsWhere(db Querier, withWindows bool, where string, args ...any) ([]*recordpb.Event, []Window, error) {
 	q := `SELECT e."id", e."seat_id", e."ts", e."type", e."key" FROM "events" e` + where + ` ORDER BY e."id"`
 	if withWindows {
 		q = `SELECT w."id", w."seat_id", w."ts", w."type", w."key", w."epoch", w."sitting",
@@ -198,7 +198,7 @@ func eventsWhere(db *sql.DB, withWindows bool, where string, args ...any) ([]*re
 // and there will not be one: a reader who needs those events needs the binary that wrote them —
 // or the migration, which is that knowledge quarantined in one package (internal/record/migrate)
 // instead of a negotiation in every reader.
-func refuseUndeclaredTypes(db *sql.DB) error {
+func refuseUndeclaredTypes(db Querier) error {
 	rows, err := db.Query(`SELECT DISTINCT type FROM events`)
 	if err != nil {
 		return fmt.Errorf("recordsql: reading the record's event types: %w", err)
@@ -262,7 +262,7 @@ type armBatch struct {
 // and assigned. A dynamic message satisfies the descriptor and not the Go type, so it round-trips
 // through the schema and then fails at the first `BodyAs[*recordpb.Mint]`, which is every reader.
 // Asking the event for its own field gets the concrete type by construction.
-func loadBodies(db *sql.DB, ids []int64, evs []*recordpb.Event) error {
+func loadBodies(db Querier, ids []int64, evs []*recordpb.Event) error {
 	// The event's own arm on the envelope, resolved per event; the batches, resolved per table.
 	arms := make([]protoreflect.FieldDescriptor, len(evs))
 	msgs := make([]protoreflect.Message, len(evs))
@@ -315,7 +315,7 @@ func newTableBatch(md protoreflect.MessageDescriptor) *tableBatch {
 	return b
 }
 
-func (b *tableBatch) load(db *sql.DB) error {
+func (b *tableBatch) load(db Querier) error {
 	var cols []string
 	for _, fd := range b.scalars {
 		cols = append(cols, fmt.Sprintf("%q", fd.Name()))
@@ -446,7 +446,7 @@ func (b *tableBatch) fill(id int64, msg protoreflect.Message) error {
 
 // scanTable reads a whole body table into memory, keyed by event. Every row belongs to this read:
 // `event_id` is a primary key referencing `events(id)`, and the read is always the whole record.
-func scanTable(db *sql.DB, table string, cols []string) (map[int64][]any, error) {
+func scanTable(db Querier, table string, cols []string) (map[int64][]any, error) {
 	out := map[int64][]any{}
 	if len(cols) == 0 {
 		return out, nil
@@ -493,7 +493,7 @@ func scanTable(db *sql.DB, table string, cols []string) (map[int64][]any, error)
 	return out, rows.Err()
 }
 
-func scanLists(db *sql.DB, table string) (map[int64][]any, error) {
+func scanLists(db Querier, table string) (map[int64][]any, error) {
 	rows, err := db.Query(fmt.Sprintf("SELECT \"event_id\", \"value\" FROM %q ORDER BY \"event_id\", \"ord\"", table))
 	if err != nil {
 		return nil, olderSchema(db, table, err)
@@ -534,14 +534,16 @@ func olderSchema(q queryRower, table string, err error) error {
 	return err
 }
 
-// olderRun asks both questions of a failed read or write on a body table: is the table missing,
-// and if it is there, is a column this binary declares missing from it.
-type olderRunQuerier interface {
+// Querier is what both a *sql.DB and a *sql.Tx offer a read: the record's handle, or one read
+// transaction a projection asks every question of, so that all its answers come off one snapshot.
+type Querier interface {
 	queryRower
 	rowsQuerier
 }
 
-func olderRun(q olderRunQuerier, table string, cols []string, err error) error {
+// olderRun asks both questions of a failed read or write on a body table: is the table missing,
+// and if it is there, is a column this binary declares missing from it.
+func olderRun(q Querier, table string, cols []string, err error) error {
 	if older := olderSchema(q, table, err); older != err {
 		return older
 	}

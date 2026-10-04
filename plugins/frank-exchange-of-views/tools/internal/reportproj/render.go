@@ -9,6 +9,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // THE REPORT IS THE RECORD, NOT A FILE (#709).
@@ -276,6 +277,22 @@ func RenderFromRecord(run record.Run) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return replay(base, haveBase, ops)
+}
+
+// RenderAt is RenderFromRecord asked of q: the run's handle, or a projection's read transaction, so
+// a projection that renders the report beside its other answers renders the report on the same
+// snapshot. A nil q is a run with no record yet, which has no base.
+func RenderAt(q recordsql.Querier) (string, error) {
+	base, haveBase, ops, err := record.ReportProjectionAt(q)
+	if err != nil {
+		return "", err
+	}
+	return replay(base, haveBase, ops)
+}
+
+// replay folds the ordered mutations over the frozen base.
+func replay(base string, haveBase bool, ops []record.ReportOp) (string, error) {
 	if !haveBase {
 		return "", fmt.Errorf("render: no base has been ingested for this run — there is nothing to render. Its author freezes the report into the record first; citing, proving, counting claims and editing all read the frozen report")
 	}

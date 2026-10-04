@@ -94,7 +94,7 @@ func TestWithoutTheMintEventsEveryFindingReadsAsDropped(t *testing.T) {
 		t.Fatalf("unexpected credit with no mint in the stream: %+v", withoutMint)
 	}
 	// So the RUN PATH has to ask for both. This is the assertion that keeps the typed read honest.
-	if !slices.Contains(findingsViewEventTypes(), recordpb.EventType_EVENT_TYPE_MINT) {
+	if !slices.Contains(findingsView.families, recordpb.EventType_EVENT_TYPE_MINT) {
 		t.Error("FindingsJSONBytes does not fetch MINT, so minted_as is empty for every finding on " +
 			"every run — reporting 'nothing was minted from any finding' in the same bytes as a drop")
 	}
@@ -120,7 +120,7 @@ func TestANarrowedReadCarriesTheStoredEpoch(t *testing.T) {
 		find("C"), // epoch 2: the hook's bracket opened it, and the chair never registered
 	)
 	run := mustRun(t, dir)
-	evs, win, err := EventsOf(run, findingsViewEventTypes()...)
+	evs, win, err := EventsOf(run, findingsView.families...)
 	if err != nil {
 		t.Fatal(err)
 	}

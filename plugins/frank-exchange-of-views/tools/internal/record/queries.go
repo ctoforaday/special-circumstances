@@ -103,12 +103,25 @@ func MintCheckKind(run Run, gapID string) (recordpb.CheckKind, error) {
 // business hauling the whole record through the loader to get it — with each event's stored window
 // (WindowIndex), so the projection prints the epoch and sitting the record holds without loading
 // the acts that opened them. A run with no record yet holds none of anything.
+//
+// NO PROJECTION CALLS IT. A projection declares a narrowedView (narrowedview.go), which reads its
+// families through eventsOfAt on the view's own snapshot — the one place a projection says what it
+// renders. This is the same read for a test outside the package; TestNoProjectionReadsAroundItsDeclaration
+// fails on any other caller.
 func EventsOf(run Run, types ...recordpb.EventType) ([]*Event, WindowIndex, error) {
-	db, err := openRunForRead(run)
-	if err != nil {
-		return nil, WindowIndex{}, err
-	}
-	if db == nil {
+	var evs []*Event
+	var win WindowIndex
+	err := readSnapshot(run, func(q recordsql.Querier) error {
+		var err error
+		evs, win, err = eventsOfAt(q, types...)
+		return err
+	})
+	return evs, win, err
+}
+
+// eventsOfAt is EventsOf asked of q, which is nil on a run with no record yet.
+func eventsOfAt(q recordsql.Querier, types ...recordpb.EventType) ([]*Event, WindowIndex, error) {
+	if q == nil {
 		return nil, WindowIndex{}, nil
 	}
 	words := make([]string, len(types))
@@ -123,7 +136,7 @@ func EventsOf(run Run, types ...recordpb.EventType) ([]*Event, WindowIndex, erro
 	if correctable {
 		words = append(words, recordpb.Word(recordpb.EventType_EVENT_TYPE_CORRECTION))
 	}
-	evs, ws, err := recordsql.EventsOfTypes(db, words...)
+	evs, ws, err := recordsql.EventsOfTypes(q, words...)
 	if err != nil {
 		return nil, WindowIndex{}, err
 	}
@@ -142,13 +155,18 @@ func EventsOf(run Run, types ...recordpb.EventType) ([]*Event, WindowIndex, erro
 // of the projection that asks.
 func Epochs(run Run) ([]int, error) {
 	db, err := openRunForRead(run)
-	if err != nil {
+	if err != nil || db == nil {
 		return nil, err
 	}
-	if db == nil {
+	return epochsAt(db)
+}
+
+// epochsAt is Epochs asked of q, which is nil on a run with no record yet.
+func epochsAt(q recordsql.Querier) ([]int, error) {
+	if q == nil {
 		return nil, nil
 	}
-	rows, err := db.Query(`SELECT "epoch" FROM "events_w"
+	rows, err := q.Query(`SELECT "epoch" FROM "events_w"
 	  WHERE "id" = (SELECT MIN("id") FROM "events") OR "id" = (SELECT MAX("id") FROM "events")
 	  ORDER BY "id"`)
 	if err != nil {
@@ -219,11 +237,18 @@ type ReportOp struct {
 // rebuilds that selection by scanning every event.
 func ReportProjection(run Run) (base string, haveBase bool, ops []ReportOp, err error) {
 	db, err := openRunForRead(run)
-	if err != nil {
-		return "", false, nil, err
+	if err != nil || db == nil {
+		return "", false, nil, err // no record yet — no base, nothing to render
 	}
+	return ReportProjectionAt(db)
+}
+
+// ReportProjectionAt is ReportProjection asked of q — a read transaction a projection holds, so
+// the report it renders is the one on the snapshot its other answers came off. A nil q is a run
+// with no record yet.
+func ReportProjectionAt(db recordsql.Querier) (base string, haveBase bool, ops []ReportOp, err error) {
 	if db == nil {
-		return "", false, nil, nil // no record yet — no base, nothing to render
+		return "", false, nil, nil
 	}
 	baseRows, err := db.Query(`SELECT "text" FROM "base_ingest" ORDER BY "event_id"`)
 	if err != nil {

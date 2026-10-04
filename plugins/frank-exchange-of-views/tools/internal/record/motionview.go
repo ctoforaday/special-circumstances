@@ -1,7 +1,6 @@
 package record
 
 import (
-	"encoding/json"
 	"sort"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -113,20 +112,13 @@ func motionsJSONOf(evs []*Event, win WindowIndex) MotionsJSON {
 	return out
 }
 
-// MotionsJSONBytes renders the motions view as indented JSON. The exchange lives on four
-// event families; nothing else on the record decides a motion's state.
-func MotionsJSONBytes(run Run) ([]byte, error) {
-	evs, win, err := EventsOf(run,
-		recordpb.EventType_EVENT_TYPE_AVENUE,
-		recordpb.EventType_EVENT_TYPE_MOTION,
-		recordpb.EventType_EVENT_TYPE_MOTION_RULE,
-		recordpb.EventType_EVENT_TYPE_MOTION_APPEAL)
-	if err != nil {
-		return nil, err
-	}
-	out, err := json.MarshalIndent(motionsJSONOf(evs, win), "", "  ")
-	if err != nil {
-		return nil, err
-	}
-	return append(out, '\n'), nil
-}
+// motionsView is the motions read from the record. The exchange lives on the families declared
+// here; nothing else on the record decides a motion's state.
+var motionsView = declareNarrowedView("motions", rendersEvents(motionsJSONOf),
+	recordpb.EventType_EVENT_TYPE_AVENUE,
+	recordpb.EventType_EVENT_TYPE_MOTION,
+	recordpb.EventType_EVENT_TYPE_MOTION_RULE,
+	recordpb.EventType_EVENT_TYPE_MOTION_APPEAL)
+
+// MotionsJSONBytes renders the motions view as indented JSON.
+func MotionsJSONBytes(run Run) ([]byte, error) { return motionsView.jsonBytes(run) }
