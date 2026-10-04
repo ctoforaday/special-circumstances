@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // EVERY REFUSAL A REPAIR CAN PRODUCE PUTS THE SEAT ON ONE OF TWO BRANCHES (#1026).
@@ -35,6 +37,11 @@ func TestEveryRepairRefusalStatesOneOfTheTwoBranches(t *testing.T) {
 			return "blue-respond", ""
 		}, "has no sitting to repair", true},
 
+		{"the seat's latest sitting the hook opened holds no register", func(b *stage) (string, string) {
+			chairSat(b).bracket("blue-synthesize", "syn-a")
+			return "blue-synthesize", ""
+		}, "latest sitting holds no register of yours", true},
+
 		{"the key names no act", func(b *stage) (string, string) {
 			chairSat(b)
 			return "blue-respond", "blue-respond:register:#404"
@@ -43,7 +50,7 @@ func TestEveryRepairRefusalStatesOneOfTheTwoBranches(t *testing.T) {
 		{"the key names an act that is not a register", func(b *stage) (string, string) {
 			chairSat(b).dispatch(2, "blue-respond", "G1").register("blue-respond").edit("G1", "was", "is")
 			return "blue-respond", b.lastKey()
-		}, "is not a register that opened a sitting of", false},
+		}, "is not a register of a sitting of", false},
 
 		{"the key names a register whose body does not decode", func(b *stage) (string, string) {
 			chairSat(b).dispatch(2, "blue-respond", "G1").forgedRegister("blue-respond")
@@ -55,7 +62,7 @@ func TestEveryRepairRefusalStatesOneOfTheTwoBranches(t *testing.T) {
 			first := b.lastKey()
 			b.register("blue-respond")
 			return "blue-respond", first
-		}, "opened an earlier sitting of", false},
+		}, "is in an earlier sitting of", false},
 
 		{"the seat is not blue", func(b *stage) (string, string) {
 			b.cast(evLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair")
@@ -98,11 +105,12 @@ func TestEveryRepairRefusalStatesOneOfTheTwoBranches(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			b := newStage(t)
 			seat, key := c.build(b)
+			evs, win := loadedUnlessForgedT(t, b.evs)
 			var err error
 			if key == "" {
-				_, err = repairTarget(b.evs, seat)
+				_, err = repairTarget(evs, win, seat)
 			} else {
-				err = checkRepair(b.evs, seat, key)
+				err = checkRepair(evs, win, seat, key)
 			}
 			if err == nil {
 				t.Fatalf("the repair was admitted; this row exists because it must be refused for %q", c.says)
@@ -117,13 +125,38 @@ func TestEveryRepairRefusalStatesOneOfTheTwoBranches(t *testing.T) {
 		})
 	}
 
+	// THE ROW THE DATABASE CANNOT HOLD. A register in no sitting, by a seat that has none, is in the
+	// seat's latest sitting by 0 == 0 and leaves no opening to name. The database refuses a register
+	// with no sitting (a CHECK on events), so the loaded windows are rewritten to one: the seat's
+	// sittings struck. It is the claim branch — the record does not bear the sitting out.
+	t.Run("the key names a register in no sitting, by a seat that never sat", func(t *testing.T) {
+		b := newStage(t)
+		chairSat(b).dispatch(2, "blue-respond", "G1").register("blue-respond")
+		m := loadedT(t, b.evs...)
+		ws := make([]recordsql.Window, len(m.Events))
+		for i, e := range m.Events {
+			ws[i] = m.At.Of(e)
+			if ws[i].Owner == "blue-respond" {
+				ws[i].SittingID, ws[i].Owner, ws[i].Sitting = 0, "", 0
+			}
+		}
+		err := checkRepair(m.Events, windowIndexOf(m.Events, ws), "blue-respond", b.lastKey())
+		if err == nil || !strings.Contains(err.Error(), "is in no sitting of blue-respond") {
+			t.Fatalf("err = %v, want the refusal naming a register in no sitting", err)
+		}
+		if strings.Contains(err.Error(), RepairNothingToFile) {
+			t.Errorf("the refusal carries the nothing-to-file sentence; the record does not bear the claim out:\n%v", err)
+		}
+	})
+
 	// THE ADMITTED CASE, because a table of refusals alone passes on a checkRepair that refuses
 	// everything.
 	t.Run("a sitting that owes its record is repairable", func(t *testing.T) {
 		b := newStage(t)
 		chairSat(b).register(evLens).mint(evLens, "G1", "medium").
 			dispatch(2, "blue-respond", "G1").register("blue-respond")
-		if err := checkRepair(b.evs, "blue-respond", b.lastKey()); err != nil {
+		m := loadedT(t, b.evs...)
+		if err := checkRepair(m.Events, m.At, "blue-respond", b.lastKey()); err != nil {
 			t.Fatalf("a sitting owing its position and revision was refused a repair: %v", err)
 		}
 	})
@@ -141,8 +174,9 @@ func TestTheRepairRefusalTableCoversEverySite(t *testing.T) {
 	if sites == 0 {
 		t.Fatal("no refuseRepair call sites in repair.go — the refusals were renamed or reshaped and this guard is measuring nothing, which reads exactly like a pass")
 	}
-	// One row per site: the table's rows and repair.go's refusals are the same set.
-	const rows = 11
+	// One row per site: the table's rows (and the one row the database cannot hold, beside it) and
+	// repair.go's refusals are the same set.
+	const rows = 13
 	if sites != rows {
 		t.Errorf("repair.go refuses in %d places and TestEveryRepairRefusalStatesOneOfTheTwoBranches holds %d — a refusal with no row is one the re-prompt was never checked against", sites, rows)
 	}

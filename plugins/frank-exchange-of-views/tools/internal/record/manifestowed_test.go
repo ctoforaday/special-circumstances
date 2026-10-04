@@ -16,7 +16,19 @@ func dispatchBlue(t *testing.T, gaps ...string) *Event {
 }
 
 func closeGap(t *testing.T, lens, gap string) *Event {
-	return recordtest.Event(t, lens, &recordpb.Close{GapId: proto.String(gap)})
+	return recordtest.Event(t, lens, &recordpb.Close{GapId: proto.String(gap),
+		ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Prose: proto.String("verified at the leaf")})
+}
+
+// gapsExist mints each gap a fixture names, ahead of it, so the record can hold the closes and
+// receipts that name them. The mints are a lens's acts before any sitting of blue's, and no blue
+// sitting reads them.
+func gapsExist(t *testing.T, gaps ...string) []*Event {
+	var out []*Event
+	for _, g := range gaps {
+		out = append(out, mintsGap(t, "red-lens-logic", g))
+	}
+	return out
 }
 
 func registers(t *testing.T, seat string) *Event {
@@ -117,7 +129,7 @@ func TestManifestOwedIsARepairOfAGapStillOpenWhenBlueSat(t *testing.T) {
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
-			if got := ManifestOwed(c.evs, WhileRunning).Gaps; !reflect.DeepEqual(got, c.want) {
+			if got := manifestOwedT(t, append(gapsExist(t, "G1", "G2", "G7"), c.evs...), WhileRunning).Gaps; !reflect.DeepEqual(got, c.want) {
 				t.Errorf("owed = %v, want %v", got, c.want)
 			}
 		})
@@ -130,7 +142,7 @@ func TestManifestUnreceiptedIsOwedLessTheRows(t *testing.T) {
 		editAnswers(t, "blue-respond", "G1"), editAnswers(t, "blue-respond", "G2"),
 		recordtest.Event(t, "blue-respond", &recordpb.ManifestRow{GapId: proto.String("G1"), Row: proto.String("recomputed")}),
 	}
-	if got := ManifestUnreceipted(evs, WhileRunning).Gaps; !reflect.DeepEqual(got, []string{"G2"}) {
+	if got := manifestUnreceiptedT(t, append(gapsExist(t, "G1", "G2"), evs...), WhileRunning).Gaps; !reflect.DeepEqual(got, []string{"G2"}) {
 		t.Errorf("unreceipted = %v, want [G2]", got)
 	}
 }
@@ -168,14 +180,14 @@ func TestBlueSittingEndsOnBluesOwnActsNotTheChairsDispatchRow(t *testing.T) {
 			chairDispatches(t, "blue-respond", "G2"),
 			editAnswers(t, "blue-respond", "G1"),
 		}
-		ss := BlueSittings(evs, WhileRunning)
+		ss := blueSittingsT(t, evs, WhileRunning)
 		if len(ss) != 1 || !ss[0].Unresolved {
 			t.Fatalf("blue has neither registered again nor returned: want one unresolved sitting, got %+v", ss)
 		}
 		if got := actTypes(ss[0]); !reflect.DeepEqual(got, []string{"EVENT_TYPE_REGISTER", "EVENT_TYPE_BLUE_EDIT"}) {
 			t.Errorf("the chair's row is not blue's act and ends nothing: acts = %v, want the register and the edit", got)
 		}
-		if got := ManifestOwed(evs, WhileRunning); !reflect.DeepEqual(got.Gaps, []string{"G1"}) || got.Unresolved != 1 {
+		if got := manifestOwedT(t, evs, WhileRunning); !reflect.DeepEqual(got.Gaps, []string{"G1"}) || got.Unresolved != 1 {
 			t.Errorf("the edit is in the sitting and the sitting is not closed: owed = %+v, want G1 with 1 unresolved", got)
 		}
 	})
@@ -185,14 +197,14 @@ func TestBlueSittingEndsOnBluesOwnActsNotTheChairsDispatchRow(t *testing.T) {
 			agentStops(t, "blue-a"),
 			editAnswers(t, "blue-respond", "G1"),
 		}
-		ss := BlueSittings(evs, WhileRunning)
+		ss := blueSittingsT(t, evs, WhileRunning)
 		if len(ss) != 1 || ss[0].Unresolved {
 			t.Fatalf("blue's agent returned: want one closed sitting, got %+v", ss)
 		}
 		if got := actTypes(ss[0]); !reflect.DeepEqual(got, []string{"EVENT_TYPE_REGISTER"}) {
 			t.Errorf("the edit follows the stop: acts = %v, want the register alone", got)
 		}
-		if got := ManifestOwed(evs, WhileRunning); got.Gaps != nil || got.Unresolved != 0 {
+		if got := manifestOwedT(t, evs, WhileRunning); got.Gaps != nil || got.Unresolved != 0 {
 			t.Errorf("owed = %+v, want nothing and nothing unresolved", got)
 		}
 	})
@@ -201,7 +213,7 @@ func TestBlueSittingEndsOnBluesOwnActsNotTheChairsDispatchRow(t *testing.T) {
 			dispatchBlue(t, "G1"), registersAs(t, "blue-respond", "blue-a"),
 			agentStops(t, "lens-agent"), editAnswers(t, "blue-respond", "G1"),
 		}
-		if ss := BlueSittings(evs, WhileRunning); len(ss) != 1 || !ss[0].Unresolved || len(ss[0].Acts) != 2 {
+		if ss := blueSittingsT(t, evs, WhileRunning); len(ss) != 1 || !ss[0].Unresolved || len(ss[0].Acts) != 2 {
 			t.Errorf("another agent's return is not blue's: want one unresolved sitting holding the edit, got %+v", ss)
 		}
 	})
@@ -211,7 +223,7 @@ func TestBlueSittingEndsOnBluesOwnActsNotTheChairsDispatchRow(t *testing.T) {
 			chairDispatches(t, "blue-respond", "G2"), registersAs(t, "blue-respond", "blue-b"),
 			editAnswers(t, "blue-respond", "G1"), agentStops(t, "blue-b"),
 		}
-		ss := BlueSittings(evs, WhileRunning)
+		ss := blueSittingsT(t, evs, WhileRunning)
 		if len(ss) != 2 || ss[0].Unresolved || ss[1].Unresolved {
 			t.Fatalf("want two closed sittings, got %+v", ss)
 		}
@@ -227,15 +239,15 @@ func TestBlueSittingEndsOnBluesOwnActsNotTheChairsDispatchRow(t *testing.T) {
 // AN UNRESOLVED SITTING IS WORDED ONCE. The owed set is a floor while a sitting cannot be closed, and
 // NotMeasured is the one place that says so; a record that closes every sitting says nothing.
 func TestManifestOwingWordsTheUnresolvedSittings(t *testing.T) {
-	open := ManifestOwed([]*Event{dispatchBlue(t, "G1"), registersAs(t, "blue-respond", "blue-a")}, WhileRunning)
+	open := manifestOwedT(t, []*Event{dispatchBlue(t, "G1"), registersAs(t, "blue-respond", "blue-a")}, WhileRunning)
 	if open.Unresolved != 1 || !strings.Contains(open.NotMeasured(), "1 blue sitting(s) NOT MEASURED") {
 		t.Errorf("an unclosed sitting must be worded as not measured: %+v %q", open, open.NotMeasured())
 	}
-	closed := ManifestOwed([]*Event{dispatchBlue(t, "G1"), registersAs(t, "blue-respond", "blue-a"), agentStops(t, "blue-a")}, WhileRunning)
+	closed := manifestOwedT(t, []*Event{dispatchBlue(t, "G1"), registersAs(t, "blue-respond", "blue-a"), agentStops(t, "blue-a")}, WhileRunning)
 	if closed.Unresolved != 0 || closed.NotMeasured() != "" {
 		t.Errorf("a closed sitting says nothing: %+v %q", closed, closed.NotMeasured())
 	}
-	if u := ManifestUnreceipted([]*Event{dispatchBlue(t, "G1"), registersAs(t, "blue-respond", "blue-a"), editAnswers(t, "blue-respond", "G1")}, WhileRunning); u.Unresolved != 1 {
+	if u := manifestUnreceiptedT(t, []*Event{dispatchBlue(t, "G1"), registersAs(t, "blue-respond", "blue-a"), editAnswers(t, "blue-respond", "G1")}, WhileRunning); u.Unresolved != 1 {
 		t.Errorf("the unreceipted set carries the unresolved sitting: %+v", u)
 	}
 }

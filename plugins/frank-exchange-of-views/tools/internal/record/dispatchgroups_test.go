@@ -18,8 +18,12 @@ func warmChair(t *testing.T) *stage {
 func TestDispatchGroupsSplitWhereSomebodySat(t *testing.T) {
 	b := warmChair(t).dispatch(2, evLens, "G1").dispatch(2, "blue-respond", "G1").register("blue-respond")
 	run := b.seed()
-	evs := allEvents(t, run)
-	gs := DispatchGroups(evs)
+	m, err := MergedEvents(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	evs := m.Events
+	gs := DispatchGroups(evs, m.At)
 	if len(gs) != 2 {
 		t.Fatalf("groups = %+v, want 2: the doubled first plan, then the warm second sitting's", gs)
 	}

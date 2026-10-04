@@ -43,8 +43,13 @@ func (b *stage) forgedRegister(seat string) *stage {
 //
 // They did not. Five copies of the predicate failed open and three failed closed, and the two
 // answers decided the same thing about the same event: which sitting an act belongs to. They share
-// one definition now, so this fixture asks each of them and expects one answer — and the assertions
-// are written so that flipping opensASitting reddens more than one of them.
+// one definition now, so this fixture asks each reader that still evaluates it and expects one
+// answer.
+//
+// THE READERS OF THE STORED SITTING ARE NOT ASKED, because they have nothing to evaluate: the dispatch
+// ledger, the sitting closer, BlueSittings and the work list's window take the write path's answer
+// (WindowIndex), and a register with no body cannot reach the database to be loaded — Insert
+// refuses it. The writer's half is TestTheSQLAndGoReadingsOfWhatOpensASittingAgree.
 func TestEveryAttributionReaderAgreesAnUnreadableRegisterOpensASitting(t *testing.T) {
 	blue := func(key string, body proto.Message) *Event { return recordtest.At(t, "blue-respond", key, body) }
 	evs := []*Event{
@@ -79,52 +84,12 @@ func TestEveryAttributionReaderAgreesAnUnreadableRegisterOpensASitting(t *testin
 		}
 	})
 
-	t.Run("seatDidThisSitting starts the window at it", func(t *testing.T) {
-		// The revision is sitting 1's. The forged register opened sitting 2, so sitting 2 has
-		// filed none — which is the answer that inverts if the register stops opening one.
-		if seatDidThisSitting(evs, "blue-respond", recordpb.EventType_EVENT_TYPE_REVISION) {
-			t.Error("blue's sitting reads as having filed its revision, but the revision is the previous sitting's")
-		}
-	})
-
-	t.Run("dispatchLedger counts it among the seat's sittings", func(t *testing.T) {
-		seq := make([]int64, len(evs))
-		for i := range seq {
-			seq[i] = int64(i)
-		}
-		_, registers := dispatchLedger(evs, seq)
-		want := []int64{3, forged}
-		if got := registers["blue-respond"]; len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
-			t.Errorf("blue's opening registers are at %v, want %v", got, want)
-		}
-	})
-
-	t.Run("sittingCloser bounds the first sitting at it", func(t *testing.T) {
-		seq := make([]int64, len(evs))
-		for i := range seq {
-			seq[i] = int64(i)
-		}
-		_, registers := dispatchLedger(evs, seq)
-		c := sittingCloserOf(evs, seq, registers, WhileRunning)
-		if _, end, closed := c.bounds("blue-respond", 3); !closed || end > forged {
-			t.Errorf("blue's first sitting ends at %d (closed=%v), want it closed no later than the forged register at %d",
-				end, closed, forged)
-		}
-	})
-
-	t.Run("BlueSittings reads two sittings", func(t *testing.T) {
-		ss := BlueSittings(evs, WhileRunning)
-		if len(ss) != 2 {
-			t.Fatalf("blue has %d sitting(s), want 2 — the forged register opens the second", len(ss))
-		}
-	})
-
-	// THE CHAIR'S SPOT-CHECK WINDOW IS THE SAME QUESTION, on its own fixture because the window is
-	// the chair's — and on a REPAIR rather than the forgery, because that is where this reader's
-	// two possible answers differ. No verb can reach a chair's repair (checkRepair admits a blue
-	// role only), so the record is staged by hand; the reading is the shared one so that it stays
-	// right if that gate ever moves, which is what spotcheck.go already did for the same reason.
-	t.Run("the chair's spot-check window opens at the register that opened its sitting", func(t *testing.T) {
+	// THE CHAIR'S SPOT-CHECK WINDOW IS THE STORED SITTING, on a REPAIR rather than the forgery,
+	// because that is where a register-counting reader's two possible answers differ. No verb can
+	// reach a chair's repair (checkRepair admits a blue role only), so the record is seeded; the write
+	// path stores the repair in the sitting it repairs, and the window reads that, so it stays right
+	// if that gate ever moves.
+	t.Run("the chair's spot-check window is the sitting its repair completes", func(t *testing.T) {
 		chair := []*Event{
 			recordtest.At(t, HarnessSeat, "harness:cast", &recordpb.Cast{SeatIds: []string{"red-chair", "red-lens-logic"}}),
 			recordtest.At(t, "red-chair", "red-chair:register:#1", &recordpb.Register{}),
@@ -133,11 +98,8 @@ func TestEveryAttributionReaderAgreesAnUnreadableRegisterOpensASitting(t *testin
 			recordtest.At(t, "red-chair", "red-chair:register:#2", &recordpb.Register{
 				RepairsSitting: proto.String("red-chair:register:#1")}),
 		}
-		ids := make([]int64, len(chair))
-		for i := range ids {
-			ids[i] = int64(i + 1)
-		}
-		if g := passLensGateOf(chair, ids, nil); !g.covered["red-lens-logic"] {
+		m := loadedT(t, chair...)
+		if g := passLensGateOf(m.Events, m.At.IDs(m.Events), m.At, nil); !g.covered["red-lens-logic"] {
 			t.Error("the chair's sitting reads as not covering red-lens-logic, but the spot-check is an act of the sitting its repair completes")
 		}
 	})
@@ -148,6 +110,10 @@ func TestEveryAttributionReaderAgreesAnUnreadableRegisterOpensASitting(t *testin
 // CLAIM against that register would go on the record as a repair of a sitting nothing can bound, so
 // the write path refuses it — and refuses it on the claimUnfounded branch, because telling the seat
 // there is nothing to file would assert what the unreadable sitting owed.
+//
+// Only the seat can name one. The tool names the register in the seat's latest STORED sitting, and a
+// register with no body has none: it cannot reach the database (Insert refuses it). So the fixture
+// stays hand-built, with no index, and the claim check refuses on the body before it asks one.
 func TestTheRepairClaimCheckRefusesARegisterItCannotRead(t *testing.T) {
 	b := newStage(t)
 	b.cast(evLens, "red-chair", "blue-respond").ingest().register("red-chair").
@@ -158,8 +124,7 @@ func TestTheRepairClaimCheckRefusesARegisterItCannotRead(t *testing.T) {
 		name string
 		call func() error
 	}{
-		{"named by the seat", func() error { return checkRepair(b.evs, "blue-respond", key) }},
-		{"chosen by the tool", func() error { _, err := repairTarget(b.evs, "blue-respond"); return err }},
+		{"named by the seat", func() error { return checkRepair(b.evs, WindowIndex{}, "blue-respond", key) }},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			err := c.call()

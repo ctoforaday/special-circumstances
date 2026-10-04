@@ -32,7 +32,7 @@ func avenue(t *testing.T, id, line string, st recordpb.AvenueStatus, reason stri
 // cross-run memory row asserting no alternatives were explored in a run that explored 35. A wrong
 // number is worse than a missing one precisely here, because the next run inherits it.
 func TestAvenuesComeFromTheRecordNotTheEnvelopes(t *testing.T) {
-	board := famOfEventsT([]*record.Event{
+	board := famSeededT(t, []*record.Event{
 		avenue(t, "Q1", "the ring-theoretic generalisation", recordpb.AvenueStatus_AVENUE_STATUS_PURSUED, ""),
 		avenue(t, "Q2", "non-English prior art", recordpb.AvenueStatus_AVENUE_STATUS_DECLINED,
 			"the originality claim is scoped to English sources, so this is out of scope for the question asked"),
@@ -59,7 +59,7 @@ func TestAvenuesComeFromTheRecordNotTheEnvelopes(t *testing.T) {
 // line declined in one round and pursued in another as two lines, inflating the very breadth
 // number this row exists to keep honest.
 func TestALineThatMovedIsCountedOnceUnderItsCurrentStatus(t *testing.T) {
-	board := famOfEventsT([]*record.Event{
+	board := famSeededT(t, []*record.Event{
 		avenue(t, "Q1", "the Medium essay", recordpb.AvenueStatus_AVENUE_STATUS_DECLINED, "no access channel exists for it"),
 		func() *record.Event {
 			st := recordpb.AvenueStatus_AVENUE_STATUS_PURSUED

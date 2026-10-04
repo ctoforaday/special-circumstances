@@ -358,7 +358,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 				manifestedGaps[mr.GetGapId()] = true
 			}
 		}
-		owing = record.ManifestOwed(fam.Events, when)
+		owing = record.ManifestOwed(fam.Events, fam.At, when)
 	}
 	owed := owing.Gaps
 	switch {

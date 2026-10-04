@@ -19,7 +19,7 @@ func lastWindow(t *testing.T, runDir string) recordsql.Window {
 	if err != nil {
 		t.Fatal(err)
 	}
-	evs, ws, err := recordsql.EventsW(db)
+	evs, ws, err := recordsql.Events(db)
 	if err != nil {
 		t.Fatal(err)
 	}

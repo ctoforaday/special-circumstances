@@ -39,7 +39,7 @@ func TestTheListSaysWhetherBlueAnsweredThisGap(t *testing.T) {
 			absent: []string{"NOT MEASURED", "NO edit answers it", "has been ANSWERED"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := strings.Join(blueAnswers(
+			got := strings.Join(blueAnswersT(t,
 				answerScenario(t, lens, tc.engaged, tc.answered, tc.unresolve),
 				[]WorkGapState{{ID: "G1", Open: true}}, lens), "\n")
 			if tc.want == "" {
@@ -67,11 +67,11 @@ func TestOnlyASubstantiveEditOnThisGapCounts(t *testing.T) {
 	const lens = "red-lens-evidence"
 	gaps := []WorkGapState{{ID: "G1", Open: true}}
 
-	noop := blueAnswers(answerScenarioEdit(t, lens, "G1", "same", "same"), gaps, lens)
+	noop := blueAnswersT(t, answerScenarioEdit(t, lens, "G1", "same", "same"), gaps, lens)
 	if len(noop) != 1 || !strings.Contains(noop[0], "NO edit answers it") {
 		t.Errorf("an edit that replaced a span with itself counted as an answer: %v", noop)
 	}
-	other := blueAnswers(answerScenarioEdit(t, lens, "G2", "old", "new"), gaps, lens)
+	other := blueAnswersT(t, answerScenarioEdit(t, lens, "G2", "old", "new"), gaps, lens)
 	if len(other) != 1 || !strings.Contains(other[0], "NO edit answers it") {
 		t.Errorf("an edit answering another gap counted as an answer to this one: %v", other)
 	}
@@ -82,7 +82,7 @@ func TestOnlyASubstantiveEditOnThisGapCounts(t *testing.T) {
 func TestOnlyTheMintingLensIsToldAboutItsGap(t *testing.T) {
 	evs := answerScenario(t, "red-lens-evidence", true, true, false)
 	gaps := []WorkGapState{{ID: "G1", Open: true}}
-	if got := blueAnswers(evs, gaps, "red-lens-logic"); len(got) != 0 {
+	if got := blueAnswersT(t, evs, gaps, "red-lens-logic"); len(got) != 0 {
 		t.Errorf("a lens was told about a gap it did not mint: %v", got)
 	}
 }
@@ -92,7 +92,7 @@ func TestOnlyTheMintingLensIsToldAboutItsGap(t *testing.T) {
 func TestAClosedGapIsNotReported(t *testing.T) {
 	const lens = "red-lens-evidence"
 	evs := answerScenario(t, lens, true, false, false)
-	if got := blueAnswers(evs, []WorkGapState{{ID: "G1", Open: false}}, lens); len(got) != 0 {
+	if got := blueAnswersT(t, evs, []WorkGapState{{ID: "G1", Open: false}}, lens); len(got) != 0 {
 		t.Errorf("a closed gap was reported as pending: %v", got)
 	}
 }
@@ -136,7 +136,7 @@ func answerScenarioEdit(t *testing.T, lens, answers, old, new string) []*Event {
 
 func mintsGap(t *testing.T, lens, gap string) *Event {
 	t.Helper()
-	return recordtest.Event(t, lens, &recordpb.Mint{GapId: proto.String(gap)})
+	return recordtest.Event(t, lens, corrMint(gap))
 }
 
 func blueEditOf(t *testing.T, answers, old, new string) *Event {

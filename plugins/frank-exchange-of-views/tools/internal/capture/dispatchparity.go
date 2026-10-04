@@ -67,7 +67,7 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 	} else {
 		notCompared = " — no workflow journal, so the relayed party fields (seat_id, gap_ids, occasions, head) and the last plan's bench blockers were NOT compared"
 	}
-	groups := record.DispatchGroups(fam.Events)
+	groups := record.DispatchGroups(fam.Events, fam.At)
 	if len(groups) == 0 && len(relays) == 0 {
 		return Audit{Check: "dispatch-parity", Verdict: "SKIP", Detail: "no dispatch on the record — a run before the chair dispatched, or one that never reached the debate" + notCompared}
 	}

@@ -17,6 +17,7 @@ import (
 func blueSatAndRepaired(t *testing.T) []*record.Event {
 	t.Helper()
 	return []*record.Event{
+		mintT(t, "red-lens-logic", "G1"),
 		recordtest.At(t, "red-chair", "red-chair:dispatch:d1", &recordpb.Dispatch{Pin: proto.Int64(1), SeatId: proto.String("blue-respond"), GapIds: []string{"G1"}}),
 		recordtest.At(t, "blue-respond", "blue-respond:register:#1", &recordpb.Register{AgentId: proto.String("blue-a")}),
 		recordtest.At(t, "blue-respond", "blue-respond:blue_edit:e1", &recordpb.BlueEdit{Answers: proto.String("G1")}),
@@ -35,7 +36,8 @@ func blueSatAndRepaired(t *testing.T) []*record.Event {
 func TestARepairsActsRenderUnderTheSittingTheyComplete(t *testing.T) {
 	evs := blueSatAndRepaired(t)
 	g := &record.Gap{ID: "G1"}
-	fam := (&boardT{GapOrder: []string{"G1"}, Gaps: map[string]*record.Gap{"G1": g}, Events: evs}).fam()
+	fam := (&boardT{GapOrder: []string{"G1"}, Gaps: map[string]*record.Gap{"G1": g}, Events: evs}).famT(t)
+	evs = fam.Events
 
 	manifest := correctnessManifest(fam)
 	if !strings.Contains(manifest, "**G1** (blue-respond #1): recomputed the figure") {

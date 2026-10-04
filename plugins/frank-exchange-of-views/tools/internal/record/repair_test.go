@@ -41,7 +41,7 @@ func TestARepairRegistersActsCountAsTheSittingItRepairs(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, when := range []ReadWhen{WhileRunning, AfterTheRun} {
-		ss := BlueSittings(m.Events, when)
+		ss := BlueSittings(m.Events, m.At, when)
 		if len(ss) != 1 || ss[0].Unresolved {
 			t.Fatalf("when=%d: sittings = %+v, want the one sitting, closed by the repair's stop", when, ss)
 		}
@@ -49,15 +49,12 @@ func TestARepairRegistersActsCountAsTheSittingItRepairs(t *testing.T) {
 			t.Errorf("when=%d: the repaired sitting still owes %v — the repair's position and revision are its acts", when, owes)
 		}
 	}
-	ids, err := eventIDsOfRun(run)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if g := exchangesOf(m.Events, ids, DefaultParams, WhileRunning)["G1"]; g == nil || g.Exchanges != 1 || g.Unresolved != 0 {
+	ids := m.At.IDs(m.Events)
+	if g := exchangesOf(m.Events, ids, m.At, DefaultParams, WhileRunning)["G1"]; g == nil || g.Exchanges != 1 || g.Unresolved != 0 {
 		t.Errorf("G1 = %+v, want one exchange: a repair register opens no sitting of its own", g)
 	}
 	// The repair's register is not a sitting for a dispatch: blue's work list owes no register.
-	if _, owed := owedSitting(m.Events, "blue-respond"); owed {
+	if _, owed := owedSitting(m.Events, m.At, "blue-respond"); owed {
 		t.Error("the repair register left blue owing a register — it was counted as a sitting, or as none")
 	}
 }
@@ -74,10 +71,10 @@ func TestAnInFlightRepairLeavesTheSittingUnresolvedUntilTheRunEnds(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ss := BlueSittings(m.Events, WhileRunning); len(ss) != 1 || !ss[0].Unresolved {
+	if ss := BlueSittings(m.Events, m.At, WhileRunning); len(ss) != 1 || !ss[0].Unresolved {
 		t.Errorf("while running: %+v, want the sitting unresolved while its repair is in flight", ss)
 	}
-	ss := BlueSittings(m.Events, AfterTheRun)
+	ss := BlueSittings(m.Events, m.At, AfterTheRun)
 	if len(ss) != 1 || ss[0].Unresolved || len(ss[0].Owes()) != 1 || ss[0].Owes()[0] != recordpb.EventType_EVENT_TYPE_REVISION {
 		t.Errorf("after the run: %+v, want the sitting closed, owing only its revision", ss)
 	}
@@ -125,13 +122,13 @@ func TestARegisterClaimingARepairIsRefusedUnlessTheRecordBearsItOut(t *testing.T
 		b, _ := owing(t)
 		b.registerAs(evLens, "lens-1")
 		m, _ := MergedEvents(b.seed())
-		refused(t, checkRepair(m.Events, "blue-respond", b.lastKey()), "is not a register that opened a sitting of blue-respond")
+		refused(t, checkRepair(m.Events, m.At, "blue-respond", b.lastKey()), "is not a register of a sitting of blue-respond")
 	})
 	t.Run("an earlier sitting than the latest", func(t *testing.T) {
 		b, first := owing(t)
 		b.dispatch(2, "blue-respond", "G1").registerAs("blue-respond", "blue-c").edit("G1", "new", "newer").stop("blue-c")
 		m, _ := MergedEvents(b.seed())
-		refused(t, checkRepair(m.Events, "blue-respond", first), "opened an earlier sitting of blue-respond")
+		refused(t, checkRepair(m.Events, m.At, "blue-respond", first), "is in an earlier sitting of blue-respond")
 	})
 	t.Run("dispatched again since the sitting began", func(t *testing.T) {
 		b, _ := owing(t)
@@ -184,7 +181,7 @@ func TestARegisterClaimingARepairIsRefusedUnlessTheRecordBearsItOut(t *testing.T
 		b, opened := owing(t)
 		run := b.seed()
 		_, err := Append(Identity{Run: run, SeatID: "blue-synthesize"}, &recordpb.Register{RepairsSitting: proto.String(opened)})
-		refused(t, err, "is not a register that opened a sitting of blue-synthesize")
+		refused(t, err, "is not a register of a sitting of blue-synthesize")
 	})
 }
 
@@ -203,10 +200,10 @@ func TestARepairRegisterSitsForNoDispatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ss := BlueSittings(m.Events, AfterTheRun); len(ss) != 1 {
+	if ss := BlueSittings(m.Events, m.At, AfterTheRun); len(ss) != 1 {
 		t.Errorf("blue sittings = %+v, want one: the repair opened no sitting for the second dispatch", ss)
 	}
-	if _, owed := owedSitting(m.Events, "blue-respond"); !owed {
+	if _, owed := owedSitting(m.Events, m.At, "blue-respond"); !owed {
 		t.Error("blue is not owed its register for the second dispatch — the repair register was taken as its sitting")
 	}
 }

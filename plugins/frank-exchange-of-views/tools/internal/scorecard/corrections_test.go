@@ -20,7 +20,7 @@ func correctionBy(t *testing.T, seat, key string) *record.Event {
 // EVERY CARD COUNTS ITS SEATS' CORRECTIONS — the only brake the owner left on an uncapped chain —
 // per seat, and an unreadable record is "not measured", never a zero.
 func TestEveryCardCountsItsSeatsCorrections(t *testing.T) {
-	fam := famOfEventsT([]*record.Event{
+	fam := famSeededT(t, []*record.Event{
 		correctionBy(t, "blue-respond", "blue-respond:log:#1"),
 		correctionBy(t, "blue-respond", "blue-respond:position:#1"),
 		correctionBy(t, "red-chair", "red-chair:position:#1"),
@@ -58,7 +58,7 @@ func TestEveryCardCountsItsSeatsCorrections(t *testing.T) {
 		}
 	}
 
-	none := famOfEventsT([]*record.Event{recordtest.Event(t, "blue-respond", &recordpb.Register{})})
+	none := famSeededT(t, []*record.Event{recordtest.Event(t, "blue-respond", &recordpb.Register{})})
 	if r := rowByMetric(Compute(record.Run{}, nil, none, record.WhileRunning)["blue"], "corrections"); r == nil || r.Value != objJSON("{}") {
 		t.Errorf("a readable record with no correction is measured and none: %+v", r)
 	}

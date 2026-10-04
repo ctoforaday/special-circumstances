@@ -147,7 +147,7 @@ func TestChairDocketAffordanceOnlyOnMaterialGaps(t *testing.T) {
 		{ID: "CARRIED", Open: true, Material: true, AwaitingDocket: true},
 		{ID: "STRANDED", Open: true, Stranded: true, SupersededBy: "MAT"},
 	}
-	open := availableOf(nil, gaps, "chair", "red-chair")
+	open := availableOf(nil, WindowIndex{}, gaps, "chair", "red-chair")
 	// THE OFFER IS THE VERB, NOT THE GAP'S NAME. A remanded gap is named by a row that says the
 	// opposite — it returns only if docketed again — so a predicate that matched the id alone
 	// read that row as an offer and could not fail.

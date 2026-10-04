@@ -294,7 +294,7 @@ func collect(t *testing.T, runDir string, m *nonceMapper) state {
 		t.Fatalf("difftest: opening the record: %v", err)
 	}
 	defer func() { _ = recordsql.Close(dbPath) }()
-	evs, err := recordsql.Events(db)
+	evs, _, err := recordsql.Events(db)
 	if err != nil {
 		t.Fatalf("difftest: reading the record: %v", err)
 	}

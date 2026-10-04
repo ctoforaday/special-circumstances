@@ -7,10 +7,14 @@ import (
 
 // Clock derives the record's two windows for a fold that already holds the events in id order:
 // the EPOCH (how many times the chair has registered, this row included) and the SITTING (how
-// many times this row's own seat has). It is the same definition events_w computes in SQL
-// (plans/roundless.md §III.A.0), for the readers that have the slice and not the connection —
-// and it is the ONLY other copy: TestClockAgreesWithEventsW pins the two together over a record
-// with several seats, a re-sat chair and work between the registers.
+// many times this row's own seat has).
+//
+// IT IS NOT THE RECORD'S DEFINITION. events_w ranks the sittings the write path STORED, and a
+// sitting the hook opened with no register, or a register that joined its own bracket's sitting,
+// is one this count does not see or sees twice — 77 of 317 rows on universe-m15 (#1206). A reader
+// that bounds or attributes a sitting reads WindowIndex, which carries events_w's row; the
+// renderers still on this clock move to it under #1206. TestClockAgreesWithEventsW holds the two
+// together only on a record no hook bracketed.
 //
 // Advance once per event, in order. A fold that skips an event before advancing desyncs the
 // clock, so the call is the first statement of the loop body, ahead of any continue. And the
@@ -49,8 +53,8 @@ func (c *Clock) Advance(e *Event) recordsql.Window {
 // open a sitting (repairs_sitting absent), so a repair and everything after it carries the number of
 // the sitting it repairs. That is exact rather than approximate — a repair may name only its seat's
 // LATEST sitting (checkRepair), so the sitting it completes is always the one this counter is on.
-// It is the same set of registers dispatchLedger opens a sitting from, so the number a reader
-// renders and the span sittingCloser bounds cannot disagree about which sittings exist.
+// dispatchLedger and sittingCloser do not count registers: they read the stored sitting
+// (WindowIndex), which also opens at the hook's bracket.
 //
 // THE EPOCH IS THE SAME NUMBER, and by construction, not by luck: only a blue seat may repair
 // (checkRepair refuses every other role), and the epoch counts red-chair's registers. So a caller

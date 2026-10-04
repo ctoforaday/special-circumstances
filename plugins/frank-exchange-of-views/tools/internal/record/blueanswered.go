@@ -27,7 +27,7 @@ import (
 // still sitting and may yet answer" are the same silence on the record, and a lens handed the first
 // where the second is true files a closing argument about a dispute that is still in progress.
 // BlueSitting.Unresolved is that fact, and it is read here rather than re-derived.
-func blueAnswers(evs []*Event, gaps []WorkGapState, seatID string) []string {
+func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string) []string {
 	minted := mintedBy(evs)
 	var mine []string
 	for _, g := range gaps {
@@ -41,7 +41,7 @@ func blueAnswers(evs []*Event, gaps []WorkGapState, seatID string) []string {
 	// WhileRunning, because this list is read by a seat that is sitting: a later reading is not the
 	// question, and the latest blue sitting is exactly the one that may still be answering.
 	answered, engaged, pending := map[string]bool{}, map[string]bool{}, map[string]bool{}
-	for _, s := range BlueSittings(evs, WhileRunning) {
+	for _, s := range BlueSittings(evs, win, WhileRunning) {
 		for _, g := range s.Engaged {
 			engaged[g] = true
 			if s.Unresolved {

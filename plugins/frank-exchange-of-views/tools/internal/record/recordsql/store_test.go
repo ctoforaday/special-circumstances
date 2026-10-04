@@ -224,7 +224,7 @@ func TestAnEventSurvivesTheRoundTripWithItsAbsencesIntact(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	evs, err := Events(db)
+	evs, _, err := Events(db)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,7 +267,7 @@ func TestEventsReadBackInRecordOrder(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	evs, err := Events(db)
+	evs, _, err := Events(db)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -686,7 +686,7 @@ func TestAnUnsetOptionalFieldIsNullNotEmpty(t *testing.T) {
 	}
 
 	// And it survives the round trip as ABSENT rather than as an empty string.
-	evs, err := Events(db)
+	evs, _, err := Events(db)
 	if err != nil {
 		t.Fatal(err)
 	}

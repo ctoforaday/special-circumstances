@@ -171,11 +171,12 @@ func TestRevisionOwedReadsWhatTheSittingFoundOpenWhetherOrNotItHasEnded(t *testi
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
-			ss := BlueSittings(c.evs, WhileRunning)
+			m := loadedT(t, append(gapsExist(t, "G1"), c.evs...)...)
+			ss := BlueSittings(m.Events, m.At, WhileRunning)
 			if len(ss) != 1 || ss[0].Unresolved != c.unresolved {
 				t.Fatalf("sittings = %+v, want one with Unresolved=%v", ss, c.unresolved)
 			}
-			if got := revisionOwed(c.evs, "blue-respond"); got != c.owes {
+			if got := revisionOwed(m.Events, m.At, "blue-respond"); got != c.owes {
 				t.Errorf("revisionOwed = %v, want %v", got, c.owes)
 			}
 		})

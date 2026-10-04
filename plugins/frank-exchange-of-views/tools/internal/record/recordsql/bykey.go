@@ -17,7 +17,7 @@ func EventByKey(db *sql.DB, key string) (ev *recordpb.Event, id int64, found boo
 		}
 		return nil, 0, false, fmt.Errorf("recordsql: reading the event keyed %q: %w", key, err)
 	}
-	evs, _, err := eventsWhere(db, false, ` WHERE id = ?`, id)
+	evs, _, err := eventsWhere(db, false, ` WHERE "id" = ?`, id)
 	if err != nil {
 		return nil, 0, false, err
 	}

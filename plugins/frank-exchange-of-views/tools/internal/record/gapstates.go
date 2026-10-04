@@ -142,6 +142,9 @@ type Family struct {
 	// Events is the WHOLE stream, struck acts included: a listing shows a corrected act struck,
 	// never hides it. A reader picking a winner or discharging a duty reads Live() instead.
 	Events []*Event
+	// At is where each of Events sits on the record, as the loader read it (WindowIndex). A family
+	// built by hand has none, and a fold that asks it panics rather than read a zero.
+	At WindowIndex
 	// Struck is every same-sitting correction on the stream, indexed once.
 	Struck StruckIndex
 	byID   map[string]*Gap
@@ -164,7 +167,9 @@ func FamilyOf(run Run) (Family, error) {
 	if err != nil {
 		return Family{}, err
 	}
-	return NewFamily(gaps, m.Events), nil
+	f := NewFamily(gaps, m.Events)
+	f.At = m.At
+	return f, nil
 }
 
 // NewFamily indexes the family once, so a lineage lookup is a map hit for every consumer.
