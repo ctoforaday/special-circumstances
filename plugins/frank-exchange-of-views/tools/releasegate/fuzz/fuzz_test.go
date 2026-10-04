@@ -3561,7 +3561,25 @@ func TestFuzzHaltPath(t *testing.T) {
 		_ = recordsql.CloseUnder(runDir)
 		_ = os.RemoveAll(runDir)
 	}()
+	// THE PETITION REACHES THE BENCH THROUGH THE CHAIR'S PLAN, so this run needs what `dispatch
+	// next` reads: the cast setup writes, and the report blue freezes. Without them the chair's
+	// dispatch is refused ("the record holds no cast"), the plan is empty, and the run ends
+	// UNVERIFIED with the petition never heard.
+	_ = os.MkdirAll(filepath.Join(runDir, "blue"), 0o755)
+	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"),
+		[]byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time across the whole sampled corpus.\n"), 0o644)
 	r := newRunner(bin, runDir, newLockedRand(1))
+	if err := record.StageForRun(r.run(), fuzzClasses...); err != nil {
+		t.Fatalf("staging the class registry: %v", err)
+	}
+	haltCast, haltLanes := record.CastFor(nil, 3)
+	if _, err := record.Append(record.Identity{Run: r.run(), SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: haltCast, LaneSeatIds: haltLanes}); err != nil {
+		t.Fatalf("write the cast: %v", err)
+	}
+	r.register("blue", "blue-synthesize")
+	if _, err := r.exec("ingest", "--seat-id", "blue-synthesize"); err != nil {
+		t.Fatalf("ingest the round-0 report: %v", err)
+	}
 	r.forceHalt = true
 
 	result, settledErr := driveDebate(r, wrapped)
