@@ -503,7 +503,7 @@ func petitionMotionProbe() entityProbe {
 	}, []string{"unfiled", "filed", "ruled"},
 		map[string]string{"filed": "file", "ruled": "rule"},
 		map[string]string{
-			"ruled": "A petition has no appeal and the surface says so: `motion petition appeal` does not exist, and the refusal is asserted in adversarial_test.go. A petition is heard BEFORE the debate continues, so there is nothing to escalate to.",
+			"ruled": "A petition has no appeal and the surface says so: `motion petition appeal` does not exist, and the refusal is asserted in adversarial_test.go. The bench is the last forum, so there is nothing to escalate to.",
 		})
 }
 

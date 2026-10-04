@@ -139,7 +139,7 @@ CREATE TABLE "enum_occasion" (
 ) STRICT;
 INSERT INTO "enum_occasion" ("value", "means") VALUES ('assemble', 'assembling the final report by union-copy. The last step of the run');
 INSERT INTO "enum_occasion" ("value", "means") VALUES ('docket', 'ruling the docket: the gaps that reached impasse and were docketed for adjudication. The chair dispatches this sitting');
-INSERT INTO "enum_occasion" ("value", "means") VALUES ('petition', 'hearing a petition filed by a seat, before the debate continues. The engine convenes it the moment one is filed');
+INSERT INTO "enum_occasion" ("value", "means") VALUES ('petition', 'hearing the petitions filed since the bench last sat to hear one. The chair''s plan convenes it at the next chair sitting, before any party of that epoch sits');
 INSERT INTO "enum_occasion" ("value", "means") VALUES ('terminal', 'the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here');
 
 CREATE TABLE "enum_verdict" (
@@ -858,6 +858,13 @@ CREATE TABLE "dispatch" (
 ) STRICT;
 
 CREATE TABLE "dispatch_gap_ids" (
+  "event_id" INTEGER NOT NULL REFERENCES "dispatch"("event_id"),
+  "ord"      INTEGER NOT NULL,
+  "value"    TEXT    NOT NULL,
+  PRIMARY KEY ("event_id", "ord")
+) STRICT;
+
+CREATE TABLE "dispatch_occasions" (
   "event_id" INTEGER NOT NULL REFERENCES "dispatch"("event_id"),
   "ord"      INTEGER NOT NULL,
   "value"    TEXT    NOT NULL,

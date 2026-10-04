@@ -14,7 +14,7 @@
 // commit (see scripts/golden.mjs).
 import { test, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, party, judgeEnv } from './harness.mjs'
+import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, passPlan, party, petitionBench, blocker, judgeEnv } from './harness.mjs'
 import { assertGolden, orphanGoldens, goldenReport } from './golden.mjs'
 import { createHash } from 'node:crypto'
 
@@ -86,7 +86,8 @@ const ARGS = { topic: 'the seat prompt contract', runDir: 'research/2026-01-01_g
 // One run that seats every class the engine dispatches (plans/roundless.md §III.B.1): the chair's
 // first plan engages three active lenses, blue on G1, and the bench on G1
 // (docketed); the second engages the evidence lens ON its gap — the other lens shape — and the
-// third permits PASS. The chair reports an unruled motion so the terminal sitting fires too.
+// third permits PASS. Its plan holds a motion the bench owns so the terminal sitting fires too (a stub: the
+// record never permits PASS over one, but the terminal prompt is what this captures).
 async function fullRun(args = ARGS) {
   const world = makeWorld(makeResponder({
     blueSynth: [blueEnv({ claim_count: 200 })],
@@ -94,7 +95,7 @@ async function fullRun(args = ARGS) {
     chair: [
       chairEnv({ plan: plan([party('red-lens-evidence'), party('red-lens-logic'), party('red-lens-dark-side'), party('blue-respond', 'G1'), party('judge', 'G1')], { head: 2, docket: ['G1'] }) }),
       chairEnv({ plan: plan([party('red-lens-evidence', 'G1'), party('red-lens-logic')], { head: 9 }) }),
-      passChair({ unruled_motions: 1 }),
+      passChair({ plan: passPlan({ blockers: [blocker('M1', 'judge')] }) }),
     ],
     judge: [judgeEnv({ dispositions: [{ gap_id: 'G1', disposition: 'remanded', rationale: 'the figure is still unrecomputed' }] })],
   }))
@@ -141,12 +142,12 @@ test('seat prompt goldens: every seat class carries exactly its recorded contrac
 })
 
 // THE FOURTH BENCH SITTING, WHICH NOTHING PINNED. The comment on the SEATS table said the bench is
-// "one seat asked four questions" and listed three: the petition sitting fires only when a petition
-// is filed, so the full run never reaches it and it had no golden at all. It carries its own OCCASION
+// "one seat asked four questions" and listed three: the petition sitting fires only when a plan
+// convenes it, so the full run never reaches it and it had no golden at all. It carries its own OCCASION
 // like the other three, and a prompt nothing pins is a prompt whose clauses can move unobserved.
 test('the petition sitting prompt carries exactly its recorded contract', async () => {
   const world = makeWorld(makeResponder({
-    chair: [chairEnv({ plan: plan([party('blue-respond', 'G1')]), petitions: [{ class: 'ethical', ask: 'x', relief: 'narrow' }] }), passChair()],
+    chair: [chairEnv({ plan: plan([petitionBench(), party('blue-respond', 'G1')], { blockers: [blocker('M1', 'judge')] }) }), passChair()],
   }))
   await world.run(script, ARGS)
   const call = world.calls.find((c) => c.opts.label.startsWith('judge · petition'))

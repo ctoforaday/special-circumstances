@@ -270,6 +270,10 @@ type Motion struct {
 
 	// Subject-specific payload, carried rather than re-derived.
 	Fields map[string]string
+
+	// filed is the place (motionsAt's seq) of the motion's first filing in the stream; zero for a
+	// motion created by its ruling, or one read through MotionsOf, which carries no places.
+	filed int64
 }
 
 // Ruled reports whether the motion has an answer.
@@ -277,10 +281,15 @@ func (m Motion) Ruled() bool { return m.Ruling != "" }
 
 // MotionsOf is Motions over the events themselves — the stream is all the join ever read, and
 // the run-shaped readers (plans/board-as-views.md wave 1c) fetch events without a fold.
-func MotionsOf(evs []*Event) []*Motion {
+func MotionsOf(evs []*Event) []*Motion { return motionsAt(evs, nil) }
+
+// motionsAt is MotionsOf carrying each motion's filing place, off seq — evs's places (events.id, or
+// the stream position), aligned with it. The one walk that folds the motions is the one that knows
+// where each was filed, so a reader asking "has its owner sat since" needs no second pass.
+func motionsAt(evs []*Event, seq []int64) []*Motion {
 	// The acts that stand: a ruling or appeal corrected in its sitting is read as its replacement,
 	// in its place, so the first-wins answer is the corrected one and never a second ruling.
-	evs = Live(evs)
+	evs, seq = liveAt(evs, seq)
 	byID := map[string]*Motion{}
 	var order []string
 
@@ -330,7 +339,7 @@ func MotionsOf(evs []*Event) []*Motion {
 	}
 
 	clk = ActClock{}
-	for _, e := range evs {
+	for i, e := range evs {
 		w := clk.Advance(e)
 		body, ok := recordpb.Body(e)
 		if !ok {
@@ -351,6 +360,9 @@ func MotionsOf(evs []*Event) []*Motion {
 				m = &Motion{ID: id, Fields: map[string]string{}}
 				byID[id] = m
 				order = append(order, id)
+				if seq != nil {
+					m.filed = seq[i]
+				}
 			}
 			m.Subject, m.Filer, m.Epoch, m.Sitting = motionSubjectWord(f.GetSubject()), e.GetSeatId(), w.Epoch, w.Sitting
 			m.Basis, m.Relief = f.GetBasis(), f.GetRelief()
@@ -612,7 +624,7 @@ func requireAppealable(subject recordpb.MotionSubject, id string) error {
 
 // noAppeal is the sentence for a bench-ruled motion, and what its appellant may do instead.
 func noAppeal(word, id string) string {
-	return fmt.Sprintf("%s motion %s has no appeal: the bench rules it, and the bench is the last forum — it hears the motion BEFORE the debate continues, so there is nothing to escalate to. If you have new grounds, file a NEW motion on them",
+	return fmt.Sprintf("%s motion %s has no appeal: the bench rules it, and the bench is the last forum, so there is nothing to escalate to. If you have new grounds, file a NEW motion on them",
 		word, id)
 }
 

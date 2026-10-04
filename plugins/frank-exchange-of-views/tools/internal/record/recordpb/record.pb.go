@@ -6605,10 +6605,16 @@ func (x *Cast) GetLaneSeatIds() []string {
 // G1 took a null turn on G2 and G3. A lens engaged with NO gaps is rule 1's dispatch — ready by its
 // retirement state — and gap_ids is empty, which is "lineage none", not "unknown".
 type Dispatch struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Pin           *int64                 `protobuf:"varint,1,opt,name=pin,proto3,oneof" json:"pin,omitempty"`
-	SeatId        *string                `protobuf:"bytes,2,opt,name=seat_id,json=seatId,proto3,oneof" json:"seat_id,omitempty"`
-	GapIds        []string               `protobuf:"bytes,3,rep,name=gap_ids,json=gapIds,proto3" json:"gap_ids,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Pin    *int64                 `protobuf:"varint,1,opt,name=pin,proto3,oneof" json:"pin,omitempty"`
+	SeatId *string                `protobuf:"bytes,2,opt,name=seat_id,json=seatId,proto3,oneof" json:"seat_id,omitempty"`
+	GapIds []string               `protobuf:"bytes,3,rep,name=gap_ids,json=gapIds,proto3" json:"gap_ids,omitempty"`
+	// occasions is what the BENCH is convened for: `docket` (its gap_ids) and `petition` (the
+	// petitions no petition sitting has heard). The bench's one seat id cannot say which question it
+	// is asked, so the row says it — the workflow routes the bench on the plan's copy, capture holds
+	// that copy to this one, and the bench's sitting for each is its register of the same occasion.
+	// Required on a bench row and refused on any other seat's, at the write.
+	Occasions     []Occasion `protobuf:"varint,4,rep,packed,name=occasions,proto3,enum=feov.record.v1.Occasion" json:"occasions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6660,6 +6666,13 @@ func (x *Dispatch) GetSeatId() string {
 func (x *Dispatch) GetGapIds() []string {
 	if x != nil {
 		return x.GapIds
+	}
+	return nil
+}
+
+func (x *Dispatch) GetOccasions() []Occasion {
+	if x != nil {
+		return x.Occasions
 	}
 	return nil
 }
@@ -7905,11 +7918,12 @@ const file_record_proto_rawDesc = "" +
 	"\x06_limit\"E\n" +
 	"\x04Cast\x12\x19\n" +
 	"\bseat_ids\x18\x01 \x03(\tR\aseatIds\x12\"\n" +
-	"\rlane_seat_ids\x18\x02 \x03(\tR\vlaneSeatIds\"\xe9\x02\n" +
+	"\rlane_seat_ids\x18\x02 \x03(\tR\vlaneSeatIds\"\xa1\x03\n" +
 	"\bDispatch\x12\xce\x01\n" +
 	"\x03pin\x18\x01 \x01(\x03B\xb6\x01\x82\xb5\x18\xb1\x01\b\x01\x1a\xac\x01the events.id of the report head this party audits — the text it anchors to, reconstructible from the record; a dispatch with no pin is a dispatch against a moving targetH\x00R\x03pin\x88\x01\x01\x12_\n" +
 	"\aseat_id\x18\x02 \x01(\tBA\x82\xb5\x18=\b\x01\x12\x04seat\x1a3the party engaged; refused unless it is in the castH\x01R\x06seatId\x88\x01\x01\x12\x17\n" +
-	"\agap_ids\x18\x03 \x03(\tR\x06gapIdsB\x06\n" +
+	"\agap_ids\x18\x03 \x03(\tR\x06gapIds\x126\n" +
+	"\toccasions\x18\x04 \x03(\x0e2\x18.feov.record.v1.OccasionR\toccasionsB\x06\n" +
 	"\x04_pinB\n" +
 	"\n" +
 	"\b_seat_id\"\x87\x01\n" +
@@ -8145,11 +8159,11 @@ const file_record_proto_rawDesc = "" +
 	"\x18RULING_BINDS_UNSPECIFIED\x10\x00\x12w\n" +
 	"\x11RULING_BINDS_BLUE\x10\x04\x1a`\x8a\xb5\x18\\the relief binds the response seat — what blue must do, or must not, in its coming sitting\x12L\n" +
 	"\x10RULING_BINDS_RED\x10\x05\x1a6\x8a\xb5\x182it binds the audit seats: the lenses and the chair\x12\\\n" +
-	"\x11RULING_BINDS_BOTH\x10\x06\x1aE\x8a\xb5\x18Ait binds the whole exchange, and every dispatched seat carries it\"\x04\b\x01\x10\x01\"\x04\b\x02\x10\x02\"\x04\b\x03\x10\x03*\x10RULING_BINDS_ALL*\x12RULING_BINDS_FILER*\x11RULING_BINDS_NONE*\xc5\x04\n" +
+	"\x11RULING_BINDS_BOTH\x10\x06\x1aE\x8a\xb5\x18Ait binds the whole exchange, and every dispatched seat carries it\"\x04\b\x01\x10\x01\"\x04\b\x02\x10\x02\"\x04\b\x03\x10\x03*\x10RULING_BINDS_ALL*\x12RULING_BINDS_FILER*\x11RULING_BINDS_NONE*\xf5\x04\n" +
 	"\bOccasion\x12\x18\n" +
 	"\x14OCCASION_UNSPECIFIED\x10\x00\x12\x8f\x01\n" +
-	"\x0fOCCASION_DOCKET\x10\x01\x1az\x8a\xb5\x18vruling the docket: the gaps that reached impasse and were docketed for adjudication. The chair dispatches this sitting\x12\x8a\x01\n" +
-	"\x11OCCASION_PETITION\x10\x02\x1as\x8a\xb5\x18ohearing a petition filed by a seat, before the debate continues. The engine convenes it the moment one is filed\x12\x9f\x01\n" +
+	"\x0fOCCASION_DOCKET\x10\x01\x1az\x8a\xb5\x18vruling the docket: the gaps that reached impasse and were docketed for adjudication. The chair dispatches this sitting\x12\xba\x01\n" +
+	"\x11OCCASION_PETITION\x10\x02\x1a\xa2\x01\x8a\xb5\x18\x9d\x01hearing the petitions filed since the bench last sat to hear one. The chair's plan convenes it at the next chair sitting, before any party of that epoch sits\x12\x9f\x01\n" +
 	"\x11OCCASION_TERMINAL\x10\x03\x1a\x87\x01\x8a\xb5\x18\x82\x01the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here\x12^\n" +
 	"\x11OCCASION_ASSEMBLE\x10\x04\x1aG\x8a\xb5\x18Cassembling the final report by union-copy. The last step of the run:I\n" +
 	"\x03sql\x12\x1d.google.protobuf.FieldOptions\x18І\x03 \x01(\v2\x13.feov.record.v1.SqlR\x03sql\x88\x01\x01:8\n" +
@@ -8351,25 +8365,26 @@ var file_record_proto_depIdxs = []int32{
 	25,  // 88: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
 	12,  // 89: feov.record.v1.MotionAppeal.subject:type_name -> feov.record.v1.MotionSubject
 	26,  // 90: feov.record.v1.Register.occasion:type_name -> feov.record.v1.Occasion
-	3,   // 91: feov.record.v1.Gate.verdict:type_name -> feov.record.v1.Verdict
-	4,   // 92: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
-	78,  // 93: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
-	78,  // 94: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
-	79,  // 95: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
-	79,  // 96: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
-	79,  // 97: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
-	79,  // 98: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
-	79,  // 99: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
-	79,  // 100: feov.record.v1.correct:extendee -> google.protobuf.EnumValueOptions
-	80,  // 101: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
-	28,  // 102: feov.record.v1.sql:type_name -> feov.record.v1.Sql
-	0,   // 103: feov.record.v1.correct:type_name -> feov.record.v1.CorrectionTier
-	27,  // 104: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
-	105, // [105:105] is the sub-list for method output_type
-	105, // [105:105] is the sub-list for method input_type
-	102, // [102:105] is the sub-list for extension type_name
-	93,  // [93:102] is the sub-list for extension extendee
-	0,   // [0:93] is the sub-list for field type_name
+	26,  // 91: feov.record.v1.Dispatch.occasions:type_name -> feov.record.v1.Occasion
+	3,   // 92: feov.record.v1.Gate.verdict:type_name -> feov.record.v1.Verdict
+	4,   // 93: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
+	78,  // 94: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
+	78,  // 95: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
+	79,  // 96: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
+	79,  // 97: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
+	79,  // 98: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
+	79,  // 99: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
+	79,  // 100: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
+	79,  // 101: feov.record.v1.correct:extendee -> google.protobuf.EnumValueOptions
+	80,  // 102: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
+	28,  // 103: feov.record.v1.sql:type_name -> feov.record.v1.Sql
+	0,   // 104: feov.record.v1.correct:type_name -> feov.record.v1.CorrectionTier
+	27,  // 105: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
+	106, // [106:106] is the sub-list for method output_type
+	106, // [106:106] is the sub-list for method input_type
+	103, // [103:106] is the sub-list for extension type_name
+	94,  // [94:103] is the sub-list for extension extendee
+	0,   // [0:94] is the sub-list for field type_name
 }
 
 func init() { file_record_proto_init() }

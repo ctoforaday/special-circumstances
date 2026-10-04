@@ -145,7 +145,7 @@ func adversarialCases() []adversarialCase {
 			act:     seatStep{"motion", "petition", "appeal", "--seat-id", "blue-respond", "--id", "M1", "--reason", "pressing a petition"},
 			refused: "has no `appeal` verb",
 			guards: "It answered `unknown flag: --id`, which sends a seat looking at its flags for " +
-				"a problem that is not there. A petition is heard BEFORE the debate continues, so " +
+				"a problem that is not there. The bench is the last forum, so " +
 				"there is nothing to escalate to — and the refusal is where a seat meets that.",
 		},
 		{

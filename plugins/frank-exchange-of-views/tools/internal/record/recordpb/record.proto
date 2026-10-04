@@ -1792,7 +1792,7 @@ message MotionAppeal {
 enum Occasion {
   OCCASION_UNSPECIFIED = 0;
   OCCASION_DOCKET = 1 [(means) = "ruling the docket: the gaps that reached impasse and were docketed for adjudication. The chair dispatches this sitting"];
-  OCCASION_PETITION = 2 [(means) = "hearing a petition filed by a seat, before the debate continues. The engine convenes it the moment one is filed"];
+  OCCASION_PETITION = 2 [(means) = "hearing the petitions filed since the bench last sat to hear one. The chair's plan convenes it at the next chair sitting, before any party of that epoch sits"];
   OCCASION_TERMINAL = 3 [(means) = "the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here"];
   OCCASION_ASSEMBLE = 4 [(means) = "assembling the final report by union-copy. The last step of the run"];
 }
@@ -2079,6 +2079,12 @@ message Dispatch {
     why: "the party engaged; refused unless it is in the cast"
   }];
   repeated string gap_ids = 3;
+  // occasions is what the BENCH is convened for: `docket` (its gap_ids) and `petition` (the
+  // petitions no petition sitting has heard). The bench's one seat id cannot say which question it
+  // is asked, so the row says it — the workflow routes the bench on the plan's copy, capture holds
+  // that copy to this one, and the bench's sitting for each is its register of the same occasion.
+  // Required on a bench row and refused on any other seat's, at the write.
+  repeated Occasion occasions = 4;
 }
 
 // Gate carries red's terminal gate on the open board: PASS or FAIL as of this sitting.

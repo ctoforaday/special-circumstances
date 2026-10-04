@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, passPlan, ceilingPlan, party, judgeEnv, petitionRulingEnv } from './harness.mjs'
+import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, passPlan, ceilingPlan, party, petitionBench, blocker, judgeEnv, petitionRulingEnv } from './harness.mjs'
 
 // THE SIMULATOR DRIVES debate.js WITH STUBBED SEATS. There are no rounds (plans/roundless.md
 // §III.B.1): the chair sits, its envelope relays the plan `dispatch next` recorded, the loop
@@ -63,7 +63,7 @@ test('null chair, blue synthesis, blue response and bench abort cleanly, each na
 })
 
 test('a chair envelope without a plan aborts: the plan is the verb\'s JSON, relayed verbatim', async () => {
-  const world = makeWorld(makeResponder({ chair: [{ unruled_motions: 0, log: [] }] }))
+  const world = makeWorld(makeResponder({ chair: [{ log: [] }] }))
   await assert.rejects(world.run(script, ARGS), /relayed no plan/)
 })
 
@@ -246,14 +246,48 @@ test('a chair that records PASS ends the debate even if it relayed parties; a FA
   assert.equal(out2.epochs, 2)
 })
 
-test('the terminal bench sitting fires only when the chair reports unruled motions, and before assembly', async () => {
-  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: ceilingPlan(), unruled_motions: 2 })] }))
+test('the terminal bench sitting fires only when the last plan holds a blocker the bench owns, and before assembly', async () => {
+  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: ceilingPlan({ blockers: [blocker('M1', 'judge'), blocker('M3', 'judge'), blocker('M2', 'red-chair')] }) })] }))
   await world.run(script, ARGS)
   const terminal = labelsOf(world, 'judge · terminal')[0]
   const asm = labelsOf(world, 'judge · assemble')[0]
   assert.ok(terminal, 'the terminal sitting fired')
   assert.ok(terminal.n < asm.n, 'disposition precedes assembly')
-  assert.ok(/2 motion\(s\) stand unruled/.test(terminal.prompt) && /NOTHING CAN BE REMANDED AT A TERMINAL EXIT/.test(terminal.prompt))
+  assert.ok(/2 motion\(s\) whose gavel is yours stand unruled on the record: M1, M3/.test(terminal.prompt) && /NOTHING CAN BE REMANDED AT A TERMINAL EXIT/.test(terminal.prompt))
+  // A motion whose gavel is the chair's never convenes it: the bench has no verb to rule one.
+  const chairOnly = makeWorld(makeResponder({ chair: [chairEnv({ plan: ceilingPlan({ blockers: [blocker('M2', 'red-chair')] }) })] }))
+  await chairOnly.run(script, ARGS)
+  assert.ok(!labelsOf(chairOnly, 'judge · terminal').length, 'a chair-owned blocker convened the terminal bench')
+  // Only a MOTION the bench owns convenes it: the sitting is told to rule motions.
+  const notAMotion = makeWorld(makeResponder({ chair: [chairEnv({ plan: ceilingPlan({ blockers: [blocker('G1', 'judge', 'stranded_gap')] }) })] }))
+  await notAMotion.run(script, ARGS)
+  assert.ok(!labelsOf(notAMotion, 'judge · terminal').length, 'a bench-owned blocker that is not a motion convened the terminal bench')
+})
+
+// A PETITION FILED IN THE FINAL EPOCH IS HEARD AT THE TERMINAL SITTING, and what it rules travels as a
+// petition sitting's does: the ruling is in the returned petitions, and a halt stamps the run HALTED.
+test('a petition standing at the exit: the terminal sitting rules it, and its halt stamps the run HALTED', async () => {
+  const lastEpoch = () => chairEnv({ plan: plan([], { ceiling: true, epoch_limit_reached: true, max_epochs: 2, blockers: [blocker('M1', 'judge')] }) })
+  const ruling = { petitioner: 'red-lens-dark-side', class: 'safety', ruling: 'granted', opinion: 'the hazard is real', relief: 'withhold the protocol', binds: 'both' }
+  const halting = makeWorld(makeResponder({ chair: [chairEnv(), lastEpoch()], judge: [judgeEnv({ rulings: [ruling], halt: { opinion: 'the human must decide this' } })] }))
+  const out = await halting.run(script, ARGS)
+  const terminal = labelsOf(halting, 'judge · terminal')[0]
+  assert.ok(terminal, 'the terminal sitting fired on the standing petition')
+  assert.equal(terminal.opts.schema.properties.halt.required[0], 'opinion', 'the terminal envelope carries the halt')
+  assert.ok(terminal.opts.schema.properties.rulings, 'the terminal envelope carries petition rulings')
+  assert.ok(/A HALT IS A DIFFERENT DECISION FROM A RULING/.test(terminal.prompt) && /stamps the run HALTED/.test(terminal.prompt))
+  assert.equal(out.verdict, 'HALTED')
+  assert.equal(out.halted, true)
+  assert.ok(out.halt_opinion.includes('the human must decide'))
+  assert.deepEqual(out.petitions, [{ petitioner: 'red-lens-dark-side', class: 'safety', ruling: 'granted', opinion: 'the hazard is real' }])
+  const asm = firstPrompt(halting, 'judge · assemble')
+  assert.ok(asm.includes('it is HALTED') && asm.includes('the human must decide'), 'the assembly stamps the halt the terminal sitting recorded')
+  // Ruled without a halt, the run keeps its stamp and the ruling still travels.
+  const ruled = makeWorld(makeResponder({ chair: [chairEnv(), lastEpoch()], judge: [judgeEnv({ rulings: [{ ...ruling, ruling: 'denied', relief: undefined }] })] }))
+  const out2 = await ruled.run(script, ARGS)
+  assert.equal(out2.verdict, 'CEILING')
+  assert.equal(out2.petitions.length, 1)
+  assert.equal(out2.petitions[0].ruling, 'denied')
 })
 
 // ── the seats' contracts ────────────────────────────────────────────────────────────────────
@@ -505,7 +539,9 @@ test('priors-are-poison: no cross-run scorecard seed reaches any chair, even whe
 
 test('every seat prompt carries the log clause, the speed clause and the record contract; bench sittings carry the law clause', async () => {
   const world = makeWorld(makeResponder({
-    chair: [chairEnv({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G1'), party('judge', 'G1')], { docket: ['G1'] }) }), passChair({ unruled_motions: 1 })],
+    // A stub plan: the record never permits a PASS over a bench motion, but the terminal sitting's
+    // prompt is what this reads, and the bench-owned blocker is what convenes it.
+    chair: [chairEnv({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G1'), party('judge', 'G1')], { docket: ['G1'] }) }), passChair({ plan: passPlan({ blockers: [blocker('M1', 'judge')] }) })],
   }))
   await world.run(script, ARGS)
   for (const seat of ['blue-synthesize', 'red-chair', 'red-lens-evidence', 'blue-respond', 'judge #', 'judge · terminal', 'judge · assemble']) {
@@ -537,20 +573,14 @@ test('every seat prompt carries the log clause, the speed clause and the record 
 
 test('the record contract binds each seat to the id it hands the tool, petition sittings included', async () => {
   const world = makeWorld(makeResponder({
-    chair: [chairEnv({ plan: plan([party('blue-respond', 'G1')]), petitions: [{ class: 'ethical', ask: 'x', relief: 'narrow' }] }), passChair()],
-    blueRespond: [blueEnv({ petitions: [{ class: 'procedural', ask: 'y', relief: 'z' }] })],
+    chair: [chairEnv({ plan: plan([petitionBench(), party('blue-respond', 'G1')], { blockers: [blocker('M1', 'judge')] }) }), passChair()],
   }))
   await world.run(script, ARGS)
-  // A PETITION SITTING IS THE BENCH, AND ITS FILER IS ON THE LABEL, NOT IN THE SEAT ID. The id
-  // used to be `judge-petition-<filer>`, which made who asked part of who answered. Both sittings
-  // are now `judge`; the label still says which petition each one heard, for a human reading a
-  // dashboard, and the filer is on the petition the sitting rules.
+  // A PETITION SITTING IS THE BENCH. The filer is on the petition the sitting rules, on the record,
+  // never in the seat id or the label.
   const petitions = labelsOf(world, 'judge · petition')
-  assert.deepEqual(petitions.map((c) => c.opts.label.split(' ')[0]), ['judge', 'judge'],
-    'a petition sitting is the bench, whoever filed')
-  assert.deepEqual(petitions.map((c) => c.opts.label.replace(/ · [^·]+$/, '')),
-    ['judge · petition from red-chair', 'judge · petition from blue-respond'],
-    'the label still says which petition the sitting heard')
+  assert.deepEqual(petitions.map((c) => c.opts.label.replace(/ · [^·]+$/, '')), ['judge · petition'],
+    'one petition sitting, the bench')
   for (const c of world.calls) {
     const seat = c.opts.label.split(' ')[0]
     if (/^(frontier|blue-lane)/.test(seat)) continue
@@ -558,19 +588,20 @@ test('the record contract binds each seat to the id it hands the tool, petition 
   }
 })
 
-test('W2c: a petition dispatches a bench sitting before the next seat; denied continues; a halt ends the run HALTED', async () => {
-  const denied = makeWorld(makeResponder({
-    chair: [chairEnv({ plan: plan([party('blue-respond', 'G1')]), petitions: [{ class: 'ethical', ask: 'x', relief: 'narrow' }] }), passChair()],
-  }))
+test('W2c: a plan that convenes the bench for petitions seats it before any party; denied continues; a halt ends the run HALTED', async () => {
+  const convened = () => chairEnv({ plan: plan([party('red-lens-evidence'), petitionBench(), party('blue-respond', 'G1')], { blockers: [blocker('M1', 'judge')] }) })
+  const denied = makeWorld(makeResponder({ chair: [convened(), passChair()] }))
   const out = await denied.run(script, ARGS)
   assert.equal(out.verdict, 'VERIFIED')
   const sitting = denied.calls.findIndex((c) => c.opts.label.startsWith('judge · petition'))
+  const lens = denied.calls.findIndex((c) => c.opts.label.startsWith('red-lens-evidence'))
   const blue = denied.calls.findIndex((c) => c.opts.label.startsWith('blue-respond'))
-  assert.ok(sitting >= 0 && sitting < blue, 'the sitting fired before the parties sat')
+  assert.ok(sitting >= 0 && sitting < lens && sitting < blue, 'the sitting fired before any party sat')
   assert.equal(out.petitions.length, 1)
+  assert.equal(out.petitions[0].petitioner, 'x', 'the petitioner is the ruling\'s, read off the record by the bench')
   assert.ok(denied.calls[sitting].prompt.includes('never sanctioned') && /A HALT IS A DIFFERENT DECISION FROM A RULING/.test(denied.calls[sitting].prompt))
   const halting = makeWorld(makeResponder({
-    chair: [chairEnv({ plan: plan([party('blue-respond', 'G1')]), petitions: [{ class: 'ethical', ask: 'x', relief: 'stop' }] })],
+    chair: [convened()],
     petition: [petitionRulingEnv({ halt: { opinion: 'the human must decide this' } })],
   }))
   const out2 = await halting.run(script, ARGS)
@@ -582,12 +613,21 @@ test('W2c: a petition dispatches a bench sitting before the next seat; denied co
   assert.ok(asm.includes('it is HALTED') && asm.includes('the human must decide'))
 })
 
-test('W2c: no petitions, no sitting; granted relief binds the party it names', async () => {
+test('W2c: no plan convenes it, no sitting — whatever an envelope carries; granted relief binds the party it names', async () => {
   const quiet = makeWorld(makeResponder({ chair: [passChair()] }))
   await quiet.run(script, ARGS)
   assert.ok(!quiet.calls.some((c) => c.opts.label.startsWith('judge · petition')))
+  // AN ENVELOPE IS NOT A PETITION CHANNEL: the record is, relayed in the plan. Every seat here
+  // returns a `petitions` field and nothing convenes the bench.
+  const petitions = [{ class: 'ethical', basis: 'x', relief: 'narrow' }]
+  const envelopes = makeWorld(makeResponder({
+    chair: [chairEnv({ petitions }), passChair({ petitions })],
+    blueSynth: [blueEnv({ petitions })], blueRespond: [blueEnv({ petitions })],
+  }))
+  await envelopes.run(script, ARGS)
+  assert.ok(!envelopes.calls.some((c) => c.opts.label.startsWith('judge · petition')), 'an envelope field convened the bench')
   const world = makeWorld(makeResponder({
-    chair: [chairEnv({ plan: plan([party('blue-respond', 'G1')]), petitions: [{ class: 'procedural', ask: 'x', relief: 'scope narrowed to §3' }] }), passChair()],
+    chair: [chairEnv({ plan: plan([petitionBench(), party('blue-respond', 'G1')], { blockers: [blocker('M1', 'judge')] }) }), passChair()],
     petition: [petitionRulingEnv({ rulings: [{ petitioner: 'red-chair', class: 'procedural', ruling: 'granted', relief: 'scope narrowed to §3', binds: 'blue' }] })],
   }))
   await world.run(script, ARGS)

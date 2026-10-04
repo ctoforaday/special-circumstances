@@ -121,7 +121,7 @@ func TestADocketStandsUnruledPerMotionAndReadiesTheBenchOncePerDocketing(t *test
 		{"sat for both", func(t *testing.T, run Run) {
 			sit(t, run, "judge")
 			fileM2(t, run)
-			mustAppend(t, sit(t, run, "red-chair"), &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: []string{"G1"}})
+			mustAppend(t, sit(t, run, "red-chair"), &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: []string{"G1"}, Occasions: []recordpb.Occasion{recordpb.Occasion_OCCASION_DOCKET}})
 			mustAppend(t, sit(t, run, "judge"), docketRule("M2", "ruled the newer"))
 		}, nil, fmt.Sprintf(benchSatIdle, "M1")},
 	} {
@@ -130,7 +130,7 @@ func TestADocketStandsUnruledPerMotionAndReadiesTheBenchOncePerDocketing(t *test
 				register("red-chair").dispatch(2, evLens).register(evLens).
 				mint(evLens, "G1", "high").seed()
 			mustAppend(t, sit(t, run, "blue-respond"), docketMotion("M1", "G1"))
-			mustAppend(t, sit(t, run, "red-chair"), &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: []string{"G1"}})
+			mustAppend(t, sit(t, run, "red-chair"), &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: []string{"G1"}, Occasions: []recordpb.Occasion{recordpb.Occasion_OCCASION_DOCKET}})
 			tc.sitting(t, run)
 			sit(t, run, "red-chair")
 

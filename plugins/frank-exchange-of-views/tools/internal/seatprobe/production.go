@@ -54,20 +54,20 @@ func backendFor(b Board) debatejs.Backend {
 	case strings.HasPrefix(b.Seat, "red-lens-"), b.Seat == "blue-respond":
 		engaged = append(engaged, map[string]any{"seat_id": b.Seat, "gap_ids": ids})
 	case b.Seat == "judge":
-		engaged = append(engaged, map[string]any{"seat_id": "judge", "gap_ids": ids})
+		engaged = append(engaged, map[string]any{"seat_id": "judge", "gap_ids": ids, "occasions": []any{"docket"}})
 		docket = ids
 	}
 	plan := func(parties []any, pass bool, dk []any) map[string]any {
 		return map[string]any{"head": 2, "parties": parties, "docket": dk, "pass_permitted": pass, "ceiling": false,
-			"max_epochs": 0, "epoch_limit_reached": false, "why": []any{"seatprobe capture"}, "stale_areas": []any{}}
+			"max_epochs": 0, "epoch_limit_reached": false, "why": []any{"seatprobe capture"}, "stale_areas": []any{}, "blockers": []any{}}
 	}
 	return func(seatID, label, prompt string) debatejs.Envelope {
 		e := debatejs.Envelope{
-			"synopsis": "seatprobe capture", "petitions": []any{}, "log": []any{}, "rulings": []any{},
+			"synopsis": "seatprobe capture", "log": []any{}, "rulings": []any{},
 			"dispositions": []any{}, "holdings": []any{},
 			"manifest": manifest, "claim_count": len(b.Claims),
 			"saturation_reached": false, "sitting_record_appended": true,
-			"open_gaps": 0, "unruled_motions": 0,
+			"open_gaps": 0,
 		}
 		switch {
 		case strings.HasPrefix(seatID, "red-chair"):

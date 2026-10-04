@@ -112,7 +112,7 @@ func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
 
 // A petition crosses roles in both directions: a MERGE files it, the BENCH rules on it,
 // and the relief is meant to bind the seats that come after. Both halves must be in the
-// one record, or "heard before the debate continues" is unenforceable.
+// one record, or the relief the bench grants binds nobody.
 func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 	runDir := seatRun(t)
 

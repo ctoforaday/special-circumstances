@@ -146,7 +146,7 @@ Enumerated values:
 TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade motion the chair rejected; `motion avenue appeal` presses an avenue red ruled out_of_scope or too_thin, and it is filed whether or not blue also pursues the avenue — separating the argument from the act is the whole point of the verb.
 
 §18 (on 2 pages):
-A BENCH-RULED MOTION (petition, docket) HAS NO APPEAL, and that absence is the design rather than an omission: the bench hears it BEFORE the debate continues, so there is nothing to escalate to.
+A BENCH-RULED MOTION (petition, docket) HAS NO APPEAL, and that absence is the design rather than an omission: the bench is the last forum, so there is nothing to escalate to.
 
 §19 (on 3 pages):
 ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules).
@@ -625,7 +625,7 @@ file a petition motion — the tool assigns its id.
 
 (ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §19
 
-It raises an ethical, safety, integrity or constitutional objection, heard BEFORE the debate continues.
+It raises an ethical, safety, integrity or constitutional objection. The bench hears it at the next chair sitting, before any party of that epoch sits.
 
 (Any seat may file; exactly one r…) → SHARED §20
 

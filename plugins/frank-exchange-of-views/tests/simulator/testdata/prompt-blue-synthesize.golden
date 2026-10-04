@@ -1,4 +1,4 @@
-prompt sha256: ad21b077c96c80e8a2eb1579288670c5a83774ac2863a6bc8bb7cfc6a95c2ba2
+prompt sha256: bb67da7cf6f1caaac35870cb56954697375b9b6c4608d810207b4617c9c95fed
 
 Blue synthesis for topic: "the seat prompt contract".
 Read every draft in research/2026-01-01_golden/blue/candidates/ and synthesize research/2026-01-01_golden/blue/report.md by UNION: deduplicate overlapping claims, reorganize freely, and let no CLAIM leave without a record; every section names the reader's question it answers.
@@ -24,7 +24,7 @@ The hypothesis is what makes the account honest, and the dead ends matter most: 
 Alternatives reach the reader under their own headings — what you pursued, what you left for a later run, and what you weighed and rejected are three things a reader needs, not one list of winners.
 The line you propose and the reason you give when you move it ARE PRINTED IN THE REPORT word for word, so write them as research prose for a reader of the SUBJECT — the question the avenue asks and what was found about it, never the steps you took.
 Recording what you considered and declined is what makes "explore the alternatives" checkable instead of self-attested.
-PETITIONS: if fulfilling this seat's instructions would require asserting what you believe false or burying a real finding (integrity), creating or concealing a hazard (safety), acting against the interests of someone the run affects (ethical), or if an instruction itself conflicts with the rules the run is bound by (constitutional), you may petition the bench via the envelope's petitions field (class, basis, relief) — heard BEFORE the debate continues, never sanctioned, and it does not pause your duties (attributed as blue-synthesize).
+PETITIONS: if fulfilling this seat's instructions would require asserting what you believe false or burying a real finding (integrity), creating or concealing a hazard (safety), acting against the interests of someone the run affects (ethical), or if an instruction itself conflicts with the rules the run is bound by (constitutional), you may petition the bench ON THE RECORD (class, basis, relief) — the bench hears it at the next chair sitting, before any party of that epoch sits; never sanctioned, and it does not pause your duties.
 LOG (blue-synthesize), on the record AND in the envelope's log field: whatever cost you a call, a guess or an act — a refusal, a name that was not there, a misread shape, a workaround, an act set aside.
 The tool records refusals and failed calls itself; you add what you expected and why — a mistake the surface invited is the operator's signal.
 YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU.
