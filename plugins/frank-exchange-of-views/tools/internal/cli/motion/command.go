@@ -79,7 +79,7 @@ func NewCommandFor(actingRole string) *cobra.Command {
 		"contest a gap's grade: the chair rules, and a rejected dispute may be appealed — an appeal records the argument, not a second ruling",
 		[]string{flags.ID, flags.Dimension, flags.Proposed}, nil))
 	c.AddCommand(subject(actingRole, "petition",
-		"an ethical | safety | integrity | constitutional objection: the BENCH rules, before the debate continues",
+		"an ethical | safety | integrity | constitutional objection: a party files, the BENCH rules — at the next chair sitting, before any party of that epoch sits",
 		[]string{flags.Class, flags.Relief}, nil))
 	c.AddCommand(subject(actingRole, "docket",
 		"put a GAP before the bench: any seat files, the BENCH rules, and its disposition decides the gap's fate",
@@ -147,9 +147,9 @@ func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cob
 	// appeal --id M1` answered "unknown flag: --id", which sends a seat looking at its flags for
 	// a problem that is not there. Measured by probing.
 	//
-	// The absent verb is a real design statement — a petition is heard BEFORE the debate
-	// continues, so there is nothing to escalate to — and the refusal is where a seat actually
-	// meets it, so it is where the reason belongs.
+	// The absent verb is a real design statement — the bench is the last forum, so a petition has
+	// nothing to escalate to — and the refusal is where a seat actually meets it, so it is where
+	// the reason belongs.
 	c.RunE = func(cmd *cobra.Command, args []string) error {
 		var have []string
 		for _, sub := range c.Commands() {
@@ -170,6 +170,10 @@ func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cob
 					"A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle",
 				name, ruler, seat.DispatchedAs(cmd), actingRole)
 		}
+		if len(args) > 0 && args[0] == "file" && name == petitionSubject && actingRole == ruler {
+			return feov.Errorf(feov.RoleViolation,
+				"a petition is a party's right, and the bench is not a party: you rule every petition, and where the run itself must stop, `halt` is yours")
+		}
 		named := "names no verb"
 		if len(args) > 0 {
 			named = "has no `" + args[0] + "` verb"
@@ -178,7 +182,10 @@ func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cob
 			"a %s motion %s — it has %s. If you expected one, its absence is the design, not an omission: see `motion %s --help`",
 			name, named, strings.Join(have, ", "), name)
 	}
-	if fileFlags != nil {
+	// A PETITION IS A PARTY'S RIGHT, AND THE BENCH IS NOT A PARTY (#1191). It rules every petition
+	// and has `halt` for the case where it must stop the run itself; a petition of its own would
+	// convene a later sitting of the same seat to hear it.
+	if fileFlags != nil && !(name == petitionSubject && actingRole == ruler) {
 		c.AddCommand(newFile(name, fileFlags))
 	}
 	// ONLY THE GAVEL-HOLDER GETS THE VERB. Every seat may FILE — that asymmetry is the mechanism —
@@ -195,12 +202,15 @@ func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cob
 	// BENCH rules has no appeal because the bench is the last forum — which is the reason petition
 	// never had one, said once, where it applies to every subject that will ever share the gavel.
 	if ruler != "bench" {
-		// A petition has no appeal: it is heard BEFORE the debate continues, so there is
-		// nothing to escalate to. Expressed by absence rather than by a runtime refusal.
+		// A bench-ruled motion has no appeal: the bench is the last forum, so there is nothing to
+		// escalate to. Expressed by absence rather than by a runtime refusal.
 		c.AddCommand(newAppeal(name))
 	}
 	return c
 }
+
+// petitionSubject is the petition's word in the MotionSubject enum.
+var petitionSubject = recordpb.Word(recordpb.MotionSubject_MOTION_SUBJECT_PETITION)
 
 // actingRole reports the role of the seat running the command, from its identity.
 //

@@ -1506,12 +1506,13 @@ func debate(fam record.Family, evs []*record.Event) string {
 		}
 	}
 	// AN UNANSWERED PETITION IS THE LOUD CASE. A petition is a seat's channel for an ethical,
-	// safety, integrity or constitutional objection, and the engine routes it to a bench sitting
-	// BEFORE the debate continues — so a filing with no ruling means that sitting did not happen.
+	// safety, integrity or constitutional objection; the chair's next plan convenes the bench to hear
+	// it, and the terminal sitting rules any still standing at the exit — so a filing with no
+	// ruling means that sitting did not happen.
 	// Reporting nothing would make the failure indistinguishable from a run that had no
 	// petitions at all, which is why this counts rather than staying silent.
 	if filed > ruled {
-		disp = append(disp, fmt.Sprintf("**%d petition(s) received no ruling on the record.** A petition is heard before the debate continues; a filing with no ruling means that sitting is missing, not that the objection was withdrawn.", filed-ruled))
+		disp = append(disp, fmt.Sprintf("**%d petition(s) received no ruling on the record.** A petition is heard at the chair sitting after its filing, and one still standing is ruled at the exit; a filing with no ruling means that sitting is missing, not that the objection was withdrawn.", filed-ruled))
 	}
 
 	var b strings.Builder

@@ -71,7 +71,7 @@ func docketRuling(t *testing.T, motion string, d recordpb.Disposition, opinion s
 func TestTheBenchCardReadsTheRecord(t *testing.T) {
 	rem, rep := recordpb.Disposition_DISPOSITION_REMANDED, recordpb.Disposition_DISPOSITION_REPAIRED
 	fam := benchSatOn(t, []string{"read off the trajectory of the lens's tool calls"}, rem, rem, rem, rep, rep)
-	rows := benchRows(nil, fam)
+	rows := benchRows(fam)
 
 	t.Run("remanded_share", func(t *testing.T) {
 		r := rowByMetric(rows, "remanded_share")
@@ -106,7 +106,7 @@ func TestTheBenchCardReadsTheRecord(t *testing.T) {
 
 // An unread record is not a bench that never sat: the rows say they were not measured.
 func TestTheBenchCardOnAnUnreadRecordIsNotMeasured(t *testing.T) {
-	rows := benchRows(nil, nil)
+	rows := benchRows(nil)
 	for _, metric := range []string{"remanded_share", "undeclared_inspection_risk"} {
 		r := rowByMetric(rows, metric)
 		if r == nil {
@@ -119,7 +119,7 @@ func TestTheBenchCardOnAnUnreadRecordIsNotMeasured(t *testing.T) {
 }
 
 func TestABenchThatDidNotSitSaysSo(t *testing.T) {
-	r := rowByMetric(benchRows(nil, famOfEventsT(nil)), "remanded_share")
+	r := rowByMetric(benchRows(famOfEventsT(nil)), "remanded_share")
 	if r == nil || r.Value != nil || r.Note != "the bench did not sit this run" {
 		t.Errorf("remanded_share with no docket rulings = %+v, want the did-not-sit note", r)
 	}
@@ -140,7 +140,7 @@ func TestAMotionRuledInTwoSittingsIsOneRuling(t *testing.T) {
 		recordtest.Event(t, "judge", &recordpb.Register{AgentId: proto.String("J2"), Occasion: recordpb.Occasion_OCCASION_TERMINAL.Enum()}),
 		docketRuling(t, "M1", rep, traj),
 	})
-	rows := benchRows(nil, fam)
+	rows := benchRows(fam)
 	if r := rowByMetric(rows, "remanded_share"); r == nil || r.Value != 0.5 || !strings.HasPrefix(r.Note, "1/2") {
 		t.Errorf("remanded_share = %+v, want 0.5 at 1/2: M1 stands repaired, M2 remanded", r)
 	}
@@ -164,7 +164,7 @@ func TestAPrincipleThatDeclaresTheInspectionCounts(t *testing.T) {
 			}},
 		}),
 	})
-	if r := rowByMetric(benchRows(nil, fam), "undeclared_inspection_risk"); r == nil || !strings.HasPrefix(r.Note, "1 opinion(s)") {
+	if r := rowByMetric(benchRows(fam), "undeclared_inspection_risk"); r == nil || !strings.HasPrefix(r.Note, "1 opinion(s)") {
 		t.Errorf("undeclared_inspection_risk = %+v, want the one ruling whose principle names the tool call", r)
 	}
 }

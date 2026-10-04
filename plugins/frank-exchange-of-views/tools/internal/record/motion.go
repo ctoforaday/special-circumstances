@@ -612,7 +612,7 @@ func requireAppealable(subject recordpb.MotionSubject, id string) error {
 
 // noAppeal is the sentence for a bench-ruled motion, and what its appellant may do instead.
 func noAppeal(word, id string) string {
-	return fmt.Sprintf("%s motion %s has no appeal: the bench rules it, and the bench is the last forum — it hears the motion BEFORE the debate continues, so there is nothing to escalate to. If you have new grounds, file a NEW motion on them",
+	return fmt.Sprintf("%s motion %s has no appeal: the bench rules it, and the bench is the last forum, so there is nothing to escalate to. If you have new grounds, file a NEW motion on them",
 		word, id)
 }
 

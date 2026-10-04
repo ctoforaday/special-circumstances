@@ -485,8 +485,12 @@ func unansweredContradictions(evs []*Event) []string {
 }
 
 // contradiction is one unanswered contradiction and the seat whose verify last read the source
-// contradicting it — the lens whose act raises it.
-type contradiction struct{ claim, reader string }
+// contradicting it — the lens whose act raises it — and where in the stream that verify sits, which
+// is when the lens came to owe it.
+type contradiction struct {
+	claim, reader string
+	at            int
+}
 
 // unansweredContradictionsBy is unansweredContradictions with each claim's reader: the seat of the
 // LATEST contradicting verify of the claim, so a re-read by another lens makes that lens the owner.
@@ -501,7 +505,7 @@ func unansweredContradictionsBy(evs []*Event) []contradiction {
 	}
 	at := map[string]int{} // claim -> its place in out
 	var out []contradiction
-	for _, e := range evs {
+	for i, e := range evs {
 		v, ok := recordpb.BodyAs[*recordpb.Verify](e)
 		if !ok || !contradicts(v.GetOutcome()) {
 			continue
@@ -510,12 +514,12 @@ func unansweredContradictionsBy(evs []*Event) []contradiction {
 		if claim == "" || answered[claim] {
 			continue
 		}
-		if i, seen := at[claim]; seen {
-			out[i].reader = e.GetSeatId()
+		if k, seen := at[claim]; seen {
+			out[k].reader, out[k].at = e.GetSeatId(), i
 			continue
 		}
 		at[claim] = len(out)
-		out = append(out, contradiction{claim: claim, reader: e.GetSeatId()})
+		out = append(out, contradiction{claim: claim, reader: e.GetSeatId(), at: i})
 	}
 	return out
 }

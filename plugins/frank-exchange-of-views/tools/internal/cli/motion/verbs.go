@@ -20,7 +20,7 @@ import (
 // `avenue` has none: proposing the line is the filing, and its subgroup's Short says so.
 var fileSubjectSays = map[string]string{
 	"grade":    "It disputes a gap's grade.",
-	"petition": "It raises an ethical, safety, integrity or constitutional objection, heard BEFORE the debate continues.",
+	"petition": "It raises an ethical, safety, integrity or constitutional objection. The bench hears it at the next chair sitting, before any party of that epoch sits.",
 	"docket":   "It puts a GAP before the bench — the channel for a gap the filing seat cannot settle itself.",
 }
 
@@ -241,8 +241,9 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 		// — the subgroup's refusal in command.go — not to the gavel-holder, who never does.
 		Long: "rule on " + article(subject) + " " + subject + " motion — this verb is the " + ruler + " seat's, and it " +
 			"appears only on that surface.\n\n" +
-			"EVERY SUBJECT AND ITS GAVEL: " + GavelRoll() + ". The bench's two are heard BEFORE " +
-			"the debate continues.",
+			"EVERY SUBJECT AND ITS GAVEL: " + GavelRoll() + ". The bench's two each convene a " +
+			"sitting of their own: a petition at the next chair sitting, before any party of that epoch " +
+			"sits; a docket after blue has sat on the gap.",
 		// Through Begin, as the filing is — see newFile.
 		RunE: seat.HandlerRunE(func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			run, err := s.Run()
@@ -402,7 +403,7 @@ func newAppeal(subject string) *cobra.Command {
 			"too_thin, and it is filed whether or not blue also pursues the avenue — separating the " +
 			"argument from the act is the whole point of the verb.\n\n" +
 			"A BENCH-RULED MOTION (petition, docket) HAS NO APPEAL, and that absence is the design rather " +
-			"than an omission: the bench hears it BEFORE the debate continues, so there is nothing to escalate to.",
+			"than an omission: the bench is the last forum, so there is nothing to escalate to.",
 		// Through Begin, as the filing is — see newFile.
 		RunE: seat.HandlerRunE(func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			run, err := s.Run()

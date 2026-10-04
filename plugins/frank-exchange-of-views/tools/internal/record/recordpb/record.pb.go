@@ -8145,11 +8145,11 @@ const file_record_proto_rawDesc = "" +
 	"\x18RULING_BINDS_UNSPECIFIED\x10\x00\x12w\n" +
 	"\x11RULING_BINDS_BLUE\x10\x04\x1a`\x8a\xb5\x18\\the relief binds the response seat — what blue must do, or must not, in its coming sitting\x12L\n" +
 	"\x10RULING_BINDS_RED\x10\x05\x1a6\x8a\xb5\x182it binds the audit seats: the lenses and the chair\x12\\\n" +
-	"\x11RULING_BINDS_BOTH\x10\x06\x1aE\x8a\xb5\x18Ait binds the whole exchange, and every dispatched seat carries it\"\x04\b\x01\x10\x01\"\x04\b\x02\x10\x02\"\x04\b\x03\x10\x03*\x10RULING_BINDS_ALL*\x12RULING_BINDS_FILER*\x11RULING_BINDS_NONE*\xc5\x04\n" +
+	"\x11RULING_BINDS_BOTH\x10\x06\x1aE\x8a\xb5\x18Ait binds the whole exchange, and every dispatched seat carries it\"\x04\b\x01\x10\x01\"\x04\b\x02\x10\x02\"\x04\b\x03\x10\x03*\x10RULING_BINDS_ALL*\x12RULING_BINDS_FILER*\x11RULING_BINDS_NONE*\xf5\x04\n" +
 	"\bOccasion\x12\x18\n" +
 	"\x14OCCASION_UNSPECIFIED\x10\x00\x12\x8f\x01\n" +
-	"\x0fOCCASION_DOCKET\x10\x01\x1az\x8a\xb5\x18vruling the docket: the gaps that reached impasse and were docketed for adjudication. The chair dispatches this sitting\x12\x8a\x01\n" +
-	"\x11OCCASION_PETITION\x10\x02\x1as\x8a\xb5\x18ohearing a petition filed by a seat, before the debate continues. The engine convenes it the moment one is filed\x12\x9f\x01\n" +
+	"\x0fOCCASION_DOCKET\x10\x01\x1az\x8a\xb5\x18vruling the docket: the gaps that reached impasse and were docketed for adjudication. The chair dispatches this sitting\x12\xba\x01\n" +
+	"\x11OCCASION_PETITION\x10\x02\x1a\xa2\x01\x8a\xb5\x18\x9d\x01hearing the petitions filed since the bench last sat to hear one. The chair's plan convenes it at the next chair sitting, before any party of that epoch sits\x12\x9f\x01\n" +
 	"\x11OCCASION_TERMINAL\x10\x03\x1a\x87\x01\x8a\xb5\x18\x82\x01the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here\x12^\n" +
 	"\x11OCCASION_ASSEMBLE\x10\x04\x1aG\x8a\xb5\x18Cassembling the final report by union-copy. The last step of the run:I\n" +
 	"\x03sql\x12\x1d.google.protobuf.FieldOptions\x18І\x03 \x01(\v2\x13.feov.record.v1.SqlR\x03sql\x88\x01\x01:8\n" +

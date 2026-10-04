@@ -15,7 +15,8 @@ import (
 
 // dispatch next — the chair reads the board and the record says who sits (plans/roundless.md
 // §III.B.1). The verb computes readiness FROM THE BOARD: each lens's retirement state against the report head,
-// each open material gap below its limits, each docketed gap awaiting the bench. It records the
+// each open material gap below its limits, each docketed gap awaiting the bench, the seat that owes
+// another seat's PASS blocker (a petition's bench, a contradiction's lens). It records the
 // decision as one dispatch event per party, under the chair, and prints the same plan for the
 // chair to relay. The workflow dispatches what the record says and nothing else.
 //
@@ -109,6 +110,14 @@ func (r dispatchResult) Human() string {
 	} else {
 		fmt.Fprintf(&b, "dispatch against head %d:\n", r.Head)
 		for _, p := range r.Parties {
+			if len(p.Occasions) > 0 {
+				what := "sits for: " + strings.Join(p.Occasions, ", ")
+				if len(p.GapIDs) > 0 {
+					what += " — " + strings.Join(p.GapIDs, ", ")
+				}
+				fmt.Fprintf(&b, "  %s %s\n", p.SeatID, what)
+				continue
+			}
 			if len(p.GapIDs) == 0 {
 				fmt.Fprintf(&b, "  %s — audits the report (its state is in the reasons below)\n", p.SeatID)
 			} else {

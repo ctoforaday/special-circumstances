@@ -263,21 +263,22 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 		if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_VERDICT) {
 			add("your terminal act is missing — the run cannot say from its own record that it was ever verified")
 		}
-	// THE LENS HAS NO CASE, AND THAT IS THE RULE HOLDING RATHER THAN A GAP IN IT.
+	// THE LENS OWES ONE THING OF ITS OWN: RAISING A CONTRADICTION IT READ. Beyond the two duties
+	// every seat holds above this switch (the log channel, and the sitting it was dispatched for),
+	// a contradicting source the lens verified and no finding raises is a PASS blocker whose owner
+	// is that lens (passBlockersOf), and dispatch readies the lens for it once — so it qualifies
+	// under the rule at the top of this file, and it is the kind table's own sentence.
 	//
-	// A lens's blocking duties are the two every seat it shares a moment with holds, above this
-	// switch: the log channel, and the sitting it was dispatched for. The second qualifies under
-	// the rule at the top of this file because dispatch enforces it — an unregistered lens stays
-	// ready. Nothing refuses a sitting over any other missing lens act, and the scorecard scores
-	// no lens parity duty, so a lens arm here would be an invented obligation, and `complete:
-	// false` on a seat no gate would hold is exactly the disagreement that teaches a seat to trust
-	// neither surface.
-	//
-	// The acts a lens genuinely has open to it — verifying a citation nobody checked,
-	// corroborating one blue never cited, re-running a proof nobody re-ran — come from availableOf
-	// and land on this same list carrying Blocks:false. A lens that has registered and logged
-	// therefore has an EMPTY blocking set and a non-empty work list, which is the accurate
-	// statement: available work, none of it owed.
+	// Nothing else blocks a lens. The acts a lens genuinely has open to it — verifying a citation
+	// nobody checked, corroborating one blue never cited, re-running a proof nobody re-ran — come
+	// from availableOf and land on this same list carrying Blocks:false: available work, none of
+	// it owed.
+	case "lens":
+		for _, b := range passBlockersOf(evs, ids, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
+			if b.Kind == BlockerContradiction && b.Owner == seatID {
+				add(b.WorkItem())
+			}
+		}
 	case "bench":
 		// THE BENCH'S MOTIONS ARE THE GATE'S LIST, read through passBlockersOf: every unruled motion
 		// whose gavel the schema gives the bench, the same set the outcome refusal names
@@ -285,7 +286,7 @@ func SittingOf(evs []*Event, ids []int64, gaps []WorkGapState, role, seatID stri
 		// refusal, which is the drift the one list exists to end (#1202).
 		for _, b := range passBlockersOf(evs, ids, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
 			if b.Kind == BlockerUnruledMotion && b.Owner == benchSeat {
-				add("motion " + b.Subject + " (" + b.Detail + ") is unruled, and the bench's motions are heard BEFORE the debate continues")
+				add("motion " + b.Subject + " (" + b.Detail + ") is unruled and the gavel is yours — the run cannot end in a verdict while it stands")
 			}
 		}
 	}

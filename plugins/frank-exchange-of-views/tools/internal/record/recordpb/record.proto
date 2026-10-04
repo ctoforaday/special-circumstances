@@ -1792,7 +1792,7 @@ message MotionAppeal {
 enum Occasion {
   OCCASION_UNSPECIFIED = 0;
   OCCASION_DOCKET = 1 [(means) = "ruling the docket: the gaps that reached impasse and were docketed for adjudication. The chair dispatches this sitting"];
-  OCCASION_PETITION = 2 [(means) = "hearing a petition filed by a seat, before the debate continues. The engine convenes it the moment one is filed"];
+  OCCASION_PETITION = 2 [(means) = "hearing the petitions filed since the bench last sat to hear one. The chair's plan convenes it at the next chair sitting, before any party of that epoch sits"];
   OCCASION_TERMINAL = 3 [(means) = "the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here"];
   OCCASION_ASSEMBLE = 4 [(means) = "assembling the final report by union-copy. The last step of the run"];
 }

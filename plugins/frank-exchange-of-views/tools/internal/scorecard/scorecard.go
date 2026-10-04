@@ -715,7 +715,7 @@ func docketRulings(fam *record.Family) []*record.Motion {
 // restate only some of the dispositions and carry no opinion at all, so a card built on them
 // counted fewer rulings than the bench made and scored every ruling opinionless. results is read
 // for petitions_filed alone.
-func benchRows(results []map[string]any, fam *record.Family) []Row {
+func benchRows(fam *record.Family) []Row {
 	var rows []Row
 	const unread = "the record could not be read — not measured"
 
@@ -778,14 +778,20 @@ func benchRows(results []map[string]any, fam *record.Family) []Row {
 	}
 	rows = append(rows, inspRow)
 
-	// petitions_filed
-	petitions := 0
-	for _, r := range results {
-		if p, ok := r["petitions"].([]any); ok {
-			petitions += len(p)
+	// petitions_filed, off the record: a petition is a motion, and no envelope carries one.
+	petRow := Row{Clause: "Petition handling", Metric: "petitions_filed", Cls: "measure"}
+	if fam == nil {
+		petRow.Note = unread
+	} else {
+		petitions := 0
+		for _, m := range record.MotionsOf(fam.Events) {
+			if m.Subject == recordpb.Word(recordpb.MotionSubject_MOTION_SUBJECT_PETITION) {
+				petitions++
+			}
 		}
+		petRow.Value = petitions
 	}
-	rows = append(rows, Row{Clause: "Petition handling", Metric: "petitions_filed", Cls: "measure", Value: petitions})
+	rows = append(rows, petRow)
 	return rows
 }
 
@@ -801,7 +807,7 @@ func Compute(run record.Run, results []map[string]any, fam *record.Family, when 
 	return map[string][]Row{
 		"blue":  append(blueRows(run, results, telemetry, fam, when), correctionsRow(fam, "blue")),
 		"red":   append(redRows(run, results, telemetry, fam), correctionsRow(fam, "chair", "lens")),
-		"bench": append(benchRows(results, fam), correctionsRow(fam, "bench")),
+		"bench": append(benchRows(fam), correctionsRow(fam, "bench")),
 	}
 }
 

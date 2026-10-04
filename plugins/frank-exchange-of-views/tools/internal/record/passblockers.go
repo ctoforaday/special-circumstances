@@ -54,6 +54,11 @@ type Blocker struct {
 	About string
 	// foldWhy is a ready lens's reason in the retirement fold's own words, for the refusal.
 	foldWhy string
+	// motionSubject is an unruled motion's subject — which sitting dispatch convenes its gavel for.
+	motionSubject string
+	// since is the events.id the blocker arose at — a motion's filing, the contradicting verify —
+	// so dispatch can ask whether its owner has sat since; 0 for the kinds dispatch does not ready.
+	since int64
 }
 
 // Every reports whether the blocker holds every verdict, not only a PASS.
@@ -320,8 +325,14 @@ func passBlockersOf(evs []*Event, ids []int64, gaps []blockerGap, fresh map[stri
 			out = append(out, Blocker{Kind: BlockerMaterialGap, Subject: g.id, Owner: g.mintedBy})
 		}
 	}
+	seqAt := func(i int) int64 {
+		if i < len(ids) {
+			return ids[i]
+		}
+		return int64(i)
+	}
 	for _, c := range unansweredContradictionsBy(evs) {
-		out = append(out, Blocker{Kind: BlockerContradiction, Subject: c.claim, Owner: c.reader})
+		out = append(out, Blocker{Kind: BlockerContradiction, Subject: c.claim, Owner: c.reader, since: seqAt(c.at)})
 	}
 	if lg := passLensGateOf(evs, ids, fresh); lg.cast {
 		if lg.head == 0 {
@@ -335,6 +346,14 @@ func passBlockersOf(evs []*Event, ids []int64, gaps []blockerGap, fresh map[stri
 			}
 		}
 	}
+	filed := map[string]int64{} // motion id -> its filing's events.id, the first one in the stream
+	for i, e := range evs {
+		if mo, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
+			if _, seen := filed[mo.GetMotionId()]; !seen {
+				filed[mo.GetMotionId()] = seqAt(i)
+			}
+		}
+	}
 	for _, m := range MotionsOf(evs) {
 		if m == nil || m.Ruled() {
 			continue
@@ -345,7 +364,8 @@ func passBlockersOf(evs []*Event, ids []int64, gaps []blockerGap, fresh map[stri
 			// owned by no seat, and the wording says what could not be resolved.
 			g = gavel{phrase: m.Subject + ", and this binary cannot say who rules it: " + err.Error()}
 		}
-		out = append(out, Blocker{Kind: BlockerUnruledMotion, Subject: m.ID, Owner: g.seat, Detail: g.phrase, About: m.GapID})
+		out = append(out, Blocker{Kind: BlockerUnruledMotion, Subject: m.ID, Owner: g.seat, Detail: g.phrase, About: m.GapID,
+			motionSubject: m.Subject, since: filed[m.ID]})
 	}
 	if AvenueReviewDueOf(evs) {
 		out = append(out, Blocker{Kind: BlockerAvenueReview, Owner: chairSeat})

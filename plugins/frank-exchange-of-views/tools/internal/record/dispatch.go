@@ -12,10 +12,27 @@ import (
 )
 
 // Party is one seat the chair engages and the gaps it is engaged on. A lens engaged with no gaps is
-// ready by its retirement state, and sits to audit the current report.
+// ready by its retirement state, or owes a finding on a contradiction it read, and sits to audit the
+// current report.
 type Party struct {
 	SeatID string   `json:"seat_id"`
 	GapIDs []string `json:"gap_ids"`
+	// Occasions is what the bench is convened for this epoch, in the Occasion enum's words: `docket`
+	// (the gap_ids, after blue sits) and `petition` (the unruled petitions, before any party sits).
+	// The bench's one id cannot say which question it is asked, so the plan says it as a field and
+	// the workflow routes on it — never on an empty gap list. Every other seat has no occasion, and
+	// the field is absent.
+	Occasions []string `json:"occasions,omitempty"`
+}
+
+// PlanBlocker is one entry of the gate's list (PassBlockers) as the plan relays it: what holds a
+// PASS, what it is, and the seat whose act clears it ("" where no seat on the record can). The
+// workflow reads the record only through the plan, so this is how it learns that a motion whose
+// gavel is the bench's still stands at the exit.
+type PlanBlocker struct {
+	Kind    BlockerKind `json:"kind"`
+	Subject string      `json:"subject"`
+	Owner   string      `json:"owner"`
 }
 
 // Plan is what `feov-record dispatch next` computes FROM THE BOARD (plans/roundless.md §III.B.1).
@@ -45,8 +62,13 @@ type Plan struct {
 	// EpochLimitReached: this chair sitting opens the run's last epoch with parties the board
 	// readies, and they are not dispatched — the run ends CEILING. A last epoch with nobody ready
 	// is not at the limit: it ends as any empty plan does.
-	EpochLimitReached bool     `json:"epoch_limit_reached"`
-	Why               []string `json:"why"` // the readiness of each source, in words a reader can check against the board
+	EpochLimitReached bool `json:"epoch_limit_reached"`
+	// Blockers is everything holding a PASS, from the list the verdict gate refuses on, each with the
+	// seat that clears it. A blocker whose owner is not the chair readies that owner, once per cause
+	// (Why says which); one still standing when the debate ends with the bench as its owner is what
+	// the terminal bench sitting rules.
+	Blockers []PlanBlocker `json:"blockers"`
+	Why      []string      `json:"why"` // the readiness of each source, in words a reader can check against the board
 }
 
 // material is the severity mass at or above which a `by_grade` gap is material: GRADE_MEDIUM and
@@ -87,15 +109,16 @@ type openGap struct {
 	supersededBy string
 }
 
-// PlanDispatch computes readiness from three sources — each cast lens's retirement state, each
-// open material gap below its limits, and each docketed gap awaiting the bench — and the two
-// derived facts the termination turns on. It writes nothing.
+// PlanDispatch computes readiness from four sources — each cast lens's retirement state, each
+// open material gap below its limits, each docketed gap awaiting the bench, and the owner of each
+// blocker another seat must clear — and the two derived facts the termination turns on. It writes
+// nothing.
 func PlanDispatch(run Run) (Plan, error) {
 	// ARRAYS, NEVER null, AT THE SOURCE. The chair relays this JSON and the engine type-checks every
 	// field it reads; a nil slice marshals as null, which the relay refuses as a missing array. B9's
 	// chair relayed a PASS-permitted plan verbatim, "parties": null, and the engine aborted the run
 	// at the sitting that should have ended it.
-	plan := Plan{Parties: []Party{}, Docket: []string{}, Why: []string{}, StaleAreas: []StaleArea{}}
+	plan := Plan{Parties: []Party{}, Docket: []string{}, Why: []string{}, StaleAreas: []StaleArea{}, Blockers: []PlanBlocker{}}
 	cast, err := CastOf(run)
 	if err != nil {
 		return plan, err
@@ -138,17 +161,23 @@ func PlanDispatch(run Run) (Plan, error) {
 	folds := lensStates(evs, ids, plan.Head, fresh)
 	plan.StaleAreas = staleAreasOf(folds, plan.Head)
 	parties := map[string][]string{}
+	occasions := map[string][]string{}
 	order := []string{}
-	engage := func(seat string, gaps ...string) {
+	// engage readies a seat on gaps; occasion is what the bench is convened for, "" for every other
+	// seat. A seat is one party however many sources ready it.
+	engage := func(seat, occasion string, gaps ...string) {
 		if _, seen := parties[seat]; !seen {
 			order = append(order, seat)
 			parties[seat] = []string{}
 		}
 		parties[seat] = append(parties[seat], gaps...)
+		if occasion != "" && !slices.Contains(occasions[seat], occasion) {
+			occasions[seat] = append(occasions[seat], occasion)
+		}
 	}
 	for _, f := range folds {
 		if f.ready {
-			engage(f.seat)
+			engage(f.seat, "")
 		}
 		plan.Why = append(plan.Why, f.why)
 	}
@@ -186,7 +215,7 @@ func PlanDispatch(run Run) (Plan, error) {
 				plan.Why = append(plan.Why, fmt.Sprintf("%s: docket motion %s stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied; the run cannot end in a verdict while it stands", g.id, g.unruledMotion))
 				continue
 			}
-			engage("judge", g.id)
+			engage(benchSeat, occasionDocket, g.id)
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: docketed and unruled — the bench is ready", g.id))
 			continue
 		}
@@ -204,33 +233,59 @@ func PlanDispatch(run Run) (Plan, error) {
 		}
 		if !x.Impasse {
 			if g.mintedBy != "" {
-				engage(g.mintedBy, g.id)
+				engage(g.mintedBy, "", g.id)
 			}
-			engage("blue-respond", g.id)
+			engage(blueRespondSeat, "", g.id)
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: open, material, %s — below its limits", g.id, x.Counted()))
 			continue
 		}
 		if !g.docketed {
 			plan.Docket = append(plan.Docket, g.id)
-			engage("judge", g.id)
+			engage(benchSeat, occasionDocket, g.id)
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse (%s) — docketed for the bench", g.id, x.Counted()))
 			continue
 		}
 		materialSettled++ // ruled and still open: remanded
 		plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse, ruled remanded — at its limit", g.id))
 	}
+	// Source 4: THE SEAT THAT OWES ANOTHER SEAT'S BLOCKER SITS. A blocker on the gate's list that
+	// the chair cannot clear — an unruled petition, a docket motion on a gap that has since closed,
+	// a contradiction no finding raises — holds the PASS until its owner acts, and an owner nobody
+	// readies never acts: the run ended UNVERIFIED with the one seat that could clear it never asked
+	// (#1202, #1203). Each owner is readied ONCE PER CAUSE: an owner that has sat since the blocker
+	// arose and left it is not readied again, the reason says so, and the blocker still holds the
+	// PASS — the precedent benchSatFor set for the docket.
+	blockers := passBlockersOf(evs, ids, blockerGapsOfOpen(gaps), fresh)
+	for _, b := range blockers {
+		switch {
+		case b.Kind == BlockerUnruledMotion && b.Owner == benchSeat:
+			if statedMotion[b.Subject] {
+				continue // a docket on an open gap: the gap's own reason above readied the bench
+			}
+			statedMotion[b.Subject] = true
+			plan.Why = append(plan.Why, benchReadiness(b, evs, ids, dispatches, registers, engage))
+		case b.Kind == BlockerContradiction && roleOfSeat(b.Owner) == "lens":
+			if _, sat := firstAfter(registers[b.Owner], b.since); sat {
+				plan.Why = append(plan.Why, fmt.Sprintf("%s has sat since it read a source contradicting %q, and no finding raises it — readied once per contradiction, so not again", b.Owner, b.Subject))
+				continue
+			}
+			engage(b.Owner, "")
+			plan.Why = append(plan.Why, fmt.Sprintf("%s read a source contradicting %q and no finding raises it — ready, to raise it", b.Owner, b.Subject))
+		}
+	}
 	for _, s := range order {
-		plan.Parties = append(plan.Parties, Party{SeatID: s, GapIDs: parties[s]})
+		plan.Parties = append(plan.Parties, Party{SeatID: s, GapIDs: parties[s], Occasions: occasions[s]})
 	}
 	// PASS_PERMITTED IS THE GATE'S OWN LIST, read through passBlockersOf: nobody is ready, and every
 	// blocker left is the chair's to clear in this sitting (its avenue review, its spot-check of
-	// the stale areas, its ruling on a grade or avenue motion). A blocker another seat must clear — an unruled petition, a contradiction no
-	// lens has raised, a docket motion on a gap that has since closed — holds it, and its reason is
-	// stated here, so the plan never says PASS where the gate refuses one the chair cannot clear
-	// (#1202).
+	// the stale areas, its ruling on a grade or avenue motion). A blocker another seat must clear —
+	// an unruled petition, a contradiction no lens has raised, a docket motion on a gap that has
+	// since closed — holds it, and its reason is stated here, so the plan never says PASS where the
+	// gate refuses one the chair cannot clear (#1202).
 	chairOnly := true
-	for _, b := range passBlockersOf(evs, ids, blockerGapsOfOpen(gaps), fresh) {
+	for _, b := range blockers {
 		chairOnly = chairOnly && b.ChairOwned()
+		plan.Blockers = append(plan.Blockers, PlanBlocker{Kind: b.Kind, Subject: b.Subject, Owner: b.Owner})
 		if why := kindOf(b.Kind).why; why != nil && !(b.Kind == BlockerUnruledMotion && statedMotion[b.Subject]) {
 			plan.Why = append(plan.Why, why(b))
 		}
@@ -701,6 +756,62 @@ func owedSitting(evs []*Event, seatID string) (dispatchRow, bool) {
 // sat with it on the record and ruled nothing — re-readied the bench for a docketing it had sat for.
 // Keyed on the NEWEST filing rather than the newest unruled one, a motion blue filed into an open
 // sitting and the bench ruled there re-readied the bench for the older motion it had left alone.
+// occasionDocket and occasionPetition are the Occasion enum's words for the two sittings dispatch
+// convenes the bench for. The workflow routes a bench party on them, and the bench types the same
+// word at its register.
+var (
+	occasionDocket   = recordpb.Word(recordpb.Occasion_OCCASION_DOCKET)
+	occasionPetition = recordpb.Word(recordpb.Occasion_OCCASION_PETITION)
+)
+
+// benchSittingFor is the sitting dispatch convenes the bench for to rule a motion of each subject
+// whose gavel the schema gives the bench. A bench-ruled subject with no row has no route to a
+// ruling, and TestEveryBenchRuledSubjectHasASitting fails naming it.
+var benchSittingFor = map[recordpb.MotionSubject]recordpb.Occasion{
+	recordpb.MotionSubject_MOTION_SUBJECT_PETITION: recordpb.Occasion_OCCASION_PETITION,
+	recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:   recordpb.Occasion_OCCASION_DOCKET,
+}
+
+// benchReadiness readies the bench for one unruled motion whose gavel is the bench's and that no
+// open gap's docket has already readied it for, and returns the plan's reason.
+//
+// A PETITION IS HEARD AT A PETITION SITTING, AND ONLY ONE COUNTS. The guard is the bench's register
+// with occasion `petition` after the filing — not any bench register: a docket sitting that sat
+// after the filing was convened for something else, and counting it would leave the petition
+// unheard while the plan said it had been.
+func benchReadiness(b Blocker, evs []*Event, ids []int64, dispatches []dispatchRow, registers map[string][]int64, engage func(seat, occasion string, gaps ...string)) string {
+	subj, _ := MotionSubjectEnum(b.motionSubject)
+	switch occ, routed := benchSittingFor[subj]; {
+	case routed && occ == recordpb.Occasion_OCCASION_PETITION:
+		if benchSatOnOccasionSince(evs, ids, recordpb.Occasion_OCCASION_PETITION, b.since) {
+			return fmt.Sprintf("%s: petition, unruled, and the bench has sat to hear petitions since it was filed — one petition sitting per filing, so it is not convened again; the run cannot end in a verdict while it stands", b.Subject)
+		}
+		engage(benchSeat, occasionPetition)
+		return fmt.Sprintf("%s: petition, unruled — the bench is ready to hear it, before any party of this epoch sits", b.Subject)
+	case routed && occ == recordpb.Occasion_OCCASION_DOCKET:
+		// An open gap's docket was readied above; this one's gap has closed since it was filed.
+		if benchSatFor(dispatches, registers, b.About, b.since) {
+			return fmt.Sprintf("%s: docket motion %s stands unruled on a gap no longer open, and the bench has sat since it was filed — not re-readied; the run cannot end in a verdict while it stands", b.About, b.Subject)
+		}
+		engage(benchSeat, occasionDocket, b.About)
+		return fmt.Sprintf("%s: docket motion %s stands unruled on a gap no longer open — the bench is ready", b.About, b.Subject)
+	}
+	return fmt.Sprintf("%s: %s motion, unruled, and no sitting convenes the bench for its subject — nobody is readied; the run cannot end in a verdict while it stands", b.Subject, b.motionSubject)
+}
+
+// benchSatOnOccasionSince reports whether the bench opened a sitting of the occasion after at.
+func benchSatOnOccasionSince(evs []*Event, ids []int64, occ recordpb.Occasion, at int64) bool {
+	for i, e := range evs {
+		if i >= len(ids) || ids[i] <= at || e.GetSeatId() != benchSeat || !recordpb.OpensASitting(e) {
+			continue
+		}
+		if r, ok := recordpb.BodyAs[*recordpb.Register](e); ok && r.GetOccasion() == occ {
+			return true
+		}
+	}
+	return false
+}
+
 func benchSatFor(dispatches []dispatchRow, registers map[string][]int64, gapID string, unruledFiled int64) bool {
 	for _, d := range dispatches {
 		if d.seat != "judge" || !slices.Contains(d.gaps, gapID) {
