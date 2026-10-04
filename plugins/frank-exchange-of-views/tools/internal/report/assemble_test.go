@@ -170,7 +170,7 @@ func TestAvenuesSplitByFate(t *testing.T) {
 		t.Errorf("a pursued avenue must not appear under alternatives:\n%s", alt)
 	}
 	// No avenues of a fate → flagged, not blank.
-	if none := avenues((record.NewFamily(nil, nil)), "Research areas", accepted); !strings.Contains(none, "none on the record") {
+	if none := avenues((record.NewFamily(nil, record.Merged{})), "Research areas", accepted); !strings.Contains(none, "none on the record") {
 		t.Errorf("empty fate should say so: %q", none)
 	}
 }
@@ -373,7 +373,7 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 			t.Errorf("debate transcript missing %q:\n%s", want, d)
 		}
 	}
-	if empty := debate(record.NewFamily(nil, nil), nil); !strings.Contains(empty, "no debate on the record") {
+	if empty := debate(record.NewFamily(nil, record.Merged{})); !strings.Contains(empty, "no debate on the record") {
 		t.Errorf("empty debate should say so: %q", empty)
 	}
 }
@@ -508,7 +508,7 @@ func TestWithdrawnClaimsReachTheReader(t *testing.T) {
 			t.Errorf("withdrawn claims missing %q:\n%s", want, w)
 		}
 	}
-	if withdrawnClaims(nil, record.WindowIndex{}) != "" {
+	if withdrawnClaims(record.NewFamily(nil, record.Merged{})) != "" {
 		t.Error("a run that retired nothing omits the section rather than showing it empty")
 	}
 }
@@ -673,7 +673,7 @@ func TestLogSectionRendered(t *testing.T) {
 			t.Errorf("log section missing %q:\n%s", want, f)
 		}
 	}
-	if empty := logSection(nil, record.WindowIndex{}); empty != "" {
+	if empty := logSection(record.NewFamily(nil, record.Merged{})); empty != "" {
 		t.Errorf("no log events should render nothing, got: %q", empty)
 	}
 }
@@ -709,7 +709,7 @@ func TestRevisionHistoryFromEvents(t *testing.T) {
 	if strings.Contains(got, "not a revision") {
 		t.Errorf("a non-revision event leaked into the revision history:\n%s", got)
 	}
-	if revisionHistory(nil, record.WindowIndex{}) != "" {
+	if revisionHistory(record.NewFamily(nil, record.Merged{})) != "" {
 		t.Error("no revisions must yield empty (section omitted), not a bare heading")
 	}
 }

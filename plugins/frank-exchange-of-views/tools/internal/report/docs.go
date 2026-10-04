@@ -137,7 +137,7 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	docket.add(boardSection(fam))
 
 	var deb sections
-	deb.add(debate(fam, evs))
+	deb.add(debate(fam))
 
 	var jud sections
 	jud.add(motions(fam))
@@ -160,14 +160,14 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	// For EVERY run, including one with no outcome — verdictGloss(nil) is where "the bench never ran
 	// `bench outcome`" is said, now that report.md's stamp carries only the state NONE.
 	runsec.add("## The verdict's basis\n\n" + verdictGloss(outcome))
-	runsec.add(logSection(evs, fam.At))
+	runsec.add(logSection(fam))
 	// The record's own invariant check, rendered for the human the report is for. See
 	// recordVerification: a section, never a gate.
 	runsec.add(recordVerification(fam))
 
 	var chg sections
-	chg.add(revisionHistory(evs, fam.At))
-	chg.add(withdrawnClaims(evs, fam.At))
+	chg.add(revisionHistory(fam))
+	chg.add(withdrawnClaims(fam))
 	chg.add(supersededAsks(evs))
 
 	docs := []Doc{
@@ -309,11 +309,11 @@ func navBar(current string, set []Doc) string {
 // indexDoc is the run directory's front door: what this run asked, what it answered, and which
 // document holds what. It is written for a human opening an archived run months later with no
 // memory of it, which is the only reader a run directory reliably gets.
-func indexDoc(run record.Run, title string, set []Doc, fam record.Family, evs []*record.Event) string {
+func indexDoc(run record.Run, title string, set []Doc, fam record.Family) string {
 	var b strings.Builder
 	b.WriteString(title + "\n\n")
 	b.WriteString(navBar("", set) + "\n\n---\n\n")
-	b.WriteString(factBox(fam, evs) + "\n\n")
+	b.WriteString(factBox(fam) + "\n\n")
 	b.WriteString("## The documents\n\n")
 	for _, d := range set {
 		fmt.Fprintf(&b, "- **[%s](%s)** — %s\n", d.Nav, d.File, d.Blurb)
@@ -327,7 +327,7 @@ func indexDoc(run record.Run, title string, set []Doc, fam record.Family, evs []
 
 // factBox answers "what is this run and how much do I trust it" in one glance. Every cell is a
 // field off the record — nothing here is derived from the prose it sits above.
-func factBox(fam record.Family, evs []*record.Event) string {
+func factBox(fam record.Family) string {
 	open, closed := 0, 0
 	// EPOCHS: how many times the chair sat — the largest epoch the record holds an act in, floored
 	// by the epochs the gaps were minted and closed in, for a caller holding a board and no log.
@@ -348,13 +348,13 @@ func factBox(fam record.Family, evs []*record.Event) string {
 			epochs = g.ClosedEpoch
 		}
 	}
-	for _, e := range evs {
+	for _, e := range fam.Events {
 		if w := fam.At.Of(e); w.Epoch > epochs {
 			epochs = w.Epoch
 		}
 	}
 	outcome := "_(none recorded)_"
-	if o := outcomeOf(evs); o != nil {
+	if o := outcomeOf(fam.Events); o != nil {
 		outcome = outcomeWord(o)
 	}
 	var b strings.Builder

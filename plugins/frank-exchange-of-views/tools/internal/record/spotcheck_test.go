@@ -122,7 +122,7 @@ func TestAFalseEmptyClaimIsCaught(t *testing.T) {
 }
 
 func TestSpotCheckAuditHandlesANilBoard(t *testing.T) {
-	if c, d, f := SpotCheckAudit(NewFamily(nil, nil)); c != nil || d != nil || f != nil {
+	if c, d, f := SpotCheckAudit(NewFamily(nil, Merged{})); c != nil || d != nil || f != nil {
 		t.Errorf("a nil board must not panic or invent violations: %v %v %v", c, d, f)
 	}
 }

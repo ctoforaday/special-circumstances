@@ -101,7 +101,7 @@ func MergedEvents(run Run) (Merged, error) {
 		return Merged{}, err
 	}
 	if db == nil {
-		return Merged{}, nil
+		return Merged{At: windowIndexOf(nil, nil)}, nil
 	}
 	evs, ws, err := recordsql.Events(db)
 	if err != nil {

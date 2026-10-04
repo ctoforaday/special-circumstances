@@ -51,7 +51,7 @@ func TestBoardChartCumulativeSeries(t *testing.T) {
 // Nothing worth drawing yields NOTHING — not an empty axes frame that reads like a broken
 // chart. No board, no gaps, or fewer than two chair sittings all decline the same way.
 func TestBoardChartDeclinesThinBoards(t *testing.T) {
-	if got := boardChart(record.NewFamily(nil, nil)); got != "" {
+	if got := boardChart(record.NewFamily(nil, record.Merged{})); got != "" {
 		t.Errorf("nil board drew a chart:\n%s", got)
 	}
 	if got := boardChart(chartBoardFam()); got != "" {

@@ -47,8 +47,8 @@ func TestTheReportShowsACorrectedActStruck(t *testing.T) {
 	struck := func(text string) string { return "~~" + text + "~~ (struck by blue-respond: a word was lost)" }
 	sections := map[string]string{
 		"correctness manifest": correctnessManifest(fam),
-		"debate":               debate(fam, evs),
-		"log":                  logSection(evs, fam.At),
+		"debate":               debate(fam),
+		"log":                  logSection(fam),
 	}
 	for name, want := range map[string][]string{
 		"correctness manifest": {"### Blue's correctness manifest (1)", struck("G1 is reproducible via"), "G1 is reproducible via the recorded proof"},

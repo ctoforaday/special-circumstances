@@ -37,7 +37,6 @@ func TestARepairsActsRenderUnderTheSittingTheyComplete(t *testing.T) {
 	evs := blueSatAndRepaired(t)
 	g := &record.Gap{ID: "G1"}
 	fam := (&boardT{GapOrder: []string{"G1"}, Gaps: map[string]*record.Gap{"G1": g}, Events: evs}).famT(t)
-	evs = fam.Events
 
 	manifest := correctnessManifest(fam)
 	if !strings.Contains(manifest, "**G1** (blue-respond #1): recomputed the figure") {
@@ -47,7 +46,7 @@ func TestARepairsActsRenderUnderTheSittingTheyComplete(t *testing.T) {
 		t.Errorf("the receipt is rendered under the repair's own turn count:\n%s", manifest)
 	}
 
-	withdrawn := withdrawnClaims(evs, fam.At)
+	withdrawn := withdrawnClaims(fam)
 	if !strings.Contains(withdrawn, "(blue-respond #1)") || strings.Contains(withdrawn, "#2") {
 		t.Errorf("the retirement is not filed under the sitting it completes:\n%s", withdrawn)
 	}

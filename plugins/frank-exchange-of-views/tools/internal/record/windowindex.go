@@ -93,25 +93,46 @@ func (x WindowIndex) Opens(e *Event) (string, bool) {
 // answering 0 from no index, or from a narrowed read's, would read a seat as one that has not sat or
 // name a sitting before its newest.
 func (x WindowIndex) LatestSittingOf(seat string) int64 {
-	if x.latest == nil {
-		panic(fmt.Sprintf("record: no whole-record window index to ask for %s's latest sitting — the index was built by hand or by a narrowed read, so it does not hold every stored sitting", seat))
-	}
+	x.mustBeWhole(seat + "'s latest sitting")
 	return x.latest[seat]
 }
 
 // CurrentEpoch is the epoch the debate's work has reached: the stored epoch of the last event in
-// evs that is work. Neither a register nor a hook's sitting_open is: a chair that has just sat
-// opens a new epoch on the record, but until something is done in it the current one is still the
-// last with work in it — which is what "stale since the current epoch" has to mean for an avenue
-// pursued in the previous one.
+// evs that is work. A register is not, and neither is anything the harness wrote — its sitting
+// brackets, its tool-call limits, the cast (HarnessSeat on the envelope): a chair that has just sat
+// opens a new epoch on the record, and its hook's own bookkeeping lands in it, but until something
+// is done in it the current one is still the last with work in it — which is what "stale since the
+// current epoch" has to mean for an avenue pursued in the previous one.
+//
+// The last work act of a narrowed slice is not the record's, so a narrowed index panics here as it
+// does in LatestSittingOf.
 func (x WindowIndex) CurrentEpoch(evs []*Event) int {
+	x.mustBeWhole("the current epoch")
 	cur := 0
 	for _, e := range evs {
-		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_REGISTER, recordpb.EventType_EVENT_TYPE_SITTING_OPEN:
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER || e.GetSeatId() == HarnessSeat {
 			continue
 		}
 		cur = x.Of(e).Epoch
 	}
 	return cur
+}
+
+// LastEpoch is the stored epoch of the last event in evs, bookkeeping included: the epoch the record
+// has reached, which counts the chair's sittings opened at or before it. A narrowed index panics, as
+// in CurrentEpoch.
+func (x WindowIndex) LastEpoch(evs []*Event) int {
+	x.mustBeWhole("the epoch the record has reached")
+	if len(evs) == 0 {
+		return 0
+	}
+	return x.Of(evs[len(evs)-1]).Epoch
+}
+
+// mustBeWhole panics on an index the whole-record loader did not build: what asks it is a question
+// about the record's newest acts, which a narrowed slice need not hold.
+func (x WindowIndex) mustBeWhole(what string) {
+	if x.latest == nil {
+		panic(fmt.Sprintf("record: no whole-record window index to ask for %s — the index was built by hand or by a narrowed read, so it does not hold the record's newest acts", what))
+	}
 }

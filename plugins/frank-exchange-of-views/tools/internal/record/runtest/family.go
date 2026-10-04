@@ -20,7 +20,5 @@ func Family(t *testing.T, gaps []*record.Gap, evs ...*record.Event) record.Famil
 	if err != nil {
 		t.Fatalf("runtest: loading the seeded record: %v", err)
 	}
-	f := record.NewFamily(gaps, m.Events)
-	f.At = m.At
-	return f
+	return record.NewFamily(gaps, m)
 }

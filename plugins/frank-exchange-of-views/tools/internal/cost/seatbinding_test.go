@@ -78,6 +78,48 @@ func TestSeatBindingsTakeTheLatestRegister(t *testing.T) {
 	}
 }
 
+// bracket is the SubagentStart hook's sitting_open: it opens seat's sitting under agent, and names
+// the seat when the configuration resolves to one ("" for blue's lanes, which it does not).
+func bracket(t *testing.T, seat, agent string) *recordpb.Event {
+	t.Helper()
+	open := &recordpb.SittingOpen{AgentId: proto.String(agent), AgentType: proto.String("frank-exchange-of-views:x")}
+	if seat != "" {
+		open.SeatId = proto.String(seat)
+	}
+	return recordtest.Event(t, record.HarnessSeat, open)
+}
+
+// A SITTING THE HOOK BRACKETED AND NO REGISTER JOINED IS STILL BOUND, by its bracket, as the
+// seat_of_agent view binds it: a lens woken with nothing to do need not register (#1089). Where a
+// register names the agent too, the register wins, whichever came first; a bracket naming no seat
+// binds nothing.
+func TestSeatBindingsBindABracketOnlySitting(t *testing.T) {
+	fam := runtest.Family(t, nil,
+		bracket(t, "red-lens-voice", "V1"),   // bracket only: voice sitting 1, epoch 0
+		bracket(t, "red-chair", "C1"),        // epoch 1
+		register(t, "red-chair", "C1"),       // joins C1's bracket: the register binds
+		bracket(t, "red-lens-voice", "V2"),   // bracket only: voice sitting 2, epoch 1
+		bracket(t, "", "LANE"),               // names no seat
+		register(t, "red-lens-logic", "X"),   // a register, then a bracket naming another seat:
+		bracket(t, "red-lens-evidence", "X"), // the register wins, as in seat_of_agent
+	)
+	got := SeatBindingsOf(fam.Events, fam.At)
+	want := map[string]SeatBinding{
+		"V1": {SeatID: "red-lens-voice", Epoch: 0, Sitting: 1},
+		"C1": {SeatID: "red-chair", Epoch: 1, Sitting: 1},
+		"V2": {SeatID: "red-lens-voice", Epoch: 1, Sitting: 2},
+		"X":  {SeatID: "red-lens-logic", Epoch: 1, Sitting: 1},
+	}
+	if len(got) != len(want) {
+		t.Errorf("bound %d agents, want %d: %+v", len(got), len(want), got)
+	}
+	for id, w := range want {
+		if got[id] != w {
+			t.Errorf("%s = %+v, want %+v", id, got[id], w)
+		}
+	}
+}
+
 func TestAgentIDOfTranscript(t *testing.T) {
 	cases := map[string]string{"agent-abc.jsonl": "abc", "journal.jsonl": "", "agent-x.txt": "", "agent-.jsonl": ""}
 	for in, want := range cases {

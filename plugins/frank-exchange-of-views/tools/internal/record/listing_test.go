@@ -209,7 +209,11 @@ func TestRegradeHistoryAndProofsListTheStruckAct(t *testing.T) {
 		regrade(recordpb.Grade_GRADE_HIGH, "the consequence reaches every caller")); err != nil {
 		t.Fatal(err)
 	}
-	gaps, err := GapStates(run)
+	m, err := MergedEvents(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gaps, err := GapStates(run, m)
 	if err != nil || len(gaps) != 1 {
 		t.Fatalf("gap states: %v %d", err, len(gaps))
 	}

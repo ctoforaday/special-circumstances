@@ -575,7 +575,7 @@ func TestHarvestPrecedents(t *testing.T) {
 	if len(longRationale) <= 600 {
 		t.Fatal("fixture must exceed the old 600-char cap")
 	}
-	board := record.NewFamily(nil, []*record.Event{
+	board := record.NewFamily(nil, record.Merged{Events: []*record.Event{
 		// THE BENCH'S DISPOSITION IS A DOCKET MOTION'S RULING, and it takes both events. The
 		// gap rides the FILING — the harvest joins them through record.Motions to learn which
 		// gap a disposition settled — so a fixture with only the ruling would anchor every
@@ -645,7 +645,7 @@ func TestHarvestPrecedents(t *testing.T) {
 			Opinion:  proto.String("disclosure does not lower likelihood"),
 			Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED},
 		}),
-	})
+	}})
 
 	r := HarvestPrecedents(runtest.New(t, runDir), nil, filepath.Join(repo, "law"), board.Events)
 	// ONLY THE DECLARATION. The board above also holds two docket dispositions and a granted

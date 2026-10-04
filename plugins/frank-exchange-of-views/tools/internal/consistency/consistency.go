@@ -113,23 +113,37 @@ func walk(events []*record.Event) *groundTruth {
 	}
 
 	// THE WALK'S OWN COUNT OF THE CHAIR'S SITTINGS, advanced before any continue. A chair sitting
-	// opens at the hook's bracket naming red-chair or at a chair register, and a bracket or
-	// register under an agent the hook already bracketed for the chair joins that sitting rather
-	// than opening another — the write path's rule, counted here from the events rather than read
-	// from the sitting it stored.
+	// opens at the hook's bracket naming red-chair or at a chair register that repairs no sitting,
+	// and a bracket or register under an agent the hook already bracketed for the chair joins that
+	// sitting rather than opening another — the write path's rule, counted here from the events
+	// rather than read from the sitting it stored.
+	//
+	// READ OFF THE RAW FIELDS — the type, register.repairs_sitting, sitting_open.seat_id, and each
+	// body's agent_id — never through the write path's own predicates (recordpb.SeatOpeningSitting,
+	// AgentOpening). An oracle that calls the writer's predicate agrees with it by construction, so a
+	// defect there would pass parity on every record.
 	epoch := 0
 	chairBracketed := map[string]bool{}
 	for _, e := range events {
-		if seat, opens := recordpb.SeatOpeningSitting(e); opens && seat == "red-chair" {
-			agent := recordpb.AgentOpening(e)
+		body, ok := recordpb.Body(e)
+		chairOpens, agent, bracket := false, "", false
+		switch e.GetType() {
+		case recordpb.EventType_EVENT_TYPE_REGISTER:
+			reg, _ := body.(*recordpb.Register)
+			chairOpens = e.GetSeatId() == "red-chair" && (reg == nil || reg.RepairsSitting == nil)
+			agent = reg.GetAgentId()
+		case recordpb.EventType_EVENT_TYPE_SITTING_OPEN:
+			open, _ := body.(*recordpb.SittingOpen)
+			chairOpens, agent, bracket = open.GetSeatId() == "red-chair", open.GetAgentId(), true
+		}
+		if chairOpens {
 			if agent == "" || !chairBracketed[agent] {
 				epoch++
 			}
-			if agent != "" && e.GetType() == recordpb.EventType_EVENT_TYPE_SITTING_OPEN {
+			if agent != "" && bracket {
 				chairBracketed[agent] = true
 			}
 		}
-		body, ok := recordpb.Body(e)
 		if !ok {
 			continue
 		}

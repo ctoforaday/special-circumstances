@@ -30,6 +30,6 @@ func famSeededT(t *testing.T, evs []*record.Event) *record.Family {
 // famOfEventsT builds an events-only family fixture; nil stays nil where a test means
 // "record unreadable".
 func famOfEventsT(evs []*record.Event) *record.Family {
-	f := record.NewFamily(nil, evs)
+	f := record.NewFamily(nil, record.Merged{Events: evs})
 	return &f
 }

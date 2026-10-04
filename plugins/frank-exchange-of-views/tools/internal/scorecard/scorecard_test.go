@@ -80,7 +80,7 @@ func boardOf(gaps map[string]*record.Gap, order ...string) *record.Family {
 		}
 		ordered = append(ordered, g)
 	}
-	f := record.NewFamily(ordered, nil)
+	f := record.NewFamily(ordered, record.Merged{})
 	return &f
 }
 

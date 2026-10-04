@@ -152,7 +152,7 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 		if len(at) != 1 || at[0] != 2 {
 			t.Errorf("show debate puts blue's position in epoch(s) %v, want [2]", at)
 		}
-		d := debate(fam, fam.Events)
+		d := debate(fam)
 		contains("debate.md", d, "### Epoch 2")
 		absent("debate.md", d, "### Epoch 1\n")
 	})
@@ -171,15 +171,15 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 	})
 
 	t.Run("the changelog", func(t *testing.T) {
-		contains("withdrawn claims", withdrawnClaims(fam.Events, fam.At), "(blue-respond #1)")
+		contains("withdrawn claims", withdrawnClaims(fam), "(blue-respond #1)")
 		manifest := correctnessManifest(fam)
 		contains("correctness manifest", manifest, "**G1** (blue-respond #1)")
 		absent("correctness manifest", manifest, "#2")
-		contains("revision history", revisionHistory(fam.Events, fam.At), "### Epoch 2 — blue-respond")
+		contains("revision history", revisionHistory(fam), "### Epoch 2 — blue-respond")
 	})
 
 	t.Run("the fact box", func(t *testing.T) {
-		contains("fact box", factBox(fam, fam.Events), "**Epochs** | 2")
+		contains("fact box", factBox(fam), "**Epochs** | 2")
 	})
 
 	t.Run("cost's seat bindings", func(t *testing.T) {
@@ -187,6 +187,10 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 		for agent, want := range map[string]cost.SeatBinding{
 			"C1": {SeatID: "red-chair", Epoch: 1, Sitting: 1},
 			"V2": {SeatID: "red-lens-voice", Epoch: 1, Sitting: 2},
+			// The bracket-only sittings bind by their bracket: no register names these agents.
+			"V1": {SeatID: "red-lens-voice", Epoch: 0, Sitting: 1},
+			"C2": {SeatID: "red-chair", Epoch: 2, Sitting: 2},
+			"V3": {SeatID: "red-lens-voice", Epoch: 2, Sitting: 3},
 			"B1": {SeatID: "blue-respond", Epoch: 2, Sitting: 1},
 			// The repair agent is labelled with the sitting it completes.
 			"B2": {SeatID: "blue-respond", Epoch: 2, Sitting: 1},

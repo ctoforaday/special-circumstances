@@ -333,21 +333,12 @@ func PlanDispatch(run Run) (Plan, error) {
 	// the chair records the PASS as ever. The docket stands — filing a motion dispatches no seat,
 	// and the terminal bench rules what stays unruled at the exit.
 	plan.MaxEpochs = params.MaxEpochs
-	if params.MaxEpochs > 0 && len(plan.Parties) > 0 && epochOf(evs, win) >= params.MaxEpochs {
+	if params.MaxEpochs > 0 && len(plan.Parties) > 0 && win.LastEpoch(evs) >= params.MaxEpochs {
 		plan.Why = append(plan.Why, fmt.Sprintf("epoch limit %d reached — this chair sitting opens the run's last epoch, so the %d party(ies) above are not dispatched", params.MaxEpochs, len(plan.Parties)))
 		plan.Parties = []Party{}
 		plan.EpochLimitReached, plan.Ceiling = true, true
 	}
 	return plan, nil
-}
-
-// epochOf is the epoch the record has reached: the stored epoch of its last event, which counts the
-// chair's sittings opened at or before it.
-func epochOf(evs []*Event, win WindowIndex) int {
-	if len(evs) == 0 {
-		return 0
-	}
-	return win.Of(evs[len(evs)-1]).Epoch
 }
 
 // dispatchRow is one dispatch event: where it sits in the stream, the head it pinned, the seat it
@@ -736,7 +727,7 @@ func unopenedChairSitting(evs []*Event, win WindowIndex) (DispatchGroup, bool) {
 func dispatchEventsOf(run Run) ([]*Event, WindowIndex, error) {
 	db, err := openRunForRead(run)
 	if err != nil || db == nil {
-		return nil, WindowIndex{}, err
+		return nil, windowIndexOf(nil, nil), err
 	}
 	return eventsAt(db)
 }

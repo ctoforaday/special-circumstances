@@ -34,7 +34,7 @@ func board(t *testing.T, gapFix map[string]string, evs []*Event) Family {
 	for _, id := range order {
 		ordered = append(ordered, gaps[id])
 	}
-	return NewFamily(ordered, evs)
+	return NewFamily(ordered, Merged{Events: evs})
 }
 
 const prescribed = "Five verification approaches agree, all sharing one definition of primality."

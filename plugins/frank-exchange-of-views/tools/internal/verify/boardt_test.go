@@ -27,7 +27,7 @@ type boardT struct {
 func (b *boardT) fam(t *testing.T) record.Family {
 	t.Helper()
 	if b == nil {
-		return record.NewFamily(nil, nil)
+		return record.NewFamily(nil, record.Merged{})
 	}
 	var ordered []*record.Gap
 	var evs []*record.Event
@@ -55,5 +55,5 @@ func (b *boardT) handFam() record.Family {
 	for _, id := range b.GapOrder {
 		ordered = append(ordered, b.Gaps[id])
 	}
-	return record.NewFamily(ordered, b.Events)
+	return record.NewFamily(ordered, record.Merged{Events: b.Events})
 }

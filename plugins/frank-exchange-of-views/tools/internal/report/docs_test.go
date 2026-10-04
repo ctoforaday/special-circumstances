@@ -110,7 +110,7 @@ func TestFactBoxIsComposedFromTheRecord(t *testing.T) {
 			"G2": {ID: "G2", Open: false, Epoch: 2, ClosedEpoch: 3},
 		},
 	}
-	box := factBox(board.fam(), nil)
+	box := factBox(board.fam())
 	for _, want := range []string{"**Outcome** | _(none recorded)_", "**Epochs** | 3", "**Gaps** | 1 open · 1 closed"} {
 		if !strings.Contains(box, want) {
 			t.Errorf("fact box missing %q:\n%s", want, box)
@@ -123,7 +123,7 @@ func TestFactBoxIsComposedFromTheRecord(t *testing.T) {
 		evs = append(evs, recordtest.Event(t, "red-chair", &recordpb.Register{}))
 	}
 	loaded := runtest.Family(t, board.fam().Gaps, evs...)
-	if box := factBox(loaded, loaded.Events); !strings.Contains(box, "**Epochs** | 4") {
+	if box := factBox(loaded); !strings.Contains(box, "**Epochs** | 4") {
 		t.Errorf("fact box must count the chair's sittings off the events:\n%s", box)
 	}
 }

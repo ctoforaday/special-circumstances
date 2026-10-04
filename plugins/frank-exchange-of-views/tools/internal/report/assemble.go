@@ -305,7 +305,7 @@ func Assemble(run record.Run) (Assembled, error) {
 	if err := os.WriteFile(filepath.Join(run.Dir(), "report.html"), []byte(RenderSite(title, docs, fam)), 0o644); err != nil {
 		return Assembled{}, fmt.Errorf("assemble: write report.html: %w", err)
 	}
-	path, err := Write(run, title, docs, indexDoc(run, title, docs, fam, fam.Events))
+	path, err := Write(run, title, docs, indexDoc(run, title, docs, fam))
 	if err != nil {
 		return Assembled{}, err
 	}
@@ -875,12 +875,12 @@ func avenues(fam record.Family, heading string, want func(string) bool) string {
 // claim that was argued, weighed and then withdrawn is part of what the debate decided; dropping
 // it makes the report indistinguishable from one where the claim was never made.
 //
-// THE SITTING IT NAMES IS THE SITTING THE RECORD HOLDS THE RETIREMENT IN (win): a retirement filed
-// in a sitting-record repair is shown under the sitting whose report it completes.
-func withdrawnClaims(evs []*record.Event, win record.WindowIndex) string {
+// THE SITTING IT NAMES IS THE SITTING THE RECORD HOLDS THE RETIREMENT IN (fam.At): a retirement
+// filed in a sitting-record repair is shown under the sitting whose report it completes.
+func withdrawnClaims(fam record.Family) string {
 	var rows []string
-	for _, e := range evs {
-		w := win.Of(e)
+	for _, e := range fam.Events {
+		w := fam.At.Of(e)
 		r, ok := recordpb.BodyAs[*recordpb.Retire](e)
 		if !ok {
 			continue
@@ -1320,14 +1320,14 @@ func unmintedFindings(fam record.Family) string {
 // debate takes the BOARD as well as the events, because a petition's ruling cannot be attributed
 // to its filing from an event alone: motion-rule carries motion_id, never the filer or subject of
 // the ask. record.Motions performs that join.
-func debate(fam record.Family, evs []*record.Event) string {
+func debate(fam record.Family) string {
 	// BUCKETED BY EPOCH — the chair's sittings, as the record holds each act in one (fam.At), never
 	// a number a seat stamped. The act that opens the chair's sitting is the first row of its epoch.
 	var order []int
 	// THE LISTING, NOT THE RAW STREAM: an act a seat corrected in its sitting is rendered struck,
 	// with who struck it and why, followed by the act that replaced it — never as two acts.
 	byEpoch := map[int][]record.Listed{}
-	for _, l := range record.Listing(evs) {
+	for _, l := range fam.Listing() {
 		w := fam.At.Of(l.Event)
 		if _, seen := byEpoch[w.Epoch]; !seen {
 			order = append(order, w.Epoch)
@@ -1336,14 +1336,9 @@ func debate(fam record.Family, evs []*record.Event) string {
 	}
 
 	// ONE PAIRING, READ MANY TIMES. A docket ruling names the gap it settles only through its
-	// motion's FILING, so the join is computed once here — record.Motions is the one place it
-	// lives, and recovering it a second way is how two renderers come to disagree.
-	docketGapOf := map[string]string{}
-	for _, m := range record.MotionsOf(fam.Events, fam.At) {
-		if m != nil && m.Subject == "docket" {
-			docketGapOf[m.ID] = m.GapID
-		}
-	}
+	// motion's FILING, so the join is computed once here — record.DocketGapByMotion is the one place
+	// it lives, and recovering it a second way is how two renderers come to disagree.
+	docketGapOf := record.DocketGapByMotion(fam.Events)
 
 	var parts []string
 	for _, r := range order {
@@ -1453,7 +1448,7 @@ func debate(fam record.Family, evs []*record.Event) string {
 	// certify and the schema keeps each on its own channel — `Halt.opinion` (relayed verbatim, so
 	// a halt with no written opinion cannot do its job) and `Certify.statement` (the bench's only
 	// continuity between runs). A `Halt.reason` does not exist and must not be invented.
-	for _, l := range record.Listing(evs) {
+	for _, l := range fam.Listing() {
 		e := l.Event
 		if h, ok := recordpb.BodyAs[*recordpb.Halt](e); ok {
 			disp = append(disp, "**HALT** — "+l.Markdown(h.GetOpinion()))
@@ -1527,13 +1522,13 @@ func debate(fam record.Family, evs []*record.Event) string {
 // verb but rendered by nothing before this (write-only, per the 2026-07-23 audit). A missing
 // capability the run hit is a finding about the tooling; surfacing it is how it reaches the human
 // who can retool the seat, instead of dying on an unread channel.
-func logSection(evs []*record.Event, win record.WindowIndex) string {
+func logSection(fam record.Family) string {
 	var rows, attested []string
 	spoke, named := map[string]bool{}, map[string]bool{}
 	// ONE MESSAGE, TYPED. Every entry asserts a problem, so each renders with its type
 	// and the clean seats are named below from their sittings rather than from an entry. Each entry renders with its type
 	// so the operator can triage by filtering instead of by reading.
-	for _, l := range record.Listing(evs) {
+	for _, l := range fam.Listing() {
 		e := l.Event
 		f, ok := recordpb.BodyAs[*recordpb.Log](e)
 		if !ok {
@@ -1549,8 +1544,8 @@ func logSection(evs []*record.Event, win record.WindowIndex) string {
 	}
 	// A SEAT THAT SAT AND FILED NOTHING LOOKED AND FOUND NOTHING. The harness brackets every
 	// dispatch, so this is read off the stored sitting rather than asserted by the seat.
-	for _, l := range record.Listing(evs) {
-		if seat, opens := win.Opens(l.Event); opens && !spoke[seat] && !named[seat] {
+	for _, l := range fam.Listing() {
+		if seat, opens := fam.At.Opens(l.Event); opens && !spoke[seat] && !named[seat] {
 			named[seat] = true
 			attested = append(attested, fmt.Sprintf("- **%s**", seat))
 		}
@@ -1580,11 +1575,11 @@ func logSection(evs []*record.Event, win record.WindowIndex) string {
 // revisionHistory is blue's per-epoch revision record folded into the report as
 // bottom-of-document provenance — how the report evolved epoch by epoch. Composed from revision
 // events; a run with no revisions omits it.
-func revisionHistory(evs []*record.Event, win record.WindowIndex) string {
+func revisionHistory(fam record.Family) string {
 	var rows []string
-	for _, l := range record.Listing(evs) {
+	for _, l := range fam.Listing() {
 		e := l.Event
-		w := win.Of(e)
+		w := fam.At.Of(e)
 		r, ok := recordpb.BodyAs[*recordpb.Revision](e)
 		if !ok {
 			continue

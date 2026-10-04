@@ -235,11 +235,11 @@ type Input struct {
 
 // InputOf assembles the render input from the record.
 func InputOf(run record.Run) (Input, error) {
-	gaps, err := record.GapStates(run)
+	m, err := record.MergedEvents(run)
 	if err != nil {
 		return Input{}, err
 	}
-	m, err := record.MergedEvents(run)
+	gaps, err := record.GapStates(run, m)
 	if err != nil {
 		return Input{}, err
 	}
