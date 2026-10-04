@@ -405,6 +405,19 @@ test('the bench\'s rulings travel to both parties, with blue told its duty and r
   assert.ok(!/your_duty/.test(lens), 'the duty table is blue\'s')
 })
 
+test('an empty settled bars nothing: the ruling still travels, and red is handed no estoppel over a blank', async () => {
+  const world = makeWorld(makeResponder({
+    chair: [chairEnv({ plan: plan([party('blue-respond', 'G1')]) }), chairEnv({ plan: plan([party('judge', 'G1')], { docket: ['G1'] }) }),
+      chairEnv({ plan: plan([party('red-lens-evidence', 'G1'), party('blue-respond', 'G1')]) }), passChair()],
+    judge: [judgeEnv({ dispositions: [{ gap_id: 'G1', disposition: 'remanded', rationale: 'THE OPINION', settled: '', reopens_on: 'A NEW SOURCE', final: false }] })],
+  }))
+  await world.run(script, ARGS)
+  const lens = firstPrompt(world, 'red-lens-evidence')
+  assert.ok(lens.includes('GAPS THE BENCH HAS RULED') && lens.includes('"gap_id":"G1"') && lens.includes('A NEW SOURCE'), 'the ruling and what reopens it still reach red')
+  assert.ok(!/"settled"/.test(lens), 'an empty settled renders as a proposition')
+  assert.ok(!/YOU ARE ESTOPPED/.test(lens), 'red is estopped on a proposition nobody stated')
+})
+
 test('the assembler authors nothing, stamps the outcome the record derives, and is told an open gap that is not material stays on the board', async () => {
   const world = makeWorld(makeResponder({ chair: [passChair()] }))
   await world.run(script, ARGS)

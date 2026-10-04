@@ -786,9 +786,10 @@ const rulingsClause = (party) => {
   const rows = [...rulingsInEffect.values()].map((r) => party === 'blue'
     ? { ...r, your_duty: BLUE_DUTY_BY_DISPOSITION[r.disposition] || `UNMAPPED DISPOSITION ${r.disposition} — read the opinion on the record before acting on it` }
     : r)
+  const barred = rows.some((r) => r.settled !== undefined)
   const duty = party === 'blue'
     ? ' THE BAR IS ON THE PROPOSITION, NOT THE GAP: what you may no longer re-argue in the report is the sentence under settled, not everything the finding touched. WHERE A RULING WENT YOUR WAY IT IS YOURS TO INVOKE — say so on the record and rely on it, rather than quietly re-fixing text the bench has already blessed.'
-    : ' YOU ARE ESTOPPED on each settled proposition: do not re-raise it as a fresh gap or a successor; a defect that survives the ruling arrives as the reopens_on condition or not at all.'
+    : barred ? ' YOU ARE ESTOPPED on each settled proposition: do not re-raise it as a fresh gap or a successor; a defect that survives the ruling arrives as the reopens_on condition or not at all.' : ''
   return ` GAPS THE BENCH HAS RULED, AND WHAT EACH RULING OBLIGES OF YOU: ${JSON.stringify(rows)}.${duty} A ruling marked final does not reopen; one carrying a reopens_on condition reopens only on that condition and not on a re-reading. THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT — read the bench's opinion for any fate you are about to rely on or work around, because a fate you never read is one you can neither honour nor invoke.`
 }
 const reliefInEffect = []
@@ -1077,7 +1078,11 @@ while (!halted) {
     if (!judge) throw new Error(`bench sitting (epoch ${epoch}) returned null (agent failed) — aborting cleanly`)
     for (const h of judge.holdings || []) holdingsInEffect.push(h)
     for (const r of judge.dispositions || []) {
-      rulingsInEffect.set(r.gap_id, { gap_id: r.gap_id, disposition: r.disposition, settled: r.settled, reopens_on: r.reopens_on, final: !!r.final, epoch })
+      // AN EMPTY `settled` BARS NOTHING, so it carries no proposition: rendered, it would hand red
+      // "ESTOPPED on each settled proposition" over a blank, an estoppel nobody ruled. The record
+      // accepts the blank; the prompt omits it.
+      const settled = typeof r.settled === 'string' && r.settled.trim() ? r.settled : undefined
+      rulingsInEffect.set(r.gap_id, { gap_id: r.gap_id, disposition: r.disposition, settled, reopens_on: r.reopens_on, final: !!r.final, epoch })
       if (r.disposition === 'defect_owed_elsewhere') infraDebts.push({ gap_id: r.gap_id, owed_fix: r.rationale, epoch })
     }
     takeFriction('judge', judge)

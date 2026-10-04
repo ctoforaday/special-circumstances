@@ -154,3 +154,40 @@ func TestADocketStandsUnruledPerMotionAndReadiesTheBenchOncePerDocketing(t *test
 		})
 	}
 }
+
+// THE WRITE REFUSES A DOCKET RULING THAT OMITS --tension, --review-flag OR --settled, and takes an
+// empty one (#1234). These three are required by presence: the empty answer is an answer
+// (operator, 2026-08-22), so what the write can refuse is only the field never said — which is
+// why the verb must leave an omitted flag ABSENT rather than write it as "".
+func TestTheDocketRulingWriteRefusesAnOmittedPresenceField(t *testing.T) {
+	for _, c := range []struct {
+		flag  string
+		clear func(*recordpb.DocketRuling)
+	}{
+		{"--tension", func(d *recordpb.DocketRuling) { d.Tension = nil }},
+		{"--review-flag", func(d *recordpb.DocketRuling) { d.ReviewFlag = nil }},
+		{"--settled", func(d *recordpb.DocketRuling) { d.Settled = nil }},
+	} {
+		t.Run("omitted "+c.flag, func(t *testing.T) {
+			run := mustRun(t, docketRunDir(t))
+			o := docketRule("M1", "the ruling")
+			c.clear(o.GetDocket())
+			_, err := Append(sit(t, run, "judge"), o)
+			if err == nil {
+				t.Fatalf("a docket ruling with no %s reached the record", c.flag)
+			}
+			if !strings.Contains(err.Error(), c.flag) {
+				t.Errorf("the refusal does not name %s: %v", c.flag, err)
+			}
+		})
+	}
+	t.Run("all three present and empty", func(t *testing.T) {
+		run := mustRun(t, docketRunDir(t))
+		o := docketRule("M1", "the ruling")
+		d := o.GetDocket()
+		d.Tension, d.ReviewFlag, d.Settled = proto.String(""), proto.String(""), proto.String("")
+		if _, err := Append(sit(t, run, "judge"), o); err != nil {
+			t.Errorf("an honest blank in each of the three was refused: %v", err)
+		}
+	})
+}

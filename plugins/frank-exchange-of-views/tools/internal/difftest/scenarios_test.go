@@ -273,7 +273,11 @@ func scenarios() []scenario {
 			// `--reason` is supplied on both attempts for the same reason: cobra refuses the
 			// reason flag-group at PARSE, before the record sees the body at all, so an
 			// invocation without it pins the parser's message and never reaches the contract this
-			// scenario is named for.
+			// scenario is named for. The four DocketRuling fields are refused at the RECORD write,
+			// with the schema's reason (#1234): the first attempt omits --review-flag and
+			// --settled, the second --tension, the third --principle, each pinning the refusal
+			// for the first field it lacks; the last supplies all four, so the reopens-on/final
+			// refusal answers.
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
@@ -284,9 +288,13 @@ func scenarios() []scenario {
 					"--reason", "contested, and not red's to close"),
 				base("register", "--run", "{RUN}", "--seat-id", "judge", "--occasion", "docket"),
 				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M1",
-					"--as", "repaired", "--reason", "r"),
-				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M1",
 					"--as", "repaired", "--reason", "r", "--principle", "p", "--tension", "t"),
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M1",
+					"--as", "repaired", "--reason", "r", "--principle", "p", "--review-flag", "", "--settled", "s"),
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M1",
+					"--as", "repaired", "--reason", "r", "--tension", "t", "--review-flag", "", "--settled", "s"),
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M1",
+					"--as", "repaired", "--reason", "r", "--principle", "p", "--tension", "t", "--review-flag", "", "--settled", "s"),
 			},
 		},
 		{

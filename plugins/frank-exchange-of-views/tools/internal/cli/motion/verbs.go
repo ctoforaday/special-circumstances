@@ -306,10 +306,14 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 				}
 				dr := &recordpb.DocketRuling{
 					Disposition: &d,
-					Principle:   proto.String(seat.Str(cmd, flags.Principle)),
-					Tension:     proto.String(seat.Str(cmd, flags.Tension)),
-					ReviewFlag:  proto.String(seat.Str(cmd, flags.ReviewFlag)),
-					Settled:     proto.String(seat.Str(cmd, flags.Settled)),
+					// AN OMITTED FLAG STAYS ABSENT, so the write refuses omission with the schema's
+					// own `why` — after the subject, which is asked first above — rather than
+					// receiving it as the same "" a passed blank is (#1234). Where `allow_empty`
+					// makes "" an answer, that blank is the only thing keeping the two apart.
+					Principle:  seat.OptStr(cmd, flags.Principle),
+					Tension:    seat.OptStr(cmd, flags.Tension),
+					ReviewFlag: seat.OptStr(cmd, flags.ReviewFlag),
+					Settled:    seat.OptStr(cmd, flags.Settled),
 				}
 				// EXACTLY ONE OF THESE, and the schema refuses the other two states. Set only
 				// what was passed: an empty `reopens_on` written as present would satisfy the
@@ -353,11 +357,12 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 		switch f {
 		case flags.Final:
 			c.Flags().Bool(f, false, ruleFlagHelp[f])
-		case flags.Principle:
+		case flags.Principle, flags.Tension, flags.ReviewFlag, flags.Settled:
 			// Required by DocketRuling's schema — a NESTED message, which markRequired's walk of
 			// the body's own fields does not reach — so the marker is written here. The refusal
-			// stays the schema's: it says what the principle is FOR, which cobra's "required
-			// flag(s) not set" cannot.
+			// stays the schema's, at the write: it says what the field is FOR, which cobra's
+			// "required flag(s) not set" cannot, and it comes after the motion's subject is
+			// established, which a parse-time refusal would pre-empt.
 			flags.Text(c, f, ruleFlagHelp[f])
 			seat.SaysRequired(c, f)
 		default:
@@ -519,9 +524,9 @@ var fileFlagHelp = map[string]string{
 // to ruleFlags without a line here renders an empty usage, which is visible immediately.
 var ruleFlagHelp = map[string]string{
 	flags.Principle:  "the rule you applied, stated so a later sitting can apply the same one",
-	flags.Tension:    "the values that pulled against each other — empty is a real answer when none did",
-	flags.ReviewFlag: "what a human should look at again — empty when nothing needs it",
-	flags.Settled:    "what the losing party may no longer assert, in one sentence",
+	flags.Tension:    `the values that pulled against each other, or "" when none did — an empty answer here is an answer`,
+	flags.ReviewFlag: `what a human should look at again, or "" when nothing needs it`,
+	flags.Settled:    "what the losing party may no longer assert, as one sentence — not the gap id, and not the disposition",
 	flags.ReopensOn:  "the evidence or condition that would make this worth raising again — or pass --final to say nothing would",
 	flags.Final:      "nothing would reopen this. The assertable empty case for --reopens-on: pass exactly one of the two",
 }
