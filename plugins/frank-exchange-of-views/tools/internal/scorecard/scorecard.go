@@ -616,10 +616,10 @@ func redRows(run record.Run, results []map[string]any, telemetry []*recordpb.Tel
 	// the lookup missed on every row and the metric reported 0 for seven captured runs — "no soft
 	// fails" in the words it would use for "never measured".
 	//
-	// It is now a QUESTION ASKED OF THE RECORD (`record.ConvergenceVsVerdict`, the
-	// convergence_vs_verdict view), which is what the architecture says a metric is: a projection,
-	// never a self-report. The engine's log line stays — it is live-run visibility, which a
-	// scorecard written afterwards cannot provide — but it is no longer the only carrier.
+	// It is now a QUESTION ASKED OF THE RECORD (`record.ConvergenceVsVerdict`, the convergence_at
+	// view), which is what the architecture says a metric is: a projection, never a self-report. It
+	// judges each FAIL on the board as it stood at that FAIL, by the rule and the run's fraction the
+	// write path's FAIL refusal applies, so a flag here is a FAIL the refusal did not stand against.
 	//
 	// AND A FAILURE TO ASK IS NOT A ZERO. If the record cannot answer, the row says so rather than
 	// printing a count, because that substitution is the entire defect being repaired here.

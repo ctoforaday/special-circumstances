@@ -5,15 +5,17 @@ import (
 	"strings"
 )
 
-// Convergence is the corrected never-hard-fail predicate (plans/roundless.md §III.B.2.1), read
-// off the record at a FAIL: the board has nothing material on it and red is still failing.
+// Convergence is the never-hard-fail predicate (plans/roundless.md §III.B.2.1) over the board as it
+// stood at one point of the record: nothing material open, the open mass below the run's fraction of
+// its peak board mass, and no fresh MATERIAL mint in the point's epoch (a run minting one fresh
+// trifle per sitting must still trip it). MaxSeverityMass is reported beside it and decides nothing.
 //
-// The view's `divergent` was wrong for this purpose on three counts, and the refusal uses the
-// corrected predicate: fresh MATERIAL mints in this epoch (a run minting one fresh trifle per
-// sitting must trip it); nothing open MATERIAL, by the one definition the gap view carries (its
-// class, else a current severity of medium or above), which a regrade can move; and the mass bound
-// as a fraction of this run's PEAK board mass rather than a magic number. MaxSeverityMass is
-// reported beside it and decides nothing.
+// ONE DEFINITION, TWO READERS. The quantities are the convergence_at view's row for the point; the
+// rule over them is atFraction. The FAIL refusal reads the row at the record's newest event, where
+// the board as it stood is the board now; the scorecard's detector (ConvergenceVsVerdict) reads the
+// row at each verdict afterwards. So the detector flags a FAIL exactly where the rule held when it
+// was issued — a FAIL the refusal stood aside for, because another seat held the PASS or a
+// migration replayed it — and a later regrade does not move a past verdict's answer.
 type Convergence struct {
 	Mass, Peak, MaxSeverityMass float64
 	MaterialOpen                int
@@ -22,47 +24,32 @@ type Convergence struct {
 	Holds                       bool
 }
 
+// convergenceColumns are convergence_at's quantities in the order dest scans them.
+const convergenceColumns = `"mass", "peak", "max_severity_mass", "material_open", "fresh_material_mints"`
+
+func (c *Convergence) dest() []any {
+	return []any{&c.Mass, &c.Peak, &c.MaxSeverityMass, &c.MaterialOpen, &c.FreshMaterialMints}
+}
+
+// atFraction applies the rule at the run's fraction.
+func (c *Convergence) atFraction(fraction float64) {
+	c.Fraction = fraction
+	c.Holds = c.Peak > 0 && c.Mass < fraction*c.Peak && c.MaterialOpen == 0 && c.FreshMaterialMints == 0
+}
+
+// convergenceOf is the board at the record's newest event — the point a verdict being written is
+// judged at.
 func convergenceOf(run Run) (Convergence, error) {
 	var c Convergence
 	p, err := RunParams(run)
 	if err != nil {
 		return c, err
 	}
-	c.Fraction = p.ConvergenceFraction
-	db, err := openRunForRead(run)
-	if err != nil || db == nil {
+	if _, err := queryRow(run, c.dest(), `SELECT `+convergenceColumns+` FROM "convergence_at"
+	  WHERE "seq" = (SELECT MAX("id") FROM "events")`); err != nil {
 		return c, err
 	}
-	// The open board now: its mass, its top severity and its material count, on CURRENT grades.
-	if _, err := queryRow(run, []any{&c.Mass, &c.MaxSeverityMass, &c.MaterialOpen}, `
-	  SELECT COALESCE(SUM(COALESCE(gl."mass", 0.0) * COALESCE(gi."mass", 0.0)), 0.0),
-	         COALESCE(MAX(COALESCE(gs."mass", 0.0)), 0.0),
-	         COALESCE(SUM(g."material"), 0)
-	  FROM "gap" g
-	  LEFT JOIN "enum_grade" gl ON gl."value" = g."current_likelihood"
-	  LEFT JOIN "enum_grade" gi ON gi."value" = g."current_impact"
-	  LEFT JOIN "enum_grade" gs ON gs."value" = g."current_severity"
-	  WHERE g."open"`); err != nil {
-		return c, err
-	}
-	// The peak: the largest open-board mass at any gate so far, or now.
-	var peakAtGates float64
-	if _, err := queryRow(run, []any{&peakAtGates},
-		`SELECT COALESCE(MAX("mass"), 0.0) FROM "convergence_vs_verdict"`); err != nil {
-		return c, err
-	}
-	c.Peak = peakAtGates
-	if c.Mass > c.Peak {
-		c.Peak = c.Mass
-	}
-	// Fresh material mints in the CURRENT epoch: minted this epoch, superseding nothing, material now.
-	if _, err := queryRow(run, []any{&c.FreshMaterialMints}, `
-	  SELECT count(*) FROM "gap" g
-	  WHERE g."supersedes_count" = 0 AND g."material"
-	    AND g."minted_epoch" = (SELECT count(*) FROM "events" WHERE "type" = 'register' AND "seat_id" = 'red-chair')`); err != nil {
-		return c, err
-	}
-	c.Holds = c.Peak > 0 && c.Mass < c.Fraction*c.Peak && c.MaterialOpen == 0 && c.FreshMaterialMints == 0
+	c.atFraction(p.ConvergenceFraction)
 	return c, nil
 }
 
