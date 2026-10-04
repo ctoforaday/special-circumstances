@@ -283,7 +283,7 @@ test('the chair is told lenses retire and re-arm once, a PASS needs no lens read
   assert.ok(/RECORDS who sits — active lenses, and retired lenses a head move re-arms once,/.test(p), 'the dispatch is described by retirement state')
   assert.ok(!/whose pin the report head moved past/.test(p), 'no lens is described as ready because the head moved past its pin')
   assert.ok(/retires after two sittings with no fresh material mint, is re-armed ONCE when the head moves, and retires for good if that sitting is barren/.test(p), 're-arm once')
-  assert.ok(/permits a PASS only when no lens is ready — every lens retired with no re-arm owed, or retired for good — and nothing material is open\. BEFORE a PASS/.test(p), 'the no-lens-ready PASS condition')
+  assert.ok(/permits a PASS only when no lens is ready — every lens retired with no re-arm owed, or retired for good — and nothing another seat must clear holds it\. BEFORE a PASS/.test(p), 'the no-lens-ready PASS condition')
   assert.ok(/BEFORE a PASS, read the changes since each stale area's pin and name those areas in your spot-check; a defect you find there goes in that spot-check, and you record no verdict/.test(p), 'the stale areas')
   assert.ok(/name in it every stale area the plan lists before a PASS/.test(p), 'the spot-check duty names the stale areas')
   assert.ok(/YOUR PASS LISTS EVERY OPEN GAP THAT IS NOT MATERIAL, BY CLASS — your work list marks each — with one line on why it changes no reader decision, on the record/.test(p), 'the by-class listing')

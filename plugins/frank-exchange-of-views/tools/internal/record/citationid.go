@@ -477,6 +477,20 @@ func ExistingCorroborationLabel(run Run, seatID, url, claim string) (string, err
 // A stricter join (same seat, same epoch) would refuse a contradiction one lens found and
 // another raised, which is the collaboration the lens roles exist for.
 func unansweredContradictions(evs []*Event) []string {
+	var out []string
+	for _, c := range unansweredContradictionsBy(evs) {
+		out = append(out, c.claim)
+	}
+	return out
+}
+
+// contradiction is one unanswered contradiction and the seat whose verify last read the source
+// contradicting it — the lens whose act raises it.
+type contradiction struct{ claim, reader string }
+
+// unansweredContradictionsBy is unansweredContradictions with each claim's reader: the seat of the
+// LATEST contradicting verify of the claim, so a re-read by another lens makes that lens the owner.
+func unansweredContradictionsBy(evs []*Event) []contradiction {
 	answered := map[string]bool{}
 	for _, e := range evs {
 		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok {
@@ -485,19 +499,23 @@ func unansweredContradictions(evs []*Event) []string {
 			}
 		}
 	}
-	seen := map[string]bool{}
-	var out []string
+	at := map[string]int{} // claim -> its place in out
+	var out []contradiction
 	for _, e := range evs {
 		v, ok := recordpb.BodyAs[*recordpb.Verify](e)
 		if !ok || !contradicts(v.GetOutcome()) {
 			continue
 		}
 		claim := strings.TrimSpace(v.GetClaim())
-		if claim == "" || answered[claim] || seen[claim] {
+		if claim == "" || answered[claim] {
 			continue
 		}
-		seen[claim] = true
-		out = append(out, claim)
+		if i, seen := at[claim]; seen {
+			out[i].reader = e.GetSeatId()
+			continue
+		}
+		at[claim] = len(out)
+		out = append(out, contradiction{claim: claim, reader: e.GetSeatId()})
 	}
 	return out
 }

@@ -118,8 +118,8 @@ exit 0
 stdout:
 motion M1 ruled rejected [key red-chair:motion_rule:#1]
 4 STILL TO CLEAR before you may end your turn (of 7 item(s) open to you):
-  · gap G1 is open and material — PASS is refused while it is
-  · gap G2 is open and material — PASS is refused while it is
+  · gap G1 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · gap G2 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · the report's account of its own research has not been read this epoch — PASS is refused until one `avenue review` says what the read found (and any shortfall is minted as a gap)
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
@@ -128,8 +128,8 @@ exit 0
 stdout:
 motion M1 ruled rejected [key red-chair:motion_rule:#1~1]
 4 STILL TO CLEAR before you may end your turn (of 7 item(s) open to you):
-  · gap G1 is open and material — PASS is refused while it is
-  · gap G2 is open and material — PASS is refused while it is
+  · gap G1 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · gap G2 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · the report's account of its own research has not been read this epoch — PASS is refused until one `avenue review` says what the read found (and any shortfall is minted as a gap)
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 

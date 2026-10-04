@@ -147,7 +147,7 @@ CREATE TABLE "enum_verdict" (
   "means" TEXT NOT NULL
 ) STRICT;
 INSERT INTO "enum_verdict" ("value", "means") VALUES ('fail', 'a material defect still stops you — a FAIL over a converged board is refused');
-INSERT INTO "enum_verdict" ("value", "means") VALUES ('pass', 'nothing on the board holds the gate — no material gap open, no lens ready, every stale area spot-checked — and this is CHECKED against the board, not taken on your word');
+INSERT INTO "enum_verdict" ("value", "means") VALUES ('pass', 'nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word');
 
 CREATE TABLE "enum_run_outcome" (
   "value" TEXT PRIMARY KEY,

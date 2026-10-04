@@ -149,7 +149,7 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err := requirePassClosesAllMaterialGaps(mustRun(t, runDir))
+	err := passRefusalOver(t, mustRun(t, runDir), BlockerContradiction)
 	if err == nil {
 		t.Fatal("a PASS was allowed over a contradiction red recorded and nobody raised")
 	}
@@ -172,7 +172,7 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := requirePassClosesAllMaterialGaps(mustRun(t, runDir)); err != nil {
+	if err := passRefusalOver(t, mustRun(t, runDir), BlockerContradiction); err != nil {
 		t.Errorf("the contradiction was raised as a finding and the PASS is still blocked: %v", err)
 	}
 
@@ -181,7 +181,7 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 	if _, err := Append(lens, corroboration(NewCitationID(), "https://example.org/agrees", "another claim entirely", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)); err != nil {
 		t.Fatal(err)
 	}
-	if err := requirePassClosesAllMaterialGaps(mustRun(t, runDir)); err != nil {
+	if err := passRefusalOver(t, mustRun(t, runDir), BlockerContradiction); err != nil {
 		t.Errorf("a SUPPORTING corroboration blocked a PASS — only a contradiction owes a finding: %v", err)
 	}
 }

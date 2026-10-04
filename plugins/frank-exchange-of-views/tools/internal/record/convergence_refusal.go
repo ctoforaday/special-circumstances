@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"strings"
 )
 
 // Convergence is the corrected never-hard-fail predicate (plans/roundless.md §III.B.2.1), read
@@ -69,7 +70,20 @@ func convergenceOf(run Run) (Convergence, error) {
 // open, its mass is a small fraction of the run's peak, and this epoch minted nothing fresh and
 // material. Red must raise something material, or PASS — the report is not held open by gaps that
 // change no reader decision.
-func requireFailIsNotConvergent(run Run) error {
+//
+// IT STANDS ONLY WHERE A PASS IS THE CHAIR'S TO RECORD. While a blocker another seat must clear
+// holds the PASS — a petition the bench has not ruled, a contradiction no lens has raised — the
+// refusal's "or issue `--as PASS`" is false, and refusing the FAIL too left the chair able to record
+// no verdict at all (#1202). The chair's own items (the avenue review, the stale-area spot-check)
+// do not lift it: the refusal names them, and the PASS is the chair's once it has done them.
+func requireFailIsNotConvergent(run Run, blockers []Blocker) error {
+	var own []string
+	for _, b := range blockers {
+		if !b.ChairOwned() {
+			return nil
+		}
+		own = append(own, b.WorkItem())
+	}
 	c, err := convergenceOf(run)
 	if err != nil {
 		return err
@@ -77,7 +91,11 @@ func requireFailIsNotConvergent(run Run) error {
 	if !c.Holds {
 		return nil
 	}
+	pass := "issue `--as PASS`"
+	if len(own) > 0 {
+		pass = "issue `--as PASS` once your own items are done: " + strings.Join(own, "; ")
+	}
 	return fmt.Errorf("record: verdict FAIL refused — the board has converged: open mass %.1f is below %.0f%% of this run's peak %.1f, nothing open is material, and this epoch minted no fresh material gap. "+
-		"A FAIL here holds the report open on gaps that change no reader decision. Raise something material — a material finding, by its class or else graded medium or above, minted as a gap — or issue `--as PASS`; the gaps that are not material stay open on the board",
-		c.Mass, c.Fraction*100, c.Peak)
+		"A FAIL here holds the report open on gaps that change no reader decision. Raise something material — a material finding, by its class or else graded medium or above, minted as a gap — or %s; the gaps that are not material stay open on the board",
+		c.Mass, c.Fraction*100, c.Peak, pass)
 }

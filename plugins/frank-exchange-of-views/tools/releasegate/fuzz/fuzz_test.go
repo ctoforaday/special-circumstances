@@ -233,6 +233,14 @@ type runner struct {
 	planThisSitting map[string]any
 	// lastPassRefusal is the gate's refusal of a PASS the plan permitted — the chair's duty undone.
 	lastPassRefusal string
+	// passOverAnotherSeat names a blocker another seat must clear, standing when the plan permitted
+	// the PASS the gate then refused. pass_permitted means only the chair's own items remain, so this
+	// is the plan and the gate disagreeing (#1202), never the chair's lapse.
+	passOverAnotherSeat string
+	// passBlockersErr is the oracle's own failure to read the blocker list when the gate refused a
+	// PASS the plan permitted. It fails the run: read as "no other seat's blocker" it would pass the
+	// oracle it disabled.
+	passBlockersErr string
 	// lastRuleRefusal is the last grade-motion ruling the record refused, for the exit tally.
 	lastRuleRefusal string
 	// lensMints: lens seat -> mints that LANDED, for choosing the next minter. A lens's mints are
@@ -1985,8 +1993,22 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				if i := strings.IndexByte(msg, '\n'); i >= 0 {
 					msg = firstLine(strings.TrimSpace(msg[i+1:]))
 				}
+				over := ""
+				bl, berr := record.PassBlockers(r.runHandle)
+				for _, b := range bl {
+					if !b.ChairOwned() {
+						over = fmt.Sprintf("%s %q, owned by %q", b.Kind, b.Subject, b.Owner)
+						break
+					}
+				}
 				r.mu.Lock()
 				r.lastPassRefusal = msg
+				if over != "" && r.passOverAnotherSeat == "" {
+					r.passOverAnotherSeat = over
+				}
+				if berr != nil && r.passBlockersErr == "" {
+					r.passBlockersErr = berr.Error()
+				}
 				r.mu.Unlock()
 			}
 		}
@@ -2775,6 +2797,14 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		if why, ok := term["why"].([]any); ok && len(why) > 0 {
 			res.why = fmt.Sprint(why[0])
 		}
+	}
+	if r.passBlockersErr != "" {
+		res.err = "pass_permitted oracle: the gate refused a PASS the plan permitted, and the blocker list could not be read to say whose blocker held it: " + r.passBlockersErr
+		return res
+	}
+	if r.passOverAnotherSeat != "" {
+		res.err = "pass_permitted oracle: the plan permitted a PASS while " + r.passOverAnotherSeat + " stood, and the gate refused it: " + r.lastPassRefusal
+		return res
 	}
 	if r.lastPassRefusal != "" && res.verdict != "VERIFIED" {
 		res.why = "PASS refused: " + r.lastPassRefusal

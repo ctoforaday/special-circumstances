@@ -121,7 +121,7 @@ func TestThePassRefusalNamesTheRead(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err := requirePassClosesAllMaterialGaps(mustRun(t, runDir))
+	err := passRefusalOver(t, mustRun(t, runDir), BlockerUnruledMotion)
 	if err == nil {
 		t.Fatal("PASS was allowed over an unruled motion")
 	}

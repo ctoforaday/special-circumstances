@@ -305,7 +305,7 @@ enum Grade {
 // entirely, and `--as banana` recorded a banana.
 enum Verdict {
   VERDICT_UNSPECIFIED = 0;
-  VERDICT_PASS = 1 [(means) = "nothing on the board holds the gate — no material gap open, no lens ready, every stale area spot-checked — and this is CHECKED against the board, not taken on your word"];
+  VERDICT_PASS = 1 [(means) = "nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word"];
   VERDICT_FAIL = 2 [(means) = "a material defect still stops you — a FAIL over a converged board is refused"];
 }
 

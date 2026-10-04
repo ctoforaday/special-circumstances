@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -16,6 +17,13 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
+
+// The help document renders what holds a PASS from the gate's own table rather than restating
+// it: help/verdict.md names {{.PassBlockerKinds}}, so the list a seat reads and the list the gate
+// refuses on cannot disagree.
+func init() {
+	seat.HelpValues["PassBlockerKinds"] = strings.Join(record.PassBlockerGlosses(), ", ")
+}
 
 // verdict: the chair's terminal act.
 //
