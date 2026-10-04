@@ -1105,14 +1105,19 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	//
 	// --tension, --review-flag and --settled are required by PRESENCE (#1234): an omitted one is
 	// refused, and an empty one is an answer — TestBenchDocketRuleTakesAnHonestBlank holds that half.
-	required := map[string]string{"id": "M1", "as": "remanded", "principle": "correctness first",
+	full := map[string]string{"id": "M1", "as": "remanded", "principle": "correctness first",
 		"tension": "correctness vs economy", "review-flag": "no",
 		"settled": "blue must repair c-65ca0a9e"}
-	full := map[string]string{}
-	for k, v := range required {
-		full[k] = v
+	// THE FOUR DocketRuling FIELDS ARE REFUSED BY THE RECORD WRITE, with the schema's own `why`,
+	// and as OMITTED — not as "said nothing", which is the refusal an omitted flag written as ""
+	// would get instead (#1234). The `why` is read off the field, so this asserts the refusal is
+	// the schema's rather than restating its text.
+	docketWhy := map[string]string{}
+	for _, name := range []protoreflect.Name{"principle", "tension", "review_flag", "settled"} {
+		fd := (&recordpb.DocketRuling{}).ProtoReflect().Descriptor().Fields().ByName(name)
+		docketWhy[recordpb.FlagFor(fd)] = proto.GetExtension(fd.Options(), recordpb.E_Sql).(*recordpb.Sql).GetWhy()
 	}
-	for missing := range required {
+	for missing := range full {
 		t.Run("missing --"+missing, func(t *testing.T) {
 			// --final answers the reopens-on question, so the refusal reached is the omitted field's
 			// own. Without it the record refuses on reopens-on first, and only a refusal that
@@ -1134,6 +1139,12 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 			// free to drift from the one cobra generates.
 			if !strings.Contains(err.Error(), missing) {
 				t.Errorf("the refusal does not name --%s: %v", missing, err)
+			}
+			if why, ok := docketWhy[missing]; ok {
+				want := "requires --" + missing + " (" + why + ")"
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("omitting --%s is not refused with the schema's reason as an OMISSION.\nwant: %s\ngot:  %v", missing, want, err)
+				}
 			}
 		})
 	}
@@ -1198,6 +1209,36 @@ func TestBenchDocketRuleTakesAnHonestBlank(t *testing.T) {
 		if v == nil || *v != "" {
 			t.Errorf("%s = %v, want present and empty — the blank the bench passed", name, v)
 		}
+	}
+}
+
+// THE SUBJECT IS ASKED BEFORE THE FIELDS. A docket ruling naming a PETITION motion, with a
+// required docket field omitted, is refused for the subject: the field's refusal would send the
+// seat to supply a flag for a ruling it cannot make under this subgroup at all (#1236). A
+// parse-time requirement on the flag would answer first, which is why the four are refused at the
+// write instead (#1234).
+func TestBenchDocketRuleNamesTheWrongSubjectBeforeAMissingField(t *testing.T) {
+	runDir := newRun(t)
+	registerLensOnce(t, runDir)
+	m := motionID(t, runDir, "motion", "petition", "file", "--seat-id", lensSeat,
+		"--class", "safety", "--relief", "halt before the next round", "--reason", "a consent gate is missing")
+	for _, omit := range []string{"principle", "tension", "review-flag", "settled"} {
+		t.Run("omitted --"+omit, func(t *testing.T) {
+			args := []string{"motion", "docket", "rule", "--run", runDir, "--seat-id", "judge",
+				"--id", m, "--as", "remanded", "--final", "--reason", "the rationale"}
+			for k, v := range map[string]string{"principle": "p", "tension": "t", "review-flag": "", "settled": "s"} {
+				if k != omit {
+					args = append(args, "--"+k, v)
+				}
+			}
+			_, err := run(t, args...)
+			if err == nil {
+				t.Fatal("a docket ruling on a petition motion was accepted")
+			}
+			if !strings.Contains(err.Error(), "filed as a petition motion") || strings.Contains(err.Error(), "--"+omit) {
+				t.Errorf("the refusal is not the subject's, first and alone: %v", err)
+			}
+		})
 	}
 }
 

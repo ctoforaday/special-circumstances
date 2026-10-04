@@ -58,7 +58,7 @@ func TestGolden(t *testing.T) {
 				m.observe(filepath.Join(runDir, "records"))
 				applyMtimes(t, runDir, m, c)
 				got := normalizeOutput(inv, runDir, m)
-				fmt.Fprintf(&transcript, "$ %s %s\nexit %d\n", c.verb, strings.Join(c.args, " "), got.code)
+				fmt.Fprintf(&transcript, "$ %s %s\nexit %d\n", c.verb, transcriptArgs(c.args), got.code)
 				if got.stdout != "" {
 					fmt.Fprintf(&transcript, "stdout:\n%s", got.stdout)
 				}
@@ -239,4 +239,18 @@ func compareGolden(t *testing.T, name, got string) {
 // file, which is how the class_registry oracle keeps driving a hand-made registry.
 var goldenClasses = []string{
 	"scope-creep", "attestation-inflation", "citation-drift", "safety", "x", "a",
+}
+
+// transcriptArgs renders an invocation's arguments for the golden. An EMPTY argument is written
+// `""`: joined bare, `--review-flag ""` and an omitted --review-flag read alike, and on a flag
+// whose blank is an answer and whose omission is refused that is the whole difference.
+func transcriptArgs(args []string) string {
+	out := make([]string, len(args))
+	for i, a := range args {
+		if a == "" {
+			a = `""`
+		}
+		out[i] = a
+	}
+	return strings.Join(out, " ")
 }
