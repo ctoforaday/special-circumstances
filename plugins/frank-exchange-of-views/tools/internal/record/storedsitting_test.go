@@ -442,3 +442,17 @@ func TestTheWorkListsEpochIsTheStoredSitting(t *testing.T) {
 		t.Errorf("counterparty = %+v, want the chair's dispatch in epoch 1, blue's own epoch", c)
 	}
 }
+
+// evidenceJSONT is EvidenceJSONOf over evs as the write path stores them.
+func evidenceJSONT(t *testing.T, evs []*Event) EvidenceJSON {
+	t.Helper()
+	m := loadedT(t, evs...)
+	return EvidenceJSONOf(m.Events, m.At)
+}
+
+// findingsJSONT is FindingsJSONOf over evs as the write path stores them.
+func findingsJSONT(t *testing.T, evs []*Event) FindingsJSON {
+	t.Helper()
+	m := loadedT(t, evs...)
+	return FindingsJSONOf(m.Events, m.At)
+}

@@ -81,10 +81,6 @@ func SeatOpeningSitting(e *Event) (string, bool) {
 }
 
 // OpensASitting reports whether e is a register that opens a sitting of its own.
-//
-// It is NOT Clock's question. Clock counts TURNS, and a sitting-record repair is a turn: the seat
-// was handed a prompt. Every reader that counts registers as turns asks `e.GetType() ==
-// EVENT_TYPE_REGISTER` and means it.
 func OpensASitting(e *Event) bool {
 	if e.GetType() != EventType_EVENT_TYPE_REGISTER {
 		return false

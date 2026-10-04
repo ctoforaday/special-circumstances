@@ -50,7 +50,7 @@ func TestTheSpanIsAttributedToTheHookAndCarriesTheAgent(t *testing.T) {
 		// NOTHING ABOUT AN EPOCH IS STAMPED HERE (plans/roundless.md §III.A.2). A hook that fires
 		// before any chair has sat is in epoch 0 — a real answer the record derives from its own
 		// registers, not a field this write has to get right. The clock reads it back:
-		if got := record.CurrentEpochOf(m.Events); got != 0 {
+		if got := m.At.CurrentEpoch(m.Events); got != 0 {
 			t.Errorf("epoch = %d, want 0 — no chair has registered, so this is the base epoch", got)
 		}
 		return

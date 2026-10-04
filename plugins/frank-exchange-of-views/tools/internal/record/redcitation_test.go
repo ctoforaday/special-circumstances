@@ -252,7 +252,7 @@ func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ev := EvidenceJSONOf(b.Events)
+	ev := EvidenceJSONOf(b.Events, b.At)
 	if len(ev.UnansweredContradictions) != 1 || ev.UnansweredContradictions[0] != claim {
 		t.Errorf("unanswered_contradictions = %v, want just %q — red cannot discharge a duty it cannot see", ev.UnansweredContradictions, claim)
 	}
@@ -282,7 +282,7 @@ func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, _ = FamilyOf(mustRun(t, runDir))
-	if got := EvidenceJSONOf(b.Events).UnansweredContradictions; len(got) != 0 {
+	if got := EvidenceJSONOf(b.Events, b.At).UnansweredContradictions; len(got) != 0 {
 		t.Errorf("unanswered_contradictions = %v after the finding was raised, want empty", got)
 	}
 }

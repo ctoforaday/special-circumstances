@@ -255,7 +255,7 @@ type EvidenceJSON struct {
 }
 
 // EvidenceJSONOf projects the record's evidence layer in event order.
-func EvidenceJSONOf(evs []*Event) EvidenceJSON {
+func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 	out := EvidenceJSON{
 		Sources:     []EvidenceSourceJSON{},
 		Proofs:      []EvidenceProofJSON{},
@@ -272,9 +272,8 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 	// so each source carries its own; the rest are corroboration and stand alone.
 	byAnchor := map[string][]EvidenceVerificationJSON{}
 	var corroborations []EvidenceSourceJSON
-	var clk Clock
 	for _, e := range Live(evs) {
-		w := clk.Advance(e)
+		w := win.Of(e)
 		// BodyAs returns false for BOTH no body and a body of another type. Neither is a
 		// verification, and neither is rendered as a check with every field blank.
 		vf, ok := recordpb.BodyAs[*recordpb.Verify](e)
@@ -342,9 +341,8 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 	reruns := map[string]*EvidenceReproductionJSON{}
 	// And the re-runs a correction struck, per proof, from the ONE listing order.
 	struckReruns := map[string][]EvidenceReproductionJSON{}
-	clk = Clock{}
 	for _, l := range Listing(evs) {
-		w := clk.Advance(l.Event)
+		w := win.Of(l.Event)
 		r, ok := recordpb.BodyAs[*recordpb.Reproduce](l.Event)
 		if !ok || l.Struck == nil {
 			continue
@@ -354,9 +352,8 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 			Note: r.GetNote(), SeatID: l.GetSeatId(), Epoch: w.Epoch, Struck: l.Struck})
 	}
 
-	clk = Clock{}
 	for _, e := range Live(evs) {
-		w := clk.Advance(e)
+		w := win.Of(e)
 		r, ok := recordpb.BodyAs[*recordpb.Reproduce](e)
 		if !ok {
 			continue
@@ -373,9 +370,8 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 		}
 	}
 
-	clk = Clock{}
 	for _, e := range Live(evs) {
-		w := clk.Advance(e)
+		w := win.Of(e)
 		// TWO ARMS, so this stays `Body` plus a type switch rather than two `BodyAs` passes:
 		// one walk of the events, and an event is a cite or a proof or neither.
 		body, ok := recordpb.Body(e)
@@ -470,8 +466,7 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 
 // EvidenceJSONBytes renders the evidence view as indented JSON.
 func EvidenceJSONBytes(run Run) ([]byte, error) {
-	evs, err := EventsOf(run,
-		recordpb.EventType_EVENT_TYPE_REGISTER, // for the fold's Clock (see record.Clock)
+	evs, win, err := EventsOf(run,
 		recordpb.EventType_EVENT_TYPE_CITE,
 		recordpb.EventType_EVENT_TYPE_VERIFY,
 		recordpb.EventType_EVENT_TYPE_PROOF,
@@ -479,7 +474,7 @@ func EvidenceJSONBytes(run Run) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	out, err := json.MarshalIndent(EvidenceJSONOf(evs), "", "  ")
+	out, err := json.MarshalIndent(EvidenceJSONOf(evs, win), "", "  ")
 	if err != nil {
 		return nil, err
 	}

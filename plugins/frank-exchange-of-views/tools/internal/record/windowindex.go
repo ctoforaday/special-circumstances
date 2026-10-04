@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
@@ -24,8 +25,19 @@ import (
 // Tests seed through the write path and load back.
 type WindowIndex struct {
 	of map[*Event]recordsql.Window
-	// latest is each seat's newest sitting, by the id of the event that opened it.
+	// latest is each seat's newest sitting, by the id of the event that opened it. nil on an index a
+	// narrowed read built: its slice need not hold any act of a seat's newest sitting.
 	latest map[string]int64
+}
+
+// narrowedIndexOf indexes a narrowed read's windows, aligned by position with evs. Each window is
+// the stored one; what the index cannot answer is which sitting is a seat's newest.
+func narrowedIndexOf(evs []*Event, ws []recordsql.Window) WindowIndex {
+	x := WindowIndex{of: make(map[*Event]recordsql.Window, len(evs))}
+	for i, e := range evs {
+		x.of[e] = ws[i]
+	}
+	return x
 }
 
 // windowIndexOf indexes the loader's windows, aligned by position with evs.
@@ -77,11 +89,29 @@ func (x WindowIndex) Opens(e *Event) (string, bool) {
 
 // LatestSittingOf is the id of the event that opened the seat's newest sitting, or 0 if it has none.
 //
-// 0 is "never sat", so an index the loader did not build panics here as Of does: answering 0 from
-// no index would read every seat as one that has not sat.
+// 0 is "never sat", so an index the whole-record loader did not build panics here as Of does:
+// answering 0 from no index, or from a narrowed read's, would read a seat as one that has not sat or
+// name a sitting before its newest.
 func (x WindowIndex) LatestSittingOf(seat string) int64 {
-	if x.of == nil {
-		panic(fmt.Sprintf("record: no window index to ask for %s's latest sitting — the index was not built by the loader, so it holds no stored sitting", seat))
+	if x.latest == nil {
+		panic(fmt.Sprintf("record: no whole-record window index to ask for %s's latest sitting — the index was built by hand or by a narrowed read, so it does not hold every stored sitting", seat))
 	}
 	return x.latest[seat]
+}
+
+// CurrentEpoch is the epoch the debate's work has reached: the stored epoch of the last event in
+// evs that is work. Neither a register nor a hook's sitting_open is: a chair that has just sat
+// opens a new epoch on the record, but until something is done in it the current one is still the
+// last with work in it — which is what "stale since the current epoch" has to mean for an avenue
+// pursued in the previous one.
+func (x WindowIndex) CurrentEpoch(evs []*Event) int {
+	cur := 0
+	for _, e := range evs {
+		switch e.GetType() {
+		case recordpb.EventType_EVENT_TYPE_REGISTER, recordpb.EventType_EVENT_TYPE_SITTING_OPEN:
+			continue
+		}
+		cur = x.Of(e).Epoch
+	}
+	return cur
 }

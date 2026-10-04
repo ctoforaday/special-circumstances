@@ -27,7 +27,7 @@ import (
 )
 
 // chairRegister opens an epoch: the epoch is the count of red-chair sittings at or before an
-// event (record.Clock), so a fixture that means "in epoch N" must seat the chair N times. The
+// event (events_w), so a fixture that means "in epoch N" must seat the chair N times. The
 // seat id used to carry the number (red-chair-r2); it carries nothing now, and a seat that does
 // not register is in epoch 0 whatever it is called.
 func chairRegister(t *testing.T, sitting int) *recordpb.Event {
@@ -176,7 +176,7 @@ func recordFriction(t *testing.T, runDir string) []record.LogEntryJSON {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fj := record.LogJSONOf(b.Events)
+	fj := record.LogJSONOf(b.Events, b.At)
 	return append(append([]record.LogEntryJSON{}, fj.Log...), fj.Log...)
 }
 

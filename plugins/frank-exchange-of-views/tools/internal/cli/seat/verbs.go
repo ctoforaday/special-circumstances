@@ -650,7 +650,7 @@ func renderView(cmd *cobra.Command, want string) error {
 			if err != nil {
 				return err
 			}
-			b, err := json.MarshalIndent(record.AvenuesJSONOf(fam.Events), "", "  ")
+			b, err := json.MarshalIndent(record.AvenuesJSONOf(fam.Events, fam.At), "", "  ")
 			if err != nil {
 				return err
 			}

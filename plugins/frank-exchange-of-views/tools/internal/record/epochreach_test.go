@@ -10,22 +10,20 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// EVERY PROJECTION THAT REPORTS AN EPOCH MUST FETCH THE EVENTS THE EPOCH COMES FROM.
+// EVERY PROJECTION THAT REPORTS AN EPOCH CAN SEE MORE THAN ONE.
 //
-// `Clock.Advance` moves the epoch on a REGISTER event and on nothing else. A projection whose
-// typed read omits REGISTER therefore leaves its clock at zero and reports `epoch: 0` for every
-// row — not an error, a uniform plausible number, and one that reads as a run that never got past
-// its first sitting.
-//
-// MEASURED TWICE, in one function each time. `show findings` reported epoch 0 for all 20 findings
-// of a four-epoch run (#852), and the board fold had the same omission (fixed in #856). Both were
-// found by accident while doing something else; neither was found by a test, because a projection
-// that reports one wrong number for every row is internally consistent.
+// Each row's epoch is the stored window the loader reads beside it (WindowIndex), so a projection
+// that narrows its read to a few event families still prints the chair sitting each row is in. A
+// projection that printed epochs from anything the narrowed slice must carry — a count of the
+// chair's registers over the events — reports `epoch: 0` for every row when the slice does not
+// carry them: not an error, a uniform plausible number, and one that reads as a run that never got
+// past its first sitting. `show findings` once reported epoch 0 for all 20 findings of a four-epoch
+// run (#852), and the board fold had the same omission (#856).
 //
 // # What this catches, and what it does not
 //
-// It catches a COUNT-shaped dependency: the epoch is derived from how many registers the stream
-// carried, so withholding them changes the answer for every row at once. It does NOT catch a
+// It catches a COUNT-shaped dependency: an epoch derived from what the stream carried changes for
+// every row at once when the read withholds it. It does NOT catch a
 // JOIN-shaped one — `minted_as` needs a mint whose found_by matches a finding's label, and a
 // stream with the mints withheld reports the honest-looking empty list rather than a wrong number.
 // Those are pinned per projection where they arise (see findingminted_test.go); this is the guard
@@ -61,7 +59,7 @@ func TestEveryProjectionThatReportsAnEpochCanSeeMoreThanOne(t *testing.T) {
 		Filing:  &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("R1-1")}}})
 
 	// SECOND EPOCH. Everything below lands after the chair sits again, so a projection whose
-	// clock is stuck reports these rows with the same number as the ones above.
+	// epoch is stuck reports these rows with the same number as the ones above.
 	app(chair, &recordpb.Register{ToolVersion: proto.String("test")})
 	app(lens, &recordpb.Finding{FindingId: proto.String("f-2"), Label: proto.String("logic-F2"),
 		Text: proto.String("second epoch finding"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
@@ -76,7 +74,7 @@ func TestEveryProjectionThatReportsAnEpochCanSeeMoreThanOne(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := CurrentEpochOf(evs.Events); got < 2 {
+	if got := evs.At.CurrentEpoch(evs.Events); got < 2 {
 		t.Fatalf("the seeded run reaches epoch %d — this test needs a run spanning more than one, "+
 			"or every assertion below passes because 0 is the right answer", got)
 	}
@@ -106,7 +104,7 @@ func TestEveryProjectionThatReportsAnEpochCanSeeMoreThanOne(t *testing.T) {
 				t.Skipf("%s reports no epoch on this run — nothing to check", p.name)
 			}
 			// THE ASSERTION. Every row at zero on a run that reached epoch 2 is the signature of
-			// a clock that never advanced, which means the typed read did not fetch REGISTER.
+			// an epoch counted over a slice that did not carry what it counts.
 			allZero := true
 			for _, e := range epochs {
 				if e != 0 {
@@ -115,9 +113,9 @@ func TestEveryProjectionThatReportsAnEpochCanSeeMoreThanOne(t *testing.T) {
 			}
 			if allZero {
 				t.Errorf("%s reports epoch 0 on all %d row(s) of a run that reached epoch %d — the "+
-					"Clock only advances on REGISTER, so this projection's typed read is not fetching it "+
-					"and every row carries the same wrong number",
-					p.name, len(epochs), CurrentEpochOf(evs.Events))
+					"projection is not printing each row's stored window, so every row carries the same "+
+					"wrong number",
+					p.name, len(epochs), evs.At.CurrentEpoch(evs.Events))
 			}
 		})
 	}

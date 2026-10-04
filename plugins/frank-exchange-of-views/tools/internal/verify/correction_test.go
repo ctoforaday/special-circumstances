@@ -26,7 +26,7 @@ func TestCorrectionsResolve(t *testing.T) {
 		recordtest.At(t, "blue-respond", k+"~1", pos("the report is sound now")),
 		corr("blue-respond", k, k+"~1"),
 	}}
-	if got := find(t, Run(held.fam()), "corrections-resolve"); !got.OK || got.NA {
+	if got := find(t, Run(held.fam(t)), "corrections-resolve"); !got.OK || got.NA {
 		t.Errorf("a correction whose act and replacement are both on the record must hold: %+v", got)
 	}
 
@@ -35,7 +35,7 @@ func TestCorrectionsResolve(t *testing.T) {
 		recordtest.At(t, "blue-respond", k, pos("the report is  now")),
 		corr("blue-respond", k, k+"~1"), // the replacement never landed
 	}}
-	got := find(t, Run(broken.fam()), "corrections-resolve")
+	got := find(t, Run(broken.fam(t)), "corrections-resolve")
 	if got.OK || len(got.Violations) != 1 || !strings.Contains(got.Violations[0], "names replacement "+k+"~1") {
 		t.Errorf("a correction naming a replacement the record does not carry must be a violation, named: %+v", got)
 	}

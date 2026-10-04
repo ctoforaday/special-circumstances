@@ -470,7 +470,7 @@ func motionOf(t *testing.T, runDir, id string) *record.Motion {
 	if err != nil {
 		t.Fatalf("reading the board: %v", err)
 	}
-	for _, m := range record.MotionsOf(b.Events) {
+	for _, m := range record.MotionsOf(b.Events, b.At) {
 		if m.ID == id {
 			return m
 		}
@@ -617,7 +617,7 @@ func avenueOf(t *testing.T, runDir, id string) *record.Avenue {
 	if err != nil {
 		t.Fatalf("reading the board: %v", err)
 	}
-	for _, q := range record.AvenuesOf(b.Events) {
+	for _, q := range record.AvenuesOf(b.Events, b.At) {
 		if q.ID == id {
 			return q
 		}

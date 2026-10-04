@@ -47,10 +47,11 @@ type gtGap struct {
 	everClosed bool
 	lastCloser string // "red" (a close event) or "bench" (a closing opinion)
 	lastClass  string // the word carried by the LAST closing event; "" if it carried none
-	// lastCloseEpoch is the epoch of the last closing event — red-chair registers at or before
-	// it, COUNTED IN THIS WALK rather than taken from record.Clock. The oracle is a second
-	// opinion on the board's ClosedEpoch, and a second opinion that shares the first's counter
-	// is one opinion written twice (plans/roundless.md §III.A.0 is the definition both follow).
+	// lastCloseEpoch is the epoch of the last closing event — the chair sittings opened at or
+	// before it, COUNTED IN THIS WALK rather than read off the stored window. The oracle is a
+	// second opinion on the board's ClosedEpoch, and a second opinion that shares the first's
+	// counter is one opinion written twice (plans/roundless.md §III.A.0 is the definition both
+	// follow).
 	lastCloseEpoch int
 	sev, lik, imp  recordpb.Grade
 	cx             recordpb.Grade
@@ -111,10 +112,22 @@ func walk(events []*record.Event) *groundTruth {
 		}
 	}
 
-	epoch := 0 // the walk's own chair-register count; advanced before any continue
+	// THE WALK'S OWN COUNT OF THE CHAIR'S SITTINGS, advanced before any continue. A chair sitting
+	// opens at the hook's bracket naming red-chair or at a chair register, and a bracket or
+	// register under an agent the hook already bracketed for the chair joins that sitting rather
+	// than opening another — the write path's rule, counted here from the events rather than read
+	// from the sitting it stored.
+	epoch := 0
+	chairBracketed := map[string]bool{}
 	for _, e := range events {
-		if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER && e.GetSeatId() == "red-chair" {
-			epoch++
+		if seat, opens := recordpb.SeatOpeningSitting(e); opens && seat == "red-chair" {
+			agent := recordpb.AgentOpening(e)
+			if agent == "" || !chairBracketed[agent] {
+				epoch++
+			}
+			if agent != "" && e.GetType() == recordpb.EventType_EVENT_TYPE_SITTING_OPEN {
+				chairBracketed[agent] = true
+			}
 		}
 		body, ok := recordpb.Body(e)
 		if !ok {
@@ -412,7 +425,7 @@ func Check(run record.Run) ([]string, error) {
 		}
 	}
 
-	fj := record.FindingsJSONOf(fam.Events)
+	fj := record.FindingsJSONOf(fam.Events, fam.At)
 	gotLabels := map[string]bool{}
 	for _, f := range fj.Findings {
 		gotLabels[f.Label] = true

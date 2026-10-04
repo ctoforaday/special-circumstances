@@ -47,7 +47,7 @@ func TestARepairsActsRenderUnderTheSittingTheyComplete(t *testing.T) {
 		t.Errorf("the receipt is rendered under the repair's own turn count:\n%s", manifest)
 	}
 
-	withdrawn := withdrawnClaims(evs)
+	withdrawn := withdrawnClaims(evs, fam.At)
 	if !strings.Contains(withdrawn, "(blue-respond #1)") || strings.Contains(withdrawn, "#2") {
 		t.Errorf("the retirement is not filed under the sitting it completes:\n%s", withdrawn)
 	}

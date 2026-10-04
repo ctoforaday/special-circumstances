@@ -116,13 +116,14 @@ func TestFactBoxIsComposedFromTheRecord(t *testing.T) {
 			t.Errorf("fact box missing %q:\n%s", want, box)
 		}
 	}
-	// The epoch count is the CHAIR'S REGISTERS, counted over the events when the log is present:
+	// The epoch count is the CHAIR'S SITTINGS, as the record stores them, when the log is present:
 	// a fourth chair sitting after the last closure is an epoch the gaps alone cannot show.
 	var evs []*record.Event
 	for i := 0; i < 4; i++ {
 		evs = append(evs, recordtest.Event(t, "red-chair", &recordpb.Register{}))
 	}
-	if box := factBox(board.fam(), evs); !strings.Contains(box, "**Epochs** | 4") {
+	loaded := runtest.Family(t, board.fam().Gaps, evs...)
+	if box := factBox(loaded, loaded.Events); !strings.Contains(box, "**Epochs** | 4") {
 		t.Errorf("fact box must count the chair's sittings off the events:\n%s", box)
 	}
 }

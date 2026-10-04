@@ -56,7 +56,7 @@ func TestEventsOfACorrectableTypeCarriesItsCorrections(t *testing.T) {
 		&recordpb.Position{Text: proto.String("the board is clean going in")}); err != nil {
 		t.Fatal(err)
 	}
-	evs, err := EventsOf(run, recordpb.EventType_EVENT_TYPE_POSITION)
+	evs, _, err := EventsOf(run, recordpb.EventType_EVENT_TYPE_POSITION)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +90,8 @@ func TestJSONListingsCarryTheStruckActAsAField(t *testing.T) {
 		recordtest.At(t, "blue-respond", "blue-respond:position:#1~1", pos("the report is sound now")),
 		correctionOf(t, "blue-respond", "blue-respond:position:#1"),
 	}
-	lj := LogJSONOf(evs)
+	m := loadedT(t, evs...)
+	lj := LogJSONOf(m.Events, m.At)
 	if len(lj.Log) != 2 || lj.Log[0].Struck == nil || lj.Log[0].Text != "the tool  refused" ||
 		lj.Log[0].Struck.Replacement != "blue-respond:log:#1~1" || lj.Log[1].Struck != nil {
 		t.Errorf("log listing = %+v, want the struck entry marked with its replacement, then the one that stands", lj.Log)
@@ -98,7 +99,7 @@ func TestJSONListingsCarryTheStruckActAsAField(t *testing.T) {
 	if lj.Counts.Total != 1 {
 		t.Errorf("log total = %d, want 1 — a corrected entry is one entry", lj.Counts.Total)
 	}
-	dj := DebateJSONOfEvents(evs)
+	dj := DebateJSONOfEvents(m.Events, m.At)
 	if len(dj.Epochs) != 1 {
 		t.Fatalf("%d epochs", len(dj.Epochs))
 	}
@@ -124,6 +125,7 @@ func TestMotionsReadACorrectedRulingAsTheOneThatStands(t *testing.T) {
 	}
 	k := "judge:motion_rule:#1"
 	evs := []*Event{
+		mintsGap(t, "red-lens-logic", "G1"),
 		recordtest.At(t, "red-chair", "red-chair:motion:#1", &recordpb.Motion{MotionId: proto.String("M1"),
 			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET), Basis: proto.String("red cannot settle G1"),
 			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}),
@@ -131,7 +133,8 @@ func TestMotionsReadACorrectedRulingAsTheOneThatStands(t *testing.T) {
 		recordtest.At(t, "judge", k+"~1", ruling("because the gate refuses")),
 		correctionOf(t, "judge", k),
 	}
-	ms := MotionsOf(evs)
+	m := loadedT(t, evs...)
+	ms := MotionsOf(m.Events, m.At)
 	if len(ms) != 1 || ms[0].Opinion != "because the gate refuses" {
 		var got []string
 		for _, m := range ms {
@@ -177,7 +180,7 @@ func TestAvenueAndEvidenceListingsKeepTheStruckAct(t *testing.T) {
 	if got := StruckAvenueTexts(evs)["Q1"]; len(got) != 1 || got[0].Text != "try the  method" || got[0].By != "blue-respond" {
 		t.Errorf("the struck wording of Q1 = %+v, want the corrected proposal's", got)
 	}
-	ej := EvidenceJSONOf(evs)
+	ej := evidenceJSONT(t, evs)
 	if len(ej.Proofs) != 1 {
 		t.Fatalf("%d proofs", len(ej.Proofs))
 	}

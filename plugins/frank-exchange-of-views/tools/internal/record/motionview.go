@@ -75,9 +75,9 @@ type MotionsJSON struct {
 }
 
 // motionsJSONOf projects every motion on the record, current vocabulary and legacy alike.
-func motionsJSONOf(evs []*Event) MotionsJSON {
+func motionsJSONOf(evs []*Event, win WindowIndex) MotionsJSON {
 	out := MotionsJSON{Motions: []MotionJSON{}}
-	for _, m := range MotionsOf(evs) {
+	for _, m := range MotionsOf(evs, win) {
 		if m == nil {
 			continue
 		}
@@ -116,8 +116,7 @@ func motionsJSONOf(evs []*Event) MotionsJSON {
 // MotionsJSONBytes renders the motions view as indented JSON. The exchange lives on four
 // event families; nothing else on the record decides a motion's state.
 func MotionsJSONBytes(run Run) ([]byte, error) {
-	evs, err := EventsOf(run,
-		recordpb.EventType_EVENT_TYPE_REGISTER, // for the fold's Clock (see record.Clock)
+	evs, win, err := EventsOf(run,
 		recordpb.EventType_EVENT_TYPE_AVENUE,
 		recordpb.EventType_EVENT_TYPE_MOTION,
 		recordpb.EventType_EVENT_TYPE_MOTION_RULE,
@@ -125,7 +124,7 @@ func MotionsJSONBytes(run Run) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	out, err := json.MarshalIndent(motionsJSONOf(evs), "", "  ")
+	out, err := json.MarshalIndent(motionsJSONOf(evs, win), "", "  ")
 	if err != nil {
 		return nil, err
 	}

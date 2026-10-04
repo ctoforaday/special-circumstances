@@ -256,7 +256,11 @@ func motionGuardRun(t *testing.T) Run {
 func motionReadersAgree(t *testing.T, run Run) map[string]motionAnswer {
 	t.Helper()
 	fold := map[string]motionAnswer{}
-	for _, m := range MotionsOf(allEvents(t, run)) {
+	all, err := MergedEvents(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range MotionsOf(all.Events, all.At) {
 		if !m.Ruled() && !m.Appealed {
 			continue
 		}

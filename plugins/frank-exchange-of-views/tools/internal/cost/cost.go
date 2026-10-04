@@ -150,18 +150,18 @@ type SeatBinding struct {
 // SeatBindingsOf folds the record once into agent_id → binding. It is the same join
 // record.SeatOfAgent and the seat_of_agent view perform — THE LAST REGISTER WINS, because a
 // resumed seat arrives under a new agent id claiming a seat already bound — read here off the
-// event slice a caller already holds, with the windows counted by record.Clock rather than
-// stamped by anyone. A register carrying no agent_id (a run whose hook never fired) binds
-// nothing, and that absence stays legible downstream as epoch 0, the dash.
-func SeatBindingsOf(evs []*record.Event) map[string]SeatBinding {
+// event slice a caller already holds, with each register's window the one the record stores it in
+// (win): a repair's register is labelled with the sitting it completes. A register carrying no
+// agent_id (a run whose hook never fired) binds nothing, and that absence stays legible
+// downstream as epoch 0, the dash.
+func SeatBindingsOf(evs []*record.Event, win record.WindowIndex) map[string]SeatBinding {
 	out := map[string]SeatBinding{}
-	var clk record.Clock
 	for _, e := range evs {
-		w := clk.Advance(e)
 		reg, ok := recordpb.BodyAs[*recordpb.Register](e)
 		if !ok || reg.GetAgentId() == "" {
 			continue
 		}
+		w := win.Of(e)
 		out[reg.GetAgentId()] = SeatBinding{SeatID: e.GetSeatId(), Epoch: w.Epoch, Sitting: w.Sitting,
 			Occasion: recordpb.Word(reg.GetOccasion())}
 	}
@@ -175,7 +175,7 @@ func SeatBindings(run record.Run) (map[string]SeatBinding, error) {
 	if err != nil {
 		return nil, err
 	}
-	return SeatBindingsOf(m.Events), nil
+	return SeatBindingsOf(m.Events, m.At), nil
 }
 
 // AgentIDOfTranscript is the harness handle a per-agent transcript is filed under: the harness

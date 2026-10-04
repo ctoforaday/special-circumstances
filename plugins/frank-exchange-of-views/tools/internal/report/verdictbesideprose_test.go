@@ -28,7 +28,7 @@ func TestTheRecordedVerdictRendersBesideRedsProse(t *testing.T) {
 			Text: proto.String("Nothing on the board is open. My verdict is PASS."),
 		}),
 	}
-	got := debate((record.NewFamily(nil, evs)), evs)
+	got := debateT(t, evs)
 	if !strings.Contains(got, "recorded verdict: FAIL") {
 		t.Errorf("the epoch's recorded verdict is not rendered beside the prose that claims one:\n%s", got)
 	}
@@ -46,7 +46,7 @@ func TestAnEpochWithNoRecordedVerdictSaysSo(t *testing.T) {
 	evs := []*record.Event{
 		recordtest.Event(t, "red-chair", &recordpb.Position{Text: proto.String("gap A stands")}),
 	}
-	got := debate((record.NewFamily(nil, evs)), evs)
+	got := debateT(t, evs)
 	if !strings.Contains(got, "NO VERDICT RECORDED") {
 		t.Errorf("an epoch with no recorded verdict renders indistinguishably from one that had a verdict:\n%s", got)
 	}

@@ -100,15 +100,16 @@ func MintCheckKind(run Run, gapID string) (recordpb.CheckKind, error) {
 
 // EventsOf reads back only the named event families, in record order — the read for a
 // projection that renders one kind of act (findings, friction, the debate prose) and has no
-// business hauling the whole record through the loader to get it. A run with no record yet
-// holds none of anything.
-func EventsOf(run Run, types ...recordpb.EventType) ([]*Event, error) {
+// business hauling the whole record through the loader to get it — with each event's stored window
+// (WindowIndex), so the projection prints the epoch and sitting the record holds without loading
+// the acts that opened them. A run with no record yet holds none of anything.
+func EventsOf(run Run, types ...recordpb.EventType) ([]*Event, WindowIndex, error) {
 	db, err := openRunForRead(run)
 	if err != nil {
-		return nil, err
+		return nil, WindowIndex{}, err
 	}
 	if db == nil {
-		return nil, nil
+		return nil, WindowIndex{}, nil
 	}
 	words := make([]string, len(types))
 	correctable := false
@@ -122,7 +123,11 @@ func EventsOf(run Run, types ...recordpb.EventType) ([]*Event, error) {
 	if correctable {
 		words = append(words, recordpb.Word(recordpb.EventType_EVENT_TYPE_CORRECTION))
 	}
-	return recordsql.EventsOfTypes(db, words...)
+	evs, ws, err := recordsql.EventsOfTypes(db, words...)
+	if err != nil {
+		return nil, WindowIndex{}, err
+	}
+	return evs, narrowedIndexOf(evs, ws), nil
 }
 
 // Epochs lists every epoch the record touched, ascending — the skeleton a per-epoch

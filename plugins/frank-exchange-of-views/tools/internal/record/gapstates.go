@@ -17,11 +17,7 @@ import (
 // It is the one assembly of the family (plans/board-as-views.md wave 3); the markdown renders
 // and their oracle read it in place of BoardState.
 func GapStates(run Run) ([]*Gap, error) {
-	evs, err := EventsOf(run,
-		// REGISTER IS NOT READ FOR ITS BODY. The fold's Clock counts chair registers to place each
-		// closure in its epoch, and a slice filtered to the body types would leave every closure
-		// in epoch 0 — silently, which is how the parity test found it.
-		recordpb.EventType_EVENT_TYPE_REGISTER,
+	evs, win, err := EventsOf(run,
 		recordpb.EventType_EVENT_TYPE_MINT,
 		recordpb.EventType_EVENT_TYPE_REGRADE,
 		recordpb.EventType_EVENT_TYPE_CLOSE,
@@ -52,7 +48,7 @@ func GapStates(run Run) ([]*Gap, error) {
 			regrades[m.GetGapId()] = append(regrades[m.GetGapId()], m)
 		}
 	}
-	closures, unpairedDocket := closureStatesOf(evs)
+	closures, unpairedDocket := closureStatesOf(evs, win)
 	if len(unpairedDocket) > 0 {
 		return nil, fmt.Errorf("record: docket ruling(s) on motion(s) %s have no filing on this record — the gap each settles rides its FILING, so an unpaired ruling would leave a disposed gap reading as open", strings.Join(unpairedDocket, ", "))
 	}

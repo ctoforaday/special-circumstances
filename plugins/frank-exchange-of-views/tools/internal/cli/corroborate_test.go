@@ -222,7 +222,7 @@ func TestASupportFromAnAbstractRecordsThatItWasOne(t *testing.T) {
 		t.Errorf("a source outside the cache records %v, want not_asked", g)
 	}
 	// AND RED'S LOOKUP TABLE SHOWS IT, which is where the verdict is read.
-	ev := record.EvidenceJSONOf(m.Events)
+	ev := record.EvidenceJSONOf(m.Events, m.At)
 	seen := false
 	for _, v := range ev.Independent {
 		if v.URL == src && v.SourceCompleteness == "abstract" {

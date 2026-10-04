@@ -37,7 +37,7 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		return record.EvidenceJSONOf(b.Events)
+		return record.EvidenceJSONOf(b.Events, b.At)
 	}
 	if got := evidence().Reopened; len(got) != 0 {
 		t.Fatalf("reopened = %v before any edit, want none", got)

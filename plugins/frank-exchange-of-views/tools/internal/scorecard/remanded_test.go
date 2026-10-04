@@ -40,7 +40,7 @@ func benchSatOn(t *testing.T, opinions []string, ds ...recordpb.Disposition) *re
 		}
 		evs = append(evs, docketRuling(t, id, d, opinion))
 	}
-	return famOfEventsT(evs)
+	return famSeededT(t, evs)
 }
 
 func docketFiling(t *testing.T, motion, gap string) *record.Event {
@@ -54,13 +54,21 @@ func docketFiling(t *testing.T, motion, gap string) *record.Event {
 
 func docketRuling(t *testing.T, motion string, d recordpb.Disposition, opinion string) *record.Event {
 	t.Helper()
+	r := &recordpb.DocketRuling{
+		Disposition: recordtest.P(d), Principle: proto.String("a ruling states its principle"),
+		Tension: proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s"),
+	}
+	// A ruling states what reopens the gap or that it is final, never both.
+	if d == recordpb.Disposition_DISPOSITION_REMANDED {
+		r.ReopensOn = proto.String("the stated direction reporting back")
+	} else {
+		r.Final = proto.Bool(true)
+	}
 	return recordtest.Event(t, "judge", &recordpb.MotionRule{
 		MotionId: proto.String(motion),
 		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 		Opinion:  proto.String(opinion),
-		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-			Disposition: recordtest.P(d), Principle: proto.String("a ruling states its principle"),
-		}},
+		Ruling:   &recordpb.MotionRule_Docket{Docket: r},
 	})
 }
 
@@ -131,7 +139,7 @@ func TestABenchThatDidNotSitSaysSo(t *testing.T) {
 func TestAMotionRuledInTwoSittingsIsOneRuling(t *testing.T) {
 	rem, rep := recordpb.Disposition_DISPOSITION_REMANDED, recordpb.Disposition_DISPOSITION_REPAIRED
 	const traj = "read off the trajectory of the lens's tool calls"
-	fam := famOfEventsT([]*record.Event{
+	fam := famSeededT(t, []*record.Event{
 		recordtest.Event(t, "judge", &recordpb.Register{AgentId: proto.String("J1"), Occasion: recordpb.Occasion_OCCASION_DOCKET.Enum()}),
 		docketFiling(t, "M1", "G1"),
 		docketRuling(t, "M1", rem, traj),
@@ -152,7 +160,7 @@ func TestAMotionRuledInTwoSittingsIsOneRuling(t *testing.T) {
 // The principle is half the opinion: a ruling whose principle declares the inspection is counted
 // though its argument does not.
 func TestAPrincipleThatDeclaresTheInspectionCounts(t *testing.T) {
-	fam := famOfEventsT([]*record.Event{
+	fam := famSeededT(t, []*record.Event{
 		docketFiling(t, "M1", "G1"),
 		recordtest.Event(t, "judge", &recordpb.MotionRule{
 			MotionId: proto.String("M1"),
@@ -161,6 +169,7 @@ func TestAPrincipleThatDeclaresTheInspectionCounts(t *testing.T) {
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 				Principle:   proto.String("a claim about a tool call is checked against the tool call"),
+				Tension:     proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s"), Final: proto.Bool(true),
 			}},
 		}),
 	})

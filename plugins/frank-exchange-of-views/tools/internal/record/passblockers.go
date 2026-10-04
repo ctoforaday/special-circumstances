@@ -342,8 +342,8 @@ func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGa
 			}
 		}
 	}
-	out = append(out, unruledMotionBlockers(evs, ids)...)
-	if AvenueReviewDueOf(evs) {
+	out = append(out, unruledMotionBlockers(evs, ids, win)...)
+	if AvenueReviewDueOf(evs, win) {
 		out = append(out, Blocker{Kind: BlockerAvenueReview, Owner: chairSeat})
 	}
 	return out
@@ -351,9 +351,9 @@ func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGa
 
 // unruledMotionBlockers is the gate list's unruled-motion arm: every motion with no ruling, owned by
 // the seat whose gavel its subject is. ids is evs's places, aligned with it.
-func unruledMotionBlockers(evs []*Event, ids []int64) []Blocker {
+func unruledMotionBlockers(evs []*Event, ids []int64, win WindowIndex) []Blocker {
 	var out []Blocker
-	for _, m := range motionsAt(evs, ids) {
+	for _, m := range motionsAt(evs, ids, win) {
 		if m == nil || m.Ruled() {
 			continue
 		}
@@ -372,13 +372,13 @@ func unruledMotionBlockers(evs []*Event, ids []int64) []Blocker {
 // MotionBlockersOf is the unruled-motion arm of the gate's list over a stream, as the plan relays
 // it. Capture holds a relayed plan's motion blockers to it, read off the record as it stood at the
 // end of the chair sitting that relayed the plan.
-func MotionBlockersOf(evs []*Event) []PlanBlocker {
+func MotionBlockersOf(evs []*Event, win WindowIndex) []PlanBlocker {
 	seq := make([]int64, len(evs))
 	for i := range seq {
 		seq[i] = int64(i)
 	}
 	var out []PlanBlocker
-	for _, b := range unruledMotionBlockers(evs, seq) {
+	for _, b := range unruledMotionBlockers(evs, seq, win) {
 		out = append(out, PlanBlocker{Kind: b.Kind, Subject: b.Subject, Owner: b.Owner})
 	}
 	return out

@@ -21,7 +21,7 @@ import (
 func TestTheToolLogsTheRefusalsItGivesASeat(t *testing.T) {
 	refusals := func(t *testing.T, runDir string) []string {
 		t.Helper()
-		evs, err := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_LOG)
+		evs, _, err := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_LOG)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -97,7 +97,7 @@ func (e errString) Error() string { return string(e) }
 // toolRefusals is every refusal entry the tool logged, as "seat | text".
 func toolRefusals(t *testing.T, runDir string) []string {
 	t.Helper()
-	evs, err := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_LOG)
+	evs, _, err := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_LOG)
 	if err != nil {
 		t.Fatal(err)
 	}

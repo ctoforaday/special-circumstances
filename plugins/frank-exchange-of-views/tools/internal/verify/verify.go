@@ -149,7 +149,7 @@ func correctionsResolve(f record.Family) Check {
 // non-empty archive and recorded no sample, and an epoch that CLAIMED an empty archive the board
 // says was not empty. The second is the direct heir of the run-5 degeneracy.
 //
-// The bucket is the EPOCH (chair sittings, counted by the audit's Clock); the discharging seat
+// The bucket is the EPOCH (the chair sitting the record holds each act in); the discharging seat
 // is named with its own sitting ordinal, `seat #N`.
 func archiveSpotCheckFloor(f record.Family) Check {
 	_, debt, falseEmpty := record.SpotCheckAudit(f)
@@ -553,7 +553,7 @@ func Compute(f record.Family) Stats {
 	// THE DISPOSITION STAT NEEDS THE JOIN, so it cannot be gathered in the loop above. A ruling
 	// carries only the ask's id; the gap rides the FILING. record.Motions is the one place that
 	// pairing is computed, and reading it a second way here is how counters come to disagree.
-	for _, m := range record.MotionsOf(f.Events) {
+	for _, m := range record.MotionsOf(f.Events, f.At) {
 		if m == nil || m.Subject != "docket" || !m.Ruled() {
 			continue
 		}

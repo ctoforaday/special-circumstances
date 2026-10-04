@@ -120,7 +120,7 @@ func GapMass(likelihood, impact string) float64 { return MASS[likelihood] * MASS
 
 // THE EPOCH IS NOT A FACT A SEAT SUPPLIES. It used to be read out of the seat id by regex at
 // register and stamped on every event forever (epoch.go, deleted). It is now the EPOCH at the
-// the record itself — events_w."epoch", derived from the chair's registers — and a seat id carries no epoch at all.
+// the record itself — events_w."epoch", counted over the chair's stored sittings — and a seat id carries no epoch at all.
 //
 // What stood here returned a bare int and read FEOV_ROUND first — an injected branch nothing in
 // the repository ever set, so in production the regex was not a fallback but the only path, and

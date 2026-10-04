@@ -202,7 +202,7 @@ func directionUptake(fam *record.Family) (leadSections, blueCitesLead int, ok bo
 	if fam == nil {
 		return 0, 0, false
 	}
-	l, b := ComputeDirectionUptake(record.DebateJSONOfEvents(fam.Events))
+	l, b := ComputeDirectionUptake(record.DebateJSONOfEvents(fam.Events, fam.At))
 	return l, b, true
 }
 
@@ -212,7 +212,7 @@ func citationYieldByRole(fam *record.Family) (objJSON, bool) {
 	if fam == nil {
 		return "", false
 	}
-	return BucketFindingsByRole(record.FindingsJSONOf(fam.Events).Findings)
+	return BucketFindingsByRole(record.FindingsJSONOf(fam.Events, fam.At).Findings)
 }
 
 // BucketFindingsByRole buckets findings per EPOCH (chair sitting — the record has no epoch) by
@@ -524,7 +524,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	total := 0
 	var thinLines []string
 	if fam != nil {
-		for _, q := range record.AvenuesOf(fam.Events) {
+		for _, q := range record.AvenuesOf(fam.Events, fam.At) {
 			total++
 			st := q.Status
 			if _, seen := statusCount[st]; !seen {
@@ -703,7 +703,7 @@ func LegacyNote(keys []string) string {
 // each word here is one the reader knows.
 func docketRulings(fam *record.Family) []*record.Motion {
 	var out []*record.Motion
-	for _, m := range record.MotionsOf(fam.Events) {
+	for _, m := range record.MotionsOf(fam.Events, fam.At) {
 		if m.Subject == "docket" && m.Ruled() {
 			out = append(out, m)
 		}
@@ -784,7 +784,7 @@ func benchRows(fam *record.Family) []Row {
 		petRow.Note = unread
 	} else {
 		petitions := 0
-		for _, m := range record.MotionsOf(fam.Events) {
+		for _, m := range record.MotionsOf(fam.Events, fam.At) {
 			if m.Subject == recordpb.Word(recordpb.MotionSubject_MOTION_SUBJECT_PETITION) {
 				petitions++
 			}

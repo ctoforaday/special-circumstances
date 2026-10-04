@@ -54,7 +54,7 @@ func Events(db *sql.DB) ([]*recordpb.Event, []Window, error) {
 }
 
 // Window is where an event sits on the record: its row, the sitting it belongs to, and that
-// sitting's place on the record's two clocks (plans/roundless.md §III.A.0).
+// sitting's place on the record's two windows (plans/roundless.md §III.A.0).
 //
 // SittingID is the stored fact — events.sitting_id, stamped once at the write by sittingOf — and
 // the rest is read beside it. OWNER is the seat whose sitting that is (the `sittings` view's owner:
@@ -85,6 +85,11 @@ func (w Window) Opens() (string, bool) {
 // through the loader to get them. The words are the schema's own spellings (recordpb.Word); a
 // word the vocabulary does not hold simply matches nothing, exactly as it would in the stream.
 //
+// Each event comes back with its Window, as from Events: the projections that narrow are the ones
+// that print an epoch or a sitting number, and the stored window carries both whatever else the
+// narrowing left out. A slice holding no chair act still knows which of the chair's sittings each
+// of its rows falls in.
+//
 // THAT LAST SENTENCE IS TRUE OF THE ARGUMENT AND WAS ASSUMED OF THE DATABASE, and the two are not
 // the same claim. `WHERE type IN (…)` matches nothing when the caller asks for a word no event
 // carries — the honest zero — AND when the DATABASE spells its events with words this schema does
@@ -103,29 +108,28 @@ func (w Window) Opens() (string, bool) {
 // is no epoch to compare and nothing here knows what the words used to be. It asks the one question
 // the data can answer on its own — does this record spell its events in words this schema declares
 // — and the schema's own enum is the whole authority.
-func EventsOfTypes(db *sql.DB, words ...string) ([]*recordpb.Event, error) {
+func EventsOfTypes(db *sql.DB, words ...string) ([]*recordpb.Event, []Window, error) {
 	if len(words) == 0 {
-		return nil, nil
+		return nil, nil, nil
 	}
 	if err := refuseUndeclaredTypes(db); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	marks := strings.TrimSuffix(strings.Repeat("?, ", len(words)), ", ")
 	args := make([]any, len(words))
 	for i, w := range words {
 		args[i] = w
 	}
-	evs, _, err := eventsWhere(db, false, ` WHERE "type" IN (`+marks+`)`, args...)
-	return evs, err
+	return eventsWhere(db, true, ` WHERE e."type" IN (`+marks+`)`, args...)
 }
 
 // eventsWhere is the one read path. withWindows reads each row's Window beside it, off events_w
 // joined to the stored sitting_id and the `sittings` view's owner, in one statement; without it the
-// read is the events table alone. events_w ranks every sitting on the record, so a narrowed read —
-// one key, one set of types — that took windows would pay for the whole record and keep a slice of
-// it: only the loaders that index windows ask for them.
+// read is the events table alone. events_w ranks every sitting on the record, so a windowed read
+// pays for the whole record however narrow its WHERE: a read by one key, which prints no window,
+// does not ask for one.
 func eventsWhere(db *sql.DB, withWindows bool, where string, args ...any) ([]*recordpb.Event, []Window, error) {
-	q := `SELECT "id", "seat_id", "ts", "type", "key" FROM "events"` + where + ` ORDER BY "id"`
+	q := `SELECT e."id", e."seat_id", e."ts", e."type", e."key" FROM "events" e` + where + ` ORDER BY e."id"`
 	if withWindows {
 		q = `SELECT w."id", w."seat_id", w."ts", w."type", w."key", w."epoch", w."sitting",
 		            COALESCE(e."sitting_id", 0), COALESCE(s."seat_id", '')

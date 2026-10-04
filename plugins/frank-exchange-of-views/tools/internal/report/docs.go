@@ -148,7 +148,7 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	// because those are the debate. Shipping only the query view would have left the path in no
 	// document a reader of the archived set can open, so it ships here — the SAME rendering
 	// `show avenues` prints (view.AvenueBody), not a second account of it.
-	inq := view.AvenueBody(evs)
+	inq := view.AvenueBody(evs, fam.At)
 
 	var runsec sections
 	// FIRST, because it is the fact about the run a reader of the verdict most needs: what actually
@@ -160,14 +160,14 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	// For EVERY run, including one with no outcome — verdictGloss(nil) is where "the bench never ran
 	// `bench outcome`" is said, now that report.md's stamp carries only the state NONE.
 	runsec.add("## The verdict's basis\n\n" + verdictGloss(outcome))
-	runsec.add(logSection(evs))
+	runsec.add(logSection(evs, fam.At))
 	// The record's own invariant check, rendered for the human the report is for. See
 	// recordVerification: a section, never a gate.
 	runsec.add(recordVerification(fam))
 
 	var chg sections
-	chg.add(revisionHistory(evs))
-	chg.add(withdrawnClaims(evs))
+	chg.add(revisionHistory(evs, fam.At))
+	chg.add(withdrawnClaims(evs, fam.At))
 	chg.add(supersededAsks(evs))
 
 	docs := []Doc{
@@ -329,8 +329,8 @@ func indexDoc(run record.Run, title string, set []Doc, fam record.Family, evs []
 // field off the record — nothing here is derived from the prose it sits above.
 func factBox(fam record.Family, evs []*record.Event) string {
 	open, closed := 0, 0
-	// EPOCHS: how many times the chair sat. Counted by the Clock over the events, and floored by
-	// the epochs the gaps were minted and closed in, for a caller holding a board and no log.
+	// EPOCHS: how many times the chair sat — the largest epoch the record holds an act in, floored
+	// by the epochs the gaps were minted and closed in, for a caller holding a board and no log.
 	epochs := 0
 	for _, g := range fam.Gaps {
 		if g == nil {
@@ -348,9 +348,8 @@ func factBox(fam record.Family, evs []*record.Event) string {
 			epochs = g.ClosedEpoch
 		}
 	}
-	var clk record.Clock
 	for _, e := range evs {
-		if w := clk.Advance(e); w.Epoch > epochs {
+		if w := fam.At.Of(e); w.Epoch > epochs {
 			epochs = w.Epoch
 		}
 	}

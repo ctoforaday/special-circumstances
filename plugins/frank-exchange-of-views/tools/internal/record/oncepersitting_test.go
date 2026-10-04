@@ -41,8 +41,9 @@ func words(types map[recordpb.EventType]bool) []string {
 // EVERY ONCE-PER-SITTING ACT IS REFUSED A SECOND TIME IN ONE SITTING, AND A REPAIR IS ONE SITTING
 // (#1026). The duty used to be enforced only by deriveKey's ordinal colliding, and that ordinal
 // counts TURNS: a sitting-record repair is a turn of its own, so inside one the key was free and
-// nothing refused the second act. The duty now asks record.ActClock's question — which sitting is
-// this act attributed to — which is what makes the refusal's "this sitting" true.
+// nothing refused the second act. The duty now asks which sitting the record holds this act in —
+// the stored sitting, a repair's acts being the sitting it repairs — which is what makes the
+// refusal's "this sitting" true.
 //
 // THE REPAIR ARM IS FORGED FOR THE CHAIR'S TWO ACTS, deliberately. checkRepair admits a repair only
 // from a blue seat, so `verdict` and `spot_check` cannot reach that shape through any verb; the row

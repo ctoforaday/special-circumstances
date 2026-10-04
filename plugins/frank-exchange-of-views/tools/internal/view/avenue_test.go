@@ -30,7 +30,7 @@ func TestAnAppealRendersBesideItsRuling(t *testing.T) {
 			Reason:   proto.String("the adjacent literature is what the question turns on"),
 		}),
 	}
-	got := string(avenueMD(Input{Events: evs}))
+	got := string(avenueMD(inputT(t, evs...)))
 	ruled := strings.Index(got, "RED RULED **out_of_scope**")
 	appealed := strings.Index(got, "BLUE APPEALED the `out_of_scope` ruling")
 	if ruled < 0 || appealed < 0 || appealed < ruled {

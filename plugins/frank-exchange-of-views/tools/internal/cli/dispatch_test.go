@@ -48,7 +48,7 @@ func TestDispatchNextRecordsThePartiesItNames(t *testing.T) {
 	if plan.Head != 2 || len(plan.Parties) != 2 || plan.PassPermitted || plan.Ceiling {
 		t.Fatalf("plan = %+v, want head 2 and two parties (the lens and blue on G1)", plan)
 	}
-	evs, err := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_DISPATCH)
+	evs, _, err := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_DISPATCH)
 	if err != nil || len(evs) != 2 {
 		t.Fatalf("dispatch events on the record = %d (%v), want one per party", len(evs), err)
 	}
@@ -93,7 +93,7 @@ func TestDispatchNextDocketsAGapAtImpasse(t *testing.T) {
 	if len(plan.Docket) != 1 || plan.Docket[0] != "G1" || len(plan.Parties) != 1 || plan.Parties[0].SeatID != "judge" {
 		t.Fatalf("plan = %+v, want G1 docketed and the bench alone engaged", plan)
 	}
-	motions, _ := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_MOTION)
+	motions, _, _ := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_MOTION)
 	if len(motions) != 1 {
 		t.Fatalf("motions on the record = %d, want the docket motion the verb filed", len(motions))
 	}
@@ -104,14 +104,14 @@ func TestDispatchNextDocketsAGapAtImpasse(t *testing.T) {
 	// Asked again with nothing changed: the plan still says this sitting docketed G1 — the chair
 	// relays the plan it asks for last — the bench is still the only party, no second motion is
 	// filed, and no second dispatch row is written.
-	rows, _ := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_DISPATCH)
+	rows, _, _ := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_DISPATCH)
 	out2, err := run(t, "dispatch", "next", "--run", runDir, "--seat-id", "red-chair", "--json")
 	if err != nil {
 		t.Fatal(err)
 	}
 	plan2 := planOf(t, out2)
-	motions, _ = record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_MOTION)
-	rows2, _ := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_DISPATCH)
+	motions, _, _ = record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_MOTION)
+	rows2, _, _ := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_DISPATCH)
 	if !slices.Equal(plan2.Docket, []string{"G1"}) || len(motions) != 1 || len(plan2.Parties) != 1 || len(rows2) != len(rows) {
 		t.Errorf("a second ask re-docketed, re-engaged or re-recorded: plan=%+v motions=%d rows %d -> %d", plan2, len(motions), len(rows), len(rows2))
 	}
@@ -124,7 +124,7 @@ func TestDispatchNextRecordsOncePerSittingAndRefusesAnUnopenedOne(t *testing.T) 
 	runDir := newRun(t)
 	stageEvents(t, runDir)
 	dispatches := func() int {
-		evs, err := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_DISPATCH)
+		evs, _, err := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_DISPATCH)
 		if err != nil {
 			t.Fatal(err)
 		}

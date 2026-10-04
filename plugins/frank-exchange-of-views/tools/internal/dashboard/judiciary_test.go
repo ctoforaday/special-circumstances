@@ -157,6 +157,30 @@ func TestTheJudiciaryReadsTheRecord(t *testing.T) {
 	})
 }
 
+// A JUDGE SITTING IS A STORED SITTING. The hook brackets the bench, its register joins the bracket,
+// and a second register under the same agent joins it too: two sittings, however many registers.
+func TestJudgeSittingsAreTheStoredSittings(t *testing.T) {
+	bracket := func(agent string) *recordpb.Event {
+		return recordtest.At(t, "harness", "harness:sitting_open:"+agent, &recordpb.SittingOpen{
+			AgentId: proto.String(agent), AgentType: proto.String("frank-exchange-of-views:lead-judge"), SeatId: proto.String("judge")})
+	}
+	bench := func(key, agent string, o recordpb.Occasion) *recordpb.Event {
+		return recordtest.At(t, "judge", key, &recordpb.Register{AgentId: proto.String(agent), Occasion: o.Enum()})
+	}
+	dir := recordtest.TmpRun(t)
+	recordtest.Seed(t, dir,
+		registered(t, "red-chair", "C1"),
+		bracket("J1"),
+		bench("judge:register:#1", "J1", recordpb.Occasion_OCCASION_DOCKET),
+		bench("judge:register:#2", "J1", recordpb.Occasion_OCCASION_DOCKET), // the same sitting, registered twice
+		bracket("J2"),
+		bench("judge:register:#3", "J2", recordpb.Occasion_OCCASION_TERMINAL),
+	)
+	if n := BuildModel(runtest.Open(t, dir), t.TempDir(), Config{}, 0).Judiciary.JudgeSittings; n != 2 {
+		t.Errorf("JudgeSittings = %d, want 2 (two bracketed sittings; a register joins its bracket's)", n)
+	}
+}
+
 // EVERY BENCH SITTING IS A JUDGE SITTING, whatever it was convened to do: a petition hearing and
 // the assembly sit as surely as a docket ruling. A register that repairs a sitting opens none.
 func TestEveryBenchSittingIsCounted(t *testing.T) {

@@ -55,3 +55,38 @@ func (b *boardT) fam() record.Family {
 	}
 	return record.NewFamily(ordered, b.Events)
 }
+
+// famOf is the family of evs as the write path stores them: every epoch and `seat #N` a section
+// prints is the stored window, so a section's fixture is seeded and loaded back.
+func famOf(t *testing.T, evs []*record.Event) record.Family {
+	t.Helper()
+	return runtest.Family(t, nil, evs...)
+}
+
+// debateT is debate over evs as the write path stores them.
+func debateT(t *testing.T, evs []*record.Event) string {
+	t.Helper()
+	f := famOf(t, evs)
+	return debate(f, f.Events)
+}
+
+// withdrawnClaimsT is withdrawnClaims over evs as the write path stores them.
+func withdrawnClaimsT(t *testing.T, evs []*record.Event) string {
+	t.Helper()
+	f := famOf(t, evs)
+	return withdrawnClaims(f.Events, f.At)
+}
+
+// revisionHistoryT is revisionHistory over evs as the write path stores them.
+func revisionHistoryT(t *testing.T, evs []*record.Event) string {
+	t.Helper()
+	f := famOf(t, evs)
+	return revisionHistory(f.Events, f.At)
+}
+
+// logSectionT is logSection over evs as the write path stores them.
+func logSectionT(t *testing.T, evs []*record.Event) string {
+	t.Helper()
+	f := famOf(t, evs)
+	return logSection(f.Events, f.At)
+}
