@@ -1,8 +1,6 @@
 package record
 
 import (
-	"encoding/json"
-
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -464,19 +462,16 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 	return out
 }
 
+// evidenceView is the evidence read from the record: the sources, proofs and their checks, the
+// findings that answer a contradicting check (unanswered_contradictions), and the edits that
+// reopen an anchor (reopened).
+var evidenceView = declareNarrowedView("evidence", rendersEvents(EvidenceJSONOf),
+	recordpb.EventType_EVENT_TYPE_CITE,
+	recordpb.EventType_EVENT_TYPE_VERIFY,
+	recordpb.EventType_EVENT_TYPE_PROOF,
+	recordpb.EventType_EVENT_TYPE_REPRODUCE,
+	recordpb.EventType_EVENT_TYPE_FINDING,
+	recordpb.EventType_EVENT_TYPE_BLUE_EDIT)
+
 // EvidenceJSONBytes renders the evidence view as indented JSON.
-func EvidenceJSONBytes(run Run) ([]byte, error) {
-	evs, win, err := EventsOf(run,
-		recordpb.EventType_EVENT_TYPE_CITE,
-		recordpb.EventType_EVENT_TYPE_VERIFY,
-		recordpb.EventType_EVENT_TYPE_PROOF,
-		recordpb.EventType_EVENT_TYPE_REPRODUCE)
-	if err != nil {
-		return nil, err
-	}
-	out, err := json.MarshalIndent(EvidenceJSONOf(evs, win), "", "  ")
-	if err != nil {
-		return nil, err
-	}
-	return append(out, '\n'), nil
-}
+func EvidenceJSONBytes(run Run) ([]byte, error) { return evidenceView.jsonBytes(run) }

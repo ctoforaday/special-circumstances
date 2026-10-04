@@ -103,6 +103,9 @@ func MintCheckKind(run Run, gapID string) (recordpb.CheckKind, error) {
 // business hauling the whole record through the loader to get it — with each event's stored window
 // (WindowIndex), so the projection prints the epoch and sitting the record holds without loading
 // the acts that opened them. A run with no record yet holds none of anything.
+//
+// A projection reaches it through a narrowedView, which takes the families from the view's own
+// declaration (narrowedview.go) — the one place a projection says what it renders.
 func EventsOf(run Run, types ...recordpb.EventType) ([]*Event, WindowIndex, error) {
 	db, err := openRunForRead(run)
 	if err != nil {

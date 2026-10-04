@@ -334,7 +334,19 @@ func BoardJSONBytesFor(run Run, role, seatID string) ([]byte, error) {
 // pair on records that exercise the fold's edges (a gap closed by BOTH arms, where attribution
 // follows the LAST closing event but the embedded body prefers the red close) — until the last
 // board-holding caller's wave retires the fold shape (plans/board-as-views.md wave 7).
-func BoardJSONOfRun(run Run) (BoardJSON, error) {
+func BoardJSONOfRun(run Run) (BoardJSON, error) { return boardView.of(run) }
+
+// boardView is the acts the board embeds or attributes, one filtered typed read, grouped per gap.
+var boardView = declareNarrowedView("board", boardJSONOfRecord,
+	recordpb.EventType_EVENT_TYPE_CLOSE,
+	recordpb.EventType_EVENT_TYPE_MOTION,
+	recordpb.EventType_EVENT_TYPE_MOTION_RULE,
+	recordpb.EventType_EVENT_TYPE_REGRADE,
+	recordpb.EventType_EVENT_TYPE_FINDING,
+	recordpb.EventType_EVENT_TYPE_VERIFY) // for each open gap's backing
+
+// boardJSONOfRecord is BoardJSONOfRun over the events its declaration loaded.
+func boardJSONOfRecord(run Run, evs []*Event, win WindowIndex) (BoardJSON, error) {
 	out := BoardJSON{
 		Open:      []GapJSON{},
 		Closed:    []GapJSON{},
@@ -364,17 +376,6 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 		}
 	}
 
-	// The acts the projection embeds or attributes, one filtered typed read, grouped per gap.
-	evs, win, err := EventsOf(run,
-		recordpb.EventType_EVENT_TYPE_CLOSE,
-		recordpb.EventType_EVENT_TYPE_MOTION,
-		recordpb.EventType_EVENT_TYPE_MOTION_RULE,
-		recordpb.EventType_EVENT_TYPE_REGRADE,
-		recordpb.EventType_EVENT_TYPE_FINDING,
-		recordpb.EventType_EVENT_TYPE_VERIFY) // for each open gap's backing
-	if err != nil {
-		return out, err
-	}
 	verified := backingOf(Live(evs))
 	// THE CLOSURE IS A FOLD (the acts that stand); THE REGRADE HISTORY IS A LISTING (every regrade,
 	// a struck one marked `struck`). Read raw, a corrected regrade listed as two ordinary regrades
@@ -1382,33 +1383,15 @@ func FindingsJSONOf(evs []*Event, win WindowIndex) FindingsJSON {
 	return out
 }
 
-// FindingsJSONBytes renders the findings view as indented JSON (a seat reads it in a
-// terminal transcript).
-func FindingsJSONBytes(run Run) ([]byte, error) {
-	// MINT COMES TOO, and it is not optional: without it mintedBy is empty and EVERY finding
-	// reports minted_as [] — "nothing was minted from any finding", in the same bytes the view
-	// uses for a finding genuinely dropped. The typed read is the thing that makes the join real.
-	evs, win, err := EventsOf(run, findingsViewEventTypes()...)
-	if err != nil {
-		return nil, err
-	}
-	out, err := json.MarshalIndent(FindingsJSONOf(evs, win), "", "  ")
-	if err != nil {
-		return nil, err
-	}
-	return append(out, '\n'), nil
-}
+// findingsView is the findings read from the record. MINT is not optional company for FINDING:
+// minted_as is computed from the mint bodies in the same slice, so a stream without them reports
+// every finding as credited by nothing — the same bytes the view uses for a finding genuinely dropped.
+var findingsView = declareNarrowedView("findings", rendersEvents(FindingsJSONOf),
+	recordpb.EventType_EVENT_TYPE_FINDING,
+	recordpb.EventType_EVENT_TYPE_MINT)
 
-// findingsViewEventTypes is what the findings view has to read, named rather than inlined so a
-// test can assert it. MINT is not optional company for FINDING here: minted_as is computed from
-// the mint bodies in the same slice, so a stream without them reports every finding as credited
-// by nothing — the same bytes the view uses for a finding genuinely dropped.
-func findingsViewEventTypes() []recordpb.EventType {
-	return []recordpb.EventType{
-		recordpb.EventType_EVENT_TYPE_FINDING,
-		recordpb.EventType_EVENT_TYPE_MINT,
-	}
-}
+// FindingsJSONBytes renders the findings view as indented JSON.
+func FindingsJSONBytes(run Run) ([]byte, error) { return findingsView.jsonBytes(run) }
 
 // LogJSON is the operator-facing log view: every log event on the record, in event order —
 // entries addressed to whoever can retool the seat, living as events rather than a hand-written
@@ -1487,24 +1470,16 @@ func LogJSONOf(evs []*Event, win WindowIndex) LogJSON {
 	return out
 }
 
+// logView is the log read from the record. THE OPENINGS COME TOO — a register and a hook's
+// sitting_open — because `clean` counts the seats that sat, and an opening is where the record holds
+// a sitting. The epochs need nothing beside the logs: each carries its stored window.
+var logView = declareNarrowedView("log", rendersEvents(LogJSONOf),
+	recordpb.EventType_EVENT_TYPE_LOG,
+	recordpb.EventType_EVENT_TYPE_REGISTER,
+	recordpb.EventType_EVENT_TYPE_SITTING_OPEN)
+
 // LogJSONBytes renders the log view as indented JSON.
-func LogJSONBytes(run Run) ([]byte, error) {
-	// THE OPENINGS COME TOO — a register and a hook's sitting_open — because `clean` counts the
-	// seats that sat, and an opening is where the record holds a sitting. The epochs need nothing
-	// beside the logs: each carries its stored window.
-	evs, win, err := EventsOf(run,
-		recordpb.EventType_EVENT_TYPE_LOG,
-		recordpb.EventType_EVENT_TYPE_REGISTER,
-		recordpb.EventType_EVENT_TYPE_SITTING_OPEN)
-	if err != nil {
-		return nil, err
-	}
-	out, err := json.MarshalIndent(LogJSONOf(evs, win), "", "  ")
-	if err != nil {
-		return nil, err
-	}
-	return append(out, '\n'), nil
-}
+func LogJSONBytes(run Run) ([]byte, error) { return logView.jsonBytes(run) }
 
 // DebateJSON is the seat-facing STRUCTURED debate: the same epoch-by-epoch transcript
 // render.go writes to debate.md, but as data instead of prose. It exists because the
@@ -1572,7 +1547,7 @@ type DebateOpinionJSON struct {
 // DebateJSONOf projects the debate prose per epoch. It takes the EPOCH SKELETON separately from
 // the events, because the epochs come from the WHOLE record — an epoch whose only acts are mints
 // still renders, empty, exactly as it always has — while the events it renders are only the
-// position, closing, motion and motion-rule families. A caller holding merged events uses
+// position, closing, motion, motion-rule and verdict families. A caller holding merged events uses
 // DebateJSONOfEvents.
 func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex) DebateJSON {
 	out := DebateJSON{Epochs: []DebateEpochJSON{}}
@@ -1691,26 +1666,23 @@ func DebateJSONOfEvents(evs []*Event, win WindowIndex) DebateJSON {
 	return DebateJSONOf(epochs, evs, win)
 }
 
-// DebateJSONBytes renders the structured debate as indented JSON.
-func DebateJSONBytes(run Run) ([]byte, error) {
+// debateView is the structured debate read from the record: the transcript's families, and the
+// chair's recorded verdicts each epoch's `verdict` is read from.
+var debateView = declareNarrowedView("debate", func(run Run, evs []*Event, win WindowIndex) (DebateJSON, error) {
 	epochs, err := Epochs(run)
 	if err != nil {
-		return nil, err
+		return DebateJSON{}, err
 	}
-	evs, win, err := EventsOf(run,
-		recordpb.EventType_EVENT_TYPE_POSITION,
-		recordpb.EventType_EVENT_TYPE_CLOSING,
-		recordpb.EventType_EVENT_TYPE_MOTION,
-		recordpb.EventType_EVENT_TYPE_MOTION_RULE)
-	if err != nil {
-		return nil, err
-	}
-	out, err := json.MarshalIndent(DebateJSONOf(epochs, evs, win), "", "  ")
-	if err != nil {
-		return nil, err
-	}
-	return append(out, '\n'), nil
-}
+	return DebateJSONOf(epochs, evs, win), nil
+},
+	recordpb.EventType_EVENT_TYPE_POSITION,
+	recordpb.EventType_EVENT_TYPE_CLOSING,
+	recordpb.EventType_EVENT_TYPE_MOTION,
+	recordpb.EventType_EVENT_TYPE_MOTION_RULE,
+	recordpb.EventType_EVENT_TYPE_VERDICT)
+
+// DebateJSONBytes renders the structured debate as indented JSON.
+func DebateJSONBytes(run Run) ([]byte, error) { return debateView.jsonBytes(run) }
 
 // currentLoc is CurrentLocation with the board's argument order, so the literal stays readable at
 // the call site.
