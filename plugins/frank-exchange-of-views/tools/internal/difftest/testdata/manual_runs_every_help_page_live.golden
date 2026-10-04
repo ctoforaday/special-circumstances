@@ -473,7 +473,7 @@ Enumerated values:
     not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
-    remanded                  NOT a closure: the gap stays open into a later sitting with a stated research direction the coming seat owes
+    remanded                  NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states as what would reopen it. If that exchange leaves it at impasse it is docketed again, and a second remand leaves it open at its limit
     moot                      the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired
 
 (Global Flags:) → SHARED §2
@@ -598,7 +598,7 @@ Flags:
 Enumerated values:
   --as
     VERIFIED    red passed the board and the bench agrees the question was answered
-    CEILING     every open material gap reached its limit — at impasse, ruled by the bench and remanded — with nobody ready and PASS not permitted; NOT a judged failure to verify, and the stamp says so
+    CEILING     every open material gap reached its limit — at impasse after the one more exchange the bench's remand granted, and remanded again — with nobody ready and PASS not permitted; NOT a judged failure to verify, and the stamp says so
     HALTED      the bench ended the run on a safety, ethics, consent or integrity boundary
     UNVERIFIED  the run ended without the question being answered, and no ceiling or halt explains it
 
@@ -789,7 +789,7 @@ An item with `blocks: false` is work nobody will refuse you for skipping — a c
 
 FOR EACH GAP YOU MINTED AND LEFT OPEN, an item says whether blue ANSWERED it — and where the record cannot yet say, it says that instead of reporting no answer. Blue still sitting and blue having said nothing are the same silence on the record, and they want different acts from you: one is waiting, the other is a fact to state.
 
-`open` holds OPEN gaps only, and each carries WHAT IT TAKES TO ACT ON IT: the grades, class and location, the WHOLE problem (`problem_synopsis` is the first 140 characters, for scanning a long list), the `required_fix` and the `acceptance_check` you will be re-audited against, `minted_by` and `yours_to_close` — only the seat that minted a gap may close or regrade it, and that field answers it rather than leaving you to decode `found_by`. YOU SHOULD NOT NEED THE BOARD TO ACT ON YOUR OWN WORK. One with `awaiting_docket` was REMANDED by the bench — nothing is pending, and it returns only if you docket it again (`docket_reopens_on` says what would bring it back).
+`open` holds OPEN gaps only, and each carries WHAT IT TAKES TO ACT ON IT: the grades, class and location, the WHOLE problem (`problem_synopsis` is the first 140 characters, for scanning a long list), the `required_fix` and the `acceptance_check` you will be re-audited against, `minted_by` and `yours_to_close` — only the seat that minted a gap may close or regrade it, and that field answers it rather than leaving you to decode `found_by`. YOU SHOULD NOT NEED THE BOARD TO ACT ON YOUR OWN WORK. One with `remanded` was REMANDED by the bench and is back in the debate for ONE more exchange: the dispatch readies its minting lens and blue on it, owing the research direction the ruling states (`docket_reopens_on`), and an item on each of their lists says so. If that exchange leaves it at impasse, the dispatch dockets it for the bench again; remanded a second time, it stays open at its limit.
 
 `estopped` IS WHAT YOU MAY NOT RE-RAISE: the gaps the BENCH ruled, each with id, location, class and the `fate` that ended it. Re-raising one is relitigation, not diligence — new evidence against it is a lineage successor, minted under a new id naming the ruled gap in `supersedes` and saying what the ruling did not account for. YOUR OWN closures are not here and are not a bar: red may reopen what red closed, and the lens's `near-match` shows you those with `closed_by` at the moment you are deciding reopen-or-new.
 
@@ -797,7 +797,7 @@ Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_wit
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §10
 
-OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}],last_sitting:{kind,pin,head}},open:[{id,severity,likelihood,impact,complexity_cost,class,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],edited_since:[{epoch,edited_by,old,new}],problem_synopsis,problem,required_fix,acceptance_check,minted_by,yours_to_close,check_kind,awaiting_proof,awaiting_docket,docket_reopens_on,found_by:[string],material}],estopped:[{id,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],class,fate,closed_by,artifact_state}],counts:{open,estopped},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
+OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}],last_sitting:{kind,pin,head}},open:[{id,severity,likelihood,impact,complexity_cost,class,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],edited_since:[{epoch,edited_by,old,new}],problem_synopsis,problem,required_fix,acceptance_check,minted_by,yours_to_close,check_kind,awaiting_proof,remanded,docket_reopens_on,found_by:[string],material}],estopped:[{id,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],class,fate,closed_by,artifact_state}],counts:{open,estopped},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -1753,7 +1753,7 @@ An item with `blocks: false` is work nobody will refuse you for skipping — a c
 
 FOR EACH GAP YOU MINTED AND LEFT OPEN, an item says whether blue ANSWERED it — and where the record cannot yet say, it says that instead of reporting no answer. Blue still sitting and blue having said nothing are the same silence on the record, and they want different acts from you: one is waiting, the other is a fact to state.
 
-`open` holds OPEN gaps only, and each carries WHAT IT TAKES TO ACT ON IT: the grades, class and location, the WHOLE problem (`problem_synopsis` is the first 140 characters, for scanning a long list), the `required_fix` and the `acceptance_check` you will be re-audited against, `minted_by` and `yours_to_close` — only the seat that minted a gap may close or regrade it, and that field answers it rather than leaving you to decode `found_by`. YOU SHOULD NOT NEED THE BOARD TO ACT ON YOUR OWN WORK. One with `awaiting_docket` was REMANDED by the bench — nothing is pending, and it returns only if you docket it again (`docket_reopens_on` says what would bring it back).
+`open` holds OPEN gaps only, and each carries WHAT IT TAKES TO ACT ON IT: the grades, class and location, the WHOLE problem (`problem_synopsis` is the first 140 characters, for scanning a long list), the `required_fix` and the `acceptance_check` you will be re-audited against, `minted_by` and `yours_to_close` — only the seat that minted a gap may close or regrade it, and that field answers it rather than leaving you to decode `found_by`. YOU SHOULD NOT NEED THE BOARD TO ACT ON YOUR OWN WORK. One with `remanded` was REMANDED by the bench and is back in the debate for ONE more exchange: the dispatch readies its minting lens and blue on it, owing the research direction the ruling states (`docket_reopens_on`), and an item on each of their lists says so. If that exchange leaves it at impasse, the dispatch dockets it for the bench again; remanded a second time, it stays open at its limit.
 
 `estopped` IS WHAT YOU MAY NOT RE-RAISE: the gaps the BENCH ruled, each with id, location, class and the `fate` that ended it. Re-raising one is relitigation, not diligence — new evidence against it is a lineage successor, minted under a new id naming the ruled gap in `supersedes` and saying what the ruling did not account for. YOUR OWN closures are not here and are not a bar: red may reopen what red closed, and the lens's `near-match` shows you those with `closed_by` at the moment you are deciding reopen-or-new.
 
@@ -1761,7 +1761,7 @@ Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_wit
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §19
 
-OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}],last_sitting:{kind,pin,head}},open:[{id,severity,likelihood,impact,complexity_cost,class,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],edited_since:[{epoch,edited_by,old,new}],problem_synopsis,problem,required_fix,acceptance_check,minted_by,yours_to_close,check_kind,awaiting_proof,awaiting_docket,docket_reopens_on,found_by:[string],material}],estopped:[{id,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],class,fate,closed_by,artifact_state}],counts:{open,estopped},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
+OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}],last_sitting:{kind,pin,head}},open:[{id,severity,likelihood,impact,complexity_cost,class,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],edited_since:[{epoch,edited_by,old,new}],problem_synopsis,problem,required_fix,acceptance_check,minted_by,yours_to_close,check_kind,awaiting_proof,remanded,docket_reopens_on,found_by:[string],material}],estopped:[{id,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],class,fate,closed_by,artifact_state}],counts:{open,estopped},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
 

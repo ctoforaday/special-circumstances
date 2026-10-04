@@ -144,7 +144,7 @@ func TestChairDocketAffordanceOnlyOnMaterialGaps(t *testing.T) {
 		{ID: "NEVER", Open: true, ClassMaterial: "never"},
 		{ID: "LOW", Open: true, ClassMaterial: "by_grade", Severity: "low"},
 		{ID: "MAT", Open: true, Material: true},
-		{ID: "CARRIED", Open: true, Material: true, AwaitingDocket: true},
+		{ID: "CARRIED", Open: true, Material: true, Remanded: true},
 		{ID: "STRANDED", Open: true, Stranded: true, SupersededBy: "MAT"},
 	}
 	open := availableOf(nil, WindowIndex{}, gaps, "chair", "red-chair")

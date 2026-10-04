@@ -83,9 +83,9 @@ func DeriveVerdict(run Run) (verdict, why string, ok bool, err error) {
 		return "VERIFIED", "the chair recorded a PASS verdict" + coverage, true, nil
 	}
 	// CEILING IS THE DISPATCH PLAN'S (plans/roundless.md §III.B.2), for one of two reasons: every
-	// open material gap is at impasse and has had its bench ruling — carried, since it is still
-	// open — or the chair has sat for the run's last epoch under its epoch limit, a term setup
-	// records. A record with no cast cannot reach it.
+	// open material gap is at impasse after the one more exchange its remand granted and the bench
+	// has remanded it again (remandStageOf), or the chair has sat for the run's last epoch under its
+	// epoch limit, a term setup records. A record with no cast cannot reach it.
 	cast, err := CastOf(run)
 	if err != nil {
 		return "", "", false, err
@@ -99,7 +99,7 @@ func DeriveVerdict(run Run) (verdict, why string, ok bool, err error) {
 		case plan.EpochLimitReached:
 			return "CEILING", fmt.Sprintf("epoch limit %d reached — the run's term; the parties still ready were not dispatched and PASS is not permitted", plan.MaxEpochs) + coverage, true, nil
 		case plan.Ceiling:
-			return "CEILING", "every open material gap is at its limit and the bench has ruled on each — nobody is ready and PASS is not permitted" + coverage, true, nil
+			return "CEILING", "every open material gap is at its limit — remanded again after the one more exchange its remand granted — nobody is ready and PASS is not permitted" + coverage, true, nil
 		}
 	}
 	return "", "no pass, no halt, and the board is not at its ceiling — the run ended before a terminal state was reached, and the record says so rather than guessing", false, nil

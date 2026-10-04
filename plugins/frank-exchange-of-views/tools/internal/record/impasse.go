@@ -3,6 +3,7 @@ package record
 import (
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -31,6 +32,15 @@ type GapExchanges struct {
 	// They are NOT counted as exchanges and NOT reported as zero — the miss and the honest zero are
 	// different answers, and Counted words them apart.
 	Unresolved int
+	// starts is where each counted exchange began — its minting lens's sitting — in the record's
+	// place sequence, so "has an exchange been had since X" is asked of the same fold that counts.
+	starts []int64
+}
+
+// exchangedSince reports whether an exchange the record counts on the gap began after at. A remand
+// grants the gap one exchange, and it is the first one to begin after the remand ruling.
+func (x *GapExchanges) exchangedSince(at int64) bool {
+	return x != nil && slices.ContainsFunc(x.starts, func(s int64) bool { return s > at })
 }
 
 // Counted is the fold's numbers in the words a seat reads, and it is THE ONE PLACE the not-measured
@@ -82,9 +92,21 @@ func Exchanges(run Run, p Params) (map[string]*GapExchanges, error) {
 	return exchangesOf(evs, win.IDs(evs), win, p, WhileRunning), nil
 }
 
-// exchangesOf is the fold. It takes when the record is read from its caller: the chair's dispatch
-// plan is its reader, and a plan is computed while the run is running. ids is evs's places.
+// exchangesOf is the fold under the run's terms. It takes when the record is read from its caller:
+// the chair's dispatch plan is its reader, and a plan is computed while the run is running. ids is
+// evs's places.
 func exchangesOf(evs []*Event, ids []int64, win WindowIndex, p Params, when ReadWhen) map[string]*GapExchanges {
+	out := exchangeFold(evs, ids, win, when)
+	for _, x := range out {
+		x.Impasse = x.Stalled >= p.K || x.Exchanges >= p.KMax
+	}
+	return out
+}
+
+// exchangeFold counts each gap's exchanges and stalls; Impasse is the run's terms applied to them,
+// and exchangesOf applies it. A reader that asks only where exchanges began (the work list's remand
+// item) reads the fold without the terms.
+func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen) map[string]*GapExchanges {
 	minted := map[string]string{}    // gap -> the lens that minted it
 	grades := map[string][3]string{} // gap -> current severity, likelihood, impact
 	movement := map[string][]int64{} // gap -> ids of movement events
@@ -168,6 +190,7 @@ func exchangesOf(evs []*Event, ids []int64, win WindowIndex, p Params, when Read
 				continue // blue answering nobody is not an exchange
 			}
 			x.Exchanges++
+			x.starts = append(x.starts, pendingRed)
 			moved := false
 			for _, m := range moves {
 				if m > pendingRed && m <= s.end {
@@ -182,7 +205,6 @@ func exchangesOf(evs []*Event, ids []int64, win WindowIndex, p Params, when Read
 			}
 			pendingRed = math.MinInt64
 		}
-		x.Impasse = x.Stalled >= p.K || x.Exchanges >= p.KMax
 	}
 	return out
 }

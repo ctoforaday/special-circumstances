@@ -31,7 +31,8 @@ type move struct {
 	bench, rules bool
 	// pass: nobody is ready and PASS is permitted; the chair records PASS → VERIFIED.
 	pass bool
-	// ceiling: nobody is ready, every open material gap at its limit and carried → CEILING.
+	// ceiling: nobody is ready, every open material gap at its limit (remanded again after its
+	// remand's exchange) → CEILING.
 	ceiling bool
 	// stall: nobody is ready and neither PASS nor CEILING holds → UNVERIFIED.
 	stall bool

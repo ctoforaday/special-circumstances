@@ -79,6 +79,14 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		for _, id := range ManifestUnreceipted(evs, win, WhileRunning).Gaps {
 			add("gap " + id + " was answered by an edit and carries no manifest row — the report names a gap YOU repaired that carries no row as a repair nobody audited, including its author")
 		}
+		// A REMAND SENDS ITS GAP BACK FOR ONE MORE EXCHANGE, and the direction the bench wrote has
+		// to reach the seats that owe it. The dispatch readies blue on the gap (remandStageOf); this
+		// says what that sitting is for, in the ruling's words.
+		for _, g := range gaps {
+			if g.remand == remandOwed {
+				add(remandOwedItem(g, true))
+			}
+		}
 	case "chair":
 		// AN OPEN GAP IS EITHER CLOSED OR DOCKETED, and until the docket was a motion this could
 		// not be said here at all — the note above used to record that "`closing` wants the
@@ -94,19 +102,18 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// NO FLAGS IN THE TEXT. This file's own contract, and the reason is recorded above: an
 		// affordance once handed a seat a flag the verb does not have, so the only instruction the
 		// duty ever gave could not run.
-		// PENDING, NOT EVER-FILED — and the difference is the whole `remanded` design.
+		// PENDING, NOT EVER-FILED.
 		//
 		// A docket motion that has been RULED is answered. If the gap is still open after that
 		// answer, the answer was `remanded`: every other disposition closes the gap, so an open gap
-		// with a ruled docket motion is EXACTLY the deferral, and the ruling states what would
-		// bring it back. Keyed on ever-filed, this affordance went silent permanently at the first
-		// filing, so the re-file the deferral asks for was never once offered — the capability the
-		// bench deliberately kept alive, and no surface said so. Measured: after M2 was ruled
-		// `remanded` on R1-2, `show work` listed the gap as blocking PASS and offered nothing to do
-		// about it, while a never-docketed R1-3 got the affordance.
+		// with a ruled docket motion is EXACTLY a remand, and the ruling states its direction. Keyed
+		// on ever-filed, this row went silent permanently at the first filing, and a remanded gap
+		// was listed as blocking PASS with nothing said about what happens to it next. Measured:
+		// after M2 was ruled `remanded` on R1-2, `show work` offered nothing on the gap, while a
+		// never-docketed R1-3 got the affordance.
 		//
-		// An UNRULED motion still suppresses it, because filing a second time while the first is
-		// pending asks the bench the same question twice.
+		// An UNRULED motion suppresses it, because filing a second time while the first is pending
+		// asks the bench the same question twice.
 		pending := map[string]bool{}
 		for _, m := range MotionsOf(evs) {
 			if m != nil && m.Subject == "docket" && m.GapID != "" && !m.Ruled() {
@@ -130,16 +137,13 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 			// two items naming one gap is a duplicate, and the open-gap row in sitting.go
 			// already blocks PASS over a material gap. So the row is REPLACED, not added.
 			//
-			// The reopens-on condition is the substance. "The bench remanded this" tells a seat
-			// the history; "the bench remanded it until blue reports what the stated direction
-			// found" tells it what has to happen, and that sentence is the bench's own words off
-			// the record rather than this file's paraphrase of them.
-			if g.AwaitingDocket {
-				what := "gap " + g.ID + " is open because the BENCH REMANDED it — the motion was answered, so nothing is pending and the gap returns only if it is docketed again"
-				if g.DocketReopensOn != "" {
-					what += ". The ruling says what reopens it: " + g.DocketReopensOn
-				}
-				add(what)
+			// The direction is the substance. "The bench remanded this" tells a seat the history;
+			// "the bench sent it back for blue to report what the stated direction found" tells it
+			// what has to happen, and that sentence is the bench's own words off the record rather
+			// than this file's paraphrase of them. What happens next is the dispatch's, and the row
+			// says it by the plan's own predicate (remandStageOf).
+			if g.Remanded {
+				add(remandedGapForChair(g))
 				continue
 			}
 			add("gap " + g.ID + " is open and you have not closed it — `motion docket file` puts it before the bench, which is the channel for a gap you cannot settle yourself")
@@ -188,6 +192,13 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// re-audits and closes its gap, so this is news for that seat and noise for any other.
 		for _, w := range blueAnswers(evs, win, gaps, seatID) {
 			add(w)
+		}
+		// THE OTHER SEAT A REMAND READIES, on the originator's list by the same rule: the minting
+		// lens re-audits blue's answer to the direction, and only it may close the gap.
+		for _, g := range gaps {
+			if g.remand == remandOwed && minted[g.ID] == seatID {
+				add(remandOwedItem(g, false))
+			}
 		}
 		// ANOTHER LENS'S ARGUMENT ABOUT YOUR GAP REACHES YOU, because nobody else can act on it.
 		//
@@ -460,4 +471,28 @@ func proofsWithoutReproduce(evs []*Event) []ProofRef {
 		out = append(out, ProofRef{Anchor: id, Sha: p.GetProofSha()})
 	}
 	return out
+}
+
+// remandOwedItem is the work item a remand's exchange puts on the list of each seat the dispatch
+// readies for it — blue, and the gap's minting lens — carrying the research direction the ruling
+// states, so the bench's words reach the two seats that owe them.
+func remandOwedItem(g WorkGapState, blue bool) string {
+	dir := remandDirectionWords(g.DocketReopensOn)
+	const next = ". If this exchange leaves the gap at impasse, it goes back to the bench"
+	if blue {
+		return "gap " + g.ID + " was REMANDED by the bench and is back in the debate for ONE more exchange — you and its minting lens are dispatched on it, and what you owe is the research direction the ruling states: " + dir + next
+	}
+	return "gap " + g.ID + ", which you minted, was REMANDED by the bench and is back in the debate for ONE more exchange — audit blue's answer against the research direction the ruling states: " + dir + next
+}
+
+// remandedGapForChair is the chair's row for a remanded gap: what the dispatch does with it next, by
+// the plan's own predicate (remandStageOf).
+func remandedGapForChair(g WorkGapState) string {
+	switch g.remand {
+	case remandOwed:
+		return "gap " + g.ID + " is open because the BENCH REMANDED it — the dispatch readies its minting lens and blue for one more exchange on the research direction the ruling states: " + remandDirectionWords(g.DocketReopensOn)
+	case remandAtLimit:
+		return "gap " + g.ID + " is open because the BENCH REMANDED it again after the exchange its first remand granted — it is at its limit, and the dispatch readies nobody for it"
+	}
+	return "gap " + g.ID + " is open because the BENCH REMANDED it, and the exchange the remand granted has been had — if that leaves the gap at impasse, the dispatch dockets it for the bench again"
 }

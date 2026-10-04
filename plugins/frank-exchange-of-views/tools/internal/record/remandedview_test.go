@@ -10,16 +10,17 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// THE VIEW SAYS WHICH OPEN GAPS THE BENCH HAS CARRIED, AND IT SAYS SO WITHOUT AN ORDER (#759).
+// THE VIEW SAYS WHICH OPEN GAPS THE BENCH HAS REMANDED, AND IT SAYS SO WITHOUT AN ORDER (#759).
 //
-// `carried` answers its motion — the gap returns only by being docketed again — so an open gap
-// with a carry behind it is a different situation from one nobody has ever put before the bench,
-// and the chair used to get the same sentence for both.
+// `remanded` answers its motion and sends the gap back to the debate for one more exchange, so an
+// open gap with a remand behind it is a different situation from one nobody has ever put before
+// the bench, and the chair used to get the same sentence for both. The view also counts the
+// remands, which is how the dispatch tells a gap owed its remand's exchange from one at its limit.
 //
 // FIVE GAPS, AND FOUR OF THEM ARE THE NEGATIVE CASES. A flag that is simply true for every open
 // gap would pass any test that only checks the positive one, which is the shape #759 warned this
 // measurement would take.
-func TestAwaitingDocketIsSetOnlyByALiveCarry(t *testing.T) {
+func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 	run := mustRun(t, newRun(t))
 	red := Identity{Run: run, SeatID: "red-chair"}
 	judge := Identity{Run: run, SeatID: "judge"}
@@ -97,7 +98,7 @@ func TestAwaitingDocketIsSetOnlyByALiveCarry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gaps, err := workGapStatesOfRun(run, evs.Events)
+	gaps, err := workGapStatesOfRun(run, evs.Events, evs.At)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,10 +114,24 @@ func TestAwaitingDocketIsSetOnlyByALiveCarry(t *testing.T) {
 		if !ok {
 			t.Fatalf("%s is not on the board at all", id)
 		}
-		if g.AwaitingDocket != want {
-			t.Errorf("%s: awaiting_docket = %v, want %v (open=%v, reopens_on=%q)",
-				id, g.AwaitingDocket, want, g.Open, g.DocketReopensOn)
+		if g.Remanded != want {
+			t.Errorf("%s: remanded = %v, want %v (open=%v, reopens_on=%q)",
+				id, g.Remanded, want, g.Open, g.DocketReopensOn)
 		}
+	}
+	// THE COUNT THE DISPATCH READS: one remand grants the exchange, a second leaves the gap at its
+	// limit. A closing ruling is not a remand, and a pending re-filing does not undo one.
+	for id, want := range map[string]int{"CARRIED": 1, "ORDER": 2, "REPENDING": 1, "DISPOSED": 1, "FRESH": 0} {
+		if got := by[id].remands; got != want {
+			t.Errorf("%s: remands = %d, want %d", id, got, want)
+		}
+	}
+	// ORDER's second remand (M10) is the last act on the record, so its place is the record's last id:
+	// the remand's exchange is counted from the LATEST remand, never an earlier one.
+	ids := evs.At.IDs(evs.Events)
+	if last := ids[len(ids)-1]; by["ORDER"].remandedAt != last || by["FRESH"].remandedAt != 0 {
+		t.Errorf("remanded_at is the latest remand's place: ORDER %d (want %d, its second remand), FRESH %d (want 0)",
+			by["ORDER"].remandedAt, last, by["FRESH"].remandedAt)
 	}
 	// AND THE CONDITION IS THE LIVE ONE. This is the half an order-free predicate cannot answer,
 	// and the half a motion-id ordering gets wrong: `motion_rule.event_id` is the events primary

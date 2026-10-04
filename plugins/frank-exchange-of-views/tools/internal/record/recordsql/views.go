@@ -372,36 +372,25 @@ SELECT
   gb.*,
   (gb."class_material" = 'always'
      OR (gb."class_material" = 'by_grade' AND COALESCE(gm."mass", 0.0) >= 2.0)) AS "material",
-  -- THE BENCH HEARD IT AND KEPT IT ALIVE, and this is the column that lets a seat be told so.
+  -- THE BENCH REMANDED IT AND NOTHING IS PENDING, and this is the column that lets a seat be told so.
   --
-  -- carried is 76 of 77 bench rulings in the measured base rate, and it ANSWERS its motion: the
-  -- gap comes back by being docketed again next epoch. Without this the chair was told only
-  -- "gap G1 is open and material — PASS is refused while it is", which is true of a gap nobody has ever put
-  -- before the bench and of one the bench has considered twice and deliberately deferred. Same
-  -- sentence, two very different situations, and the seat cannot act differently on them.
+  -- A remand sends the gap back to the debate for ONE more exchange between its minting lens and
+  -- blue, on the direction the ruling states (docket_reopens_on); if that exchange leaves the gap at
+  -- impasse the dispatch dockets it again, and a gap remanded after its exchange is open at its
+  -- limit. Which of those a remanded gap is turns on the exchange count, so PlanDispatch decides it
+  -- (remandStageOf) from this view's "remands" and "remanded_at"; this column says only that the
+  -- bench remanded the gap and no docket motion on it stands unruled. Without it the chair was told
+  -- only "gap G1 is open and material — PASS is refused while it is", which is true of a gap nobody
+  -- has ever put before the bench and of one the bench has heard and sent back.
   --
-  -- ORDER-FREE, ON PURPOSE (#759). The tempting predicate is "the LATEST docket ruling is
-  -- carried", and there is no key to say which that is at the level this was first specified:
-  -- motion ids are Sprintf M%d so lexicographic order breaks at M10, and two docket motions in
-  -- one epoch have no defined latest. Stated as set membership the question does not need an
-  -- order at all: the gap is OPEN, at least one docket ruling on it carried, and nothing is
-  -- pending. A closing ruling cannot coexist with open — bc is in the openness test — so that
-  -- arm is implied rather than repeated.
-  --
-  -- AND NOTHING PENDING, which is the arm that keeps this from double-counting. A gap already
-  -- re-docketed and awaiting an answer is not awaiting a FILING, and reporting it as such would
-  -- ask the chair to file the same question at the bench twice. "Nothing pending" is
+  -- AND NOTHING PENDING, which is the arm that keeps this from double-counting. A gap docketed
+  -- again and awaiting an answer is before the bench, not back in the debate. "Nothing pending" is
   -- unruled_docket_filed below, read off the inner select so that the two columns cannot answer
   -- "does a docket motion stand unruled" differently — which is why this column sits out here
   -- rather than beside the other derived ones.
   (gb."open"
      AND gb."unruled_docket_filed" IS NULL
-     AND EXISTS(SELECT 1 FROM "motion_docket" md2
-                  JOIN "motion" mo2 ON mo2."event_id" = md2."event_id"
-                  JOIN "motion_rule" mr2 ON mr2."motion_id" = mo2."motion_id"
-                  JOIN "motion_rule_docket" rd2 ON rd2."event_id" = mr2."event_id"
-                  JOIN "enum_disposition" d2 ON d2."value" = rd2."disposition"
-                WHERE md2."gap_id" = gb."gap_id" AND NOT d2."closes"))                 AS "awaiting_docket"
+     AND gb."remands" > 0)                                                            AS "remanded"
 FROM (
 SELECT
   m."gap_id"                                   AS "gap_id",
@@ -465,7 +454,7 @@ SELECT
      AND NOT EXISTS(SELECT 1 FROM "proof" p WHERE p."answers" = m."gap_id"))          AS "awaiting_proof",
   -- THE DOCKET MOTION STANDING UNRULED, by its filing's events.id: the newest docket motion on the
   -- gap that no ruling names, NULL when every one is ruled. The dispatch plan reads it to ready the
-  -- bench and to key the bench's sitting on the filing, and awaiting_docket (outer select) reads it
+  -- bench and to key the bench's sitting on the filing, and remanded (outer select) reads it
   -- as its "nothing pending" arm. The PASS gate still answers the same question separately, through
   -- MotionsOf over motion_answers; folding the two is #1228.
   --
@@ -482,15 +471,34 @@ SELECT
    WHERE md3."gap_id" = m."gap_id"
      AND NOT EXISTS(SELECT 1 FROM "motion_rule" mr3
                     WHERE mr3."motion_id" = mo3."motion_id"))                           AS "unruled_docket_filed",
-  -- WHAT THE BENCH SAID WOULD BRING IT BACK. A carried ruling must carry reopens_on or final
-  -- and cannot carry both (the DocketRuling CHECKs), so on a carry this is the stated condition
-  -- and it is the substance of the deferral — the difference between "the bench deferred this"
-  -- and "the bench deferred this until blue reports what the stated direction found".
+  -- THE BENCH'S REMANDS OF THE GAP: how many of its docket motions the bench ruled with a
+  -- disposition that does not close ("remanded"), and the events.id of the latest such ruling — the
+  -- place the remand's one exchange is counted from (an exchange whose minting-lens sitting opened
+  -- after it). Asked per motion, so a ruling corrected in its sitting is one remand; only the
+  -- rulings that stand are read, so a struck one is none.
+  (SELECT count(DISTINCT mo5."motion_id") FROM "motion_docket" md5
+     JOIN "motion" mo5 ON mo5."event_id" = md5."event_id"
+     JOIN "motion_rule" mr5 ON mr5."motion_id" = mo5."motion_id"
+     JOIN "motion_rule_docket" rd5 ON rd5."event_id" = mr5."event_id"
+     JOIN "enum_disposition" d5 ON d5."value" = rd5."disposition"
+     JOIN "live_event" l5 ON l5."event_id" = mr5."event_id"
+   WHERE md5."gap_id" = m."gap_id" AND NOT d5."closes")                              AS "remands",
+  (SELECT max(mr6."event_id") FROM "motion_docket" md6
+     JOIN "motion" mo6 ON mo6."event_id" = md6."event_id"
+     JOIN "motion_rule" mr6 ON mr6."motion_id" = mo6."motion_id"
+     JOIN "motion_rule_docket" rd6 ON rd6."event_id" = mr6."event_id"
+     JOIN "enum_disposition" d6 ON d6."value" = rd6."disposition"
+     JOIN "live_event" l6 ON l6."event_id" = mr6."event_id"
+   WHERE md6."gap_id" = m."gap_id" AND NOT d6."closes")                              AS "remanded_at",
+  -- THE DIRECTION THE REMAND STATES. A ruling must state reopens_on or final and cannot state
+  -- both (the DocketRuling CHECKs), so on a remand this is the research direction the remand's one
+  -- exchange owes — the difference between "the bench sent this back" and "the bench sent this
+  -- back for blue to report what the stated direction found".
   --
-  -- HERE AN ORDER IS BOTH AVAILABLE AND MEANINGFUL, which is why this one takes a LIMIT where the
-  -- flag above refuses to. motion_rule.event_id is the events primary key: monotonic, unique,
-  -- and nothing to do with the motion-id spelling that has no usable order. The LATEST carry is
-  -- the live one — an earlier epoch's condition has already been answered by the re-filing.
+  -- HERE AN ORDER IS BOTH AVAILABLE AND MEANINGFUL, which is why this one takes a LIMIT.
+  -- motion_rule.event_id is the events primary key: monotonic, unique, and nothing to do with the
+  -- motion-id spelling that has no usable order. The LATEST remand is the live one — an earlier
+  -- remand's direction has already had its exchange.
   (SELECT rd4."reopens_on" FROM "motion_docket" md4
      JOIN "motion" mo4 ON mo4."event_id" = md4."event_id"
      JOIN "motion_rule" mr4 ON mr4."motion_id" = mo4."motion_id"

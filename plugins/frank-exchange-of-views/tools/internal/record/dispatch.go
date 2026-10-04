@@ -57,8 +57,9 @@ type Plan struct {
 	// a PASS is refused until it has.
 	StaleAreas []StaleArea `json:"stale_areas"`
 	// Ceiling is the run at its limit, for one of two reasons EpochLimitReached tells apart: every
-	// open material gap is at impasse and has had its bench ruling (remanded), or the run's epoch
-	// limit is reached with parties still ready.
+	// open material gap is at impasse after the one more exchange its remand granted and the bench
+	// has remanded it again (remandStageOf), or the run's epoch limit is reached with parties still
+	// ready.
 	Ceiling bool `json:"ceiling"`
 	// MaxEpochs is the run's epoch limit (Params.MaxEpochs); 0 when the run is held to none.
 	MaxEpochs int `json:"max_epochs"`
@@ -107,6 +108,12 @@ type openGap struct {
 	docketed      bool
 	unruledFiled  int64
 	unruledMotion string // the motion id of that filing, for the plan's reason; "" when none
+	// remands, remandedAt and direction are the gap view's `remands`, `remanded_at` and
+	// `docket_reopens_on`: how many of its docket motions the bench remanded, the place of the latest
+	// remand, and the research direction that remand states. remandStageOf reads the first two.
+	remands    int
+	remandedAt int64
+	direction  string
 	// supersededBy is the successor that names this gap as an ancestor, when one does and this gap
 	// is still open — the gap view's `stranded`. The PASS gate refuses a verdict over one.
 	supersededBy string
@@ -243,15 +250,33 @@ func PlanDispatch(run Run) (Plan, error) {
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: open, material, %s — below its limits", g.id, x.Counted()))
 			continue
 		}
-		if !g.docketed {
+		// AT IMPASSE, A GAP IS DOCKETED, OR OWED ITS REMAND'S EXCHANGE, OR AT ITS LIMIT. A gap never
+		// docketed goes to the bench; one the bench remanded goes back to the debate for one exchange
+		// between its minting lens and blue, carrying the ruling's direction, and back to the bench if
+		// that exchange leaves it here; one remanded again is at its limit (remandStageOf).
+		stage := remandStageOf(g.remands, g.remandedAt, x)
+		switch {
+		case !g.docketed || stage == remandSpent:
 			plan.Docket = append(plan.Docket, g.id)
 			plan.ToFile = append(plan.ToFile, g.id)
 			engage(benchSeat, occasionDocket, g.id)
-			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse (%s) — docketed for the bench", g.id, x.Counted()))
+			if stage == remandSpent {
+				plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse (%s) after the exchange its remand granted — docketed for the bench again", g.id, x.Counted()))
+			} else {
+				plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse (%s) — docketed for the bench", g.id, x.Counted()))
+			}
+			continue
+		case stage == remandOwed:
+			if g.mintedBy != "" {
+				engage(g.mintedBy, "", g.id)
+			}
+			engage(blueRespondSeat, "", g.id)
+			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse (%s) and remanded by the bench — its minting lens and blue are ready for the one more exchange the remand grants, on the ruling's direction: %s",
+				g.id, x.Counted(), remandDirectionWords(g.direction)))
 			continue
 		}
-		materialSettled++ // ruled and still open: remanded
-		plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse, ruled remanded — at its limit", g.id))
+		materialSettled++ // remanded again after its remand's exchange
+		plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse and remanded again after the exchange its first remand granted — at its limit", g.id))
 	}
 	// Source 4: THE SEAT THAT OWES ANOTHER SEAT'S BLOCKER SITS. A blocker on the gate's list that
 	// the chair cannot clear — an unruled petition, a docket motion on a gap that has since closed,
@@ -948,10 +973,54 @@ func benchSatFor(dispatches []dispatchRow, on map[recordpb.Occasion][]int64, gap
 	return false
 }
 
+// remandStage is where a gap the bench remanded stands against the ONE exchange a remand grants
+// (gblock, 2026-09-29: a remand sends the gap back to the debate with a stated research direction,
+// and the dispatch readies the minting lens and blue for one more exchange on it).
+//
+// ONE EXCHANGE PAST THE LIMIT, NOT A RESET. The exchange count is monotone and the gap stays at
+// impasse through the remand; the remand is what readies its parties, once. When that exchange is
+// spent and the gap is still at impasse, the dispatch dockets it again, so the bench rules with the
+// exchange on the record; a second remand leaves it open at its limit, and those gaps are what
+// CEILING is made of. So a gap reaches the bench at most twice through the dispatch, and the run
+// cannot cycle between the bench and the debate.
+type remandStage int
+
+const (
+	notRemanded   remandStage = iota
+	remandOwed                // remanded once, and no exchange has begun since the ruling
+	remandSpent               // remanded once, and its exchange has begun since: at impasse, it goes back to the bench
+	remandAtLimit             // remanded again: open at its limit
+)
+
+// remandStageOf is the one answer to "what does this gap's remand owe", read by the dispatch plan and
+// by the work lists of the two seats it readies. remands and remandedAt are the gap view's columns; x
+// is the gap's exchanges, whose starts say whether the remand's exchange has begun.
+func remandStageOf(remands int, remandedAt int64, x *GapExchanges) remandStage {
+	switch {
+	case remands == 0:
+		return notRemanded
+	case remands > 1:
+		return remandAtLimit
+	case x.exchangedSince(remandedAt):
+		return remandSpent
+	}
+	return remandOwed
+}
+
+// remandDirectionWords is the research direction a remand states, as a plan reason or a work item
+// quotes it: the ruling's reopens_on, or — on a ruling that said --final instead — a pointer to the
+// opinion, never an empty quote.
+func remandDirectionWords(direction string) string {
+	if direction == "" {
+		return "the ruling states none, so its opinion on the record is the direction"
+	}
+	return direction
+}
+
 // openGaps reads the open gaps with what the plan needs of each: who minted it, its current
-// severity, whether it is stranded, and its docket — all off the gap view, the same fold every
-// reader uses. "A docket stands unruled" is the view's `unruled_docket_filed` (recordsql/views.go),
-// the one definition the view's own `awaiting_docket` is derived from; the PASS gate (MotionsOf)
+// severity, whether it is stranded, its docket and its remands — all off the gap view, the same fold
+// every reader uses. "A docket stands unruled" is the view's `unruled_docket_filed` (recordsql/views.go),
+// the one definition the view's own `remanded` is derived from; the PASS gate (MotionsOf)
 // and `motion_answers` ask the same per-motion question of the Go fold and the motion tables, and
 // #1228 folds those readers into this one.
 func openGaps(db *sql.DB) ([]openGap, error) {
@@ -960,7 +1029,8 @@ func openGaps(db *sql.DB) ([]openGap, error) {
 	    CASE WHEN g."stranded" THEN COALESCE(g."superseded_by", '') ELSE '' END,
 	    EXISTS(SELECT 1 FROM "motion_docket" md WHERE md."gap_id" = g."gap_id"),
 	    COALESCE(g."unruled_docket_filed", 0),
-	    COALESCE((SELECT mo."motion_id" FROM "motion" mo WHERE mo."event_id" = g."unruled_docket_filed"), '')
+	    COALESCE((SELECT mo."motion_id" FROM "motion" mo WHERE mo."event_id" = g."unruled_docket_filed"), ''),
+	    g."remands", COALESCE(g."remanded_at", 0), COALESCE(g."docket_reopens_on", '')
 	  FROM "gap" g WHERE g."open" ORDER BY g."minted_event"`)
 	if err != nil {
 		return nil, fmt.Errorf("record: asking the record for its open gaps: %w", err)
@@ -969,7 +1039,8 @@ func openGaps(db *sql.DB) ([]openGap, error) {
 	var out []openGap
 	for rows.Next() {
 		var g openGap
-		if err := rows.Scan(&g.id, &g.mintedBy, &g.severity, &g.material, &g.classMaterial, &g.supersededBy, &g.docketed, &g.unruledFiled, &g.unruledMotion); err != nil {
+		if err := rows.Scan(&g.id, &g.mintedBy, &g.severity, &g.material, &g.classMaterial, &g.supersededBy, &g.docketed, &g.unruledFiled, &g.unruledMotion,
+			&g.remands, &g.remandedAt, &g.direction); err != nil {
 			return nil, err
 		}
 		out = append(out, g)

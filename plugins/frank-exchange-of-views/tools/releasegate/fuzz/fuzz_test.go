@@ -1563,7 +1563,8 @@ const (
 // board whose gaps are all IGNORE correctly never closes and the run correctly ends CEILING.
 // Under the sweep's terms (k 1, kMax 2) only APPLY and COUNTER are movement before the lens's
 // closing sitting; a proof, a grade motion or silence is a stalled exchange, the gap is at impasse
-// after one, and the bench remands every docket but a lost dispute, leaving the gap at its limit.
+// after one, and the bench remands every docket but a lost dispute: the remand's one more exchange
+// stalls the same way, the gap is docketed again, and the second remand leaves it at its limit.
 // MEASURED over 80 runs at seven lenses: 153 of 558 minted gaps ended remanded (PROVE 70,
 // PROVE-DRIFTS 33, DISPUTE-WON 26, IGNORE 24), every one of the 71 CEILING runs held at least one,
 // and 8 runs reached VERIFIED. At four lenses 63 of 250 gaps ended remanded and 29 of 80 runs
@@ -2130,10 +2131,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// THE BENCH RULES ON WHAT HAPPENED, not on a coin. A gap reaches the docket because
 		// its scenario left it open, and the scenario says why: a LOST dispute is a contest
 		// red refused and the bench settles it; an IGNORE is blue owing work, which is what
-		// `carried` means — "the material needs another round", stated as a decision.
+		// `remanded` means — "the material needs another exchange", stated as a decision.
 		// THE BENCH RULES THE DOCKET, which the plan names: a gap reaches it at impasse, once per
-		// docketing. A carried gap stays open at its limit — that gap's deadlock, and what CEILING
-		// is made of; a disposed one leaves the board. There is no run-level deadlock for the
+		// docketing. A remanded gap goes back for one more exchange and, still at impasse, is
+		// docketed again; remanded a second time it stays open at its limit — that gap's deadlock,
+		// and what CEILING is made of; a disposed one leaves the board. There is no run-level deadlock for the
 		// bench to declare any more (plans/roundless.md §III.B.2): impasse is per gap and the
 		// record counts it, so the envelope carries only the resolutions.
 		// THE BENCH RULES WHAT IT WAS ENGAGED ON — the plan's fresh docket AND the gaps a party

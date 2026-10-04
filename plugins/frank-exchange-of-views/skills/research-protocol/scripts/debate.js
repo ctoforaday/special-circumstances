@@ -601,9 +601,9 @@ const JUDGE_ENVELOPE = {
           // (that is not_a_defect) and nobody verified a fix (that is repaired). The text the
           // finding attached to is gone. It closes the gap and leaves the merits unreached.
           //
-          // `remanded` is the word for "I could not settle this on the record I have" — it says
-          // the gap survives and names what the coming seat owes, which is the same act as
-          // asking for evidence.
+          // `remanded` is the word for "I could not settle this on the record I have" — it sends
+          // the gap back for one more exchange between its minting lens and blue and names what
+          // that exchange owes, which is the same act as asking for evidence.
           disposition: { type: 'string', enum: ['repaired', 'repaired_with_regression', 'amends_prior', 'not_a_defect', 'defect_accepted', 'remanded', 'moot', 'defect_owed_elsewhere'] },
           rationale: { type: 'string' },
         },
@@ -788,7 +788,7 @@ const BLUE_DUTY_BY_DISPOSITION = {
   not_a_defect: 'THE BENCH FOUND NO DEFECT — your position was vindicated. Keep the text as it stands; do not "repair" what the bench has just blessed. You may rely on this ruling as established for the rest of the run.',
   defect_accepted: 'YOUR RISK-ACCEPTANCE ARGUMENT WAS ACCEPTED. Record the acceptance where the report discusses the risk; do not spend a sitting fixing what the bench agreed may stand.',
   repaired: 'Your fix was accepted. Stop working this one.',
-  remanded: 'The gap stays OPEN and you owe the research direction the ruling states — it is what CEILING is made of, so a sitting that ignores it is a null turn.',
+  remanded: 'The gap is back in the debate for ONE more exchange: you and its minting lens are dispatched on it, and you owe the research direction the ruling states (its reopens_on). A sitting that ignores it is a null turn — and if that exchange leaves the gap at impasse it goes back to the bench, where a second remand leaves it open at its limit, which is what CEILING is made of.',
   defect_owed_elsewhere: 'The finding was UPHELD and the fix is owned outside this debate. Stop trying to fix it in the report; expect the debt to be named rather than closed here.',
   moot: 'Adjudicated out of existence — the text it attached to is gone, so there is nothing left to repair. Drop it; this is NOT a finding that was argued down.',
   repaired_with_regression: 'Your fix was accepted AND something else broke. Stop working this one and expect a successor gap naming the regression — answer that one, not this.',
@@ -942,7 +942,8 @@ await ensureSittingRecord(blueEnv, 'blue-synthesize', `your sitting's revision e
 // the bench on its docket — an exchange is a red-party
 // sitting followed by a blue-party sitting, and the record counts them (impasse.go). Empty is the
 // termination signal: pass_permitted (the chair issues PASS → VERIFIED), ceiling (every open
-// material gap at its limit, ruled and remanded, or the run's epoch limit reached → CEILING), or
+// material gap at its limit — remanded, given its one more exchange, and remanded again — or the
+// run's epoch limit reached → CEILING), or
 // neither (UNVERIFIED, with the plan's reasons on the record). The disputes, the docket, impasse,
 // the ceiling and the epoch limit all live on the record; nothing here keeps a second copy of them.
 //
@@ -1023,7 +1024,7 @@ ANSWER EVERY GAP YOU ARE ENGAGED ON, ADDITIVELY, in the report through \`edit\` 
 AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP (W2b; your constitution carries the full standard): figures recomputed, universals enumerated, consistency sites swept report-wide — one manifest row per gap you REPAIRED — one an edit of yours this sitting answers — and the manifest array in your envelope names them; a gap you rebut without an edit owes none. A gap you are engaged on that the board shows CLOSED when you sit — its lens sat before you and closed it — owes no row: name it in found_closed, from the board you read. When EVERY gap you are engaged on is closed when you sit, the sitting owes no position and no revision — found_closed is its record. Otherwise record the sitting's revision with the tool's claim_count; never hand-count it — the tool computes claim_count with the tool's own read.${logClause('blue-respond', 'blue')}${petitionClause}`
 const benchPrompt = (gaps) => `Adjudication, topic "${topic}". Docketed for you: ${gaps.join(', ')} — each reached impasse under the run's terms and the record docketed it. THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE. It carries ids; a gap's problem text and its acceptance check live on the board, and you read them FRESH before ruling. Re-run each document-probe acceptance check against the artifact AS IT NOW STANDS, and rule on what you find rather than on what any snapshot asserts.
 YOUR RULING BASIS IS CONFINED TO THREE THINGS: the two sides' recorded closings, the full transcript, and the final state of the artifacts — the board and the report as the record now renders them. Weigh each closing as that side's best case, and a claim in a closing that the record does not support counts AGAINST the side that made it. For every ruling on a gap with a lineage chain, READ THE NAMED ANCESTORS' RECORDS first and NAME what you read in your rationale.${holdingsClause()}${lawClause}${declareClause}${inspectionClause}
-Every docketed gap gets a written ruling — the docket ruling: its fate, the principle you applied, the values in tension, whether a human should look at it, your reasoning, and TWO THINGS THE FATE CANNOT SAY — the proposition you are barring as settled, and what would reopen it or that nothing would (final). Two fates route work OUT of the debate rather than ending it: a gap you REMAND stays open, owes blue a stated research direction, and is that gap's deadlock — what CEILING is made of; and a valid finding whose FIX is owned outside the debate — run tooling, the harness, the engine — leaves the board and ships as a NAMED infrastructure debt (defect_owed_elsewhere), recorded and never dropped. Rule every motion your work list names as the bench's. A bench sitting that rules nothing is a workflow error: the run cannot end in a verdict while a docketed gap stands unruled.${logClause('judge', 'bench')}${speedClause}${recordClause('judge', DOCKET_OCCASION)} Return your envelope.`
+Every docketed gap gets a written ruling — the docket ruling: its fate, the principle you applied, the values in tension, whether a human should look at it, your reasoning, and TWO THINGS THE FATE CANNOT SAY — the proposition you are barring as settled, and what would reopen it or that nothing would (final). Two fates send the work on rather than ending it: a gap you REMAND goes back to the debate for ONE more exchange between its minting lens and blue, on the research direction you state as what would reopen it — if that exchange leaves it at impasse it comes back to you, and a gap you remand a second time stays open at its limit, that gap's deadlock and what CEILING is made of; and a valid finding whose FIX is owned outside the debate — run tooling, the harness, the engine — leaves the board and ships as a NAMED infrastructure debt (defect_owed_elsewhere), recorded and never dropped. Rule every motion your work list names as the bench's. A bench sitting that rules nothing is a workflow error: the run cannot end in a verdict while a docketed gap stands unruled.${logClause('judge', 'bench')}${speedClause}${recordClause('judge', DOCKET_OCCASION)} Return your envelope.`
 
 phase('Red')
 const sittings = {} // seat -> how many times this loop has dispatched it, for the labels
@@ -1133,7 +1134,7 @@ const outcomeWord = (w) => {
 }
 
 // A NO-PROGRESS STOP IS UNVERIFIED, NEVER CEILING. CEILING is derived on the record — every open
-// material gap at its limit and remanded, or the epoch limit reached — and `bench outcome` refuses it
+// material gap at its limit (remanded again after its remand's exchange), or the epoch limit reached — and `bench outcome` refuses it
 // over a board that is neither; a stalled plan still has parties ready. UNVERIFIED is the word for a
 // run that stopped before its record reached a terminal state, and the why says what stopped it.
 // The outcome is read twice: at the end of the debate, and again if the terminal sitting halts.
@@ -1145,7 +1146,7 @@ const verdictNow = () => halted ? outcomeWord('HALTED')
 const terminationWhyOf = (verdict) => halted ? 'judicial halt'
   : verdict === 'VERIFIED' ? 'the chair recorded PASS with the board permitting it'
   : noProgress ? `no progress: the dispatch plan was identical for ${noProgress.epochs} consecutive epochs (NO_PROGRESS_EPOCHS = ${NO_PROGRESS_EPOCHS}) at head ${noProgress.head} — ${partyList(noProgress.parties)} readied again each time with nothing on the board moving`
-  : verdict === 'CEILING' ? (lastPlan.epoch_limit_reached ? `epoch limit ${lastPlan.max_epochs} reached — the run's term on chair sittings; the parties the board still readied were not dispatched` : 'every open material gap is at its limit, ruled by the bench and remanded')
+  : verdict === 'CEILING' ? (lastPlan.epoch_limit_reached ? `epoch limit ${lastPlan.max_epochs} reached — the run's term on chair sittings; the parties the board still readied were not dispatched` : 'every open material gap is at its limit — remanded by the bench, given the one more exchange the remand grants, and remanded again')
   : (lastPlan ? `nobody was ready and neither PASS nor CEILING held: ${lastPlan.why.join('; ')}` : 'the run ended before any dispatch')
 let verdict = verdictNow()
 let terminationWhy = terminationWhyOf(verdict)

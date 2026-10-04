@@ -384,12 +384,12 @@ test('blue is engaged on named gaps, told the board is authoritative, and files 
   assert.ok(!/ LAW: /.test(first) && !/concatenat/.test(first) && !/log entry saying so/.test(first), 'blue was handed a duty that is not its own')
 })
 
-test('the bench rules on docketed gaps from the closings, the transcript and the live artifact; a remanded gap is its deadlock', async () => {
+test('the bench rules on docketed gaps from the closings, the transcript and the live artifact; a remand sends the gap back for one more exchange', async () => {
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('judge', 'G1', 'G2')], { docket: ['G1'] }) }), passChair()] }))
   await world.run(script, ARGS)
   const bench = firstPrompt(world, 'judge')
   for (const want of ['Docketed for you: G1, G2', 'THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE', 'read them FRESH before ruling', 'AS IT NOW STANDS', 'Re-run each document-probe acceptance check',
-    'RULING BASIS IS CONFINED TO', 'counts AGAINST the side that made it', "READ THE NAMED ANCESTORS' RECORDS", 'the docket ruling', 'barring as settled', 'a gap you REMAND stays open', 'NAMED infrastructure debt',
+    'RULING BASIS IS CONFINED TO', 'counts AGAINST the side that made it', "READ THE NAMED ANCESTORS' RECORDS", 'the docket ruling', 'barring as settled', 'a gap you REMAND goes back to the debate for ONE more exchange', 'a gap you remand a second time stays open at its limit', 'NAMED infrastructure debt',
     'rules nothing is a workflow error', 'PRECEDENT IS ARGUMENT, NOT EVIDENCE']) {
     assert.ok(bench.includes(want), `the bench lost: ${want}`)
   }
@@ -450,6 +450,9 @@ test('an empty settled bars nothing: the ruling still travels, and red is handed
   assert.ok(lens.includes('GAPS THE BENCH HAS RULED') && lens.includes('"gap_id":"G1"') && lens.includes('A NEW SOURCE'), 'the ruling and what reopens it still reach red')
   assert.ok(!/"settled"/.test(lens), 'an empty settled renders as a proposition')
   assert.ok(!/YOU ARE ESTOPPED/.test(lens), 'red is estopped on a proposition nobody stated')
+  // #1210: a remand readies blue for ONE more exchange, and the direction it owes travels with it.
+  const blue2 = labelsOf(world, 'blue-respond').map((c) => c.prompt)[1]
+  assert.ok(blue2.includes('back in the debate for ONE more exchange') && blue2.includes('A NEW SOURCE'), 'blue is told the remand readies it for one more exchange, and the direction it owes')
 })
 
 test('the assembler authors nothing, stamps the outcome the record derives, and is told an open gap that is not material stays on the board', async () => {
