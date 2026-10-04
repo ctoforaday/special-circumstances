@@ -177,3 +177,197 @@ func TestCeilingIsDerivedFromEveryMaterialGapAtItsLimit(t *testing.T) {
 		t.Errorf("got %q (ok=%v, err=%v) — want CEILING: %s", got, ok, err, why)
 	}
 }
+
+// movingExchangeOn is one exchange on gap in which blue's sitting moves it: an edit answering the gap
+// with old != new.
+func (b *stage) movingExchangeOn(gap string) *stage {
+	b.register("red-chair").dispatch(2, evLens, gap).dispatch(2, "blue-respond", gap).sitClosed(evLens)
+	agent := fmt.Sprintf("blue-moves-%d", b.n)
+	return b.registerAs("blue-respond", agent).edit(gap, fmt.Sprintf("old %d", b.n), fmt.Sprintf("new %d", b.n)).stop(agent)
+}
+
+// remandStageOn is the `remand_stage` the seat's work list states for an open gap.
+func remandStageOn(t *testing.T, run Run, role, seat, gap string) string {
+	t.Helper()
+	w, err := WorkOfSeat(run, role, seat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, g := range w.Open {
+		if g.ID == gap {
+			return g.RemandStage
+		}
+	}
+	t.Fatalf("%s is not open on %s's work list", gap, seat)
+	return ""
+}
+
+// THE STAGE IS A FIELD, so a seat acting on the JSON reads the stage the plan acts on rather than
+// matching it out of a sentence: owed while the exchange is owed, spent once it has begun, at_limit
+// once the bench has remanded the gap at impasse twice — and the chair's row at the limit says so.
+func TestTheWorkListStatesTheRemandStageAsAField(t *testing.T) {
+	for _, c := range []struct {
+		name, want string
+		build      func(*testing.T) *stage
+	}{
+		{"owed", "owed", func(t *testing.T) *stage { return remandedAtImpasse(t) }},
+		{"spent", "spent", func(t *testing.T) *stage { return remandedAtImpasse(t).exchangeOn("G1") }},
+		{"at its limit", "at_limit", func(t *testing.T) *stage {
+			return remandedAtImpasse(t).exchangeOn("G1").docketAndRemand("M2", "G1")
+		}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			run := c.build(t).register("red-chair").seed()
+			for _, seat := range []struct{ role, id string }{{"lens", evLens}, {"blue", "blue-respond"}, {"chair", "red-chair"}} {
+				if got := remandStageOn(t, run, seat.role, seat.id, "G1"); got != c.want {
+					t.Errorf("%s: remand_stage = %q, want %q", seat.id, got, c.want)
+				}
+			}
+			if c.want == "at_limit" && !workMentions(t, run, "chair", "red-chair", "at its limit") {
+				t.Errorf("the chair's row for a gap at its limit does not say so")
+			}
+		})
+	}
+	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", "high").register("red-chair").seed()
+	if got := remandStageOn(t, run, "blue", "blue-respond", "G1"); got != "" {
+		t.Errorf("a gap the bench never remanded states remand_stage %q, want none", got)
+	}
+}
+
+// A REMAND COUNTS WHERE THE BENCH FOUND THE GAP AT IMPASSE. A party's docket, filed and remanded
+// while the gap was below its limits, sends the gap nowhere the debate was not already going: it
+// spends nothing, so when the gap reaches impasse and the bench remands it there, that remand is
+// the first, and its exchange is owed — the gap is not at its limit.
+func TestARemandBeforeImpasseSpendsNothing(t *testing.T) {
+	st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", "high")
+	st.register("blue-respond").docketMotion("blue-respond", "M1", "G1").
+		register("red-chair").dispatch(2, "judge", "G1").register("judge").add("judge", remandRuling("M1", "an early direction"))
+	st.exchangeOn("G1").exchangeOn("G1")
+	run := st.docketAndRemand("M2", "G1").register("red-chair").seed()
+	plan, err := PlanDispatch(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(gapsOf(plan, evLens), "G1") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") || plan.Ceiling {
+		t.Errorf("the remand at impasse is G1's first, so its exchange is owed: parties %+v, ceiling %v, why %q", plan.Parties, plan.Ceiling, plan.Why)
+	}
+	if got := remandStageOn(t, run, "blue", "blue-respond", "G1"); got != "owed" {
+		t.Errorf("remand_stage = %q, want owed", got)
+	}
+}
+
+// ONE BENCH SITTING IS ONE REMAND, however many of the gap's docket motions it rules: two motions on
+// G1 remanded in the same sitting grant one exchange, and do not put the gap at its limit.
+func TestTwoMotionsRemandedInOneSittingAreOneRemand(t *testing.T) {
+	st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", "high")
+	st.exchangeOn("G1").exchangeOn("G1")
+	run := st.register("red-chair").docketMotion("red-chair", "M1", "G1").
+		register("blue-respond").docketMotion("blue-respond", "M2", "G1").
+		register("red-chair").dispatch(2, "judge", "G1").register("judge").
+		add("judge", remandRuling("M1", remandDirection)).add("judge", remandRuling("M2", remandDirection)).
+		register("red-chair").seed()
+	plan, err := PlanDispatch(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(gapsOf(plan, evLens), "G1") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") || plan.Ceiling {
+		t.Errorf("one bench sitting remanding two motions is one remand, its exchange owed: parties %+v, ceiling %v, why %q", plan.Parties, plan.Ceiling, plan.Why)
+	}
+}
+
+// THE REMAND ITEMS FOLLOW THE PLAN, NOT THE REMAND. A gap that is not material readies nobody, at
+// impasse or not, so a remand of one puts nothing on blue's or the minting lens's list: an item there
+// would be an exchange the dispatch never readies.
+func TestARemandedTrifleOffersNoExchange(t *testing.T) {
+	st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", "low")
+	st.exchangeOn("G1").exchangeOn("G1")
+	run := st.docketAndRemand("M1", "G1").register("red-chair").seed()
+	plan, err := PlanDispatch(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if slices.Contains(gapsOf(plan, evLens), "G1") || slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
+		t.Fatalf("setup: a trifle readies nobody; parties %+v, why %q", plan.Parties, plan.Why)
+	}
+	for _, seat := range []struct{ role, id string }{{"lens", evLens}, {"blue", "blue-respond"}} {
+		if workMentions(t, run, seat.role, seat.id, remandDirection) {
+			t.Errorf("%s's work list offers the remand's exchange on a gap the plan readies nobody for", seat.id)
+		}
+	}
+}
+
+// THE kMax ROUTE LEAVES IMPASSE TOO, under the release gate's terms (k 1, kMax 2). G1 moves on both
+// of its exchanges and reaches impasse on the count alone; the count never decreases, so a remand
+// exchange that moves the gap would leave it "at impasse" forever and send a gap making progress back
+// to the bench and on to CEILING. After the remand the terms count from the ruling: the moving
+// exchange takes G1 off impasse, the next one that reaches kMax sends it back, and one that leaves
+// it unmoved sends it back at once.
+func TestAMovingRemandExchangeLeavesAKMaxImpasse(t *testing.T) {
+	const terms = `{"k": 1, "kMax": 2}`
+	remanded := func(t *testing.T) *stage {
+		st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+			register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", "high")
+		st.movingExchangeOn("G1").movingExchangeOn("G1")
+		return st.docketAndRemand("M1", "G1")
+	}
+	seeded := func(t *testing.T, st *stage) (Run, Plan) {
+		run := st.register("red-chair").seed()
+		writeRunConfig(t, run.Dir(), terms)
+		plan, err := PlanDispatch(run)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return run, plan
+	}
+	t.Run("the kMax impasse is docketed and remanded", func(t *testing.T) {
+		run, plan := seeded(t, remanded(t))
+		x, err := Exchanges(run, Params{K: 1, KMax: 2})
+		if err != nil || x["G1"].Stalled != 0 || x["G1"].Exchanges != 2 {
+			t.Fatalf("setup: G1 must reach impasse on kMax with nothing stalled: %+v (err %v)", x["G1"], err)
+		}
+		if !slices.Contains(gapsOf(plan, "blue-respond"), "G1") || len(plan.ToFile) != 0 {
+			t.Errorf("the remand's exchange is owed: parties %+v, to file %v, why %q", plan.Parties, plan.ToFile, plan.Why)
+		}
+	})
+	t.Run("the remand exchange moves it off impasse", func(t *testing.T) {
+		run, plan := seeded(t, remanded(t).movingExchangeOn("G1"))
+		if !slices.Contains(gapsOf(plan, evLens), "G1") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") || len(plan.ToFile) != 0 || plan.Ceiling {
+			t.Errorf("the remand exchange moved G1, so it is below its limits counted from the ruling: parties %+v, to file %v, why %q", plan.Parties, plan.ToFile, plan.Why)
+		}
+		if workMentions(t, run, "chair", "red-chair", "at its limit") || workMentions(t, run, "chair", "red-chair", "for the bench again") {
+			t.Errorf("the chair's row sends a gap below its limits to the bench")
+		}
+	})
+	t.Run("kMax counted from the ruling sends it back", func(t *testing.T) {
+		_, plan := seeded(t, remanded(t).movingExchangeOn("G1").movingExchangeOn("G1"))
+		if !slices.Equal(plan.ToFile, []string{"G1"}) || plan.Ceiling {
+			t.Errorf("two exchanges since the ruling reach kMax 2: to file %v, why %q", plan.ToFile, plan.Why)
+		}
+	})
+	t.Run("an unmoved remand exchange sends it back at once", func(t *testing.T) {
+		_, plan := seeded(t, remanded(t).exchangeOn("G1"))
+		if !slices.Equal(plan.ToFile, []string{"G1"}) || slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
+			t.Errorf("the remand's exchange left G1 unmoved: to file %v, parties %+v, why %q", plan.ToFile, plan.Parties, plan.Why)
+		}
+	})
+}
+
+// AT ITS LIMIT IS A ROUTE, NOT A COUNT: a gap the bench remanded twice that then moves is below its
+// limits, and the chair's row says what the dispatch does — readies its parties — not "at its limit".
+func TestAGapRemandedTwiceThatMovesIsNotAtItsLimit(t *testing.T) {
+	run := remandedAtImpasse(t).exchangeOn("G1").docketAndRemand("M2", "G1").movingExchangeOn("G1").register("red-chair").seed()
+	plan, err := PlanDispatch(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(gapsOf(plan, "blue-respond"), "G1") || plan.Ceiling {
+		t.Errorf("G1 moved after its second remand, so it is below its limits: parties %+v, ceiling %v, why %q", plan.Parties, plan.Ceiling, plan.Why)
+	}
+	if workMentions(t, run, "chair", "red-chair", "at its limit") {
+		t.Errorf("the chair's row says G1 is at its limit while the plan readies its parties")
+	}
+}

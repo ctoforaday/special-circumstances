@@ -467,7 +467,7 @@ const BLUE_ENVELOPE = {
 // them through the tool.
 const PLAN = {
   type: 'object',
-  required: ['head', 'parties', 'docket', 'pass_permitted', 'ceiling', 'max_epochs', 'epoch_limit_reached', 'why', 'stale_areas', 'blockers'],
+  required: ['head', 'parties', 'docket', 'remand_owed', 'pass_permitted', 'ceiling', 'max_epochs', 'epoch_limit_reached', 'why', 'stale_areas', 'blockers'],
   properties: {
     head: { type: 'integer', minimum: 0, description: 'events.id of the report head the parties audit' },
     parties: {
@@ -501,6 +501,7 @@ const PLAN = {
       },
     },
     docket: { type: 'array', items: { type: 'string' }, description: 'gaps the verb docketed for the bench at this sitting' },
+    remand_owed: { type: 'array', items: { type: 'string' }, description: "gaps the bench remanded whose one more exchange this plan readies: their minting lens and blue are among the parties for it" },
     pass_permitted: { type: 'boolean' },
     ceiling: { type: 'boolean' },
     max_epochs: { type: 'integer', minimum: 0, description: "the run's epoch limit, a term setup records; 0 when the run is held to none" },
@@ -515,7 +516,7 @@ const PLAN = {
 const PLAN_FIELD_TYPES = {
   head: 'integer', max_epochs: 'integer',
   pass_permitted: 'boolean', ceiling: 'boolean', epoch_limit_reached: 'boolean',
-  parties: 'array', docket: 'array', why: 'array', stale_areas: 'array', blockers: 'array',
+  parties: 'array', docket: 'array', remand_owed: 'array', why: 'array', stale_areas: 'array', blockers: 'array',
 }
 // THE BENCH IS CONVENED FOR AN OCCASION, AND THE PLAN SAYS WHICH. Its one seat id cannot say whether
 // it hears a petition or rules a docket, so the bench party carries `occasions` and this script
@@ -798,11 +799,18 @@ const BLUE_DUTY_BY_DISPOSITION = {
 // fate — and travels to BOTH parties, because debate.js reads no record: a ruling reaches a seat's
 // prompt here or not at all (#517, #524). The reasoning stays on the record, deliberately.
 const rulingsInEffect = new Map()
+// A REMAND'S DUTY LASTS AS LONG AS ITS EXCHANGE IS OWED. The ruling stays in effect after the
+// exchange is had, or after the gap is remanded at impasse again, and BLUE_DUTY_BY_DISPOSITION's
+// "you and its minting lens are dispatched on it" is then false; the plan names the gaps whose
+// remand exchange it readies (remand_owed), so the duty is told for those and no others.
+const BLUE_REMAND_NOT_OWED = 'The bench remanded this gap, and the one more exchange the remand granted is not owed now — it has been had, or the gap is at its limit — so its direction is not a duty of this sitting. If you are engaged on the gap, answer it as you answer any open gap.'
+const blueDuty = (r) => {
+  if (r.disposition === 'remanded' && !(lastPlan && lastPlan.remand_owed.includes(r.gap_id))) return BLUE_REMAND_NOT_OWED
+  return BLUE_DUTY_BY_DISPOSITION[r.disposition] || `UNMAPPED DISPOSITION ${r.disposition} — read the opinion on the record before acting on it`
+}
 const rulingsClause = (party) => {
   if (!rulingsInEffect.size) return ''
-  const rows = [...rulingsInEffect.values()].map((r) => party === 'blue'
-    ? { ...r, your_duty: BLUE_DUTY_BY_DISPOSITION[r.disposition] || `UNMAPPED DISPOSITION ${r.disposition} — read the opinion on the record before acting on it` }
-    : r)
+  const rows = [...rulingsInEffect.values()].map((r) => party === 'blue' ? { ...r, your_duty: blueDuty(r) } : r)
   const barred = rows.some((r) => r.settled !== undefined)
   const duty = party === 'blue'
     ? ' THE BAR IS ON THE PROPOSITION, NOT THE GAP: what you may no longer re-argue in the report is the sentence under settled, not everything the finding touched. WHERE A RULING WENT YOUR WAY IT IS YOURS TO INVOKE — say so on the record and rely on it, rather than quietly re-fixing text the bench has already blessed.'
@@ -1024,7 +1032,7 @@ ANSWER EVERY GAP YOU ARE ENGAGED ON, ADDITIVELY, in the report through \`edit\` 
 AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP (W2b; your constitution carries the full standard): figures recomputed, universals enumerated, consistency sites swept report-wide — one manifest row per gap you REPAIRED — one an edit of yours this sitting answers — and the manifest array in your envelope names them; a gap you rebut without an edit owes none. A gap you are engaged on that the board shows CLOSED when you sit — its lens sat before you and closed it — owes no row: name it in found_closed, from the board you read. When EVERY gap you are engaged on is closed when you sit, the sitting owes no position and no revision — found_closed is its record. Otherwise record the sitting's revision with the tool's claim_count; never hand-count it — the tool computes claim_count with the tool's own read.${logClause('blue-respond', 'blue')}${petitionClause}`
 const benchPrompt = (gaps) => `Adjudication, topic "${topic}". Docketed for you: ${gaps.join(', ')} — each reached impasse under the run's terms and the record docketed it. THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE. It carries ids; a gap's problem text and its acceptance check live on the board, and you read them FRESH before ruling. Re-run each document-probe acceptance check against the artifact AS IT NOW STANDS, and rule on what you find rather than on what any snapshot asserts.
 YOUR RULING BASIS IS CONFINED TO THREE THINGS: the two sides' recorded closings, the full transcript, and the final state of the artifacts — the board and the report as the record now renders them. Weigh each closing as that side's best case, and a claim in a closing that the record does not support counts AGAINST the side that made it. For every ruling on a gap with a lineage chain, READ THE NAMED ANCESTORS' RECORDS first and NAME what you read in your rationale.${holdingsClause()}${lawClause}${declareClause}${inspectionClause}
-Every docketed gap gets a written ruling — the docket ruling: its fate, the principle you applied, the values in tension, whether a human should look at it, your reasoning, and TWO THINGS THE FATE CANNOT SAY — the proposition you are barring as settled, and what would reopen it or that nothing would (final). Two fates send the work on rather than ending it: a gap you REMAND goes back to the debate for ONE more exchange between its minting lens and blue, on the research direction you state as what would reopen it — if that exchange leaves it at impasse it comes back to you, and a gap you remand a second time stays open at its limit, that gap's deadlock and what CEILING is made of; and a valid finding whose FIX is owned outside the debate — run tooling, the harness, the engine — leaves the board and ships as a NAMED infrastructure debt (defect_owed_elsewhere), recorded and never dropped. Rule every motion your work list names as the bench's. A bench sitting that rules nothing is a workflow error: the run cannot end in a verdict while a docketed gap stands unruled.${logClause('judge', 'bench')}${speedClause}${recordClause('judge', DOCKET_OCCASION)} Return your envelope.`
+Every docketed gap gets a written ruling — the docket ruling: its fate, the principle you applied, the values in tension, whether a human should look at it, your reasoning, and TWO THINGS THE FATE CANNOT SAY — the proposition you are barring as settled, and what would reopen it or that nothing would (final). Two fates send the work on rather than ending it: a gap you REMAND goes back to the debate for ONE more exchange between its minting lens and blue, on the research direction you state as what would reopen it — if that exchange leaves it at impasse it comes back to you, and a gap you remand at impasse a second time stays open at its limit, that gap's deadlock and what CEILING is made of; and a valid finding whose FIX is owned outside the debate — run tooling, the harness, the engine — leaves the board and ships as a NAMED infrastructure debt (defect_owed_elsewhere), recorded and never dropped. Rule every motion your work list names as the bench's. A bench sitting that rules nothing is a workflow error: the run cannot end in a verdict while a docketed gap stands unruled.${logClause('judge', 'bench')}${speedClause}${recordClause('judge', DOCKET_OCCASION)} Return your envelope.`
 
 phase('Red')
 const sittings = {} // seat -> how many times this loop has dispatched it, for the labels

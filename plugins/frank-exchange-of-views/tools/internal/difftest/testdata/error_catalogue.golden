@@ -1087,6 +1087,77 @@ Global Flags:
       --schema           print the event-schema epoch this binary writes, and exit
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
 
+── a lens closing as the bench's remand
+exit 2
+feov-record: invalid argument "remanded" for "--as" flag: --as must be one of repaired|repaired_with_regression|amends_prior|not_a_defect|defect_accepted|defect_owed_elsewhere|moot (got "remanded") — the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on repaired_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason
+
+    repaired                  the repair was verified at the leaf and nothing regressed
+    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — its lineage is the supersedes the gap was minted with; the close itself carries none and nothing checks it
+    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    moot                      the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired
+
+close a gap with the verification you did THIS sitting, naming what you checked it against
+
+THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS SITTING, by you — who verified it, with what, and against which exact file or ref.
+
+A closure the record already holds — work an earlier sitting did — is the chair's to restate with `carry`, which needs no triple because it makes no fresh claim. Re-closing it here double-counts the closure history.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with 'log', as a request — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
+your text, and records whatever the command printed — or nothing — in its place. Pass every
+free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
+
+  X=$(cat <<'EOF'
+  your text — backticks, apostrophes and $ signs are all literal here
+  EOF
+  )
+  … "$X"
+
+CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong — a lost word, a
+wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
+printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
+struck beside its replacement. You may correct only your own act, only in the sitting that recorded
+it, and only until another seat has acted; after that, say it in a new act. A correction may change
+only your wording (--reason); every other flag must repeat what the act recorded.
+
+Usage:
+  feov-record close [flags]
+
+Flags:
+      --as as-value               HOW the gap ended — the same words the bench's dispositions use
+      --correction-why string     what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
+      --corrects string           the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
+  -h, --help                      help for close
+      --id gap-id                 REQUIRED — the gap id
+      --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --superseded-by gap-id      the gap id carrying the unresolved remainder forward
+      --verified-against string   REQUIRED — AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in
+      --verified-by string        REQUIRED — WHO verified it — the seat that read the evidence
+      --verified-with string      REQUIRED — WITH WHAT — the tool or command that showed it
+
+Enumerated values:
+  --as
+    repaired                  the repair was verified at the leaf and nothing regressed
+    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — its lineage is the supersedes the gap was minted with; the close itself carries none and nothing checks it
+    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    moot                      the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
+      --schema           print the event-schema epoch this binary writes, and exit
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
+
 ── grade motion dimension outside the set
 exit 2
 feov-record: invalid argument "banana" for "--dimension" flag: --dimension must be one of severity|likelihood|impact|complexity (got "banana") — the ruling is matched to the filing on (gap, dimension) and the gap's grade is then read AT that dimension: an axis outside the four matches no ruling and reads no grade, so the motion is filed against nothing

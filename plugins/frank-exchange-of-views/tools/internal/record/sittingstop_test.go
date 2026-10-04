@@ -257,10 +257,10 @@ func TestTheEndOfTheRecordClosesASittingOnlyAfterTheRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	ids := m.At.IDs(m.Events)
-	if g := exchangesOf(m.Events, ids, m.At, DefaultParams, WhileRunning)["G1"]; g == nil || g.Exchanges != 0 || g.Unresolved != 2 {
+	if g := exchangesOf(m.Events, ids, m.At, DefaultParams, WhileRunning, nil)["G1"]; g == nil || g.Exchanges != 0 || g.Unresolved != 2 {
 		t.Errorf("while running: G1 = %+v, want nothing counted and both sittings unresolved", g)
 	}
-	if g := exchangesOf(m.Events, ids, m.At, DefaultParams, AfterTheRun)["G1"]; g == nil || g.Exchanges != 1 || g.Unresolved != 0 {
+	if g := exchangesOf(m.Events, ids, m.At, DefaultParams, AfterTheRun, nil)["G1"]; g == nil || g.Exchanges != 1 || g.Unresolved != 0 {
 		t.Errorf("after the run: G1 = %+v, want the one exchange the end of the record closes, nothing unresolved", g)
 	}
 	if ss := BlueSittings(m.Events, m.At, WhileRunning); len(ss) != 1 || !ss[0].Unresolved {

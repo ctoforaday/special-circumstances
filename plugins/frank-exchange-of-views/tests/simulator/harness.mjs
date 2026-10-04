@@ -76,7 +76,7 @@ export const party = (seat_id, ...gap_ids) => (seat_id === 'judge' ? { seat_id, 
 export const petitionBench = () => ({ seat_id: 'judge', gap_ids: [], occasions: ['petition'] })
 // blocker is one entry of the plan's `blockers`: what holds a PASS and the seat whose act clears it.
 export const blocker = (subject, owner, kind = 'unruled_motion') => ({ kind, subject, owner })
-export const plan = (parties = [], over = {}) => ({ head: 2, parties, docket: [], pass_permitted: false, ceiling: false, max_epochs: 0, epoch_limit_reached: false, why: [], stale_areas: [], blockers: [], ...over })
+export const plan = (parties = [], over = {}) => ({ head: 2, parties, docket: [], remand_owed: [], pass_permitted: false, ceiling: false, max_epochs: 0, epoch_limit_reached: false, why: [], stale_areas: [], blockers: [], ...over })
 export const passPlan = (over = {}) => plan([], { pass_permitted: true, ...over })
 export const ceilingPlan = (over = {}) => plan([], { ceiling: true, why: ['G1: at impasse, ruled remanded — at its limit'], ...over })
 export const chairEnv = (over = {}) => ({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G1')]), log: [], ...over })

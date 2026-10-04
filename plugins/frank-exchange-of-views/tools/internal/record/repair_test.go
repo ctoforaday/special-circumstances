@@ -50,7 +50,7 @@ func TestARepairRegistersActsCountAsTheSittingItRepairs(t *testing.T) {
 		}
 	}
 	ids := m.At.IDs(m.Events)
-	if g := exchangesOf(m.Events, ids, m.At, DefaultParams, WhileRunning)["G1"]; g == nil || g.Exchanges != 1 || g.Unresolved != 0 {
+	if g := exchangesOf(m.Events, ids, m.At, DefaultParams, WhileRunning, nil)["G1"]; g == nil || g.Exchanges != 1 || g.Unresolved != 0 {
 		t.Errorf("G1 = %+v, want one exchange: a repair register opens no sitting of its own", g)
 	}
 	// The repair's register is not a sitting for a dispatch: blue's work list owes no register.

@@ -8043,7 +8043,7 @@ const file_record_proto_rawDesc = "" +
 	"\x1aCLASS_MATERIAL_UNSPECIFIED\x10\x00\x12\x91\x01\n" +
 	"\x15CLASS_MATERIAL_ALWAYS\x10\x01\x1av\x8a\xb5\x18revery gap of this class is material, whatever its grade — it changes a conclusion or a figure a reader relies on\x12\x85\x01\n" +
 	"\x14CLASS_MATERIAL_NEVER\x10\x02\x1ak\x8a\xb5\x18gno gap of this class is material, whatever its grade — it stays on the board and never holds the gate\x12m\n" +
-	"\x17CLASS_MATERIAL_BY_GRADE\x10\x03\x1aP\x8a\xb5\x18La gap of this class is material when its current severity is medium or above*\x96\f\n" +
+	"\x17CLASS_MATERIAL_BY_GRADE\x10\x03\x1aP\x8a\xb5\x18La gap of this class is material when its current severity is medium or above*\xe4\f\n" +
 	"\vDisposition\x12\x1b\n" +
 	"\x17DISPOSITION_UNSPECIFIED\x10\x00\x12[\n" +
 	"\x14DISPOSITION_REPAIRED\x10\x01\x1aA\x8a\xb5\x189the repair was verified at the leaf and nothing regressed\x98\xb5\x18\x01\x12\xa0\x01\n" +
@@ -8051,8 +8051,8 @@ const file_record_proto_rawDesc = "" +
 	"\x18DISPOSITION_AMENDS_PRIOR\x10\x03\x1a\xb9\x01\x8a\xb5\x18\xb0\x01a defect found BETWEEN two repairs that each closed clean earlier — its lineage is the supersedes the gap was minted with; the close itself carries none and nothing checks it\x98\xb5\x18\x01\x12\x90\x01\n" +
 	"\x18DISPOSITION_NOT_A_DEFECT\x10\x04\x1ar\x8a\xb5\x18jblue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be\x98\xb5\x18\x01\x12\xb5\x01\n" +
 	"\x1bDISPOSITION_DEFECT_ACCEPTED\x10\x05\x1a\x93\x01\x8a\xb5\x18\x8a\x01the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record\x98\xb5\x18\x01\x12\x8f\x01\n" +
-	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\xd6\x02\n" +
-	"\x14DISPOSITION_REMANDED\x10\a\x1a\xbb\x02\x8a\xb5\x18\xb2\x02NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states as what would reopen it. If that exchange leaves it at impasse it is docketed again, and a second remand leaves it open at its limit\x98\xb5\x18\x00\x12\xd8\x01\n" +
+	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\xa4\x03\n" +
+	"\x14DISPOSITION_REMANDED\x10\a\x1a\x89\x03\x8a\xb5\x18\x80\x03NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states as what would reopen it. If that exchange leaves it at impasse it is docketed again, if it moves the gap the gap's limits count afresh from the ruling, and a second remand at impasse leaves it open at its limit\x98\xb5\x18\x00\x12\xd8\x01\n" +
 	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01*\xd9\b\n" +
 	"\rSourceOutcome\x12\x1e\n" +
 	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12\xf8\x01\n" +

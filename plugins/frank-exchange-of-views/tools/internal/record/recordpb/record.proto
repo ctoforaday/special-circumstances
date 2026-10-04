@@ -361,7 +361,7 @@ enum Disposition {
   // `remanded` is reachable by the BENCH only: red closing a gap is asserting a repair, and
   // "I repaired it by carrying it" is not a sentence. The subset is enforced, not documented —
   // see Close.closure_class, whose `subset: "closes"` generates the CHECK from this annotation.
-  DISPOSITION_REMANDED = 7 [(means) = "NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states as what would reopen it. If that exchange leaves it at impasse it is docketed again, and a second remand leaves it open at its limit", (closes) = false];
+  DISPOSITION_REMANDED = 7 [(means) = "NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states as what would reopen it. If that exchange leaves it at impasse it is docketed again, if it moves the gap the gap's limits count afresh from the ruling, and a second remand at impasse leaves it open at its limit", (closes) = false];
   // MOOT IS NOT not_a_defect, AND THAT DISTINCTION IS WHY IT EXISTS (#847).
   //
   // `not_a_defect` asserts that blue argued the finding was wrong and the argument HELD — a

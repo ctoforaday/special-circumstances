@@ -319,7 +319,7 @@ func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
 // blocking row for a gap sitting.go already blocks on.
 func TestACarriedGapReadsDifferentlyFromOneNobodyDocketed(t *testing.T) {
 	gaps := []WorkGapState{
-		{ID: "CARRIED", Open: true, Material: true, Remanded: true, remand: remandOwed,
+		{ID: "CARRIED", Open: true, Material: true, Remanded: true, remand: remandOwed, route: routeRemandOwed,
 			DocketReopensOn: "blue reporting what the stated direction found"},
 		{ID: "FRESH", Open: true, Material: true},
 	}

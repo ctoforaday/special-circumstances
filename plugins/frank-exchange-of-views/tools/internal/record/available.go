@@ -80,10 +80,10 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 			add("gap " + id + " was answered by an edit and carries no manifest row — the report names a gap YOU repaired that carries no row as a repair nobody audited, including its author")
 		}
 		// A REMAND SENDS ITS GAP BACK FOR ONE MORE EXCHANGE, and the direction the bench wrote has
-		// to reach the seats that owe it. The dispatch readies blue on the gap (remandStageOf); this
-		// says what that sitting is for, in the ruling's words.
+		// to reach the seats that owe it. The dispatch readies blue on the gap (routeOf, the plan's
+		// own predicate); this says what that sitting is for, in the ruling's words.
 		for _, g := range gaps {
-			if g.remand == remandOwed {
+			if g.Open && g.route == routeRemandOwed {
 				add(remandOwedItem(g, true))
 			}
 		}
@@ -141,7 +141,7 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 			// "the bench sent it back for blue to report what the stated direction found" tells it
 			// what has to happen, and that sentence is the bench's own words off the record rather
 			// than this file's paraphrase of them. What happens next is the dispatch's, and the row
-			// says it by the plan's own predicate (remandStageOf).
+			// says it by the plan's own predicate (routeOf).
 			if g.Remanded {
 				add(remandedGapForChair(g))
 				continue
@@ -196,7 +196,7 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// THE OTHER SEAT A REMAND READIES, on the originator's list by the same rule: the minting
 		// lens re-audits blue's answer to the direction, and only it may close the gap.
 		for _, g := range gaps {
-			if g.remand == remandOwed && minted[g.ID] == seatID {
+			if g.Open && g.route == routeRemandOwed && minted[g.ID] == seatID {
 				add(remandOwedItem(g, false))
 			}
 		}
@@ -486,13 +486,18 @@ func remandOwedItem(g WorkGapState, blue bool) string {
 }
 
 // remandedGapForChair is the chair's row for a remanded gap: what the dispatch does with it next, by
-// the plan's own predicate (remandStageOf).
+// the plan's own predicate (routeOf).
 func remandedGapForChair(g WorkGapState) string {
-	switch g.remand {
-	case remandOwed:
-		return "gap " + g.ID + " is open because the BENCH REMANDED it — the dispatch readies its minting lens and blue for one more exchange on the research direction the ruling states: " + remandDirectionWords(g.DocketReopensOn)
-	case remandAtLimit:
-		return "gap " + g.ID + " is open because the BENCH REMANDED it again after the exchange its first remand granted — it is at its limit, and the dispatch readies nobody for it"
+	const head = "gap "
+	switch g.route {
+	case routeRemandOwed:
+		return head + g.ID + " is open because the BENCH REMANDED it — the dispatch readies its minting lens and blue for one more exchange on the research direction the ruling states: " + remandDirectionWords(g.DocketReopensOn)
+	case routeRedocket:
+		return head + g.ID + " is open because the BENCH REMANDED it, and the exchange the remand granted left it at impasse — the dispatch dockets it for the bench again"
+	case routeAtLimit:
+		return head + g.ID + " is open because the BENCH REMANDED it again after the exchange its first remand granted — it is at its limit, and the dispatch readies nobody for it"
+	case routeDocket:
+		return head + g.ID + " is open, the BENCH REMANDED it before it reached impasse, and it is at impasse now — the dispatch dockets it for the bench"
 	}
-	return "gap " + g.ID + " is open because the BENCH REMANDED it, and the exchange the remand granted has been had — if that leaves the gap at impasse, the dispatch dockets it for the bench again"
+	return head + g.ID + " is open because the BENCH REMANDED it, and it is below its limits — the dispatch readies its minting lens and blue on it"
 }

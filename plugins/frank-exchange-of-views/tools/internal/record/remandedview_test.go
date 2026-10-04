@@ -119,19 +119,26 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 				id, g.Remanded, want, g.Open, g.DocketReopensOn)
 		}
 	}
-	// THE COUNT THE DISPATCH READS: one remand grants the exchange, a second leaves the gap at its
-	// limit. A closing ruling is not a remand, and a pending re-filing does not undo one.
+	// THE ROWS THE DISPATCH'S REMAND FOLD READS: one per standing remand ruling, in the order they
+	// stand. A closing ruling is not a remand, and a pending re-filing does not undo one.
+	db, err := openRunForRead(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	remands, err := remandRulingsOf(db)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for id, want := range map[string]int{"CARRIED": 1, "ORDER": 2, "REPENDING": 1, "DISPOSED": 1, "FRESH": 0} {
-		if got := by[id].remands; got != want {
-			t.Errorf("%s: remands = %d, want %d", id, got, want)
+		if got := len(remands[id]); got != want {
+			t.Errorf("%s: %d remand row(s), want %d", id, got, want)
 		}
 	}
-	// ORDER's second remand (M10) is the last act on the record, so its place is the record's last id:
-	// the remand's exchange is counted from the LATEST remand, never an earlier one.
+	// ORDER's second remand (M10) is the last act on the record, so it is the last of ORDER's rows:
+	// the rows stand in the record's order, never the motion ids'.
 	ids := evs.At.IDs(evs.Events)
-	if last := ids[len(ids)-1]; by["ORDER"].remandedAt != last || by["FRESH"].remandedAt != 0 {
-		t.Errorf("remanded_at is the latest remand's place: ORDER %d (want %d, its second remand), FRESH %d (want 0)",
-			by["ORDER"].remandedAt, last, by["FRESH"].remandedAt)
+	if rs := remands["ORDER"]; len(rs) == 2 && (rs[1].eventID != ids[len(ids)-1] || rs[1].reopensOn != "the SECOND condition, which is the live one") {
+		t.Errorf("ORDER's rows out of the record's order: %+v (want M10's ruling, place %d, last)", rs, ids[len(ids)-1])
 	}
 	// AND THE CONDITION IS THE LIVE ONE. This is the half an order-free predicate cannot answer,
 	// and the half a motion-id ordering gets wrong: `motion_rule.event_id` is the events primary

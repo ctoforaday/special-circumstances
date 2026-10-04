@@ -342,6 +342,32 @@ LEFT JOIN "correction_root" cr ON cr."replacement" = e."key"
 LEFT JOIN "events" re ON re."key" = cr."root"
 WHERE NOT EXISTS (SELECT 1 FROM "correction" c WHERE c."corrects" = e."key");
 
+-- THE BENCH'S REMANDS: every docket ruling that stands (live_event) with a disposition that does not
+-- close the gap ("remanded"), one row per ruling — the gap it is about, its events.id, its place
+-- "pos" (a correction takes its target's place), the sitting it was ruled in, and the research
+-- direction it states. A ruling must state reopens_on or final and cannot state both (the
+-- DocketRuling CHECKs), so on a remand reopens_on is the direction the remand's exchange owes.
+--
+-- ONE DEFINITION FOR EVERY READER OF A REMAND. The gap view's "remanded" and "docket_reopens_on"
+-- read it, and so does the dispatch's remand fold (record.remandRulingsOf), which groups the rows
+-- into bench sittings by "sitting_id" and counts a sitting only where the gap was at impasse when the
+-- bench ruled — a question about the exchange count, which the record's Go fold answers and this
+-- view cannot.
+CREATE VIEW "remand" AS
+SELECT md."gap_id"                          AS "gap_id",
+       mr."event_id"                        AS "event_id",
+       l."pos"                              AS "pos",
+       COALESCE(e."sitting_id", e."id")     AS "sitting_id",
+       rd."reopens_on"                      AS "reopens_on"
+FROM "motion_docket" md
+JOIN "motion" mo ON mo."event_id" = md."event_id"
+JOIN "motion_rule" mr ON mr."motion_id" = mo."motion_id"
+JOIN "motion_rule_docket" rd ON rd."event_id" = mr."event_id"
+JOIN "enum_disposition" d ON d."value" = rd."disposition"
+JOIN "live_event" l ON l."event_id" = mr."event_id"
+JOIN "events" e ON e."id" = mr."event_id"
+WHERE NOT d."closes";
+
 -- THE GAP, AND WHETHER IT IS MATERIAL. "material" is the one definition in SQL: the class's
 -- default says 'always' or 'never', and a 'by_grade' class is material at a CURRENT severity of
 -- medium (mass 2.0, record.material) and above. The inner select is the gap as the record holds it;
@@ -374,14 +400,14 @@ SELECT
      OR (gb."class_material" = 'by_grade' AND COALESCE(gm."mass", 0.0) >= 2.0)) AS "material",
   -- THE BENCH REMANDED IT AND NOTHING IS PENDING, and this is the column that lets a seat be told so.
   --
-  -- A remand sends the gap back to the debate for ONE more exchange between its minting lens and
-  -- blue, on the direction the ruling states (docket_reopens_on); if that exchange leaves the gap at
-  -- impasse the dispatch dockets it again, and a gap remanded after its exchange is open at its
-  -- limit. Which of those a remanded gap is turns on the exchange count, so PlanDispatch decides it
-  -- (remandStageOf) from this view's "remands" and "remanded_at"; this column says only that the
-  -- bench remanded the gap and no docket motion on it stands unruled. Without it the chair was told
-  -- only "gap G1 is open and material — PASS is refused while it is", which is true of a gap nobody
-  -- has ever put before the bench and of one the bench has heard and sent back.
+  -- A remand ruled at impasse sends the gap back to the debate for ONE more exchange between its
+  -- minting lens and blue, on the direction the ruling states (docket_reopens_on). Where a remanded
+  -- gap stands against that exchange — owed, had, or the gap remanded again and at its limit — turns
+  -- on the exchange count, so the record's Go fold decides it (exchangesOf, over the "remand" view's
+  -- rows); this column says only that a remand stands on the gap and no docket motion on it stands
+  -- unruled. Without it the chair was told only "gap G1 is open and material — PASS is refused while
+  -- it is", which is true of a gap nobody has ever put before the bench and of one the bench has
+  -- heard and sent back.
   --
   -- AND NOTHING PENDING, which is the arm that keeps this from double-counting. A gap docketed
   -- again and awaiting an answer is before the bench, not back in the debate. "Nothing pending" is
@@ -390,7 +416,7 @@ SELECT
   -- rather than beside the other derived ones.
   (gb."open"
      AND gb."unruled_docket_filed" IS NULL
-     AND gb."remands" > 0)                                                            AS "remanded"
+     AND EXISTS(SELECT 1 FROM "remand" r WHERE r."gap_id" = gb."gap_id"))             AS "remanded"
 FROM (
 SELECT
   m."gap_id"                                   AS "gap_id",
@@ -471,42 +497,14 @@ SELECT
    WHERE md3."gap_id" = m."gap_id"
      AND NOT EXISTS(SELECT 1 FROM "motion_rule" mr3
                     WHERE mr3."motion_id" = mo3."motion_id"))                           AS "unruled_docket_filed",
-  -- THE BENCH'S REMANDS OF THE GAP: how many of its docket motions the bench ruled with a
-  -- disposition that does not close ("remanded"), and the events.id of the latest such ruling — the
-  -- place the remand's one exchange is counted from (an exchange whose minting-lens sitting opened
-  -- after it). Asked per motion, so a ruling corrected in its sitting is one remand; only the
-  -- rulings that stand are read, so a struck one is none.
-  (SELECT count(DISTINCT mo5."motion_id") FROM "motion_docket" md5
-     JOIN "motion" mo5 ON mo5."event_id" = md5."event_id"
-     JOIN "motion_rule" mr5 ON mr5."motion_id" = mo5."motion_id"
-     JOIN "motion_rule_docket" rd5 ON rd5."event_id" = mr5."event_id"
-     JOIN "enum_disposition" d5 ON d5."value" = rd5."disposition"
-     JOIN "live_event" l5 ON l5."event_id" = mr5."event_id"
-   WHERE md5."gap_id" = m."gap_id" AND NOT d5."closes")                              AS "remands",
-  (SELECT max(mr6."event_id") FROM "motion_docket" md6
-     JOIN "motion" mo6 ON mo6."event_id" = md6."event_id"
-     JOIN "motion_rule" mr6 ON mr6."motion_id" = mo6."motion_id"
-     JOIN "motion_rule_docket" rd6 ON rd6."event_id" = mr6."event_id"
-     JOIN "enum_disposition" d6 ON d6."value" = rd6."disposition"
-     JOIN "live_event" l6 ON l6."event_id" = mr6."event_id"
-   WHERE md6."gap_id" = m."gap_id" AND NOT d6."closes")                              AS "remanded_at",
-  -- THE DIRECTION THE REMAND STATES. A ruling must state reopens_on or final and cannot state
-  -- both (the DocketRuling CHECKs), so on a remand this is the research direction the remand's one
-  -- exchange owes — the difference between "the bench sent this back" and "the bench sent this
-  -- back for blue to report what the stated direction found".
+  -- THE DIRECTION THE LATEST REMAND STATES, off the "remand" view every reader of a remand reads.
   --
-  -- HERE AN ORDER IS BOTH AVAILABLE AND MEANINGFUL, which is why this one takes a LIMIT.
-  -- motion_rule.event_id is the events primary key: monotonic, unique, and nothing to do with the
-  -- motion-id spelling that has no usable order. The LATEST remand is the live one — an earlier
+  -- HERE AN ORDER IS BOTH AVAILABLE AND MEANINGFUL, which is why this one takes a LIMIT. "pos" is
+  -- the events primary key, or a replacement's root's: monotonic, unique, and nothing to do with
+  -- the motion-id spelling that has no usable order. The LATEST remand is the live one — an earlier
   -- remand's direction has already had its exchange.
-  (SELECT rd4."reopens_on" FROM "motion_docket" md4
-     JOIN "motion" mo4 ON mo4."event_id" = md4."event_id"
-     JOIN "motion_rule" mr4 ON mr4."motion_id" = mo4."motion_id"
-     JOIN "motion_rule_docket" rd4 ON rd4."event_id" = mr4."event_id"
-     JOIN "enum_disposition" d4 ON d4."value" = rd4."disposition"
-     JOIN "live_event" l4 ON l4."event_id" = mr4."event_id"
-   WHERE md4."gap_id" = m."gap_id" AND NOT d4."closes"
-   ORDER BY l4."pos" DESC LIMIT 1)                                                   AS "docket_reopens_on",
+  (SELECT r."reopens_on" FROM "remand" r WHERE r."gap_id" = m."gap_id"
+   ORDER BY r."pos" DESC LIMIT 1)                                                    AS "docket_reopens_on",
   -- LINEAGE FROM THE OTHER END: the LAST gap that claimed to replace this one, and whether
   -- that promise is broken — a superseded ancestor still open is the same defect counted
   -- twice, which is what the verdict gate refuses.

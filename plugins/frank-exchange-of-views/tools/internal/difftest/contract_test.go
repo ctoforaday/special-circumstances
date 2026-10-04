@@ -139,6 +139,7 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		// failure the catalogue exists to catch, in the catalogue itself.
 		{"petition ruling outside the set", []string{"motion", "petition", "rule", "--seat-id", "judge", "--id", "M1", "--as", "halt", "--reason", "r"}},
 		{"closure class near-miss", []string{"close", "--id", "G1", "--as", "closed-with-regression", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t", "--reason", "r"}},
+		{"a lens closing as the bench's remand", []string{"close", "--id", "G1", "--as", "remanded", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t", "--reason", "r"}},
 		// The class sweep found five more set-shaped flags past --as. Each is here for
 		// the same reason as the rest of this catalogue: the refusal is the seat's
 		// teacher, and a refactor that turns a teaching message into a bare rejection
