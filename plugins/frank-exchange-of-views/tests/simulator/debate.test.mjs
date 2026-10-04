@@ -384,12 +384,12 @@ test('blue is engaged on named gaps, told the board is authoritative, and files 
   assert.ok(!/ LAW: /.test(first) && !/concatenat/.test(first) && !/log entry saying so/.test(first), 'blue was handed a duty that is not its own')
 })
 
-test('the bench rules on docketed gaps from the closings, the transcript and the live artifact; a remanded gap is its deadlock', async () => {
+test('the bench rules on docketed gaps from the closings, the transcript and the live artifact; a remand sends the gap back for one more exchange', async () => {
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('judge', 'G1', 'G2')], { docket: ['G1'] }) }), passChair()] }))
   await world.run(script, ARGS)
   const bench = firstPrompt(world, 'judge')
   for (const want of ['Docketed for you: G1, G2', 'THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE', 'read them FRESH before ruling', 'AS IT NOW STANDS', 'Re-run each document-probe acceptance check',
-    'RULING BASIS IS CONFINED TO', 'counts AGAINST the side that made it', "READ THE NAMED ANCESTORS' RECORDS", 'the docket ruling', 'barring as settled', 'a gap you REMAND stays open', 'NAMED infrastructure debt',
+    'RULING BASIS IS CONFINED TO', 'counts AGAINST the side that made it', "READ THE NAMED ANCESTORS' RECORDS", 'the docket ruling', 'barring as settled', 'a gap you REMAND goes back to the debate for ONE more exchange', 'a gap you remand at impasse a second time stays open at its limit', 'NAMED infrastructure debt',
     'rules nothing is a workflow error', 'PRECEDENT IS ARGUMENT, NOT EVIDENCE']) {
     assert.ok(bench.includes(want), `the bench lost: ${want}`)
   }
@@ -442,6 +442,7 @@ test('the bench\'s rulings travel to both parties, with blue told its duty and r
 test('an empty settled bars nothing: the ruling still travels, and red is handed no estoppel over a blank', async () => {
   const world = makeWorld(makeResponder({
     chair: [chairEnv({ plan: plan([party('blue-respond', 'G1')]) }), chairEnv({ plan: plan([party('judge', 'G1')], { docket: ['G1'] }) }),
+      chairEnv({ plan: plan([party('red-lens-evidence', 'G1'), party('blue-respond', 'G1')], { remand_owed: ['G1'] }) }),
       chairEnv({ plan: plan([party('red-lens-evidence', 'G1'), party('blue-respond', 'G1')]) }), passChair()],
     judge: [judgeEnv({ dispositions: [{ gap_id: 'G1', disposition: 'remanded', rationale: 'THE OPINION', settled: '', reopens_on: 'A NEW SOURCE', final: false }] })],
   }))
@@ -450,6 +451,13 @@ test('an empty settled bars nothing: the ruling still travels, and red is handed
   assert.ok(lens.includes('GAPS THE BENCH HAS RULED') && lens.includes('"gap_id":"G1"') && lens.includes('A NEW SOURCE'), 'the ruling and what reopens it still reach red')
   assert.ok(!/"settled"/.test(lens), 'an empty settled renders as a proposition')
   assert.ok(!/YOU ARE ESTOPPED/.test(lens), 'red is estopped on a proposition nobody stated')
+  // #1210: a remand readies blue for ONE more exchange, and the direction it owes travels with it.
+  const blue2 = labelsOf(world, 'blue-respond').map((c) => c.prompt)[1]
+  assert.ok(blue2.includes('back in the debate for ONE more exchange') && blue2.includes('A NEW SOURCE'), 'blue is told the remand readies it for one more exchange, and the direction it owes')
+  // The duty lasts while the plan readies the exchange: a later plan that does not name G1 in
+  // remand_owed tells blue the exchange is not owed, never that it is dispatched on it for one.
+  const blue3 = labelsOf(world, 'blue-respond').map((c) => c.prompt)[2]
+  assert.ok(blue3.includes('is not owed now') && !blue3.includes('back in the debate for ONE more exchange'), 'blue is still told a spent remand readies it for one more exchange')
 })
 
 test('the assembler authors nothing, stamps the outcome the record derives, and is told an open gap that is not material stays on the board', async () => {
@@ -768,6 +776,7 @@ test('a relayed plan missing a required field, or carrying the wrong type, abort
     ['max_epochs', (p) => { delete p.max_epochs }], ['max_epochs', (p) => { p.max_epochs = '3' }],
     ['epoch_limit_reached', (p) => { delete p.epoch_limit_reached }], ['epoch_limit_reached', (p) => { p.epoch_limit_reached = 1 }],
     ['stale_areas', (p) => { delete p.stale_areas }], ['stale_areas', (p) => { p.stale_areas = null }],
+    ['remand_owed', (p) => { delete p.remand_owed }], ['remand_owed', (p) => { p.remand_owed = 'G1' }],
     ['parties[0].seat_id', (p) => { p.parties[0].seat_id = 7 }],
     ['parties[0].gap_ids', (p) => { p.parties[0].gap_ids = null }],
     ['stale_areas[0].seat_id', (p) => { p.stale_areas = [{ seat_id: 7, pin: 3 }] }],

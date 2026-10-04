@@ -23,14 +23,33 @@ import (
 // zero that might mean either.
 type GapExchanges struct {
 	GapID     string
-	Exchanges int  // total exchanges on G — monotone, never resets
-	Stalled   int  // consecutive exchanges with no movement — resets on movement
-	Impasse   bool // Stalled >= K or Exchanges >= KMax
+	Exchanges int // total exchanges on G — monotone, never resets
+	Stalled   int // consecutive exchanges with no movement — resets on movement
+	// Impasse is the run's terms applied to the exchanges (impasseOf): Stalled >= K or Exchanges
+	// >= KMax, and after the bench remands it at impasse, the terms counted from that ruling (impasseOf).
+	Impasse bool
 	// Unresolved is the sittings engaged on G that the record cannot close (see partySitting):
 	// the seat sat, and neither its next sitting nor its agent's stop is on the record since.
 	// They are NOT counted as exchanges and NOT reported as zero — the miss and the honest zero are
 	// different answers, and Counted words them apart.
 	Unresolved int
+	// Remand is where the gap stands against the bench's remands (remandStage): the dispatch plan,
+	// the work lists and the chair's row read it from here, so no reader re-derives it.
+	Remand remandStage
+	// rounds is each counted exchange in order — where it began (its minting lens's sitting), where
+	// it ended (blue's), and whether it moved the gap — so "was the gap at impasse when the bench
+	// ruled" and "has an exchange been had since" are asked of the same fold that counts.
+	rounds []exchangeRound
+	// remandSittings is the place of each bench sitting the fold COUNTED as a remand: one that remanded
+	// the gap while it was at impasse, keyed on the latest remand ruling in that sitting.
+	remandSittings []int64
+}
+
+// exchangeRound is one counted exchange: the places its red and blue sittings began and ended, and
+// whether anything moved the gap between them.
+type exchangeRound struct {
+	start, end int64
+	moved      bool
 }
 
 // Counted is the fold's numbers in the words a seat reads, and it is THE ONE PLACE the not-measured
@@ -79,12 +98,29 @@ func Exchanges(run Run, p Params) (map[string]*GapExchanges, error) {
 	if err != nil {
 		return nil, err
 	}
-	return exchangesOf(evs, win.IDs(evs), win, p, WhileRunning), nil
+	remands, err := remandRulingsOf(db)
+	if err != nil {
+		return nil, err
+	}
+	return exchangesOf(evs, win.IDs(evs), win, p, WhileRunning, remands), nil
 }
 
-// exchangesOf is the fold. It takes when the record is read from its caller: the chair's dispatch
-// plan is its reader, and a plan is computed while the run is running. ids is evs's places.
-func exchangesOf(evs []*Event, ids []int64, win WindowIndex, p Params, when ReadWhen) map[string]*GapExchanges {
+// exchangesOf is the fold under the run's terms and the bench's remands. It takes when the record
+// is read from its caller: the chair's dispatch plan is its reader, and a plan is computed while the
+// run is running. ids is evs's places; remands is the "remand" view's rows by gap (remandRulingsOf).
+func exchangesOf(evs []*Event, ids []int64, win WindowIndex, p Params, when ReadWhen, remands map[string][]remandRow) map[string]*GapExchanges {
+	out := exchangeFold(evs, ids, win, when)
+	for g, x := range out {
+		x.remandSittings = countedRemands(x.rounds, remandSittingsOf(remands[g]), p)
+		x.Impasse = impasseOf(x.rounds, x.remandSittings, p, math.MaxInt64)
+		x.Remand = remandStageOf(x)
+	}
+	return out
+}
+
+// exchangeFold counts each gap's exchanges and stalls, and records each counted exchange as a round;
+// exchangesOf applies the run's terms and the remands to them.
+func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen) map[string]*GapExchanges {
 	minted := map[string]string{}    // gap -> the lens that minted it
 	grades := map[string][3]string{} // gap -> current severity, likelihood, impact
 	movement := map[string][]int64{} // gap -> ids of movement events
@@ -180,9 +216,9 @@ func exchangesOf(evs []*Event, ids []int64, win WindowIndex, p Params, when Read
 			} else {
 				x.Stalled++
 			}
+			x.rounds = append(x.rounds, exchangeRound{start: pendingRed, end: s.end, moved: moved})
 			pendingRed = math.MinInt64
 		}
-		x.Impasse = x.Stalled >= p.K || x.Exchanges >= p.KMax
 	}
 	return out
 }

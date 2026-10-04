@@ -111,8 +111,9 @@ raw-written or bypassed, which is the point: the report a seat reads and the rep
 are the same bytes, by construction.
 
 **Termination is the record's, and the standing practice is stop-and-resume**: the chair's `dispatch next` says who sits; the run ends when nobody is ready — PASS
-permitted (VERIFIED), or every open material gap at its limit, ruled by the bench and remanded
-(CEILING) — or when the run reaches its epoch limit with parties still ready (CEILING, the limit
+permitted (VERIFIED), or every open material gap at its limit (CEILING): the bench remanded it,
+the one more exchange the remand grants its minting lens and blue left it at impasse, and the
+bench remanded it again — or when the run reaches its epoch limit with parties still ready (CEILING, the limit
 named as the reason). The bounds are the run's terms, recorded at setup: the exchanges a gap gets before
 impasse (k-max), the floor of the gaps a lens may mint (mint-budget), which the record raises
 with the report's size in each lens's unit — citations, proofs, claims or prose paragraphs — and

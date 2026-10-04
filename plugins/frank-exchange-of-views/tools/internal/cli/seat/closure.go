@@ -38,13 +38,13 @@ func ClosurePayload(cmd *cobra.Command) (*recordpb.Close, error) {
 		return nil, feov.Errorf(feov.Validation,
 			"lens close: %q is not a disposition — an unrecognized word lands in no bucket and the gap reads as closed for no stated reason", word)
 	}
-	// A MERGE MAY CLOSE AND MAY NOT CARRY, and the subset comes off the vocabulary rather than from
+	// A MERGE MAY CLOSE AND MAY NOT REMAND, and the subset comes off the vocabulary rather than from
 	// a word typed here. The database refuses the same value through the CHECK the schema generates
 	// from `subset: "closes"`, so this refusal is the teaching copy of a constraint that holds even
 	// against SQL written straight at the file.
 	if !recordpb.Closes(class) {
 		return nil, feov.Errorf(feov.Validation,
-			"lens close: %q defers the gap instead of closing it, and deferring is the BENCH decision — a close asserts a verified repair. Put it before the bench with `motion docket file`, which the bench then rules, or close it with a class that states what the repair was", word)
+			"lens close: %q does not close the gap — it is the BENCH's ruling that sends a gap back to the debate for one more exchange between its minting lens and blue, and a close asserts a verified repair. Put it before the bench with `motion docket file`, which the bench then rules, or close it with a class that states what the repair was", word)
 	}
 	// The SHARED prose channel, not a private one. close hand-rolled its own --file read and so
 	// was the only prose-bearing verb with no --text at all — a verb that opts out of the shared

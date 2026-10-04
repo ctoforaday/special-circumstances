@@ -46,41 +46,6 @@ func TestVerifiedIsDerivedFromThePassEvent(t *testing.T) {
 	}
 }
 
-// Reaching the ceiling with no pass is CEILING — computed from the rounds on the record
-// against the bound setup wrote, so nobody has to be told.
-// CEILING is derived from the board: every open material gap at impasse, docketed and ruled
-// carried, with nobody ready — no clock is consulted.
-func TestCeilingIsDerivedFromEveryMaterialGapAtItsLimit(t *testing.T) {
-	st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "high")
-	// Three party sittings for two countable exchanges: each is closed by the parties sitting again.
-	for i := 0; i < 3; i++ {
-		st.register("red-chair").dispatch(2, evLens, "G1").dispatch(2, "blue-respond", "G1").register(evLens).register("blue-respond")
-	}
-	// At impasse: the chair's verb dockets G1 and the bench sits and rules it carried.
-	st.register("red-chair").
-		add("red-chair", &recordpb.Motion{MotionId: proto.String("M1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
-			Basis: proto.String("at impasse"), Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}).
-		dispatch(2, "judge", "G1").register("judge").
-		add("judge", &recordpb.MotionRule{MotionId: proto.String("M1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
-			Opinion: proto.String("the parties have said what they can"), Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED), Principle: proto.String("p"), Tension: proto.String("t"),
-				ReviewFlag: proto.String("none"), Settled: proto.String("nothing"), Final: proto.Bool(true)}}}).
-		register("red-chair")
-	run := st.seed()
-	plan, err := PlanDispatch(run)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(plan.Parties) != 0 || !plan.Ceiling || plan.PassPermitted {
-		t.Fatalf("plan = %+v, want nobody ready and ceiling", plan)
-	}
-	got, why, ok, err := DeriveVerdict(run)
-	if err != nil || !ok || got != "CEILING" {
-		t.Errorf("got %q (ok=%v, err=%v) — want CEILING: %s", got, ok, err, why)
-	}
-}
-
 // A HALT OUTRANKS A PASS. A run stopped on safety or integrity grounds did not end by
 // passing, however clean the board looked when it stopped.
 func TestHaltOutranksAPass(t *testing.T) {

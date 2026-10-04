@@ -31,7 +31,8 @@ type move struct {
 	bench, rules bool
 	// pass: nobody is ready and PASS is permitted; the chair records PASS → VERIFIED.
 	pass bool
-	// ceiling: nobody is ready, every open material gap at its limit and carried → CEILING.
+	// ceiling: nobody is ready, every open material gap at its limit (remanded again after its
+	// remand's exchange) → CEILING.
 	ceiling bool
 	// stall: nobody is ready and neither PASS nor CEILING holds → UNVERIFIED.
 	stall bool
@@ -108,7 +109,7 @@ func plan(parties []any, pass, ceiling bool, docket []any, why string) map[strin
 	if docket == nil {
 		docket = []any{}
 	}
-	return map[string]any{"head": 2, "parties": parties, "docket": docket, "pass_permitted": pass, "ceiling": ceiling,
+	return map[string]any{"head": 2, "parties": parties, "docket": docket, "remand_owed": []any{}, "pass_permitted": pass, "ceiling": ceiling,
 		"max_epochs": 0, "epoch_limit_reached": false, "why": []any{why}, "stale_areas": []any{}, "blockers": []any{}}
 }
 

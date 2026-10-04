@@ -45,6 +45,10 @@ type Plan struct {
 	// Asked again in the same sitting, the plan still names them — the chair relays the plan it asks
 	// for last, and blue owes closings on what this sitting docketed.
 	Docket []string `json:"docket"`
+	// RemandOwed names the gaps whose remand's one more exchange this plan readies (routeRemandOwed):
+	// their minting lens and blue are among Parties for it. The workflow tells blue the remand's duty
+	// for these gaps and no others, so the duty lasts exactly as long as the exchange is owed.
+	RemandOwed []string `json:"remand_owed"`
 	// ToFile is the part of Docket with no docket motion yet: what the verb files. Never relayed.
 	ToFile []string `json:"-"`
 	// PassPermitted: a report is ingested, nobody is dispatched, and every blocker left on the gate's
@@ -57,8 +61,9 @@ type Plan struct {
 	// a PASS is refused until it has.
 	StaleAreas []StaleArea `json:"stale_areas"`
 	// Ceiling is the run at its limit, for one of two reasons EpochLimitReached tells apart: every
-	// open material gap is at impasse and has had its bench ruling (remanded), or the run's epoch
-	// limit is reached with parties still ready.
+	// open material gap is at impasse after the one more exchange its remand granted and the bench
+	// has remanded it again (remandStageOf), or the run's epoch limit is reached with parties still
+	// ready.
 	Ceiling bool `json:"ceiling"`
 	// MaxEpochs is the run's epoch limit (Params.MaxEpochs); 0 when the run is held to none.
 	MaxEpochs int `json:"max_epochs"`
@@ -100,13 +105,15 @@ type openGap struct {
 	// default, which the reason names when the class alone makes the gap not material.
 	material      bool
 	classMaterial string
-	// docketed is whether a docket motion has ever been filed on the gap. unruledFiled is the gap
-	// view's `unruled_docket_filed`: the events.id of the newest docket motion on the gap that no
-	// ruling names, 0 when every one is ruled. The plan's "a docket stands unruled" is
-	// unruledFiled > 0, and the bench's sitting for it is keyed on that filing (benchSatFor).
-	docketed      bool
+	// unruledFiled is the gap view's `unruled_docket_filed`: the events.id of the newest docket
+	// motion on the gap that no ruling names, 0 when every one is ruled. The plan's "a docket stands
+	// unruled" is unruledFiled > 0, and the bench's sitting for it is keyed on that filing
+	// (benchSatFor).
 	unruledFiled  int64
 	unruledMotion string // the motion id of that filing, for the plan's reason; "" when none
+	// direction is the gap view's `docket_reopens_on`: the research direction the latest remand
+	// states, which the plan's reason quotes when the remand's exchange is owed.
+	direction string
 	// supersededBy is the successor that names this gap as an ancestor, when one does and this gap
 	// is still open — the gap view's `stranded`. The PASS gate refuses a verdict over one.
 	supersededBy string
@@ -121,7 +128,7 @@ func PlanDispatch(run Run) (Plan, error) {
 	// field it reads; a nil slice marshals as null, which the relay refuses as a missing array. B9's
 	// chair relayed a PASS-permitted plan verbatim, "parties": null, and the engine aborted the run
 	// at the sitting that should have ended it.
-	plan := Plan{Parties: []Party{}, Docket: []string{}, Why: []string{}, StaleAreas: []StaleArea{}, Blockers: []PlanBlocker{}}
+	plan := Plan{Parties: []Party{}, Docket: []string{}, RemandOwed: []string{}, Why: []string{}, StaleAreas: []StaleArea{}, Blockers: []PlanBlocker{}}
 	cast, err := CastOf(run)
 	if err != nil {
 		return plan, err
@@ -189,9 +196,27 @@ func PlanDispatch(run Run) (Plan, error) {
 	if err != nil {
 		return plan, err
 	}
-	exch := exchangesOf(evs, ids, win, params, WhileRunning)
+	remands, err := remandRulingsOf(db)
+	if err != nil {
+		return plan, err
+	}
+	exch := exchangesOf(evs, ids, win, params, WhileRunning, remands)
 	materialOpen, materialSettled := 0, 0
 	statedMotion := map[string]bool{} // the docket motions a gap's reason below already names
+	// debate readies a gap's two parties: its minting lens, and blue.
+	debate := func(g openGap) {
+		if g.mintedBy != "" {
+			engage(g.mintedBy, "", g.id)
+		}
+		engage(blueRespondSeat, "", g.id)
+	}
+	// toBench dockets a gap at impasse: the chair files the motion, and the bench is convened for it.
+	toBench := func(g openGap, why string) {
+		plan.Docket = append(plan.Docket, g.id)
+		plan.ToFile = append(plan.ToFile, g.id)
+		engage(benchSeat, occasionDocket, g.id)
+		plan.Why = append(plan.Why, why)
+	}
 	for _, g := range gaps {
 		// A STRANDED GAP IS READY WORK WHATEVER ITS CLASS OR GRADE. Superseding is a promise to
 		// replace, and the PASS gate refuses a verdict while the ancestor is open (refs.go) — so a
@@ -200,18 +225,27 @@ func PlanDispatch(run Run) (Plan, error) {
 		// Found by the release sweep. Held as material here: its minter and blue are engaged, its
 		// exchanges count, and at impasse it reaches the bench like any other.
 		stranded := g.supersededBy != ""
-		trifle := !g.material && !stranded
-		// A DOCKET MOTION IS THE ESCALATION ROUTE, and it readies the bench whether the gap is at
-		// impasse or not. The dispatch files one at impasse; a party may file one earlier (`motion
-		// docket file` is a red and blue verb, kept so the route to the bench is not the record's
-		// discretion alone), and a trifle may be escalated too. Either way the motion stands until
-		// the bench rules it, PASS is refused while it stands, and a bench that sat for it and
-		// ruled nothing is not re-readied — the run cannot end in a verdict while it stands.
-		if g.unruledFiled > 0 {
+		x := exch[g.id]
+		if x == nil {
+			x = &GapExchanges{GapID: g.id}
+		}
+		// THE ROUTE IS routeOf, the one predicate the work lists read too.
+		route := routeOf(g.material, stranded, g.unruledFiled > 0, x)
+		if stranded && route != routeBench {
+			plan.Why = append(plan.Why, fmt.Sprintf("%s: open and superseded by %s — held as material until its minter closes it", g.id, g.supersededBy))
+		}
+		if g.material || stranded {
+			materialOpen++
+		}
+		switch route {
+		case routeBench:
+			// A DOCKET MOTION IS THE ESCALATION ROUTE, and it readies the bench whether the gap is at
+			// impasse or not. The dispatch files one at impasse; a party may file one earlier (`motion
+			// docket file` is a red and blue verb, kept so the route to the bench is not the record's
+			// discretion alone), and a trifle may be escalated too. Either way the motion stands until
+			// the bench rules it, PASS is refused while it stands, and a bench that sat for it and
+			// ruled nothing is not re-readied — the run cannot end in a verdict while it stands.
 			statedMotion[g.unruledMotion] = true
-			if !trifle {
-				materialOpen++
-			}
 			if benchSatFor(dispatches, benchOn, g.id, g.unruledFiled) {
 				plan.Why = append(plan.Why, fmt.Sprintf("%s: docket motion %s stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied; the run cannot end in a verdict while it stands", g.id, g.unruledMotion))
 				continue
@@ -221,37 +255,32 @@ func PlanDispatch(run Run) (Plan, error) {
 			if docketedThisSitting(evs, ids, registers[chairSeat], g.unruledFiled) {
 				plan.Docket = append(plan.Docket, g.id)
 			}
-			continue
-		}
-		if trifle {
+		case routeNobody:
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: open and not material (%s) — readies nobody", g.id, notMaterialBecause(g.classMaterial, g.severity)))
-			continue
-		}
-		if stranded {
-			plan.Why = append(plan.Why, fmt.Sprintf("%s: open and superseded by %s — held as material until its minter closes it", g.id, g.supersededBy))
-		}
-		materialOpen++
-		x := exch[g.id]
-		if x == nil {
-			x = &GapExchanges{GapID: g.id}
-		}
-		if !x.Impasse {
-			if g.mintedBy != "" {
-				engage(g.mintedBy, "", g.id)
+		case routeDebate:
+			debate(g)
+			if x.Remand == notRemanded {
+				plan.Why = append(plan.Why, fmt.Sprintf("%s: open, material, %s — below its limits", g.id, x.Counted()))
+			} else {
+				plan.Why = append(plan.Why, fmt.Sprintf("%s: open, material, %s — the exchange its remand granted moved it, so its limits count from the bench's ruling, and it is below them", g.id, x.Counted()))
 			}
-			engage(blueRespondSeat, "", g.id)
-			plan.Why = append(plan.Why, fmt.Sprintf("%s: open, material, %s — below its limits", g.id, x.Counted()))
-			continue
+		// AT IMPASSE, A GAP IS DOCKETED, OR OWED ITS REMAND'S EXCHANGE, OR AT ITS LIMIT. A gap the
+		// bench has not remanded at impasse goes to the bench; one it remanded goes back to the debate
+		// for one exchange between its minting lens and blue, carrying the ruling's direction, and back
+		// to the bench if that exchange leaves it here; one remanded twice is at its limit.
+		case routeDocket:
+			toBench(g, fmt.Sprintf("%s: at impasse (%s) — docketed for the bench", g.id, x.Counted()))
+		case routeRedocket:
+			toBench(g, fmt.Sprintf("%s: at impasse (%s) after the exchange its remand granted — docketed for the bench again", g.id, x.Counted()))
+		case routeRemandOwed:
+			debate(g)
+			plan.RemandOwed = append(plan.RemandOwed, g.id)
+			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse (%s) and remanded by the bench — its minting lens and blue are ready for the one more exchange the remand grants, on the ruling's direction: %s",
+				g.id, x.Counted(), remandDirectionWords(g.direction)))
+		case routeAtLimit:
+			materialSettled++
+			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse and remanded again after the exchange its first remand granted — at its limit", g.id))
 		}
-		if !g.docketed {
-			plan.Docket = append(plan.Docket, g.id)
-			plan.ToFile = append(plan.ToFile, g.id)
-			engage(benchSeat, occasionDocket, g.id)
-			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse (%s) — docketed for the bench", g.id, x.Counted()))
-			continue
-		}
-		materialSettled++ // ruled and still open: remanded
-		plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse, ruled remanded — at its limit", g.id))
 	}
 	// Source 4: THE SEAT THAT OWES ANOTHER SEAT'S BLOCKER SITS. A blocker on the gate's list that
 	// the chair cannot clear — an unruled petition, a docket motion on a gap that has since closed,
@@ -949,18 +978,18 @@ func benchSatFor(dispatches []dispatchRow, on map[recordpb.Occasion][]int64, gap
 }
 
 // openGaps reads the open gaps with what the plan needs of each: who minted it, its current
-// severity, whether it is stranded, and its docket — all off the gap view, the same fold every
-// reader uses. "A docket stands unruled" is the view's `unruled_docket_filed` (recordsql/views.go),
-// the one definition the view's own `awaiting_docket` is derived from; the PASS gate (MotionsOf)
+// severity, whether it is stranded, its docket and its remand's direction — all off the gap view, the
+// same fold every reader uses (how many remands count is the exchange fold's, exchangesOf). "A docket stands unruled" is the view's `unruled_docket_filed` (recordsql/views.go),
+// the one definition the view's own `remanded` is derived from; the PASS gate (MotionsOf)
 // and `motion_answers` ask the same per-motion question of the Go fold and the motion tables, and
 // #1228 folds those readers into this one.
 func openGaps(db *sql.DB) ([]openGap, error) {
 	rows, err := db.Query(`SELECT g."gap_id", COALESCE(g."minted_by", ''), COALESCE(g."current_severity", ''),
 	    g."material", COALESCE(g."class_material", ''),
 	    CASE WHEN g."stranded" THEN COALESCE(g."superseded_by", '') ELSE '' END,
-	    EXISTS(SELECT 1 FROM "motion_docket" md WHERE md."gap_id" = g."gap_id"),
 	    COALESCE(g."unruled_docket_filed", 0),
-	    COALESCE((SELECT mo."motion_id" FROM "motion" mo WHERE mo."event_id" = g."unruled_docket_filed"), '')
+	    COALESCE((SELECT mo."motion_id" FROM "motion" mo WHERE mo."event_id" = g."unruled_docket_filed"), ''),
+	    COALESCE(g."docket_reopens_on", '')
 	  FROM "gap" g WHERE g."open" ORDER BY g."minted_event"`)
 	if err != nil {
 		return nil, fmt.Errorf("record: asking the record for its open gaps: %w", err)
@@ -969,7 +998,8 @@ func openGaps(db *sql.DB) ([]openGap, error) {
 	var out []openGap
 	for rows.Next() {
 		var g openGap
-		if err := rows.Scan(&g.id, &g.mintedBy, &g.severity, &g.material, &g.classMaterial, &g.supersededBy, &g.docketed, &g.unruledFiled, &g.unruledMotion); err != nil {
+		if err := rows.Scan(&g.id, &g.mintedBy, &g.severity, &g.material, &g.classMaterial, &g.supersededBy, &g.unruledFiled, &g.unruledMotion,
+			&g.direction); err != nil {
 			return nil, err
 		}
 		out = append(out, g)

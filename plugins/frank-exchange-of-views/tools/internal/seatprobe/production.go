@@ -58,7 +58,7 @@ func backendFor(b Board) debatejs.Backend {
 		docket = ids
 	}
 	plan := func(parties []any, pass bool, dk []any) map[string]any {
-		return map[string]any{"head": 2, "parties": parties, "docket": dk, "pass_permitted": pass, "ceiling": false,
+		return map[string]any{"head": 2, "parties": parties, "docket": dk, "remand_owed": []any{}, "pass_permitted": pass, "ceiling": false,
 			"max_epochs": 0, "epoch_limit_reached": false, "why": []any{"seatprobe capture"}, "stale_areas": []any{}, "blockers": []any{}}
 	}
 	return func(seatID, label, prompt string) debatejs.Envelope {

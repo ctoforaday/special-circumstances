@@ -153,7 +153,7 @@ CREATE TABLE "enum_run_outcome" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('ceiling', 'every open material gap reached its limit — at impasse, ruled by the bench and remanded — with nobody ready and PASS not permitted; NOT a judged failure to verify, and the stamp says so');
+INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('ceiling', 'every open material gap reached its limit — at impasse after the one more exchange the bench''s remand granted, and remanded again — with nobody ready and PASS not permitted; NOT a judged failure to verify, and the stamp says so');
 INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('halted', 'the bench ended the run on a safety, ethics, consent or integrity boundary');
 INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('unverified', 'the run ended without the question being answered, and no ceiling or halt explains it');
 INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('verified', 'red passed the board and the bench agrees the question was answered');
@@ -231,7 +231,7 @@ INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('defect_acce
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('defect_owed_elsewhere', 'a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('moot', 'the gap''s predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('not_a_defect', 'blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be', 1);
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('remanded', 'NOT a closure: the gap stays open into a later sitting with a stated research direction the coming seat owes', 0);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('remanded', 'NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states as what would reopen it. If that exchange leaves it at impasse it is docketed again, if it moves the gap the gap''s limits count afresh from the ruling, and a second remand at impasse leaves it open at its limit', 0);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired', 'the repair was verified at the leaf and nothing regressed', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired_with_regression', 'repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward', 1);
 
@@ -1197,6 +1197,32 @@ LEFT JOIN "correction_root" cr ON cr."replacement" = e."key"
 LEFT JOIN "events" re ON re."key" = cr."root"
 WHERE NOT EXISTS (SELECT 1 FROM "correction" c WHERE c."corrects" = e."key");
 
+-- THE BENCH'S REMANDS: every docket ruling that stands (live_event) with a disposition that does not
+-- close the gap ("remanded"), one row per ruling — the gap it is about, its events.id, its place
+-- "pos" (a correction takes its target's place), the sitting it was ruled in, and the research
+-- direction it states. A ruling must state reopens_on or final and cannot state both (the
+-- DocketRuling CHECKs), so on a remand reopens_on is the direction the remand's exchange owes.
+--
+-- ONE DEFINITION FOR EVERY READER OF A REMAND. The gap view's "remanded" and "docket_reopens_on"
+-- read it, and so does the dispatch's remand fold (record.remandRulingsOf), which groups the rows
+-- into bench sittings by "sitting_id" and counts a sitting only where the gap was at impasse when the
+-- bench ruled — a question about the exchange count, which the record's Go fold answers and this
+-- view cannot.
+CREATE VIEW "remand" AS
+SELECT md."gap_id"                          AS "gap_id",
+       mr."event_id"                        AS "event_id",
+       l."pos"                              AS "pos",
+       COALESCE(e."sitting_id", e."id")     AS "sitting_id",
+       rd."reopens_on"                      AS "reopens_on"
+FROM "motion_docket" md
+JOIN "motion" mo ON mo."event_id" = md."event_id"
+JOIN "motion_rule" mr ON mr."motion_id" = mo."motion_id"
+JOIN "motion_rule_docket" rd ON rd."event_id" = mr."event_id"
+JOIN "enum_disposition" d ON d."value" = rd."disposition"
+JOIN "live_event" l ON l."event_id" = mr."event_id"
+JOIN "events" e ON e."id" = mr."event_id"
+WHERE NOT d."closes";
+
 -- THE GAP, AND WHETHER IT IS MATERIAL. "material" is the one definition in SQL: the class's
 -- default says 'always' or 'never', and a 'by_grade' class is material at a CURRENT severity of
 -- medium (mass 2.0, record.material) and above. The inner select is the gap as the record holds it;
@@ -1227,36 +1253,25 @@ SELECT
   gb.*,
   (gb."class_material" = 'always'
      OR (gb."class_material" = 'by_grade' AND COALESCE(gm."mass", 0.0) >= 2.0)) AS "material",
-  -- THE BENCH HEARD IT AND KEPT IT ALIVE, and this is the column that lets a seat be told so.
+  -- THE BENCH REMANDED IT AND NOTHING IS PENDING, and this is the column that lets a seat be told so.
   --
-  -- carried is 76 of 77 bench rulings in the measured base rate, and it ANSWERS its motion: the
-  -- gap comes back by being docketed again next epoch. Without this the chair was told only
-  -- "gap G1 is open and material — PASS is refused while it is", which is true of a gap nobody has ever put
-  -- before the bench and of one the bench has considered twice and deliberately deferred. Same
-  -- sentence, two very different situations, and the seat cannot act differently on them.
+  -- A remand ruled at impasse sends the gap back to the debate for ONE more exchange between its
+  -- minting lens and blue, on the direction the ruling states (docket_reopens_on). Where a remanded
+  -- gap stands against that exchange — owed, had, or the gap remanded again and at its limit — turns
+  -- on the exchange count, so the record's Go fold decides it (exchangesOf, over the "remand" view's
+  -- rows); this column says only that a remand stands on the gap and no docket motion on it stands
+  -- unruled. Without it the chair was told only "gap G1 is open and material — PASS is refused while
+  -- it is", which is true of a gap nobody has ever put before the bench and of one the bench has
+  -- heard and sent back.
   --
-  -- ORDER-FREE, ON PURPOSE (#759). The tempting predicate is "the LATEST docket ruling is
-  -- carried", and there is no key to say which that is at the level this was first specified:
-  -- motion ids are Sprintf M%d so lexicographic order breaks at M10, and two docket motions in
-  -- one epoch have no defined latest. Stated as set membership the question does not need an
-  -- order at all: the gap is OPEN, at least one docket ruling on it carried, and nothing is
-  -- pending. A closing ruling cannot coexist with open — bc is in the openness test — so that
-  -- arm is implied rather than repeated.
-  --
-  -- AND NOTHING PENDING, which is the arm that keeps this from double-counting. A gap already
-  -- re-docketed and awaiting an answer is not awaiting a FILING, and reporting it as such would
-  -- ask the chair to file the same question at the bench twice. "Nothing pending" is
+  -- AND NOTHING PENDING, which is the arm that keeps this from double-counting. A gap docketed
+  -- again and awaiting an answer is before the bench, not back in the debate. "Nothing pending" is
   -- unruled_docket_filed below, read off the inner select so that the two columns cannot answer
   -- "does a docket motion stand unruled" differently — which is why this column sits out here
   -- rather than beside the other derived ones.
   (gb."open"
      AND gb."unruled_docket_filed" IS NULL
-     AND EXISTS(SELECT 1 FROM "motion_docket" md2
-                  JOIN "motion" mo2 ON mo2."event_id" = md2."event_id"
-                  JOIN "motion_rule" mr2 ON mr2."motion_id" = mo2."motion_id"
-                  JOIN "motion_rule_docket" rd2 ON rd2."event_id" = mr2."event_id"
-                  JOIN "enum_disposition" d2 ON d2."value" = rd2."disposition"
-                WHERE md2."gap_id" = gb."gap_id" AND NOT d2."closes"))                 AS "awaiting_docket"
+     AND EXISTS(SELECT 1 FROM "remand" r WHERE r."gap_id" = gb."gap_id"))             AS "remanded"
 FROM (
 SELECT
   m."gap_id"                                   AS "gap_id",
@@ -1320,7 +1335,7 @@ SELECT
      AND NOT EXISTS(SELECT 1 FROM "proof" p WHERE p."answers" = m."gap_id"))          AS "awaiting_proof",
   -- THE DOCKET MOTION STANDING UNRULED, by its filing's events.id: the newest docket motion on the
   -- gap that no ruling names, NULL when every one is ruled. The dispatch plan reads it to ready the
-  -- bench and to key the bench's sitting on the filing, and awaiting_docket (outer select) reads it
+  -- bench and to key the bench's sitting on the filing, and remanded (outer select) reads it
   -- as its "nothing pending" arm. The PASS gate still answers the same question separately, through
   -- MotionsOf over motion_answers; folding the two is #1228.
   --
@@ -1337,23 +1352,14 @@ SELECT
    WHERE md3."gap_id" = m."gap_id"
      AND NOT EXISTS(SELECT 1 FROM "motion_rule" mr3
                     WHERE mr3."motion_id" = mo3."motion_id"))                           AS "unruled_docket_filed",
-  -- WHAT THE BENCH SAID WOULD BRING IT BACK. A carried ruling must carry reopens_on or final
-  -- and cannot carry both (the DocketRuling CHECKs), so on a carry this is the stated condition
-  -- and it is the substance of the deferral — the difference between "the bench deferred this"
-  -- and "the bench deferred this until blue reports what the stated direction found".
+  -- THE DIRECTION THE LATEST REMAND STATES, off the "remand" view every reader of a remand reads.
   --
-  -- HERE AN ORDER IS BOTH AVAILABLE AND MEANINGFUL, which is why this one takes a LIMIT where the
-  -- flag above refuses to. motion_rule.event_id is the events primary key: monotonic, unique,
-  -- and nothing to do with the motion-id spelling that has no usable order. The LATEST carry is
-  -- the live one — an earlier epoch's condition has already been answered by the re-filing.
-  (SELECT rd4."reopens_on" FROM "motion_docket" md4
-     JOIN "motion" mo4 ON mo4."event_id" = md4."event_id"
-     JOIN "motion_rule" mr4 ON mr4."motion_id" = mo4."motion_id"
-     JOIN "motion_rule_docket" rd4 ON rd4."event_id" = mr4."event_id"
-     JOIN "enum_disposition" d4 ON d4."value" = rd4."disposition"
-     JOIN "live_event" l4 ON l4."event_id" = mr4."event_id"
-   WHERE md4."gap_id" = m."gap_id" AND NOT d4."closes"
-   ORDER BY l4."pos" DESC LIMIT 1)                                                   AS "docket_reopens_on",
+  -- HERE AN ORDER IS BOTH AVAILABLE AND MEANINGFUL, which is why this one takes a LIMIT. "pos" is
+  -- the events primary key, or a replacement's root's: monotonic, unique, and nothing to do with
+  -- the motion-id spelling that has no usable order. The LATEST remand is the live one — an earlier
+  -- remand's direction has already had its exchange.
+  (SELECT r."reopens_on" FROM "remand" r WHERE r."gap_id" = m."gap_id"
+   ORDER BY r."pos" DESC LIMIT 1)                                                    AS "docket_reopens_on",
   -- LINEAGE FROM THE OTHER END: the LAST gap that claimed to replace this one, and whether
   -- that promise is broken — a superseded ancestor still open is the same defect counted
   -- twice, which is what the verdict gate refuses.

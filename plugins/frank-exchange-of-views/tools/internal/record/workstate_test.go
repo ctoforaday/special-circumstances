@@ -43,7 +43,7 @@ func sittingOfRunT(t *testing.T, run Run, role, seatID string) SittingJSON {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gaps, err := workGapStatesOfRun(run, m.Events)
+	gaps, err := workGapStatesOfRun(run, m.Events, m.At)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -788,13 +788,20 @@ type WorkGapJSON struct {
 	CheckKind string `json:"check_kind"`
 	// The debt, on the read a seat plans its sitting from. See BoardGapJSON.AwaitingProof.
 	AwaitingProof bool `json:"awaiting_proof"`
-	// THE OTHER DEBT, AND IT IS THE STRUCTURED TWIN OF A PROSE DUTY. availableOf says in words
-	// that the bench carried this gap and what would reopen it; a seat acting on the JSON needs
-	// the same fact as a field rather than by matching on the sentence. `omitempty` on the
-	// condition and not on the flag: false is a real answer, "" is the absence of one.
-	AwaitingDocket  bool     `json:"awaiting_docket"`
-	DocketReopensOn string   `json:"docket_reopens_on,omitempty"`
-	FoundBy         []string `json:"found_by"`
+	// THE OTHER DEBT, AND IT IS THE STRUCTURED TWIN OF A PROSE DUTY. The work list says in words
+	// that the bench remanded this gap and what direction its one more exchange owes; a seat acting
+	// on the JSON needs the same fact as a field rather than by matching on the sentence. `omitempty`
+	// on the direction and not on the flag: false is a real answer, "" is the absence of one.
+	Remanded        bool   `json:"remanded"`
+	DocketReopensOn string `json:"docket_reopens_on,omitempty"`
+	// RemandStage is where the gap stands against the remands the bench ruled at impasse — the
+	// dispatch's own fold (exchangesOf), so a seat reads the stage the plan acts on rather than
+	// matching it out of the work list's sentence: "owed" (its one more exchange, between its
+	// minting lens and blue, is owed), "spent" (that exchange has begun), "at_limit" (the bench
+	// remanded it at impasse twice and is not asked again). "" when the bench has ruled no remand while
+	// the gap was at impasse — a remand of a docket filed before impasse spends nothing.
+	RemandStage string   `json:"remand_stage,omitempty"`
+	FoundBy     []string `json:"found_by"`
 	// Material is whether this open gap holds the PASS gate, by the one definition the record
 	// carries (its class, else graded medium or above). The chair's PASS lists the ones that do
 	// not by class; a seat reading its work list sees which is which without re-deriving it.
@@ -897,14 +904,21 @@ type WorkGapState struct {
 	AboutKind, AboutRef                string
 	Edits                              []GapEdit
 	Open, AwaitingProof, ClosedByBench bool
-	// AwaitingDocket: OPEN, the bench has carried it, and nothing is pending. Off the view, the
-	// same way AwaitingProof is — the alternative was a second Go fold of a question the SQL
-	// already answers, which is what #681's standing rule forbids.
-	AwaitingDocket bool
-	// DocketReopensOn is what the latest carry said would bring it back, or "" when the bench
-	// has never carried it. It is the SUBSTANCE of the deferral: without it a seat is told the
-	// gap was carried and not what to do about it.
-	DocketReopensOn                  string
+	// Remanded: OPEN, the bench has remanded it, and nothing is pending. Off the view, the same
+	// way AwaitingProof is — the alternative was a second Go fold of a question the SQL already
+	// answers, which is what #681's standing rule forbids.
+	Remanded bool
+	// DocketReopensOn is the research direction the latest remand states, or "" when the bench has
+	// never remanded the gap. It is the SUBSTANCE of the remand: without it a seat is told the gap
+	// came back from the bench and not what to do about it.
+	DocketReopensOn string
+	// remand is where the gap stands against the bench's counted remands, and route what the
+	// dispatch does with it (routeOf) — the plan's own predicate over the plan's own fold
+	// (exchangesOf), so the work lists say what the dispatch does. unruledDocket is the view's
+	// `unruled_docket_filed`, which routeOf reads as the plan does. Open gaps only.
+	remand                           remandStage
+	route                            gapRoute
+	unruledDocket                    bool
 	Fate                             string // the last closer's word; closed gaps only
 	Severity, Likelihood, Impact, Cx any
 	FoundBy, Supersedes              []string
@@ -921,7 +935,7 @@ type WorkGapState struct {
 
 // workGapStatesOfRun reads the gap family for the work path: one view query for the scalars,
 // the two list tables, and the closure attribution off the already-fetched stream.
-func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
+func workGapStatesOfRun(run Run, evs []*Event, win WindowIndex) ([]WorkGapState, error) {
 	db, err := openRunForRead(run)
 	if err != nil || db == nil {
 		return nil, err
@@ -950,11 +964,11 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 			report = md
 		}
 	}
-	rows, err := db.Query(`SELECT "gap_id", "open", "awaiting_proof", "awaiting_docket", "docket_reopens_on",
+	rows, err := db.Query(`SELECT "gap_id", "open", "awaiting_proof", "remanded", "docket_reopens_on",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
 	    "material", "class_material", "stranded", "superseded_by",
-	    "required_fix", "acceptance_check", "minted_by"
+	    "required_fix", "acceptance_check", "minted_by", "unruled_docket_filed" IS NOT NULL
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
 		return nil, fmt.Errorf("record: asking the record for its work list: %w", err)
@@ -967,14 +981,14 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 		var requiredFix, acceptanceCheck, mintedBy sql.NullString
 		var mintedEvent int64
 		// THE SCAN ORDER IS THE SELECT'S ORDER, and both sides of this merge added a column:
-		// awaiting_docket/docket_reopens_on here, about_kind/about_ref on main. A scan that kept
+		// remanded/docket_reopens_on here, about_kind/about_ref on main. A scan that kept
 		// one side's order would still COMPILE and would silently read each value into the wrong
 		// field — every gap's problem text landing in about_ref and so on.
-		if err := rows.Scan(&g.ID, &g.Open, &g.AwaitingProof, &g.AwaitingDocket, &reopensOn,
+		if err := rows.Scan(&g.ID, &g.Open, &g.AwaitingProof, &g.Remanded, &reopensOn,
 			&sev, &lik, &imp, &cx,
 			&class, &loc, &aboutKind, &aboutRef, &problem, &kind, &mintedEvent,
 			&g.Material, &classMaterial, &g.Stranded, &supersededBy,
-			&requiredFix, &acceptanceCheck, &mintedBy); err != nil {
+			&requiredFix, &acceptanceCheck, &mintedBy, &g.unruledDocket); err != nil {
 			return nil, err
 		}
 		g.ClassMaterial, g.SupersededBy = classMaterial.String, supersededBy.String
@@ -992,7 +1006,33 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 		}
 		out = append(out, g)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	// THE PLAN'S OWN ROUTE (routeOf over exchangesOf, under the run's terms and the bench's remands),
+	// so a work list never offers the exchange the dispatch does not ready, nor withholds the one it
+	// does.
+	params, err := RunParams(run)
+	if err != nil {
+		return nil, err
+	}
+	remands, err := remandRulingsOf(db)
+	if err != nil {
+		return nil, err
+	}
+	exch := exchangesOf(evs, win.IDs(evs), win, params, WhileRunning, remands)
+	for i := range out {
+		g := &out[i]
+		if !g.Open {
+			continue
+		}
+		x := exch[g.ID]
+		if x == nil {
+			x = &GapExchanges{GapID: g.ID}
+		}
+		g.remand, g.route = x.Remand, routeOf(g.Material, g.Stranded, g.unruledDocket, x)
+	}
+	return out, nil
 }
 
 // workJSONOfGaps assembles the lean shapes from the gap states — the same rows, the same order,
@@ -1079,7 +1119,7 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 				// it could have been handed. Empty reader (the oracle) is nobody's list, so false.
 				YoursToClose: reader != "" && g.MintedBy == reader,
 				CheckKind:    g.CheckKind, AwaitingProof: g.AwaitingProof,
-				AwaitingDocket: g.AwaitingDocket, DocketReopensOn: g.DocketReopensOn,
+				Remanded: g.Remanded, DocketReopensOn: g.DocketReopensOn, RemandStage: remandStageWords[g.remand],
 				FoundBy:  strs(g.FoundBy),
 				Material: g.Material,
 			})
@@ -1112,7 +1152,7 @@ func WorkJSONOfRun(run Run) (WorkJSON, error) {
 	if err != nil {
 		return WorkJSON{}, err
 	}
-	gaps, err := workGapStatesOfRun(run, m.Events)
+	gaps, err := workGapStatesOfRun(run, m.Events, m.At)
 	if err != nil {
 		return WorkJSON{}, err
 	}
@@ -1182,7 +1222,7 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	if err != nil {
 		return WorkJSON{}, err
 	}
-	gaps, err := workGapStatesOfRun(run, m.Events)
+	gaps, err := workGapStatesOfRun(run, m.Events, m.At)
 	if err != nil {
 		return WorkJSON{}, err
 	}
