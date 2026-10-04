@@ -258,6 +258,36 @@ test('the terminal bench sitting fires only when the last plan holds a blocker t
   const chairOnly = makeWorld(makeResponder({ chair: [chairEnv({ plan: ceilingPlan({ blockers: [blocker('M2', 'red-chair')] }) })] }))
   await chairOnly.run(script, ARGS)
   assert.ok(!labelsOf(chairOnly, 'judge · terminal').length, 'a chair-owned blocker convened the terminal bench')
+  // Only a MOTION the bench owns convenes it: the sitting is told to rule motions.
+  const notAMotion = makeWorld(makeResponder({ chair: [chairEnv({ plan: ceilingPlan({ blockers: [blocker('G1', 'judge', 'stranded_gap')] }) })] }))
+  await notAMotion.run(script, ARGS)
+  assert.ok(!labelsOf(notAMotion, 'judge · terminal').length, 'a bench-owned blocker that is not a motion convened the terminal bench')
+})
+
+// A PETITION FILED IN THE FINAL EPOCH IS HEARD AT THE TERMINAL SITTING, and what it rules travels as a
+// petition sitting's does: the ruling is in the returned petitions, and a halt stamps the run HALTED.
+test('a petition standing at the exit: the terminal sitting rules it, and its halt stamps the run HALTED', async () => {
+  const lastEpoch = () => chairEnv({ plan: plan([], { ceiling: true, epoch_limit_reached: true, max_epochs: 2, blockers: [blocker('M1', 'judge')] }) })
+  const ruling = { petitioner: 'red-lens-dark-side', class: 'safety', ruling: 'granted', opinion: 'the hazard is real', relief: 'withhold the protocol', binds: 'both' }
+  const halting = makeWorld(makeResponder({ chair: [chairEnv(), lastEpoch()], judge: [judgeEnv({ rulings: [ruling], halt: { opinion: 'the human must decide this' } })] }))
+  const out = await halting.run(script, ARGS)
+  const terminal = labelsOf(halting, 'judge · terminal')[0]
+  assert.ok(terminal, 'the terminal sitting fired on the standing petition')
+  assert.equal(terminal.opts.schema.properties.halt.required[0], 'opinion', 'the terminal envelope carries the halt')
+  assert.ok(terminal.opts.schema.properties.rulings, 'the terminal envelope carries petition rulings')
+  assert.ok(/A HALT IS A DIFFERENT DECISION FROM A RULING/.test(terminal.prompt) && /stamps the run HALTED/.test(terminal.prompt))
+  assert.equal(out.verdict, 'HALTED')
+  assert.equal(out.halted, true)
+  assert.ok(out.halt_opinion.includes('the human must decide'))
+  assert.deepEqual(out.petitions, [{ petitioner: 'red-lens-dark-side', class: 'safety', ruling: 'granted', opinion: 'the hazard is real' }])
+  const asm = firstPrompt(halting, 'judge · assemble')
+  assert.ok(asm.includes('it is HALTED') && asm.includes('the human must decide'), 'the assembly stamps the halt the terminal sitting recorded')
+  // Ruled without a halt, the run keeps its stamp and the ruling still travels.
+  const ruled = makeWorld(makeResponder({ chair: [chairEnv(), lastEpoch()], judge: [judgeEnv({ rulings: [{ ...ruling, ruling: 'denied', relief: undefined }] })] }))
+  const out2 = await ruled.run(script, ARGS)
+  assert.equal(out2.verdict, 'CEILING')
+  assert.equal(out2.petitions.length, 1)
+  assert.equal(out2.petitions[0].ruling, 'denied')
 })
 
 // ── the seats' contracts ────────────────────────────────────────────────────────────────────
