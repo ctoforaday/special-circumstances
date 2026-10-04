@@ -713,8 +713,8 @@ func docketRulings(fam *record.Family) []*record.Motion {
 
 // benchRows reads the bench's rulings and opinions off the RECORD. The journal's judge envelopes
 // restate only some of the dispositions and carry no opinion at all, so a card built on them
-// counted fewer rulings than the bench made and scored every ruling opinionless. results is read
-// for petitions_filed alone.
+// counted fewer rulings than the bench made and scored every ruling opinionless. Every row here,
+// petitions_filed included, is read off the record; no journal envelope is.
 func benchRows(fam *record.Family) []Row {
 	var rows []Row
 	const unread = "the record could not be read — not measured"
