@@ -1,13 +1,13 @@
 package record
 
 import (
-	"database/sql"
 	"fmt"
 	"slices"
 	"sort"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // Party is one seat the chair engages and the gaps it is engaged on. A lens engaged with no gaps is
@@ -123,13 +123,31 @@ type openGap struct {
 // open material gap below its limits, each docketed gap awaiting the bench, and the owner of each
 // blocker another seat must clear — and the two derived facts the termination turns on. It writes
 // nothing.
+//
+// ONE READ TRANSACTION, as a narrowed view reads (readSnapshot). The plan folds the events and reads
+// each gap's openness, docket and materiality off the `gap` view; asked of the record at two moments,
+// a docket motion filed between them readied the bench for a gap whose motion the plan's own blocker
+// list did not hold. Seats write in parallel, so every question the plan asks is asked of the one
+// snapshot its events came off.
 func PlanDispatch(run Run) (Plan, error) {
+	var plan Plan
+	err := readSnapshot(run, func(q recordsql.Querier) error {
+		var err error
+		plan, err = planDispatchAt(run, q)
+		return err
+	})
+	return plan, err
+}
+
+// planDispatchAt is PlanDispatch asked of q, the read transaction every answer comes off — nil on a
+// run with no record yet.
+func planDispatchAt(run Run, q recordsql.Querier) (Plan, error) {
 	// ARRAYS, NEVER null, AT THE SOURCE. The chair relays this JSON and the engine type-checks every
 	// field it reads; a nil slice marshals as null, which the relay refuses as a missing array. B9's
 	// chair relayed a PASS-permitted plan verbatim, "parties": null, and the engine aborted the run
 	// at the sitting that should have ended it.
 	plan := Plan{Parties: []Party{}, Docket: []string{}, RemandOwed: []string{}, Why: []string{}, StaleAreas: []StaleArea{}, Blockers: []PlanBlocker{}}
-	cast, err := CastOf(run)
+	cast, err := castAt(q)
 	if err != nil {
 		return plan, err
 	}
@@ -140,29 +158,24 @@ func PlanDispatch(run Run) (Plan, error) {
 	if err != nil {
 		return plan, err
 	}
-	db, err := openRunForRead(run)
-	if err != nil {
-		return plan, err
-	}
-	if db == nil {
+	if q == nil {
 		return plan, fmt.Errorf("record: dispatch refused — the run has no record")
 	}
-	if _, err := queryRow(run, []any{&plan.Head},
-		`SELECT COALESCE(MAX("id"), 0) FROM "events" WHERE "type" IN ('blue_edit', 'base_ingest')`); err != nil {
-		return plan, err
+	if err := q.QueryRow(`SELECT COALESCE(MAX("id"), 0) FROM "events" WHERE "type" IN ('blue_edit', 'base_ingest')`).Scan(&plan.Head); err != nil {
+		return plan, fmt.Errorf("record: asking the record: %w", err)
 	}
 
 	// Source 1: each cast lens by its retirement state (retirement.go) — the same fold the PASS
 	// gate refuses from. A lens engaged that never registered has not sat, so its state has not
 	// moved and it stays ready.
-	evs, win, err := eventsAt(db)
+	evs, win, err := eventsAt(q)
 	if err != nil {
 		return plan, err
 	}
 	ids := win.IDs(evs)
 	dispatches, registers := dispatchLedger(evs, ids, win)
 	benchOn := benchRegisters(evs, ids, win)
-	fresh, err := freshMaterialOf(db)
+	fresh, err := freshMaterialOf(q)
 	if err != nil {
 		return plan, err
 	}
@@ -192,11 +205,11 @@ func PlanDispatch(run Run) (Plan, error) {
 	_ = cast // the cast is the fold's roster (castOfEvents): the same Cast event CastOf reads
 
 	// Source 2 and 3: the open gaps, with their materiality, their exchanges and their docket.
-	gaps, err := openGaps(db)
+	gaps, err := openGaps(q)
 	if err != nil {
 		return plan, err
 	}
-	remands, err := remandRulingsOf(db)
+	remands, err := remandRulingsOf(q)
 	if err != nil {
 		return plan, err
 	}
@@ -972,7 +985,7 @@ func benchSatFor(dispatches []dispatchRow, on map[recordpb.Occasion][]int64, gap
 // the one definition the view's own `remanded` is derived from; the PASS gate (MotionsOf)
 // and `motion_answers` ask the same per-motion question of the Go fold and the motion tables, and
 // #1228 folds those readers into this one.
-func openGaps(db *sql.DB) ([]openGap, error) {
+func openGaps(db recordsql.Querier) ([]openGap, error) {
 	rows, err := db.Query(`SELECT g."gap_id", COALESCE(g."minted_by", ''), COALESCE(g."current_severity", ''),
 	    g."material", COALESCE(g."class_material", ''),
 	    CASE WHEN g."stranded" THEN COALESCE(g."superseded_by", '') ELSE '' END,

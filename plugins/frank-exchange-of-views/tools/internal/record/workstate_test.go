@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // workStatesOfFamilyT derives WorkGapState rows from a hand-built family fixture, reading
@@ -39,16 +40,29 @@ func workStatesOfFamilyT(f Family) []WorkGapState {
 // sittingOfRunT is the production sitting read, for tests that hold a real run.
 func sittingOfRunT(t *testing.T, run Run, role, seatID string) SittingJSON {
 	t.Helper()
-	m, err := MergedEvents(run)
+	w, err := WorkOfSeat(run, role, seatID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	gaps, err := workGapStatesOfRun(run, m.Events, m.At)
+	return w.Sitting
+}
+
+// workGapStatesT is the work list's gap states, read off one snapshot as the work list reads them.
+func workGapStatesT(t *testing.T, run Run) []WorkGapState {
+	t.Helper()
+	var gaps []WorkGapState
+	err := readSnapshot(run, func(q recordsql.Querier) error {
+		evs, win, err := eventsAt(q)
+		if err != nil {
+			return err
+		}
+		gaps, err = workGapStatesAt(run, q, evs, win)
+		return err
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	ids := m.At.IDs(m.Events)
-	return SittingOf(m.Events, ids, m.At, gaps, role, seatID)
+	return gaps
 }
 
 // positions stands in for events.id on a hand-built stream with no database: 1..n in stream

@@ -33,12 +33,18 @@ func UnseatedAreas(run Run) (unseated []string, hasCast bool, err error) {
 	if err != nil {
 		return nil, false, err
 	}
+	unseated, hasCast = unseatedAreasOf(cast)
+	return unseated, hasCast, nil
+}
+
+// unseatedAreasOf is UnseatedAreas over a cast already read.
+func unseatedAreasOf(cast []string) (unseated []string, hasCast bool) {
 	// NO CAST IS NOT FULL COVERAGE, and it is not this function's question either. A record with no
 	// cast has not narrowed anything — it has not started. Callers that must refuse on a missing
 	// cast already do (register, the dispatch verb); answering "nothing is unseated" here would
 	// hand them a clean bill for a run that never opened.
 	if cast == nil {
-		return nil, false, nil
+		return nil, false
 	}
 	seated := map[string]bool{}
 	for _, s := range cast {
@@ -53,7 +59,7 @@ func UnseatedAreas(run Run) (unseated []string, hasCast bool, err error) {
 		}
 	}
 	sort.Strings(out)
-	return out, true, nil
+	return out, true
 }
 
 // CoverageNote is the sentence a terminal verdict carries when a dimension never sat, and the empty

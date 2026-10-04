@@ -918,26 +918,26 @@ type WorkGapState struct {
 	SupersededBy  string
 }
 
-// workGapStatesOfRun reads the gap family for the work path: one view query for the scalars,
-// the two list tables, and the closure attribution off the already-fetched stream.
-func workGapStatesOfRun(run Run, evs []*Event, win WindowIndex) ([]WorkGapState, error) {
-	db, err := openRunForRead(run)
-	if err != nil || db == nil {
-		return nil, err
+// workGapStatesAt reads the gap family for the work path: one view query for the scalars, the two
+// list tables, and the closure attribution off the already-fetched stream — every one of them asked
+// of q, the read transaction evs came off (workView), and nil on a run with no record yet.
+func workGapStatesAt(run Run, q recordsql.Querier, evs []*Event, win WindowIndex) ([]WorkGapState, error) {
+	if q == nil {
+		return nil, nil
 	}
 	closures, unpairedDocket := closureStatesOf(evs, win)
 	if len(unpairedDocket) > 0 {
 		return nil, fmt.Errorf("record: the work list cannot be computed: docket ruling(s) on motion(s) %s have no filing on this record, so which gap each settles is unknown — a seat told a gap is open when the bench has disposed of it is the failure this refuses to produce", strings.Join(unpairedDocket, ", "))
 	}
-	foundBy, err := listValuesByEvent(db, "mint_found_by")
+	foundBy, err := listValuesByEvent(q, "mint_found_by")
 	if err != nil {
 		return nil, err
 	}
-	supersedes, err := listValuesByEvent(db, "mint_supersedes")
+	supersedes, err := listValuesByEvent(q, "mint_supersedes")
 	if err != nil {
 		return nil, err
 	}
-	gapEdits, geErr := GapEdits(run)
+	gapEdits, geErr := gapEditsAt(q)
 	if geErr != nil {
 		gapEdits = map[string][]GapEdit{}
 	}
@@ -945,11 +945,11 @@ func workGapStatesOfRun(run Run, evs []*Event, win WindowIndex) ([]WorkGapState,
 	// here is the ordinary early state rather than a fault.
 	report := ""
 	if reportRenderer != nil {
-		if md, rerr := renderReport(run); rerr == nil {
+		if md, rerr := reportRenderer(q); rerr == nil {
 			report = md
 		}
 	}
-	rows, err := db.Query(`SELECT "gap_id", "open", "awaiting_proof", "remanded", "docket_reopens_on",
+	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_proof", "remanded", "docket_reopens_on",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
 	    "material", "class_material", "stranded", "superseded_by",
@@ -1001,7 +1001,7 @@ func workGapStatesOfRun(run Run, evs []*Event, win WindowIndex) ([]WorkGapState,
 	if err != nil {
 		return nil, err
 	}
-	remands, err := remandRulingsOf(db)
+	remands, err := remandRulingsOf(q)
 	if err != nil {
 		return nil, err
 	}
@@ -1133,15 +1133,20 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 // to its raw walk. The seat-addressed halves (sitting, counterparty) need a role and seat and
 // are added by WorkJSONBytes.
 func WorkJSONOfRun(run Run) (WorkJSON, error) {
-	m, err := MergedEvents(run)
-	if err != nil {
-		return WorkJSON{}, err
-	}
-	gaps, err := workGapStatesOfRun(run, m.Events, m.At)
-	if err != nil {
-		return WorkJSON{}, err
-	}
-	return workJSONOfGaps(gaps, 0, backingOf(m.Events), ""), nil
+	var out WorkJSON
+	err := readSnapshot(run, func(q recordsql.Querier) error {
+		evs, win, err := eventsAt(q)
+		if err != nil {
+			return err
+		}
+		gaps, err := workGapStatesAt(run, q, evs, win)
+		if err != nil {
+			return err
+		}
+		out = workJSONOfGaps(gaps, 0, backingOf(evs), "")
+		return nil
+	})
+	return out, err
 }
 
 // counterpartyOf counts what the OTHER party has done, so a seat can tell "not yet" from "not
@@ -1201,21 +1206,31 @@ func epochOfSeatOnBoard(evs []*Event, win WindowIndex, seatID string) int {
 // WorkOfSeat is the work list a seat reads, as the struct. WorkJSONBytes renders THIS, so a caller
 // that wants a field off the list asks the same computation `show work` prints rather than folding
 // the record a second time — and the two cannot then tell a seat different things.
+//
+// ONE READ TRANSACTION, as a narrowed view reads (readSnapshot). The list takes its closures, its
+// sitting's duties and its exchanges from the events and each gap's openness from the `gap` view;
+// asked of the record at two moments, a bench closure landing between them dropped the gap from
+// both `open` and `estopped`, and the sitting judged its duties against acts the list never loaded.
+// Seats write in parallel, so every question here is asked of the one snapshot the events came off.
 func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
-	// The stream through the loader (no fold), the gap facts off the view.
-	m, err := MergedEvents(run)
-	if err != nil {
-		return WorkJSON{}, err
-	}
-	gaps, err := workGapStatesOfRun(run, m.Events, m.At)
-	if err != nil {
-		return WorkJSON{}, err
-	}
-	epoch := epochOfSeatOnBoard(m.Events, m.At, seatID)
-	w := workJSONOfGaps(gaps, epoch-1, backingOf(m.Events), seatID)
-	w.Sitting = SittingOf(m.Events, m.At.IDs(m.Events), m.At, gaps, role, seatID)
-	w.Counterparty = counterpartyOf(m.Events, m.At, role, epoch)
-	return w, nil
+	var w WorkJSON
+	err := readSnapshot(run, func(q recordsql.Querier) error {
+		// The stream through the loader (no fold), the gap facts off the view.
+		evs, win, err := eventsAt(q)
+		if err != nil {
+			return err
+		}
+		gaps, err := workGapStatesAt(run, q, evs, win)
+		if err != nil {
+			return err
+		}
+		epoch := epochOfSeatOnBoard(evs, win, seatID)
+		w = workJSONOfGaps(gaps, epoch-1, backingOf(evs), seatID)
+		w.Sitting = SittingOf(evs, win.IDs(evs), win, gaps, role, seatID)
+		w.Counterparty = counterpartyOf(evs, win, role, epoch)
+		return nil
+	})
+	return w, err
 }
 
 // WorkJSONBytes renders the work list as indented JSON (a seat reads it in a terminal transcript),

@@ -33,6 +33,15 @@ func queryRow(run Run, dest []any, q string, args ...any) (found bool, err error
 	if db == nil {
 		return false, nil
 	}
+	return queryRowAt(db, dest, q, args...)
+}
+
+// queryRowAt is queryRow asked of db — the run's handle, or a read transaction a reader asks every
+// question of. A nil db is a run with no record yet, which holds no row.
+func queryRowAt(db recordsql.Querier, dest []any, q string, args ...any) (found bool, err error) {
+	if db == nil {
+		return false, nil
+	}
 	if err := db.QueryRow(q, args...).Scan(dest...); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
@@ -46,6 +55,12 @@ func queryRow(run Run, dest []any, q string, args ...any) (found bool, err error
 func recordHas(run Run, q string, args ...any) (bool, error) {
 	var one int
 	return queryRow(run, []any{&one}, q, args...)
+}
+
+// recordHasAt is recordHas asked of db (queryRowAt).
+func recordHasAt(db recordsql.Querier, q string, args ...any) (bool, error) {
+	var one int
+	return queryRowAt(db, []any{&one}, q, args...)
 }
 
 // BoardCounts is the board in two numbers, read from the board_counts view rather than folded —

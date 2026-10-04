@@ -98,6 +98,11 @@ func (v narrowedView[T]) jsonBytes(run Run) ([]byte, error) {
 // readSnapshot runs read inside one read transaction on the run's record — every answer off one
 // snapshot — or with a nil Querier on a run that has recorded nothing. ReadOnly is what makes the
 // BEGIN deferred: the handle's `_txlock=immediate` would otherwise take the write lock for a read.
+//
+// EVERY READER THAT ASKS THE RECORD MORE THAN ONE QUESTION AND ACTS ON THE ANSWERS TOGETHER reads
+// through it, not only a narrowed view: the work list (WorkOfSeat, WorkJSONOfRun), the dispatch plan
+// (PlanDispatch) and the derived verdict (DeriveVerdict). Inside read, every question goes to q —
+// the handle is one connection, so a read on it from inside waits on the transaction forever.
 func readSnapshot(run Run, read func(q recordsql.Querier) error) error {
 	db, err := openRunForRead(run)
 	if err != nil {

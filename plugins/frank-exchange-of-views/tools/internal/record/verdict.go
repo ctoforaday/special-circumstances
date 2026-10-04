@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // THE VERDICT IS THE LAST BIG DERIVED-NOT-ASSERTED VIOLATION (#308).
@@ -50,12 +51,27 @@ const (
 //
 // The order matters: a halt outranks a pass, because a run stopped on safety or integrity
 // grounds did not end by passing however clean the board looked when it stopped.
+//
+// ONE READ TRANSACTION, as a narrowed view reads (readSnapshot): the halt, the PASS, the cast and the
+// dispatch plan are asked of one snapshot, so a halt and a PASS landing between two reads cannot
+// derive VERIFIED over a record that holds the halt that outranks it.
 func DeriveVerdict(run Run) (verdict, why string, ok bool, err error) {
-	halted, err := recordHas(run, `SELECT 1 FROM "halt" LIMIT 1`)
+	err = readSnapshot(run, func(q recordsql.Querier) error {
+		var err error
+		verdict, why, ok, err = deriveVerdictAt(run, q)
+		return err
+	})
+	return verdict, why, ok, err
+}
+
+// deriveVerdictAt is DeriveVerdict asked of q, the read transaction every answer comes off — nil on
+// a run with no record yet.
+func deriveVerdictAt(run Run, q recordsql.Querier) (verdict, why string, ok bool, err error) {
+	halted, err := recordHasAt(q, `SELECT 1 FROM "halt" LIMIT 1`)
 	if err != nil {
 		return "", "", false, err
 	}
-	passed, err := recordHas(run, `SELECT 1 FROM "gate" WHERE "verdict" = ? LIMIT 1`,
+	passed, err := recordHasAt(q, `SELECT 1 FROM "gate" WHERE "verdict" = ? LIMIT 1`,
 		recordpb.Word(recordpb.Verdict_VERDICT_PASS))
 	if err != nil {
 		return "", "", false, err
@@ -69,11 +85,11 @@ func DeriveVerdict(run Run) (verdict, why string, ok bool, err error) {
 	// UnseatedAreas returns nothing when the record holds no cast, which is the state the
 	// CEILING arm below already distinguishes.
 	coverage := ""
-	unseated, hasCast, err := UnseatedAreas(run)
+	cast, err := castAt(q)
 	if err != nil {
 		return "", "", false, err
 	}
-	if hasCast && len(unseated) > 0 {
+	if unseated, hasCast := unseatedAreasOf(cast); hasCast && len(unseated) > 0 {
 		coverage = " (" + CoverageNote(unseated) + ")"
 	}
 	switch {
@@ -86,12 +102,8 @@ func DeriveVerdict(run Run) (verdict, why string, ok bool, err error) {
 	// open material gap is at impasse after the one more exchange its remand granted and the bench
 	// has remanded it again (remandStageOf), or the chair has sat for the run's last epoch under its
 	// epoch limit, a term setup records. A record with no cast cannot reach it.
-	cast, err := CastOf(run)
-	if err != nil {
-		return "", "", false, err
-	}
 	if cast != nil {
-		plan, err := PlanDispatch(run)
+		plan, err := planDispatchAt(run, q)
 		if err != nil {
 			return "", "", false, err
 		}

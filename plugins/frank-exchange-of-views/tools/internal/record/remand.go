@@ -1,10 +1,11 @@
 package record
 
 import (
-	"database/sql"
 	"fmt"
 	"math"
 	"sort"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // A BENCH REMAND SENDS ITS GAP BACK TO THE DEBATE FOR ONE MORE EXCHANGE (gblock, 2026-09-29: a
@@ -33,7 +34,7 @@ type remandRow struct {
 }
 
 // remandRulingsOf reads the "remand" view, by gap, in the order the rulings stand (pos).
-func remandRulingsOf(db *sql.DB) (map[string][]remandRow, error) {
+func remandRulingsOf(db recordsql.Querier) (map[string][]remandRow, error) {
 	rows, err := db.Query(`SELECT "gap_id", "event_id", "sitting_id", COALESCE("reopens_on", '') FROM "remand" ORDER BY "pos"`)
 	if err != nil {
 		return nil, fmt.Errorf("record: asking the record for the bench's remands: %w", err)

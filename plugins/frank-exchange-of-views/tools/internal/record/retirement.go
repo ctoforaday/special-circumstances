@@ -1,12 +1,12 @@
 package record
 
 import (
-	"database/sql"
 	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // PER-SEAT RETIREMENT (plans/feov-lens-bar.md III.5; gblock D1: re-arm ONCE per retirement).
@@ -157,7 +157,7 @@ func staleAreasOf(folds []lensFold, head int64) []StaleArea {
 }
 
 // freshMaterialOf is the gap view's answer to "which gaps were minted fresh and are material now".
-func freshMaterialOf(db *sql.DB) (map[string]bool, error) {
+func freshMaterialOf(db recordsql.Querier) (map[string]bool, error) {
 	rows, err := db.Query(`SELECT "gap_id" FROM "gap" WHERE "material" AND "supersedes_count" = 0`)
 	if err != nil {
 		return nil, fmt.Errorf("record: asking the record for its fresh material gaps: %w", err)
