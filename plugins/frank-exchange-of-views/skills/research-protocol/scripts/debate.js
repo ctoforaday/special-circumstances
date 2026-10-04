@@ -585,7 +585,9 @@ const JUDGE_ENVELOPE = {
           settled: { type: 'string' },
           // Exactly one of these is the answer to "what would reopen this". `final: true` is
           // the assertable empty case — the `friction --none` shape — so a decided question
-          // stays distinguishable from a skipped field.
+          // stays distinguishable from a skipped field. A REMAND carries `reopens_on`, never
+          // `final`: it is the research direction blue's remand duty quotes, and the record
+          // refuses a remand that states none.
           reopens_on: { type: 'string' },
           final: { type: 'boolean' },
           // THIS LIST IS THE RECORD'S DISPOSITION VOCABULARY, EXACTLY, and the envelope/record
@@ -1122,6 +1124,9 @@ while (!halted) {
       // "ESTOPPED on each settled proposition" over a blank, an estoppel nobody ruled. The record
       // accepts the blank; the prompt omits it.
       const settled = typeof r.settled === 'string' && r.settled.trim() ? r.settled : undefined
+      // A REMAND ROW WITH NO DIRECTION disagrees with the record, which refuses such a remand: blue
+      // would be handed a remand owing nothing. Said in the log rather than left as a silent blank.
+      if (r.disposition === 'remanded' && !(typeof r.reopens_on === 'string' && r.reopens_on.trim())) log(`epoch ${epoch}: the bench's envelope remands ${r.gap_id} with no reopens_on — the record refuses a remand without one, so the envelope disagrees with the record and blue's prompt carries no direction`)
       rulingsInEffect.set(r.gap_id, { gap_id: r.gap_id, disposition: r.disposition, settled, reopens_on: r.reopens_on, final: !!r.final, epoch })
       if (r.disposition === 'defect_owed_elsewhere') infraDebts.push({ gap_id: r.gap_id, owed_fix: r.rationale, epoch })
     }

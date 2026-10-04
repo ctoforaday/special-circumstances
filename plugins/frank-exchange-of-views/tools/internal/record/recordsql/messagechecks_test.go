@@ -27,8 +27,8 @@ import (
 //
 // THIS TEST IS WRITTEN OVER THE CONCEPT, NOT THE SHAPE, so it does not go vacuous. It walks every
 // message the schema reaches — bodies and arms alike — collects what each DECLARES, and asserts
-// the DDL contains it. `DocketRuling` — an arm of `MotionRule.ruling` — declares TWO (the
-// reopens_on/final pair), so the arm half is no longer hypothetical and this measures the exact
+// the DDL contains it. `DocketRuling` — an arm of `MotionRule.ruling` — declares THREE (the
+// reopens_on/final pair and a remand's direction), so the arm half is no longer hypothetical and this measures the exact
 // case the bug dropped. It was written while the arms declared none, which is the point: the
 // concept-level walk covered the first arm to need a rule without anybody remembering this file
 // exists. The floor below is what makes "found nothing" a failure rather than a pass.

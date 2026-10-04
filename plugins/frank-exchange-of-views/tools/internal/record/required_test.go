@@ -31,13 +31,13 @@ func seatFor(typ string) string {
 	}
 }
 
-// review_flag is required by PRESENCE, not by being non-empty, and that distinction is
-// load-bearing: `--review-flag false` is a legitimate ruling ("no, a human need not look
-// at this"), and a generic present-and-non-empty check would refuse it. Three separate
-// defects in this codebase have come from treating a falsy value as an absent one.
+// review_flag is required to SAY SOMETHING, and the write checks that it did, never what it
+// said: `--review-flag false` is a stated answer, and a check that read the word as a boolean
+// would refuse it. Three separate defects in this codebase have come from treating a falsy value
+// as an absent one.
 func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 	// `review_flag` is a STRING field carrying the seat's answer; "false" is an answer, and the
-	// requirement is satisfied by the field being SET, not by it being non-empty.
+	// requirement is satisfied by the field holding text, whatever that text reads as.
 	o := &recordpb.MotionRule{
 		MotionId: proto.String("M1"),
 		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
@@ -47,7 +47,7 @@ func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 			Principle:   proto.String("p"), Tension: proto.String("t"),
 			ReviewFlag: proto.String("false"),
 			Settled:    proto.String("the claim as it stood may not be re-asserted"),
-			Final:      proto.Bool(true),
+			ReopensOn:  proto.String("a reproduction on the shipped binary"),
 		}},
 	}
 	if err := validate(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o); err != nil {

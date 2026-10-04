@@ -1919,10 +1919,10 @@ type Sql struct {
 	// "" is a duty discharged by silence — measured, and it took a seat from two outstanding duties
 	// to `complete: true` while the channel reported one entry saying nothing.
 	//
-	// The exception is real and narrow: `--review-flag false` is a legitimate ruling ("no, a human
-	// need not look at this"), so an empty answer there is an ANSWER. Presence-only requiredness is
-	// the exception and says so at the field, rather than being the silent default it briefly became
-	// when the Go table's two flavours collapsed into one annotation.
+	// The exception is real and narrow: a docket ruling's `settled` may be empty, because a ruling
+	// can bar no proposition — a remand sends the gap back to the debate undecided. Presence-only
+	// requiredness is the exception and says so at the field, rather than being the silent default it
+	// briefly became when the Go table's two flavours collapsed into one annotation.
 	AllowEmpty *bool `protobuf:"varint,7,opt,name=allow_empty,json=allowEmpty,proto3,oneof" json:"allow_empty,omitempty"`
 	// subset names a VALUE FACET this column's values must carry — `subset: "closes"` admits only
 	// the values annotated `(closes) = true`. The generator expands it into a CHECK over the real
@@ -5665,10 +5665,13 @@ type DocketRuling struct {
 	// by the gap view to decide the FATE rather than by the column to decide legality.
 	Disposition *Disposition `protobuf:"varint,1,opt,name=disposition,proto3,enum=feov.record.v1.Disposition,oneof" json:"disposition,omitempty"`
 	Principle   *string      `protobuf:"bytes,2,opt,name=principle,proto3,oneof" json:"principle,omitempty"`
-	Tension     *string      `protobuf:"bytes,3,opt,name=tension,proto3,oneof" json:"tension,omitempty"`
-	ReviewFlag  *string      `protobuf:"bytes,4,opt,name=review_flag,json=reviewFlag,proto3,oneof" json:"review_flag,omitempty"`
-	Settled     *string      `protobuf:"bytes,5,opt,name=settled,proto3,oneof" json:"settled,omitempty"`
-	ReopensOn   *string      `protobuf:"bytes,6,opt,name=reopens_on,json=reopensOn,proto3,oneof" json:"reopens_on,omitempty"`
+	// STATED, NEVER BLANK. An empty tension or review flag cannot be told from a bench that skipped
+	// the question, so each `why` names what is true to write when the bench has no conflict, or
+	// nothing for a human, to report.
+	Tension    *string `protobuf:"bytes,3,opt,name=tension,proto3,oneof" json:"tension,omitempty"`
+	ReviewFlag *string `protobuf:"bytes,4,opt,name=review_flag,json=reviewFlag,proto3,oneof" json:"review_flag,omitempty"`
+	Settled    *string `protobuf:"bytes,5,opt,name=settled,proto3,oneof" json:"settled,omitempty"`
+	ReopensOn  *string `protobuf:"bytes,6,opt,name=reopens_on,json=reopensOn,proto3,oneof" json:"reopens_on,omitempty"`
 	// Recorded only when TRUE. Absent means the ruling answered with `reopens_on` instead; the
 	// checks above are what make "neither" and "both" unrepresentable.
 	Final         *bool `protobuf:"varint,7,opt,name=final,proto3,oneof" json:"final,omitempty"`
@@ -7800,20 +7803,21 @@ const file_record_proto_rawDesc = "" +
 	"\x06_class\"\xbb\x01\n" +
 	"\fDocketMotion\x12\x9f\x01\n" +
 	"\x06gap_id\x18\x01 \x01(\tB\x82\x01\x82\xb5\x18~\b\x01\x12\x02id\x1aiwhich gap is being put before the bench — a docket motion that names no gap is an escalation of nothing\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01B\t\n" +
-	"\a_gap_id\"\xad\f\n" +
+	"\a_gap_id\"\xb0\x0f\n" +
 	"\fDocketRuling\x12\xfd\x01\n" +
 	"\vdisposition\x18\x01 \x01(\x0e2\x1b.feov.record.v1.DispositionB\xb8\x01\x82\xb5\x18\xb3\x01\b\x01\x12\x02as\x1a\xaa\x01the bench's word, which decides the gap's fate — `remanded` sends it back to the debate for one more exchange between its minting lens and blue, everything else ends itH\x00R\vdisposition\x88\x01\x01\x12{\n" +
-	"\tprinciple\x18\x02 \x01(\tBX\x82\xb5\x18P\b\x01\x1aLthe rule the bench applied, stated so a later sitting can apply the same one\xc0\xb5\x18\x01H\x01R\tprinciple\x88\x01\x01\x12\x94\x01\n" +
-	"\atension\x18\x03 \x01(\tBu\x82\xb5\x18m\b\x01\x1agthe values that pulled against each other, or empty when none did — an empty answer here is an answer8\x01\xc0\xb5\x18\x01H\x02R\atension\x88\x01\x01\x12\x82\x01\n" +
-	"\vreview_flag\x18\x04 \x01(\tB\\\x82\xb5\x18T\b\x01\x12\vreview-flag\x1aAwhat a human should look at again, or empty when nothing needs it8\x01\xc0\xb5\x18\x01H\x03R\n" +
+	"\tprinciple\x18\x02 \x01(\tBX\x82\xb5\x18P\b\x01\x1aLthe rule the bench applied, stated so a later sitting can apply the same one\xc0\xb5\x18\x01H\x01R\tprinciple\x88\x01\x01\x12\xc1\x01\n" +
+	"\atension\x18\x03 \x01(\tB\xa1\x01\x82\xb5\x18\x98\x01\b\x01\x1a\x93\x01the values that pulled against each other — or, where none did, the ruling's weakest point: what a party would argue against the rule you applied\xc0\xb5\x18\x01H\x02R\atension\x88\x01\x01\x12\xac\x01\n" +
+	"\vreview_flag\x18\x04 \x01(\tB\x85\x01\x82\xb5\x18}\b\x01\x12\vreview-flag\x1alwhat a human should look at again — or, where nothing needs a human, what on the record already settles it\xc0\xb5\x18\x01H\x03R\n" +
 	"reviewFlag\x88\x01\x01\x12\x94\x01\n" +
 	"\asettled\x18\x05 \x01(\tBu\x82\xb5\x18m\b\x01\x1agwhat the losing party may no longer assert, as one sentence — not the gap id, and not the disposition8\x01\xc0\xb5\x18\x01H\x04R\asettled\x88\x01\x01\x12|\n" +
 	"\n" +
 	"reopens_on\x18\x06 \x01(\tBX\x82\xb5\x18P\x12\n" +
 	"reopens-on\x1aBthe evidence or condition that would make this worth raising again\xc0\xb5\x18\x01H\x05R\treopensOn\x88\x01\x01\x12\x19\n" +
-	"\x05final\x18\a \x01(\bH\x06R\x05final\x88\x01\x01:\xf4\x03\x92\xb5\x18\xb6\x02\n" +
+	"\x05final\x18\a \x01(\bH\x06R\x05final\x88\x01\x01:\xa0\x06\x92\xb5\x18\xb6\x02\n" +
 	"/\"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL\x12\x82\x02a ruling owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted sitting\x92\xb5\x18\xb4\x01\n" +
-	"'\"reopens_on\" IS NULL OR \"final\" IS NULL\x12\x88\x01--final says nothing would reopen this and --reopens-on names what would; they are opposite answers to one question, so pass exactly oneB\x0e\n" +
+	"'\"reopens_on\" IS NULL OR \"final\" IS NULL\x12\x88\x01--final says nothing would reopen this and --reopens-on names what would; they are opposite answers to one question, so pass exactly one\x92\xb5\x18\xa7\x02\n" +
+	"7\"disposition\" <> 'remanded' OR \"reopens_on\" IS NOT NULL\x12\xeb\x01a remand sends the gap back for one more exchange, and --reopens-on is the research direction that exchange owes blue and the minting lens; --final says nothing would reopen the gap, which a remand does, so a remand passes --reopens-onB\x0e\n" +
 	"\f_dispositionB\f\n" +
 	"\n" +
 	"_principleB\n" +

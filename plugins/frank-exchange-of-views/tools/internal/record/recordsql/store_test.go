@@ -438,18 +438,23 @@ func TestABenchDispositionClosesTheGapOnlyIfTheVocabularySaysSo(t *testing.T) {
 			})); err != nil {
 				t.Fatalf("the record refused a docket motion: %v", err)
 			}
+			dr := &recordpb.DocketRuling{
+				Disposition: c.as.Enum(),
+				Principle:   proto.String("correctness over economy"),
+				Tension:     proto.String("the repair costs a round"),
+				ReviewFlag:  proto.String("no"),
+				Settled:     proto.String("the claim as it stood may not be re-asserted"),
+				Final:       proto.Bool(true),
+			}
+			// A remand states the direction its exchange owes, never final.
+			if c.as == recordpb.Disposition_DISPOSITION_REMANDED {
+				dr.Final, dr.ReopensOn = nil, proto.String("a reproduction on the shipped binary")
+			}
 			if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
 				MotionId: proto.String("M1"),
 				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 				Opinion:  proto.String("stated"),
-				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-					Disposition: c.as.Enum(),
-					Principle:   proto.String("correctness over economy"),
-					Tension:     proto.String("the repair costs a round"),
-					ReviewFlag:  proto.String("no"),
-					Settled:     proto.String("the claim as it stood may not be re-asserted"),
-					Final:       proto.Bool(true),
-				}},
+				Ruling:   &recordpb.MotionRule_Docket{Docket: dr},
 			})); err != nil {
 				t.Fatalf("the record refused a disposition the bench is instructed to use: %v", err)
 			}

@@ -186,7 +186,7 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 					Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 					Principle:   proto.String("a claim rests on its weakest citation"),
-					Tension:     proto.String(""), ReviewFlag: proto.String(""),
+					Tension:     proto.String("economy"), ReviewFlag: proto.String("none: the acceptance check settles it"),
 					Settled: proto.String(""), Final: proto.Bool(true),
 				}},
 			}),

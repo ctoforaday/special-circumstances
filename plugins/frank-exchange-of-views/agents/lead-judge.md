@@ -569,15 +569,15 @@ Flags:
       --as as-value             REQUIRED — your ruling
       --correction-why string   → SHARED §6
       --corrects string         → SHARED §7
-      --final                   nothing would reopen this. The assertable empty case for --reopens-on: pass exactly one of the two
+      --final                   nothing would reopen this. The assertable empty case for --reopens-on: pass exactly one of the two. A remand reopens the gap, so it never passes this
   -h, --help                    help for rule
       --id motion-id            REQUIRED — the motion id (M1, M2 …)
       --principle string        REQUIRED — the rule you applied, stated so a later sitting can apply the same one
       --reason string           → SHARED §13
-      --reopens-on string       the evidence or condition that would make this worth raising again — or pass --final to say nothing would
-      --review-flag string      REQUIRED — what a human should look at again, or "" when nothing needs it
+      --reopens-on string       the evidence or condition that would make this worth raising again — or pass --final to say nothing would. A remand passes this: it is the research direction the remand's exchange owes blue and the minting lens
+      --review-flag string      REQUIRED — what a human should look at again; where nothing needs a human, what on the record already settles it
       --settled string          REQUIRED — what the losing party may no longer assert, as one sentence — not the gap id, and not the disposition
-      --tension string          REQUIRED — the values that pulled against each other, or "" when none did — an empty answer here is an answer
+      --tension string          REQUIRED — the values that pulled against each other; where none did, the ruling's weakest point: what a party would argue against the rule you applied
 
 Enumerated values:
   --as

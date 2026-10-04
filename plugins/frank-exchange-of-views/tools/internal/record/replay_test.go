@@ -407,7 +407,7 @@ func docketRunDir(t *testing.T) string {
 func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 	// EACH FIELD CLEARED IN TURN, on a body that is otherwise complete. Clearing is `nil`, which
 	// is what "the seat never passed it" means — a `proto.String("")` would SATISFY a presence
-	// requirement, because an empty answer is an answer for the two fields that allow it.
+	// requirement, because an empty answer is an answer for `settled`, the one field that allows it.
 	complete := func() *recordpb.MotionRule {
 		return &recordpb.MotionRule{
 			MotionId: proto.String("M1"),
@@ -471,22 +471,13 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 		t.Errorf("a complete docket ruling was refused: %v", err)
 	}
 
-	// AN EMPTY VALUE STILL COUNTS AS PRESENT for the two fields checked by presence: `--review-flag
-	// false` is a legitimate ruling, so the check is Has and not non-empty. The ruler's `opinion`
-	// is the exception — it is the prose the ruling turns on — and `disposition` is the exception
-	// to the exception: an empty disposition rules nothing, and it is an enum, so the empty case
-	// cannot even be written.
-	//
-	// `principle` LEFT THIS SET on 2026-08-22 (operator's call). See
-	// TestTheBenchDemandsARuleButNotAnInventedTension for the asymmetry and its argument —
-	// stated there rather than restated here, so the two cannot drift into disagreeing about one
-	// contract.
+	// AN EMPTY VALUE STILL COUNTS AS PRESENT for `settled` alone, the one field checked by
+	// presence: a ruling may bar no proposition. TestTheBenchStatesItsRuleItsTensionAndItsReviewFlag
+	// holds the fields an empty value does not satisfy.
 	empty := complete()
-	empty.GetDocket().Tension = proto.String("")
-	empty.GetDocket().ReviewFlag = proto.String("")
 	empty.GetDocket().Settled = proto.String("")
 	if err := validate(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, empty); err != nil {
-		t.Errorf("docket ruling fields present-but-empty were refused: %v", err)
+		t.Errorf("a docket ruling with settled present-but-empty was refused: %v", err)
 	}
 }
 
@@ -1058,18 +1049,15 @@ func TestACarryIsExemptFromTheClosureArgument(t *testing.T) {
 	}
 }
 
-// `principle` IS NON-EMPTY; `tension` AND `review_flag` ARE PRESENCE-ONLY.
+// `principle`, `tension` AND `review_flag` ARE STATED, NEVER BLANK (gblock, 2026-10-04).
 //
-// The asymmetry is the whole content of the decision (operator, 2026-08-22), so it is asserted
-// as an asymmetry rather than three separate facts. A ruling always applies SOME rule, and an
-// empty `principle` is the decoration the bench's disposition exists to refuse — the measured
-// failure is a bench that ruled `carried` on 64 of 65 items, a router rather than a judge.
-// Demanding the other two would produce invented tension and pro-forma review flags, which read
-// as reasoning and are worse than an honest blank.
-//
-// It rides a docket motion's RULING now rather than its own verb; the contract is unchanged and
-// the carrier is not.
-func TestTheBenchDemandsARuleButNotAnInventedTension(t *testing.T) {
+// A ruling always applies SOME rule, and an empty `principle` is the decoration the bench's
+// disposition exists to refuse — the measured failure is a bench that ruled `carried` on 64 of 65
+// items, a router rather than a judge. An empty tension or review flag cannot be told from a bench
+// that skipped the question, and each has something true to say where the bench sees no conflict
+// or nothing for a human: the ruling's weakest point, and what on the record already settles it.
+// Each refusal goes through the write and names the flag, so a bench can tell which one it owes.
+func TestTheBenchStatesItsRuleItsTensionAndItsReviewFlag(t *testing.T) {
 	full := func() *recordpb.MotionRule {
 		return &recordpb.MotionRule{
 			MotionId: proto.String("M1"),
@@ -1085,37 +1073,35 @@ func TestTheBenchDemandsARuleButNotAnInventedTension(t *testing.T) {
 			}},
 		}
 	}
-	// A REAL GAP AND A REAL FILING on the record, so the reference checks pass and the FIELD
-	// rules are what answer.
-	runDir := docketRunDir(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, "", "docket"); err != nil {
-		t.Fatal(err)
-	}
-
-	// EMPTY, not absent: the point is that presence alone does not satisfy `principle`.
-	empty := full()
-	empty.GetDocket().Principle = proto.String("")
-	err := validate(mustRun(t, runDir), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, empty)
-	if err == nil {
-		t.Error("a docket ruling with an EMPTY principle was accepted — a ruling with no stated rule is indistinguishable from a default, which is what this verb exists to prevent")
-	} else if !strings.Contains(err.Error(), "principle") {
-		t.Errorf("the refusal does not name --principle, so a bench cannot tell which field it missed: %v", err)
-	}
-
-	// And the other two still take an honest blank.
+	// EMPTY, not absent: the point is that presence alone satisfies none of the three. A REAL GAP
+	// AND A REAL FILING on each record, so the reference checks pass and the FIELD rules answer.
 	for _, tc := range []struct {
-		name string
-		set  func(*recordpb.MotionRule)
+		flag string
+		set  func(*recordpb.DocketRuling)
 	}{
-		{"tension", func(r *recordpb.MotionRule) { r.GetDocket().Tension = proto.String("") }},
-		{"review_flag", func(r *recordpb.MotionRule) { r.GetDocket().ReviewFlag = proto.String("") }},
+		{"--principle", func(d *recordpb.DocketRuling) { d.Principle = proto.String("") }},
+		{"--tension", func(d *recordpb.DocketRuling) { d.Tension = proto.String("") }},
+		{"--review-flag", func(d *recordpb.DocketRuling) { d.ReviewFlag = proto.String("") }},
 	} {
-		o := full()
-		tc.set(o)
-		if err := validate(mustRun(t, runDir), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o); err != nil {
-			t.Errorf("an empty %s was refused: %v\nNot every ruling has two values in conflict, and most need no human to look — demanding these produces invented tension and pro-forma flags, which read as reasoning", tc.name, err)
-		}
+		t.Run("empty "+tc.flag, func(t *testing.T) {
+			run := mustRun(t, docketRunDir(t))
+			o := full()
+			tc.set(o.GetDocket())
+			_, err := Append(sit(t, run, "judge"), o)
+			if err == nil {
+				t.Fatalf("a docket ruling with an EMPTY %s reached the record — an empty answer cannot be told from a skipped question", tc.flag)
+			}
+			if !strings.Contains(err.Error(), "requires "+tc.flag+" to say something") {
+				t.Errorf("the refusal does not name %s, so a bench cannot tell which field it missed: %v", tc.flag, err)
+			}
+		})
 	}
+	t.Run("all three stated", func(t *testing.T) {
+		run := mustRun(t, docketRunDir(t))
+		if _, err := Append(sit(t, run, "judge"), full()); err != nil {
+			t.Errorf("a docket ruling stating its rule, tension and review flag was refused: %v", err)
+		}
+	})
 }
 
 // A GRADE MOTION MUST ASK FOR A CHANGE.

@@ -176,13 +176,3 @@ func routeOf(material, stranded, unruledDocket bool, x *GapExchanges) gapRoute {
 	}
 	return routeDocket
 }
-
-// remandDirectionWords is the research direction a remand states, as a plan reason or a work item
-// quotes it: the ruling's reopens_on, or — on a ruling that said --final instead — a pointer to the
-// opinion, never an empty quote.
-func remandDirectionWords(direction string) string {
-	if direction == "" {
-		return "the ruling states none, so its opinion on the record is the direction"
-	}
-	return direction
-}

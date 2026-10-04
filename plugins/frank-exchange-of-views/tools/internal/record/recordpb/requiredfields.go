@@ -23,9 +23,10 @@ import (
 // # Why presence and not emptiness
 //
 // Every field is optional in the schema, so `Has` answers the question the record actually cares
-// about: did the seat SAY this. An empty string a seat passed deliberately — `--review-flag ""` is
-// a legitimate ruling — is present, and a field never passed is absent. Testing for "" instead
-// would refuse the first and accept nothing extra.
+// about: did the seat SAY this. An empty string a seat passed deliberately — `--settled ""` is a
+// legitimate ruling — is present, and a field never passed is absent. Testing for "" instead
+// would refuse the first and accept nothing extra. Prose that must say something is refused empty
+// below, field by field.
 func CheckRequired(verb string, body proto.Message) error {
 	if err := checkRequiredIn(verb, body.ProtoReflect()); err != nil {
 		return err
@@ -79,7 +80,7 @@ func checkRequiredIn(verb string, m protoreflect.Message) error {
 		// silence — an acceptance check demanding nothing, a friction entry saying nothing — and
 		// the check was presence-only for a while after the Go table's two flavours collapsed into
 		// one annotation. `allow_empty` is the narrow exception, declared at the field: a
-		// `--review-flag false` is a real ruling, so an empty answer there is an answer.
+		// docket ruling's `settled` may bar nothing, so an empty answer there is an answer.
 		if fd.Kind() == protoreflect.StringKind && !o.GetAllowEmpty() && m.Get(fd).String() == "" {
 			return fmt.Errorf("record: %s requires --%s to say something%s", verb, flagFor(fd, o), because(o))
 		}

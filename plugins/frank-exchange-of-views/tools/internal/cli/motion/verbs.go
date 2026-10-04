@@ -525,11 +525,11 @@ var fileFlagHelp = map[string]string{
 // to ruleFlags without a line here renders an empty usage, which is visible immediately.
 var ruleFlagHelp = map[string]string{
 	flags.Principle:  "the rule you applied, stated so a later sitting can apply the same one",
-	flags.Tension:    `the values that pulled against each other, or "" when none did — an empty answer here is an answer`,
-	flags.ReviewFlag: `what a human should look at again, or "" when nothing needs it`,
+	flags.Tension:    "the values that pulled against each other; where none did, the ruling's weakest point: what a party would argue against the rule you applied",
+	flags.ReviewFlag: "what a human should look at again; where nothing needs a human, what on the record already settles it",
 	flags.Settled:    "what the losing party may no longer assert, as one sentence — not the gap id, and not the disposition",
-	flags.ReopensOn:  "the evidence or condition that would make this worth raising again — or pass --final to say nothing would",
-	flags.Final:      "nothing would reopen this. The assertable empty case for --reopens-on: pass exactly one of the two",
+	flags.ReopensOn:  "the evidence or condition that would make this worth raising again — or pass --final to say nothing would. A remand passes this: it is the research direction the remand's exchange owes blue and the minting lens",
+	flags.Final:      "nothing would reopen this. The assertable empty case for --reopens-on: pass exactly one of the two. A remand reopens the gap, so it never passes this",
 }
 
 // idShapeFor is WHICH KIND of id a motion verb's --id takes, so the page names the kind and a

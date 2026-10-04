@@ -161,7 +161,7 @@ motion M2 filed (docket)
   · motion M2 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
-$ motion docket rule --run {RUN} --seat-id judge --id M2 --as remanded --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --settled the proposition this ruling bars --final --reason the rationale body
+$ motion docket rule --run {RUN} --seat-id judge --id M2 --as remanded --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --settled the proposition this ruling bars --reopens-on the figure recomputed from its source --reason the rationale body
 exit 0
 stdout:
 motion M2 ruled remanded [key judge:motion_rule:#1]
@@ -189,7 +189,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 {"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `verify` with --quote: unknown flag: --title","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":12,"type":"EVENT_TYPE_LOG"}
 {"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":13,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-chair:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"G1"},"motion_id":"M2","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"red-chair","ts":14,"type":"EVENT_TYPE_MOTION"}
-{"key":"judge:motion_rule:#1","motion_rule":{"docket":{"disposition":"DISPOSITION_REMANDED","final":true,"principle":"correctness over economy","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"motion_id":"M2","opinion":"the rationale body","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"judge","ts":15,"type":"EVENT_TYPE_MOTION_RULE"}
+{"key":"judge:motion_rule:#1","motion_rule":{"docket":{"disposition":"DISPOSITION_REMANDED","principle":"correctness over economy","reopens_on":"the figure recomputed from its source","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"motion_id":"M2","opinion":"the rationale body","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"judge","ts":15,"type":"EVENT_TYPE_MOTION_RULE"}
 {"certify":{"statement":"what a human should re-examine"},"key":"judge:certify:#1","seat_id":"judge","ts":16,"type":"EVENT_TYPE_CERTIFY"}
 
 ═══ RENDERS ═══

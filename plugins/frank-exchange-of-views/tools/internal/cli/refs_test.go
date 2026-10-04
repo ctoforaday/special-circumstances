@@ -91,7 +91,7 @@ func TestValidReferencesStillResolve(t *testing.T) {
 	m := docketFile(t, runDir, "red-chair", first, "put before the bench")
 	for _, c := range [][]string{
 		{"motion", "docket", "rule", "--seat-id", "judge", "--id", m, "--as", "remanded",
-			"--principle", "p", "--tension", "t", "--review-flag", "no", "--settled", "the proposition this ruling bars", "--final", "--reason", "the ruling"},
+			"--principle", "p", "--tension", "t", "--review-flag", "no", "--settled", "the proposition this ruling bars", "--reopens-on", "a reproduction on the shipped binary", "--reason", "the ruling"},
 		{"close", "--seat-id", lensSeat, "--id", first, "--as", "repaired",
 			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x", "--superseded-by", second, "--reason", "verified"},
 	} {

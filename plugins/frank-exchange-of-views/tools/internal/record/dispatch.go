@@ -317,7 +317,7 @@ func foldPlan(params Params, r planReads) Plan {
 			debate(g)
 			plan.RemandOwed = append(plan.RemandOwed, g.id)
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse (%s) and remanded by the bench — its minting lens and blue are ready for the one more exchange the remand grants, on the ruling's direction: %s",
-				g.id, x.Counted(), remandDirectionWords(g.direction)))
+				g.id, x.Counted(), g.direction))
 		case routeAtLimit:
 			materialSettled++
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse and remanded again after the exchange its first remand granted — at its limit", g.id))

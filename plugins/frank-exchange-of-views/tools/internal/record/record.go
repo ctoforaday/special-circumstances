@@ -1206,14 +1206,22 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// answer and not an omission — the `friction --none` shape, for the same measured reason:
 		// an empty channel that cannot assert its own emptiness goes unclosed.
 		//
-		// THE SCHEMA CARRIES THIS TOO, as two (check) options on DocketRuling, and the pair is not
+		// THE SCHEMA CARRIES THIS TOO, as three (check) options on DocketRuling, and the two are not
 		// a restatement: the tool refuses in words a bench can act on, and the database refuses
 		// independently of the tool, because a CHECK's `why` does not currently reach the seat —
 		// its violation arrives as raw driver text. Close that and this guard becomes redundant.
 		//
 		// It moved here with the verb. The other three subjects rule with a word and a reason and
 		// have no reopening to answer for, so the check is on the arm rather than the event.
+		//
+		// A REMAND ANSWERS IT WITH --reopens-on, ALWAYS. The remand's one more exchange owes the
+		// direction the ruling states, and the dispatch hands blue and the minting lens its
+		// reopens_on; --final says nothing would reopen a gap the remand is reopening. Asked first,
+		// so a remand stating neither is told what a remand owes rather than offered --final.
 		if d, ok := b.GetRuling().(*recordpb.MotionRule_Docket); ok {
+			if d.Docket.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED && d.Docket.ReopensOn == nil {
+				return fmt.Errorf("record: motion docket rule --as remanded requires --reopens-on: the research direction the remand's one more exchange owes blue and the minting lens. --final says nothing would reopen the gap, which a remand does, so a remand never passes it")
+			}
 			if d.Docket.ReopensOn == nil && d.Docket.Final == nil {
 				return fmt.Errorf("record: motion docket rule requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted sitting")
 			}

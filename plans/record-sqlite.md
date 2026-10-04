@@ -313,11 +313,10 @@ That is the concrete price of option 2 above, already measured on a neighbouring
 
 **`--check ""` and friends.** Requiredness is present-and-non-empty, with `allow_empty` as the
 narrow exception declared at the field. `principle` was TIGHTENED (`b37232cb`, 2026-08-22) — a
-ruling with no stated rule is what `bench opinion` exists to prevent — and `tension`, `review_flag`
-and `settled` still carry `allow_empty`, each with its own reason at the field: demanding prose
-there produces invented tension, pro-forma flags and restatements of the disposition, which read as
-reasoning and are worse than an honest blank. Whether `tension` should follow `principle` is the
-live remainder of the question.
+ruling with no stated rule is what `bench opinion` exists to prevent — and `tension` and
+`review_flag` followed it (gblock, 2026-10-04, #1247): an empty value cannot be told from a question
+skipped, and each field's reason names what is true to write where the bench has no conflict or
+nothing for a human. `settled` alone carries `allow_empty`: a ruling may bar no proposition.
 
 **`observe` has no verb at all.** The event type is in the schema and nothing in the
 command tree writes it — the only Appends of a `recordpb.Observe` are in record's own

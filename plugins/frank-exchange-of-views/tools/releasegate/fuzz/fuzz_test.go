@@ -2142,20 +2142,24 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// escalated by hand, which stand docketed before impasse; iterating the fresh docket alone
 		// left the hand-filed motions unruled, and a bench that sat and ruled nothing is not
 		// re-readied for them.
+		// THE ENVELOPE IS THE BENCH'S ACCOUNT OF WHAT IT RULED, in JUDGE_ENVELOPE's shape: debate.js
+		// builds the ruling every later seat is handed from it, so a remand row with no reopens_on
+		// would hand blue a remand owing no direction while the record holds one.
 		var res []any
 		for _, id := range r.engaged(seatID) {
-			disp := "remanded"
+			const direction = "blue pursuing the stated direction and reporting what it found"
+			row := map[string]any{"gap_id": id, "disposition": "remanded", "settled": settledByFuzzBench,
+				"rationale": "fuzz: carried with a stated direction for " + id, "reopens_on": direction}
 			if r.scenarioOf(id) != dirDisputeLost {
-				r.benchDisposes(seatID, id, "remanded",
-					"--reopens-on", "blue pursuing the stated direction and reporting what it found",
-					"--reason", "fuzz: carried with a stated direction for "+id)
+				r.benchDisposes(seatID, id, "remanded", "--reopens-on", direction, "--reason", row["rationale"].(string))
 			}
 			if r.scenarioOf(id) == dirDisputeLost {
-				disp = pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "amends_prior"})
-				r.benchDisposes(seatID, id, disp,
-					"--final", "--reason", "docket-rationale-for-"+id)
+				disp := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "amends_prior"})
+				row = map[string]any{"gap_id": id, "disposition": disp, "settled": settledByFuzzBench,
+					"rationale": "docket-rationale-for-" + id, "final": true}
+				r.benchDisposes(seatID, id, disp, "--final", "--reason", row["rationale"].(string))
 			}
-			res = append(res, map[string]any{"gap_id": id, "disposition": disp, "reason": "fuzz"})
+			res = append(res, row)
 		}
 		return map[string]any{"dispositions": res, "log": arr()}
 
@@ -5166,6 +5170,9 @@ func (r *runner) mergeFilerFor(judgeSeatID string) string {
 	return judgeSeatID
 }
 
+// settledByFuzzBench is the proposition every fuzz ruling bars, on the record and on the envelope.
+const settledByFuzzBench = "the proposition this ruling bars"
+
 // benchDisposes puts a gap before the bench and rules it, which is TWO acts now.
 //
 // IT WAS ONE, and the difference is the point of #681: `bench opinion --id <gap>` needed only a
@@ -5206,7 +5213,7 @@ func (r *runner) benchDisposes(seatID, gapID, disposition string, extra ...strin
 	}
 	args := append([]string{"motion", "docket", "rule", "--seat-id", seatID, "--id", motionID,
 		"--as", disposition, "--principle", "correctness", "--tension", "cost",
-		"--review-flag", "false", "--settled", "the proposition this ruling bars"}, extra...)
+		"--review-flag", "none: the scenario the gap came from settles it", "--settled", settledByFuzzBench}, extra...)
 	_, _ = r.exec(args...)
 }
 
