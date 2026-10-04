@@ -40,10 +40,14 @@ type PlanBlocker struct {
 type Plan struct {
 	Head    int64   `json:"head"`    // events.id of the latest blue_edit or base_ingest — the report the parties audit
 	Parties []Party `json:"parties"` // who to engage; empty is the termination signal, and empty is [], never null
-	// Docket names the gaps that reached impasse with no docket motion yet: the verb files one for
-	// each under the chair's authorship the moment impasse is first computed, so "docketed" and
+	// Docket names the gaps docketed at impasse THIS chair sitting: the verb files a docket motion
+	// for each under the chair's authorship the moment impasse is first computed, so "docketed" and
 	// "at impasse" are one fact and no seat's discretion sits between a stalled gap and the bench.
+	// Asked again in the same sitting, the plan still names them — the chair relays the plan it asks
+	// for last, and blue owes closings on what this sitting docketed.
 	Docket []string `json:"docket"`
+	// ToFile is the part of Docket with no docket motion yet: what the verb files. Never relayed.
+	ToFile []string `json:"-"`
 	// PassPermitted: a report is ingested, nobody is dispatched, and every blocker left on the gate's
 	// list (PassBlockers) is the chair's own to clear this sitting — its avenue review, its
 	// spot-check of the stale areas, its ruling on each unruled motion whose gavel is the chair's
@@ -154,6 +158,7 @@ func PlanDispatch(run Run) (Plan, error) {
 		return plan, err
 	}
 	dispatches, registers := dispatchLedger(evs, ids)
+	benchOn := benchRegisters(evs, ids)
 	fresh, err := freshMaterialOf(db)
 	if err != nil {
 		return plan, err
@@ -211,12 +216,15 @@ func PlanDispatch(run Run) (Plan, error) {
 			if !trifle {
 				materialOpen++
 			}
-			if benchSatFor(dispatches, registers, g.id, g.unruledFiled) {
+			if benchSatFor(dispatches, benchOn, g.id, g.unruledFiled) {
 				plan.Why = append(plan.Why, fmt.Sprintf("%s: docket motion %s stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied; the run cannot end in a verdict while it stands", g.id, g.unruledMotion))
 				continue
 			}
 			engage(benchSeat, occasionDocket, g.id)
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: docketed and unruled — the bench is ready", g.id))
+			if docketedThisSitting(evs, ids, registers[chairSeat], g.unruledFiled) {
+				plan.Docket = append(plan.Docket, g.id)
+			}
 			continue
 		}
 		if trifle {
@@ -241,6 +249,7 @@ func PlanDispatch(run Run) (Plan, error) {
 		}
 		if !g.docketed {
 			plan.Docket = append(plan.Docket, g.id)
+			plan.ToFile = append(plan.ToFile, g.id)
 			engage(benchSeat, occasionDocket, g.id)
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse (%s) — docketed for the bench", g.id, x.Counted()))
 			continue
@@ -263,7 +272,7 @@ func PlanDispatch(run Run) (Plan, error) {
 				continue // a docket on an open gap: the gap's own reason above readied the bench
 			}
 			statedMotion[b.Subject] = true
-			plan.Why = append(plan.Why, benchReadiness(b, evs, ids, dispatches, registers, engage))
+			plan.Why = append(plan.Why, benchReadiness(b, dispatches, benchOn, engage))
 		case b.Kind == BlockerContradiction && roleOfSeat(b.Owner) == "lens":
 			if _, sat := firstAfter(registers[b.Owner], b.since); sat {
 				plan.Why = append(plan.Why, fmt.Sprintf("%s has sat since it read a source contradicting %q, and no finding raises it — readied once per contradiction, so not again", b.Owner, b.Subject))
@@ -324,6 +333,8 @@ type dispatchRow struct {
 	at, pin int64
 	seat    string
 	gaps    []string
+	// occasions is what a bench row convened the bench for; empty on every other seat's row.
+	occasions []recordpb.Occasion
 }
 
 // dispatchLedger reads the stream once for what "did this seat sit" is decided from: every
@@ -349,7 +360,7 @@ func dispatchLedger(evs []*Event, seq []int64) ([]dispatchRow, map[string][]int6
 			registers[seat] = append(registers[seat], seq[i])
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.Dispatch](e); ok {
-			ds = append(ds, dispatchRow{at: seq[i], pin: b.GetPin(), seat: b.GetSeatId(), gaps: b.GetGapIds()})
+			ds = append(ds, dispatchRow{at: seq[i], pin: b.GetPin(), seat: b.GetSeatId(), gaps: b.GetGapIds(), occasions: b.GetOccasions()})
 		}
 	}
 	return ds, registers
@@ -370,8 +381,49 @@ func firstAfter(xs []int64, at int64) (int64, bool) {
 // (lensStates) and its last sitting (lastSittingBefore), the bench's sitting for a docketing
 // (benchSatFor), the exchange count (exchangesOf), and the seat's own work list (owedSitting). An unsat dispatch is why dispatch
 // readies the seat again, and it is why the seat's work list is not complete.
+//
+// A BENCH ROW IS SAT ONCE PER OCCASION, and benchRowSitting answers it. The bench is convened for a
+// petition and a docket on ONE row and sits twice, petition first; its first register after the row
+// is the petition sitting, and read here it would count as the docket's too — a docket the bench
+// never sat for would read as heard and never be readied again.
 func sittingFor(registers []int64, d dispatchRow) (int64, bool) {
 	return firstAfter(registers, d.at)
+}
+
+// benchRegisters is the bench's opening registers, by the occasion each states, in stream order —
+// the one ledger every reader of "has the bench sat for X" keys on. seq is the same place sequence
+// dispatchLedger reads (events.id, or the stream position), so a filing's place and a sitting's
+// compare under one rule.
+func benchRegisters(evs []*Event, seq []int64) map[recordpb.Occasion][]int64 {
+	on := map[recordpb.Occasion][]int64{}
+	for i, e := range evs {
+		if e.GetSeatId() != benchSeat || !recordpb.OpensASitting(e) {
+			continue
+		}
+		if r, ok := recordpb.BodyAs[*recordpb.Register](e); ok && r.Occasion != nil {
+			on[r.GetOccasion()] = append(on[r.GetOccasion()], seq[i])
+		}
+	}
+	return on
+}
+
+// benchRowSitting is the bench's sitting for a row: its first register OF EACH OCCASION the row
+// convened it for, after the row. It has sat for the row once it has sat for every one of them, and
+// the place returned is the latest. A row with no occasion is not a bench row, and reads
+// sittingFor's way.
+func benchRowSitting(registers []int64, on map[recordpb.Occasion][]int64, d dispatchRow) (int64, bool) {
+	if len(d.occasions) == 0 {
+		return sittingFor(registers, d)
+	}
+	var last int64
+	for _, o := range d.occasions {
+		r, ok := firstAfter(on[o], d.at)
+		if !ok {
+			return 0, false
+		}
+		last = max(last, r)
+	}
+	return last, true
 }
 
 // sittingCloser IS THE ONE ANSWER TO "WHERE DID THIS SEAT'S SITTING END", as sittingFor is to where
@@ -535,12 +587,15 @@ func (c sittingCloser) end(seat string, from int64) (int64, bool) {
 type DispatchGroup struct {
 	First, Last int      // stream positions of the group's first and last dispatch row
 	Parties     []string // each seat the group names, in the order first named
-	// Sat is each party's sitting for the group, by sittingFor off the last row naming it: the
-	// stream position of its first register after that row. A party absent here has not sat.
+	// Sat is each party's sitting for the group, off the last row naming it: the stream position of
+	// its first register after that row (sittingFor) — for the bench, of its register for each
+	// occasion the row convened it for, the latest of them (benchRowSitting). A party absent here
+	// has not sat.
 	Sat map[string]int
 	// PartyRows is each party's LAST row in the group — the row Sat reads, and the one a relayed
-	// plan is compared against: a docket plan is never standing, so a chair that writes the plan
-	// twice leaves two rows for one party, and the later is the dispatch.
+	// plan is compared against: a plan that files a docket, or one that changed since the chair
+	// asked, is never standing, so a chair that asks twice can leave two rows for one party, and
+	// the later is the dispatch.
 	PartyRows map[string]PartyRow
 	rows      []dispatchRow
 }
@@ -550,6 +605,9 @@ type DispatchGroup struct {
 type PartyRow struct {
 	Pin    int64
 	GapIDs []string
+	// Occasions is what the row convened the bench for, in the enum's words; empty for every other
+	// seat. Capture holds the relayed plan's `occasions` to it, and the bench's registers of each.
+	Occasions []string
 }
 
 // DispatchGroups is the record's dispatches, grouped as DispatchGroup says, in stream order.
@@ -559,6 +617,7 @@ func DispatchGroups(evs []*Event) []DispatchGroup {
 		seq[i] = int64(i)
 	}
 	ds, registers := dispatchLedger(evs, seq)
+	on := benchRegisters(evs, seq)
 	var anyone []int64
 	for _, rs := range registers {
 		anyone = append(anyone, rs...)
@@ -583,8 +642,8 @@ func DispatchGroups(evs []*Event) []DispatchGroup {
 			last[d.seat] = d
 		}
 		for p, d := range last {
-			g.PartyRows[p] = PartyRow{Pin: d.pin, GapIDs: append([]string{}, d.gaps...)}
-			if r, ok := sittingFor(registers[p], d); ok {
+			g.PartyRows[p] = PartyRow{Pin: d.pin, GapIDs: append([]string{}, d.gaps...), Occasions: wordsOf(d.occasions)}
+			if r, ok := benchRowSitting(registers[p], on, d); ok {
 				g.Sat[p] = int(r)
 			}
 		}
@@ -680,7 +739,7 @@ func chairRegisterOwed(g DispatchGroup) string {
 // sitting, for the prose and then for --json, is one decision, and the B5 and B6 chairs each wrote
 // it twice. A plan that differs is a new decision and is recorded.
 func DispatchStands(run Run, plan Plan) (bool, error) {
-	if len(plan.Parties) == 0 || len(plan.Docket) > 0 {
+	if len(plan.Parties) == 0 || len(plan.ToFile) > 0 {
 		return false, nil
 	}
 	evs, err := dispatchEventsOf(run)
@@ -697,18 +756,22 @@ func DispatchStands(run Run, plan Plan) (bool, error) {
 			return false, nil
 		}
 	}
-	key := func(seat string, pin int64, gaps []string) string {
+	// The occasions are part of the decision: the bench convened for a petition as well as its
+	// docket is a new decision, on the same gaps.
+	key := func(seat string, pin int64, gaps, occasions []string) string {
 		gs := append([]string{}, gaps...)
 		sort.Strings(gs)
-		return fmt.Sprintf("%s@%d:%s", seat, pin, strings.Join(gs, ","))
+		os := append([]string{}, occasions...)
+		sort.Strings(os)
+		return fmt.Sprintf("%s@%d:%s/%s", seat, pin, strings.Join(gs, ","), strings.Join(os, ","))
 	}
 	standing := map[string]bool{}
 	for _, d := range g.rows {
-		standing[key(d.seat, d.pin, d.gaps)] = true
+		standing[key(d.seat, d.pin, d.gaps, wordsOf(d.occasions))] = true
 	}
 	asked := map[string]bool{}
 	for _, p := range plan.Parties {
-		asked[key(p.SeatID, plan.Head, p.GapIDs)] = true
+		asked[key(p.SeatID, plan.Head, p.GapIDs, p.Occasions)] = true
 	}
 	if len(asked) != len(standing) {
 		return false, nil
@@ -729,33 +792,17 @@ func owedSitting(evs []*Event, seatID string) (dispatchRow, bool) {
 		seq[i] = int64(i)
 	}
 	ds, registers := dispatchLedger(evs, seq)
+	on := benchRegisters(evs, seq)
 	for i := len(ds) - 1; i >= 0; i-- {
 		if ds[i].seat != seatID {
 			continue
 		}
-		_, sat := sittingFor(registers[seatID], ds[i])
+		_, sat := benchRowSitting(registers[seatID], on, ds[i])
 		return ds[i], !sat
 	}
 	return dispatchRow{}, false
 }
 
-// benchSatFor reports whether the bench has had its sitting for EVERY docket motion standing
-// unruled on gapID — one bench sitting per docketing. A sitting counts for a docketing when the
-// bench registered AFTER BOTH a dispatch engaging it on the gap and the filing: a dispatch naming
-// gapID whose sitting register (sittingFor) follows unruledFiled, the events.id of the newest
-// unruled docket motion on the gap (the gap view's `unruled_docket_filed`, off openGaps). The newest
-// unruled filing is the key because a sitting that follows it follows every older one too. A bench
-// that sat for a docket and ruled nothing is not re-readied for it; a filing the bench has not sat
-// since is a new docketing.
-//
-// BOTH ORDERINGS, NOT THE DISPATCH'S ALONE. Keyed on the latest dispatch naming the gap, the
-// bench that sat for G1's first docket and ruled M1 read as having sat for M2 too: blue filed M2
-// after that sitting, a judge register stood after the last dispatch naming G1, and nobody was
-// engaged while M2 stood unruled for the run (#1201). Keyed on the dispatch's place against the
-// filing, a motion blue filed between the chair's dispatch and the bench's register — the bench
-// sat with it on the record and ruled nothing — re-readied the bench for a docketing it had sat for.
-// Keyed on the NEWEST filing rather than the newest unruled one, a motion blue filed into an open
-// sitting and the bench ruled there re-readied the bench for the older motion it had left alone.
 // occasionDocket and occasionPetition are the Occasion enum's words for the two sittings dispatch
 // convenes the bench for. The workflow routes a bench party on them, and the bench types the same
 // word at its register.
@@ -779,18 +826,18 @@ var benchSittingFor = map[recordpb.MotionSubject]recordpb.Occasion{
 // with occasion `petition` after the filing — not any bench register: a docket sitting that sat
 // after the filing was convened for something else, and counting it would leave the petition
 // unheard while the plan said it had been.
-func benchReadiness(b Blocker, evs []*Event, ids []int64, dispatches []dispatchRow, registers map[string][]int64, engage func(seat, occasion string, gaps ...string)) string {
+func benchReadiness(b Blocker, dispatches []dispatchRow, on map[recordpb.Occasion][]int64, engage func(seat, occasion string, gaps ...string)) string {
 	subj, _ := MotionSubjectEnum(b.motionSubject)
 	switch occ, routed := benchSittingFor[subj]; {
 	case routed && occ == recordpb.Occasion_OCCASION_PETITION:
-		if benchSatOnOccasionSince(evs, ids, recordpb.Occasion_OCCASION_PETITION, b.since) {
+		if benchSatOnOccasionSince(on, recordpb.Occasion_OCCASION_PETITION, b.since) {
 			return fmt.Sprintf("%s: petition, unruled, and the bench has sat to hear petitions since it was filed — one petition sitting per filing, so it is not convened again; the run cannot end in a verdict while it stands", b.Subject)
 		}
 		engage(benchSeat, occasionPetition)
 		return fmt.Sprintf("%s: petition, unruled — the bench is ready to hear it, before any party of this epoch sits", b.Subject)
 	case routed && occ == recordpb.Occasion_OCCASION_DOCKET:
 		// An open gap's docket was readied above; this one's gap has closed since it was filed.
-		if benchSatFor(dispatches, registers, b.About, b.since) {
+		if benchSatFor(dispatches, on, b.About, b.since) {
 			return fmt.Sprintf("%s: docket motion %s stands unruled on a gap no longer open, and the bench has sat since it was filed — not re-readied; the run cannot end in a verdict while it stands", b.About, b.Subject)
 		}
 		engage(benchSeat, occasionDocket, b.About)
@@ -799,25 +846,93 @@ func benchReadiness(b Blocker, evs []*Event, ids []int64, dispatches []dispatchR
 	return fmt.Sprintf("%s: %s motion, unruled, and no sitting convenes the bench for its subject — nobody is readied; the run cannot end in a verdict while it stands", b.Subject, b.motionSubject)
 }
 
-// benchSatOnOccasionSince reports whether the bench opened a sitting of the occasion after at.
-func benchSatOnOccasionSince(evs []*Event, ids []int64, occ recordpb.Occasion, at int64) bool {
-	for i, e := range evs {
-		if i >= len(ids) || ids[i] <= at || e.GetSeatId() != benchSeat || !recordpb.OpensASitting(e) {
-			continue
+// requireDispatchOccasions refuses a dispatch row whose occasions disagree with its seat, at the
+// write. The bench's row says what it is convened for — `docket`, `petition`, or both — because its
+// one id cannot; no other seat's row carries an occasion. The two the chair convenes are the only
+// ones a row may name: the terminal and assembly sittings are the engine's, and no dispatch answers
+// for them. A docket is the bench engaged on gaps, so `docket` and a non-empty gap list are one
+// fact, and a row stating only one of them is refused rather than read either way.
+func requireDispatchOccasions(b *recordpb.Dispatch) error {
+	occ := b.GetOccasions()
+	if !SeatOwesOccasion(b.GetSeatId()) {
+		if len(occ) > 0 {
+			return fmt.Errorf("record: dispatch refused — %q is convened for no occasion; only the bench's row says what it sits for", b.GetSeatId())
 		}
-		if r, ok := recordpb.BodyAs[*recordpb.Register](e); ok && r.GetOccasion() == occ {
-			return true
-		}
+		return nil
 	}
-	return false
+	if len(occ) == 0 {
+		return fmt.Errorf("record: dispatch refused — a bench row names what the bench is convened for (%s, %s, or both); its one seat id cannot say", occasionDocket, occasionPetition)
+	}
+	seen := map[recordpb.Occasion]bool{}
+	for _, o := range occ {
+		if o != recordpb.Occasion_OCCASION_DOCKET && o != recordpb.Occasion_OCCASION_PETITION {
+			return fmt.Errorf("record: dispatch refused — the chair convenes the bench for %s or %s, and %s is a sitting the engine convenes", occasionDocket, occasionPetition, recordpb.Word(o))
+		}
+		if seen[o] {
+			return fmt.Errorf("record: dispatch refused — the row names %s twice; the bench sits once per occasion", recordpb.Word(o))
+		}
+		seen[o] = true
+	}
+	if docket, gaps := seen[recordpb.Occasion_OCCASION_DOCKET], len(b.GetGapIds()) > 0; docket != gaps {
+		return fmt.Errorf("record: dispatch refused — a docket sitting is the bench engaged on gaps, and this row has %s with %d gap(s)", strings.Join(wordsOf(occ), ", "), len(b.GetGapIds()))
+	}
+	return nil
 }
 
-func benchSatFor(dispatches []dispatchRow, registers map[string][]int64, gapID string, unruledFiled int64) bool {
+// wordsOf spells occasions in the enum's words.
+func wordsOf(occ []recordpb.Occasion) []string {
+	out := make([]string, 0, len(occ))
+	for _, o := range occ {
+		out = append(out, recordpb.Word(o))
+	}
+	return out
+}
+
+// docketedThisSitting reports whether the docket motion filed at `filed` is the chair's own,
+// filed in its current sitting — after its latest opening register — which is how the dispatch
+// verb dockets a gap at impasse. A plan asked for again in that sitting names the gap in Docket
+// still, so the plan the chair relays last says what the sitting docketed.
+func docketedThisSitting(evs []*Event, ids []int64, chairRegisters []int64, filed int64) bool {
+	if len(chairRegisters) == 0 || filed <= chairRegisters[len(chairRegisters)-1] {
+		return false
+	}
+	k, found := slices.BinarySearch(ids, filed)
+	return found && evs[k].GetSeatId() == chairSeat
+}
+
+// benchSatOnOccasionSince reports whether the bench opened a sitting of the occasion after at — off
+// the same register ledger, and the same place sequence, as benchSatFor.
+func benchSatOnOccasionSince(on map[recordpb.Occasion][]int64, occ recordpb.Occasion, at int64) bool {
+	_, ok := firstAfter(on[occ], at)
+	return ok
+}
+
+// benchSatFor reports whether the bench has had its sitting for EVERY docket motion standing
+// unruled on gapID — one bench sitting per docketing. A sitting counts for a docketing when the
+// bench registered AFTER BOTH a dispatch engaging it on the gap and the filing: a dispatch naming
+// gapID whose sitting register (sittingFor) follows unruledFiled, the events.id of the newest
+// unruled docket motion on the gap (the gap view's `unruled_docket_filed`, off openGaps). The newest
+// unruled filing is the key because a sitting that follows it follows every older one too. A bench
+// that sat for a docket and ruled nothing is not re-readied for it; a filing the bench has not sat
+// since is a new docketing.
+//
+// BOTH ORDERINGS, NOT THE DISPATCH'S ALONE. Keyed on the latest dispatch naming the gap, the
+// bench that sat for G1's first docket and ruled M1 read as having sat for M2 too: blue filed M2
+// after that sitting, a judge register stood after the last dispatch naming G1, and nobody was
+// engaged while M2 stood unruled for the run (#1201). Keyed on the dispatch's place against the
+// filing, a motion blue filed between the chair's dispatch and the bench's register — the bench
+// sat with it on the record and ruled nothing — re-readied the bench for a docketing it had sat for.
+// Keyed on the NEWEST filing rather than the newest unruled one, a motion blue filed into an open
+// sitting and the bench ruled there re-readied the bench for the older motion it had left alone.
+//
+// THE SITTING THAT COUNTS IS A DOCKET SITTING. A row convening the bench for a petition and a
+// docket is sat twice, petition first, and the petition sitting answers no docketing.
+func benchSatFor(dispatches []dispatchRow, on map[recordpb.Occasion][]int64, gapID string, unruledFiled int64) bool {
 	for _, d := range dispatches {
-		if d.seat != "judge" || !slices.Contains(d.gaps, gapID) {
+		if d.seat != benchSeat || !slices.Contains(d.gaps, gapID) {
 			continue
 		}
-		if r, ok := sittingFor(registers["judge"], d); ok && r > unruledFiled {
+		if r, ok := firstAfter(on[recordpb.Occasion_OCCASION_DOCKET], d.at); ok && r > unruledFiled {
 			return true
 		}
 	}

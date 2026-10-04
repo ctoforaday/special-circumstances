@@ -2079,6 +2079,12 @@ message Dispatch {
     why: "the party engaged; refused unless it is in the cast"
   }];
   repeated string gap_ids = 3;
+  // occasions is what the BENCH is convened for: `docket` (its gap_ids) and `petition` (the
+  // petitions no petition sitting has heard). The bench's one seat id cannot say which question it
+  // is asked, so the row says it — the workflow routes the bench on the plan's copy, capture holds
+  // that copy to this one, and the bench's sitting for each is its register of the same occasion.
+  // Required on a bench row and refused on any other seat's, at the write.
+  repeated Occasion occasions = 4;
 }
 
 // Gate carries red's terminal gate on the open board: PASS or FAIL as of this sitting.

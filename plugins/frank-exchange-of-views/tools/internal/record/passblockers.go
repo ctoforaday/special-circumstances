@@ -325,14 +325,11 @@ func passBlockersOf(evs []*Event, ids []int64, gaps []blockerGap, fresh map[stri
 			out = append(out, Blocker{Kind: BlockerMaterialGap, Subject: g.id, Owner: g.mintedBy})
 		}
 	}
-	seqAt := func(i int) int64 {
-		if i < len(ids) {
-			return ids[i]
-		}
-		return int64(i)
-	}
+	// ids IS ALIGNED WITH evs — every caller passes the events' ids or their stream positions, the
+	// rule dispatchLedger and benchRegisters read places by — so a blocker's `since` and the
+	// sitting it is compared with are places in one sequence.
 	for _, c := range unansweredContradictionsBy(evs) {
-		out = append(out, Blocker{Kind: BlockerContradiction, Subject: c.claim, Owner: c.reader, since: seqAt(c.at)})
+		out = append(out, Blocker{Kind: BlockerContradiction, Subject: c.claim, Owner: c.reader, since: ids[c.at]})
 	}
 	if lg := passLensGateOf(evs, ids, fresh); lg.cast {
 		if lg.head == 0 {
@@ -346,15 +343,18 @@ func passBlockersOf(evs []*Event, ids []int64, gaps []blockerGap, fresh map[stri
 			}
 		}
 	}
-	filed := map[string]int64{} // motion id -> its filing's events.id, the first one in the stream
-	for i, e := range evs {
-		if mo, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
-			if _, seen := filed[mo.GetMotionId()]; !seen {
-				filed[mo.GetMotionId()] = seqAt(i)
-			}
-		}
+	out = append(out, unruledMotionBlockers(evs, ids)...)
+	if AvenueReviewDueOf(evs) {
+		out = append(out, Blocker{Kind: BlockerAvenueReview, Owner: chairSeat})
 	}
-	for _, m := range MotionsOf(evs) {
+	return out
+}
+
+// unruledMotionBlockers is the gate list's unruled-motion arm: every motion with no ruling, owned by
+// the seat whose gavel its subject is. ids is evs's places, aligned with it.
+func unruledMotionBlockers(evs []*Event, ids []int64) []Blocker {
+	var out []Blocker
+	for _, m := range motionsAt(evs, ids) {
 		if m == nil || m.Ruled() {
 			continue
 		}
@@ -365,10 +365,22 @@ func passBlockersOf(evs []*Event, ids []int64, gaps []blockerGap, fresh map[stri
 			g = gavel{phrase: m.Subject + ", and this binary cannot say who rules it: " + err.Error()}
 		}
 		out = append(out, Blocker{Kind: BlockerUnruledMotion, Subject: m.ID, Owner: g.seat, Detail: g.phrase, About: m.GapID,
-			motionSubject: m.Subject, since: filed[m.ID]})
+			motionSubject: m.Subject, since: m.filed})
 	}
-	if AvenueReviewDueOf(evs) {
-		out = append(out, Blocker{Kind: BlockerAvenueReview, Owner: chairSeat})
+	return out
+}
+
+// MotionBlockersOf is the unruled-motion arm of the gate's list over a stream, as the plan relays
+// it. Capture holds a relayed plan's motion blockers to it, read off the record as it stood at the
+// end of the chair sitting that relayed the plan.
+func MotionBlockersOf(evs []*Event) []PlanBlocker {
+	seq := make([]int64, len(evs))
+	for i := range seq {
+		seq[i] = int64(i)
+	}
+	var out []PlanBlocker
+	for _, b := range unruledMotionBlockers(evs, seq) {
+		out = append(out, PlanBlocker{Kind: b.Kind, Subject: b.Subject, Owner: b.Owner})
 	}
 	return out
 }

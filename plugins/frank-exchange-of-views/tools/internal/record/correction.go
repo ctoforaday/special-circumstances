@@ -653,9 +653,17 @@ func Listing(evs []*Event) []Listed {
 // adds `correction` to its words). A replacement the stream does not carry — narrowed away — leaves
 // its struck act out rather than standing in for it.
 func Live(evs []*Event) []*Event {
+	out, _ := liveAt(evs, nil)
+	return out
+}
+
+// liveAt is Live carrying each standing act's PLACE beside it: seq[i] is evs[i]'s place (events.id,
+// or the stream position), and a replacement standing in its target's place takes that place. A
+// nil seq carries none.
+func liveAt(evs []*Event, seq []int64) ([]*Event, []int64) {
 	idx := StruckIndexOf(evs)
 	if idx.Empty() {
-		return evs
+		return evs, seq
 	}
 	byKey := make(map[string]*Event, len(evs))
 	for _, e := range evs {
@@ -664,18 +672,25 @@ func Live(evs []*Event) []*Event {
 		}
 	}
 	out := make([]*Event, 0, len(evs))
-	for _, e := range evs {
+	var places []int64
+	keep := func(e *Event, i int) {
+		out = append(out, e)
+		if seq != nil {
+			places = append(places, seq[i])
+		}
+	}
+	for i, e := range evs {
 		k := e.GetKey()
 		if idx.IsReplacement(k) {
 			continue
 		}
 		if idx.IsStruck(k) {
 			if h := byKey[idx.Head(k)]; h != nil {
-				out = append(out, h)
+				keep(h, i)
 			}
 			continue
 		}
-		out = append(out, e)
+		keep(e, i)
 	}
-	return out
+	return out, places
 }

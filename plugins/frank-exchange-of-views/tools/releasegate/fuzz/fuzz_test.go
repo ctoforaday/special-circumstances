@@ -792,13 +792,13 @@ func (r *runner) staleAreas() []string {
 // closures, dispute responses and petitions are the record's.
 func (r *runner) chairEnvelope(seatID, verdict string, responses []map[string]any) map[string]any {
 	_ = responses // grade motions are ruled on the record; the envelope no longer restates them
-	plan := r.planThisSitting
-	if plan == nil {
-		plan = map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false,
-			"max_epochs": 0, "epoch_limit_reached": false, "why": []any{}, "stale_areas": []any{}, "blockers": []any{}}
-	}
 	r.maybePetition(seatID)
-	e := map[string]any{"plan": plan, "log": arr()}
+	// THE PLAN RELAYED IS THE ONE ASKED FOR LAST. The chair ruled grade motions and may have just
+	// filed a petition since its first ask, and the workflow reads what still stands at the end of
+	// the sitting off the relayed plan — capture holds the last one to the record there. Asked
+	// again with nothing changed, the verb records nothing new.
+	r.planThisSitting = r.dispatchNext(seatID)
+	e := map[string]any{"plan": r.planThisSitting, "log": arr()}
 	if verdict != "" {
 		e["verdict"] = verdict
 	}

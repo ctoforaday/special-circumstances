@@ -179,6 +179,14 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 			// the name — plans/roundless.md §III.A.2. A migrated record's round therefore means
 			// what a fresh record's does.
 			rm.apply(body, seatID)
+			// A BENCH ROW THAT PREDATES ITS OCCASIONS convened the bench for its docket: before
+			// epoch 19 the chair readied the bench only on a docketed gap, and a petition was heard
+			// off an envelope with no row. The write refuses a bench row naming no occasion, so the
+			// row says what it always meant; one with no gap was never written then, and the write
+			// refuses it rather than this guessing.
+			if d, ok := body.(*recordpb.Dispatch); ok && len(d.GetOccasions()) == 0 && record.SeatOwesOccasion(d.GetSeatId()) {
+				d.Occasions = []recordpb.Occasion{recordpb.Occasion_OCCASION_DOCKET}
+			}
 			// A COINING THAT PREDATES THE MATERIAL DEFAULT takes the shipped value for its slug,
 			// else by_grade as a stated fill. A value the source carries is kept as recorded — a
 			// run written by this binary migrates without any of its coinings changing.

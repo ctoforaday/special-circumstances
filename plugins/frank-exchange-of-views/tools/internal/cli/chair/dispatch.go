@@ -48,7 +48,7 @@ func newDispatch() *cobra.Command {
 		if standing {
 			return dispatchResult{Plan: plan, standing: true}, nil
 		}
-		for _, g := range plan.Docket {
+		for _, g := range plan.ToFile {
 			id, err := record.MintMotionID(run)
 			if err != nil {
 				return nil, err
@@ -64,8 +64,19 @@ func newDispatch() *cobra.Command {
 			}
 		}
 		for _, p := range plan.Parties {
+			// THE OCCASIONS ARE RECORDED, NOT ONLY PRINTED: the workflow routes the bench on the
+			// plan's copy, and a copy with nothing on the record to hold it to could be dropped or
+			// altered in the relay unseen. Capture compares the two.
+			var occasions []recordpb.Occasion
+			for _, w := range p.Occasions {
+				o, ok := record.OccasionOf(w)
+				if !ok {
+					return nil, fmt.Errorf("dispatch: the plan convenes %s for %q, which is not an occasion", p.SeatID, w)
+				}
+				occasions = append(occasions, o)
+			}
 			if _, err := record.Append(s.Identity(), &recordpb.Dispatch{
-				Pin: proto.Int64(plan.Head), SeatId: proto.String(p.SeatID), GapIds: p.GapIDs,
+				Pin: proto.Int64(plan.Head), SeatId: proto.String(p.SeatID), GapIds: p.GapIDs, Occasions: occasions,
 			}); err != nil {
 				return nil, err
 			}

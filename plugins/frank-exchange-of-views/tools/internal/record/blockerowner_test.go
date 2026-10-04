@@ -25,6 +25,11 @@ func (b *stage) benchRegister(occ recordpb.Occasion) *stage {
 	return b.add(benchSeat, &recordpb.Register{Occasion: occ.Enum()})
 }
 
+// benchDispatch is the chair's row convening the bench for occ, on gaps.
+func (b *stage) benchDispatch(pin int64, gaps []string, occ ...recordpb.Occasion) *stage {
+	return b.add("red-chair", &recordpb.Dispatch{Pin: proto.Int64(pin), SeatId: proto.String(benchSeat), GapIds: gaps, Occasions: occ})
+}
+
 // DISPATCH READIES THE SEAT THAT OWES ANOTHER SEAT'S BLOCKER, ONCE PER CAUSE (#1202, #1203). A
 // petition filed on the record by any party seat convenes the bench at the next chair sitting, as a
 // petition sitting; a docket motion whose gap has since closed convenes it for that docket; a
@@ -78,6 +83,16 @@ func TestDispatchReadiesTheSeatThatOwesEachBlocker(t *testing.T) {
 			b.mint(evLens, "G1", "low").closeGap(evLens, "G1").docketMotion("blue-respond", "M1", "G1").
 				add(outsideLens, petitionMotion("M2"))
 		}, want{benchSeat, true, []string{occasionDocket, occasionPetition}, []string{"G1"}, "M2: petition, unruled — the bench is ready to hear it"}},
+		// ONE ROW, TWO SITTINGS, AND THE PETITION SITTING ANSWERS NO DOCKET. The bench convened for
+		// both sits to hear the petition first; its docket sitting never comes. Keyed on the first
+		// register after the row, the petition sitting read as the docket's and the docket was never
+		// readied again.
+		{"a bench convened for both that sat only for the petition is readied for the docket again", func(b *stage) {
+			b.mint(evLens, "G1", "low").closeGap(evLens, "G1").docketMotion("blue-respond", "M1", "G1").
+				add(outsideLens, petitionMotion("M2")).
+				benchDispatch(2, []string{"G1"}, recordpb.Occasion_OCCASION_DOCKET, recordpb.Occasion_OCCASION_PETITION).
+				benchRegister(recordpb.Occasion_OCCASION_PETITION).add(benchSeat, petitionRuling("M2"))
+		}, want{benchSeat, true, []string{occasionDocket}, []string{"G1"}, "G1: docket motion M1 stands unruled on a gap no longer open — the bench is ready"}},
 		{"a contradiction readies the lens that read it", func(b *stage) {
 			b.add(evLens, contradictingVerify("the sky is green"))
 		}, want{evLens, true, nil, nil, evLens + ` read a source contradicting "the sky is green" and no finding raises it — ready, to raise it`}},
@@ -179,5 +194,76 @@ func TestTheLensThatReadAContradictionOwesItOnItsWorkList(t *testing.T) {
 	}
 	if owes(outsideLens) {
 		t.Errorf("%s never read the source, yet its work list says it owes the finding", outsideLens)
+	}
+}
+
+// THE BENCH'S ROW SAYS WHAT IT IS CONVENED FOR, AND ONLY THE BENCH'S ROW DOES — refused at the
+// write, both ways. A docket is the bench on gaps, so the occasion and the gap list are one fact; the
+// terminal and assembly sittings are the engine's, and no row convenes them.
+func TestTheDispatchRowCarriesTheBenchsOccasionsAndNoOtherSeats(t *testing.T) {
+	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair").
+		mint(evLens, "G1", "high").seed()
+	chair := Identity{Run: run, SeatID: "red-chair"}
+	row := func(seat string, gaps []string, occ ...recordpb.Occasion) error {
+		_, err := Append(chair, &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String(seat), GapIds: gaps, Occasions: occ})
+		return err
+	}
+	pet, dock := recordpb.Occasion_OCCASION_PETITION, recordpb.Occasion_OCCASION_DOCKET
+	for _, c := range []struct {
+		name   string
+		err    error
+		refuse string
+	}{
+		{"the bench with no occasion", row(benchSeat, []string{"G1"}), "a bench row names what the bench is convened for"},
+		{"a lens convened for an occasion", row(evLens, nil, dock), "is convened for no occasion"},
+		{"a docket with no gap", row(benchSeat, nil, dock), "a docket sitting is the bench engaged on gaps"},
+		{"gaps with no docket", row(benchSeat, []string{"G1"}, pet), "a docket sitting is the bench engaged on gaps"},
+		{"an occasion the engine convenes", row(benchSeat, nil, recordpb.Occasion_OCCASION_TERMINAL), "is a sitting the engine convenes"},
+		{"an occasion twice", row(benchSeat, nil, pet, pet), "names petition twice"},
+		{"a petition-only bench", row(benchSeat, nil, pet), ""},
+		{"a docket and a petition", row(benchSeat, []string{"G1"}, pet, dock), ""},
+		{"a lens with none", row(evLens, nil), ""},
+	} {
+		if c.refuse == "" && c.err != nil {
+			t.Errorf("%s: refused: %v", c.name, c.err)
+		}
+		if c.refuse != "" && (c.err == nil || !strings.Contains(c.err.Error(), c.refuse)) {
+			t.Errorf("%s: %v, want refused with %q", c.name, c.err, c.refuse)
+		}
+	}
+}
+
+// THE PLAN ASKED FOR AGAIN IN THE SAME SITTING STILL SAYS WHAT THE SITTING DOCKETED. The chair relays
+// the plan it asks for last, and blue's closings are owed on the gaps that plan names as docketed —
+// so a second ask after the verb filed the docket must name the gap still, file nothing, and stand
+// as the dispatch already recorded. The next chair sitting's plan no longer names it: the docketing
+// was that sitting's.
+func TestAPlanAskedAgainKeepsTheSittingsDocket(t *testing.T) {
+	impasse := func() *stage {
+		b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+			register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "high")
+		for i := 0; i < 3; i++ {
+			b.register("red-chair").dispatch(2, evLens, "G1").dispatch(2, "blue-respond", "G1").register(evLens).register("blue-respond")
+		}
+		// The verb's first ask: it dockets G1 under the chair and convenes the bench on it.
+		return b.register("red-chair").docketMotion("red-chair", "M1", "G1").dispatch(2, benchSeat, "G1")
+	}
+	run := impasse().seed()
+	plan, err := PlanDispatch(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(plan.Docket, []string{"G1"}) || len(plan.ToFile) != 0 {
+		t.Fatalf("asked again: docket %v, to file %v — want [G1] and nothing to file", plan.Docket, plan.ToFile)
+	}
+	if ok, err := DispatchStands(run, plan); err != nil || !ok {
+		t.Fatalf("asked again with nobody sat, the plan stands = %v (%v)", ok, err)
+	}
+	next, err := PlanDispatch(impasse().register(benchSeat).register("red-chair").seed())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(next.Docket) != 0 {
+		t.Errorf("the next chair sitting's plan names %v as docketed — the docketing was the last sitting's", next.Docket)
 	}
 }

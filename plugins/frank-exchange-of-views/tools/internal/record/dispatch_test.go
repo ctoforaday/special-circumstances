@@ -28,7 +28,15 @@ func (b *stage) add(seat string, body proto.Message) *stage {
 	b.evs = append(b.evs, recordtest.At(b.t, seat, fmt.Sprintf("%s:%d", seat, b.n), body))
 	return b
 }
-func (b *stage) register(seat string) *stage { return b.add(seat, &recordpb.Register{}) }
+
+// register opens a sitting; the bench's says it is a docket sitting, as the write path requires the
+// bench to say what it sits for (benchRegister names another occasion).
+func (b *stage) register(seat string) *stage {
+	if SeatOwesOccasion(seat) {
+		return b.add(seat, &recordpb.Register{Occasion: recordpb.Occasion_OCCASION_DOCKET.Enum()})
+	}
+	return b.add(seat, &recordpb.Register{})
+}
 func (b *stage) cast(seats ...string) *stage {
 	return b.add("harness", &recordpb.Cast{SeatIds: seats})
 }
@@ -62,7 +70,11 @@ func docketMotion(id, gap string) *recordpb.Motion {
 func (b *stage) docketMotion(seat, id, gap string) *stage { return b.add(seat, docketMotion(id, gap)) }
 
 func (b *stage) dispatch(pin int64, seat string, gaps ...string) *stage {
-	return b.add("red-chair", &recordpb.Dispatch{Pin: proto.Int64(pin), SeatId: proto.String(seat), GapIds: gaps})
+	d := &recordpb.Dispatch{Pin: proto.Int64(pin), SeatId: proto.String(seat), GapIds: gaps}
+	if seat == "judge" {
+		d.Occasions = []recordpb.Occasion{recordpb.Occasion_OCCASION_DOCKET} // the bench on gaps is a docket
+	}
+	return b.add("red-chair", d)
 }
 func (b *stage) edit(gap, old, new string) *stage {
 	return b.add("blue-respond", &recordpb.BlueEdit{Answers: proto.String(gap), Old: proto.String(old), New: proto.String(new), EditKey: proto.String(fmt.Sprintf("E%d", b.n+1))})

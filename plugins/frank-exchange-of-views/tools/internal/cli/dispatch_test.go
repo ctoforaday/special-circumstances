@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -100,16 +101,19 @@ func TestDispatchNextDocketsAGapAtImpasse(t *testing.T) {
 	if m.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_DOCKET || m.GetDocket().GetGapId() != "G1" || !strings.Contains(m.GetBasis(), "impasse") {
 		t.Errorf("the docket motion = %+v, want a docket filing on G1 stating impasse", m)
 	}
-	// Asked again with nothing changed: the docket stands, the bench is still the only party, and
-	// no second motion is filed.
+	// Asked again with nothing changed: the plan still says this sitting docketed G1 — the chair
+	// relays the plan it asks for last — the bench is still the only party, no second motion is
+	// filed, and no second dispatch row is written.
+	rows, _ := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_DISPATCH)
 	out2, err := run(t, "dispatch", "next", "--run", runDir, "--seat-id", "red-chair", "--json")
 	if err != nil {
 		t.Fatal(err)
 	}
 	plan2 := planOf(t, out2)
 	motions, _ = record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_MOTION)
-	if len(plan2.Docket) != 0 || len(motions) != 1 || len(plan2.Parties) != 1 {
-		t.Errorf("a second ask re-docketed or re-engaged: plan=%+v motions=%d", plan2, len(motions))
+	rows2, _ := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_DISPATCH)
+	if !slices.Equal(plan2.Docket, []string{"G1"}) || len(motions) != 1 || len(plan2.Parties) != 1 || len(rows2) != len(rows) {
+		t.Errorf("a second ask re-docketed, re-engaged or re-recorded: plan=%+v motions=%d rows %d -> %d", plan2, len(motions), len(rows), len(rows2))
 	}
 }
 
