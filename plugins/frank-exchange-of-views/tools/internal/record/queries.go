@@ -36,10 +36,26 @@ func queryRow(run Run, dest []any, q string, args ...any) (found bool, err error
 	return queryRowAt(db, dest, q, args...)
 }
 
+// noRecord says q stands for a run with no record yet — every question asked of it answers with its
+// honest zero. It is nil, or a nil handle or transaction inside the interface: openRunForRead answers
+// a nil *sql.DB for a run with no record.db, and that nil handed on as a Querier is NOT == nil, so an
+// `== nil` check reads it as a record and the first query on it panics.
+func noRecord(q recordsql.Querier) bool {
+	switch h := q.(type) {
+	case nil:
+		return true
+	case *sql.DB:
+		return h == nil
+	case *sql.Tx:
+		return h == nil
+	}
+	return false
+}
+
 // queryRowAt is queryRow asked of db — the run's handle, or a read transaction a reader asks every
-// question of. A nil db is a run with no record yet, which holds no row.
+// question of. A db that is no record (noRecord) holds no row.
 func queryRowAt(db recordsql.Querier, dest []any, q string, args ...any) (found bool, err error) {
-	if db == nil {
+	if noRecord(db) {
 		return false, nil
 	}
 	if err := db.QueryRow(q, args...).Scan(dest...); err != nil {
@@ -87,8 +103,17 @@ func BoardCounts(run Run) (open, closed int, err error) {
 // THE LATEST OUTCOME THAT STANDS, in its place: a corrected outcome is answered by its replacement,
 // ordered where the corrected act stood.
 func RecordedOutcome(run Run) (string, error) {
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		return "", err
+	}
+	return recordedOutcomeAt(db)
+}
+
+// recordedOutcomeAt is RecordedOutcome asked of q.
+func recordedOutcomeAt(q recordsql.Querier) (string, error) {
 	var v string
-	if _, err := queryRow(run, []any{&v},
+	if _, err := queryRowAt(q, []any{&v},
 		`SELECT o."verdict" FROM "outcome" o JOIN "live_event" l ON l."event_id" = o."event_id"
 		  ORDER BY l."pos" DESC LIMIT 1`); err != nil {
 		return "", err
@@ -136,7 +161,7 @@ func EventsOf(run Run, types ...recordpb.EventType) ([]*Event, WindowIndex, erro
 
 // eventsOfAt is EventsOf asked of q, which is nil on a run with no record yet.
 func eventsOfAt(q recordsql.Querier, types ...recordpb.EventType) ([]*Event, WindowIndex, error) {
-	if q == nil {
+	if noRecord(q) {
 		return nil, WindowIndex{}, nil
 	}
 	words := make([]string, len(types))
@@ -178,7 +203,7 @@ func Epochs(run Run) ([]int, error) {
 
 // epochsAt is Epochs asked of q, which is nil on a run with no record yet.
 func epochsAt(q recordsql.Querier) ([]int, error) {
-	if q == nil {
+	if noRecord(q) {
 		return nil, nil
 	}
 	rows, err := q.Query(`SELECT "epoch" FROM "events_w"
@@ -262,7 +287,7 @@ func ReportProjection(run Run) (base string, haveBase bool, ops []ReportOp, err 
 // the report it renders is the one on the snapshot its other answers came off. A nil q is a run
 // with no record yet.
 func ReportProjectionAt(db recordsql.Querier) (base string, haveBase bool, ops []ReportOp, err error) {
-	if db == nil {
+	if noRecord(db) {
 		return "", false, nil, nil
 	}
 	baseRows, err := db.Query(`SELECT "text" FROM "base_ingest" ORDER BY "event_id"`)

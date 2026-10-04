@@ -1,6 +1,7 @@
 package record
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"sort"
@@ -129,56 +130,90 @@ type openGap struct {
 // a docket motion filed between them readied the bench for a gap whose motion the plan's own blocker
 // list did not hold. Seats write in parallel, so every question the plan asks is asked of the one
 // snapshot its events came off.
+//
+// THE FOLD RUNS AFTER THE TRANSACTION CLOSES. The transaction reads (planReadsAt) and nothing else:
+// held across the fold, it would hold the handle's one connection and the WAL read mark for as long
+// as the CPU takes over the whole record.
 func PlanDispatch(run Run) (Plan, error) {
-	var plan Plan
-	err := readSnapshot(run, func(q recordsql.Querier) error {
+	var r planReads
+	if err := readSnapshot(run, func(q recordsql.Querier) error {
 		var err error
-		plan, err = planDispatchAt(run, q)
+		r, err = planReadsAt(q)
 		return err
-	})
-	return plan, err
-}
-
-// planDispatchAt is PlanDispatch asked of q, the read transaction every answer comes off — nil on a
-// run with no record yet.
-func planDispatchAt(run Run, q recordsql.Querier) (Plan, error) {
-	// ARRAYS, NEVER null, AT THE SOURCE. The chair relays this JSON and the engine type-checks every
-	// field it reads; a nil slice marshals as null, which the relay refuses as a missing array. B9's
-	// chair relayed a PASS-permitted plan verbatim, "parties": null, and the engine aborted the run
-	// at the sitting that should have ended it.
-	plan := Plan{Parties: []Party{}, Docket: []string{}, RemandOwed: []string{}, Why: []string{}, StaleAreas: []StaleArea{}, Blockers: []PlanBlocker{}}
-	cast, err := castAt(q)
-	if err != nil {
-		return plan, err
+	}); err != nil {
+		return emptyPlan(), err
 	}
-	if cast == nil {
-		return plan, fmt.Errorf("record: dispatch refused — the record holds no cast. setup writes the run's admissible seats before any seat registers; a run without one has nothing to dispatch against")
+	if r.cast == nil {
+		return emptyPlan(), errNoCast
 	}
 	params, err := RunParams(run)
 	if err != nil {
-		return plan, err
+		return emptyPlan(), err
 	}
-	if q == nil {
-		return plan, fmt.Errorf("record: dispatch refused — the run has no record")
+	return foldPlan(params, r), nil
+}
+
+// errNoCast is the dispatch's refusal of a record that holds no cast.
+var errNoCast = errors.New("record: dispatch refused — the record holds no cast. setup writes the run's admissible seats before any seat registers; a run without one has nothing to dispatch against")
+
+// planReads is every answer the dispatch plan takes off the record, read on one snapshot
+// (planReadsAt) and folded after it closes (foldPlan).
+type planReads struct {
+	cast    []string
+	head    int64
+	evs     []*Event
+	win     WindowIndex
+	fresh   map[string]bool
+	gaps    []openGap
+	remands map[string][]remandRow
+}
+
+// planReadsAt reads the plan's answers off q. A record with no cast stops at the cast: the plan
+// refuses it, and asks nothing further.
+func planReadsAt(q recordsql.Querier) (planReads, error) {
+	var r planReads
+	var err error
+	if r.cast, err = castAt(q); err != nil || r.cast == nil {
+		return r, err
 	}
-	if err := q.QueryRow(`SELECT COALESCE(MAX("id"), 0) FROM "events" WHERE "type" IN ('blue_edit', 'base_ingest')`).Scan(&plan.Head); err != nil {
-		return plan, fmt.Errorf("record: asking the record: %w", err)
+	if _, err := queryRowAt(q, []any{&r.head},
+		`SELECT COALESCE(MAX("id"), 0) FROM "events" WHERE "type" IN ('blue_edit', 'base_ingest')`); err != nil {
+		return r, err
 	}
+	if r.evs, r.win, err = eventsAt(q); err != nil {
+		return r, err
+	}
+	if r.fresh, err = freshMaterialOf(q); err != nil {
+		return r, err
+	}
+	if r.gaps, err = openGaps(q); err != nil {
+		return r, err
+	}
+	r.remands, err = remandRulingsOf(q)
+	return r, err
+}
+
+// emptyPlan is the plan's empty shape. ARRAYS, NEVER null, AT THE SOURCE. The chair relays this
+// JSON and the engine type-checks every field it reads; a nil slice marshals as null, which the relay
+// refuses as a missing array. B9's chair relayed a PASS-permitted plan verbatim, "parties": null, and
+// the engine aborted the run at the sitting that should have ended it.
+func emptyPlan() Plan {
+	return Plan{Parties: []Party{}, Docket: []string{}, RemandOwed: []string{}, Why: []string{}, StaleAreas: []StaleArea{}, Blockers: []PlanBlocker{}}
+}
+
+// foldPlan folds the plan from the answers planReadsAt read, under the run's terms. It asks the record
+// nothing.
+func foldPlan(params Params, r planReads) Plan {
+	plan := emptyPlan()
+	plan.Head = r.head
+	evs, win, fresh := r.evs, r.win, r.fresh
 
 	// Source 1: each cast lens by its retirement state (retirement.go) — the same fold the PASS
 	// gate refuses from. A lens engaged that never registered has not sat, so its state has not
 	// moved and it stays ready.
-	evs, win, err := eventsAt(q)
-	if err != nil {
-		return plan, err
-	}
 	ids := win.IDs(evs)
 	dispatches, registers := dispatchLedger(evs, ids, win)
 	benchOn := benchRegisters(evs, ids, win)
-	fresh, err := freshMaterialOf(q)
-	if err != nil {
-		return plan, err
-	}
 	folds := lensStates(evs, ids, win, plan.Head, fresh)
 	plan.StaleAreas = staleAreasOf(folds, plan.Head)
 	parties := map[string][]string{}
@@ -202,18 +237,11 @@ func planDispatchAt(run Run, q recordsql.Querier) (Plan, error) {
 		}
 		plan.Why = append(plan.Why, f.why)
 	}
-	_ = cast // the cast is the fold's roster (castOfEvents): the same Cast event CastOf reads
+	// The fold's roster is the cast through castOfEvents, which reads the same Cast event castAt read.
 
 	// Source 2 and 3: the open gaps, with their materiality, their exchanges and their docket.
-	gaps, err := openGaps(q)
-	if err != nil {
-		return plan, err
-	}
-	remands, err := remandRulingsOf(q)
-	if err != nil {
-		return plan, err
-	}
-	exch := exchangesOf(evs, ids, win, params, WhileRunning, remands)
+	gaps := r.gaps
+	exch := exchangesOf(evs, ids, win, params, WhileRunning, r.remands)
 	materialOpen, materialSettled := 0, 0
 	statedMotion := map[string]bool{} // the docket motions a gap's reason below already names
 	// debate readies a gap's two parties: its minting lens, and blue.
@@ -351,7 +379,7 @@ func planDispatchAt(run Run, q recordsql.Querier) (Plan, error) {
 		plan.Parties = []Party{}
 		plan.EpochLimitReached, plan.Ceiling = true, true
 	}
-	return plan, nil
+	return plan
 }
 
 // dispatchRow is one dispatch event: where it sits in the stream, the head it pinned, the seat it
@@ -736,13 +764,21 @@ func unopenedChairSitting(evs []*Event, win WindowIndex) (DispatchGroup, bool) {
 	return g, true
 }
 
-// dispatchEventsOf reads the stream the dispatch folds read, or nil for a run with no record.
+// dispatchEventsOf reads the stream the dispatch folds read, or nil for a run with no record — on one
+// snapshot (readSnapshot): the stream and its window index are several queries, and a sitting opened
+// between them would index acts the stream does not hold.
 func dispatchEventsOf(run Run) ([]*Event, WindowIndex, error) {
-	db, err := openRunForRead(run)
-	if err != nil || db == nil {
+	var evs []*Event
+	var win WindowIndex
+	err := readSnapshot(run, func(q recordsql.Querier) error {
+		var err error
+		evs, win, err = eventsAt(q)
+		return err
+	})
+	if err != nil {
 		return nil, windowIndexOf(nil, nil), err
 	}
-	return eventsAt(db)
+	return evs, win, nil
 }
 
 // RequireChairSittingOpened refuses `dispatch next` in a chair sitting no register opened (see

@@ -185,7 +185,7 @@ func CastOf(run Run) ([]string, error) {
 
 // castAt is CastOf asked of q, which is nil on a run with no record yet.
 func castAt(q recordsql.Querier) ([]string, error) {
-	if q == nil {
+	if noRecord(q) {
 		return nil, nil
 	}
 	rows, err := q.Query(`SELECT v."value" FROM "cast_seat_ids" v

@@ -266,18 +266,25 @@ func readyReason(f lensFold) string {
 	return "active"
 }
 
-// passLensGateOfRun reads the gate's inputs off the run.
+// passLensGateOfRun reads the gate's inputs off the run, on one snapshot (readSnapshot): a gap
+// minted between the stream read and the fresh-material read would be fresh material no lens fold
+// holds. The fold runs after the transaction closes.
 func passLensGateOfRun(run Run) (passLensGate, bool, error) {
-	db, err := openRunForRead(run)
-	if err != nil || db == nil {
-		return passLensGate{}, false, err
-	}
-	evs, win, err := eventsAt(db)
-	if err != nil {
-		return passLensGate{}, false, err
-	}
-	fresh, err := freshMaterialOf(db)
-	if err != nil {
+	var evs []*Event
+	var win WindowIndex
+	var fresh map[string]bool
+	absent := false
+	if err := readSnapshot(run, func(q recordsql.Querier) error {
+		if absent = noRecord(q); absent {
+			return nil
+		}
+		var err error
+		if evs, win, err = eventsAt(q); err != nil {
+			return err
+		}
+		fresh, err = freshMaterialOf(q)
+		return err
+	}); err != nil || absent {
 		return passLensGate{}, false, err
 	}
 	return passLensGateOf(evs, win.IDs(evs), win, fresh), true, nil

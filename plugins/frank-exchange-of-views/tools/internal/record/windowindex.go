@@ -56,7 +56,7 @@ func windowIndexOf(evs []*Event, ws []recordsql.Window) WindowIndex {
 // asked of q: the run's handle, or a read transaction a reader asks every question of. A nil q is a
 // run with no record yet, which holds no events.
 func eventsAt(q recordsql.Querier) ([]*Event, WindowIndex, error) {
-	if q == nil {
+	if noRecord(q) {
 		return nil, windowIndexOf(nil, nil), nil
 	}
 	evs, ws, err := recordsql.Events(q)

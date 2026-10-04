@@ -54,28 +54,57 @@ const (
 //
 // ONE READ TRANSACTION, as a narrowed view reads (readSnapshot): the halt, the PASS, the cast and the
 // dispatch plan are asked of one snapshot, so a halt and a PASS landing between two reads cannot
-// derive VERIFIED over a record that holds the halt that outranks it.
+// derive VERIFIED over a record that holds the halt that outranks it. The transaction reads
+// (verdictReadsAt); the verdict, and the plan it may fold, are derived after it closes (verdictOf).
 func DeriveVerdict(run Run) (verdict, why string, ok bool, err error) {
-	err = readSnapshot(run, func(q recordsql.Querier) error {
+	var r verdictReads
+	if err := readSnapshot(run, func(q recordsql.Querier) error {
 		var err error
-		verdict, why, ok, err = deriveVerdictAt(run, q)
+		r, err = verdictReadsAt(q)
 		return err
-	})
-	return verdict, why, ok, err
+	}); err != nil {
+		return "", "", false, err
+	}
+	return verdictOf(run, r)
 }
 
-// deriveVerdictAt is DeriveVerdict asked of q, the read transaction every answer comes off — nil on
-// a run with no record yet.
-func deriveVerdictAt(run Run, q recordsql.Querier) (verdict, why string, ok bool, err error) {
-	halted, err := recordHasAt(q, `SELECT 1 FROM "halt" LIMIT 1`)
-	if err != nil {
-		return "", "", false, err
+// verdictReads is every answer the derived verdict takes off the record, read on one snapshot.
+// plan is read only where the verdict can turn on it: no halt, no PASS, and a cast.
+type verdictReads struct {
+	halted, passed bool
+	cast           []string
+	plan           *planReads
+}
+
+// verdictReadsAt reads the verdict's answers off q.
+func verdictReadsAt(q recordsql.Querier) (verdictReads, error) {
+	var r verdictReads
+	var err error
+	if r.halted, err = recordHasAt(q, `SELECT 1 FROM "halt" LIMIT 1`); err != nil {
+		return r, err
 	}
-	passed, err := recordHasAt(q, `SELECT 1 FROM "gate" WHERE "verdict" = ? LIMIT 1`,
-		recordpb.Word(recordpb.Verdict_VERDICT_PASS))
-	if err != nil {
-		return "", "", false, err
+	if r.passed, err = recordHasAt(q, `SELECT 1 FROM "gate" WHERE "verdict" = ? LIMIT 1`,
+		recordpb.Word(recordpb.Verdict_VERDICT_PASS)); err != nil {
+		return r, err
 	}
+	if r.cast, err = castAt(q); err != nil {
+		return r, err
+	}
+	if r.halted || r.passed || r.cast == nil {
+		return r, nil
+	}
+	plan, err := planReadsAt(q)
+	if err != nil {
+		return r, err
+	}
+	r.plan = &plan
+	return r, nil
+}
+
+// verdictOf derives the verdict from what verdictReadsAt read. It asks the record nothing; run is
+// for the run's terms (RunParams), read only when the verdict turns on the plan.
+func verdictOf(run Run, r verdictReads) (verdict, why string, ok bool, err error) {
+	halted, passed, cast := r.halted, r.passed, r.cast
 	// THE COVERAGE LIMIT RIDES ON THE BASIS, for every terminal verdict and not only a PASS.
 	//
 	// A run whose cast never seated an area did not audit that dimension, and until this the
@@ -85,10 +114,6 @@ func deriveVerdictAt(run Run, q recordsql.Querier) (verdict, why string, ok bool
 	// UnseatedAreas returns nothing when the record holds no cast, which is the state the
 	// CEILING arm below already distinguishes.
 	coverage := ""
-	cast, err := castAt(q)
-	if err != nil {
-		return "", "", false, err
-	}
 	if unseated, hasCast := unseatedAreasOf(cast); hasCast && len(unseated) > 0 {
 		coverage = " (" + CoverageNote(unseated) + ")"
 	}
@@ -103,10 +128,11 @@ func deriveVerdictAt(run Run, q recordsql.Querier) (verdict, why string, ok bool
 	// has remanded it again (remandStageOf), or the chair has sat for the run's last epoch under its
 	// epoch limit, a term setup records. A record with no cast cannot reach it.
 	if cast != nil {
-		plan, err := planDispatchAt(run, q)
+		params, err := RunParams(run)
 		if err != nil {
 			return "", "", false, err
 		}
+		plan := foldPlan(params, *r.plan)
 		switch {
 		case plan.EpochLimitReached:
 			return "CEILING", fmt.Sprintf("epoch limit %d reached — the run's term; the parties still ready were not dispatched and PASS is not permitted", plan.MaxEpochs) + coverage, true, nil

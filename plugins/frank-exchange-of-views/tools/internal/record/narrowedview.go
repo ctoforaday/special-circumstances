@@ -36,14 +36,16 @@ type narrowedView[T any] struct {
 }
 
 // narrowedRenderer renders a view from the families its declaration loaded, asking any further
-// question of q — the read transaction they came off, nil on a run with no record yet.
-type narrowedRenderer[T any] func(run Run, q recordsql.Querier, evs []*Event, win WindowIndex) (T, error)
+// question of q — the read transaction they came off, nil on a run with no record yet. It is handed
+// no Run, so it has nothing to ask a run-taking read of: one, from inside the transaction, waits on
+// the handle's one connection forever.
+type narrowedRenderer[T any] func(q recordsql.Querier, evs []*Event, win WindowIndex) (T, error)
 
 // declaredView is a declared view with its result type erased — what the parity test walks.
 type declaredView interface {
 	declared() []recordpb.EventType
 	ofAny(run Run) (any, error)
-	renderAny(run Run, q recordsql.Querier, evs []*Event, win WindowIndex) (any, error)
+	renderAny(q recordsql.Querier, evs []*Event, win WindowIndex) (any, error)
 }
 
 // narrowedViews is every declared narrowed view, by the name it renders under.
@@ -64,8 +66,8 @@ func (v narrowedView[T]) declared() []recordpb.EventType { return v.families }
 
 func (v narrowedView[T]) ofAny(run Run) (any, error) { return v.of(run) }
 
-func (v narrowedView[T]) renderAny(run Run, q recordsql.Querier, evs []*Event, win WindowIndex) (any, error) {
-	return v.render(run, q, evs, win)
+func (v narrowedView[T]) renderAny(q recordsql.Querier, evs []*Event, win WindowIndex) (any, error) {
+	return v.render(q, evs, win)
 }
 
 // of renders the view from the families it declared, on one snapshot of the record.
@@ -76,7 +78,7 @@ func (v narrowedView[T]) of(run Run) (T, error) {
 		if err != nil {
 			return err
 		}
-		out, err = v.render(run, q, evs, win)
+		out, err = v.render(q, evs, win)
 		return err
 	})
 	return out, err
@@ -101,8 +103,14 @@ func (v narrowedView[T]) jsonBytes(run Run) ([]byte, error) {
 //
 // EVERY READER THAT ASKS THE RECORD MORE THAN ONE QUESTION AND ACTS ON THE ANSWERS TOGETHER reads
 // through it, not only a narrowed view: the work list (WorkOfSeat, WorkJSONOfRun), the dispatch plan
-// (PlanDispatch) and the derived verdict (DeriveVerdict). Inside read, every question goes to q —
-// the handle is one connection, so a read on it from inside waits on the transaction forever.
+// (PlanDispatch), the derived verdict (DeriveVerdict, TerminalVerdict) and the gate's inputs
+// (PassBlockers, Exchanges). Inside read, every question goes to q: the handle is one connection, so a
+// read on it from inside waits on the transaction forever. The reads a callback makes take a Querier
+// and no Run (planReadsAt, verdictReadsAt, workReadsAt), so that read has nothing to be asked of.
+//
+// THE PLAN, THE VERDICT AND THE WORK LIST READ IN IT AND FOLD AFTER IT: each callback returns what it
+// read, and the fold runs once the transaction has closed, so the connection and the WAL read mark are
+// held for the reads alone. A narrowed view's renderer renders inside it, because it asks q as it goes.
 func readSnapshot(run Run, read func(q recordsql.Querier) error) error {
 	db, err := openRunForRead(run)
 	if err != nil {
@@ -121,5 +129,5 @@ func readSnapshot(run Run, read func(q recordsql.Querier) error) error {
 
 // rendersEvents adapts a renderer that needs only the events to the declaration's signature.
 func rendersEvents[T any](f func([]*Event, WindowIndex) T) narrowedRenderer[T] {
-	return func(_ Run, _ recordsql.Querier, evs []*Event, win WindowIndex) (T, error) { return f(evs, win), nil }
+	return func(_ recordsql.Querier, evs []*Event, win WindowIndex) (T, error) { return f(evs, win), nil }
 }

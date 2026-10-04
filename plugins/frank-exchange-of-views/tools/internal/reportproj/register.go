@@ -6,4 +6,4 @@ import "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-vi
 // this package to render it (this package imports record). So the renderer is handed over here,
 // in every binary that links the projection; a binary that does not gets a stated refusal from
 // the mint, never a budget read as the floor.
-func init() { record.RegisterReportRenderer(RenderAt) }
+func init() { record.RegisterReportRenderer(replay) }

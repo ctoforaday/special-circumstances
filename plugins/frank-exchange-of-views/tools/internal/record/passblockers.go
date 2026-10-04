@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // WHAT HOLDS A PASS IS DECIDED HERE, ONCE.
@@ -384,25 +385,30 @@ func MotionBlockersOf(evs []*Event, win WindowIndex) []PlanBlocker {
 	return out
 }
 
-// PassBlockers is passBlockersOf over the run, read as the gate reads it.
+// PassBlockers is passBlockersOf over the run, read as the gate reads it — the stream, the fresh
+// material gaps and the open gaps on one snapshot (readSnapshot), as the dispatch plan reads them, so
+// the gate and the plan cannot disagree about a blocker over a write landing between two reads. The
+// fold runs after the transaction closes.
 func PassBlockers(run Run) ([]Blocker, error) {
-	db, err := openRunForRead(run)
-	if err != nil || db == nil {
+	var r planReads
+	absent := false
+	if err := readSnapshot(run, func(q recordsql.Querier) error {
+		if absent = noRecord(q); absent {
+			return nil
+		}
+		var err error
+		if r.evs, r.win, err = eventsAt(q); err != nil {
+			return err
+		}
+		if r.fresh, err = freshMaterialOf(q); err != nil {
+			return err
+		}
+		r.gaps, err = openGaps(q)
+		return err
+	}); err != nil || absent {
 		return nil, err
 	}
-	evs, win, err := eventsAt(db)
-	if err != nil {
-		return nil, err
-	}
-	fresh, err := freshMaterialOf(db)
-	if err != nil {
-		return nil, err
-	}
-	gaps, err := openGaps(db)
-	if err != nil {
-		return nil, err
-	}
-	return passBlockersOf(evs, win.IDs(evs), win, blockerGapsOfOpen(gaps), fresh), nil
+	return passBlockersOf(r.evs, r.win.IDs(r.evs), r.win, blockerGapsOfOpen(r.gaps), r.fresh), nil
 }
 
 // requireNoBlockers is the verdict gate. A PASS is refused over every blocker; any verdict, and

@@ -337,6 +337,15 @@ func Open(path string) (*sql.DB, error) {
 	return db, nil
 }
 
+// OpenSeparate opens the database on a handle of its own, outside the per-path cache Open keeps — the
+// connection another process would hold. FOR TESTS that stand a seat's writer beside a reader, and
+// nothing else: seats are separate processes, and a writer on the reader's cached handle shares its
+// one connection, so the write queues behind the read and a test of the read's isolation measures
+// the queue instead. TestNoShippedCodeOpensARecordOutsideTheCache fails a non-test caller, because a
+// shipped second handle is the pooled-connection contention ONE CONNECTION below exists to avoid.
+// The caller closes it.
+func OpenSeparate(path string) (*sql.DB, error) { return openUncached(path) }
+
 func openUncached(path string) (*sql.DB, error) {
 	// _txlock=immediate IS NOT A TUNING KNOB. IT IS THE DIFFERENCE BETWEEN WORKING AND NOT.
 	//

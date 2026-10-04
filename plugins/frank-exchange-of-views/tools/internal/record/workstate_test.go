@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // workStatesOfFamilyT derives WorkGapState rows from a hand-built family fixture, reading
@@ -50,15 +49,11 @@ func sittingOfRunT(t *testing.T, run Run, role, seatID string) SittingJSON {
 // workGapStatesT is the work list's gap states, read off one snapshot as the work list reads them.
 func workGapStatesT(t *testing.T, run Run) []WorkGapState {
 	t.Helper()
-	var gaps []WorkGapState
-	err := readSnapshot(run, func(q recordsql.Querier) error {
-		evs, win, err := eventsAt(q)
-		if err != nil {
-			return err
-		}
-		gaps, err = workGapStatesAt(run, q, evs, win)
-		return err
-	})
+	r, err := workView(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gaps, err := workGapStatesOf(run, r)
 	if err != nil {
 		t.Fatal(err)
 	}

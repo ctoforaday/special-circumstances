@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // GapExchanges is what the record says about one gap's dispute (plans/roundless.md §III.B.2).
@@ -89,18 +90,29 @@ type partySitting struct {
 // Exchanges folds the record into per-gap exchange counts under the run's terms. It reads the
 // dispatch events for who was engaged on what, the registers for when each party actually sat,
 // and the acts for movement — nothing is asserted by a seat; the counts are the record's.
+//
+// The stream and the remands are read on one snapshot (readSnapshot) and folded after it closes: a
+// remand ruled between two reads would count against a stream that does not hold its ruling.
 func Exchanges(run Run, p Params) (map[string]*GapExchanges, error) {
-	db, err := openRunForRead(run)
-	if err != nil || db == nil {
-		return map[string]*GapExchanges{}, err
-	}
-	evs, win, err := eventsAt(db)
-	if err != nil {
+	var evs []*Event
+	var win WindowIndex
+	var remands map[string][]remandRow
+	absent := false
+	if err := readSnapshot(run, func(q recordsql.Querier) error {
+		if absent = noRecord(q); absent {
+			return nil
+		}
+		var err error
+		if evs, win, err = eventsAt(q); err != nil {
+			return err
+		}
+		remands, err = remandRulingsOf(q)
+		return err
+	}); err != nil {
 		return nil, err
 	}
-	remands, err := remandRulingsOf(db)
-	if err != nil {
-		return nil, err
+	if absent {
+		return map[string]*GapExchanges{}, nil
 	}
 	return exchangesOf(evs, win.IDs(evs), win, p, WhileRunning, remands), nil
 }

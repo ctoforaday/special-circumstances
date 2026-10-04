@@ -2,6 +2,7 @@ package surface
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -49,5 +50,36 @@ func TestNoShippedCodeInstallsTheQueryPlanGuard(t *testing.T) {
 			"distinct statement. It is a test instrument (internal/record/planguard) and a run "+
 			"must not pay for it. If a diagnostic really needs plans, it wants its own command, "+
 			"not the driver every seat's reads go through.", strings.Join(callers, ", "))
+	}
+}
+
+// A RECORD HANDLE OUTSIDE THE CACHE IS A TEST INSTRUMENT. recordsql.OpenSeparate opens a second
+// handle on a path, which is how a test stands another process's writer beside a reader; in a
+// shipped binary it is two connections contending for the write lock in one process, the polling
+// herd recordsql.Open's one connection exists to prevent. The ONLY callers are tests.
+func TestNoShippedCodeOpensARecordOutsideTheCache(t *testing.T) {
+	sources, err := repotree.GoSources("plugins", "frank-exchange-of-views", "tools")
+	if err != nil {
+		t.Fatalf("locating the tool's sources: %v", err)
+	}
+	if len(sources) == 0 {
+		t.Fatal("no Go sources found — this gate measured nothing")
+	}
+	var callers []string
+	for _, path := range sources {
+		b, rerr := os.ReadFile(path)
+		if rerr != nil {
+			t.Errorf("reading %s: %v", path, rerr)
+			continue
+		}
+		if strings.Contains(string(b), "OpenSeparate(") && !strings.HasSuffix(filepath.ToSlash(path), "recordsql/store.go") {
+			callers = append(callers, path)
+		}
+	}
+	if len(callers) > 0 {
+		t.Errorf("shipped (non-test) code calls recordsql.OpenSeparate: %s\n\n"+
+			"That opens a second handle on a record the process already reaches through recordsql.Open's "+
+			"one connection, and the two contend for the write lock on SQLite's fixed busy schedule. "+
+			"Read and write through recordsql.Open.", strings.Join(callers, ", "))
 	}
 }

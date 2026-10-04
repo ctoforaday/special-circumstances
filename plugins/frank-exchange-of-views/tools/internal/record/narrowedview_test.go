@@ -1,6 +1,7 @@
 package record
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"go/ast"
@@ -177,7 +178,7 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 			}
 			var entire any
 			if err := readSnapshot(run, func(q recordsql.Querier) error {
-				entire, err = v.renderAny(run, q, whole.Events, whole.At)
+				entire, err = v.renderAny(q, whole.Events, whole.At)
 				return err
 			}); err != nil {
 				t.Fatal(err)
@@ -348,21 +349,18 @@ func TestEveryClosedGapOnTheBoardCarriesItsClosureWhileALensCloses(t *testing.T)
 			"2026-01-01T01:00:00Z"))
 	}
 	recordtest.Seed(t, dir, seed...)
-	db, err := recordsql.Open(filepath.Join(dir, "records", "record.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := seatWriter(t, filepath.Join(dir, "records", "record.db"))
 	run := mustRun(t, dir)
 
 	done := make(chan error, 1)
 	go func() {
+		var err error
+		defer func() { done <- err }()
 		for _, ev := range closes {
-			if _, err := recordsql.Insert(db, ev); err != nil {
-				done <- err
+			if _, err = recordsql.Insert(db, ev); err != nil {
 				return
 			}
 		}
-		done <- nil
 	}()
 	for closing := true; closing; {
 		select {
@@ -386,23 +384,37 @@ func TestEveryClosedGapOnTheBoardCarriesItsClosureWhileALensCloses(t *testing.T)
 	}
 }
 
-// whileWriting inserts acts into run's record on a second goroutine, one autocommit insert each as a
-// seat's write lands, and calls read until the last one is in — at least once after it.
-func whileWriting(t *testing.T, run Run, acts []*Event, read func()) {
+// seatWriter is a seat's own connection to the record at path: opened outside the per-path cache
+// (recordsql.OpenSeparate), as another process's would be, so it shares nothing with the handle the
+// readers under test read through. Seats ARE other processes. A writer on the cached handle shares
+// the reader's one connection: its insert waits for the read's transaction to end, and a race test
+// built on it proves the writes queue behind the reads — which a mutex would give as well — not that
+// a read sees one snapshot while another connection commits.
+func seatWriter(t *testing.T, path string) *sql.DB {
 	t.Helper()
-	db, err := recordsql.Open(filepath.Join(run.Records(), "record.db"))
+	db, err := recordsql.OpenSeparate(path)
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { db.Close() })
+	return db
+}
+
+// whileWriting inserts acts into run's record on a seat's own connection (seatWriter) from a second
+// goroutine, one autocommit insert each as a seat's write lands, and calls read until the last one
+// is in — at least once after it.
+func whileWriting(t *testing.T, run Run, acts []*Event, read func()) {
+	t.Helper()
+	db := seatWriter(t, filepath.Join(run.Records(), "record.db"))
 	done := make(chan error, 1)
 	go func() {
+		var err error
+		defer func() { done <- err }()
 		for _, ev := range acts {
-			if _, err := recordsql.Insert(db, ev); err != nil {
-				done <- err
+			if _, err = recordsql.Insert(db, ev); err != nil {
 				return
 			}
 		}
-		done <- nil
 	}()
 	for writing := true; writing; {
 		select {
@@ -479,55 +491,95 @@ func TestEveryGapIsOnTheWorkListWhileTheBenchRules(t *testing.T) {
 	})
 }
 
-// THE DERIVED VERDICT IS READ OFF ONE SNAPSHOT. A halt outranks a PASS, and the two are asked of the
-// record separately; asked at two moments, a halt and a PASS landing between them derived VERIFIED
-// over a record holding the halt. Here both land in one commit while the verdict is derived, on run
-// after run, and no derivation reads VERIFIED.
-func TestTheDerivedVerdictNeverReadsAPassPastTheHaltBesideIt(t *testing.T) {
-	for i := 0; i < 20; i++ {
-		run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-			register("red-chair").register("judge").seed()
-		db, err := recordsql.Open(filepath.Join(run.Records(), "record.db"))
-		if err != nil {
-			t.Fatal(err)
-		}
+// whileCommitting commits acts in ONE transaction on a seat's own connection (seatWriter) from a
+// second goroutine, and calls read until the commit is in — at least once after it. A fresh run each
+// round, rounds times: the commit is one instant, and a read that straddles it is what is under test.
+func whileCommitting(t *testing.T, rounds int, stage func() Run, acts func() []*Event, read func(round int, run Run)) {
+	t.Helper()
+	for round := 0; round < rounds; round++ {
+		run := stage()
+		db := seatWriter(t, filepath.Join(run.Records(), "record.db"))
+		// Built here, not on the writer's goroutine: recordtest.At may t.Fatal, which must run on the
+		// test's own.
+		evs := acts()
 		done := make(chan error, 1)
 		go func() {
+			var err error
+			defer func() { done <- err }()
 			tx, err := db.Begin()
 			if err != nil {
-				done <- err
 				return
 			}
 			defer tx.Rollback()
-			for _, ev := range []*Event{
-				recordtest.At(t, "judge", "judge:halt", &recordpb.Halt{Opinion: proto.String("consent gate")}),
-				recordtest.At(t, "red-chair", "red-chair:gate", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}),
-			} {
-				if _, err := recordsql.InsertTx(tx, ev); err != nil {
-					done <- err
+			for _, ev := range evs {
+				if _, err = recordsql.InsertTx(tx, ev); err != nil {
 					return
 				}
 			}
-			done <- tx.Commit()
+			err = tx.Commit()
 		}()
-		for deriving := true; deriving; {
+		for committing := true; committing; {
 			select {
 			case err := <-done:
 				if err != nil {
 					t.Fatal(err)
 				}
-				deriving = false
+				committing = false
 			default:
 			}
-			verdict, why, _, err := DeriveVerdict(run)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if verdict == "VERIFIED" {
-				t.Fatalf("run %d derived VERIFIED (%s) — the halt and the PASS beside it came off two reads of the record", i, why)
-			}
+			read(round, run)
 		}
 	}
+}
+
+// uncastStage is a run whose chair and bench have registered and which holds no cast, so the
+// verdict's reads stop at the cast: the questions a commit can land between are the few the test is
+// about, not the whole record a plan would load.
+func uncastStage(t *testing.T) func() Run {
+	return func() Run { return newStage(t).ingest().register("red-chair").register("judge").seed() }
+}
+
+// THE DERIVED VERDICT IS READ OFF ONE SNAPSHOT. A halt outranks a PASS, and the two are asked of the
+// record separately; asked at two moments, a halt and a PASS landing between them derived VERIFIED
+// over a record holding the halt. Here both land in one commit while the verdict is derived, on run
+// after run, and no derivation reads VERIFIED.
+func TestTheDerivedVerdictNeverReadsAPassPastTheHaltBesideIt(t *testing.T) {
+	whileCommitting(t, 20, uncastStage(t), func() []*Event {
+		return []*Event{
+			recordtest.At(t, "judge", "judge:halt", &recordpb.Halt{Opinion: proto.String("consent gate")}),
+			recordtest.At(t, "red-chair", "red-chair:gate", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}),
+		}
+	}, func(round int, run Run) {
+		verdict, why, _, err := DeriveVerdict(run)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if verdict == "VERIFIED" {
+			t.Fatalf("run %d derived VERIFIED (%s) — the halt and the PASS beside it came off two reads of the record", round, why)
+		}
+	})
+}
+
+// THE TERMINAL VERDICT IS READ OFF ONE SNAPSHOT. It is the bench's recorded outcome, or else the
+// verdict the record derives; asked at two moments, an outcome recorded beside a PASS between them
+// was missed by the first read, and the second derived VERIFIED from the PASS — a word no single
+// state of the record gives. Here the bench's CEILING and a PASS land in one commit while the
+// terminal verdict is read, and every read answers nothing yet or the bench's own word.
+func TestTheTerminalVerdictReadsTheOutcomeAndTheDerivationTogether(t *testing.T) {
+	whileCommitting(t, 20, uncastStage(t), func() []*Event {
+		return []*Event{
+			recordtest.At(t, "judge", "judge:outcome", &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_CEILING.Enum(), Prose: proto.String("ended")}),
+			recordtest.At(t, "red-chair", "red-chair:gate", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}),
+		}
+	}, func(round int, run Run) {
+		v, err := TerminalVerdict(run)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v != "" && v != "CEILING" {
+			t.Fatalf("run %d reads terminal verdict %q — the record held either no outcome and no PASS, or the bench's CEILING beside the PASS: the outcome and the derivation came off two reads of the record", round, v)
+		}
+	})
 }
 
 // THE DISPATCH PLAN IS READ OFF ONE SNAPSHOT. It readies the bench for a gap off the `gap` view's
