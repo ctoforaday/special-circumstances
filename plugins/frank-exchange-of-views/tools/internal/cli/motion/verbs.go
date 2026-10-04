@@ -528,8 +528,8 @@ var ruleFlagHelp = map[string]string{
 	flags.Tension:    "the values that pulled against each other; where none did, the ruling's weakest point: what a party would argue against the rule you applied",
 	flags.ReviewFlag: "what a human should look at again; where nothing needs a human, what on the record already settles it",
 	flags.Settled:    "what the losing party may no longer assert, as one sentence — not the gap id, and not the disposition",
-	flags.ReopensOn:  "the evidence or condition that would make this worth raising again — or pass --final to say nothing would. A remand passes this: it is the research direction the remand's exchange owes blue and the minting lens",
-	flags.Final:      "nothing would reopen this. The assertable empty case for --reopens-on: pass exactly one of the two. A remand reopens the gap, so it never passes this",
+	flags.ReopensOn:  "on a ruling that closes the gap: the evidence or condition that would make it worth raising again — or pass --final to say nothing would. On a remand, which closes nothing: the research direction its one more exchange owes blue and the minting lens — required, and never with --final",
+	flags.Final:      "on a ruling that closes the gap: nothing would reopen it. The assertable empty case for --reopens-on: pass exactly one of the two. A remand closes nothing, so it never passes this",
 }
 
 // idShapeFor is WHICH KIND of id a motion verb's --id takes, so the page names the kind and a

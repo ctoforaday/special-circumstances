@@ -231,7 +231,7 @@ INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('defect_acce
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('defect_owed_elsewhere', 'a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('moot', 'the gap''s predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('not_a_defect', 'blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be', 1);
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('remanded', 'NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states as what would reopen it. If that exchange leaves it at impasse it is docketed again, if it moves the gap the gap''s limits count afresh from the ruling, and a second remand at impasse leaves it open at its limit', 0);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('remanded', 'NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states — a remand closes nothing, so it states a direction and never --final. If that exchange leaves it at impasse it is docketed again, if it moves the gap the gap''s limits count afresh from the ruling, and a second remand at impasse leaves it open at its limit', 0);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired', 'the repair was verified at the leaf and nothing regressed', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired_with_regression', 'repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward', 1);
 
@@ -481,7 +481,7 @@ CREATE TABLE "motion_rule_docket" (
   CHECK ("final" IS NULL OR "final" IN (0, 1)),
   CHECK ("reopens_on" IS NOT NULL OR "final" IS NOT NULL),
   CHECK ("reopens_on" IS NULL OR "final" IS NULL),
-  CHECK ("disposition" <> 'remanded' OR "reopens_on" IS NOT NULL),
+  CHECK ("disposition" <> 'remanded' OR coalesce(trim("reopens_on", ' ' || char(9, 10, 13)), '') <> ''),
   FOREIGN KEY ("disposition") REFERENCES "enum_disposition"("value")
 ) STRICT;
 

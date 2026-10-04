@@ -97,6 +97,11 @@ func TestARemandReadiesTheMinterAndBlueForOneMoreExchange(t *testing.T) {
 	if !whyMentions(plan, remandDirection) {
 		t.Errorf("the plan's reason for G1 must carry the ruling's direction %q; why %q", remandDirection, plan.Why)
 	}
+	// THE DIRECTION IS A FIELD ON THE PLAN, not only words in its reason: the workflow quotes
+	// remand_owed's direction to blue and the lens, and reads it from nowhere else.
+	if want := []RemandOwed{{GapID: "G1", Direction: remandDirection}}; !slices.Equal(plan.RemandOwed, want) {
+		t.Errorf("remand_owed = %+v, want %+v", plan.RemandOwed, want)
+	}
 	if plan.Ceiling {
 		t.Errorf("a remanded gap whose exchange is owed is not at its limit, so the board is not at its ceiling")
 	}
@@ -138,6 +143,9 @@ func TestAStalledRemandExchangeGoesBackToTheBench(t *testing.T) {
 	}
 	if plan.Ceiling {
 		t.Errorf("a gap going back to the bench is not at its limit")
+	}
+	if len(plan.RemandOwed) != 0 {
+		t.Errorf("the remand's exchange is spent, so the plan owes it nowhere: remand_owed %+v", plan.RemandOwed)
 	}
 	for _, seat := range []struct{ role, id string }{{"lens", evLens}, {"blue", "blue-respond"}} {
 		if workMentions(t, run, seat.role, seat.id, remandDirection) {

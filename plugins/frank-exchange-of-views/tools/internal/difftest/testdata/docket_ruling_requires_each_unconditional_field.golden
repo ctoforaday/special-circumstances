@@ -81,7 +81,7 @@ feov-record: bench: record: motion rule requires --tension to say something (the
 $ motion docket rule --run {RUN} --seat-id judge --id M1 --as remanded --reason r --principle p --tension t --review-flag none --settled s --final
 exit 2
 stderr:
-feov-record: bench: record: motion docket rule --as remanded requires --reopens-on: the research direction the remand's one more exchange owes blue and the minting lens. --final says nothing would reopen the gap, which a remand does, so a remand never passes it
+feov-record: bench: record: motion docket rule --as remanded requires --reopens-on, and never --final: --reopens-on is the research direction the remand's one more exchange owes blue and the minting lens, and --final says nothing would reopen a closed gap — a remand closes nothing
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
@@ -96,7 +96,7 @@ feov-record: bench: record: motion docket rule --as remanded requires --reopens-
 {"key":"judge:log:#3","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --reason --review-flag --settled --tension: bench: record: motion rule requires --principle (the rule the bench applied, stated so a later sitting can apply the same one)","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":9,"type":"EVENT_TYPE_LOG"}
 {"key":"judge:log:#4","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --principle --reason --review-flag --settled --tension: bench: record: motion docket rule requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted sitting","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":10,"type":"EVENT_TYPE_LOG"}
 {"key":"judge:log:#5","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --final --id --principle --reason --review-flag --settled --tension: bench: record: motion rule requires --tension to say something (the values that pulled against each other — or, where none did, the ruling's weakest point: what a party would argue against the rule you applied)","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":11,"type":"EVENT_TYPE_LOG"}
-{"key":"judge:log:#6","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --final --id --principle --reason --review-flag --settled --tension: bench: record: motion docket rule --as remanded requires --reopens-on: the research direction the remand's one more exchange owes blue and the minting lens. --final says nothing would reopen the gap, which a remand does, so a remand never passes it","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":12,"type":"EVENT_TYPE_LOG"}
+{"key":"judge:log:#6","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --final --id --principle --reason --review-flag --settled --tension: bench: record: motion docket rule --as remanded requires --reopens-on, and never --final: --reopens-on is the research direction the remand's one more exchange owes blue and the minting lens, and --final says nothing would reopen a closed gap — a remand closes nothing","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":12,"type":"EVENT_TYPE_LOG"}
 
 ═══ RENDERS ═══
 -- avenues

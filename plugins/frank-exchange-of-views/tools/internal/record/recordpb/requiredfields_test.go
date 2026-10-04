@@ -51,6 +51,24 @@ func TestAnEmptyValueTheSeatPassedSatisfiesTheRequirement(t *testing.T) {
 	}
 }
 
+// WHITESPACE IS SILENCE. A required prose field that is all spaces says what "" says, and a check
+// against "" alone would take it as an answer.
+func TestAWhitespaceValueIsRefusedWhereEmptyIs(t *testing.T) {
+	for _, blank := range []string{" ", "\t\n ", "\u00a0"} {
+		body := &DocketRuling{
+			Disposition: Disposition_DISPOSITION_REMANDED.Enum(),
+			Principle:   proto.String("p"),
+			Tension:     proto.String(blank),
+			ReviewFlag:  proto.String("r"),
+			Settled:     proto.String(""),
+			ReopensOn:   proto.String("a reproduction on the shipped binary"),
+		}
+		if err := CheckRequired("motion docket rule", body); err == nil || !strings.Contains(err.Error(), "--tension to say something") {
+			t.Errorf("a tension of %q was taken as an answer: %v", blank, err)
+		}
+	}
+}
+
 // EVERY REQUIRED FIELD CAN NAME THE FLAG THAT FIXES IT.
 //
 // A refusal that says only "required" sends a seat looking for a flag it has to guess, and a seat

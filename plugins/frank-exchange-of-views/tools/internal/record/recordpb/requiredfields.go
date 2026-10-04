@@ -81,7 +81,8 @@ func checkRequiredIn(verb string, m protoreflect.Message) error {
 		// the check was presence-only for a while after the Go table's two flavours collapsed into
 		// one annotation. `allow_empty` is the narrow exception, declared at the field: a
 		// docket ruling's `settled` may bar nothing, so an empty answer there is an answer.
-		if fd.Kind() == protoreflect.StringKind && !o.GetAllowEmpty() && m.Get(fd).String() == "" {
+		// Whitespace is silence too: a blank that is all spaces says exactly what "" says.
+		if fd.Kind() == protoreflect.StringKind && !o.GetAllowEmpty() && strings.TrimSpace(m.Get(fd).String()) == "" {
 			return fmt.Errorf("record: %s requires --%s to say something%s", verb, flagFor(fd, o), because(o))
 		}
 	}

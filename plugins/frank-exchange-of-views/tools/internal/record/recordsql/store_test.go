@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -394,6 +395,66 @@ func TestAnUnruledMotionIsAColumn(t *testing.T) {
 	}
 	if id != "M2" || gap != "G2" {
 		t.Errorf("unruled = (%q, %q), want (M2, G2)", id, gap)
+	}
+}
+
+// THE DATABASE REFUSES A REMAND WITHOUT A DIRECTION ON ITS OWN, with no write path in front of it.
+// The write path refuses it first, in words a bench can act on; the DocketRuling CHECK is what
+// holds when anything else inserts — migrate's replay, a fixture, a future verb. A remand ruled
+// final, or with a blank or whitespace direction, would reach blue and the minting lens owing
+// nothing.
+func TestTheDatabaseRefusesARemandWithoutADirection(t *testing.T) {
+	for _, c := range []struct {
+		name      string
+		reopensOn *string
+		final     *bool
+		refused   bool
+	}{
+		{"final, no direction", nil, proto.Bool(true), true},
+		{"blank direction", proto.String(""), nil, true},
+		{"whitespace direction", proto.String(" \t\n\r "), nil, true},
+		{"a direction and final", proto.String("a reproduction on the shipped binary"), proto.Bool(true), true},
+		{"a direction", proto.String("a reproduction on the shipped binary"), nil, false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			db := store(t)
+			if _, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
+				GapId: proto.String("G1"), Class: proto.String("c"), Problem: proto.String("p"), AcceptanceCheck: proto.String("a"),
+				CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Likelihood: recordpb.Grade_GRADE_HIGH.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum(),
+			})); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
+				MotionId: proto.String("M1"),
+				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+				Basis:    proto.String("red cannot settle this one"),
+				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+			})); err != nil {
+				t.Fatalf("the record refused a docket motion: %v", err)
+			}
+			_, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
+				MotionId: proto.String("M1"),
+				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+				Opinion:  proto.String("stated"),
+				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+					Disposition: recordpb.Disposition_DISPOSITION_REMANDED.Enum(),
+					Principle:   proto.String("correctness over economy"),
+					Tension:     proto.String("the repair costs a round"),
+					ReviewFlag:  proto.String("the reproduction settles it"),
+					Settled:     proto.String(""),
+					ReopensOn:   c.reopensOn,
+					Final:       c.final,
+				}},
+			}))
+			switch {
+			case c.refused && err == nil:
+				t.Fatal("the database stored a remand that states no direction")
+			case c.refused && !strings.Contains(err.Error(), "CHECK constraint failed"):
+				t.Errorf("refused, but not by the table's CHECK: %v", err)
+			case !c.refused && err != nil:
+				t.Errorf("the database refused a remand stating its direction: %v", err)
+			}
+		})
 	}
 }
 

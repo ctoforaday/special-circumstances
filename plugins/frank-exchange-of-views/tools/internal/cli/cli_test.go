@@ -11,6 +11,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -1225,16 +1226,15 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 		}
 		return runDir, docketFile(t, runDir, "red-chair", "G1", "contested, and not mine to close")
 	}
-	without := func(f, v string) map[string]string {
-		out := map[string]string{}
-		for k, x := range stated {
-			out[k] = x
-		}
-		if v == "-" {
-			delete(out, f)
-		} else {
-			out[f] = v
-		}
+	// with is the stated set with f answered v; omitting is the stated set with f never passed.
+	with := func(f, v string) map[string]string {
+		out := maps.Clone(stated)
+		out[f] = v
+		return out
+	}
+	omitting := func(f string) map[string]string {
+		out := maps.Clone(stated)
+		delete(out, f)
 		return out
 	}
 	for _, c := range []struct {
@@ -1242,10 +1242,15 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 		set        map[string]string
 		final      bool
 	}{
-		{"blank --tension", "requires --tension to say something", without("--tension", ""), false},
-		{"blank --review-flag", "requires --review-flag to say something", without("--review-flag", ""), false},
-		{"remand with --final", "--as remanded requires --reopens-on", without("--reopens-on", "-"), true},
-		{"remand with neither", "--as remanded requires --reopens-on", without("--reopens-on", "-"), false},
+		{"blank --tension", "requires --tension to say something", with("--tension", ""), false},
+		{"whitespace --tension", "requires --tension to say something", with("--tension", "  \t "), false},
+		{"blank --review-flag", "requires --review-flag to say something", with("--review-flag", ""), false},
+		{"whitespace --review-flag", "requires --review-flag to say something", with("--review-flag", "\n "), false},
+		{"remand with --final", "--as remanded requires --reopens-on", omitting("--reopens-on"), true},
+		{"remand with a direction and --final", "--as remanded requires --reopens-on, and never --final", stated, true},
+		{"remand with neither", "--as remanded requires --reopens-on", omitting("--reopens-on"), false},
+		{"remand with a blank direction", "--as remanded requires --reopens-on", with("--reopens-on", ""), false},
+		{"remand with a whitespace direction", "--as remanded requires --reopens-on", with("--reopens-on", " \t"), false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			runDir, m := docket(t)
@@ -1286,8 +1291,8 @@ func TestBenchDocketRuleNamesTheWrongSubjectBeforeAMissingField(t *testing.T) {
 	for _, omit := range []string{"principle", "tension", "review-flag", "settled"} {
 		t.Run("omitted --"+omit, func(t *testing.T) {
 			args := []string{"motion", "docket", "rule", "--run", runDir, "--seat-id", "judge",
-				"--id", m, "--as", "remanded", "--final", "--reason", "the rationale"}
-			for k, v := range map[string]string{"principle": "p", "tension": "t", "review-flag": "", "settled": "s"} {
+				"--id", m, "--as", "remanded", "--reopens-on", "a reproduction on the shipped binary", "--reason", "the rationale"}
+			for k, v := range map[string]string{"principle": "p", "tension": "t", "review-flag": "r", "settled": "s"} {
 				if k != omit {
 					args = append(args, "--"+k, v)
 				}

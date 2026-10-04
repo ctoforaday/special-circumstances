@@ -1216,11 +1216,12 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		//
 		// A REMAND ANSWERS IT WITH --reopens-on, ALWAYS. The remand's one more exchange owes the
 		// direction the ruling states, and the dispatch hands blue and the minting lens its
-		// reopens_on; --final says nothing would reopen a gap the remand is reopening. Asked first,
-		// so a remand stating neither is told what a remand owes rather than offered --final.
+		// reopens_on; --final says nothing would reopen a gap the remand never closed. Asked first,
+		// so a remand stating neither, or stating --final, is told what a remand owes rather than
+		// offered --final. A blank direction is no direction.
 		if d, ok := b.GetRuling().(*recordpb.MotionRule_Docket); ok {
-			if d.Docket.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED && d.Docket.ReopensOn == nil {
-				return fmt.Errorf("record: motion docket rule --as remanded requires --reopens-on: the research direction the remand's one more exchange owes blue and the minting lens. --final says nothing would reopen the gap, which a remand does, so a remand never passes it")
+			if d.Docket.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED && (strings.TrimSpace(d.Docket.GetReopensOn()) == "" || d.Docket.Final != nil) {
+				return fmt.Errorf("record: motion docket rule --as remanded requires --reopens-on, and never --final: --reopens-on is the research direction the remand's one more exchange owes blue and the minting lens, and --final says nothing would reopen a closed gap — a remand closes nothing")
 			}
 			if d.Docket.ReopensOn == nil && d.Docket.Final == nil {
 				return fmt.Errorf("record: motion docket rule requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted sitting")

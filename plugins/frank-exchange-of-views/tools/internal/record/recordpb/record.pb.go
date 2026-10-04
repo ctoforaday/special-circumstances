@@ -5671,7 +5671,11 @@ type DocketRuling struct {
 	Tension    *string `protobuf:"bytes,3,opt,name=tension,proto3,oneof" json:"tension,omitempty"`
 	ReviewFlag *string `protobuf:"bytes,4,opt,name=review_flag,json=reviewFlag,proto3,oneof" json:"review_flag,omitempty"`
 	Settled    *string `protobuf:"bytes,5,opt,name=settled,proto3,oneof" json:"settled,omitempty"`
-	ReopensOn  *string `protobuf:"bytes,6,opt,name=reopens_on,json=reopensOn,proto3,oneof" json:"reopens_on,omitempty"`
+	// ONE COLUMN, TWO MEANINGS, SPLIT BY THE DISPOSITION. On a ruling that closes the gap it is the
+	// condition that would reopen it; on a remand, which closes nothing, it is the research direction
+	// the remand's exchange owes. Every reader of a remand reads it as the direction (the "remand"
+	// view, the dispatch plan's remand_owed, the work lists), and the help says both.
+	ReopensOn *string `protobuf:"bytes,6,opt,name=reopens_on,json=reopensOn,proto3,oneof" json:"reopens_on,omitempty"`
 	// Recorded only when TRUE. Absent means the ruling answered with `reopens_on` instead; the
 	// checks above are what make "neither" and "both" unrepresentable.
 	Final         *bool `protobuf:"varint,7,opt,name=final,proto3,oneof" json:"final,omitempty"`
@@ -7803,21 +7807,21 @@ const file_record_proto_rawDesc = "" +
 	"\x06_class\"\xbb\x01\n" +
 	"\fDocketMotion\x12\x9f\x01\n" +
 	"\x06gap_id\x18\x01 \x01(\tB\x82\x01\x82\xb5\x18~\b\x01\x12\x02id\x1aiwhich gap is being put before the bench — a docket motion that names no gap is an escalation of nothing\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01B\t\n" +
-	"\a_gap_id\"\xb0\x0f\n" +
+	"\a_gap_id\"\xdf\x10\n" +
 	"\fDocketRuling\x12\xfd\x01\n" +
 	"\vdisposition\x18\x01 \x01(\x0e2\x1b.feov.record.v1.DispositionB\xb8\x01\x82\xb5\x18\xb3\x01\b\x01\x12\x02as\x1a\xaa\x01the bench's word, which decides the gap's fate — `remanded` sends it back to the debate for one more exchange between its minting lens and blue, everything else ends itH\x00R\vdisposition\x88\x01\x01\x12{\n" +
 	"\tprinciple\x18\x02 \x01(\tBX\x82\xb5\x18P\b\x01\x1aLthe rule the bench applied, stated so a later sitting can apply the same one\xc0\xb5\x18\x01H\x01R\tprinciple\x88\x01\x01\x12\xc1\x01\n" +
 	"\atension\x18\x03 \x01(\tB\xa1\x01\x82\xb5\x18\x98\x01\b\x01\x1a\x93\x01the values that pulled against each other — or, where none did, the ruling's weakest point: what a party would argue against the rule you applied\xc0\xb5\x18\x01H\x02R\atension\x88\x01\x01\x12\xac\x01\n" +
 	"\vreview_flag\x18\x04 \x01(\tB\x85\x01\x82\xb5\x18}\b\x01\x12\vreview-flag\x1alwhat a human should look at again — or, where nothing needs a human, what on the record already settles it\xc0\xb5\x18\x01H\x03R\n" +
 	"reviewFlag\x88\x01\x01\x12\x94\x01\n" +
-	"\asettled\x18\x05 \x01(\tBu\x82\xb5\x18m\b\x01\x1agwhat the losing party may no longer assert, as one sentence — not the gap id, and not the disposition8\x01\xc0\xb5\x18\x01H\x04R\asettled\x88\x01\x01\x12|\n" +
+	"\asettled\x18\x05 \x01(\tBu\x82\xb5\x18m\b\x01\x1agwhat the losing party may no longer assert, as one sentence — not the gap id, and not the disposition8\x01\xc0\xb5\x18\x01H\x04R\asettled\x88\x01\x01\x12\xf8\x01\n" +
 	"\n" +
-	"reopens_on\x18\x06 \x01(\tBX\x82\xb5\x18P\x12\n" +
-	"reopens-on\x1aBthe evidence or condition that would make this worth raising again\xc0\xb5\x18\x01H\x05R\treopensOn\x88\x01\x01\x12\x19\n" +
-	"\x05final\x18\a \x01(\bH\x06R\x05final\x88\x01\x01:\xa0\x06\x92\xb5\x18\xb6\x02\n" +
+	"reopens_on\x18\x06 \x01(\tB\xd3\x01\x82\xb5\x18\xca\x01\x12\n" +
+	"reopens-on\x1a\xbb\x01on a ruling that closes the gap, the evidence or condition that would make it worth raising again; on a remand, the research direction its one more exchange owes blue and the minting lens\xc0\xb5\x18\x01H\x05R\treopensOn\x88\x01\x01\x12\x19\n" +
+	"\x05final\x18\a \x01(\bH\x06R\x05final\x88\x01\x01:\xd2\x06\x92\xb5\x18\xb6\x02\n" +
 	"/\"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL\x12\x82\x02a ruling owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted sitting\x92\xb5\x18\xb4\x01\n" +
-	"'\"reopens_on\" IS NULL OR \"final\" IS NULL\x12\x88\x01--final says nothing would reopen this and --reopens-on names what would; they are opposite answers to one question, so pass exactly one\x92\xb5\x18\xa7\x02\n" +
-	"7\"disposition\" <> 'remanded' OR \"reopens_on\" IS NOT NULL\x12\xeb\x01a remand sends the gap back for one more exchange, and --reopens-on is the research direction that exchange owes blue and the minting lens; --final says nothing would reopen the gap, which a remand does, so a remand passes --reopens-onB\x0e\n" +
+	"'\"reopens_on\" IS NULL OR \"final\" IS NULL\x12\x88\x01--final says nothing would reopen this and --reopens-on names what would; they are opposite answers to one question, so pass exactly one\x92\xb5\x18\xd9\x02\n" +
+	"]\"disposition\" <> 'remanded' OR coalesce(trim(\"reopens_on\", ' ' || char(9, 10, 13)), '') <> ''\x12\xf7\x01a remand sends the gap back for one more exchange, and --reopens-on is the research direction that exchange owes blue and the minting lens; a blank one is no direction, and --final says nothing would reopen a closed gap — a remand closes nothingB\x0e\n" +
 	"\f_dispositionB\f\n" +
 	"\n" +
 	"_principleB\n" +
@@ -8047,7 +8051,7 @@ const file_record_proto_rawDesc = "" +
 	"\x1aCLASS_MATERIAL_UNSPECIFIED\x10\x00\x12\x91\x01\n" +
 	"\x15CLASS_MATERIAL_ALWAYS\x10\x01\x1av\x8a\xb5\x18revery gap of this class is material, whatever its grade — it changes a conclusion or a figure a reader relies on\x12\x85\x01\n" +
 	"\x14CLASS_MATERIAL_NEVER\x10\x02\x1ak\x8a\xb5\x18gno gap of this class is material, whatever its grade — it stays on the board and never holds the gate\x12m\n" +
-	"\x17CLASS_MATERIAL_BY_GRADE\x10\x03\x1aP\x8a\xb5\x18La gap of this class is material when its current severity is medium or above*\xe4\f\n" +
+	"\x17CLASS_MATERIAL_BY_GRADE\x10\x03\x1aP\x8a\xb5\x18La gap of this class is material when its current severity is medium or above*\x94\r\n" +
 	"\vDisposition\x12\x1b\n" +
 	"\x17DISPOSITION_UNSPECIFIED\x10\x00\x12[\n" +
 	"\x14DISPOSITION_REPAIRED\x10\x01\x1aA\x8a\xb5\x189the repair was verified at the leaf and nothing regressed\x98\xb5\x18\x01\x12\xa0\x01\n" +
@@ -8055,8 +8059,8 @@ const file_record_proto_rawDesc = "" +
 	"\x18DISPOSITION_AMENDS_PRIOR\x10\x03\x1a\xb9\x01\x8a\xb5\x18\xb0\x01a defect found BETWEEN two repairs that each closed clean earlier — its lineage is the supersedes the gap was minted with; the close itself carries none and nothing checks it\x98\xb5\x18\x01\x12\x90\x01\n" +
 	"\x18DISPOSITION_NOT_A_DEFECT\x10\x04\x1ar\x8a\xb5\x18jblue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be\x98\xb5\x18\x01\x12\xb5\x01\n" +
 	"\x1bDISPOSITION_DEFECT_ACCEPTED\x10\x05\x1a\x93\x01\x8a\xb5\x18\x8a\x01the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record\x98\xb5\x18\x01\x12\x8f\x01\n" +
-	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\xa4\x03\n" +
-	"\x14DISPOSITION_REMANDED\x10\a\x1a\x89\x03\x8a\xb5\x18\x80\x03NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states as what would reopen it. If that exchange leaves it at impasse it is docketed again, if it moves the gap the gap's limits count afresh from the ruling, and a second remand at impasse leaves it open at its limit\x98\xb5\x18\x00\x12\xd8\x01\n" +
+	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\xd4\x03\n" +
+	"\x14DISPOSITION_REMANDED\x10\a\x1a\xb9\x03\x8a\xb5\x18\xb0\x03NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states — a remand closes nothing, so it states a direction and never --final. If that exchange leaves it at impasse it is docketed again, if it moves the gap the gap's limits count afresh from the ruling, and a second remand at impasse leaves it open at its limit\x98\xb5\x18\x00\x12\xd8\x01\n" +
 	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01*\xd9\b\n" +
 	"\rSourceOutcome\x12\x1e\n" +
 	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12\xf8\x01\n" +

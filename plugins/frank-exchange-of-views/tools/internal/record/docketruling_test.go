@@ -203,6 +203,9 @@ func TestARemandStatesItsDirection(t *testing.T) {
 	}{
 		{"remanded --final", func(d *recordpb.DocketRuling) { d.ReopensOn, d.Final = nil, proto.Bool(true) }},
 		{"remanded with neither", func(d *recordpb.DocketRuling) { d.ReopensOn = nil }},
+		{"remanded with a direction and --final", func(d *recordpb.DocketRuling) { d.Final = proto.Bool(true) }},
+		{"remanded with a blank direction", func(d *recordpb.DocketRuling) { d.ReopensOn = proto.String("") }},
+		{"remanded with a whitespace direction", func(d *recordpb.DocketRuling) { d.ReopensOn = proto.String(" \t\n") }},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			run := mustRun(t, docketRunDir(t))
