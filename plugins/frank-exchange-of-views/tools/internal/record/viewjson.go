@@ -12,6 +12,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // STRUCTURED STATE FOR THE SEATS.
@@ -296,11 +297,6 @@ func closureBody(g *Gap) proto.Message {
 
 // BoardJSONBytes renders the board as indented JSON. Indented because a seat reads this in
 // a terminal transcript and a single 40KB line is unreadable to the thing consuming it.
-func BoardJSONBytes(run Run) ([]byte, error) {
-	return BoardJSONBytesFor(run, "", "")
-}
-
-// BoardJSONBytesFor is the board.
 //
 // IT USED TO OPTIONALLY CARRY THE SEAT'S SITTING, under an arm, and the measurement behind that is
 // still true: `board` is described in this package's own words as "the form a seat acts on" and was
@@ -312,17 +308,7 @@ func BoardJSONBytes(run Run) ([]byte, error) {
 // reads, it can no longer tell whether the other says something different. There is one work list,
 // it is what bare `show` returns for every role, and it is the command a seat is told to run. The
 // board is the gaps; the work is the work.
-func BoardJSONBytesFor(run Run, role, seatID string) ([]byte, error) {
-	bj, err := BoardJSONOfRun(run)
-	if err != nil {
-		return nil, err
-	}
-	out, err := json.MarshalIndent(bj, "", "  ")
-	if err != nil {
-		return nil, err
-	}
-	return append(out, '\n'), nil
-}
+func BoardJSONBytes(run Run) ([]byte, error) { return boardView.jsonBytes(run) }
 
 // BoardJSONOfRun is the board projection asked of the RECORD: the gap view answers everything
 // scalar (order, openness, the regrade-overlaid grades, the mint's prose, the proof debt), the
@@ -336,7 +322,8 @@ func BoardJSONBytesFor(run Run, role, seatID string) ([]byte, error) {
 // board-holding caller's wave retires the fold shape (plans/board-as-views.md wave 7).
 func BoardJSONOfRun(run Run) (BoardJSON, error) { return boardView.of(run) }
 
-// boardView is the acts the board embeds or attributes, one filtered typed read, grouped per gap.
+// boardView is the acts the board embeds or attributes, one filtered typed read, grouped per gap;
+// every gap's scalars come off the same snapshot (boardJSONOfRecord).
 var boardView = declareNarrowedView("board", boardJSONOfRecord,
 	recordpb.EventType_EVENT_TYPE_CLOSE,
 	recordpb.EventType_EVENT_TYPE_MOTION,
@@ -345,19 +332,25 @@ var boardView = declareNarrowedView("board", boardJSONOfRecord,
 	recordpb.EventType_EVENT_TYPE_FINDING,
 	recordpb.EventType_EVENT_TYPE_VERIFY) // for each open gap's backing
 
-// boardJSONOfRecord is BoardJSONOfRun over the events its declaration loaded.
-func boardJSONOfRecord(run Run, evs []*Event, win WindowIndex) (BoardJSON, error) {
+// boardJSONOfRecord is BoardJSONOfRun over the events its declaration loaded, asking the gap view
+// and the list tables on the same snapshot (q) — so a gap the `gap` table reads as closed has its
+// closing act in evs.
+func boardJSONOfRecord(run Run, q recordsql.Querier, evs []*Event, win WindowIndex) (BoardJSON, error) {
 	out := BoardJSON{
 		Open:      []GapJSON{},
 		Closed:    []GapJSON{},
 		Anomalies: []string{},
+	}
+	if q == nil {
+		out.Observations = []ObservationJSON{}
+		return out, nil
 	}
 
 	// WHERE EACH GAP'S SENTENCE WENT, read once for the whole board. A location is prose captured
 	// at mint; the edits that moved it are on the record, so it is replayed rather than shown
 	// stale. A read failure leaves the map empty and every location reads as minted, which is the
 	// honest degradation: no edit is INVENTED on a run whose edits could not be read.
-	gapEdits, geErr := GapEdits(run)
+	gapEdits, geErr := gapEditsAt(q)
 	if geErr != nil {
 		gapEdits = map[string][]GapEdit{}
 	}
@@ -369,9 +362,10 @@ func boardJSONOfRecord(run Run, evs []*Event, win WindowIndex) (BoardJSON, error
 	// A FAILURE HERE IS NOT AN ERROR. A run before its base is ingested has no report, and that is
 	// the ordinary early state rather than a fault; every gap simply carries no passage and the
 	// auditor reads the report exactly as it did before.
+	//
 	report := ""
 	if reportRenderer != nil {
-		if md, err := reportRenderer(run); err == nil {
+		if md, err := reportRenderer(q); err == nil {
 			report = md
 		}
 	}
@@ -396,24 +390,16 @@ func boardJSONOfRecord(run Run, evs []*Event, win WindowIndex) (BoardJSON, error
 		}
 	}
 
-	db, err := openRunForRead(run)
+	foundBy, err := listValuesByEvent(q, "mint_found_by")
 	if err != nil {
 		return out, err
 	}
-	if db == nil {
-		out.Observations = []ObservationJSON{}
-		return out, nil
-	}
-	foundBy, err := listValuesByEvent(db, "mint_found_by")
-	if err != nil {
-		return out, err
-	}
-	supersedes, err := listValuesByEvent(db, "mint_supersedes")
+	supersedes, err := listValuesByEvent(q, "mint_supersedes")
 	if err != nil {
 		return out, err
 	}
 
-	rows, err := db.Query(`SELECT "gap_id", "minted_epoch", "open",
+	rows, err := q.Query(`SELECT "gap_id", "minted_epoch", "open",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "mint_reason", "required_fix",
 	    "acceptance_check", "check_kind", "awaiting_proof", "fix_basis", "fix_new", "minted_event"
@@ -507,7 +493,7 @@ func boardJSONOfRecord(run Run, evs []*Event, win WindowIndex) (BoardJSON, error
 		out.Observations = []ObservationJSON{}
 	}
 
-	if err := db.QueryRow(`SELECT
+	if err := q.QueryRow(`SELECT
 	    (SELECT count(*) FROM "verify"),
 	    (SELECT count(*) FROM "cite")`).Scan(&out.Counts.Citations, &out.Counts.CitationsAuthored); err != nil {
 		return out, err
@@ -601,7 +587,7 @@ func nullWord(v sql.NullString) any {
 }
 
 // listValuesByEvent reads one list table whole: event_id -> values in ord order.
-func listValuesByEvent(db *sql.DB, table string) (map[int64][]string, error) {
+func listValuesByEvent(db recordsql.Querier, table string) (map[int64][]string, error) {
 	rows, err := db.Query(fmt.Sprintf(`SELECT "event_id", "value" FROM %q ORDER BY "event_id", "ord"`, table))
 	if err != nil {
 		return nil, err
@@ -959,7 +945,7 @@ func workGapStatesOfRun(run Run, evs []*Event, win WindowIndex) ([]WorkGapState,
 	// here is the ordinary early state rather than a fault.
 	report := ""
 	if reportRenderer != nil {
-		if md, rerr := reportRenderer(run); rerr == nil {
+		if md, rerr := renderReport(run); rerr == nil {
 			report = md
 		}
 	}
@@ -1547,8 +1533,7 @@ type DebateOpinionJSON struct {
 // DebateJSONOf projects the debate prose per epoch. It takes the EPOCH SKELETON separately from
 // the events, because the epochs come from the WHOLE record — an epoch whose only acts are mints
 // still renders, empty, exactly as it always has — while the events it renders are only the
-// position, closing, motion, motion-rule and verdict families. A caller holding merged events uses
-// DebateJSONOfEvents.
+// families debateView declares. A caller holding merged events uses DebateJSONOfEvents.
 func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex) DebateJSON {
 	out := DebateJSON{Epochs: []DebateEpochJSON{}}
 
@@ -1668,8 +1653,8 @@ func DebateJSONOfEvents(evs []*Event, win WindowIndex) DebateJSON {
 
 // debateView is the structured debate read from the record: the transcript's families, and the
 // chair's recorded verdicts each epoch's `verdict` is read from.
-var debateView = declareNarrowedView("debate", func(run Run, evs []*Event, win WindowIndex) (DebateJSON, error) {
-	epochs, err := Epochs(run)
+var debateView = declareNarrowedView("debate", func(_ Run, q recordsql.Querier, evs []*Event, win WindowIndex) (DebateJSON, error) {
+	epochs, err := epochsAt(q)
 	if err != nil {
 		return DebateJSON{}, err
 	}

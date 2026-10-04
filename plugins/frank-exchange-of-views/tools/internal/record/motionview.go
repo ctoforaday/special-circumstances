@@ -112,8 +112,8 @@ func motionsJSONOf(evs []*Event, win WindowIndex) MotionsJSON {
 	return out
 }
 
-// motionsView is the motions read from the record. The exchange lives on four event families;
-// nothing else on the record decides a motion's state.
+// motionsView is the motions read from the record. The exchange lives on the families declared
+// here; nothing else on the record decides a motion's state.
 var motionsView = declareNarrowedView("motions", rendersEvents(motionsJSONOf),
 	recordpb.EventType_EVENT_TYPE_AVENUE,
 	recordpb.EventType_EVENT_TYPE_MOTION,

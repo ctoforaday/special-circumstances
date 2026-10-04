@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // A GAP'S LOCATION IS CARRIED THROUGH THE EDITS, not frozen at mint and not merely flagged.
@@ -58,6 +59,11 @@ func GapEdits(run Run) (map[string][]GapEdit, error) {
 	if err != nil || db == nil {
 		return map[string][]GapEdit{}, err
 	}
+	return gapEditsAt(db)
+}
+
+// gapEditsAt is GapEdits asked of q.
+func gapEditsAt(db recordsql.Querier) (map[string][]GapEdit, error) {
 	// Each gap's minted location and the event that minted it: an edit BEFORE the mint is part of the
 	// text red minted against, not a change to it.
 	mints, err := db.Query(`SELECT m."gap_id", COALESCE(m."location", ''), me."id"
