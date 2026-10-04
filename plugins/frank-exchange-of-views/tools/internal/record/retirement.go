@@ -69,9 +69,9 @@ type StaleArea struct {
 // lensStates folds every cast lens, in cast order. ids are the events' row ids, aligned with evs;
 // head is the report head (0: nothing ingested); fresh is the set of gap ids minted fresh and
 // material now.
-func lensStates(evs []*Event, ids []int64, at WindowIndex, head int64, fresh map[string]bool) []lensFold {
+func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh map[string]bool) []lensFold {
 	cast := castOfEvents(evs)
-	ds, registers := dispatchLedger(evs, ids, at)
+	ds, registers := dispatchLedger(evs, ids, win)
 	var out []lensFold
 	for _, seat := range cast {
 		if !strings.HasPrefix(seat, "red-lens-") {
@@ -212,20 +212,20 @@ type passLensGate struct {
 	covered map[string]bool // areas a spot-check in the chair's current sitting named
 }
 
-func passLensGateOf(evs []*Event, ids []int64, at WindowIndex, fresh map[string]bool) passLensGate {
+func passLensGateOf(evs []*Event, ids []int64, win WindowIndex, fresh map[string]bool) passLensGate {
 	g := passLensGate{cast: castOfEvents(evs) != nil, head: reportHeadOf(evs, ids), covered: map[string]bool{}}
 	if !g.cast {
 		return g
 	}
-	g.lenses = lensStates(evs, ids, at, g.head, fresh)
+	g.lenses = lensStates(evs, ids, win, g.head, fresh)
 	g.stale = staleAreasOf(g.lenses, g.head)
 	// THIS SITTING is the chair's latest sitting as the write path stored it: its spot-checks in that
 	// sitting — the same window the work list reads (thisSitting). A spot-check filed between the
 	// chair's bracket and its register is in it, which a scan back to the chair's last register would
 	// cut out.
-	latest := at.LatestSittingOf(chairSeat)
+	latest := win.LatestSittingOf(chairSeat)
 	for _, e := range evs {
-		if e.GetSeatId() != chairSeat || latest == 0 || at.Of(e).SittingID != latest {
+		if e.GetSeatId() != chairSeat || latest == 0 || win.Of(e).SittingID != latest {
 			continue
 		}
 		if sc, ok := recordpb.BodyAs[*recordpb.SpotCheck](e); ok {
@@ -272,7 +272,7 @@ func passLensGateOfRun(run Run) (passLensGate, bool, error) {
 	if err != nil || db == nil {
 		return passLensGate{}, false, err
 	}
-	evs, at, err := eventsAt(db)
+	evs, win, err := eventsAt(db)
 	if err != nil {
 		return passLensGate{}, false, err
 	}
@@ -280,7 +280,7 @@ func passLensGateOfRun(run Run) (passLensGate, bool, error) {
 	if err != nil {
 		return passLensGate{}, false, err
 	}
-	return passLensGateOf(evs, at.IDs(evs), at, fresh), true, nil
+	return passLensGateOf(evs, win.IDs(evs), win, fresh), true, nil
 }
 
 // LastSittingJSON is a lens's last sitting, as its work view carries it: the latest sitting STRICTLY
@@ -296,8 +296,8 @@ type LastSittingJSON struct {
 // dispatch is the current one, and every lens would read `unchanged`. D is the latest dispatch naming the seat (the one it sits for,
 // or owes); a prior sitting is a dispatch d before D whose sitting register is also before D, so an
 // unsat earlier dispatch cannot borrow the current register.
-func lastSittingBefore(evs []*Event, ids []int64, at WindowIndex, seatID string) LastSittingJSON {
-	ds, registers := dispatchLedger(evs, ids, at)
+func lastSittingBefore(evs []*Event, ids []int64, win WindowIndex, seatID string) LastSittingJSON {
+	ds, registers := dispatchLedger(evs, ids, win)
 	var cur *dispatchRow
 	for i := len(ds) - 1; i >= 0; i-- {
 		if ds[i].seat == seatID {

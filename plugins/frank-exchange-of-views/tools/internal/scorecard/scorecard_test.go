@@ -176,11 +176,14 @@ func TestUnrecordedClaimLossCountsRetireEventsNotEnvelope(t *testing.T) {
 	// sentences out at once credits two. A retire of uncited prose, or one taking out only a
 	// finding marker, removed nothing the count held — crediting it would cancel an unrelated
 	// real loss.
-	board := famOfEventsT([]*record.Event{
-		recordtest.Event(t, "", &recordpb.Retire{Anchors: []string{"f-1", "c-1"}}),
-		recordtest.Event(t, "", &recordpb.Retire{}),
-		recordtest.Event(t, "", &recordpb.Retire{Anchors: []string{"f-2"}}),
-		recordtest.Event(t, "", &recordpb.Retire{Anchors: []string{"c-2", "c-3"}}),
+	retire := func(anchors ...string) *record.Event {
+		return recordtest.Event(t, "", &recordpb.Retire{Claim: proto.String("the claim"), Reason: proto.String("refuted"), Anchors: anchors})
+	}
+	board := famSeededT(t, []*record.Event{
+		retire("f-1", "c-1"),
+		retire(),
+		retire("f-2"),
+		retire("c-2", "c-3"),
 	})
 	r := rowByMetric(blueRows(record.Run{}, results, nil, board, record.WhileRunning), "unrecorded_claim_loss")
 	if r == nil || r.Value == nil {

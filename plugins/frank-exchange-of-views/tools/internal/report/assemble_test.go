@@ -557,7 +557,7 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Label: proto.String("L5-F3"), Location: proto.String("§H1"), Text: proto.String("un-minted red reasoning kept for the record")}),
 		},
 	}
-	got := boardSection(board.fam())
+	got := boardSection(board.famT(t))
 	if !strings.Contains(got, "Lens findings credited by no gap (1)") {
 		t.Errorf("exactly one un-minted finding should be surfaced:\n%s", got)
 	}
@@ -614,7 +614,7 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 			}),
 		},
 	}
-	got := boardSection(board.fam())
+	got := boardSection(board.famT(t))
 	if !strings.Contains(got, "what red actually observed at the leaf") {
 		t.Errorf("the minted finding's own words are absent — the gap cites L5-F1 and nothing defines it:\n%s", got)
 	}
@@ -644,7 +644,7 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 		},
 		Events: board.Events,
 	}
-	if got := boardSection(closedBoard.fam()); !strings.Contains(got, "what red actually observed at the leaf") {
+	if got := boardSection(closedBoard.famT(t)); !strings.Contains(got, "what red actually observed at the leaf") {
 		t.Errorf("a CLOSED gap dropped the evidence it was minted from, and nothing else renders it:\n%s", got)
 	}
 }

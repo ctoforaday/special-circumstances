@@ -76,6 +76,12 @@ func (x WindowIndex) Opens(e *Event) (string, bool) {
 }
 
 // LatestSittingOf is the id of the event that opened the seat's newest sitting, or 0 if it has none.
+//
+// 0 is "never sat", so an index the loader did not build panics here as Of does: answering 0 from
+// no index would read every seat as one that has not sat.
 func (x WindowIndex) LatestSittingOf(seat string) int64 {
+	if x.of == nil {
+		panic(fmt.Sprintf("record: no window index to ask for %s's latest sitting — the index was not built by the loader, so it holds no stored sitting", seat))
+	}
 	return x.latest[seat]
 }

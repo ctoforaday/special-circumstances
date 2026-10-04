@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // EVERY REFUSAL A REPAIR CAN PRODUCE PUTS THE SEAT ON ONE OF TWO BRANCHES (#1026).
@@ -103,12 +105,12 @@ func TestEveryRepairRefusalStatesOneOfTheTwoBranches(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			b := newStage(t)
 			seat, key := c.build(b)
-			evs, at := loadedUnlessForgedT(t, b.evs)
+			evs, win := loadedUnlessForgedT(t, b.evs)
 			var err error
 			if key == "" {
-				_, err = repairTarget(evs, at, seat)
+				_, err = repairTarget(evs, win, seat)
 			} else {
-				err = checkRepair(evs, at, seat, key)
+				err = checkRepair(evs, win, seat, key)
 			}
 			if err == nil {
 				t.Fatalf("the repair was admitted; this row exists because it must be refused for %q", c.says)
@@ -122,6 +124,30 @@ func TestEveryRepairRefusalStatesOneOfTheTwoBranches(t *testing.T) {
 			}
 		})
 	}
+
+	// THE ROW THE DATABASE CANNOT HOLD. A register in no sitting, by a seat that has none, is in the
+	// seat's latest sitting by 0 == 0 and leaves no opening to name. The database refuses a register
+	// with no sitting (a CHECK on events), so the loaded windows are rewritten to one: the seat's
+	// sittings struck. It is the claim branch — the record does not bear the sitting out.
+	t.Run("the key names a register in no sitting, by a seat that never sat", func(t *testing.T) {
+		b := newStage(t)
+		chairSat(b).dispatch(2, "blue-respond", "G1").register("blue-respond")
+		m := loadedT(t, b.evs...)
+		ws := make([]recordsql.Window, len(m.Events))
+		for i, e := range m.Events {
+			ws[i] = m.At.Of(e)
+			if ws[i].Owner == "blue-respond" {
+				ws[i].SittingID, ws[i].Owner, ws[i].Sitting = 0, "", 0
+			}
+		}
+		err := checkRepair(m.Events, windowIndexOf(m.Events, ws), "blue-respond", b.lastKey())
+		if err == nil || !strings.Contains(err.Error(), "is in no sitting of blue-respond") {
+			t.Fatalf("err = %v, want the refusal naming a register in no sitting", err)
+		}
+		if strings.Contains(err.Error(), RepairNothingToFile) {
+			t.Errorf("the refusal carries the nothing-to-file sentence; the record does not bear the claim out:\n%v", err)
+		}
+	})
 
 	// THE ADMITTED CASE, because a table of refusals alone passes on a checkRepair that refuses
 	// everything.
@@ -148,8 +174,9 @@ func TestTheRepairRefusalTableCoversEverySite(t *testing.T) {
 	if sites == 0 {
 		t.Fatal("no refuseRepair call sites in repair.go — the refusals were renamed or reshaped and this guard is measuring nothing, which reads exactly like a pass")
 	}
-	// One row per site: the table's rows and repair.go's refusals are the same set.
-	const rows = 12
+	// One row per site: the table's rows (and the one row the database cannot hold, beside it) and
+	// repair.go's refusals are the same set.
+	const rows = 13
 	if sites != rows {
 		t.Errorf("repair.go refuses in %d places and TestEveryRepairRefusalStatesOneOfTheTwoBranches holds %d — a refusal with no row is one the re-prompt was never checked against", sites, rows)
 	}

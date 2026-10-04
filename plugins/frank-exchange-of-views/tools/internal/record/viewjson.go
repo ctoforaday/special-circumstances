@@ -1124,7 +1124,7 @@ func WorkJSONOfRun(run Run) (WorkJSON, error) {
 //
 // The pairing is the adversarial one: the chair waits on blue and blue waits on the chair. A lens
 // or the bench is told so plainly rather than being handed a zero it would read as inactivity.
-func counterpartyOf(evs []*Event, role string, epoch int) CounterpartyJSON {
+func counterpartyOf(evs []*Event, win WindowIndex, role string, epoch int) CounterpartyJSON {
 	other := map[string]string{"chair": "blue", "blue": "chair"}[role]
 	if other == "" {
 		// IT DOES NOT NAME ANOTHER COMMAND. This read "the lens and the bench read the board itself",
@@ -1133,9 +1133,7 @@ func counterpartyOf(evs []*Event, role string, epoch int) CounterpartyJSON {
 		return CounterpartyJSON{Reading: "this seat waits on no single party — your own list is the whole of what is open to you"}
 	}
 	c := CounterpartyJSON{Role: other}
-	var clk Clock
 	for _, e := range evs {
-		w := clk.Advance(e)
 		if PartyOf(e) != other {
 			continue
 		}
@@ -1144,7 +1142,7 @@ func counterpartyOf(evs []*Event, role string, epoch int) CounterpartyJSON {
 			continue // arriving is not acting
 		}
 		c.Acts++
-		r := w.Epoch
+		r := win.Of(e).Epoch
 		if r > c.LastEpoch {
 			c.LastEpoch = r
 		}
@@ -1163,14 +1161,13 @@ func counterpartyOf(evs []*Event, role string, epoch int) CounterpartyJSON {
 	return c
 }
 
-// roundOfSeatOnBoard is the epoch this seat is sitting in, taken from its own latest event.
-func epochOfSeatOnBoard(evs []*Event, seatID string) int {
+// epochOfSeatOnBoard is the epoch this seat is sitting in, taken from its own latest event's stored
+// window — the same load the work list's "this sitting" reads, so one list uses one definition.
+func epochOfSeatOnBoard(evs []*Event, win WindowIndex, seatID string) int {
 	r := 0
-	var clk Clock
 	for _, e := range evs {
-		w := clk.Advance(e)
-		if e.GetSeatId() == seatID && w.Epoch > r {
-			r = w.Epoch
+		if ep := win.Of(e).Epoch; e.GetSeatId() == seatID && ep > r {
+			r = ep
 		}
 	}
 	return r
@@ -1189,9 +1186,10 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	if err != nil {
 		return WorkJSON{}, err
 	}
-	w := workJSONOfGaps(gaps, epochOfSeatOnBoard(m.Events, seatID)-1, backingOf(m.Events), seatID)
+	epoch := epochOfSeatOnBoard(m.Events, m.At, seatID)
+	w := workJSONOfGaps(gaps, epoch-1, backingOf(m.Events), seatID)
 	w.Sitting = SittingOf(m.Events, m.At.IDs(m.Events), m.At, gaps, role, seatID)
-	w.Counterparty = counterpartyOf(m.Events, role, epochOfSeatOnBoard(m.Events, seatID))
+	w.Counterparty = counterpartyOf(m.Events, m.At, role, epoch)
 	return w, nil
 }
 

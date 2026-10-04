@@ -401,3 +401,44 @@ func TestAChairSpotCheckBeforeItsPairedRegisterIsInItsSitting(t *testing.T) {
 		t.Error("the chair's sitting reads as not covering red-lens-logic, but its spot-check is in that sitting")
 	}
 }
+
+// AN INDEX THE LOADER DID NOT BUILD ANSWERS NOTHING. Of an event it does not hold, and the latest
+// sitting from no index at all, both panic: either read as 0 is "never sat", the same bytes as a
+// seat that has not sat.
+func TestAWindowIndexTheLoaderDidNotBuildPanics(t *testing.T) {
+	m := loadedT(t, recordtest.Event(t, "red-chair", &recordpb.Register{}))
+	for name, ask := range map[string]func(){
+		"Of a hand-built event":        func() { m.At.Of(recordtest.Event(t, "red-chair", &recordpb.Register{})) },
+		"LatestSittingOf a zero index": func() { WindowIndex{}.LatestSittingOf("red-chair") },
+	} {
+		t.Run(name, func(t *testing.T) {
+			defer func() {
+				if recover() == nil {
+					t.Error("answered instead of panicking")
+				}
+			}()
+			ask()
+		})
+	}
+	if m.At.LatestSittingOf("red-chair") == 0 {
+		t.Error("the loaded index reads the chair's register as no sitting")
+	}
+}
+
+// THE WORK LIST'S EPOCH IS THE STORED ONE, on both sides of the counterparty. A chair sitting the
+// hook opened with no register is epoch 1 on the record; a register count reads it as 0. Blue's
+// epoch and the chair's acts are read off the same load, so the chair's dispatch in that sitting is
+// blue's counterparty acting in blue's epoch — a list that took one side from each definition
+// would tell blue the chair "worked in epoch 0 and has recorded nothing in this one".
+func TestTheWorkListsEpochIsTheStoredSitting(t *testing.T) {
+	b := newStage(t).cast(evLens, "red-chair", "blue-respond").ingest().
+		bracket("red-chair", "chair-a").dispatch(1, "blue-respond", "G1").
+		registerAs("blue-respond", "blue-a").edit("G1", "old", "new")
+	w, err := WorkOfSeat(b.seed(), "blue", "blue-respond")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := w.Counterparty; c.LastEpoch != 1 || c.ActsThisEpoch != 1 {
+		t.Errorf("counterparty = %+v, want the chair's dispatch in epoch 1, blue's own epoch", c)
+	}
+}

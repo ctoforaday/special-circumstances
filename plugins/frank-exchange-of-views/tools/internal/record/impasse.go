@@ -75,21 +75,21 @@ func Exchanges(run Run, p Params) (map[string]*GapExchanges, error) {
 	if err != nil || db == nil {
 		return map[string]*GapExchanges{}, err
 	}
-	evs, at, err := eventsAt(db)
+	evs, win, err := eventsAt(db)
 	if err != nil {
 		return nil, err
 	}
-	return exchangesOf(evs, at.IDs(evs), at, p, WhileRunning), nil
+	return exchangesOf(evs, win.IDs(evs), win, p, WhileRunning), nil
 }
 
 // exchangesOf is the fold. It takes when the record is read from its caller: the chair's dispatch
 // plan is its reader, and a plan is computed while the run is running. ids is evs's places.
-func exchangesOf(evs []*Event, ids []int64, at WindowIndex, p Params, when ReadWhen) map[string]*GapExchanges {
+func exchangesOf(evs []*Event, ids []int64, win WindowIndex, p Params, when ReadWhen) map[string]*GapExchanges {
 	minted := map[string]string{}    // gap -> the lens that minted it
 	grades := map[string][3]string{} // gap -> current severity, likelihood, impact
 	movement := map[string][]int64{} // gap -> ids of movement events
-	dispatches, registers := dispatchLedger(evs, ids, at)
-	closer := sittingCloserOf(evs, ids, at, registers, when)
+	dispatches, registers := dispatchLedger(evs, ids, win)
+	closer := sittingCloserOf(evs, ids, win, registers, when)
 
 	for i, e := range evs {
 		id := ids[i]

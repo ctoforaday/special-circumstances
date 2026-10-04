@@ -80,9 +80,9 @@ func refuseRepair(out repairOutcome, format string, a ...any) error {
 
 // repairTarget is the sitting a register by seat repairs — the key of the seat's register in its
 // latest sitting, the sitting the write path stores the repair in — once checkRepair admits it.
-func repairTarget(evs []*Event, at WindowIndex, seat string) (string, error) {
+func repairTarget(evs []*Event, win WindowIndex, seat string) (string, error) {
 	evs = Live(evs)
-	latest := at.LatestSittingOf(seat)
+	latest := win.LatestSittingOf(seat)
 	if latest == 0 {
 		return "", refuseRepair(nothingToFile,
 			"%s has no sitting to repair: none of yours has opened.", seat)
@@ -90,7 +90,7 @@ func repairTarget(evs []*Event, at WindowIndex, seat string) (string, error) {
 	var reg *Event
 	for _, e := range evs {
 		if _, repairs := recordpb.SittingRepairedBy(e); e.GetSeatId() == seat && !repairs &&
-			e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER && at.Of(e).SittingID == latest {
+			e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER && win.Of(e).SittingID == latest {
 			reg = e
 			break
 		}
@@ -100,7 +100,7 @@ func repairTarget(evs []*Event, at WindowIndex, seat string) (string, error) {
 			"%s's latest sitting holds no register of yours: the harness opened it, so no register names it for a repair.", seat)
 	}
 	key := reg.GetKey()
-	return key, checkRepair(evs, at, seat, key)
+	return key, checkRepair(evs, win, seat, key)
 }
 
 // checkRepair refuses a register by seat that names key as the sitting it repairs, unless key is
@@ -109,11 +109,11 @@ func repairTarget(evs []*Event, at WindowIndex, seat string) (string, error) {
 // found a gap open and lacks its position or revision (BlueSitting.Owes), or any other blue seat's
 // sitting that lacks its revision.
 //
-// WHICH sitting a register is in, and which is the seat's latest, is the write path's answer (at):
+// WHICH sitting a register is in, and which is the seat's latest, is the write path's answer (win):
 // it is the sitting the store puts the repair in, so the claim and the attribution cannot name two
 // different sittings. WHETHER a claim may be admitted against it is this function's, and the two
 // answer an unreadable body differently on purpose — opensASitting states the rule and the reason.
-func checkRepair(evs []*Event, at WindowIndex, seat, key string) error {
+func checkRepair(evs []*Event, win WindowIndex, seat, key string) error {
 	evs = Live(evs)
 	seq := make([]int64, len(evs))
 	for i := range seq {
@@ -146,12 +146,16 @@ func checkRepair(evs []*Event, at WindowIndex, seat, key string) error {
 	}
 	// The body reads, so the register reached the record through the write path and has a stored
 	// sitting: from here the claim is held to it.
-	ds, registers := dispatchLedger(evs, seq, at)
-	if at.Of(evs[named]).SittingID != at.LatestSittingOf(seat) {
+	ds, registers := dispatchLedger(evs, seq, win)
+	if win.Of(evs[named]).SittingID != win.LatestSittingOf(seat) {
 		return refuseRepair(claimUnfounded, "%q is in an earlier sitting of %s; a repair puts on the record what your LATEST sitting owes, and that sitting opened later", key, seat)
 	}
-	// From here the sitting is named by where it OPENED: the hook's bracket, or this register.
+	// From here the sitting is named by where it OPENED: the hook's bracket, or this register. A
+	// register in no sitting matches a seat that never sat (0 == 0) and leaves no opening to name.
 	opens := registers[seat]
+	if len(opens) == 0 {
+		return refuseRepair(claimUnfounded, "%q is in no sitting of %s on the record, so it names no sitting of yours to repair", key, seat)
+	}
 	opened := opens[len(opens)-1]
 	if roleOfSeat(seat) != "blue" {
 		return refuseRepair(nothingToFile, "%s owes no position or revision a repair can file: only a blue sitting owes them.", seat)
@@ -162,7 +166,7 @@ func checkRepair(evs []*Event, at WindowIndex, seat, key string) error {
 		}
 	}
 	if seat == blueRespondSeat {
-		for _, s := range BlueSittings(evs, at, WhileRunning) {
+		for _, s := range BlueSittings(evs, win, WhileRunning) {
 			if s.opened != opened {
 				continue
 			}
@@ -177,7 +181,7 @@ func checkRepair(evs []*Event, at WindowIndex, seat, key string) error {
 		}
 		return refuseRepair(nothingToFile, "the sitting %q opened was dispatched onto no gap, so it owes no position and no revision.", key)
 	}
-	closer := sittingCloserOf(evs, seq, at, registers, WhileRunning)
+	closer := sittingCloserOf(evs, seq, win, registers, WhileRunning)
 	spans, end, _ := closer.bounds(seat, opened)
 	for i := opened; i < end; i++ {
 		if evs[i].GetSeatId() == seat && evs[i].GetType() == recordpb.EventType_EVENT_TYPE_REVISION && holds(spans, i) {
