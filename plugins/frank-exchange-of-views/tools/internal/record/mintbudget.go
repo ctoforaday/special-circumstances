@@ -153,24 +153,34 @@ func countInReport(count func(string) int) func(Run) (int, error) {
 	}
 }
 
-// reportRenderer renders the current report from the record, asked of q — the run's handle, or a
-// projection's read transaction (nil on a run with no record yet). It is REGISTERED, not imported:
-// the renderer (internal/reportproj) imports this package, so the write path is handed it instead.
-var reportRenderer func(q recordsql.Querier) (string, error)
+// reportRenderer replays the report's frozen base and its ordered mutations — the rows
+// ReportProjectionAt reads — into the current report. It is REGISTERED, not imported: the renderer
+// (internal/reportproj) imports this package, so the write path is handed it instead. It asks the
+// record nothing, so a reader holding a read transaction takes the rows on it and replays after the
+// transaction closes.
+var reportRenderer func(base string, haveBase bool, ops []ReportOp) (string, error)
 
 // RegisterReportRenderer hands the write path the renderer the report-sized budgets read.
-func RegisterReportRenderer(fn func(q recordsql.Querier) (string, error)) { reportRenderer = fn }
+func RegisterReportRenderer(fn func(base string, haveBase bool, ops []ReportOp) (string, error)) {
+	reportRenderer = fn
+}
 
 // renderReport renders the run's current report on the run's own handle.
 func renderReport(run Run) (string, error) {
-	db, err := openRunForRead(run)
+	base, haveBase, ops, err := ReportProjection(run)
 	if err != nil {
 		return "", err
 	}
-	if db == nil {
-		return reportRenderer(nil)
+	return reportRenderer(base, haveBase, ops)
+}
+
+// renderReportAt renders the current report off q: its rows, then the replay.
+func renderReportAt(q recordsql.Querier) (string, error) {
+	base, haveBase, ops, err := ReportProjectionAt(q)
+	if err != nil {
+		return "", err
 	}
-	return reportRenderer(db)
+	return reportRenderer(base, haveBase, ops)
 }
 
 // requireMintWithinBudget is the run-level bound that is not a clock: each cast lens may mint at

@@ -1,6 +1,7 @@
 package record
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"go/ast"
@@ -177,7 +178,7 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 			}
 			var entire any
 			if err := readSnapshot(run, func(q recordsql.Querier) error {
-				entire, err = v.renderAny(run, q, whole.Events, whole.At)
+				entire, err = v.renderAny(q, whole.Events, whole.At)
 				return err
 			}); err != nil {
 				t.Fatal(err)
@@ -348,21 +349,18 @@ func TestEveryClosedGapOnTheBoardCarriesItsClosureWhileALensCloses(t *testing.T)
 			"2026-01-01T01:00:00Z"))
 	}
 	recordtest.Seed(t, dir, seed...)
-	db, err := recordsql.Open(filepath.Join(dir, "records", "record.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := seatWriter(t, filepath.Join(dir, "records", "record.db"))
 	run := mustRun(t, dir)
 
 	done := make(chan error, 1)
 	go func() {
+		var err error
+		defer func() { done <- err }()
 		for _, ev := range closes {
-			if _, err := recordsql.Insert(db, ev); err != nil {
-				done <- err
+			if _, err = recordsql.Insert(db, ev); err != nil {
 				return
 			}
 		}
-		done <- nil
 	}()
 	for closing := true; closing; {
 		select {
@@ -384,4 +382,249 @@ func TestEveryClosedGapOnTheBoardCarriesItsClosureWhileALensCloses(t *testing.T)
 			}
 		}
 	}
+}
+
+// seatWriter is a seat's own connection to the record at path: opened outside the per-path cache
+// (recordsql.OpenSeparate), as another process's would be, so it shares nothing with the handle the
+// readers under test read through. Seats ARE other processes. A writer on the cached handle shares
+// the reader's one connection: its insert waits for the read's transaction to end, and a race test
+// built on it proves the writes queue behind the reads — which a mutex would give as well — not that
+// a read sees one snapshot while another connection commits.
+func seatWriter(t *testing.T, path string) *sql.DB {
+	t.Helper()
+	db, err := recordsql.OpenSeparate(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	return db
+}
+
+// whileWriting inserts acts into run's record on a seat's own connection (seatWriter) from a second
+// goroutine, one autocommit insert each as a seat's write lands, and calls read until the last one
+// is in — at least once after it.
+func whileWriting(t *testing.T, run Run, acts []*Event, read func()) {
+	t.Helper()
+	db := seatWriter(t, filepath.Join(run.Records(), "record.db"))
+	done := make(chan error, 1)
+	go func() {
+		var err error
+		defer func() { done <- err }()
+		for _, ev := range acts {
+			if _, err = recordsql.Insert(db, ev); err != nil {
+				return
+			}
+		}
+	}()
+	for writing := true; writing; {
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Fatal(err)
+			}
+			writing = false
+		default:
+		}
+		read()
+	}
+}
+
+// benchClosing is the bench's ruling on docket motion id, closing its gap as repaired.
+func benchClosing(id string) *recordpb.MotionRule {
+	return &recordpb.MotionRule{MotionId: proto.String(id), Subject: recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+		Opinion: proto.String("because"),
+		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+			Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
+			Principle:   proto.String("correctness first"), Tension: proto.String("speed against certainty"),
+			ReviewFlag: proto.String("no"), Settled: proto.String("settled"), Final: proto.Bool(true),
+		}}}
+}
+
+// THE WORK LIST IS READ OFF ONE SNAPSHOT. It takes each gap's closure from the events and its
+// openness from the `gap` view; asked of the record at two moments, a bench closure landing between
+// them read the gap closed with no closure among the loaded events, and the list dropped it from
+// both `open` and `estopped`. The bench rules while a lens reads its work list and the oracle reads
+// the run's, and every gap is on every list, open or estopped by the ruling that closed it.
+func TestEveryGapIsOnTheWorkListWhileTheBenchRules(t *testing.T) {
+	const gaps = 25
+	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").dispatch(2, evLens).register(evLens)
+	for i := 1; i <= gaps; i++ {
+		b.mint(evLens, fmt.Sprintf("G%d", i), "high")
+	}
+	run := b.register("blue-respond").register("judge").seed()
+	var acts []*Event
+	for i := 1; i <= gaps; i++ {
+		g, m := fmt.Sprintf("G%d", i), fmt.Sprintf("M%d", i)
+		acts = append(acts,
+			recordtest.At(t, "blue-respond", "blue-respond:motion:"+m, docketMotion(m, g)),
+			recordtest.At(t, "judge", "judge:motion-rule:"+m, benchClosing(m)))
+	}
+	check := func(who string, w WorkJSON) {
+		on := map[string]bool{}
+		for _, g := range w.Open {
+			on[g.ID] = true
+		}
+		for _, g := range w.Estopped {
+			if g.Fate == "" {
+				t.Fatalf("%s: %s is estopped with no fate — the ruling that closed it is not among the loaded events", who, g.ID)
+			}
+			on[g.ID] = true
+		}
+		for i := 1; i <= gaps; i++ {
+			if id := fmt.Sprintf("G%d", i); !on[id] {
+				t.Fatalf("%s: %s is neither open nor estopped — the `gap` view read it closed and the events the list loaded hold no closure for it: two reads of the record", who, id)
+			}
+		}
+	}
+	whileWriting(t, run, acts, func() {
+		w, err := WorkOfSeat(run, "lens", evLens)
+		if err != nil {
+			t.Fatal(err)
+		}
+		check("the lens's work list", w)
+		w, err = WorkJSONOfRun(run)
+		if err != nil {
+			t.Fatal(err)
+		}
+		check("the run's work list", w)
+	})
+}
+
+// whileCommitting commits acts in ONE transaction on a seat's own connection (seatWriter) from a
+// second goroutine, and calls read until the commit is in — at least once after it. A fresh run each
+// round, rounds times: the commit is one instant, and a read that straddles it is what is under test.
+func whileCommitting(t *testing.T, rounds int, stage func() Run, acts func() []*Event, read func(round int, run Run)) {
+	t.Helper()
+	for round := 0; round < rounds; round++ {
+		run := stage()
+		db := seatWriter(t, filepath.Join(run.Records(), "record.db"))
+		// Built here, not on the writer's goroutine: recordtest.At may t.Fatal, which must run on the
+		// test's own.
+		evs := acts()
+		done := make(chan error, 1)
+		go func() {
+			var err error
+			defer func() { done <- err }()
+			tx, err := db.Begin()
+			if err != nil {
+				return
+			}
+			defer tx.Rollback()
+			for _, ev := range evs {
+				if _, err = recordsql.InsertTx(tx, ev); err != nil {
+					return
+				}
+			}
+			err = tx.Commit()
+		}()
+		for committing := true; committing; {
+			select {
+			case err := <-done:
+				if err != nil {
+					t.Fatal(err)
+				}
+				committing = false
+			default:
+			}
+			read(round, run)
+		}
+	}
+}
+
+// uncastStage is a run whose chair and bench have registered and which holds no cast, so the
+// verdict's reads stop at the cast: the questions a commit can land between are the few the test is
+// about, not the whole record a plan would load.
+func uncastStage(t *testing.T) func() Run {
+	return func() Run { return newStage(t).ingest().register("red-chair").register("judge").seed() }
+}
+
+// THE DERIVED VERDICT IS READ OFF ONE SNAPSHOT. A halt outranks a PASS, and the two are asked of the
+// record separately; asked at two moments, a halt and a PASS landing between them derived VERIFIED
+// over a record holding the halt. Here both land in one commit while the verdict is derived, on run
+// after run, and no derivation reads VERIFIED.
+func TestTheDerivedVerdictNeverReadsAPassPastTheHaltBesideIt(t *testing.T) {
+	whileCommitting(t, 20, uncastStage(t), func() []*Event {
+		return []*Event{
+			recordtest.At(t, "judge", "judge:halt", &recordpb.Halt{Opinion: proto.String("consent gate")}),
+			recordtest.At(t, "red-chair", "red-chair:gate", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}),
+		}
+	}, func(round int, run Run) {
+		verdict, why, _, err := DeriveVerdict(run)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if verdict == "VERIFIED" {
+			t.Fatalf("run %d derived VERIFIED (%s) — the halt and the PASS beside it came off two reads of the record", round, why)
+		}
+	})
+}
+
+// THE TERMINAL VERDICT IS READ OFF ONE SNAPSHOT. It is the bench's recorded outcome, or else the
+// verdict the record derives; asked at two moments, an outcome recorded beside a PASS between them
+// was missed by the first read, and the second derived VERIFIED from the PASS — a word no single
+// state of the record gives. Here the bench's CEILING and a PASS land in one commit while the
+// terminal verdict is read, and every read answers nothing yet or the bench's own word.
+func TestTheTerminalVerdictReadsTheOutcomeAndTheDerivationTogether(t *testing.T) {
+	whileCommitting(t, 20, uncastStage(t), func() []*Event {
+		return []*Event{
+			recordtest.At(t, "judge", "judge:outcome", &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_CEILING.Enum(), Prose: proto.String("ended")}),
+			recordtest.At(t, "red-chair", "red-chair:gate", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}),
+		}
+	}, func(round int, run Run) {
+		v, err := TerminalVerdict(run)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v != "" && v != "CEILING" {
+			t.Fatalf("run %d reads terminal verdict %q — the record held either no outcome and no PASS, or the bench's CEILING beside the PASS: the outcome and the derivation came off two reads of the record", round, v)
+		}
+	})
+}
+
+// THE DISPATCH PLAN IS READ OFF ONE SNAPSHOT. It readies the bench for a gap off the `gap` view's
+// unruled docket and lists the unruled motion off the events; asked of the record at two moments, a
+// docket motion filed between them readied the bench for a gap whose motion the plan's own blockers
+// did not hold. Parties file docket motions while the chair asks for the plan, and on every plan the
+// bench is engaged on a gap exactly when the gap's motion is among the plan's unruled motions.
+func TestTheDispatchPlanReadiesTheBenchForTheMotionsItListsWhileMotionsAreFiled(t *testing.T) {
+	const gaps = 25
+	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").dispatch(2, evLens).register(evLens)
+	for i := 1; i <= gaps; i++ {
+		b.mint(evLens, fmt.Sprintf("G%d", i), "high")
+	}
+	run := b.register("blue-respond").register("red-chair").seed()
+	var acts []*Event
+	for i := 1; i <= gaps; i++ {
+		m := fmt.Sprintf("M%d", i)
+		acts = append(acts, recordtest.At(t, "blue-respond", "blue-respond:motion:"+m, docketMotion(m, fmt.Sprintf("G%d", i))))
+	}
+	whileWriting(t, run, acts, func() {
+		plan, err := PlanDispatch(run)
+		if err != nil {
+			t.Fatal(err)
+		}
+		listed := map[string]bool{}
+		for _, b := range plan.Blockers {
+			if b.Kind == BlockerUnruledMotion {
+				listed[b.Subject] = true
+			}
+		}
+		benched := map[string]bool{}
+		for _, p := range plan.Parties {
+			if p.SeatID == benchSeat {
+				for _, g := range p.GapIDs {
+					benched[g] = true
+				}
+			}
+		}
+		for i := 1; i <= gaps; i++ {
+			g, m := fmt.Sprintf("G%d", i), fmt.Sprintf("M%d", i)
+			if benched[g] != listed[m] {
+				t.Fatalf("the plan engages the bench on %s: %v, and lists its docket motion %s unruled: %v — the gap view and the events came off two reads of the record",
+					g, benched[g], m, listed[m])
+			}
+		}
+	})
 }

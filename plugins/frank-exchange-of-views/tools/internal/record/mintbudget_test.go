@@ -10,20 +10,19 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // withRenderer stands in for the renderer internal/reportproj registers, for the test's duration.
-func withRenderer(t *testing.T, fn func(recordsql.Querier) (string, error)) {
+func withRenderer(t *testing.T, fn func(string, bool, []ReportOp) (string, error)) {
 	t.Helper()
 	was := reportRenderer
 	reportRenderer = fn
 	t.Cleanup(func() { reportRenderer = was })
 }
 
-func renders(md *string) func(recordsql.Querier) (string, error) {
-	return func(recordsql.Querier) (string, error) { return *md, nil }
+func renders(md *string) func(string, bool, []ReportOp) (string, error) {
+	return func(string, bool, []ReportOp) (string, error) { return *md, nil }
 }
 
 func budgetMint(id string, supersedes ...string) *recordpb.Mint {
@@ -167,7 +166,9 @@ func TestAMeasureThatCannotReadIsLoud(t *testing.T) {
 			t.Errorf("the unmeasured refusal lost %q:\n%v", want, err)
 		}
 	}
-	withRenderer(t, func(recordsql.Querier) (string, error) { return "", errors.New("render: replaying mutation 3 of 3") })
+	withRenderer(t, func(string, bool, []ReportOp) (string, error) {
+		return "", errors.New("render: replaying mutation 3 of 3")
+	})
 	if _, err := Append(id, budgetMint("G2")); err == nil || !strings.Contains(err.Error(), "replaying mutation 3 of 3") {
 		t.Errorf("a failed render did not refuse with its cause: %v", err)
 	}

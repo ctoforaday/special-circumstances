@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
@@ -179,7 +180,15 @@ func CastOf(run Run) ([]string, error) {
 	if err != nil || db == nil {
 		return nil, err
 	}
-	rows, err := db.Query(`SELECT v."value" FROM "cast_seat_ids" v
+	return castAt(db)
+}
+
+// castAt is CastOf asked of q, which is nil on a run with no record yet.
+func castAt(q recordsql.Querier) ([]string, error) {
+	if noRecord(q) {
+		return nil, nil
+	}
+	rows, err := q.Query(`SELECT v."value" FROM "cast_seat_ids" v
 	  WHERE v."event_id" = (SELECT MAX("event_id") FROM "cast")
 	  ORDER BY v."ord"`)
 	if err != nil {

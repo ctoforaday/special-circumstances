@@ -9,7 +9,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // THE REPORT IS THE RECORD, NOT A FILE (#709).
@@ -274,17 +273,6 @@ func collapseNewlinesAt(s string, at int) string {
 // no base (nothing ingested) and two bases (the write-once rule broken) — both raised by the query.
 func RenderFromRecord(run record.Run) (string, error) {
 	base, haveBase, ops, err := record.ReportProjection(run)
-	if err != nil {
-		return "", err
-	}
-	return replay(base, haveBase, ops)
-}
-
-// RenderAt is RenderFromRecord asked of q: the run's handle, or a projection's read transaction, so
-// a projection that renders the report beside its other answers renders the report on the same
-// snapshot. A nil q is a run with no record yet, which has no base.
-func RenderAt(q recordsql.Querier) (string, error) {
-	base, haveBase, ops, err := record.ReportProjectionAt(q)
 	if err != nil {
 		return "", err
 	}

@@ -1,12 +1,12 @@
 package record
 
 import (
-	"database/sql"
 	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // PER-SEAT RETIREMENT (plans/feov-lens-bar.md III.5; gblock D1: re-arm ONCE per retirement).
@@ -157,7 +157,7 @@ func staleAreasOf(folds []lensFold, head int64) []StaleArea {
 }
 
 // freshMaterialOf is the gap view's answer to "which gaps were minted fresh and are material now".
-func freshMaterialOf(db *sql.DB) (map[string]bool, error) {
+func freshMaterialOf(db recordsql.Querier) (map[string]bool, error) {
 	rows, err := db.Query(`SELECT "gap_id" FROM "gap" WHERE "material" AND "supersedes_count" = 0`)
 	if err != nil {
 		return nil, fmt.Errorf("record: asking the record for its fresh material gaps: %w", err)
@@ -266,18 +266,25 @@ func readyReason(f lensFold) string {
 	return "active"
 }
 
-// passLensGateOfRun reads the gate's inputs off the run.
+// passLensGateOfRun reads the gate's inputs off the run, on one snapshot (readSnapshot): a gap
+// minted between the stream read and the fresh-material read would be fresh material no lens fold
+// holds. The fold runs after the transaction closes.
 func passLensGateOfRun(run Run) (passLensGate, bool, error) {
-	db, err := openRunForRead(run)
-	if err != nil || db == nil {
-		return passLensGate{}, false, err
-	}
-	evs, win, err := eventsAt(db)
-	if err != nil {
-		return passLensGate{}, false, err
-	}
-	fresh, err := freshMaterialOf(db)
-	if err != nil {
+	var evs []*Event
+	var win WindowIndex
+	var fresh map[string]bool
+	absent := false
+	if err := readSnapshot(run, func(q recordsql.Querier) error {
+		if absent = noRecord(q); absent {
+			return nil
+		}
+		var err error
+		if evs, win, err = eventsAt(q); err != nil {
+			return err
+		}
+		fresh, err = freshMaterialOf(q)
+		return err
+	}); err != nil || absent {
 		return passLensGate{}, false, err
 	}
 	return passLensGateOf(evs, win.IDs(evs), win, fresh), true, nil

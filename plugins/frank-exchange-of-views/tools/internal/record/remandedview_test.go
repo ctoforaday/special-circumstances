@@ -98,10 +98,7 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gaps, err := workGapStatesOfRun(run, evs.Events, evs.At)
-	if err != nil {
-		t.Fatal(err)
-	}
+	gaps := workGapStatesT(t, run)
 	by := map[string]WorkGapState{}
 	for _, g := range gaps {
 		by[g.ID] = g

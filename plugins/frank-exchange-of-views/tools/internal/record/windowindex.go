@@ -1,7 +1,6 @@
 package record
 
 import (
-	"database/sql"
 	"fmt"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -53,9 +52,14 @@ func windowIndexOf(evs []*Event, ws []recordsql.Window) WindowIndex {
 	return x
 }
 
-// eventsAt reads the whole record with its index — the read every fold over the run's stream takes.
-func eventsAt(db *sql.DB) ([]*Event, WindowIndex, error) {
-	evs, ws, err := recordsql.Events(db)
+// eventsAt reads the whole record with its index — the read every fold over the run's stream takes —
+// asked of q: the run's handle, or a read transaction a reader asks every question of. A nil q is a
+// run with no record yet, which holds no events.
+func eventsAt(q recordsql.Querier) ([]*Event, WindowIndex, error) {
+	if noRecord(q) {
+		return nil, windowIndexOf(nil, nil), nil
+	}
+	evs, ws, err := recordsql.Events(q)
 	if err != nil {
 		return nil, WindowIndex{}, err
 	}

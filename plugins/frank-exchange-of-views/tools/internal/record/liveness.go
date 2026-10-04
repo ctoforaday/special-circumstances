@@ -40,6 +40,7 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // Activity is the record's own answer to "when did anything last happen here".
@@ -247,22 +248,34 @@ func (l Liveness) Says() string {
 // verdict tile, capture's liveness audit, the dashboard server's exit line — shows it to an
 // operator looking for the state a seat recorded. Folded here, once, so no consumer has to know
 // which of the two reads produced the word.
+//
+// ONE READ TRANSACTION for both questions (readSnapshot): asked of the record at two moments, an
+// outcome recorded between them was missed by the first read and its halt or PASS read by the
+// second, and the run answered with the derived word where the bench had recorded its own.
 func TerminalVerdict(run Run) (string, error) {
-	// The bench's own terminal act, latest wins — one query (queries.go), not a fold, and the
-	// same query the dashboard reads so the two surfaces cannot fold the answer differently.
-	v, err := RecordedOutcome(run)
-	if err != nil {
+	var recorded string
+	var derive verdictReads
+	if err := readSnapshot(run, func(q recordsql.Querier) error {
+		// The bench's own terminal act, latest wins — one query (queries.go), not a fold, and the
+		// same query the dashboard reads so the two surfaces cannot fold the answer differently.
+		var err error
+		if recorded, err = recordedOutcomeAt(q); err != nil || recorded != "" {
+			return err
+		}
+		derive, err = verdictReadsAt(q)
+		return err
+	}); err != nil {
 		return "", err
 	}
-	if v != "" {
-		return strings.ToUpper(v), nil
+	if recorded != "" {
+		return strings.ToUpper(recorded), nil
 	}
 	// Or what the record decides for itself. ok is false only where the record holds no
 	// terminal state — in flight, or ended early — and that is a real answer, not a gap to paper
 	// over. Its reads fail the same way the first one does, and are surfaced the same way: a
 	// busy record under the halt or gate read folded into ("", nil) convicted a finished run as
 	// TERMINATED just as the first read's fold did.
-	v, _, ok, err := DeriveVerdict(run)
+	v, _, ok, err := verdictOf(run, derive)
 	if err != nil {
 		return "", err
 	}
