@@ -266,7 +266,7 @@ func validateEdit(report, old, new string) (string, bool, error) {
 	return planned, exact, nil
 }
 
-// droppedMarker returns an immortal-anchor id (finding OR citation) present in before but
+// droppedMarker returns an immortal-anchor id, of any kind, present in before but
 // absent from after, or "". The union sweep is what makes the cite⟺anchor bijection hold:
 // no raw edit can drop a citation any more than it can drop a finding.
 func droppedMarker(before, after string) string {

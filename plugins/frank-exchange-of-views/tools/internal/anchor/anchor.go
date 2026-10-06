@@ -66,20 +66,12 @@ var kinds = []kind{
 
 const tokenOpen, tokenClose = "<!--", "-->"
 
-// claimed is the row whose prefix id carries, or nil.
-func claimed(id string) *kind {
+// rowOf is the row an id names. An id no row claims reads as a finding.
+func rowOf(id string) *kind {
 	for i := range kinds {
 		if strings.HasPrefix(id, kinds[i].prefix) {
 			return &kinds[i]
 		}
-	}
-	return nil
-}
-
-// rowOf is the row an id names. An id no row claims reads as a finding.
-func rowOf(id string) *kind {
-	if k := claimed(id); k != nil {
-		return k
 	}
 	return &kinds[0]
 }
@@ -190,8 +182,8 @@ func Backs(id string) bool { return rowOf(id).backs }
 // Label describes an anchor id by its kind, so a seat is told which KIND of anchor its edit would
 // have disturbed. A generic name is passed through unchanged.
 func Label(id string) string {
-	k := claimed(id)
-	if k == nil {
+	k := rowOf(id)
+	if !strings.HasPrefix(id, k.prefix) {
 		return id
 	}
 	return k.label + " " + id + k.note
