@@ -558,15 +558,17 @@ byte-identical; a future run with a row moves the raw digest loudly.
 **Value.** It removes the carry burden where carrying is mechanical (≈18% of carries) and turns
 the other refusals from "you dropped `<!--fx:f-…-->`" into "the sentence that held it was *'…'*;
 put it where that claim now is". About +70 lines. It ships before Part 4 because gap markers add
-markers to carry. **Measured +109** (+201 −92): the token goes inside the occurrence `LocateOnce`
+markers to carry. **Measured +101** (+240 −139): the token goes inside the occurrence `LocateOnce`
 counted at the place it held in its sentence (walked in step, after the anchors that preceded it in
 its run), because at the occurrence's end 11 of 32 corpus placements left the place blue kept;
-`AutoPlace` returns the text alone, the transit check being the one refusal; the refusal names the
-replacement's nearest sentence. S8 over the 211 carries (3 not carried in their old-epoch record):
-29 placed byte-for-byte as blue placed them, 0 wrong, 172 refused naming the sentence, 4 bare
-refused as bare, and 3 residue where blue moved the anchor off its surviving text (quadratic
+`AutoPlace` returns the text alone, and the transit check runs it and is the one refusal; the refusal
+names the replacement's nearest sentence by near-match's `Tokenize`/`Jaccard`, moved to
+`anchortext`. S8 over the 211 carries (3 not carried in their old-epoch record): 29 placed
+byte-for-byte as blue placed them, 0 wrong, 172 refused naming the sentence, 4 bare refused as
+bare, every placement in a run with a base (21) replayed byte for byte from the recorded
+replacement, and 3 residue where blue moved the anchor off its surviving text (quadratic
 `f-33643203`, universe2 `f-36e5440b`, m6 `c-4a145c1b`, the last refused as changing nothing). After
-Parts 1–3 the running S6 total is +159, so the ≥ 320 target needs about −480 from Parts 4–6.
+Parts 1–3 the running S6 total is +151, so the ≥ 320 target needs about −471 from Parts 4–6.
 
 - [NEW] `anchortext.LocateOnce(doc, quote, scope) (start, end int, err error)` — **the one
   write-time matcher**. It takes `locate`'s first `CrossParagraphs` match and refuses, in this
