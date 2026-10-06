@@ -1,6 +1,10 @@
 package claimcount
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+)
 
 // Paragraphs counts the PROSE PARAGRAPHS in report markdown — the unit a lens reading the whole
 // report scales its mint budget by (record's per-area table).
@@ -10,41 +14,34 @@ import "strings"
 // a digit once every anchor token is removed (HasProse). Lines that never carry prose, whatever
 // they contain:
 //
-//   - headings ("#" at the head of the trimmed line) — a title is not a paragraph;
+//   - headings ("## Section") — a title is not a paragraph;
 //   - anchor-only lines ("<!--cite:c-1-->", "- <!--fx:f-2-->") — what a cut leaves, not text;
 //   - footnote definitions ("[^L1]: https://...") — the bibliography, not the report;
 //   - fenced code, fence lines included — a blank line INSIDE a fence does not end the block, so a
 //     code block is part of the paragraph it sits in and never one on its own.
 //
-// A list or a table is one block, and counts once, when it has no blank lines between its items;
-// a loose list counts per item, because each item is then a block. Same exclusions as Scan,
-// read per block rather than per sentence.
+// A list or a table is one paragraph, and counts once, when it has no blank lines between its
+// items; a loose list counts per item. The blocks are anchor.Blocks', grouped by blank line —
+// the same block reader Scan reads, so the two cannot disagree about what is a fence, a heading or
+// a footnote definition.
 func Paragraphs(md string) int {
-	n := 0
-	inFence, prose := false, false
-	end := func() {
-		if prose {
-			n++
+	n, prose, last := 0, false, -1
+	for _, b := range anchor.Blocks(md) {
+		if last >= 0 && strings.Count(md[last:b.Start], "\n") > 1 {
+			if prose {
+				n++
+			}
+			prose = false
 		}
-		prose = false
-	}
-	for _, ln := range strings.Split(md, "\n") {
-		if fenceLine.MatchString(ln) {
-			inFence = !inFence
-			continue
-		}
-		if inFence {
-			continue
-		}
-		t := strings.TrimSpace(ln)
-		switch {
-		case t == "":
-			end()
-		case strings.HasPrefix(t, "#"), footnoteDef.MatchString(ln):
-		case HasProse(t):
-			prose = true
+		last = b.End
+		switch b.Kind {
+		case anchor.Heading, anchor.FootnoteDef, anchor.Fence:
+		default:
+			prose = prose || HasProse(md[b.Start:b.End])
 		}
 	}
-	end()
+	if prose {
+		n++
+	}
 	return n
 }

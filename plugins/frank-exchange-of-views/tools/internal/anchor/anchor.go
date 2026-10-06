@@ -253,37 +253,3 @@ func tokenLenAt(s string, i int) int {
 	}
 	return len(rest) - len(id) + end + len(tokenClose)
 }
-
-// Sentences splits text into its sentences: the [start, end) spans between boundaries, in order.
-// A boundary is `.`, `!`, `?` or a newline outside an HTML comment — the `!` in `<!--` ends no
-// sentence, and an anchor stays whole inside the sentence it sits in. A run of boundaries is one
-// break. A text that opens or closes on a boundary has an empty first or last span, so the spans
-// and the boundary runs alternate and every byte is in exactly one of them.
-func Sentences(text string) [][2]int {
-	boundary := make([]bool, len(text))
-	for i := 0; i < len(text); {
-		if strings.HasPrefix(text[i:], tokenOpen) {
-			if j := strings.Index(text[i:], tokenClose); j >= 0 {
-				i += j + len(tokenClose)
-				continue
-			}
-		}
-		switch text[i] {
-		case '.', '!', '?', '\n':
-			boundary[i] = true
-		}
-		i++
-	}
-	var out [][2]int
-	start := 0
-	for i, b := range boundary {
-		if !b {
-			continue
-		}
-		if i == 0 || !boundary[i-1] {
-			out = append(out, [2]int{start, i})
-		}
-		start = i + 1
-	}
-	return append(out, [2]int{start, len(text)})
-}

@@ -27,7 +27,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"unicode"
 	"unicode/utf8"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
@@ -691,15 +690,21 @@ func riskMatrixFooter() string {
 // sentence split took the FIRST `.` anywhere, so "e.g. the parser" became "e." — a cell
 // saying nothing, and saying it in a tool's voice, as though the seat had written one letter.
 // The fallback cut at byte 100 regardless of what was there, producing "a piece of int…"
-// mid-word and splitting any multi-byte rune that straddled the boundary. A sentence end is
-// therefore punctuation followed by a SPACE OR THE END, with a floor under the head so no
-// abbreviation qualifies; the fallback backs up to the last space, exactly as the citation
-// scent in md.go already does. Where neither rule finds a boundary the cell is cut at the
-// limit and marked — cut, and visibly so, is the honest report of a scan surface.
+// mid-word and splitting any multi-byte rune that straddled the boundary. A sentence is
+// therefore the one every reader of a sentence reads (anchor.Sentences), with a floor under the
+// head so a leading initial ("A. B. Turing") does not make the cell "A."; the fallback backs up
+// to the last space, exactly as the citation scent in md.go already does. Where neither finds a
+// boundary the cell is cut at the limit and marked — cut, and visibly so, is the honest report
+// of a scan surface.
 func concise(s string) string {
 	s = strings.Join(strings.Fields(s), " ") // collapse internal whitespace/newlines
-	if i := sentenceEnd(s, conciseLimit); i > 0 {
-		return strings.TrimSpace(s[:i+1])
+	for _, sp := range anchor.Sentences(s) {
+		if sp[1] > conciseLimit {
+			break
+		}
+		if sp[1] >= minSentence {
+			return s[:sp[1]]
+		}
 	}
 	if len(s) <= conciseLimit {
 		return s
@@ -710,44 +715,8 @@ func concise(s string) string {
 	return strings.TrimSpace(truncateRunes(s, conciseLimit)) + "…"
 }
 
-// sentenceEnd returns the index of the first sentence-ending punctuation within limit, or -1.
-//
-// THREE CONDITIONS, AND EACH ONE ANSWERS A CELL THAT SHIPPED WRONG. The punctuation must be
-// followed by a space or the end — that is the decimal and the file extension ("3.5", "a.go").
-// The next word must START UPPERCASE — that is the abbreviation mid-sentence, where "e.g. a
-// backslash" continues in lower case and a real new sentence does not. And the head must reach
-// minSentence — that is the leading initial, where "A. B. Turing" passes both other tests at
-// index 1 and yields the cell "A.".
-//
-// It stays a heuristic. The alternative is an abbreviation list, which is a hand-kept table
-// that silently stops covering the case it was written for; the cost of a miss here is a cell
-// cut at a word boundary instead of at a full stop, which the footer already describes.
+// minSentence is the floor under a cell's lead sentence.
 const minSentence = 25
-
-func sentenceEnd(s string, limit int) int {
-	for i, r := range s {
-		if i >= limit {
-			return -1
-		}
-		if r != '.' && r != '!' && r != '?' {
-			continue
-		}
-		if i+1 >= len(s) { // the field is one sentence and ends here
-			return i
-		}
-		if s[i+1] != ' ' {
-			continue // mid-token: a decimal, a version, a file extension
-		}
-		next, _ := utf8.DecodeRuneInString(strings.TrimLeft(s[i+1:], " "))
-		if !unicode.IsUpper(next) {
-			continue // an abbreviation inside a sentence that keeps going
-		}
-		if i+1 >= minSentence {
-			return i
-		}
-	}
-	return -1
-}
 
 // truncateRunes cuts to at most n bytes WITHOUT splitting a rune, so a cell that has no space
 // to back up to still renders as text rather than as a replacement character.

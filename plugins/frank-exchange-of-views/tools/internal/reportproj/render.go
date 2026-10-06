@@ -152,29 +152,27 @@ func (m removeMut) apply(text string) (string, error) {
 func (m removeMut) describe() string { return fmt.Sprintf("remove %s", anchor.Token(m.id)) }
 
 // RemoveAnchorAt removes the anchor token at text[i:i+n] and tidies what it leaves: a line with
-// no prose and no other anchor goes whole (with a blank-line run it opened collapsed), and an
-// in-line segment left empty goes with its terminator. Anything still carrying prose or another
-// anchor is left exactly as it stands minus the token — the removal is order-independent across
-// several anchors exiting one segment, because only the LAST of them finds the segment empty.
+// no prose and no other anchor goes whole (with a blank-line run it opened collapsed), and a
+// sentence left empty goes with its terminator and the whitespace that set it apart. Anything still
+// carrying prose or another anchor is left exactly as it stands minus the token — the removal is
+// order-independent across several anchors exiting one sentence, because only the LAST of them
+// finds it empty. Every cut stays on the token's line.
 func RemoveAnchorAt(text string, i, n int) string {
 	// The token's sentence is read with the token still in place, where it sits inside one sentence
-	// by construction — the first whose end reaches past it; every offset past the token is then
-	// read n bytes earlier.
+	// by construction; every offset past the token is then read n bytes earlier.
+	ss, se := i, i+n
+	for _, sp := range anchor.Sentences(text) {
+		if sp[0] <= i && i+n <= sp[1] {
+			ss, se = sp[0], sp[1]
+			break
+		}
+	}
 	ls := strings.LastIndexByte(text[:i], '\n') + 1
 	le := len(text)
 	if j := strings.IndexByte(text[i+n:], '\n'); j >= 0 {
 		le = i + n + j
 	}
-	spans := anchor.Sentences(text[ls:le])
-	k := 0
-	for k < len(spans)-1 && spans[k][1] < i-ls+n {
-		k++
-	}
-	ss, se, next := spans[k][0], spans[k][1]-n, spans[k][1]-n
-	if k+1 < len(spans) {
-		next = spans[k+1][0] - n
-	}
-	le -= n
+	ss, se, le = max(ss, ls), min(se, le)-n, le-n
 	text = text[:i] + text[i+n:]
 	line := text[ls:le]
 	if !claimcount.HasProse(line) && len(claimcount.ProtectedAnchorIDs(line)) == 0 {
@@ -186,10 +184,7 @@ func RemoveAnchorAt(text string, i, n int) string {
 		}
 		return collapseNewlinesAt(text[:ls]+text[end:], ls)
 	}
-	// In-line: the sentence the token sat in. Emptied, it goes with the terminator run that closed
-	// it.
-	seg := line[ss:se]
-	if claimcount.HasProse(seg) || len(claimcount.ProtectedAnchorIDs(seg)) > 0 {
+	if seg := text[ss:se]; claimcount.HasProse(seg) || len(claimcount.ProtectedAnchorIDs(seg)) > 0 {
 		// Only the token went; close the whitespace seam it held open — the space an edit left
 		// between the anchor and the next sentence, or a doubled space mid-line.
 		switch {
@@ -204,13 +199,19 @@ func RemoveAnchorAt(text string, i, n int) string {
 		}
 		return text
 	}
-	cut := next
-	if ss == 0 { // at the line's start, the space that followed the terminator goes too
-		for cut < len(line) && (line[cut] == ' ' || line[cut] == '\t') {
-			cut++
+	// Emptied: after prose on its line it takes the space before it, so "One. <c>. Two." reads
+	// "One. Two."; at the head of the line's content it takes the space after it, keeping a list
+	// marker.
+	if head := text[ls:ss]; claimcount.HasProse(head) || len(claimcount.ProtectedAnchorIDs(head)) > 0 {
+		for ss > ls && (text[ss-1] == ' ' || text[ss-1] == '\t') {
+			ss--
+		}
+	} else {
+		for se < le && (text[se] == ' ' || text[se] == '\t') {
+			se++
 		}
 	}
-	return text[:ls+ss] + text[ls+cut:]
+	return text[:ss] + text[se:]
 }
 
 // collapseNewlinesAt folds the newline run around offset at, which a removed line may have

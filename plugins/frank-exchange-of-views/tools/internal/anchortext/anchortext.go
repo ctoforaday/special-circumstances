@@ -339,21 +339,13 @@ func Attach(doc, id, quote string) (string, error) {
 	return string(out), nil
 }
 
-// insideFence reports whether byte offset `at` falls inside a ``` / ~~~ fenced code
-// block. A marker must never land in code (it would ship literally / corrupt the fence).
+// insideFence reports whether byte offset `at` falls inside a fenced code block, its opener and
+// closer lines included, as anchor.Blocks reads one. A marker must never land in code (it would
+// ship literally / corrupt the fence).
 func insideFence(report string, at int) bool {
-	fence := false
-	pos := 0
-	for _, ln := range strings.SplitAfter(report, "\n") {
-		start := pos
-		pos += len(ln)
-		trimmed := strings.TrimLeft(ln, " \t")
-		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
-			fence = !fence
-			continue
-		}
-		if at >= start && at < pos {
-			return fence
+	for _, b := range anchor.Blocks(report) {
+		if b.Kind == anchor.Fence && b.Start <= at && at <= b.End {
+			return true
 		}
 	}
 	return false

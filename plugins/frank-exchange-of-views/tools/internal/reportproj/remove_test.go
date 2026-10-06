@@ -20,6 +20,9 @@ func TestRemoveAnchorTakesTheHusk(t *testing.T) {
 		{"at a line start with a stray terminator", c + ". Two.\n", "Two.\n"},
 		{"a second anchor keeps the segment until it too leaves", "One. " + c + "<!--fx:f-2-->. Two.\n", "One. <!--fx:f-2-->. Two.\n"},
 		{"prose around the anchor is untouched", "One " + c + " two.\n", "One two.\n"},
+		{"a closer before the emptied sentence stays", "**One.** " + c + ". Two.\n", "**One.** Two.\n"},
+		{"an emptied first sentence keeps its list marker", "- " + c + ". Two.\n", "- Two.\n"},
+		{"an emptied ordered item keeps its number", "1. " + c + "\n", "1.\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			tok := c
