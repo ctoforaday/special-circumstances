@@ -15,6 +15,8 @@ package anchortext
 import (
 	"errors"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 )
 
 // Finding-marker anchoring (slice 1b). A lens finding is anchored in blue/report.md by
@@ -323,6 +325,18 @@ func InsertAnchor(report []byte, location, marker string) ([]byte, error) {
 		return nil, ErrInFence
 	}
 	return insertMarker(report, end, marker), nil
+}
+
+// Attach is the one write-time placement: doc with the anchor id's token placed at the end of
+// the quote, by InsertAnchor's rule. Every placing verb validates its anchor through it and builds
+// no token of its own. It returns InsertAnchor's sentinels unmapped, so each verb keeps its own
+// refusal text.
+func Attach(doc, id, quote string) (string, error) {
+	out, err := InsertAnchor([]byte(doc), quote, anchor.Token(id))
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
 }
 
 // insideFence reports whether byte offset `at` falls inside a ``` / ~~~ fenced code

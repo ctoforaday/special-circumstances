@@ -341,7 +341,6 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 			return verifyResult{Label: prior, Source: body.GetTitle(), Outcome: recordpb.Word(body.GetOutcome()), Idempotent: true, VoiceTells: tells}, nil
 		}
 		label := record.NewCitationID()
-		marker := "<!--cite:" + label + "-->"
 		// The Verify event IS the anchor (it carries the claim and this label); reportproj.Render
 		// re-places the marker on read. No file is spliced. VALIDATE the placement against the
 		// current render — a mis-quote or in-fence claim is refused now and no event is recorded.
@@ -349,7 +348,7 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		if err != nil {
 			return nil, err
 		}
-		if _, aerr := anchortext.InsertAnchor([]byte(current), body.GetClaim(), marker); aerr != nil {
+		if _, aerr := anchortext.Attach(current, label, body.GetClaim()); aerr != nil {
 			switch {
 			case errors.Is(aerr, anchortext.ErrMisQuote):
 				return nil, feov.Errorf(feov.Validation,

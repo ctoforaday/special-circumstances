@@ -97,11 +97,6 @@ func newFinding() *cobra.Command {
 		// spliced, so there is no torn-splice window; the --key retry above is idempotent and
 		// reconciles a half-appended pair.
 		findingID := record.NewFindingID()
-		// An INVISIBLE HTML-comment token, not a footnote: a "[^id]" marker rendered
-		// as an undefined footnote AND red audited it as one, and a finding's quoted
-		// location/reason text carried the marker into the record-derived sections. A
-		// comment renders as nothing and is no footnote, so no seat audits it.
-		marker := "<!--fx:" + findingID + "-->"
 
 		// VALIDATE the placement against the current render: NOT FOUND -> reject (a mis-quote),
 		// in-fence -> reject. Nothing is recorded on a refusal. On success the bytes are discarded —
@@ -116,7 +111,7 @@ func newFinding() *cobra.Command {
 			if rerr != nil {
 				return nil, rerr
 			}
-			if _, aerr := anchortext.InsertAnchor([]byte(current), location, marker); aerr != nil {
+			if _, aerr := anchortext.Attach(current, findingID, location); aerr != nil {
 				switch {
 				case errors.Is(aerr, anchortext.ErrMisQuote):
 					return nil, fmt.Errorf("lens finding: --quote was not found in report.md.\n\nIt is matched LITERALLY against the report, so it must be the quoted text ALONE. A section heading in front of it (\"Findings: …\", \"## Method — …\") is the common cause and makes it match nothing — measured, four times in one sitting with four different separators. Name the section in --reason instead.\n\nA quote may not cross a blank line: a finding anchors ONE passage")
