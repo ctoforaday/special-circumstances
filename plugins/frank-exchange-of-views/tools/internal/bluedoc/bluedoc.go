@@ -21,7 +21,6 @@ package bluedoc
 import (
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 	"unicode/utf8"
 
@@ -132,23 +131,15 @@ func settleAbuttingAnchor(verb, report, quoted string, end int) (int, error) {
 	// a rune cutset — `…` is three bytes, and a byte-wise skip would half-consume it.
 	tail := report[end:]
 	after := strings.TrimLeft(tail, anchortext.TrailingPunct)
-	m := anyAnchorToken.FindStringIndex(after)
-	if m == nil || m[0] != 0 {
-		return end, nil
-	}
 	// THE RUN, NOT THE FIRST TOKEN. Two lenses anchoring one sentence is an ordinary corpus shape
 	// — `verification<!--fx:f-e4bc25ec--><!--fx:f-73a56bd3-->` is from a real report — and this
 	// consumed one token deep. The seat then quoted the sentence exactly as `show report` prints
 	// it, carried BOTH markers into --new as instructed, and was told the second one was an
 	// INVENTION: it sat past the extended span, so AnchorsTransitUnchanged saw it appear from
 	// nowhere. Following its own instruction was the thing that got it refused.
-	run := m[1]
-	for {
-		next := anyAnchorToken.FindStringIndex(after[run:])
-		if next == nil || next[0] != 0 {
-			break
-		}
-		run += next[1]
+	run := anchor.SkipRun(after, 0)
+	if run == 0 {
+		return end, nil
 	}
 	tok := after[:run]
 
@@ -165,12 +156,16 @@ func settleAbuttingAnchor(verb, report, quoted string, end int) (int, error) {
 		return end + (len(tail) - len(after)) + run, nil
 	}
 
-	// IT DID NOT: refuse, and print the token to carry.
+	// IT DID NOT: refuse, and print the token to carry, naming every anchor of the run.
+	var held []string
+	for _, id := range anchor.IDs(tok) {
+		held = append(held, anchor.Label(id))
+	}
 	return 0, fmt.Errorf("%s: the text you are replacing carries %s, and your quote stops just before it. "+
 		"That anchor is ON this sentence: rewriting the sentence without it strands the reference beside prose it was never placed against. "+
 		"Quote the sentence AS `show report` PRINTS IT — anchors included — and carry %s into --new unchanged. "+
 		"To change the words around it and leave the anchor where it is, quote a FRAGMENT that does not reach it",
-		verb, anchor.Label(idIn(tok)), tok)
+		verb, strings.Join(held, " and "), tok)
 }
 
 // spanBoundaryOK rejects only a span that SPLITS A WORD.
@@ -334,58 +329,18 @@ func ReopenedAnchors(before, after string) []string {
 	return out
 }
 
-// sentenceAround returns the text between sentence boundaries surrounding tok, with every anchor
-// token stripped, so a SECOND anchor arriving in the same sentence does not read as the first
-// one's referent changing.
+// sentenceAround returns the sentence holding tok, as anchor.Sentences splits the document, with
+// every anchor token stripped, so a SECOND anchor arriving in the same sentence does not read as
+// the first one's referent changing.
 func sentenceAround(doc, tok string) (string, bool) {
-	if !strings.Contains(doc, tok) {
-		return "", false
-	}
-	// MARKERS COME OUT BEFORE THE BOUNDARY SCAN, not after.
-	//
-	// `!` is a sentence terminator and `<!--` contains one, so scanning the raw document ends the
-	// segment INSIDE a neighbouring marker — measured: a twin anchor truncated the sentence to
-	// "…the grass is green<", which differs from the original and reported every cite as reopened
-	// by its own neighbour. Stripping first removes the question.
-	const mark = "\x00" // boundary-free, so the scan cannot end inside it
-	cleaned := anyAnchorToken.ReplaceAllStringFunc(doc, func(m string) string {
-		if m == tok {
-			return mark
-		}
-		return ""
-	})
-	i := strings.Index(cleaned, mark)
+	i := strings.Index(doc, tok)
 	if i < 0 {
 		return "", false
 	}
-	start := strings.LastIndexAny(cleaned[:i], ".!?\n")
-	if start < 0 {
-		start = 0
-	} else {
-		start++
+	for _, sp := range anchor.Sentences(doc) {
+		if sp[0] <= i && i+len(tok) <= sp[1] {
+			return strings.Join(strings.Fields(claimcount.StripAnchors(doc[sp[0]:sp[1]])), " "), true
+		}
 	}
-	rest := cleaned[i+len(mark):]
-	end := strings.IndexAny(rest, ".!?\n")
-	if end < 0 {
-		end = len(rest)
-	}
-	return strings.Join(strings.Fields(cleaned[start:i]+rest[:end]), " "), true
+	return "", false
 }
-
-// idIn returns the id inside an anchor token — `<!--cite:c-abc-->` yields `c-abc`.
-func idIn(tok string) string {
-	if i := strings.IndexByte(tok, ':'); i >= 0 {
-		return strings.TrimSuffix(tok[i+1:], "-->")
-	}
-	return tok
-}
-
-// anyAnchorToken matches an invisible marker of EITHER class — a finding's `<!--fx:…-->` or a
-// citation's `<!--cite:…-->`.
-//
-// By SHAPE, not by reconstructing tokens from ids. The first draft stripped
-// `anchor.Token(id)` for each id ProtectedAnchorIDs found, which silently failed for whichever
-// class Token does not render identically — and a token left behind reads as the sentence having
-// changed, so every cite reopened its own neighbours. Caught by the twin case in the test rather
-// than in review.
-var anyAnchorToken = regexp.MustCompile(`<!--[a-z]+:[^>]*-->`)

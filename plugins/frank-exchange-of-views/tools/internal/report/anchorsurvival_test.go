@@ -20,12 +20,12 @@ import (
 // Each of the three anchor classes has a DEFINED FATE at assembly, and they are three different
 // fates decided in three different places:
 //
-//	<!--fx:f-…-->     STRIPPED           (StripFindingMarkers, docs.go)
+//	<!--fx:f-…-->     STRIPPED           (anchor.StripAssembled, docs.go)
 //	<!--cite:c-…-->   -> [^N]  + bibliography   (weaveCitations, assemble.go)
 //	<!--proof:p-…--> -> [^PN] + definitions    (weaveProofRefs, proofs.go)
 //
 // What was tested was each fate ALONE: FuzzWeaveCitations drives weaveCitations over one string,
-// markers_test drives StripFindingMarkers over one string, and TestNoDocumentInTheSetShipsA
+// kinds_test drives anchor.StripAssembled over one string, and TestNoDocumentInTheSetShipsA
 // DanglingFootnote asks the set a different question — whether every footnote REFERENCE is
 // defined. A raw anchor is not a footnote reference, so that scan cannot see one.
 //
@@ -96,7 +96,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 	// ANCHORS IN RECORD-DERIVED TEXT TOO, not only in blue's lifted sections. A seat's own prose
 	// carries tokens into the findings and transcript sections, which are composed from the event
 	// log rather than copied — a different code path to the same page, and the reason
-	// StripFindingMarkers runs over the FINAL output rather than over blue's content alone.
+	// the strip runs over the FINAL output rather than over blue's content alone.
 	add("red-lens-evidence", &recordpb.Finding{
 		Label: proto.String("L1-F1"), Location: proto.String("§Analysis"),
 		Text: proto.String("the read lock is dropped before evict<!--cite:c-1-->"),

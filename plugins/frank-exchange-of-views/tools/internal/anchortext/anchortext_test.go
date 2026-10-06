@@ -1,6 +1,7 @@
 package anchortext
 
 import (
+	"errors"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 	"os"
 	"path/filepath"
@@ -9,7 +10,7 @@ import (
 	"testing"
 )
 
-// reFindingMarker mirrors claimcount.findingMarkerRe: the downstream parser is position-
+// reFindingMarker mirrors the anchor kinds table's finding token: the downstream parser is position-
 // agnostic, so a test that re-extracts an inserted id proves the round-trip regardless of
 // where in the sentence the marker landed.
 var reFindingMarker = regexp.MustCompile(`<!--fx:(f-[0-9a-f]+)-->`)
@@ -288,5 +289,25 @@ func TestLocateEndAgainstRealArtifact(t *testing.T) {
 		if locateEnd(report, q) < 0 {
 			t.Errorf("real-artifact quote failed to anchor: %q", q)
 		}
+	}
+}
+
+// ATTACH PLACES BY InsertAnchor's RULE AND BUILDS THE TOKEN FROM THE TABLE: the id's token lands
+// at the quote's end, before its trailing punctuation, and a refusal is InsertAnchor's sentinel,
+// unmapped, so each placing verb keeps its own message.
+func TestAttachPlacesTheTablesTokenAtTheQuotesEnd(t *testing.T) {
+	doc := "# H\n\nWater is wet. The sky is blue.\n"
+	got, err := Attach(doc, "c-1a2b", "The sky is blue.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "# H\n\nWater is wet. The sky is blue<!--cite:c-1a2b-->.\n"; got != want {
+		t.Errorf("Attach = %q, want %q", got, want)
+	}
+	if _, err := Attach(doc, "f-1a2b", "not in the report"); !errors.Is(err, ErrMisQuote) {
+		t.Errorf("a mis-quote = %v, want ErrMisQuote", err)
+	}
+	if _, err := Attach("```\ncode here\n```\n", "p-1a2b", "code here"); !errors.Is(err, ErrInFence) {
+		t.Errorf("a quote in a fence = %v, want ErrInFence", err)
 	}
 }

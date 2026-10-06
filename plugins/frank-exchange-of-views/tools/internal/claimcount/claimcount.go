@@ -40,11 +40,10 @@
 // or two. Counted per attached citation, a merge moves nothing, and every citation
 // anchor a retire takes out is exactly one unit of the fall it explains.
 //
-// A finding anchor ("<!--fx:f-<hex>-->") is NOT a claim and never
-// counts (the regex is cite-prefix-specific). The claim unit is bounded by
-// sentence punctuation (. ! ?) OR a line break, so a cited list emits one claim
-// per line and a claim spanning two lines counts once. Excluded, because none is a
-// declarative claim: fenced code, footnote-DEFINITION lines ("[^L1]: https://..."),
+// Only a kind whose row in the anchor kinds table says so counts — a citation. The claim
+// unit is a sentence as anchor.Sentences splits one, within a line, so a cited list emits
+// one claim per line and a claim spanning two lines counts once. Excluded, because none is
+// a declarative claim: fenced code, footnote-DEFINITION lines ("[^L1]: https://..."),
 // and headings. NOTE: this counts the PRE-assembly report, whose citations are
 // invisible anchors; the visible [^N] footnotes exist only after assembly weaves
 // them, and nothing counts the assembled report.
@@ -62,52 +61,14 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 )
 
 var (
 	footnoteDef = regexp.MustCompile(`^\s*\[\^[^\]]+\]:`) // "[^L1]: https://..." — a footnote definition line
 	fenceLine   = regexp.MustCompile("^\\s*(```|~~~)")
 )
-
-// splitClaims splits one line into claim segments at sentence punctuation (. ! ?),
-// collapsing runs, exactly as the old `[\n.!?]+` regexp split did — EXCEPT that
-// punctuation INSIDE an HTML comment is not a boundary. A citation anchor
-// "<!--cite:c-1-->" carries a '!' (in "<!--") that is not a sentence end; treating the
-// comment as opaque (the same skip annotationLen uses when matching) keeps the anchor
-// whole in one segment so segmentLabels can see it. (Line breaks are handled by Scan
-// splitting on "\n" before this runs, so only .!? matter here.)
-func splitClaims(line string) []string {
-	boundary := make([]bool, len(line))
-	for i := 0; i < len(line); {
-		if strings.HasPrefix(line[i:], "<!--") {
-			if j := strings.Index(line[i:], "-->"); j >= 0 {
-				i += j + 3 // skip the whole comment: its punctuation is not a boundary
-				continue
-			}
-		}
-		switch line[i] {
-		case '.', '!', '?':
-			boundary[i] = true
-		}
-		i++
-	}
-	var segs []string
-	var cur []byte
-	inRun := false
-	for i := 0; i < len(line); i++ {
-		if boundary[i] {
-			if !inRun {
-				segs = append(segs, string(cur))
-				cur = cur[:0]
-				inRun = true
-			}
-			continue
-		}
-		inRun = false
-		cur = append(cur, line[i])
-	}
-	return append(segs, string(cur))
-}
 
 // Segment is one kept unit of the report — a sentence/line-bounded piece that
 // survived the exclusions — with the position and heading context a reader needs to
@@ -147,7 +108,10 @@ func Scan(md string) []Segment {
 		if footnoteDef.MatchString(ln) { // the bibliography: a definition, not a claim
 			continue
 		}
-		parts := splitClaims(ln)
+		var parts []string
+		for _, sp := range anchor.Sentences(ln) {
+			parts = append(parts, ln[sp[0]:sp[1]])
+		}
 		for k, seg := range parts {
 			s := Segment{Text: seg, Line: i + 1, Heading: heading, lead: k == 0, afterProse: k > 0 && HasProse(parts[k-1])}
 			s.Labels = segmentLabels(s)
@@ -170,7 +134,7 @@ func Count(md string) int {
 }
 
 // HasProse reports whether a segment says anything besides its anchors: a letter or a digit
-// once every anchor token of the three classes is removed. Whitespace, list markers and
+// once every anchor token, of every kind in the table, is removed. Whitespace, list markers and
 // punctuation are not prose — "- <!--fx:f-1-->?" is an emptied bullet, not a sentence.
 func HasProse(seg string) bool {
 	for _, r := range StripAnchors(seg) {
@@ -181,12 +145,10 @@ func HasProse(seg string) bool {
 	return false
 }
 
-// StripAnchors removes every anchor token of the three classes, leaving the prose around them.
+// StripAnchors removes every anchor token, of every kind in the table, leaving the prose around
+// them.
 func StripAnchors(s string) string {
-	for _, re := range []*regexp.Regexp{findingMarkerRe, citationMarkerRe, proofMarkerRe} {
-		s = re.ReplaceAllString(s, "")
-	}
-	return s
+	return anchor.Replace(s, func(string, string) string { return "" })
 }
 
 // AN ANCHOR BACKS THE PROSE BEFORE IT. Every inserter places its token flush after the last
@@ -209,9 +171,6 @@ func StripAnchors(s string) string {
 // " B<c>." down to "<c>". A list marker at a line's head is structure, not prose: "1) <c>" is an
 // emptied numbered item, bare, though its "1" is a digit.
 
-// anyMarkerRe matches a token of any of the three classes, capturing its id.
-var anyMarkerRe = regexp.MustCompile(`<!--(?:fx:(f-[0-9a-f]+)|cite:(c-[0-9a-f]+)|proof:(p-[0-9a-f]+))-->`)
-
 // listMarkerRe matches a markdown list marker at a line's head — a bullet (- * +) or an ordered
 // marker (1. or 1)) — with the space after it.
 var listMarkerRe = regexp.MustCompile(`^\s*(?:[-*+]|\d+[.)])\s+`)
@@ -219,14 +178,9 @@ var listMarkerRe = regexp.MustCompile(`^\s*(?:[-*+]|\d+[.)])\s+`)
 // segmentAnchors walks a segment's anchor tokens in order, reporting each id and whether it is
 // ATTACHED to prose (see above for what that means across markdown).
 func segmentAnchors(s Segment, visit func(id string, attached bool)) {
-	for _, loc := range anyMarkerRe.FindAllStringSubmatchIndex(s.Text, -1) {
-		for g := 1; g <= 3; g++ {
-			if loc[2*g] >= 0 {
-				visit(s.Text[loc[2*g]:loc[2*g+1]], attached(s, s.Text[:loc[0]]))
-				break
-			}
-		}
-	}
+	anchor.Each(s.Text, func(start, _ int, id string) {
+		visit(id, attached(s, s.Text[:start]))
+	})
 }
 
 // attached decides whether an anchor preceded, within its segment, by prefix backs prose.
@@ -241,7 +195,7 @@ func attached(s Segment, prefix string) bool {
 	return s.afterProse && p != "" && !strings.ContainsAny(p, " \t")
 }
 
-// BareAnchorIDs returns the distinct anchor ids, of all three classes, that back NO prose
+// BareAnchorIDs returns the distinct anchor ids, of every kind in the table, that back NO prose
 // anywhere they stand: no occurrence has prose before it in its segment. These are what
 // `blue retire` may take out with a claim — an anchor still attached to any prose is never
 // bare, and an anchor outside the claim stream (a heading, a fence) is never reported, so the
@@ -314,17 +268,17 @@ func Index(md string) []LabelOccurrences {
 }
 
 // segmentLabels returns the DISTINCT citation labels anchored inline in a segment, in
-// first-seen order. A claim is now a sentence carrying a tool-inserted "<!--cite:c-…-->"
-// anchor (the citation axis replaced the hand-typed "[^label]" footnote as the claim unit —
-// citations are tool-managed, so what a report cites is exactly what it anchors). The
-// label comes straight from citationMarkerRe's capture, so Index yields the real c-<hex>
-// ids, never a mangled "--cite:c-ab--". A label repeated in one segment is one site. A BARE
-// label — no prose before it in the segment — backs nothing and is not returned.
+// first-seen order. A claim is a sentence carrying a tool-inserted anchor of a kind that counts
+// as a claim — a citation (the citation axis replaced the hand-typed "[^label]" footnote as the
+// claim unit — citations are tool-managed, so what a report cites is exactly what it anchors).
+// The label is the token's id as anchor.Each reads it, so Index yields the real ids. A label
+// repeated in one segment is one site. A BARE label — no prose before it in the segment — backs
+// nothing and is not returned.
 func segmentLabels(s Segment) []string {
 	seen := map[string]bool{}
 	var out []string
 	segmentAnchors(s, func(id string, attached bool) {
-		if attached && strings.HasPrefix(id, "c-") && !seen[id] {
+		if attached && anchor.CountsAsClaim(id) && !seen[id] {
 			seen[id] = true
 			out = append(out, id)
 		}
@@ -332,70 +286,21 @@ func segmentLabels(s Segment) []string {
 	return out
 }
 
-// findingMarkerRe matches an invisible finding-anchor token "<!--fx:f-<hex>-->" (slice
-// 1b). A finding-marker is an HTML COMMENT, not a footnote, so it never touches Count
-// or the claim-index; it is extracted here purely for the tampering detector.
-var findingMarkerRe = regexp.MustCompile(`<!--fx:(f-[0-9a-f]+)-->`)
-
-// citationMarkerRe matches an invisible citation-anchor token "<!--cite:c-<hex>-->" (the
-// bibliography axis, symmetric to the finding marker). Unlike a finding marker it DOES
-// bound a claim — a sentence carrying one counts (see the package doc and inlineMarker) —
-// and it is the anchor the assembly weaves into a visible [^N]. Here it feeds the
-// citation-id extractor behind the bijection detector and the lockdown class-sweep.
-var citationMarkerRe = regexp.MustCompile(`<!--cite:(c-[0-9a-f]+)-->`)
-
-// proofMarkerRe matches an invisible proof-anchor token "<!--proof:p-<hex>-->" (#277): the
-// sentence this one sits at is backed by a COMPUTATION whose script and output are cached
-// under <run>/proofs/<sha256>, and which the auditor re-RUNS rather than re-reads.
-//
-// It is a third class on the one immortal-anchor mechanism, not a third mechanism. Like a
-// finding marker and unlike a citation it does not itself bound a claim for the counter —
-// a proof BACKS a claim the prose already makes, and counting it as one would double-count
-// a sentence that also carries a cite.
-var proofMarkerRe = regexp.MustCompile(`<!--proof:(p-[0-9a-f]+)-->`)
-
-// FindingAnchorIDs returns the distinct finding-anchor ids PRESENT in the report, in
-// first-seen order. This is the immortal-marker detector's PRESENT set: an anchored
-// finding_id absent from it is a dropped marker (a hard violation). Pure id membership
-// over the report text.
-func FindingAnchorIDs(md string) []string { return anchorIDs(findingMarkerRe, md) }
-
-// CitationAnchorIDs returns the distinct citation-anchor ids PRESENT in the report, in
-// first-seen order — the citation-axis twin of FindingAnchorIDs. It is the PRESENT set
-// behind the unbacked_citations detector and the blue-edit lockdown's cite class-sweep:
-// under the cite⟺anchor bijection it equals the set of cite-event labels, and any
-// divergence (a hand-typed footnote, a tampered anchor) is a real defect.
-func CitationAnchorIDs(md string) []string { return anchorIDs(citationMarkerRe, md) }
-
-// ProofAnchorIDs returns the distinct proof-anchor ids PRESENT in the report. A proof is
-// evidence a seat produced by running something, so dropping its anchor silently unbacks a
-// claim exactly as dropping a citation's would — it joins the protected union below.
-func ProofAnchorIDs(md string) []string { return anchorIDs(proofMarkerRe, md) }
-
-// anchorIDs returns the distinct capture-group-1 ids matched by re in md, first-seen
-// order — the shared extractor behind both anchor classes so their membership logic
-// cannot drift.
-func anchorIDs(re *regexp.Regexp, md string) []string {
-	seen := map[string]bool{}
+// ProtectedAnchorIDs returns the distinct ids of every anchor present in the report, walking the
+// kinds table in its order and each kind first-seen. It is the set the blue-edit lockdown, the
+// dropped-marker backstop, the reopened set and the retire tidy all read: an edit may drop no
+// anchor of any kind.
+func ProtectedAnchorIDs(md string) []string {
+	ids := anchor.IDs(md)
 	var out []string
-	for _, m := range re.FindAllStringSubmatch(md, -1) {
-		if id := m[1]; !seen[id] {
-			seen[id] = true
-			out = append(out, id)
+	for _, kind := range anchor.Kinds() {
+		for _, id := range ids {
+			if anchor.Kind(id) == kind {
+				out = append(out, id)
+			}
 		}
 	}
 	return out
-}
-
-// ProtectedAnchorIDs returns the distinct ids of BOTH immortal anchor classes present in
-// the report — finding markers (f-…) then citation anchors (c-…), each first-seen. The two
-// classes never collide (distinct prefixes), so this is the union both the blue-edit
-// lockdown and the PostToolUse backstop sweep: an edit may drop NEITHER a finding nor a
-// citation, and keying the guard on this union means a future third anchor class is added
-// in ONE place, not patched per call site.
-func ProtectedAnchorIDs(md string) []string {
-	ids := append(FindingAnchorIDs(md), CitationAnchorIDs(md)...)
-	return append(ids, ProofAnchorIDs(md)...)
 }
 
 // The MissingAnchorIDs / MissingCitationAnchorIDs / MissingProofAnchorIDs /

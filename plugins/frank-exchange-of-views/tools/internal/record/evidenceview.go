@@ -8,10 +8,9 @@ import (
 //
 // # The anchor a seat could not resolve
 //
-// The report carries three classes of tool-inserted anchor: `<!--fx:f-…-->` a finding,
-// `<!--cite:c-…-->` a source, `<!--proof:p-…-->` a computation. A seat reading a sentence sees
-// the token. Only the FIRST could ever be resolved — `show findings` is keyed by the f-label —
-// and the other two were opaque.
+// The report carries a tool-inserted anchor of every kind in the anchor kinds table. A seat
+// reading a sentence sees the token. Only a finding's could ever be resolved — `show findings`
+// is keyed by the f-label — and a source's and a computation's were opaque.
 //
 // Measured, in a seat's own words when asked what it could do next: "blocked by missing
 // information (what does `c-29a72fe2` point to?)". The tool holds that citation's url, title,

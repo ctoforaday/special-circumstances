@@ -144,12 +144,11 @@ func newProve() *cobra.Command {
 		// torn-splice window; a --key retry is idempotent (handled above). Mint the id and VALIDATE
 		// the placement against the current render — a mis-quote or in-fence quote is refused now.
 		label := record.NewProofID()
-		marker := "<!--proof:" + label + "-->"
 		current, err := reportproj.RenderFromRecord(run)
 		if err != nil {
 			return nil, err
 		}
-		if _, aerr := anchortext.InsertAnchor([]byte(current), location, marker); aerr != nil {
+		if _, aerr := anchortext.Attach(current, label, location); aerr != nil {
 			return nil, aerr
 		}
 

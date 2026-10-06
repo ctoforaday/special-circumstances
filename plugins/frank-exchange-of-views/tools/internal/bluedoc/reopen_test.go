@@ -30,7 +30,7 @@ func TestReopenedAnchorsCatchesTextMovingUnderAReference(t *testing.T) {
 
 	// A SECOND ANCHOR ARRIVING IN THE SAME SENTENCE IS NOT A CHANGE TO THE FIRST. Anchors are
 	// stripped before comparing, or every cite would reopen its own neighbours.
-	twin := "# H\n\nThe sky is blue and the grass is green" + tok + "<!--fx:f-L1-F1-->.\n\nAnother sentence entirely.\n"
+	twin := "# H\n\nThe sky is blue and the grass is green" + tok + "<!--fx:f-9f2a1c-->.\n\nAnother sentence entirely.\n"
 	if got := ReopenedAnchors(before, twin); len(got) != 0 {
 		t.Errorf("ReopenedAnchors = %v, want none — a neighbouring anchor is not a change to this one's referent", got)
 	}
@@ -70,6 +70,13 @@ func TestAQuoteMayNotStopShortOfTheAnchorItIsRewriting(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), tok) {
 		t.Errorf("the refusal does not print the token the seat must carry: %v", err)
+	}
+
+	// A RUN of abutting anchors is named anchor by anchor, each by its kind.
+	run := "# H\n\nThe sky is blue<!--fx:f-a1--><!--cite:c-b2-->.\n"
+	_, _, err = LocateUniqueReplacing("blue edit", run, "The sky is blue.")
+	if err == nil || !strings.Contains(err.Error(), "carries finding-marker f-a1 and citation anchor c-b2 (") {
+		t.Errorf("the refusal does not name each anchor of the run by its kind: %v", err)
 	}
 
 	// Quoting it WITH the anchor, as `show report` prints it, locates normally.

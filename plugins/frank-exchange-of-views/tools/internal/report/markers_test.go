@@ -13,20 +13,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
-// The invisible finding-marker "<!--fx:f-<id>-->" is stripped; blue's own claim
-// footnotes ("[^L1]") and prose are untouched.
-func TestStripFindingMarkers(t *testing.T) {
-	in := "A claim.<!--fx:f-abc--> Another one[^L1], and a third.<!--fx:f-9f2a1c-->\n"
-	got := StripFindingMarkers(in)
-	want := "A claim. Another one[^L1], and a third.\n"
-	if got != want {
-		t.Errorf("StripFindingMarkers = %q, want %q", got, want)
-	}
-	if strings.Contains(got, "<!--fx:") {
-		t.Error("a raw finding-marker survived the strip")
-	}
-}
-
 // THE LEAK REPRO: a marker token that reaches the report via a RECORD-DERIVED section
 // (here a mint's problem text, rendered into the findings/risk section) must still be
 // stripped — the earlier blue-only strip missed exactly this path.

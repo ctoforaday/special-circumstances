@@ -22,10 +22,9 @@ import (
 //
 // report.md is read-only to the response seat (the lockdown hook denies its raw Edit/Write
 // and Bash writes); it changes the report EXCLUSIVELY through this verb, which replaces the
-// exact current span --old with --new while PRESERVING both immortal anchor classes — red's
-// invisible finding-markers ("<!--fx:...-->") AND blue's tool-managed citation anchors
-// ("<!--cite:...-->"). A span that would drop or split an anchor of EITHER class is REJECTED
-// (edit around it). Each applied edit appends a `blue_edit` event — an append-only diff-stack
+// exact current span --old with --new while PRESERVING every anchor, of every kind in the anchor
+// kinds table. A span that would drop or split an anchor of any kind is REJECTED (edit around
+// it). Each applied edit appends a `blue_edit` event — an append-only diff-stack
 // that replays onto the round-0 report to equal the current head.
 //
 // PROVENANCE: --answers names the gap this edit responds to. It is validated against the
@@ -267,7 +266,7 @@ func validateEdit(report, old, new string) (string, bool, error) {
 	return planned, exact, nil
 }
 
-// droppedMarker returns an immortal-anchor id (finding OR citation) present in before but
+// droppedMarker returns an immortal-anchor id, of any kind, present in before but
 // absent from after, or "". The union sweep is what makes the cite⟺anchor bijection hold:
 // no raw edit can drop a citation any more than it can drop a finding.
 func droppedMarker(before, after string) string {

@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 )
 
 // TYPED FLAGS FOR VALUES WITH A KNOWABLE SHAPE.
@@ -41,7 +43,7 @@ var gapIDShape = regexp.MustCompile(`^G\d+$`)
 
 // anchorShape is the tool-inserted anchor id: f- a finding, c- a source, p- a computation. The
 // prefix carries the class, which is why a bare hex string is not one.
-var anchorShape = regexp.MustCompile(`^[fcp]-[0-9a-f]+$`)
+var anchorShape = regexp.MustCompile(`^` + anchor.IDPattern() + `$`)
 
 // findingLabelShape is <area>-F<n>, the run-unique label the tool assigns a lens finding, built
 // from LensAreas so the vocabulary has one declaration. It still admits the pre-#791 `L<n>-F<n>`,
@@ -80,7 +82,7 @@ type ShapedValue struct {
 	val   string
 	set   bool
 	// unwrapsAnchor takes the id out of a `<!--cite:c-…-->` token before the shape is matched, for the
-	// flags whose value a seat copies out of the report. See anchorToken.
+	// flags whose value a seat copies out of the report. See Set.
 	unwrapsAnchor bool
 }
 
@@ -122,25 +124,23 @@ func (v *ShapedValue) String() string {
 	return v.val
 }
 
-// anchorToken is an anchor AS THE REPORT CARRIES IT. The report is the document a seat is reading
-// when it needs an anchor, and the id there is inside a token — so copying the token is the obvious
-// act, and it was refused.
-//
-// MEASURED on universe-m12: a lens passed `<!--cite:c-db9ddfe6-->` to --anchor twice, and the
-// refusal it got named the very form it had ("the c-<hex> INSIDE a `<!--cite:c-…-->` token"). The
-// tool knew what it had been handed and declined to take it.
-//
-// THIS IS NOT A TOLERANCE PATH for an old spelling: the token is the CURRENT form, in the current
-// report, and the unwrapped id is what is stored — nothing downstream ever sees a token. The class
-// check still applies afterwards, so `<!--fx:f-…-->` handed to a citation flag is still refused for
-// being a finding.
-var anchorToken = regexp.MustCompile(`^<!--(?:cite|fx|proof):([fcp]-[0-9a-f]+)-->$`)
-
 func (v *ShapedValue) Set(s string) error {
 	t := strings.TrimSpace(s)
+	// AN ANCHOR AS THE REPORT CARRIES IT is unwrapped. The report is the document a seat is reading
+	// when it needs an anchor, and the id there is inside a token — so copying the token is the
+	// obvious act, and it was refused.
+	//
+	// MEASURED on universe-m12: a lens passed `<!--cite:c-db9ddfe6-->` to --anchor twice, and the
+	// refusal it got named the very form it had ("the c-<hex> INSIDE a `<!--cite:c-…-->` token").
+	// The tool knew what it had been handed and declined to take it.
+	//
+	// THIS IS NOT A TOLERANCE PATH for an old spelling: the token is the CURRENT form, in the
+	// current report, and the unwrapped id is what is stored — nothing downstream ever sees a
+	// token. The class check still applies afterwards, so `<!--fx:f-…-->` handed to a citation flag
+	// is still refused for being a finding.
 	if v.unwrapsAnchor {
-		if m := anchorToken.FindStringSubmatch(t); m != nil {
-			t = m[1]
+		if ids := anchor.IDs(t); len(ids) == 1 && anchor.Token(ids[0]) == t {
+			t = ids[0]
 		}
 	}
 	if v.re != nil && !v.re.MatchString(t) {
@@ -164,7 +164,7 @@ func GapID() *ShapedValue {
 // AnchorID refuses anything that is not a tool-inserted anchor id of any class.
 func AnchorID() *ShapedValue {
 	return &ShapedValue{kind: "anchor", re: anchorShape, unwrapsAnchor: true,
-		hint: "an anchor is a `<!--cite:c-…-->`, `<!--fx:f-…-->` or `<!--proof:p-…-->` token in the report, or the id inside one — paste either; `show evidence` and `show findings` resolve them"}
+		hint: "an anchor is a `" + anchor.Token("c-…") + "`, `" + anchor.Token("f-…") + "` or `" + anchor.Token("p-…") + "` token in the report, or the id inside one — paste either; `show evidence` and `show findings` resolve them"}
 }
 
 // citationAnchorShape is the CITATION class only.
@@ -179,7 +179,7 @@ var citationAnchorShape = regexp.MustCompile(`^c-[0-9a-f]+$`)
 // error to a record lookup whose message is about existence rather than kind.
 func CitationAnchor() *ShapedValue {
 	return &ShapedValue{kind: "citation-anchor", re: citationAnchorShape, unwrapsAnchor: true,
-		hint: "a citation anchor is a `<!--cite:c-…-->` token in the report or the c-<hex> inside one — paste either — while `f-` is a finding and `p-` is a computation, neither of which is a source; `show evidence` lists every citation by anchor"}
+		hint: "a citation anchor is a `" + anchor.Token("c-…") + "` token in the report or the c-<hex> inside one — paste either — while `f-` is a finding and `p-` is a computation, neither of which is a source; `show evidence` lists every citation by anchor"}
 }
 
 // avenueIDShape is Q<n>, the id assigned when an avenue is proposed.

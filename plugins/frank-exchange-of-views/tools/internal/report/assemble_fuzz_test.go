@@ -1,6 +1,7 @@
 package report
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -12,7 +13,10 @@ import (
 // leaves a raw "<!--cite:c-…-->" anchor behind (every one becomes a [^N]), and produces a
 // bibliography line for each distinct anchor it wove — a dangling anchor (no source) is
 // surfaced, never crashed on.
+//
+// The oracle reads the token with its own pattern, so the weave's reader does not grade itself.
 func FuzzWeaveCitations(f *testing.F) {
+	citeAnchor := regexp.MustCompile(`<!--cite:(c-[0-9a-f]+)-->`)
 	f.Add("Alpha<!--cite:c-1-->. Beta<!--cite:c-2-->.", "c-1|c-2")
 	f.Add("No citations here at all.", "")
 	f.Add("Dangling<!--cite:c-dead-->.", "") // anchor present, no source

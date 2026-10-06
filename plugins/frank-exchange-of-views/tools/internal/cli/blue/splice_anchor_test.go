@@ -3,9 +3,6 @@ package blue
 import (
 	"strings"
 	"testing"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 )
 
 // A SENTENCE WHOSE ANCHOR PRECEDES ITS PERIOD SURVIVES AN EDIT INTACT (#525).
@@ -86,43 +83,6 @@ func TestSpliceAroundAnAnchoredSentenceEnd(t *testing.T) {
 				t.Errorf("planEdit =\n  %q\nwant\n  %q", got, tc.want)
 			}
 		})
-	}
-}
-
-// SkipRun MUST SEE EXACTLY THE TOKENS THE PROTECTION SWEEP SEES.
-//
-// tidySeam steps over the anchor layer to find the seam. claimcount's three regexes decide
-// which tokens are PROTECTED. A token one reader steps over and the other refuses to see is a
-// span where punctuation gets tidied around something that is not an anchor — two readers of
-// one vocabulary, drifting, which is the defect this repository keeps re-finding. The two
-// patterns are hand-written in different packages (anchor is a stdlib-only leaf), so their
-// agreement is pinned here rather than by construction.
-func TestSkipRunAgreesWithTheProtectionSweep(t *testing.T) {
-	for _, tok := range []string{
-		"<!--fx:f-abc123-->", "<!--cite:c-d4d4d4-->", "<!--proof:p-0f0f0f-->",
-		"<!--fx:f-seed01-->",   // "s" is not hex — the malformed id that made the fuzzer vacuous
-		"<!--fx:f-ABC123-->",   // uppercase is not [0-9a-f]
-		"<!--fx:abc123-->",     // no class prefix on the id
-		"<!--note:f-abc123-->", // not an anchor class
-		"<!--fx:f--->",         // empty id
-		"<!-- fx:f-abc123 -->", // spaced: not the minted spelling
-	} {
-		t.Run(tok, func(t *testing.T) {
-			protected := len(claimcount.ProtectedAnchorIDs(tok)) > 0
-			skipped := anchor.SkipRun(tok, 0) == len(tok)
-			if protected != skipped {
-				t.Errorf("claimcount protects=%v but anchor.SkipRun consumes=%v — the two readers disagree about %q", protected, skipped, tok)
-			}
-		})
-	}
-	// And a run of two is consumed whole, not one token deep.
-	pair := "<!--fx:f-abc123--><!--cite:c-d4d4d4-->"
-	if got := anchor.SkipRun(pair+"tail", 0); got != len(pair) {
-		t.Errorf("SkipRun over an abutting pair = %d, want %d (%q)", got, len(pair), pair)
-	}
-	// A token that merely STARTS like one leaves the index untouched rather than half-consuming.
-	if got := anchor.SkipRun("<!--fx:f-zz-->x", 0); got != 0 {
-		t.Errorf("SkipRun over a malformed token = %d, want 0", got)
 	}
 }
 

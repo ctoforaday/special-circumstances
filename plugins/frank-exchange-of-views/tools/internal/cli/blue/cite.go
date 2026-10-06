@@ -163,12 +163,11 @@ func newCite() *cobra.Command {
 		// (it forms the marker) and VALIDATE the placement against the current render — a mis-quote
 		// or in-fence quote is refused now with the same message, and the validated bytes discarded.
 		label := record.NewCitationID()
-		marker := "<!--cite:" + label + "-->"
 		current, err := reportproj.RenderFromRecord(run)
 		if err != nil {
 			return nil, err
 		}
-		if _, aerr := anchortext.InsertAnchor([]byte(current), quote, marker); aerr != nil {
+		if _, aerr := anchortext.Attach(current, label, quote); aerr != nil {
 			switch {
 			case errors.Is(aerr, anchortext.ErrMisQuote):
 				return nil, fmt.Errorf("blue cite: the quoted content was not found in report.md — quote the EXACT sentence you are citing (via --quote) — the whole string is matched, so a section heading prepended to it matches nothing")
