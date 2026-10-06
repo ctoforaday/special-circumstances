@@ -185,8 +185,8 @@ func AnchorsTransitUnchanged(verb, oldSpan, newText string) error {
 		return m
 	}
 	o, n := count(oldSpan), count(newText)
-	for id, want := range o {
-		switch got := n[id]; {
+	for _, id := range anchor.IDs(oldSpan) { // in reading order, so a refusal names the first anchor dropped
+		switch want, got := o[id], n[id]; {
 		case got == 0:
 			sent, _ := sentenceAround(oldSpan, anchor.Token(id))
 			on, near := fmt.Sprintf("on the sentence %q", sent), ""

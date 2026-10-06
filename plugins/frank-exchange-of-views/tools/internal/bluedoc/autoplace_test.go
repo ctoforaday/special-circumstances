@@ -34,3 +34,13 @@ func TestTheDropRefusalSaysWhenTheAnchorIsBare(t *testing.T) {
 		t.Errorf("refusal = %v, want it to say the anchor is bare", err)
 	}
 }
+
+// Of several anchors left out, the refusal names the first in the span, every time.
+func TestTheDropRefusalNamesTheFirstAnchorLeftOut(t *testing.T) {
+	span := "One<!--fx:f-aaaa0001-->. Two<!--fx:f-aaaa0002-->. Three<!--fx:f-aaaa0003-->. Four<!--fx:f-aaaa0004-->."
+	for range 8 {
+		if err := AnchorsTransitUnchanged("blue edit", span, "Gone."); err == nil || !strings.Contains(err.Error(), "f-aaaa0001 on the sentence \"One.\"") {
+			t.Fatalf("refusal = %v, want it to name f-aaaa0001 on \"One.\"", err)
+		}
+	}
+}
