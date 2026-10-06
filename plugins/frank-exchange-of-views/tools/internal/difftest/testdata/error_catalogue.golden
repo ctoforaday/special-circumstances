@@ -1792,7 +1792,7 @@ feov-record: blue: blue edit: your old span carries finding-marker FINDING001 on
 
 ── an edit leaving out an anchor whose sentence it repeats
 exit 2
-feov-record: blue: blue edit: your old span carries finding-marker FINDING001 on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--fx:FINDING001--> where that claim now stands in the replacement — its nearest sentence there reads "Prices climbed". To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor
+feov-record: blue: blue edit: your old span carries finding-marker FINDING001 on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--fx:FINDING001--> where that claim now stands in the replacement — its nearest sentence there reads "Prices climbed.". To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor
 
 ── correction target: the lens regrades G1
 exit 0

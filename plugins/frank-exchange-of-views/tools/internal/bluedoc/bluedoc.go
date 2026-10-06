@@ -21,7 +21,6 @@ package bluedoc
 import (
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -413,18 +412,13 @@ func inStep(span string, a, at int, new string, s int) int {
 	return j
 }
 
-// nearestSentence is the sentence of text sharing the most words with sent, or "" when none shares
-// one — where a refused anchor's claim most likely now stands.
+// nearestSentence is the sentence of text whose words overlap sent's most, by near-match's measure,
+// or "" when none shares one — where a refused anchor's claim most likely now stands.
 func nearestSentence(text, sent string) (best string) {
-	words, most := strings.Fields(strings.ToLower(sent)), 0
+	words, most := anchortext.Tokenize(sent), 0.0
 	for _, sp := range anchor.Sentences(text) {
-		s, n := flatText(text[sp[0]:sp[1]]), 0
-		for _, w := range strings.Fields(strings.ToLower(s)) {
-			if slices.Contains(words, w) {
-				n++
-			}
-		}
-		if n > most {
+		s := flatText(text[sp[0]:sp[1]])
+		if n := anchortext.Jaccard(words, anchortext.Tokenize(s)); n > most {
 			best, most = s, n
 		}
 	}

@@ -15,6 +15,7 @@ package anchortext
 import (
 	"errors"
 	"strings"
+	"unicode"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 )
@@ -100,6 +101,44 @@ func annotationLen(s string, i int) int {
 // selectors keep their own, narrower reduction for that reason (internal/cli/seat/selector.go), since
 // `--match "negligible[.]"` is a pattern that names the punctuation this would remove.
 func Visible(s string) string { return normalizeQuote(s) }
+
+// Tokenize lowercases and splits on any non-alphanumeric rune, dropping empties and
+// single-character tokens (punctuation noise, stray letters). Deterministic, unicode-aware.
+func Tokenize(s string) map[string]bool {
+	out := map[string]bool{}
+	// THE ANNOTATION LAYER IS NOT VOCABULARY. Splitting on non-alphanumerics turns an anchor into
+	// tokens — `<!--fx:f-dbd94684-->` yields "fx" and "dbd94684" — and both land in the union, so an
+	// anchored sentence scores LOWER against the same words than an unanchored one. The score degrades
+	// quietly rather than failing, which is why it survived: a near-match that should have warned about
+	// a duplicate just ranks lower. Stripped through the one definition of the layer.
+	for _, f := range strings.FieldsFunc(strings.ToLower(Visible(s)), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
+	}) {
+		if len([]rune(f)) > 1 {
+			out[f] = true
+		}
+	}
+	return out
+}
+
+// Jaccard is the overlap of two token sets: shared over union, 0..1. Empty on either side
+// is 0 (nothing to match), so a candidate or gap with no usable tokens simply does not rank.
+func Jaccard(a, b map[string]bool) float64 {
+	if len(a) == 0 || len(b) == 0 {
+		return 0
+	}
+	shared := 0
+	for t := range a {
+		if b[t] {
+			shared++
+		}
+	}
+	union := len(a) + len(b) - shared
+	if union == 0 {
+		return 0
+	}
+	return float64(shared) / float64(union)
+}
 
 // normalizeQuote reduces a quote to its matchable skeleton: annotation spans dropped,
 // whitespace runs collapsed to a single space, TRAILING punctuation and whitespace
