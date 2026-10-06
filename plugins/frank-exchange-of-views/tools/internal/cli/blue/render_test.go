@@ -9,24 +9,26 @@ import (
 // The whole design (#709) rests on ONE property: replaying the diff-stack over the frozen base
 // reproduces exactly the bytes the file used to hold. If that holds, the file is derivable and can
 // be deleted; if it drifts by a byte, deleting the file loses data. So the fidelity test compares
-// Render against planEdit — the SAME transform blue edit writes to the file — op for op.
+// Render against planEdit — the SAME transform blue edit writes to the file — op for op, replaying
+// the replacement blue edit records, which carries any anchor the tool put back.
 func TestRenderReproducesTheEditPathByteForByte(t *testing.T) {
-	base := "The cost is stable and the volume grows steadily."
+	base := "The cost is stable and the volume grows steadily. Prices hold<!--fx:f-abcdef01-->."
 	steps := []reportproj.Op{
 		{Old: "stable", New: "steady."}, // ends in "." abutting nothing — exercises seam tidy
 		{Old: "the volume grows steadily.", New: "demand climbs."},
 		{Old: "cost", New: "price"},
+		{Old: "Prices hold<!--fx:f-abcdef01-->", New: "Wages rose. Prices hold"}, // the tool puts the anchor back
 	}
 
 	// Apply the steps through blue edit's own pure core, accumulating the running report the way
 	// the file would have.
 	viaEdit := base
 	for i, s := range steps {
-		next, _, _, err := planEdit(viaEdit, s.Old, s.New)
+		next, applied, _, err := planEdit(viaEdit, s.Old, s.New)
 		if err != nil {
 			t.Fatalf("planEdit step %d (%q→%q): %v", i, s.Old, s.New, err)
 		}
-		viaEdit = next
+		viaEdit, steps[i].New = next, applied
 	}
 
 	viaRender, err := reportproj.Render(base, steps)
