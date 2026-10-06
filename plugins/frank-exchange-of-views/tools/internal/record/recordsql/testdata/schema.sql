@@ -1186,17 +1186,31 @@ SELECT u."replacement" AS "replacement", u."root" AS "root"
 FROM "up" u
 WHERE NOT EXISTS (SELECT 1 FROM "correction" c WHERE c."replacement" = u."root");
 
--- THE ACTS THAT STAND, and WHERE each stands. Every event that no correction struck, with its
--- position "pos": its own id, or — for a replacement — the id of the act at the ROOT of its chain.
--- A correction takes its target's place in every ordering: a reader picking the FIRST or the LATEST
--- act orders by "pos", so a replacement cannot jump ahead of a later act by the same seat (a line of
--- avenue's proposal corrected after it was moved must not become the line's latest status).
-CREATE VIEW "live_event" AS
-SELECT e."id" AS "event_id", COALESCE(re."id", e."id") AS "pos"
+-- EVERY ACT, WHERE IT STANDS IN AN ORDERING, AND WHEN IT STOPPED STANDING. Its position "pos" is its
+-- own id, or — for a replacement — the id of the act at the ROOT of its chain: a correction takes its
+-- target's place in every ordering, so a reader picking the FIRST or the LATEST act orders by "pos",
+-- and a replacement cannot jump ahead of a later act by the same seat (a line of avenue's proposal
+-- corrected after it was moved must not become the line's latest status). "struck_seq" is the
+-- events.id of the correction that struck it, NULL while nothing has.
+--
+-- TWO AXES, AND THEY ANSWER DIFFERENT QUESTIONS. "pos" ORDERS the acts that stand; WHETHER an act
+-- stood at a point P of the record is on the record's own axis, events.id: it was written at or
+-- before P ("event_id" <= P) and no correction written at or before P struck it ("struck_seq" IS
+-- NULL OR "struck_seq" > P). A reader asking "as it stood at P" applies exactly that predicate — a
+-- correction written after P has not happened at P, however early its replacement sorts. At the
+-- record's newest event the predicate is "struck_seq IS NULL", which is live_event.
+CREATE VIEW "act_standing" AS
+SELECT e."id"                   AS "event_id",
+       COALESCE(re."id", e."id") AS "pos",
+       s."by_event"             AS "struck_seq"
 FROM "events" e
 LEFT JOIN "correction_root" cr ON cr."replacement" = e."key"
 LEFT JOIN "events" re ON re."key" = cr."root"
-WHERE NOT EXISTS (SELECT 1 FROM "correction" c WHERE c."corrects" = e."key");
+LEFT JOIN "struck" s ON s."event_id" = e."id";
+
+-- THE ACTS THAT STAND NOW, and where each stands: every act no correction has struck.
+CREATE VIEW "live_event" AS
+SELECT "event_id", "pos" FROM "act_standing" WHERE "struck_seq" IS NULL;
 
 -- THE BENCH'S REMANDS: every docket ruling that stands (live_event) with a disposition that does not
 -- close the gap ("remanded"), one row per ruling — the gap it is about, its events.id, its place
@@ -1224,11 +1238,108 @@ JOIN "live_event" l ON l."event_id" = mr."event_id"
 JOIN "events" e ON e."id" = mr."event_id"
 WHERE NOT d."closes";
 
--- THE GAP, AND WHETHER IT IS MATERIAL. "material" is the one definition in SQL: the class's
--- default says 'always' or 'never', and a 'by_grade' class is material at a CURRENT severity of
--- medium (mass 2.0, record.material) and above. The inner select is the gap as the record holds it;
--- the outer adds the column from the current severity that select already overlays, so the
--- regrade overlay is written once.
+-- A GAP'S GRADES OVER THE RECORD, AND WHETHER IT IS MATERIAL: one row per gap (per mint) per stretch
+-- of the record over which its grades held — from "from_seq" up to, not including, "until_seq" (NULL:
+-- they hold now). The row that holds at a point P is the one with from_seq <= P and until_seq NULL or
+-- above P. The gap view reads the row that holds now; convergence_at reads the one that held at each
+-- verdict. This is the ONE statement of the regrade overlay and of the materiality rule.
+--
+-- THE OVERLAY: on each axis, the latest regrade that touched the axis among the regrades STANDING at
+-- the point (act_standing's predicate, on events.id), "latest" by "pos"; else the mint's grade. A
+-- stretch begins at the mint, at each regrade, and at each correction that struck one, which are the
+-- only points where that answer can change. A correction written after a verdict therefore begins a
+-- stretch after it: the verdict's row still holds the original the gate read.
+--
+-- THE MATERIALITY RULE: the class's default says 'always' or 'never', and a 'by_grade' class is
+-- material at a severity of medium (mass 2.0, record.material) and above.
+--
+-- "mass" is MASS[likelihood] * MASS[impact] and "severity_mass" MASS[severity] — a grade's weight is
+-- a facet on the vocabulary (enum_grade.mass).
+CREATE VIEW "gap_grade" AS
+WITH "act" AS MATERIALIZED (
+  SELECT r."gap_id" AS "gap_id", r."event_id" AS "seq", a."pos" AS "pos", a."struck_seq" AS "struck_seq",
+         r."severity" AS "severity", r."likelihood" AS "likelihood", r."impact" AS "impact",
+         r."complexity_cost" AS "complexity_cost"
+  FROM "regrade" r
+  JOIN "act_standing" a ON a."event_id" = r."event_id"
+),
+"turn" AS (
+  SELECT m."event_id" AS "minted_event", m."event_id" AS "seq" FROM "mint" m
+  UNION
+  SELECT m."event_id", a."seq" FROM "mint" m JOIN "act" a ON a."gap_id" = m."gap_id"
+  UNION
+  SELECT m."event_id", a."struck_seq" FROM "mint" m JOIN "act" a ON a."gap_id" = m."gap_id"
+  WHERE a."struck_seq" IS NOT NULL
+),
+"graded" AS (
+  SELECT t."minted_event" AS "minted_event",
+         t."seq"          AS "from_seq",
+         LEAD(t."seq") OVER (PARTITION BY t."minted_event" ORDER BY t."seq") AS "until_seq",
+         m."class_material" AS "class_material",
+         COALESCE((SELECT a."severity" FROM "act" a
+                    WHERE a."gap_id" = m."gap_id" AND a."severity" IS NOT NULL
+                      AND a."seq" <= t."seq" AND (a."struck_seq" IS NULL OR a."struck_seq" > t."seq")
+                    ORDER BY a."pos" DESC LIMIT 1), m."severity")               AS "severity",
+         COALESCE((SELECT a."likelihood" FROM "act" a
+                    WHERE a."gap_id" = m."gap_id" AND a."likelihood" IS NOT NULL
+                      AND a."seq" <= t."seq" AND (a."struck_seq" IS NULL OR a."struck_seq" > t."seq")
+                    ORDER BY a."pos" DESC LIMIT 1), m."likelihood")             AS "likelihood",
+         COALESCE((SELECT a."impact" FROM "act" a
+                    WHERE a."gap_id" = m."gap_id" AND a."impact" IS NOT NULL
+                      AND a."seq" <= t."seq" AND (a."struck_seq" IS NULL OR a."struck_seq" > t."seq")
+                    ORDER BY a."pos" DESC LIMIT 1), m."impact")                 AS "impact",
+         COALESCE((SELECT a."complexity_cost" FROM "act" a
+                    WHERE a."gap_id" = m."gap_id" AND a."complexity_cost" IS NOT NULL
+                      AND a."seq" <= t."seq" AND (a."struck_seq" IS NULL OR a."struck_seq" > t."seq")
+                    ORDER BY a."pos" DESC LIMIT 1), m."complexity_cost")        AS "complexity_cost"
+  FROM "turn" t
+  JOIN "mint" m ON m."event_id" = t."minted_event"
+)
+SELECT g."minted_event"                                      AS "minted_event",
+       g."from_seq"                                          AS "from_seq",
+       g."until_seq"                                         AS "until_seq",
+       g."severity"                                          AS "severity",
+       g."likelihood"                                        AS "likelihood",
+       g."impact"                                            AS "impact",
+       g."complexity_cost"                                   AS "complexity_cost",
+       COALESCE(gl."mass", 0.0) * COALESCE(gi."mass", 0.0)   AS "mass",
+       COALESCE(gs."mass", 0.0)                              AS "severity_mass",
+       (g."class_material" = 'always'
+          OR (g."class_material" = 'by_grade' AND COALESCE(gs."mass", 0.0) >= 2.0)) AS "material"
+FROM "graded" g
+LEFT JOIN "enum_grade" gl ON gl."value" = g."likelihood"
+LEFT JOIN "enum_grade" gi ON gi."value" = g."impact"
+LEFT JOIN "enum_grade" gs ON gs."value" = g."severity";
+
+-- EVERY ACT THAT CLOSES A GAP, by its arm: red's close ('close'), and a docket ruling whose
+-- disposition closes ('bench') — whether it closes is read off the vocabulary rather than decided
+-- here. Struck acts are rows too: whether one closed the gap at a point is act_standing's question.
+-- The gap view reads the earliest of each arm that stands now; convergence_at asks whether any stood
+-- at a verdict.
+--
+-- TWO HOPS ON THE BENCH ARM, BECAUSE THE GAP RIDES THE FILING. The bench's disposition was its own
+-- event carrying a gap_id; it is a docket motion's RULING, and the gap is on the motion that asked.
+-- So: the ruling arm gives the disposition, its motion_rule gives the motion id, and the docket
+-- FILING gives the gap. Written here once rather than at each reader — the same join was
+-- hand-written at eight readers before it.
+--
+-- SQLite does not validate a view body at CREATE, so a view left reading a table that has gone
+-- applies cleanly and returns no bench closures at all: every disposed gap reading as undisposed.
+CREATE VIEW "closure_act" AS
+SELECT c."gap_id" AS "gap_id", c."event_id" AS "event_id", 'close' AS "arm"
+FROM "close" c
+UNION ALL
+SELECT md."gap_id", mr."event_id", 'bench'
+FROM "motion_rule_docket" rd
+JOIN "motion_rule" mr ON mr."event_id" = rd."event_id"
+JOIN "motion" mo ON mo."motion_id" = mr."motion_id"
+JOIN "motion_docket" md ON md."event_id" = mo."event_id"
+JOIN "enum_disposition" d ON d."value" = rd."disposition"
+WHERE d."closes";
+
+-- THE GAP, AND WHETHER IT IS MATERIAL. Its current grades and its "material" column are gap_grade's
+-- row that stands now (until_seq IS NULL) — the one definition of both the regrade overlay and the
+-- materiality rule, which convergence_at reads at every other point of the record.
 --
 -- THIS COLUMN LIST IS HAND-AUTHORED, AND IT IS WHERE A NEW GAP FIELD GOES MISSING. The table DDL
 -- is DERIVED from the protobuf descriptors, so a new field on Mint gets its column and its write
@@ -1242,9 +1353,8 @@ WHERE NOT d."closes";
 -- a gap's content — record/viewjson.go's BOARD query (its rows.Scan and its GapJSON literal) and
 -- WORK query (its Scan, WorkGapState, and the WorkGapJSON / ClosedIndexJSON assembly), and
 -- record/gapstates.go, which builds the Go Gap struct most other readers take. The rest ask one
--- narrow question of the view (dispatch's open-gap fold, the convergence sums, estoppel's credit
--- join) and are unaffected by
--- a new descriptive field. Grep rather than trust the list above: readers of this view are added
+-- narrow question of the view (dispatch's open-gap fold, estoppel's credit join) and are unaffected
+-- by a new descriptive field. Grep rather than trust the list above: readers of this view are added
 -- without touching it, and a count written here goes stale silently — which is this comment's own
 -- failure mode, not just the schema's.
 --
@@ -1252,8 +1362,6 @@ WHERE NOT d."closes";
 CREATE VIEW "gap" AS
 SELECT
   gb.*,
-  (gb."class_material" = 'always'
-     OR (gb."class_material" = 'by_grade' AND COALESCE(gm."mass", 0.0) >= 2.0)) AS "material",
   -- THE BENCH REMANDED IT AND NOTHING IS PENDING, and this is the column that lets a seat be told so.
   --
   -- A remand ruled at impasse sends the gap back to the debate for ONE more exchange between its
@@ -1313,19 +1421,14 @@ SELECT
   -- cannot disagree with the rows it counts.
   (SELECT count(*) FROM "mint_supersedes" s WHERE s."event_id" = m."event_id") AS "supersedes_count",
   (SELECT count(*) FROM "mint_found_by"   f WHERE f."event_id" = m."event_id") AS "found_by_count",
-  -- THE CURRENT GRADES, one per axis: the latest regrade that touched the axis, else the
-  -- mint's. The plain "severity" columns above are MINT-TIME grades — a reader that wants
-  -- what the gap is graded NOW and reaches for them silently reads a number a regrade may
-  -- have moved, which is why the overlay is answered here rather than left to each reader.
-  -- A STRUCK regrade is not a grade: only the acts that stand are read, in their "pos" order.
-  COALESCE((SELECT r."severity" FROM "regrade" r JOIN "live_event" rl ON rl."event_id" = r."event_id"
-    WHERE r."gap_id" = m."gap_id" AND r."severity" IS NOT NULL ORDER BY rl."pos" DESC LIMIT 1), m."severity") AS "current_severity",
-  COALESCE((SELECT r."likelihood" FROM "regrade" r JOIN "live_event" rl ON rl."event_id" = r."event_id"
-    WHERE r."gap_id" = m."gap_id" AND r."likelihood" IS NOT NULL ORDER BY rl."pos" DESC LIMIT 1), m."likelihood") AS "current_likelihood",
-  COALESCE((SELECT r."impact" FROM "regrade" r JOIN "live_event" rl ON rl."event_id" = r."event_id"
-    WHERE r."gap_id" = m."gap_id" AND r."impact" IS NOT NULL ORDER BY rl."pos" DESC LIMIT 1), m."impact") AS "current_impact",
-  COALESCE((SELECT r."complexity_cost" FROM "regrade" r JOIN "live_event" rl ON rl."event_id" = r."event_id"
-    WHERE r."gap_id" = m."gap_id" AND r."complexity_cost" IS NOT NULL ORDER BY rl."pos" DESC LIMIT 1), m."complexity_cost") AS "current_complexity_cost",
+  -- THE CURRENT GRADES, one per axis, off gap_grade's standing row. The plain "severity" columns
+  -- above are MINT-TIME grades — a reader that wants what the gap is graded NOW and reaches for them
+  -- silently reads a number a regrade may have moved, which is why the overlay is answered here
+  -- rather than left to each reader.
+  gg."severity"                                                                       AS "current_severity",
+  gg."likelihood"                                                                     AS "current_likelihood",
+  gg."impact"                                                                         AS "current_impact",
+  gg."complexity_cost"                                                                AS "current_complexity_cost",
   -- THE PROOF JOIN, answered where every asker can share it: a 'computation' gap closes on
   -- a recorded proof naming it in --answers, and "awaiting proof" is the debt list blue is
   -- handed. 'computation' is the vocabulary's own word; the Go home for the question
@@ -1370,9 +1473,11 @@ SELECT
      AND EXISTS(SELECT 1 FROM "mint_supersedes" s3 WHERE s3."value" = m."gap_id"))    AS "stranded",
   -- The mint's own event id, so board order is a sort key rather than a join every reader
   -- writes for itself.
-  m."event_id"                                                                        AS "minted_event"
+  m."event_id"                                                                        AS "minted_event",
+  gg."material"                                                                       AS "material"
 FROM "mint" m
 JOIN "events_w" e ON e."id" = m."event_id"
+LEFT JOIN "gap_grade" gg ON gg."minted_event" = m."event_id" AND gg."until_seq" IS NULL
 -- A gap can be closed more than once — red re-adjudicates across epochs (defect_accepted in
 -- one, repaired in a later one). Take the EARLIEST close, exactly as the bench-close arm below
 -- takes its earliest closing ruling: a plain LEFT JOIN "close" fans out one row per close event,
@@ -1384,110 +1489,115 @@ JOIN "events_w" e ON e."id" = m."event_id"
 -- close keeps its original place. (SQLite's bare column beside MIN() is read from the MIN row.)
 LEFT JOIN (
   SELECT c0."gap_id" AS "gap_id", c0."event_id" AS "event_id", MIN(l0."pos") AS "pos"
-  FROM "close" c0
+  FROM "closure_act" c0
   JOIN "live_event" l0 ON l0."event_id" = c0."event_id"
+  WHERE c0."arm" = 'close'
   GROUP BY c0."gap_id"
 ) cx ON cx."gap_id" = m."gap_id"
 LEFT JOIN "close" c ON c."event_id" = cx."event_id"
 LEFT JOIN "events" ce ON ce."id" = cx."event_id"
 -- The bench's closing ruling, if it made one. A gap can be ruled on many times — carried in one
--- epoch and disposed of in the next — so this is the EARLIEST ruling whose disposition closes,
--- and whether it closes is read off the vocabulary rather than decided here.
---
--- TWO HOPS NOW, BECAUSE THE GAP RIDES THE FILING. The bench's disposition was its own event
--- carrying a gap_id; it is a docket motion's RULING, and the gap is on the motion that asked.
--- So: the ruling arm gives the disposition, its motion_rule gives the motion id, and the docket
--- FILING gives the gap. Written here once rather than at each reader, which is what this view is
--- for — the same join was hand-written at eight readers before it.
---
--- AND IT HAD TO CHANGE IN THE SAME COMMIT AS THE DELETE. SQLite does not validate a view body at
--- CREATE, so a view left reading "opinion" after that table went would have applied cleanly and
--- returned no bench closures at all: every disposed gap reading as undisposed, which is the exact
--- defect this whole change exists to remove.
+-- epoch and disposed of in the next — so this is the EARLIEST ruling whose disposition closes
+-- (closure_act's bench arm).
 LEFT JOIN (
-  SELECT md."gap_id" AS "gap_id", mr."event_id" AS "event_id", MIN(lr."pos") AS "pos"
-  FROM "motion_rule_docket" rd
-  JOIN "motion_rule" mr ON mr."event_id" = rd."event_id"
-  JOIN "live_event" lr ON lr."event_id" = mr."event_id"
-  JOIN "motion" mo ON mo."motion_id" = mr."motion_id"
-  JOIN "motion_docket" md ON md."event_id" = mo."event_id"
-  JOIN "enum_disposition" d ON d."value" = rd."disposition"
-  WHERE d."closes"
-  GROUP BY md."gap_id"
+  SELECT b0."gap_id" AS "gap_id", b0."event_id" AS "event_id", MIN(lr."pos") AS "pos"
+  FROM "closure_act" b0
+  JOIN "live_event" lr ON lr."event_id" = b0."event_id"
+  WHERE b0."arm" = 'bench'
+  GROUP BY b0."gap_id"
 ) bc ON bc."gap_id" = m."gap_id"
 LEFT JOIN "motion_rule_docket" bo ON bo."event_id" = bc."event_id"
 LEFT JOIN "events" be ON be."id" = bc."event_id"
-) gb
-LEFT JOIN "enum_grade" gm ON gm."value" = gb."current_severity";
+) gb;
+
+-- THE CONVERGENCE RULE'S INPUTS, AS THE BOARD STOOD AT A POINT: one row per verdict, and one for the
+-- record's newest event.
+--
+-- A verdict is judged on the board AS IT STOOD WHEN IT WAS ISSUED: the acts standing at it, and no
+-- other. An act stood at a verdict V if it was written at or before V and no correction written at
+-- or before V struck it (act_standing) — one axis, events.id, for the regrades that grade a gap and
+-- the acts that close it alike. A correction written after V does not change V's board, however
+-- early its replacement sorts by "pos". The FAIL refusal at the write path asks the same question at
+-- the newest event — the point a verdict being written is judged at, where "as it stood" is "now" —
+-- and the scorecard's detector asks it at each verdict afterwards. Both read this one definition, so
+-- the scorecard cannot flag a FAIL the gate admitted, and nothing written after a verdict reaches
+-- back to it.
+--
+-- The columns, each at the point:
+--   mass                  gap_grade's mass summed over the gaps open at the point, on the grades that
+--                         held there.
+--   peak                  the largest mass at any point up to and including this one: the run's peak
+--                         board as it stood then.
+--   max_severity_mass     the top severity's mass among the open gaps; reported, decides nothing.
+--   material_open         open gaps that are material on the grades that held at the point
+--                         (gap_grade's rule — the same column the gap view reads now).
+--   fresh_material_mints  gaps minted in the point's epoch at or before it, superseding nothing, and
+--                         material at the point: new discovery, not a repair of known work.
+--
+-- THE FRACTION IS NOT HERE. It is a term of the run (inputs/run-config.json, record.Params), not a
+-- fact in the record, so the predicate over these columns is one Go function every reader calls
+-- (record.Convergence) rather than a constant written into this view.
+CREATE VIEW "convergence_at" AS
+WITH "point" AS MATERIALIZED (
+  SELECT e."id" AS "seq", e."epoch" AS "epoch", v."verdict" AS "verdict"
+  FROM "events_w" e
+  LEFT JOIN "gate" v ON v."event_id" = e."id"
+  WHERE e."type" = 'verdict' OR e."id" = (SELECT MAX("id") FROM "events")
+),
+"minted" AS MATERIALIZED (
+  SELECT m."event_id" AS "minted_event", m."gap_id" AS "gap_id", e."epoch" AS "minted_epoch",
+         NOT EXISTS(SELECT 1 FROM "mint_supersedes" s WHERE s."event_id" = m."event_id") AS "fresh"
+  FROM "mint" m
+  JOIN "events_w" e ON e."id" = m."event_id"
+),
+"closed" AS MATERIALIZED (
+  SELECT x."gap_id" AS "gap_id", a."event_id" AS "seq", a."struck_seq" AS "struck_seq"
+  FROM "closure_act" x
+  JOIN "act_standing" a ON a."event_id" = x."event_id"
+),
+"held" AS MATERIALIZED (
+  SELECT "minted_event", "from_seq", "until_seq", "mass", "severity_mass", "material" FROM "gap_grade"
+),
+"board" AS (
+  SELECT p."seq"                                    AS "seq",
+         b."minted_epoch"                           AS "minted_epoch",
+         b."fresh"                                  AS "fresh",
+         NOT EXISTS(SELECT 1 FROM "closed" c
+                     WHERE c."gap_id" = b."gap_id" AND c."seq" <= p."seq"
+                       AND (c."struck_seq" IS NULL OR c."struck_seq" > p."seq")) AS "open",
+         h."mass"                                   AS "mass",
+         h."severity_mass"                          AS "severity_mass",
+         h."material"                               AS "material"
+  FROM "point" p
+  JOIN "minted" b ON b."minted_event" <= p."seq"
+  JOIN "held" h ON h."minted_event" = b."minted_event" AND h."from_seq" <= p."seq"
+               AND (h."until_seq" IS NULL OR h."until_seq" > p."seq")
+),
+"at" AS (
+  SELECT p."seq"                                                              AS "seq",
+         p."epoch"                                                            AS "epoch",
+         p."verdict"                                                          AS "verdict",
+         COALESCE(SUM(CASE WHEN w."open" THEN w."mass" END), 0.0)             AS "mass",
+         COALESCE(MAX(CASE WHEN w."open" THEN w."severity_mass" END), 0.0)    AS "max_severity_mass",
+         COALESCE(SUM(w."open" AND w."material"), 0)                          AS "material_open",
+         COALESCE(SUM(w."minted_epoch" = p."epoch" AND w."fresh"
+                      AND w."material"), 0)                                   AS "fresh_material_mints"
+  FROM "point" p
+  LEFT JOIN "board" w ON w."seq" = p."seq"
+  GROUP BY p."seq"
+)
+SELECT a."seq"                                    AS "seq",
+       a."epoch"                                  AS "epoch",
+       a."verdict"                                AS "verdict",
+       a."mass"                                   AS "mass",
+       MAX(a."mass") OVER (ORDER BY a."seq")      AS "peak",
+       a."max_severity_mass"                      AS "max_severity_mass",
+       a."material_open"                          AS "material_open",
+       a."fresh_material_mints"                   AS "fresh_material_mints"
+FROM "at" a;
 
 -- The board's own count, asked once. Every consumer that wants "how many gaps are open" reads this
 -- rather than folding the stream again with its own idea of what closed means.
--- THE NEVER-HARD-FAIL DETECTOR, ASKED OF THE RECORD RATHER THAN ASSERTED BY THE ENGINE.
---
--- debate.js computes this every epoch and writes it to a LOG LINE. The scorecard tried to read
--- it from a telemetry key nothing ever wrote, so the detector reported 0 on every run for seven
--- runs — "no soft fails" in the words it would use for "never measured". The fact existed; its
--- only carrier was prose.
---
--- It is a QUESTION about the record, which is what this file is for, and every input is already
--- here: the sitting's verdict, the mass of what is still open, the top severity, and whether any
--- gap minted this epoch is fresh rather than lineage. So it is authored once, where a reader can
--- see the fold, instead of recomputed in whichever consumer wants it.
---
--- MASS IS A JOIN NOW, and that is the change that made this expressible at all. A grade's weight
--- is a facet on the vocabulary (enum_grade.mass), so board mass is
--- MASS[likelihood] * MASS[impact] summed — the same formula the Go and JS copies apply, read
--- off the same table the schema built from the enum. It used to be a hand-written map in two
--- languages with a regex test holding them level, and SQL could not ask the question at all.
---
--- The thresholds: mass below a quarter of the run's peak gate mass, nothing open material (the gap
--- view's "material" column: the class, else a current severity of medium and above), zero fresh
--- MATERIAL mints, verdict FAIL. max_severity_mass is reported beside it and decides nothing.
-CREATE VIEW "convergence_vs_verdict" AS
-SELECT
-  ve."epoch"                                       AS "epoch",
-  rv."verdict"                                     AS "verdict",
-  COALESCE(b."mass", 0.0)                          AS "mass",
-  COALESCE(b."max_severity_mass", 0.0)             AS "max_severity_mass",
-  COALESCE(f."fresh_mints", 0)                     AS "fresh_mints",
-  -- CORRECTED (plans/roundless.md §III.B.2.1): fresh MATERIAL mints, nothing open material, and
-  -- the mass against this run's PEAK gate mass at setup's default fraction — the refusal at the
-  -- write path reads the run's own fraction (record.Params).
-  (rv."verdict" = 'fail'
-     AND COALESCE(b."mass", 0.0) < 0.25 * MAX(COALESCE(b."mass", 0.0)) OVER ()
-     AND COALESCE(b."material_open", 0) = 0
-     AND COALESCE(f."fresh_mints", 0) = 0)         AS "divergent"
-FROM "events_w" ve
-JOIN "gate" rv ON rv."event_id" = ve."id"
-LEFT JOIN (
-  -- Open AT the verdict: minted at or before it in the sequence, and not closed before it. The
-  -- axis is the record's own ("id"), not an epoch — a closure two rows after the gate did not
-  -- happen before it, however the sittings fell.
-  SELECT
-    v2."id"                                                    AS "verdict_id",
-    SUM(COALESCE(gl."mass", 0.0) * COALESCE(gi."mass", 0.0))   AS "mass",
-    MAX(COALESCE(gs."mass", 0.0))                              AS "max_severity_mass",
-    SUM(g."material")                                          AS "material_open"
-  FROM "events" v2
-  JOIN "gap" g
-    ON g."minted_seq" <= v2."id"
-   AND (g."open" OR g."closed_seq" > v2."id")
-  LEFT JOIN "enum_grade" gl ON gl."value" = g."likelihood"
-  LEFT JOIN "enum_grade" gi ON gi."value" = g."impact"
-  LEFT JOIN "enum_grade" gs ON gs."value" = g."current_severity"
-  WHERE v2."type" = 'verdict'
-  GROUP BY v2."id"
-) b ON b."verdict_id" = ve."id"
-LEFT JOIN (
-  -- FRESH means minted in this epoch, superseding nothing, and MATERIAL now: a lineage mint is a
-  -- repair of known work, not new discovery, and a trifle is not what holds a report open.
-  SELECT g."minted_epoch" AS "epoch", count(*) AS "fresh_mints"
-  FROM "gap" g
-  WHERE g."supersedes_count" = 0 AND g."material"
-  GROUP BY g."minted_epoch"
-) f ON f."epoch" = ve."epoch"
-WHERE ve."type" = 'verdict';
-
 CREATE VIEW "board_counts" AS
 SELECT
   (SELECT count(*) FROM "gap" WHERE "open")     AS "open_gaps",

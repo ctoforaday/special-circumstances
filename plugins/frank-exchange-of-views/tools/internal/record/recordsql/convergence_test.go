@@ -5,7 +5,6 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"google.golang.org/protobuf/proto"
@@ -77,27 +76,21 @@ func TestConvergenceVsVerdictIsComputedFromTheRecord(t *testing.T) {
 				recordtest.At(t, "red-chair", "red-chair:verdict:#2",
 					&recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
 			)
-			db, err := recordsql.Open(runtest.Open(t, dir).Dir() + "/records/record.db")
+			eps, err := record.ConvergenceVsVerdict(runtest.Open(t, dir))
 			if err != nil {
 				t.Fatal(err)
 			}
-			var epoch int
-			var verdict string
-			var mass, maxSev float64
-			var fresh int
-			var divergent bool
-			row := db.QueryRow(`SELECT "epoch","verdict","mass","max_severity_mass","fresh_mints","divergent" FROM "convergence_vs_verdict" WHERE "epoch" = 2`)
-			if err := row.Scan(&epoch, &verdict, &mass, &maxSev, &fresh, &divergent); err != nil {
-				t.Fatalf("the view answered nothing — a detector that returns no rows is the zero it exists to stop: %v", err)
+			if len(eps) != 2 || eps[1].Epoch != 2 {
+				t.Fatalf("verdict rows = %+v — a detector that returns no row for the epoch-2 gate is the zero it exists to stop", eps)
 			}
-			if divergent != tc.want {
-				t.Errorf("divergent = %v, want %v (%s)\nepoch %d verdict %q mass %.1f max-sev-mass %.1f fresh %d",
-					divergent, tc.want, tc.explain, epoch, verdict, mass, maxSev, fresh)
+			c := eps[1]
+			if c.Divergent != tc.want {
+				t.Errorf("divergent = %v, want %v (%s)\n%+v", c.Divergent, tc.want, tc.explain, c)
 			}
 			// The inputs must be REAL, not defaulted: a view that returns zeros for everything
 			// would satisfy a boolean assertion while measuring nothing.
-			if mass <= 0 {
-				t.Errorf("mass = %v — the board has two graded gaps open, so a zero here means the join found nothing", mass)
+			if c.Mass <= 0 || c.Peak <= 0 {
+				t.Errorf("mass = %v, peak = %v — the board has graded gaps open, so a zero here means the join found nothing", c.Mass, c.Peak)
 			}
 		})
 	}

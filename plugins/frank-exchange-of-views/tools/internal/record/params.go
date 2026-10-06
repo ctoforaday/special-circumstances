@@ -47,19 +47,9 @@ var DefaultParams = Params{K: 2, KMax: 6, MintBudget: 5, ConvergenceFraction: 0.
 func RunParams(run Run) (Params, error) {
 	p := DefaultParams
 	p.MaxEpochs = 0
-	b, err := os.ReadFile(filepath.Join(run.Dir(), "inputs", "run-config.json"))
-	if err != nil {
-		return p, nil
-	}
-	var rc struct {
-		K                   *int     `json:"k"`
-		KMax                *int     `json:"kMax"`
-		MintBudget          *int     `json:"mintBudget"`
-		ConvergenceFraction *float64 `json:"convergenceFraction"`
-		MaxEpochs           *int     `json:"maxEpochs"`
-	}
-	if err := json.Unmarshal(b, &rc); err != nil {
-		return p, fmt.Errorf("record: inputs/run-config.json does not parse: %w", err)
+	rc, err := readRunConfig(run)
+	if err != nil || rc == nil {
+		return p, err
 	}
 	const gapLimit = "puts every gap at impasse before its first exchange"
 	set := func(dst *int, v *int, name, below1 string) error {
@@ -84,12 +74,55 @@ func RunParams(run Run) (Params, error) {
 	if err := set(&p.MaxEpochs, rc.MaxEpochs, "maxEpochs", "ends the run at its first chair sitting, before any seat is dispatched"); err != nil {
 		return p, err
 	}
-	if rc.ConvergenceFraction != nil {
-		f := *rc.ConvergenceFraction
-		if !(f > 0 && f <= 1) {
-			return p, fmt.Errorf("record: run-config.json convergenceFraction = %v — a fraction of the run's peak board mass, in (0, 1]", f)
-		}
-		p.ConvergenceFraction = f
+	p.ConvergenceFraction, err = rc.fraction()
+	return p, err
+}
+
+// runConvergenceFraction is the one term the convergence rule reads, and ONLY that term: a reader of
+// the fraction is not refused for another term it never uses (an epoch limit of 0 says nothing about
+// what fraction of the peak a converged board sits below). No file, or no fraction in it, is setup's
+// default; a fraction outside (0, 1], or a file that does not parse, is an error.
+func runConvergenceFraction(run Run) (float64, error) {
+	rc, err := readRunConfig(run)
+	if err != nil {
+		return 0, err
 	}
-	return p, nil
+	if rc == nil {
+		return DefaultParams.ConvergenceFraction, nil
+	}
+	return rc.fraction()
+}
+
+// runConfig is inputs/run-config.json's terms as written, each nil where the file does not state it.
+type runConfig struct {
+	K                   *int     `json:"k"`
+	KMax                *int     `json:"kMax"`
+	MintBudget          *int     `json:"mintBudget"`
+	ConvergenceFraction *float64 `json:"convergenceFraction"`
+	MaxEpochs           *int     `json:"maxEpochs"`
+}
+
+// readRunConfig reads the run's terms; a run with no run-config.json has none (nil, nil).
+func readRunConfig(run Run) (*runConfig, error) {
+	b, err := os.ReadFile(filepath.Join(run.Dir(), "inputs", "run-config.json"))
+	if err != nil {
+		return nil, nil
+	}
+	var rc runConfig
+	if err := json.Unmarshal(b, &rc); err != nil {
+		return nil, fmt.Errorf("record: inputs/run-config.json does not parse: %w", err)
+	}
+	return &rc, nil
+}
+
+// fraction is the stated convergence fraction, else setup's default.
+func (rc *runConfig) fraction() (float64, error) {
+	if rc.ConvergenceFraction == nil {
+		return DefaultParams.ConvergenceFraction, nil
+	}
+	f := *rc.ConvergenceFraction
+	if !(f > 0 && f <= 1) {
+		return DefaultParams.ConvergenceFraction, fmt.Errorf("record: run-config.json convergenceFraction = %v — a fraction of the run's peak board mass, in (0, 1]", f)
+	}
+	return f, nil
 }
