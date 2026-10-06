@@ -31,3 +31,26 @@ func TestIDsReadsWhatTokenWrites(t *testing.T) {
 		t.Error("Kind disagrees with the prefix classes Token spells")
 	}
 }
+
+// SkipRun steps over exactly the tokens the kinds table spells — a run of them whole, and a
+// malformed one not at all, since a token one reader steps over and another refuses to see is a
+// span where punctuation gets tidied around something that is not an anchor.
+func TestSkipRunReadsTheKindsTable(t *testing.T) {
+	for _, tok := range []string{
+		"<!--fx:f-seed01-->",   // "s" is not hex — the malformed id that made the fuzzer vacuous
+		"<!--fx:f-ABC123-->",   // uppercase is not [0-9a-f]
+		"<!--fx:abc123-->",     // no kind prefix on the id
+		"<!--cite:f-abc123-->", // the id's prefix is not the tag's kind
+		"<!--note:f-abc123-->", // not a tag in the table
+		"<!--fx:f--->",         // empty id
+		"<!-- fx:f-abc123 -->", // spaced: not the minted spelling
+	} {
+		if got := SkipRun(tok, 0); got != 0 {
+			t.Errorf("SkipRun(%q) = %d, want 0", tok, got)
+		}
+	}
+	pair := Token("f-abc123") + Token("c-d4d4d4") + Token("p-0f0f0f")
+	if got := SkipRun(pair+"tail", 0); got != len(pair) {
+		t.Errorf("SkipRun over an abutting run = %d, want %d (%q)", got, len(pair), pair)
+	}
+}
