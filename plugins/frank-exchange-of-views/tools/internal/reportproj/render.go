@@ -135,8 +135,8 @@ func (m insertMut) describe() string { return fmt.Sprintf("insert %s at %q", m.m
 // An edit may carry an anchor but never drop one, so a claim edited away leaves its anchor BARE;
 // `blue retire` records the claim's reason AND the bare anchors that exit with it, and this is
 // the replay of that exit. The anchor goes, and so does the husk it was holding open: an emptied
-// line (a `- ?` bullet, a paragraph that was only the anchor), or the empty segment and its stray
-// terminator mid-line. Loud when the anchor is not there: the retire validated its presence at
+// line (a `- ?` bullet, a paragraph that was only the anchor), or the emptied sentence and its
+// stray terminator mid-line. Loud when the anchor is not there: the retire validated its presence at
 // the write, so an absent one means the record no longer describes a real sequence.
 type removeMut struct{ id string }
 

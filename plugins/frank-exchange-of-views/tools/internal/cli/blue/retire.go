@@ -41,8 +41,8 @@ import (
 // account for is arithmetic, not judgement.
 //
 // AND IT IS HOW AN ANCHOR LEAVES. An edit may carry an anchor but never drop one,
-// so cutting an anchored sentence leaves the anchor BARE — alone in its segment,
-// backing nothing. Nothing could take that anchor out, so it stood forever: an
+// so cutting an anchored sentence leaves the anchor BARE — no prose before it in
+// its sentence, backing nothing. Nothing could take that anchor out, so it stood forever: an
 // orphan `[^N]` with a live bibliography entry, an empty `- ?` bullet. The retire
 // now names the bare anchors the claim's removal left (computed here, from the
 // record and the report, never typed by a seat), and replay takes them out at this

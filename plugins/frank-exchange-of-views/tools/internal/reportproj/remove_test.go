@@ -23,6 +23,7 @@ func TestRemoveAnchorTakesTheHusk(t *testing.T) {
 		{"a closer before the emptied sentence stays", "**One.** " + c + ". Two.\n", "**One.** Two.\n"},
 		{"an emptied first sentence keeps its list marker", "- " + c + ". Two.\n", "- Two.\n"},
 		{"an emptied ordered item keeps its number", "1. " + c + "\n", "1.\n"},
+		{"the cut stays on the token's line", "<!--fx:f-2-->\n" + c + ". Two.\n", "<!--fx:f-2-->\nTwo.\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			tok := c

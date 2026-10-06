@@ -91,3 +91,10 @@ func TestIndexTracksHeading(t *testing.T) {
 		t.Errorf("c-2 heading = %+v, want Risks", l)
 	}
 }
+
+// An occurrence's line is where its sentence starts, which a soft wrap can put above its citation.
+func TestIndexLineIsWhereTheSentenceStarts(t *testing.T) {
+	if l := labelOf(Index("# H\n\nA claim wrapped\nover two lines<!--cite:c-1-->.\n"), "c-1"); l == nil || l.Occurrences[0].Line != 3 {
+		t.Errorf("c-1 = %+v, want line 3", l)
+	}
+}

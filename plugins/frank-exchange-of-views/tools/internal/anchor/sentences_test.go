@@ -23,6 +23,7 @@ func TestSentences(t *testing.T) {
 		{"Some bases (e.g., 3) fool it.", []string{"Some bases (e.g., 3) fool it."}, nil},
 		{"Run scripts/verify_91.py to check.", []string{"Run scripts/verify_91.py to check."}, nil},
 		{"Sources include numbers.education and OEIS.", []string{"Sources include numbers.education and OEIS."}, nil},
+		{"The U.S. economy grew.", []string{"The U.S. economy grew."}, nil},
 		{"√91 ≈ 9.54, so we test 2–9.", []string{"√91 ≈ 9.54, so we test 2–9."}, nil},
 		{"see e.g.\nfoo bar.", []string{"see e.g.\nfoo bar."}, nil},
 		{"He said “Stop.” Then he left.", []string{"He said “Stop.”", "Then he left."}, nil},
@@ -46,10 +47,12 @@ func TestSentences(t *testing.T) {
 		{"Fixed in\n#552 after review. Next.", []string{"Fixed in\n#552 after review.", "Next."}, []BlockKind{P}},
 		{"Values differ\n| sharply here. Then more.\nAnd so on.", []string{"Values differ\n| sharply here.", "Then more.", "And so on."}, []BlockKind{P}},
 		{"| a | b |\n| --- | --- |\n| c | d |", []string{"| a | b |", "| --- | --- |", "| c | d |"}, []BlockKind{T, T, T}},
+		{"| a |\n| - |\n\nAfter.", []string{"| a |", "| - |", "After."}, []BlockKind{T, T, P}},
 		{"The steps are\n2. compute it. Done.", []string{"The steps are\n2. compute it.", "Done."}, []BlockKind{P}},
 		{"Steps:\n1. compute it.\n2. check it.", []string{"Steps:", "compute it.", "check it."}, []BlockKind{P, L, L}},
 		{"- one\n2. two", []string{"one\n2. two"}, []BlockKind{L}},
 		{"Intro.\n\n3. starts a list.", []string{"Intro.", "starts a list."}, []BlockKind{P, L}},
+		{"1. one\n\nIntro.\n2. two", []string{"one", "Intro.\n2. two"}, []BlockKind{L, P}},
 		{"Claimed here.\n[^a]: https://example.org", []string{"Claimed here.", "[^a]: https://example.org"}, []BlockKind{P, FootnoteDef}},
 		// Block quotes: a continuation ">" reads as whitespace; a ">"-only line ends the paragraph;
 		// openers are read after the ">"; a lazy line continues the quoted paragraph.
