@@ -1,5 +1,5 @@
 // Package anchortext is the report-text geometry of immortal anchors: how a quoted span is
-// LOCATED across the invisible annotation layer (LocateSpan and its scoped/unique variants) and
+// LOCATED across the invisible annotation layer (LocateSpan, and LocateOnce for a write) and
 // how a marker is PLACED at that span (InsertAnchor). It is the sibling of
 // internal/anchor — that leaf owns the anchor VOCABULARY (Token, Label, the class grammar), this
 // one owns where an anchor SITS in the document.
@@ -169,11 +169,6 @@ const (
 	// CrossParagraphs allows it. For replacements.
 	CrossParagraphs
 )
-
-// LocateSpanScoped is LocateSpan with the boundary rule stated by the caller.
-func LocateSpanScoped(report, quote string, scope SpanScope) (int, int) {
-	return locate(report, quote, scope)
-}
 
 func locate(report, quote string, scope SpanScope) (int, int) {
 	nq := normalizeQuote(quote)
