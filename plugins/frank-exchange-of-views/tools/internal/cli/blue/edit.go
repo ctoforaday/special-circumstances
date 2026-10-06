@@ -119,7 +119,7 @@ func newEdit() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		planned, exact, err := validateEdit(peek, oldStr, newStr)
+		planned, applied, exact, err := validateEdit(peek, oldStr, newStr)
 		if err != nil {
 			// A PRESCRIPTION THAT CHANGES NOTHING IS NOT STALE. `lens mint` now refuses to verify one,
 			// but a gap minted before it did can still carry one, and calling it stale would send blue
@@ -145,7 +145,7 @@ func newEdit() *cobra.Command {
 			EditKey: proto.String(seat.Str(cmd, flags.Key)),
 			Answers: proto.String(seat.Str(cmd, flags.Answers)),
 			Old:     proto.String(oldStr),
-			New:     proto.String(newStr),
+			New:     proto.String(applied), // with any anchor the tool put back, so replay splices the same bytes
 			Text:    proto.String(reason),
 			// WHAT THIS EDIT REOPENED. An anchor is never lost — that is enforced above and
 			// holds — but one that SURVIVES onto rewritten prose is a citation backing a
@@ -216,9 +216,10 @@ func newEdit() *cobra.Command {
 // IS the mutation and reportproj.Render replays this same splice. The validation peek reuses this
 // via validateEdit. Fuzzed directly (edit_fuzz_test.go).
 //
-// exact reports that the edit took the quote AS WRITTEN rather than the trimmed span — the
-// decision reportproj.PlanSplice makes, which the caller records as exact_span.
-func planEdit(report, old, new string) (string, bool, error) {
+// applied is new with the anchors PlanSplice put back, which the caller records; exact reports that
+// the edit took the quote AS WRITTEN rather than the trimmed span — the decision
+// reportproj.PlanSplice makes, which the caller records as exact_span.
+func planEdit(report, old, new string) (string, string, bool, error) {
 	// ANCHORS MAY TRANSIT AN EDIT — but never be created, destroyed or duplicated by one.
 	//
 	// This guard used to REJECT any span containing an anchor ("edit around it"). Combined with
@@ -228,14 +229,14 @@ func planEdit(report, old, new string) (string, bool, error) {
 	// the one red actually flagged — becomes uneditable, while the unanchored one edits fine. And
 	// 71% of anchored quotes in the smoke had their anchor mid-span, so this is the common shape,
 	// not a corner. PlanSplice runs AnchorsTransitUnchanged on whichever span it takes.
-	next, exact, err := reportproj.PlanSplice("blue edit", report, old, new)
+	next, applied, exact, err := reportproj.PlanSplice("blue edit", report, old, new)
 	if err != nil {
-		return "", false, err
+		return "", "", false, err
 	}
 	if dropped := droppedMarker(report, next); dropped != "" {
-		return "", false, fmt.Errorf("blue edit: internal error — this edit would drop %s (report unchanged)", anchor.Label(dropped))
+		return "", "", false, fmt.Errorf("blue edit: internal error — this edit would drop %s (report unchanged)", anchor.Label(dropped))
 	}
-	return next, exact, nil
+	return next, applied, exact, nil
 }
 
 // validateEdit rejects a mis-quote or a marker-spanning edit against a snapshot, WITHOUT
@@ -250,25 +251,24 @@ func planEdit(report, old, new string) (string, bool, error) {
 // period OUTSIDE the span, the span was replaced with itself, and the verb said "blue edit
 // recorded". That shape now takes the literal span and applies; what still reaches the refusal is
 // a no-op the literal quote cannot rescue, and the refusal says which kind it is.
-func validateEdit(report, old, new string) (string, bool, error) {
-	planned, exact, err := planEdit(report, old, new)
+func validateEdit(report, old, new string) (string, string, bool, error) {
+	planned, applied, exact, err := planEdit(report, old, new)
 	if err != nil {
-		return "", false, err
+		return "", "", false, err
 	}
 	if run := reportproj.DoubledTerminator(report, planned); run != "" {
-		return "", false, fmt.Errorf("blue edit: this replacement would leave %q in the report — a punctuation run the document did not have. "+
+		return "", "", false, fmt.Errorf("blue edit: this replacement would leave %q in the report — a punctuation run the document did not have. "+
 			"A quote's TRAILING punctuation is trimmed before the span is located, so the span your --quote names stops SHORT of the "+
 			"terminator; replacing it with text that carries its own terminator leaves the original one standing after it. This is "+
 			"how a repair makes the document strictly worse while reading as applied. The quote as written, punctuation included, "+
 			"is used instead only when it occurs exactly once in the report: quote it exactly as the report prints it, with enough "+
 			"of the text before it to be unique, or leave the terminator out of --new", run)
 	}
-	return planned, exact, nil
+	return planned, applied, exact, nil
 }
 
-// droppedMarker returns an immortal-anchor id, of any kind, present in before but
-// absent from after, or "". The union sweep is what makes the cite⟺anchor bijection hold:
-// no raw edit can drop a citation any more than it can drop a finding.
+// droppedMarker returns an anchor id present in before but absent from after, or "" — read on the
+// report PlanSplice planned, after any anchor it put back, so no edit drops an anchor of any kind.
 func droppedMarker(before, after string) string {
 	have := map[string]bool{}
 	for _, id := range claimcount.ProtectedAnchorIDs(after) {

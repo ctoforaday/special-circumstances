@@ -51,7 +51,8 @@ const trailingPunct = ".,;:!?\"'…"
 // find.
 const TrailingPunct = trailingPunct
 
-func isSpace(b byte) bool {
+// IsSpace is the whitespace a quote's separator matches.
+func IsSpace(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
 }
 
@@ -111,7 +112,7 @@ func normalizeQuote(q string) string {
 			i += n
 			continue
 		}
-		if isSpace(q[i]) {
+		if IsSpace(q[i]) {
 			if len(out) > 0 && out[len(out)-1] != ' ' {
 				out = append(out, ' ')
 			}
@@ -209,7 +210,7 @@ func matchFrom(report string, start int, nq string, scope SpanScope) (int, int, 
 		}
 		if nq[qi] == ' ' {
 			// The quote wants a separator; the report must have whitespace here.
-			if ri >= len(report) || !isSpace(report[ri]) {
+			if ri >= len(report) || !IsSpace(report[ri]) {
 				return 0, 0, false // else-branch: report content where the quote wants a space → fail
 			}
 			newlines := 0
@@ -218,7 +219,7 @@ func matchFrom(report string, start int, nq string, scope SpanScope) (int, int, 
 					ri += n
 					continue
 				}
-				if !isSpace(report[ri]) {
+				if !IsSpace(report[ri]) {
 					break
 				}
 				if report[ri] == '\n' {

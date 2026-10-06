@@ -87,3 +87,11 @@ func TestValidateProposalRefusesAnIdenticalPair(t *testing.T) {
 		t.Fatal("a proposal that changes nothing was accepted")
 	}
 }
+
+// Red's proposal is held to the anchors the tool would put back, so it is refused exactly where
+// blue's edit would be: the anchored sentence survives word for word, and the proposal stands.
+func TestValidateProposalReadsTheAnchorsPutBack(t *testing.T) {
+	if err := ValidateProposal("merge mint", report, "The sieve is fast and simple", "It is old. The sieve is fast and simple"); err != nil {
+		t.Fatalf("a proposal keeping the anchored sentence word for word was refused: %v", err)
+	}
+}

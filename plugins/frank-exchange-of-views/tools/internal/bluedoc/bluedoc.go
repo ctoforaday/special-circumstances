@@ -261,7 +261,7 @@ func ValidateProposal(verb, report, old, new string) error {
 	if err != nil {
 		return err
 	}
-	if err := AnchorsTransitUnchanged(verb, report[start:end], new); err != nil {
+	if err := AnchorsTransitUnchanged(verb, report[start:end], AutoPlace(report[start:end], new)); err != nil {
 		return err
 	}
 	if grew := utf8.RuneCountInString(new) - utf8.RuneCountInString(old); grew > MaxProposalGrowth {
@@ -320,14 +320,82 @@ func ReopenedAnchors(before, after string) []string {
 // every anchor token stripped, so a SECOND anchor arriving in the same sentence does not read as
 // the first one's referent changing.
 func sentenceAround(doc, tok string) (string, bool) {
-	i := strings.Index(doc, tok)
-	if i < 0 {
+	a, b := sentenceOf(doc, strings.Index(doc, tok), len(tok))
+	if a < 0 {
 		return "", false
 	}
+	return flatText(doc[a:b]), true
+}
+
+// sentenceOf is the bounds of the sentence holding doc[i:i+n], or -1, -1.
+func sentenceOf(doc string, i, n int) (int, int) {
 	for _, sp := range anchor.Sentences(doc) {
-		if sp[0] <= i && i+len(tok) <= sp[1] {
-			return strings.Join(strings.Fields(claimcount.StripAnchors(doc[sp[0]:sp[1]])), " "), true
+		if sp[0] <= i && i+n <= sp[1] {
+			return sp[0], sp[1]
 		}
 	}
-	return "", false
+	return -1, -1
+}
+
+// flatText is s with its anchors stripped and its whitespace runs read as one space.
+func flatText(s string) string {
+	return strings.Join(strings.Fields(claimcount.StripAnchors(s)), " ")
+}
+
+// AutoPlace puts back each anchor of span that new does not carry, where the anchor's sentence in
+// span survives in new word for word and LocateOnce finds it there once — inside the one occurrence
+// it counted, so "Costs rose sharply. Costs rose." is never placed on its first "Costs rose" — at
+// the place the anchor held in that sentence. An anchor it cannot place stays out, for the transit
+// check to refuse by its sentence. The sentence is read within span, the text being replaced: a
+// fragment edit that keeps the fragment re-places the anchor, and ReopenedAnchors, reading the
+// document's sentence, still records it.
+func AutoPlace(span, new string) string {
+	flat := flatText(new)
+	for _, id := range anchor.IDs(span) {
+		tok := anchor.Token(id)
+		at := strings.Index(span, tok)
+		a, b := sentenceOf(span, at, len(tok))
+		if strings.Contains(new, tok) || a < 0 || !strings.Contains(flat, flatText(span[a:b])) {
+			continue
+		}
+		if s, _, err := anchortext.LocateOnce(new, flatText(span[a:b]), anchortext.StopAtParagraph); err == nil {
+			if j := inStep(span, a, at, new, s); j >= 0 {
+				new = new[:j] + tok + new[j:]
+			}
+		}
+	}
+	return new
+}
+
+// inStep is the offset in new where the anchor at span[at] goes: span[a:at] and new from s are
+// walked in step — anchors skipped on both sides, a whitespace run matching a whitespace run — to
+// the text before the anchor, and then past the anchors new holds there that preceded it in span.
+// It is -1 where the two texts part.
+func inStep(span string, a, at int, new string, s int) int {
+	j, run := s, a
+	for k := a; k < at; {
+		if e := anchor.SkipRun(span, k); e > k {
+			k = e
+			continue
+		}
+		j = anchor.SkipRun(new, j)
+		switch {
+		case anchortext.IsSpace(span[k]) && j < len(new) && anchortext.IsSpace(new[j]):
+			for ; k < at && anchortext.IsSpace(span[k]); k++ {
+			}
+			for ; j < len(new) && anchortext.IsSpace(new[j]); j++ {
+			}
+		case j < len(new) && new[j] == span[k]:
+			j, k = j+1, k+1
+		default:
+			return -1
+		}
+		run = k
+	}
+	for _, id := range anchor.IDs(span[run:at]) {
+		if t := anchor.Token(id); strings.HasPrefix(new[j:], t) {
+			j += len(t)
+		}
+	}
+	return j
 }

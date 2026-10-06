@@ -160,7 +160,7 @@ func newMint() *cobra.Command {
 			// could not reach. Asked through the SAME planner `blue edit` records with, so a prescription
 			// passes here exactly when blue's --accept would apply it. Not inside bluedoc: reportproj
 			// owns the splice and already imports bluedoc.
-			if _, _, err := reportproj.PlanSplice("lens mint", report, seat.Str(cmd, flags.Quote), fixNew); errors.Is(err, reportproj.ErrNoChange) {
+			if _, _, _, err := reportproj.PlanSplice("lens mint", report, seat.Str(cmd, flags.Quote), fixNew); errors.Is(err, reportproj.ErrNoChange) {
 				return nil, fmt.Errorf("%w A prescription blue would apply to no effect cannot be verified: fix the quote so its replacement changes the report, or state the fix as prose in --fix", err)
 			}
 			p.FixNew = proto.String(fixNew)

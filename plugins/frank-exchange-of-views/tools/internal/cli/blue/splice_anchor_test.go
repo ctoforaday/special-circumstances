@@ -75,7 +75,7 @@ func TestSpliceAroundAnAnchoredSentenceEnd(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got, _, err := planEdit(tc.report, tc.old, tc.new)
+			got, _, _, err := planEdit(tc.report, tc.old, tc.new)
 			if err != nil {
 				t.Fatalf("planEdit = %v, want the edit to apply", err)
 			}
@@ -105,7 +105,7 @@ func TestOneInstructionHoldsAtEveryAnchorPosition(t *testing.T) {
 
 	// ADJACENT, QUOTED: the span follows the quote and the edit APPLIES. Under main's contract
 	// this exact call is the refused one, which is the whole of the divergence.
-	got, _, err := planEdit(rep, "The cost is rising over time<!--fx:f-abc123-->.", "The cost is falling<!--fx:f-abc123-->.")
+	got, _, _, err := planEdit(rep, "The cost is rising over time<!--fx:f-abc123-->.", "The cost is falling<!--fx:f-abc123-->.")
 	if err != nil {
 		t.Fatalf("quoting the sentence as printed was refused: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestOneInstructionHoldsAtEveryAnchorPosition(t *testing.T) {
 
 	// ADJACENT, NOT QUOTED: refused, and the refusal NAMES THE TOKEN TO CARRY. A seat that
 	// quoted the prose it read gets one actionable instruction rather than a prohibition.
-	_, _, err = planEdit(rep, "The cost is rising over time.", "The cost is falling.")
+	_, _, _, err = planEdit(rep, "The cost is rising over time.", "The cost is falling.")
 	if err == nil {
 		t.Fatal("rewriting the text an anchor sits on, without the anchor, was accepted — it strands the reference")
 	}
@@ -127,7 +127,7 @@ func TestOneInstructionHoldsAtEveryAnchorPosition(t *testing.T) {
 
 	// INSIDE the span: the generic message is correct and must survive, naming the token to copy.
 	const mid = "Intro.\n\nThe cost<!--fx:f-abc123--> is rising over time. Volume grows steadily.\n"
-	_, _, err = planEdit(mid, "The cost is rising over time.", "The cost is falling.")
+	_, _, _, err = planEdit(mid, "The cost is rising over time.", "The cost is falling.")
 	if err == nil {
 		t.Fatal("dropping an anchor from inside the span was accepted")
 	}
@@ -136,7 +136,7 @@ func TestOneInstructionHoldsAtEveryAnchorPosition(t *testing.T) {
 	}
 
 	// A GENUINE INVENTION — an anchor nowhere near the span — still gets the flat prohibition.
-	_, _, err = planEdit(rep, "Volume grows steadily.", "Volume falls<!--cite:c-d4d4d4-->.")
+	_, _, _, err = planEdit(rep, "Volume grows steadily.", "Volume falls<!--cite:c-d4d4d4-->.")
 	if err == nil {
 		t.Fatal("inventing an anchor was accepted")
 	}

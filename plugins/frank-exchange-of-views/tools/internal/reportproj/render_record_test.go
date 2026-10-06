@@ -102,7 +102,7 @@ func TestALegacyNoOpEditStillReplaysAsANoOp(t *testing.T) {
 func TestAnExactSpanEditReplaysOnTheLiteralSpan(t *testing.T) {
 	base := "Intro.\n\non their own.).\n"
 	old, new := "on their own.).", "on their own.)"
-	planned, exact, err := PlanSplice("blue edit", base, old, new)
+	planned, _, exact, err := PlanSplice("blue edit", base, old, new)
 	if err != nil || !exact {
 		t.Fatalf("the planner did not choose the literal span: exact=%v err=%v", exact, err)
 	}

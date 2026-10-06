@@ -22,7 +22,7 @@ import (
 // locate folds away and a byte-for-byte match cannot.
 func TestAnEditThatWouldDoubleATerminatorIsRefused(t *testing.T) {
 	report := `The count  is 27."` + "\n"
-	_, _, err := validateEdit(report, `The count is 27."`, `The count is 28."`)
+	_, _, _, err := validateEdit(report, `The count is 27."`, `The count is 28."`)
 	if err == nil {
 		t.Fatal("an edit that would leave a punctuation run the document did not have was accepted — " +
 			"this is the shape that turned a doubled terminator into a tripled one, at exit 0")
@@ -39,7 +39,7 @@ func TestAnEditThatWouldDoubleATerminatorIsRefused(t *testing.T) {
 // span — terminator included — is replaced, and the edit says so for the record.
 func TestAChangedTerminatorTakesTheLiteralSpan(t *testing.T) {
 	report := `The count is 27."` + "\n"
-	got, exact, err := validateEdit(report, `The count is 27."`, `The count is 28."`)
+	got, _, exact, err := validateEdit(report, `The count is 27."`, `The count is 28."`)
 	if err != nil {
 		t.Fatalf("a terminator repair quoted exactly as written was refused: %v", err)
 	}
@@ -48,7 +48,7 @@ func TestAChangedTerminatorTakesTheLiteralSpan(t *testing.T) {
 	}
 	// `It works.` → `It works!` at the END of the document: there is no text after the terminator
 	// to quote through, so the literal span is the only route there is.
-	got, exact, err = validateEdit("Intro.\n\nIt works.", "It works.", "It works!")
+	got, _, exact, err = validateEdit("Intro.\n\nIt works.", "It works.", "It works!")
 	if err != nil || got != "Intro.\n\nIt works!" || !exact {
 		t.Errorf("a terminator change at the end of the document: got %q exact=%v err=%v", got, exact, err)
 	}
@@ -70,7 +70,7 @@ func TestAPunctuationOnlyRepairTakesTheLiteralSpan(t *testing.T) {
 		{"quote copied with its newline", "on their own.).\nNext.\n", "on their own.).\n", "on their own.)\nNext.\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got, exact, err := validateEdit(tc.report, tc.quote, "on their own.)")
+			got, _, exact, err := validateEdit(tc.report, tc.quote, "on their own.)")
 			if err != nil {
 				t.Fatalf("the repair was refused: %v", err)
 			}
@@ -79,8 +79,14 @@ func TestAPunctuationOnlyRepairTakesTheLiteralSpan(t *testing.T) {
 			}
 		})
 	}
+	// The literal span puts back an anchor the repair left out, as the trimmed one does.
+	const fx = "<!--fx:f-aaaa1111-->"
+	got, applied, exact, err := validateEdit("Intro.\n\nIt works"+fx+". Mostly..\n", "It works"+fx+". Mostly..", "It works. Mostly.")
+	if err != nil || got != "Intro.\n\nIt works"+fx+". Mostly.\n" || applied != "It works"+fx+". Mostly." || !exact {
+		t.Errorf("an anchored repair: got %q applied %q exact=%v err=%v", got, applied, exact, err)
+	}
 	// Quoting through the terminator still works, and needs no literal span.
-	got, exact, err := validateEdit("on their own.).\n\nNext.\n", "on their own.).\n\nNext", "on their own.)\n\nNext")
+	got, _, exact, err = validateEdit("on their own.).\n\nNext.\n", "on their own.).\n\nNext", "on their own.)\n\nNext")
 	if err != nil || got != "on their own.)\n\nNext.\n" || exact {
 		t.Errorf("quoting through the terminator: got %q exact=%v err=%v", got, exact, err)
 	}
@@ -90,7 +96,7 @@ func TestAPunctuationOnlyRepairTakesTheLiteralSpan(t *testing.T) {
 // is the cause. A whitespace-only difference the locate folds away is a no-op with no punctuation
 // in it; telling that seat about trailing punctuation sends it after a cause it does not have.
 func TestAnEditThatChangesNothingIsRefused(t *testing.T) {
-	_, _, err := validateEdit("on their own.\n", "on  their own", "on their own")
+	_, _, _, err := validateEdit("on their own.\n", "on  their own", "on their own")
 	if err == nil {
 		t.Fatal("a whitespace-only no-op was accepted — the verb would say \"recorded\" over a document it did not change")
 	}
@@ -103,7 +109,7 @@ func TestAnEditThatChangesNothingIsRefused(t *testing.T) {
 
 	// The trim IS the cause here, and the literal quote cannot stand in — its trailing punctuation is
 	// not the report's, so it is nowhere in the report as written — so the refusal names both.
-	_, _, err = validateEdit("Intro.\n\non their own.).\n", "on their own.);", "on their own.)")
+	_, _, _, err = validateEdit("Intro.\n\non their own.).\n", "on their own.);", "on their own.)")
 	if err == nil {
 		t.Fatal("a punctuation-only no-op whose literal quote is not in the report was accepted")
 	}
@@ -119,7 +125,7 @@ func TestAnEditThatChangesNothingIsRefused(t *testing.T) {
 // LONGER than any the document already had, which is the signature of a terminator landing beside one.
 func TestAnOrdinaryEditIsNotRefused(t *testing.T) {
 	report := "The count is 27.\n"
-	got, exact, err := validateEdit(report, "The count is 27.", "The count is 28.")
+	got, _, exact, err := validateEdit(report, "The count is 27.", "The count is 28.")
 	if err != nil {
 		t.Fatalf("an ordinary replacement was refused: %v", err)
 	}

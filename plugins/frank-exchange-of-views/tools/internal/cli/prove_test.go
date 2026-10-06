@@ -75,7 +75,8 @@ func TestProveAnchorsAndRecordsTheComputation(t *testing.T) {
 func TestBlueEditCannotDropAProofAnchor(t *testing.T) {
 	runDir := newRun(t)
 	// Text FOLLOWS the anchored sentence so the anchor sits MID-span: it splices after the
-	// quoted sentence, so a span ending at that sentence never crosses it.
+	// quoted sentence, so a span ending at that sentence never crosses it. The replacement rewrites
+	// that sentence, so the tool has nowhere to put the anchor back.
 	seat := proveSeat(t, runDir, "# H\n\nNine is composite by trial division. The protocol therefore rejects it.\n")
 	s := script(t, runDir, "n.js", "console.log('composite');")
 	if _, err := run(t, "prove", "--run", runDir, "--seat-id", seat,
@@ -84,7 +85,7 @@ func TestBlueEditCannotDropAProofAnchor(t *testing.T) {
 	}
 	_, err := run(t, "edit", "--run", runDir, "--seat-id", seat,
 		"--key", "E1", "--quote", "by trial division. The protocol therefore rejects it",
-		"--new", "by trial division. The protocol rejects it", "--reason", "shorter")
+		"--new", "by sieving. The protocol rejects it", "--reason", "shorter")
 	if err == nil {
 		t.Fatal("an edit dropped a proof anchor; the computation backing the claim would vanish silently")
 	}
