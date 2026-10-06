@@ -46,7 +46,7 @@ func (e *NoChangeError) Is(target error) bool { return target == ErrNoChange }
 // decision `blue edit` makes before recording and `lens mint` makes before verifying a prescription,
 // so red cannot prescribe what blue's edit would refuse or apply differently.
 //
-// The replacement applied is `new` with every anchor bluedoc.AutoPlace put back, and the caller
+// The replacement applied is `new` with every anchor the transit check put back, and the caller
 // records it, so replay splices the same bytes and needs no placement of its own.
 //
 // FIRST THE ORDINARY LOCATE, which trims the quote's trailing punctuation. Its result stands unless
@@ -64,8 +64,7 @@ func PlanSplice(verb, report, old, new string) (next, applied string, exact bool
 	if err != nil {
 		return "", "", false, err
 	}
-	applied = bluedoc.AutoPlace(report[start:end], new)
-	if err := bluedoc.AnchorsTransitUnchanged(verb, report[start:end], applied); err != nil {
+	if applied, err = bluedoc.AnchorsTransitUnchanged(verb, report[start:end], new); err != nil {
 		return "", "", false, err
 	}
 	next = ApplySplice(report, start, end, applied)
@@ -73,10 +72,8 @@ func PlanSplice(verb, report, old, new string) (next, applied string, exact bool
 		return next, applied, false, nil
 	}
 	if endsInTrimmedPunct(old) {
-		ls, le, _, ok := bluedoc.LocateLiteral(report, old)
-		if ok {
-			lnew := bluedoc.AutoPlace(report[ls:le], new)
-			if bluedoc.AnchorsTransitUnchanged(verb, report[ls:le], lnew) == nil {
+		if ls, le, _, ok := bluedoc.LocateLiteral(report, old); ok {
+			if lnew, err := bluedoc.AnchorsTransitUnchanged(verb, report[ls:le], new); err == nil {
 				if lit := ApplySplice(report, ls, le, lnew); lit != report && DoubledTerminator(report, lit) == "" {
 					return lit, lnew, true, nil
 				}

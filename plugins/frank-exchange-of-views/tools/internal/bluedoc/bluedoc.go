@@ -171,12 +171,14 @@ func settleAbuttingAnchor(verb, report, quoted string, end int) (int, error) {
 // AnchorsTransitUnchanged enforces the one anchor invariant a replacement must satisfy: it
 // may not change WHICH anchors exist. The multiset of anchor ids in the replaced span must
 // equal the multiset in its replacement — so an anchor may be carried across an edit (and
-// the prose around it rewritten), but never introduced, dropped or duplicated.
+// the prose around it rewritten), but never introduced, dropped or duplicated. It returns newText
+// with every anchor AutoPlace put back, so the refusal of one it could not is true at every caller.
 //
 // Anchors are still born ONLY from `lens finding` and `cite`, and still die only by
 // tool. Transit is not authorship: the tool checks the bytes, so nothing is delegated to
 // the model.
-func AnchorsTransitUnchanged(verb, oldSpan, newText string) error {
+func AnchorsTransitUnchanged(verb, oldSpan, newText string) (string, error) {
+	newText = AutoPlace(oldSpan, newText)
 	count := func(s string) map[string]int {
 		m := map[string]int{}
 		for _, id := range claimcount.ProtectedAnchorIDs(s) {
@@ -196,19 +198,19 @@ func AnchorsTransitUnchanged(verb, oldSpan, newText string) error {
 			if s := nearestSentence(newText, sent); s != "" {
 				near = fmt.Sprintf(" — its nearest sentence there reads %q", s)
 			}
-			return fmt.Errorf("%s: your old span carries %s %s, and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. "+
+			return "", fmt.Errorf("%s: your old span carries %s %s, and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. "+
 				"Place %s where that claim now stands in the replacement%s. To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor",
 				verb, anchor.Label(id), on, anchor.Token(id), near)
 		case got != want:
-			return fmt.Errorf("%s: %s appears %d time(s) in the old span but %d in the replacement — an anchor may not be duplicated or removed by an edit; carry each one across exactly once", verb, anchor.Label(id), want, got)
+			return "", fmt.Errorf("%s: %s appears %d time(s) in the old span but %d in the replacement — an anchor may not be duplicated or removed by an edit; carry each one across exactly once", verb, anchor.Label(id), want, got)
 		}
 	}
 	for id, got := range n {
 		if o[id] == 0 {
-			return &ErrAnchorIntroduced{Verb: verb, ID: id, Count: got}
+			return "", &ErrAnchorIntroduced{Verb: verb, ID: id, Count: got}
 		}
 	}
-	return nil
+	return newText, nil
 }
 
 // ErrAnchorIntroduced names the anchor a replacement invented.
@@ -272,7 +274,7 @@ func ValidateProposal(verb, report, old, new string) error {
 	if err != nil {
 		return err
 	}
-	if err := AnchorsTransitUnchanged(verb, report[start:end], AutoPlace(report[start:end], new)); err != nil {
+	if _, err := AnchorsTransitUnchanged(verb, report[start:end], new); err != nil {
 		return err
 	}
 	if grew := utf8.RuneCountInString(new) - utf8.RuneCountInString(old); grew > MaxProposalGrowth {
