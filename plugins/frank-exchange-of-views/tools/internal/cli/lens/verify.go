@@ -3,13 +3,13 @@ package lens
 import (
 	"errors"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -86,7 +86,7 @@ import (
 // genuinely requires and cobra refuses the nonsense before the handler runs.
 // verifyAnchorAdvice is what a lens naming no citation is told: --anchor adjudicates a citation
 // already on the record, so the act is to read the real label, not to create one.
-const verifyAnchorAdvice = "--anchor names the citation you checked, so it is read off the record, not chosen: take the c-<hex> from the report's `<!--cite:c-…-->` token beside the claim"
+var verifyAnchorAdvice = "--anchor names the citation you checked, so it is read off the record, not chosen: take the c-<hex> from the report's `" + anchor.Token("c-…") + "` token beside the claim"
 
 func newVerify() *cobra.Command {
 	c := seat.Prose(seat.New("verify", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
@@ -97,7 +97,7 @@ func newVerify() *cobra.Command {
 		return writeVerify(s, cmd, body, adjudates)
 	}))
 
-	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists(verifyAnchorAdvice)), flags.Anchor, "the c-<hex> of the citation you checked, from the report's `<!--cite:c-…-->` token — resolve it with `show evidence`")
+	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists(verifyAnchorAdvice)), flags.Anchor, "the c-<hex> of the citation you checked, from the report's `"+anchor.Token("c-…")+"` token — resolve it with `show evidence`")
 	seat.Require(c, flags.Anchor)
 	c.Flags().Int(flags.Page, 0, "for a citation with pages: the page whose image you checked, drawn first with render-page")
 	verifyAxes(c)
@@ -383,11 +383,6 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		VoiceTells: tells,
 	}, nil
 }
-
-// citeAnchorShape is the citation id as it appears inside a `<!--cite:c-…-->` token. Checked
-// before the record lookup so a seat that pasted the whole comment gets told what the id is,
-// rather than being told the record has no such citation.
-var citeAnchorShape = regexp.MustCompile(`^c-[0-9a-f]+$`)
 
 type verifyResult struct {
 	Anchor     string `json:"anchor,omitempty"`

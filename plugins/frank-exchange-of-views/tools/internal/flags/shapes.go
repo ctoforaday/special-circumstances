@@ -166,7 +166,7 @@ func GapID() *ShapedValue {
 // AnchorID refuses anything that is not a tool-inserted anchor id of any class.
 func AnchorID() *ShapedValue {
 	return &ShapedValue{kind: "anchor", re: anchorShape, unwrapsAnchor: true,
-		hint: "an anchor is a `<!--cite:c-…-->`, `<!--fx:f-…-->` or `<!--proof:p-…-->` token in the report, or the id inside one — paste either; `show evidence` and `show findings` resolve them"}
+		hint: "an anchor is a `" + anchor.Token("c-…") + "`, `" + anchor.Token("f-…") + "` or `" + anchor.Token("p-…") + "` token in the report, or the id inside one — paste either; `show evidence` and `show findings` resolve them"}
 }
 
 // citationAnchorShape is the CITATION class only.
@@ -181,7 +181,7 @@ var citationAnchorShape = regexp.MustCompile(`^c-[0-9a-f]+$`)
 // error to a record lookup whose message is about existence rather than kind.
 func CitationAnchor() *ShapedValue {
 	return &ShapedValue{kind: "citation-anchor", re: citationAnchorShape, unwrapsAnchor: true,
-		hint: "a citation anchor is a `<!--cite:c-…-->` token in the report or the c-<hex> inside one — paste either — while `f-` is a finding and `p-` is a computation, neither of which is a source; `show evidence` lists every citation by anchor"}
+		hint: "a citation anchor is a `" + anchor.Token("c-…") + "` token in the report or the c-<hex> inside one — paste either — while `f-` is a finding and `p-` is a computation, neither of which is a source; `show evidence` lists every citation by anchor"}
 }
 
 // avenueIDShape is Q<n>, the id assigned when an avenue is proposed.

@@ -22,9 +22,9 @@ import (
 
 // NewCitationID mints an unguessable citation id.
 //
-// The "c-" prefix keeps it legible in a transcript and distinguishes it at a glance from
-// a finding's "f-" id — the two anchor classes share the lockdown's protection but are
-// never confused in an error message.
+// The "c-" prefix keeps it legible in a transcript and names its kind in the anchor kinds
+// table — every kind shares the lockdown's protection, and none is confused with another in
+// an error message.
 func NewCitationID() string {
 	b := make([]byte, 4)
 	if _, err := rand.Read(b); err != nil {
@@ -260,9 +260,8 @@ func ExistingCiteByKey(run Run, seatID, key string) (string, error) {
 // counted as red's audit volume — a number red reads as how much work it did — with no error
 // and no signal. Both helpers are deleted; readers switch on the type.
 
-// NewProofID mints a proof anchor id. Same shape as a citation's, different class prefix:
-// one immortal-anchor mechanism carrying three classes now (fx: a finding, cite: a source,
-// proof: a computation).
+// NewProofID mints a proof anchor id. Same shape as a citation's, its own kind's prefix in the
+// anchor kinds table.
 func NewProofID() string {
 	b := make([]byte, 4)
 	if _, err := rand.Read(b); err != nil {
