@@ -107,17 +107,6 @@ func IDPattern() string {
 	return `(?:` + strings.Join(alt, "|") + `)[0-9a-f]+`
 }
 
-// TokenPattern matches a token of any tag in the table around an id IDPattern matches, the id
-// captured. It reads tag and id independently, as a seat's pasted token is read: the id's prefix,
-// not the tag, decides the kind.
-func TokenPattern() string {
-	alt := make([]string, len(kinds))
-	for i, k := range kinds {
-		alt[i] = regexp.QuoteMeta(k.tag)
-	}
-	return regexp.QuoteMeta(tokenOpen) + `(?:` + strings.Join(alt, "|") + `):(` + IDPattern() + `)` + regexp.QuoteMeta(tokenClose)
-}
-
 // IDs are the anchor ids in s, in order, deduplicated.
 //
 // IT READS WHAT Token WRITES, and it is here rather than in the caller for that reason: the token

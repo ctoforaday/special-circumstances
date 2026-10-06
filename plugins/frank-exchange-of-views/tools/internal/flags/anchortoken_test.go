@@ -27,6 +27,7 @@ func TestAnAnchorIsAcceptedInTheFormTheReportCarries(t *testing.T) {
 		{"a proof token on the general anchor flag", "<!--proof:p-e0738d11-->", "p-e0738d11", false, AnchorID},
 		{"a token wrapping nothing shaped like an anchor", "<!--cite:nonsense-->", "", true, CitationAnchor},
 		{"an unterminated token", "<!--cite:c-db9ddfe6", "", true, CitationAnchor},
+		{"a token whose tag is not its id's kind, which the tool never writes", "<!--fx:c-db9ddfe6-->", "", true, CitationAnchor},
 	} {
 		v := c.shape()
 		err := v.Set(c.value)

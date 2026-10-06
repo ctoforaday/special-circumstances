@@ -46,26 +46,12 @@ func TestTheKindsTableSaysWhatEachKindMeans(t *testing.T) {
 	}
 }
 
-// The id and token patterns match what the table spells and nothing else.
-func TestIDAndTokenPatternsReadTheTable(t *testing.T) {
+// The id pattern matches what the table spells and nothing else.
+func TestIDPatternReadsTheTable(t *testing.T) {
 	id := regexp.MustCompile(`^` + IDPattern() + `$`)
 	for s, want := range map[string]bool{"f-1a2b": true, "c-00": true, "p-ff": true, "g-1a": false, "c-": false, "c-XY": false, "1a2b": false} {
 		if got := id.MatchString(s); got != want {
 			t.Errorf("IDPattern on %q = %v, want %v", s, got, want)
-		}
-	}
-	tok := regexp.MustCompile(`^` + TokenPattern() + `$`)
-	for s, want := range map[string]string{
-		"<!--cite:c-1a2b-->": "c-1a2b", "<!--fx:f-1a2b-->": "f-1a2b", "<!--proof:p-1a2b-->": "p-1a2b",
-		"<!--note:c-1a2b-->": "", "<!--cite:c-zz-->": "",
-	} {
-		m := tok.FindStringSubmatch(s)
-		got := ""
-		if m != nil {
-			got = m[1]
-		}
-		if got != want {
-			t.Errorf("TokenPattern on %q captured %q, want %q", s, got, want)
 		}
 	}
 }
