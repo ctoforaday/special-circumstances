@@ -156,12 +156,16 @@ func settleAbuttingAnchor(verb, report, quoted string, end int) (int, error) {
 		return end + (len(tail) - len(after)) + run, nil
 	}
 
-	// IT DID NOT: refuse, and print the token to carry.
+	// IT DID NOT: refuse, and print the token to carry, naming every anchor of the run.
+	var held []string
+	for _, id := range anchor.IDs(tok) {
+		held = append(held, anchor.Label(id))
+	}
 	return 0, fmt.Errorf("%s: the text you are replacing carries %s, and your quote stops just before it. "+
 		"That anchor is ON this sentence: rewriting the sentence without it strands the reference beside prose it was never placed against. "+
 		"Quote the sentence AS `show report` PRINTS IT — anchors included — and carry %s into --new unchanged. "+
 		"To change the words around it and leave the anchor where it is, quote a FRAGMENT that does not reach it",
-		verb, anchor.Label(idIn(tok)), tok)
+		verb, strings.Join(held, " and "), tok)
 }
 
 // spanBoundaryOK rejects only a span that SPLITS A WORD.
@@ -339,12 +343,4 @@ func sentenceAround(doc, tok string) (string, bool) {
 		}
 	}
 	return "", false
-}
-
-// idIn returns the id inside an anchor token — `<!--cite:c-abc-->` yields `c-abc`.
-func idIn(tok string) string {
-	if i := strings.IndexByte(tok, ':'); i >= 0 {
-		return strings.TrimSuffix(tok[i+1:], "-->")
-	}
-	return tok
 }

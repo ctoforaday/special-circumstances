@@ -72,6 +72,13 @@ func TestAQuoteMayNotStopShortOfTheAnchorItIsRewriting(t *testing.T) {
 		t.Errorf("the refusal does not print the token the seat must carry: %v", err)
 	}
 
+	// A RUN of abutting anchors is named anchor by anchor, each by its kind.
+	run := "# H\n\nThe sky is blue<!--fx:f-a1--><!--cite:c-b2-->.\n"
+	_, _, err = LocateUniqueReplacing("blue edit", run, "The sky is blue.")
+	if err == nil || !strings.Contains(err.Error(), "carries finding-marker f-a1 and citation anchor c-b2 (") {
+		t.Errorf("the refusal does not name each anchor of the run by its kind: %v", err)
+	}
+
 	// Quoting it WITH the anchor, as `show report` prints it, locates normally.
 	if _, _, err := LocateUniqueReplacing("blue edit", report, "The sky is blue and the grass is green"+tok+"."); err != nil {
 		t.Errorf("the sentence quoted AS PRINTED was refused: %v", err)
