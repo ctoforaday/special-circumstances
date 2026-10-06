@@ -158,14 +158,22 @@ func (m removeMut) describe() string { return fmt.Sprintf("remove %s", anchor.To
 // several anchors exiting one segment, because only the LAST of them finds the segment empty.
 func RemoveAnchorAt(text string, i, n int) string {
 	// The token's sentence is read with the token still in place, where it sits inside one sentence
-	// by construction; every offset past it is then read n bytes earlier.
+	// by construction — the first whose end reaches past it; every offset past the token is then
+	// read n bytes earlier.
 	ls := strings.LastIndexByte(text[:i], '\n') + 1
 	le := len(text)
 	if j := strings.IndexByte(text[i+n:], '\n'); j >= 0 {
 		le = i + n + j
 	}
-	p := i - ls
-	sentence, next := sentenceHolding(text[ls:le], p, n)
+	spans := anchor.Sentences(text[ls:le])
+	k := 0
+	for k < len(spans)-1 && spans[k][1] < i-ls+n {
+		k++
+	}
+	ss, se, next := spans[k][0], spans[k][1]-n, spans[k][1]-n
+	if k+1 < len(spans) {
+		next = spans[k+1][0] - n
+	}
 	le -= n
 	text = text[:i] + text[i+n:]
 	line := text[ls:le]
@@ -178,9 +186,8 @@ func RemoveAnchorAt(text string, i, n int) string {
 		}
 		return collapseNewlinesAt(text[:ls]+text[end:], ls)
 	}
-	// In-line: the sentence the token sat in, as anchor.Sentences splits the line. Emptied, it goes
-	// with the terminator run that closed it.
-	ss, se := sentence[0], sentence[1]
+	// In-line: the sentence the token sat in. Emptied, it goes with the terminator run that closed
+	// it.
 	seg := line[ss:se]
 	if claimcount.HasProse(seg) || len(claimcount.ProtectedAnchorIDs(seg)) > 0 {
 		// Only the token went; close the whitespace seam it held open — the space an edit left
@@ -204,23 +211,6 @@ func RemoveAnchorAt(text string, i, n int) string {
 		}
 	}
 	return text[:ls+ss] + text[ls+cut:]
-}
-
-// sentenceHolding is the sentence of line that holds the n-byte token at p, and the start of the
-// sentence after it (len(line) when none follows), both read as offsets into line with the token
-// taken out.
-func sentenceHolding(line string, p, n int) (sentence [2]int, next int) {
-	spans := anchor.Sentences(line)
-	for k, sp := range spans {
-		if sp[0] <= p && p+n <= sp[1] {
-			next = len(line)
-			if k+1 < len(spans) {
-				next = spans[k+1][0]
-			}
-			return [2]int{sp[0], sp[1] - n}, next - n
-		}
-	}
-	return [2]int{p, p}, p
 }
 
 // collapseNewlinesAt folds the newline run around offset at, which a removed line may have
