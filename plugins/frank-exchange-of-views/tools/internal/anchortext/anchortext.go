@@ -246,23 +246,37 @@ func matchFrom(report string, start int, nq string, scope SpanScope) (int, int, 
 	return firstContent, lastContentEnd, true
 }
 
-// LocateSpanUniqueScoped reports whether the quote matches at MORE THAN ONE place, with the
-// boundary rule stated by the caller — the AMBIGUITY verdict `blue edit`'s uniqueness guard needs
-// (LocateSpan takes the first match and says nothing, which is silent mis-targeting). The
-// boundary-free wrapper LocateSpanUnique went with report-as-record's torn-splice removal, its only
-// caller; bluedoc still calls this scoped form.
-func LocateSpanUniqueScoped(report, quote string, scope SpanScope) (start, end int, ambiguous bool) {
-	start, end = LocateSpanScoped(report, quote, scope)
+// LocateOnce is the one write-time matcher: the span of the quote's only occurrence in doc. It
+// tries the refusals in a fixed order — absent, then a second occurrence, then (StopAtParagraph)
+// a blank line inside the one match, then a split word — so a quote that also occurs inside one
+// paragraph is told it repeats, never that it may not cross.
+func LocateOnce(doc, quote string, scope SpanScope) (start, end int, err error) {
+	start, end = locate(doc, quote, CrossParagraphs)
 	if start < 0 {
-		return start, end, false
+		return -1, -1, ErrMisQuote
 	}
-	// Look for a SECOND match beyond the first one's end.
-	if rest := end; rest < len(report) {
-		if s2, _ := LocateSpanScoped(report[rest:], quote, scope); s2 >= 0 {
-			return start, end, true
-		}
+	if s2, _ := locate(doc[end:], quote, CrossParagraphs); s2 >= 0 {
+		return -1, -1, ErrAmbiguous
 	}
-	return start, end, false
+	if _, _, ok := matchFrom(doc, start, normalizeQuote(quote), scope); !ok {
+		return -1, -1, ErrCrossesParagraph
+	}
+	if !SpanBoundaryOK(doc, start, end) {
+		return -1, -1, ErrSplitsWord
+	}
+	return start, end, nil
+}
+
+// SpanBoundaryOK rejects only a span that SPLITS A WORD.
+//
+// It is deliberately not a whitespace rule: normalizeQuote trims trailing punctuation, so a
+// strict whitespace boundary would reject every sentence-final edit — measured, not feared.
+func SpanBoundaryOK(s string, start, end int) bool {
+	word := func(b byte) bool {
+		return b == '_' || (b >= '0' && b <= '9') || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
+	}
+	splits := func(i int) bool { return i > 0 && i < len(s) && word(s[i-1]) && word(s[i]) }
+	return !splits(start) && !splits(end)
 }
 
 // insertMarker splices marker into report at byte offset `at`.
@@ -281,6 +295,13 @@ func insertMarker(report []byte, at int, marker string) []byte {
 var (
 	ErrMisQuote = errors.New("the quoted content was not found in report.md")
 	ErrInFence  = errors.New("the quote resolves inside a code fence")
+)
+
+// LocateOnce's refusals after ErrMisQuote. Callers map them to their own text.
+var (
+	ErrAmbiguous        = errors.New("the quote occurs more than once")
+	ErrCrossesParagraph = errors.New("the quote crosses a blank line")
+	ErrSplitsWord       = errors.New("the quote starts or ends inside a word")
 )
 
 // InsertAnchor is the shared invisible-anchor placement behind lens finding and blue cite:

@@ -45,17 +45,16 @@ var ErrMisQuote = errors.New("the quoted span was not found in report.md — quo
 func LocateUnique(verb, report, old string) (int, int, error) {
 	// AN EDIT MAY CROSS A PARAGRAPH BREAK; an anchor may not. Sharing one rule made this verb's
 	// own two refusals jointly unsatisfiable — see anchortext.SpanScope for the measurement.
-	start, end, ambiguous := anchortext.LocateSpanUniqueScoped(report, old, anchortext.CrossParagraphs)
-	if start < 0 {
+	start, end, err := anchortext.LocateOnce(report, old, anchortext.CrossParagraphs)
+	switch err {
+	case nil:
+		return start, end, nil
+	case anchortext.ErrMisQuote:
 		return 0, 0, fmt.Errorf("%s: %w", verb, ErrMisQuote)
-	}
-	if ambiguous {
+	case anchortext.ErrAmbiguous:
 		return 0, 0, fmt.Errorf("%s: your quoted span appears MORE THAN ONCE in report.md, so the target is ambiguous — quote more surrounding context to pick out the one site you mean (to change every site, make one edit per site)", verb)
 	}
-	if !spanBoundaryOK(report, start, end) {
-		return 0, 0, fmt.Errorf("%s: your span starts or ends inside a word — quote whole words. Editing letters rather than language produces one-byte ops that carry no meaning on the record", verb)
-	}
-	return start, end, nil
+	return 0, 0, fmt.Errorf("%s: your span starts or ends inside a word — quote whole words. Editing letters rather than language produces one-byte ops that carry no meaning on the record", verb)
 }
 
 // LocateUniqueReplacing is LocateUnique for a caller that intends to REPLACE the span it finds.
@@ -101,7 +100,7 @@ func LocateLiteral(report, old string) (start, end, count int, ok bool) {
 	}
 	start = strings.Index(report, old)
 	end = start + len(old)
-	if !spanBoundaryOK(report, start, end) {
+	if !anchortext.SpanBoundaryOK(report, start, end) {
 		return 0, 0, count, false
 	}
 	return start, end, count, true
@@ -166,18 +165,6 @@ func settleAbuttingAnchor(verb, report, quoted string, end int) (int, error) {
 		"Quote the sentence AS `show report` PRINTS IT — anchors included — and carry %s into --new unchanged. "+
 		"To change the words around it and leave the anchor where it is, quote a FRAGMENT that does not reach it",
 		verb, strings.Join(held, " and "), tok)
-}
-
-// spanBoundaryOK rejects only a span that SPLITS A WORD.
-//
-// It is deliberately not a whitespace rule: normalizeQuote trims trailing punctuation, so a
-// strict whitespace boundary would reject every sentence-final edit — measured, not feared.
-func spanBoundaryOK(s string, start, end int) bool {
-	word := func(b byte) bool {
-		return b == '_' || (b >= '0' && b <= '9') || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
-	}
-	splits := func(i int) bool { return i > 0 && i < len(s) && word(s[i-1]) && word(s[i]) }
-	return !splits(start) && !splits(end)
 }
 
 // AnchorsTransitUnchanged enforces the one anchor invariant a replacement must satisfy: it
