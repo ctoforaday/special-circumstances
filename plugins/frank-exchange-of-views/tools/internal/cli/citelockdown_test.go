@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
@@ -77,7 +78,12 @@ func assertBijection(t *testing.T, runDir string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	anchors := claimcount.CitationAnchorIDs(readReport(t, runDir))
+	var anchors []string
+	for _, id := range claimcount.ProtectedAnchorIDs(readReport(t, runDir)) {
+		if anchor.Kind(id) == "citation" {
+			anchors = append(anchors, id)
+		}
+	}
 	if !sameSet(events, anchors) {
 		t.Errorf("bijection broken: cite events %v != document anchors %v", events, anchors)
 	}

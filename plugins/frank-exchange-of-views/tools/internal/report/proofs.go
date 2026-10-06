@@ -4,16 +4,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
-
-// proofAnchor matches an invisible proof anchor "<!--proof:p-<id>-->" — the tool-inserted
-// token marking a sentence a COMPUTATION backs.
-var proofAnchor = regexp.MustCompile(`<!--proof:(p-[0-9a-f]+)-->`)
 
 // THE INVISIBLE PROOF LAYER, MADE VISIBLE — the way weaveCitations does it for sources, and it
 // exists because without it the axis was a half-state that read as done.
@@ -53,8 +49,10 @@ func weaveProofRefs(md string, proofs []record.Proof) (string, []string) {
 	var order []string
 	seen := map[string]bool{}
 	extra := len(proofs)
-	body := proofAnchor.ReplaceAllStringFunc(md, func(tok string) string {
-		label := proofAnchor.FindStringSubmatch(tok)[1]
+	body := anchor.Replace(md, func(tok, label string) string {
+		if anchor.AssemblyOf(label) != anchor.WeaveProof {
+			return tok
+		}
 		if !seen[label] {
 			seen[label] = true
 			order = append(order, label)

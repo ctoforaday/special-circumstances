@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 )
 
 // TYPED FLAGS FOR VALUES WITH A KNOWABLE SHAPE.
@@ -41,7 +43,7 @@ var gapIDShape = regexp.MustCompile(`^G\d+$`)
 
 // anchorShape is the tool-inserted anchor id: f- a finding, c- a source, p- a computation. The
 // prefix carries the class, which is why a bare hex string is not one.
-var anchorShape = regexp.MustCompile(`^[fcp]-[0-9a-f]+$`)
+var anchorShape = regexp.MustCompile(`^` + anchor.IDPattern() + `$`)
 
 // findingLabelShape is <area>-F<n>, the run-unique label the tool assigns a lens finding, built
 // from LensAreas so the vocabulary has one declaration. It still admits the pre-#791 `L<n>-F<n>`,
@@ -134,7 +136,7 @@ func (v *ShapedValue) String() string {
 // report, and the unwrapped id is what is stored — nothing downstream ever sees a token. The class
 // check still applies afterwards, so `<!--fx:f-…-->` handed to a citation flag is still refused for
 // being a finding.
-var anchorToken = regexp.MustCompile(`^<!--(?:cite|fx|proof):([fcp]-[0-9a-f]+)-->$`)
+var anchorToken = regexp.MustCompile(`^` + anchor.TokenPattern() + `$`)
 
 func (v *ShapedValue) Set(s string) error {
 	t := strings.TrimSpace(s)

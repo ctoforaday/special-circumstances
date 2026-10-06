@@ -31,6 +31,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
@@ -471,7 +472,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 			}
 			events++
 			for _, id := range r.GetAnchors() {
-				if strings.HasPrefix(id, "c-") {
+				if anchor.CountsAsClaim(id) {
 					retires++
 				}
 			}

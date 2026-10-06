@@ -9,7 +9,7 @@ import (
 // replacement, it PRESERVES every finding-marker.
 //
 // THE ID MUST BE HEX, and for most of this fuzzer's life it was not. The seed marker read
-// `f-seed01`, and an anchor id is `f-[0-9a-f]+` — "s" is not a hex digit, so findingMarkerRe
+// `f-seed01`, and an anchor id is `f-[0-9a-f]+` — "s" is not a hex digit, so the anchor reader
 // never matched the token this test splices in. droppedMarker therefore returned "" on every
 // input, for every reason, and the set-membership assertion below asserted nothing at all.
 // The literal Contains check was the only live one, which is why the hole surfaced as

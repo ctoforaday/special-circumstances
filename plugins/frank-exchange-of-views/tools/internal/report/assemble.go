@@ -26,11 +26,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/verify"
@@ -39,20 +39,30 @@ import (
 // Assemble writes <runDir>/report.md and returns its path. It reads the board once (which
 // carries both the ordered event log and the replayed gaps) and blue/report.md, and composes
 // the report from those two — no --inputs, no intermediate round-trip.
-// findingMarker matches the invisible finding-anchor token "<!--fx:f-<id>-->" (slice
-// 1b). It is stripped from the FINAL assembled output — not just blue's lifted content
-// — because a finding's location/reason text can carry the token into the
+// StripFindingMarkers removes every token of a kind the anchor table's assembly strips — a
+// finding's — from report markdown. It runs over the FINAL assembled output, not just blue's
+// lifted content, because a finding's location/reason text can carry the token into the
 // record-derived findings/transcript sections, which a blue-only strip misses.
-var findingMarker = regexp.MustCompile(`<!--fx:[^>]*-->`)
+func StripFindingMarkers(md string) string { return anchor.StripAssembled(md) }
 
-// StripFindingMarkers removes every finding-anchor token from report markdown.
-func StripFindingMarkers(md string) string { return findingMarker.ReplaceAllString(md, "") }
+// wovenAnchor is one token the assembly weaves: its span and its id.
+type wovenAnchor struct {
+	start, end int
+	id         string
+}
 
-// citeAnchor matches an invisible citation anchor "<!--cite:c-<id>-->" — the tool-inserted
-// immortal marker blue cite splices at a cited sentence. Unlike a finding marker (stripped),
-// a citation is RESOLVED at assembly: rewritten to a visible [^N] and listed in the composed
+// woven is every token in md of a kind the assembly weaves by a, in order. A citation is RESOLVED
+// at assembly, unlike a stripped kind: rewritten to a visible [^N] and listed in the composed
 // bibliography.
-var citeAnchor = regexp.MustCompile(`<!--cite:(c-[0-9a-f]+)-->`)
+func woven(md string, a anchor.Assembly) []wovenAnchor {
+	var out []wovenAnchor
+	anchor.Each(md, func(start, end int, id string) {
+		if anchor.AssemblyOf(id) == a {
+			out = append(out, wovenAnchor{start, end, id})
+		}
+	})
+	return out
+}
 
 // weaveCitations turns the invisible citation layer into a visible one. Each "<!--cite:c-…-->"
 // anchor becomes a footnote reference [^N], and each N's note is a full entry,
@@ -84,26 +94,25 @@ func weaveCitations(md string, sources []record.Source) string {
 	// 2026-09-15): red's corroboration of blue's OCR cite is the same pointer, and a second note
 	// without the page would restore B9's doubled reference.
 	keys := map[int]string{} // anchor start offset → key
-	locs := citeAnchor.FindAllStringSubmatchIndex(md, -1)
+	locs := woven(md, anchor.WeaveSource)
 	for i := 0; i < len(locs); {
 		j := i + 1
-		for j < len(locs) && locs[j][0] == locs[j-1][1] {
+		for j < len(locs) && locs[j].start == locs[j-1].end {
 			j++
 		}
 		paged := map[string]string{} // url → the first paged key in this run of adjacent anchors
 		for _, l := range locs[i:j] {
-			if s, ok := byLabel[md[l[2]:l[3]]]; ok && s.URL != "" && len(s.Pages) > 0 {
+			if s, ok := byLabel[l.id]; ok && s.URL != "" && len(s.Pages) > 0 {
 				if _, had := paged[s.URL]; !had {
 					paged[s.URL] = keyOf(s.Label)
 				}
 			}
 		}
 		for _, l := range locs[i:j] {
-			label := md[l[2]:l[3]]
-			keys[l[0]] = keyOf(label)
-			if s, ok := byLabel[label]; ok && len(s.Pages) == 0 {
+			keys[l.start] = keyOf(l.id)
+			if s, ok := byLabel[l.id]; ok && len(s.Pages) == 0 {
 				if k, had := paged[s.URL]; had {
-					keys[l[0]] = k
+					keys[l.start] = k
 				}
 			}
 		}
@@ -116,15 +125,15 @@ func weaveCitations(md string, sources []record.Source) string {
 	var b strings.Builder
 	last := 0
 	for _, l := range locs {
-		b.WriteString(md[last:l[0]])
-		last = l[1]
-		k := keys[l[0]]
+		b.WriteString(md[last:l.start])
+		last = l.end
+		k := keys[l.start]
 		n, seen := num[k]
 		if !seen {
 			n = len(order) + 1
 			num[k] = n
 			order = append(order, k)
-			noteOf[k] = md[l[2]:l[3]]
+			noteOf[k] = l.id
 		}
 		fmt.Fprintf(&b, "[^%d]", n)
 	}

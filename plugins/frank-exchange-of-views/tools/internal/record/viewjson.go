@@ -1092,7 +1092,7 @@ func backingOf(evs []*Event) map[string]GapBackingJSON {
 func gapBacking(g WorkGapState, verified map[string]GapBackingJSON) []GapBackingJSON {
 	out := []GapBackingJSON{}
 	ids := anchor.IDs(g.Location)
-	if g.AboutRef != "" && anchor.Kind(g.AboutRef) != "finding" {
+	if g.AboutRef != "" && anchor.Backs(g.AboutRef) {
 		ids = append(ids, g.AboutRef)
 	}
 	seen := map[string]bool{}

@@ -157,12 +157,17 @@ func (m removeMut) describe() string { return fmt.Sprintf("remove %s", anchor.To
 // anchor is left exactly as it stands minus the token — the removal is order-independent across
 // several anchors exiting one segment, because only the LAST of them finds the segment empty.
 func RemoveAnchorAt(text string, i, n int) string {
-	text = text[:i] + text[i+n:]
+	// The token's sentence is read with the token still in place, where it sits inside one sentence
+	// by construction; every offset past it is then read n bytes earlier.
 	ls := strings.LastIndexByte(text[:i], '\n') + 1
 	le := len(text)
-	if j := strings.IndexByte(text[i:], '\n'); j >= 0 {
-		le = i + j
+	if j := strings.IndexByte(text[i+n:], '\n'); j >= 0 {
+		le = i + n + j
 	}
+	p := i - ls
+	sentence, next := sentenceHolding(text[ls:le], p, n)
+	le -= n
+	text = text[:i] + text[i+n:]
 	line := text[ls:le]
 	if !claimcount.HasProse(line) && len(claimcount.ProtectedAnchorIDs(line)) == 0 {
 		end := le
@@ -173,24 +178,9 @@ func RemoveAnchorAt(text string, i, n int) string {
 		}
 		return collapseNewlinesAt(text[:ls]+text[end:], ls)
 	}
-	// In-line: the segment around the removal point, bounded like claimcount's (. ! ? outside an
-	// anchor). Emptied, it goes with the terminator run that closed it.
-	p := i - ls
-	bound := sentenceBoundaries(line)
-	ss := 0
-	for k := p - 1; k >= 0; k-- {
-		if bound[k] {
-			ss = k + 1
-			break
-		}
-	}
-	se := len(line)
-	for k := p; k < len(line); k++ {
-		if bound[k] {
-			se = k
-			break
-		}
-	}
+	// In-line: the sentence the token sat in, as anchor.Sentences splits the line. Emptied, it goes
+	// with the terminator run that closed it.
+	ss, se := sentence[0], sentence[1]
 	seg := line[ss:se]
 	if claimcount.HasProse(seg) || len(claimcount.ProtectedAnchorIDs(seg)) > 0 {
 		// Only the token went; close the whitespace seam it held open — the space an edit left
@@ -207,10 +197,7 @@ func RemoveAnchorAt(text string, i, n int) string {
 		}
 		return text
 	}
-	cut := se
-	for cut < len(line) && bound[cut] {
-		cut++
-	}
+	cut := next
 	if ss == 0 { // at the line's start, the space that followed the terminator goes too
 		for cut < len(line) && (line[cut] == ' ' || line[cut] == '\t') {
 			cut++
@@ -219,24 +206,21 @@ func RemoveAnchorAt(text string, i, n int) string {
 	return text[:ls+ss] + text[ls+cut:]
 }
 
-// sentenceBoundaries marks the sentence terminators in a line, skipping every HTML comment — the
-// `!` in `<!--` is not a sentence end. The same rule claimcount's splitter applies.
-func sentenceBoundaries(line string) []bool {
-	b := make([]bool, len(line))
-	for i := 0; i < len(line); {
-		if strings.HasPrefix(line[i:], "<!--") {
-			if j := strings.Index(line[i:], "-->"); j >= 0 {
-				i += j + 3
-				continue
+// sentenceHolding is the sentence of line that holds the n-byte token at p, and the start of the
+// sentence after it (len(line) when none follows), both read as offsets into line with the token
+// taken out.
+func sentenceHolding(line string, p, n int) (sentence [2]int, next int) {
+	spans := anchor.Sentences(line)
+	for k, sp := range spans {
+		if sp[0] <= p && p+n <= sp[1] {
+			next = len(line)
+			if k+1 < len(spans) {
+				next = spans[k+1][0]
 			}
+			return [2]int{sp[0], sp[1] - n}, next - n
 		}
-		switch line[i] {
-		case '.', '!', '?':
-			b[i] = true
-		}
-		i++
 	}
-	return b
+	return [2]int{p, p}, p
 }
 
 // collapseNewlinesAt folds the newline run around offset at, which a removed line may have
