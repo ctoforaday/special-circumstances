@@ -1,6 +1,9 @@
 package bluedoc
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // AutoPlace PUTS AN ANCHOR BACK ONLY WHERE ITS SENTENCE SURVIVES WORD FOR WORD, ONCE, and there at
 // the place the anchor held in it: mid-sentence, inside a run of anchors in the run's order, across
@@ -21,5 +24,13 @@ func TestAutoPlace(t *testing.T) {
 		if got := AutoPlace(c.span, c.new); got != c.want {
 			t.Errorf("%s: AutoPlace(%q, %q) = %q, want %q", c.name, c.span, c.new, got, c.want)
 		}
+	}
+}
+
+// An anchor dropped with no prose around it is refused as bare, not "on the sentence """.
+func TestTheDropRefusalSaysWhenTheAnchorIsBare(t *testing.T) {
+	err := AnchorsTransitUnchanged("blue edit", "<!--fx:f-aaaa1111-->", "Gone.")
+	if err == nil || !strings.Contains(err.Error(), "f-aaaa1111 bare of any sentence") {
+		t.Errorf("refusal = %v, want it to say the anchor is bare", err)
 	}
 }

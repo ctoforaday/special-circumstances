@@ -21,6 +21,7 @@ package bluedoc
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -187,7 +188,17 @@ func AnchorsTransitUnchanged(verb, oldSpan, newText string) error {
 	for id, want := range o {
 		switch got := n[id]; {
 		case got == 0:
-			return fmt.Errorf("%s: your old span contains %s but the replacement does not — an anchor may travel through an edit, but never be dropped by one. Reproduce it EXACTLY (%s) somewhere in the replacement. To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor", verb, anchor.Label(id), anchor.Token(id))
+			sent, _ := sentenceAround(oldSpan, anchor.Token(id))
+			on, near := fmt.Sprintf("on the sentence %q", sent), ""
+			if sent == "" {
+				on = "bare of any sentence"
+			}
+			if s := nearestSentence(newText, sent); s != "" {
+				near = fmt.Sprintf(" — its nearest sentence there reads %q", s)
+			}
+			return fmt.Errorf("%s: your old span carries %s %s, and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. "+
+				"Place %s where that claim now stands in the replacement%s. To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor",
+				verb, anchor.Label(id), on, anchor.Token(id), near)
 		case got != want:
 			return fmt.Errorf("%s: %s appears %d time(s) in the old span but %d in the replacement — an anchor may not be duplicated or removed by an edit; carry each one across exactly once", verb, anchor.Label(id), want, got)
 		}
@@ -398,4 +409,22 @@ func inStep(span string, a, at int, new string, s int) int {
 		}
 	}
 	return j
+}
+
+// nearestSentence is the sentence of text sharing the most words with sent, or "" when none shares
+// one — where a refused anchor's claim most likely now stands.
+func nearestSentence(text, sent string) (best string) {
+	words, most := strings.Fields(strings.ToLower(sent)), 0
+	for _, sp := range anchor.Sentences(text) {
+		s, n := flatText(text[sp[0]:sp[1]]), 0
+		for _, w := range strings.Fields(strings.ToLower(s)) {
+			if slices.Contains(words, w) {
+				n++
+			}
+		}
+		if n > most {
+			best, most = s, n
+		}
+	}
+	return best
 }

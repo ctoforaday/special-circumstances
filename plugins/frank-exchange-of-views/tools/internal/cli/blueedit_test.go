@@ -664,9 +664,10 @@ func TestAcceptIsIdempotentOnRetry(t *testing.T) {
 	}
 }
 
-// THE TOOL PUTS BACK AN ANCHOR WHOSE SENTENCE SURVIVES, and refuses otherwise. An edit that leaves
-// an anchor out of --new while keeping its sentence word for word, once, records the replacement a
-// hand carry would have written; a repeated or rewritten sentence is refused with nothing recorded; a fragment edit keeping its fragment re-places the anchor and
+// THE TOOL PUTS BACK AN ANCHOR WHOSE SENTENCE SURVIVES, and refuses by the sentence otherwise. An
+// edit that leaves an anchor out of --new while keeping its sentence word for word, once, records
+// the replacement a hand carry would have written; a repeated or rewritten sentence is refused,
+// naming it, with nothing recorded; a fragment edit keeping its fragment re-places the anchor and
 // reopens it, because the document's sentence moved.
 func TestBlueEditPutsBackAnAnchorWhoseSentenceSurvives(t *testing.T) {
 	const fx, cite, rose, climb = "<!--fx:f-aaaa1111-->", "<!--cite:c-bbbb2222-->", "<!--fx:f-cccc3333-->", "<!--fx:f-dddd4444-->"
@@ -708,13 +709,13 @@ func TestBlueEditPutsBackAnAnchorWhoseSentenceSurvives(t *testing.T) {
 		}
 	})
 	t.Run("the sentence twice in the replacement", func(t *testing.T) {
-		refused("Prices climbed"+climb, "Prices climbed. Prices climbed", climb)
+		refused("Prices climbed"+climb, "Prices climbed. Prices climbed", `"Prices climbed"`)
 	})
 	t.Run("the sentence rewritten", func(t *testing.T) {
-		refused("Prices climbed"+climb, "Prices soared", climb)
+		refused("Prices climbed"+climb, "Prices soared", `on the sentence "Prices climbed"`, `nearest sentence there reads "Prices soared"`, climb)
 	})
 	t.Run("a repeat that only a trimmed match finds", func(t *testing.T) {
-		refused("Costs rose"+rose+".", "Costs rose sharply. Costs rose.", rose)
+		refused("Costs rose"+rose+".", "Costs rose sharply. Costs rose.", `"Costs rose`)
 	})
 	t.Run("a fragment kept inside a rewritten sentence", func(t *testing.T) {
 		if err := edit("fell sharply in Q1"+cite, "rose, then fell sharply in Q1"); err != nil {

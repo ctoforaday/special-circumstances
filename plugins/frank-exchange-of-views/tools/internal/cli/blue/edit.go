@@ -23,9 +23,10 @@ import (
 // report.md is read-only to the response seat (the lockdown hook denies its raw Edit/Write
 // and Bash writes); it changes the report EXCLUSIVELY through this verb, which replaces the
 // exact current span --old with --new while PRESERVING every anchor, of every kind in the anchor
-// kinds table. A span that would drop or split an anchor of any kind is REJECTED (edit around
-// it). Each applied edit appends a `blue_edit` event — an append-only diff-stack
-// that replays onto the round-0 report to equal the current head.
+// kinds table. An anchor the replacement leaves out is put back where its sentence survives word
+// for word, once; otherwise the edit is REJECTED, naming that sentence. Each applied edit appends a
+// `blue_edit` event — an append-only diff-stack that replays onto the round-0 report to equal the
+// current head.
 //
 // PROVENANCE: --answers names the gap this edit responds to. It is validated against the
 // board like every other reference (refs.go), and it is what makes `required_fix` and the
