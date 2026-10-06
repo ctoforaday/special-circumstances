@@ -70,32 +70,3 @@ func TestReplaceAndStripAssembled(t *testing.T) {
 		t.Errorf("StripAssembled = %q, want %q", got, want)
 	}
 }
-
-// ONE SPLITTER. A boundary is . ! ? or a newline outside an HTML comment; a run is one break; a
-// text opening or closing on a boundary has an empty first or last sentence.
-func TestSentences(t *testing.T) {
-	split := func(s string) []string {
-		var out []string
-		for _, sp := range Sentences(s) {
-			out = append(out, s[sp[0]:sp[1]])
-		}
-		return out
-	}
-	for _, c := range []struct {
-		in   string
-		want []string
-	}{
-		{"", []string{""}},
-		{"One. Two!", []string{"One", " Two", ""}},
-		{"One?! Two", []string{"One", " Two"}},
-		{".Lead", []string{"", "Lead"}},
-		{"Wet<!--cite:c-1-->. Dry.", []string{"Wet<!--cite:c-1-->", " Dry", ""}},
-		{"a <!-- not. a! break? --> b. c", []string{"a <!-- not. a! break? --> b", " c"}},
-		{"line one\nline two.\n\nthree", []string{"line one", "line two", "three"}},
-		{"open <!--fx: never closed. x", []string{"open <", "--fx: never closed", " x"}},
-	} {
-		if got := split(c.in); !reflect.DeepEqual(got, c.want) {
-			t.Errorf("Sentences(%q) = %q, want %q", c.in, got, c.want)
-		}
-	}
-}

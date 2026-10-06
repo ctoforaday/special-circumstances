@@ -38,7 +38,7 @@ func TestCount(t *testing.T) {
 			1,
 		},
 		{
-			"a cited list counts one per line",
+			"a cited list counts one per item",
 			"- first<!--cite:c-a-->\n- second<!--cite:c-b-->\n- third<!--cite:c-c-->",
 			3,
 		},
@@ -59,7 +59,7 @@ func TestCount(t *testing.T) {
 		},
 		{"empty input is zero", "", 0},
 		{
-			"a line break bounds the unit without punctuation",
+			"a soft wrap joins one sentence, and each anchor after prose in it counts",
 			"first<!--cite:c-a-->\nsecond<!--cite:c-b-->",
 			2,
 		},

@@ -344,7 +344,9 @@ later Part 1 commit leaves the golden byte-identical. The 12 universe runs are c
 fragment per line: the claim unit, `reopened` and the husk rule read fragments, and auto-place and
 the gap location would too (R-16, R-21). About +30 production lines (+80 rule and block reader;
 −25 `assemble.go`'s `sentenceEnd`, −15 `insideFence`'s loop, −10 `claimcount`'s per-line loop,
-`lead` and `listMarkerRe`).
+`lead` and `listMarkerRe`). **Measured +98** (+347 −249): the block reader carries every R-25 opener
+condition, each pinned by its own row. After Parts 1 and 2 the running S6 total is +50, so the ≥ 320
+target needs about −370 from Parts 3–6.
 
 **The rule** (`anchor.Sentences`; R-16, R-21, R-22, R-25; its anchor clauses read off the bare
 shapes `claimcount/bare_test.go` pins — the author's reading, disclosed):

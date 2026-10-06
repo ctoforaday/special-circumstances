@@ -311,3 +311,22 @@ func TestAttachPlacesTheTablesTokenAtTheQuotesEnd(t *testing.T) {
 		t.Errorf("a quote in a fence = %v, want ErrInFence", err)
 	}
 }
+
+// A FENCE'S OWN LINES ARE THE FENCE. insideFence reads anchor.Blocks, where a fence runs from its
+// opener line through its closer line, so a quote ending on either line is refused: a marker there
+// would ship inside the code block's delimiters. The line after the closer is prose again.
+func TestInsideFenceReadsTheBlockReader(t *testing.T) {
+	const report = "Intro.\n```text\ncode here\n```\nAfter the fence.\n"
+	for _, c := range []struct {
+		quote string
+		err   error
+	}{
+		{"```text", ErrInFence},
+		{"code here\n```", ErrInFence},
+		{"After the fence", nil},
+	} {
+		if _, err := InsertAnchor([]byte(report), c.quote, "<!--cite:c-1-->"); !errors.Is(err, c.err) {
+			t.Errorf("InsertAnchor(%q) = %v, want %v", c.quote, err, c.err)
+		}
+	}
+}

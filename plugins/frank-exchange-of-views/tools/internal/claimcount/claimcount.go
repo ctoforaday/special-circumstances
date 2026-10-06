@@ -19,13 +19,13 @@
 //
 // THE RULE. The count is the number of tool-inserted citation anchors
 // ("<!--cite:c-<hex>-->") ATTACHED to prose — some prose before them in their
-// segment, since every inserter places the anchor after the sentence it backs. An
+// sentence, since every inserter places the anchor after the sentence it backs. An
 // anchor with nothing before it — what an edit leaves when it cuts a cited sentence
 // away, because an edit may carry an anchor but never drop one — is BARE, not a
 // claim: counting it would let the sentence leave while the count stood still, so
 // a gutted claim read as no loss and a retire of it cancelled some other, real one
-// (see BareAnchorIDs for why "bare" cannot mean "alone in its segment", and
-// segmentAnchors for markdown around the terminator). The citation axis replaced the
+// (see BareAnchorIDs for why "bare" cannot mean "alone in its sentence", and for
+// markdown around the terminator). The citation axis replaced the
 // hand-typed "[^label]" footnote as the claim unit: citations are tool-managed, so
 // what a report CITES is exactly what it ANCHORS, and counting the anchor counts the
 // backed claim.
@@ -41,9 +41,9 @@
 // anchor a retire takes out is exactly one unit of the fall it explains.
 //
 // Only a kind whose row in the anchor kinds table says so counts — a citation. The claim
-// unit is a sentence as anchor.Sentences splits one, within a line, so a cited list emits
-// one claim per line and a claim spanning two lines counts once. Excluded, because none is
-// a declarative claim: fenced code, footnote-DEFINITION lines ("[^L1]: https://..."),
+// unit is a sentence as anchor.Sentences splits one: a list item is its own block, so a cited
+// list emits one claim per item, and a sentence soft-wrapped over two lines is one claim. Excluded,
+// because none is a declarative claim: fenced code, footnote definitions ("[^L1]: https://..."),
 // and headings. NOTE: this counts the PRE-assembly report, whose citations are
 // invisible anchors; the visible [^N] footnotes exist only after assembly weaves
 // them, and nothing counts the assembled report.
@@ -58,64 +58,44 @@
 package claimcount
 
 import (
-	"regexp"
 	"strings"
 	"unicode"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 )
 
-var (
-	footnoteDef = regexp.MustCompile(`^\s*\[\^[^\]]+\]:`) // "[^L1]: https://..." — a footnote definition line
-	fenceLine   = regexp.MustCompile("^\\s*(```|~~~)")
-)
-
-// Segment is one kept unit of the report — a sentence/line-bounded piece that
-// survived the exclusions — with the position and heading context a reader needs to
-// locate it, and the DISTINCT footnote labels it carries.
+// Segment is one kept sentence of the report — one that survived the exclusions — with the
+// position and heading context a reader needs to locate it, and the DISTINCT citation labels it
+// carries.
 type Segment struct {
-	Text    string   // the segment's raw text
-	Line    int      // 1-based line number in the original report where the segment sits
+	Text    string   // the sentence's raw text, which may span lines
+	Line    int      // 1-based line number in the original report where the sentence starts
 	Heading string   // nearest preceding markdown heading (stripped of leading # and space)
-	Labels  []string // distinct citation labels (c-<hex>) ATTACHED in this segment — after some prose — first-seen order
-
-	lead       bool // the first segment on its line: a list marker ahead of it is structure, not prose
-	afterProse bool // a terminator run, preceded by prose on the same line, sits right before it
+	Labels  []string // distinct citation labels (c-<hex>) ATTACHED in this sentence — after some prose — first-seen order
 }
 
-// Scan walks report markdown once and returns the kept segments in reading order.
-// Fenced code blocks, footnote-DEFINITION lines (the bibliography), and headings are
-// excluded from the claim stream — headings still update the heading context for the
-// segments that follow. This is the single source of the exclusion rule; Count and
-// Index both consume it so they cannot disagree about what is a claim.
+// Scan walks report markdown once and returns the kept sentences in reading order. Fenced
+// code, footnote definitions (the bibliography) and headings are excluded from the claim
+// stream — headings still update the heading context for the sentences that follow. This is
+// the single source of the exclusion rule; Count and Index both consume it so they cannot
+// disagree about what is a claim.
 func Scan(md string) []Segment {
 	var segs []Segment
 	heading := ""
-	inFence := false
-	for i, ln := range strings.Split(md, "\n") {
-		if fenceLine.MatchString(ln) {
-			inFence = !inFence
+	line, at := 1, 0
+	for _, b := range anchor.Blocks(md) {
+		switch b.Kind {
+		case anchor.Fence, anchor.FootnoteDef:
+			continue
+		case anchor.Heading: // not a claim, but it sets context
+			heading = strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(md[b.Body:b.End]), "#"))
 			continue
 		}
-		if inFence {
-			continue
-		}
-		t := strings.TrimSpace(ln)
-		if strings.HasPrefix(t, "#") { // a heading: not a claim, but it sets context
-			heading = strings.TrimSpace(strings.TrimLeft(t, "#"))
-			continue
-		}
-		if footnoteDef.MatchString(ln) { // the bibliography: a definition, not a claim
-			continue
-		}
-		var parts []string
-		for _, sp := range anchor.Sentences(ln) {
-			parts = append(parts, ln[sp[0]:sp[1]])
-		}
-		for k, seg := range parts {
-			s := Segment{Text: seg, Line: i + 1, Heading: heading, lead: k == 0, afterProse: k > 0 && HasProse(parts[k-1])}
-			s.Labels = segmentLabels(s)
-			segs = append(segs, s)
+		for _, sp := range b.Sentences {
+			line += strings.Count(md[at:sp[0]], "\n")
+			at = sp[0]
+			text := md[sp[0]:sp[1]]
+			segs = append(segs, Segment{Text: text, Line: line, Heading: heading, Labels: segmentLabels(text)})
 		}
 	}
 	return segs
@@ -153,50 +133,19 @@ func StripAnchors(s string) string {
 
 // AN ANCHOR BACKS THE PROSE BEFORE IT. Every inserter places its token flush after the last
 // content character of the sentence it anchors, so an anchor with no prose ahead of it in its
-// segment backs nothing — it is BARE. That is the shape an edit leaves when it cuts an anchored
+// sentence backs nothing — it is BARE. That is the shape an edit leaves when it cuts an anchored
 // sentence away (an edit may carry an anchor but never drop one), and it is NOT always alone in
-// its segment: the splice tidy removes the cut sentence's orphaned terminator, so "X<c>. Y." cut
+// its sentence: the splice tidy removes the cut sentence's orphaned terminator, so "X<c>. Y." cut
 // down to its anchor renders "<c> Y." — the bare anchor now sits at the head of the NEXT
-// sentence. Reading "the segment has prose" would count Y as cited by the claim that just left.
+// sentence. Reading "the sentence has prose" would count Y as cited by the claim that just left.
 //
-// MARKDOWN AROUND THE TERMINATOR IS NOT A GAP IN THE PROSE. The segment splitter cuts at . ! ?,
-// so a sentence whose terminator sits INSIDE closing markup — "**Water is wet.**<c>",
-// "_wet._<c>", "(p. 3.)<c>" — leaves its anchor in a segment that begins with the closer: "**",
-// "_", ")". That anchor is attached to the sentence the closer ends, not bare, and reading it as
-// bare made live cited prose a removal candidate. The rule: an anchor is attached when prose
-// precedes it in its segment, OR when all that precedes it is closing markup flush against a
-// terminator that ended prose on the same line. Whitespace breaks the join — "One. <c>" is the
-// gutted shape, bare — and so does nothing at all: "One.<c>" is no inserter's shape (every one
-// places its token BEFORE trailing punctuation), but it is what an edit leaves when it cuts
-// " B<c>." down to "<c>". A list marker at a line's head is structure, not prose: "1) <c>" is an
-// emptied numbered item, bare, though its "1" is a digit.
-
-// listMarkerRe matches a markdown list marker at a line's head — a bullet (- * +) or an ordered
-// marker (1. or 1)) — with the space after it.
-var listMarkerRe = regexp.MustCompile(`^\s*(?:[-*+]|\d+[.)])\s+`)
-
-// segmentAnchors walks a segment's anchor tokens in order, reporting each id and whether it is
-// ATTACHED to prose (see above for what that means across markdown).
-func segmentAnchors(s Segment, visit func(id string, attached bool)) {
-	anchor.Each(s.Text, func(start, _ int, id string) {
-		visit(id, attached(s, s.Text[:start]))
-	})
-}
-
-// attached decides whether an anchor preceded, within its segment, by prefix backs prose.
-func attached(s Segment, prefix string) bool {
-	p := StripAnchors(prefix)
-	if s.lead {
-		p = listMarkerRe.ReplaceAllString(p, "")
-	}
-	if HasProse(p) {
-		return true
-	}
-	return s.afterProse && p != "" && !strings.ContainsAny(p, " \t")
-}
+// Markdown around the terminator needs no rule here: the closers after a terminator, and an
+// anchor flush after them, belong to the sentence they end ("**Water is wet.**<c>"), while an
+// anchor after whitespace or flush after a bare terminator opens the next one ("One. <c>",
+// "One.<c> Two."), and a list marker lies outside every sentence ("1) <c>").
 
 // BareAnchorIDs returns the distinct anchor ids, of every kind in the table, that back NO prose
-// anywhere they stand: no occurrence has prose before it in its segment. These are what
+// anywhere they stand: no occurrence has prose before it in its sentence. These are what
 // `blue retire` may take out with a claim — an anchor still attached to any prose is never
 // bare, and an anchor outside the claim stream (a heading, a fence) is never reported, so the
 // answer errs toward keeping an anchor rather than removing one.
@@ -204,13 +153,13 @@ func BareAnchorIDs(md string) []string {
 	bare := map[string]bool{}
 	var order []string
 	for _, s := range Scan(md) {
-		segmentAnchors(s, func(id string, attached bool) {
+		anchor.Each(s.Text, func(start, _ int, id string) {
 			was, seen := bare[id]
 			if !seen {
 				order = append(order, id)
 				was = true
 			}
-			bare[id] = was && !attached
+			bare[id] = was && !HasProse(s.Text[:start])
 		})
 	}
 	var out []string
@@ -222,9 +171,8 @@ func BareAnchorIDs(md string) []string {
 	return out
 }
 
-// Occurrence is one site a footnoted claim appears: which section, which line, and a
-// content hash of the enclosing segment that survives line-number drift (the durable
-// locator; line is the convenience pointer).
+// Occurrence is one site a footnoted claim appears: its section, and the line its sentence
+// starts on — the convenience pointer; the anchor itself is the durable locator.
 type Occurrence struct {
 	Heading string `json:"heading"`
 	Line    int    `json:"line"`
@@ -267,18 +215,18 @@ func Index(md string) []LabelOccurrences {
 	return out
 }
 
-// segmentLabels returns the DISTINCT citation labels anchored inline in a segment, in
+// segmentLabels returns the DISTINCT citation labels anchored inline in a sentence, in
 // first-seen order. A claim is a sentence carrying a tool-inserted anchor of a kind that counts
 // as a claim — a citation (the citation axis replaced the hand-typed "[^label]" footnote as the
 // claim unit — citations are tool-managed, so what a report cites is exactly what it anchors).
 // The label is the token's id as anchor.Each reads it, so Index yields the real ids. A label
-// repeated in one segment is one site. A BARE label — no prose before it in the segment — backs
+// repeated in one sentence is one site. A BARE label — no prose before it in the sentence — backs
 // nothing and is not returned.
-func segmentLabels(s Segment) []string {
+func segmentLabels(text string) []string {
 	seen := map[string]bool{}
 	var out []string
-	segmentAnchors(s, func(id string, attached bool) {
-		if attached && anchor.CountsAsClaim(id) && !seen[id] {
+	anchor.Each(text, func(start, _ int, id string) {
+		if HasProse(text[:start]) && anchor.CountsAsClaim(id) && !seen[id] {
 			seen[id] = true
 			out = append(out, id)
 		}
