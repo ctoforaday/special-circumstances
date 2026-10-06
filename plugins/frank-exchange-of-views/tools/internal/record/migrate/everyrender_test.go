@@ -17,7 +17,8 @@ import (
 // EVERY ARCHIVED RUN RENDERS, and renders the bytes it rendered before. Replay re-runs placement,
 // the splice locators and the retire tidy on every read, so a change to any of them can move a
 // historical report while every unit test stays green; this pins the render of every tarball that
-// holds a base.
+// holds a base. No archived run replays a retire, so the retire tidy (reportproj.RemoveAnchorAt)
+// is pinned by its own tests and the retire verb's, not by this one.
 //
 // One golden line per run: `<run> <rendered|no-base> <raw> <normalized> <skeleton> <markers per
 // kind>`.

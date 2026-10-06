@@ -40,11 +40,10 @@
 // or two. Counted per attached citation, a merge moves nothing, and every citation
 // anchor a retire takes out is exactly one unit of the fall it explains.
 //
-// Only a kind whose row in the anchor kinds table says so counts — a citation; no
-// other kind of anchor is a claim, and none ever counts. The claim unit
-// is a sentence as anchor.Sentences splits one, within a line, so a cited list
-// emits one claim per line and a claim spanning two lines counts once. Excluded, because none is a
-// declarative claim: fenced code, footnote-DEFINITION lines ("[^L1]: https://..."),
+// Only a kind whose row in the anchor kinds table says so counts — a citation. The claim
+// unit is a sentence as anchor.Sentences splits one, within a line, so a cited list emits
+// one claim per line and a claim spanning two lines counts once. Excluded, because none is
+// a declarative claim: fenced code, footnote-DEFINITION lines ("[^L1]: https://..."),
 // and headings. NOTE: this counts the PRE-assembly report, whose citations are
 // invisible anchors; the visible [^N] footnotes exist only after assembly weaves
 // them, and nothing counts the assembled report.

@@ -3,21 +3,18 @@
 //
 // # The kinds table
 //
-// Every kind of anchor is one row of `kinds`, and the row holds what the kind MEANS: its id's
-// prefix and its token's tag (the spelling), the noun a message uses, what the assembly does with
-// it, whether it makes its sentence a counted claim, and whether it is evidence standing behind
-// its sentence. No column says how an anchor of the kind is placed, carried, protected or retired:
-// every kind lives the same way, so a reader of that lifecycle walks every row alike. Each anchor
-// is minted by its own verb — `lens finding`, `blue cite`, `blue prove`, `lens corroborate` — and
-// read back by the edit guard, the board, the assembly and every seat that wants the live text at
-// one.
+// Every kind of anchor is one row of `kinds`, holding what the kind MEANS. No column says how an
+// anchor is placed, carried, protected or retired: every kind lives the same way, so a reader of
+// that lifecycle walks every row alike.
 //
 // # Why it is a leaf
 //
-// That is a vocabulary several layers share, so it depends on NOTHING but the standard library.
-// It was in `internal/bluedoc`, which reaches up into `internal/cli/lens` for its span locator;
-// anything importing it inherited a command package, and `internal/cli/seat` could not import it at
-// all without a cycle.
+// Each kind is minted by its own verb — `lens finding`, `blue cite`, `blue prove`, `lens
+// corroborate` — and read back by the edit guard, the board, the assembly and every seat that
+// wants the live text at one. That is a vocabulary several layers share, so it depends on NOTHING
+// but the standard library. It was in `internal/bluedoc`, which reaches up into `internal/cli/lens`
+// for its span locator; anything importing it inherited a command package, and `internal/cli/seat`
+// could not import it at all without a cycle.
 //
 // The enforcement stayed where it belongs: `bluedoc` still owns the rule that an edit may carry an
 // anchor but never drop, duplicate or invent one. This package owns only what an anchor IS.
@@ -107,10 +104,8 @@ func IDPattern() string {
 	return `(?:` + strings.Join(alt, "|") + `)[0-9a-f]+`
 }
 
-// IDs are the anchor ids in s, in order, deduplicated.
-//
-// IT READS WHAT Token WRITES, and it is here rather than in the caller for that reason: the token
-// format has one home. tokenLenAt recognises the table's kinds and nothing else; this walks with it.
+// IDs are the anchor ids in s, in order, deduplicated. It reads what Token writes, here, so the
+// token format has one home.
 func IDs(s string) []string {
 	var out []string
 	seen := map[string]bool{}
@@ -272,9 +267,6 @@ func tokenLenAt(s string, i int) int {
 // sentence, and an anchor stays whole inside the sentence it sits in. A run of boundaries is one
 // break. A text that opens or closes on a boundary has an empty first or last span, so the spans
 // and the boundary runs alternate and every byte is in exactly one of them.
-//
-// It is the one splitter every reader of a sentence around an anchor reads: the claim count, the
-// retire tidy, and the reopened set an edit records.
 func Sentences(text string) [][2]int {
 	boundary := make([]bool, len(text))
 	for i := 0; i < len(text); {
