@@ -24,8 +24,8 @@
 // away, because an edit may carry an anchor but never drop one — is BARE, not a
 // claim: counting it would let the sentence leave while the count stood still, so
 // a gutted claim read as no loss and a retire of it cancelled some other, real one
-// (see BareAnchorIDs for why "bare" cannot mean "alone in its sentence", and
-// segmentAnchors for markdown around the terminator). The citation axis replaced the
+// (see BareAnchorIDs for why "bare" cannot mean "alone in its sentence", and for
+// markdown around the terminator). The citation axis replaced the
 // hand-typed "[^label]" footnote as the claim unit: citations are tool-managed, so
 // what a report CITES is exactly what it ANCHORS, and counting the anchor counts the
 // backed claim.
@@ -144,14 +144,6 @@ func StripAnchors(s string) string {
 // anchor after whitespace or flush after a bare terminator opens the next one ("One. <c>",
 // "One.<c> Two."), and a list marker lies outside every sentence ("1) <c>").
 
-// segmentAnchors walks a sentence's anchor tokens in order, reporting each id and whether it is
-// ATTACHED to prose before it.
-func segmentAnchors(text string, visit func(id string, attached bool)) {
-	anchor.Each(text, func(start, _ int, id string) {
-		visit(id, HasProse(text[:start]))
-	})
-}
-
 // BareAnchorIDs returns the distinct anchor ids, of every kind in the table, that back NO prose
 // anywhere they stand: no occurrence has prose before it in its sentence. These are what
 // `blue retire` may take out with a claim — an anchor still attached to any prose is never
@@ -161,13 +153,13 @@ func BareAnchorIDs(md string) []string {
 	bare := map[string]bool{}
 	var order []string
 	for _, s := range Scan(md) {
-		segmentAnchors(s.Text, func(id string, attached bool) {
+		anchor.Each(s.Text, func(start, _ int, id string) {
 			was, seen := bare[id]
 			if !seen {
 				order = append(order, id)
 				was = true
 			}
-			bare[id] = was && !attached
+			bare[id] = was && !HasProse(s.Text[:start])
 		})
 	}
 	var out []string
@@ -233,8 +225,8 @@ func Index(md string) []LabelOccurrences {
 func segmentLabels(text string) []string {
 	seen := map[string]bool{}
 	var out []string
-	segmentAnchors(text, func(id string, attached bool) {
-		if attached && anchor.CountsAsClaim(id) && !seen[id] {
+	anchor.Each(text, func(start, _ int, id string) {
+		if HasProse(text[:start]) && anchor.CountsAsClaim(id) && !seen[id] {
 			seen[id] = true
 			out = append(out, id)
 		}

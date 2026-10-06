@@ -25,23 +25,17 @@ import (
 // the same block reader Scan reads, so the two cannot disagree about what is a fence, a heading or
 // a footnote definition.
 func Paragraphs(md string) int {
-	n, prose, last := 0, false, -1
+	n, counted, last := 0, false, 0
 	for _, b := range anchor.Blocks(md) {
-		if last >= 0 && strings.Count(md[last:b.Start], "\n") > 1 {
-			if prose {
-				n++
-			}
-			prose = false
-		}
+		counted = counted && strings.Count(md[last:b.Start], "\n") < 2
 		last = b.End
 		switch b.Kind {
 		case anchor.Heading, anchor.FootnoteDef, anchor.Fence:
 		default:
-			prose = prose || HasProse(md[b.Start:b.End])
+			if !counted && HasProse(md[b.Start:b.End]) {
+				n, counted = n+1, true
+			}
 		}
-	}
-	if prose {
-		n++
 	}
 	return n
 }
