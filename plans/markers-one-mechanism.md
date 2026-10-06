@@ -251,7 +251,7 @@ rows; Part 4 adds `gap`; Part 6 respells the ids; Part 8 respells the tokens.
   (`terms.json:566`) and are not registered; "finding anchor" is registered only because it
   redirects the GATED "finding-marker" (`:603-605`), which `Label` prints today and stops printing
   in Part 4.
-- *Assembly* — `StripFindingMarkers` (`report/docs.go:222`) strips every `strip` row.
+- *Assembly* — `anchor.StripAssembled` (`report/docs.go:223`) strips every `strip` row.
 - *Claim* — a cited sentence is the report's unit of claim: `Scan`/`Count`/`Index`/
   `segmentLabels` (`claimcount.go:327`), `mintbudget.go:42`, `scorecard.go:475`.
 - *Backs* — the marker is evidence standing behind its sentence, as `GapJSON.Backing`'s doc says
@@ -889,7 +889,7 @@ text; Append's checks stay on; an exemption that turns out to be needed sits bes
 - Kind-agnostic readers: `ProtectedAnchorIDs`/`BareAnchorIDs` include it; `RemoveAnchorAt` keeps a
   line holding it; `ReopenedAnchors` reports it; `anchorsExiting`/`leftByTheCut` let it exit;
   `Scan`/`Count`/`Index` ignore it (*Claim*); `gapBacking` excludes it (*Backs*);
-  `StripFindingMarkers` strips it; `StripAnchors`/`HasProse`/`selector.visibleText`/`Visible`
+  `anchor.StripAssembled` strips it; `StripAnchors`/`HasProse`/`selector.visibleText`/`Visible`
   strip it; `SkipRun`/`tidySeam` step over it; `ReadAround` serves `show report --anchor G3`;
   `mintbudget` counts it as neither claim nor paragraph. **`show evidence`'s `reopened`**
   (`citationid.go:525`) lists every id any edit reopened, finding ids included today; gap ids join

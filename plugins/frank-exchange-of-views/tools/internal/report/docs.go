@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
@@ -219,7 +220,7 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 		// content: a finding's location/reason text can carry a "<!--fx:...-->" token into
 		// the record-derived findings/transcript sections, and only a final-output strip
 		// catches those. No raw marker ships (the leak fix).
-		body := StripFindingMarkers(collapseBlanks(docs[i].Body))
+		body := anchor.StripAssembled(collapseBlanks(docs[i].Body))
 		body = collapseBlanks(weaveCitations(body, sources))
 		body, hit := weaveProofRefs(body, proofs)
 		for _, label := range hit {

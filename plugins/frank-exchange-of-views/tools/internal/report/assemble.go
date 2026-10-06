@@ -36,34 +36,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/verify"
 )
 
-// Assemble writes <runDir>/report.md and returns its path. It reads the board once (which
-// carries both the ordered event log and the replayed gaps) and blue/report.md, and composes
-// the report from those two — no --inputs, no intermediate round-trip.
-// StripFindingMarkers removes every token of a kind the anchor table's assembly strips — a
-// finding's — from report markdown. It runs over the FINAL assembled output, not just blue's
-// lifted content, because a finding's location/reason text can carry the token into the
-// record-derived findings/transcript sections, which a blue-only strip misses.
-func StripFindingMarkers(md string) string { return anchor.StripAssembled(md) }
-
-// wovenAnchor is one token the assembly weaves: its span and its id.
-type wovenAnchor struct {
-	start, end int
-	id         string
-}
-
-// woven is every token in md of a kind the assembly weaves by a, in order. A citation is RESOLVED
-// at assembly, unlike a stripped kind: rewritten to a visible [^N] and listed in the composed
-// bibliography.
-func woven(md string, a anchor.Assembly) []wovenAnchor {
-	var out []wovenAnchor
-	anchor.Each(md, func(start, end int, id string) {
-		if anchor.AssemblyOf(id) == a {
-			out = append(out, wovenAnchor{start, end, id})
-		}
-	})
-	return out
-}
-
 // weaveCitations turns the invisible citation layer into a visible one. Each "<!--cite:c-…-->"
 // anchor becomes a footnote reference [^N], and each N's note is a full entry,
 // "[^N]: <title>. <url> (accessed <date>)", placed after the body as a bare definition — with the
@@ -94,7 +66,16 @@ func weaveCitations(md string, sources []record.Source) string {
 	// 2026-09-15): red's corroboration of blue's OCR cite is the same pointer, and a second note
 	// without the page would restore B9's doubled reference.
 	keys := map[int]string{} // anchor start offset → key
-	locs := woven(md, anchor.WeaveSource)
+	type woven struct {
+		start, end int
+		id         string
+	}
+	var locs []woven
+	anchor.Each(md, func(start, end int, id string) {
+		if anchor.AssemblyOf(id) == anchor.WeaveSource {
+			locs = append(locs, woven{start, end, id})
+		}
+	})
 	for i := 0; i < len(locs); {
 		j := i + 1
 		for j < len(locs) && locs[j].start == locs[j-1].end {
@@ -299,6 +280,9 @@ type Assembled struct {
 	Verdict   string
 }
 
+// Assemble writes <runDir>/report.md and returns its path. It reads the board once (which
+// carries both the ordered event log and the replayed gaps) and blue/report.md, and composes
+// the report from those two — no --inputs, no intermediate round-trip.
 func Assemble(run record.Run) (Assembled, error) {
 	docs, err := AssembleAll(run)
 	if err != nil {
