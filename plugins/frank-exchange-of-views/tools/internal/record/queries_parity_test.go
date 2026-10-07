@@ -150,6 +150,9 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	if ok, _ := ProposalAppliedVerbatim(run, "G1", render, "the sky is teal at noon ", "the sky is blue at noon"); ok {
 		t.Error("ProposalAppliedVerbatim matched a near-application — exactness is the whole point")
 	}
+	if ok, _ := ProposalAppliedVerbatim(run, "G3", render, "", ""); ok {
+		t.Error("ProposalAppliedVerbatim matched an edit to a gap that prescribed no text — there is no proposal to apply")
+	}
 	if !ProofAnswers(run, "G3") || ProofAnswers(run, "G1") || ProofAnswers(run, "") {
 		t.Error("ProofAnswers disagrees with the recorded proof join")
 	}
