@@ -39,6 +39,7 @@ type Result struct {
 	Labels         map[string]string // archived finding label -> the label the migrated record carries
 	Serialized     map[string]int    // archived instance seat -> events moved after instance 1 (serializeInstances)
 	StatedFills    []StatedFill      // values supplied where the source predates the field
+	GapAnchors     GapPlacement      // what bringing the run's gaps onto anchors did (F-c)
 }
 
 // byGradeFillWhy is the reason a class-material fill records, in one place so the staged-registry
@@ -120,6 +121,7 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 			}
 		}
 	}
+	place := newPlacer(dst, evs)
 	newKey := map[string]string{} // source key -> the key the migrated event carries
 	paired := map[int64]bool{}    // source corrections already written beside their replacement
 	for _, old := range evs {
@@ -199,12 +201,24 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 						Value: recordpb.Word(v), Why: byGradeFillWhy})
 				}
 			}
+			anchorAfter, err := place.step(body, id.Correct != nil)
+			if err != nil {
+				res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+				continue
+			}
 			ev, err := record.Append(id, body)
 			if err != nil {
 				res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 				continue
 			}
 			res.Out[wordOf(ev)]++
+			if anchorAfter != nil {
+				if _, err := record.Append(record.Identity{Run: dst, SeatID: seatID}, anchorAfter); err != nil {
+					res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+					continue
+				}
+				res.Out[recordpb.Word(recordpb.EventType_EVENT_TYPE_ANCHOR)]++
+			}
 			if _, seen := newKey[old.Key]; old.Key != "" && !seen {
 				newKey[old.Key] = ev.GetKey()
 			}
@@ -214,7 +228,7 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 			}
 		}
 	}
-	res.GapIDs, res.Labels = rm.gaps, rm.labels
+	res.GapIDs, res.Labels, res.GapAnchors = rm.gaps, rm.labels, place.census
 	return res, nil
 }
 

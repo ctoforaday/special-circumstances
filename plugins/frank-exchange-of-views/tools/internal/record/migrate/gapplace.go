@@ -1,0 +1,263 @@
+package migrate
+
+import (
+	"fmt"
+	"slices"
+	"strings"
+
+	"google.golang.org/protobuf/proto"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
+)
+
+// GapPlacement is what bringing an archived run's gaps onto anchors did (F-c): each rewrite counted
+// by its shape, and by name the gaps whose quote never placed and those placed only by the fallback.
+type GapPlacement struct {
+	Shapes      map[string]int `json:"shapes,omitempty"`
+	NeverPlaced []string       `json:"never_placed,omitempty"`
+	Fallback    []string       `json:"fallback,omitempty"`
+}
+
+// The shapes a placement takes, as the census counts them.
+const (
+	shapeMint      = "mint"      // a mint's stored quote placed by Attach
+	shapeAbutting  = "abutting"  // (a) an edit's old given the anchor run that now abuts its span
+	shapeLiteral   = "literal"   // (b) an exact-span edit's old given the gap anchors now inside it
+	shapeAutoPlace = "autoplace" // a gap anchor carried into new where its sentence survives
+	shapeSentence  = "sentence"  // the fallback: after new's first sentence
+	shapeBare      = "bare"      // new holds no prose: the anchor joins its marker run
+	shapeReopened  = "reopened"  // an edit's reopened gains the gap whose sentence it changed
+	shapeQuote     = "quote"     // a placement located only by the quoted span of its location
+)
+
+// placer runs in Replay after remap.apply and before Append, on bodies already in the destination's
+// spelling, adding only what the source lacks: a gap's Anchor where the source never anchored it,
+// gap anchors into an edit's old and new where they now stand, and a placement's quote where only
+// its quoted span locates. With gap anchors removed, every rewritten old and new is the archived
+// bytes, so the render's prose is the archived render's.
+type placer struct {
+	dst      record.Run
+	anchored map[string]bool // ids the source stream anchors itself
+	placed   bool
+	census   GapPlacement
+}
+
+func newPlacer(dst record.Run, evs []OldEvent) *placer {
+	p := &placer{dst: dst, anchored: map[string]bool{}, census: GapPlacement{Shapes: map[string]int{}}}
+	for _, ev := range evs {
+		if id, _ := ev.Fields["id"].(string); ev.Word == "anchor" && id != "" {
+			p.anchored[id] = true
+		}
+	}
+	return p
+}
+
+// step rewrites body for the report as the destination now renders it and returns the Anchor to
+// append after it, or nil. A correction's replacement re-carries what its act placed and adds none.
+func (p *placer) step(body proto.Message, correcting bool) (proto.Message, error) {
+	switch b := body.(type) {
+	case *recordpb.Mint:
+		if correcting || b.GetLocation() == "" || p.anchored[b.GetGapId()] {
+			return nil, nil
+		}
+		text, err := reportproj.RenderFromRecord(p.dst)
+		if err != nil {
+			return nil, nil // no base: the gap reads unrendered
+		}
+		if _, err := anchortext.Attach(text, b.GetGapId(), b.GetLocation()); err != nil {
+			p.census.NeverPlaced = append(p.census.NeverPlaced, b.GetGapId())
+			return nil, nil
+		}
+		p.placed = true
+		p.census.Shapes[shapeMint]++
+		return &recordpb.Anchor{Id: proto.String(b.GetGapId()), Location: proto.String(b.GetLocation())}, nil
+	case *recordpb.BlueEdit:
+		if p.placed {
+			return nil, p.edit(b)
+		}
+	case *recordpb.Cite:
+		b.Location = p.quote(b.Location)
+	case *recordpb.Proof:
+		b.Location = p.quote(b.Location)
+	case *recordpb.Anchor:
+		b.Location = p.quote(b.Location)
+	case *recordpb.Verify:
+		if b.GetLabel() != "" {
+			b.Claim = p.quote(b.Claim)
+		}
+	}
+	return nil, nil
+}
+
+// edit gives an archived edit every gap anchor that now stands in or against its span, so it
+// renders, carries them and records the gaps whose sentence it changed.
+func (p *placer) edit(b *recordpb.BlueEdit) error {
+	text, err := reportproj.RenderFromRecord(p.dst)
+	if err != nil {
+		return nil
+	}
+	old := b.GetOld()
+	start, end, ok := p.locate(text, old, b.GetExactSpan())
+	if !ok {
+		if old, ok = rewriteOld(text, old, b.GetExactSpan()); ok {
+			start, end, ok = p.locate(text, old, b.GetExactSpan())
+		}
+		if !ok {
+			return fmt.Errorf("migrate: this edit no longer locates in the report its gaps' anchors now stand in — a kept husk or a gap anchor inside its span that no rewrite reaches: %q", b.GetOld())
+		}
+		b.Old = proto.String(old)
+		shape := shapeAbutting
+		if b.GetExactSpan() {
+			shape = shapeLiteral
+		}
+		p.census.Shapes[shape]++
+	}
+	b.New = proto.String(p.carry(text[start:end], b.GetNew()))
+	after := reportproj.ApplySplice(text, start, end, b.GetNew())
+	for _, id := range bluedoc.ReopenedAnchors(text, after) {
+		if isGap(id) && !slices.Contains(b.Reopened, id) {
+			b.Reopened = append(b.Reopened, id)
+			p.census.Shapes[shapeReopened]++
+		}
+	}
+	return nil
+}
+
+// locate is the span replay takes for old.
+func (p *placer) locate(text, old string, exact bool) (int, int, bool) {
+	if exact {
+		s, e, _, ok := bluedoc.LocateLiteral(text, old)
+		return s, e, ok
+	}
+	s, e, err := bluedoc.LocateUniqueReplacing("render", text, old)
+	return s, e, err == nil
+}
+
+// rewriteOld is old as replay can locate it now that gap anchors stand in the report: an exact
+// span's bytes over the one place it occurs with gap anchors skipped (b); otherwise the anchor run
+// abutting its span, put in place of old's own run after its last content character (a).
+func rewriteOld(text, old string, exact bool) (string, bool) {
+	if exact {
+		var kept []byte
+		var at []int
+		gaps := gapSpans(text)
+		for i := 0; i < len(text); {
+			if e, ok := gaps[i]; ok {
+				i = e
+				continue
+			}
+			kept, at = append(kept, text[i]), append(at, i)
+			i++
+		}
+		lit := strings.TrimSpace(old)
+		if lit == "" || strings.Count(string(kept), lit) != 1 {
+			return "", false
+		}
+		k := strings.Index(string(kept), lit)
+		return text[at[k] : at[k+len(lit)-1]+1], true
+	}
+	_, end, err := bluedoc.LocateUnique("render", text, old)
+	if err != nil {
+		return "", false
+	}
+	after := strings.TrimLeft(text[end:], anchortext.TrailingPunct)
+	run := after[:anchor.SkipRun(after, 0)]
+	ce := anchortext.ContentEnd(old)
+	for _, at := range []int{ce, len(old) - len(strings.TrimLeft(old[ce:], anchortext.TrailingPunct))} {
+		if oe := anchor.SkipRun(old, at); stripGaps(run) == old[at:oe] && run != old[at:oe] {
+			return old[:at] + run + old[oe:], true
+		}
+	}
+	return "", false
+}
+
+// carry puts into new each gap anchor of span it lacks: where its sentence survives, by AutoPlace;
+// else after new's first sentence (the fallback, F-c); and where new holds no prose, into its
+// marker run.
+func (p *placer) carry(span, new string) string {
+	var missing []string
+	for _, id := range anchor.IDs(span) {
+		if isGap(id) && !strings.Contains(new, anchor.Token(id)) {
+			missing = append(missing, id)
+		}
+	}
+	if len(missing) == 0 {
+		return new
+	}
+	new = bluedoc.AutoPlace(span, new)
+	for _, id := range missing {
+		tok := anchor.Token(id)
+		switch {
+		case strings.Contains(new, tok):
+			p.census.Shapes[shapeAutoPlace]++
+		case claimcount.HasProse(new):
+			sp := anchor.Sentences(new)[0]
+			at := sp[0] + anchortext.ContentEnd(new[sp[0]:sp[1]])
+			new = new[:at] + tok + new[at:]
+			p.census.Shapes[shapeSentence]++
+			if !slices.Contains(p.census.Fallback, id) {
+				p.census.Fallback = append(p.census.Fallback, id)
+			}
+		default:
+			new += tok
+			p.census.Shapes[shapeBare]++
+		}
+	}
+	return new
+}
+
+// quote is a placement's location as replay can locate it: unchanged where it locates as written,
+// else the text between its first two double quotes where that does — how a placement written
+// before every quote was matched as written named its sentence (`§ Foundations: "…"`).
+func (p *placer) quote(loc *string) *string {
+	if loc == nil {
+		return loc
+	}
+	l := strings.TrimSpace(*loc)
+	i := strings.Index(l, `"`)
+	j := strings.Index(l[i+1:], `"`)
+	if i < 0 || j < 0 {
+		return loc
+	}
+	q := strings.TrimSpace(l[i+1 : i+1+j])
+	text, err := reportproj.RenderFromRecord(p.dst)
+	if err != nil || q == "" {
+		return loc
+	}
+	if s, _ := anchortext.LocateSpan(text, l); s >= 0 {
+		return loc
+	}
+	if s, _ := anchortext.LocateSpan(text, q); s < 0 {
+		return loc
+	}
+	p.census.Shapes[shapeQuote]++
+	return proto.String(q)
+}
+
+func isGap(id string) bool { return anchor.Kind(id) == "gap" }
+
+// gapSpans maps each gap anchor's start in text to its end.
+func gapSpans(text string) map[int]int {
+	out := map[int]int{}
+	anchor.Each(text, func(s, e int, id string) {
+		if isGap(id) {
+			out[s] = e
+		}
+	})
+	return out
+}
+
+func stripGaps(s string) string {
+	return anchor.Replace(s, func(tok, id string) string {
+		if isGap(id) {
+			return ""
+		}
+		return tok
+	})
+}
