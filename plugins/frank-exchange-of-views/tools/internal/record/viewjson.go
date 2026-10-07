@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -1725,18 +1726,12 @@ type GapEdit struct {
 	New string `json:"new"`
 }
 
-// reopeningEditsAt is every standing edit whose recorded `reopened` names a gap, keyed by gap id, in
-// the order the record now says they happened: a corrected edit is replaced by its successor in the
-// struck act's place.
+// reopeningEditsAt is every standing edit, as the change view orders them, keyed by each anchor id
+// its recorded `reopened` names.
 func reopeningEditsAt(q recordsql.Querier) (map[string][]GapEdit, error) {
 	out := map[string][]GapEdit{}
-	rows, err := q.Query(`SELECT r."value", e."epoch", COALESCE(e."seat_id", ''), COALESCE(b."old", ''), COALESCE(b."new", '')
-	  FROM "blue_edit_reopened" r
-	  JOIN "blue_edit" b ON b."event_id" = r."event_id"
-	  JOIN "live_event" l ON l."event_id" = b."event_id"
-	  JOIN "events_w" e ON e."id" = b."event_id"
-	  JOIN "mint" m ON m."gap_id" = r."value"
-	  ORDER BY l."pos", b."event_id"`)
+	rows, err := q.Query(`SELECT r."value", c."epoch", COALESCE(c."seat_id", ''), c."old", c."new"
+	  FROM "change" c JOIN "blue_edit_reopened" r ON r."event_id" = c."event_id" ORDER BY c."pos", c."event_id"`)
 	if err != nil {
 		return nil, fmt.Errorf("record: asking which edits changed a gap's sentence: %w", err)
 	}
@@ -1782,25 +1777,18 @@ const LocationStates = "Each quote gap carries `location_state`: `" + LocationMa
 	LocationGone + "` — " + GoneTeaching + ", and `location` is the text as minted; `" +
 	LocationUnrendered + "` — the report does not render, the board's `anomalies` say why, and `location` is the text as minted. A gap about something that is not report text carries none"
 
-// reportView is the report a projection reads gap locations from, rendered once: its text, why it
-// did not render, and the anchors standing bare of any prose.
+// reportView is the report a projection reads gap locations from, rendered once, and why it did not
+// render.
 type reportView struct {
 	text string
 	err  error
-	bare map[string]bool
 }
 
-func reportViewOf(text string, err error) reportView {
-	v := reportView{text: text, err: err, bare: map[string]bool{}}
-	for _, id := range claimcount.BareAnchorIDs(text) {
-		v.bare[id] = true
-	}
-	return v
-}
+func reportViewOf(text string, err error) reportView { return reportView{text, err} }
 
 // locate fills a quote gap's location state, location, passage and sentence from where its anchor
-// stands: `marked` at prose, `gone` bare, retired or never placed, `unrendered` when the report does
-// not render. The gap's Location comes in as minted and stays so unless it is marked.
+// stands: `marked` at prose, `gone` bare (as the edit guard reads bare), retired or never placed,
+// `unrendered` when the report does not render. Location comes in as minted and stays so unless marked.
 func (v reportView) locate(g *WorkGapState) {
 	if g.Location == "" {
 		return
@@ -1812,7 +1800,7 @@ func (v reportView) locate(g *WorkGapState) {
 	g.LocationState = LocationGone
 	tok := anchor.Token(g.ID)
 	at := strings.Index(v.text, tok)
-	if at < 0 || v.bare[g.ID] {
+	if at < 0 || slices.Contains(claimcount.BareAnchorIDs(v.text), g.ID) {
 		return
 	}
 	for _, sp := range anchor.Sentences(v.text) {
