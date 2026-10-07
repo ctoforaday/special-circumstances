@@ -627,7 +627,7 @@ arms, the reopened union, the quote rewrite and the manifest census that names n
 fallback gaps), the location states +33 in `viewjson.go` (the three constants and their teaching, the
 reopening edits off the change view), and the shared placement refusals and stored-location retries
 in `lens` +40; one `renderProjection` replaced four render paths (−8 in `mintbudget.go`). Tests
-+1345 −525. Over the 16 archived runs: 0 refusals, every
++1348 −525. Over the 16 archived runs: 0 refusals, every
 skeleton digest unchanged, 0 gaps never placed, 13 placed by the fallback, 15 abutting rewrites, 0
 quote rewrites; over the 28 runs (S7), 1 quote rewrite (universe-m8), 3 never placed (m8 G9, m9 G7,
 m13 G4), 0 fallback placements on a heading (3 on a paragraph that is one bold line: m8 G4 and G5,
