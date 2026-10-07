@@ -345,7 +345,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	// stands (#1091). Once per board and not once per gap: replaying the mutations is the expensive
 	// part. A report that does not render is not an error — every quote gap reads `unrendered`, and
 	// the anomaly below says why.
-	report := reportViewOf(renderReportAt(q))
+	report, renderErr := renderProjection(ReportProjectionAt(q))
 
 	verified := backingOf(Live(evs))
 	// THE CLOSURE IS A FOLD (the acts that stand); THE REGRADE HISTORY IS A LISTING (every regrade,
@@ -409,13 +409,13 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 			Backing: []GapBackingJSON{},
 		}
 		g := WorkGapState{ID: id, Location: loc.String, AboutRef: aboutRef.String}
-		report.locate(&g)
+		locateGap(report, renderErr, &g)
 		gj.LocationState, gj.Location, gj.Passage = g.LocationState, g.Location, g.Passage
 		// THE BOARD SERVES THE PAIR `--accept` SENDS: one function reads both over one render.
-		gj.FixOld, gj.FixNew = proposalOver(report.text, id, loc.String, fixNew.String)
+		gj.FixOld, gj.FixNew = proposalOver(report, id, loc.String, fixNew.String)
 		if g.LocationState == LocationUnrendered && !unrendered {
 			unrendered = true
-			out.Anomalies = append(out.Anomalies, fmt.Sprintf("the report does not render (%v) — every quote gap reads `unrendered`, its location the text as minted", report.err))
+			out.Anomalies = append(out.Anomalies, fmt.Sprintf("the report does not render (%v) — every quote gap reads `unrendered`, its location the text as minted", renderErr))
 		}
 		// THE BACKING THE FIELD DOCUMENTS, which the board declared and never filled: every board
 		// read carried `backing: null` while the help promised the anchors behind each open gap.
@@ -1008,19 +1008,12 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 		return nil, fmt.Errorf("record: the work list cannot be computed: docket ruling(s) on motion(s) %s have no filing on this record, so which gap each settles is unknown — a seat told a gap is open when the bench has disposed of it is the failure this refuses to produce", strings.Join(unpairedDocket, ", "))
 	}
 	// The report, once for the whole work list — see boardJSONOfRecord for why once.
-	err := r.reportErr
-	if err == nil && reportRenderer == nil {
-		err = errNoRenderer
-	}
-	report := reportViewOf("", err)
-	if err == nil {
-		report = reportViewOf(reportRenderer(r.reportBase, r.haveBase, r.reportOps))
-	}
+	report, renderErr := renderProjection(r.reportBase, r.haveBase, r.reportOps, r.reportErr)
 	var out []WorkGapState
 	for _, row := range r.gaps {
 		g := row.WorkGapState
 		g.Edits = r.edits[g.ID]
-		report.locate(&g)
+		locateGap(report, renderErr, &g)
 		g.FoundBy, g.Supersedes = r.foundBy[row.mintedEvent], r.supersedes[row.mintedEvent]
 		if c := closures[g.ID]; c != nil && c.hasClosed {
 			g.ClosedByBench, g.Fate = c.closedByBench, c.reason()
@@ -1777,37 +1770,29 @@ const LocationStates = "Each quote gap carries `location_state`: `" + LocationMa
 	LocationGone + "` — " + GoneTeaching + ", and `location` is the text as minted; `" +
 	LocationUnrendered + "` — the report does not render, the board's `anomalies` say why, and `location` is the text as minted. A gap about something that is not report text carries none"
 
-// reportView is the report a projection reads gap locations from, rendered once, and why it did not
-// render.
-type reportView struct {
-	text string
-	err  error
-}
-
-func reportViewOf(text string, err error) reportView { return reportView{text, err} }
-
-// locate fills a quote gap's location state, location, passage and sentence from where its anchor
-// stands: `marked` at prose, `gone` bare (as the edit guard reads bare), retired or never placed,
-// `unrendered` when the report does not render. Location comes in as minted and stays so unless marked.
-func (v reportView) locate(g *WorkGapState) {
+// locateGap fills a quote gap's location state, location, passage and sentence from where its anchor
+// stands in report: `marked` at prose, `gone` bare (as the edit guard reads bare), retired or never
+// placed, `unrendered` when the report did not render (err). Location comes in as minted and stays so
+// unless marked.
+func locateGap(report string, err error, g *WorkGapState) {
 	if g.Location == "" {
 		return
 	}
-	if v.err != nil {
+	if err != nil {
 		g.LocationState = LocationUnrendered
 		return
 	}
 	g.LocationState = LocationGone
 	tok := anchor.Token(g.ID)
-	at := strings.Index(v.text, tok)
-	if at < 0 || slices.Contains(claimcount.BareAnchorIDs(v.text), g.ID) {
+	at := strings.Index(report, tok)
+	if at < 0 || slices.Contains(claimcount.BareAnchorIDs(report), g.ID) {
 		return
 	}
-	for _, sp := range anchor.Sentences(v.text) {
+	for _, sp := range anchor.Sentences(report) {
 		if sp[0] <= at && at+len(tok) <= sp[1] {
-			g.LocationState, g.sentence = LocationMarked, v.text[sp[0]:sp[1]]
+			g.LocationState, g.sentence = LocationMarked, report[sp[0]:sp[1]]
 			g.Location = strings.TrimSpace(claimcount.StripAnchors(g.sentence))
-			g.Passage = PassageAround(v.text, at)
+			g.Passage = PassageAround(report, at)
 			return
 		}
 	}
