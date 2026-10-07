@@ -13,7 +13,7 @@ directly, at synthesis, and then you FREEZE it into the record — that act reco
 as the base of the record and DELETES the file, so your citations, proofs and claim count
 follow it, each reading the frozen report. From that point the report IS the record: every
 later seat READS it through the tool and amends it only through the tool's edit path — an
-appended event the report is replayed from, which cannot drop red's finding anchors. So
+appended event the report is replayed from, which cannot drop an anchor. So
 author it whole, coherent, and complete before you freeze it; a gap you leave is one a
 response seat must reach through a narrow edit, and red's markers will already be in the text.
 

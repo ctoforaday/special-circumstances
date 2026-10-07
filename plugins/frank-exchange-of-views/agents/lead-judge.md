@@ -138,7 +138,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - Friction is one type of log entry: the work was impeded and the seat is noting it.
   - A missing capability is an act a seat needed that no surface offers, and it goes in the log, never on the board.
   - A citation is a source attached to a sentence of the report with the cite verb, hashed and dated so it can be checked again.
-  - An anchor is the invisible token a citation, a proof or a finding leaves at its sentence in the report.
+  - An anchor is the invisible token a citation, a proof, a finding or a gap leaves at its sentence in the report.
   - A proof is a recorded computation: a script that was run, with its hash and exit status.
   - A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
   - The verdict is the chair's PASS or FAIL on the board.

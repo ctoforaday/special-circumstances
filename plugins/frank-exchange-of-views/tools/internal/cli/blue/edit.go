@@ -228,7 +228,7 @@ func planEdit(report, old, new string) (string, string, bool, error) {
 	//
 	// This guard used to REJECT any span containing an anchor ("edit around it"). Combined with
 	// the uniqueness guard that produces a DEADLOCK, demonstrated: when a word appears twice and
-	// the only disambiguating context carries an anchor, the minimal quote is refused as
+	// the only disambiguating context carries red's anchor, the minimal quote is refused as
 	// ambiguous and the contextual quote is refused as anchor-spanning. The anchored occurrence —
 	// the one red actually flagged — becomes uneditable, while the unanchored one edits fine. And
 	// 71% of anchored quotes in the smoke had their anchor mid-span, so this is the common shape,

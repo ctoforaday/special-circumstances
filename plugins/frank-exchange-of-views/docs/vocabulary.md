@@ -331,7 +331,7 @@ OCR-derived text is a machine's reading of a scanned document's page images: det
 
 ## anchor
 
-An anchor is the invisible token a citation, a proof or a finding leaves at its sentence in the report.
+An anchor is the invisible token a citation, a proof, a finding or a gap leaves at its sentence in the report.
 
 **Delivered to:** lens, chair, blue, bench, operator
 

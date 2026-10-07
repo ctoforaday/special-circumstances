@@ -27,7 +27,7 @@ directly, at synthesis, and then you FREEZE it into the record — that act reco
 as the base of the record and DELETES the file, so your citations, proofs and claim count
 follow it, each reading the frozen report. From that point the report IS the record: every
 later seat READS it through the tool and amends it only through the tool's edit path — an
-appended event the report is replayed from, which cannot drop red's finding anchors. So
+appended event the report is replayed from, which cannot drop an anchor. So
 author it whole, coherent, and complete before you freeze it; a gap you leave is one a
 response seat must reach through a narrow edit, and red's markers will already be in the text.
 
@@ -145,7 +145,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A missing capability is an act a seat needed that no surface offers, and it goes in the log, never on the board.
   - A citation is a source attached to a sentence of the report with the cite verb, hashed and dated so it can be checked again.
   - OCR-derived text is a machine's reading of a scanned document's page images: deterministic, and able to misread, so a citation quoting it records the PDF page its quote sits on and is checked against that page's image.
-  - An anchor is the invisible token a citation, a proof or a finding leaves at its sentence in the report.
+  - An anchor is the invisible token a citation, a proof, a finding or a gap leaves at its sentence in the report.
   - A proof is a recorded computation: a script that was run, with its hash and exit status.
   - A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
   - The verdict is the chair's PASS or FAIL on the board.
@@ -486,7 +486,7 @@ that you did NOT take red's text, and costs you the estoppel that stops red re-o
 You are never obliged to accept. Writing your own replacement is your right to disagree and is
 recorded as one.
 
-The tool matches your span across the invisible anchor layer and REFUSES a replacement that drops, duplicates or invents an anchor: a finding anchor or a citation anchor may travel THROUGH your edit, never disappear in one.
+The tool matches your span across the invisible anchor layer and REFUSES a replacement that drops, duplicates or invents an anchor: an anchor of any kind may travel THROUGH your edit, never disappear in one.
 
 An anchor INSIDE the span you replace must be copied verbatim into the replacement. One at its edge is not inside: a quote's trailing punctuation is trimmed before the span is located, so an anchor before a sentence's final period falls outside, is preserved for you, and typing it into the replacement is refused as inventing one. You need not work out which — get it wrong either way and the refusal names the anchor and says which it wants.
 
@@ -853,7 +853,7 @@ take a claim out of the report, when it cannot stand and no edit will save it
 
 A claim leaves the report only through this verb — never by quietly not being there any more. Capture compares the fall in the claim count against the retire events, and an unaccounted drop is a detector hit.
 
-An anchored claim leaves in two steps: `edit` it down to its bare anchor (an edit may carry an anchor but never drop one), then retire it here, quoting the WHOLE of what the edit cut — a fragment takes nothing out. The retire takes the bare citation or proof anchor out with the claim — no orphan footnote, no empty bullet. A marker inside a sentence — the claim was a clause, and the rest of the sentence still stands before it — does not count as bare: name it, and the tool checks it against the edit that left it alone. The result says which markers left, which were kept and why, and which stayed. A finding anchor is red's: it leaves only once every gap crediting that finding is closed, and until then the retire keeps it and says why.
+An anchored claim leaves in two steps: `edit` it down to its bare anchor (an edit may carry an anchor but never drop one), then retire it here, quoting the WHOLE of what the edit cut — a fragment takes nothing out. The retire takes every bare anchor out with the claim, whatever its kind — no orphan footnote, no empty bullet. An anchor inside a sentence — the claim was a clause, and the rest of the sentence still stands before it — does not count as bare: name it, and the tool checks it against the edit that left it alone. The result says which anchors left and which stayed.
 
 Name what replaces it where something does.
 
