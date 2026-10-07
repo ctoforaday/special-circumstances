@@ -17,7 +17,8 @@ import (
 )
 
 // GapPlacement is what bringing an archived run's gaps onto anchors did (F-c): each rewrite counted
-// by its shape, and by name the gaps whose quote never placed and those placed only by the fallback.
+// by its shape, and by name the gaps with no place in the report — a quote that never placed, or an
+// anchor an edit's replacement holds no prose sentence to carry — and those placed by the fallback.
 type GapPlacement struct {
 	Shapes      map[string]int `json:"shapes,omitempty"`
 	NeverPlaced []string       `json:"never_placed,omitempty"`
@@ -30,8 +31,9 @@ const (
 	shapeAbutting  = "abutting"  // (a) an edit's old given the anchor run that now abuts its span
 	shapeLiteral   = "literal"   // (b) an exact-span edit's old given the gap anchors now inside it
 	shapeAutoPlace = "autoplace" // a gap anchor carried into new where its sentence survives
-	shapeSentence  = "sentence"  // the fallback: after new's first sentence
+	shapeSentence  = "sentence"  // the fallback: after new's first prose sentence
 	shapeBare      = "bare"      // new holds no prose: the anchor joins its marker run
+	shapeUnplaced  = "unplaced"  // new's prose is only headings, fences or tables: nothing carries it
 	shapeReopened  = "reopened"  // an edit's reopened gains the gap whose sentence it changed
 	shapeQuote     = "quote"     // a placement located only by the quoted span of its location
 )
@@ -178,8 +180,10 @@ func rewriteOld(text, old string, exact bool) (string, bool) {
 }
 
 // carry puts into new each gap anchor of span it lacks: where its sentence survives, by AutoPlace;
-// else after new's first sentence (the fallback, F-c); and where new holds no prose, into its
-// marker run.
+// else after the last content character of new's first prose sentence (the fallback, F-c); where new
+// holds no prose, into its marker run (bare). Where new's only prose is a heading, a fence or a table
+// row, no sentence carries the anchor: the edit takes it out, and the gap reads gone, as one whose
+// quote never placed.
 func (p *placer) carry(span, new string) string {
 	var missing []string
 	for _, id := range anchor.IDs(span) {
@@ -193,23 +197,41 @@ func (p *placer) carry(span, new string) string {
 	new = bluedoc.AutoPlace(span, new)
 	for _, id := range missing {
 		tok := anchor.Token(id)
+		at := proseEnd(new)
 		switch {
 		case strings.Contains(new, tok):
 			p.census.Shapes[shapeAutoPlace]++
-		case claimcount.HasProse(new):
-			sp := anchor.Sentences(new)[0]
-			at := sp[0] + anchortext.ContentEnd(new[sp[0]:sp[1]])
+		case at >= 0:
 			new = new[:at] + tok + new[at:]
 			p.census.Shapes[shapeSentence]++
 			if !slices.Contains(p.census.Fallback, id) {
 				p.census.Fallback = append(p.census.Fallback, id)
 			}
+		case claimcount.HasProse(new):
+			p.census.Shapes[shapeUnplaced]++
+			p.census.NeverPlaced = append(p.census.NeverPlaced, id)
 		default:
 			new += tok
 			p.census.Shapes[shapeBare]++
 		}
 	}
 	return new
+}
+
+// proseEnd is the offset after the last content character of new's first sentence that says
+// something in a paragraph or a list item — never a heading, a fence or a table row — or -1.
+func proseEnd(new string) int {
+	for _, b := range anchor.Blocks(new) {
+		if b.Kind != anchor.Paragraph && b.Kind != anchor.ListItem {
+			continue
+		}
+		for _, sp := range b.Sentences {
+			if claimcount.HasProse(new[sp[0]:sp[1]]) {
+				return sp[0] + anchortext.ContentEnd(new[sp[0]:sp[1]])
+			}
+		}
+	}
+	return -1
 }
 
 // quote is a placement's location as replay can locate it: unchanged where it locates as written,

@@ -3,6 +3,7 @@ package migrate_test
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -179,6 +180,14 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 			s.add(shapeBlue, &recordpb.Retire{Claim: proto.String("Water is wet."), Reason: proto.String("refuted"),
 				Anchors: []string{"f-0000aaa1"}, RemovalBasis: proto.String(record.RemovalVerified)})
 		}, "- <!--gap:G1-->", "bare"},
+		{"(g) the fallback passes over a heading to the first prose sentence", func(s *shapeSource) {
+			s.mint("G1", "Costs rose sharply in Q1.")
+			s.edit("Costs rose sharply in Q1. Volume fell.", "## Costs\n\nCosts climbed in Q1. Volume fell.", false)
+		}, "Costs climbed in Q1<!--gap:G1-->. Volume fell.", "sentence"},
+		{"(h) a replacement whose only prose is a heading", func(s *shapeSource) {
+			s.mint("G1", "Costs rose sharply in Q1.")
+			s.edit("Costs rose sharply in Q1. Volume fell.", "## Costs", false)
+		}, "## Costs.", "unplaced"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			src := newShapeSource(t, base)
@@ -195,6 +204,9 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 				if stripGapTokens(e.GetOld()) != srcEdits[i].GetOld() || stripGapTokens(e.GetNew()) != srcEdits[i].GetNew() {
 					t.Errorf("a rewrite inserted more than gap anchors:\n old %q -> %q\n new %q -> %q", srcEdits[i].GetOld(), e.GetOld(), srcEdits[i].GetNew(), e.GetNew())
 				}
+			}
+			if c.shape == "unplaced" && (strings.Contains(md, anchor.Token("G1")) || !slices.Contains(m.GapAnchors.NeverPlaced, "G1")) {
+				t.Errorf("a gap no prose sentence carries stands in the render or goes unnamed: %+v\n%s", m.GapAnchors, md)
 			}
 			if strings.HasPrefix(c.name, "(e)") {
 				// The gap anchor stands bare beside the husk the retire kept, and taken out as a
