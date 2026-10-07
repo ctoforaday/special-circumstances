@@ -2,7 +2,7 @@
 // blue/report.md is LEGAL — shared, because two roles now need the same answer.
 //
 // WHY IT EXISTS. `blue edit` has always validated its own old→new pair: the span must be
-// present, unique, must not split a word, and must not change which immortal anchors exist.
+// present, unique, must not split a word, and must not change which anchors exist.
 // With #267 stage 3 red may attach a CONCRETE proposed fix to a gap, and a proposal red
 // cannot state legally is a proposal blue cannot apply — so the same checks have to run at
 // mint time, in the chair role.
@@ -10,7 +10,7 @@
 // The alternative was `internal/cli/merge` importing `internal/cli/blue`, which makes two
 // role packages depend on each other for a rule that belongs to neither: it belongs to the
 // DOCUMENT. A second copy of the checks was never an option — the anchor invariant is the
-// one thing standing between an edit and red's immortal audit record, and this repo has
+// one thing standing between an edit and the anchors the record placed, and this repo has
 // already paid for two readers of one rule more than once.
 //
 // What did NOT move: the splice hygiene (tidySeam) and the write path. Those are what blue
@@ -54,7 +54,7 @@ func LocateUnique(verb, report, old string) (int, int, error) {
 	case anchortext.ErrAmbiguous:
 		return 0, 0, fmt.Errorf("%s: your quoted span appears MORE THAN ONCE in report.md, so the target is ambiguous — quote more surrounding context to pick out the one site you mean (to change every site, make one edit per site)", verb)
 	}
-	return 0, 0, fmt.Errorf("%s: %w", verb, anchortext.ErrSplitsWord)
+	return 0, 0, fmt.Errorf("%s: %w. Editing letters rather than language produces one-byte ops that carry no meaning on the record", verb, anchortext.ErrSplitsWord)
 }
 
 // LocateUniqueReplacing is LocateUnique for a caller that intends to REPLACE the span it finds.

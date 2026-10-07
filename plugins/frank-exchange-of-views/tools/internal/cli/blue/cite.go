@@ -22,12 +22,11 @@ import (
 // cite: blue's ONLY mechanism for citing a source.
 //
 // Blue never hand-writes a footnote. `blue cite` fetches the source through the run cache
-// (fetch-once, hash-verified — red re-reads the exact bytes), then splices an INVISIBLE,
-// IMMORTAL "<!--cite:c-<hex>-->" anchor at the quoted sentence, exactly the way a lens
-// finding is anchored. Assembly weaves those anchors into the visible [^N] footnotes and a
-// composed ## Bibliography. Because the anchor is tool-inserted and the lockdown forbids
-// removing it by a raw edit, the set of cite events is a strict bijection with the anchors
-// in the document — the record shows exactly what the report references.
+// (fetch-once, hash-verified — red re-reads the exact bytes), then places an INVISIBLE
+// "<!--cite:c-<hex>-->" anchor at the quoted sentence, exactly the way every kind of anchor is
+// placed. Assembly weaves those anchors into the visible [^N] footnotes and a composed
+// ## Bibliography. Because the anchor is tool-inserted and leaves only with a retire that names
+// it, the record shows exactly what the report references.
 //
 // A source that cannot be loaded is an UNUSABLE citation: the cite is REJECTED and the
 // failure is auto-logged as friction (a bare `fetch` miss is only an error — but the

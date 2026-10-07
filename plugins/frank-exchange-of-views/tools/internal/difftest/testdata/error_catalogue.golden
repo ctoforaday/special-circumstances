@@ -1798,7 +1798,7 @@ For a gap about something that is NOT in the report, do not borrow a nearby sent
 
 ── a mint quoting inside a word
 exit 2
-feov-record: lens: lens mint: your span starts or ends inside a word — quote whole words. Editing letters rather than language produces one-byte ops that carry no meaning on the record
+feov-record: lens: lens mint: your span starts or ends inside a word — quote whole words
 
 For a gap about something that is NOT in the report, do not borrow a nearby sentence: name it with --about-kind/--about, the same pair `finding` takes
 

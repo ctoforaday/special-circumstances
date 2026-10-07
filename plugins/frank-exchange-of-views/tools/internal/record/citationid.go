@@ -17,8 +17,8 @@ import (
 // that the seat never hand-writes and cannot invent. The id is random for the same
 // reason a finding id is: an id you cannot guess is one you have to LOOK UP, so "which
 // citation do you mean" is a read, not a memory exercise. Under the lockdown the anchor
-// is immortal, so the set of cite events is a strict bijection with the anchors in the
-// document — the id is the identity that pins both halves together.
+// leaves the document only with a retire that names it, so each cite event's anchor is in the
+// document or on a retire — the id is the identity that pins both halves together.
 
 // NewCitationID mints an unguessable citation id.
 //
@@ -236,7 +236,7 @@ func ExistingCiteByKey(run Run, seatID, key string) (string, error) {
 //
 // `lens cite` records RED VERIFYING a source (a citation-ledger row: claim / reference /
 // confidence / access_date). `blue cite` records BLUE AUTHORING one (label / url / sha256 /
-// title / location, plus an immortal anchor in the report). Only blue's carries `label`, which
+// title / location, plus an anchor in the report). Only blue's carries `label`, which
 // is what distinguishes them — the same discriminator CitedSources and CitationLabels use.
 //
 // Counting both as "citations" makes an AUDIT-VOLUME number grow when BLUE writes, which is the

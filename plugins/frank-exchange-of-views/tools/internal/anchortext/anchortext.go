@@ -312,12 +312,11 @@ var (
 	ErrInFence  = errors.New("the quote resolves inside a code fence")
 )
 
-// LocateOnce's refusals after ErrMisQuote. Refusal words the first two for a placement; the third
-// is worded for every caller.
+// LocateOnce's refusals after ErrMisQuote. Refusal words each for a placement.
 var (
 	ErrAmbiguous        = errors.New("the quote occurs more than once")
 	ErrCrossesParagraph = errors.New("the quote's one match in the report runs across a blank line")
-	ErrSplitsWord       = errors.New("your span starts or ends inside a word — quote whole words. Editing letters rather than language produces one-byte ops that carry no meaning on the record")
+	ErrSplitsWord       = errors.New("your span starts or ends inside a word — quote whole words")
 )
 
 // Refusal is the refusal a placing verb gives for LocateOnce's ambiguity, crossing and word-split
