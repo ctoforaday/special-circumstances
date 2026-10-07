@@ -152,6 +152,9 @@ func TestAcceptCarriesTheGapAnchor(t *testing.T) {
 				t.Fatal(err)
 			}
 			old, new := boardPair(t, runDir, gap)
+			if tok := anchor.Token(gap); old != acceptS+tok+term || new != acceptN+tok+term {
+				t.Errorf("the board's pair is %q -> %q, want the location through its anchor, then its own terminator", old, new)
+			}
 			if err := acceptEdit(t, runDir, "T", gap, "--quote", old, "--new", new); err != nil {
 				t.Fatalf("typing the board's pair: %v", err)
 			}
