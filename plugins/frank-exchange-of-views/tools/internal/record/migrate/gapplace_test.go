@@ -158,7 +158,7 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 		}, "Costs rose modestly in Q1<!--gap:G1--><!--fx:f-0000aaa1-->. Volume fell.", "abutting"},
 		{"(b) an exact-span edit across the anchor", func(s *shapeSource) {
 			s.mint("G1", "They stand on their own")
-			s.edit("on their own.).", "on their own.)", true)
+			s.edit("on their own.). ", "on their own.)", true)
 			// The edit's sentence is not the anchor's word for word, so the fallback takes its end.
 		}, "(They stand on their own.)<!--gap:G1-->", "literal"},
 		{"(c) a drop inside the span, its sentence kept", func(s *shapeSource) {
@@ -236,7 +236,7 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		m, md, _, dst := src.migrated()
+		m, md, _, _ := src.migrated()
 		if md != before {
 			t.Errorf("the render moved:\n source %q\n migrated %q", before, md)
 		}
@@ -246,7 +246,6 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 		if len(m.GapAnchors.Shapes) != 0 {
 			t.Errorf("a run carrying its own anchors was rewritten: %+v", m.GapAnchors)
 		}
-		_ = dst
 	})
 
 	t.Run("archive", func(t *testing.T) {

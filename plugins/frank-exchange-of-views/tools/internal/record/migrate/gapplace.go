@@ -19,24 +19,12 @@ import (
 // GapPlacement is what bringing an archived run's gaps onto anchors did (F-c): each rewrite counted
 // by its shape, and by name the gaps with no place in the report — a quote that never placed, or an
 // anchor an edit's replacement holds no prose sentence to carry — and those placed by the fallback.
+// The shapes are named where each is counted.
 type GapPlacement struct {
 	Shapes      map[string]int `json:"shapes,omitempty"`
 	NeverPlaced []string       `json:"never_placed,omitempty"`
 	Fallback    []string       `json:"fallback,omitempty"`
 }
-
-// The shapes a placement takes, as the census counts them.
-const (
-	shapeMint      = "mint"      // a mint's stored quote placed by Attach
-	shapeAbutting  = "abutting"  // (a) an edit's old given the anchor run that now abuts its span
-	shapeLiteral   = "literal"   // (b) an exact-span edit's old given the gap anchors now inside it
-	shapeAutoPlace = "autoplace" // a gap anchor carried into new where its sentence survives
-	shapeSentence  = "sentence"  // the fallback: after new's first prose sentence
-	shapeBare      = "bare"      // new holds no prose: the anchor joins its marker run
-	shapeUnplaced  = "unplaced"  // new's prose is only headings, fences or tables: nothing carries it
-	shapeReopened  = "reopened"  // an edit's reopened gains the gap whose sentence it changed
-	shapeQuote     = "quote"     // a placement located only by the quoted span of its location
-)
 
 // placer runs in Replay after remap.apply and before Append, on bodies already in the destination's
 // spelling, adding only what the source lacks: a gap's Anchor where the source never anchored it,
@@ -77,7 +65,7 @@ func (p *placer) step(body proto.Message, correcting bool) (proto.Message, error
 			return nil, nil
 		}
 		p.placed = true
-		p.census.Shapes[shapeMint]++
+		p.census.Shapes["mint"]++
 		return &recordpb.Anchor{Id: proto.String(b.GetGapId()), Location: proto.String(b.GetLocation())}, nil
 	case *recordpb.BlueEdit:
 		if p.placed {
@@ -105,18 +93,18 @@ func (p *placer) edit(b *recordpb.BlueEdit) error {
 		return nil
 	}
 	old := b.GetOld()
-	start, end, ok := p.locate(text, old, b.GetExactSpan())
+	start, end, ok := locate(text, old, b.GetExactSpan())
 	if !ok {
 		if old, ok = rewriteOld(text, old, b.GetExactSpan()); ok {
-			start, end, ok = p.locate(text, old, b.GetExactSpan())
+			start, end, ok = locate(text, old, b.GetExactSpan())
 		}
 		if !ok {
 			return fmt.Errorf("migrate: this edit no longer locates in the report its gaps' anchors now stand in — a kept husk or a gap anchor inside its span that no rewrite reaches: %q", b.GetOld())
 		}
 		b.Old = proto.String(old)
-		shape := shapeAbutting
+		shape := "abutting" // (a): old given the anchor run that now abuts its span
 		if b.GetExactSpan() {
-			shape = shapeLiteral
+			shape = "literal" // (b): old given the gap anchors now inside it
 		}
 		p.census.Shapes[shape]++
 	}
@@ -125,14 +113,14 @@ func (p *placer) edit(b *recordpb.BlueEdit) error {
 	for _, id := range bluedoc.ReopenedAnchors(text, after) {
 		if isGap(id) && !slices.Contains(b.Reopened, id) {
 			b.Reopened = append(b.Reopened, id)
-			p.census.Shapes[shapeReopened]++
+			p.census.Shapes["reopened"]++
 		}
 	}
 	return nil
 }
 
 // locate is the span replay takes for old.
-func (p *placer) locate(text, old string, exact bool) (int, int, bool) {
+func locate(text, old string, exact bool) (int, int, bool) {
 	if exact {
 		s, e, _, ok := bluedoc.LocateLiteral(text, old)
 		return s, e, ok
@@ -146,9 +134,14 @@ func (p *placer) locate(text, old string, exact bool) (int, int, bool) {
 // abutting its span, put in place of old's own run after its last content character (a).
 func rewriteOld(text, old string, exact bool) (string, bool) {
 	if exact {
+		gaps := map[int]int{} // each gap anchor's start in text, to its end
+		anchor.Each(text, func(s, e int, id string) {
+			if isGap(id) {
+				gaps[s] = e
+			}
+		})
 		var kept []byte
 		var at []int
-		gaps := gapSpans(text)
 		for i := 0; i < len(text); {
 			if e, ok := gaps[i]; ok {
 				i = e
@@ -161,8 +154,8 @@ func rewriteOld(text, old string, exact bool) (string, bool) {
 		if lit == "" || strings.Count(string(kept), lit) != 1 {
 			return "", false
 		}
-		k := strings.Index(string(kept), lit)
-		return text[at[k] : at[k+len(lit)-1]+1], true
+		k, i := strings.Index(string(kept), lit), strings.Index(old, lit)
+		return old[:i] + text[at[k]:at[k+len(lit)-1]+1] + old[i+len(lit):], true
 	}
 	_, end, err := bluedoc.LocateUnique("render", text, old)
 	if err != nil {
@@ -172,7 +165,7 @@ func rewriteOld(text, old string, exact bool) (string, bool) {
 	run := after[:anchor.SkipRun(after, 0)]
 	ce := anchortext.ContentEnd(old)
 	for _, at := range []int{ce, len(old) - len(strings.TrimLeft(old[ce:], anchortext.TrailingPunct))} {
-		if oe := anchor.SkipRun(old, at); stripGaps(run) == old[at:oe] && run != old[at:oe] {
+		if oe := anchor.SkipRun(old, at); anchor.Replace(run, gapless) == old[at:oe] && run != old[at:oe] {
 			return old[:at] + run + old[oe:], true
 		}
 	}
@@ -200,19 +193,19 @@ func (p *placer) carry(span, new string) string {
 		at := proseEnd(new)
 		switch {
 		case strings.Contains(new, tok):
-			p.census.Shapes[shapeAutoPlace]++
+			p.census.Shapes["autoplace"]++
 		case at >= 0:
 			new = new[:at] + tok + new[at:]
-			p.census.Shapes[shapeSentence]++
+			p.census.Shapes["sentence"]++
 			if !slices.Contains(p.census.Fallback, id) {
 				p.census.Fallback = append(p.census.Fallback, id)
 			}
 		case claimcount.HasProse(new):
-			p.census.Shapes[shapeUnplaced]++
+			p.census.Shapes["unplaced"]++
 			p.census.NeverPlaced = append(p.census.NeverPlaced, id)
 		default:
 			new += tok
-			p.census.Shapes[shapeBare]++
+			p.census.Shapes["bare"]++
 		}
 	}
 	return new
@@ -258,28 +251,16 @@ func (p *placer) quote(loc *string) *string {
 	if s, _ := anchortext.LocateSpan(text, q); s < 0 {
 		return loc
 	}
-	p.census.Shapes[shapeQuote]++
+	p.census.Shapes["quote"]++
 	return proto.String(q)
 }
 
 func isGap(id string) bool { return anchor.Kind(id) == "gap" }
 
-// gapSpans maps each gap anchor's start in text to its end.
-func gapSpans(text string) map[int]int {
-	out := map[int]int{}
-	anchor.Each(text, func(s, e int, id string) {
-		if isGap(id) {
-			out[s] = e
-		}
-	})
-	return out
-}
-
-func stripGaps(s string) string {
-	return anchor.Replace(s, func(tok, id string) string {
-		if isGap(id) {
-			return ""
-		}
-		return tok
-	})
+// gapless is an anchor.Replace that takes out gap anchors and keeps every other.
+func gapless(tok, id string) string {
+	if isGap(id) {
+		return ""
+	}
+	return tok
 }
