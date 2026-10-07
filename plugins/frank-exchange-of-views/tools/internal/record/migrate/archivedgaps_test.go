@@ -37,6 +37,9 @@ func TestEveryArchivedGapHasANamedLocation(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", run, err)
 		}
+		if !haveBase && len(board.Open)+len(board.Closed) > 0 && !slices.ContainsFunc(board.Anomalies, func(a string) bool { return strings.Contains(a, "does not render") }) {
+			t.Errorf("%s: its gaps read unrendered and the board's anomalies do not say why: %v", run, board.Anomalies)
+		}
 		line := []string{run}
 		for _, g := range append(board.Open, board.Closed...) {
 			if g.AboutKind != "" {

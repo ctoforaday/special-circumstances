@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 
@@ -10,9 +11,11 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/consistency"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // mintQuote mints a gap at quote from the fixture lens, with any further flags, and returns its id.
@@ -161,6 +164,9 @@ func TestRetryAnchorsTheStoredLocation(t *testing.T) {
 					}
 				}
 				before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_ANCHOR)
+				if v, err := consistency.Check(runtest.Open(t, runDir)); err != nil || !slices.Contains(v, "anchor-record: "+anchor.Kind(id)+" "+id+" has no anchor event") {
+					t.Errorf("the consistency check does not name the half-appended %s %s: %v %v", kind, id, v, err)
+				}
 				var err error
 				if kind == "gap" {
 					_, err = mintQuote(t, runDir, "K1", other)
@@ -184,6 +190,7 @@ func TestRetryAnchorsTheStoredLocation(t *testing.T) {
 				if !strings.Contains(readReport(t, runDir), "Costs rose sharply"+anchor.Token(id)+".") {
 					t.Errorf("the anchor is not at the stored location:\n%s", readReport(t, runDir))
 				}
+				assertNoAnchorViolations(t, runDir)
 			}
 		})
 	}
