@@ -1,4 +1,4 @@
-package bluedoc
+package anchortext
 
 import "testing"
 
@@ -47,8 +47,8 @@ func TestSpanBoundaryOK(t *testing.T) {
 		{"whole number at spaces", "value 2026 here", 6, 10, true},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			if got := spanBoundaryOK(c.s, c.a, c.b); got != c.want {
-				t.Errorf("spanBoundaryOK(%q, %d, %d) = %v, want %v — segment %q", c.s, c.a, c.b, got, c.want, c.s[c.a:c.b])
+			if got := SpanBoundaryOK(c.s, c.a, c.b); got != c.want {
+				t.Errorf("SpanBoundaryOK(%q, %d, %d) = %v, want %v — segment %q", c.s, c.a, c.b, got, c.want, c.s[c.a:c.b])
 			}
 		})
 	}

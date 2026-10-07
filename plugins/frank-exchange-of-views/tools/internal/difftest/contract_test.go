@@ -87,7 +87,7 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 	// so the report must contain that quote or the finding is rejected as a mis-quote.
 	seed(t, runDir, map[string]string{
 		"records/class-registry.json": registry,
-		"blue/report.md":              "# H\n\nA claim lives somewhere in this report.\n",
+		"blue/report.md":              "# H\n\nA claim lives somewhere in this report.\n\nPrices climbed<!--fx:f-0000beef-->.\n",
 	})
 
 	// One valid gap first, so close/regrade refusals are about the refusal under
@@ -104,6 +104,10 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 	capture(command(bin, "finding", "--run", runDir, "--seat-id", "red-lens-evidence",
 		"--key", "F1", "--severity", "low", "--likelihood", "low", "--impact", "low",
 		"--quote", "somewhere", "--reason", "a valid finding"))
+	// And a frozen report with an anchored sentence blue can edit, for the edit refusals below.
+	capture(command(bin, "register", "--run", runDir, "--seat-id", "blue-synthesize"))
+	capture(command(bin, "ingest", "--run", runDir, "--seat-id", "blue-synthesize"))
+	capture(command(bin, "register", "--run", runDir, "--seat-id", "blue-respond"))
 
 	cases := []struct {
 		name string
@@ -170,6 +174,13 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		// There are no role words left to be unknown; the nearest thing is a well-formed seat id no
 		// role owns. `nonsuch mint` pinned the same refusal as the row above.
 		{"unknown seat", []string{"mint", "--seat-id", "purple-team", "--class", "scope-creep"}},
+
+		// An anchor an edit leaves out goes back only onto its sentence kept word for word, once;
+		// otherwise the refusal names that sentence and the replacement's nearest one.
+		{"an edit leaving out an anchor whose sentence it rewrites", []string{"edit", "--seat-id", "blue-respond",
+			"--quote", "Prices climbed<!--fx:f-0000beef-->", "--new", "Prices soared", "--reason", "r"}},
+		{"an edit leaving out an anchor whose sentence it repeats", []string{"edit", "--seat-id", "blue-respond",
+			"--quote", "Prices climbed<!--fx:f-0000beef-->", "--new", "Prices climbed. Prices climbed", "--reason", "r"}},
 
 		// SAME-SITTING CORRECTION (plans/same-sitting-correction.md). Rows marked "target" record the
 		// act the refusals after them name; every other row refuses for the reason its name gives, in

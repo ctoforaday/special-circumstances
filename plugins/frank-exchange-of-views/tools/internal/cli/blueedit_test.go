@@ -3,6 +3,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -661,4 +662,71 @@ func TestAcceptIsIdempotentOnRetry(t *testing.T) {
 	if n != 1 {
 		t.Errorf("a retried accept appended %d blue_edit ops, want 1", n)
 	}
+}
+
+// THE TOOL PUTS BACK AN ANCHOR WHOSE SENTENCE SURVIVES, and refuses by the sentence otherwise. An
+// edit that leaves an anchor out of --new while keeping its sentence word for word, once, records
+// the replacement a hand carry would have written; a repeated or rewritten sentence is refused,
+// naming it, with nothing recorded; a fragment edit keeping its fragment re-places the anchor and
+// reopens it, because the document's sentence moved.
+func TestBlueEditPutsBackAnAnchorWhoseSentenceSurvives(t *testing.T) {
+	const fx, cite, rose, climb = "<!--fx:f-aaaa1111-->", "<!--cite:c-bbbb2222-->", "<!--fx:f-cccc3333-->", "<!--fx:f-dddd4444-->"
+	runDir := newRun(t)
+	writeReport(t, runDir, "# Findings\n\nOld intro. The cost is high"+fx+".\n\nRevenue fell sharply in Q1"+cite+".\n\n"+
+		"Costs rose"+rose+".\n\nPrices climbed"+climb+".\n")
+	registerBlue(t, runDir)
+	edit := func(quote, replacement string) error {
+		t.Helper()
+		_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--quote", quote, "--new", replacement, "--reason", "r")
+		return err
+	}
+	refused := func(quote, replacement string, want ...string) {
+		t.Helper()
+		before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT)
+		err := edit(quote, replacement)
+		if err == nil {
+			t.Fatalf("%q → %q was accepted", quote, replacement)
+		}
+		for _, w := range want {
+			if !strings.Contains(err.Error(), w) {
+				t.Errorf("the refusal does not say %q: %v", w, err)
+			}
+		}
+		if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != before {
+			t.Errorf("a refused edit recorded %d op(s)", n-before)
+		}
+	}
+
+	t.Run("the sentence once in the replacement", func(t *testing.T) {
+		if err := edit("Old intro. The cost is high"+fx, "New intro. The cost is high"); err != nil {
+			t.Fatal(err)
+		}
+		if ev := lastBody(t, runDir, &recordpb.BlueEdit{}); ev.GetNew() != "New intro. The cost is high"+fx {
+			t.Errorf("recorded new = %q, want the hand-carried %q", ev.GetNew(), "New intro. The cost is high"+fx)
+		}
+		if md := readReport(t, runDir); !strings.Contains(md, "\nNew intro. The cost is high"+fx+".\n") {
+			t.Errorf("the anchor is not back on its sentence:\n%s", md)
+		}
+	})
+	t.Run("the sentence twice in the replacement", func(t *testing.T) {
+		refused("Prices climbed"+climb, "Prices climbed. Prices climbed", `"Prices climbed"`)
+	})
+	t.Run("the sentence rewritten", func(t *testing.T) {
+		refused("Prices climbed"+climb, "Prices soared", `on the sentence "Prices climbed"`, `nearest sentence there reads "Prices soared"`, climb)
+	})
+	t.Run("a repeat that only a trimmed match finds", func(t *testing.T) {
+		refused("Costs rose"+rose+".", "Costs rose sharply. Costs rose.", `"Costs rose`)
+	})
+	t.Run("a fragment kept inside a rewritten sentence", func(t *testing.T) {
+		if err := edit("fell sharply in Q1"+cite, "rose, then fell sharply in Q1"); err != nil {
+			t.Fatal(err)
+		}
+		ev := lastBody(t, runDir, &recordpb.BlueEdit{})
+		if ev.GetNew() != "rose, then fell sharply in Q1"+cite {
+			t.Errorf("recorded new = %q", ev.GetNew())
+		}
+		if !slices.Contains(ev.GetReopened(), "c-bbbb2222") {
+			t.Errorf("reopened = %v, want c-bbbb2222: the sentence it backs now reads differently", ev.GetReopened())
+		}
+	})
 }

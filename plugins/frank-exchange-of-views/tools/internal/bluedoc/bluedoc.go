@@ -45,17 +45,16 @@ var ErrMisQuote = errors.New("the quoted span was not found in report.md — quo
 func LocateUnique(verb, report, old string) (int, int, error) {
 	// AN EDIT MAY CROSS A PARAGRAPH BREAK; an anchor may not. Sharing one rule made this verb's
 	// own two refusals jointly unsatisfiable — see anchortext.SpanScope for the measurement.
-	start, end, ambiguous := anchortext.LocateSpanUniqueScoped(report, old, anchortext.CrossParagraphs)
-	if start < 0 {
+	start, end, err := anchortext.LocateOnce(report, old, anchortext.CrossParagraphs)
+	switch err {
+	case nil:
+		return start, end, nil
+	case anchortext.ErrMisQuote:
 		return 0, 0, fmt.Errorf("%s: %w", verb, ErrMisQuote)
-	}
-	if ambiguous {
+	case anchortext.ErrAmbiguous:
 		return 0, 0, fmt.Errorf("%s: your quoted span appears MORE THAN ONCE in report.md, so the target is ambiguous — quote more surrounding context to pick out the one site you mean (to change every site, make one edit per site)", verb)
 	}
-	if !spanBoundaryOK(report, start, end) {
-		return 0, 0, fmt.Errorf("%s: your span starts or ends inside a word — quote whole words. Editing letters rather than language produces one-byte ops that carry no meaning on the record", verb)
-	}
-	return start, end, nil
+	return 0, 0, fmt.Errorf("%s: your span starts or ends inside a word — quote whole words. Editing letters rather than language produces one-byte ops that carry no meaning on the record", verb)
 }
 
 // LocateUniqueReplacing is LocateUnique for a caller that intends to REPLACE the span it finds.
@@ -101,7 +100,7 @@ func LocateLiteral(report, old string) (start, end, count int, ok bool) {
 	}
 	start = strings.Index(report, old)
 	end = start + len(old)
-	if !spanBoundaryOK(report, start, end) {
+	if !anchortext.SpanBoundaryOK(report, start, end) {
 		return 0, 0, count, false
 	}
 	return start, end, count, true
@@ -168,27 +167,17 @@ func settleAbuttingAnchor(verb, report, quoted string, end int) (int, error) {
 		verb, strings.Join(held, " and "), tok)
 }
 
-// spanBoundaryOK rejects only a span that SPLITS A WORD.
-//
-// It is deliberately not a whitespace rule: normalizeQuote trims trailing punctuation, so a
-// strict whitespace boundary would reject every sentence-final edit — measured, not feared.
-func spanBoundaryOK(s string, start, end int) bool {
-	word := func(b byte) bool {
-		return b == '_' || (b >= '0' && b <= '9') || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
-	}
-	splits := func(i int) bool { return i > 0 && i < len(s) && word(s[i-1]) && word(s[i]) }
-	return !splits(start) && !splits(end)
-}
-
 // AnchorsTransitUnchanged enforces the one anchor invariant a replacement must satisfy: it
 // may not change WHICH anchors exist. The multiset of anchor ids in the replaced span must
 // equal the multiset in its replacement — so an anchor may be carried across an edit (and
-// the prose around it rewritten), but never introduced, dropped or duplicated.
+// the prose around it rewritten), but never introduced, dropped or duplicated. It returns newText
+// with every anchor AutoPlace put back, so the refusal of one it could not is true at every caller.
 //
 // Anchors are still born ONLY from `lens finding` and `cite`, and still die only by
 // tool. Transit is not authorship: the tool checks the bytes, so nothing is delegated to
 // the model.
-func AnchorsTransitUnchanged(verb, oldSpan, newText string) error {
+func AnchorsTransitUnchanged(verb, oldSpan, newText string) (string, error) {
+	newText = AutoPlace(oldSpan, newText)
 	count := func(s string) map[string]int {
 		m := map[string]int{}
 		for _, id := range claimcount.ProtectedAnchorIDs(s) {
@@ -197,20 +186,30 @@ func AnchorsTransitUnchanged(verb, oldSpan, newText string) error {
 		return m
 	}
 	o, n := count(oldSpan), count(newText)
-	for id, want := range o {
-		switch got := n[id]; {
+	for _, id := range anchor.IDs(oldSpan) { // in reading order, so a refusal names the first anchor dropped
+		switch want, got := o[id], n[id]; {
 		case got == 0:
-			return fmt.Errorf("%s: your old span contains %s but the replacement does not — an anchor may travel through an edit, but never be dropped by one. Reproduce it EXACTLY (%s) somewhere in the replacement. To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor", verb, anchor.Label(id), anchor.Token(id))
+			sent, _ := sentenceAround(oldSpan, anchor.Token(id))
+			on, near := fmt.Sprintf("on the sentence %q", sent), ""
+			if sent == "" {
+				on = "bare of any sentence"
+			}
+			if s := nearestSentence(newText, sent); s != "" {
+				near = fmt.Sprintf(" — its nearest sentence there reads %q", s)
+			}
+			return "", fmt.Errorf("%s: your old span carries %s %s, and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. "+
+				"Place %s where that claim now stands in the replacement%s. To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor",
+				verb, anchor.Label(id), on, anchor.Token(id), near)
 		case got != want:
-			return fmt.Errorf("%s: %s appears %d time(s) in the old span but %d in the replacement — an anchor may not be duplicated or removed by an edit; carry each one across exactly once", verb, anchor.Label(id), want, got)
+			return "", fmt.Errorf("%s: %s appears %d time(s) in the old span but %d in the replacement — an anchor may not be duplicated or removed by an edit; carry each one across exactly once", verb, anchor.Label(id), want, got)
 		}
 	}
 	for id, got := range n {
 		if o[id] == 0 {
-			return &ErrAnchorIntroduced{Verb: verb, ID: id, Count: got}
+			return "", &ErrAnchorIntroduced{Verb: verb, ID: id, Count: got}
 		}
 	}
-	return nil
+	return newText, nil
 }
 
 // ErrAnchorIntroduced names the anchor a replacement invented.
@@ -274,7 +273,7 @@ func ValidateProposal(verb, report, old, new string) error {
 	if err != nil {
 		return err
 	}
-	if err := AnchorsTransitUnchanged(verb, report[start:end], new); err != nil {
+	if _, err := AnchorsTransitUnchanged(verb, report[start:end], new); err != nil {
 		return err
 	}
 	if grew := utf8.RuneCountInString(new) - utf8.RuneCountInString(old); grew > MaxProposalGrowth {
@@ -333,14 +332,95 @@ func ReopenedAnchors(before, after string) []string {
 // every anchor token stripped, so a SECOND anchor arriving in the same sentence does not read as
 // the first one's referent changing.
 func sentenceAround(doc, tok string) (string, bool) {
-	i := strings.Index(doc, tok)
-	if i < 0 {
+	a, b := sentenceOf(doc, strings.Index(doc, tok), len(tok))
+	if a < 0 {
 		return "", false
 	}
+	return flatText(doc[a:b]), true
+}
+
+// sentenceOf is the bounds of the sentence holding doc[i:i+n], or -1, -1.
+func sentenceOf(doc string, i, n int) (int, int) {
 	for _, sp := range anchor.Sentences(doc) {
-		if sp[0] <= i && i+len(tok) <= sp[1] {
-			return strings.Join(strings.Fields(claimcount.StripAnchors(doc[sp[0]:sp[1]])), " "), true
+		if sp[0] <= i && i+n <= sp[1] {
+			return sp[0], sp[1]
 		}
 	}
-	return "", false
+	return -1, -1
+}
+
+// flatText is s with its anchors stripped and its whitespace runs read as one space.
+func flatText(s string) string {
+	return strings.Join(strings.Fields(claimcount.StripAnchors(s)), " ")
+}
+
+// AutoPlace puts back each anchor of span that new does not carry, where the anchor's sentence in
+// span survives in new word for word and LocateOnce finds it there once — inside the one occurrence
+// it counted, so "Costs rose sharply. Costs rose." is never placed on its first "Costs rose" — at
+// the place the anchor held in that sentence. An anchor it cannot place stays out, for the transit
+// check to refuse by its sentence. The sentence is read within span, the text being replaced: a
+// fragment edit that keeps the fragment re-places the anchor, and ReopenedAnchors, reading the
+// document's sentence, still records it.
+func AutoPlace(span, new string) string {
+	flat := flatText(new)
+	for _, id := range anchor.IDs(span) {
+		tok := anchor.Token(id)
+		at := strings.Index(span, tok)
+		a, b := sentenceOf(span, at, len(tok))
+		if strings.Contains(new, tok) || a < 0 || !strings.Contains(flat, flatText(span[a:b])) {
+			continue
+		}
+		if s, _, err := anchortext.LocateOnce(new, flatText(span[a:b]), anchortext.StopAtParagraph); err == nil {
+			if j := inStep(span, a, at, new, s); j >= 0 {
+				new = new[:j] + tok + new[j:]
+			}
+		}
+	}
+	return new
+}
+
+// inStep is the offset in new where the anchor at span[at] goes: span[a:at] and new from s are
+// walked in step — anchors skipped on both sides, a whitespace run matching a whitespace run — to
+// the text before the anchor, and then past the anchors new holds there that preceded it in span.
+// It is -1 where the two texts part.
+func inStep(span string, a, at int, new string, s int) int {
+	j, run := s, a
+	for k := a; k < at; {
+		if e := anchor.SkipRun(span, k); e > k {
+			k = e
+			continue
+		}
+		j = anchor.SkipRun(new, j)
+		switch {
+		case anchortext.IsSpace(span[k]) && j < len(new) && anchortext.IsSpace(new[j]):
+			for ; k < at && anchortext.IsSpace(span[k]); k++ {
+			}
+			for ; j < len(new) && anchortext.IsSpace(new[j]); j++ {
+			}
+		case j < len(new) && new[j] == span[k]:
+			j, k = j+1, k+1
+		default:
+			return -1
+		}
+		run = k
+	}
+	for _, id := range anchor.IDs(span[run:at]) {
+		if t := anchor.Token(id); strings.HasPrefix(new[j:], t) {
+			j += len(t)
+		}
+	}
+	return j
+}
+
+// nearestSentence is the sentence of text whose words overlap sent's most, by near-match's measure,
+// or "" when none shares one — where a refused anchor's claim most likely now stands.
+func nearestSentence(text, sent string) (best string) {
+	words, most := anchortext.Tokenize(sent), 0.0
+	for _, sp := range anchor.Sentences(text) {
+		s := flatText(text[sp[0]:sp[1]])
+		if n := anchortext.Jaccard(words, anchortext.Tokenize(s)); n > most {
+			best, most = s, n
+		}
+	}
+	return best
 }

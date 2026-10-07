@@ -330,3 +330,27 @@ func TestInsideFenceReadsTheBlockReader(t *testing.T) {
 		}
 	}
 }
+
+// LocateOnce REFUSES IN ONE ORDER. A second occurrence is named before the first one's blank line,
+// so a quote that also stands inside one paragraph is told it repeats; an accepted span ends before
+// the anchor layer and the trimmed terminator, where a token goes.
+func TestLocateOnceRefusesInItsOrder(t *testing.T) {
+	for _, c := range []struct {
+		doc, quote string
+		scope      SpanScope
+		want       error
+		end        int
+	}{
+		{"One two.", "three", StopAtParagraph, ErrMisQuote, -1},
+		{"Costs rose sharply. Costs rose.", "Costs rose.", StopAtParagraph, ErrAmbiguous, -1},
+		{"Costs\n\nrose. Costs rose.", "Costs rose", StopAtParagraph, ErrAmbiguous, -1},
+		{"Costs\n\nrose.", "Costs rose", StopAtParagraph, ErrCrossesParagraph, -1},
+		{"Costs\n\nrose.", "Costs rose", CrossParagraphs, nil, 11},
+		{"Costs rosed.", "Costs rose", StopAtParagraph, ErrSplitsWord, -1},
+		{"Costs rose<!--fx:f-1-->.", "Costs rose.", StopAtParagraph, nil, 10},
+	} {
+		if _, end, err := LocateOnce(c.doc, c.quote, c.scope); err != c.want || end != c.end {
+			t.Errorf("LocateOnce(%q, %q) = %d, %v; want %d, %v", c.doc, c.quote, end, err, c.end, c.want)
+		}
+	}
+}

@@ -4,8 +4,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"math"
 	"sort"
-	"strings"
-	"unicode"
 )
 
 // NEAR-MATCH: a lexical screen, not a decision.
@@ -43,44 +41,6 @@ type NearMatchJSON struct {
 // same location are likelier the same defect. Additive, capped with the base at 1.0.
 const locationBonus = 0.15
 
-// tokenize lowercases and splits on any non-alphanumeric rune, dropping empties and
-// single-character tokens (punctuation noise, stray letters). Deterministic, unicode-aware.
-func tokenize(s string) map[string]bool {
-	out := map[string]bool{}
-	// THE ANNOTATION LAYER IS NOT VOCABULARY. Splitting on non-alphanumerics turns an anchor into
-	// tokens — `<!--fx:f-dbd94684-->` yields "fx" and "dbd94684" — and both land in the union, so an
-	// anchored sentence scores LOWER against the same words than an unanchored one. The score degrades
-	// quietly rather than failing, which is why it survived: a near-match that should have warned about
-	// a duplicate just ranks lower. Stripped through the one definition of the layer.
-	for _, f := range strings.FieldsFunc(strings.ToLower(anchortext.Visible(s)), func(r rune) bool {
-		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
-	}) {
-		if len([]rune(f)) > 1 {
-			out[f] = true
-		}
-	}
-	return out
-}
-
-// jaccard is the overlap of two token sets: shared over union, 0..1. Empty on either side
-// is 0 (nothing to match), so a candidate or gap with no usable tokens simply does not rank.
-func jaccard(a, b map[string]bool) float64 {
-	if len(a) == 0 || len(b) == 0 {
-		return 0
-	}
-	shared := 0
-	for t := range a {
-		if b[t] {
-			shared++
-		}
-	}
-	union := len(a) + len(b) - shared
-	if union == 0 {
-		return 0
-	}
-	return float64(shared) / float64(union)
-}
-
 func round2(f float64) float64 { return math.Round(f*100) / 100 }
 
 // NearMatch scores a candidate (problem text, and optionally its location) against every
@@ -88,8 +48,8 @@ func round2(f float64) float64 { return math.Round(f*100) / 100 }
 // OPEN and CLOSED gaps are scored — a reopen most often matches a closed gap. A gap with no
 // overlap at all is omitted (score 0 is not a match).
 func NearMatch(f Family, candidate, location string, topN int) []NearMatchJSON {
-	candTokens := tokenize(candidate + " " + location)
-	locTokens := tokenize(location)
+	candTokens := anchortext.Tokenize(candidate + " " + location)
+	locTokens := anchortext.Tokenize(location)
 
 	out := []NearMatchJSON{}
 	for _, g := range f.Gaps {
@@ -97,11 +57,11 @@ func NearMatch(f Family, candidate, location string, topN int) []NearMatchJSON {
 			continue
 		}
 		gapLoc := g.Mint.GetLocation()
-		score := jaccard(candTokens, tokenize(g.Mint.GetProblem()+" "+gapLoc))
+		score := anchortext.Jaccard(candTokens, anchortext.Tokenize(g.Mint.GetProblem()+" "+gapLoc))
 		if score <= 0 {
 			continue
 		}
-		if len(locTokens) > 0 && len(intersect(locTokens, tokenize(gapLoc))) > 0 {
+		if len(locTokens) > 0 && len(intersect(locTokens, anchortext.Tokenize(gapLoc))) > 0 {
 			score += locationBonus
 		}
 		if score > 1 {

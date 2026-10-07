@@ -12,7 +12,7 @@ import (
 // EVERY READER OF AN ANCHOR'S SENTENCE READS ONE WHOLE SENTENCE, through the real verbs. Each row
 // fails on a reader that splits at an internal period ("3.5%", "13. ✓") or at a soft wrap: the
 // edit's reopened set, the claim count, retire's bare set, the retire tidy, and the risk matrix's
-// lead sentence.
+// lead sentence, and the sentence an edit's left-out anchor is put back on.
 func TestEverySentenceReaderReadsOneSentence(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# Findings\n\n"+
@@ -59,6 +59,15 @@ func TestEverySentenceReaderReadsOneSentence(t *testing.T) {
 	t.Run("a sentence carrying a terminator inside it counts as one claim", func(t *testing.T) {
 		if out, err := run(t, "count-claims", "--run", runDir, "--seat-id", blueSeat); err != nil || strings.TrimSpace(out) != "5" {
 			t.Errorf("count-claims = %q (%v), want 5: \"91 = 7 × 13. ✓%s\" is a cited claim", out, err, anchor.Token(c2))
+		}
+	})
+	t.Run("an anchor left out of a rewritten claim is refused by its whole sentence", func(t *testing.T) {
+		// "5% in 2024" survives in the replacement, so a reader that split at "3." would put the
+		// citation back on the rewritten claim.
+		_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
+			"--quote", "Prices rose 3.5% in 2024"+anchor.Token(c1), "--new", "Prices rose 1.5% in 2024", "--reason", "r")
+		if err == nil || !strings.Contains(err.Error(), `"Prices rose 3.5% in 2024"`) {
+			t.Errorf("edit = %v, want a refusal naming \"Prices rose 3.5%% in 2024\"", err)
 		}
 	})
 	t.Run("an edit before an internal period reopens the citation", func(t *testing.T) {

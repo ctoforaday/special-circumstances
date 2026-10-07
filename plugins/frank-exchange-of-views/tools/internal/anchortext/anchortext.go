@@ -1,5 +1,5 @@
 // Package anchortext is the report-text geometry of immortal anchors: how a quoted span is
-// LOCATED across the invisible annotation layer (LocateSpan and its scoped/unique variants) and
+// LOCATED across the invisible annotation layer (LocateSpan, and LocateOnce for a write) and
 // how a marker is PLACED at that span (InsertAnchor). It is the sibling of
 // internal/anchor — that leaf owns the anchor VOCABULARY (Token, Label, the class grammar), this
 // one owns where an anchor SITS in the document.
@@ -15,6 +15,7 @@ package anchortext
 import (
 	"errors"
 	"strings"
+	"unicode"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 )
@@ -51,7 +52,8 @@ const trailingPunct = ".,;:!?\"'…"
 // find.
 const TrailingPunct = trailingPunct
 
-func isSpace(b byte) bool {
+// IsSpace is the whitespace a quote's separator matches.
+func IsSpace(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
 }
 
@@ -100,6 +102,44 @@ func annotationLen(s string, i int) int {
 // `--match "negligible[.]"` is a pattern that names the punctuation this would remove.
 func Visible(s string) string { return normalizeQuote(s) }
 
+// Tokenize lowercases and splits on any non-alphanumeric rune, dropping empties and
+// single-character tokens (punctuation noise, stray letters). Deterministic, unicode-aware.
+func Tokenize(s string) map[string]bool {
+	out := map[string]bool{}
+	// THE ANNOTATION LAYER IS NOT VOCABULARY. Splitting on non-alphanumerics turns an anchor into
+	// tokens — `<!--fx:f-dbd94684-->` yields "fx" and "dbd94684" — and both land in the union, so an
+	// anchored sentence scores LOWER against the same words than an unanchored one. The score degrades
+	// quietly rather than failing, which is why it survived: a near-match that should have warned about
+	// a duplicate just ranks lower. Stripped through the one definition of the layer.
+	for _, f := range strings.FieldsFunc(strings.ToLower(Visible(s)), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
+	}) {
+		if len([]rune(f)) > 1 {
+			out[f] = true
+		}
+	}
+	return out
+}
+
+// Jaccard is the overlap of two token sets: shared over union, 0..1. Empty on either side
+// is 0 (nothing to match), so a candidate or gap with no usable tokens simply does not rank.
+func Jaccard(a, b map[string]bool) float64 {
+	if len(a) == 0 || len(b) == 0 {
+		return 0
+	}
+	shared := 0
+	for t := range a {
+		if b[t] {
+			shared++
+		}
+	}
+	union := len(a) + len(b) - shared
+	if union == 0 {
+		return 0
+	}
+	return float64(shared) / float64(union)
+}
+
 // normalizeQuote reduces a quote to its matchable skeleton: annotation spans dropped,
 // whitespace runs collapsed to a single space, TRAILING punctuation and whitespace
 // trimmed. Internal punctuation survives as content. Returns "" for an empty/all-
@@ -111,7 +151,7 @@ func normalizeQuote(q string) string {
 			i += n
 			continue
 		}
-		if isSpace(q[i]) {
+		if IsSpace(q[i]) {
 			if len(out) > 0 && out[len(out)-1] != ' ' {
 				out = append(out, ' ')
 			}
@@ -169,11 +209,6 @@ const (
 	CrossParagraphs
 )
 
-// LocateSpanScoped is LocateSpan with the boundary rule stated by the caller.
-func LocateSpanScoped(report, quote string, scope SpanScope) (int, int) {
-	return locate(report, quote, scope)
-}
-
 func locate(report, quote string, scope SpanScope) (int, int) {
 	nq := normalizeQuote(quote)
 	if nq == "" { // empty or all-trailing-punctuation → reject, never match at 0
@@ -209,7 +244,7 @@ func matchFrom(report string, start int, nq string, scope SpanScope) (int, int, 
 		}
 		if nq[qi] == ' ' {
 			// The quote wants a separator; the report must have whitespace here.
-			if ri >= len(report) || !isSpace(report[ri]) {
+			if ri >= len(report) || !IsSpace(report[ri]) {
 				return 0, 0, false // else-branch: report content where the quote wants a space → fail
 			}
 			newlines := 0
@@ -218,7 +253,7 @@ func matchFrom(report string, start int, nq string, scope SpanScope) (int, int, 
 					ri += n
 					continue
 				}
-				if !isSpace(report[ri]) {
+				if !IsSpace(report[ri]) {
 					break
 				}
 				if report[ri] == '\n' {
@@ -246,23 +281,37 @@ func matchFrom(report string, start int, nq string, scope SpanScope) (int, int, 
 	return firstContent, lastContentEnd, true
 }
 
-// LocateSpanUniqueScoped reports whether the quote matches at MORE THAN ONE place, with the
-// boundary rule stated by the caller — the AMBIGUITY verdict `blue edit`'s uniqueness guard needs
-// (LocateSpan takes the first match and says nothing, which is silent mis-targeting). The
-// boundary-free wrapper LocateSpanUnique went with report-as-record's torn-splice removal, its only
-// caller; bluedoc still calls this scoped form.
-func LocateSpanUniqueScoped(report, quote string, scope SpanScope) (start, end int, ambiguous bool) {
-	start, end = LocateSpanScoped(report, quote, scope)
+// LocateOnce is the one write-time matcher: the span of the quote's only occurrence in doc. It
+// tries the refusals in a fixed order — absent, then a second occurrence, then (StopAtParagraph)
+// a blank line inside the one match, then a split word — so a quote that also occurs inside one
+// paragraph is told it repeats, never that it may not cross.
+func LocateOnce(doc, quote string, scope SpanScope) (start, end int, err error) {
+	start, end = locate(doc, quote, CrossParagraphs)
 	if start < 0 {
-		return start, end, false
+		return -1, -1, ErrMisQuote
 	}
-	// Look for a SECOND match beyond the first one's end.
-	if rest := end; rest < len(report) {
-		if s2, _ := LocateSpanScoped(report[rest:], quote, scope); s2 >= 0 {
-			return start, end, true
-		}
+	if s2, _ := locate(doc[end:], quote, CrossParagraphs); s2 >= 0 {
+		return -1, -1, ErrAmbiguous
 	}
-	return start, end, false
+	if _, _, ok := matchFrom(doc, start, normalizeQuote(quote), scope); !ok {
+		return -1, -1, ErrCrossesParagraph
+	}
+	if !SpanBoundaryOK(doc, start, end) {
+		return -1, -1, ErrSplitsWord
+	}
+	return start, end, nil
+}
+
+// SpanBoundaryOK rejects only a span that SPLITS A WORD.
+//
+// It is deliberately not a whitespace rule: normalizeQuote trims trailing punctuation, so a
+// strict whitespace boundary would reject every sentence-final edit — measured, not feared.
+func SpanBoundaryOK(s string, start, end int) bool {
+	word := func(b byte) bool {
+		return b == '_' || (b >= '0' && b <= '9') || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
+	}
+	splits := func(i int) bool { return i > 0 && i < len(s) && word(s[i-1]) && word(s[i]) }
+	return !splits(start) && !splits(end)
 }
 
 // insertMarker splices marker into report at byte offset `at`.
@@ -281,6 +330,13 @@ func insertMarker(report []byte, at int, marker string) []byte {
 var (
 	ErrMisQuote = errors.New("the quoted content was not found in report.md")
 	ErrInFence  = errors.New("the quote resolves inside a code fence")
+)
+
+// LocateOnce's refusals after ErrMisQuote. Callers map them to their own text.
+var (
+	ErrAmbiguous        = errors.New("the quote occurs more than once")
+	ErrCrossesParagraph = errors.New("the quote crosses a blank line")
+	ErrSplitsWord       = errors.New("the quote starts or ends inside a word")
 )
 
 // InsertAnchor is the shared invisible-anchor placement behind lens finding and blue cite:

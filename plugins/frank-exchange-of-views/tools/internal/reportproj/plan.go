@@ -42,9 +42,12 @@ func (e *NoChangeError) Error() string {
 func (e *NoChangeError) Is(target error) bool { return target == ErrNoChange }
 
 // PlanSplice locates `old` in report the way an edit does and returns the report that replacing it
-// with `new` yields, and whether it took the literal span. It is the ONE decision `blue edit` makes
-// before recording and `lens mint` makes before verifying a prescription, so red cannot prescribe
-// what blue's edit would refuse or apply differently.
+// with `new` yields, the replacement it applied, and whether it took the literal span. It is the ONE
+// decision `blue edit` makes before recording and `lens mint` makes before verifying a prescription,
+// so red cannot prescribe what blue's edit would refuse or apply differently.
+//
+// The replacement applied is `new` with every anchor the transit check put back, and the caller
+// records it, so replay splices the same bytes and needs no placement of its own.
 //
 // FIRST THE ORDINARY LOCATE, which trims the quote's trailing punctuation. Its result stands unless
 // it misfires in one of the two ways the trim itself causes: the edit changes nothing, or it leaves
@@ -56,30 +59,31 @@ func (e *NoChangeError) Is(target error) bool { return target == ErrNoChange }
 // A trimmed result that still doubles a terminator is RETURNED, not refused: that judgement is the
 // caller's (blue refuses it; mint does not ask). Only a no-op is an error here, because a no-op is
 // wrong for every caller.
-func PlanSplice(verb, report, old, new string) (next string, exact bool, err error) {
+func PlanSplice(verb, report, old, new string) (next, applied string, exact bool, err error) {
 	start, end, err := bluedoc.LocateUniqueReplacing(verb, report, old)
 	if err != nil {
-		return "", false, err
+		return "", "", false, err
 	}
-	if err := bluedoc.AnchorsTransitUnchanged(verb, report[start:end], new); err != nil {
-		return "", false, err
+	if applied, err = bluedoc.AnchorsTransitUnchanged(verb, report[start:end], new); err != nil {
+		return "", "", false, err
 	}
-	next = ApplySplice(report, start, end, new)
+	next = ApplySplice(report, start, end, applied)
 	if next != report && DoubledTerminator(report, next) == "" {
-		return next, false, nil
+		return next, applied, false, nil
 	}
 	if endsInTrimmedPunct(old) {
-		ls, le, _, ok := bluedoc.LocateLiteral(report, old)
-		if ok && bluedoc.AnchorsTransitUnchanged(verb, report[ls:le], new) == nil {
-			if lit := ApplySplice(report, ls, le, new); lit != report && DoubledTerminator(report, lit) == "" {
-				return lit, true, nil
+		if ls, le, _, ok := bluedoc.LocateLiteral(report, old); ok {
+			if lnew, err := bluedoc.AnchorsTransitUnchanged(verb, report[ls:le], new); err == nil {
+				if lit := ApplySplice(report, ls, le, lnew); lit != report && DoubledTerminator(report, lit) == "" {
+					return lit, lnew, true, nil
+				}
 			}
 		}
 	}
 	if next == report {
-		return "", false, &NoChangeError{Verb: verb, TrailingOnly: stripTail(old) == stripTail(new)}
+		return "", "", false, &NoChangeError{Verb: verb, TrailingOnly: stripTail(old) == stripTail(new)}
 	}
-	return next, false, nil
+	return next, applied, false, nil
 }
 
 // endsInTrimmedPunct says whether the ordinary locate dropped punctuation off the end of this quote —
