@@ -143,7 +143,7 @@ func countRows(query string) func(Run) (int, error) {
 func countInReport(count func(string) int) func(Run) (int, error) {
 	return func(run Run) (int, error) {
 		if reportRenderer == nil {
-			return 0, fmt.Errorf("this binary registers no report renderer (internal/reportproj registers one wherever it is linked)")
+			return 0, errNoRenderer
 		}
 		md, err := renderReport(run)
 		if err != nil {
@@ -152,6 +152,8 @@ func countInReport(count func(string) int) func(Run) (int, error) {
 		return count(md), nil
 	}
 }
+
+var errNoRenderer = fmt.Errorf("this binary registers no report renderer (internal/reportproj registers one wherever it is linked)")
 
 // reportRenderer replays the report's frozen base and its ordered mutations — the rows
 // ReportProjectionAt reads — into the current report. It is REGISTERED, not imported: the renderer
@@ -176,6 +178,9 @@ func renderReport(run Run) (string, error) {
 
 // renderReportAt renders the current report off q: its rows, then the replay.
 func renderReportAt(q recordsql.Querier) (string, error) {
+	if reportRenderer == nil {
+		return "", errNoRenderer
+	}
 	base, haveBase, ops, err := ReportProjectionAt(q)
 	if err != nil {
 		return "", err

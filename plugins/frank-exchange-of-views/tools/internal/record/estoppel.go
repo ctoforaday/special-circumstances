@@ -3,9 +3,10 @@ package record
 import (
 	"database/sql"
 	"fmt"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -122,46 +123,64 @@ func DeclineStatsOf(evs []*Event, gaps map[string]*Gap) (offered, applied, decli
 // compare on their words, not on how either was wrapped.
 func collapse(s string) string { return strings.Join(strings.Fields(s), " ") }
 
-// ProposalAppliedVerbatim reports whether this edit is EXACTLY the fix the named gap
-// proposed — byte-for-byte on both halves.
+// Proposal is the pair a gap's mint prescribes, as an edit of report applies it — the pair the board
+// serves, `blue edit --accept` sends, and a typed application is compared with, so the three cannot
+// disagree. found=false means no mint for that gap. An empty fixNew with found=true is a real state —
+// red raised the gap without prescribing concrete text — and is the caller's to refuse, because the
+// refusal it wants to give names the verb it was called from.
+func Proposal(run Run, gapID, report string) (old, fixNew string, found bool, err error) {
+	var loc, fix sql.NullString
+	found, err = queryRow(run, []any{&loc, &fix}, `SELECT "location", "fix_new" FROM "mint" WHERE "gap_id" = ?`, gapID)
+	if err != nil || !found {
+		return "", "", false, err
+	}
+	old, fixNew = proposalOver(report, gapID, loc.String, fix.String)
+	return old, fixNew, true, nil
+}
+
+// proposalOver is a gap's prescribed pair over report. Where the location, located as an edit locates
+// it, is followed by an anchor run holding the gap's own anchor — after any trailing punctuation,
+// where an edit's abutting-anchor rule reads it — old is the location as the report holds it, through
+// that run, then the location's own trailing punctuation: the edit then replaces the sentence with its
+// anchors as `show report` prints them. new is fix with each gap anchor of the run it does not carry
+// placed at its content end, where Attach places an anchor on any quote ending there; the run's other
+// anchors are the edit's to carry or refuse. Otherwise the recorded pair.
+func proposalOver(report, gapID, loc, fix string) (string, string) {
+	start, end, err := anchortext.LocateOnce(report, loc, anchortext.CrossParagraphs)
+	if fix == "" || err != nil {
+		return loc, fix
+	}
+	tail := report[end:]
+	after := strings.TrimLeft(tail, anchortext.TrailingPunct)
+	run := after[:anchor.SkipRun(after, 0)]
+	if !strings.Contains(run, anchor.Token(gapID)) {
+		return loc, fix
+	}
+	trimmed := strings.TrimSpace(loc)
+	old := report[start:end+len(tail)-len(after)+len(run)] + trimmed[len(strings.TrimRight(trimmed, anchortext.TrailingPunct)):]
+	at := anchortext.ContentEnd(fix)
+	var carried strings.Builder
+	for _, id := range anchor.IDs(run) {
+		if anchor.Kind(id) == anchor.Kind(gapID) && !strings.Contains(fix, anchor.Token(id)) {
+			carried.WriteString(anchor.Token(id))
+		}
+	}
+	return old, fix[:at] + carried.String() + fix[at:]
+}
+
+// ProposalAppliedVerbatim reports whether the pair a seat typed is EXACTLY the fix the named gap
+// proposed over the report it edited — byte-for-byte on both halves, against Proposal's pair.
 //
 // Exactness is the whole point. A near-application ("I applied red's fix, roughly") is blue
 // authoring, and it must be audited as blue's text; only an identical pair estops red from
 // re-arguing what it wrote itself. Whitespace is NOT normalized here for that reason: the
 // looser the match, the more of blue's own writing red is barred from auditing.
-// Proposal hands back the pair a gap's mint recorded: the span red located, and the text it
-// prescribed to replace it with.
-//
-// IT EXISTS SO BLUE NEED NOT RETYPE THEM. `blue edit --accept` reads the pair here and edits with
-// it, which makes applied_verbatim true BY CONSTRUCTION rather than by the comparison below — the
-// difference between "blue agreed" and "blue agreed and transcribed 400 characters without a
-// typo". Same query, same row; the two callers want opposite ends of it.
-//
-// found=false means no mint for that gap. An empty fixNew with found=true is a real state — red
-// raised the gap without prescribing concrete text — and is the caller's to refuse, because the
-// refusal it wants to give names the verb it was called from.
-func Proposal(run Run, gapID string) (location, fixNew string, found bool, err error) {
-	var loc, fix sql.NullString
-	ok, err := queryRow(run, []any{&loc, &fix},
-		`SELECT "location", "fix_new" FROM "mint" WHERE "gap_id" = ?`, gapID)
-	if err != nil || !ok {
-		return "", "", false, err
-	}
-	return loc.String, fix.String, true, nil
-}
-
-func ProposalAppliedVerbatim(run Run, gapID, old, new string) (bool, error) {
-	// THE SPAN IS THE GAP'S OWN `location`. It was a separate `fix_old` holding the same
-	// sentence, matched by a second matcher — a gap's location and the span its proposal
-	// replaces were never two facts. The compare stays in Go so it stays byte-exact; the
-	// record only hands back the pair.
-	var loc, fixNew sql.NullString
-	found, err := queryRow(run, []any{&loc, &fixNew},
-		`SELECT "location", "fix_new" FROM "mint" WHERE "gap_id" = ?`, gapID)
-	if err != nil || !found {
+func ProposalAppliedVerbatim(run Run, gapID, report, old, new string) (bool, error) {
+	pOld, pNew, found, err := Proposal(run, gapID, report)
+	if err != nil || !found || pNew == "" {
 		return false, err
 	}
-	return loc.String == old && fixNew.String == new, nil
+	return pOld == old && pNew == new, nil
 }
 
 // THE THREE FRICTION-KIND WORDS ARE GONE, and the deletion is the point rather than a tidy-up.
@@ -271,56 +290,6 @@ func EditSpans(run Run) ([]EditSpan, error) {
 		out = append(out, EditSpan{Old: o.String, New: n.String})
 	}
 	return out, rows.Err()
-}
-
-// FindingMarkerHold says why red's finding marker must stay in the report, or "" when blue's
-// retire may take it out.
-//
-// A FINDING MARKER IS RED'S, not blue's. Cite and proof anchors are blue's to take out with a
-// claim; a finding marker is where red's finding lives, and the gap that credits the finding
-// quotes the prose around it. Taken out while that gap is open, the board shows a live gap at a
-// location nothing can resolve, and `show report --anchor` has nothing to read. So the marker
-// leaves only once red's own lifecycle has closed on it: the finding is credited by at least one
-// gap, and every gap crediting it is closed. A finding no gap credits is still red's — pending
-// the chair, or declined by it in silence — and is held too: the record cannot tell those apart,
-// so it errs toward keeping the marker.
-func FindingMarkerHold(run Run, findingID string) (string, error) {
-	db, err := openRunForRead(run)
-	if err != nil {
-		return "", err
-	}
-	if db == nil {
-		return "no record to consult", nil
-	}
-	rows, err := db.Query(`SELECT fb."value", g."gap_id", g."open"
-		FROM "finding" f
-		JOIN "mint_found_by" fb ON fb."value" = f."label"
-		JOIN "gap" g ON g."minted_seq" = fb."event_id"
-		WHERE f."finding_id" = ?
-		ORDER BY g."minted_seq"`, findingID)
-	if err != nil {
-		return "", fmt.Errorf("record: reading which gaps credit finding %s: %w", findingID, err)
-	}
-	defer rows.Close()
-	credited := false
-	for rows.Next() {
-		var label, gap string
-		var open bool
-		if err := rows.Scan(&label, &gap, &open); err != nil {
-			return "", err
-		}
-		credited = true
-		if open {
-			return fmt.Sprintf("gap %s is open and credits finding %s — the marker is red's until that gap closes", gap, label), nil
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return "", err
-	}
-	if !credited {
-		return "no gap credits this finding yet — the marker is red's while the finding is pending", nil
-	}
-	return "", nil
 }
 
 // AnchorRetiredAt answers where an anchor went when it is no longer in the report: the retire

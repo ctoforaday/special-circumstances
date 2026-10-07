@@ -70,12 +70,19 @@ func FindingByKey(run Run, seatID, key string) (label, findingID string, err err
 	return l.String, id.String, nil
 }
 
-// AnchorEventExists reports whether an anchor event names this finding id. The finding and its
-// anchor event are appended as a PAIR after the splice, so "finding recorded, anchor missing" is
-// exactly the state a crash between the two appends leaves.
-func AnchorEventExists(run Run, findingID string) (bool, error) {
-	if findingID == "" {
-		return false, nil
+// UnplacedLocation is the location a placing act stored for its anchor while no Anchor event places
+// it, or "": the act and its Anchor are two appends, and a crash between them leaves the act on the
+// record and its anchor out of the report. A retry places the STORED location, never its own quote,
+// so the anchor sits where the recorded act says it does.
+func UnplacedLocation(run Run, id string) (string, error) {
+	var loc sql.NullString
+	if id == "" {
+		return "", nil
 	}
-	return recordHas(run, `SELECT 1 FROM "anchor" WHERE "id" = ? LIMIT 1`, findingID)
+	_, err := queryRow(run, []any{&loc},
+		`SELECT "location" FROM (SELECT "finding_id" AS "id", "location" FROM "finding"
+		   UNION ALL SELECT "gap_id", "location" FROM "mint")
+		  WHERE "id" = ?1 AND COALESCE("location", '') != ''
+		    AND NOT EXISTS (SELECT 1 FROM "anchor" WHERE "id" = ?1) LIMIT 1`, id)
+	return loc.String, err
 }

@@ -149,7 +149,7 @@ func newProve() *cobra.Command {
 			return nil, err
 		}
 		if _, aerr := anchortext.Attach(current, label, location); aerr != nil {
-			return nil, aerr
+			return nil, anchortext.Refusal("blue prove", aerr)
 		}
 
 		// `output` does not survive onto the event, and that is not a silent drop: it stays in the

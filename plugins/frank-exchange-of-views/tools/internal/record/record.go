@@ -809,15 +809,13 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// in its place, or a replacement nothing marks as one.
 		return fmt.Errorf("record: a correction is written by re-running the corrected act's own verb with --corrects <key>, never on its own")
 	case *recordpb.Anchor:
-		// The finding-marker's record: it says "finding <id> has a marker at <location>
-		// in blue/report.md". EXPECTED for the immortal-marker detector is exactly the set
-		// of these. It keys on `id` (a finding_id) via deriveKey, so it is idempotent per
-		// finding — a re-anchor of the same finding writes one event, not a second marker's.
+		// An Anchor places one marker, of any kind, at its quote's end. It keys on `id` via
+		// deriveKey, so a retry writes one event rather than a second marker.
 		if b.GetId() == "" {
-			return fmt.Errorf("record: anchor requires id (the finding_id the marker carries)")
+			return fmt.Errorf("record: anchor requires id (the id of the act whose marker this places)")
 		}
 		if b.GetLocation() == "" {
-			return fmt.Errorf("record: anchor requires location (the section + quoted sentence the marker sits at)")
+			return fmt.Errorf("record: anchor requires location (the quote the marker sits at the end of)")
 		}
 	case *recordpb.ClassNew:
 		return validateClassNew(run, b)

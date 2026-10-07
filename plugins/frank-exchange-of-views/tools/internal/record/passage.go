@@ -1,10 +1,6 @@
 package record
 
-import (
-	"strings"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
-)
+import "strings"
 
 // THE GAP ARRIVES WITH ITS PASSAGE, SO THE AUDITOR IS NOT NAVIGATING (#1091).
 //
@@ -29,24 +25,12 @@ import (
 // trimmed rather than looking like a complete passage.
 const passageLimit = 6000
 
-// PassageAround is the report section the quote sits in: from the heading above it to the next
-// heading at the same level or shallower.
-//
-// EMPTY WHEN THE QUOTE CANNOT BE FOUND, and that is the honest answer rather than a guess at a
-// neighbourhood. A gap can be anchored to something that is not report text at all (about_kind), a
-// quote can have been edited away, and a run can have no ingested report yet. In each case the
-// auditor gets no passage and reads the report as it does today — never a passage built around a
-// location the text does not actually hold.
-func PassageAround(report, quote string) string {
-	if report == "" || strings.TrimSpace(quote) == "" {
-		return ""
-	}
-	start, end := anchortext.LocateSpan(report, quote)
-	if start < 0 || end <= start || end > len(report) {
-		return ""
-	}
-	from, level := sectionStart(report, start)
-	to := sectionEnd(report, end, level)
+// PassageAround is the report section offset at sits in — a gap's anchor: from the heading above it
+// to the next heading at the same level or shallower. A gap whose anchor stands at no prose has no
+// passage, and its reader reads the report.
+func PassageAround(report string, at int) string {
+	from, level := sectionStart(report, at)
+	to := sectionEnd(report, at, level)
 	sec := strings.TrimSpace(report[from:to])
 	if len(sec) <= passageLimit {
 		return sec
@@ -57,7 +41,7 @@ func PassageAround(report, quote string) string {
 	if i := strings.IndexByte(sec, '\n'); i >= 0 {
 		head = sec[:i]
 	}
-	lo := start - from - passageLimit/2
+	lo := at - from - passageLimit/2
 	if lo < 0 {
 		lo = 0
 	}

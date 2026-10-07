@@ -1,8 +1,8 @@
-// Package anchortext is the report-text geometry of immortal anchors: how a quoted span is
-// LOCATED across the invisible annotation layer (LocateSpan, and LocateOnce for a write) and
-// how a marker is PLACED at that span (InsertAnchor). It is the sibling of
-// internal/anchor — that leaf owns the anchor VOCABULARY (Token, Label, the class grammar), this
-// one owns where an anchor SITS in the document.
+// Package anchortext is the report-text geometry of anchors: how a quoted span is LOCATED across
+// the invisible annotation layer (LocateSpan, and LocateOnce for a write) and how an anchor is
+// PLACED at that span (Attach, and InsertAnchor in replay). It is the sibling of internal/anchor —
+// that leaf owns the anchor VOCABULARY (Token, Label, the kinds table), this one owns where an
+// anchor SITS in the document.
 //
 // It lived in internal/cli/lens, which made it unreachable to any package cli/lens imports. Under
 // report-as-record (#709) the report is REPLAYED from the record by internal/reportproj, which
@@ -14,30 +14,12 @@ package anchortext
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"unicode"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 )
-
-// Finding-marker anchoring (slice 1b). A lens finding is anchored in blue/report.md by
-// inserting an invisible footnote marker "[^<finding_id>]" at the quoted sentence the
-// finding flags. The quote comes from --location ("section heading + quoted sentence").
-// If the quote is not in the report, the finding is a MIS-QUOTE and is rejected — the
-// marker is never placed on content that is not there.
-
-// extractQuote pulls the locatable sentence out of a --location value. Prefer an
-// explicit "…" span (the quoted sentence); otherwise use the whole trimmed value.
-func extractQuote(location string) string {
-	if i := strings.Index(location, `"`); i >= 0 {
-		if j := strings.Index(location[i+1:], `"`); j >= 0 {
-			if q := strings.TrimSpace(location[i+1 : i+1+j]); q != "" {
-				return q
-			}
-		}
-	}
-	return strings.TrimSpace(location)
-}
 
 // trailingPunct is the run of punctuation trimmed from the END of a quote (only the
 // end): a quote may omit or include a terminal period the report has, or vice versa.
@@ -83,12 +65,10 @@ func annotationLen(s string, i int) int {
 // Visible is a span of report text with the invisible layer removed — the skeleton any comparison
 // of two such spans must run on.
 //
-// IT IS THE SAME REDUCTION LocateSpan MATCHES THROUGH, exported rather than reimplemented. Three
-// other sites compared two quotes of the report on RAW BYTES and each stopped matching the moment a
-// sentence gained an anchor: the `gap_edit` view, CurrentLocation's fold, and EstoppelConflict.
-// Minting PLACES an anchor at the location a gap names, so those comparisons broke on the act that
-// created the thing being compared — and broke silently, because "different spans" is also the
-// honest answer for two unrelated sentences.
+// IT IS THE SAME REDUCTION LocateSpan MATCHES THROUGH, exported rather than reimplemented. A
+// comparison of two quotes of the report on RAW BYTES stops matching the moment a sentence gains an
+// anchor — minting places one at the location a gap names — and stops silently, because "different
+// spans" is also the honest answer for two unrelated sentences.
 //
 // LocateSpan answers "where in this report is this quote" and must return RAW offsets, so it walks
 // the layer in a streaming pass. This answers "are these two quotes the same text", where offsets
@@ -332,48 +312,38 @@ var (
 	ErrInFence  = errors.New("the quote resolves inside a code fence")
 )
 
-// LocateOnce's refusals after ErrMisQuote. Callers map them to their own text.
+// LocateOnce's refusals after ErrMisQuote. Refusal words the first two for a placement; the third
+// is worded for every caller.
 var (
 	ErrAmbiguous        = errors.New("the quote occurs more than once")
-	ErrCrossesParagraph = errors.New("the quote crosses a blank line")
-	ErrSplitsWord       = errors.New("the quote starts or ends inside a word")
+	ErrCrossesParagraph = errors.New("the quote's one match in the report runs across a blank line")
+	ErrSplitsWord       = errors.New("your span starts or ends inside a word — quote whole words. Editing letters rather than language produces one-byte ops that carry no meaning on the record")
 )
 
-// InsertAnchor is the shared invisible-anchor placement behind lens finding and blue cite:
-// it extracts the quote from `location`, locates it in report across the invisible
-// annotation layer, and returns report with `marker` spliced at the quote's end — or
-// ErrMisQuote / ErrInFence. marker is the full token, "<!--fx:f-…-->" for a finding or
-// "<!--cite:c-…-->" for a citation. Both axes place their immortal anchor by exactly this
-// rule, so a citation and a finding are located, fenced, and spliced identically.
-func InsertAnchor(report []byte, location, marker string) ([]byte, error) {
-	// THE WHOLE LOCATION FIRST, AND THE EXTRACTED SPAN ONLY IF IT IS NOT THERE.
-	//
-	// extractQuote prefers the text between the first two double quotes, which is what makes
-	// `§ Foundations: "the scheduler is preemptive"` locatable — a section label followed by its
-	// sentence. Applied unconditionally it also fires on a location that IS the sentence and
-	// merely CONTAINS a quoted phrase, and then the anchor is placed on the phrase somewhere else
-	// in the document:
-	//
-	//	location: Blue wrote that the cost is "climbing sharply" and gave no source for it.
-	//	anchored: The cost is climbing sharply<!--fx:f-1-->.        <- a different paragraph
-	//
-	// Silently, exit 0, on the surface whose whole job is to say WHERE the evidence is (#552,
-	// measured on the 2026-08-23 research-loop-counterparts run: a long exact uniquely-matching
-	// quote landed on an unrelated shorter sentence while a shorter quote from the same target
-	// landed correctly — which is this, from the other side).
-	//
-	// So the choice is not made on the SHAPE of the string. It is made on what the report
-	// actually contains: the literal location is tried first, and the extracted span is a
-	// FALLBACK for the decorated form, which by construction is not in the report literally.
-	// A miss is still ErrMisQuote — the marker never lands on content that is not there.
-	quote := strings.TrimSpace(location)
-	end := locateEnd(string(report), quote)
-	if end < 0 {
-		if q := extractQuote(location); q != quote {
-			quote = q
-			end = locateEnd(string(report), quote)
-		}
+// Refusal is the refusal a placing verb gives for LocateOnce's ambiguity, crossing and word-split
+// sentinels, prefixed with the verb, so every placer teaches them in the same words. ErrMisQuote and
+// ErrInFence, which each verb words for its own quote, come back unchanged.
+//
+// None advises one placement per site: an anchor names one place, and a quote that occurs twice is
+// made unique by the text before it in its paragraph.
+func Refusal(verb string, err error) error {
+	switch {
+	case errors.Is(err, ErrAmbiguous):
+		return fmt.Errorf("%s: %w in the report, and an anchor needs one place: quote the sentence with the text before it in its paragraph, so the quote occurs once — a quote may not cross a blank line. A sentence that stands alone as its paragraph and repeats verbatim elsewhere cannot be anchored", verb, err)
+	case errors.Is(err, ErrCrossesParagraph):
+		return fmt.Errorf("%s: %w, and an anchor sits in one passage: quote text inside one paragraph", verb, err)
+	case errors.Is(err, ErrSplitsWord):
+		return fmt.Errorf("%s: %w", verb, err)
 	}
+	return err
+}
+
+// InsertAnchor is replay's placement: report with marker spliced at the end of location's first
+// match within one paragraph — or ErrMisQuote / ErrInFence. It is Attach's rule for every placement
+// Attach admitted, because the one occurrence Attach counted is also the first; it does not re-check
+// uniqueness, because replay reproduces history rather than re-authorising it.
+func InsertAnchor(report []byte, location, marker string) ([]byte, error) {
+	end := locateEnd(string(report), strings.TrimSpace(location))
 	if end < 0 {
 		return nil, ErrMisQuote
 	}
@@ -383,16 +353,26 @@ func InsertAnchor(report []byte, location, marker string) ([]byte, error) {
 	return insertMarker(report, end, marker), nil
 }
 
-// Attach is the one write-time placement: doc with the anchor id's token placed at the end of
-// the quote, by InsertAnchor's rule. Every placing verb validates its anchor through it and builds
-// no token of its own. It returns InsertAnchor's sentinels unmapped, so each verb keeps its own
-// refusal text.
+// Attach is the one write-time placement: doc with the anchor id's token at the end of the quote's
+// one occurrence within one paragraph — LocateOnce's refusals, then ErrInFence. Every placing verb
+// validates its anchor through it and builds no token of its own; each words ErrMisQuote and
+// ErrInFence itself and the rest through Refusal.
 func Attach(doc, id, quote string) (string, error) {
-	out, err := InsertAnchor([]byte(doc), quote, anchor.Token(id))
+	_, end, err := LocateOnce(doc, quote, StopAtParagraph)
 	if err != nil {
 		return "", err
 	}
-	return string(out), nil
+	if insideFence(doc, end) {
+		return "", ErrInFence
+	}
+	return string(insertMarker([]byte(doc), end, anchor.Token(id))), nil
+}
+
+// ContentEnd is the offset just past text's last content character — before its trailing
+// punctuation, whitespace and anchors — where Attach places an anchor on a quote ending there.
+func ContentEnd(text string) int {
+	_, end := locate(text, text, CrossParagraphs)
+	return max(end, 0)
 }
 
 // insideFence reports whether byte offset `at` falls inside a fenced code block, its opener and

@@ -68,6 +68,13 @@ func newEdit() *cobra.Command {
 		//
 		// WHAT BLUE STILL SUPPLIES IS ITS REASON. Accepting is an act it should argue for, and
 		// --reason is the argument red re-audits against; nothing about agreeing removes that.
+		//
+		// The pair is read over the render the edit validates against, so the accepted span carries
+		// the gap's anchor as the report holds it.
+		peek, err := reportproj.RenderFromRecord(run)
+		if err != nil {
+			return nil, err
+		}
 		if accepting {
 			if gapID == "" {
 				return nil, fmt.Errorf("blue edit --accept needs --answers: the gap whose prescribed fix you are accepting")
@@ -75,7 +82,7 @@ func newEdit() *cobra.Command {
 			if oldStr != "" || newStr != "" {
 				return nil, fmt.Errorf("blue edit --accept supplies --quote and --new for you, from the fix red recorded on %s — passing either would be a second source for one fact. Drop them, or drop --accept and write the edit yourself", gapID)
 			}
-			loc, fix, found, err := record.Proposal(run, gapID)
+			loc, fix, found, err := record.Proposal(run, gapID, peek)
 			if err != nil {
 				return nil, err
 			}
@@ -116,10 +123,6 @@ func newEdit() *cobra.Command {
 		// FRESH: validate against a consistent snapshot BEFORE committing the event, so a
 		// mis-quote or a marker-spanning edit never lands a phantom stack op. The snapshot is the
 		// render of the record so far — there is no file.
-		peek, err := reportproj.RenderFromRecord(run)
-		if err != nil {
-			return nil, err
-		}
 		planned, applied, exact, err := validateEdit(peek, oldStr, newStr)
 		if err != nil {
 			// A PRESCRIPTION THAT CHANGES NOTHING IS NOT STALE. `lens mint` now refuses to verify one,
@@ -181,7 +184,7 @@ func newEdit() *cobra.Command {
 			body.Accepted = proto.Bool(true)
 			body.AppliedVerbatim = proto.Bool(true)
 		} else if gapID != "" {
-			verbatim, err := record.ProposalAppliedVerbatim(run, gapID, oldStr, newStr)
+			verbatim, err := record.ProposalAppliedVerbatim(run, gapID, peek, oldStr, newStr)
 			if err != nil {
 				return nil, err
 			}
@@ -199,7 +202,7 @@ func newEdit() *cobra.Command {
 	// --quote is refused when absent UNLESS --accept supplies it, so its marker states the
 	// condition rather than the bare word — the bare marker would tell an accepting seat to type
 	// what the tool fills in.
-	flags.Text(c, flags.Quote, "REQUIRED unless --accept — "+flags.DescQuote+". A finding anchor or citation anchor typed into it is rejected")
+	flags.Text(c, flags.Quote, "REQUIRED unless --accept — "+flags.DescQuote+". An anchor of any kind typed into it is rejected")
 	flags.Text(c, flags.New, "the text that span should become")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this edit responds to (G4) — the provenance join key; omit only for an edit that answers no gap")
 	c.Flags().Bool(flags.Accept, false, flags.DescAccept)
@@ -225,7 +228,7 @@ func planEdit(report, old, new string) (string, string, bool, error) {
 	//
 	// This guard used to REJECT any span containing an anchor ("edit around it"). Combined with
 	// the uniqueness guard that produces a DEADLOCK, demonstrated: when a word appears twice and
-	// the only disambiguating context carries red's anchor, the minimal quote is refused as
+	// the only disambiguating context carries an anchor, the minimal quote is refused as
 	// ambiguous and the contextual quote is refused as anchor-spanning. The anchored occurrence —
 	// the one red actually flagged — becomes uneditable, while the unanchored one edits fine. And
 	// 71% of anchored quotes in the smoke had their anchor mid-span, so this is the common shape,
@@ -295,7 +298,7 @@ type editResult struct {
 }
 
 func (r editResult) Human() string {
-	head := "blue edit recorded — the edit is appended to the record, finding anchors preserved, the report re-derived on read"
+	head := "blue edit recorded — the edit is appended to the record with every anchor its span held, the report re-derived on read"
 	if r.Idempotent {
 		head = "blue edit (idempotent retry — the edit is already on the record, no second one)"
 	}

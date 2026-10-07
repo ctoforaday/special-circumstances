@@ -91,7 +91,7 @@ func ReadAround(report, anchorID string, n int) (Window, error) {
 	}
 	if at < 0 {
 		return Window{}, fmt.Errorf("anchor: anchor %s (%s) is not in the report — it is a stale reference or belongs to another run. "+
-			"`show findings` lists every finding anchor; `show evidence` resolves citation and proof anchors",
+			"`show findings` lists every finding anchor; `show evidence` resolves citation and proof anchors; `show board` resolves a gap anchor, with the gap's minted text where its quote never placed",
 			anchorID, token)
 	}
 

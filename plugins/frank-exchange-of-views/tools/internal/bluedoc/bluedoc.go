@@ -54,7 +54,7 @@ func LocateUnique(verb, report, old string) (int, int, error) {
 	case anchortext.ErrAmbiguous:
 		return 0, 0, fmt.Errorf("%s: your quoted span appears MORE THAN ONCE in report.md, so the target is ambiguous — quote more surrounding context to pick out the one site you mean (to change every site, make one edit per site)", verb)
 	}
-	return 0, 0, fmt.Errorf("%s: your span starts or ends inside a word — quote whole words. Editing letters rather than language produces one-byte ops that carry no meaning on the record", verb)
+	return 0, 0, fmt.Errorf("%s: %w", verb, anchortext.ErrSplitsWord)
 }
 
 // LocateUniqueReplacing is LocateUnique for a caller that intends to REPLACE the span it finds.
@@ -173,9 +173,8 @@ func settleAbuttingAnchor(verb, report, quoted string, end int) (int, error) {
 // the prose around it rewritten), but never introduced, dropped or duplicated. It returns newText
 // with every anchor AutoPlace put back, so the refusal of one it could not is true at every caller.
 //
-// Anchors are still born ONLY from `lens finding` and `cite`, and still die only by
-// tool. Transit is not authorship: the tool checks the bytes, so nothing is delegated to
-// the model.
+// Anchors are placed by the tool, never typed into a replacement, and leave only by retire.
+// Transit is not authorship: the tool checks the bytes, so nothing is delegated to the model.
 func AnchorsTransitUnchanged(verb, oldSpan, newText string) (string, error) {
 	newText = AutoPlace(oldSpan, newText)
 	count := func(s string) map[string]int {
@@ -228,7 +227,7 @@ type ErrAnchorIntroduced struct {
 }
 
 func (e *ErrAnchorIntroduced) Error() string {
-	return fmt.Sprintf("%s: your replacement introduces %s, which was not in the span it replaces — anchors are placed by the lens's `finding` and blue's `cite`, never typed into a replacement (got %d occurrence(s))", e.Verb, anchor.Label(e.ID), e.Count)
+	return fmt.Sprintf("%s: your replacement introduces %s, which was not in the span it replaces — anchors are placed by the tool, never typed into a replacement (got %d occurrence(s))", e.Verb, anchor.Label(e.ID), e.Count)
 }
 
 // MaxProposalGrowth bounds how much longer a CONCRETE proposed fix may be than the span it

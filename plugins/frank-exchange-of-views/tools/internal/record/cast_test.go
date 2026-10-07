@@ -76,14 +76,34 @@ func TestACastNamingALaneItDoesNotSeatIsRefused(t *testing.T) {
 // sentence in front of it, not of the run. Measured across three runs, `show evidence` was called
 // 99 times against a projection holding ~10 events: a seat polling a whole table for one fact
 // about one gap.
+//
+// THE SENTENCE IS THE ONE HOLDING THE GAP'S ANCHOR, and only evidence backs it: the gap's own
+// anchor, another gap's and a finding's stand in that sentence and are not listed. An about gap
+// whose about_ref is a gap lists nothing.
 func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
 	cited := anchor.Token("c-a1b2c3d4")
 	unchecked := anchor.Token("c-99887766")
+	was := reportRenderer
+	t.Cleanup(func() { reportRenderer = was })
+	reportRenderer = func(string, bool, []ReportOp) (string, error) {
+		return "# R\n\nA sentence " + cited + " and another" + unchecked + anchor.Token("f-0b0b0b0b") + anchor.Token("G1") + anchor.Token("G9") + ". Next one.\n", nil
+	}
 	dir := newRun(t)
 	if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: "red-lens-evidence"}, &recordpb.Mint{
 		GapId: proto.String("G1"), Class: proto.String("c"),
 		Problem:     proto.String("the claim rests on one source"),
 		Location:    proto.String("A sentence " + cited + " and another " + unchecked),
+		RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("chk"),
+		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+		Severity:   recordtest.P(recordpb.Grade_GRADE_HIGH),
+		Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH),
+		Impact:     recordtest.P(recordpb.Grade_GRADE_HIGH),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: "red-lens-evidence"}, &recordpb.Mint{
+		GapId: proto.String("G2"), Class: proto.String("c"), Problem: proto.String("about the first gap"),
+		AboutKind: recordpb.AboutKind_ABOUT_KIND_GAP.Enum(), AboutRef: proto.String("G1"),
 		RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("chk"),
 		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Severity:   recordtest.P(recordpb.Grade_GRADE_HIGH),
@@ -111,15 +131,15 @@ func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
 	if err := json.Unmarshal(b, &w); err != nil {
 		t.Fatal(err)
 	}
-	if len(w.Open) != 1 {
-		t.Fatalf("want the one open gap: %+v", w.Open)
+	if len(w.Open) != 2 || len(w.Open[1].Backing) != 0 {
+		t.Fatalf("want the two open gaps, the about gap backed by nothing: %+v", w.Open)
 	}
 	by := map[string]GapBackingJSON{}
 	for _, b := range w.Open[0].Backing {
 		by[b.Anchor] = b
 	}
 	if len(by) != 2 {
-		t.Fatalf("backing = %+v, want both anchors in the gap's location", w.Open[0].Backing)
+		t.Fatalf("backing = %+v, want the two citation anchors in the gap's sentence and nothing else", w.Open[0].Backing)
 	}
 	if g := by["c-a1b2c3d4"]; g.Outcome == "" || g.Kind != "citation" || g.VerifiedBy != "red-lens-evidence" {
 		t.Errorf("a verified anchor lost its verification: %+v", g)
@@ -134,7 +154,7 @@ func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(board.Open) != 1 || len(board.Open[0].Backing) != 2 {
+	if len(board.Open) != 2 || len(board.Open[0].Backing) != 2 {
 		t.Fatalf("the board's open gap does not carry both anchors: %+v", board.Open)
 	}
 	for _, b := range board.Open[0].Backing {

@@ -356,7 +356,7 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 			case errors.Is(aerr, anchortext.ErrInFence):
 				return nil, feov.Errorf(feov.Validation, "lens corroborate: the quote resolves inside a code fence — corroborate a prose sentence, not code")
 			}
-			return nil, aerr
+			return nil, anchortext.Refusal("lens corroborate", aerr)
 		}
 		body.Label = proto.String(label)
 	}

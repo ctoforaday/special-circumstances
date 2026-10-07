@@ -113,7 +113,7 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "lens corroborate without an access date leaves the key absent",
 			path: []string{"corroborate"}, seatID: "red-lens-evidence",
-			args: []string{"--quote", "c", "--url", "https://example.test/b", "--title", "Example B",
+			args: []string{"--quote", "§1 first — a finding sits in sec 1 here.", "--url", "https://example.test/b", "--title", "Example B",
 				"--as", "weak", "--confidence", "low", "--reason", "it gestures at it"},
 			typ:    recordpb.EventType_EVENT_TYPE_VERIFY,
 			want:   map[string]string{"url": "https://example.test/b", "title": "Example B", "outcome": "weak", "confidence": "low"},

@@ -51,6 +51,7 @@ func idShapes(t *testing.T) []struct {
 // with a reason, not a tolerated overlap: the narrow one exists so a verb can refuse the wider kind.
 var specialisations = map[string]string{
 	"citation-anchor": "anchor", // `lens verify` takes a source citation; f- is a finding and p- a proof
+	"gap-id":          "anchor", // a gap's anchor carries the gap's own id; f-, c- and p- are not gaps
 }
 
 func TestOneIDFlagCanResolveEveryIDByShape(t *testing.T) {

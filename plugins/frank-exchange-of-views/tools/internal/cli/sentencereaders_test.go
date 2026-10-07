@@ -30,7 +30,7 @@ func TestEverySentenceReaderReadsOneSentence(t *testing.T) {
 	cite := func(sentence, url string) string {
 		t.Helper()
 		if _, err := run(t, "cite", "--run", runDir, "--seat-id", blueSeat,
-			"--quote", `# Findings: "`+sentence+`"`, "--url", url, "--title", "Source "+url); err != nil {
+			"--quote", sentence, "--url", url, "--title", "Source "+url); err != nil {
 			t.Fatalf("cite %q: %v", sentence, err)
 		}
 		return lastBody(t, runDir, &recordpb.Cite{}).GetLabel()

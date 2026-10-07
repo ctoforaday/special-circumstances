@@ -73,18 +73,11 @@ func newFinding() *cobra.Command {
 		if prior, priorID, err := record.FindingByKey(run, s.SeatID, key); err != nil {
 			return nil, err
 		} else if prior != "" {
-			// THE PAIR MAY BE HALF-APPENDED. The finding and its anchor event follow the splice
-			// as two separate appends, so a crash between them leaves the finding recorded and
-			// the anchor event missing — and this early return used to seal that state forever:
-			// the retry saw the finding, answered idempotently, and the immortal-marker detector
-			// never learned the marker exists. The retry now finishes the interrupted pair.
-			if anchored, aerr := record.AnchorEventExists(run, priorID); aerr != nil {
-				return nil, aerr
-			} else if !anchored {
-				ap := &recordpb.Anchor{Id: proto.String(priorID), Location: proto.String(seat.Str(cmd, flags.Quote))}
-				if _, aerr := record.Append(s.Identity(), ap); aerr != nil {
-					return nil, aerr
-				}
+			// THE PAIR MAY BE HALF-APPENDED: the finding and its anchor are two appends, so a crash
+			// between them leaves the finding recorded and its anchor out of the report. The retry
+			// finishes the pair at the location the finding stored.
+			if err := placeOwed(s, run, priorID, func(err error) error { return placementRefusal("lens finding", "finding", err) }); err != nil {
+				return nil, err
 			}
 			return findingResult{Label: prior, Idempotent: true}, nil
 		}
@@ -112,13 +105,7 @@ func newFinding() *cobra.Command {
 				return nil, rerr
 			}
 			if _, aerr := anchortext.Attach(current, findingID, location); aerr != nil {
-				switch {
-				case errors.Is(aerr, anchortext.ErrMisQuote):
-					return nil, fmt.Errorf("lens finding: --quote was not found in report.md.\n\nIt is matched LITERALLY against the report, so it must be the quoted text ALONE. A section heading in front of it (\"Findings: …\", \"## Method — …\") is the common cause and makes it match nothing — measured, four times in one sitting with four different separators. Name the section in --reason instead.\n\nA quote may not cross a blank line: a finding anchors ONE passage")
-				case errors.Is(aerr, anchortext.ErrInFence):
-					return nil, fmt.Errorf("lens finding: the quote resolves inside a code fence — anchor a prose sentence, not code")
-				}
-				return nil, aerr
+				return nil, placementRefusal("lens finding", "finding", aerr)
 			}
 		}
 
@@ -137,11 +124,9 @@ func newFinding() *cobra.Command {
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		// NO MARKER FOR AN ABSENCE, and that is the point rather than an omission. The anchor
-		// event exists so the immortal-marker detector can say "finding <id> has a marker at
-		// <location>"; a finding about something NOT in the report has no location to mark, and
-		// splicing one would put a marker on the innocent prose this change exists to stop
-		// borrowing.
+		// NO ANCHOR FOR AN ABSENCE, and that is the point rather than an omission: a finding about
+		// something NOT in the report has no location to mark, and placing one would put an anchor on
+		// the innocent prose this change exists to stop borrowing.
 		if !aboutSet {
 			ap := &recordpb.Anchor{Id: proto.String(findingID), Location: proto.String(location)}
 			if _, err := record.Append(s.Identity(), ap); err != nil {
@@ -164,6 +149,37 @@ func newFinding() *cobra.Command {
 	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an avenue id (Q1), or a gap id. It is CHECKED against the record")
 	// The handler refuses a finding with no explanation; the marker says so where the seat reads.
 	return seat.SaysRequired(c, flags.Reason)
+}
+
+// placementRefusal is the refusal `finding` and `mint` give for a quote Attach will not place; noun
+// is what the quote anchors.
+func placementRefusal(verb, noun string, err error) error {
+	switch {
+	case errors.Is(err, anchortext.ErrMisQuote):
+		return fmt.Errorf("%s: --quote was not found in report.md.\n\nIt is matched LITERALLY against the report, so it must be the quoted text ALONE. A section heading in front of it (\"Findings: …\", \"## Method — …\") is the common cause and makes it match nothing — measured, four times in one sitting with four different separators. Name the section in --reason instead.\n\nA quote may not cross a blank line: a %s anchors ONE passage", verb, noun)
+	case errors.Is(err, anchortext.ErrInFence):
+		return fmt.Errorf("%s: the quote resolves inside a code fence — anchor a prose sentence, not code", verb)
+	}
+	return anchortext.Refusal(verb, err)
+}
+
+// placeOwed appends the Anchor a retried act owes, at the location its first call stored, once
+// Attach accepts that location against the report as it stands; otherwise it returns Attach's
+// refusal through refuse and the act stays unplaced.
+func placeOwed(s seat.Context, run record.Run, id string, refuse func(error) error) error {
+	loc, err := record.UnplacedLocation(run, id)
+	if err != nil || loc == "" {
+		return err
+	}
+	current, err := reportproj.RenderFromRecord(run)
+	if err != nil {
+		return err
+	}
+	if _, err := anchortext.Attach(current, id, loc); err != nil {
+		return refuse(err)
+	}
+	_, err = record.Append(s.Identity(), &recordpb.Anchor{Id: proto.String(id), Location: proto.String(loc)})
+	return err
 }
 
 type findingResult struct {

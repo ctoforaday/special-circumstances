@@ -102,6 +102,43 @@ func TestTheLensWorkListSaysWhetherBlueAnswered(t *testing.T) {
 	})
 }
 
+// A GAP WHOSE SENTENCE BLUE CUT IS NOT UNANSWERED. Blue engaged on the gap and edited its sentence
+// down to the bare anchor without naming the gap: the gap reads `gone`, and its lens is put to judge
+// the report as it stands — never told that no edit answers it.
+func TestBlueAnsweredReadsAGoneGapAsMoved(t *testing.T) {
+	runDir, id := answeredBoard(t)
+	dispatchBlueOnto(t, runDir, id)
+	registerBlue(t, runDir)
+	tok := "<!--gap:" + id + "-->"
+	if out, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "CUT",
+		"--quote", "The cost is high"+tok+" and rising.", "--new", tok,
+		"--reason", "the sentence cannot stand"); err != nil {
+		t.Fatalf("blue cutting the sentence: %v\n%s", err, out)
+	}
+	closeBlueSitting(t, runDir)
+	out, err := run(t, "show", "work", "--run", runDir, "--seat-id", lensSeat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var w record.WorkJSON
+	if err := json.Unmarshal([]byte(out), &w); err != nil {
+		t.Fatal(err)
+	}
+	if len(w.Open) != 1 || w.Open[0].LocationState != record.LocationGone || len(w.Open[0].EditedSince) != 0 {
+		t.Fatalf("the cut gap should read gone with no edit listed: %+v", w.Open)
+	}
+	var said bool
+	for _, it := range w.Sitting.Open {
+		if strings.Contains(it.What, "NO edit answers it") {
+			t.Errorf("a gap whose sentence blue cut was reported as unanswered: %q", it.What)
+		}
+		said = said || strings.Contains(it.What, "gap "+id+" is open and its anchor is no longer in the report — judge whether the report as it stands")
+	}
+	if !said {
+		t.Errorf("no item puts the gone gap to its lens to judge:\n%s", out)
+	}
+}
+
 // dispatchBlueOnto has the chair record the dispatch that engages blue on the open gap. THE CHAIR'S
 // OWN VERB, not a seeded row: which gaps a dispatch names is the chair's decision and the engagement
 // this reads is exactly what that verb writes.
@@ -123,7 +160,7 @@ func editAnswering(t *testing.T, runDir, gapID string) {
 	registerBlue(t, runDir)
 	if out, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--answers", gapID,
-		"--quote", "The cost is high", "--new", "The cost is moderate",
+		"--quote", "The cost is high<!--gap:"+gapID+"-->", "--new", "The cost is moderate<!--gap:"+gapID+"-->",
 		"--reason", "the source gives a moderate figure"); err != nil {
 		t.Fatalf("blue edit: %v\n%s", err, out)
 	}
@@ -166,6 +203,7 @@ func answeredBoard(t *testing.T) (runDir, gapID string) {
 			Severity:        recordtest.P(recordpb.Grade_GRADE_HIGH),
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
+		at("red-lens-evidence", &recordpb.Anchor{Id: proto.String("G1"), Location: proto.String("The cost is high")}),
 	)
 	return runDir, "G1"
 }

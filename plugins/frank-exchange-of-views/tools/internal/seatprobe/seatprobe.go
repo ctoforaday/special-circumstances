@@ -151,7 +151,6 @@ func isRole(s string) bool {
 // which the event type alone does not distinguish). They named nothing before this change and
 // name nothing after it. Reported, not fixed here.
 var verbOfEvent = map[recordpb.EventType]string{
-	recordpb.EventType_EVENT_TYPE_ANCHOR:        "finding",
 	recordpb.EventType_EVENT_TYPE_AVENUE:        "avenue",
 	recordpb.EventType_EVENT_TYPE_BLUE_EDIT:     "edit",
 	recordpb.EventType_EVENT_TYPE_CLASS_NEW:     "class-new",
@@ -230,7 +229,8 @@ func Read(sf Surface, run record.Run, seatID string) (*Choices, error) {
 		// A CORRECTION IS NOT A VERB. The seat re-ran the corrected act's own verb, and that
 		// invocation is counted under it by its replacement event; counting the correction too
 		// would report a verb no surface offers, and hand substituteFor a name no seat can type.
-		if e.GetType() == recordpb.EventType_EVENT_TYPE_CORRECTION {
+		// An Anchor places the marker of the act before it, whose own event names the verb.
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_CORRECTION || e.GetType() == recordpb.EventType_EVENT_TYPE_ANCHOR {
 			continue
 		}
 		// THE ROLE COMES OFF THE EVENT, which is what #348 put it there for. Deriving it from

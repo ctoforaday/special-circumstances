@@ -8,20 +8,16 @@ import (
 
 // DID BLUE ANSWER THIS GAP, AND CAN THE RECORD SAY? (#1122)
 //
-// THE ANSWERING PREDICATE IS THE ONE EVERY OTHER READER USES, and picking a different one was the
-// near miss here. There are two joins between an edit and a gap and they are not the same fact:
+// THE ANSWERING PREDICATE IS THE ONE EVERY OTHER READER USES. `BlueEdit.answers` is blue's CLAIM to
+// have answered, validated at the write (requireGap refuses an unknown gap), and with `old != new` it
+// is what `exchangesOf` counts as movement and what ManifestOwed counts as answered. An edit that
+// changed a gap's sentence without naming the gap (WorkGapState.Edits) is not an answer: reading it
+// would invent a third definition of "answered", disagreeing with the impasse fold and the manifest
+// audit, and would accuse blue on any gap anchored by --about, which has no sentence to change.
 //
-//   - `gap_edit` (WorkGapState.Edits) is the LOCATION-DRIFT history — edits that moved the sentence
-//     a gap points at, whether or not they claimed to answer it. It exists so red can see what
-//     changed underneath its pointer.
-//   - `BlueEdit.answers` is blue's CLAIM to have answered, validated at the write (requireGap
-//     refuses an unknown gap), and with `old != new` it is what `exchangesOf` counts as movement
-//     and what ManifestOwed counts as answered.
-//
-// Reading the first would have invented a third definition of "answered", disagreeing with the
-// impasse fold and the manifest audit, and would additionally have produced a false accusation on
-// any gap anchored by --about: those have no location, so they have no drift history, and "nobody
-// edited the sentence" is not "nobody answered".
+// A GAP WHOSE ANCHOR LEFT THE REPORT IS NOT UNANSWERED. Blue cutting the sentence is an act on it
+// whether or not the edit named the gap, so a `gone` gap blue was engaged on is put to its lens to
+// judge, never reported as silence.
 //
 // THE NOT-MEASURED ARM IS THE POINT OF THE WHOLE FUNCTION. "Blue has not answered" and "blue is
 // still sitting and may yet answer" are the same silence on the record, and a lens handed the first
@@ -30,9 +26,11 @@ import (
 func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string) []string {
 	minted := mintedBy(evs)
 	var mine []string
+	gone := map[string]bool{}
 	for _, g := range gaps {
 		if g.Open && minted[g.ID] == seatID {
 			mine = append(mine, g.ID)
+			gone[g.ID] = g.LocationState == LocationGone
 		}
 	}
 	if len(mine) == 0 {
@@ -67,6 +65,8 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by an edit — re-audit it against the acceptance check you set at mint, and either close it or state what your own check still fails", g))
 		case pending[g]:
 			out = append(out, fmt.Sprintf("gap %s: whether blue has answered it is NOT MEASURED — a blue sitting engaged on it is open on the record, so nothing here is a report that no answer came", g))
+		case engaged[g] && gone[g]:
+			out = append(out, fmt.Sprintf("gap %s is open and its anchor is no longer in the report — judge whether the report as it stands meets your acceptance check, then close it or say what still fails", g))
 		case engaged[g]:
 			out = append(out, fmt.Sprintf("gap %s is open and NO edit answers it — blue has been engaged on it and its sitting closed without one, which is a fact to state rather than a gap to re-argue", g))
 		}

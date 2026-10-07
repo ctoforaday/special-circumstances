@@ -49,11 +49,11 @@ func TestCiteAnchorBijection(t *testing.T) {
 	}})
 
 	if _, err := run(t, "cite", "--run", runDir, "--seat-id", blueSeat,
-		"--quote", `"Alpha holds under load."`, "--url", "https://a", "--title", "A"); err != nil {
+		"--quote", "Alpha holds under load.", "--url", "https://a", "--title", "A"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "cite", "--run", runDir, "--seat-id", blueSeat,
-		"--quote", `"Beta holds under load too."`, "--url", "https://b", "--title", "B"); err != nil {
+		"--quote", "Beta holds under load too.", "--url", "https://b", "--title", "B"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -112,7 +112,8 @@ func sameSet(a, b []string) bool {
 // point silently addresses two places.
 func TestBlueEditRejectsAnchorInNewText(t *testing.T) {
 	for _, c := range []struct{ name, anchor, want string }{
-		{"finding marker", "<!--fx:f-abc123-->", "finding-marker"},
+		{"finding anchor", "<!--fx:f-abc123-->", "finding anchor"},
+		{"gap anchor", "<!--gap:G7-->", "gap anchor"},
 		{"citation anchor", "<!--cite:c-abc123-->", "citation anchor"},
 	} {
 		t.Run(c.name, func(t *testing.T) {

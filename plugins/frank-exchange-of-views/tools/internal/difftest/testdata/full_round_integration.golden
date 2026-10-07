@@ -143,8 +143,9 @@ verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}
 {"anchor":{"id":"FINDING001","location":"## S4"},"key":"red-lens-logic:anchor:FINDING001","seat_id":"red-lens-logic","ts":8,"type":"EVENT_TYPE_ANCHOR"}
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":9,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:mint:G1","mint":{"acceptance_check":"refetch and diff","check_kind":"CHECK_KIND_DOCUMENT","class":"citation-drift","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","found_by":["evidence-F1","logic-F1"],"gap_id":"G1","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"## S2","mint_key":"","problem":"the cited source does not say this","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":10,"type":"EVENT_TYPE_MINT"}
-{"key":"red-chair:position:#1","position":{"text":"round one: FAIL"},"seat_id":"red-chair","ts":11,"type":"EVENT_TYPE_POSITION"}
-{"key":"red-chair:verdict:#1","seat_id":"red-chair","ts":12,"type":"EVENT_TYPE_VERDICT","verdict":{"verdict":"VERDICT_FAIL"}}
+{"anchor":{"id":"G1","location":"## S2"},"key":"red-lens-evidence:anchor:G1","seat_id":"red-lens-evidence","ts":11,"type":"EVENT_TYPE_ANCHOR"}
+{"key":"red-chair:position:#1","position":{"text":"round one: FAIL"},"seat_id":"red-chair","ts":12,"type":"EVENT_TYPE_POSITION"}
+{"key":"red-chair:verdict:#1","seat_id":"red-chair","ts":13,"type":"EVENT_TYPE_VERDICT","verdict":{"verdict":"VERDICT_FAIL"}}
 
 ═══ RENDERS ═══
 -- avenues

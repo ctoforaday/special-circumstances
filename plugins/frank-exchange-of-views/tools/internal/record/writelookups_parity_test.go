@@ -133,8 +133,8 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	if err := requireFindings(run, []string{"evidence-F1", "L9-F9"}, "mint", "--found-by"); err == nil || !strings.Contains(err.Error(), "L9-F9") {
 		t.Errorf("requireFindings must name the first missing label: %v", err)
 	}
-	if exists, err := AnchorEventExists(run, "f-0a0a0a0a"); err != nil || exists {
-		t.Errorf("AnchorEventExists = (%v, %v) — no anchor event was appended for this finding", exists, err)
+	if loc, err := UnplacedLocation(run, "f-0a0a0a0a"); err != nil || loc != "L" {
+		t.Errorf("UnplacedLocation = (%q, %v) — no anchor event was appended for this finding, so its stored location is owed", loc, err)
 	}
 
 	if err := requireSeat(run, "red-chair", "rule", "--by"); err != nil {

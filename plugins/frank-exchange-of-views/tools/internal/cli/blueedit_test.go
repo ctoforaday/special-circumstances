@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"slices"
@@ -429,8 +430,8 @@ func mintWithProposal(t *testing.T, runDir, key, fixOld, fixNew string) string {
 	return gapID(out)
 }
 
-// seedProposalApplied mints a proposal and has blue apply it VERBATIM, which is the only
-// state that estops red.
+// seedProposalApplied mints a proposal and has blue apply it VERBATIM — typing the pair the board
+// serves, the gap's anchor as `show report` prints it — which is the only state that estops red.
 func seedProposalApplied(t *testing.T, runDir string) string {
 	t.Helper()
 	// TWO sentences: the second is UNRELATED text the estoppel case points at.
@@ -439,13 +440,34 @@ func seedProposalApplied(t *testing.T, runDir string) string {
 	mintGap(t, runDir, "G0", "overclaim")
 	gap := mintWithProposal(t, runDir, "G1", "Five independent verification approaches agree", prescribedText)
 	registerBlue(t, runDir)
+	old, new := boardPair(t, runDir, gap)
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--answers", gap,
-		"--quote", "Five independent verification approaches agree", "--new", prescribedText,
+		"--quote", old, "--new", new,
 		"--reason", "applying red's proposed text verbatim"); err != nil {
 		t.Fatalf("blue applying red's proposal: %v", err)
 	}
 	return gap
+}
+
+// boardPair is the fix_old/fix_new the board serves for gap — the pair `--accept` sends.
+func boardPair(t *testing.T, runDir, gap string) (string, string) {
+	t.Helper()
+	out, err := run(t, "show", "board", "--run", runDir, "--seat-id", blueSeat)
+	if err != nil {
+		t.Fatalf("show board: %v", err)
+	}
+	var b record.BoardJSON
+	if err := json.Unmarshal([]byte(out), &b); err != nil {
+		t.Fatal(err)
+	}
+	for _, g := range append(b.Open, b.Closed...) {
+		if g.ID == gap {
+			return g.FixOld, g.FixNew
+		}
+	}
+	t.Fatalf("gap %s is not on the board:\n%s", gap, out)
+	return "", ""
 }
 
 // Applying red's exact text is recorded by the TOOL comparing bytes — never claimed.
@@ -467,7 +489,7 @@ func TestACounterEditIsNotRecordedAsVerbatim(t *testing.T) {
 	registerBlue(t, runDir)
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--answers", gap,
-		"--quote", "Five independent verification approaches agree", "--new", "Five approaches agree, on one shared definition",
+		"--quote", "Five independent verification approaches agree<!--gap:"+gap+"-->", "--new", "Five approaches agree, on one shared definition<!--gap:"+gap+"-->",
 		"--reason", "red's wording overstates it; mine is tighter"); err != nil {
 		t.Fatalf("counter-edit: %v", err)
 	}
@@ -550,8 +572,8 @@ func TestAcceptAppliesTheRecordedFix(t *testing.T) {
 		t.Fatalf("accept: %v", err)
 	}
 	b := lastBody(t, runDir, &recordpb.BlueEdit{})
-	if b.GetNew() != prescribedText {
-		t.Errorf("accepted edit applied %q, want red's prescribed text %q", b.GetNew(), prescribedText)
+	if want := strings.Replace(prescribedText, "primality.", "primality<!--gap:"+gap+"-->.", 1); b.GetNew() != want {
+		t.Errorf("accepted edit applied %q, want red's prescribed text carrying the gap's anchor %q", b.GetNew(), want)
 	}
 	if !b.GetAccepted() {
 		t.Error("the edit is not marked accepted, so an acceptance is indistinguishable from a perfect transcription")
@@ -624,8 +646,8 @@ func TestAcceptRefusedWhenThePrescriptionNoLongerApplies(t *testing.T) {
 	registerBlue(t, runDir)
 	// Blue moves the span first, so red's located text is no longer there to replace.
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "E0", "--quote", "Five independent verification approaches agree",
-		"--new", "Several approaches agree", "--reason", "tightening first"); err != nil {
+		"--key", "E0", "--quote", "Five independent verification approaches agree<!--gap:"+gap+"-->",
+		"--new", "Several approaches agree<!--gap:"+gap+"-->", "--reason", "tightening first"); err != nil {
 		t.Fatalf("moving the span: %v", err)
 	}
 	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,

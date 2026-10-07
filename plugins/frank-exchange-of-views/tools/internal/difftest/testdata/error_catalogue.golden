@@ -50,7 +50,7 @@ Flags:
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
-      --quote string                             the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs
+      --quote string                             the ONE sentence the defect lives at — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. The tool anchors the gap at its end, and the board shows that sentence with its section
       --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                          comma-separated ancestor ids this gap replaces; lineage is never dropped
@@ -124,7 +124,7 @@ Flags:
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
-      --quote string                             the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs
+      --quote string                             the ONE sentence the defect lives at — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. The tool anchors the gap at its end, and the board shows that sentence with its section
       --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                          comma-separated ancestor ids this gap replaces; lineage is never dropped
@@ -198,7 +198,7 @@ Flags:
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
-      --quote string                             the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs
+      --quote string                             the ONE sentence the defect lives at — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. The tool anchors the gap at its end, and the board shows that sentence with its section
       --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                          comma-separated ancestor ids this gap replaces; lineage is never dropped
@@ -272,7 +272,7 @@ Flags:
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
-      --quote string                             the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs
+      --quote string                             the ONE sentence the defect lives at — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. The tool anchors the gap at its end, and the board shows that sentence with its section
       --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                          comma-separated ancestor ids this gap replaces; lineage is never dropped
@@ -346,7 +346,7 @@ Flags:
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
-      --quote string                             the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs
+      --quote string                             the ONE sentence the defect lives at — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. The tool anchors the gap at its end, and the board shows that sentence with its section
       --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                          comma-separated ancestor ids this gap replaces; lineage is never dropped
@@ -420,7 +420,7 @@ Flags:
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
-      --quote string                             the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs
+      --quote string                             the ONE sentence the defect lives at — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. The tool anchors the gap at its end, and the board shows that sentence with its section
       --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                          comma-separated ancestor ids this gap replaces; lineage is never dropped
@@ -494,7 +494,7 @@ Flags:
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
-      --quote string                             the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs
+      --quote string                             the ONE sentence the defect lives at — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. The tool anchors the gap at its end, and the board shows that sentence with its section
       --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                          comma-separated ancestor ids this gap replaces; lineage is never dropped
@@ -1786,13 +1786,33 @@ Flags:
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
   -v, --version          version for feov-record
 
+── a mint quoting a sentence that repeats
+exit 2
+feov-record: lens: lens mint: the quote occurs more than once in the report, and an anchor needs one place: quote the sentence with the text before it in its paragraph, so the quote occurs once — a quote may not cross a blank line. A sentence that stands alone as its paragraph and repeats verbatim elsewhere cannot be anchored; name its section with --about-kind section
+
+── a mint quoting across a blank line
+exit 2
+feov-record: lens: lens mint: the quote's one match in the report runs across a blank line, and an anchor sits in one passage: quote text inside one paragraph
+
+For a gap about something that is NOT in the report, do not borrow a nearby sentence: name it with --about-kind/--about, the same pair `finding` takes
+
+── a mint quoting inside a word
+exit 2
+feov-record: lens: lens mint: your span starts or ends inside a word — quote whole words. Editing letters rather than language produces one-byte ops that carry no meaning on the record
+
+For a gap about something that is NOT in the report, do not borrow a nearby sentence: name it with --about-kind/--about, the same pair `finding` takes
+
+── a finding quoting a sentence that repeats
+exit 2
+feov-record: lens: lens finding: the quote occurs more than once in the report, and an anchor needs one place: quote the sentence with the text before it in its paragraph, so the quote occurs once — a quote may not cross a blank line. A sentence that stands alone as its paragraph and repeats verbatim elsewhere cannot be anchored
+
 ── an edit leaving out an anchor whose sentence it rewrites
 exit 2
-feov-record: blue: blue edit: your old span carries finding-marker FINDING001 on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--fx:FINDING001--> where that claim now stands in the replacement — its nearest sentence there reads "Prices soared". To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor
+feov-record: blue: blue edit: your old span carries finding anchor FINDING001 (the tool places it and every edit carries it; its claim leaves by `edit` down to the bare anchor, then `retire`, which takes the anchor out with it — never by a raw edit) on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--fx:FINDING001--> where that claim now stands in the replacement — its nearest sentence there reads "Prices soared". To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor
 
 ── an edit leaving out an anchor whose sentence it repeats
 exit 2
-feov-record: blue: blue edit: your old span carries finding-marker FINDING001 on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--fx:FINDING001--> where that claim now stands in the replacement — its nearest sentence there reads "Prices climbed.". To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor
+feov-record: blue: blue edit: your old span carries finding anchor FINDING001 (the tool places it and every edit carries it; its claim leaves by `edit` down to the bare anchor, then `retire`, which takes the anchor out with it — never by a raw edit) on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--fx:FINDING001--> where that claim now stands in the replacement — its nearest sentence there reads "Prices climbed.". To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor
 
 ── correction target: the lens regrades G1
 exit 0
@@ -1809,7 +1829,7 @@ feov-record: lens: --correction-why says what was wrong with the act --corrects 
 
 ── correction that changes nothing
 exit 2
-feov-record: lens: record: this correction changes nothing — the replacement equals event 24; correct it with the text you meant
+feov-record: lens: record: this correction changes nothing — the replacement equals event 28; correct it with the text you meant
 
 ── correction of another seat's act
 exit 2
@@ -1931,7 +1951,7 @@ TWO CONSEQUENCES:
 
 ── correction after another seat has acted
 exit 2
-feov-record: lens: record: another seat has acted since this regrade (event 31, a register by red-chair); what you would correct is now on the record they read — say it in a new act
+feov-record: lens: record: another seat has acted since this regrade (event 35, a register by red-chair); what you would correct is now on the record they read — say it in a new act
 
 ── frozen field target: the lens closes G1
 exit 0
@@ -1940,7 +1960,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 
 ── a PROSE correction moving a frozen field
 exit 2
-feov-record: lens: record: a close correction may change only the seat's own wording (--reason); this one changes --verified-with, which must stay as event 33 recorded it. What the act decided is not restated by a correction — say it in a new act
+feov-record: lens: record: a close correction may change only the seat's own wording (--reason); this one changes --verified-with, which must stay as event 37 recorded it. What the act decided is not restated by a correction — say it in a new act
 
 ── earlier sitting target: the lens sits again
 exit 0

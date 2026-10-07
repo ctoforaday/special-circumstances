@@ -174,7 +174,7 @@ func newCite() *cobra.Command {
 			case errors.Is(aerr, anchortext.ErrInFence):
 				return nil, fmt.Errorf("blue cite: the quote resolves inside a code fence — cite a prose sentence, not code")
 			}
-			return nil, aerr
+			return nil, anchortext.Refusal("blue cite", aerr)
 		}
 
 		// The anchor is recorded as the cite event. access_date is engine-supplied
@@ -304,5 +304,5 @@ func (r citeResult) Human() string {
 	if r.Idempotent {
 		return "cite " + r.Label + " (idempotent retry — existing anchor returned)" + note
 	}
-	return "citation recorded: " + r.Label + " — an invisible immortal anchor at the quote, woven into the bibliography at assembly (" + r.URL + ")" + note
+	return "citation recorded: " + r.Label + " — an invisible anchor at the quote, woven into the bibliography at assembly (" + r.URL + ")" + note
 }

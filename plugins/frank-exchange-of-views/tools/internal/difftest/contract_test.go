@@ -87,7 +87,7 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 	// so the report must contain that quote or the finding is rejected as a mis-quote.
 	seed(t, runDir, map[string]string{
 		"records/class-registry.json": registry,
-		"blue/report.md":              "# H\n\nA claim lives somewhere in this report.\n\nPrices climbed<!--fx:f-0000beef-->.\n",
+		"blue/report.md":              "# H\n\nA claim lives somewhere in this report.\n\nPrices climbed<!--fx:f-0000beef-->.\n\nCosts rose.\n\nCosts rose.\n\nPlain one.\n\nPlain two.\n",
 	})
 
 	// One valid gap first, so close/regrade refusals are about the refusal under
@@ -174,6 +174,14 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		// There are no role words left to be unknown; the nearest thing is a well-formed seat id no
 		// role owns. `nonsuch mint` pinned the same refusal as the row above.
 		{"unknown seat", []string{"mint", "--seat-id", "purple-team", "--class", "scope-creep"}},
+
+		// AN ANCHOR NEEDS ONE PLACE: every placing verb refuses a quote that repeats, crosses a blank
+		// line or splits a word, in the same words.
+		{"a mint quoting a sentence that repeats", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p", "--quote", "Costs rose."}},
+		{"a mint quoting across a blank line", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p", "--quote", "Plain one. Plain two."}},
+		{"a mint quoting inside a word", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p", "--quote", "rices climbed"}},
+		{"a finding quoting a sentence that repeats", []string{"finding", "--key", "F9", "--severity", "low", "--likelihood", "low", "--impact", "low",
+			"--quote", "Costs rose.", "--reason", "r"}},
 
 		// An anchor an edit leaves out goes back only onto its sentence kept word for word, once;
 		// otherwise the refusal names that sentence and the replacement's nearest one.

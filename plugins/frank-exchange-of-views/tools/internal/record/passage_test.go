@@ -30,7 +30,7 @@ Nothing here belongs to the sections above.
 // the quoted sentence has to render the report to learn whether the dispute survives its
 // surroundings, which is the 34%-of-all-bytes-read this change removes.
 func TestAPassageIsTheWholeSectionAroundTheQuote(t *testing.T) {
-	p := PassageAround(passageDoc, "91 divided by 7 is 13")
+	p := PassageAround(passageDoc, strings.Index(passageDoc, "91 divided by 7 is 13"))
 	if !strings.HasPrefix(p, "## Trial division") {
 		t.Errorf("the passage does not start at its heading, so the auditor cannot see which section it is:\n%s", p)
 	}
@@ -46,21 +46,6 @@ func TestAPassageIsTheWholeSectionAroundTheQuote(t *testing.T) {
 	}
 }
 
-// A QUOTE THE REPORT DOES NOT HOLD YIELDS NOTHING, never a neighbourhood guessed at. A gap can be
-// anchored to something that is not report text, its quote can have been edited away, and a run can
-// have no ingested report at all — in each case the auditor reads the report as it does today.
-func TestAnUnfindableQuoteHasNoPassage(t *testing.T) {
-	for _, c := range []struct{ name, report, quote string }{
-		{"quote not present", passageDoc, "a sentence nobody wrote"},
-		{"empty quote", passageDoc, "   "},
-		{"no report yet", "", "91 divided by 7"},
-	} {
-		if got := PassageAround(c.report, c.quote); got != "" {
-			t.Errorf("%s: want no passage, got %q", c.name, got)
-		}
-	}
-}
-
 // A QUOTE UNDER THE DOCUMENT'S OWN TITLE IS GOVERNED BY IT, and its section is everything the
 // title governs. That is correct and it is also the degenerate case: a level-1 heading runs to the
 // next level-1 heading, so a claim written directly under the report's title has the whole document
@@ -70,7 +55,7 @@ func TestAnUnfindableQuoteHasNoPassage(t *testing.T) {
 // sections a claim actually sits in is level 2 — and the honest behaviour when it does happen is a
 // passage that says it was shortened, not a smaller passage that pretends to be whole.
 func TestAQuoteUnderTheTitleIsGovernedByTheTitle(t *testing.T) {
-	p := PassageAround(passageDoc, "Some preamble")
+	p := PassageAround(passageDoc, strings.Index(passageDoc, "Some preamble"))
 	if !strings.Contains(p, "Some preamble") {
 		t.Fatalf("the preamble quote found no passage:\n%s", p)
 	}
@@ -86,7 +71,7 @@ func TestAQuoteUnderTheTitleIsGovernedByTheTitle(t *testing.T) {
 // TEXT BEFORE ANY HEADING AT ALL still gets a passage rather than nothing.
 func TestAQuoteBeforeAnyHeadingStillGetsAPassage(t *testing.T) {
 	doc := "A claim with no heading above it at all.\n\n## Later\n\nElsewhere.\n"
-	p := PassageAround(doc, "A claim with no heading")
+	p := PassageAround(doc, strings.Index(doc, "A claim with no heading"))
 	if !strings.Contains(p, "A claim with no heading") {
 		t.Fatalf("a quote before any heading found no passage:\n%s", p)
 	}
@@ -101,7 +86,7 @@ func TestAQuoteBeforeAnyHeadingStillGetsAPassage(t *testing.T) {
 func TestAnOversizedSectionIsMarkedAsShownInPart(t *testing.T) {
 	big := "## Huge\n\n" + strings.Repeat("filler sentence that goes on. ", 400) + "THE QUOTED BIT. " +
 		strings.Repeat("more filler after it. ", 400)
-	p := PassageAround(big, "THE QUOTED BIT.")
+	p := PassageAround(big, strings.Index(big, "THE QUOTED BIT."))
 	if len(p) > passageLimit+400 {
 		t.Errorf("the bound did not hold: passage is %d characters", len(p))
 	}
@@ -120,7 +105,7 @@ func TestAnOversizedSectionIsMarkedAsShownInPart(t *testing.T) {
 // treating either as a section boundary would cut a passage in half at a word.
 func TestAHashInProseIsNotASectionBoundary(t *testing.T) {
 	doc := "## Real heading\n\nSee #1091 for the argument. The claim stands.\n\n## Next\n\nElsewhere.\n"
-	p := PassageAround(doc, "The claim stands.")
+	p := PassageAround(doc, strings.Index(doc, "The claim stands."))
 	if !strings.Contains(p, "See #1091") {
 		t.Errorf("a '#' in prose was read as a heading and truncated the passage:\n%s", p)
 	}

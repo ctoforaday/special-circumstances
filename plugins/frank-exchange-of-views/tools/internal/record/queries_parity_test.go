@@ -142,10 +142,12 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	}
 
 	// Estoppel: the byte-exact pair, the proof join, the edit's old span.
-	if ok, err := ProposalAppliedVerbatim(run, "G1", "the sky is teal at noon", "the sky is blue at noon"); !ok || err != nil {
+	// Over a render the location stands in unanchored, the pair is the recorded one.
+	const render = "# R\n\nAt dawn the sky is teal at noon, or so it reads.\n"
+	if ok, err := ProposalAppliedVerbatim(run, "G1", render, "the sky is teal at noon", "the sky is blue at noon"); !ok || err != nil {
 		t.Errorf("ProposalAppliedVerbatim on the exact pair = (%v, %v)", ok, err)
 	}
-	if ok, _ := ProposalAppliedVerbatim(run, "G1", "the sky is teal at noon ", "the sky is blue at noon"); ok {
+	if ok, _ := ProposalAppliedVerbatim(run, "G1", render, "the sky is teal at noon ", "the sky is blue at noon"); ok {
 		t.Error("ProposalAppliedVerbatim matched a near-application — exactness is the whole point")
 	}
 	if !ProofAnswers(run, "G3") || ProofAnswers(run, "G1") || ProofAnswers(run, "") {

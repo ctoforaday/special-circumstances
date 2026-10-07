@@ -36,15 +36,6 @@ func mustLocateInsert(t *testing.T, report, quote, marker string) (string, int) 
 	return string(insertMarker([]byte(report), end, marker)), end
 }
 
-func TestExtractQuotePrefersQuotedSpan(t *testing.T) {
-	if got := extractQuote(`§ Foundations: "the scheduler is preemptive"`); got != "the scheduler is preemptive" {
-		t.Errorf("extractQuote = %q, want the quoted span", got)
-	}
-	if got := extractQuote("  a bare location  "); got != "a bare location" {
-		t.Errorf("extractQuote bare = %q", got)
-	}
-}
-
 func TestLocateSpanReturnsRawSpan(t *testing.T) {
 	// A marker sits AFTER "time" (trailing), a footnote after "grows".
 	report := "The cost is rising over time<!--fx:f-1--> now. Volume grows[^v] fast."

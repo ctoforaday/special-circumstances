@@ -76,7 +76,7 @@ Flags:
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
-      --quote string                             the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs
+      --quote string                             the ONE sentence the defect lives at — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. The tool anchors the gap at its end, and the board shows that sentence with its section
       --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                          comma-separated ancestor ids this gap replaces; lineage is never dropped
@@ -151,7 +151,7 @@ Flags:
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
-      --quote string                             the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs
+      --quote string                             the ONE sentence the defect lives at — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. The tool anchors the gap at its end, and the board shows that sentence with its section
       --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                          comma-separated ancestor ids this gap replaces; lineage is never dropped
@@ -226,7 +226,7 @@ Flags:
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
-      --quote string                             the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs
+      --quote string                             the ONE sentence the defect lives at — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. The tool anchors the gap at its end, and the board shows that sentence with its section
       --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list                          comma-separated ancestor ids this gap replaces; lineage is never dropped

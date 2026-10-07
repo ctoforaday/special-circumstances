@@ -1,12 +1,14 @@
 package cli
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -32,7 +34,7 @@ const retireBase = "# Findings\n\nThe sky is blue. The grass is green.\n\n- Wate
 func citeSentence(t *testing.T, runDir, sentence, url string) string {
 	t.Helper()
 	if _, err := run(t, "cite", "--run", runDir, "--seat-id", blueSeat,
-		"--quote", `# Findings: "`+sentence+`"`, "--url", url, "--title", "Source "+url); err != nil {
+		"--quote", sentence, "--url", url, "--title", "Source "+url); err != nil {
 		t.Fatalf("cite %q: %v", sentence, err)
 	}
 	re := regexp.MustCompile(regexp.QuoteMeta(strings.TrimRight(sentence, ".")) + `<!--cite:(c-[0-9a-f]+)-->`)
@@ -113,82 +115,98 @@ func TestRetireTakesABareCiteAnchorOutOfTheReport(t *testing.T) {
 	}
 }
 
-// A FINDING MARKER IS RED'S: blue's retire takes it out only once red's lifecycle has closed on
-// it. While no gap credits the finding, or a crediting gap is open, the marker stays bare and the
-// retire says why; after the gap closes, the retire takes it and its emptied bullet, and reading
-// the report at that anchor names the retire rather than calling the id stale.
-func TestRetireTakesARedMarkerOnlyOnceItsGapIsClosed(t *testing.T) {
-	runDir := citedRun(t)
-	registerChairOnce(t, runDir)
-	registerLensOnce(t, runDir)
-	if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat,
-		"--key", "F1", "--quote", "Water is wet.", "--reason", "overclaim",
-		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-		t.Fatalf("finding: %v", err)
+// ONE LIFECYCLE: an anchor of every kind, cut to bare and named to the retire, leaves with its
+// claim — a finding's while a gap crediting it is open, a gap's while the gap itself is open. The
+// retire names it, reading the report at it names the retire, and the gap reads gone. A hold on
+// any kind fails its row.
+func TestRetireTakesABareMarkerOfEveryKind(t *testing.T) {
+	const sentence = "Water is wet."
+	for _, kind := range anchor.Kinds() {
+		t.Run(kind, func(t *testing.T) {
+			runDir := citedRun(t, "https://water/1")
+			registerChairOnce(t, runDir)
+			registerLensOnce(t, runDir)
+			mint := func(args ...string) string {
+				t.Helper()
+				out, err := run(t, append([]string{"mint", "--run", runDir, "--seat-id", lensSeat,
+					"--class", "overclaim", "--problem", "the defect", "--fix", "the fix",
+					"--check-kind", "document", "--check", "the acceptance check", "--severity", "medium",
+					"--likelihood", "medium", "--impact", "medium", "--complexity", "low"}, args...)...)
+				if err != nil {
+					t.Fatalf("mint: %v", err)
+				}
+				return gapID(out)
+			}
+			var id, gap string
+			switch kind {
+			case "finding":
+				if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F1", "--quote", sentence,
+					"--reason", "overclaim", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
+					t.Fatalf("finding: %v", err)
+				}
+				f := lastBody(t, runDir, &recordpb.Finding{})
+				id = f.GetFindingId()
+				gap = mint("--key", "credits", "--found-by", f.GetLabel())
+			case "citation":
+				id = citeSentence(t, runDir, sentence, "https://water/1")
+			case "proof":
+				s := script(t, runDir, "wet.js", "console.log('wet');")
+				if _, err := run(t, "prove", "--run", runDir, "--seat-id", blueSeat, "--quote", sentence,
+					"--script", s, "--reason", "the computation settles it"); err != nil {
+					t.Fatalf("prove: %v", err)
+				}
+				id = lastBody(t, runDir, &recordpb.Proof{}).GetProofId()
+			case "gap":
+				id = mint("--key", "itself", "--quote", sentence)
+				gap = id
+			default:
+				t.Fatalf("no row drives the %s kind — a kind added to the table needs one here", kind)
+			}
+			tok := anchor.Token(id)
+			if !strings.Contains(readReport(t, runDir), "Water is wet"+tok) {
+				t.Fatalf("no %s anchor on the bullet:\n%s", kind, readReport(t, runDir))
+			}
+			gutToAnchor(t, runDir, sentence, tok)
+			out, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat,
+				"--quote", sentence, "--reason", "refuted", "--anchor", id)
+			if err != nil {
+				t.Fatalf("retire --anchor %s: %v", id, err)
+			}
+			if ev := lastBody(t, runDir, &recordpb.Retire{}); !slices.Equal(ev.GetAnchors(), []string{id}) || !strings.Contains(out, id) {
+				t.Errorf("the retire named %v and said %q, want %s out with its claim", ev.GetAnchors(), out, id)
+			}
+			if rep := readReport(t, runDir); strings.Contains(rep, tok) || !strings.Contains(rep, "- Fire is hot.\n") {
+				t.Errorf("the bare %s anchor survived the retire, or its neighbour moved:\n%s", kind, rep)
+			}
+			_, err = run(t, "show", "report", "--seat-id", "blue-respond", "--run", runDir, "--anchor", id)
+			if err == nil || !strings.Contains(err.Error(), "RETIRED") {
+				t.Errorf("reading at the retired %s anchor must name the retire: %v", kind, err)
+			}
+			if gap != "" {
+				b := boardOf(t, runDir)
+				if len(b.Open) == 0 || b.Open[len(b.Open)-1].ID != gap {
+					t.Fatalf("gap %s is not open on the board: %+v", gap, b.Open)
+				}
+				if kind == "gap" && b.Open[len(b.Open)-1].LocationState != record.LocationGone {
+					t.Errorf("the gap whose anchor retired reads %q, want gone", b.Open[len(b.Open)-1].LocationState)
+				}
+			}
+		})
 	}
-	f := lastBody(t, runDir, &recordpb.Finding{})
-	id, label := f.GetFindingId(), f.GetLabel()
-	tok := "<!--fx:" + id + "-->"
-	if !strings.Contains(readReport(t, runDir), "Water is wet"+tok) {
-		t.Fatalf("no finding marker on the bullet:\n%s", readReport(t, runDir))
-	}
-	gutToAnchor(t, runDir, "Water is wet.", tok)
+}
 
-	retireHeld := func(stage, why string) {
-		t.Helper()
-		out, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", "Water is wet.", "--reason", "refuted")
-		if err != nil {
-			t.Fatalf("%s: retire: %v", stage, err)
-		}
-		if ev := lastBody(t, runDir, &recordpb.Retire{}); len(ev.GetAnchors()) != 0 {
-			t.Errorf("%s: blue's retire took red's marker out: named %v", stage, ev.GetAnchors())
-		}
-		if !strings.Contains(readReport(t, runDir), tok) {
-			t.Errorf("%s: the finding marker left the report", stage)
-		}
-		if !strings.Contains(out, id) || !strings.Contains(out, why) {
-			t.Errorf("%s: the retire does not say it kept %s and why (%q):\n%s", stage, id, why, out)
-		}
-	}
-	retireHeld("no gap credits the finding", "no gap credits")
-
-	out, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
-		"--key", "water", "--class", "overclaim", "--problem", "the defect", "--fix", "the fix",
-		"--check-kind", "document", "--check", "the acceptance check", "--severity", "medium",
-		"--likelihood", "medium", "--impact", "medium", "--complexity", "low", "--found-by", label)
+// boardOf is the board a seat reads, parsed.
+func boardOf(t *testing.T, runDir string) record.BoardJSON {
+	t.Helper()
+	out, err := run(t, "show", "board", "--run", runDir, "--seat-id", blueSeat)
 	if err != nil {
-		t.Fatalf("mint crediting %s: %v", label, err)
+		t.Fatalf("show board: %v", err)
 	}
-	gap := gapID(out)
-	retireHeld("an open gap credits the finding", "gap "+gap+" is open")
-
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
-		"--id", gap, "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test",
-		"--verified-against", "./internal/x", "--reason", "the check passes"); err != nil {
-		t.Fatalf("close: %v", err)
+	var b record.BoardJSON
+	if err := json.Unmarshal([]byte(out), &b); err != nil {
+		t.Fatal(err)
 	}
-	ev := retireClaim(t, runDir, "Water is wet.")
-	if !slices.Equal(ev.GetAnchors(), []string{id}) {
-		t.Fatalf("with its gap closed, retire named %v, want [%s]", ev.GetAnchors(), id)
-	}
-	rep := readReport(t, runDir)
-	if strings.Contains(rep, tok) {
-		t.Errorf("the bare finding marker survived the retire:\n%s", rep)
-	}
-	if regexp.MustCompile(`(?m)^\s*-\s*[.?!]*\s*$`).MatchString(rep) {
-		t.Errorf("the retire left an empty bullet:\n%s", rep)
-	}
-	if !strings.Contains(rep, "- Fire is hot.\n") {
-		t.Errorf("the neighbouring bullet was disturbed:\n%s", rep)
-	}
-
-	_, err = run(t, "show", "report", "--seat-id", "blue-respond", "--run", runDir, "--anchor", id)
-	if err == nil {
-		t.Fatal("a window was read around an anchor that left the report")
-	}
-	if msg := err.Error(); !strings.Contains(msg, "RETIRED") || !regexp.MustCompile(`at event \d+`).MatchString(msg) || strings.Contains(msg, "stale reference or belongs") {
-		t.Errorf("reading at a retired anchor must name the retire event, not call it stale:\n%s", msg)
-	}
+	return b
 }
 
 // WITHOUT AN EDIT DOWN TO THE ANCHOR, RETIRE IS EXACTLY WHAT IT WAS: it names nothing, and an
@@ -386,7 +404,7 @@ func TestACitedEmphasizedSentenceStaysACountedClaim(t *testing.T) {
 	registerBlue(t, runDir)
 	withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://w/1": []byte("w")}})
 	if _, err := run(t, "cite", "--run", runDir, "--seat-id", blueSeat,
-		"--quote", `# Findings: "**Water is wet.**"`, "--url", "https://w/1", "--title", "Source w"); err != nil {
+		"--quote", "**Water is wet.**", "--url", "https://w/1", "--title", "Source w"); err != nil {
 		t.Fatalf("cite: %v", err)
 	}
 	rep := readReport(t, runDir)

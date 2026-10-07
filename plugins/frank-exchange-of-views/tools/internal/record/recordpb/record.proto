@@ -237,7 +237,7 @@ message Sql {
 enum EventType {
   EVENT_TYPE_UNSPECIFIED = 0;
   EVENT_TYPE_REGISTER = 1 [(correct) = CORRECTION_TIER_NONE, (means) = "a seat took its seat — the first act of any seat, stamping the tool version it ran under"];
-  EVENT_TYPE_ANCHOR = 2 [(correct) = CORRECTION_TIER_NONE, (means) = "evidence tied to a finding: where in the artifact the claim actually lives"];
+  EVENT_TYPE_ANCHOR = 2 [(correct) = CORRECTION_TIER_NONE, (means) = "a marker placed in the report"];
   EVENT_TYPE_AVENUE = 3 [(correct) = CORRECTION_TIER_PROSE, (means) = "an avenue, from proposed through pursued, declined, deferred or abandoned"];
   EVENT_TYPE_BLUE_EDIT = 4 [(correct) = CORRECTION_TIER_NONE, (means) = "a change to the report, recorded as old and new so the edit itself is auditable"];
   EVENT_TYPE_CERTIFY = 5 [(correct) = CORRECTION_TIER_PROSE, (means) = "a seat's signed statement about its own work — what it asserts on the record"];
@@ -993,8 +993,8 @@ message Observe {
   optional string observation = 3;
 }
 
-// Anchor records that a finding's marker sits at a location in the report. Keyed on the
-// finding_id, so re-anchoring the same finding writes one event rather than a second marker.
+// Anchor is a marker placed in the report: the marker of the act `id` names, at the end of its
+// quote `location`. Keyed on `id`, so a retry writes one event rather than a second marker.
 message Anchor {
   optional string id = 1;
   optional string location = 2;
@@ -1411,11 +1411,10 @@ message Retire {
   // anchor layer, modulo surrounding whitespace, emphasis and trailing punctuation — a fragment
   // names nothing) and that edit's new text was anchors alone, and only with anchors that are
   // present AND bare in the report at the write — so an anchor carried on into surviving prose can
-  // never be named. A finding marker is red's: it is named only once every gap crediting its
-  // finding is closed (and at least one does); until then it stays, and the verb says why. Each
-  // named c- anchor is one unit of claim_count's fall, which is what the scorecard credits. Replay
-  // removes each named anchor at this event's position (the report_op view's `remove` rows). A
-  // record written before this field carries none, and replays exactly as it did.
+  // never be named. An anchor of every kind leaves alike. Each named c- anchor is one unit of
+  // claim_count's fall, which is what the scorecard credits. Replay removes each named anchor at
+  // this event's position (the report_op view's `remove` rows). A record written before this field
+  // carries none, and replays exactly as it did.
   repeated string anchors = 5;
 }
 
