@@ -620,7 +620,18 @@ The `error_catalogue` golden moves.
 **Value.** About −170 production lines (−267 replay, −85 retire hold, +20 location state, +120
 placement step, +10 `Attach` and its texts, +10 mint placement, +12 proposal run and the compare
 reading it, +5 retries) and ≈ −245 test lines. S5, S7, S12, S13. Depends on Parts 1, 2 and 3.
-Ids stay `G<n>` until Part 6.
+Ids stay `G<n>` until Part 6. **Measured +82** (+736 −654), against the estimate's −170: the replay
+and the hold went as priced (`gapedit.go` −200, the hold −84, `extractQuote` −20), and three pieces
+cost more than priced — the migration step +281 (`gapplace.go` 263: shapes (a), (b), the three carry
+arms, the reopened union, the quote rewrite and the manifest census that names never-placed and
+fallback gaps), the location states +60 in `viewjson.go` (the three constants and their teaching, the
+reopening edits off the change view, the report view), and the shared placement refusals and
+stored-location retries in `lens` +40. Tests +1331 −525. Over the 16 archived runs: 0 refusals, every
+skeleton digest unchanged, 0 gaps never placed, 13 placed by the fallback, 15 abutting rewrites, 0
+quote rewrites; over the 28 runs (S7), 1 quote rewrite (universe-m8), 3 never placed (m8 G9, m9 G7,
+m13 G4), widening 0, blind spot 0, and 12 of 82 finding pairs drifted — 10 fallback placements and
+universe2 G15/G16 beside f-36e5440b, Part 3's moved-marker residue. After Parts 1–4 the running S6
+total is +233, so the ≥ 320 target needs about −553 from Parts 5–6.
 
 **Placement.**
 - [MODIFY] kinds table: the `gap` row (`G<n>`, `<!--gap:ID-->`, "gap anchor", strip, no claim, does
