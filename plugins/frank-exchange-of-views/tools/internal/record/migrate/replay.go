@@ -213,11 +213,12 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 			}
 			res.Out[wordOf(ev)]++
 			if anchorAfter != nil {
+				// The act landed whether or not its Anchor does, so what follows still pairs with it.
 				if _, err := record.Append(record.Identity{Run: dst, SeatID: seatID}, anchorAfter); err != nil {
 					res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
-					continue
+				} else {
+					res.Out[recordpb.Word(recordpb.EventType_EVENT_TYPE_ANCHOR)]++
 				}
-				res.Out[recordpb.Word(recordpb.EventType_EVENT_TYPE_ANCHOR)]++
 			}
 			if _, seen := newKey[old.Key]; old.Key != "" && !seen {
 				newKey[old.Key] = ev.GetKey()

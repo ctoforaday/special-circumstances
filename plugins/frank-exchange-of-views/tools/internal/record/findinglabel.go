@@ -81,7 +81,10 @@ func UnplacedLocation(run Run, id string) (string, error) {
 	}
 	_, err := queryRow(run, []any{&loc},
 		`SELECT "location" FROM (SELECT "finding_id" AS "id", "location" FROM "finding"
-		   UNION ALL SELECT "gap_id", "location" FROM "mint")
+		   UNION ALL SELECT "gap_id", "location" FROM "mint"
+		   UNION ALL SELECT "label", "location" FROM "cite"
+		   UNION ALL SELECT "proof_id", "location" FROM "proof"
+		   UNION ALL SELECT "label", "claim" FROM "verify")
 		  WHERE "id" = ?1 AND COALESCE("location", '') != ''
 		    AND NOT EXISTS (SELECT 1 FROM "anchor" WHERE "id" = ?1) LIMIT 1`, id)
 	return loc.String, err

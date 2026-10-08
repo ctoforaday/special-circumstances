@@ -253,13 +253,20 @@ func walk(events []*record.Event) *groundTruth {
 		case *recordpb.Proof:
 			if id := m.GetProofId(); id != "" {
 				gt.proofIDs[id] = true
+				if m.GetLocation() != "" {
+					gt.placedIDs[id] = true
+				}
 			}
 		case *recordpb.Cite:
-			_ = m
 			gt.citeEvents++
+			if id := m.GetLabel(); id != "" && m.GetLocation() != "" {
+				gt.placedIDs[id] = true
+			}
 		case *recordpb.Verify:
-			_ = m
 			gt.verifyEvents++
+			if id := m.GetLabel(); id != "" && m.GetClaim() != "" {
+				gt.placedIDs[id] = true
+			}
 		case *recordpb.Avenue:
 			if id := m.GetAvenueId(); id != "" {
 				gt.avenues[id] = recordpb.Word(m.GetStatus())

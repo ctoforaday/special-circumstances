@@ -14,17 +14,16 @@ import (
 // THE REPORT IS THE RECORD, NOT A FILE (#709).
 //
 // The current report is the frozen base with every text-mutating event replayed over it, in
-// record order. Five verbs mutate the report, and each replays through the SAME transform it
+// record order. Three events mutate the report, and each replays through the SAME transform it
 // applied at write time, located by the SAME rule:
 //
-//   - blue edit       → a splice (old→new), located by bluedoc.LocateUniqueReplacing, or by
-//                       bluedoc.LocateLiteral when the event recorded exact_span (spliceMut).
-//   - blue cite       → a citation marker spliced at the quoted sentence (insertMut).
-//   - blue prove      → a proof marker, likewise.
-//   - lens finding    → a finding marker, recorded as an Anchor event (its Finding sibling is
-//                       metadata and inserts nothing — replaying it too would double the marker).
-//   - lens corroborate→ a citation marker at the corroborated claim, on the Verify event (only
-//                       when it backs the claim and so carries a c- Label; a plain verify does not).
+//   - a blue edit → a splice (old→new), located by bluedoc.LocateUniqueReplacing, or by
+//                   bluedoc.LocateLiteral when the event recorded exact_span (spliceMut).
+//   - an Anchor   → the marker of the act it names, spliced at the end of its quote (insertMut).
+//                   Every placing verb — cite, prove, finding, mint, and a corroboration that
+//                   backs its claim — appends one after its own event, which is metadata and
+//                   inserts nothing.
+//   - a retire    → each anchor it names, taken out with the husk it leaves (removeMut).
 //
 // Because replay reproduces the identical running text each verb saw, the locators resolve the
 // identical offsets, so the bytes match what the file used to hold. Once the base is ingested and

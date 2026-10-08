@@ -24,6 +24,9 @@ func TestACorrectedCiteRendersOnceWithItsNewTitle(t *testing.T) {
 	if n := len(citeAnchorRe.FindAllString(readReport(t, runDir), -1)); n != 1 {
 		t.Fatalf("a corrected cite placed %d markers, want 1:\n%s", n, readReport(t, runDir))
 	}
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_ANCHOR); n != 1 {
+		t.Fatalf("a cite and its correction appended %d anchors, want the original's one", n)
+	}
 	srcs, err := record.CitedSources(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
@@ -84,6 +87,9 @@ func TestACorrectedProofRendersOnceWithItsNewNote(t *testing.T) {
 
 	if n := strings.Count(readReport(t, runDir), "<!--proof:"); n != 1 {
 		t.Fatalf("a corrected proof placed %d markers, want 1:\n%s", n, readReport(t, runDir))
+	}
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_ANCHOR); n != 1 {
+		t.Fatalf("a proof and its correction appended %d anchors, want the original's one", n)
 	}
 	proofs, err := record.RecordedProofs(runtest.Open(t, runDir))
 	if err != nil {
