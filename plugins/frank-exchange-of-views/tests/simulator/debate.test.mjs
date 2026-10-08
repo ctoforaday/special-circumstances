@@ -896,7 +896,7 @@ const relayEnds = async (env) => {
 
 // m16 (2026-10-08): chair sitting 6 relayed a plan it had rebuilt by hand, with `occasions: []` on
 // both lenses and blue. The schema accepted the envelope; the plan check threw on it; the run ended
-// there, 42 minutes in. The envelope below is that sitting's, byte for byte off its transcript.
+// there, 42 minutes in. The envelope below is that sitting's plan, verdict and notes, off its transcript.
 test('m16: chair sitting 6\'s relay — an empty occasions list on each lens and blue — is accepted by the schema and dispatches its parties', async () => {
   const env = JSON.parse(readFileSync(new URL('./testdata/m16-chair6-relay.json', import.meta.url), 'utf8'))
   assert.deepEqual(env.plan.parties.map((p) => p.occasions), [[], [], []], 'the fixture is the relay that ended the run')
