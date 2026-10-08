@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -11,6 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
@@ -86,12 +88,16 @@ type GapJSON struct {
 	Impact         any `json:"impact"`
 	ComplexityCost any `json:"complexity_cost"`
 
-	Class    string `json:"class"`
+	Class string `json:"class"`
+	// LocationState is where a quote gap stands in the report: marked, gone or unrendered (see
+	// LocationStates). An about gap carries none.
+	LocationState string `json:"location_state,omitempty"`
+	// Location is the sentence holding the gap's anchor, anchors stripped, while it is `marked`, and
+	// the text as minted otherwise.
 	Location string `json:"location"`
-	// Passage is the report SECTION the location sits in — the challenged sentence in its context,
-	// which is what an auditor otherwise renders the whole report to get (#1091). Omitted when the
-	// quote cannot be located: a gap anchored to something that is not report text, a quote edited
-	// away, or a run with no ingested report. Absent means READ THE REPORT, never "no context".
+	// Passage is the report SECTION the gap's anchor sits in — the challenged sentence in its
+	// context, which is what an auditor otherwise renders the whole report to get (#1091). Present
+	// only while the gap is `marked`: absent means READ THE REPORT, never "no context".
 	//
 	// IT DOES NOT REPLACE THE REPORT. `show report` is unchanged and the constitution's full
 	// re-read stands; this removes the navigating, not the audit.
@@ -114,18 +120,7 @@ type GapJSON struct {
 	// sentence" and "not computed" are different answers and an absent key cannot tell them apart.
 	// TestNoProjectionListIsOmitEmpty holds every list on this projection to it.
 	Backing []GapBackingJSON `json:"backing"`
-	// MintedLocation is the sentence as it read WHEN THE GAP WAS MINTED, present only when the
-	// text has since changed. Location above is where that text is NOW — carried through the
-	// edits rather than frozen (#453) — and keeping both is what stops a relocation from being a
-	// silent substitution of blue's words for the ones red objected to.
-	MintedLocation string `json:"minted_location,omitempty"`
-	// LocationEdits is every edit that moved it, in order. A pointer that had been repaired and
-	// said nothing would leave red re-auditing a sentence it never saw with no way to tell
-	// whether the text drifted or was rewritten under the gap.
-	// Never omitted: an empty list is the answer "the sentence has not moved", and omitted it is
-	// indistinguishable from a projection that does not track movement.
-	LocationEdits []GapEdit `json:"location_edits"`
-	Problem       string    `json:"problem"`
+	Problem string           `json:"problem"`
 	// MintReason is red's ARGUMENT for the gap, distinct from what is wrong with the text.
 	// A bench adjudicating what a required_fix may demand asked for exactly this and could not
 	// find it; mint was accepting --reason and discarding it. See merge/mint.go.
@@ -346,29 +341,11 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		return out, nil
 	}
 
-	// WHERE EACH GAP'S SENTENCE WENT, read once for the whole board. A location is prose captured
-	// at mint; the edits that moved it are on the record, so it is replayed rather than shown
-	// stale. A read failure leaves the map empty and every location reads as minted, which is the
-	// honest degradation: no edit is INVENTED on a run whose edits could not be read.
-	gapEdits, geErr := gapEditsAt(q)
-	if geErr != nil {
-		gapEdits = map[string][]GapEdit{}
-	}
-
-	// THE REPORT, RENDERED ONCE FOR THE WHOLE BOARD, so each gap can arrive with its passage
-	// (#1091). Once per board and not once per gap: replaying the mutations is the expensive part,
-	// and doing it per gap would trade an auditor's re-reads for the tool's.
-	//
-	// A FAILURE HERE IS NOT AN ERROR. A run before its base is ingested has no report, and that is
-	// the ordinary early state rather than a fault; every gap simply carries no passage and the
-	// auditor reads the report exactly as it did before.
-	//
-	report := ""
-	if reportRenderer != nil {
-		if md, err := renderReportAt(q); err == nil {
-			report = md
-		}
-	}
+	// THE REPORT, RENDERED ONCE FOR THE WHOLE BOARD, so each gap's location is read where its anchor
+	// stands (#1091). Once per board and not once per gap: replaying the mutations is the expensive
+	// part. A report that does not render is not an error — every quote gap reads `unrendered`, and
+	// the anomaly below says why.
+	report, renderErr := renderProjection(ReportProjectionAt(q))
 
 	verified := backingOf(Live(evs))
 	// THE CLOSURE IS A FOLD (the acts that stand); THE REGRADE HISTORY IS A LISTING (every regrade,
@@ -408,7 +385,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		return out, fmt.Errorf("record: asking the record for its board: %w", err)
 	}
 	defer rows.Close()
-	credited := map[string]bool{}
+	credited, unrendered := map[string]bool{}, false
 	for rows.Next() {
 		var id string
 		var round int
@@ -424,19 +401,26 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 			FoundBy: strs(foundBy[mintedEvent]), Supersedes: strs(supersedes[mintedEvent]),
 			Regrades: []map[string]any{},
 			Severity: nullWord(sev), Likelihood: nullWord(lik), Impact: nullWord(imp), ComplexityCost: nullWord(cx),
-			Class: class.String, Location: currentLoc(loc.String, gapEdits[id]),
-			Passage:        PassageAround(report, currentLoc(loc.String, gapEdits[id])),
-			MintedLocation: mintedIfMoved(loc.String, gapEdits[id]), LocationEdits: orEmptyEdits(gapEdits[id]),
+			Class:     class.String,
 			AboutKind: aboutKind.String, AboutRef: aboutRef.String, Problem: problem.String,
 			MintReason: reason.String, RequiredFix: fix.String, AcceptanceGate: gate.String,
 			CheckKind: kind.String, AwaitingProof: awaiting,
-			FixBasis: basis.String, FixOld: loc.String, FixNew: fixNew.String,
+			FixBasis: basis.String, FixNew: fixNew.String,
 			Backing: []GapBackingJSON{},
+		}
+		g := WorkGapState{ID: id, Location: loc.String, AboutRef: aboutRef.String}
+		locateGap(report, renderErr, &g)
+		gj.LocationState, gj.Location, gj.Passage = g.LocationState, g.Location, g.Passage
+		// THE BOARD SERVES THE PAIR `--accept` SENDS: one function reads both over one render.
+		gj.FixOld, gj.FixNew = proposalOver(report, id, loc.String, fixNew.String)
+		if g.LocationState == LocationUnrendered && !unrendered {
+			unrendered = true
+			out.Anomalies = append(out.Anomalies, fmt.Sprintf("the report does not render (%v) — every quote gap reads `unrendered`, its location the text as minted", renderErr))
 		}
 		// THE BACKING THE FIELD DOCUMENTS, which the board declared and never filled: every board
 		// read carried `backing: null` while the help promised the anchors behind each open gap.
 		if open {
-			gj.Backing = gapBacking(WorkGapState{Location: gj.Location, AboutRef: gj.AboutRef}, verified)
+			gj.Backing = gapBacking(g, verified)
 		}
 		for _, l := range foundBy[mintedEvent] {
 			credited[l] = true
@@ -709,8 +693,10 @@ type WorkGapJSON struct {
 	Impact         any    `json:"impact"`
 	ComplexityCost any    `json:"complexity_cost"`
 	Class          string `json:"class"`
-	Location       string `json:"location"`
-	// Passage is the section Location sits in, so a seat scanning its work can judge the sentence
+	// LocationState and Location: see GapJSON.
+	LocationState string `json:"location_state,omitempty"`
+	Location      string `json:"location"`
+	// Passage is the section the gap's anchor sits in, so a seat scanning its work can judge the sentence
 	// in context without rendering the report (#1091). It is the one thing on this list that is NOT
 	// a synopsis, and deliberately: the leanness rule above exists because the BOARD grew
 	// monotonically with every closed gap's prose, and this rides the OPEN set only — which shrinks.
@@ -734,15 +720,17 @@ type WorkGapJSON struct {
 	// sentence" and "not computed" are different answers and an absent key cannot tell them apart.
 	// TestNoProjectionListIsOmitEmpty holds every list on this projection to it.
 	Backing []GapBackingJSON `json:"backing"`
-	// EditedSince is every edit that moved this gap's sentence SINCE THE READER'S LAST EPOCH —
-	// the change history red would otherwise have to reconstruct by diffing the report against a
-	// memory of it. A gap whose text blue rewrote is the commonest thing red re-audits.
+	// EditedSince is every edit that changed this gap's sentence SINCE THE READER'S LAST EPOCH: the
+	// edits whose recorded `reopened` names the gap — the sentence holding its anchor, read whole, so
+	// a fragment edit inside it is listed. A gap whose text blue rewrote is the commonest thing red
+	// re-audits.
 	//
-	// IT IS NEVER OMITTED, and that is the whole point of the field. An empty list is the answer
-	// "blue has not moved this gap", which is what a lens dispatched to verify a repair most needs
-	// and the commonest state it finds. Omitted, that answer is indistinguishable from a projection
-	// that does not carry edits at all, and a seat that cannot tell the two apart spends a call on
-	// the changes projection to find out — which is the call this field exists to save.
+	// IT IS NEVER OMITTED. An empty list on a `marked` gap is the answer "blue has not changed this
+	// sentence", the commonest state a lens dispatched to verify a repair finds. An edit that cuts
+	// the sentence down to the bare anchor is not listed, because there is no sentence left to
+	// re-read; the gap reads `gone`: the gap's anchor is not in the report — blue cut its sentence,
+	// or, in a migrated run, its quote never placed; that is not silence — judge the report as it
+	// stands. `changes` names the edit that cut it.
 	EditedSince []GapEdit `json:"edited_since"`
 	// ProblemSynopsis is the first synopsisLimit runes, kept because a chair scanning many open
 	// gaps reads it as a list. Problem is the WHOLE statement, because the originator re-auditing
@@ -823,10 +811,12 @@ type WorkGapJSON struct {
 // ruling is estopped and re-raising it is relitigation. A seat that cannot tell them apart cannot
 // obey either rule.
 type EstoppedJSON struct {
-	ID        string `json:"id"`
-	Location  string `json:"location"`
-	AboutKind string `json:"about_kind,omitempty"`
-	AboutRef  string `json:"about_ref,omitempty"`
+	ID string `json:"id"`
+	// LocationState and Location: see GapJSON.
+	LocationState string `json:"location_state,omitempty"`
+	Location      string `json:"location"`
+	AboutKind     string `json:"about_kind,omitempty"`
+	AboutRef      string `json:"about_ref,omitempty"`
 	// Backing is WHAT STANDS BEHIND THIS GAP'S SENTENCE — the citation and proof anchors in its
 	// location, and whether anyone has verified them.
 	//
@@ -880,13 +870,17 @@ type WorkGapState struct {
 	// RequiredFix, AcceptanceCheck and MintedBy come off the gap view's own columns. The work list
 	// withheld all three, and in universe-m10 a board read was how a seat went to fetch one.
 	RequiredFix, AcceptanceCheck, MintedBy string
-	// Passage is the report section Location sits in — see GapJSON.Passage. It rides the WORK list
-	// as well as the board because the work list is the read a seat does first: measured across the
-	// empty sittings of eight runs, `show work` was called 19 times against `show board`'s 11 and
-	// `show report`'s 13, so context that arrives anywhere else arrives after the seat has already
-	// paid to go looking.
-	Passage                            string
-	AboutKind, AboutRef                string
+	// Passage is the report section the gap's anchor sits in — see GapJSON.Passage. It rides the
+	// WORK list as well as the board because the work list is the read a seat does first: measured
+	// across the empty sittings of eight runs, `show work` was called 19 times against `show
+	// board`'s 11 and `show report`'s 13, so context that arrives anywhere else arrives after the
+	// seat has already paid to go looking.
+	Passage string
+	// LocationState is where a quote gap stands — see GapJSON.LocationState; sentence is the one
+	// holding its anchor as the report holds it, whose Backs anchors are its backing.
+	LocationState, sentence string
+	AboutKind, AboutRef     string
+	// Edits are the edits whose recorded `reopened` names the gap, in record order.
 	Edits                              []GapEdit
 	Open, AwaitingProof, ClosedByBench bool
 	// Remanded: OPEN, the bench has remanded it, and nothing is pending. Off the view, the same
@@ -927,7 +921,7 @@ type workReads struct {
 	evs                 []*Event
 	win                 WindowIndex
 	foundBy, supersedes map[int64][]string
-	gapEdits            map[string][]GapEdit
+	edits               map[string][]GapEdit
 	reportBase          string
 	haveBase            bool
 	reportOps           []ReportOp
@@ -957,11 +951,9 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 	if r.supersedes, err = listValuesByEvent(q, "mint_supersedes"); err != nil {
 		return r, err
 	}
-	gapEdits, geErr := gapEditsAt(q)
-	if geErr != nil {
-		gapEdits = map[string][]GapEdit{}
+	if r.edits, err = reopeningEditsAt(q); err != nil {
+		return r, err
 	}
-	r.gapEdits = gapEdits
 	r.reportBase, r.haveBase, r.reportOps, r.reportErr = ReportProjectionAt(q)
 	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_proof", "remanded", "docket_reopens_on",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
@@ -1015,20 +1007,13 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 	if len(unpairedDocket) > 0 {
 		return nil, fmt.Errorf("record: the work list cannot be computed: docket ruling(s) on motion(s) %s have no filing on this record, so which gap each settles is unknown — a seat told a gap is open when the bench has disposed of it is the failure this refuses to produce", strings.Join(unpairedDocket, ", "))
 	}
-	// The report, once for the whole work list — see BoardJSONOfRun for why once and why a failure
-	// here is the ordinary early state rather than a fault.
-	report := ""
-	if reportRenderer != nil && r.reportErr == nil {
-		if md, rerr := reportRenderer(r.reportBase, r.haveBase, r.reportOps); rerr == nil {
-			report = md
-		}
-	}
+	// The report, once for the whole work list — see boardJSONOfRecord for why once.
+	report, renderErr := renderProjection(r.reportBase, r.haveBase, r.reportOps, r.reportErr)
 	var out []WorkGapState
 	for _, row := range r.gaps {
 		g := row.WorkGapState
-		g.Edits = r.gapEdits[g.ID]
-		g.Location = CurrentLocation(g.Location, g.Edits)
-		g.Passage = PassageAround(report, g.Location)
+		g.Edits = r.edits[g.ID]
+		locateGap(report, renderErr, &g)
 		g.FoundBy, g.Supersedes = r.foundBy[row.mintedEvent], r.supersedes[row.mintedEvent]
 		if c := closures[g.ID]; c != nil && c.hasClosed {
 			g.ClosedByBench, g.Fate = c.closedByBench, c.reason()
@@ -1084,20 +1069,18 @@ func backingOf(evs []*Event) map[string]GapBackingJSON {
 	return out
 }
 
-// gapBacking is the anchors in a gap's own location and what is known about each.
+// gapBacking is the evidence anchors in the sentence holding a gap's anchor, or its about_ref, and
+// what is known about each. A gap's own anchor, another gap's and a finding's are not evidence
+// (anchor.Backs), so they are not listed.
 //
 // UNVERIFIED IS AN ENTRY, NOT AN ABSENCE. An anchor nobody checked is a claim standing on its
 // author's word — the thing the evidence lens exists to find — so it appears with an empty
 // outcome. Leaving it out would make "nobody looked" and "no anchor here" the same bytes.
 func gapBacking(g WorkGapState, verified map[string]GapBackingJSON) []GapBackingJSON {
 	out := []GapBackingJSON{}
-	ids := anchor.IDs(g.Location)
-	if g.AboutRef != "" && anchor.Backs(g.AboutRef) {
-		ids = append(ids, g.AboutRef)
-	}
 	seen := map[string]bool{}
-	for _, id := range ids {
-		if seen[id] {
+	for _, id := range append(anchor.IDs(g.sentence), g.AboutRef) {
+		if id == "" || seen[id] || !anchor.Backs(id) {
 			continue
 		}
 		seen[id] = true
@@ -1127,10 +1110,10 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 			out.Open = append(out.Open, WorkGapJSON{
 				ID:       g.ID,
 				Severity: g.Severity, Likelihood: g.Likelihood, Impact: g.Impact, ComplexityCost: g.Cx,
-				Class: g.Class, Location: g.Location, Passage: g.Passage,
+				Class: g.Class, LocationState: g.LocationState, Location: g.Location, Passage: g.Passage,
 				AboutKind: g.AboutKind, AboutRef: g.AboutRef,
 				Backing:         gapBacking(g, verified),
-				EditedSince:     editsSince(g.Edits, since),
+				EditedSince:     editedSince(g.Edits, since),
 				ProblemSynopsis: synopsis(g.Problem),
 				Problem:         g.Problem,
 				RequiredFix:     g.RequiredFix,
@@ -1152,7 +1135,7 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 		if !g.ClosedByBench {
 			continue
 		}
-		ci := EstoppedJSON{ID: g.ID, ClosedBy: "bench", Location: g.Location,
+		ci := EstoppedJSON{ID: g.ID, ClosedBy: "bench", LocationState: g.LocationState, Location: g.Location,
 			AboutKind: g.AboutKind, AboutRef: g.AboutRef, Class: g.Class, Fate: g.Fate}
 		if s, ok := ArtifactStateOf(ci.Fate); ok {
 			ci.ArtifactState = string(s)
@@ -1726,36 +1709,41 @@ var debateView = declareNarrowedView("debate", func(q recordsql.Querier, evs []*
 // DebateJSONBytes renders the structured debate as indented JSON.
 func DebateJSONBytes(run Run) ([]byte, error) { return debateView.jsonBytes(run) }
 
-// currentLoc is CurrentLocation with the board's argument order, so the literal stays readable at
-// the call site.
-func currentLoc(minted string, edits []GapEdit) string { return CurrentLocation(minted, edits) }
-
-// mintedIfMoved returns the minted text ONLY when it is no longer what the location says. Emitting
-// it always would put two identical strings on every gap and teach a reader to skip both.
-func mintedIfMoved(minted string, edits []GapEdit) string {
-	if cur := CurrentLocation(minted, edits); cur != minted {
-		return minted
-	}
-	return ""
+// GapEdit is one edit that changed a gap's sentence, in the order it happened.
+type GapEdit struct {
+	Epoch    int    `json:"epoch"`
+	EditedBy string `json:"edited_by"`
+	// Old and New are the exact span replaced and what replaced it — the pair the edit recorded,
+	// so a reader can see the change rather than be told one happened.
+	Old string `json:"old"`
+	New string `json:"new"`
 }
 
-// editsSince narrows a gap's change history to what the reader has not already seen.
-//
-// A seat sitting in epoch 3 is shown epoch 2 onward: the epochs it was not present for. Passing 0
-// shows everything, which is what a caller with no epoch context gets — handing back nothing there
-// would be the plausible zero this whole field exists to remove.
-// orEmptyEdits keeps a never-omitted list out of `null`: nothing moved is [], not unknown.
-func orEmptyEdits(e []GapEdit) []GapEdit {
-	if e == nil {
-		return []GapEdit{}
+// reopeningEditsAt is every standing edit, as the change view orders them, keyed by each anchor id
+// its recorded `reopened` names.
+func reopeningEditsAt(q recordsql.Querier) (map[string][]GapEdit, error) {
+	out := map[string][]GapEdit{}
+	rows, err := q.Query(`SELECT r."value", c."epoch", COALESCE(c."seat_id", ''), c."old", c."new"
+	  FROM "change" c JOIN "blue_edit_reopened" r ON r."event_id" = c."event_id" ORDER BY c."pos", c."event_id"`)
+	if err != nil {
+		return nil, fmt.Errorf("record: asking which edits changed a gap's sentence: %w", err)
 	}
-	return e
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var e GapEdit
+		if err := rows.Scan(&id, &e.Epoch, &e.EditedBy, &e.Old, &e.New); err != nil {
+			return nil, err
+		}
+		out[id] = append(out[id], e)
+	}
+	return out, rows.Err()
 }
 
-// editsSince returns an EMPTY list, never nil, when nothing moved. The field it fills is never
-// omitted, so a nil here would render as `null` — and a seat reading `null` is told the answer is
-// unknown when the answer is "none". Empty is the finding.
-func editsSince(edits []GapEdit, since int) []GapEdit {
+// editedSince narrows a gap's edits to what the reader has not already seen: a seat sitting in
+// epoch 3 is shown epoch 2 onward, the epochs it was not present for, and 0 shows everything. Never
+// nil: the field is never omitted, and `null` would read as unknown where the answer is none.
+func editedSince(edits []GapEdit, since int) []GapEdit {
 	out := []GapEdit{}
 	for _, e := range edits {
 		if e.Epoch >= since {
@@ -1763,4 +1751,49 @@ func editsSince(edits []GapEdit, since int) []GapEdit {
 		}
 	}
 	return out
+}
+
+// The three answers to where a quote gap's sentence stands (R-7). An about gap carries none.
+const (
+	LocationMarked     = "marked"
+	LocationGone       = "gone"
+	LocationUnrendered = "unrendered"
+)
+
+// GoneTeaching is what a `gone` gap asks of its reader, word for word wherever it is taught: it names
+// both causes and asserts neither.
+const GoneTeaching = "the gap's anchor is not in the report — blue cut its sentence, or, in a migrated run, its quote never placed; that is not silence — judge the report as it stands"
+
+// LocationStates names each location state and what it asks of a reader; the work and board help
+// pages render it.
+const LocationStates = "Each quote gap carries `location_state`: `" + LocationMarked + "` — `location` is the sentence holding the gap's anchor in the report as it stands, and `passage` its section; `" +
+	LocationGone + "` — " + GoneTeaching + ", and `location` is the text as minted; `" +
+	LocationUnrendered + "` — the report does not render, the board's `anomalies` say why, and `location` is the text as minted. A gap about something that is not report text carries none"
+
+// locateGap fills a quote gap's location state, location, passage and sentence from where its anchor
+// stands in report: `marked` at prose, `gone` bare (as the edit guard reads bare), retired or never
+// placed, `unrendered` when the report did not render (err). Location comes in as minted and stays so
+// unless marked.
+func locateGap(report string, err error, g *WorkGapState) {
+	if g.Location == "" {
+		return
+	}
+	if err != nil {
+		g.LocationState = LocationUnrendered
+		return
+	}
+	g.LocationState = LocationGone
+	tok := anchor.Token(g.ID)
+	at := strings.Index(report, tok)
+	if at < 0 || slices.Contains(claimcount.BareAnchorIDs(report), g.ID) {
+		return
+	}
+	for _, sp := range anchor.Sentences(report) {
+		if sp[0] <= at && at+len(tok) <= sp[1] {
+			g.LocationState, g.sentence = LocationMarked, report[sp[0]:sp[1]]
+			g.Location = strings.TrimSpace(claimcount.StripAnchors(g.sentence))
+			g.Passage = PassageAround(report, at)
+			return
+		}
+	}
 }

@@ -49,7 +49,7 @@ func TestBlueCiteAnchorsInvisiblyAndRecordsEvent(t *testing.T) {
 	withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://sky/1": body}})
 
 	out, err := run(t, "cite", "--run", runDir, "--seat-id", citeSeat,
-		"--quote", `# Findings: "The sky is blue and the grass is green."`,
+		"--quote", "The sky is blue and the grass is green.",
 		"--url", "https://sky/1", "--title", "Sky Facts")
 	if err != nil {
 		t.Fatalf("blue cite: %v (out %q)", err, out)
@@ -95,7 +95,7 @@ func TestBlueCiteMisQuoteRejectedNoEffect(t *testing.T) {
 	withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://x": []byte("src")}})
 
 	_, err := run(t, "cite", "--run", runDir, "--seat-id", citeSeat,
-		"--quote", `"the scheduler is cooperative"`, "--url", "https://x", "--title", "T")
+		"--quote", "the scheduler is cooperative", "--url", "https://x", "--title", "T")
 	if err == nil {
 		t.Fatal("a mis-quoted cite was accepted")
 	}
@@ -114,7 +114,7 @@ func TestBlueCiteInFenceRejected(t *testing.T) {
 	withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://x": []byte("src")}})
 
 	_, err := run(t, "cite", "--run", runDir, "--seat-id", citeSeat,
-		"--quote", `"code line here"`, "--url", "https://x", "--title", "T")
+		"--quote", "code line here", "--url", "https://x", "--title", "T")
 	if err == nil || !strings.Contains(err.Error(), "fence") {
 		t.Fatalf("citing inside a fence = %v, want a fence rejection", err)
 	}
@@ -127,7 +127,7 @@ func TestBlueCiteFetchFailureRejectsAndFrictions(t *testing.T) {
 	withFetcher(t, &fakeFetcher{err: errFake})
 
 	_, err := run(t, "cite", "--run", runDir, "--seat-id", citeSeat,
-		"--quote", `"The claim holds under load."`, "--url", "https://gone", "--title", "T")
+		"--quote", "The claim holds under load.", "--url", "https://gone", "--title", "T")
 	if err == nil {
 		t.Fatal("citing an unreachable source was accepted")
 	}
@@ -152,11 +152,11 @@ func TestBlueCiteReusesCacheAcrossTwoCites(t *testing.T) {
 	withFetcher(t, f)
 
 	if _, err := run(t, "cite", "--run", runDir, "--seat-id", citeSeat,
-		"--quote", `"First claim stands."`, "--url", "https://same", "--title", "T"); err != nil {
+		"--quote", "First claim stands.", "--url", "https://same", "--title", "T"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "cite", "--run", runDir, "--seat-id", citeSeat,
-		"--quote", `"Second claim stands too."`, "--url", "https://same", "--title", "T"); err != nil {
+		"--quote", "Second claim stands too.", "--url", "https://same", "--title", "T"); err != nil {
 		t.Fatal(err)
 	}
 	if f.calls != 1 {
@@ -178,7 +178,7 @@ func TestBlueCiteKeyIsIdempotent(t *testing.T) {
 	withFetcher(t, f)
 
 	args := []string{"cite", "--run", runDir, "--seat-id", citeSeat, "--key", "C1",
-		"--quote", `"The measured latency is bounded."`, "--url", "https://x", "--title", "T"}
+		"--quote", "The measured latency is bounded.", "--url", "https://x", "--title", "T"}
 	if _, err := run(t, args...); err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +215,7 @@ func TestBlueCiteCarriesTheRetractionOntoTheRecord(t *testing.T) {
 	}})
 
 	if out, err := run(t, "cite", "--run", runDir, "--seat-id", citeSeat,
-		"--quote", `# Findings: "The claim rests on a withdrawn paper."`,
+		"--quote", "The claim rests on a withdrawn paper.",
 		"--url", src, "--title", "Ileal-lymphoid-nodular hyperplasia (RETRACTED)"); err != nil {
 		t.Fatalf("blue cite: %v (out %q)", err, out)
 	}
@@ -262,7 +262,7 @@ func TestBlueCiteRefusesALeafReadingOfAnAbstract(t *testing.T) {
 	withFetcher(t, &fakeFetcher{contentType: "text/html", resp: map[string][]byte{src: page}})
 	cite := func(reading string) error {
 		_, err := run(t, "cite", "--run", runDir, "--seat-id", citeSeat,
-			"--quote", `# Findings: "The crystals expose reactive facets."`,
+			"--quote", "The crystals expose reactive facets.",
 			"--url", src, "--title", "Anatase TiO2 single crystals", "--source-text", reading)
 		return err
 	}

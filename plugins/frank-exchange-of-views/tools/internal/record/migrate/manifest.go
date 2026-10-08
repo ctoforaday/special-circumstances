@@ -50,9 +50,12 @@ type Manifest struct {
 	// as what the archive said.
 	StatedFills []StatedFill      `json:"stated_fills,omitempty"`
 	Accepted    map[string]string `json:"accepted_losses,omitempty"`
-	GapIDs      map[string]string `json:"gap_ids,omitempty"`              // archived gap id -> migrated id (roundless §III.A.5)
-	Labels      map[string]string `json:"labels,omitempty"`               // archived finding label -> migrated label
-	Serialized  map[string]int    `json:"serialized_instances,omitempty"` // instance seat -> events moved after instance 1
+	GapIDs      map[string]string `json:"gap_ids,omitempty"` // archived gap id -> migrated id (roundless §III.A.5)
+	Labels      map[string]string `json:"labels,omitempty"`  // archived finding label -> migrated label
+	// GapAnchors is what bringing the run's gaps onto anchors did: rewrites per shape, and by name the
+	// gaps whose quote never placed (they read gone) and those placed by the fallback.
+	GapAnchors GapPlacement   `json:"gap_anchors"`
+	Serialized map[string]int `json:"serialized_instances,omitempty"` // instance seat -> events moved after instance 1
 	// Unclassified names empty old tables no decomposition rule could place — noise, but
 	// noise on the record rather than in a log nobody keeps.
 	Unclassified []string `json:"unclassified_tables,omitempty"`
@@ -86,6 +89,7 @@ func NewManifest(sourcePath string, files []SourceFile, unclassified []string, r
 		GapIDs:       res.GapIDs,
 		Labels:       res.Labels,
 		Serialized:   res.Serialized,
+		GapAnchors:   res.GapAnchors,
 		Unclassified: unclassified,
 	}
 }

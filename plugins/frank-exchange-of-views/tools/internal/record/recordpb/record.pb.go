@@ -3983,8 +3983,8 @@ func (x *Observe) GetObservation() string {
 	return ""
 }
 
-// Anchor records that a finding's marker sits at a location in the report. Keyed on the
-// finding_id, so re-anchoring the same finding writes one event rather than a second marker.
+// Anchor is a marker placed in the report: the marker of the act `id` names, at the end of its
+// quote `location`. Keyed on `id`, so a retry writes one event rather than a second marker.
 type Anchor struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            *string                `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
@@ -5115,11 +5115,10 @@ type Retire struct {
 	// anchor layer, modulo surrounding whitespace, emphasis and trailing punctuation — a fragment
 	// names nothing) and that edit's new text was anchors alone, and only with anchors that are
 	// present AND bare in the report at the write — so an anchor carried on into surviving prose can
-	// never be named. A finding marker is red's: it is named only once every gap crediting its
-	// finding is closed (and at least one does); until then it stays, and the verb says why. Each
-	// named c- anchor is one unit of claim_count's fall, which is what the scorecard credits. Replay
-	// removes each named anchor at this event's position (the report_op view's `remove` rows). A
-	// record written before this field carries none, and replays exactly as it did.
+	// never be named. An anchor of every kind leaves alike. Each named c- anchor is one unit of
+	// claim_count's fall, which is what the scorecard credits. Replay removes each named anchor at
+	// this event's position (the report_op view's `remove` rows). A record written before this field
+	// carries none, and replays exactly as it did.
 	Anchors       []string `protobuf:"bytes,5,rep,name=anchors,proto3" json:"anchors,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -7979,11 +7978,11 @@ const file_record_proto_rawDesc = "" +
 	"\x1bCORRECTION_TIER_UNSPECIFIED\x10\x00\x12\xb1\x01\n" +
 	"\x14CORRECTION_TIER_NONE\x10\x01\x1a\x96\x01\x8a\xb5\x18\x91\x01not correctable: the act creates an identity, decides a fate no restatement may move, or is written by the tool or the harness rather than a seat\x12\x9c\x01\n" +
 	"\x15CORRECTION_TIER_PROSE\x10\x02\x1a\x80\x01\x8a\xb5\x18|only the seat's own wording may change — the fields that declare (prose); every other field must equal the corrected act's\x12Y\n" +
-	"\x14CORRECTION_TIER_FULL\x10\x03\x1a?\x8a\xb5\x18;every field may change except the label the act is keyed on*\xab#\n" +
+	"\x14CORRECTION_TIER_FULL\x10\x03\x1a?\x8a\xb5\x18;every field may change except the label the act is keyed on*\xfe\"\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12{\n" +
-	"\x13EVENT_TYPE_REGISTER\x10\x01\x1ab\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\xb8\xb5\x18\x01\x12i\n" +
-	"\x11EVENT_TYPE_ANCHOR\x10\x02\x1aR\x8a\xb5\x18Jevidence tied to a finding: where in the artifact the claim actually lives\xb8\xb5\x18\x01\x12h\n" +
+	"\x13EVENT_TYPE_REGISTER\x10\x01\x1ab\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\xb8\xb5\x18\x01\x12<\n" +
+	"\x11EVENT_TYPE_ANCHOR\x10\x02\x1a%\x8a\xb5\x18\x1da marker placed in the report\xb8\xb5\x18\x01\x12h\n" +
 	"\x11EVENT_TYPE_AVENUE\x10\x03\x1aQ\x8a\xb5\x18Ian avenue, from proposed through pursued, declined, deferred or abandoned\xb8\xb5\x18\x02\x12q\n" +
 	"\x14EVENT_TYPE_BLUE_EDIT\x10\x04\x1aW\x8a\xb5\x18Oa change to the report, recorded as old and new so the edit itself is auditable\xb8\xb5\x18\x01\x12n\n" +
 	"\x12EVENT_TYPE_CERTIFY\x10\x05\x1aV\x8a\xb5\x18Na seat's signed statement about its own work — what it asserts on the record\xb8\xb5\x18\x02\x12v\n" +

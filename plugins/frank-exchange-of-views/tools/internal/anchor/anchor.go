@@ -1,16 +1,17 @@
-// Package anchor is the immortal-anchor vocabulary: how an anchor is spelled in the report, what
-// KIND of thing each id names, and how to read the report at one.
+// Package anchor is the anchor vocabulary: how an anchor is spelled in the report, what KIND of
+// thing each id names, and how to read the report at one.
 //
 // # The kinds table
 //
 // Every kind of anchor is one row of `kinds`, holding what the kind MEANS. No column says how an
-// anchor is placed, carried, protected or retired: every kind lives the same way, so a reader of
-// that lifecycle walks every row alike.
+// anchor is placed, carried, protected or retired: every kind lives the same way — the tool places
+// it at the end of its quote, every edit carries it, and `retire` is the one way it leaves — so a
+// reader of that lifecycle walks every row alike.
 //
 // # Why it is a leaf
 //
-// Each kind is minted by its own verb — `lens finding`, `blue cite`, `blue prove`, `lens
-// corroborate` — and read back by the edit guard, the board, the assembly and every seat that
+// Each kind is placed by its own verb — `lens finding`, `lens mint`, `blue cite`, `blue prove`,
+// `lens corroborate` — and read back by the edit guard, the board, the assembly and every seat that
 // wants the live text at one. That is a vocabulary several layers share, so it depends on NOTHING
 // but the standard library. It was in `internal/bluedoc`, which reaches up into `internal/cli/lens`
 // for its span locator; anything importing it inherited a command package, and `internal/cli/seat`
@@ -43,7 +44,6 @@ type kind struct {
 	prefix   string // the id's prefix; the class is carried by it
 	tag      string // the token's tag: <!--TAG:ID-->
 	label    string // the noun a message names an anchor of this kind by
-	note     string // what the message adds after the id
 	assembly Assembly
 	claim    bool // a token of this kind makes the prose before it a counted claim
 	backs    bool // the anchor is evidence standing behind its sentence
@@ -55,14 +55,14 @@ type kind struct {
 // footnote AND red audited it as one. A comment renders as nothing and is no footnote, so no seat
 // audits it.
 var kinds = []kind{
-	{name: "finding", prefix: "f-", tag: "fx", label: "finding-marker", assembly: Strip},
-	{name: "citation", prefix: "c-", tag: "cite", label: "citation anchor",
-		note:     " (citations are tool-managed — a cited claim leaves by blue's `edit` down to the bare anchor, then blue's `retire`, which takes the anchor out with it; never by a raw edit)",
-		assembly: WeaveSource, claim: true, backs: true},
-	{name: "proof", prefix: "p-", tag: "proof", label: "proof anchor",
-		note:     " (a computation backs this sentence — the script and its output are cached; the claim leaves by blue's `edit` down to the bare anchor, then blue's `retire`, which takes the anchor out with it; never by a raw edit)",
-		assembly: WeaveProof, backs: true},
+	{name: "finding", prefix: "f-", tag: "fx", label: "finding anchor", assembly: Strip},
+	{name: "citation", prefix: "c-", tag: "cite", label: "citation anchor", assembly: WeaveSource, claim: true, backs: true},
+	{name: "proof", prefix: "p-", tag: "proof", label: "proof anchor", assembly: WeaveProof, backs: true},
+	{name: "gap", prefix: "G", tag: "gap", label: "gap anchor", assembly: Strip},
 }
+
+// lifecycle is what Label says of every kind alike, because every kind lives the same way.
+const lifecycle = " (the tool places it and every edit carries it; its claim leaves by `edit` down to the bare anchor, then `retire`, which takes the anchor out with it — never by a raw edit)"
 
 const tokenOpen, tokenClose = "<!--", "-->"
 
@@ -186,7 +186,7 @@ func Label(id string) string {
 	if !strings.HasPrefix(id, k.prefix) {
 		return id
 	}
-	return k.label + " " + id + k.note
+	return k.label + " " + id + lifecycle
 }
 
 // Kinds are the names of every kind in the table, in its order.

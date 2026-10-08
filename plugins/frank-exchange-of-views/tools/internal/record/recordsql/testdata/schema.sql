@@ -95,7 +95,7 @@ CREATE TABLE "enum_event_type" (
   "means" TEXT NOT NULL,
   "correct" TEXT NOT NULL REFERENCES "enum_correction_tier"("value")
 ) STRICT;
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('anchor', 'evidence tied to a finding: where in the artifact the claim actually lives', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('anchor', 'a marker placed in the report', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('avenue', 'an avenue, from proposed through pursued, declined, deferred or abandoned', 'prose');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('avenue_review', 'a review of the avenues themselves, rather than of a finding', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('base_ingest', 'the report as blue ingested it, stored verbatim as the origin every recorded edit replays over', 'none');

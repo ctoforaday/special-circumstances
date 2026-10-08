@@ -32,6 +32,8 @@ package fuzz
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/consistency"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -1185,7 +1187,8 @@ func (r *runner) mint(seatID string) string {
 				fixOld, fixNew = fixNew, fixOld
 			}
 			if strings.Contains(string(cur), fixOld) {
-				args = append(args, "--quote", fixOld, "--new", fixNew)
+				run := abuttingRun(cur, fixOld)
+				args = append(args, "--quote", fixOld+run, "--new", fixNew+run)
 				anchored = true
 			}
 		}
@@ -1277,7 +1280,9 @@ func (r *runner) mintEstopped(seatID string) {
 	}
 	sentence := ""
 	for _, line := range strings.Split(string(cur), "\n") {
-		if strings.Contains(line, fixNew) && len(collapseWS(line)) >= 40 {
+		// VISIBLE TEXT, BOTH SIDES, as EstoppelConflict compares: the applied text carries the gap's
+		// anchor and any anchor the edit put back.
+		if strings.Contains(anchortext.Visible(line), anchortext.Visible(fixNew)) && len(collapseWS(line)) >= 40 {
 			sentence = strings.TrimSpace(line)
 			break
 		}
@@ -1387,7 +1392,7 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 		r.register("blue", "blue-respond")
 		name := "fuzz-answer-" + id + ".js"
 		if err := os.WriteFile(filepath.Join(r.runDir, name), []byte("console.log('answers "+id+"');"), 0o644); err == nil {
-			_, _ = r.exec("prove", "--seat-id", "blue-respond", "--quote", "§ fuzz",
+			_, _ = r.exec("prove", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
 				"--script", name, "--answers", id, "--reason", "fuzz: settling the computation check")
 		}
 		// A PROOF WHOSE FAILURE IS THE RESULT, once per run. `prove` refuses a script that exits
@@ -1404,7 +1409,7 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 			absent := "fuzz-absent-" + id + ".js"
 			body := "console.error('no such path: the thing this proof shows is missing'); process.exit(3);"
 			if err := os.WriteFile(filepath.Join(r.runDir, absent), []byte(body), 0o644); err == nil {
-				_, _ = r.exec("prove", "--seat-id", "blue-respond", "--quote", "§ fuzz",
+				_, _ = r.exec("prove", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
 					"--script", absent, "--expect-error",
 					"--reason", "fuzz: the absence IS the result, recorded as such")
 			}
@@ -1808,7 +1813,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 			// Omitting the flag stays in the rotation, because the DEFAULT is a distinct path
 			// from passing `unread` explicitly and it is the one a real seat hits most.
 			cite := r.do("cite", seatID).
-				set("--quote", "§ fuzz").
+				set("--quote", "§ fuzz sentence").
 				set("--url", url).
 				set("--title", "fuzz source "+seatID).
 				on(50, "--quote", "fuzz cited claim "+seatID).
@@ -1827,7 +1832,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// auto-logged as friction. Driving it here proves the reject path never wedges the run.
 		r.maybe(15, func() {
 			r.do("cite", seatID).
-				set("--quote", "§ fuzz").
+				set("--quote", "§ fuzz sentence").
 				set("--url", "http://127.0.0.1:1/unreachable").
 				set("--title", "unreachable "+seatID).
 				run()
@@ -1853,6 +1858,8 @@ func (r *runner) extras(role, seatID string, open []string) {
 			if !strings.Contains(string(cur), oldSpan) {
 				return // an anchor landed mid-span; skip rather than force a mis-quote
 			}
+			// The anchors standing on the span are quoted as `show report` prints them and carried.
+			run := abuttingRun(cur, oldSpan)
 			// THIS DRIVE NO LONGER CLAIMS TO ANSWER A GAP.
 			//
 			// It used to pick a random open gap for --answers, and the scenario oracle caught it
@@ -1864,8 +1871,8 @@ func (r *runner) extras(role, seatID string, open []string) {
 			// What remains is an UNATTRIBUTED edit: blue sharpening its own prose, which is real
 			// and must stay legal (--answers' own help says to omit it when no gap is answered).
 			r.do("edit", seatID).
-				set("--quote", oldSpan).
-				set("--new", newSpan).
+				set("--quote", oldSpan+run).
+				set("--new", newSpan+run).
 				set("--reason", "fuzz edit: sharper phrasing, answering no gap").
 				on(40, "--key", fmt.Sprintf("E%d", 1+r.rng.Intn(2))).
 				run()
@@ -1887,7 +1894,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 				return
 			}
 			pv := r.do("prove", seatID).
-				set("--quote", "§ fuzz").
+				set("--quote", "§ fuzz sentence").
 				set("--script", name).
 				set("--reason", "fuzz: computing rather than arguing").
 				on(40, "--key", fmt.Sprintf("P%d", 1+r.rng.Intn(2)))
@@ -2354,7 +2361,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				if k, ref := r.aboutAnchor(); k != "" && r.coin(30) {
 					findArgs = append(findArgs, "--about-kind", k, "--about", ref)
 				} else {
-					findArgs = append(findArgs, "--quote", "§ fuzz")
+					findArgs = append(findArgs, "--quote", "§ fuzz sentence")
 				}
 				_, _ = r.exec(findArgs...)
 				// Red verifies a cited source by reading the CACHED bytes (#256): the same
@@ -2455,6 +2462,10 @@ type outcome struct {
 	// #267 stage 4: edits that applied red's proposal EXACTLY. Without a counter, the fuzz
 	// could counter-edit every time and the estoppel path would never be reached at all.
 	verbatimApplied int
+	// typedVerbatim is the verbatim applications blue TYPED rather than accepted: the pair the board
+	// serves, compared with the one --accept would send (R-24). Counted apart, so a typed arm that
+	// stops recording fails even while --accept records.
+	typedVerbatim int
 	// estoppelMisses is why the estoppel drive declined, carried out for the same reason.
 	estoppelMisses map[string]int
 	// applyMisses is why it did not, by cause — carried out of the run so a ZERO above arrives
@@ -3399,6 +3410,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			}
 			if t.GetAppliedVerbatim() {
 				res.verbatimApplied++
+				if !t.GetAccepted() {
+					res.typedVerbatim++
+				}
 			}
 		case *recordpb.Mint:
 			if t.GetFixBasis() == "verified" {
@@ -3832,7 +3846,9 @@ func proseRenders(t *testing.T, board record.Family, runDir string) string {
 			}
 			continue
 		}
-		prose := strings.TrimSpace(fieldStr(t, e, key))
+		// The reader gets the prose as assembly ships it: the tokens of every kind it strips are
+		// gone — a gap anchor a seat quoted into its retire or a prescription carried is not prose.
+		prose := strings.TrimSpace(anchor.StripAssembled(fieldStr(t, e, key)))
 		if prose == "" || strings.Contains(rpt, prose) {
 			continue
 		}
@@ -3986,6 +4002,7 @@ func TestFuzzDebate(t *testing.T) {
 	verifiedVerdict, verifiedWhy := "", "" // and the FORCED-VERIFIED seed
 	verifiedBasis := 0                     // #267 stage 3: gaps whose fix_basis was EARNED by a validated pair
 	verbatimApplied := 0                   // #267 stage 4: edits that applied red's proposal exactly (the estoppel precondition)
+	typedVerbatim := 0                     // those blue typed rather than accepted
 	estoppels := 0                         // the TOOL's own refusals of a mint against text blue applied verbatim
 	repairs := 0                           // registers naming the sitting they repair (the engine's re-prompt)
 	applyMisses := map[string]int{}        // and why it did not, by cause — a bare 0 above named none of them
@@ -4046,6 +4063,7 @@ func TestFuzzDebate(t *testing.T) {
 			editAnswers += o.editAnswers
 			verifiedBasis += o.verifiedBasis
 			verbatimApplied += o.verbatimApplied
+			typedVerbatim += o.typedVerbatim
 			estoppels += o.estoppels
 			repairs += o.repairs
 			for why, n := range o.estoppelMisses {
@@ -4077,8 +4095,8 @@ func TestFuzzDebate(t *testing.T) {
 		sort.Strings(causes)
 		misses = "\n  verbatim-apply declined: " + strings.Join(causes, "\n                          ")
 	}
-	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · epochs=%v · exits=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified · %d edits applied a proposal verbatim · %d estoppel refusals%s\n  sitting-record repairs: %d registers named the sitting they repaired",
-		completed, len(failures), verdicts, epochHist, whyHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"], verbatimApplied, estoppels, misses, repairs)
+	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · epochs=%v · exits=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified · %d edits applied a proposal verbatim (%d typed) · %d estoppel refusals%s\n  sitting-record repairs: %d registers named the sitting they repaired",
+		completed, len(failures), verdicts, epochHist, whyHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"], verbatimApplied, typedVerbatim, estoppels, misses, repairs)
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
 	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
 	// Assert EVERY event-emitting seat verb fired at least once across the run set — so a
@@ -4151,6 +4169,9 @@ func TestFuzzDebate(t *testing.T) {
 		}
 		if verbatimApplied == 0 {
 			t.Errorf("fuzz recorded ZERO verbatim applications across %d runs — nothing ever estopped red, so the stage-4 guard is unexercised (false green)", completed)
+		}
+		if typedVerbatim == 0 {
+			t.Errorf("fuzz recorded ZERO typed verbatim applications across %d runs (%d by --accept) — blue typing the board's pair never matched the pair --accept sends, so the typed arm is unexercised (false green)", completed, verbatimApplied)
 		}
 		// AND THE GUARD ITSELF FIRED, which the line above only establishes the PRECONDITION for.
 		// Verbatim applications were counted for the whole life of this gate while the estoppel
@@ -4408,9 +4429,6 @@ func (r *runner) recentlyEditedOut() string {
 	return ""
 }
 
-// fuzzAnchorRe matches a tool-inserted marker of any class, capturing its id.
-var fuzzAnchorRe = regexp.MustCompile(`<!--(?:fx|cite|proof):([fcp]-[0-9a-f]+)-->`)
-
 // anchorsLeftFor names a marker for a retire's --anchor: one the edit that took claim out left in
 // its place, when it still stands; else any marker the report holds, so the flag is driven through
 // its validation on every retire the sweep makes — accepted or refused, never unpassed.
@@ -4428,14 +4446,14 @@ func (r *runner) anchorsLeftFor(claim string) string {
 		if !ok || be.GetOld() != claim {
 			continue
 		}
-		for _, m := range fuzzAnchorRe.FindAllStringSubmatch(be.GetNew(), -1) {
-			if strings.Contains(string(cur), m[0]) {
-				return m[1]
+		for _, id := range anchor.IDs(be.GetNew()) {
+			if strings.Contains(string(cur), anchor.Token(id)) {
+				return id
 			}
 		}
 	}
-	if m := fuzzAnchorRe.FindStringSubmatch(string(cur)); m != nil {
-		return m[1]
+	if ids := anchor.IDs(string(cur)); len(ids) > 0 {
+		return ids[r.rng.Intn(len(ids))]
 	}
 	return ""
 }
@@ -4610,12 +4628,12 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 			// able to say whether the branch was never taken, took and found no proposal, took
 			// and found the span already edited away, or ran and was REFUSED. Four causes, one
 			// zero — the plausible-zero shape, in the instrument meant to detect it.
-			gid, fo, fn := r.proposalFor(id)
+			cur, err := reportproj.RenderFromRecord(r.run())
+			gid, fo, fn := r.proposalFor(id, cur)
 			switch {
 			case gid == "":
 				r.noteApplyMiss("no proposal on the gap (red minted prose-only)")
 			default:
-				cur, err := reportproj.RenderFromRecord(r.run())
 				switch {
 				case err != nil:
 					r.noteApplyMiss("report unreadable: " + err.Error())
@@ -4713,7 +4731,7 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 			}
 			if err := os.WriteFile(filepath.Join(r.runDir, name), []byte(body), 0o644); err == nil {
 				prove := r.do("prove", seatID).
-					set("--quote", "§ fuzz").
+					set("--quote", "§ fuzz sentence").
 					set("--script", name).
 					set("--answers", id).
 					set("--reason", "fuzz: computing rather than arguing")
@@ -4748,12 +4766,14 @@ func (r *runner) counterEdit(seatID, gapID string) {
 	if !strings.Contains(string(cur), oldSpan) {
 		return
 	}
-	r.do("edit", seatID).set("--quote", oldSpan).set("--new", newSpan).
+	run := abuttingRun(cur, oldSpan)
+	r.do("edit", seatID).set("--quote", oldSpan+run).set("--new", newSpan+run).
 		set("--answers", gapID).set("--reason", "fuzz: counter-edit, not red's text").run()
 }
 
-// proposalFor returns the concrete pair for ONE gap, when it carries one.
-func (r *runner) proposalFor(gapID string) (string, string, string) {
+// proposalFor returns the concrete pair for ONE gap over the report cur, when it carries one — the
+// pair the board serves and `--accept` sends (record.Proposal), so typing it is applying it verbatim.
+func (r *runner) proposalFor(gapID, cur string) (string, string, string) {
 	b, err := record.FamilyOf(r.run())
 	if err != nil {
 		return "", "", ""
@@ -4762,22 +4782,22 @@ func (r *runner) proposalFor(gapID string) (string, string, string) {
 	if g == nil || g.Mint == nil || g.Mint.GetFixBasis() != "verified" {
 		return "", "", ""
 	}
-	// THE SPAN IS THE GAP'S OWN `location`. `fix_old` was a second copy of it, matched by a
-	// second matcher; a proposal is --quote (the span, required anyway) plus --new.
-	return gapID, g.Mint.GetLocation(), g.Mint.GetFixNew()
-}
-
-func (r *runner) someProposal() (string, string, string) {
-	b, err := record.FamilyOf(r.run())
-	if err != nil {
+	old, fixNew, found, err := record.Proposal(r.run(), gapID, cur)
+	if err != nil || !found {
 		return "", "", ""
 	}
-	for _, e := range b.Events {
-		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok && m.GetFixBasis() == "verified" {
-			return m.GetGapId(), m.GetLocation(), m.GetFixNew()
-		}
+	return gapID, old, fixNew
+}
+
+// abuttingRun is the anchor run standing right after span's first occurrence in cur, which an edit
+// of span quotes as `show report` prints it and carries into its replacement.
+func abuttingRun(cur, span string) string {
+	i := strings.Index(cur, span)
+	if i < 0 {
+		return ""
 	}
-	return "", "", ""
+	after := cur[i+len(span):]
+	return after[:anchor.SkipRun(after, 0)]
 }
 
 // ---- read-only INVOCATION: the surfaces the event gate is blind to ----

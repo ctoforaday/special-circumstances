@@ -39,3 +39,10 @@ func TestACleanEditCarriesNoNote(t *testing.T) {
 		t.Errorf("a clean edit carries an advisory: %s", got)
 	}
 }
+
+// A gap anchor carried in a replacement is no process voice: `gap:G3` names nothing a tell reads.
+func TestAGapAnchorInAReplacementIsNoTell(t *testing.T) {
+	if got := spanVoiceTells("Costs rose only modestly in the first quarter<!--gap:G3-->."); len(got) != 0 {
+		t.Errorf("a replacement carrying a gap anchor drew tells: %v", got)
+	}
+}

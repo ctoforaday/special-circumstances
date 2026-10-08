@@ -1,8 +1,11 @@
 package anchortext
 
 import (
+	"math/rand"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 )
 
 // FuzzLocateEnd proves the invariant "a quote of the semantic prose survives arbitrary
@@ -69,4 +72,42 @@ func FuzzLocateEnd(f *testing.F) {
 				end, stripAnnotations(out), stripAnnotations(annotated))
 		}
 	})
+}
+
+// ATTACH PLACES WHERE REPLAY DOES. A write is placed by Attach and replayed by InsertAnchor, and
+// the two must agree byte for byte on every placement Attach admits, or a report reads differently
+// from the record that wrote it. Over generated documents — sentences, blank lines, a quoted phrase
+// that also stands alone, anchors already placed — and quotes cut from them, the paragraph-bounded
+// one occurrence Attach counts is InsertAnchor's first match; a quote across a blank line (#552's
+// shape) is refused by Attach and missed by InsertAnchor.
+func TestAttachPlacesWhereReplayDoes(t *testing.T) {
+	words := []string{"Costs", "rose", "sharply.", "Volume", "grows", "\"rose", "sharply\"", "fell.", "\n\n", "<!--cite:c-1-->", "again."}
+	r := rand.New(rand.NewSource(552))
+	placed, crossing := 0, 0
+	for i := 0; i < 20000; i++ {
+		n := 4 + r.Intn(10)
+		ws := make([]string, n)
+		for j := range ws {
+			ws[j] = words[r.Intn(len(words))]
+		}
+		doc := strings.Join(ws, " ")
+		a := r.Intn(n)
+		b := a + 1 + r.Intn(n-a)
+		quote := strings.Join(ws[a:b], " ")
+		out, err := Attach(doc, "G1", quote)
+		if err != nil {
+			if err == ErrCrossesParagraph {
+				crossing++
+			}
+			continue
+		}
+		placed++
+		want, err := InsertAnchor([]byte(doc), quote, anchor.Token("G1"))
+		if err != nil || string(want) != out {
+			t.Fatalf("Attach and replay disagree on %q in %q:\n Attach %q\n replay %q (%v)", quote, doc, out, want, err)
+		}
+	}
+	if placed == 0 || crossing == 0 {
+		t.Fatalf("the generator exercised %d placements and %d crossing quotes; it must exercise both", placed, crossing)
+	}
 }

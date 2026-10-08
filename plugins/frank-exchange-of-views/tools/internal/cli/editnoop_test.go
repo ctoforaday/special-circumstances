@@ -17,10 +17,12 @@ import (
 
 const strayPeriod = "on their own.)."
 
-func editStrayPeriod(t *testing.T, runDir, key string) error {
+// editStrayPeriod drops the stray period; anchors is the anchor run the report holds after the
+// parenthesis, quoted and carried as `show report` prints it.
+func editStrayPeriod(t *testing.T, runDir, key, anchors string) error {
 	t.Helper()
 	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", key,
-		"--quote", strayPeriod, "--new", "on their own.)", "--reason", "drop the stray period after the parenthesis")
+		"--quote", "on their own.)"+anchors+".", "--new", "on their own.)"+anchors, "--reason", "drop the stray period after the parenthesis")
 	return err
 }
 
@@ -28,7 +30,7 @@ func TestAPunctuationRepairAtTheEndOfTheDocumentLands(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nIntro.\n\n(They stand "+strayPeriod+"\n")
 	registerBlue(t, runDir)
-	if err := editStrayPeriod(t, runDir, "E1"); err != nil {
+	if err := editStrayPeriod(t, runDir, "E1", ""); err != nil {
 		t.Fatalf("the repair was refused: %v", err)
 	}
 	// readReport IS the replay: the report exists only as base + recorded events, rendered.
@@ -45,7 +47,7 @@ func TestAPunctuationRepairMidDocumentLands(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\n(They stand "+strayPeriod+"\n\nNext.\n")
 	registerBlue(t, runDir)
-	if err := editStrayPeriod(t, runDir, "E1"); err != nil {
+	if err := editStrayPeriod(t, runDir, "E1", ""); err != nil {
 		t.Fatalf("the repair was refused: %v", err)
 	}
 	if got := readReport(t, runDir); !strings.Contains(got, "(They stand on their own.)\n\nNext.") {
@@ -105,7 +107,7 @@ func TestAcceptOnAPrescriptionThatChangesNothingSaysSo(t *testing.T) {
 	registerBlue(t, runDir)
 
 	// Blue makes the repair itself first; red's recorded fix now has nothing left to do.
-	if err := editStrayPeriod(t, runDir, "E0"); err != nil {
+	if err := editStrayPeriod(t, runDir, "E0", "<!--gap:"+gap+"-->"); err != nil {
 		t.Fatalf("blue's own repair: %v", err)
 	}
 	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,

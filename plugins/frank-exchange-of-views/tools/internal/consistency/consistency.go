@@ -30,6 +30,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/graph"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -63,7 +64,7 @@ type groundTruth struct {
 	order         []string
 	gaps          map[string]*gtGap
 	findingLabels map[string]bool
-	findingIDs    map[string]bool
+	placedIDs     map[string]bool // every act that stored a quote, so an Anchor event owes its marker
 	anchorEvIDs   map[string]bool
 	proofIDs      map[string]bool
 	citeEvents    int
@@ -91,7 +92,7 @@ func walk(events []*record.Event) *groundTruth {
 	gt := &groundTruth{
 		gaps:          map[string]*gtGap{},
 		findingLabels: map[string]bool{},
-		findingIDs:    map[string]bool{},
+		placedIDs:     map[string]bool{},
 		anchorEvIDs:   map[string]bool{},
 		proofIDs:      map[string]bool{},
 		avenues:       map[string]string{},
@@ -157,6 +158,9 @@ func walk(events []*record.Event) *groundTruth {
 				open: true,
 				sev:  m.GetSeverity(), lik: m.GetLikelihood(), imp: m.GetImpact(), cx: m.GetComplexityCost(),
 				supersedes: append([]string{}, m.GetSupersedes()...),
+			}
+			if m.GetLocation() != "" {
+				gt.placedIDs[id] = true
 			}
 		case *recordpb.Regrade:
 			g := gt.gaps[m.GetGapId()]
@@ -239,7 +243,7 @@ func walk(events []*record.Event) *groundTruth {
 				// is no sentence to mark — and before this the rule below reported every one of
 				// them as the crash window it was written to detect.
 				if m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED {
-					gt.findingIDs[id] = true
+					gt.placedIDs[id] = true
 				}
 			}
 		case *recordpb.Anchor:
@@ -529,17 +533,16 @@ func Check(run record.Run) ([]string, error) {
 	// construction and neither torn state can arise. Removed rather than kept as a check that can
 	// never fire. What survives is report-INDEPENDENT: the finding↔anchor-event pair below.
 	//
-	// The finding and its anchor event are appended as a PAIR after the splice; a finding with no
-	// anchor event is the crash window between the two appends, sealed by an idempotent retry
-	// that never looked. Report-independent, so it runs even when report.md is gone.
+	// An act that stored a quote and its anchor event are appended as a PAIR; one with no anchor
+	// event is the crash window between the two appends, which a retry under the act's key closes.
+	// Report-independent, so it runs even when no report renders. On a migrated run it also names
+	// each gap whose quote never placed, which is true of that run.
 	//
-	// QUOTE-ANCHORED FINDINGS ONLY, and the set above is what enforces that. This rule was
-	// written when every finding named a sentence, so "no anchor event" could only mean the
-	// crash. An about-anchored finding legitimately has none, and this reported each one as a
-	// violation on a perfectly honest record — invisible because no drive passed --about.
-	for id := range gt.findingIDs {
+	// QUOTE-ANCHORED ACTS ONLY, and the set above is what enforces that: an about-anchored finding
+	// or gap legitimately has no anchor, and reporting each one was a violation on an honest record.
+	for id := range gt.placedIDs {
 		if !gt.anchorEvIDs[id] {
-			add("anchor-record", "finding %s has no anchor event — the immortal-marker detector never learned its marker exists", id)
+			add("anchor-record", "%s %s has no anchor event", anchor.Kind(id), id)
 		}
 	}
 

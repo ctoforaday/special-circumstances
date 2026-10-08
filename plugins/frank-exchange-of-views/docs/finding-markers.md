@@ -1,8 +1,8 @@
-# Finding-markers — the immortal audit anchor
+# Finding anchors — one anchor lifecycle for every kind
 
 > **Purpose.** Red's audit points must not be able to silently disappear from blue's report, and blue's
 > "fix" must be verifiable against what red actually flagged. This note is the design-of-record for how
-> the tool anchors a red finding in `blue/report.md` with a durable, immortal marker that carries the
+> the tool anchors a red finding in `blue/report.md` with a durable marker that carries the
 > finding's identity and a snapshot of what it flagged. It is the concrete realization of slice 1b of
 > [propagation-and-anchoring.md](propagation-and-anchoring.md) — reframed, after design, from "cite the
 > claim" to "anchor the finding," because a finding already carries the id, the offending content, and
@@ -18,7 +18,7 @@ invisible*, below). They are two axes with two forms:
   HTML-comment token; the anchor is a machine-readable locator, NOT reader-facing content; it can never
   silently leave; every content change under it is red-gated.
 - **Citations → the bibliography system** (built in 0.28.0/#256 — see `record-flow.md`). A citation is
-  *also* a tool-inserted **invisible immortal** anchor — `<!--cite:c-…-->`, splice-identical to a
+  *also* a tool-inserted **invisible** anchor — `<!--cite:c-…-->`, splice-identical to a
   finding marker (it reuses `lens.InsertAnchor`) — but with the OPPOSITE assembly fate: where a finding
   is STRIPPED, a citation is **RESOLVED**. `blue cite` fetches the source **once** to a hash-addressed
   cache (`<run>/cache/<sha256>`, so red re-reads the exact bytes blue cited), then anchors the sentence;
@@ -52,25 +52,21 @@ was dressed as reader-facing content.** The fix is the invisible comment form he
 + definition-resolution model is correct only for the CITATION axis, where a reference genuinely IS
 reader-facing content that resolves to a source.
 
-## Immortality + the tampering guarantee
+## One lifecycle, every kind
 
-The marker is **immortal in the working doc** (`report.md` during the run): neither side deletes it. So
-the integrity check has **no "legitimately withdrawn" exception** to reason about — **any missing
-marker is blue tampering with red's record, a hard violation, full stop.** What is gated instead is
-every *content* transition under a marker. (This is the property that dissolves the identity-vs-retire
-collision an id-plus-retire model runs into: markers don't leave, so "did this leave legitimately?" is
-never asked of the marker.)
+Anchors of every kind in the kinds table live the same way. The tool places an anchor at the end of
+its quote — the quote's one occurrence within one paragraph, or the act is refused. Every edit carries
+it; the tool puts back one whose sentence an edit keeps word for word; an edit that drops or types one
+is refused. **Retire is the one exit.** A claim whose sentence is edited away leaves its anchors BARE
+(no prose before them in their segment); `blue retire` names the bare anchors that exit with the
+retired claim — computed by the verb, validated present-and-bare at the write — and replay removes them
+at that event. The question "did this leave legitimately?" is never asked of the anchor: it leaves only
+on a retire event that carries the claim and its reason. No kind is held back: a gap whose anchor left
+reads `gone` on the board, with its minted text, and its lens judges the report as it stands.
+`show report --anchor` on an anchor that left this way names the retire event, not a stale id.
 
-**Amended — one recorded exit.** An edit still cannot drop a marker. But a claim whose sentence is
-edited away leaves its marker BARE (no prose before it in its segment), and a bare marker that can
-never leave stood forever as an orphan footnote or an empty bullet. `blue retire` now names the bare
-anchors that exit with the retired claim — computed by the verb, validated present-and-bare at the
-write — and replay removes them at that event. The question "did this leave legitimately?" is still
-never asked of the marker: it leaves only on a retire event that carries the claim and its reason.
-A finding marker is red's, not blue's, so blue's retire takes one out only once red's lifecycle has
-closed on it — the finding is credited by at least one gap and every gap crediting it is closed. While
-a crediting gap is open, or no gap credits the finding yet, the marker stays bare and the retire says
-why. `show report --anchor` on an anchor that left this way names the retire event, not a stale id.
+So the integrity check has **no "legitimately withdrawn" exception** to reason about: an anchor missing
+without a retire is a hard violation, and what is gated is every *content* transition under it.
 
 ## The handshake — layered onto the existing finding → gap → closure lifecycle
 
@@ -78,7 +74,7 @@ The fix-then-approve rhythm is **not new machinery**; it is the debate's existin
 a finding → merge coalesces into a gap → blue repairs → red re-audits and closes). Finding-markers add
 three things to that lifecycle, nothing more:
 
-1. the immortal marker anchor on the finding's content,
+1. the anchor on the finding's content,
 2. the {content, reason} snapshot, and
 3. the tampering detector.
 
@@ -89,15 +85,17 @@ Red-gated at every step, as the lifecycle already is:
 2. Blue **fixes** the content (edits the marked sentence; it cannot touch the marker).
 3. Red **approves** — reads the doc, compares against the snapshot, confirms the fix is real: not moved
    to a dead corner, no offending content left behind, not a fake fix. (This is red's gap closure.)
-4. Blue **withdraws** the content; red **verifies**. End state, in the working doc: **the marker
-   remains, the content is gone.**
+4. Blue **withdraws** the content by editing it down to its bare anchors and retiring the claim, which
+   takes them out; red **verifies**. Red's assent is the gap's closure, and the gap reads its own
+   anchor: where that anchor left with a cut, the gap reads `gone` and red judges the report as it
+   stands.
 
-Blue never resolves unilaterally and never removes a marker; "blue can't remove what red verified
-without red's assent" holds because the marker is immortal and every content change is red-confirmed.
+Blue never resolves unilaterally: it removes an anchor of any kind only by `retire`, and every content
+change under one is red-confirmed.
 
 ## The report is the record — blue cannot drop a marker in the first place
 
-Immortality was prompt-hoped in slice 1b (blue was TOLD to grep `<!--fx:` and never delete one); a live
+Keeping the marker was prompt-hoped in slice 1b (blue was TOLD to grep `<!--fx:` and never delete one); a live
 run showed that is not enough. It was first enforced by a write-time **lockdown** (0.27.0) — `report.md`
 read-only to every seat but the author, guarded by a hook. Under **report-as-record (#709)** it is enforced
 by **construction** instead: there is no `blue/report.md` file to write. The round-0 author writes it once
@@ -135,7 +133,7 @@ nothing left for a write-guard to protect.
 - **Structural prevention (primary):** the report-as-record model above — a response seat has NO path that
   drops a marker; the report is not a file, `blue edit` refuses a span that would drop one, and a raw write
   cannot reach the report at all.
-- **Mechanical screen — now moot:** immortal markers once meant the present set MUST contain the expected
+- **Mechanical screen — now moot:** the marker rule once meant the present set MUST contain the expected
   set, and a missing marker = tampering; the scorecard's `dropped_finding_markers` detector and the
   PostToolUse backstop shared `claimcount.MissingAnchorIDs`. Under report-as-record the render places only
   recorded markers, so the two sets are equal by construction — both the detector and the backstop are
@@ -176,7 +174,7 @@ resolve-at-assembly twin.)*
   lifecycle — both dissolved by anchoring *findings*) and the visible-`[^f-]`-footnote draft (audited as
   undefined footnotes + leaked; dissolved by the invisible comment form).
 - **Built (citation axis, 0.28.0/#256):** the bibliography/citation system — `fetch` (download-once,
-  cached, hash-verified) + `blue cite` (invisible immortal `<!--cite:-->` anchor, class-swept into the
+  cached, hash-verified) + `blue cite` (invisible `<!--cite:-->` anchor, class-swept into the
   blue-edit lockdown so it is a strict cite⟺anchor bijection) + the assembly weave (anchors → visible
   `[^N]` + composed `## Bibliography`) + the `unbacked_citations` detector. The claim unit is now the
   cite anchor (the hand-typed `[^label]` footnote is retired). See `record-flow.md`.

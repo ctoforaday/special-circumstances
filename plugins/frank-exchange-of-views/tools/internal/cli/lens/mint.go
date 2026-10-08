@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -46,6 +47,11 @@ func newMint() *cobra.Command {
 			return nil, err
 		}
 		if prior != "" {
+			// The mint and its anchor are two appends; a retry finishes the pair at the location the
+			// mint stored.
+			if err := placeOwed(s, run, prior, mintPlacementRefusal); err != nil {
+				return nil, err
+			}
 			return mintResult{GapID: prior, Idempotent: true}, nil
 		}
 		// The gap id is G<n>, the position in the run's mint order, read by MintGapID from the
@@ -119,13 +125,16 @@ func newMint() *cobra.Command {
 		if strings.TrimSpace(loc) != "" && about != nil {
 			return nil, fmt.Errorf("lens mint takes --quote OR --about, not both: a gap has one subject")
 		}
+		// THE GAP'S ANCHOR IS PLACED as every kind's is: at the end of its quote, which must occur
+		// once within one paragraph of the report as it stands. A gap is one sentence (R-4), and the
+		// board reads its location from where its anchor stands.
 		if strings.TrimSpace(loc) != "" {
 			report, err := reportproj.RenderFromRecord(run)
 			if err != nil {
 				return nil, err
 			}
-			if _, _, lerr := bluedoc.LocateUnique("lens mint --quote", report, loc); lerr != nil {
-				return nil, fmt.Errorf("%w\n\nQuote the exact sentence the defect lives at, from the report as `show report` serves it, and nothing else — a section heading plus a sentence will not match. For a gap about something that is NOT in the report, do not borrow a nearby sentence: name it with --about-kind/--about, the same pair `finding` takes", lerr)
+			if _, aerr := anchortext.Attach(report, gapID, loc); aerr != nil {
+				return nil, mintPlacementRefusal(aerr)
 			}
 		}
 		p.Location = proto.String(loc)
@@ -159,9 +168,12 @@ func newMint() *cobra.Command {
 			// and still be a no-op once located — a repair confined to trailing punctuation the quote
 			// could not reach. Asked through the SAME planner `blue edit` records with, so a prescription
 			// passes here exactly when blue's --accept would apply it. Not inside bluedoc: reportproj
-			// owns the splice and already imports bluedoc.
+			// owns the splice and already imports bluedoc. Past ValidateProposal, its one other refusal
+			// is an anchor the fix puts on a heading, which stands as it is.
 			if _, _, _, err := reportproj.PlanSplice("lens mint", report, seat.Str(cmd, flags.Quote), fixNew); errors.Is(err, reportproj.ErrNoChange) {
 				return nil, fmt.Errorf("%w A prescription blue would apply to no effect cannot be verified: fix the quote so its replacement changes the report, or state the fix as prose in --fix", err)
+			} else if err != nil {
+				return nil, err
 			}
 			p.FixNew = proto.String(fixNew)
 			basis = "verified"
@@ -241,6 +253,11 @@ func newMint() *cobra.Command {
 		if _, err := record.Append(s.Identity(), p); err != nil {
 			return nil, err
 		}
+		if strings.TrimSpace(loc) != "" {
+			if _, err := record.Append(s.Identity(), &recordpb.Anchor{Id: proto.String(gapID), Location: proto.String(loc)}); err != nil {
+				return nil, err
+			}
+		}
 		// THE AMBIGUOUS TELLS ARE ADVICE, and they ride back on the confirmation. The write path has
 		// already refused the unambiguous ones (record.refuseMintReportVoice), so what remains is the
 		// set a pattern cannot tell from subject prose — "this run" or "the red team" may be exactly
@@ -260,7 +277,7 @@ func newMint() *cobra.Command {
 	// as "lens class new": a phrase from the prose offered to a seat as the thing to type. The
 	// command is named without them, and the placeholder is the shape actually wanted.
 	c.Flags().String(flags.Class, "", "the gap's `slug` — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap")
-	flags.Text(c, flags.Quote, flags.DescQuote)
+	flags.Text(c, flags.Quote, "the ONE sentence the defect lives at — "+flags.DescQuoteAlone+". The tool anchors the gap at its end, and the board shows that sentence with its section")
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
 		"anchor this gap to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote")
 	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an avenue id (Q1), or a gap id. It is CHECKED against the record")
@@ -319,6 +336,19 @@ func (r mintResult) Human() string {
 	}
 	return head + "\n  acceptance check RECORDED as: " + r.Check +
 		"\n  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)" + note
+}
+
+// mintPlacementRefusal is finding's placement refusal, worded for a gap: one whose quote repeats
+// may name its section instead, and one about something not in the report names that.
+func mintPlacementRefusal(err error) error {
+	r := placementRefusal("lens mint", "gap", err)
+	switch {
+	case errors.Is(err, anchortext.ErrAmbiguous):
+		return fmt.Errorf("%w; name its section with --about-kind section", r)
+	case errors.Is(err, anchortext.ErrOnHeading):
+		return r
+	}
+	return fmt.Errorf("%w\n\nFor a gap about something that is NOT in the report, do not borrow a nearby sentence: name it with --about-kind/--about, the same pair `finding` takes", r)
 }
 
 // contains reports membership, so an --supersedes that already names the estopping gap

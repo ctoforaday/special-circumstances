@@ -222,8 +222,8 @@ names its kind, minted with no counter to race.
 | A-1 | **Mint placement** | Mint appends an `Anchor` event after `Mint`; `report_op` gains no insert arm. | The `anchor` arm already renders it. |
 | A-2 | **Unique-quote check** | Write-time only, through `LocateOnce` (Part 3; `Attach` from Part 4); replay keeps `InsertAnchor`'s first match, which lands where `LocateOnce` counted on every write it admits (§III.4). | Replay reproduces history; the write proves uniqueness. |
 | A-3 | **The proposal carries the marker run** (R-13, R-17) | `record.Proposal(run, gap, report)`: where the location, located as an edit locates it, is followed by a marker run holding the gap's anchor, `old` is the location as the render holds it (its bytes through that run, then its own trailing punctuation), and `new` is `fix_new` with each of the run's gap anchors it does not already carry inserted at its content end by `Attach`'s insert step — the position `Attach` gives any quote ending there, with no second locate (the author's reading of R-17: `fix_new` is the gap's new text). So `new` carries each gap anchor of the run exactly once (§III.4). The run's other anchors are not added: `PlanSplice`'s `AutoPlace` re-places each that `new` lacks whose sentence survives verbatim in `fix_new`, and its transit check refuses the rest, which `--accept` reports as stale (`edit.go:137-140`). Otherwise the raw pair. `fix_new` stays red's text. | No fourth placement path: `Attach` and `AutoPlace` only. |
-| A-4 | **Stated residues** | Ruled: R-14 and R-20 — every placer refuses a sentence repeated verbatim as its own paragraph as ambiguous (R2). Disclosed: the three field lists are hand-kept in `migrate` under a guard test (R-19; `(prose)` means correction tier, a different concept; a test holds every `(prose)` field to the seat-argument list but `Cite.title`, which is source data); seat-argument text is the seat's wording and prints as written, so S9 does not scan it — the remap rewrites b3's `Retire.reason` "voice-F1" to the bare id like every id (reversible: writing `F-… (area)` there is one branch in the remap and drops S9's exemption); the sentence rule (§III.2, measured on the 21 renders) joins a sentence that opens with a digit to the one before it (37 joins; three more digit boundaries keep "ca. 240", "no. 2", "p. 33" whole), splits after an initial (5: "G. L. Honaker" ×2, "J.-M. De Koninck", `Eric W. "…"` ×2; "Dr. Smith" splits, stated), and splits before an opener after any terminator that does not end a sentence (5: the two `W. "`, "Prime Curios! (The", "30.33... (not" ×2; "Smith et al. (2020)" and "e.g. `verify_91.py`" split, stated), and a terminator inside a table cell splits the row (0 tables in the corpus's renders); a seat-argument field using a mapped id's spelling for something else is rewritten; ids re-carried by corrections (`cite.label`, `proof.proof_id`, `avenue.avenue_id`) carry no UNIQUE; the ≈3% moved-marker carries (S8); the F-c fallback placements (R10); unique-quote refusals of quotes that once placed silently (R2); in a migrated run, a gap whose quote never placed reads `gone` with no cutting edit, listed by name; an archived edit that no longer locates because a kept husk stands in its span is a migration refusal, named by run; a run live across Part 2's upgrade with an anchor on a fence's own line stops rendering, loudly (none archived, §III.2); retiring the bare anchor of an emptied ordered list item leaves its "1.", as today (§III.2). | — |
-| A-5 | **`extractQuote`** | Deleted only if `TestEveryArchivedRunRenders` and the universe comparison stay identical without it (Part 4, once no write reaches it). | — |
+| A-4 | **Stated residues** | Ruled: R-14 and R-20 — every placer refuses a sentence repeated verbatim as its own paragraph as ambiguous (R2). Disclosed: the three field lists are hand-kept in `migrate` under a guard test (R-19; `(prose)` means correction tier, a different concept; a test holds every `(prose)` field to the seat-argument list but `Cite.title`, which is source data); seat-argument text is the seat's wording and prints as written, so S9 does not scan it — the remap rewrites b3's `Retire.reason` "voice-F1" to the bare id like every id (reversible: writing `F-… (area)` there is one branch in the remap and drops S9's exemption); the sentence rule (§III.2, measured on the 21 renders) joins a sentence that opens with a digit to the one before it (37 joins; three more digit boundaries keep "ca. 240", "no. 2", "p. 33" whole), splits after an initial (5: "G. L. Honaker" ×2, "J.-M. De Koninck", `Eric W. "…"` ×2; "Dr. Smith" splits, stated), and splits before an opener after any terminator that does not end a sentence (5: the two `W. "`, "Prime Curios! (The", "30.33... (not" ×2; "Smith et al. (2020)" and "e.g. `verify_91.py`" split, stated), and a terminator inside a table cell splits the row (0 tables in the corpus's renders); a seat-argument field using a mapped id's spelling for something else is rewritten; ids re-carried by corrections (`cite.label`, `proof.proof_id`, `avenue.avenue_id`) carry no UNIQUE; the ≈3% moved-marker carries (S8); the F-c fallback placements (R10); unique-quote refusals of quotes that once placed silently (R2); in a migrated run, a gap whose quote never placed reads `gone` with no cutting edit, listed by name; an archived edit that no longer locates because a kept husk stands in its span is a migration refusal, named by run; an archived exact-span edit a gap token now stands inside, and an archived placement that does not place, are migration refusals named by event (A-5); a one-line bold paragraph ("**Is 91 prime?**") is a paragraph, not a heading, so three migrated gaps stand on one (universe-m8 G4 and G5, universe-m9 G4); an archived placement on a heading replays where it stands, because replay reproduces what the write allowed (universe-m11's finding f-0de89acd on "### Convergence Across Methods"); a run live across Part 2's upgrade with an anchor on a fence's own line stops rendering, loudly (none archived, §III.2); retiring the bare anchor of an emptied ordered list item leaves its "1.", as today (§III.2). | — |
+| A-5 | **`extractQuote`** | **Deleted in Part 4** (CLAUDE.md: `migrate` is the only upgrader, so the live renderer keeps no path that exists only for old records). From Part 4 no write reaches it. The migration rewrites no stored location (gblock, 2026-10-08): an archived placement that does not place in the migrated render — one whose location resolved only through the fallback among them — is a migration refusal naming the event, never patched. Measured: 0 on the 16 archived runs; 1 on the 28 (universe-m8's anchor event 110, a run that refuses at base for its motion rulings), and the rewrite that placed it put f-3c48e5e8 on the report's title heading. `TestEveryArchivedRunRenders` and the universe comparison stay identical. | — |
 | F-g | **The crash-window check** (`consistency.go:513-517`) | **Extended to every kind** (R-18): mint in Part 4; cite, prove, verify in Part 5. The violation reads "has no anchor". `consistency` runs in `citecrash_test.go` and the release fuzz; on a migrated run it reports each never-placed gap, truthfully. | One lifecycle (R-6). |
 
 Round 6's gap (L1) and notes, each with its resolution and required test: §V.4.
@@ -620,7 +620,23 @@ The `error_catalogue` golden moves.
 **Value.** About −170 production lines (−267 replay, −85 retire hold, +20 location state, +120
 placement step, +10 `Attach` and its texts, +10 mint placement, +12 proposal run and the compare
 reading it, +5 retries) and ≈ −245 test lines. S5, S7, S12, S13. Depends on Parts 1, 2 and 3.
-Ids stay `G<n>` until Part 6.
+Ids stay `G<n>` until Part 6. **Measured +60** (+756 −696), against the estimate's −170: the replay
+and the hold went as priced (`gapedit.go` −200, the hold −84, `extractQuote` −20), and three pieces
+cost more than priced — the migration step +244 (`gapplace.go` 226: shape (a), the four carry arms,
+the reopened union, the placement and exact-span refusals and the manifest census that names
+never-placed and fallback gaps), the location states +33 in `viewjson.go` (the three constants and
+their teaching, the reopening edits off the change view), and the shared placement refusals and
+stored-location retries in `lens` +46; one `renderProjection` replaced four render paths (−8 in
+`mintbudget.go`). The heading refusal costs +39 (gblock, 2026-10-08): +13 in `Attach` and its
+texts, +26 in the splice planner and mint; deleting the literal-span and
+quote rewrites, which ran 0 times on the archive, saves 34. Tests +1537 −542. Over the 16 archived
+runs: 0 refusals, every skeleton digest unchanged, 0 gaps never placed, 13 placed by the fallback,
+15 abutting rewrites, 0 archived mints on a heading; over the 28 runs (S7), universe-m8 newly refuses
+its anchor event 110 (A-5), 3 never placed (m8 G9, m9 G7, m13 G4), 0 gap anchors on a heading
+(3 on a paragraph that is one bold line: m8 G4 and G5, m9 G4, A-4), widening 0, blind spot 0, and
+10 of 82 finding pairs drifted — 8 fallback placements and universe2 G15/G16 beside f-36e5440b,
+Part 3's moved-marker residue. After Parts 1–4 the running S6 total is +211, so the ≥ 320 target
+needs about −531 from Parts 5–6.
 
 **Placement.**
 - [MODIFY] kinds table: the `gap` row (`G<n>`, `<!--gap:ID-->`, "gap anchor", strip, no claim, does
@@ -630,8 +646,17 @@ Ids stay `G<n>` until Part 6.
   `extractQuote` (H2). The occurrence `LocateOnce` counted is paragraph-bounded, so it is also
   `InsertAnchor`'s first match; the whole quote matched, so `InsertAnchor`'s fallback is not
   reached; replay therefore puts the token at the same offset. From Part 4, **`Attach` refuses
-  everything `LocateUnique` refuses**, plus a quote that crosses a blank line or ends in a fence.
-  `extractQuote` is reached only at replay (A-5).
+  everything `LocateUnique` refuses**, plus a quote that crosses a blank line or ends in a fence or
+  a heading block, as `anchor.Blocks` reads one: **no anchor of any kind sits on a heading**
+  (gblock, 2026-10-08), and a gap about a whole section names it with `--about-kind section`.
+  `AutoPlace` puts no anchor back where the replacement makes its place a heading, and
+  `PlanSplice` — the one plan behind `blue edit`, its `--accept`, and the check of a mint's
+  prescription — refuses a splice that puts an anchor on a heading line: one it carries into a
+  heading, or one whose line it makes a heading. An anchor already on a heading (universe-m11's
+  archived f-0de89acd) refuses no edit, its own heading's included: the edit did not put it there.
+  Migration never plans a splice, so the check needs no `Migrating` exemption. `InsertAnchor`
+  (replay) checks no heading: it reproduces what the write allowed. `extractQuote` is deleted
+  (A-5): a migrated placement that needed it is refused.
 - [NEW] **Placement refusal texts**, one per new sentinel, shared by finding, cite, prove, verify
   and mint, each prefixed with its verb: *ambiguous* — "the quote occurs more than once in the
   report, and an anchor needs one place: quote the sentence with the text before it in its
@@ -640,7 +665,10 @@ Ids stay `G<n>` until Part 6.
   section with --about-kind section"); *crosses a paragraph* — "the quote's one match in the
   report runs across a blank line, and an anchor sits in one passage: quote text inside one
   paragraph" (`LocateOnce` reports a second match first, so this text reaches only a quote with
-  one match); *splits a word* — `LocateUnique`'s words. None advises one
+  one match); *splits a word* — `LocateUnique`'s words; *ends in a heading* — "the quote ends in
+  a section heading, and an anchor sits on prose, never on a heading: quote a sentence of the
+  section's text" (mint and finding, the verbs with `--about-kind`, add "for a gap/finding about the
+  whole section, name the section with --about-kind section"). None advises one
   edit per site (R2). Each verb keeps its own not-found and fence texts; mint takes finding's.
 - [MODIFY] `lens/mint.go:116-127`: `--quote` is placed with `Attach` against the current render
   (replacing `LocateUnique`). After every check passes, the mint appends `Mint` and then
@@ -763,21 +791,28 @@ text; Append's checks stay on; an exemption that turns out to be needed sits bes
     lacks (the commonest shape: an edit quoting the gap's own sentence). `old`'s marker run after
     its last content character (often empty) is replaced by the render's run, so
     `settleAbuttingAnchor` extends the span over it.
-  - **(b) literal** — an exact-span edit whose literal `old` no longer occurs because gap tokens now
-    stand inside it: locate `old` with gap tokens skipped and set `old` to the render's bytes over
-    that range.
   - **carry** — every gap token in the (rewritten) span and absent from `new` goes into `new`:
-    `bluedoc.AutoPlace` where it places it; else, where `new` holds prose, right after the last
-    content character of `new`'s first sentence by `anchor.Sentences` (F-c); where `new` holds none
-    — empty, or markers only (the cut idiom: an edit down to the bare anchor, then `retire`) — the
-    token joins `new`'s marker run (bare → `gone`).
+    `bluedoc.AutoPlace` where it places it; else right after the last content character of `new`'s
+    first prose sentence — the first sentence with prose in a paragraph or list item by
+    `anchor.Blocks`, never a heading, fence or table row (F-c); where `new` holds no prose — empty,
+    or markers only (the cut idiom: an edit down to the bare anchor, then `retire`) — the token
+    joins `new`'s marker run (bare → `gone`); where its only prose is a heading, fence or table
+    row, no sentence carries the token, the edit takes it out, and the census names the gap with
+    those whose quote never placed (`gone`).
   - Then the gap ids `ReopenedAnchors(before, after)` reports join `BlueEdit.reopened`, as a set.
   Every rewrite inserts gap tokens only: with gap tokens removed, `old` and `new` are the archived
   bytes.
 - Runs with no base place nothing: their quote gaps read `unrendered`.
 - An archived edit that no longer locates because a kept husk stands in its span is a refusal,
-  named by run (A-4).
-- Cost: one render per mint and per edit; the PR reports the time on the largest archived run.
+  named by run (A-4). An exact-span edit whose literal `old` no longer occurs because gap tokens now
+  stand inside it is a refusal naming the event: the step rewrites no exact span (gblock,
+  2026-10-08; 0 on the archive).
+- *Placements.* At each replayed cite, proof, anchor and labelled verify, render and place it as
+  replay does (`reportproj.Place`); one that does not place is a refusal naming the event — the
+  step rewrites no stored location (A-5). Without the check it would append and break every later
+  render, which the step reads as a run with no base.
+- Cost: one render per mint, per edit and per placement; the PR reports the time on the largest
+  archived run.
 
 **Tests that fail if Part 4 is wrong.**
 - `TestEveryArchivedRunRenders` (R-14): a gap token adds a placeholder, keeps any husk a historical
@@ -789,7 +824,7 @@ text; Append's checks stay on; an exemption that turns out to be needed sits bes
   `gone`), read in review.
 - [NEW] `TestGapTranslationRewritesEveryShape` (`migrate`): one synthetic source stream per shape —
   (a) an edit quoting the gap's sentence without its token, (a) with a cite already in the run,
-  (b) an exact-span edit across the token, (c) an in-span drop, (d) a cut to empty, (e) the cut
+  (c) an in-span drop, (d) a cut to empty, (e) the cut
   idiom — a markers-only replacement, then its retire: the gap token stands bare beside the husk
   the retire kept, and the skeleton equals that of the same stream without the mint. Each renders; each token lands where the rule says;
   marker-stripped `old`/`new` are the source bytes. (f) A run written by the Part 4 binary (mint,
@@ -808,6 +843,24 @@ text; Append's checks stay on; an exemption that turns out to be needed sits bes
   #552 shape — a quote crossing a blank line that holds a quoted phrase occurring earlier — →
   refused; a quote whose first match crosses a blank line and which also occurs inside one
   paragraph → refused as ambiguous, not with the crossing text. Nothing appended for any.
+- [NEW] `TestAttachRefusesAHeading` (`anchortext`) and `TestNoVerbPlacesAnAnchorOnAHeading` (`cli`):
+  a quote ending in a heading of any level is `ErrOnHeading`; a one-line bold paragraph and the line
+  under a heading place; replay's `InsertAnchor` still places an archived quote on a heading. Through
+  mint, finding, cite, prove and corroborate, the heading quote is refused in the verb's words,
+  mint and finding name `--about-kind section`, and nothing is appended. Deleting the heading case
+  in `Attach` fails every verb's row; deleting it in `placementRefusal` fails mint's and finding's.
+  `TestAutoPlace`'s "onto a heading" row fails without `AutoPlace`'s heading check. The error
+  catalogue holds the mint's refusal.
+- [NEW] `TestNoEditPutsAnAnchorOnAHeading` (`cli`): an edit carrying an anchor into a heading line,
+  an edit making a heading of an anchored line, and a mint prescribing either are refused — "this
+  edit puts <token> on a section heading, and an anchor sits on prose, never on a heading: keep the
+  anchor on its sentence in the section's text and write the heading without it" — with nothing
+  appended; with an anchor already on a heading, an edit elsewhere and an edit of that heading both
+  record. Deleting the check fails the three refusals and the catalogue's edit row; dropping the
+  already-on-a-heading scope fails the two passes; deleting mint's call fails the prescription.
+- [NEW] `TestGapTranslationRefusesWhatItDoesNotRewrite` (`migrate`): an exact-span edit across a
+  gap token, and a finding anchor whose location names its section (`§ H: "…"`), each refuse the
+  run by that one event, in words saying the migration rewrites no exact span or stored location.
 - [NEW] `TestAttachPlacesWhereReplayDoes` (`anchortext`, fuzz): over generated documents and
   quotes, whenever `Attach` succeeds, `InsertAnchor` on the same document returns the same bytes.
   Deleting `LocateOnce`'s paragraph check fails it (the #552 shape again).
@@ -1193,7 +1246,9 @@ unstable golden).
 - [MODIFY] The kinds table's token prefix and suffix, and the two readers that know the invisible
   layer by its comment shape rather than by the table: `annotationLen` (`anchortext.go:63`, kept by
   R-2; behind `locate`, `Visible` and `normalizeQuote`) and `anchor.Sentences`' comment skip. Both
-  also skip the table's token and keep skipping HTML comments and footnote references; `Sentences`'
+  also skip the table's token and keep skipping HTML comments and footnote references — live
+  behaviour, not old-record support: an edit can carry a plain HTML comment, and it stays opaque
+  to every reader; archived tokens are respelled by `migrate`; `Sentences`'
   anchor clauses (§III.2 rules 2–3) read the table's token. Census:
   `git grep -nF '"<!--' -- '…/tools/*.go' ':!*_test.go' | grep -vE '\.go:[0-9]+:\s*//'` → 14 at
   `8798488d`: 9 become the table in Part 1 (`anchor.go:30,32,34,66,125`, `cite.go:166`,
@@ -1239,6 +1294,7 @@ each read against the gap row, the `Anchor` pair and the id shape):
 | `report/md.go:57 idToken` (Part 6) | Part 4 | KEEP: it reads assembled text, gap tokens already stripped |
 | `difftest/harness_test.go:180-213` (Part 6) | Part 4 (`<!--gap:G1-->` in goldens) | KEEP: `G<n>` is stable across runs |
 | Part 4's placement step | Part 6 (respelled ids and tokens), Part 8 (respelled tokens) | runs after `remap.apply`: respelled `old`/`new` against a respelled render; its `Anchor` carries the remapped gap id |
+| Part 4's placement pre-scan (`newPlacer` in `gapplace.go`) | Part 6 (respelled ids) | it keys the ids the source anchors on the SOURCE spelling, while the `Mint` it is asked about already carries the remapped id — harmless while only `R<r>-<n>` gap ids are remapped (a source that anchored its own gaps carries `G<n>`, unchanged); Part 6's respelling makes the pre-scan key on the remapped id, or a run that anchored its own gaps gains a second `Anchor` per gap |
 | `annotationLen`, `Sentences`' comment skip (R-2 KEEP) | Part 8 (a token that is not a comment) | read the table in Part 8 |
 | `consistency.go:205-220` (F-g) | Part 4 (mint), Part 5 (cite/prove/verify) | split by part |
 | `report_op` (Part 5) | Part 4 (gap `Anchor`s) | the existing `anchor` arm renders them |

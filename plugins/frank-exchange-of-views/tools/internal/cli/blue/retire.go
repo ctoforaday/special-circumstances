@@ -80,7 +80,7 @@ func newRetire() *cobra.Command {
 		// silent deletion.
 		claim := seat.Str(cmd, flags.Quote)
 		basis := record.RemovalAsserted
-		var kept, stayed []keptAnchor
+		var stayed []keptAnchor
 		if md, rerr := reportproj.RenderFromRecord(run); rerr == nil {
 			if strings.Contains(md, claim) {
 				return nil, feov.Errorf(feov.Conflict,
@@ -116,9 +116,7 @@ func newRetire() *cobra.Command {
 			if len(exiting) > 0 {
 				basis = record.RemovalVerified // the edit that left them bare shows the claim leaving
 			}
-			if body.Anchors, kept, err = takeable(run, exiting); err != nil {
-				return nil, err
-			}
+			body.Anchors = exiting
 			stayed = stayedBehind(md, left, exiting)
 		}
 		body.RemovalBasis = proto.String(basis)
@@ -126,7 +124,7 @@ func newRetire() *cobra.Command {
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		return retireResult{Claim: seat.Str(cmd, flags.Quote), Anchors: body.Anchors, Kept: kept, Stayed: stayed}, nil
+		return retireResult{Claim: seat.Str(cmd, flags.Quote), Anchors: body.Anchors, Stayed: stayed}, nil
 	}))
 
 	// NOT DescQuote. Every other --quote is matched against the report; this one must be ABSENT
@@ -134,7 +132,7 @@ func newRetire() *cobra.Command {
 	// text still stands. What it is matched against is that edit's old span.
 	flags.Text(c, flags.Quote, "the claim being removed, verbatim as it stood in the report BEFORE the edit that took it out — a sub-span of what that edit cut. It must be ABSENT from the report now (edit it out first, then retire; the retire is refused while the text still stands). Found inside a recorded edit's old span, the removal is recorded as verified; found in none, the retire is still recorded, with its removal basis recorded as asserted rather than verified — a removal the record cannot show")
 	flags.Text(c, flags.New, "the claim that replaces it, when one does")
-	c.Flags().Var(&named, flags.Anchor, "a marker the edit left inside a sentence that backed only this claim (c-…, p-… or f-…; comma-separated) — it leaves with the claim")
+	c.Flags().Var(&named, flags.Anchor, "an anchor id of any kind the edit left inside a sentence that backed only this claim (comma-separated) — it leaves with the claim")
 	return c
 }
 
@@ -251,35 +249,6 @@ func quoteCore(s string) string {
 	}
 }
 
-// takeable splits the bare anchors exiting with a claim into those this retire takes out and
-// those it must leave, with why.
-//
-// OWNERSHIP. Cite and proof anchors are the report's sources and leave with the claim they back —
-// a red corroboration's c- label included, since a corroboration is a source like any cite
-// (gblock's ruling, 2026-09-11); a finding marker is red's, and leaves only once red's lifecycle
-// has closed on it (record.FindingMarkerHold).
-//
-// A run whose database predates the retire_anchors table is not handled here: the generic body
-// walk reads and writes every list table of a Retire, so such a run cannot hold ANY retire this
-// binary reads back, whatever this verb names. The write refuses with the cause
-// (recordsql.olderSchema) rather than recording an event the next read would choke on.
-func takeable(run record.Run, exiting []string) (take []string, kept []keptAnchor, err error) {
-	for _, id := range exiting {
-		if strings.HasPrefix(id, "f-") {
-			why, err := record.FindingMarkerHold(run, id)
-			if err != nil {
-				return nil, nil, err
-			}
-			if why != "" {
-				kept = append(kept, keptAnchor{ID: id, Why: why})
-				continue
-			}
-		}
-		take = append(take, id)
-	}
-	return take, kept, nil
-}
-
 // keptAnchor is a bare anchor the retire left in the report, and why.
 type keptAnchor struct {
 	ID  string `json:"id"`
@@ -289,7 +258,6 @@ type keptAnchor struct {
 type retireResult struct {
 	Claim   string       `json:"claim"`
 	Anchors []string     `json:"anchors,omitempty"`
-	Kept    []keptAnchor `json:"kept,omitempty"`
 	Stayed  []keptAnchor `json:"stayed,omitempty"`
 }
 
@@ -297,9 +265,6 @@ func (r retireResult) Human() string {
 	out := "retired: " + r.Claim
 	if len(r.Anchors) > 0 {
 		out += "\nanchors out with it: " + strings.Join(r.Anchors, ", ")
-	}
-	for _, k := range r.Kept {
-		out += "\nanchor kept: " + k.ID + " — " + k.Why
 	}
 	for _, k := range r.Stayed {
 		out += "\nanchor stayed: " + k.ID + " — " + k.Why

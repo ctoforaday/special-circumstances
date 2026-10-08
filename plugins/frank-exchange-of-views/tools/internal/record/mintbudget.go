@@ -7,7 +7,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // A LENS'S MINT BUDGET SCALES WITH WHAT IT AUDITS (plans/roundless.md §III.B.2.2 sets the bound;
@@ -142,16 +141,15 @@ func countRows(query string) func(Run) (int, error) {
 
 func countInReport(count func(string) int) func(Run) (int, error) {
 	return func(run Run) (int, error) {
-		if reportRenderer == nil {
-			return 0, fmt.Errorf("this binary registers no report renderer (internal/reportproj registers one wherever it is linked)")
-		}
-		md, err := renderReport(run)
+		md, err := renderProjection(ReportProjection(run))
 		if err != nil {
 			return 0, err
 		}
 		return count(md), nil
 	}
 }
+
+var errNoRenderer = fmt.Errorf("this binary registers no report renderer (internal/reportproj registers one wherever it is linked)")
 
 // reportRenderer replays the report's frozen base and its ordered mutations — the rows
 // ReportProjectionAt reads — into the current report. It is REGISTERED, not imported: the renderer
@@ -165,18 +163,12 @@ func RegisterReportRenderer(fn func(base string, haveBase bool, ops []ReportOp) 
 	reportRenderer = fn
 }
 
-// renderReport renders the run's current report on the run's own handle.
-func renderReport(run Run) (string, error) {
-	base, haveBase, ops, err := ReportProjection(run)
-	if err != nil {
-		return "", err
+// renderProjection replays a report projection — ReportProjection's or ReportProjectionAt's rows —
+// into the current report, or says why it cannot: the rows did not read, or no renderer is linked.
+func renderProjection(base string, haveBase bool, ops []ReportOp, err error) (string, error) {
+	if err == nil && reportRenderer == nil {
+		err = errNoRenderer
 	}
-	return reportRenderer(base, haveBase, ops)
-}
-
-// renderReportAt renders the current report off q: its rows, then the replay.
-func renderReportAt(q recordsql.Querier) (string, error) {
-	base, haveBase, ops, err := ReportProjectionAt(q)
 	if err != nil {
 		return "", err
 	}

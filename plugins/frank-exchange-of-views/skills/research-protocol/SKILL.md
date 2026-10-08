@@ -14,7 +14,7 @@ Research that survives an adversary.
 - BEFORE searching, YOU MUST formulate 3–5 frontier hypotheses — what would be true if each candidate answer were right — and record each one as a AVENUE on the record — the approach, and what would be true if it paid off; searches then test hypotheses instead of wandering. On the record rather than in a file, because a hypothesis red cannot rule `too-thin` or `out-of-scope` is one nobody can contest — and the opening hypotheses are the ones that shape the entire run.
 - During research, YOU MUST search to **saturation**: stop only when new searches return already-seen sources (typically 20–30 searches for a deep topic).
 - During research, YOU MUST spend at least one search in five hunting **disconfirming** evidence against your current position. This is a drafting floor, not the verification: it keeps confirmation bias out of the draft; systematic disconfirmation is red's entire job.
-- During writing, YOU MUST add every citation with the TOOL, against the exact sentence it backs — never by hand. The tool fetches the source once into the run cache, then splices an INVISIBLE, IMMORTAL `<!--cite:c-…-->` anchor at that sentence; assembly weaves the anchors into the visible `[^N]` footnotes and composes the `## Bibliography`. A hand-typed `[^label]` is not a citation: nothing backs it, the claim counter does not see it, and the unbacked-citations detector flags it. An unreachable source is unusable — the cite is rejected, and the log is where you report it.
+- During writing, YOU MUST add every citation with the TOOL, against the exact sentence it backs — never by hand. The tool fetches the source once into the run cache, then splices an INVISIBLE `<!--cite:c-…-->` anchor at that sentence; assembly weaves the anchors into the visible `[^N]` footnotes and composes the `## Bibliography`. A hand-typed `[^label]` is not a citation: nothing backs it, the claim counter does not see it, and the unbacked-citations detector flags it. An unreachable source is unusable — the cite is rejected, and the log is where you report it.
 - **The bibliography is BOTH sides'.** A red CORROBORATION — a source red went and found for a
   claim blue made — mints an anchor and joins the footnotes the same way when it SUPPORTS the
   claim. A reader cares that the text has appropriate references, not which seat inserted them.
@@ -22,10 +22,13 @@ Research that survives an adversary.
   is red finding the text unsupported, which is a defect, and it goes to the board as a finding —
   a PASS is refused until one is raised for it.
 - **An anchor is part of the text you edit.** The report as the tool renders it prints every
-  `<!--fx:…-->`, `<!--cite:…-->` and `<!--proof:…-->` as it is; quote the span as printed and copy each token
-  into the replacement like any other character. A quote that stops just short of the anchor on
-  the sentence it rewrites is refused, and the refusal names the token to carry. The anchor is
-  never lost, and an edit that moves the words under one REOPENS it — the reference stands, its
+  anchor, of every kind — `<!--fx:…-->`, `<!--cite:…-->`, `<!--proof:…-->` and `<!--gap:…-->` — as
+  it is; quote the span as printed and copy each token into the replacement like any other
+  character. Every kind lives one way: the tool places an anchor at the end of its quote, an edit
+  carries it, the tool puts back one whose sentence the edit kept word for word, an edit that drops
+  or types one is refused, and retiring its claim is the one way it leaves. A quote that stops just
+  short of the anchor on the sentence it rewrites is refused, and the refusal names the token to
+  carry. An edit that moves the words under an anchor REOPENS it — the reference stands, its
   referent moved, so a verification of it is stale rather than refuted.
 - AFTER drafting, every claim MUST trace to a source a skeptic can follow; unverifiable claims are labeled as such, not laundered into fact.
 - For PDF-only sources, a scanned PDF is read by the run's cached source read itself, and that reading is what a citation can locate a page in; YOU MUST read it there before grading down on a lossy fetch. For arXiv figures and tables, `arxiv-latex` gives the exact LaTeX. A claim capped at "unable to corroborate" without trying these is an incomplete audit.
@@ -42,8 +45,8 @@ exactly like a clean board. See [[facts-are-fields]].
 
 The report set is the instructive non-exception: prose, because its audience is human. But
 every point of *argument* in it carries a tool-placed anchor — `cite:` where a source backs
-a claim, `fx:` where red challenged, `proof:` where a computation settles it — and dropping
-one is a hard refusal. Write for the reader; put what the machinery depends on in a field.
+a claim, `fx:` where red challenged, `proof:` where a computation settles it, `gap:` where red
+holds a gap open — and dropping one is a hard refusal. Write for the reader; put what the machinery depends on in a field.
 
 ## The run directory
 

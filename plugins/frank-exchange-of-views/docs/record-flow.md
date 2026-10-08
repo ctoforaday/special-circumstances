@@ -87,7 +87,7 @@ step: **[citations-and-bibliography.md](citations-and-bibliography.md)**. What t
   marker insertion at the quoted sentence; the report is its frozen base plus the replayed ops, so
   there is no file to splice and no torn-splice window.
 - **cite events ⟺ `<!--cite:-->` anchors is a strict bijection.** `blue edit` refuses a span that
-  drops or splits an anchor of either class, and `unbacked_citations` flags any divergence.
+  drops or splits an anchor of any kind, and `unbacked_citations` flags any divergence.
 - **The claim unit is the cite anchor** — `count-claims` counts a sentence carrying one; nothing
   counts the assembled report.
 

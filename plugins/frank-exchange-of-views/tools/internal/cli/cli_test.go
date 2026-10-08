@@ -145,9 +145,9 @@ func run(t *testing.T, args ...string) (stdout string, err error) {
 // the suite uses (§1..§3, the parser quote, sec 1, a quoted sentence).
 func seedBlueReport(t *testing.T, runDir string) {
 	t.Helper()
-	body := "# §1\n\n§1 first — a finding sits in sec 1 here.\n\n" +
-		"# §2\n\n§2 the finding prose lands in a quoted sentence.\n\n" +
-		"# §3\n\nthe parser accepts an empty body in this line.\n"
+	body := "# One\n\n§1 first — a finding sits in sec 1 here.\n\n" +
+		"# Two\n\n§2 the finding prose lands in a quoted sentence.\n\n" +
+		"# Three\n\nthe parser accepts an empty body in this line.\n"
 	dir := filepath.Join(runDir, "blue")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
@@ -1013,7 +1013,7 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 				t.Fatal(err)
 			}
 			if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-evidence",
-				"--key", "F1", "--quote", "l", "--reason", "t",
+				"--key", "F1", "--quote", "the parser accepts an empty body in this line.", "--reason", "t",
 				"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 				t.Fatal(err)
 			}

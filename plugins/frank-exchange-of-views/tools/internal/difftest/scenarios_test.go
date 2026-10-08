@@ -26,7 +26,7 @@ func scenarios() []scenario {
 				base("log", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "no PDF extraction"),
 				// implicit register: a seat that never registered still records
 				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-logic", "--key", "F1",
-					"--severity", "medium", "--likelihood", "high", "--impact", "medium", "--quote", "## S2", "--reason", "unfounded leap"),
+					"--severity", "medium", "--likelihood", "high", "--impact", "medium", "--quote", "A claim sits under S2.", "--reason", "unfounded leap"),
 			},
 		},
 		{
@@ -104,7 +104,7 @@ func scenarios() []scenario {
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
 				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "F1",
-					"--severity", "low", "--likelihood", "low", "--impact", "low", "--quote", "## S2", "--reason", "older shard"),
+					"--severity", "low", "--likelihood", "low", "--impact", "low", "--quote", "A claim sits under S2.", "--reason", "older shard"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
 				{
 					// `finding`, not `lens` + "finding": the role-prefixed spelling exited 2 with
@@ -112,7 +112,7 @@ func scenarios() []scenario {
 					// scenario's second finding — the newer shard this case is named for was never written.
 					verb: "finding",
 					args: []string{"--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "F2",
-						"--severity", "low", "--likelihood", "low", "--impact", "low", "--quote", "## S2", "--reason", "newer shard"},
+						"--severity", "low", "--likelihood", "low", "--impact", "low", "--quote", "A claim sits under S2.", "--reason", "newer shard"},
 					mtimes: map[string]time.Time{
 						"events-red-lens-evidence-NONCE001.jsonl": time.Unix(1_700_000_000, 0),
 						"events-red-lens-evidence-NONCE002.jsonl": time.Unix(1_700_000_600, 0),
@@ -124,9 +124,9 @@ func scenarios() []scenario {
 			name: "finding_labels_run_unique_per_role_across_rounds", // oracle: the tool assigns <area>-F{N}, the sequence spanning rounds — a lens cannot reuse a label, so round two gets evidence-F2, not another evidence-F1
 			cmds: []cmd{
 				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "F1",
-					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--quote", "## S2", "--reason", "round one"),
+					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--quote", "A claim sits under S2.", "--reason", "round one"),
 				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "F2", // the seat's SECOND finding, in a later sitting: its own key, the next label
-					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--quote", "## S2", "--reason", "round two"),
+					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--quote", "A claim sits under S2.", "--reason", "round two"),
 			},
 		},
 		{
@@ -218,7 +218,7 @@ func scenarios() []scenario {
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "x",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason", hostile),
 				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-logic", "--key", "F1",
-					"--severity", "low", "--likelihood", "low", "--impact", "low", "--quote", "## S2", "--reason", hostile),
+					"--severity", "low", "--likelihood", "low", "--impact", "low", "--quote", "A claim sits under S2.", "--reason", hostile),
 			},
 		},
 		{
@@ -375,14 +375,14 @@ func scenarios() []scenario {
 				base("verify", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--quote", "claim one",
 					"--title", "https://example.invalid/a", "--trust", "high", "--access-date", "2026-07-18"),
 				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "F1",
-					"--severity", "medium", "--likelihood", "medium", "--impact", "high", "--quote", "## S2", "--reason", "citation does not support"),
+					"--severity", "medium", "--likelihood", "medium", "--impact", "high", "--quote", "A claim sits under S2.", "--reason", "citation does not support"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-logic"),
 				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-logic", "--key", "F1",
-					"--severity", "high", "--likelihood", "high", "--impact", "high", "--quote", "## S4", "--reason", "a leap of faith"),
+					"--severity", "high", "--likelihood", "high", "--impact", "high", "--quote", "A claim sits under S4.", "--reason", "a leap of faith"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "citation-drift", "--check-kind", "document", "--check", "refetch and diff",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--complexity", "medium",
-					"--quote", "## S2", "--found-by", "evidence-F1,logic-F1", "--problem", "the cited source does not say this"),
+					"--quote", "A claim sits under S2.", "--found-by", "evidence-F1,logic-F1", "--problem", "the cited source does not say this"),
 				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", "round one: FAIL"),
 				base("verdict", "--run", "{RUN}", "--seat-id", "red-chair", "--as", "FAIL"),
 			},

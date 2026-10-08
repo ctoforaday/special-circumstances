@@ -41,8 +41,8 @@ import (
 // gapIDShape is G<n>, the id `MintGapID` assigns — run-global, no epoch in it.
 var gapIDShape = regexp.MustCompile(`^G\d+$`)
 
-// anchorShape is the tool-inserted anchor id: f- a finding, c- a source, p- a computation. The
-// prefix carries the class, which is why a bare hex string is not one.
+// anchorShape is the tool-inserted anchor id of any kind in the anchor kinds table. The prefix
+// carries the kind, which is why a bare hex string is not one.
 var anchorShape = regexp.MustCompile(`^` + anchor.IDPattern() + `$`)
 
 // findingLabelShape is <area>-F<n>, the run-unique label the tool assigns a lens finding, built
@@ -164,7 +164,7 @@ func GapID() *ShapedValue {
 // AnchorID refuses anything that is not a tool-inserted anchor id of any class.
 func AnchorID() *ShapedValue {
 	return &ShapedValue{kind: "anchor", re: anchorShape, unwrapsAnchor: true,
-		hint: "an anchor is a `" + anchor.Token("c-…") + "`, `" + anchor.Token("f-…") + "` or `" + anchor.Token("p-…") + "` token in the report, or the id inside one — paste either; `show evidence` and `show findings` resolve them"}
+		hint: "an anchor is a `" + anchor.Token("c-…") + "`, `" + anchor.Token("f-…") + "`, `" + anchor.Token("p-…") + "` or `" + anchor.Token("G…") + "` token in the report, or the id inside one — paste either; `show evidence`, `show findings` and `show board` resolve them"}
 }
 
 // citationAnchorShape is the CITATION class only.

@@ -177,7 +177,7 @@ func prepareRun(t *testing.T, bin, runDir string, m *nonceMapper, files map[stri
 	seed(t, runDir, files)
 	// A lens finding anchors into blue/report.md (slice 1b) and is rejected
 	// unless its --quote quote is present. Ensure a report carrying the
-	// scenario heading anchors (## S2 / ## S4) exists; a scenario may override.
+	// scenario quotes (a claim under ## S2 / ## S4) exists; a scenario may override.
 	if _, ok := files["blue/report.md"]; !ok {
 		seed(t, runDir, map[string]string{
 			"blue/report.md": "## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n",

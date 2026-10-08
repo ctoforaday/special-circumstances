@@ -43,11 +43,11 @@ func TestFindingRetryFinishesTheHalfAppendedPair(t *testing.T) {
 	if !strings.Contains(out, "L1-F1") {
 		t.Errorf("the retry did not answer idempotently with the prior label: %q", out)
 	}
-	anchored, err := record.AnchorEventExists(runtest.Open(t, runDir), "f-0badf00d")
+	owed, err := record.UnplacedLocation(runtest.Open(t, runDir), "f-0badf00d")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !anchored {
+	if owed != "" {
 		t.Error("the retry left the pair half-appended: the finding exists and its anchor event still does not")
 	}
 	assertNoAnchorViolations(t, runDir)

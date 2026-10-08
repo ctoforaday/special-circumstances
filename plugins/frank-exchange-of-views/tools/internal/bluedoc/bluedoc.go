@@ -2,7 +2,7 @@
 // blue/report.md is LEGAL — shared, because two roles now need the same answer.
 //
 // WHY IT EXISTS. `blue edit` has always validated its own old→new pair: the span must be
-// present, unique, must not split a word, and must not change which immortal anchors exist.
+// present, unique, must not split a word, and must not change which anchors exist.
 // With #267 stage 3 red may attach a CONCRETE proposed fix to a gap, and a proposal red
 // cannot state legally is a proposal blue cannot apply — so the same checks have to run at
 // mint time, in the chair role.
@@ -10,7 +10,7 @@
 // The alternative was `internal/cli/merge` importing `internal/cli/blue`, which makes two
 // role packages depend on each other for a rule that belongs to neither: it belongs to the
 // DOCUMENT. A second copy of the checks was never an option — the anchor invariant is the
-// one thing standing between an edit and red's immortal audit record, and this repo has
+// one thing standing between an edit and the anchors the record placed, and this repo has
 // already paid for two readers of one rule more than once.
 //
 // What did NOT move: the splice hygiene (tidySeam) and the write path. Those are what blue
@@ -54,7 +54,7 @@ func LocateUnique(verb, report, old string) (int, int, error) {
 	case anchortext.ErrAmbiguous:
 		return 0, 0, fmt.Errorf("%s: your quoted span appears MORE THAN ONCE in report.md, so the target is ambiguous — quote more surrounding context to pick out the one site you mean (to change every site, make one edit per site)", verb)
 	}
-	return 0, 0, fmt.Errorf("%s: your span starts or ends inside a word — quote whole words. Editing letters rather than language produces one-byte ops that carry no meaning on the record", verb)
+	return 0, 0, fmt.Errorf("%s: %w. Editing letters rather than language produces one-byte ops that carry no meaning on the record", verb, anchortext.ErrSplitsWord)
 }
 
 // LocateUniqueReplacing is LocateUnique for a caller that intends to REPLACE the span it finds.
@@ -173,9 +173,8 @@ func settleAbuttingAnchor(verb, report, quoted string, end int) (int, error) {
 // the prose around it rewritten), but never introduced, dropped or duplicated. It returns newText
 // with every anchor AutoPlace put back, so the refusal of one it could not is true at every caller.
 //
-// Anchors are still born ONLY from `lens finding` and `cite`, and still die only by
-// tool. Transit is not authorship: the tool checks the bytes, so nothing is delegated to
-// the model.
+// Anchors are placed by the tool, never typed into a replacement, and leave only by retire.
+// Transit is not authorship: the tool checks the bytes, so nothing is delegated to the model.
 func AnchorsTransitUnchanged(verb, oldSpan, newText string) (string, error) {
 	newText = AutoPlace(oldSpan, newText)
 	count := func(s string) map[string]int {
@@ -228,7 +227,7 @@ type ErrAnchorIntroduced struct {
 }
 
 func (e *ErrAnchorIntroduced) Error() string {
-	return fmt.Sprintf("%s: your replacement introduces %s, which was not in the span it replaces — anchors are placed by the lens's `finding` and blue's `cite`, never typed into a replacement (got %d occurrence(s))", e.Verb, anchor.Label(e.ID), e.Count)
+	return fmt.Sprintf("%s: your replacement introduces %s, which was not in the span it replaces — anchors are placed by the tool, never typed into a replacement (got %d occurrence(s))", e.Verb, anchor.Label(e.ID), e.Count)
 }
 
 // MaxProposalGrowth bounds how much longer a CONCRETE proposed fix may be than the span it
@@ -357,10 +356,10 @@ func flatText(s string) string {
 // AutoPlace puts back each anchor of span that new does not carry, where the anchor's sentence in
 // span survives in new word for word and LocateOnce finds it there once — inside the one occurrence
 // it counted, so "Costs rose sharply. Costs rose." is never placed on its first "Costs rose" — at
-// the place the anchor held in that sentence. An anchor it cannot place stays out, for the transit
-// check to refuse by its sentence. The sentence is read within span, the text being replaced: a
-// fragment edit that keeps the fragment re-places the anchor, and ReopenedAnchors, reading the
-// document's sentence, still records it.
+// the place the anchor held in that sentence, unless new makes that place a heading. An anchor it
+// cannot place stays out, for the transit check to refuse by its sentence. The sentence is read
+// within span, the text being replaced: a fragment edit that keeps the fragment re-places the
+// anchor, and ReopenedAnchors, reading the document's sentence, still records it.
 func AutoPlace(span, new string) string {
 	flat := flatText(new)
 	for _, id := range anchor.IDs(span) {
@@ -371,7 +370,7 @@ func AutoPlace(span, new string) string {
 			continue
 		}
 		if s, _, err := anchortext.LocateOnce(new, flatText(span[a:b]), anchortext.StopAtParagraph); err == nil {
-			if j := inStep(span, a, at, new, s); j >= 0 {
+			if j := inStep(span, a, at, new, s); j >= 0 && !anchortext.InBlock(new, j, anchor.Heading) {
 				new = new[:j] + tok + new[j:]
 			}
 		}

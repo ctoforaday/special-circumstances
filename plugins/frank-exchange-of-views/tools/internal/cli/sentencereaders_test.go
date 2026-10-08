@@ -11,8 +11,9 @@ import (
 
 // EVERY READER OF AN ANCHOR'S SENTENCE READS ONE WHOLE SENTENCE, through the real verbs. Each row
 // fails on a reader that splits at an internal period ("3.5%", "13. ✓") or at a soft wrap: the
-// edit's reopened set, the claim count, retire's bare set, the retire tidy, and the risk matrix's
-// lead sentence, and the sentence an edit's left-out anchor is put back on.
+// edit's reopened set, the claim count, retire's bare set, the retire tidy, the risk matrix's lead
+// sentence, the sentence an edit's left-out anchor is put back on, and a gap's location, backing and
+// edited_since.
 func TestEverySentenceReaderReadsOneSentence(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# Findings\n\n"+
@@ -30,7 +31,7 @@ func TestEverySentenceReaderReadsOneSentence(t *testing.T) {
 	cite := func(sentence, url string) string {
 		t.Helper()
 		if _, err := run(t, "cite", "--run", runDir, "--seat-id", blueSeat,
-			"--quote", `# Findings: "`+sentence+`"`, "--url", url, "--title", "Source "+url); err != nil {
+			"--quote", sentence, "--url", url, "--title", "Source "+url); err != nil {
 			t.Fatalf("cite %q: %v", sentence, err)
 		}
 		return lastBody(t, runDir, &recordpb.Cite{}).GetLabel()
@@ -118,6 +119,22 @@ func TestEverySentenceReaderReadsOneSentence(t *testing.T) {
 		}
 		if asm := assembled(t, runDir); !strings.Contains(asm, "| The committee chair said “Stop.” |") {
 			t.Errorf("the risk matrix cell is not the first sentence, closing quote included:\n%s", asm)
+		}
+	})
+	t.Run("a gap's location, backing and edited_since read its whole sentence", func(t *testing.T) {
+		gap, err := mintQuote(t, runDir, "G2", "Costs rose 2.5% in 2023")
+		if err != nil {
+			t.Fatal(err)
+		}
+		g := openGap(t, runDir, gap)
+		if g.LocationState != "marked" || g.Location != "Costs rose 2.5%\nin 2023." {
+			t.Errorf("the gap reads %s %q, want the whole soft-wrapped sentence", g.LocationState, g.Location)
+		}
+		if len(g.Backing) != 1 || g.Backing[0].Anchor != c1w {
+			t.Errorf("backing = %+v, want the citation in the gap's sentence, %s", g.Backing, c1w)
+		}
+		if got := edit("rose 2.5%", "rose 0.5%").GetReopened(); !slices.Contains(got, gap) {
+			t.Errorf("reopened = %v, want %s: the edit changed the words of the gap's sentence, a line above its anchor", got, gap)
 		}
 	})
 }

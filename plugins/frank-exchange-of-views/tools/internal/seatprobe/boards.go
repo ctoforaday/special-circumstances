@@ -268,7 +268,7 @@ before that floor in all jurisdictions.
 
 ## Findings
 
-The standard mandates a 30-day retention floor for every record class.
+The standard mandates a 30-day retention floor for every record class it covers.
 
 Deletion before the floor is forbidden in all jurisdictions.
 
@@ -279,7 +279,7 @@ An earlier draft of this report claimed the floor was 90 days.
 Each claim below rests on a cited source.
 `,
 		RedNarrative: "Epoch 1, FAIL. The citations are where this report is thinnest. One claim rests on a source that no longer says what it is cited for; one rests on a source I could not reach at all, and the report does not say so; and one sentence carries a figure that appears nowhere in the work it points at. I have graded these on consequence, not on my confidence that they are there — I have read them, they are there. The pattern across all three is the same: the citation exists, so the claim looks evidenced, and nobody has followed it to the leaf. Following it is the whole job. Where a claim can no longer stand on its source, I would rather see it retired than argued into place.",
-		Claims:       []string{"The standard mandates a 30-day retention floor for every record class."},
+		Claims:       []string{"The standard mandates a 30-day retention floor for every record class it covers."},
 		Gaps: []Gap{
 			{
 				Key: "unsourced", Class: "citation-status-drift",

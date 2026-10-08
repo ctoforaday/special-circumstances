@@ -25,10 +25,13 @@ import (
 //   - raw is the sha256 of the render: any byte that moves, moves it.
 //   - normalized is the sha256 with each anchor token replaced by ⟨kind#n⟩, n its first-appearance
 //     ordinal within its kind, so a change that respells ids or tokens and nothing else leaves it.
-//   - skeleton is the sha256 of the lines that hold prose (claimcount.HasProse, read before the
-//     tokens are replaced), each normalized and its whitespace runs folded to one space, so a change
-//     that only adds or takes out anchors and their husks leaves it.
-//   - the marker counts are the anchor tokens of each kind in the render.
+//   - skeleton is the sha256 of the render with each gap token taken out as a retire takes it out
+//     (reportproj.RemoveAnchorAt, husk included), then of the lines that hold prose
+//     (claimcount.HasProse, read before the tokens are replaced), each normalized and its whitespace
+//     runs folded to one space, so a change that only adds or takes out anchors and their husks
+//     leaves it.
+//   - the marker counts are the anchor tokens of each kind in the render, and the gap anchors that
+//     stand bare of any prose.
 //
 // The token reader here is the test's own: the readers under test must not grade themselves.
 func TestEveryArchivedRunRenders(t *testing.T) {
@@ -63,10 +66,10 @@ func TestEveryArchivedRunRenders(t *testing.T) {
 	goldentest.Assert(t, "archived_renders", strings.Join(lines, "\n")+"\n")
 }
 
-// renderToken is an anchor token of the three kinds the archive holds.
-var renderToken = regexp.MustCompile(`<!--(fx|cite|proof):([a-z]-[0-9a-f]+)-->`)
+// renderToken is an anchor token of any kind a render can hold.
+var renderToken = regexp.MustCompile(`<!--(fx|cite|proof|gap):([a-z]-[0-9a-f]+|G[0-9]+)-->`)
 
-var renderKinds = map[string]string{"fx": "finding", "cite": "citation", "proof": "proof"}
+var renderKinds = map[string]string{"fx": "finding", "cite": "citation", "proof": "proof", "gap": "gap"}
 
 func digest(s string) string { return fmt.Sprintf("%x", sha256.Sum256([]byte(s))) }
 
@@ -87,9 +90,16 @@ func normalizeAnchors(md string) string {
 	})
 }
 
-// skeleton keeps the lines that hold prose, normalized, whitespace runs folded to one space. No
-// archived render holds a gap token, so there is none to take out before it is read.
+// skeleton takes each gap token out as a retire would, then keeps the lines that hold prose,
+// normalized, whitespace runs folded to one space.
 func skeleton(md string) string {
+	for {
+		loc := gapToken.FindStringIndex(md)
+		if loc == nil {
+			break
+		}
+		md = reportproj.RemoveAnchorAt(md, loc[0], loc[1]-loc[0])
+	}
 	var kept []string
 	for _, ln := range strings.Split(md, "\n") {
 		if claimcount.HasProse(ln) {
@@ -99,10 +109,18 @@ func skeleton(md string) string {
 	return strings.Join(strings.Fields(normalizeAnchors(strings.Join(kept, "\n"))), " ")
 }
 
+var gapToken = regexp.MustCompile(`<!--gap:G[0-9]+-->`)
+
 func markerCounts(md string) string {
 	n := map[string]int{}
 	for _, m := range renderToken.FindAllStringSubmatch(md, -1) {
 		n[renderKinds[m[1]]]++
 	}
-	return fmt.Sprintf("finding=%d citation=%d proof=%d", n["finding"], n["citation"], n["proof"])
+	bare := 0
+	for _, id := range claimcount.BareAnchorIDs(md) {
+		if strings.Contains(md, "<!--gap:"+id+"-->") {
+			bare++
+		}
+	}
+	return fmt.Sprintf("finding=%d citation=%d proof=%d gap=%d bare-gap=%d", n["finding"], n["citation"], n["proof"], n["gap"], bare)
 }

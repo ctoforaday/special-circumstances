@@ -3,6 +3,8 @@ package bluedoc
 import (
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 )
 
 // A REFERENCE WHOSE REFERENT MOVED IS REOPENED.
@@ -75,7 +77,7 @@ func TestAQuoteMayNotStopShortOfTheAnchorItIsRewriting(t *testing.T) {
 	// A RUN of abutting anchors is named anchor by anchor, each by its kind.
 	run := "# H\n\nThe sky is blue<!--fx:f-a1--><!--cite:c-b2-->.\n"
 	_, _, err = LocateUniqueReplacing("blue edit", run, "The sky is blue.")
-	if err == nil || !strings.Contains(err.Error(), "carries finding-marker f-a1 and citation anchor c-b2 (") {
+	if err == nil || !strings.Contains(err.Error(), "carries "+anchor.Label("f-a1")+" and "+anchor.Label("c-b2")+",") {
 		t.Errorf("the refusal does not name each anchor of the run by its kind: %v", err)
 	}
 
