@@ -668,7 +668,7 @@ const (
 	SourceOutcome_SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE SourceOutcome = 2
 	SourceOutcome_SOURCE_OUTCOME_WEAK                 SourceOutcome = 3
 	SourceOutcome_SOURCE_OUTCOME_REFUTES              SourceOutcome = 4
-	SourceOutcome_SOURCE_OUTCOME_ABSENT               SourceOutcome = 5 // silence is not contradiction
+	SourceOutcome_SOURCE_OUTCOME_ABSENT               SourceOutcome = 5 // says nothing, as against says otherwise
 	SourceOutcome_SOURCE_OUTCOME_UNREACHABLE          SourceOutcome = 6
 )
 
@@ -8058,14 +8058,14 @@ const file_record_proto_rawDesc = "" +
 	"\x1bDISPOSITION_DEFECT_ACCEPTED\x10\x05\x1a\x93\x01\x8a\xb5\x18\x8a\x01the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record\x98\xb5\x18\x01\x12\x8f\x01\n" +
 	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\xd4\x03\n" +
 	"\x14DISPOSITION_REMANDED\x10\a\x1a\xb9\x03\x8a\xb5\x18\xb0\x03NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states — a remand closes nothing, so it states a direction and never --final. If that exchange leaves it at impasse it is docketed again, if it moves the gap the gap's limits count afresh from the ruling, and a second remand at impasse leaves it open at its limit\x98\xb5\x18\x00\x12\xd8\x01\n" +
-	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01*\xd9\b\n" +
+	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01*\x8c\t\n" +
 	"\rSourceOutcome\x12\x1e\n" +
 	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12\xf8\x01\n" +
 	"\x17SOURCE_OUTCOME_SUPPORTS\x10\x01\x1a\xda\x01\x8a\xb5\x18\xd5\x01you read the source and it says what the claim says. Where the run's copy of it is only the work's abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows\x12\x9a\x01\n" +
 	"#SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE\x10\x02\x1aq\x8a\xb5\x18mit supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement\x12j\n" +
 	"\x13SOURCE_OUTCOME_WEAK\x10\x03\x1aQ\x8a\xb5\x18Mit gestures at the claim, or is itself uncorroborated: thin support, not none\x12~\n" +
-	"\x16SOURCE_OUTCOME_REFUTES\x10\x04\x1ab\x8a\xb5\x18^you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry\x12\xd3\x01\n" +
-	"\x15SOURCE_OUTCOME_ABSENT\x10\x05\x1a\xb7\x01\x8a\xb5\x18\xb2\x01you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was\x12\xcd\x01\n" +
+	"\x16SOURCE_OUTCOME_REFUTES\x10\x04\x1ab\x8a\xb5\x18^you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry\x12\x86\x02\n" +
+	"\x15SOURCE_OUTCOME_ABSENT\x10\x05\x1a\xea\x01\x8a\xb5\x18\xe5\x01you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise, and a reader deciding what to do about it needs to know which it was\x12\xcd\x01\n" +
 	"\x1aSOURCE_OUTCOME_UNREACHABLE\x10\x06\x1a\xac\x01\x8a\xb5\x18\xa7\x01you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit*\x95\x04\n" +
 	"\n" +
 	"Confidence\x12\x1a\n" +

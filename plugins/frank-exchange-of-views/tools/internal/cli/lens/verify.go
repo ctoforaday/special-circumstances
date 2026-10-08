@@ -407,7 +407,7 @@ func (r verifyResult) human() string {
 	case "refutes":
 		return subject + " REFUTES the claim — recorded. The report still carries it; that is a finding, and this event is the evidence for it"
 	case "absent":
-		return subject + " does NOT contain the claim — recorded as absent (silence, not contradiction)"
+		return subject + " does NOT contain the claim — recorded as absent (the source says nothing about it; it does not say otherwise)"
 	case "unreachable":
 		return subject + " could not be read — recorded as unreachable, with what you tried"
 	default:
