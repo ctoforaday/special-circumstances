@@ -1,6 +1,7 @@
 package chair
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -97,7 +98,8 @@ func newDispatch() *cobra.Command {
 }
 
 // dispatchResult is the plan, whose fields ARE the --json body, and whether it was already on the
-// record — said in prose only, so the JSON the chair relays is the same plan either way.
+// record — said in prose only, so the JSON the chair relays is the same plan either way. The prose
+// form ends with that same object, so the chair relays one object whichever form it asked for.
 type dispatchResult struct {
 	record.Plan
 	standing bool
@@ -146,5 +148,18 @@ func (r dispatchResult) Human() string {
 	for _, w := range r.Why {
 		fmt.Fprintf(&b, "  · %s\n", w)
 	}
+	// THE PROSE FORM CARRIES THE RELAY. The lines above are for reading and cannot be relayed: a
+	// chair that asked for this form and not the machine one held no plan object, built one from
+	// the envelope's schema, and its relay — every blocker dropped, a field added to each party —
+	// ended the run (m16, chair sitting 6). The object is printed in both forms, so there is no
+	// form of this verb's answer from which the plan has to be composed.
+	relay, err := json.Marshal(r.Plan)
+	if err != nil {
+		// Unreachable for a struct of strings, numbers and booleans; said rather than dropped,
+		// because prose with no relay line is the form this exists to end.
+		fmt.Fprintf(&b, "relay: NOT PRINTED (%v) — ask again in the machine form and relay its result\n", err)
+		return strings.TrimRight(b.String(), "\n")
+	}
+	fmt.Fprintf(&b, "relay — your envelope's `plan` is this object, copied whole; the lines above are its reading, not the relay:\n%s\n", relay)
 	return strings.TrimRight(b.String(), "\n")
 }

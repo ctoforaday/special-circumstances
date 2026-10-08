@@ -175,6 +175,78 @@ func TestDispatchNextRecordsOncePerSittingAndRefusesAnUnopenedOne(t *testing.T) 
 	}
 }
 
+// THE PROSE FORM CARRIES THE RELAY (m16, chair sitting 6). A chair that asked for the prose and
+// never for the machine form held no plan object, composed one from the envelope's schema, and its
+// relay ended the run. The object under the prose form's `relay` line is the one `--json` answers
+// with as `result`, field for field — for a plan with parties and for the empty plan that ends a
+// run — so neither form leaves the chair a plan to build.
+func TestDispatchNextProsePrintsTheRelayTheMachineFormPrints(t *testing.T) {
+	relayOf := func(t *testing.T, prose string) any {
+		t.Helper()
+		lines := strings.Split(prose, "\n")
+		for i, l := range lines {
+			if strings.HasPrefix(l, "relay — ") && i+1 < len(lines) {
+				var v any
+				if err := json.Unmarshal([]byte(lines[i+1]), &v); err != nil {
+					t.Fatalf("the line under `relay` is not one JSON object: %v\n%s", err, lines[i+1])
+				}
+				return v
+			}
+		}
+		t.Fatalf("the prose form prints no relay — the chair is left to compose the plan:\n%s", prose)
+		return nil
+	}
+	resultOf := func(t *testing.T, out string) any {
+		t.Helper()
+		var env struct {
+			OK     bool `json:"ok"`
+			Result any  `json:"result"`
+		}
+		if err := json.Unmarshal([]byte(out), &env); err != nil || !env.OK || env.Result == nil {
+			t.Fatalf("the machine form is not an ok envelope with a result: %v\n%s", err, out)
+		}
+		return env.Result
+	}
+	check := func(t *testing.T, runDir string, wantParties int) {
+		t.Helper()
+		prose, err := run(t, "dispatch", "next", "--run", runDir, "--seat-id", "red-chair")
+		if err != nil {
+			t.Fatalf("dispatch next: %v\n%s", err, prose)
+		}
+		out, err := run(t, "dispatch", "next", "--run", runDir, "--seat-id", "red-chair", "--json")
+		if err != nil {
+			t.Fatalf("dispatch next --json: %v\n%s", err, out)
+		}
+		relay, result := relayOf(t, prose), resultOf(t, out)
+		a, _ := json.Marshal(relay)
+		b, _ := json.Marshal(result)
+		if string(a) != string(b) {
+			t.Errorf("the prose form's relay is not the machine form's result:\n relay  %s\n result %s", a, b)
+		}
+		parties, _ := relay.(map[string]any)["parties"].([]any)
+		if len(parties) != wantParties {
+			t.Errorf("the relay names %d parties, want %d: %s", len(parties), wantParties, a)
+		}
+		for _, f := range []string{"head", "docket", "remand_owed", "pass_permitted", "stale_areas", "ceiling", "max_epochs", "epoch_limit_reached", "blockers", "why"} {
+			if _, ok := relay.(map[string]any)[f]; !ok {
+				t.Errorf("the relay carries no %q — the workflow refuses a plan without it: %s", f, a)
+			}
+		}
+	}
+	t.Run("a plan with parties", func(t *testing.T) {
+		runDir := newRun(t)
+		stageEvents(t, runDir)
+		check(t, runDir, 2)
+	})
+	t.Run("the empty plan", func(t *testing.T) {
+		runDir := newRun(t)
+		recordtest.Seed(t, runDir,
+			recordtest.At(t, "harness", "harness:stage:1", &recordpb.Cast{SeatIds: []string{"red-chair", "blue-respond", "judge"}}),
+			recordtest.At(t, "red-chair", "red-chair:stage:2", &recordpb.Register{}))
+		check(t, runDir, 0)
+	})
+}
+
 // planOf reads the verb's plan out of the seat envelope every JSON verb answers in.
 func planOf(t *testing.T, out string) record.Plan {
 	t.Helper()

@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, passPlan, ceilingPlan, party, petitionBench, blocker, judgeEnv, petitionRulingEnv } from './harness.mjs'
+import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, passPlan, ceilingPlan, party, petitionBench, blocker, judgeEnv, petitionRulingEnv, schemaAccepts } from './harness.mjs'
 
 // THE SIMULATOR DRIVES debate.js WITH STUBBED SEATS. There are no rounds (plans/roundless.md
 // §III.B.1): the chair sits, its envelope relays the plan `dispatch next` recorded, the loop
@@ -879,4 +879,160 @@ test('a gapPatterns argument is ignored: the corpus never travels through args',
     assert.ok(!c.prompt.includes('f.md'), `a relayed pattern filename reached ${c.opts.label}`)
     assert.ok(!c.prompt.includes('T — H'), `a relayed pattern body reached ${c.opts.label}`)
   }
+})
+
+// ── the envelope schema and the plan check agree ────────────────────────────────────────────
+
+// The schema the chair's dispatch carries, as the engine hands it to the harness.
+const chairSchema = async () => {
+  const world = makeWorld(makeResponder())
+  await world.run(script, ARGS)
+  return labelsOf(world, 'red-chair')[0].opts.schema
+}
+const relayEnds = async (env) => {
+  const world = makeWorld(makeResponder({ chair: [env, passChair()] }))
+  return { world, out: await world.run(script, ARGS) }
+}
+
+// m16 (2026-10-08): chair sitting 6 relayed a plan it had rebuilt by hand, with `occasions: []` on
+// both lenses and blue. The schema accepted the envelope; the plan check threw on it; the run ended
+// there, 42 minutes in. The envelope below is that sitting's plan, verdict and notes, off its transcript.
+test('m16: chair sitting 6\'s relay — an empty occasions list on each lens and blue — is accepted by the schema and dispatches its parties', async () => {
+  const env = JSON.parse(readFileSync(new URL('./testdata/m16-chair6-relay.json', import.meta.url), 'utf8'))
+  assert.deepEqual(env.plan.parties.map((p) => p.occasions), [[], [], []], 'the fixture is the relay that ended the run')
+  assert.ok(schemaAccepts(await chairSchema(), env), 'the schema accepts the relay, as the harness did in the run')
+  const { world, out } = await relayEnds(env)
+  assert.deepEqual(world.calls.map((c) => c.opts.label).filter((l) => / #1 /.test(l) && !l.startsWith('red-chair')),
+    ['red-lens-adversary #1 · test', 'red-lens-architecture #1 · test', 'blue-respond #1 · test'])
+  assert.ok(labelsOf(world, 'blue-respond #1')[0].prompt.includes('You are engaged on: G14, G15, G16, G17.'))
+  assert.equal(out.verdict, 'VERIFIED')
+})
+
+// EACH SHAPE THE PLAN CHECK REFUSES IS ONE THE SCHEMA REFUSES FIRST — named, so a reader sees which
+// shapes those are; the sweep below is what holds the two together.
+test('the schema refuses what the plan check refuses: a bench with no occasion, an occasion on a lens or blue, a seat with no sitting, a blank direction', async () => {
+  const schema = await chairSchema()
+  const refused = {
+    'a bench party with no occasions': plan([{ seat_id: 'judge', gap_ids: ['G1'] }]),
+    'a bench party with an empty occasions list': plan([{ seat_id: 'judge', gap_ids: ['G1'], occasions: [] }]),
+    'a bench party convened for a word that is not an occasion the plan names': plan([{ seat_id: 'judge', gap_ids: [], occasions: ['terminal'] }]),
+    'a lens convened for an occasion': plan([{ seat_id: 'red-lens-logic', gap_ids: [], occasions: ['docket'] }]),
+    'blue convened for an occasion': plan([{ seat_id: 'blue-respond', gap_ids: ['G1'], occasions: ['petition'] }]),
+    'a seat the workflow has no sitting for': plan([party('frontier')]),
+    'a lens area the workflow does not declare': plan([party('red-lens-typography')]),
+    'a remand with a blank direction': plan([], { remand_owed: [{ gap_id: 'G1', direction: ' ' }] }),
+  }
+  for (const [what, p] of Object.entries(refused)) {
+    assert.ok(!schemaAccepts(schema, chairEnv({ plan: p })), `the schema must refuse ${what}`)
+  }
+  const accepted = {
+    'the bench on its docket': plan([party('judge', 'G1')], { docket: ['G1'] }),
+    'the bench for a petition and its docket': plan([{ seat_id: 'judge', gap_ids: ['G1'], occasions: ['petition', 'docket'] }]),
+    'a lens with no occasions field': plan([party('red-lens-logic')]),
+    'a lens with an empty occasions list': plan([{ seat_id: 'red-lens-logic', gap_ids: [], occasions: [] }]),
+  }
+  for (const [what, p] of Object.entries(accepted)) {
+    assert.ok(schemaAccepts(schema, chairEnv({ plan: p })), `the schema must accept ${what}`)
+  }
+})
+
+// THE GATE: NO RELAY THE SCHEMA ACCEPTS ENDS THE RUN. Every position in a full plan is replaced by
+// every value in the pool — and deleted — and each resulting relay the schema accepts is run
+// through the engine. A check added to the engine with no shape for it in the schema fails here,
+// naming the relay; so does a shape loosened in the schema that a check still throws on.
+test('a relay the envelope schema accepts is never one the engine throws on', async () => {
+  const schema = await chairSchema()
+  const full = () => chairEnv({
+    plan: plan(
+      [party('red-lens-evidence', 'G1'), party('blue-respond', 'G1', 'G2'), { seat_id: 'judge', gap_ids: ['G2'], occasions: ['petition', 'docket'] }],
+      { docket: ['G2'], remand_owed: [{ gap_id: 'G1', direction: 'find the primary source' }], stale_areas: [{ seat_id: 'red-lens-voice', pin: 3 }], blockers: [blocker('M1', 'judge')], why: ['G1: open'], max_epochs: 12 }),
+    verdict: null, notes: 'n',
+  })
+  const paths = []
+  const walk = (v, path) => {
+    paths.push(path)
+    if (Array.isArray(v)) v.forEach((x, i) => walk(x, [...path, i]))
+    else if (v && typeof v === 'object') for (const k of Object.keys(v)) walk(v[k], [...path, k])
+  }
+  walk(full(), [])
+  const DELETE = Symbol('delete')
+  const pool = [DELETE, null, '', ' ', 'x', 'judge', 'blue-respond', 'red-lens-logic', 'frontier', 'docket', 0, -1, 1.5, 7, true, false, {}, [], [''], ['x'], ['docket'], ['petition'], ['terminal'], [{}], 'PASS', 'FAIL']
+  // A key the verb omits and a seat may add: `occasions` on the lens and on blue.
+  const added = [['plan', 'parties', 0, 'occasions'], ['plan', 'parties', 1, 'occasions']]
+  let accepted = 0, refused = 0
+  for (const path of [...paths.filter((p) => p.length), ...added]) {
+    for (const value of pool) {
+      const env = full()
+      let at = env
+      for (const k of path.slice(0, -1)) at = at[k]
+      const last = path[path.length - 1]
+      if (value === DELETE) { if (Array.isArray(at)) at.splice(last, 1); else delete at[last] } else at[last] = value
+      const what = `${path.join('.')} = ${value === DELETE ? '(deleted)' : JSON.stringify(value)}`
+      if (!schemaAccepts(schema, env)) { refused++; continue }
+      accepted++
+      const { out } = await relayEnds(env).catch((err) => assert.fail(`the schema accepts the relay with ${what}, and the engine throws on it: ${err.message}`))
+      assert.ok(!out.failure, `the schema accepts the relay with ${what}, and the engine ends the run on it: ${out.failure}`)
+    }
+  }
+  // Both arms ran: a sweep in which the schema refused everything, or nothing, measured no agreement.
+  assert.ok(accepted > 50 && refused > 50, `the sweep must exercise both arms; it accepted ${accepted} and refused ${refused}`)
+})
+
+// ── a run the engine stops ──────────────────────────────────────────────────────────────────
+
+// AN ENGINE STOP RECORDS NO OUTCOME, AND THE RUN STAYS OPEN. Only the bench's assembly sitting writes
+// an outcome, and an outcome closes the record to every seat — so a stop that convened it would
+// finish a run an operator can still resume. The workflow rejects with the error and that is all it
+// does: the stop itself reaches the record from the lead, which holds the error.
+const strayPlan = () => chairEnv({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G1'), party('frontier')], { blockers: [blocker('M1', 'judge')] }) })
+test('an engine stop convenes nobody: no party of the plan it stopped on, no terminal sitting, and no assembly sitting to record an outcome', async () => {
+  const world = makeWorld(makeResponder({ chair: [chairEnv(), strayPlan(), passChair()] }))
+  await assert.rejects(world.run(script, ARGS), /epoch 2: the plan names frontier/)
+  assert.equal(world.calls[world.calls.length - 1].opts.label, 'red-chair #2 · test', 'the sitting the engine stopped on is the last one dispatched')
+  assert.equal(labelsOf(world, 'judge · terminal').length, 0, 'the plan the engine stopped on convenes no terminal sitting, whatever blockers it lists')
+  assert.equal(labelsOf(world, 'judge · assemble').length, 0, 'the assembly sitting records the outcome, and a stopped run has none')
+})
+
+test('an assembly sitting that returns nothing stops the run: no envelope states a verdict the seat that records it never confirmed', async () => {
+  const seats = makeResponder()
+  const world = makeWorld((p, o) => (/^judge · assemble/.test(o.label) ? null : seats(p, o)))
+  await assert.rejects(world.run(script, ARGS), (e) => /^the assembly sitting returned null/.test(e.message) && /the debate had ended VERIFIED/.test(e.message))
+})
+
+// A RESUME REPLAYS THE SITTINGS THAT COMPLETED AND RUNS THE REST. The Workflow tool's resume hands a
+// completed sitting its cached result when the script asks for it again; the stand-in here is a
+// cache keyed by the dispatch's label and prompt, so a replayed sitting hits only if the script
+// asks for it in the same words. What the tool itself keys on is not measured here.
+const cachingWorld = (cache, fresh) => {
+  const tally = { hits: 0, ran: [] }
+  const world = makeWorld((p, o) => {
+    const key = `${o.label}\n${p}`
+    if (cache.has(key)) { tally.hits++; return cache.get(key) }
+    const out = fresh(p, o)
+    cache.set(key, out)
+    tally.ran.push(o.label)
+    return out
+  })
+  return { world, tally }
+}
+test('a stopped run resumes: every completed sitting replays under the prompt it first had, an unchanged resume stops at the same sitting, and one that sits it again reaches the outcome', async () => {
+  const cache = new Map()
+  const first = cachingWorld(cache, makeResponder({ chair: [chairEnv(), strayPlan()] }))
+  await assert.rejects(first.world.run(script, ARGS), /the plan names frontier/)
+  const sat = first.tally.ran.length
+  assert.ok(sat > 5 && first.tally.hits === 0, `the first run sits every seat fresh; it sat ${sat} and replayed ${first.tally.hits}`)
+
+  // Nothing changed: the stop replays from the cache, and no seat sits again.
+  const same = cachingWorld(cache, () => { throw new Error('a replay with nothing changed dispatched a seat') })
+  await assert.rejects(same.world.run(script, ARGS), /the plan names frontier/)
+  assert.equal(same.tally.hits, sat, 'every sitting of the stopped run is asked for again in the same words')
+
+  // The sitting the engine stopped on sits again: everything before it replays, and the run goes on.
+  for (const k of [...cache.keys()]) if (k.startsWith('red-chair #2')) cache.delete(k)
+  const resumed = cachingWorld(cache, makeResponder({ chair: [passChair()] }))
+  const out = await resumed.world.run(script, ARGS)
+  assert.equal(resumed.tally.hits, sat - 1, 'every sitting but the one that stopped the run replays')
+  assert.deepEqual(resumed.tally.ran, ['red-chair #2 · test', 'judge · assemble · test'], 'only the stopped sitting and what follows it run')
+  assert.equal(out.verdict, 'VERIFIED')
+  assert.equal(out.gaps_outstanding, 0)
 })
