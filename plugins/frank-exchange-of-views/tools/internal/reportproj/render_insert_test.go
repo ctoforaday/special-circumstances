@@ -25,10 +25,10 @@ func insertHelper(t *testing.T, text, location, marker string) string {
 	return string(next)
 }
 
-// The marker verbs (cite/prove/finding) no longer write report.md — they record an event, and the
-// projection re-places their marker. This is the fidelity guard for that path: a base with a
-// citation, a proof, and a finding-anchor replays to exactly what write-time InsertAnchor would
-// have produced, markers in record order.
+// The marker verbs (cite/prove/finding) record their act and then an Anchor, and the projection
+// re-places the marker from the Anchor alone. This is the fidelity guard for that path: a base with
+// a citation, a proof and a finding replays to exactly what write-time InsertAnchor would have
+// produced, markers in record order — and an act recorded with no Anchor places nothing.
 func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	for _, s := range []string{"blue-synthesize", "blue-respond", "red-lens-evidence"} {
@@ -54,7 +54,24 @@ func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("append proof: %v", err)
 	}
-	// A finding records BOTH events; only the Anchor carries the marker geometry.
+	if _, err := record.Append(ident(t, runDir, "red-lens-evidence"), &recordpb.Verify{
+		Label: proto.String("c-0badf00d"), Claim: proto.String("Demand grows steadily over the period"), Url: proto.String("https://example.org/r"),
+		Title: proto.String("R"), Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(),
+		Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(), Text: proto.String("read at the leaf"),
+	}); err != nil {
+		t.Fatalf("append corroboration: %v", err)
+	}
+	if got, err := RenderFromRecord(runtest.Open(t, runDir)); err != nil || got != base {
+		t.Fatalf("a cite, a proof and a corroboration with no Anchor event rendered a marker: %q, %v", got, err)
+	}
+	for _, id := range []string{citeID, proofID} {
+		if _, err := record.Append(ident(t, runDir, "blue-respond"), &recordpb.Anchor{
+			Id: proto.String(id), Location: proto.String("The estimate is stable across the range"),
+		}); err != nil {
+			t.Fatalf("append the anchor of %s: %v", id, err)
+		}
+	}
+	// Every placing act records BOTH events; only the Anchor carries the marker geometry.
 	if _, err := record.Append(ident(t, runDir, "red-lens-evidence"), &recordpb.Finding{
 		Label: proto.String("L1-F1"), FindingId: proto.String(findID), Location: proto.String("Demand grows steadily over the period"),
 	}); err != nil {
@@ -77,6 +94,12 @@ func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 	want = insertHelper(t, want, "Demand grows steadily over the period", anchor.Token(findID))
 	if got != want {
 		t.Fatalf("marker replay drifted from write-time placement:\n  want %q\n  got  %q", want, got)
+	}
+	// AN ID IS PLACED ONCE ON A RUN: a second Anchor for it, from any seat, is refused by the record.
+	if _, err := record.Append(ident(t, runDir, "red-lens-evidence"), &recordpb.Anchor{
+		Id: proto.String(citeID), Location: proto.String("Demand grows steadily over the period"),
+	}); err == nil || !strings.Contains(err.Error(), "UNIQUE constraint failed: anchor.id") {
+		t.Errorf("a second anchor for %s was not refused as a duplicate id: %v", citeID, err)
 	}
 	// Every marker present, exactly once.
 	for _, id := range []string{citeID, proofID, findID} {

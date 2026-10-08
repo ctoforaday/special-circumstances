@@ -71,9 +71,10 @@ func TestQuadraticFormulaArchive(t *testing.T) {
 	// 813 in + 17 synthesized docket motions + the synthesized cast, LESS the 10 entries that
 	// asserted a clean sitting. That type is retired and clean is derived from a bracketed sitting
 	// that filed nothing, so those rows carry forward as an absence — the one place in this
-	// arithmetic where an old event legitimately produces none.
-	if outTotal != 821 {
-		t.Fatalf("813 in + 17 docket motions + the cast - 10 retired clean entries = 821 out; got %d (%v)", outTotal, res.Out)
+	// arithmetic where an old event legitimately produces none. PLUS one Anchor for each of the 43
+	// placed citations and 6 corroborations, whose markers the report read off the acts themselves.
+	if outTotal != 870 || res.GapAnchors.Shapes["cite"] != 43 || res.GapAnchors.Shapes["verify"] != 6 {
+		t.Fatalf("813 in + 17 docket motions + the cast - 10 retired clean entries + 49 anchors = 870 out; got %d (%v), anchors added %v", outTotal, res.Out, res.GapAnchors.Shapes)
 	}
 	if res.Out["log"] != 35 || res.Out["motion"] != res.In["motion"]+17 || res.Out["motion_rule"] != res.In["motion_rule"]+17 {
 		t.Errorf("per-word arithmetic: out=%v in=%v", res.Out, res.In)
@@ -86,8 +87,8 @@ func TestQuadraticFormulaArchive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the migrated record does not read as a record: %v", err)
 	}
-	if len(fam.Events) != 821 {
-		t.Errorf("family holds %d events, want 821", len(fam.Events))
+	if len(fam.Events) != outTotal {
+		t.Errorf("family holds %d events, want the %d migrated", len(fam.Events), outTotal)
 	}
 	assertRoundless(t, fam)
 	if len(res.GapIDs) != 26 || res.GapIDs["R1-1"] != "G1" || res.GapIDs["R2-1"] != "G10" {

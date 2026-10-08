@@ -3986,15 +3986,12 @@ func (x *Observe) GetObservation() string {
 }
 
 // Anchor is a marker placed in the report: the marker of the act `id` names, at the end of its
-// quote `location`. Keyed on `id`, so a retry writes one event rather than a second marker.
+// quote `location`. It is the one event that places a marker, of any kind, so an id is placed once
+// on a run: a second Anchor for it would be a second marker for one act.
 type Anchor struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            *string                `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
 	Location      *string                `protobuf:"bytes,2,opt,name=location,proto3,oneof" json:"location,omitempty"`
-	FindingId     *string                `protobuf:"bytes,3,opt,name=finding_id,json=findingId,proto3,oneof" json:"finding_id,omitempty"`
-	FindingKey    *string                `protobuf:"bytes,4,opt,name=finding_key,json=findingKey,proto3,oneof" json:"finding_key,omitempty"`
-	Label         *string                `protobuf:"bytes,5,opt,name=label,proto3,oneof" json:"label,omitempty"`
-	Text          *string                `protobuf:"bytes,6,opt,name=text,proto3,oneof" json:"text,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4039,34 +4036,6 @@ func (x *Anchor) GetId() string {
 func (x *Anchor) GetLocation() string {
 	if x != nil && x.Location != nil {
 		return *x.Location
-	}
-	return ""
-}
-
-func (x *Anchor) GetFindingId() string {
-	if x != nil && x.FindingId != nil {
-		return *x.FindingId
-	}
-	return ""
-}
-
-func (x *Anchor) GetFindingKey() string {
-	if x != nil && x.FindingKey != nil {
-		return *x.FindingKey
-	}
-	return ""
-}
-
-func (x *Anchor) GetLabel() string {
-	if x != nil && x.Label != nil {
-		return *x.Label
-	}
-	return ""
-}
-
-func (x *Anchor) GetText() string {
-	if x != nil && x.Text != nil {
-		return *x.Text
 	}
 	return ""
 }
@@ -4475,12 +4444,10 @@ type Proof struct {
 	// CONTENT, addressed by proof_sha — content is not a fact about the debate.
 	Script *string `protobuf:"bytes,9,opt,name=script,proto3,oneof" json:"script,omitempty"`
 	Exit   *int32  `protobuf:"varint,10,opt,name=exit,proto3,oneof" json:"exit,omitempty"`
-	// location is the anchoring quote the proof marker was spliced after — the same `--quote` cite
-	// and finding record. prove.go used to DROP it, because the only reader that needed the site
-	// was the marker already in report.md. Under report-as-record (#709) there is no file: the
-	// report is REPLAYED from the record, and the projection re-places the `<!--proof:p-…-->` marker
-	// by re-locating this quote. A site recoverable only from a spliced marker is a fact the record
-	// could not state; this field is that fact, held where a writer can refuse a wrong value.
+	// location is the anchoring quote this proof backs — the same `--quote` cite and finding record.
+	// The Anchor appended after the proof carries it and places the marker; held here as well, it is
+	// the proof's own statement of its site, which a retry places an owed Anchor at and every reader
+	// of the proof reads without a join.
 	Location      *string `protobuf:"bytes,11,opt,name=location,proto3,oneof" json:"location,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -7581,22 +7548,13 @@ const file_record_proto_rawDesc = "" +
 	"\vobservation\x18\x03 \x01(\tH\x02R\vobservation\x88\x01\x01B\b\n" +
 	"\x06_labelB\a\n" +
 	"\x05_textB\x0e\n" +
-	"\f_observation\"\x82\x02\n" +
-	"\x06Anchor\x12\x13\n" +
-	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12\x1f\n" +
-	"\blocation\x18\x02 \x01(\tH\x01R\blocation\x88\x01\x01\x12\"\n" +
-	"\n" +
-	"finding_id\x18\x03 \x01(\tH\x02R\tfindingId\x88\x01\x01\x12$\n" +
-	"\vfinding_key\x18\x04 \x01(\tH\x03R\n" +
-	"findingKey\x88\x01\x01\x12\x19\n" +
-	"\x05label\x18\x05 \x01(\tH\x04R\x05label\x88\x01\x01\x12\x17\n" +
-	"\x04text\x18\x06 \x01(\tH\x05R\x04text\x88\x01\x01B\x05\n" +
+	"\f_observation\"\x86\x01\n" +
+	"\x06Anchor\x12\x1b\n" +
+	"\x02id\x18\x01 \x01(\tB\x06\x82\xb5\x18\x02(\x01H\x00R\x02id\x88\x01\x01\x12\x1f\n" +
+	"\blocation\x18\x02 \x01(\tH\x01R\blocation\x88\x01\x01B\x05\n" +
 	"\x03_idB\v\n" +
-	"\t_locationB\r\n" +
-	"\v_finding_idB\x0e\n" +
-	"\f_finding_keyB\b\n" +
-	"\x06_labelB\a\n" +
-	"\x05_text\"\x8d\b\n" +
+	"\t_locationJ\x04\b\x03\x10\aR\n" +
+	"finding_idR\vfinding_keyR\x05labelR\x04text\"\x8d\b\n" +
 	"\x04Cite\x12\x19\n" +
 	"\x05label\x18\x01 \x01(\tH\x00R\x05label\x88\x01\x01\x12\x15\n" +
 	"\x03url\x18\x02 \x01(\tH\x01R\x03url\x88\x01\x01\x12\x1b\n" +

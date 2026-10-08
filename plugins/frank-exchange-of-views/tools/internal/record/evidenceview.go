@@ -313,8 +313,8 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 		// deliberate. A verification indexed under "" would join no source and disappear from
 		// both arrays; sending it to `independent` keeps it visible. The schema now carries an
 		// explicit `independent` bool alongside — a second carrier this view does not read.
-		// A LABELLED VERIFY WITH A CLAIM PLACED A MARKER in the report — report_op's insert
-		// predicate — and the assembler resolves it to a footnote like any cite. So it is a SOURCE
+		// A LABELLED VERIFY WITH A CLAIM PLACED A MARKER in the report — it is the corroboration
+		// its Anchor follows — and the assembler resolves it to a footnote like any cite. So it is a SOURCE
 		// of the report as well as a check: listed with the cites below, marked as red's
 		// corroboration, and still under independent[] where the check itself lives.
 		if vf.GetLabel() != "" && vf.GetClaim() != "" {

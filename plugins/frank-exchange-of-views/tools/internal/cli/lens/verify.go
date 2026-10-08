@@ -18,7 +18,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportvoice"
 )
 
@@ -338,25 +337,20 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		if prior, err := record.ExistingCorroborationLabel(run, s.SeatID, body.GetUrl(), body.GetClaim()); err != nil {
 			return nil, err
 		} else if prior != "" {
+			// The corroboration and its anchor are two appends; a retry finishes the pair at the
+			// claim the corroboration stored.
+			if err := seat.PlaceOwed(s, run, prior, corroborateRefusal); err != nil {
+				return nil, err
+			}
 			return verifyResult{Label: prior, Source: body.GetTitle(), Outcome: recordpb.Word(body.GetOutcome()), Idempotent: true, VoiceTells: tells}, nil
 		}
 		label := record.NewCitationID()
-		// The Verify event IS the anchor (it carries the claim and this label); reportproj.Render
-		// re-places the marker on read. No file is spliced. VALIDATE the placement against the
-		// current render — a mis-quote or in-fence claim is refused now and no event is recorded.
-		current, err := reportproj.RenderFromRecord(run)
-		if err != nil {
+		// The Anchor event appended after this one is the marker (it carries the claim and this
+		// label); reportproj.Render re-places it on read. No file is spliced. VALIDATE the placement
+		// against the current render — a mis-quote or in-fence claim is refused now and no event is
+		// recorded.
+		if err := seat.Places(run, label, body.GetClaim(), corroborateRefusal); err != nil {
 			return nil, err
-		}
-		if _, aerr := anchortext.Attach(current, label, body.GetClaim()); aerr != nil {
-			switch {
-			case errors.Is(aerr, anchortext.ErrMisQuote):
-				return nil, feov.Errorf(feov.Validation,
-					"lens corroborate: the quoted claim was not found in report.md — quote the EXACT sentence you are corroborating (via --quote); the whole string is matched, so a heading prepended to it matches nothing. A corroboration of a claim blue has since edited away is not spliced blind")
-			case errors.Is(aerr, anchortext.ErrInFence):
-				return nil, feov.Errorf(feov.Validation, "lens corroborate: the quote resolves inside a code fence — corroborate a prose sentence, not code")
-			}
-			return nil, anchortext.Refusal("lens corroborate", aerr)
 		}
 		body.Label = proto.String(label)
 	}
@@ -372,7 +366,7 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		body.SourceCompleteness = completeness.Enum()
 	}
 
-	if _, err := record.Append(s.Identity(), body); err != nil {
+	if err := seat.AppendPlaced(s, body, body.GetLabel(), body.GetClaim()); err != nil {
 		return nil, err
 	}
 	return verifyResult{
@@ -413,4 +407,17 @@ func (r verifyResult) human() string {
 	default:
 		return subject + " verified: " + r.Outcome
 	}
+}
+
+// corroborateRefusal is the refusal `corroborate` gives for a claim Attach will not place, on a
+// first call and on the retry that places the anchor a first call left owed.
+func corroborateRefusal(err error) error {
+	switch {
+	case errors.Is(err, anchortext.ErrMisQuote):
+		return feov.Errorf(feov.Validation,
+			"lens corroborate: the quoted claim was not found in report.md — quote the EXACT sentence you are corroborating (via --quote); the whole string is matched, so a heading prepended to it matches nothing. A corroboration of a claim blue has since edited away is not spliced blind")
+	case errors.Is(err, anchortext.ErrInFence):
+		return feov.Errorf(feov.Validation, "lens corroborate: the quote resolves inside a code fence — corroborate a prose sentence, not code")
+	}
+	return anchortext.Refusal("lens corroborate", err)
 }

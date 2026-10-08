@@ -16,10 +16,10 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
-// GapPlacement is what bringing an archived run's gaps onto anchors did (F-c): each rewrite counted
-// by its shape, and by name the gaps with no place in the report — a quote that never placed, or an
-// anchor an edit's replacement holds no prose sentence to carry — and those placed by the fallback.
-// The shapes are named where each is counted.
+// GapPlacement is what bringing an archived run's placements onto anchors did (F-c): each Anchor
+// added and each rewrite counted by its shape, and by name the gaps with no place in the report — a
+// quote that never placed, or an anchor an edit's replacement holds no prose sentence to carry —
+// and those placed by the fallback. The shapes are named where each is counted.
 type GapPlacement struct {
 	Shapes      map[string]int `json:"shapes,omitempty"`
 	NeverPlaced []string       `json:"never_placed,omitempty"`
@@ -27,8 +27,9 @@ type GapPlacement struct {
 }
 
 // placer runs in Replay after remap.apply and before Append, on bodies already in the destination's
-// spelling, adding only what the source lacks: a gap's Anchor where the source never anchored it,
-// and gap anchors into an edit's old and new where they now stand. With gap anchors removed, every
+// spelling, adding only what the source lacks: the Anchor of a gap, a citation, a proof or a
+// corroboration where the source never anchored it, and gap anchors into an edit's old and new
+// where they now stand. With gap anchors removed, every
 // rewritten old and new is the archived bytes, so the render's prose is the archived render's. It
 // rewrites nothing else: an exact-span edit or a placement that no longer places is refused.
 type placer struct {
@@ -72,15 +73,37 @@ func (p *placer) step(body proto.Message, correcting bool) (proto.Message, error
 			return nil, p.edit(b)
 		}
 	case *recordpb.Cite:
-		return nil, p.places(b.GetLabel(), b.GetLocation())
+		return p.owed("cite", b.GetLabel(), b.GetLocation(), correcting)
 	case *recordpb.Proof:
-		return nil, p.places(b.GetProofId(), b.GetLocation())
+		return p.owed("proof", b.GetProofId(), b.GetLocation(), correcting)
 	case *recordpb.Anchor:
 		return nil, p.places(b.GetId(), b.GetLocation())
 	case *recordpb.Verify:
-		return nil, p.places(b.GetLabel(), b.GetClaim())
+		return p.owed("verify", b.GetLabel(), b.GetClaim(), correcting)
 	}
 	return nil, nil
+}
+
+// owed is the Anchor an archived citation, proof or corroboration placed by being recorded: the
+// report read its marker off the event itself, so the Anchor appended right after it holds the same
+// place in the stream and replay inserts it where it always did. An act that named no id or no
+// quote placed nothing, and a correction's replacement placed nothing while its act's marker stood.
+// Any other act carrying an id already placed — the replacement of an act whose marker a retire
+// took out among them — owes a second Anchor, which the record refuses.
+func (p *placer) owed(shape, id, loc string, correcting bool) (proto.Message, error) {
+	if id == "" || loc == "" || p.anchored[id] {
+		return nil, nil
+	}
+	if correcting {
+		if text, err := reportproj.RenderFromRecord(p.dst); err != nil || strings.Contains(text, anchor.Token(id)) {
+			return nil, nil
+		}
+	}
+	if err := p.places(id, loc); err != nil {
+		return nil, err
+	}
+	p.census.Shapes[shape]++
+	return &recordpb.Anchor{Id: proto.String(id), Location: proto.String(loc)}, nil
 }
 
 // places refuses a placement replay cannot place in the report as it now renders; a run with no

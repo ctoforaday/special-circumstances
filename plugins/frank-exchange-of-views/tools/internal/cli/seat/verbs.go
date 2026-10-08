@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
@@ -16,6 +17,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingcap"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
@@ -1015,4 +1017,42 @@ func inquestGroup() *cobra.Command {
 		c.AddCommand(sub)
 	}
 	return c
+}
+
+// Places is the refusal a placing verb gives where Attach will not place id's anchor at loc in the
+// report as it stands, worded by refuse. The verb checks before it records anything.
+func Places(run record.Run, id, loc string, refuse func(error) error) error {
+	current, err := reportproj.RenderFromRecord(run)
+	if err != nil {
+		return err
+	}
+	if _, err := anchortext.Attach(current, id, loc); err != nil {
+		return refuse(err)
+	}
+	return nil
+}
+
+// AppendPlaced appends act and then the Anchor that places its marker: id's, at loc. The report
+// holds the marker because of that Anchor. An act that names no id or no quote places nothing.
+func AppendPlaced(s Context, act proto.Message, id, loc string) error {
+	if _, err := record.Append(s.Identity(), act); err != nil || id == "" || strings.TrimSpace(loc) == "" {
+		return err
+	}
+	_, err := record.Append(s.Identity(), &recordpb.Anchor{Id: proto.String(id), Location: proto.String(loc)})
+	return err
+}
+
+// PlaceOwed appends the Anchor a retried act owes — the two appends are not one write, so a crash
+// between them leaves the act recorded and unplaced — at the location its first call stored, once
+// that location Places; otherwise the act stays unplaced.
+func PlaceOwed(s Context, run record.Run, id string, refuse func(error) error) error {
+	loc, err := record.UnplacedLocation(run, id)
+	if err != nil || loc == "" {
+		return err
+	}
+	if err := Places(run, id, loc, refuse); err != nil {
+		return err
+	}
+	_, err = record.Append(s.Identity(), &recordpb.Anchor{Id: proto.String(id), Location: proto.String(loc)})
+	return err
 }

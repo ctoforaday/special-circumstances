@@ -674,7 +674,7 @@ needs about −531 from Parts 5–6.
   (replacing `LocateUnique`). After every check passes, the mint appends `Mint` and then
   `Anchor{id: gap id, location: quote}` — the existing `anchor` arm renders it (A-1).
 - [MODIFY] **Retries anchor the stored location** (H2): a retry under the same key that finds its
-  `Anchor` missing (`AnchorEventExists`) appends `Anchor{id, the location its claim stored}` —
+  `Anchor` missing (`UnplacedLocation`) appends `Anchor{id, the location its claim stored}` —
   never the retry's own `--quote` — once `Attach` accepts that location against the current
   render; otherwise it returns the refusal and the claim stays unplaced. This is finding's path
   (`finding.go:81-84` appends the retry's unchecked `--quote` today) and mint's from this part;
@@ -1046,11 +1046,25 @@ text; Append's checks stay on; an exemption that turns out to be needed sits bes
 - Tests deleted: `cli/gaplocation_test.go` (89); `record/locatorclass_test.go` 121-169, 228-281 and
   the ~81-86 case; `passage_test.go` to offsets; `cli/board_test.go:258-290`.
 
-### III.5 Part 5 — one placement event (record change, epoch 21 → 22)
+### III.5 Part 5 — one placement event (record change, epoch 22 → 23)
 
 **Value.** `report_op` drops from four insert arms to one; every marker is placed by an `Anchor`
 event, so "where is X placed" has one table. About +35 lines (−14 arms, +15 appends with retry,
-+4 consistency, +30 translation).
++4 consistency, +30 translation). **Measured +32** (+192 −160), against the estimate's +35: the
+arms went as priced (−15 in `views.go`, −1 in `render.go`); the appends with retry cost +17 against
++15 — the five placers share `seat.Places` (the write-time check), `seat.AppendPlaced` (the act,
+then its `Anchor`) and `seat.PlaceOwed` (the retry), +40 in `seat`, which takes −37 out of
+`finding` and `mint` and leaves `cite` +4, `prove` +2 and `corroborate` +7 for the refusal each
+lifts out of its first-call path so its retry returns it, and the stored-location query reads five
+tables (+3, with −2 in `prove`'s key lookup, which returns the proof id its retry places); the
+consistency walk +7; the translation +24 against +30 (`gapplace.go` +23: one `owed` arm for the
+three acts, on the placement check Part 4 already ran, and the correction rule below; `replay.go`
++1). Tests +232 −38. Over the 16
+archived runs: 0 refusals, 182 citation, 99 proof and 11 corroboration Anchors added,
+`archived_renders.golden` byte-identical (raw, normalized, skeleton, every count); over the 28
+runs: 233, 131 and 12 added, the same refusals event for event, the 21 renderable reports
+byte-identical, and a second migration of each writes the same record. After Parts 1–5 the running
+S6 total is +243, so the ≥ 320 target needs about −563 from Part 6.
 
 - [MODIFY] `cite`, `prove` and verify's corroboration append `Anchor{id, location}` after their
   event, as `finding` and `mint` do; a retry under the same key completes a missing `Anchor` by the
@@ -1062,14 +1076,16 @@ event, so "where is X placed" has one table. About +35 lines (−14 arms, +15 ap
   `finding_key`, `label`, `text` (no archived payload carries them). **UNIQUE on `anchor.id`.**
 - [MODIFY] `consistency.go:205-220` (F-g): one set — every `Finding`, `Mint`, `Cite`, `Proof` and
   labelled `Verify` with a quote expects an `Anchor`.
-- **Translation 21 → 22**, in Part 4's placement step: after each archived `Cite`/`Proof` with
+- **Translation 22 → 23**, in Part 4's placement step: after each archived `Cite`/`Proof` with
   location and id, and each labelled `Verify` with a claim, it emits `Anchor{id, location}` — one
   per placement event, for an id the source stream never anchored; a correction's replacement
-  re-carries its id and adds none. Every insert arm is one `insertMut` (`render.go:116-128`), which
+  re-carries its id and adds none while its act's marker stands in the migrated render. Every insert arm is one `insertMut` (`render.go:116-128`), which
   skips while the token stands in the text, so the `anchor` arm renders each emitted `Anchor`
   exactly as the old arm rendered its event. Report-op order is event order, so every placement
   keeps its stream position. A second placement event for one id (a crash retry, or an id placed
-  again after a retire) would emit a second `Anchor`, which UNIQUE refuses loudly; the 28 corpus
+  again after a retire — a correction's replacement among them) would emit a second `Anchor`, which
+  the record refuses loudly — UNIQUE, or the event key where one seat placed both in one sitting —
+  while the act itself lands and what follows still pairs with it; the 28 corpus
   records hold none (0 repeated `cite.label`, `proof.proof_id`, `verify.label` or `anchor.id`;
   N11, §II), and `TestEveryArchivedRunMigrates` reports one if a run brings it.
 
@@ -1081,10 +1097,10 @@ run written by the Part 5 binary migrates with one `Anchor` per id (UNIQUE refus
 `consistency` reports a cite with no `Anchor` (deleting the widened set fails it).
 
 **Consumer census.** `report_op` readers as Part 4. `Anchor` readers: the six above;
-`AnchorEventExists` now serves four retries. `seatprobe`: nothing further (Part 4 stopped counting
+`UnplacedLocation` serves five retries, each through `seat.PlaceOwed`. `seatprobe`: nothing further (Part 4 stopped counting
 a verb for `Anchor`).
 
-### III.6 Part 6 — one id (record change, epoch 22 → 23)
+### III.6 Part 6 — one id (record change, epoch 23 → 24)
 
 **Value.** Seven id functions become one (S4); the finding's double identity goes (its one
 id-to-label join left with `FindingMarkerHold` in Part 4). About −135 production lines: −≈210
@@ -1117,7 +1133,7 @@ read `id` and, where they print, call `FindingRef`: `verify/verify.go:228,528`; 
 Citation and verify sites KEEP: `citationid.go:85,101,166`, `evidenceview.go:298,324,326,393`,
 `blue/cite.go:110`, `lens/verify.go:378`, `available.go:388`, `redvoice.go:72`.
 
-**Translation 22 → 23** — `migrate/remap.go` changes from a field-name switch to **three
+**Translation 23 → 24** — `migrate/remap.go` changes from a field-name switch to **three
 hand-kept lists** covering every string field of every event body at this part's schema (R-8,
 R-19). Id map: `f-`/`c-`/`p-` keep their hex and take the capital; `G<n>`/`Q<n>`/`M<n>` take the
 letter, `-` and the first 8 hex of `sha256(SourceHash ‖ old id)`, so two migrations of one source
@@ -1241,7 +1257,7 @@ unstable golden).
   spelling that fails often; the edit guard catches a rare failure loudly.
 - **Artifacts.** `~/.claude/scratch/markers-plan/forktest/`; the result is pasted here before Part 8.
 
-### III.8 Part 8 — the legible spelling (record change, epoch 23 → 24; after Parts 6 and 7)
+### III.8 Part 8 — the legible spelling (record change, epoch 24 → 25; after Parts 6 and 7)
 
 - [MODIFY] The kinds table's token prefix and suffix, and the two readers that know the invisible
   layer by its comment shape rather than by the table: `annotationLen` (`anchortext.go:63`, kept by
@@ -1271,7 +1287,8 @@ unstable golden).
 ### III.9 Order, and every boundary a later part's reader crosses
 
 **Part 1 → 2 → 3 → 4 → 5 → 6**; Part 7 from the start; Part 8 after Parts 6 and 7. Parts 1, 2
-and 3 change no record. Epochs: Part 4 20 → 21, Part 5 21 → 22, Part 6 22 → 23, Part 8 23 → 24; each
+and 3 change no record. Epochs: Part 4 20 → 21, Part 5 22 → 23, Part 6 23 → 24, Part 8 24 → 25 (21 → 22 is the
+`engine-stopped` operator verb, outside this plan); each
 carries its migration change and archived-run tests. `migrate` translates each archived word once,
 straight to the current shape (`registry.go:32`); `remap.apply` then respells ids and tokens; Part
 4's placement step (widened in Part 5) runs last, before `Append`, on bodies already in the

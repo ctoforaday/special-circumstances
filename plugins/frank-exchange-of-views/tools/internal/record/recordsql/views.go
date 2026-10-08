@@ -827,36 +827,21 @@ LEFT JOIN "events" lre ON lre."id" = lr."event_id";
 --   edit   → a=old span, b=new span (blue edit's splice, located and replaced at replay);
 --            exact=1 when the edit recorded exact_span, so replay locates a AS WRITTEN.
 --   insert → a=the anchoring quote, b=the marker id (Token(b) is spliced at that quote); exact=0.
---            A cite or proof corrected in its sitting inserts nothing new: the replacement carries
---            the original's label, and the render skips a marker the text already holds.
+--            One row per anchor event: every act that places a marker — a finding, a gap, a
+--            citation, a proof, a corroboration — appends one after its own event, so where an
+--            id is placed is read from one table.
 --   remove → a=an anchor id a retire took out with its claim (Token(a) and the husk it leaves
---            are removed). One row per named anchor; a retire recorded before the field names
---            none, so an old record replays exactly as it did. exact=0.
--- The marker inserters are blue cite, blue prove, the finding's anchor event, and a red
--- corroboration (a labelled verify). A marker event with no anchor location placed no marker in
--- THIS report (a board/docket-only citation), so it is excluded rather than replayed as an empty
--- insert. The FOLD itself stays in Go: replaying a splice needs the running text a prior op left,
--- which SQL cannot carry — but nothing here builds state by scanning the whole event log.
+--            are removed). One row per named anchor; exact=0.
+-- The FOLD itself stays in Go: replaying a splice needs the running text a prior op left, which
+-- SQL cannot carry — but nothing here builds state by scanning the whole event log.
 CREATE VIEW "report_op" AS
   SELECT e."id" AS "event_id", 'edit' AS "kind", b."old" AS "a", b."new" AS "b",
          COALESCE(b."exact_span", 0) AS "exact"
     FROM "blue_edit" b JOIN "events" e ON e."id" = b."event_id"
   UNION ALL
-  SELECT e."id", 'insert', c."location", c."label", 0
-    FROM "cite" c JOIN "events" e ON e."id" = c."event_id"
-    WHERE COALESCE(c."location", '') != '' AND COALESCE(c."label", '') != ''
-  UNION ALL
-  SELECT e."id", 'insert', p."location", p."proof_id", 0
-    FROM "proof" p JOIN "events" e ON e."id" = p."event_id"
-    WHERE COALESCE(p."location", '') != '' AND COALESCE(p."proof_id", '') != ''
-  UNION ALL
   SELECT e."id", 'insert', a."location", a."id", 0
     FROM "anchor" a JOIN "events" e ON e."id" = a."event_id"
     WHERE COALESCE(a."location", '') != '' AND COALESCE(a."id", '') != ''
-  UNION ALL
-  SELECT e."id", 'insert', v."claim", v."label", 0
-    FROM "verify" v JOIN "events" e ON e."id" = v."event_id"
-    WHERE COALESCE(v."label", '') != '' AND COALESCE(v."claim", '') != ''
   UNION ALL
   SELECT e."id", 'remove', ra."value", NULL, 0
     FROM "retire_anchors" ra JOIN "events" e ON e."id" = ra."event_id";
