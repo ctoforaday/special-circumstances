@@ -25,9 +25,10 @@ type Config struct {
 	Lanes         string `json:"lanes"`
 }
 
-// Friction is the friction tile's data (count + latest "seat: text"); Count<0 == unavailable
-// (the JS null, rendered "unavailable"), since a Go int has no null.
-type Friction struct {
+// LogTile is the log tile's data: how many log entries the record holds, of every type, and the
+// latest as "seat: text". Count<0 == unavailable (the JS null, rendered "unavailable"), since a
+// Go int has no null.
+type LogTile struct {
 	Count int // -1 == unavailable
 	Last  string
 }
@@ -96,7 +97,7 @@ type Model struct {
 	CostRows        []CostRow
 	APIRounds       int
 	Agents          int
-	Friction        Friction
+	Log             LogTile
 	Shards          Shards
 	BlueClaims      *int
 	Steps           []Step
@@ -297,7 +298,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 	// Record views in-process, off the family read above. The JS gated the board tiles on
 	// config.bin (the operator passing the tool path); the Go binary IS the tool, so it gates on
 	// the record's EXISTENCE.
-	friction := Friction{Count: -1}
+	logTile := LogTile{Count: -1}
 	shards := Shards{OpenBySeverity: map[string]int{}, Findings: -1, Citations: -1}
 	if haveRecord {
 		bj, bjErr := record.BoardJSONOfRun(run)
@@ -306,10 +307,10 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		}
 		fj := record.FindingsJSONOf(fam.Events, fam.At)
 		frj := record.LogJSONOf(fam.Events, fam.At)
-		friction.Count = frj.Counts.Total
+		logTile.Count = frj.Counts.Total
 		if n := len(frj.Log); n > 0 {
 			last := frj.Log[n-1]
-			friction.Last = last.SeatID + ": " + last.Text
+			logTile.Last = last.SeatID + ": " + last.Text
 		}
 		obs := map[string]int{}
 		for _, g := range bj.Open {
@@ -379,7 +380,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 	terminalVerdict, _ := record.TerminalVerdict(run)
 	return Model{
 		Run: run, Telemetry: telemetry, Latest: latest, Seats: seats,
-		Cost: costTotal, CostRows: costRows, APIRounds: apiRounds, Agents: agents, Friction: friction,
+		Cost: costTotal, CostRows: costRows, APIRounds: apiRounds, Agents: agents, Log: logTile,
 		Shards: shards, BlueClaims: blueClaims, Steps: steps, Rates: rates,
 		Judiciary: jud, Eta: eta, Config: merged,
 		// ONE READ, TWO USES, so the pair cannot disagree — and Terminal now answers from the

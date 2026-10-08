@@ -32,7 +32,7 @@ func TestBlueIsToldWhatTheBenchRuledAndWhatItObliges(t *testing.T) {
 	backend := func(seatID, label, prompt string) debatejs.Envelope {
 		e := debatejs.Envelope{
 			"synopsis": "estoppel delivery", "verdict": "FAIL", "citations_checked": 0,
-			"gaps": []any{}, "friction": []any{}, "rulings": []any{},
+			"gaps": []any{}, "rulings": []any{},
 			"closures": []any{}, "dispute_responses": []any{}, "deadlock": false,
 			"dispositions": []any{}, "grade_motions": []any{},
 			"manifest": []any{"G1", "G2"}, "claim_count": 3,

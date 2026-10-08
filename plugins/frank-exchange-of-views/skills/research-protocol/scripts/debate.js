@@ -15,7 +15,7 @@ export const meta = {
 //   envelopes and drives every branch (args parsing, dispatch loop, contested docket, impasse,
 //   ceiling, null returns). Founding regressions: stringified args -> undefined paths (run 1);
 //   missing null-guard on agent() returns (run 2); lineage-blind docket + degenerate
-//   FAIL-with-empty-gaps + friction lost on throw (run 3 retrospective, report §3 rows 20-24).
+//   FAIL-with-empty-gaps + the unresolved-sitting-record list lost on throw (run 3 retrospective, report §3 rows 20-24).
 //   Behavior needs live agents — /research --smoke (1 lane + laneFloorOverride, 1 round,
 //   model=haiku) exercises the pipeline for ~50k tokens.
 //   Model tiers are REQUIRED — both `model` and `judgmentModel` must be set explicitly. The engine
@@ -96,8 +96,11 @@ const slug = String(runDir).replace(/[\/]+$/, '').split(/[\/]/).pop().replace(/^
 log(`researching: ${topic.length > 160 ? topic.slice(0, 157) + '...' : topic}`)
 log(`resolved tiers — bulk: ${model}, judgment: ${judgmentModel}`)
 
-// Friction must survive a mid-run throw (retrospective §3 row 24): the envelope copy feeds
-// this script's aggregate, the file copy survives an abort. Both, always.
+// A SEAT'S LOG ENTRIES LIVE ON THE RECORD AND NOWHERE ELSE. No envelope carries one and this
+// script collects none: the record survives a mid-run throw, and a second copy in a return value
+// is a second account nobody can hold to the first. The one list this script keeps of its own is
+// sitting_record_unresolved — the seats whose sitting record stayed off the record after the
+// re-prompt — and TestNoEnvelopeRestatesARecordFact fails a schema that declares `log`.
 // THE EMPTY-SITTING AFFORDANCE IS STATED TO THE SEATS THAT HAVE IT, AND THE PROMPT CEILING IS WHY.
 // Measured across eight runs: of 96 sittings that recorded nothing, 93 were LENSES — the chair had
 // 0 of 42 and the bench 0 of 8. A lens is woken speculatively to look for a class of defect it may
@@ -110,7 +113,7 @@ log(`resolved tiers — bulk: ${model}, judgment: ${judgmentModel}`)
 // carries. TestNoSeatPromptGrowsPastItsCeiling asks exactly that question of new prompt text, and
 // it was right: the first draft of this put a refusal's mechanics in the prompt and pushed three
 // seats past their ceilings.
-const logClause = (who, role) => ` LOG (${who}), on the record AND in the envelope's log field: whatever cost you a call, a guess or an act — a refusal, a name that was not there, a misread shape, a workaround, an act set aside. The tool records refusals and failed calls itself; you add what you expected and why — a mistake the surface invited is the operator's signal. YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU. Conclusions about the report and disputes with another seat's gap are findings, not log entries.${role === 'lens' ? ' A sitting with nothing to do runs no commands — it says so in the envelope and stops.' : ''}`
+const logClause = (who, role) => ` LOG (${who}), on the record: whatever cost you a call, a guess or an act — a refusal, a name that was not there, a misread shape, a workaround, an act set aside. The tool records refusals and failed calls itself; you add what you expected and why — a mistake the surface invited is the operator's signal. YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU. Conclusions about the report and disputes with another seat's gap are findings, not log entries.${role === 'lens' ? ' A sitting with nothing to do runs no commands — it says so in its synopsis and stops.' : ''}`
 
 // Wall-clock doctrine (run-4 forensics, 2026-07-17): 80% of run time is API rounds at ~24s
 // each, and the corpus showed ZERO batched tool calls — every peek paid a full round. A
@@ -328,7 +331,6 @@ const PETITION_RULING = {
   type: 'object',
   required: ['rulings'],
   properties: {
-    log: { type: 'array', items: { type: 'string' } },
     // A PETITION SITTING CAN LAY DOWN A HOLDING TOO, and #361 was filed from exactly there: the
     // bench had a construction both parties needed and put it in a petition ruling's opinion
     // text, where red never read it. Routing it needs it on this envelope as well (#503).
@@ -418,7 +420,7 @@ const BLUE_ENVELOPE = {
     // reconstruct blue's position from red's records). TRUE only after the round carries BOTH
     // a `position` event and a `revision` event — both on the RECORD. A revision is not on the
     // record until the record carries it. On false the script RE-PROMPTS once and, failing that,
-    // logs friction and CONTINUES. Attestation tier: shape in-run; capture's record-parity audit
+    // adds the seat to sitting_record_unresolved and CONTINUES. Attestation tier: shape in-run; capture's record-parity audit
     // recounts post-hoc, so an unresolved gap is still scored.
     sitting_record_appended: { type: 'boolean' },
     // W2b correctness manifest (repair-quality program A.2): one row per repaired gap —
@@ -441,7 +443,6 @@ const BLUE_ENVELOPE = {
     // the in-run coverage log names — and for nothing that scores: capture recomputes the owed
     // set from the record's dispatch, close and register events (record.ManifestOwed).
     found_closed: { type: 'array', items: { type: 'string' } },
-    log: { type: 'array', items: { type: 'string' } },
     // Grade-motion channel (run-4 §3.3 — RATIFIED minimal form): blue's machine-readable
     // contest path against red's grades. Record-integrity insurance; zero expected savings.
     // #62 Stage 2: this is a ROUTING REF, not the content — the argument (evidence) is emitted
@@ -566,7 +567,6 @@ const CHAIR_ENVELOPE = {
     // reader below treats a missing verdict and null alike.
     verdict: { type: ['string', 'null'], enum: ['PASS', 'FAIL', null], description: 'the verdict you RECORDED this sitting, restated — the record is the original; null or absent if you recorded none' },
     notes: { type: 'string' },
-    log: { type: 'array', items: { type: 'string' } },
   },
 }
 const JUDGE_ENVELOPE = {
@@ -577,7 +577,6 @@ const JUDGE_ENVELOPE = {
     // reads no record, so a holding recorded through `bench declare` reaches the other seats only
     // if it travels here — the same reason `relief` is on the petition envelope (#503).
     holdings: { type: 'array', items: { type: 'string' } },
-    log: { type: 'array', items: { type: 'string' } },
     dispositions: {
       type: 'array',
       items: {
@@ -712,8 +711,11 @@ const LANE_METHODS = [
 // W2c petition machinery: the log is the judicial record's petition section; a
 // halt ruling ends the run (verdict HALTED — capture relays the opinion
 // verbatim, never smoothed); granted relief is surfaced to subsequent seats.
-const friction = [] // capability complaints from any agent, aggregated for /self-improve
-const takeFriction = (who, env) => { if (env && env.log) for (const f of env.log) friction.push(`${who}: ${f}`) }
+
+// THE ENGINE'S OWN NOTES, AND ONLY THOSE: one line per blue seat whose sitting record stayed off
+// the record after the re-prompt (ensureSittingRecord). It is handed to assembly and returned
+// under this name. No seat's log entry is in it — those are on the record.
+const sittingRecordUnresolved = []
 
 // W1.7 ROUND-PARITY RECOVERY (#249). The attestation duty is right — a revision is not on the
 // record until the transcript carries it — but killing the RUN over one seat's missed bookkeeping
@@ -722,7 +724,7 @@ const takeFriction = (who, env) => { if (env && env.log) for (const f of env.log
 // this reliably, so the cheap tier of the pipeline could never be driven end to end.
 //
 // So the GUARD stays and the CONSEQUENCE changes: re-prompt the seat ONCE to put its round record
-// on the record, and if it still will not, log the omission as friction and CONTINUE. The report
+// on the record, and if it still will not, name the omission in sitting_record_unresolved and CONTINUE. The report
 // edits are already on disk; the parity gap becomes a scored defect (capture's record-parity audit
 // recounts it post-hoc) instead of a fatal error. Only a genuine unrecoverable integrity violation
 // aborts. #251 dissolves this entirely by making a revision a recorded op rather than an
@@ -769,8 +771,8 @@ async function ensureSittingRecord(env, who, owed, opts) {
     return true
   }
   const why = (retry && retry.note) ? ` — ${retry.note}` : ''
-  friction.push(`${who}: attestation UNRESOLVED (W1.7) — ${owed} was never attested${why}. The run continued; capture's record-parity audit scores the gap.`)
-  log(`attestation: ${who} still unattested — added to the collated log entries, continuing (the run is no longer discarded for this)`)
+  sittingRecordUnresolved.push(`${who}: attestation UNRESOLVED (W1.7) — ${owed} was never attested${why}. The run continued; capture's record-parity audit scores the gap.`)
+  log(`attestation: ${who} still unattested — added to sitting_record_unresolved, continuing (the run is no longer discarded for this)`)
   return false
 }
 const petitionLog = []
@@ -926,7 +928,6 @@ async function hearPetitions() {
     // human reading a dashboard, and carries which question this sitting was.
     { ...judgment, label: `judge · ${PETITION_OCCASION} · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:lead-judge', schema: PETITION_RULING })
   if (!sitting) throw new Error('petition sitting returned null (agent failed) — a filed petition is never dropped; aborting cleanly')
-  takeFriction(seatID, sitting)
   for (const h of sitting.holdings || []) holdingsInEffect.push(h)
   return takePetitionRulings(sitting)
 }
@@ -954,7 +955,6 @@ REPORT WRITE PATH: the harness refuses a Write to ANY file whose name contains t
   { ...judgment, label: `blue-synthesize · ${slug}`, phase: 'Blue', agentType: 'frank-exchange-of-views:blue-synthesizer', schema: BLUE_ENVELOPE })
 
 if (!blueEnv) throw new Error('blue synthesis returned null (agent failed) — aborting cleanly')
-takeFriction('blue-synthesize', blueEnv)
 await ensureSittingRecord(blueEnv, 'blue-synthesize', `your sitting's revision event, stating the synthesis and its claim_count`,
   { ...judgment, agentType: 'frank-exchange-of-views:blue-synthesizer' })
 // ---- Debate loop: red audits gate; termination is the record's, and the engine refuses to spin ----
@@ -1057,7 +1057,6 @@ const labelFor = (seat) => { sittings[seat] = (sittings[seat] || 0) + 1; return 
 while (!halted) {
   epoch++
   chairEnv = await agent(chairPrompt(), { ...judgment, label: labelFor('red-chair'), phase: 'Red', agentType: 'frank-exchange-of-views:red-chair', schema: CHAIR_ENVELOPE })
-  takeFriction('red-chair', chairEnv)
   if (!chairEnv) throw new Error(`red-chair sitting ${epoch} returned null (agent failed) — aborting cleanly`)
   const plan = chairEnv.plan
   requirePlan(plan, epoch)
@@ -1095,14 +1094,12 @@ while (!halted) {
 
   if (lenses.length) {
     log(`epoch ${epoch}: dispatching ${lenses.length} red lens(es): ${lenses.map((p) => `${LENS_DISPATCH[p.seat_id].area}${p.gap_ids.length ? `[${p.gap_ids.join(' ')}]` : ''}`).join(', ')}`)
-    const envs = await parallel(lenses.map((p) => () => agent(lensPrompt(p.seat_id, p.gap_ids),
+    await parallel(lenses.map((p) => () => agent(lensPrompt(p.seat_id, p.gap_ids),
       { ...bulk, label: labelFor(p.seat_id), phase: 'Red', ...LENS_DISPATCH[p.seat_id] })))
-    for (const [k, env] of envs.entries()) takeFriction(lenses[k].seat_id, env)
   }
   for (const p of blues) {
     phase('Debate')
     blueEnv2 = await agent(bluePrompt(p.gap_ids, plan.docket), { ...bulk, label: labelFor('blue-respond'), phase: 'Debate', agentType: 'frank-exchange-of-views:blue-researcher', schema: BLUE_ENVELOPE })
-    takeFriction('blue-respond', blueEnv2)
     if (!blueEnv2) throw new Error(`blue response (epoch ${epoch}) returned null (agent failed) — aborting cleanly`)
     const foundClosed = new Set((Array.isArray(blueEnv2.found_closed) ? blueEnv2.found_closed : []).filter((g) => p.gap_ids.includes(g)))
     const open = p.gap_ids.filter((g) => !foundClosed.has(g))
@@ -1148,7 +1145,6 @@ while (!halted) {
         : { gap_id: r.gap_id, disposition: r.disposition, settled, reopens_on: r.reopens_on, final: !!r.final, epoch })
       if (r.disposition === 'defect_owed_elsewhere') infraDebts.push({ gap_id: r.gap_id, owed_fix: r.rationale, epoch })
     }
-    takeFriction('judge', judge)
   }
 }
 
@@ -1199,7 +1195,6 @@ if (!halted && benchBlockers.length) {
     `Terminal disposition for topic "${topic}" (debate ended ${verdict} after ${epoch} chair sitting(s); this sitting fires at the exit boundary). ${benchBlockers.length} motion(s) whose gavel is yours stand unruled on the record: ${benchBlockers.map((b) => b.subject).join(', ')} — each is on your work list. Read the transcript in full and the board back, and rule each with a reason; the chair's own motions are not yours, and the report shows them as they stand. NOTHING CAN BE REMANDED AT A TERMINAL EXIT — there is no next sitting to remand it to. A PETITION among them is ruled granted | denied, and each petition ruling also returns on the envelope's \`rulings\` — its petitioner and class, your ruling and opinion, and on a grant the relief and whom it binds. ${haltClause('stamps the run HALTED')}${holdingsClause()}${lawClause}${declareClause}${inspectionClause}${logClause('judge', 'bench')}${speedClause}${recordClause('judge', TERMINAL_OCCASION)} Return your envelope.`,
     { ...judgment, label: `judge · ${TERMINAL_OCCASION} · ${slug}`, phase: 'Assemble', agentType: 'frank-exchange-of-views:lead-judge', schema: TERMINAL_ENVELOPE })
   if (terminalJudge) {
-    takeFriction('judge', terminalJudge)
     if (takePetitionRulings(terminalJudge)) {
       verdict = verdictNow()
       terminationWhy = terminationWhyOf(verdict)
@@ -1215,7 +1210,6 @@ const ASSEMBLE_ENVELOPE = {
   properties: {
     synopsis: { type: 'string' },
     open_gaps: { type: 'integer', minimum: 0 }, // the board's counts.open, not red's docket
-    log: { type: 'array', items: { type: 'string' } },
   },
 }
 phase('Assemble')
@@ -1226,7 +1220,7 @@ FIRST, STAMP HOW THIS RUN ENDED: it is ${verdict}${halted ? `, ended by JUDICIAL
 
 THEN, TWO THINGS YOU MAY HOLD AND THIS IS YOUR LAST CHANCE TO RECORD EITHER. If you hold something that binds how the RECORD IS READ but moves no gap — a construction of a term, a correction of what the record MEANS rather than what it says, a holding worth offering as precedent — state it, and state it in its own right rather than folding it into an unrelated rationale. And if anything in this run needs A HUMAN to re-examine it — an unresolved tension, a claim that held only because nobody could reach the source, a boundary you ruled close to — say so. You keep no memory between runs, so this is the whole of your continuity.
 
-THEN ASSEMBLE. It writes the run's documents for the HUMAN reader — the research, the board, the transcript, the judgments, the avenues, the evidence, the run's account, the changelog, an index and a tabbed site — and a document with nothing in it is not written at all, so no judgments document means no motions were filed rather than a failure. It prints the verdict it stamped from the outcome on the record: confirm that is the outcome you recorded. Do not open the documents — they are the human's, and the report is read with the record tool. A tool cannot mis-author a synthesis surface — the TL;DR and the catechism are blue's, inside the audited report. An open gap that is not material stays open on the board and in the risk matrix; the chair's PASS listed it by class, on the record. THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: read it back and report it as open_gaps in your envelope. Infra debts the bench named: ${JSON.stringify(infraDebts)}. The log entries the seats returned so far (log any of your own as well): ${JSON.stringify(friction)}.${holdingsClause()}${lawClause}${logClause('judge', 'bench')}${speedClause}${recordClause('judge', ASSEMBLE_OCCASION)} Return your envelope: a 5-line synopsis, open_gaps from the board, and your own log entries if any.`,
+THEN ASSEMBLE. It writes the run's documents for the HUMAN reader — the research, the board, the transcript, the judgments, the avenues, the evidence, the run's account, the changelog, an index and a tabbed site — and a document with nothing in it is not written at all, so no judgments document means no motions were filed rather than a failure. It prints the verdict it stamped from the outcome on the record: confirm that is the outcome you recorded. Do not open the documents — they are the human's, and the report is read with the record tool. A tool cannot mis-author a synthesis surface — the TL;DR and the catechism are blue's, inside the audited report. An open gap that is not material stays open on the board and in the risk matrix; the chair's PASS listed it by class, on the record. THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: read it back and report it as open_gaps in your envelope. Infra debts the bench named: ${JSON.stringify(infraDebts)}. sitting_record_unresolved — the seats that did not attest what their sitting put on the record, after one re-prompt: ${JSON.stringify(sittingRecordUnresolved)}.${holdingsClause()}${lawClause}${logClause('judge', 'bench')}${speedClause}${recordClause('judge', ASSEMBLE_OCCASION)} Return your envelope: a 5-line synopsis and open_gaps from the board.`,
   { ...judgment, label: `judge · ${ASSEMBLE_OCCASION} · ${slug}`, agentType: 'frank-exchange-of-views:lead-judge', schema: ASSEMBLE_ENVELOPE })
 return {
   runDir,
@@ -1240,5 +1234,5 @@ return {
   petitions: petitionLog,
   halted,
   halt_opinion: haltOpinion,
-  friction,
+  sitting_record_unresolved: sittingRecordUnresolved,
 }

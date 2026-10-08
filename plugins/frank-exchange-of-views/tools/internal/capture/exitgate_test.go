@@ -74,9 +74,9 @@ func TestTheExitCodeAgreesWithTheAuditsItReports(t *testing.T) {
 // harness, or a workflow killed before it wrote its journal — could never be captured, and its
 // marker blocked plugin updates indefinitely: three such runs did exactly that on 2026-09-10.
 //
-// The other half is what the fix must NOT do. Without a journal the envelope side of log-parity
-// is empty, nothing is "silent", and LogAudit would PASS — a clean verdict produced by the
-// absence of one of its inputs. It must say SKIP, and the report must say why.
+// The other half is what the fix must NOT do. Without a journal there is no relayed plan to hold
+// to the dispatch rows, and an empty list of relays compares clean against anything. The audit
+// that reads the envelopes must not PASS on that, and its detail and the report must say why.
 func TestARunWithNoJournalIsCapturedAndItsEnvelopeAuditsAreNotMeasured(t *testing.T) {
 	run := runtest.New(t, t.TempDir())
 	if err := os.MkdirAll(filepath.Join(run.Dir(), "trajectories"), 0o755); err != nil {
@@ -89,15 +89,19 @@ func TestARunWithNoJournalIsCapturedAndItsEnvelopeAuditsAreNotMeasured(t *testin
 	}
 	var parity *Audit
 	for i := range audits {
-		if audits[i].Check == "log-parity" {
+		if audits[i].Check == "dispatch-parity" {
 			parity = &audits[i]
+		}
+		// The seats' log entries are on the record alone; no audit reconciles an envelope copy.
+		if audits[i].Check == "log-parity" {
+			t.Errorf("capture still runs a log-parity audit: %s", audits[i].Detail)
 		}
 	}
 	if parity == nil {
-		t.Fatal("no log-parity audit in the result")
+		t.Fatal("no dispatch-parity audit in the result")
 	}
-	if parity.Verdict != "SKIP" {
-		t.Errorf("log-parity = %s with no envelopes to compare — an absent input read as a clean pass: %s", parity.Verdict, parity.Detail)
+	if parity.Verdict == "PASS" || !strings.Contains(parity.Detail, "no workflow journal") || !strings.Contains(parity.Detail, "NOT compared") {
+		t.Errorf("dispatch-parity = %s with no envelopes to compare — an absent input read as a clean pass: %s", parity.Verdict, parity.Detail)
 	}
 	if !strings.Contains(report, "journal: none") {
 		t.Error("the capture report does not say the journal was absent, so a reader cannot tell a run with no envelopes from one whose envelopes all agreed")

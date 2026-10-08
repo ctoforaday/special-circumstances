@@ -1,4 +1,4 @@
-prompt sha256: b5075ec12ca0c09f4a48bb5cc34955b80cc255a23c5f3cc5a8fb880923e97e91
+prompt sha256: 551439d4616cb3cd7260461a8360a380d54e7c45168650d8a17a3be2819f529c
 
 Blue response, topic "the seat prompt contract".
 You are engaged on: G1.
@@ -60,7 +60,7 @@ AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP (W2b; your constitution carries the 
 A gap you are engaged on that the board shows CLOSED when you sit — its lens sat before you and closed it — owes no row: name it in found_closed, from the board you read.
 When EVERY gap you are engaged on is closed when you sit, the sitting owes no position and no revision — found_closed is its record.
 Otherwise record the sitting's revision with the tool's claim_count; never hand-count it — the tool computes claim_count with the tool's own read.
-LOG (blue-respond), on the record AND in the envelope's log field: whatever cost you a call, a guess or an act — a refusal, a name that was not there, a misread shape, a workaround, an act set aside.
+LOG (blue-respond), on the record: whatever cost you a call, a guess or an act — a refusal, a name that was not there, a misread shape, a workaround, an act set aside.
 The tool records refusals and failed calls itself; you add what you expected and why — a mistake the surface invited is the operator's signal.
 YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU.
 Conclusions about the report and disputes with another seat's gap are findings, not log entries.

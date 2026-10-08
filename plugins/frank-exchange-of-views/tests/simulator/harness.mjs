@@ -3,7 +3,7 @@
 // The Workflow harness evaluates the script body as async code with agent / parallel /
 // pipeline / log / phase / args / budget in scope. This harness reproduces that contract
 // so every control-flow branch — args parsing, the round loop, the contested docket,
-// deadlock, the safety ceiling, per-role model routing, friction aggregation — is
+// deadlock, the safety ceiling, per-role model routing, the unresolved-sitting-record list — is
 // exercised with canned envelopes and no live agents.
 //
 // Founding regressions (each cost a live run to discover):
@@ -64,7 +64,7 @@ export function makeWorld(respond) {
 export const blueEnv = (over = {}) => ({
   path: 'blue/report.md', tldr: 'tldr', claim_count: 40, saturation_reached: true, sitting_record_appended: true,
   manifest: ['G1'],
-  open_questions: [], log: [], ...over,
+  open_questions: [], ...over,
 })
 // THE CHAIR RELAYS THE RECORD (plans/roundless.md §III.B.1): its envelope carries the plan `dispatch
 // next` printed. A stubbed chair is a stubbed plan; the default sequence is one sitting that engages
@@ -79,16 +79,16 @@ export const blocker = (subject, owner, kind = 'unruled_motion') => ({ kind, sub
 export const plan = (parties = [], over = {}) => ({ head: 2, parties, docket: [], remand_owed: [], pass_permitted: false, ceiling: false, max_epochs: 0, epoch_limit_reached: false, why: [], stale_areas: [], blockers: [], ...over })
 export const passPlan = (over = {}) => plan([], { pass_permitted: true, ...over })
 export const ceilingPlan = (over = {}) => plan([], { ceiling: true, why: ['G1: at impasse, ruled remanded — at its limit'], ...over })
-export const chairEnv = (over = {}) => ({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G1')]), log: [], ...over })
+export const chairEnv = (over = {}) => ({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G1')]), ...over })
 export const passChair = (over = {}) => chairEnv({ plan: passPlan(), verdict: 'PASS', ...over })
 export const gap = (id, over = {}) => ({
   id, location: 'loc', problem: 'p', required_fix: 'f', acceptance_check: 'grep the corrected figure at the anchor', existence: 'verified',
   severity: 'medium', likelihood: 'medium', impact: 'medium', complexity_cost: 'low', ...over,
 })
-export const judgeEnv = (over = {}) => ({ dispositions: [], log: [], ...over })
-export const petitionRulingEnv = (over = {}) => ({ rulings: [{ petitioner: 'x', class: 'ethical', ruling: 'denied' }], log: [], ...over })
+export const judgeEnv = (over = {}) => ({ dispositions: [], ...over })
+export const petitionRulingEnv = (over = {}) => ({ rulings: [{ petitioner: 'x', class: 'ethical', ruling: 'denied' }], ...over })
 // makeResponder serves envelopes by seat, in order; the last one repeats. Lenses answer in free text.
-export const assembleEnv = (over = {}) => ({ synopsis: 'synopsis', open_gaps: 0, log: [], ...over })
+export const assembleEnv = (over = {}) => ({ synopsis: 'synopsis', open_gaps: 0, ...over })
 export function makeResponder({ chair = [chairEnv(), passChair()], judge = [judgeEnv()], blueSynth = [blueEnv()], blueRespond = [blueEnv()], petition = [petitionRulingEnv()], assemble = [assembleEnv()] } = {}) {
   const take = (q) => (q.length > 1 ? q.shift() : q[0])
   return (prompt, opts) => {

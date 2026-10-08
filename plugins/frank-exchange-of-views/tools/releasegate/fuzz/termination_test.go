@@ -128,7 +128,7 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 	var engaged []any // the gap ids the last plan engaged blue on — blue manifests exactly those
 	backend := func(seatID, label, prompt string) debatejs.Envelope {
 		e := debatejs.Envelope{
-			"synopsis": "termination", "log": []any{}, "rulings": []any{},
+			"synopsis": "termination", "rulings": []any{},
 			"dispositions": []any{}, "holdings": []any{}, "manifest": []any{}, "claim_count": 3,
 			"saturation_reached": false, "sitting_record_appended": true,
 		}

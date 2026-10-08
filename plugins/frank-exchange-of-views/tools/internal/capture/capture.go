@@ -4,8 +4,9 @@
 // the transcript tarball, appends each card's scorecard, harvests precedents into law/proposed,
 // removes the run-live marker, and writes run-record-audit.md — exit 2 on any audit FAIL.
 //
-// The three record-backed audits (telemetry, log-parity, record-parity) read the record
-// IN-PROCESS via record.BoardState → DebateJSONOf/FrictionJSONOf, never by spawning `chair show`.
+// The record-backed audits (telemetry, record-parity) read the record IN-PROCESS, never by
+// spawning `chair show`. A seat's log entries are on the record and nowhere else, so no audit
+// here reconciles a second copy of them: the log is read with `show log`.
 // The PRECEDENT HARVEST reads it too, never the envelopes' self-reported ruling arrays: a bench
 // that under-reports would promote less than it ruled, and one that reported nothing would
 // promote nothing, indistinguishably from a run with nothing to promote.
@@ -78,10 +79,9 @@ func jsToFixed0(x float64) string { return strconv.FormatFloat(x, 'f', 0, 64) }
 
 // jsSlice returns the prefix of s spanning the first n UTF-16 code units, matching JS
 // String.slice(0,n). Counting BYTES diverges on non-ASCII prose: an em-dash (U+2014) is 3
-// UTF-8 bytes but 1 UTF-16 unit, so a byte cut lands short — and this feeds the friction
-// 60-char prefix MATCH (present()), so it can change the missing SET, not just the display.
-// Real capture prose carries em-dashes; the real-data differential caught it. Runes above the
-// BMP (>0xFFFF) are a surrogate pair = 2 units.
+// UTF-8 bytes but 1 UTF-16 unit, so a byte cut lands short. Real capture prose carries
+// em-dashes; the real-data differential caught it. Runes above the BMP (>0xFFFF) are a
+// surrogate pair = 2 units.
 func jsSlice(s string, n int) string {
 	units := 0
 	for i, r := range s {
@@ -99,13 +99,13 @@ func jsSlice(s string, n int) string {
 
 // ---- journal ----
 
-// ReadJournal walks journal.jsonl tolerantly: every result object and the friction arrays inside.
-func ReadJournal(transcriptDir string) (results []map[string]any, friction []EnvelopeLog) {
-	results = []map[string]any{}
-	friction = []EnvelopeLog{}
+// ReadJournal walks journal.jsonl tolerantly and returns every result object — the envelopes the
+// seats returned, which the dispatch-parity audit holds to the record.
+func ReadJournal(transcriptDir string) []map[string]any {
+	results := []map[string]any{}
 	b, err := os.ReadFile(filepath.Join(transcriptDir, "journal.jsonl"))
 	if err != nil {
-		return results, friction
+		return results
 	}
 	for _, line := range strings.Split(string(b), "\n") {
 		if strings.TrimSpace(line) == "" {
@@ -117,25 +117,14 @@ func ReadJournal(transcriptDir string) (results []map[string]any, friction []Env
 		if dec.Decode(&j) != nil {
 			continue
 		}
-		r, ok := j["result"].(map[string]any)
-		if !ok {
-			continue
-		}
-		results = append(results, r)
-		if fr, ok := r["log"].([]any); ok {
-			// THE AGENT HANDLE TRAVELS WITH THE TEXT. It is the only thing on this line that can
-			// be joined to a seat, and dropping it here is what left the parity check comparing
-			// prose to prose. See LogAudit.
-			agent := jsString(j["agentId"])
-			for _, f := range fr {
-				friction = append(friction, EnvelopeLog{AgentID: agent, Text: jsString(f)})
-			}
+		if r, ok := j["result"].(map[string]any); ok {
+			results = append(results, r)
 		}
 	}
-	return results, friction
+	return results
 }
 
-// jsString mirrors JS String(x) for the values friction arrays carry (strings pass through).
+// jsString mirrors JS String(x) for a relayed plan's scalar values (strings pass through).
 func jsString(v any) string {
 	switch x := v.(type) {
 	case string:
@@ -255,94 +244,6 @@ func TelemetryAudit(run record.Run, redEpochs int) Audit {
 // cannot be authored: record.SpotCheckAudit computes the archive's size at epoch start by replay,
 // and AttestationAudit reconciles each anchored closure against real tool calls. Both read the
 // board. A self-report has no place on either side of that comparison.
-
-// ---- AUDIT 3: friction parity ----
-
-// LogAudit checks every envelope-self-reported friction reached the record. onRecord is the
-// friction view's texts, read in-process. 60-char tolerant match in either direction.
-// EnvelopeLog is one friction entry as a seat reported it in its RETURN ENVELOPE, carrying
-// the harness agent that wrote it — the only handle on that line a record can be joined to.
-type EnvelopeLog struct {
-	AgentID, Text string
-}
-
-// LogAudit checks that every seat which reported friction in its envelope also opened the
-// channel on the record. It joins on the SEAT, through the agent binding `register` writes.
-//
-// IT COMPARED PROSE TO PROSE, and reported 5 failures out of 5 on a run where every one of them
-// was on the record. Measured 2026-08-22, research/2026-08-22_is-7-prime:
-//
-//	envelope   "blue-synthesize: citation-hygiene: candidate draft lane-1 provides authoritative
-//	            source names (…) but lacks full URLs with coordinates required by research protocol"
-//	record     "Citation-URL resolution: candidate draft lane-1 provides source names (…) but not
-//	            full URLs with coordinates required by citation protocol"
-//
-// Same complaint, different wording — a seat that did its duty and then paraphrased itself into
-// its return value. The other four were the empty case ("no capability gaps encountered"), also
-// present, also reworded. A seat behaving correctly tripped this every time.
-//
-// The record carries seat_id as a FIELD. The envelope side glues the seat name onto the front of
-// the prose ("blue-synthesize: …") when it remembers to, so the join had to be recovered by
-// splitting a string — and could not be, so the check fell back to a 60-character substring
-// comparison in either direction. record.SeatOfAgent already existed for exactly this, and its
-// own doc comment is an argument against what this function was doing.
-//
-// WHEN THE JOIN IS ABSENT, SAY SO. A run whose PreToolUse hook never fired carries no agent_id on
-// any register event — deliberately, so "not measured" stays legible rather than reading as an
-// agent whose handle is the empty string. Those entries are counted out loud and are NOT findings:
-// an unjoinable entry is a thing this audit cannot see, not a duty a seat skipped.
-func LogAudit(run record.Run, envelope []EnvelopeLog, onRecord []record.LogEntryJSON) Audit {
-	wroteToRecord := map[string]bool{}
-	for _, fr := range onRecord {
-		wroteToRecord[fr.SeatID] = true
-	}
-	var silent, unjoinable []string
-	for _, e := range envelope {
-		seat, found, err := record.SeatOfAgent(run, e.AgentID)
-		if err != nil || !found || seat == "" {
-			unjoinable = append(unjoinable, jsSlice(e.Text, 90))
-			continue
-		}
-		if !wroteToRecord[seat] {
-			silent = append(silent, seat+": "+jsSlice(e.Text, 90))
-		}
-	}
-	note := ""
-	if len(unjoinable) > 0 {
-		note = fmt.Sprintf("\n    %d envelope entr%s COULD NOT BE JOINED to a seat and %s not judged "+
-			"(no agent_id on the record — this run's PreToolUse hook did not fire, so the binding "+
-			"`register` writes was never supplied):\n    - %s",
-			len(unjoinable), plural(len(unjoinable), "y", "ies"), plural(len(unjoinable), "was", "were"),
-			strings.Join(unjoinable, "\n    - "))
-	}
-	if len(silent) > 0 {
-		return Audit{Check: "log-parity", Verdict: "FAIL",
-			Detail: fmt.Sprintf("%d seat(s) reported friction in the envelope and opened no channel on the record "+
-				"(it should have been recorded via the friction verb during the run):\n    - %s%s",
-				len(silent), strings.Join(silent, "\n    - "), note)}
-	}
-	judged := len(envelope) - len(unjoinable)
-	return Audit{Check: "log-parity", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d envelope entr%s joined to a seat, and every one of those seats is on the record "+
-			"(%d friction entr%s recorded in total)%s",
-			judged, plural(judged, "y", "ies"), len(onRecord), plural(len(onRecord), "y", "ies"), note)}
-}
-
-// logParity is LogAudit when there is an envelope side to compare, and SKIP when there is not.
-//
-// LogAudit compares what seats REPORTED in their envelopes against what they RECORDED. With no
-// journal there are no envelopes, the reported list is empty, nothing is "silent", and the audit
-// would PASS — a clean verdict produced by the absence of one of its two inputs. The decision is
-// made here, where the journal's presence is known, rather than by overloading an empty slice
-// to mean "absent" inside LogAudit.
-func logParity(run record.Run, envelope []EnvelopeLog, onRecord []record.LogEntryJSON, journalPresent bool) Audit {
-	if !journalPresent {
-		return Audit{Check: "log-parity", Verdict: "SKIP",
-			Detail: fmt.Sprintf("no workflow journal, so there is no envelope side to compare against the %d log entr%s on the record — NOT MEASURED, not clean",
-				len(onRecord), plural(len(onRecord), "y", "ies"))}
-	}
-	return LogAudit(run, envelope, onRecord)
-}
 
 func plural(n int, one, many string) string {
 	if n == 1 {
@@ -1767,14 +1668,14 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	// headless harness, or a workflow killed before it wrote its journal — could never be closed:
 	// three such runs sat "live" in .claude/run-live.json on 2026-09-10, blocking plugin updates.
 	//
-	// Absent is not the same as empty, and the difference is carried rather than inferred: every
-	// audit that reads the envelope side reports SKIP below instead of reading an empty list as a
-	// clean pass.
+	// Absent is not the same as empty, and the difference is carried rather than inferred:
+	// dispatch-parity, the one audit that reads the envelopes, states that the relayed plans were
+	// not compared instead of reading an empty list as a clean pass.
 	journalPresent := true
 	src := filepath.Join(transcriptDir, "journal.jsonl")
 	if _, serr := os.Stat(src); os.IsNotExist(serr) {
 		journalPresent = false
-		lines = append(lines, "journal: none at "+src+" — this run was not driven by the Workflow tool, or its journal was never written; the envelope-side audits are NOT MEASURED")
+		lines = append(lines, "journal: none at "+src+" — this run was not driven by the Workflow tool, or its journal was never written; the relayed plans are NOT COMPARED with the record")
 	} else if err = copyFile(src, filepath.Join(run.Dir(), "trajectories", "journal.jsonl")); err != nil {
 		return nil, "", false, err
 	}
@@ -1848,7 +1749,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		}
 	}
 
-	results, friction := ReadJournal(filepath.Join(run.Dir(), "trajectories"))
+	results := ReadJournal(filepath.Join(run.Dir(), "trajectories"))
 
 	// Record-backed reads, in-process (the JS spawned `chair show` views).
 	// The family off the record; a run whose record cannot be read audits with fam == nil,
@@ -1858,7 +1759,6 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		fam = &f
 	}
 	redEpochs := 0
-	onRecord := []record.LogEntryJSON{}
 	if fam != nil {
 		dj := record.DebateJSONOfEvents(fam.Events, fam.At)
 		for _, r := range dj.Epochs {
@@ -1866,18 +1766,11 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 				redEpochs++
 			}
 		}
-		// ONE ARM NOW, AND THE EMPTY CASE IS NOT IN IT. The clean sitting used to be a second event
-		// type appended separately, then a `nominal` entry on this list; `nominal` is retired and
-		// clean is derived from having sat and filed nothing, so this list holds the exceptions and
-		// a sitting absent from it is the clean reading rather than an unused channel.
-		fj := record.LogJSONOf(fam.Events, fam.At)
-		onRecord = append(onRecord, fj.Log...)
 	}
 
 	audits = []Audit{
 		LivenessAudit(run, now),
 		TelemetryAudit(run, redEpochs),
-		logParity(run, friction, onRecord, journalPresent),
 		ContextUse(transcriptDir, agentFiles),
 		AssemblyScreen(run),
 		FootnoteIntegrity(run),

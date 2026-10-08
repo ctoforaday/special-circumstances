@@ -13,8 +13,8 @@ import (
 //
 // # The defect this replaces
 //
-// run.md's own blurb states what it holds: "how the machinery behaved: the friction the seats
-// hit, the record's own invariant check, and what the run cost". Assembly supplies the first two.
+// run.md's own blurb states what it holds: "how the machinery behaved: what the seats logged,
+// the record's own invariant check, and what the run cost". Assembly supplies the first two.
 // The third arrived through a function that sliced ONE table out of cost.md — and cost.md had
 // five sections. The tier check, the board telemetry, the cost notes and the per-seat
 // measurements were written, archived, and never read by anyone reading the run, because the only

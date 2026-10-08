@@ -95,7 +95,7 @@ func fixtureRun(t *testing.T, ledgerLines, archiveBlocks int) string {
 	write(t, filepath.Join(dir, "red", "archive.md"), ab.String())
 	write(t, filepath.Join(dir, "blue", "CHANGELOG.md"), "## Round 1\nedits\n## Round 2\nedits\n")
 	write(t, filepath.Join(dir, "trajectories", "journal.jsonl"),
-		`{"type":"result","result":{"ledger_closure_lines":`+itoa(ledgerLines)+`,"archive_blocks":`+itoa(archiveBlocks)+`,"log":["red-chair: needed a PDF extractor for X"]}}`+"\n")
+		`{"type":"result","result":{"ledger_closure_lines":`+itoa(ledgerLines)+`,"archive_blocks":`+itoa(archiveBlocks)+`}}`+"\n")
 	return dir
 }
 
@@ -138,97 +138,6 @@ func TestTelemetryAudit(t *testing.T) {
 	}
 	if got := TelemetryAudit(runtest.Open(t, empty), 0).Verdict; got != "SKIP" {
 		t.Errorf("empty telemetry, no red epochs: want SKIP, got %s", got)
-	}
-}
-
-// frictionRun writes a run whose seats registered (optionally binding an agent handle) and
-// optionally opened the friction channel.
-func frictionRun(t *testing.T, seat, agentID string, wrote string) string {
-	t.Helper()
-	dir := t.TempDir()
-	// agent_id IS A FIELD ON THE REGISTER now, not a payload key — and it is only SET when the
-	// hook supplied one, because a run whose hook never fired must stay legible as "not measured"
-	// rather than as an agent whose handle is the empty string.
-	reg := &recordpb.Register{ToolVersion: proto.String("test")}
-	if agentID != "" {
-		reg.AgentId = proto.String(agentID)
-	}
-	evs := []*recordpb.Event{recordtest.At(t, seat, seat+":register:#1", reg)}
-	switch wrote {
-	case "log":
-		evs = append(evs, recordtest.At(t, seat, seat+":friction:#1",
-			&recordpb.Log{Text: proto.String("the seat's own words, recorded"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}))
-	case "friction-none":
-		evs = append(evs, recordtest.At(t, seat, seat+":friction_none:#1",
-			&recordpb.Log{Text: proto.String("the seat's own words, recorded"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}))
-	case "":
-	default:
-		t.Fatalf("frictionRun does not know how to write %q", wrote)
-	}
-	recordtest.Seed(t, dir, evs...)
-	return dir
-}
-
-func recordFriction(t *testing.T, runDir string) []record.LogEntryJSON {
-	t.Helper()
-	b, err := record.FamilyOf(runtest.Open(t, runDir))
-	if err != nil {
-		t.Fatal(err)
-	}
-	fj := record.LogJSONOf(b.Events, b.At)
-	return append(append([]record.LogEntryJSON{}, fj.Log...), fj.Log...)
-}
-
-// THE CASE THAT FAILED 5 OUT OF 5 IN PRODUCTION: a seat writes its friction to the record and then
-// PARAPHRASES it into its return envelope. Comparing prose to prose called that a missing record.
-func TestASeatThatParaphrasesItselfStillReconciles(t *testing.T) {
-	run := frictionRun(t, "blue-synthesize", "a24445d32ad697bd4", "log")
-	env := []EnvelopeLog{{AgentID: "a24445d32ad697bd4",
-		Text: "blue-synthesize: citation-hygiene: entirely different wording from the record"}}
-	got := LogAudit(runtest.Open(t, run), env, recordFriction(t, run))
-	if got.Verdict != "PASS" {
-		t.Errorf("the seat opened the channel; the envelope is a re-worded copy, not a second duty.\ngot %s: %s", got.Verdict, got.Detail)
-	}
-}
-
-// AND THE REAL GAP STILL FAILS: a seat that reported friction to the harness and never opened the
-// channel on the record.
-func TestASeatThatToldOnlyTheHarnessIsAFinding(t *testing.T) {
-	run := frictionRun(t, "red-chair", "a78f5dfdc4aa2ea54", "")
-	env := []EnvelopeLog{{AgentID: "a78f5dfdc4aa2ea54", Text: "needed a PDF extractor for X"}}
-	got := LogAudit(runtest.Open(t, run), env, recordFriction(t, run))
-	if got.Verdict != "FAIL" {
-		t.Fatalf("friction the record never got: want FAIL, got %s (%s)", got.Verdict, got.Detail)
-	}
-	for _, want := range []string{"red-chair", "needed a PDF extractor"} {
-		if !strings.Contains(got.Detail, want) {
-			t.Errorf("the finding must name %q: %s", want, got.Detail)
-		}
-	}
-}
-
-// `friction-none` is the attested empty case — a seat closing the channel honestly has used it.
-func TestTheAttestedEmptyCaseCountsAsOpeningTheChannel(t *testing.T) {
-	run := frictionRun(t, "judge", "a7e42caf6c06aec62", "friction-none")
-	env := []EnvelopeLog{{AgentID: "a7e42caf6c06aec62", Text: "No capability gaps encountered."}}
-	if got := LogAudit(runtest.Open(t, run), env, recordFriction(t, run)); got.Verdict != "PASS" {
-		t.Errorf("a filed friction-none IS the channel being used; got %s: %s", got.Verdict, got.Detail)
-	}
-}
-
-// NOT JOINED IS NOT A FINDING. A run whose PreToolUse hook never fired carries no agent_id on any
-// register event, deliberately — so the entry cannot be attributed, and an audit that cannot see
-// something must say so rather than accuse.
-func TestAnUnjoinableEntryIsReportedRatherThanBlamed(t *testing.T) {
-	run := frictionRun(t, "blue-respond", "", "")
-	env := []EnvelopeLog{{AgentID: "", Text: "Friction channel closed: no capability gaps."}}
-	got := LogAudit(runtest.Open(t, run), env, recordFriction(t, run))
-	if got.Verdict == "FAIL" {
-		t.Errorf("an entry with no agent binding is unmeasurable, not a duty skipped.\ngot %s: %s", got.Verdict, got.Detail)
-	}
-	if !strings.Contains(got.Detail, "COULD NOT BE JOINED") {
-		t.Errorf("the unjoinable entries must be counted out loud, or an audit that saw nothing "+
-			"reads as a clean board:\n%s", got.Detail)
 	}
 }
 
@@ -822,7 +731,7 @@ func TestFoldCarriesEverySectionToItsHome(t *testing.T) {
 		"## Notes\n\n- cache stuff\n\n"+
 		"## Tier check\n\n- all seats ran at their configured tier\n\n"+
 		"## Board telemetry\n\n| epoch | open |\n|---|---|\n| 1 | 8 |\n"), 0o644)
-	os.WriteFile(auditMd, []byte("# Run record audit\n\n- friction-parity: PASS\n"), 0o644)
+	os.WriteFile(auditMd, []byte("# Run record audit\n\n- dispatch-parity: PASS\n"), 0o644)
 
 	msg := foldCaptureArtifacts(report, costMd, auditMd)
 	if msg == "" {
@@ -836,7 +745,7 @@ func TestFoldCarriesEverySectionToItsHome(t *testing.T) {
 		"## Cost", "### Per seat-epoch", "### Per seat (measured)", "### Notes",
 		"## Tier check", "## Board telemetry", "## Integrity audits",
 		"red-lens | $0.42", "| red-lens | 121 |", "cache stuff",
-		"configured tier", "| 1 | 8 |", "friction-parity: PASS",
+		"configured tier", "| 1 | 8 |", "dispatch-parity: PASS",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the folded run document is missing %q:\n%s", want, got)

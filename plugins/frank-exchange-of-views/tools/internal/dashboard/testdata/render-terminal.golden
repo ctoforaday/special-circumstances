@@ -52,7 +52,7 @@ td, th { font-variant-numeric: tabular-nums; }
 <div class="tile"><b>9</b><span>lens findings</span></div>
 <div class="tile"><b>4</b><span>citations checked</span></div>
 <div class="tile"><b>VERIFIED</b><span>final verdict</span></div>
-<div class="tile"><b>2</b><span>friction entries</span></div>
+<div class="tile"><b>2</b><span>log entries</span></div>
 <div class="tile"><b>$12.34</b><span>cost so far (est.)</span></div>
 <div class="tile"><b>2/5</b><span>seats done</span></div>
 </div>
@@ -81,8 +81,8 @@ td, th { font-variant-numeric: tabular-nums; }
 <tr><td>argument chains (supersedes-aware)</td><td>3 chains · by epochs alive: 2×1 · 1×2 <span class="muted">(epochs from mint to close, or to now while open)</span></td></tr>
 <tr><td>grade migration on multi-epoch chains</td><td>down 1 · up 0 · flat 0 <span class="muted">(first-vs-last mass along the chain — the downgrade process)</span></td></tr>
 </table>
-<h2>Friction — logged pain points</h2>
-<p>2 friction events on the record · latest: <span class="muted">red-chair: needed a PDF extractor</span></p>
+<h2>Log</h2>
+<p>2 log entries on the record · latest: <span class="muted">red-chair: needed a PDF extractor</span></p>
 <h2>Seats (run complete)</h2>
 <p class="muted">the bench recorded this run's outcome. 2 seat(s) never finished:</p><table><tr><td class="liveseat">red-chair #1</td><td class="muted">superseded — a later attempt completed</td></tr><tr><td class="liveseat">judge #1</td><td class="muted">did not finish</td></tr></table>
 <h2>Recent completions</h2>
